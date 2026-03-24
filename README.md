@@ -1,34 +1,73 @@
-# Autolaunch Revenue and Emissions Contracts
+# Autolaunch Contracts
 
-This Foundry project is the Autolaunch revenue and emissions subproject inside the shared Regent contracts repo.
+This Foundry project is the canonical home for all Autolaunch Solidity work.
 
-It owns the subject registry, splitter, ingress, and emissions contracts. It does not own the older launch, auction, fee-hook, or AgentBook stack in this pass.
+It now contains the full launch stack and the revenue / emissions stack in one place.
 
-## Contract set
+## Active core architecture
 
+- External CCA factory with USDC quote token
+- `src/AgentLaunchToken.sol`
+- `src/LaunchDeploymentController.sol`
+- `src/LaunchFeeRegistry.sol`
+- `src/LaunchFeeVault.sol`
+- `src/LaunchPoolFeeHook.sol`
 - `src/revenue/SubjectRegistry.sol`
-  Canonical subject registry keyed by `bytes32 subjectId`.
 - `src/revenue/RevenueShareFactory.sol`
-  Deploys one splitter per subject and provisions the subject record.
 - `src/revenue/RevenueShareSplitter.sol`
-  Canonical subject-side staking and revenue splitter.
-- `src/revenue/RevenueIngressRouter.sol`
-  Direct payment path for cooperative senders.
-- `src/revenue/RevenueIngressAccount.sol`
-  Sweepable deposit address for invoice-style flows.
-- `src/revenue/RevenueIngressFactory.sol`
-  Deterministic ingress-account deployment.
 - `src/revenue/MainnetRegentEmissionsController.sol`
-  Mainnet-only REGENT emissions accounting keyed by recognized mainnet USDC.
+
+## Product rule
+
+- Only mainnet USDC that reaches the subject revsplit counts as recognized revenue.
+- The mainnet emissions controller is the active emissions rail for that recognized onchain state.
+
+## Optional or legacy rails kept in source
+
+- `src/revenue/RevenueIngressRouter.sol`
+- `src/revenue/RevenueIngressAccount.sol`
+- `src/revenue/RevenueIngressFactory.sol`
 - `src/revenue/RegentEmissionsDistributorV2.sol`
-  Merkle distributor kept for the current publisher rail.
 
-## Scope
+These remain in the package for optional flows, testing, and transition support, but they are not the core architecture story.
 
-- Recognize revenue only on Ethereum, only in USDC, and only after it reaches canonical ingress or the splitter.
-- Keep mainnet emissions accounting on chain.
-- Treat the Merkle distributor as the test and publisher rail, not the preferred mainnet rail.
-- Leave launch, auction, fee-hook, and AgentBook contracts out of this subproject.
+## Deployment helpers
+
+- `scripts/DeployAutolaunchInfra.s.sol`
+- `scripts/ExampleCCADeploymentScript.s.sol`
+- `scripts/DeployMainnetRegentEmissionsController.s.sol`
+- `scripts/DeployRegentEmissionsDistributor.s.sol`
+- `scripts/DeploySimpleMintableERC20.s.sol`
+
+Important script output markers stay unchanged:
+
+- `AUTOLAUNCH_INFRA_RESULT_JSON:`
+- `CCA_RESULT_JSON:`
+- `MAINNET_REGENT_EMISSIONS_RESULT_JSON:`
+
+## Test coverage
+
+Launch-side tests:
+
+- `test/AgentLaunchToken.t.sol`
+- `test/LaunchDeploymentController.t.sol`
+- `test/LaunchFeeVault.t.sol`
+- `test/LaunchPoolFeeHook.t.sol`
+- `test/ExampleCCADeploymentScript.t.sol`
+
+Revenue / emissions tests:
+
+- `test/RevenueShareSplitter.t.sol`
+- `test/MainnetRegentEmissionsController.t.sol`
+- `test/RegentEmissionsDistributorV2.t.sol`
+- `test/DeployMainnetRegentEmissionsControllerScript.t.sol`
+- `test/DeployRegentEmissionsDistributorScript.t.sol`
+
+## Working here
+
+- Put all Autolaunch Solidity contracts, Foundry scripts, and Foundry tests in this folder.
+- Put Autolaunch CLI work in `/Users/sean/Documents/regent/monorepo/regent-cli`.
+- Put Autolaunch Phoenix app work in `/Users/sean/Documents/regent/autolaunch`.
 
 ## Build and test
 
@@ -38,25 +77,9 @@ forge build
 forge test
 ```
 
-## Included deployment helpers
-
-- `scripts/DeployAutolaunchInfra.s.sol`
-- `scripts/DeployPublisherFixture.s.sol`
-- `scripts/DeployMainnetRegentEmissionsController.s.sol`
-- `scripts/DeployRegentEmissionsDistributor.s.sol`
-- `scripts/DeploySimpleMintableERC20.s.sol`
-
-## Included tests
-
-- `test/RevenueShareSplitter.t.sol`
-- `test/RegentEmissionsDistributorV2.t.sol`
-- `test/MainnetRegentEmissionsController.t.sol`
-- `test/DeployMainnetRegentEmissionsControllerScript.t.sol`
-- `test/DeployRegentEmissionsDistributorScript.t.sol`
-
 ## Further reading
 
+- `CONTRACTS.md`
 - `docs/ARCHITECTURE_GUIDE.md`
 - `docs/FOUNDRY_TESTING_GUIDE.md`
-- `CONTRACTS.md`
 - `REVENUE_SHARE_SPLITTER_SPEC.md`

@@ -1,31 +1,74 @@
 # Autolaunch Contracts Overview
 
-This subproject tells the Autolaunch revenue and emissions story:
+This package now covers the full Autolaunch contract system, from launch through ongoing revenue recognition and emissions.
 
-1. Create the canonical subject record in `SubjectRegistry`.
-2. Create the subject's `RevenueShareSplitter` and default ingress account.
-3. Route recognized Ethereum USDC into `RevenueShareSplitter`.
-4. Publish mainnet emissions through `MainnetRegentEmissionsController` once subject revenue has been credited on chain.
+## Core contracts
 
-## Current rules
+### Launch-side stack
 
-- Only recognize revenue on Ethereum, in USDC, after it reaches the canonical ingress and is swept into the splitter.
-- On mainnet, prefer the onchain emissions controller over the Merkle distributor.
-- Keep the revenue path hard-cut. Do not reintroduce the old rights-hub or vault story.
+- `AgentLaunchToken`
+  - the launched agent token with the fixed 100 billion supply convention used by the launch flow
+- `LaunchDeploymentController`
+  - assembles the launch stack in one call
+  - deploys the token, auction, fee plumbing, subject splitter, and default ingress account
+- `LaunchFeeRegistry`
+  - records the official pool configuration and recipients for each launch pool
+- `LaunchFeeVault`
+  - stores the hook-side fee balances until they are withdrawn
+- `LaunchPoolFeeHook`
+  - charges the 2% launch-pool fee
+  - 1% goes to the subject revenue lane
+  - 1% goes to the Regent side
 
-## Deployment helpers in this subproject
+### Revenue / emissions stack
 
-- `DeployAutolaunchInfra.s.sol` deploys the subject registry, splitter factory, ingress router, and ingress factory.
-- `DeployMainnetRegentEmissionsController.s.sol` deploys the mainnet emissions controller.
-- `DeployRegentEmissionsDistributor.s.sol` deploys the Merkle distributor rail.
-- `DeployPublisherFixture.s.sol` builds a local fixture for publisher and integration tests.
-- `DeploySimpleMintableERC20.s.sol` deploys a simple token for local or test use.
+- `SubjectRegistry`
+  - canonical record for each launched subject
+  - links the stake token, splitter, treasury safe, linked identities, and emission recipient
+- `RevenueShareFactory`
+  - deploys the revsplit for a subject and provisions the subject record
+- `RevenueShareSplitter`
+  - canonical revsplit and staking contract for the launched token
+  - only mainnet USDC that reaches this contract counts as recognized revenue
+- `MainnetRegentEmissionsController`
+  - mainnet emissions rail for recognized onchain USDC revenue
 
-## What this subproject does not contain
+## Optional or legacy rails kept in source
 
-- Launch auction deployment
-- Fee-hook deployment
-- Launch pool registry and vault
-- AgentBook or World ID contracts
+- `RevenueIngressRouter`
+- `RevenueIngressAccount`
+- `RevenueIngressFactory`
+- `RegentEmissionsDistributorV2`
 
-Those surfaces remain out of scope for this hard cut.
+These remain available, but they are not the main architecture story.
+
+## External dependencies
+
+- external CCA factory
+- ERC-8004 identity registry
+- USDC
+- Uniswap v4 pool manager
+
+## Deployment flow
+
+1. Deploy shared Autolaunch infra with `DeployAutolaunchInfra.s.sol`.
+2. Deploy the mainnet emissions controller with `DeployMainnetRegentEmissionsController.s.sol` when needed.
+3. Run `ExampleCCADeploymentScript.s.sol` to create a launch.
+4. The launch script returns the full stack through `CCA_RESULT_JSON:`.
+
+## What the launch script creates
+
+- agent token
+- auction
+- fee hook
+- fee vault
+- fee registry
+- subject registry link
+- revenue share splitter
+- default ingress account
+
+## Routing rules for the wider project
+
+- Autolaunch contracts live here: `/Users/sean/Documents/regent/contracts/autolaunch`
+- Autolaunch CLI work lives in: `/Users/sean/Documents/regent/monorepo/regent-cli`
+- Autolaunch Phoenix app work lives in: `/Users/sean/Documents/regent/autolaunch`

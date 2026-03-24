@@ -12,6 +12,7 @@ import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 contract DeployAutolaunchInfraScript is Script {
     struct ScriptConfig {
         address owner;
+        address usdc;
     }
 
     function deployFromEnv()
@@ -27,8 +28,8 @@ contract DeployAutolaunchInfraScript is Script {
 
         vm.startBroadcast();
         subjectRegistry = new SubjectRegistry(cfg.owner);
-        revenueShareFactory = new RevenueShareFactory(cfg.owner, subjectRegistry);
-        revenueIngressRouter = new RevenueIngressRouter(cfg.owner, subjectRegistry);
+        revenueShareFactory = new RevenueShareFactory(cfg.owner, cfg.usdc, subjectRegistry);
+        revenueIngressRouter = new RevenueIngressRouter(cfg.owner, cfg.usdc, subjectRegistry);
         revenueIngressFactory = new RevenueIngressFactory(cfg.owner);
         subjectRegistry.transferOwnership(address(revenueShareFactory));
         vm.stopBroadcast();
@@ -43,6 +44,8 @@ contract DeployAutolaunchInfraScript is Script {
                 vm.toString(address(revenueIngressRouter)),
                 "\",\"revenueIngressFactoryAddress\":\"",
                 vm.toString(address(revenueIngressFactory)),
+                "\",\"usdcAddress\":\"",
+                vm.toString(cfg.usdc),
                 "\",\"owner\":\"",
                 vm.toString(cfg.owner),
                 "\"}"
@@ -53,6 +56,9 @@ contract DeployAutolaunchInfraScript is Script {
     function _loadConfig() internal view returns (ScriptConfig memory cfg) {
         cfg.owner = _envAddressOr("AUTOLAUNCH_INFRA_OWNER", _envAddressOr("DEPLOYER", address(0)));
         require(cfg.owner != address(0), "OWNER_ZERO");
+
+        cfg.usdc = vm.envAddress("ETHEREUM_USDC_ADDRESS");
+        require(cfg.usdc != address(0), "USDC_ZERO");
     }
 
     function _envAddressOr(string memory key, address fallbackValue)

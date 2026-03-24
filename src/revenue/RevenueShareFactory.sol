@@ -6,6 +6,7 @@ import {RevenueShareSplitter} from "src/revenue/RevenueShareSplitter.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 
 contract RevenueShareFactory is Owned {
+    address public immutable usdc;
     SubjectRegistry public immutable subjectRegistry;
 
     mapping(address => address) public splitterOfStakeToken;
@@ -21,8 +22,10 @@ contract RevenueShareFactory is Owned {
         string label
     );
 
-    constructor(address owner_, SubjectRegistry subjectRegistry_) Owned(owner_) {
+    constructor(address owner_, address usdc_, SubjectRegistry subjectRegistry_) Owned(owner_) {
+        require(usdc_ != address(0), "USDC_ZERO");
         require(address(subjectRegistry_) != address(0), "REGISTRY_ZERO");
+        usdc = usdc_;
         subjectRegistry = subjectRegistry_;
     }
 
@@ -37,8 +40,10 @@ contract RevenueShareFactory is Owned {
         address emissionRecipient,
         uint16 protocolSkimBps,
         string calldata label,
-        address[] calldata initialRewardTokens
-    ) external onlyOwner returns (address splitter) {
+        uint256 identityChainId,
+        address identityRegistry,
+        uint256 identityAgentId
+    ) external returns (address splitter) {
         require(subjectId != bytes32(0), "SUBJECT_ZERO");
         require(stakeToken != address(0), "STAKE_TOKEN_ZERO");
         require(splitterOfStakeToken[stakeToken] == address(0), "SPLITTER_EXISTS_FOR_TOKEN");
@@ -48,17 +53,13 @@ contract RevenueShareFactory is Owned {
 
         RevenueShareSplitter deployed = new RevenueShareSplitter(
             stakeToken,
+            usdc,
             treasuryRecipient,
             protocolRecipient,
             protocolSkimBps,
             label,
             address(this)
         );
-
-        uint256 rewardTokenCount = initialRewardTokens.length;
-        for (uint256 i; i < rewardTokenCount; ++i) {
-            deployed.setAllowedRewardToken(initialRewardTokens[i], true);
-        }
 
         deployed.transferOwnership(splitterOwner);
 
@@ -69,6 +70,9 @@ contract RevenueShareFactory is Owned {
         subjectRegistry.createSubject(subjectId, stakeToken, splitter, treasurySafe, true, label);
         if (emissionChainId != 0 && emissionRecipient != address(0)) {
             subjectRegistry.setEmissionRecipient(subjectId, emissionChainId, emissionRecipient);
+        }
+        if (identityChainId != 0 && identityRegistry != address(0) && identityAgentId != 0) {
+            subjectRegistry.linkIdentity(subjectId, identityChainId, identityRegistry, identityAgentId);
         }
 
         emit SplitterDeployed(

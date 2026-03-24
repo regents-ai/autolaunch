@@ -1,19 +1,45 @@
-# Current Subject Revenue Path
+# RevenueShareSplitter Spec Note
 
-This note describes the revenue path owned by `contracts/autolaunch`.
+This note describes the revsplit inside the full Autolaunch contracts package.
 
-## Revenue path
+## Role in the system
 
-- `SubjectRegistry` stores the canonical subject record, identity links, and emission recipient.
-- `RevenueShareFactory` provisions the subject-side splitter.
-- `RevenueShareSplitter` is the current treasury recipient for recognized Ethereum USDC revenue.
-- `RevenueIngressAccount.sweepUSDC()` is the canonical recognition point for invoice-style agent revenue.
-- `RevenueIngressRouter` is the cooperative sender path for direct USDC deposits.
-- `MainnetRegentEmissionsController` is the preferred mainnet emissions contract once revenue is being credited on chain.
-- `RegentEmissionsDistributorV2` remains the current Sepolia and publisher distribution path.
+`RevenueShareSplitter` is the canonical revsplit and staking contract for a launched agent token.
 
-## What is not part of this subproject
+Inside the full Autolaunch architecture:
 
-- No rights-hub or Merkle revenue vault path.
-- No launch, auction, fee-hook, or AgentBook contracts.
-- No Base-specific emissions story.
+- `LaunchDeploymentController` creates the launch stack
+- `RevenueShareFactory` creates the revsplit
+- `SubjectRegistry` records the canonical subject
+- `MainnetRegentEmissionsController` sits on top of recognized onchain USDC revenue
+
+## Product rule
+
+- only mainnet USDC that reaches the revsplit counts as recognized revenue
+- the revsplit is therefore the canonical recognition point for the active architecture
+
+## Math rule
+
+For a recognized reward deposit `A`:
+
+- `protocol = floor(A * protocolSkimBps / 10_000)`
+- `net = A - protocol`
+- `deltaAcc += floor(net * PRECISION / totalSupply())`
+- `stakerEntitlement = floor(net * totalStaked / totalSupply())`
+- `treasuryResidual += net - stakerEntitlement`
+
+This matches the intended rule:
+
+> a staker earns stake / totalSupply of the post-skim inflow
+
+not stake / totalStaked.
+
+## Scope of this note
+
+This file only describes the revsplit behavior itself.
+
+The launch stack, fee-hook lane, and emissions controller all live in the same package now, but they are documented separately in:
+
+- `README.md`
+- `CONTRACTS.md`
+- `docs/ARCHITECTURE_GUIDE.md`
