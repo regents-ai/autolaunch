@@ -1,0 +1,26 @@
+[profile.default]
+src = "src"
+out = "out"
+script = "scripts"
+libs = ["lib"]
+solc = "0.8.26"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+verbosity = 2
+
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@uniswap/v4-core/=lib/v4-core/",
+]
+
+[rpc_endpoints]
+mainnet = "${ETH_MAINNET_RPC_URL}"
+sepolia = "${ETH_SEPOLIA_RPC_URL}"
+
+[fmt]
+line_length = 100
+tab_width = 4
+quote_style = "double"
+number_underscore = "thousands"
