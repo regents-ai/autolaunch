@@ -38,8 +38,8 @@ defmodule Autolaunch.LaunchQuoteTest do
         started_at: DateTime.utc_now(),
         ends_at: DateTime.add(DateTime.utc_now(), 86_400, :second),
         bidders: 12,
-        raised_currency: "112.93 ETH",
-        target_currency: "150 ETH",
+        raised_currency: "112.93 USDC",
+        target_currency: "150 USDC",
         progress_percent: 75
       })
       |> Repo.insert!()

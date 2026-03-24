@@ -15,9 +15,6 @@ defmodule Autolaunch.Launch.Job do
     field :recovery_safe_address, :string
     field :auction_proceeds_recipient, :string
     field :ethereum_revenue_treasury, :string
-    field :base_revenue_treasury, :string
-    field :tempo_revenue_treasury, :string
-    field :base_emission_recipient, :string
     field :network, :string, default: "ethereum-mainnet"
     field :chain_id, :integer, default: 1
     field :broadcast, :boolean, default: true
@@ -39,17 +36,15 @@ defmodule Autolaunch.Launch.Job do
     field :auction_address, :string
     field :token_address, :string
     field :hook_address, :string
-    field :registry_address, :string
-    field :rights_hub_address, :string
-    field :ethereum_vault_address, :string
-    field :base_vault_address, :string
-    field :tempo_vault_address, :string
-    field :regent_emissions_distributor_address, :string
+    field :launch_fee_registry_address, :string
+    field :launch_fee_vault_address, :string
+    field :subject_registry_address, :string
+    field :subject_id, :string
+    field :revenue_share_splitter_address, :string
     field :tx_hash, :string
     field :uniswap_url, :string
     field :stdout_tail, :string
     field :stderr_tail, :string
-    field :epoch_seconds, :integer, default: 259_200
     field :world_network, :string, default: "world"
     field :world_registered, :boolean, default: false
     field :world_human_id, :string
@@ -73,9 +68,6 @@ defmodule Autolaunch.Launch.Job do
       :recovery_safe_address,
       :auction_proceeds_recipient,
       :ethereum_revenue_treasury,
-      :base_revenue_treasury,
-      :tempo_revenue_treasury,
-      :base_emission_recipient,
       :network,
       :chain_id,
       :broadcast,
@@ -103,9 +95,6 @@ defmodule Autolaunch.Launch.Job do
       :recovery_safe_address,
       :auction_proceeds_recipient,
       :ethereum_revenue_treasury,
-      :base_revenue_treasury,
-      :tempo_revenue_treasury,
-      :base_emission_recipient,
       :network,
       :chain_id,
       :status,
@@ -126,12 +115,11 @@ defmodule Autolaunch.Launch.Job do
       :auction_address,
       :token_address,
       :hook_address,
-      :registry_address,
-      :rights_hub_address,
-      :ethereum_vault_address,
-      :base_vault_address,
-      :tempo_vault_address,
-      :regent_emissions_distributor_address,
+      :launch_fee_registry_address,
+      :launch_fee_vault_address,
+      :subject_registry_address,
+      :subject_id,
+      :revenue_share_splitter_address,
       :tx_hash,
       :uniswap_url,
       :stdout_tail,

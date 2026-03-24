@@ -6,6 +6,10 @@ interface MotionRoot extends HTMLElement {
   _missionMotionClick?: (event: Event) => void
 }
 
+interface CopyButton extends HTMLElement {
+  _copyResetTimer?: number
+}
+
 export const MissionMotion: Hook = {
   mounted() {
     const root = this.el as MotionRoot
@@ -37,6 +41,29 @@ export const MissionMotion: Hook = {
         if (value) {
           void navigator.clipboard.writeText(value)
         }
+
+        const button = copyButton as CopyButton
+        const originalLabel = button.dataset.copyLabel || button.textContent?.trim() || "Copy"
+
+        button.dataset.copyLabel = originalLabel
+        button.dataset.copyState = "copied"
+        button.textContent = "Copied"
+
+        animate(button, {
+          scale: [0.98, 1],
+          duration: 220,
+          ease: "outExpo",
+        })
+
+        if (button._copyResetTimer) {
+          window.clearTimeout(button._copyResetTimer)
+        }
+
+        button._copyResetTimer = window.setTimeout(() => {
+          button.dataset.copyState = "idle"
+          button.textContent = originalLabel
+        }, 1400)
+
         return
       }
 

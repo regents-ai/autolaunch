@@ -18,7 +18,8 @@ config :autolaunch, AutolaunchWeb.Endpoint,
 config :autolaunch, :launch,
   chain_id: 1,
   network: "ethereum-mainnet",
-  allow_unverified_owner: false
+  allow_unverified_owner: false,
+  deploy_script_target: ""
 
 config :esbuild,
   version: "0.25.4",
@@ -46,3 +47,4 @@ config :logger, :default_formatter,
 config :phoenix, :json_library, Jason
 
 import_config "#{config_env()}.exs"
+import_config "runtime.exs"

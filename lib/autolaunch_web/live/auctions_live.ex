@@ -64,6 +64,12 @@ defmodule AutolaunchWeb.AuctionsLive do
             Hottest is weighted toward recent bid velocity and recent volume so the market feels alive.
             Detail pages carry the deeper estimator and active/inactive thresholds.
           </p>
+
+          <div class="al-hero-actions">
+            <.link navigate={~p"/auctions/how-it-works"} class="al-cta-link">
+              How auctions work
+            </.link>
+          </div>
         </div>
 
         <div class="al-stat-grid">

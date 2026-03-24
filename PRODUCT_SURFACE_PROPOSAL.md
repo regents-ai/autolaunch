@@ -40,15 +40,17 @@ Step 1: choose an eligible agent
 
 Step 2: configure token
 
-- Name, symbol, chain, treasury address
+- Name, symbol, treasury address
+- Network is fixed to Ethereum mainnet and does not appear as a user choice
 - Explain: one token per agent
+- Explain: the auction sells 10% of the 100 billion supply and the treasury safe also receives the emissions lane
 - Show fee split inline: `2% trading fee -> 1% agent treasury + 1% Regent multisig`
 
 Step 3: review and sign
 
 - Agent summary
 - Token summary
-- Chain
+- Launch network
 - Risk / permanence notes
 - Expected next steps after queueing
 

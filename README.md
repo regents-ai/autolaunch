@@ -1,101 +1,111 @@
 # Autolaunch
 
-Standalone Phoenix LiveView app for `autolaunch.sh`, ported from Regent's legacy `/agentlaunch` surface.
+Autolaunch is the Phoenix LiveView app behind `autolaunch.sh`. It owns the launch flow, the public auction surface, AgentBook verification, and the SIWA-backed session path that connects browser auth to onchain actions.
 
-## Scope
+## Agents
 
-- Guided launch flow at `/launch`
-- Auction market at `/auctions`
-- Auction detail route at `/auctions/:id`
-- Positions route at `/positions`
-- Human proof flow at `/agentbook`
-- Privy browser login with Phoenix session exchange
-- SIWA sidecar proxy endpoints and wallet-signature verification
-- CCA readiness checks, launch job persistence, bid quoting, and positions
-- Public AgentBook registration and lookup flows
+Autolaunch is the browser and server layer for the launch product. It is not the contract source of truth and it does not own the CLI. The app reads deployment output from Regent contracts, then uses that data to drive launch jobs, bid quoting, and post-launch tracking.
 
-## Runtime env
+What this repo handles:
 
-- `DATABASE_URL` or `LOCAL_DATABASE_URL`
-- `SECRET_KEY_BASE`
-- `PHX_HOST`
-- `PORT`
-- `PRIVY_APP_ID`
-- `PRIVY_VERIFICATION_KEY`
-- `SIWA_INTERNAL_URL`
-- `SIWA_SHARED_SECRET`
-- `SIWA_HMAC_SECRET`
-- `ETH_MAINNET_RPC_URL`
-- `ETH_SEPOLIA_RPC_URL`
-- `ETH_MAINNET_FACTORY_ADDRESS` or `ETH_FACTORY_ADDRESS`
-- `ETH_MAINNET_UNISWAP_V4_POOL_MANAGER` or `ETH_UNISWAP_V4_POOL_MANAGER`
-- `ETH_MAINNET_USDC_ADDRESS`
-- `ETH_SEPOLIA_USDC_ADDRESS`
-- `REGENT_EMISSIONS_DISTRIBUTOR_ADDRESS`
-- `AUTOLAUNCH_DEPLOY_WORKDIR`
-- `AUTOLAUNCH_DEPLOY_BINARY`
-- `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`
-- `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
-- `AUTOLAUNCH_CHAIN_ID`
-- `AUTOLAUNCH_EPOCH_GENESIS_TS`
-- `AUTOLAUNCH_EPOCH_SECONDS`
-- `AUTOLAUNCH_PUBLISHER_ENABLED`
-- `AUTOLAUNCH_PUBLISHER_INTERVAL_MS`
-- `WORLD_ID_APP_ID`
-- `WORLD_ID_ACTION`
-- `WORLD_ID_RP_ID`
-- `WORLD_ID_SIGNING_KEY`
-- `WORLDCHAIN_RPC_URL`
-- `WORLDCHAIN_AGENTBOOK_ADDRESS`
-- `WORLDCHAIN_AGENTBOOK_RELAY_URL`
-- `BASE_MAINNET_RPC_URL`
-- `BASE_AGENTBOOK_ADDRESS`
-- `BASE_AGENTBOOK_RELAY_URL`
-- `BASE_SEPOLIA_RPC_URL`
-- `BASE_SEPOLIA_AGENTBOOK_ADDRESS`
-- `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
+- Public landing and auction explainer pages
+- Guided launch flow for new launches
+- Auction browsing, quoting, and bid lifecycle actions
+- AgentBook registration, lookup, and verification
+- Privy session exchange and SIWA verification
+- Launch job persistence and onchain launch tracking
 
-## Routes
+## Humans
 
-- `/`
-- `/launch`
-- `/auctions`
-- `/auctions/:id`
-- `/positions`
-- `/agentbook`
-- `/health`
-- `/api/auth/privy/session`
-- `/api/agents`
-- `/api/agents/:id`
-- `/api/agents/:id/readiness`
-- `/api/launch/preview`
-- `/api/launch/jobs`
-- `/api/launch/jobs/:id`
-- `/api/auctions`
-- `/api/auctions/:id`
-- `/api/auctions/:id/bid_quote`
-- `/api/auctions/:id/bids`
-- `/api/me/bids`
-- `/api/bids/:id/exit`
-- `/api/bids/:id/claim`
-- `/api/agentbook/sessions`
-- `/api/agentbook/sessions/:id`
-- `/api/agentbook/sessions/:id/submit`
-- `/api/agentbook/lookup`
-- `/api/agentbook/verify`
-- `/v1/agent/siwa/nonce`
-- `/v1/agent/siwa/verify`
+### Quick Start
 
-## Notes
+```bash
+cp .env.example .env
+mix setup
+mix phx.server
+```
 
-- This app uses LiveView as the source of truth for page state.
-- TypeScript is limited to Privy browser auth, wallet signing, and motion hooks.
-- The canonical CLI lives in [`regent-cli`](/Users/sean/Documents/regent/techtree/regent-cli) as `regent autolaunch ...`.
-- Public launches are Ethereum-only. The user does not choose a chain in the launch form. `AUTOLAUNCH_CHAIN_ID` decides whether the environment is mainnet (`1`) or Sepolia (`11155111`).
-- The launch worker expects the hard-cut `CCA_RESULT_JSON` payload with registry, rights hub, vault, and Base emissions addresses. It no longer reads the old fee-vault and pool-id payload.
-- Launch jobs now collect a recovery Safe, auction proceeds recipient, Ethereum revenue treasury, Base revenue treasury, Tempo revenue treasury, and Base emission recipient.
-- Revenue and emissions use fixed 72-hour epochs (`259200` seconds) from `AUTOLAUNCH_EPOCH_GENESIS_TS`.
-- The publisher worker is a separate background path. It stores epoch roots, revenue snapshots, and REGENT epoch records in app tables and is enabled with `AUTOLAUNCH_PUBLISHER_ENABLED=true`.
-- Tempo is present in the data model as a reserved routing seam only. It is not active in the v0.1 publisher flow.
-- The launch contracts are not defined in this repo. The canonical Solidity sources for the CCA deploy flow, hook ingress, revenue rights hub, revenue vaults, registry, and Base emissions distributor live in [`monorepo/contracts`](/Users/sean/Documents/regent/monorepo/contracts).
-- The launch worker is real-deploy by default; mock deploy is opt-in with `AUTOLAUNCH_MOCK_DEPLOY=true`.
+For day-to-day validation and asset work:
+
+```bash
+mix test
+mix precommit
+mix assets.build
+mix assets.deploy
+```
+
+If you need the launch docs that explain the public auction flow, start with [`AUTOLAUNCH_AUCTIONS_GUIDE.md`](AUTOLAUNCH_AUCTIONS_GUIDE.md).
+
+### What Runs Where
+
+The main LiveView and API routes are:
+
+- `/` and `/how-auctions-work` for the public home and auction explainer
+- `/launch` for the guided launch flow
+- `/auctions`, `/auctions/:id`, and `/positions` for auction and position views
+- `/agentbook` for the human proof flow
+- `/health` for readiness checks
+- `/v1/agent/siwa/nonce` and `/v1/agent/siwa/verify` for SIWA
+- `/api/auth/privy/session` for browser session exchange
+- `/api/agents`, `/api/launch/*`, `/api/auctions/*`, `/api/bids/*`, `/api/agentbook/*`, and `/api/ens/link/*` for the supporting JSON flows
+
+LiveView owns the page state. TypeScript stays in the browser-auth, wallet-signing, and motion layers.
+
+### Configuration
+
+The full environment list lives in [.env.example](.env.example). The important groups are:
+
+- App runtime: `DATABASE_URL` or `LOCAL_DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`
+- Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`
+- SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`, `SIWA_HMAC_SECRET`
+- Launch deployment: `ETH_MAINNET_RPC_URL`, `ETH_MAINNET_FACTORY_ADDRESS`, `ETH_MAINNET_UNISWAP_V4_POOL_MANAGER`, `ETH_MAINNET_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
+- Launch revenue infra: `REVENUE_SHARE_FACTORY_ADDRESS`, `SUBJECT_REGISTRY_ADDRESS`, `MAINNET_REGENT_EMISSIONS_CONTROLLER_ADDRESS`, `ERC8004_MAINNET_SUBGRAPH_URL`
+- AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
+
+The launch path is Ethereum mainnet only.
+
+### Launch Flow
+
+Autolaunch expects the hard-cut `CCA_RESULT_JSON` payload from the configured deployment script. Revenue and emissions contracts now live in the shared contracts repo under [`contracts/contracts/autolaunch`](../contracts/contracts/autolaunch).
+
+Important launch rules:
+
+- Each auction sells 10% of a 100 billion supply
+- Every auction is denominated in USDC on Ethereum mainnet
+- Launch buyers must stake the claimed tokens to earn revenue and token-fee share
+- Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
+- Recognized revenue is mainnet USDC only, and it only counts once it reaches the revsplit
+- The mainnet emissions controller finalizes epochs from that onchain state
+- The fee hook is the launch-side fee lane, while the revsplit is the ongoing revenue-rights lane
+- `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET` is required at runtime; there is no baked-in example deploy script target anymore
+- `config/runtime.exs` is the runtime environment path; `config/dev.exs` stays limited to dev-only browser tooling and reload support
+
+### Commands
+
+Run these from the repository root:
+
+```bash
+mix setup
+mix test
+mix precommit
+mix assets.build
+mix assets.deploy
+```
+
+The Phoenix aliases in `mix.exs` also include `ecto.reset` and the usual asset setup flow.
+
+### Repo Map
+
+- `lib/` - Phoenix app code, LiveView screens, launch logic, AgentBook logic, and SIWA support
+- `config/` - runtime, development, test, and release configuration
+- `priv/` - migrations, seed data, static assets, and gettext files
+- `test/` - unit, controller, and LiveView coverage
+- `AUTOLAUNCH_AUCTIONS_GUIDE.md` - public auction guide
+- `AUTOLAUNCH_PORT.md` - port and process notes
+- `PRODUCT_SURFACE_PROPOSAL.md` - product surface direction
+
+### External Dependencies
+
+- The canonical CLI lives in the standalone [`regent-ai/regent-cli`](https://github.com/regent-ai/regent-cli) repo, with the expected local checkout at `/Users/sean/Documents/regent/regent-cli`, as `regent autolaunch ...`
+- The Autolaunch revenue and emissions contracts live in [`contracts/contracts/autolaunch`](../contracts/contracts/autolaunch)
+- The public guide content for auctions lives in [`AUTOLAUNCH_AUCTIONS_GUIDE.md`](AUTOLAUNCH_AUCTIONS_GUIDE.md)

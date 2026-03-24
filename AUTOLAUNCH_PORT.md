@@ -8,7 +8,8 @@
 
 ## New Surface
 
-- `/` redirects to `/launch`
+- `/` is the public auction explainer and front door
+- `/how-auctions-work` is the direct explainer alias
 - `/launch` is the guided human launch wizard
 - `/auctions` is the live market surface
 - `/auctions/:id` is the bid detail + estimator surface
@@ -23,6 +24,7 @@
 - `/api/bids/:id/exit` and `/api/bids/:id/claim` update position state
 - `/api/auth/privy/session` bridges Privy bearer tokens into Phoenix session state
 - `/v1/agent/siwa/nonce` and `/v1/agent/siwa/verify` proxy to the SIWA sidecar
+- `AUTOLAUNCH_AUCTIONS_GUIDE.md` is the agent-facing text guide mirrored by the public explainer page
 
 ## Auth Model
 
@@ -52,6 +54,7 @@ Shared Regent policy tables read by readiness:
 ## Runtime Defaults
 
 - Hard cutover: no legacy compatibility routes
-- Default chain/network: Ethereum mainnet (`1`)
-- Only Ethereum mainnet and Ethereum Sepolia are supported
+- Launch network is fixed to Ethereum mainnet and is not user-selectable in the launch form.
 - Mock deploy path is disabled by default and only enabled when `AUTOLAUNCH_MOCK_DEPLOY=true`
+- Revenue counts only when mainnet USDC reaches the revsplit.
+- The mainnet emissions controller finalizes epochs from that onchain state.

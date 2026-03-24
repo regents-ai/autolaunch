@@ -63,7 +63,6 @@ defmodule Autolaunch.EnsLink do
          erc8004_fetcher: Map.get(attrs, "erc8004_fetcher") || Map.get(attrs, :erc8004_fetcher),
          erc8004_fetch_opts:
            Map.get(attrs, "erc8004_fetch_opts") || Map.get(attrs, :erc8004_fetch_opts),
-         publisher: Map.get(attrs, "publisher") || Map.get(attrs, :publisher),
          reverse_registrar:
            Map.get(attrs, "reverse_registrar") || Map.get(attrs, :reverse_registrar)
        }}

@@ -4,8 +4,6 @@ interface EthereumProvider {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>
 }
 
-type SupportedChainId = 1 | 11155111
-
 declare global {
   interface Window {
     ethereum?: EthereumProvider
@@ -52,15 +50,9 @@ function readForm(root: HTMLElement): Record<string, string | boolean> {
   }, {})
 }
 
-function parseSupportedChainId(value: string | undefined): SupportedChainId | null {
-  switch (value?.trim()) {
-    case "1":
-      return 1
-    case "11155111":
-      return 11155111
-    default:
-      return null
-  }
+function parseLaunchChainId(value: string | undefined): number | null {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed === 1 ? parsed : null
 }
 
 export const LaunchForm: Hook = {
@@ -84,9 +76,9 @@ export const LaunchForm: Hook = {
         const walletAddress = Array.isArray(accountResult) ? String(accountResult[0] || "") : ""
         if (!walletAddress) throw new Error("Wallet connection was cancelled.")
 
-        const chainId = parseSupportedChainId(submitButton.dataset.chainId)
+        const chainId = parseLaunchChainId(submitButton.dataset.launchChainId)
         if (!chainId) {
-          throw new Error("Launch chain is invalid for this environment. Refresh and try again.")
+          throw new Error("Launch network is unavailable. Refresh and try again.")
         }
         const nonceEndpoint = submitButton.dataset.nonceEndpoint || "/v1/agent/siwa/nonce"
         const launchEndpoint = submitButton.dataset.launchEndpoint || "/api/launch/jobs"
@@ -137,7 +129,6 @@ export const LaunchForm: Hook = {
           body: JSON.stringify({
             ...form,
             wallet_address: walletAddress,
-            chain_id: chainId,
             nonce: noncePayload.nonce,
             message,
             signature,

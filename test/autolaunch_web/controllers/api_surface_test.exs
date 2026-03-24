@@ -1,9 +1,9 @@
 defmodule AutolaunchWeb.ApiSurfaceTest do
   use AutolaunchWeb.ConnCase, async: true
 
-  test "root redirects to launch", %{conn: conn} do
+  test "root serves the public guide", %{conn: conn} do
     conn = get(conn, "/")
-    assert redirected_to(conn) == "/launch"
+    assert html_response(conn, 200) =~ "How autolaunch auctions work."
   end
 
   test "auction index returns JSON", %{conn: conn} do
@@ -21,10 +21,7 @@ defmodule AutolaunchWeb.ApiSurfaceTest do
         "token_symbol" => "AGENT",
         "recovery_safe_address" => "0x0000000000000000000000000000000000000001",
         "auction_proceeds_recipient" => "0x0000000000000000000000000000000000000001",
-        "ethereum_revenue_treasury" => "0x0000000000000000000000000000000000000001",
-        "base_revenue_treasury" => "0x0000000000000000000000000000000000000001",
-        "tempo_revenue_treasury" => "0x0000000000000000000000000000000000000001",
-        "base_emission_recipient" => "0x0000000000000000000000000000000000000001"
+        "ethereum_revenue_treasury" => "0x0000000000000000000000000000000000000001"
       })
 
     assert %{"ok" => false, "error" => %{"code" => "auth_required"}} = json_response(conn, 401)

@@ -4,173 +4,120 @@ if System.get_env("PHX_SERVER") do
   config :autolaunch, AutolaunchWeb.Endpoint, server: true
 end
 
-dotenv_values =
-  Path.expand("../.env", __DIR__)
-  |> File.read()
-  |> case do
-    {:ok, contents} ->
-      contents
-      |> String.split("\n")
-      |> Enum.reduce(%{}, fn line, acc ->
-        trimmed = String.trim(line)
-
-        cond do
-          trimmed == "" or String.starts_with?(trimmed, "#") ->
-            acc
-
-          true ->
-            case String.split(trimmed, "=", parts: 2) do
-              [key, value] ->
-                normalized =
-                  value
-                  |> String.trim()
-                  |> String.trim_leading("\"")
-                  |> String.trim_trailing("\"")
-                  |> String.trim_leading("'")
-                  |> String.trim_trailing("'")
-
-                Map.put(acc, String.trim(key), normalized)
-
-              _ ->
-                acc
-            end
-        end
-      end)
-
-    _ ->
-      %{}
-  end
-
-env_or_dotenv = fn key, default ->
-  System.get_env(key) || Map.get(dotenv_values, key, default)
+env = fn key, default ->
+  System.get_env(key) || default
 end
 
-config :autolaunch, AutolaunchWeb.Endpoint,
-  http: [port: String.to_integer(env_or_dotenv.("PORT", "4010"))]
+env_int = fn key, default ->
+  case Integer.parse(env.(key, Integer.to_string(default))) do
+    {parsed, ""} -> parsed
+    _ -> default
+  end
+end
 
-config :autolaunch, :privy,
-  app_id: env_or_dotenv.("PRIVY_APP_ID", ""),
-  verification_key: env_or_dotenv.("PRIVY_VERIFICATION_KEY", "")
+env_bool = fn key, default ->
+  env.(key, if(default, do: "true", else: "false")) in ["1", "true", "TRUE"]
+end
 
-config :autolaunch, :siwa,
-  internal_url: env_or_dotenv.("SIWA_INTERNAL_URL", "http://siwa-sidecar:4100"),
-  shared_secret: env_or_dotenv.("SIWA_SHARED_SECRET", ""),
-  http_connect_timeout_ms:
-    String.to_integer(env_or_dotenv.("SIWA_HTTP_CONNECT_TIMEOUT_MS", "2000")),
-  http_receive_timeout_ms:
-    String.to_integer(env_or_dotenv.("SIWA_HTTP_RECEIVE_TIMEOUT_MS", "5000")),
-  skip_http_verify: env_or_dotenv.("SIWA_SKIP_HTTP_VERIFY", "false") in ["1", "true", "TRUE"]
+if config_env() != :test do
+  if config_env() == :dev do
+    database_url = System.get_env("LOCAL_DATABASE_URL") || System.get_env("DATABASE_URL")
 
-config :autolaunch, :launch,
-  chain_id: String.to_integer(env_or_dotenv.("AUTOLAUNCH_CHAIN_ID", "1")),
-  allow_unverified_owner:
-    env_or_dotenv.("AUTOLAUNCH_ALLOW_UNVERIFIED_OWNER", "false") in ["1", "true", "TRUE"],
-  deploy_binary: env_or_dotenv.("AUTOLAUNCH_DEPLOY_BINARY", "forge"),
-  deploy_workdir: env_or_dotenv.("AUTOLAUNCH_DEPLOY_WORKDIR", ""),
-  deploy_script_target:
-    env_or_dotenv.(
-      "AUTOLAUNCH_DEPLOY_SCRIPT_TARGET",
-      "scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript"
-    ),
-  deploy_output_marker: env_or_dotenv.("AUTOLAUNCH_DEPLOY_OUTPUT_MARKER", "CCA_RESULT_JSON:"),
-  eth_mainnet_rpc_url:
-    env_or_dotenv.("ETH_MAINNET_RPC_URL", env_or_dotenv.("ETHEREUM_MAINNET_RPC_URL", "")),
-  eth_sepolia_rpc_url:
-    env_or_dotenv.("ETH_SEPOLIA_RPC_URL", env_or_dotenv.("ETHEREUM_SEPOLIA_RPC_URL", "")),
-  eth_mainnet_factory_address:
-    env_or_dotenv.(
-      "ETH_MAINNET_FACTORY_ADDRESS",
-      env_or_dotenv.(
-        "ETHEREUM_MAINNET_FACTORY_ADDRESS",
-        "0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5"
-      )
-    ),
-  eth_sepolia_factory_address:
-    env_or_dotenv.(
-      "ETH_SEPOLIA_FACTORY_ADDRESS",
-      env_or_dotenv.(
-        "ETHEREUM_SEPOLIA_FACTORY_ADDRESS",
-        "0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5"
-      )
-    ),
-  eth_mainnet_pool_manager_address:
-    env_or_dotenv.(
-      "ETH_MAINNET_UNISWAP_V4_POOL_MANAGER",
-      env_or_dotenv.("ETHEREUM_MAINNET_UNISWAP_V4_POOL_MANAGER", "")
-    ),
-  eth_sepolia_pool_manager_address:
-    env_or_dotenv.(
-      "ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER",
-      env_or_dotenv.("ETHEREUM_SEPOLIA_UNISWAP_V4_POOL_MANAGER", "")
-    ),
-  eth_mainnet_usdc_address:
-    env_or_dotenv.("ETH_MAINNET_USDC_ADDRESS", env_or_dotenv.("ETHEREUM_USDC_ADDRESS", "")),
-  eth_sepolia_usdc_address:
-    env_or_dotenv.("ETH_SEPOLIA_USDC_ADDRESS", env_or_dotenv.("ETHEREUM_SEPOLIA_USDC_ADDRESS", "")),
-  erc8004_mainnet_subgraph_url:
-    env_or_dotenv.(
-      "ERC8004_MAINNET_SUBGRAPH_URL",
-      env_or_dotenv.("ETH_MAINNET_ERC8004_SUBGRAPH_URL", "")
-    ),
-  erc8004_sepolia_subgraph_url:
-    env_or_dotenv.(
-      "ERC8004_SEPOLIA_SUBGRAPH_URL",
-      env_or_dotenv.("ETH_SEPOLIA_ERC8004_SUBGRAPH_URL", "")
-    ),
-  regent_multisig_address:
-    env_or_dotenv.("REGENT_MULTISIG_ADDRESS", "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"),
-  regent_emissions_distributor_address:
-    env_or_dotenv.("REGENT_EMISSIONS_DISTRIBUTOR_ADDRESS", ""),
-  deploy_account: env_or_dotenv.("AUTOLAUNCH_DEPLOY_ACCOUNT", ""),
-  deploy_password: env_or_dotenv.("AUTOLAUNCH_DEPLOY_PASSWORD", ""),
-  deploy_private_key: env_or_dotenv.("AUTOLAUNCH_DEPLOY_PRIVATE_KEY", ""),
-  mock_deploy:
-    env_or_dotenv.("AUTOLAUNCH_MOCK_DEPLOY", "false") in [
-      "1",
-      "true",
-      "TRUE"
-    ]
+    if is_binary(database_url) and String.trim(database_url) != "" do
+      config :autolaunch, Autolaunch.Repo,
+        url: database_url,
+        stacktrace: true,
+        show_sensitive_data_on_connection_error: true,
+        pool_size: 10
+    else
+      config :autolaunch, Autolaunch.Repo,
+        username:
+          System.get_env("DB_USER") || System.get_env("PGUSER") || System.get_env("USER") ||
+            "postgres",
+        password: System.get_env("DB_PASS") || System.get_env("PGPASSWORD") || "",
+        hostname: System.get_env("DB_HOST") || System.get_env("PGHOST") || "localhost",
+        port: env_int.("DB_PORT", 5432),
+        database: System.get_env("DB_NAME") || "autolaunch_dev",
+        stacktrace: true,
+        show_sensitive_data_on_connection_error: true,
+        pool_size: 10
+    end
 
-config :autolaunch, :publisher,
-  enabled: env_or_dotenv.("AUTOLAUNCH_PUBLISHER_ENABLED", "false") in ["1", "true", "TRUE"],
-  interval_ms: String.to_integer(env_or_dotenv.("AUTOLAUNCH_PUBLISHER_INTERVAL_MS", "300000")),
-  epoch_seconds: String.to_integer(env_or_dotenv.("AUTOLAUNCH_EPOCH_SECONDS", "259200")),
-  epoch_genesis_ts:
-    String.to_integer(env_or_dotenv.("AUTOLAUNCH_EPOCH_GENESIS_TS", "1700000000"))
+    config :autolaunch, AutolaunchWeb.Endpoint,
+      http: [ip: {127, 0, 0, 1}, port: env_int.("PORT", 4010)],
+      check_origin: false,
+      code_reloader: true,
+      debug_errors: true
+  else
+    config :autolaunch, AutolaunchWeb.Endpoint, http: [port: env_int.("PORT", 4010)]
+  end
 
-config :agent_world, :world_id,
-  app_id: env_or_dotenv.("WORLD_ID_APP_ID", ""),
-  action: env_or_dotenv.("WORLD_ID_ACTION", "agentbook-registration"),
-  rp_id: env_or_dotenv.("WORLD_ID_RP_ID", ""),
-  signing_key: env_or_dotenv.("WORLD_ID_SIGNING_KEY", ""),
-  ttl_seconds: String.to_integer(env_or_dotenv.("WORLD_ID_TTL_SECONDS", "300"))
+  config :autolaunch, :privy,
+    app_id: env.("PRIVY_APP_ID", ""),
+    verification_key: env.("PRIVY_VERIFICATION_KEY", "")
 
-config :agent_world, :networks, %{
-  "world" => %{
-    rpc_url: env_or_dotenv.("WORLDCHAIN_RPC_URL", env_or_dotenv.("WORLD_RPC_URL", "")),
-    contract_address:
-      env_or_dotenv.(
-        "WORLDCHAIN_AGENTBOOK_ADDRESS",
-        env_or_dotenv.("WORLD_AGENTBOOK_ADDRESS", "0xA23aB2712eA7BBa896930544C7d6636a96b944dA")
-      ),
-    relay_url: env_or_dotenv.("WORLDCHAIN_AGENTBOOK_RELAY_URL", "")
-  },
-  "base" => %{
-    rpc_url: env_or_dotenv.("BASE_MAINNET_RPC_URL", env_or_dotenv.("BASE_RPC_URL", "")),
-    contract_address:
-      env_or_dotenv.("BASE_AGENTBOOK_ADDRESS", "0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4"),
-    relay_url: env_or_dotenv.("BASE_AGENTBOOK_RELAY_URL", "")
-  },
-  "base-sepolia" => %{
-    rpc_url: env_or_dotenv.("BASE_SEPOLIA_RPC_URL", ""),
-    contract_address:
-      env_or_dotenv.(
-        "BASE_SEPOLIA_AGENTBOOK_ADDRESS",
-        "0xA23aB2712eA7BBa896930544C7d6636a96b944dA"
-      ),
-    relay_url: env_or_dotenv.("BASE_SEPOLIA_AGENTBOOK_RELAY_URL", "")
+  config :autolaunch, :siwa,
+    internal_url: env.("SIWA_INTERNAL_URL", "http://siwa-sidecar:4100"),
+    shared_secret: env.("SIWA_SHARED_SECRET", ""),
+    http_connect_timeout_ms: env_int.("SIWA_HTTP_CONNECT_TIMEOUT_MS", 2_000),
+    http_receive_timeout_ms: env_int.("SIWA_HTTP_RECEIVE_TIMEOUT_MS", 5_000),
+    skip_http_verify: env_bool.("SIWA_SKIP_HTTP_VERIFY", false)
+
+  config :autolaunch, :launch,
+    chain_id: 1,
+    allow_unverified_owner: env_bool.("AUTOLAUNCH_ALLOW_UNVERIFIED_OWNER", false),
+    deploy_binary: env.("AUTOLAUNCH_DEPLOY_BINARY", "forge"),
+    deploy_workdir: env.("AUTOLAUNCH_DEPLOY_WORKDIR", ""),
+    deploy_script_target: env.("AUTOLAUNCH_DEPLOY_SCRIPT_TARGET", ""),
+    deploy_output_marker: env.("AUTOLAUNCH_DEPLOY_OUTPUT_MARKER", "CCA_RESULT_JSON:"),
+    eth_mainnet_rpc_url: env.("ETH_MAINNET_RPC_URL", ""),
+    eth_mainnet_factory_address:
+      env.("ETH_MAINNET_FACTORY_ADDRESS", "0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5"),
+    eth_mainnet_pool_manager_address: env.("ETH_MAINNET_UNISWAP_V4_POOL_MANAGER", ""),
+    eth_mainnet_usdc_address: env.("ETH_MAINNET_USDC_ADDRESS", ""),
+    revenue_share_factory_address: env.("REVENUE_SHARE_FACTORY_ADDRESS", ""),
+    subject_registry_address: env.("SUBJECT_REGISTRY_ADDRESS", ""),
+    mainnet_regent_emissions_controller_address:
+      env.("MAINNET_REGENT_EMISSIONS_CONTROLLER_ADDRESS", ""),
+    erc8004_mainnet_subgraph_url: env.("ERC8004_MAINNET_SUBGRAPH_URL", ""),
+    regent_multisig_address:
+      env.("REGENT_MULTISIG_ADDRESS", "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"),
+    deploy_account: env.("AUTOLAUNCH_DEPLOY_ACCOUNT", ""),
+    deploy_password: env.("AUTOLAUNCH_DEPLOY_PASSWORD", ""),
+    deploy_private_key: env.("AUTOLAUNCH_DEPLOY_PRIVATE_KEY", ""),
+    mock_deploy: env_bool.("AUTOLAUNCH_MOCK_DEPLOY", false)
+
+  config :agent_world, :world_id,
+    app_id: env.("WORLD_ID_APP_ID", ""),
+    action: env.("WORLD_ID_ACTION", "agentbook-registration"),
+    rp_id: env.("WORLD_ID_RP_ID", ""),
+    signing_key: env.("WORLD_ID_SIGNING_KEY", ""),
+    ttl_seconds: env_int.("WORLD_ID_TTL_SECONDS", 300)
+
+  config :agent_world, :networks, %{
+    "world" => %{
+      rpc_url: env.("WORLDCHAIN_RPC_URL", ""),
+      contract_address:
+        env.("WORLDCHAIN_AGENTBOOK_ADDRESS", "0xA23aB2712eA7BBa896930544C7d6636a96b944dA"),
+      relay_url: env.("WORLDCHAIN_AGENTBOOK_RELAY_URL", "")
+    },
+    "base" => %{
+      rpc_url: env.("BASE_MAINNET_RPC_URL", ""),
+      contract_address:
+        env.("BASE_AGENTBOOK_ADDRESS", "0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4"),
+      relay_url: env.("BASE_AGENTBOOK_RELAY_URL", "")
+    },
+    "base-sepolia" => %{
+      rpc_url: env.("BASE_SEPOLIA_RPC_URL", ""),
+      contract_address:
+        env.(
+          "BASE_SEPOLIA_AGENTBOOK_ADDRESS",
+          "0xA23aB2712eA7BBa896930544C7d6636a96b944dA"
+        ),
+      relay_url: env.("BASE_SEPOLIA_AGENTBOOK_RELAY_URL", "")
+    }
   }
-}
+end
 
 if config_env() == :prod do
   database_url =
@@ -195,6 +142,6 @@ if config_env() == :prod do
 
   config :autolaunch, AutolaunchWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
-    http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}],
+    http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: env_int.("PORT", 4010)],
     secret_key_base: secret_key_base
 end

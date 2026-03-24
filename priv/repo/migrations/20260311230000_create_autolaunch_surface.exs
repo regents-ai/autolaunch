@@ -19,9 +19,12 @@ defmodule Autolaunch.Repo.Migrations.CreateAutolaunchSurface do
       add :owner_address, :string, null: false
       add :agent_id, :string, null: false
       add :agent_name, :string
+      add :ens_name, :string
       add :token_name, :string
       add :token_symbol, :string
-      add :treasury_address, :string
+      add :recovery_safe_address, :string, null: false
+      add :auction_proceeds_recipient, :string, null: false
+      add :ethereum_revenue_treasury, :string, null: false
       add :network, :string, null: false, default: "ethereum-mainnet"
       add :chain_id, :integer, null: false, default: 1
       add :broadcast, :boolean, null: false, default: true
@@ -31,7 +34,6 @@ defmodule Autolaunch.Repo.Migrations.CreateAutolaunchSurface do
       add :launch_notes, :text
       add :total_supply, :text, null: false
       add :lifecycle_run_id, :string
-      add :vesting_beneficiary, :string, null: false
       add :message, :text, null: false
       add :siwa_nonce, :string, null: false
       add :siwa_signature, :text, null: false
@@ -43,10 +45,19 @@ defmodule Autolaunch.Repo.Migrations.CreateAutolaunchSurface do
       add :rpc_host, :string
       add :auction_address, :string
       add :token_address, :string
+      add :hook_address, :string
+      add :launch_fee_registry_address, :string
+      add :launch_fee_vault_address, :string
+      add :subject_registry_address, :string
+      add :subject_id, :string
+      add :revenue_share_splitter_address, :string
       add :tx_hash, :string
       add :uniswap_url, :text
       add :stdout_tail, :text
       add :stderr_tail, :text
+      add :world_network, :string, null: false, default: "world"
+      add :world_registered, :boolean, null: false, default: false
+      add :world_human_id, :string
       add :started_at, :utc_datetime_usec
       add :finished_at, :utc_datetime_usec
 
@@ -56,6 +67,7 @@ defmodule Autolaunch.Repo.Migrations.CreateAutolaunchSurface do
     create index(:autolaunch_jobs, [:owner_address])
     create index(:autolaunch_jobs, [:status])
     create index(:autolaunch_jobs, [:agent_id])
+    create index(:autolaunch_jobs, [:world_human_id])
     create unique_index(:autolaunch_jobs, [:siwa_nonce], name: :autolaunch_jobs_nonce_unique)
 
     create table(:autolaunch_auctions) do
@@ -78,6 +90,10 @@ defmodule Autolaunch.Repo.Migrations.CreateAutolaunchSurface do
       add :metrics_updated_at, :utc_datetime_usec
       add :notes, :text
       add :uniswap_url, :text
+      add :ens_name, :string
+      add :world_network, :string, null: false, default: "world"
+      add :world_registered, :boolean, null: false, default: false
+      add :world_human_id, :string
 
       timestamps(type: :utc_datetime_usec)
     end
@@ -85,6 +101,7 @@ defmodule Autolaunch.Repo.Migrations.CreateAutolaunchSurface do
     create index(:autolaunch_auctions, [:owner_address])
     create index(:autolaunch_auctions, [:status])
     create index(:autolaunch_auctions, [:ends_at])
+    create index(:autolaunch_auctions, [:world_human_id])
 
     create unique_index(:autolaunch_auctions, [:network, :auction_address],
              name: :autolaunch_auctions_network_address_unique

@@ -33,16 +33,9 @@ defmodule AutolaunchWeb.LaunchLive do
         readiness =
           launch_module().launch_readiness_for_agent(socket.assigns.current_human, agent.agent_id)
 
-        selected_chain_id =
-          case List.first(agent.supported_chains) do
-            %{id: id} -> id
-            _ -> socket.assigns.form["chain_id"]
-          end
-
         form =
           socket.assigns.form
           |> Map.put("agent_id", agent.agent_id)
-          |> Map.put("chain_id", selected_chain_id)
 
         {:noreply,
          socket
@@ -141,25 +134,126 @@ defmodule AutolaunchWeb.LaunchLive do
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
-      <section id="launch-hero" class="al-hero al-panel" phx-hook="MissionMotion">
-        <div>
-          <p class="al-kicker">Guided Launch</p>
-          <h2>Choose a launchable agent before you touch token settings.</h2>
+      <section id="launch-hero" class="al-hero al-launch-hero al-panel" phx-hook="MissionMotion">
+        <div class="al-launch-copy">
+          <p class="al-kicker">Autolaunch</p>
+          <h2>Launch Regent agent coins and CCAs from one guided surface.</h2>
           <p class="al-subcopy">
-            The launch path starts with ERC-8004 eligibility because one identity can create only one
-            Agent Coin. Token inputs appear only after the identity is cleared.
+            Autolaunch is not for memecoins. These are onchain revenue tokens that give owners a
+            share of an agent&apos;s x402 and MPP income. Agents launch through the CLI wizard: paste
+            the command, start the flow, then use the guided launch steps below to choose the
+            agent, set the economics, and queue the Ethereum mainnet deployment.
+          </p>
+
+          <div class="al-hero-actions">
+            <button
+              type="button"
+              class="al-cta-link al-cta-link--primary"
+              data-copy-value={launch_hero_command()}
+            >
+              Agents launch through CLI wizard, paste command curl &lt;skill...&gt; to start
+            </button>
+            <a class="al-cta-link" href="https://github.com/regent-ai/monorepo" target="_blank" rel="noreferrer">Star on Github</a>
+            <a class="al-cta-link al-cta-link--quiet" href="#launch-wizard">Jump to wizard</a>
+          </div>
+
+          <div class="al-launch-tags" aria-label="Launch themes">
+            <span class="al-launch-tag">ERC-8004 identity</span>
+            <span class="al-launch-tag">CCA launch</span>
+            <span class="al-launch-tag">Ethereum USDC revenue</span>
+          </div>
+
+          <div class="al-stat-grid al-launch-stats">
+            <.stat_card title="Launch path" value="Wizard + live queue" hint="Choose an agent, review, sign, and queue" />
+            <.stat_card title="Eligible agents" value={Integer.to_string(@eligible_count)} hint="Owner or operator access" />
+            <.stat_card title="Fee split" value="2% total" hint={@fee_split.headline} />
+          </div>
+        </div>
+
+        <aside class="al-terminal-panel" aria-label="Launch command preview">
+          <div class="al-terminal-shell">
+            <div class="al-terminal-topbar">
+              <div class="al-terminal-dots" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div>
+                <p class="al-kicker">Launch command</p>
+                <p class="al-terminal-title">Curl-style CCA start</p>
+              </div>
+              <button
+                type="button"
+                class="al-copy-trigger"
+                data-copy-value={launch_hero_command()}
+              >
+                Copy command
+              </button>
+            </div>
+
+            <pre class="al-terminal-command"><code>{launch_hero_command()}</code></pre>
+
+            <div class="al-terminal-output">
+              <p class="al-terminal-output-label">Output</p>
+              <pre><code>{launch_hero_transcript()}</code></pre>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section
+        id="launch-onboard"
+        class="al-launch-onboard al-panel"
+        phx-hook="MissionMotion"
+        aria-label="Before you launch"
+      >
+        <div class="al-onboard-summary">
+          <p class="al-kicker">Before you launch</p>
+          <h3>The first pass should feel short, not mysterious.</h3>
+          <p class="al-subcopy">
+            Connect the right wallet, confirm where revenue should route, then sign once. The
+            optional trust step stays out of the way until the launch is already queued.
           </p>
         </div>
 
-        <div class="al-stat-grid">
-          <.stat_card title="Eligible agents" value={Integer.to_string(@eligible_count)} hint="Owner or operator access" />
-          <.stat_card title="Fee split" value="2% total" hint="1% agent revenue + 1% Regent/protocol" />
-          <.stat_card title="Write path" value="Privy + SIWA" hint="Safe-first launch approval" />
+        <div class="al-onboard-grid">
+          <article class="al-onboard-card">
+            <p class="al-onboard-mark">01</p>
+            <strong>Bring the ERC-8004 wallet that can actually launch.</strong>
+            <p>
+              Autolaunch checks owner and operator access. Wallet-bound identities can be viewed,
+              but they cannot start a CCA by themselves.
+            </p>
+          </article>
+
+          <article class="al-onboard-card">
+            <p class="al-onboard-mark">02</p>
+            <strong>Set the treasury lanes once, then review the economics.</strong>
+            <p>
+              The wizard pre-fills addresses from your connected wallet so the first launch is
+              mostly confirmation, not retyping. The treasury safe also becomes the emissions
+              recipient for the subject.
+            </p>
+          </article>
+
+          <article class="al-onboard-card">
+            <p class="al-onboard-mark">03</p>
+            <strong>Expect one signature, one queue, then a live auction page.</strong>
+            <p>
+              After the deploy script returns the launch, fee, and revsplit addresses, the auction
+              shows up in the listing flow automatically.
+            </p>
+          </article>
         </div>
       </section>
 
-      <section class="al-wizard-layout">
+      <section id="launch-wizard" class="al-wizard-layout">
         <article class="al-panel al-main-panel">
+          <div class="al-step-intro">
+            Five short stages: choose the identity, confirm routing, sign the launch, optionally
+            finish trust setup, then watch the queue turn into a live auction.
+          </div>
+
           <div class="al-step-row">
             <.step_chip index={1} label="Choose agent" active={@step == 1} complete={@step > 1} />
             <.step_chip index={2} label="Configure token" active={@step == 2} complete={@step > 2} />
@@ -267,7 +361,7 @@ defmodule AutolaunchWeb.LaunchLive do
             <div class="al-section-head">
               <div>
                 <p class="al-kicker">Step 2</p>
-                <h3>Configure launch routing</h3>
+                <h3>Configure launch details</h3>
               </div>
             </div>
 
@@ -311,33 +405,6 @@ defmodule AutolaunchWeb.LaunchLive do
                   />
                 </label>
                 <label>
-                  <span>Base revenue treasury</span>
-                  <input
-                    type="text"
-                    name="launch[base_revenue_treasury]"
-                    value={@form["base_revenue_treasury"]}
-                    placeholder="0x..."
-                  />
-                </label>
-                <label>
-                  <span>Tempo revenue treasury</span>
-                  <input
-                    type="text"
-                    name="launch[tempo_revenue_treasury]"
-                    value={@form["tempo_revenue_treasury"]}
-                    placeholder="0x..."
-                  />
-                </label>
-                <label>
-                  <span>Base emission recipient</span>
-                  <input
-                    type="text"
-                    name="launch[base_emission_recipient]"
-                    value={@form["base_emission_recipient"]}
-                    placeholder="0x..."
-                  />
-                </label>
-                <label>
                   <span>Total supply</span>
                   <input type="text" name="launch[total_supply]" value={@form["total_supply"]} />
                 </label>
@@ -352,8 +419,9 @@ defmodule AutolaunchWeb.LaunchLive do
             <div class="al-inline-banner">
               <strong>{@fee_split.headline}</strong>
               <p>
-                Launch runs on Ethereum. Authorized revenue is normalized into USDC, published on
-                72-hour epochs, and the unstaked share routes to the configured agent treasury.
+                Launch runs on Ethereum mainnet only. Recognized revenue means mainnet USDC that
+                reaches the revsplit, and the treasury safe doubles as the emissions recipient for
+                onchain REGENT accounting.
               </p>
             </div>
 
@@ -375,13 +443,9 @@ defmodule AutolaunchWeb.LaunchLive do
               <input type="hidden" name="launch[agent_id]" value={@form["agent_id"]} />
               <input type="hidden" name="launch[token_name]" value={@form["token_name"]} />
               <input type="hidden" name="launch[token_symbol]" value={@form["token_symbol"]} />
-              <input type="hidden" name="launch[chain_id]" value={@form["chain_id"]} />
               <input type="hidden" name="launch[recovery_safe_address]" value={@form["recovery_safe_address"]} />
               <input type="hidden" name="launch[auction_proceeds_recipient]" value={@form["auction_proceeds_recipient"]} />
               <input type="hidden" name="launch[ethereum_revenue_treasury]" value={@form["ethereum_revenue_treasury"]} />
-              <input type="hidden" name="launch[base_revenue_treasury]" value={@form["base_revenue_treasury"]} />
-              <input type="hidden" name="launch[tempo_revenue_treasury]" value={@form["tempo_revenue_treasury"]} />
-              <input type="hidden" name="launch[base_emission_recipient]" value={@form["base_emission_recipient"]} />
               <input type="hidden" name="launch[total_supply]" value={@form["total_supply"]} />
               <textarea class="hidden" name="launch[launch_notes]"><%= @form["launch_notes"] %></textarea>
 
@@ -397,14 +461,14 @@ defmodule AutolaunchWeb.LaunchLive do
                   <p>{@preview && @preview.token.symbol}</p>
                 </div>
                 <div class="al-review-card">
-                  <span>Launch chain</span>
+                  <span>Launch network</span>
                   <strong>{@preview && @preview.token.chain_label}</strong>
                   <p>Recovery Safe {@preview && short_address(@preview.token.recovery_safe_address)}</p>
                 </div>
                 <div class="al-review-card">
                   <span>Revenue routing</span>
-                  <strong>ETH {@preview && short_address(@preview.token.ethereum_revenue_treasury)}</strong>
-                  <p>Base emissions {@preview && short_address(@preview.token.base_emission_recipient)}</p>
+                  <strong>USDC revsplit {@preview && short_address(@preview.token.ethereum_revenue_treasury)}</strong>
+                  <p>Treasury safe also receives the emissions lane.</p>
                 </div>
               </div>
 
@@ -441,7 +505,7 @@ defmodule AutolaunchWeb.LaunchLive do
                   type="button"
                   class={["al-submit", @launching && "is-disabled"]}
                   data-launch-submit
-                  data-chain-id={@form["chain_id"]}
+                  data-launch-chain-id={@preview && @preview.token.chain_id}
                   data-launch-endpoint={~p"/api/launch/jobs"}
                   data-nonce-endpoint="/v1/agent/siwa/nonce"
                   disabled={@launching}
@@ -547,8 +611,9 @@ defmodule AutolaunchWeb.LaunchLive do
                   <p class="al-kicker">Timeline</p>
                   <ul class="al-compact-list">
                     <li>Queued for launch orchestration.</li>
-                    <li>Waiting for the deploy script to return registry, rights hub, and vault addresses.</li>
+                    <li>Waiting for the deploy script to return the launch, fee, and revsplit addresses.</li>
                     <li :if={@current_job.auction}>Auction page becomes available after deployment.</li>
+                    <li :if={@current_job.job.status == "ready"}>Bought tokens still need to be staked before they earn revenue.</li>
                   </ul>
                 </article>
 
@@ -573,8 +638,8 @@ defmodule AutolaunchWeb.LaunchLive do
 
                 <article
                   :if={
-                    @current_job.job.hook_address || @current_job.job.registry_address ||
-                      @current_job.job.rights_hub_address || @current_job.job.ethereum_vault_address
+                    @current_job.job.hook_address || @current_job.job.launch_fee_registry_address ||
+                      @current_job.job.revenue_share_splitter_address
                   }
                   class="al-note-card"
                 >
@@ -583,14 +648,20 @@ defmodule AutolaunchWeb.LaunchLive do
                     <li :if={@current_job.job.hook_address}>
                       Hook: <strong>{@current_job.job.hook_address}</strong>
                     </li>
-                    <li :if={@current_job.job.registry_address}>
-                      Agent registry: <strong>{@current_job.job.registry_address}</strong>
+                    <li :if={@current_job.job.launch_fee_registry_address}>
+                      Launch fee registry: <strong>{@current_job.job.launch_fee_registry_address}</strong>
                     </li>
-                    <li :if={@current_job.job.rights_hub_address}>
-                      Rights hub: <strong>{@current_job.job.rights_hub_address}</strong>
+                    <li :if={@current_job.job.launch_fee_vault_address}>
+                      Launch fee vault: <strong>{@current_job.job.launch_fee_vault_address}</strong>
                     </li>
-                    <li :if={@current_job.job.ethereum_vault_address}>
-                      Ethereum vault: <strong>{@current_job.job.ethereum_vault_address}</strong>
+                    <li :if={@current_job.job.subject_registry_address}>
+                      Subject registry: <strong>{@current_job.job.subject_registry_address}</strong>
+                    </li>
+                    <li :if={@current_job.job.subject_id}>
+                      Subject ID: <strong>{@current_job.job.subject_id}</strong>
+                    </li>
+                    <li :if={@current_job.job.revenue_share_splitter_address}>
+                      Revenue splitter: <strong>{@current_job.job.revenue_share_splitter_address}</strong>
                     </li>
                   </ul>
                 </article>
@@ -651,13 +722,9 @@ defmodule AutolaunchWeb.LaunchLive do
       "agent_id" => nil,
       "token_name" => "",
       "token_symbol" => "",
-      "chain_id" => Integer.to_string(default_chain_id()),
       "recovery_safe_address" => "",
       "auction_proceeds_recipient" => "",
       "ethereum_revenue_treasury" => "",
-      "base_revenue_treasury" => "",
-      "tempo_revenue_treasury" => "",
-      "base_emission_recipient" => "",
       "total_supply" => "100000000000000000000000000000",
       "launch_notes" => ""
     }
@@ -668,9 +735,6 @@ defmodule AutolaunchWeb.LaunchLive do
     |> Map.put("recovery_safe_address", current_human.wallet_address || "")
     |> Map.put("auction_proceeds_recipient", current_human.wallet_address || "")
     |> Map.put("ethereum_revenue_treasury", current_human.wallet_address || "")
-    |> Map.put("base_revenue_treasury", current_human.wallet_address || "")
-    |> Map.put("tempo_revenue_treasury", current_human.wallet_address || "")
-    |> Map.put("base_emission_recipient", current_human.wallet_address || "")
   end
 
   defp max_available_step(socket) do
@@ -694,10 +758,12 @@ defmodule AutolaunchWeb.LaunchLive do
 
   defp preview_error(:token_name_required), do: "Token name is required."
   defp preview_error(:token_symbol_required), do: "Token symbol is required."
-  defp preview_error(:invalid_wallet_address), do: "Each launch recipient must be a valid EVM address."
+
+  defp preview_error(:invalid_wallet_address),
+    do: "Each launch recipient must be a valid EVM address."
 
   defp preview_error(:invalid_chain_id),
-    do: "Launch network is fixed by environment."
+    do: "Launch network is not configured."
 
   defp preview_error(:agent_not_found), do: "Select an eligible agent first."
   defp preview_error(_reason), do: "Launch preview could not be prepared."
@@ -757,9 +823,30 @@ defmodule AutolaunchWeb.LaunchLive do
   defp reputation_action_cta(%{key: "world"}), do: "Open World proof"
   defp reputation_action_cta(_action), do: "Open"
 
-  defp default_chain_id do
-    :autolaunch
-    |> Application.get_env(:launch, [])
-    |> Keyword.get(:chain_id, 1)
+  defp launch_hero_command do
+    """
+    curl -X POST "https://autolaunch.sh/api/launch/jobs" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer <privy-session>" \
+      -d '{
+        "agent_id": "erc-8004:0x...",
+        "token_name": "Regent Agent Coin",
+        "token_symbol": "RGT",
+        "recovery_safe_address": "0x...",
+        "auction_proceeds_recipient": "0x...",
+        "ethereum_revenue_treasury": "0x..."
+      }'
+    """
+    |> String.trim()
+  end
+
+  defp launch_hero_transcript do
+    """
+    > agent verified
+    > economics previewed
+    > launch queued
+    > auction appears in /auctions
+    """
+    |> String.trim()
   end
 end

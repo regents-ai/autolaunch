@@ -27,12 +27,6 @@ defmodule AutolaunchWeb.SurfaceLiveTest do
       ]
     end
 
-    def chain_options do
-      [
-        %{id: 1, label: "Ethereum Mainnet", short_label: "Ethereum"}
-      ]
-    end
-
     def fee_split_summary do
       %{
         headline:
@@ -61,13 +55,11 @@ defmodule AutolaunchWeb.SurfaceLiveTest do
          token: %{
            name: "Atlas Coin",
            symbol: "ATLAS",
+           chain_id: 1,
            chain_label: "Ethereum Mainnet",
            recovery_safe_address: "0x1111111111111111111111111111111111111111",
            auction_proceeds_recipient: "0x1111111111111111111111111111111111111111",
-           ethereum_revenue_treasury: "0x1111111111111111111111111111111111111111",
-           base_revenue_treasury: "0x1111111111111111111111111111111111111111",
-           tempo_revenue_treasury: "0x1111111111111111111111111111111111111111",
-           base_emission_recipient: "0x1111111111111111111111111111111111111111"
+           ethereum_revenue_treasury: "0x1111111111111111111111111111111111111111"
          },
          next_steps: [
            "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
@@ -185,17 +177,14 @@ defmodule AutolaunchWeb.SurfaceLiveTest do
 
     view
     |> form("form", %{
-        "launch" => %{
-          "token_name" => "Atlas Coin",
-          "token_symbol" => "ATLAS",
-          "recovery_safe_address" => "0x1111111111111111111111111111111111111111",
-          "auction_proceeds_recipient" => "0x1111111111111111111111111111111111111111",
-          "ethereum_revenue_treasury" => "0x1111111111111111111111111111111111111111",
-          "base_revenue_treasury" => "0x1111111111111111111111111111111111111111",
-          "tempo_revenue_treasury" => "0x1111111111111111111111111111111111111111",
-          "base_emission_recipient" => "0x1111111111111111111111111111111111111111"
-        }
-      })
+      "launch" => %{
+        "token_name" => "Atlas Coin",
+        "token_symbol" => "ATLAS",
+        "recovery_safe_address" => "0x1111111111111111111111111111111111111111",
+        "auction_proceeds_recipient" => "0x1111111111111111111111111111111111111111",
+        "ethereum_revenue_treasury" => "0x1111111111111111111111111111111111111111"
+      }
+    })
     |> render_change()
 
     view

@@ -10,10 +10,7 @@ defmodule Autolaunch.LaunchTest do
     %{
       recovery_safe_address: "0x1111111111111111111111111111111111111111",
       auction_proceeds_recipient: "0x1111111111111111111111111111111111111111",
-      ethereum_revenue_treasury: "0x1111111111111111111111111111111111111111",
-      base_revenue_treasury: "0x1111111111111111111111111111111111111111",
-      tempo_revenue_treasury: "0x1111111111111111111111111111111111111111",
-      base_emission_recipient: "0x1111111111111111111111111111111111111111"
+      ethereum_revenue_treasury: "0x1111111111111111111111111111111111111111"
     }
   end
 
@@ -27,8 +24,8 @@ defmodule Autolaunch.LaunchTest do
     refute Launch.terminal_status?("queued")
   end
 
-  test "chain options expose ethereum mainnet and sepolia only" do
-    assert Enum.map(Launch.chain_options(), & &1.id) == [1, 11_155_111]
+  test "chain options expose ethereum mainnet only" do
+    assert Enum.map(Launch.chain_options(), & &1.id) == [1]
   end
 
   test "auction listings expose ENS and world completion state" do
@@ -85,23 +82,25 @@ defmodule Autolaunch.LaunchTest do
 
     {:ok, _job} =
       %Job{}
-      |> Job.create_changeset(%{
-        job_id: "job_completion",
-        owner_address: "0x1111111111111111111111111111111111111111",
-        agent_id: "1:42",
-        token_name: "Atlas Coin",
-        token_symbol: "ATLAS",
-        network: "ethereum-mainnet",
-        chain_id: 1,
-        status: "ready",
-        step: "ready",
-        total_supply: "1000",
-        message: "signed",
-        siwa_nonce: "nonce-1",
-        siwa_signature: "sig",
-        issued_at: now
-      }
-      |> Map.merge(launch_recipients()))
+      |> Job.create_changeset(
+        %{
+          job_id: "job_completion",
+          owner_address: "0x1111111111111111111111111111111111111111",
+          agent_id: "1:42",
+          token_name: "Atlas Coin",
+          token_symbol: "ATLAS",
+          network: "ethereum-mainnet",
+          chain_id: 1,
+          status: "ready",
+          step: "ready",
+          total_supply: "1000",
+          message: "signed",
+          siwa_nonce: "nonce-1",
+          siwa_signature: "sig",
+          issued_at: now
+        }
+        |> Map.merge(launch_recipients())
+      )
       |> Repo.insert()
 
     {:ok, _auction} =
@@ -140,34 +139,50 @@ defmodule Autolaunch.LaunchTest do
 
     {:ok, _job} =
       %Job{}
-      |> Job.create_changeset(%{
-        job_id: "job_prompt",
-        owner_address: "0x1111111111111111111111111111111111111111",
-        agent_id: "1:42",
-        ens_name: "atlas.eth",
-        token_name: "Atlas Coin",
-        token_symbol: "ATLAS",
-        network: "ethereum-mainnet",
-        chain_id: 1,
-        status: "queued",
-        step: "queued",
-        total_supply: "1000",
-        message: "signed",
-        siwa_nonce: "nonce-1",
-        siwa_signature: "sig",
-        issued_at: now
-      }
-      |> Map.merge(launch_recipients()))
+      |> Job.create_changeset(
+        %{
+          job_id: "job_prompt",
+          owner_address: "0x1111111111111111111111111111111111111111",
+          agent_id: "1:42",
+          ens_name: "atlas.eth",
+          token_name: "Atlas Coin",
+          token_symbol: "ATLAS",
+          network: "ethereum-mainnet",
+          chain_id: 1,
+          status: "queued",
+          step: "queued",
+          total_supply: "1000",
+          message: "signed",
+          siwa_nonce: "nonce-1",
+          siwa_signature: "sig",
+          issued_at: now
+        }
+        |> Map.merge(launch_recipients())
+      )
       |> Repo.insert()
 
     Repo.get!(Job, "job_prompt")
     |> Job.update_changeset(%{
-      token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      launch_fee_vault_address: "0xcccccccccccccccccccccccccccccccccccccccc",
+      revenue_share_splitter_address: "0xdddddddddddddddddddddddddddddddddddddddd",
+      subject_id: "0x" <> String.duplicate("1", 64)
     })
     |> Repo.update!()
 
     response = Launch.get_job_response("job_prompt")
 
+    assert response.job.launch_fee_vault_address ==
+             "0xcccccccccccccccccccccccccccccccccccccccc"
+
+    assert response.job.revenue_share_splitter_address ==
+             "0xdddddddddddddddddddddddddddddddddddddddd"
+
+    assert response.job.subject_id == "0x" <> String.duplicate("1", 64)
+    refute Map.has_key?(response.job, :emission_recipient)
+    refute Map.has_key?(response.job, :default_ingress_address)
+    refute Map.has_key?(response.job, :revenue_ingress_router_address)
+    refute Map.has_key?(response.job, :epoch_seconds)
     assert response.job.reputation_prompt.prompt =~ "optionally link an ENS name"
     assert response.job.reputation_prompt.skip_label == "Skip for now"
 

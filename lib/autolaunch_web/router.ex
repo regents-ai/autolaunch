@@ -25,10 +25,10 @@ defmodule AutolaunchWeb.Router do
   scope "/", AutolaunchWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
-
     live_session :autolaunch,
       on_mount: [{AutolaunchWeb.LiveAuth, :current_human}] do
+      live "/", AuctionGuideLive, :index
+      live "/how-auctions-work", AuctionGuideLive, :index
       live "/launch", LaunchLive, :index
       live "/agentbook", AgentbookLive, :index
       live "/ens-link", EnsLinkLive, :index

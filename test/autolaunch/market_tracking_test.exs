@@ -48,8 +48,8 @@ defmodule Autolaunch.MarketTrackingTest do
         ends_at: DateTime.add(DateTime.utc_now(), 86_400, :second),
         claim_at: DateTime.add(DateTime.utc_now(), 172_800, :second),
         bidders: 1,
-        raised_currency: "2.0 ETH",
-        target_currency: "10 ETH",
+        raised_currency: "2.0 USDC",
+        target_currency: "10 USDC",
         progress_percent: 20
       })
       |> Repo.insert!()

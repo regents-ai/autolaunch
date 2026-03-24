@@ -1,69 +1,6 @@
 import Config
 
-dotenv_values =
-  Path.expand("../.env", __DIR__)
-  |> File.read()
-  |> case do
-    {:ok, contents} ->
-      contents
-      |> String.split("\n")
-      |> Enum.reduce(%{}, fn line, acc ->
-        trimmed = String.trim(line)
-
-        cond do
-          trimmed == "" or String.starts_with?(trimmed, "#") ->
-            acc
-
-          true ->
-            case String.split(trimmed, "=", parts: 2) do
-              [key, value] ->
-                normalized =
-                  value
-                  |> String.trim()
-                  |> String.trim_leading("\"")
-                  |> String.trim_trailing("\"")
-                  |> String.trim_leading("'")
-                  |> String.trim_trailing("'")
-
-                Map.put(acc, String.trim(key), normalized)
-
-              _ ->
-                acc
-            end
-        end
-      end)
-
-    _ ->
-      %{}
-  end
-
-env_or_dotenv = fn key, default ->
-  System.get_env(key) || Map.get(dotenv_values, key, default)
-end
-
-database_url = env_or_dotenv.("LOCAL_DATABASE_URL", env_or_dotenv.("DATABASE_URL", ""))
-
-if is_binary(database_url) and String.trim(database_url) != "" do
-  config :autolaunch, Autolaunch.Repo,
-    url: database_url,
-    stacktrace: true,
-    show_sensitive_data_on_connection_error: true,
-    pool_size: 10
-else
-  config :autolaunch, Autolaunch.Repo,
-    username:
-      env_or_dotenv.("DB_USER", env_or_dotenv.("PGUSER", System.get_env("USER") || "postgres")),
-    password: env_or_dotenv.("DB_PASS", env_or_dotenv.("PGPASSWORD", "")),
-    hostname: env_or_dotenv.("DB_HOST", env_or_dotenv.("PGHOST", "localhost")),
-    port: String.to_integer(env_or_dotenv.("DB_PORT", env_or_dotenv.("PGPORT", "5432"))),
-    database: env_or_dotenv.("DB_NAME", "autolaunch_dev"),
-    stacktrace: true,
-    show_sensitive_data_on_connection_error: true,
-    pool_size: 10
-end
-
 config :autolaunch, AutolaunchWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: String.to_integer(env_or_dotenv.("PORT", "4010"))],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

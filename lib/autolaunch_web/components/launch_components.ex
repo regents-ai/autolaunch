@@ -26,6 +26,9 @@ defmodule AutolaunchWeb.LaunchComponents do
         </div>
 
         <nav class="al-topnav" aria-label="Primary">
+          <.nav_link active={@active_view == "guide"} navigate={~p"/"}>
+            How It Works
+          </.nav_link>
           <.nav_link active={@active_view == "launch"} navigate={~p"/launch"}>Launch</.nav_link>
           <.nav_link active={@active_view == "agentbook"} navigate={~p"/agentbook"}>Human Proof</.nav_link>
           <.nav_link active={@active_view == "ens"} navigate={~p"/ens-link"}>ENS Link</.nav_link>
