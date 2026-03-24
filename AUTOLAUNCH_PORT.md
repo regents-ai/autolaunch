@@ -59,5 +59,5 @@ Shared Regent policy tables read by readiness:
 - Mock deploy path is disabled by default and only enabled when `AUTOLAUNCH_MOCK_DEPLOY=true`
 - Revenue counts only when mainnet USDC reaches the revsplit.
 - The mainnet emissions controller finalizes epochs from that onchain state.
-- Revenue and emissions contract source of truth lives at `/Users/sean/Documents/regent/contracts/autolaunch`.
-- Missing launch-side contracts stay as deploy-script outputs until they land in the shared contract repo.
+- Revenue and emissions contract source of truth lives at `/Users/sean/Documents/regent/autolaunch/contracts`.
+- Missing launch-side contracts stay as deploy-script outputs until they land in the local `contracts/` workspace.

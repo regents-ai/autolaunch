@@ -59,6 +59,6 @@ This package now covers the full Autolaunch contract system, from launch through
 
 ## Routing rules for the wider project
 
-- Autolaunch contracts live here: `/Users/sean/Documents/regent/contracts/autolaunch`
-- Autolaunch CLI work lives in: `/Users/sean/Documents/regent/monorepo/regent-cli`
+- Autolaunch contracts live here: `/Users/sean/Documents/regent/autolaunch/contracts`
+- Autolaunch CLI work lives in: `/Users/sean/Documents/regent/regent-cli`
 - Autolaunch Phoenix app work lives in: `/Users/sean/Documents/regent/autolaunch`

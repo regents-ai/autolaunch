@@ -30,7 +30,7 @@ This package now tests the full Autolaunch contract stack in one Foundry project
 Run the full suite:
 
 ```bash
-cd /Users/sean/Documents/regent/contracts/autolaunch
+cd /Users/sean/Documents/regent/autolaunch/contracts
 forge test
 ```
 
@@ -51,7 +51,7 @@ forge test --match-contract MainnetRegentEmissionsControllerTest
 
 ## What acceptance looks like
 
-- the full suite passes inside `contracts/autolaunch`
+- the full suite passes inside `contracts/`
 - the launch script can deploy:
   - token
   - auction

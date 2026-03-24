@@ -9,8 +9,8 @@ This is the canonical contracts home for Autolaunch.
 
 ## Project split
 
-- `contracts/autolaunch/` for Autolaunch contracts
-- `regent-cli/` for Autolaunch CLI flows
+- `contracts/` for Autolaunch contracts
+- `/Users/sean/Documents/regent/regent-cli` for Autolaunch CLI flows
 - `autolaunch/` for Phoenix frontend and backend work
 
 ## Routing rule

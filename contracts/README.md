@@ -53,13 +53,13 @@ Revenue / emissions tests:
 ## Working here
 
 - Put all Autolaunch Solidity contracts, Foundry scripts, and Foundry tests in this folder.
-- Put Autolaunch CLI work in `/Users/sean/Documents/regent/monorepo/regent-cli`.
+- Put Autolaunch CLI work in `/Users/sean/Documents/regent/regent-cli`.
 - Put Autolaunch Phoenix app work in `/Users/sean/Documents/regent/autolaunch`.
 
 ## Build and test
 
 ```bash
-cd /Users/sean/Documents/regent/contracts/autolaunch
+cd /Users/sean/Documents/regent/autolaunch/contracts
 forge build
 forge test
 ```

@@ -1,10 +1,10 @@
 # Autolaunch
 
-Autolaunch is the Phoenix LiveView app behind `autolaunch.sh`. It owns the launch flow, the public auction surface, AgentBook verification, and the SIWA-backed session path that connects browser auth to onchain actions.
+Autolaunch is the Phoenix LiveView app behind `autolaunch.sh`. This repo now also holds the local Foundry workspace under `contracts/`. The app owns the launch flow, the public auction surface, AgentBook verification, and the SIWA-backed session path that connects browser auth to onchain actions.
 
 ## Agents
 
-Autolaunch is the browser and server layer for the launch product. It is not the contract source of truth and it does not own the CLI. The app reads deployment output from Regent contracts, then uses that data to drive launch jobs, bid quoting, and post-launch tracking.
+Autolaunch is the browser and server layer for the launch product. The repo now owns both the app surface and the contract workspace, but the Phoenix app itself is still not the CLI. The app reads deployment output from the local `contracts/` workspace, then uses that data to drive launch jobs, bid quoting, and post-launch tracking.
 
 What this repo handles:
 
@@ -66,9 +66,9 @@ The launch path is Ethereum mainnet only.
 
 ### Launch Flow
 
-Autolaunch expects the hard-cut `CCA_RESULT_JSON` payload from the configured deployment script. The revenue and emissions contract source of truth lives in the shared contracts repo under [`contracts/autolaunch`](../contracts/autolaunch).
+Autolaunch expects the hard-cut `CCA_RESULT_JSON` payload from the configured deployment script. The revenue and emissions contract source of truth now lives in the local Foundry workspace under [`contracts/`](contracts).
 
-The app does not own the contract source of truth. The launch controller, fee registry, fee vault, fee hook, subject registry, revsplit, and ingress addresses are produced by the deploy script, then stored and displayed by the app.
+The launch controller, fee registry, fee vault, fee hook, subject registry, revsplit, and ingress addresses are produced by the deploy script in `contracts/`, then stored and displayed by the app.
 
 Important launch rules:
 
@@ -102,6 +102,7 @@ The Phoenix aliases in `mix.exs` also include `ecto.reset` and the usual asset s
 - `config/` - runtime, development, test, and release configuration
 - `priv/` - migrations, seed data, static assets, and gettext files
 - `test/` - unit, controller, and LiveView coverage
+- `contracts/` - local Foundry workspace for launch, revenue, and emissions contracts
 - `AUTOLAUNCH_AUCTIONS_GUIDE.md` - public auction guide
 - `AUTOLAUNCH_PORT.md` - port and process notes
 - `PRODUCT_SURFACE_PROPOSAL.md` - product surface direction
@@ -109,5 +110,5 @@ The Phoenix aliases in `mix.exs` also include `ecto.reset` and the usual asset s
 ### External Dependencies
 
 - The canonical CLI lives in the standalone [`regent-ai/regent-cli`](https://github.com/regent-ai/regent-cli) repo, with the expected local checkout at `/Users/sean/Documents/regent/regent-cli`, as `regent autolaunch ...`
-- The Autolaunch revenue and emissions contracts live in [`contracts/autolaunch`](../contracts/autolaunch)
+- The Autolaunch revenue and emissions contracts live in [`contracts/`](contracts)
 - The public guide content for auctions lives in [`AUTOLAUNCH_AUCTIONS_GUIDE.md`](AUTOLAUNCH_AUCTIONS_GUIDE.md)

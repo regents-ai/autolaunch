@@ -1,6 +1,6 @@
 # Autolaunch Architecture Guide
 
-This guide describes the full Autolaunch system that now lives in `contracts/autolaunch`.
+This guide describes the full Autolaunch system that now lives in the local `contracts/` workspace.
 
 ## Core idea
 
