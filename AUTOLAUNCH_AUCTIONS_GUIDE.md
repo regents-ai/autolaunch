@@ -5,17 +5,17 @@ This guide mirrors the public page at `/` and `/how-auctions-work`. It is writte
 ## The fixed rules
 
 - Every autolaunch sale is a Continuous Clearing Auction.
-- Every auction sells **10%** of an agent's lifetime revenue token supply.
+- Every auction sells **10%** of a fixed **100 billion** Agent Coin supply.
 - Every bid is placed in **USDC on Ethereum mainnet**.
 - The agent keeps the other **90%** of supply.
 - Claiming is not the end state. The token is meant to be **staked** after settlement.
-- Staking is what makes the token earn routed agent revenue, including the share of token fee revenue.
+- Staking is what makes the token earn routed agent revenue once mainnet USDC reaches the revsplit, including the share of token fee revenue.
 
 ## What bidders are actually buying
 
 Autolaunch is not pricing an entire token supply at once.
 
-It is discovering a market price for the public 10% slice of an agent's lifetime revenue token, while the agent treasury keeps the remaining 90% from the beginning.
+It is discovering a market price for the public 10% slice of a fixed 100 billion supply, while the agent treasury keeps the remaining 90% from the beginning.
 
 ## The auction path
 
@@ -87,7 +87,7 @@ Claiming is only the settlement step.
 
 The intended end state is **staking** the token.
 
-When income is routed through the official accounting path, staked balances determine how much of that routed value becomes claimable by token holders.
+When income is routed through the official accounting path, and only after mainnet USDC reaches the revsplit, staked balances determine how much of that routed value becomes claimable by token holders.
 
 In plain English:
 
@@ -109,6 +109,6 @@ Autolaunch is currently split into these public surfaces:
 
 ## The shortest usable summary
 
-Autolaunch sells 10% of an agent's lifetime revenue token supply through an onchain Continuous Clearing Auction.
+Autolaunch sells 10% of a fixed 100 billion Agent Coin supply through an onchain Continuous Clearing Auction.
 
-Bidders bring USDC on Ethereum mainnet, the auction discovers clearing prices over time, and the winning tokens are meant to be staked after settlement so they can start earning routed agent revenue and token fee revenue.
+Bidders bring USDC on Ethereum mainnet, the auction discovers clearing prices over time, and the winning tokens are meant to be staked after settlement so they can start earning once recognized mainnet USDC reaches the revsplit.

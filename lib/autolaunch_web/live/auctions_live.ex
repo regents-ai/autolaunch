@@ -66,7 +66,7 @@ defmodule AutolaunchWeb.AuctionsLive do
           </p>
 
           <div class="al-hero-actions">
-            <.link navigate={~p"/auctions/how-it-works"} class="al-cta-link">
+            <.link navigate={~p"/how-auctions-work"} class="al-cta-link">
               How auctions work
             </.link>
           </div>

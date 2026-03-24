@@ -55,6 +55,9 @@ Shared Regent policy tables read by readiness:
 
 - Hard cutover: no legacy compatibility routes
 - Launch network is fixed to Ethereum mainnet and is not user-selectable in the launch form.
+- AgentLaunchToken supply is fixed at 100 billion and every auction sells 10%.
 - Mock deploy path is disabled by default and only enabled when `AUTOLAUNCH_MOCK_DEPLOY=true`
 - Revenue counts only when mainnet USDC reaches the revsplit.
 - The mainnet emissions controller finalizes epochs from that onchain state.
+- Revenue and emissions contract source of truth lives at `/Users/sean/Documents/regent/contracts/autolaunch`.
+- Missing launch-side contracts stay as deploy-script outputs until they land in the shared contract repo.

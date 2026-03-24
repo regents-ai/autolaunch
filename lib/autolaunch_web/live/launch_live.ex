@@ -4,6 +4,7 @@ defmodule AutolaunchWeb.LaunchLive do
   alias Autolaunch.Launch
 
   @job_poll_ms 2_000
+  @agent_launch_total_supply "100000000000000000000000000000"
 
   def mount(_params, _session, socket) do
     current_human = socket.assigns[:current_human]
@@ -137,12 +138,11 @@ defmodule AutolaunchWeb.LaunchLive do
       <section id="launch-hero" class="al-hero al-launch-hero al-panel" phx-hook="MissionMotion">
         <div class="al-launch-copy">
           <p class="al-kicker">Autolaunch</p>
-          <h2>Launch Regent agent coins and CCAs from one guided surface.</h2>
+          <h2>Launch the stable Agent Coin flow from one guided surface.</h2>
           <p class="al-subcopy">
-            Autolaunch is not for memecoins. These are onchain revenue tokens that give owners a
-            share of an agent&apos;s x402 and MPP income. Agents launch through the CLI wizard: paste
-            the command, start the flow, then use the guided launch steps below to choose the
-            agent, set the economics, and queue the Ethereum mainnet deployment.
+            Autolaunch sells 10% of a fixed 100 billion Agent Coin supply in a Continuous Clearing
+            Auction on Ethereum mainnet. Bids settle in USDC, and recognized revenue only counts
+            after mainnet USDC reaches the revsplit that feeds staking and onchain emissions.
           </p>
 
           <div class="al-hero-actions">
@@ -151,7 +151,7 @@ defmodule AutolaunchWeb.LaunchLive do
               class="al-cta-link al-cta-link--primary"
               data-copy-value={launch_hero_command()}
             >
-              Agents launch through CLI wizard, paste command curl &lt;skill...&gt; to start
+              Copy `regent autolaunch launch preview ...` example
             </button>
             <a class="al-cta-link" href="https://github.com/regent-ai/monorepo" target="_blank" rel="noreferrer">Star on Github</a>
             <a class="al-cta-link al-cta-link--quiet" href="#launch-wizard">Jump to wizard</a>
@@ -159,8 +159,8 @@ defmodule AutolaunchWeb.LaunchLive do
 
           <div class="al-launch-tags" aria-label="Launch themes">
             <span class="al-launch-tag">ERC-8004 identity</span>
-            <span class="al-launch-tag">CCA launch</span>
-            <span class="al-launch-tag">Ethereum USDC revenue</span>
+            <span class="al-launch-tag">10% sold, 100B total</span>
+            <span class="al-launch-tag">USDC on Ethereum mainnet</span>
           </div>
 
           <div class="al-stat-grid al-launch-stats">
@@ -180,7 +180,7 @@ defmodule AutolaunchWeb.LaunchLive do
               </div>
               <div>
                 <p class="al-kicker">Launch command</p>
-                <p class="al-terminal-title">Curl-style CCA start</p>
+                <p class="al-terminal-title">CLI preview</p>
               </div>
               <button
                 type="button"
@@ -228,11 +228,11 @@ defmodule AutolaunchWeb.LaunchLive do
 
           <article class="al-onboard-card">
             <p class="al-onboard-mark">02</p>
-            <strong>Set the treasury lanes once, then review the economics.</strong>
+            <strong>Confirm the fixed sale and revenue routing before you sign.</strong>
             <p>
-              The wizard pre-fills addresses from your connected wallet so the first launch is
-              mostly confirmation, not retyping. The treasury safe also becomes the emissions
-              recipient for the subject.
+              The wizard pre-fills addresses from your connected wallet. The sale size stays fixed
+              at 10% of a 100 billion supply, and only mainnet USDC that reaches the revsplit is
+              counted for staking and emissions.
             </p>
           </article>
 
@@ -240,8 +240,8 @@ defmodule AutolaunchWeb.LaunchLive do
             <p class="al-onboard-mark">03</p>
             <strong>Expect one signature, one queue, then a live auction page.</strong>
             <p>
-              After the deploy script returns the launch, fee, and revsplit addresses, the auction
-              shows up in the listing flow automatically.
+              After the deploy script returns the launch, fee, subject, and revsplit addresses, the
+              auction shows up in the listing flow automatically.
             </p>
           </article>
         </div>
@@ -250,8 +250,8 @@ defmodule AutolaunchWeb.LaunchLive do
       <section id="launch-wizard" class="al-wizard-layout">
         <article class="al-panel al-main-panel">
           <div class="al-step-intro">
-            Five short stages: choose the identity, confirm routing, sign the launch, optionally
-            finish trust setup, then watch the queue turn into a live auction.
+            Five short stages: choose the identity, confirm the fixed sale and routing, sign the
+            launch, optionally finish trust setup, then watch the queue turn into a live auction.
           </div>
 
           <div class="al-step-row">
@@ -404,10 +404,6 @@ defmodule AutolaunchWeb.LaunchLive do
                     placeholder="0x..."
                   />
                 </label>
-                <label>
-                  <span>Total supply</span>
-                  <input type="text" name="launch[total_supply]" value={@form["total_supply"]} />
-                </label>
               </div>
 
               <label>
@@ -419,9 +415,9 @@ defmodule AutolaunchWeb.LaunchLive do
             <div class="al-inline-banner">
               <strong>{@fee_split.headline}</strong>
               <p>
-                Launch runs on Ethereum mainnet only. Recognized revenue means mainnet USDC that
-                reaches the revsplit, and the treasury safe doubles as the emissions recipient for
-                onchain REGENT accounting.
+                Launch runs on Ethereum mainnet only. Supply is fixed at 100 billion, the auction
+                sells 10%, and recognized revenue means mainnet USDC that reaches the revsplit
+                before the onchain emissions controller finalizes epochs.
               </p>
             </div>
 
@@ -466,9 +462,14 @@ defmodule AutolaunchWeb.LaunchLive do
                   <p>Recovery Safe {@preview && short_address(@preview.token.recovery_safe_address)}</p>
                 </div>
                 <div class="al-review-card">
+                  <span>Fixed supply</span>
+                  <strong>100B Agent Coin</strong>
+                  <p>10% is sold in the auction and 90% stays with the subject side.</p>
+                </div>
+                <div class="al-review-card">
                   <span>Revenue routing</span>
-                  <strong>USDC revsplit {@preview && short_address(@preview.token.ethereum_revenue_treasury)}</strong>
-                  <p>Treasury safe also receives the emissions lane.</p>
+                  <strong>USDC treasury {@preview && short_address(@preview.token.ethereum_revenue_treasury)}</strong>
+                  <p>Mainnet USDC only counts after it reaches the revsplit.</p>
                 </div>
               </div>
 
@@ -611,7 +612,7 @@ defmodule AutolaunchWeb.LaunchLive do
                   <p class="al-kicker">Timeline</p>
                   <ul class="al-compact-list">
                     <li>Queued for launch orchestration.</li>
-                    <li>Waiting for the deploy script to return the launch, fee, and revsplit addresses.</li>
+                    <li>Waiting for the deploy script to return the launch, fee, subject, and revsplit addresses.</li>
                     <li :if={@current_job.auction}>Auction page becomes available after deployment.</li>
                     <li :if={@current_job.job.status == "ready"}>Bought tokens still need to be staked before they earn revenue.</li>
                   </ul>
@@ -725,7 +726,7 @@ defmodule AutolaunchWeb.LaunchLive do
       "recovery_safe_address" => "",
       "auction_proceeds_recipient" => "",
       "ethereum_revenue_treasury" => "",
-      "total_supply" => "100000000000000000000000000000",
+      "total_supply" => @agent_launch_total_supply,
       "launch_notes" => ""
     }
   end
@@ -825,27 +826,23 @@ defmodule AutolaunchWeb.LaunchLive do
 
   defp launch_hero_command do
     """
-    curl -X POST "https://autolaunch.sh/api/launch/jobs" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer <privy-session>" \
-      -d '{
-        "agent_id": "erc-8004:0x...",
-        "token_name": "Regent Agent Coin",
-        "token_symbol": "RGT",
-        "recovery_safe_address": "0x...",
-        "auction_proceeds_recipient": "0x...",
-        "ethereum_revenue_treasury": "0x..."
-      }'
+    regent autolaunch launch preview \
+      --agent 1:42 \
+      --name "Atlas Coin" \
+      --symbol ATLAS \
+      --recovery-safe-address 0x1111111111111111111111111111111111111111 \
+      --auction-proceeds-recipient 0x1111111111111111111111111111111111111111 \
+      --ethereum-revenue-treasury 0x1111111111111111111111111111111111111111
     """
     |> String.trim()
   end
 
   defp launch_hero_transcript do
     """
-    > agent verified
-    > economics previewed
-    > launch queued
-    > auction appears in /auctions
+    > preview.ok = true
+    > chain = ethereum-mainnet
+    > total_supply = 100000000000000000000000000000
+    > next = sign in browser and queue launch
     """
     |> String.trim()
   end

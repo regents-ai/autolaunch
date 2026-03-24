@@ -66,7 +66,9 @@ The launch path is Ethereum mainnet only.
 
 ### Launch Flow
 
-Autolaunch expects the hard-cut `CCA_RESULT_JSON` payload from the configured deployment script. Revenue and emissions contracts now live in the shared contracts repo under [`contracts/contracts/autolaunch`](../contracts/contracts/autolaunch).
+Autolaunch expects the hard-cut `CCA_RESULT_JSON` payload from the configured deployment script. The revenue and emissions contract source of truth lives in the shared contracts repo under [`contracts/autolaunch`](../contracts/autolaunch).
+
+The app does not own launch-side contract ABIs for the new stable stack. Until the missing launch-side contracts land in the shared contract repo, the launch controller, fee registry, fee vault, fee hook, and revsplit addresses are treated as deploy-script outputs that the app stores and displays.
 
 Important launch rules:
 
@@ -107,5 +109,5 @@ The Phoenix aliases in `mix.exs` also include `ecto.reset` and the usual asset s
 ### External Dependencies
 
 - The canonical CLI lives in the standalone [`regent-ai/regent-cli`](https://github.com/regent-ai/regent-cli) repo, with the expected local checkout at `/Users/sean/Documents/regent/regent-cli`, as `regent autolaunch ...`
-- The Autolaunch revenue and emissions contracts live in [`contracts/contracts/autolaunch`](../contracts/contracts/autolaunch)
+- The Autolaunch revenue and emissions contracts live in [`contracts/autolaunch`](../contracts/autolaunch)
 - The public guide content for auctions lives in [`AUTOLAUNCH_AUCTIONS_GUIDE.md`](AUTOLAUNCH_AUCTIONS_GUIDE.md)

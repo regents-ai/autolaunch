@@ -18,7 +18,7 @@ defmodule Autolaunch.Launch.Auction do
     field :claim_at, :utc_datetime_usec
     field :bidders, :integer, default: 0
     field :raised_currency, :string, default: "0 USDC"
-    field :target_currency, :string, default: "150,000 USDC"
+    field :target_currency, :string, default: "Not published"
     field :progress_percent, :integer, default: 0
     field :metrics_updated_at, :utc_datetime_usec
     field :notes, :string

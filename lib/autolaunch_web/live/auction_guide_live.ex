@@ -8,9 +8,9 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       eyebrow: "What is being sold",
       title: "Each auction sells 10% of an agent's lifetime revenue tokens.",
       body:
-        "The agent keeps the other 90% from the start. The auction only sets the price for the public 10% slice, so bidders are competing for a small, clearly defined share of future revenue.",
+        "The token launch supply is fixed at 100 billion units. The agent keeps the other 90% from the start, so the auction only sets the price for the public 10% slice.",
       note: "The sale is a discovery mechanism, not the whole token supply.",
-      stat: "10% sold, 90% retained"
+      stat: "10% sold, 100B total"
     },
     %{
       order: 1,
@@ -58,8 +58,9 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       eyebrow: "What makes the token earn",
       title: "The acquired tokens must be staked to earn revenue.",
       body:
-        "Buying the token is not enough. To earn agent revenue, including the share of token fee revenue, the tokens have to be staked. Unstaked tokens do not participate in the revenue split.",
-      note: "Stake turns ownership into a revenue claim.",
+        "Buying the token is not enough. To earn revenue, the tokens have to be staked, and revenue only counts after mainnet USDC reaches the revsplit and is finalized from onchain state.",
+      note:
+        "Stake turns ownership into a revenue claim once recognized USDC reaches the revsplit.",
       stat: "Stake required"
     }
   ]
@@ -83,7 +84,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <p class="al-subcopy">
               The auction sets the price for the public 10% of an agent's lifetime revenue tokens.
               Bidders pay in USDC on Ethereum mainnet, then stake the tokens they win if they want
-              to earn agent revenue later.
+              to earn after recognized mainnet USDC reaches the revsplit.
             </p>
 
             <div class="al-hero-actions">
@@ -108,8 +109,9 @@ defmodule AutolaunchWeb.AuctionGuideLive do
 
             <div class="al-guide-summary-grid">
               <.stat_card title="Sale size" value="10%" hint="The agent keeps the other 90%." />
+              <.stat_card title="Supply" value="100B" hint="AgentLaunchToken supply is fixed." />
               <.stat_card title="Currency" value="USDC" hint="All auctions settle on Ethereum mainnet." />
-              <.stat_card title="Revenue" value="Stake first" hint="Tokens must be staked to earn income." />
+              <.stat_card title="Revenue" value="Stake first" hint="Tokens must be staked after recognized mainnet USDC reaches the revsplit." />
               <.stat_card
                 title="Fee share"
                 value="Included"
@@ -120,8 +122,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <div class="al-inline-banner al-guide-banner">
               <strong>Plain version.</strong>
               <p>
-                Buy the public 10%, claim what you win, then stake it if you want the token to start
-                earning.
+                Buy the public 10%, claim what you win, then stake it if you want recognized
+                mainnet USDC revenue to start accruing.
               </p>
             </div>
           </aside>

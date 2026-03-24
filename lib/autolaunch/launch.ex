@@ -16,10 +16,10 @@ defmodule Autolaunch.Launch do
   alias Autolaunch.Siwa
 
   @terminal_statuses ~w(ready failed blocked)
+  @agent_launch_total_supply "100000000000000000000000000000"
   @eligibility_check_keys ~w(ownerOrOperatorAuthorized noPriorSuccessfulLaunch)
   @fee_split %{
-    headline:
-      "2% trade fee -> 1% official agent revenue accounting + 1% Regent/protocol accounting.",
+    headline: "2% pool fee -> 1% subject treasury lane + 1% Regent/protocol lane.",
     trade_fee_bps: 200,
     agent_revenue_bps: 100,
     protocol_bps: 100
@@ -167,12 +167,14 @@ defmodule Autolaunch.Launch do
         launch_blockers: [],
         permanence_notes: [
           "One ERC-8004 identity can launch at most one Agent Coin.",
+          "AgentLaunchToken supply is fixed at 100 billion from launch.",
           "Recovery Safe, auction proceeds, and the Ethereum treasury safe are locked into the launch configuration you sign.",
           "Only mainnet USDC that reaches the revsplit counts toward onchain revenue and emissions."
         ],
         next_steps: [
           "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
           "Queue the Ethereum mainnet launch deployment.",
+          "Wait for the deploy script to return the launch, fee, subject, and revsplit addresses.",
           "Wait for the auction page, then stake claimed tokens to earn revenue."
         ],
         launch_notes: launch_notes,
@@ -1275,7 +1277,7 @@ defmodule Autolaunch.Launch do
       ends_at: DateTime.add(now, @default_auction_duration_seconds, :second),
       bidders: 0,
       raised_currency: "0 USDC",
-      target_currency: "150,000 USDC",
+      target_currency: "Not published",
       progress_percent: 0,
       metrics_updated_at: now,
       notes: job.token_symbol || job.launch_notes,
@@ -1824,7 +1826,7 @@ defmodule Autolaunch.Launch do
       {"MAINNET_REGENT_EMISSIONS_CONTROLLER_ADDRESS",
        deploy_mainnet_regent_emissions_controller_address()},
       {"REGENT_MULTISIG_ADDRESS", deploy_regent_multisig_address()},
-      {"ETHEREUM_USDC_ADDRESS", deploy_ethereum_usdc_address(job.chain_id)},
+      {"ETH_MAINNET_USDC_ADDRESS", deploy_ethereum_usdc_address(job.chain_id)},
       {"FACTORY_ADDRESS", deploy_factory_address(job.chain_id)},
       {"UNISWAP_V4_POOL_MANAGER", deploy_pool_manager_address(job.chain_id)}
     ]
@@ -1882,11 +1884,10 @@ defmodule Autolaunch.Launch do
   defp normalize_chain_id(_value), do: {:error, :invalid_chain_id}
 
   defp normalize_total_supply(value) when is_binary(value) do
-    trimmed = String.trim(value)
-    if Regex.match?(~r/^\d+$/, trimmed), do: trimmed, else: "100000000000000000000000000000"
+    if String.trim(value) == "", do: @agent_launch_total_supply, else: @agent_launch_total_supply
   end
 
-  defp normalize_total_supply(_value), do: "100000000000000000000000000000"
+  defp normalize_total_supply(_value), do: @agent_launch_total_supply
 
   defp required_text(value, max_length, error_atom) when is_binary(value) do
     value = String.trim(value)

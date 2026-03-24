@@ -84,8 +84,8 @@ defmodule Autolaunch.Repo.Migrations.CreateAutolaunchSurface do
       add :ends_at, :utc_datetime_usec
       add :claim_at, :utc_datetime_usec
       add :bidders, :integer, null: false, default: 0
-      add :raised_currency, :string, null: false, default: "0 ETH"
-      add :target_currency, :string, null: false, default: "150 ETH"
+      add :raised_currency, :string, null: false, default: "0 USDC"
+      add :target_currency, :string, null: false, default: "Not published"
       add :progress_percent, :integer, null: false, default: 0
       add :metrics_updated_at, :utc_datetime_usec
       add :notes, :text
