@@ -169,12 +169,12 @@ defmodule Autolaunch.Launch do
           "One ERC-8004 identity can launch at most one Agent Coin.",
           "AgentLaunchToken supply is fixed at 100 billion from launch.",
           "Recovery Safe, auction proceeds, and the Ethereum treasury safe are locked into the launch configuration you sign.",
-          "Only mainnet USDC that reaches the revsplit counts toward onchain revenue and emissions."
+          "Only mainnet USDC that reaches the revsplit counts as recognized protocol revenue."
         ],
         next_steps: [
           "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
           "Queue the Ethereum mainnet launch deployment.",
-          "Wait for the deploy script to return the auction, fee hook, subject registry, revenue splitter, and ingress addresses.",
+          "Wait for the deploy script to return the strategy, vesting wallet, fee hook, subject registry, revenue splitter, and ingress addresses.",
           "Wait for the auction page, then stake claimed tokens to earn revenue."
         ],
         launch_notes: launch_notes,
@@ -596,6 +596,8 @@ defmodule Autolaunch.Launch do
                 finished_at: DateTime.utc_now(),
                 auction_address: result.auction_address,
                 token_address: result.token_address,
+                strategy_address: result.strategy_address,
+                vesting_wallet_address: result.vesting_wallet_address,
                 hook_address: result.hook_address,
                 launch_fee_registry_address: result.launch_fee_registry_address,
                 launch_fee_vault_address: result.launch_fee_vault_address,
@@ -603,7 +605,6 @@ defmodule Autolaunch.Launch do
                 subject_id: result.subject_id,
                 revenue_share_splitter_address: result.revenue_share_splitter_address,
                 default_ingress_address: result.default_ingress_address,
-                revenue_ingress_router_address: result.revenue_ingress_router_address,
                 pool_id: result.pool_id,
                 tx_hash: result.tx_hash,
                 uniswap_url: result.uniswap_url,
@@ -616,6 +617,8 @@ defmodule Autolaunch.Launch do
               auction_address: auction.auction_address,
               token_address: auction.token_address,
               metadata: %{
+                "strategy_address" => result.strategy_address,
+                "vesting_wallet_address" => result.vesting_wallet_address,
                 "hook_address" => result.hook_address,
                 "launch_fee_registry_address" => result.launch_fee_registry_address,
                 "launch_fee_vault_address" => result.launch_fee_vault_address,
@@ -623,7 +626,6 @@ defmodule Autolaunch.Launch do
                 "subject_id" => result.subject_id,
                 "revenue_share_splitter_address" => result.revenue_share_splitter_address,
                 "default_ingress_address" => result.default_ingress_address,
-                "revenue_ingress_router_address" => result.revenue_ingress_router_address,
                 "pool_id" => result.pool_id
               },
               launch_tx_hash: result.tx_hash,
@@ -1315,6 +1317,8 @@ defmodule Autolaunch.Launch do
 
     auction_address = "0x" <> suffix
     token_address = "0x" <> String.reverse(suffix)
+    strategy_address = "0x" <> String.duplicate("a", 40)
+    vesting_wallet_address = "0x" <> String.duplicate("9", 40)
     hook_address = "0x" <> String.duplicate("b", 40)
     launch_fee_registry_address = "0x" <> String.duplicate("c", 40)
     launch_fee_vault_address = "0x" <> String.duplicate("e", 40)
@@ -1322,13 +1326,14 @@ defmodule Autolaunch.Launch do
     subject_id = "0x" <> String.duplicate("1", 64)
     revenue_share_splitter_address = "0x" <> String.duplicate("6", 40)
     default_ingress_address = "0x" <> String.duplicate("7", 40)
-    revenue_ingress_router_address = "0x" <> String.duplicate("8", 40)
     pool_id = "0x" <> String.duplicate("f", 64)
 
     {:ok,
      %{
        auction_address: auction_address,
        token_address: token_address,
+       strategy_address: strategy_address,
+       vesting_wallet_address: vesting_wallet_address,
        hook_address: hook_address,
        launch_fee_registry_address: launch_fee_registry_address,
        launch_fee_vault_address: launch_fee_vault_address,
@@ -1336,12 +1341,11 @@ defmodule Autolaunch.Launch do
        subject_id: subject_id,
        revenue_share_splitter_address: revenue_share_splitter_address,
        default_ingress_address: default_ingress_address,
-       revenue_ingress_router_address: revenue_ingress_router_address,
        pool_id: pool_id,
        tx_hash: "0x" <> String.duplicate("a", 64),
        uniswap_url: to_uniswap_url(job.chain_id, token_address),
        stdout_tail:
-         "CCA_RESULT_JSON:{\"factoryAddress\":\"#{deploy_factory_address(job.chain_id)}\",\"auctionAddress\":\"#{auction_address}\",\"tokenAddress\":\"#{token_address}\",\"hookAddress\":\"#{hook_address}\",\"launchFeeRegistryAddress\":\"#{launch_fee_registry_address}\",\"feeVaultAddress\":\"#{launch_fee_vault_address}\",\"subjectRegistryAddress\":\"#{subject_registry_address}\",\"subjectId\":\"#{subject_id}\",\"revenueShareSplitterAddress\":\"#{revenue_share_splitter_address}\",\"defaultIngressAddress\":\"#{default_ingress_address}\",\"revenueIngressRouterAddress\":\"#{revenue_ingress_router_address}\",\"poolId\":\"#{pool_id}\"}",
+         "CCA_RESULT_JSON:{\"factoryAddress\":\"#{deploy_factory_address(job.chain_id)}\",\"auctionAddress\":\"#{auction_address}\",\"tokenAddress\":\"#{token_address}\",\"strategyAddress\":\"#{strategy_address}\",\"vestingWalletAddress\":\"#{vesting_wallet_address}\",\"hookAddress\":\"#{hook_address}\",\"launchFeeRegistryAddress\":\"#{launch_fee_registry_address}\",\"feeVaultAddress\":\"#{launch_fee_vault_address}\",\"subjectRegistryAddress\":\"#{subject_registry_address}\",\"subjectId\":\"#{subject_id}\",\"revenueShareSplitterAddress\":\"#{revenue_share_splitter_address}\",\"defaultIngressAddress\":\"#{default_ingress_address}\",\"poolId\":\"#{pool_id}\"}",
        stderr_tail: ""
      }}
   end
@@ -1402,6 +1406,9 @@ defmodule Autolaunch.Launch do
          {:ok, parsed} <- Jason.decode(String.trim(line)),
          {:ok, auction_address} <- required_launch_output_address(parsed, "auctionAddress"),
          {:ok, token_address} <- required_launch_output_address(parsed, "tokenAddress"),
+         {:ok, strategy_address} <- required_launch_output_address(parsed, "strategyAddress"),
+         {:ok, vesting_wallet_address} <-
+           required_launch_output_address(parsed, "vestingWalletAddress"),
          {:ok, hook_address} <- required_launch_output_address(parsed, "hookAddress"),
          {:ok, launch_fee_registry_address} <-
            required_launch_output_address(parsed, "launchFeeRegistryAddress"),
@@ -1419,6 +1426,8 @@ defmodule Autolaunch.Launch do
        %{
          auction_address: auction_address,
          token_address: token_address,
+         strategy_address: strategy_address,
+         vesting_wallet_address: vesting_wallet_address,
          hook_address: hook_address,
          launch_fee_registry_address: launch_fee_registry_address,
          launch_fee_vault_address: launch_fee_vault_address,
@@ -1426,8 +1435,6 @@ defmodule Autolaunch.Launch do
          subject_id: subject_id,
          revenue_share_splitter_address: revenue_share_splitter_address,
          default_ingress_address: default_ingress_address,
-         revenue_ingress_router_address:
-           optional_launch_output_address(parsed, "revenueIngressRouterAddress"),
          pool_id: pool_id,
          tx_hash: Map.get(parsed, "txHash"),
          uniswap_url: to_uniswap_url(job.chain_id, token_address),
@@ -1484,6 +1491,8 @@ defmodule Autolaunch.Launch do
       lifecycle_run_id: job.lifecycle_run_id,
       auction_address: job.auction_address,
       token_address: job.token_address,
+      strategy_address: job.strategy_address,
+      vesting_wallet_address: job.vesting_wallet_address,
       hook_address: job.hook_address,
       launch_fee_registry_address: job.launch_fee_registry_address,
       launch_fee_vault_address: job.launch_fee_vault_address,
@@ -1491,7 +1500,6 @@ defmodule Autolaunch.Launch do
       subject_id: job.subject_id,
       revenue_share_splitter_address: job.revenue_share_splitter_address,
       default_ingress_address: job.default_ingress_address,
-      revenue_ingress_router_address: job.revenue_ingress_router_address,
       pool_id: job.pool_id,
       tx_hash: job.tx_hash,
       uniswap_url: job.uniswap_url,
@@ -1831,19 +1839,19 @@ defmodule Autolaunch.Launch do
       {"AUTOLAUNCH_RECOVERY_SAFE_ADDRESS", job.recovery_safe_address || ""},
       {"AUTOLAUNCH_AUCTION_PROCEEDS_RECIPIENT", job.auction_proceeds_recipient || ""},
       {"AUTOLAUNCH_ETHEREUM_REVENUE_TREASURY", job.ethereum_revenue_treasury || ""},
-      {"AUTOLAUNCH_EMISSION_RECIPIENT", job.ethereum_revenue_treasury || ""},
       {"AUTOLAUNCH_LIFECYCLE_RUN_ID", job.lifecycle_run_id || ""},
       {"AUTOLAUNCH_LAUNCH_NOTES", job.launch_notes || ""},
       {"AUTOLAUNCH_NETWORK", job.network},
       {"AUTOLAUNCH_CHAIN_ID", Integer.to_string(job.chain_id)},
       {"REVENUE_SHARE_FACTORY_ADDRESS", deploy_revenue_share_factory_address()},
-      {"SUBJECT_REGISTRY_ADDRESS", deploy_subject_registry_address()},
-      {"MAINNET_REGENT_EMISSIONS_CONTROLLER_ADDRESS",
-       deploy_mainnet_regent_emissions_controller_address()},
+      {"REVENUE_INGRESS_FACTORY_ADDRESS", deploy_revenue_ingress_factory_address()},
+      {"LBP_STRATEGY_FACTORY_ADDRESS", deploy_lbp_strategy_factory_address()},
+      {"TOKEN_FACTORY_ADDRESS", deploy_token_factory_address()},
       {"REGENT_MULTISIG_ADDRESS", deploy_regent_multisig_address()},
       {"ETH_MAINNET_USDC_ADDRESS", deploy_ethereum_usdc_address(job.chain_id)},
       {"FACTORY_ADDRESS", deploy_factory_address(job.chain_id)},
-      {"UNISWAP_V4_POOL_MANAGER", deploy_pool_manager_address(job.chain_id)}
+      {"UNISWAP_V4_POOL_MANAGER", deploy_pool_manager_address(job.chain_id)},
+      {"UNISWAP_V4_POSITION_MANAGER", deploy_position_manager_address(job.chain_id)}
     ]
   end
 
@@ -1974,13 +1982,6 @@ defmodule Autolaunch.Launch do
     end
   end
 
-  defp optional_launch_output_address(parsed, key) do
-    case normalize_address(Map.get(parsed, key)) do
-      "0x0000000000000000000000000000000000000000" -> nil
-      value -> value
-    end
-  end
-
   defp required_launch_output_hex(parsed, key, bytes) do
     case Map.get(parsed, key) do
       "0x" <> value = hex when byte_size(value) == bytes -> {:ok, String.downcase(hex)}
@@ -2042,11 +2043,21 @@ defmodule Autolaunch.Launch do
   defp deploy_revenue_share_factory_address,
     do: Keyword.get(launch_config(), :revenue_share_factory_address, "")
 
-  defp deploy_subject_registry_address,
-    do: Keyword.get(launch_config(), :subject_registry_address, "")
+  defp deploy_revenue_ingress_factory_address,
+    do: Keyword.get(launch_config(), :revenue_ingress_factory_address, "")
 
-  defp deploy_mainnet_regent_emissions_controller_address,
-    do: Keyword.get(launch_config(), :mainnet_regent_emissions_controller_address, "")
+  defp deploy_lbp_strategy_factory_address,
+    do: Keyword.get(launch_config(), :lbp_strategy_factory_address, "")
+
+  defp deploy_token_factory_address,
+    do: Keyword.get(launch_config(), :token_factory_address, "")
+
+  defp deploy_position_manager_address(chain_id) do
+    case chain_id do
+      1 -> Keyword.get(launch_config(), :eth_mainnet_position_manager_address, "")
+      _ -> ""
+    end
+  end
 
   defp deploy_ethereum_usdc_address(chain_id) do
     case chain_id do
@@ -2067,8 +2078,14 @@ defmodule Autolaunch.Launch do
         blank?(deploy_revenue_share_factory_address()) ->
           "Missing revenue share factory address."
 
-        blank?(deploy_subject_registry_address()) ->
-          "Missing subject registry address."
+        blank?(deploy_revenue_ingress_factory_address()) ->
+          "Missing revenue ingress factory address."
+
+        blank?(deploy_lbp_strategy_factory_address()) ->
+          "Missing Regent LBP strategy factory address."
+
+        blank?(deploy_token_factory_address()) ->
+          "Missing token factory address."
 
         blank?(deploy_pool_manager_address(chain_id)) ->
           "Missing #{chain.label} Uniswap v4 pool manager address."
@@ -2078,9 +2095,6 @@ defmodule Autolaunch.Launch do
 
         blank?(deploy_ethereum_usdc_address(chain_id)) ->
           "Missing #{chain.label} USDC address."
-
-        chain_id == 1 and blank?(deploy_mainnet_regent_emissions_controller_address()) ->
-          "Missing mainnet Regent emissions controller address."
 
         true ->
           nil

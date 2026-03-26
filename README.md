@@ -1,6 +1,6 @@
 # Autolaunch
 
-Autolaunch is the Phoenix LiveView app behind `autolaunch.sh`. This repo now also holds the local Foundry workspace under `contracts/`. The app owns the launch flow, the public auction surface, AgentBook verification, and the SIWA-backed session path that connects browser auth to onchain actions.
+Autolaunch is the Phoenix LiveView app behind `autolaunch.sh`. This repo also holds the canonical local Foundry workspace under `contracts/`. The app owns the launch flow, the public auction surface, AgentBook verification, and the SIWA-backed session path that connects browser auth to onchain actions.
 
 ## Agents
 
@@ -58,26 +58,26 @@ The full environment list lives in [.env.example](.env.example). The important g
 - App runtime: `DATABASE_URL` or `LOCAL_DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`
 - Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`
 - SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`, `SIWA_HMAC_SECRET`
-- Launch deployment: `ETH_MAINNET_RPC_URL`, `ETH_MAINNET_FACTORY_ADDRESS`, `ETH_MAINNET_UNISWAP_V4_POOL_MANAGER`, `ETH_MAINNET_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
-- Launch revenue infra: `REVENUE_SHARE_FACTORY_ADDRESS`, `SUBJECT_REGISTRY_ADDRESS`, `MAINNET_REGENT_EMISSIONS_CONTROLLER_ADDRESS`, `ERC8004_MAINNET_SUBGRAPH_URL`
+- Launch deployment: `ETH_MAINNET_RPC_URL`, `ETH_MAINNET_FACTORY_ADDRESS`, `ETH_MAINNET_UNISWAP_V4_POOL_MANAGER`, `ETH_MAINNET_UNISWAP_V4_POSITION_MANAGER`, `ETH_MAINNET_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
+- Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `ERC8004_MAINNET_SUBGRAPH_URL`
 - AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
 
 The launch path is Ethereum mainnet only.
 
 ### Launch Flow
 
-Autolaunch expects the hard-cut `CCA_RESULT_JSON` payload from the configured deployment script. The revenue and emissions contract source of truth now lives in the local Foundry workspace under [`contracts/`](contracts).
+Autolaunch expects the hard-cut `CCA_RESULT_JSON` payload from the configured deployment script. The contract source of truth lives in the local Foundry workspace under [`contracts/`](contracts).
 
-The launch controller, fee registry, fee vault, fee hook, subject registry, revsplit, and ingress addresses are produced by the deploy script in `contracts/`, then stored and displayed by the app.
+The launch controller returns the strategy, vesting wallet, fee registry, fee vault, fee hook, subject registry, revsplit, and default ingress addresses. The app stores that output and uses it for post-launch tracking.
 
 Important launch rules:
 
 - Each auction sells 10% of a 100 billion supply
+- The launch strategy holds another 5% for LP migration and sends 85% into the vesting wallet
 - Every auction is denominated in USDC on Ethereum mainnet
 - Launch buyers must stake the claimed tokens to earn revenue and token-fee share
 - Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
 - Recognized revenue is mainnet USDC only, and it only counts once it reaches the revsplit
-- The mainnet emissions controller finalizes epochs from that onchain state
 - The fee hook is the launch-side fee lane, while the revsplit is the ongoing revenue-rights lane
 - `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET` is required at runtime; there is no baked-in example deploy script target anymore
 - `config/runtime.exs` is the runtime environment path; `config/dev.exs` stays limited to dev-only browser tooling and reload support
@@ -102,7 +102,7 @@ The Phoenix aliases in `mix.exs` also include `ecto.reset` and the usual asset s
 - `config/` - runtime, development, test, and release configuration
 - `priv/` - migrations, seed data, static assets, and gettext files
 - `test/` - unit, controller, and LiveView coverage
-- `contracts/` - local Foundry workspace for launch, revenue, and emissions contracts
+- `contracts/` - local Foundry workspace for launch, revsplit, and ingress contracts
 - `AUTOLAUNCH_AUCTIONS_GUIDE.md` - public auction guide
 - `AUTOLAUNCH_PORT.md` - port and process notes
 - `PRODUCT_SURFACE_PROPOSAL.md` - product surface direction
@@ -110,5 +110,5 @@ The Phoenix aliases in `mix.exs` also include `ecto.reset` and the usual asset s
 ### External Dependencies
 
 - The canonical CLI lives in the standalone [`regent-ai/regent-cli`](https://github.com/regent-ai/regent-cli) repo, with the expected local checkout at `/Users/sean/Documents/regent/regent-cli`, as `regent autolaunch ...`
-- The Autolaunch revenue and emissions contracts live in [`contracts/`](contracts)
+- The Autolaunch contracts live in [`contracts/`](contracts)
 - The public guide content for auctions lives in [`AUTOLAUNCH_AUCTIONS_GUIDE.md`](AUTOLAUNCH_AUCTIONS_GUIDE.md)

@@ -74,11 +74,12 @@ if config_env() != :test do
     eth_mainnet_factory_address:
       env.("ETH_MAINNET_FACTORY_ADDRESS", "0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5"),
     eth_mainnet_pool_manager_address: env.("ETH_MAINNET_UNISWAP_V4_POOL_MANAGER", ""),
+    eth_mainnet_position_manager_address: env.("ETH_MAINNET_UNISWAP_V4_POSITION_MANAGER", ""),
     eth_mainnet_usdc_address: env.("ETH_MAINNET_USDC_ADDRESS", ""),
     revenue_share_factory_address: env.("REVENUE_SHARE_FACTORY_ADDRESS", ""),
-    subject_registry_address: env.("SUBJECT_REGISTRY_ADDRESS", ""),
-    mainnet_regent_emissions_controller_address:
-      env.("MAINNET_REGENT_EMISSIONS_CONTROLLER_ADDRESS", ""),
+    revenue_ingress_factory_address: env.("REVENUE_INGRESS_FACTORY_ADDRESS", ""),
+    lbp_strategy_factory_address: env.("LBP_STRATEGY_FACTORY_ADDRESS", ""),
+    token_factory_address: env.("TOKEN_FACTORY_ADDRESS", ""),
     erc8004_mainnet_subgraph_url: env.("ERC8004_MAINNET_SUBGRAPH_URL", ""),
     regent_multisig_address:
       env.("REGENT_MULTISIG_ADDRESS", "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"),

@@ -142,7 +142,7 @@ defmodule AutolaunchWeb.LaunchLive do
           <p class="al-subcopy">
             Autolaunch sells 10% of a fixed 100 billion Agent Coin supply in a Continuous Clearing
             Auction on Ethereum mainnet. Bids settle in USDC, and recognized revenue only counts
-            after mainnet USDC reaches the revenue share splitter that feeds staking and onchain emissions.
+            after mainnet USDC reaches the revenue share splitter that feeds staking.
           </p>
 
           <div class="al-hero-actions">
@@ -232,7 +232,7 @@ defmodule AutolaunchWeb.LaunchLive do
             <p>
               The wizard pre-fills addresses from your connected wallet. The sale size stays fixed
               at 10% of a 100 billion supply, and only mainnet USDC that reaches the revenue share splitter is
-              counted for staking and emissions through the revenue share splitter.
+              counted for staking through the revenue share splitter.
             </p>
           </article>
 
@@ -417,7 +417,7 @@ defmodule AutolaunchWeb.LaunchLive do
               <p>
                 Launch runs on Ethereum mainnet only. Supply is fixed at 100 billion, the auction
                 sells 10%, and recognized revenue means mainnet USDC that reaches the revenue share splitter
-                before the onchain emissions controller finalizes epochs.
+                before stakers can claim from recognized revenue.
               </p>
             </div>
 
@@ -639,16 +639,22 @@ defmodule AutolaunchWeb.LaunchLive do
 
                 <article
                   :if={
-                    @current_job.job.hook_address || @current_job.job.launch_fee_registry_address ||
+                    @current_job.job.strategy_address || @current_job.job.vesting_wallet_address ||
+                      @current_job.job.hook_address || @current_job.job.launch_fee_registry_address ||
                       @current_job.job.launch_fee_vault_address || @current_job.job.default_ingress_address ||
-                      @current_job.job.revenue_ingress_router_address || @current_job.job.subject_registry_address ||
-                      @current_job.job.subject_id || @current_job.job.revenue_share_splitter_address ||
-                      @current_job.job.pool_id
+                      @current_job.job.subject_registry_address || @current_job.job.subject_id ||
+                      @current_job.job.revenue_share_splitter_address || @current_job.job.pool_id
                   }
                   class="al-note-card"
                 >
                   <p class="al-kicker">Launch stack</p>
                   <ul class="al-compact-list">
+                    <li :if={@current_job.job.strategy_address}>
+                      LBP strategy: <strong>{@current_job.job.strategy_address}</strong>
+                    </li>
+                    <li :if={@current_job.job.vesting_wallet_address}>
+                      Vesting wallet: <strong>{@current_job.job.vesting_wallet_address}</strong>
+                    </li>
                     <li :if={@current_job.job.hook_address}>
                       Fee hook: <strong>{@current_job.job.hook_address}</strong>
                     </li>
@@ -660,9 +666,6 @@ defmodule AutolaunchWeb.LaunchLive do
                     </li>
                     <li :if={@current_job.job.default_ingress_address}>
                       Default ingress: <strong>{@current_job.job.default_ingress_address}</strong>
-                    </li>
-                    <li :if={@current_job.job.revenue_ingress_router_address}>
-                      Revenue ingress router: <strong>{@current_job.job.revenue_ingress_router_address}</strong>
                     </li>
                     <li :if={@current_job.job.subject_registry_address}>
                       Subject registry: <strong>{@current_job.job.subject_registry_address}</strong>

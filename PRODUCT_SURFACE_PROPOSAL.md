@@ -44,7 +44,7 @@ Step 2: configure token
 - Network is fixed to Ethereum mainnet and does not appear as a user choice
 - Explain: one token per agent
 - Explain: the auction sells 10% of the 100 billion supply
-- Explain: only mainnet USDC that reaches the revsplit counts for staking and emissions
+- Explain: only mainnet USDC that reaches the revsplit counts for staking
 - Show fee split inline: `2% trading fee -> 1% agent treasury + 1% Regent multisig`
 
 Step 3: review and sign

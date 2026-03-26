@@ -35,6 +35,8 @@ defmodule Autolaunch.Launch.Job do
     field :rpc_host, :string
     field :auction_address, :string
     field :token_address, :string
+    field :strategy_address, :string
+    field :vesting_wallet_address, :string
     field :hook_address, :string
     field :launch_fee_registry_address, :string
     field :launch_fee_vault_address, :string
@@ -42,7 +44,6 @@ defmodule Autolaunch.Launch.Job do
     field :subject_id, :string
     field :revenue_share_splitter_address, :string
     field :default_ingress_address, :string
-    field :revenue_ingress_router_address, :string
     field :pool_id, :string
     field :tx_hash, :string
     field :uniswap_url, :string
@@ -117,6 +118,8 @@ defmodule Autolaunch.Launch.Job do
       :error_message,
       :auction_address,
       :token_address,
+      :strategy_address,
+      :vesting_wallet_address,
       :hook_address,
       :launch_fee_registry_address,
       :launch_fee_vault_address,
@@ -124,7 +127,6 @@ defmodule Autolaunch.Launch.Job do
       :subject_id,
       :revenue_share_splitter_address,
       :default_ingress_address,
-      :revenue_ingress_router_address,
       :pool_id,
       :tx_hash,
       :uniswap_url,

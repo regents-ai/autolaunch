@@ -164,16 +164,22 @@ defmodule Autolaunch.LaunchTest do
     Repo.get!(Job, "job_prompt")
     |> Job.update_changeset(%{
       token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      strategy_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      vesting_wallet_address: "0x9999999999999999999999999999999999999999",
       launch_fee_vault_address: "0xcccccccccccccccccccccccccccccccccccccccc",
       revenue_share_splitter_address: "0xdddddddddddddddddddddddddddddddddddddddd",
       subject_id: "0x" <> String.duplicate("1", 64),
       default_ingress_address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-      revenue_ingress_router_address: "0xffffffffffffffffffffffffffffffffffffffff",
       pool_id: "0x" <> String.duplicate("2", 64)
     })
     |> Repo.update!()
 
     response = Launch.get_job_response("job_prompt")
+
+    assert response.job.strategy_address == "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+    assert response.job.vesting_wallet_address ==
+             "0x9999999999999999999999999999999999999999"
 
     assert response.job.launch_fee_vault_address ==
              "0xcccccccccccccccccccccccccccccccccccccccc"
@@ -183,9 +189,6 @@ defmodule Autolaunch.LaunchTest do
 
     assert response.job.subject_id == "0x" <> String.duplicate("1", 64)
     assert response.job.default_ingress_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-
-    assert response.job.revenue_ingress_router_address ==
-             "0xffffffffffffffffffffffffffffffffffffffff"
 
     assert response.job.pool_id == "0x" <> String.duplicate("2", 64)
 
@@ -206,8 +209,9 @@ defmodule Autolaunch.LaunchTest do
   test "process_job stores the current canonical launch stack output" do
     with_launch_command_output(
       canonical_launch_output(
+        strategyAddress: "0x9999999999999999999999999999999999999999",
+        vestingWalletAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         defaultIngressAddress: "0x7777777777777777777777777777777777777777",
-        revenueIngressRouterAddress: "0x8888888888888888888888888888888888888888",
         poolId: "0x" <> String.duplicate("f", 64)
       ),
       fn ->
@@ -219,38 +223,18 @@ defmodule Autolaunch.LaunchTest do
         response = Launch.get_job_response("job_canonical_output")
 
         assert job.status == "ready"
+        assert job.strategy_address == "0x9999999999999999999999999999999999999999"
+
+        assert job.vesting_wallet_address ==
+                 "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
         assert job.default_ingress_address == "0x7777777777777777777777777777777777777777"
 
-        assert job.revenue_ingress_router_address ==
-                 "0x8888888888888888888888888888888888888888"
-
         assert job.pool_id == "0x" <> String.duplicate("f", 64)
+        assert response.job.strategy_address == job.strategy_address
+        assert response.job.vesting_wallet_address == job.vesting_wallet_address
         assert response.job.default_ingress_address == job.default_ingress_address
-
-        assert response.job.revenue_ingress_router_address ==
-                 job.revenue_ingress_router_address
-
         assert response.job.pool_id == job.pool_id
-      end
-    )
-  end
-
-  test "process_job keeps the ingress router optional when the deploy output uses zero address" do
-    with_launch_command_output(
-      canonical_launch_output(
-        revenueIngressRouterAddress: "0x0000000000000000000000000000000000000000"
-      ),
-      fn ->
-        insert_launch_job("job_zero_router")
-
-        assert :ok = Launch.process_job("job_zero_router")
-
-        job = Repo.get!(Job, "job_zero_router")
-        response = Launch.get_job_response("job_zero_router")
-
-        assert job.status == "ready"
-        assert job.revenue_ingress_router_address == nil
-        assert response.job.revenue_ingress_router_address == nil
       end
     )
   end
@@ -327,11 +311,13 @@ defmodule Autolaunch.LaunchTest do
         deploy_script_target: "ignored",
         eth_mainnet_rpc_url: "http://127.0.0.1:8545",
         revenue_share_factory_address: "0x1111111111111111111111111111111111111111",
-        subject_registry_address: "0x2222222222222222222222222222222222222222",
+        revenue_ingress_factory_address: "0x2222222222222222222222222222222222222222",
+        lbp_strategy_factory_address: "0x6666666666666666666666666666666666666666",
+        token_factory_address: "0x7777777777777777777777777777777777777777",
         eth_mainnet_pool_manager_address: "0x3333333333333333333333333333333333333333",
         eth_mainnet_factory_address: "0x4444444444444444444444444444444444444444",
         eth_mainnet_usdc_address: "0x5555555555555555555555555555555555555555",
-        mainnet_regent_emissions_controller_address: "0x6666666666666666666666666666666666666666"
+        eth_mainnet_position_manager_address: "0x8888888888888888888888888888888888888888"
       )
     )
 
@@ -353,6 +339,8 @@ defmodule Autolaunch.LaunchTest do
         "factoryAddress" => "0x4444444444444444444444444444444444444444",
         "auctionAddress" => "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "tokenAddress" => "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "strategyAddress" => "0x9999999999999999999999999999999999999999",
+        "vestingWalletAddress" => "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "hookAddress" => "0xcccccccccccccccccccccccccccccccccccccccc",
         "launchFeeRegistryAddress" => "0xdddddddddddddddddddddddddddddddddddddddd",
         "feeVaultAddress" => "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -360,7 +348,6 @@ defmodule Autolaunch.LaunchTest do
         "subjectId" => "0x" <> String.duplicate("1", 64),
         "revenueShareSplitterAddress" => "0x9999999999999999999999999999999999999999",
         "defaultIngressAddress" => "0x7777777777777777777777777777777777777777",
-        "revenueIngressRouterAddress" => "0x8888888888888888888888888888888888888888",
         "poolId" => "0x" <> String.duplicate("f", 64),
         "txHash" => "0x" <> String.duplicate("a", 64)
       },

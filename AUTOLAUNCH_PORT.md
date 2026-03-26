@@ -58,6 +58,5 @@ Shared Regent policy tables read by readiness:
 - AgentLaunchToken supply is fixed at 100 billion and every auction sells 10%.
 - Mock deploy path is disabled by default and only enabled when `AUTOLAUNCH_MOCK_DEPLOY=true`
 - Revenue counts only when mainnet USDC reaches the revsplit.
-- The mainnet emissions controller finalizes epochs from that onchain state.
-- Revenue and emissions contract source of truth lives at `/Users/sean/Documents/regent/autolaunch/contracts`.
-- Missing launch-side contracts stay as deploy-script outputs until they land in the local `contracts/` workspace.
+- The Regent-side fee lane is a direct treasury payout with no reward-accounting contract behind it.
+- The Autolaunch contract source of truth lives at `/Users/sean/Documents/regent/autolaunch/contracts`.
