@@ -74,5 +74,5 @@ forge test --match-contract RevenueIngressAccountTest
 The main architecture story to protect is:
 
 - launch stack and revenue stack live in one package
-- only mainnet USDC that reaches the revsplit counts as recognized revenue
+- only Sepolia USDC that reaches the revsplit counts as recognized revenue
 - there is no REGENT reward-accounting contract in the active path

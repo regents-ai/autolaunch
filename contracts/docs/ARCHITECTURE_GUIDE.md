@@ -7,7 +7,7 @@ This guide describes the full Autolaunch system that now lives in the local `con
 Autolaunch has one launch stack and one ongoing revenue stack.
 
 - The launch stack creates the token, auction, pool fee plumbing, and subject wiring.
-- The revenue stack recognizes only mainnet USDC that reaches the subject revsplit.
+- The revenue stack recognizes only Sepolia USDC that reaches the subject revsplit.
 - The Regent-side fee lane is a plain treasury payout, not a rewards rail.
 
 ## Core contracts
@@ -76,7 +76,7 @@ The fee vault stores those balances until the configured recipients withdraw the
 
 The active rule is simple:
 
-- only mainnet USDC counts
+- only Sepolia USDC counts
 - it counts only when it reaches the subject revsplit
 
 That keeps one canonical accounting point and avoids cross-chain or offchain revenue bookkeeping inside the protocol core.

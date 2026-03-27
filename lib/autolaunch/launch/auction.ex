@@ -10,8 +10,8 @@ defmodule Autolaunch.Launch.Auction do
     field :owner_address, :string
     field :auction_address, :string
     field :token_address, :string
-    field :network, :string, default: "ethereum-mainnet"
-    field :chain_id, :integer, default: 1
+    field :network, :string, default: "ethereum-sepolia"
+    field :chain_id, :integer, default: 11_155_111
     field :status, :string, default: "active"
     field :started_at, :utc_datetime_usec
     field :ends_at, :utc_datetime_usec

@@ -141,8 +141,8 @@ defmodule AutolaunchWeb.LaunchLive do
           <h2>Launch the Agent Coin flow from one operator-grade surface.</h2>
           <p class="al-subcopy">
             Autolaunch sells 10% of a fixed 100 billion Agent Coin supply in a Continuous Clearing
-            Auction on Ethereum mainnet. Bids settle in USDC, and recognized revenue only counts
-            after mainnet USDC reaches the revenue share splitter that feeds staking.
+            Auction on Ethereum Sepolia. Bids settle in USDC, and recognized revenue only counts
+            after Sepolia USDC reaches the revenue share splitter that feeds staking.
           </p>
 
           <div class="al-hero-actions">
@@ -160,7 +160,7 @@ defmodule AutolaunchWeb.LaunchLive do
           <div class="al-launch-tags" aria-label="Launch themes">
             <span class="al-launch-tag">ERC-8004 identity</span>
             <span class="al-launch-tag">10% sold, 100B total</span>
-            <span class="al-launch-tag">USDC on Ethereum mainnet</span>
+            <span class="al-launch-tag">USDC on Ethereum Sepolia</span>
           </div>
 
           <div class="al-stat-grid al-launch-stats">
@@ -231,7 +231,7 @@ defmodule AutolaunchWeb.LaunchLive do
             <strong>Confirm the fixed sale and revenue routing before you sign.</strong>
             <p>
               The wizard pre-fills addresses from your connected wallet. The sale size stays fixed
-              at 10% of a 100 billion supply, and only mainnet USDC that reaches the revenue share splitter is
+              at 10% of a 100 billion supply, and only Sepolia USDC that reaches the revenue share splitter is
               counted for staking through the revenue share splitter.
             </p>
           </article>
@@ -415,8 +415,8 @@ defmodule AutolaunchWeb.LaunchLive do
             <div class="al-inline-banner">
               <strong>{@fee_split.headline}</strong>
               <p>
-                Launch runs on Ethereum mainnet only. Supply is fixed at 100 billion, the auction
-                sells 10%, and recognized revenue means mainnet USDC that reaches the revenue share splitter
+                Launch runs on Ethereum Sepolia only. Supply is fixed at 100 billion, the auction
+                sells 10%, and recognized revenue means Sepolia USDC that reaches the revenue share splitter
                 before stakers can claim from recognized revenue.
               </p>
             </div>
@@ -855,7 +855,7 @@ defmodule AutolaunchWeb.LaunchLive do
   defp launch_hero_transcript do
     """
     > preview.ok = true
-    > chain = ethereum-mainnet
+    > chain = ethereum-sepolia
     > total_supply = 100000000000000000000000000000
     > next = sign in browser and queue launch
     """

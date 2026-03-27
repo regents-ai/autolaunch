@@ -58,11 +58,11 @@ The full environment list lives in [.env.example](.env.example). The important g
 - App runtime: `DATABASE_URL` or `LOCAL_DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`
 - Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`
 - SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`, `SIWA_HMAC_SECRET`
-- Launch deployment: `ETH_MAINNET_RPC_URL`, `ETH_MAINNET_FACTORY_ADDRESS`, `ETH_MAINNET_UNISWAP_V4_POOL_MANAGER`, `ETH_MAINNET_UNISWAP_V4_POSITION_MANAGER`, `ETH_MAINNET_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
-- Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `ERC8004_MAINNET_SUBGRAPH_URL`
+- Launch deployment: `ETH_SEPOLIA_RPC_URL`, `ETH_SEPOLIA_FACTORY_ADDRESS`, `ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER`, `ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER`, `ETH_SEPOLIA_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
+- Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `ERC8004_SEPOLIA_SUBGRAPH_URL`
 - AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
 
-The launch path is Ethereum mainnet only.
+The launch path is Ethereum Sepolia only.
 
 ### Launch Flow
 
@@ -74,10 +74,10 @@ Important launch rules:
 
 - Each auction sells 10% of a 100 billion supply
 - The launch strategy holds another 5% for LP migration and sends 85% into the vesting wallet
-- Every auction is denominated in USDC on Ethereum mainnet
+- Every auction is denominated in USDC on Ethereum Sepolia
 - Launch buyers must stake the claimed tokens to earn revenue and token-fee share
 - Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
-- Recognized revenue is mainnet USDC only, and it only counts once it reaches the revsplit
+- Recognized revenue is Sepolia USDC only, and it only counts once it reaches the revsplit
 - The fee hook is the launch-side fee lane, while the revsplit is the ongoing revenue-rights lane
 - `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET` is required at runtime; there is no baked-in example deploy script target anymore
 - `config/runtime.exs` is the runtime environment path; `config/dev.exs` stays limited to dev-only browser tooling and reload support

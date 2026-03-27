@@ -15,8 +15,8 @@ defmodule Autolaunch.Launch.Job do
     field :recovery_safe_address, :string
     field :auction_proceeds_recipient, :string
     field :ethereum_revenue_treasury, :string
-    field :network, :string, default: "ethereum-mainnet"
-    field :chain_id, :integer, default: 1
+    field :network, :string, default: "ethereum-sepolia"
+    field :chain_id, :integer, default: 11_155_111
     field :broadcast, :boolean, default: true
     field :status, :string, default: "queued"
     field :step, :string, default: "queued"

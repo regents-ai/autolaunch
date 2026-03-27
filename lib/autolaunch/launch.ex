@@ -26,17 +26,17 @@ defmodule Autolaunch.Launch do
   }
   @default_auction_duration_seconds 604_800
   @chain_configs %{
-    1 => %{
-      id: 1,
-      key: "ethereum-mainnet",
+    11_155_111 => %{
+      id: 11_155_111,
+      key: "ethereum-sepolia",
       family: "ethereum",
-      label: "Ethereum Mainnet",
-      short_label: "Ethereum",
-      uniswap_network: "ethereum",
-      testnet?: false
+      label: "Ethereum Sepolia",
+      short_label: "Sepolia",
+      uniswap_network: "sepolia",
+      testnet?: true
     }
   }
-  @supported_chain_ids [1]
+  @supported_chain_ids [11_155_111]
 
   def fee_split_summary, do: @fee_split
 
@@ -169,11 +169,11 @@ defmodule Autolaunch.Launch do
           "One ERC-8004 identity can launch at most one Agent Coin.",
           "AgentLaunchToken supply is fixed at 100 billion from launch.",
           "Recovery Safe, auction proceeds, and the Ethereum treasury safe are locked into the launch configuration you sign.",
-          "Only mainnet USDC that reaches the revsplit counts as recognized protocol revenue."
+          "Only Sepolia USDC that reaches the revsplit counts as recognized protocol revenue."
         ],
         next_steps: [
           "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
-          "Queue the Ethereum mainnet launch deployment.",
+          "Queue the Ethereum Sepolia launch deployment.",
           "Wait for the deploy script to return the strategy, vesting wallet, fee hook, subject registry, revenue splitter, and ingress addresses.",
           "Wait for the auction page, then stake claimed tokens to earn revenue."
         ],
@@ -1758,7 +1758,7 @@ defmodule Autolaunch.Launch do
   end
 
   defp launch_chain_id do
-    normalize_chain_id(Keyword.get(launch_config(), :chain_id, 1))
+    normalize_chain_id(Keyword.get(launch_config(), :chain_id, 11_155_111))
   end
 
   defp deploy_binary do
@@ -1785,7 +1785,7 @@ defmodule Autolaunch.Launch do
     config = launch_config()
 
     case chain_id do
-      1 -> Keyword.get(config, :eth_mainnet_rpc_url, "")
+      11_155_111 -> Keyword.get(config, :eth_sepolia_rpc_url, "")
       _ -> ""
     end
   end
@@ -1848,7 +1848,7 @@ defmodule Autolaunch.Launch do
       {"LBP_STRATEGY_FACTORY_ADDRESS", deploy_lbp_strategy_factory_address()},
       {"TOKEN_FACTORY_ADDRESS", deploy_token_factory_address()},
       {"REGENT_MULTISIG_ADDRESS", deploy_regent_multisig_address()},
-      {"ETH_MAINNET_USDC_ADDRESS", deploy_ethereum_usdc_address(job.chain_id)},
+      {"ETHEREUM_USDC_ADDRESS", deploy_ethereum_usdc_address(job.chain_id)},
       {"FACTORY_ADDRESS", deploy_factory_address(job.chain_id)},
       {"UNISWAP_V4_POOL_MANAGER", deploy_pool_manager_address(job.chain_id)},
       {"UNISWAP_V4_POSITION_MANAGER", deploy_position_manager_address(job.chain_id)}
@@ -1890,7 +1890,7 @@ defmodule Autolaunch.Launch do
     do: human |> linked_wallet_addresses() |> List.first()
 
   defp normalize_chain_id(value) when is_integer(value) do
-    if value == 1, do: {:ok, value}, else: {:error, :invalid_chain_id}
+    if value == 11_155_111, do: {:ok, value}, else: {:error, :invalid_chain_id}
   end
 
   defp normalize_chain_id(value) when is_binary(value) do
@@ -2020,14 +2020,14 @@ defmodule Autolaunch.Launch do
 
   defp deploy_factory_address(chain_id) do
     case chain_id do
-      1 -> Keyword.get(launch_config(), :eth_mainnet_factory_address, "")
+      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_factory_address, "")
       _ -> ""
     end
   end
 
   defp deploy_pool_manager_address(chain_id) do
     case chain_id do
-      1 -> Keyword.get(launch_config(), :eth_mainnet_pool_manager_address, "")
+      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_pool_manager_address, "")
       _ -> ""
     end
   end
@@ -2054,14 +2054,14 @@ defmodule Autolaunch.Launch do
 
   defp deploy_position_manager_address(chain_id) do
     case chain_id do
-      1 -> Keyword.get(launch_config(), :eth_mainnet_position_manager_address, "")
+      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_position_manager_address, "")
       _ -> ""
     end
   end
 
   defp deploy_ethereum_usdc_address(chain_id) do
     case chain_id do
-      1 -> Keyword.get(launch_config(), :eth_mainnet_usdc_address, "")
+      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_usdc_address, "")
       _ -> ""
     end
   end

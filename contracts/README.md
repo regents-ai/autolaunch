@@ -22,7 +22,7 @@ It now contains the full launch stack plus the ongoing revsplit and ingress cont
 
 ## Product rule
 
-- Only mainnet USDC that reaches the subject revsplit counts as recognized revenue.
+- Only Sepolia USDC that reaches the subject revsplit counts as recognized revenue.
 - The Regent-side fee lane is a plain treasury payout. There is no REGENT reward-accounting contract in the active path.
 
 ## Deployment helpers

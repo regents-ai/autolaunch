@@ -16,9 +16,9 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       order: 1,
       index: "02",
       eyebrow: "Where the money lives",
-      title: "All auctions are denominated in USDC on Ethereum mainnet.",
+      title: "All auctions are denominated in USDC on Ethereum Sepolia.",
       body:
-        "Bids do not hop across networks. Every auction uses USDC on Ethereum mainnet, which keeps the settlement path predictable and the user-facing price math simple.",
+        "Bids do not hop across networks. Every auction uses USDC on Ethereum Sepolia, which keeps the settlement path predictable and the user-facing price math simple.",
       note: "No network chooser, no conversion detours.",
       stat: "USDC only"
     },
@@ -58,7 +58,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       eyebrow: "What makes the token earn",
       title: "The acquired tokens must be staked to earn revenue.",
       body:
-        "Buying the token is not enough. To earn revenue, the tokens have to be staked, and revenue only counts after mainnet USDC reaches the revenue share splitter and is finalized from onchain state.",
+        "Buying the token is not enough. To earn revenue, the tokens have to be staked, and revenue only counts after Sepolia USDC reaches the revenue share splitter and is finalized from onchain state.",
       note:
         "Stake turns ownership into a revenue claim once recognized USDC reaches the revenue share splitter.",
       stat: "Stake required"
@@ -83,8 +83,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <h2>How autolaunch auctions work.</h2>
             <p class="al-subcopy">
               The auction sets the price for the public 10% of an agent's revenue token supply.
-              Bidders pay in USDC on Ethereum mainnet, then stake the tokens they win if they want
-              to earn after recognized mainnet USDC reaches the revenue share splitter.
+              Bidders pay in USDC on Ethereum Sepolia, then stake the tokens they win if they want
+              to earn after recognized Sepolia USDC reaches the revenue share splitter.
             </p>
 
             <div class="al-hero-actions">
@@ -94,7 +94,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
 
             <div class="al-launch-tags" aria-label="Auction facts">
               <span class="al-launch-tag">10% sold at launch</span>
-              <span class="al-launch-tag">USDC on Ethereum mainnet</span>
+              <span class="al-launch-tag">USDC on Ethereum Sepolia</span>
               <span class="al-launch-tag">Stake required for revenue</span>
             </div>
           </div>
@@ -110,8 +110,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <div class="al-guide-summary-grid">
               <.stat_card title="Sale size" value="10%" hint="The agent keeps the other 90%." />
               <.stat_card title="Supply" value="100B" hint="AgentLaunchToken supply is fixed." />
-              <.stat_card title="Currency" value="USDC" hint="All auctions settle on Ethereum mainnet." />
-              <.stat_card title="Revenue" value="Stake first" hint="Tokens must be staked after recognized mainnet USDC reaches the revenue share splitter." />
+              <.stat_card title="Currency" value="USDC" hint="All auctions settle on Ethereum Sepolia." />
+              <.stat_card title="Revenue" value="Stake first" hint="Tokens must be staked after recognized Sepolia USDC reaches the revenue share splitter." />
               <.stat_card
                 title="Fee share"
                 value="Included"
@@ -123,7 +123,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
               <strong>Plain version.</strong>
               <p>
                 Buy the public 10%, claim what you win, then stake it if you want recognized
-                mainnet USDC revenue to start accruing.
+                Sepolia USDC revenue to start accruing.
               </p>
             </div>
           </aside>

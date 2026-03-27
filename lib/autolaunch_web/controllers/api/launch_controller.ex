@@ -59,7 +59,7 @@ defmodule AutolaunchWeb.Api.LaunchController do
           conn,
           :unprocessable_entity,
           "invalid_chain_id",
-          "Chain ID must be Ethereum mainnet (1)"
+          "Chain ID must be Ethereum Sepolia (11155111)"
         )
 
       {:error, :invalid_wallet_address} ->

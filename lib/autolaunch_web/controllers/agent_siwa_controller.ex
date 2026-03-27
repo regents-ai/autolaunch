@@ -19,7 +19,7 @@ defmodule AutolaunchWeb.AgentSiwaController do
           conn,
           :unprocessable_entity,
           "invalid_chain_id",
-          "Chain ID must be Ethereum mainnet (1)"
+          "Chain ID must be Ethereum Sepolia (11155111)"
         )
 
       {:error, {:sidecar_error, status, body}} ->
@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.AgentSiwaController do
           conn,
           :unprocessable_entity,
           "invalid_chain_id",
-          "Chain ID must be Ethereum mainnet (1)"
+          "Chain ID must be Ethereum Sepolia (11155111)"
         )
 
       {:error, {:verify_failed, response}} ->
@@ -65,7 +65,7 @@ defmodule AutolaunchWeb.AgentSiwaController do
   end
 
   defp normalize_chain_id(value) when is_integer(value) do
-    if value == 1, do: {:ok, value}, else: {:error, :invalid_chain_id}
+    if value == 11_155_111, do: {:ok, value}, else: {:error, :invalid_chain_id}
   end
 
   defp normalize_chain_id(value) when is_binary(value) do

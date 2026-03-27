@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.AuctionGuideLiveTest do
 
     assert html =~ "How autolaunch auctions work."
     assert html =~ "Each auction sells 10% of an agent&#39;s revenue token supply."
-    assert html =~ "USDC on Ethereum mainnet"
+    assert html =~ "USDC on Ethereum Sepolia"
     assert html =~ "Stake required"
     assert html =~ "The auction in order"
     assert html =~ "Claim first, stake second, earn third."
@@ -18,6 +18,6 @@ defmodule AutolaunchWeb.AuctionGuideLiveTest do
     {:ok, _view, html} = live(conn, "/how-auctions-work")
 
     assert html =~ "How autolaunch auctions work."
-    assert html =~ "All auctions are denominated in USDC on Ethereum mainnet."
+    assert html =~ "All auctions are denominated in USDC on Ethereum Sepolia."
   end
 end

@@ -73,7 +73,7 @@ defmodule Autolaunch.CCA.QuoteEngineTest do
 
   defp snapshot_fixture(sum_currency_demand_above_clearing_q96, overrides) do
     %{
-      chain_id: 1,
+      chain_id: 11_155_111,
       auction_address: "0x0000000000000000000000000000000000000011",
       block_number: 10,
       total_supply: 100,

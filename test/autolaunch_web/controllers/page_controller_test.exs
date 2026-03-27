@@ -7,6 +7,6 @@ defmodule AutolaunchWeb.PageControllerTest do
     html = html_response(conn, 200)
 
     assert html =~ "How autolaunch auctions work."
-    assert html =~ "USDC on Ethereum mainnet"
+    assert html =~ "USDC on Ethereum Sepolia"
   end
 end

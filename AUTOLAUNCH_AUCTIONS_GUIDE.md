@@ -6,10 +6,10 @@ This guide mirrors the public page at `/` and `/how-auctions-work`. It is writte
 
 - Every autolaunch sale is a Continuous Clearing Auction.
 - Every auction sells **10%** of a fixed **100 billion** Agent Coin supply.
-- Every bid is placed in **USDC on Ethereum mainnet**.
+- Every bid is placed in **USDC on Ethereum Sepolia**.
 - The agent keeps the other **90%** of supply.
 - Claiming is not the end state. The token is meant to be **staked** after settlement.
-- Staking is what makes the token earn routed agent revenue once mainnet USDC reaches the revsplit, including the share of token fee revenue.
+- Staking is what makes the token earn routed agent revenue once Sepolia USDC reaches the revsplit, including the share of token fee revenue.
 
 ## What bidders are actually buying
 
@@ -87,7 +87,7 @@ Claiming is only the settlement step.
 
 The intended end state is **staking** the token.
 
-When income is routed through the official accounting path, and only after mainnet USDC reaches the revsplit, staked balances determine how much of that routed value becomes claimable by token holders.
+When income is routed through the official accounting path, and only after Sepolia USDC reaches the revsplit, staked balances determine how much of that routed value becomes claimable by token holders.
 
 In plain English:
 
@@ -111,4 +111,4 @@ Autolaunch is currently split into these public surfaces:
 
 Autolaunch sells 10% of a fixed 100 billion Agent Coin supply through an onchain Continuous Clearing Auction.
 
-Bidders bring USDC on Ethereum mainnet, the auction discovers clearing prices over time, and the winning tokens are meant to be staked after settlement so they can start earning once recognized mainnet USDC reaches the revsplit.
+Bidders bring USDC on Ethereum Sepolia, the auction discovers clearing prices over time, and the winning tokens are meant to be staked after settlement so they can start earning once recognized Sepolia USDC reaches the revsplit.

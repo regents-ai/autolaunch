@@ -39,7 +39,7 @@ This package now covers the full Autolaunch contract system, from launch through
   - receives raw USDC and sweeps it into splitter accounting
 - `RevenueShareSplitter`
   - canonical revsplit and staking contract for the launched token
-  - only mainnet USDC that reaches this contract counts as recognized revenue
+  - only Sepolia USDC that reaches this contract counts as recognized revenue
 
 ## External dependencies
 
