@@ -21,6 +21,12 @@ config :autolaunch, :launch,
   allow_unverified_owner: false,
   deploy_script_target: ""
 
+config :autolaunch, :regent_staking,
+  chain_id: 8_453,
+  chain_label: "Base",
+  rpc_url: "",
+  contract_address: ""
+
 config :esbuild,
   version: "0.25.4",
   autolaunch: [

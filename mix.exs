@@ -53,6 +53,7 @@ defmodule Autolaunch.MixProject do
       {:req, "~> 0.5"},
       {:agent_ens, path: "../packages/agent-ens"},
       {:agent_world, path: "../packages/agent-world"},
+      {:regent_ui, path: "../packages/regent_ui"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
@@ -63,18 +64,36 @@ defmodule Autolaunch.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
+      setup: ["deps.get", "ecto.setup", "assets.setup", "regent.sync", "assets.build"],
       "ecto.setup": ["ecto.create", "ecto.migrate"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind autolaunch", "esbuild autolaunch"],
+      "regent.sync": [&sync_regent_assets/1],
+      "assets.build": ["compile", "regent.sync", "tailwind autolaunch", "esbuild autolaunch"],
       "assets.deploy": [
+        "regent.sync",
         "tailwind autolaunch --minify",
         "esbuild autolaunch --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "format", "test"]
     ]
+  end
+
+  defp sync_regent_assets(_args) do
+    source = Path.expand("../packages/regent_ui/priv/static/regent", __DIR__)
+    destination = Path.expand("priv/static/regent", __DIR__)
+
+    File.rm_rf!(destination)
+    File.mkdir_p!(Path.dirname(destination))
+
+    case File.cp_r(source, destination) do
+      {:ok, _copied} ->
+        :ok
+
+      {:error, reason, file} ->
+        Mix.raise("Failed to sync Regent assets from #{file}: #{inspect(reason)}")
+    end
   end
 end

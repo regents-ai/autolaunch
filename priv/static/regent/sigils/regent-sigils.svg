@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+
+      <symbol id="gate" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 14H46V50H36V42H28V50H18Z"/>
+<path d="M18 26H46"/>
+      </symbol>
+
+      <symbol id="eye" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 32C16 22 24 18 32 18C40 18 48 22 54 32C48 42 40 46 32 46C24 46 16 42 10 32Z"/>
+<circle cx="32" cy="32" r="5"/>
+      </symbol>
+
+      <symbol id="seed" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="27" y="27" width="10" height="10" rx="2"/>
+<path d="M32 27V15"/>
+<path d="M37 34L49 40"/>
+<path d="M27 34L15 40"/>
+<circle cx="32" cy="12" r="3"/>
+<circle cx="52" cy="41" r="3"/>
+<circle cx="12" cy="41" r="3"/>
+      </symbol>
+
+      <symbol id="fuse" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 38H28"/>
+<path d="M28 38H36"/>
+<path d="M40 38H46"/>
+<path d="M46 26L54 38L46 50"/>
+<circle cx="38" cy="26" r="3"/>
+      </symbol>
+
+      <symbol id="seal" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="18" y="18" width="28" height="28" rx="6"/>
+<circle cx="32" cy="32" r="5"/>
+<path d="M32 13V18"/>
+<path d="M32 46V51"/>
+<path d="M13 32H18"/>
+<path d="M46 32H51"/>
+      </symbol>
+
+      <symbol id="wedge" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 18H46"/>
+<path d="M20 44L32 22L44 44Z"/>
+<path d="M32 44V50"/>
+      </symbol>
+
+    </svg>

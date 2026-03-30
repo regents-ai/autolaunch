@@ -1,6 +1,10 @@
 import type { Hook } from "phoenix_live_view"
 
-import { animate, stagger } from "../../vendor/anime.esm.js"
+import {
+  prefersReducedMotion,
+  pulseElement,
+  revealSequence,
+} from "../../../../packages/regent_ui/assets/js/regent_motion"
 
 interface MotionRoot extends HTMLElement {
   _missionMotionClick?: (event: Event) => void
@@ -12,22 +16,15 @@ interface CopyButton extends HTMLElement {
 }
 
 const UPDATE_TARGET_SELECTOR =
-  ".al-stat-card, .al-auction-tile, .al-position-card, .al-review-card, .al-note-card, .al-inline-banner, .al-step-chip"
+  ".al-stat-card, .al-auction-tile, .al-position-card, .al-review-card, .al-note-card, .al-inline-banner, .al-step-chip, .al-ingress-card, .al-contract-card, .al-contract-list-item"
 
 function reducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  return prefersReducedMotion()
 }
 
 function pulse(element: HTMLElement, duration = 560): void {
   element.classList.add("is-updated")
-
-  animate(element, {
-    scale: [0.985, 1],
-    translateY: [2, 0],
-    duration,
-    ease: "outExpo",
-  })
-
+  pulseElement(element, duration)
   window.setTimeout(() => {
     element.classList.remove("is-updated")
   }, duration + 160)
@@ -50,52 +47,27 @@ function motionSignature(target: HTMLElement): string {
 }
 
 function animateIntro(root: MotionRoot): void {
-  const directChildren = Array.from(root.children).filter(
-    (child): child is HTMLElement => child instanceof HTMLElement,
-  )
   const selectors =
     root.id === "launch-onboard"
       ? ".al-onboard-summary > *, .al-onboard-card"
       : root.id === "launch-wizard"
         ? ".al-step-chip, .al-main-panel, .al-side-panel"
-        : root.id === "launch-hero" || root.id === "auction-detail-hero" || root.id === "auctions-hero" || root.id === "positions-hero"
+        : root.id === "launch-hero" || root.id === "auction-detail-hero" || root.id === "auctions-hero" || root.id === "positions-hero" || root.id === "subject-hero" || root.id === "contracts-hero"
           ? ":scope > *"
           : ""
 
-  const targets =
-    selectors === ""
-      ? directChildren
-      : Array.from(root.querySelectorAll<HTMLElement>(selectors)).filter(
-          (target) => target instanceof HTMLElement,
-        )
-
-  if (targets.length === 0) return
-
-  if (reducedMotion()) {
-    for (const target of targets) {
-      target.style.opacity = "1"
-      target.style.transform = "none"
-    }
-
+  if (selectors === "") {
     return
   }
 
-  animate(targets, {
-    opacity: [0, 1],
-    translateY: [root.id === "launch-wizard" ? 16 : 24, 0],
-    delay: stagger(root.id === "launch-wizard" ? 50 : 80),
+  revealSequence(root, selectors, {
+    translateY: root.id === "launch-wizard" ? 16 : 24,
+    delay: root.id === "launch-wizard" ? 50 : 80,
     duration: root.id === "launch-wizard" ? 560 : 660,
-    ease: "outExpo",
   })
 
-  if (root.id === "launch-hero" || root.id === "auction-detail-hero" || root.id === "auctions-hero" || root.id === "positions-hero") {
-    animate(root.querySelectorAll<HTMLElement>(".al-stat-card"), {
-      opacity: [0, 1],
-      translateY: [18, 0],
-      delay: stagger(70),
-      duration: 560,
-      ease: "outExpo",
-    })
+  if (root.id === "launch-hero" || root.id === "auction-detail-hero" || root.id === "auctions-hero" || root.id === "positions-hero" || root.id === "subject-hero" || root.id === "contracts-hero") {
+    revealSequence(root, ".al-stat-card", { translateY: 18, delay: 70, duration: 560 })
   }
 }
 

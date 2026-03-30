@@ -3,13 +3,14 @@ defmodule AutolaunchWeb.AuctionLive do
 
   alias Autolaunch.Launch
   alias AutolaunchWeb.LaunchComponents
+  alias AutolaunchWeb.RegentScenes
 
   @poll_ms 12_000
 
   def mount(%{"id" => auction_id}, _session, socket) do
     if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
 
-    auction = Launch.get_auction(auction_id, socket.assigns[:current_human])
+    auction = launch_module().get_auction(auction_id, socket.assigns[:current_human])
     form = default_bid_form(auction)
     quote = maybe_quote(auction, form, socket.assigns[:current_human])
     positions = positions_for_auction(socket.assigns[:current_human], auction_id)
@@ -22,7 +23,9 @@ defmodule AutolaunchWeb.AuctionLive do
      |> assign(:auction, auction)
      |> assign(:bid_form, form)
      |> assign(:quote, quote)
-     |> assign(:positions, positions)}
+     |> assign(:positions, positions)
+     |> assign(:detail_focus, "detail:bid")
+     |> assign_regent_scene()}
   end
 
   def handle_event("quote_changed", %{"bid" => attrs}, socket) do
@@ -31,7 +34,8 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply,
      socket
      |> assign(:bid_form, form)
-     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))}
+     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))
+     |> assign_regent_scene()}
   end
 
   def handle_event("apply_preset", %{"preset" => preset}, socket) do
@@ -40,7 +44,8 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply,
      socket
      |> assign(:bid_form, form)
-     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))}
+     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))
+     |> assign_regent_scene()}
   end
 
   def handle_event("wallet_tx_started", %{"message" => message}, socket) do
@@ -48,7 +53,7 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   def handle_event("wallet_tx_registered", %{"message" => message}, socket) do
-    auction = Launch.get_auction(socket.assigns.auction_id, socket.assigns.current_human)
+    auction = launch_module().get_auction(socket.assigns.auction_id, socket.assigns.current_human)
     positions = positions_for_auction(socket.assigns.current_human, socket.assigns.auction_id)
 
     {:noreply,
@@ -56,30 +61,45 @@ defmodule AutolaunchWeb.AuctionLive do
      |> put_flash(:info, message)
      |> assign(:auction, auction)
      |> assign(:positions, positions)
-     |> assign(
-       :quote,
-       maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human)
-     )}
+      |> assign(
+        :quote,
+        maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human)
+      )
+     |> assign_regent_scene()}
   end
 
   def handle_event("wallet_tx_error", %{"message" => message}, socket) do
     {:noreply, put_flash(socket, :error, message)}
   end
 
+  def handle_event("regent:node_select", %{"meta" => %{"panel" => panel}}, socket) do
+    {:noreply, socket |> assign(:detail_focus, panel) |> assign_regent_scene()}
+  end
+
+  def handle_event("regent:node_select", _params, socket), do: {:noreply, socket}
+
+  def handle_event("regent:node_hover", _params, socket), do: {:noreply, socket}
+  def handle_event("regent:surface_ready", _params, socket), do: {:noreply, socket}
+
+  def handle_event("regent:surface_error", _params, socket) do
+    {:noreply, put_flash(socket, :error, "The auction detail surface could not render in this browser session.")}
+  end
+
   def handle_info(:refresh, socket) do
     if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
 
-    auction = Launch.get_auction(socket.assigns.auction_id, socket.assigns.current_human)
+    auction = launch_module().get_auction(socket.assigns.auction_id, socket.assigns.current_human)
     positions = positions_for_auction(socket.assigns.current_human, socket.assigns.auction_id)
 
     {:noreply,
      socket
      |> assign(:auction, auction)
      |> assign(:positions, positions)
-     |> assign(
-       :quote,
-       maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human)
-     )}
+      |> assign(
+        :quote,
+        maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human)
+      )
+     |> assign_regent_scene()}
   end
 
   def render(assigns) do
@@ -88,10 +108,64 @@ defmodule AutolaunchWeb.AuctionLive do
     assigns =
       assigns
       |> assign(:latest_position, latest_position)
+      |> assign(:regent_detail_title, regent_detail_title(assigns.detail_focus))
+      |> assign(:regent_detail_summary, regent_detail_summary(assigns.detail_focus, assigns.quote, latest_position))
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
       <%= if @auction do %>
+        <section class="al-regent-shell">
+          <.surface
+            id="auction-detail-regent-surface"
+            class="rg-regent-theme-autolaunch"
+            scene={@regent_scene}
+            scene_version={@regent_scene_version}
+            selected_node_id={@regent_selected_node_id}
+            theme="autolaunch"
+            camera_distance={24}
+          >
+            <:chamber>
+              <.chamber
+                id="auction-detail-regent-chamber"
+                title={@regent_detail_title}
+                subtitle={@auction.agent_name}
+                summary={@regent_detail_summary}
+              >
+                <div class="al-launch-tags" aria-label="Auction detail summary">
+                  <span class="al-launch-tag">Clearing price: {@auction.current_clearing_price}</span>
+                  <span class="al-launch-tag">Bid volume: {@auction.total_bid_volume}</span>
+                  <span class="al-launch-tag">Your status: {human_position_status(@latest_position)}</span>
+                </div>
+              </.chamber>
+            </:chamber>
+
+            <:ledger>
+              <.ledger
+                id="auction-detail-regent-ledger"
+                title="Live state"
+                subtitle="Use the regular cards below to bid, claim, and inspect the estimator."
+              >
+                <table class="rg-table">
+                  <tbody>
+                    <tr>
+                      <th scope="row">Status</th>
+                      <td>{@auction.status}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Time remaining</th>
+                      <td>{LaunchComponents.time_left_label(@auction.ends_at)}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Trust</th>
+                      <td>{if @auction.world_registered, do: "Checked", else: "Pending"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </.ledger>
+            </:ledger>
+          </.surface>
+        </section>
+
         <section id="auction-detail-hero" class="al-detail-hero al-panel" phx-hook="MissionMotion">
           <div>
             <p class="al-kicker">Auction detail</p>
@@ -369,7 +443,7 @@ defmodule AutolaunchWeb.AuctionLive do
   defp maybe_quote(nil, _form, _human), do: nil
 
   defp maybe_quote(auction, form, current_human) do
-    case Launch.quote_bid(auction.id, form, current_human) do
+    case launch_module().quote_bid(auction.id, form, current_human) do
       {:ok, quote} -> quote
       _ -> nil
     end
@@ -379,7 +453,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp positions_for_auction(current_human, auction_id) do
     current_human
-    |> Launch.list_positions()
+    |> launch_module().list_positions()
     |> Enum.filter(&(&1.auction_id == auction_id))
   end
 
@@ -415,4 +489,42 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp human_position_status(nil), do: "No bid"
   defp human_position_status(position), do: String.capitalize(position.status)
+
+  defp assign_regent_scene(socket) do
+    latest_position = List.first(socket.assigns.positions || [])
+    next_version = (socket.assigns[:regent_scene_version] || 0) + 1
+    scene = RegentScenes.auction_detail(socket.assigns.auction, latest_position, socket.assigns.detail_focus)
+
+    socket
+    |> assign(:regent_scene_version, next_version)
+    |> assign(:regent_scene, Map.put(scene, "sceneVersion", next_version))
+    |> assign(:regent_selected_node_id, socket.assigns.detail_focus)
+  end
+
+  defp regent_detail_title("detail:estimate"), do: "Live estimator"
+  defp regent_detail_title("detail:trust"), do: "Trust and identity"
+  defp regent_detail_title("detail:claim"), do: "Position state"
+  defp regent_detail_title(_detail_focus), do: "Bid composer"
+
+  defp regent_detail_summary("detail:estimate", quote, _latest_position) when is_map(quote) do
+    "If nothing else moved right now, you would receive #{quote.estimated_tokens_if_end_now} tokens, and the bid would go inactive above #{quote.inactive_above_price}."
+  end
+
+  defp regent_detail_summary("detail:trust", _quote, _latest_position) do
+    "This view keeps ENS and trust status visible so the market context stays legible without turning the bidding controls into a maze."
+  end
+
+  defp regent_detail_summary("detail:claim", _quote, latest_position) do
+    "Current position state: #{human_position_status(latest_position)}. Claiming and exits stay as explicit wallet actions in the human-readable cards below."
+  end
+
+  defp regent_detail_summary(_detail_focus, _quote, _latest_position) do
+    "Set the budget and max price here, then use the live quote below to decide whether the bid should stay active."
+  end
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:auction_live, [])
+    |> Keyword.get(:launch_module, Launch)
+  end
 end

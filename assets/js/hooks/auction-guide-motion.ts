@@ -1,6 +1,10 @@
 import type { Hook } from "phoenix_live_view"
 
-import { animate, stagger } from "../../vendor/anime.esm.js"
+import {
+  prefersReducedMotion,
+  pulseElement,
+  revealSequence,
+} from "../../../../packages/regent_ui/assets/js/regent_motion"
 
 interface GuideRoot extends HTMLElement {
   _guideObserver?: IntersectionObserver
@@ -9,7 +13,7 @@ interface GuideRoot extends HTMLElement {
 }
 
 function reducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  return prefersReducedMotion()
 }
 
 function updateProgress(root: GuideRoot): void {
@@ -28,24 +32,10 @@ function updateProgress(root: GuideRoot): void {
 }
 
 function reveal(root: GuideRoot): void {
-  const introTargets = root.querySelectorAll<HTMLElement>(
-    ".al-guide-hero-copy > *, .al-guide-summary, .al-guide-rail, .al-guide-finish",
-  )
-
-  if (reducedMotion()) {
-    introTargets.forEach((target) => {
-      target.style.opacity = "1"
-      target.style.transform = "none"
-    })
-    return
-  }
-
-  animate(introTargets, {
-    opacity: [0, 1],
-    translateY: [24, 0],
-    delay: stagger(90),
+  revealSequence(root, ".al-guide-hero-copy > *, .al-guide-summary, .al-guide-rail, .al-guide-finish", {
+    translateY: 24,
+    delay: 90,
     duration: 700,
-    ease: "outExpo",
   })
 }
 
@@ -76,21 +66,12 @@ function observeSteps(root: GuideRoot): void {
         if (!seen.has(index)) {
           seen.add(index)
           step.classList.add("is-visible")
-
-          animate(step, {
-            opacity: [0.72, 1],
-            translateY: [22, 0],
-            duration: 620,
-            ease: "outExpo",
-          })
-
-          animate(step.querySelectorAll(".al-guide-step-index, .al-guide-step-copy, .al-guide-step-callout"), {
-            opacity: [0, 1],
-            translateY: [12, 0],
-            delay: stagger(60),
-            duration: 560,
-            ease: "outExpo",
-          })
+          pulseElement(step, 420)
+          revealSequence(
+            step,
+            ".al-guide-step-index, .al-guide-step-copy, .al-guide-step-callout",
+            { translateY: 12, delay: 60, duration: 560 },
+          )
         }
       }
 

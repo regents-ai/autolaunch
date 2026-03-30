@@ -47,4 +47,11 @@ defmodule AutolaunchWeb.ApiRoutesTest do
 
     assert %{"ok" => false, "error" => %{"code" => "auth_required"}} = json_response(conn, 401)
   end
+
+  test "subject routes are wired", %{conn: conn} do
+    conn = get(conn, "/api/subjects/not-a-valid-subject")
+
+    assert %{"ok" => false, "error" => %{"code" => "invalid_subject_id"}} =
+             json_response(conn, 422)
+  end
 end

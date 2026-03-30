@@ -1,4 +1,5 @@
 @import "tailwindcss" source(none);
+@import "../../../packages/regent_ui/assets/css/regent.css";
 @source "../css";
 @source "../js";
 @source "../../lib/autolaunch_web";
@@ -29,33 +30,33 @@
   --al-font-display: "GeistPixelCircle", serif;
   --al-font-body: "GeistPixelSquare", sans-serif;
   --al-bg:
-    radial-gradient(circle at 8% 6%, rgba(27, 94, 32, 0.18), transparent 28%),
-    radial-gradient(circle at 88% 4%, rgba(14, 116, 144, 0.2), transparent 32%),
-    linear-gradient(180deg, #f3f0df 0%, #dbe2cf 48%, #becdc5 100%);
-  --al-panel: rgba(249, 250, 243, 0.78);
-  --al-panel-strong: rgba(252, 252, 247, 0.92);
-  --al-border: rgba(19, 39, 39, 0.14);
-  --al-text: #081214;
-  --al-muted: rgba(8, 18, 20, 0.62);
-  --al-accent: #0f766e;
-  --al-accent-soft: rgba(15, 118, 110, 0.13);
-  --al-alert: #d97706;
-  --al-danger: #c2410c;
-  --al-ready: #15803d;
+    radial-gradient(circle at 11% 10%, rgba(17, 120, 109, 0.16), transparent 26%),
+    radial-gradient(circle at 86% 6%, rgba(179, 89, 48, 0.18), transparent 30%),
+    linear-gradient(180deg, #f3efe1 0%, #e4d8c3 48%, #d6c5b2 100%);
+  --al-panel: rgba(251, 248, 240, 0.82);
+  --al-panel-strong: rgba(255, 252, 247, 0.94);
+  --al-border: rgba(53, 43, 31, 0.14);
+  --al-text: #17110b;
+  --al-muted: rgba(23, 17, 11, 0.62);
+  --al-accent: #0d7c70;
+  --al-accent-soft: rgba(13, 124, 112, 0.13);
+  --al-alert: #c46a1b;
+  --al-danger: #9e3d20;
+  --al-ready: #1c7b54;
   --al-shadow: 0 28px 70px -42px rgba(3, 11, 17, 0.4);
 }
 
 [data-theme="midnight"] {
   --al-bg:
-    radial-gradient(circle at 10% 10%, rgba(20, 184, 166, 0.16), transparent 26%),
-    radial-gradient(circle at 88% 6%, rgba(6, 182, 212, 0.14), transparent 28%),
-    linear-gradient(180deg, #071116 0%, #0d1920 52%, #111f28 100%);
-  --al-panel: rgba(9, 20, 27, 0.75);
-  --al-panel-strong: rgba(13, 28, 37, 0.92);
-  --al-border: rgba(198, 228, 224, 0.14);
-  --al-text: #ecf6f4;
-  --al-muted: rgba(236, 246, 244, 0.66);
-  --al-accent-soft: rgba(13, 148, 136, 0.18);
+    radial-gradient(circle at 12% 12%, rgba(13, 124, 112, 0.18), transparent 26%),
+    radial-gradient(circle at 84% 8%, rgba(169, 78, 38, 0.18), transparent 28%),
+    linear-gradient(180deg, #0b1113 0%, #181112 52%, #231516 100%);
+  --al-panel: rgba(17, 16, 16, 0.8);
+  --al-panel-strong: rgba(27, 22, 20, 0.94);
+  --al-border: rgba(223, 210, 191, 0.16);
+  --al-text: #f3eadf;
+  --al-muted: rgba(243, 234, 223, 0.66);
+  --al-accent-soft: rgba(13, 124, 112, 0.18);
   --al-shadow: 0 28px 70px -42px rgba(0, 0, 0, 0.72);
 }
 
@@ -105,6 +106,11 @@ textarea {
 .al-app-shell {
   min-height: 100dvh;
   padding: clamp(0.9rem, 2vw, 1.5rem);
+}
+
+.al-regent-shell {
+  position: relative;
+  z-index: 1;
 }
 
 .al-stage {
@@ -242,6 +248,134 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
   gap: 1rem;
+}
+
+.al-subject-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 1rem;
+}
+
+.al-inline-form input {
+  width: 100%;
+  border: 1px solid var(--al-border);
+  border-radius: 1rem;
+  background: var(--al-panel-strong);
+  padding: 0.8rem 0.9rem;
+}
+
+.al-inline-form select,
+.al-contract-form-grid input,
+.al-contract-form-grid select {
+  width: 100%;
+  border: 1px solid var(--al-border);
+  border-radius: 1rem;
+  background: var(--al-panel-strong);
+  padding: 0.8rem 0.9rem;
+}
+
+.al-contracts-hero {
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.95fr);
+}
+
+.al-contract-pill-row,
+.al-contract-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.al-contract-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.al-contract-card {
+  border-radius: 1.5rem;
+  padding: 1.1rem;
+}
+
+.al-contract-card h3 {
+  margin: 0 0 1rem;
+}
+
+.al-contract-kv {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.al-contract-kv div,
+.al-contract-list-item {
+  border: 1px solid var(--al-border);
+  border-radius: 1rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--al-panel-strong);
+}
+
+.al-contract-kv span,
+.al-contract-list-item span {
+  display: block;
+  margin-bottom: 0.28rem;
+  color: var(--al-muted);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.al-contract-kv strong,
+.al-contract-list-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.al-contract-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.al-contract-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.al-contract-json {
+  margin: 0;
+  border: 1px solid var(--al-border);
+  border-radius: 1rem;
+  background: rgba(6, 18, 21, 0.92);
+  color: #def4ee;
+  padding: 1rem;
+  overflow: auto;
+  font-size: 0.82rem;
+}
+
+.al-prepared-card {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 980px) {
+  .al-contract-grid,
+  .al-contract-kv,
+  .al-contract-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.al-subject-ingress-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.al-ingress-card strong {
+  display: block;
+  margin-bottom: 0.35rem;
 }
 
 .al-launch-hero {

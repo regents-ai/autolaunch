@@ -9,12 +9,14 @@ This package now covers the full Autolaunch contract system, from launch through
 - `LaunchDeploymentController`
   - assembles the launch stack in one call
   - deploys the token, strategy-owned auction, vesting wallet, fee plumbing, subject splitter, and default ingress
+  - threads the official pool fee, tick spacing, and position manager into the strategy config
 - `AgentTokenVestingWallet`
   - holds the 85% retained launch allocation on a timestamp vesting schedule
 - `RegentLBPStrategy`
   - owns the 15% launch-side token supply
   - creates the auction
-  - migrates the LP slice and later sweeps leftovers
+  - migrates the LP slice through the official Uniswap v4 position manager, then sweeps leftovers
+  - records the minted pool id, position id, and liquidity onchain
 - `RegentLBPStrategyFactory`
   - creates the per-launch Regent strategy instance
 - `LaunchFeeRegistry`
@@ -40,13 +42,17 @@ This package now covers the full Autolaunch contract system, from launch through
 - `RevenueShareSplitter`
   - canonical revsplit and staking contract for the launched token
   - only Sepolia USDC that reaches this contract counts as recognized revenue
+- `RegentRevenueStaking`
+  - singleton Base-mainnet staking and Base USDC rewards rail for the existing `$REGENT` token
+  - fed manually after Treasury A bridges non-Base income into Base USDC
+  - distinct from the Sepolia per-agent subject splitters
 
 ## External dependencies
 
 - external CCA factory
 - ERC-8004 identity registry
 - USDC
-- Uniswap v4 pool manager
+- official Uniswap v4 pool manager and position manager
 
 ## Deployment flow
 

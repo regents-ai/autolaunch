@@ -18,6 +18,8 @@ contract RegentLBPStrategyFactory is IDistributionStrategy {
         address positionRecipient;
         address positionManager;
         address poolManager;
+        uint24 officialPoolFee;
+        int24 officialPoolTickSpacing;
         uint64 migrationBlock;
         uint64 sweepBlock;
         uint16 lpCurrencyBps;
@@ -27,8 +29,12 @@ contract RegentLBPStrategyFactory is IDistributionStrategy {
         uint128 maxCurrencyAmountForLP;
     }
 
-    event DistributionInitialized(address indexed distributionContract, address indexed token, uint256 amount);
-    event RegentStrategyCreated(address indexed strategy, address indexed token, uint256 strategySupply);
+    event DistributionInitialized(
+        address indexed distributionContract, address indexed token, uint256 amount
+    );
+    event RegentStrategyCreated(
+        address indexed strategy, address indexed token, uint256 strategySupply
+    );
 
     function initializeDistribution(
         address token,
@@ -53,6 +59,8 @@ contract RegentLBPStrategyFactory is IDistributionStrategy {
                     cfg.positionRecipient,
                     cfg.positionManager,
                     cfg.poolManager,
+                    cfg.officialPoolFee,
+                    cfg.officialPoolTickSpacing,
                     cfg.migrationBlock,
                     cfg.sweepBlock,
                     cfg.lpCurrencyBps,

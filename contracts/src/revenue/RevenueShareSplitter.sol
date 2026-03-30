@@ -51,9 +51,9 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         bytes32 indexed sourceRef
     );
     event USDCRewardClaimed(address indexed account, uint256 amount, address recipient);
-    event USDCTreasuryResidualWithdrawn(uint256 amount, address recipient);
-    event USDCProtocolReserveWithdrawn(uint256 amount, address recipient);
-    event USDCDustReassigned(uint256 amount, address recipient);
+    event USDCTreasuryResidualWithdrawn(uint256 amount, address indexed recipient);
+    event USDCProtocolReserveWithdrawn(uint256 amount, address indexed recipient);
+    event USDCDustReassigned(uint256 amount, address indexed recipient);
 
     constructor(
         address stakeToken_,
@@ -160,6 +160,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         require(amount != 0, "AMOUNT_ZERO");
 
         uint256 beforeBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
+        // slither-disable-next-line reentrancy-benign
         usdc.safeTransferFrom(msg.sender, address(this), amount);
         uint256 afterBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         received = afterBalance - beforeBalance;
@@ -177,6 +178,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         require(amount != 0, "AMOUNT_ZERO");
 
         uint256 beforeBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
+        // slither-disable-next-line reentrancy-benign
         ILaunchFeeVaultMinimal(vault).withdrawTreasury(poolId, usdc, amount, address(this));
         uint256 afterBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         received = afterBalance - beforeBalance;
@@ -215,7 +217,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
 
         _sync(msg.sender);
         amount = storedClaimableUsdc[msg.sender];
-        if (amount == 0) {
+        if (amount < 1) {
             return 0;
         }
 
@@ -275,12 +277,12 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     function _sync(address account) internal {
         uint256 currentAcc = accRewardPerTokenUsdc;
         uint256 priorAcc = rewardDebtUsdc[account];
-        if (currentAcc == priorAcc) {
+        if (currentAcc <= priorAcc) {
             return;
         }
 
         uint256 stakeBal = stakedBalance[account];
-        if (stakeBal != 0) {
+        if (stakeBal > 0) {
             storedClaimableUsdc[
                 account
             ] += FullMath.mulDiv(stakeBal, currentAcc - priorAcc, ACC_PRECISION);
@@ -289,26 +291,34 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     }
 
     function _recordRevenue(uint256 received, bytes32 sourceTag, bytes32 sourceRef) internal {
-        require(received != 0, "NOTHING_RECEIVED");
+        require(received > 0, "NOTHING_RECEIVED");
 
         uint256 supply = IERC20SupplyMinimal(stakeToken).totalSupply();
-        require(supply != 0, "SUPPLY_ZERO");
+        require(supply > 0, "SUPPLY_ZERO");
 
-        uint256 protocolAmount =
-            protocolSkimBps == 0 ? 0 : FullMath.mulDiv(received, protocolSkimBps, BPS_DENOMINATOR);
+        uint256 protocolAmount = 0;
+        if (protocolSkimBps > 0) {
+            protocolAmount = FullMath.mulDiv(received, protocolSkimBps, BPS_DENOMINATOR);
+        }
         uint256 net = received - protocolAmount;
 
-        uint256 deltaAcc = net == 0 ? 0 : FullMath.mulDiv(net, ACC_PRECISION, supply);
-        if (deltaAcc != 0) {
+        uint256 deltaAcc = 0;
+        if (net > 0) {
+            deltaAcc = FullMath.mulDiv(net, ACC_PRECISION, supply);
+        }
+        if (deltaAcc > 0) {
             accRewardPerTokenUsdc += deltaAcc;
         }
 
-        uint256 stakerEntitlement =
-            net == 0 || totalStaked == 0 ? 0 : FullMath.mulDiv(net, totalStaked, supply);
+        uint256 stakerEntitlement = 0;
+        if (net > 0 && totalStaked > 0) {
+            stakerEntitlement = FullMath.mulDiv(net, totalStaked, supply);
+        }
         uint256 treasuryPortion = net - stakerEntitlement;
-        uint256 creditedByAccumulator = deltaAcc == 0 || totalStaked == 0
-            ? 0
-            : FullMath.mulDiv(deltaAcc, totalStaked, ACC_PRECISION);
+        uint256 creditedByAccumulator = 0;
+        if (deltaAcc > 0 && totalStaked > 0) {
+            creditedByAccumulator = FullMath.mulDiv(deltaAcc, totalStaked, ACC_PRECISION);
+        }
 
         treasuryResidualUsdc += treasuryPortion;
         protocolReserveUsdc += protocolAmount;

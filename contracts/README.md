@@ -19,16 +19,23 @@ It now contains the full launch stack plus the ongoing revsplit and ingress cont
 - `src/revenue/RevenueIngressFactory.sol`
 - `src/revenue/RevenueIngressAccount.sol`
 - `src/revenue/RevenueShareSplitter.sol`
+- `src/revenue/RegentRevenueStaking.sol`
+- `RegentLBPStrategy` now migrates its LP slice through the official Uniswap v4 position manager and records the minted pool and position ids.
 
 ## Product rule
 
 - Only Sepolia USDC that reaches the subject revsplit counts as recognized revenue.
 - The Regent-side fee lane is a plain treasury payout. There is no REGENT reward-accounting contract in the active path.
+- A separate Base-mainnet `RegentRevenueStaking` rail now exists for `$REGENT` rewards. It is fed manually with Base USDC and does not change the active Sepolia launch path.
+- The launch deployment uses the configured official pool fee, tick spacing, and position manager as part of the hard-cutover migration path.
 
 ## Deployment helpers
 
 - `scripts/DeployAutolaunchInfra.s.sol`
 - `scripts/ExampleCCADeploymentScript.s.sol`
+- `scripts/DeployRegentRevenueStaking.s.sol`
+
+The launch script expects the active Sepolia inputs, including `UNISWAP_V4_POSITION_MANAGER`, `OFFICIAL_POOL_FEE`, and `OFFICIAL_POOL_TICK_SPACING`.
 
 Important script output markers stay unchanged:
 
@@ -51,6 +58,7 @@ Revenue tests:
 - `test/RevenueIngressAccount.t.sol`
 - `test/RevenueIngressFactory.t.sol`
 - `test/RevenueShareSplitter.t.sol`
+- `test/RegentRevenueStaking.t.sol`
 
 ## Working here
 

@@ -75,13 +75,8 @@ contract RevenueIngressFactory is Owned {
         require(cfg.splitter != address(0), "SPLITTER_ZERO");
         require(cfg.active, "SUBJECT_INACTIVE");
 
-        RevenueIngressAccount account = new RevenueIngressAccount(
-            usdc,
-            cfg.splitter,
-            subjectId,
-            label,
-            cfg.treasurySafe
-        );
+        RevenueIngressAccount account =
+            new RevenueIngressAccount(usdc, cfg.splitter, subjectId, label, cfg.treasurySafe);
         ingress = address(account);
 
         ingressAccountsBySubject[subjectId].push(ingress);

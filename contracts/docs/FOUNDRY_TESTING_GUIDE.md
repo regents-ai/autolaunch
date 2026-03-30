@@ -9,7 +9,7 @@ This package now tests the full Autolaunch contract stack in one Foundry project
 - `test/LaunchDeploymentController.t.sol`
   - proves the deployment controller wires the factory-created token, strategy-owned auction, fee stack, subject registry, revsplit, vesting wallet, and default ingress together
 - `test/RegentLBPStrategy.t.sol`
-  - proves the strategy creates the auction, splits migrated USDC, and sweeps leftovers
+  - proves the strategy creates the auction, initializes the official v4 pool, mints a real position, and sweeps leftovers
 - `test/RegentLBPStrategyFactory.t.sol`
   - proves the factory creates the strategy with the expected config
 - `test/LaunchFeeVault.t.sol`
@@ -65,6 +65,7 @@ forge test --match-contract RevenueIngressAccountTest
   - default ingress
 - launch-side tests confirm:
   - USDC quote-token wiring
+  - official pool fee and tick spacing wiring
   - 1% subject lane + 1% Regent lane
   - subject creation and identity linking
   - default ingress creation and linkage
@@ -75,4 +76,4 @@ The main architecture story to protect is:
 
 - launch stack and revenue stack live in one package
 - only Sepolia USDC that reaches the revsplit counts as recognized revenue
-- there is no REGENT reward-accounting contract in the active path
+- the active Sepolia launch path still has no automatic REGENT rewards rail, even though the separate Base `RegentRevenueStaking` contract exists

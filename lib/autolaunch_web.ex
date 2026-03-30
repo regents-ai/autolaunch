@@ -54,6 +54,7 @@ defmodule AutolaunchWeb do
   defp html_helpers do
     quote do
       use Gettext, backend: AutolaunchWeb.Gettext
+      use Regent
 
       import Phoenix.HTML
       import AutolaunchWeb.CoreComponents

@@ -25,7 +25,7 @@ contract RevenueIngressAccountTest is Test {
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
-        stakeToken.mint(address(this), 1_000e18);
+        stakeToken.mint(address(this), 1000e18);
         subjectRegistry = new SubjectRegistry(address(this));
         revenueShareFactory = new RevenueShareFactory(address(this), address(usdc), subjectRegistry);
         subjectRegistry.transferOwnership(address(revenueShareFactory));
@@ -50,15 +50,14 @@ contract RevenueIngressAccountTest is Test {
     }
 
     function testSweepRecognizesRevenueInsideSplitter() external {
-        usdc.mint(address(ingress), 1_000e18);
+        usdc.mint(address(ingress), 1000e18);
 
-        (uint256 balance, uint256 recognized) =
-            ingress.sweepUSDC(keccak256("invoice-1"));
+        (uint256 balance, uint256 recognized) = ingress.sweepUSDC(keccak256("invoice-1"));
 
-        assertEq(balance, 1_000e18);
-        assertEq(recognized, 1_000e18);
+        assertEq(balance, 1000e18);
+        assertEq(recognized, 1000e18);
         assertEq(usdc.balanceOf(address(ingress)), 0);
-        assertEq(usdc.balanceOf(address(splitter)), 1_000e18);
+        assertEq(usdc.balanceOf(address(splitter)), 1000e18);
         assertEq(splitter.treasuryResidualUsdc(), 990e18);
         assertEq(splitter.protocolReserveUsdc(), 10e18);
     }
@@ -71,5 +70,13 @@ contract RevenueIngressAccountTest is Test {
         ingress.rescueToken(address(other), 55e18, address(0x5555));
 
         assertEq(other.balanceOf(address(0x5555)), 55e18);
+    }
+
+    function testSecondSweepRevertsWhenNothingRemains() external {
+        usdc.mint(address(ingress), 1000e18);
+        ingress.sweepUSDC(keccak256("invoice-1"));
+
+        vm.expectRevert("NOTHING_TO_SWEEP");
+        ingress.sweepUSDC(keccak256("invoice-2"));
     }
 }

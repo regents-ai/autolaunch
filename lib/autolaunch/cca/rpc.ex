@@ -13,6 +13,10 @@ defmodule Autolaunch.CCA.Rpc do
     rpc_adapter().tx_receipt(chain_id, tx_hash)
   end
 
+  def tx_by_hash(chain_id, tx_hash) do
+    rpc_adapter().tx_by_hash(chain_id, tx_hash)
+  end
+
   def get_logs(chain_id, filter) do
     rpc_adapter().get_logs(chain_id, filter)
   end
@@ -50,6 +54,15 @@ defmodule Autolaunch.CCA.Rpc do
       end
     end
 
+    def tx_by_hash(chain_id, tx_hash) do
+      case call(chain_id, "eth_getTransactionByHash", [tx_hash]) do
+        {:ok, nil} -> {:ok, nil}
+        {:ok, %{} = tx} -> {:ok, normalize_transaction(tx)}
+        {:error, _} = error -> error
+        _ -> {:error, :invalid_rpc_response}
+      end
+    end
+
     def get_logs(chain_id, filter) when is_map(filter) do
       case call(chain_id, "eth_getLogs", [filter]) do
         {:ok, logs} when is_list(logs) -> {:ok, Enum.map(logs, &normalize_log/1)}
@@ -59,11 +72,13 @@ defmodule Autolaunch.CCA.Rpc do
     end
 
     def rpc_url(chain_id) do
-      config = Application.get_env(:autolaunch, :launch, [])
+      launch_config = Application.get_env(:autolaunch, :launch, [])
+      regent_staking_config = Application.get_env(:autolaunch, :regent_staking, [])
 
       case chain_id do
-        1 -> fetch_url(config, :eth_mainnet_rpc_url)
-        11_155_111 -> fetch_url(config, :eth_sepolia_rpc_url)
+        1 -> fetch_url(launch_config, :eth_mainnet_rpc_url)
+        8_453 -> fetch_url(regent_staking_config, :rpc_url)
+        11_155_111 -> fetch_url(launch_config, :eth_sepolia_rpc_url)
         _ -> {:error, :invalid_chain_id}
       end
     end
@@ -135,6 +150,17 @@ defmodule Autolaunch.CCA.Rpc do
         block_number: decode_optional_quantity(Map.get(log, "blockNumber")),
         transaction_hash: Map.get(log, "transactionHash"),
         log_index: decode_optional_quantity(Map.get(log, "logIndex"))
+      }
+    end
+
+    defp normalize_transaction(tx) do
+      %{
+        transaction_hash: Map.get(tx, "hash"),
+        from: normalize_address(Map.get(tx, "from")),
+        to: normalize_address(Map.get(tx, "to")),
+        input: Map.get(tx, "input", "0x"),
+        value: Map.get(tx, "value", "0x0"),
+        block_number: decode_optional_quantity(Map.get(tx, "blockNumber"))
       }
     end
 

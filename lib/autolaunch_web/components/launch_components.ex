@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.LaunchComponents do
   @moduledoc false
   use Phoenix.Component
+  use Regent
 
   use Gettext, backend: AutolaunchWeb.Gettext
 
@@ -15,7 +16,8 @@ defmodule AutolaunchWeb.LaunchComponents do
 
   def shell(assigns) do
     ~H"""
-    <div class="al-app-shell">
+    <div class="al-app-shell rg-app-shell rg-regent-theme-autolaunch">
+      <.background_grid id="autolaunch-background-grid" class="rg-regent-theme-autolaunch" />
       <header class="al-topbar al-panel">
         <div class="al-brand">
           <p class="al-kicker">Regent CCA</p>
@@ -34,6 +36,7 @@ defmodule AutolaunchWeb.LaunchComponents do
           <.nav_link active={@active_view == "ens"} navigate={~p"/ens-link"}>ENS Link</.nav_link>
           <.nav_link active={@active_view == "auctions"} navigate={~p"/auctions"}>Auctions</.nav_link>
           <.nav_link active={@active_view == "positions"} navigate={~p"/positions"}>Positions</.nav_link>
+          <.nav_link active={@active_view == "contracts"} navigate={~p"/contracts"}>Contracts</.nav_link>
         </nav>
 
         <div class="al-topbar-actions">

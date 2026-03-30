@@ -4,13 +4,18 @@ interface EthereumProvider {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>
 }
 
+type LaunchFormElement = HTMLElement & {
+  _launchFormCleanup?: () => void
+  _launchFormMounted?: boolean
+}
+
 declare global {
   interface Window {
     ethereum?: EthereumProvider
   }
 }
 
-function buildSiwaMessage(args: {
+export function buildSiwaMessage(args: {
   walletAddress: string
   chainId: number
   nonce: string
@@ -33,15 +38,43 @@ function buildSiwaMessage(args: {
   ].join("\n")
 }
 
-function readCsrfToken(): string {
+export function readCsrfToken(): string {
   return document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content?.trim() ?? ""
 }
 
-function firstRequestedAccount(result: unknown): string {
+export function firstRequestedAccount(result: unknown): string {
   return Array.isArray(result) ? String(result[0] ?? "") : ""
 }
 
-function readForm(root: HTMLElement): Record<string, string | boolean> {
+export function launchEndpoints(dataset: DOMStringMap): {
+  nonceEndpoint: string
+  launchEndpoint: string
+} {
+  return {
+    nonceEndpoint: dataset.nonceEndpoint?.trim() || "/v1/agent/siwa/nonce",
+    launchEndpoint: dataset.launchEndpoint?.trim() || "/api/launch/jobs",
+  }
+}
+
+export function buildLaunchRequestBody(args: {
+  form: Record<string, string | boolean>
+  walletAddress: string
+  nonce: string
+  message: string
+  signature: string
+  issuedAt: string
+}): Record<string, string | boolean> {
+  return {
+    ...args.form,
+    wallet_address: args.walletAddress,
+    nonce: args.nonce,
+    message: args.message,
+    signature: args.signature,
+    issued_at: args.issuedAt,
+  }
+}
+
+export function readForm(root: HTMLElement): Record<string, string | boolean> {
   const fields = Array.from(root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input[name], textarea[name]"))
 
   return fields.reduce<Record<string, string | boolean>>((acc, field) => {
@@ -58,17 +91,21 @@ function readForm(root: HTMLElement): Record<string, string | boolean> {
   }, {})
 }
 
-function parseLaunchChainId(value: string | undefined): number | null {
+export function parseLaunchChainId(value: string | undefined): number | null {
   const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed === 1 ? parsed : null
+  return Number.isInteger(parsed) && parsed === 11_155_111 ? parsed : null
 }
 
 export const LaunchForm: Hook = {
   mounted() {
-    const submitButton = this.el.querySelector<HTMLElement>("[data-launch-submit]")
+    const root = this.el as LaunchFormElement
+    root._launchFormCleanup?.()
+    root._launchFormMounted = true
+
+    const submitButton = root.querySelector<HTMLElement>("[data-launch-submit]")
     if (!submitButton) return
 
-    submitButton.addEventListener("click", async () => {
+    const onClick = async () => {
       if (submitButton.hasAttribute("disabled")) return
 
       const ethereum = window.ethereum
@@ -83,8 +120,8 @@ export const LaunchForm: Hook = {
         const walletAddress = firstRequestedAccount(await ethereum.request({ method: "eth_requestAccounts" }))
         if (!walletAddress) throw new Error("Wallet connection was cancelled.")
 
-        const { launchChainId, nonceEndpoint = "/v1/agent/siwa/nonce", launchEndpoint = "/api/launch/jobs" } =
-          submitButton.dataset
+        const { launchChainId } = submitButton.dataset
+        const { nonceEndpoint, launchEndpoint } = launchEndpoints(submitButton.dataset)
         const chainId = parseLaunchChainId(launchChainId)
         if (!chainId) {
           throw new Error("Launch network is unavailable. Refresh and try again.")
@@ -131,14 +168,16 @@ export const LaunchForm: Hook = {
             ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
           },
           credentials: "same-origin",
-          body: JSON.stringify({
-            ...form,
-            wallet_address: walletAddress,
-            nonce: noncePayload.nonce,
-            message,
-            signature,
-            issued_at: issuedAt,
-          }),
+          body: JSON.stringify(
+            buildLaunchRequestBody({
+              form,
+              walletAddress,
+              nonce: noncePayload.nonce,
+              message,
+              signature,
+              issuedAt,
+            }),
+          ),
         })
 
         const payload = (await response.json()) as {
@@ -150,11 +189,26 @@ export const LaunchForm: Hook = {
           throw new Error(payload.error?.message || "Failed to queue launch job.")
         }
 
-        this.pushEvent("launch_queued", { job_id: payload.job_id })
+        if (root._launchFormMounted) {
+          this.pushEvent("launch_queued", { job_id: payload.job_id })
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Launch request failed."
-        this.pushEvent("launch_error", { message })
+        if (root._launchFormMounted) {
+          this.pushEvent("launch_error", { message })
+        }
       }
-    })
+    }
+
+    submitButton.addEventListener("click", onClick)
+    root._launchFormCleanup = () => {
+      root._launchFormMounted = false
+      submitButton.removeEventListener("click", onClick)
+    }
+  },
+
+  destroyed() {
+    const root = this.el as LaunchFormElement
+    root._launchFormCleanup?.()
   },
 }

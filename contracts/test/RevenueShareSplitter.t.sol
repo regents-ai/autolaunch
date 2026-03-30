@@ -199,6 +199,34 @@ contract RevenueShareSplitterTest is Test {
         splitter.depositUSDC(0, bytes32("direct"), bytes32("zero"));
     }
 
+    function testClaimWithoutRewardsReturnsZero() external {
+        vm.prank(ALICE);
+        uint256 claimed = splitter.claimUSDC(ALICE);
+
+        assertEq(claimed, 0);
+        assertEq(usdc.balanceOf(ALICE), 0);
+    }
+
+    function testDepositWithoutStakersLeavesNetInTreasury() external {
+        RevenueShareSplitter emptySplitter = new RevenueShareSplitter(
+            address(stakeToken),
+            address(usdc),
+            TREASURY,
+            PROTOCOL_TREASURY,
+            100,
+            "empty",
+            address(this)
+        );
+
+        usdc.mint(address(this), 1000 * USDC);
+        usdc.approve(address(emptySplitter), type(uint256).max);
+        emptySplitter.depositUSDC(1000 * USDC, bytes32("direct"), bytes32("no-stakers"));
+
+        assertEq(emptySplitter.protocolReserveUsdc(), 10 * USDC);
+        assertEq(emptySplitter.treasuryResidualUsdc(), 990 * USDC);
+        assertEq(emptySplitter.previewClaimableUSDC(ALICE), 0);
+    }
+
     function _stake(
         RevenueShareSplitter targetSplitter,
         MintableBurnableERC20Mock token,

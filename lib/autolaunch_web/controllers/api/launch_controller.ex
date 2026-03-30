@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Api.LaunchController do
   alias AutolaunchWeb.ApiError
 
   def preview(conn, params) do
-    case Launch.preview_launch(params, conn.assigns[:current_human]) do
+    case launch_module().preview_launch(params, conn.assigns[:current_human]) do
       {:ok, preview} ->
         json(conn, %{ok: true, preview: preview})
 
@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.Api.LaunchController do
     current_human = conn.assigns[:current_human]
     request_ip = client_ip(conn)
 
-    case Launch.create_launch_job(params, current_human, request_ip) do
+    case launch_module().create_launch_job(params, current_human, request_ip) do
       {:ok, job} ->
         json(conn, %{ok: true, job_id: job.job_id, status: job.status, job: job})
 
@@ -106,7 +106,7 @@ defmodule AutolaunchWeb.Api.LaunchController do
   def show_job(conn, %{"id" => job_id} = params) do
     owner_address = Map.get(params, "address")
 
-    case Launch.get_job_response(job_id, owner_address) do
+    case launch_module().get_job_response(job_id, owner_address) do
       nil ->
         ApiError.render(conn, :not_found, "job_not_found", "Launch job not found")
 
@@ -128,5 +128,11 @@ defmodule AutolaunchWeb.Api.LaunchController do
       [value | _] -> value |> String.split(",", parts: 2) |> hd() |> String.trim()
       _ -> conn.remote_ip |> :inet.ntoa() |> to_string()
     end
+  end
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:launch_controller, [])
+    |> Keyword.get(:launch_module, Launch)
   end
 end

@@ -6,8 +6,14 @@
     "strict": true,
     "isolatedModules": true,
     "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "noEmit": true
   },
-  "include": ["js/**/*.ts", "js/**/*.d.ts", "vendor/**/*.d.ts"]
+  "include": [
+    "js/**/*.ts",
+    "js/**/*.d.ts",
+    "vendor/**/*.d.ts",
+    "../../packages/regent_ui/assets/js/**/*"
+  ]
 }

@@ -128,6 +128,7 @@ contract ExampleCCADeploymentScript is Script {
         require(poolManager != address(0), "POOL_MANAGER_ZERO");
 
         address positionManager = _envAddressOr("UNISWAP_V4_POSITION_MANAGER", address(0));
+        require(positionManager != address(0), "POSITION_MANAGER_ZERO");
 
         address usdcToken =
             _envAddressOr("ETHEREUM_USDC_ADDRESS", _envAddressOr("USDC_ADDRESS", address(0)));
@@ -147,21 +148,17 @@ contract ExampleCCADeploymentScript is Script {
         uint256 requiredCurrencyRaisedRaw = vm.envUint("CCA_REQUIRED_CURRENCY_RAISED");
         require(requiredCurrencyRaisedRaw <= type(uint128).max, "REQUIRED_RAISED_TOO_LARGE");
 
-        uint64 claimBlockOffset = uint64(
-            vm.envOr("CCA_CLAIM_BLOCK_OFFSET", uint256(DEFAULT_CLAIM_BLOCK_OFFSET))
-        );
-        uint64 migrationBlockOffset = uint64(
-            vm.envOr("LBP_MIGRATION_BLOCK_OFFSET", uint256(DEFAULT_MIGRATION_BLOCK_OFFSET))
-        );
+        uint64 claimBlockOffset =
+            uint64(vm.envOr("CCA_CLAIM_BLOCK_OFFSET", uint256(DEFAULT_CLAIM_BLOCK_OFFSET)));
+        uint64 migrationBlockOffset =
+            uint64(vm.envOr("LBP_MIGRATION_BLOCK_OFFSET", uint256(DEFAULT_MIGRATION_BLOCK_OFFSET)));
         uint64 sweepBlockOffset =
             uint64(vm.envOr("LBP_SWEEP_BLOCK_OFFSET", uint256(DEFAULT_SWEEP_BLOCK_OFFSET)));
 
-        uint64 vestingStartTimestamp = uint64(
-            vm.envOr("VESTING_START_TIMESTAMP", uint256(block.timestamp))
-        );
-        uint64 vestingDurationSeconds = uint64(
-            vm.envOr("VESTING_DURATION_SECONDS", uint256(DEFAULT_VESTING_DURATION_SECONDS))
-        );
+        uint64 vestingStartTimestamp =
+            uint64(vm.envOr("VESTING_START_TIMESTAMP", uint256(block.timestamp)));
+        uint64 vestingDurationSeconds =
+            uint64(vm.envOr("VESTING_DURATION_SECONDS", uint256(DEFAULT_VESTING_DURATION_SECONDS)));
 
         uint256 maxCurrencyAmountForLPRaw =
             vm.envOr("MAX_CURRENCY_AMOUNT_FOR_LP", type(uint128).max);

@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Api.BidController do
   alias AutolaunchWeb.ApiError
 
   def exit(conn, %{"id" => id} = params) do
-    case Launch.exit_bid(id, params, conn.assigns[:current_human]) do
+    case launch_module().exit_bid(id, params, conn.assigns[:current_human]) do
       {:ok, position} ->
         json(conn, %{ok: true, bid: position})
 
@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.Api.BidController do
   end
 
   def claim(conn, %{"id" => id} = params) do
-    case Launch.claim_bid(id, params, conn.assigns[:current_human]) do
+    case launch_module().claim_bid(id, params, conn.assigns[:current_human]) do
       {:ok, position} ->
         json(conn, %{ok: true, bid: position})
 
@@ -72,5 +72,11 @@ defmodule AutolaunchWeb.Api.BidController do
       {:error, reason} ->
         ApiError.render(conn, :unprocessable_entity, "bid_claim_invalid", inspect(reason))
     end
+  end
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:bid_controller, [])
+    |> Keyword.get(:launch_module, Launch)
   end
 end

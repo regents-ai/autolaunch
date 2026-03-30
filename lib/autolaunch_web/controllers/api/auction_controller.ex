@@ -16,20 +16,20 @@ defmodule AutolaunchWeb.Api.AuctionController do
 
     json(conn, %{
       ok: true,
-      items: Launch.list_auctions(filters, current_human),
+      items: launch_module().list_auctions(filters, current_human),
       generated_at: DateTime.utc_now()
     })
   end
 
   def show(conn, %{"id" => id}) do
-    case Launch.get_auction(id, conn.assigns[:current_human]) do
+    case launch_module().get_auction(id, conn.assigns[:current_human]) do
       nil -> ApiError.render(conn, :not_found, "auction_not_found", "Auction not found")
       auction -> json(conn, %{ok: true, auction: auction})
     end
   end
 
   def bid_quote(conn, %{"id" => id} = params) do
-    case Launch.quote_bid(id, params, conn.assigns[:current_human]) do
+    case launch_module().quote_bid(id, params, conn.assigns[:current_human]) do
       {:ok, quote} ->
         json(conn, Map.put(quote, :ok, true))
 
@@ -72,7 +72,7 @@ defmodule AutolaunchWeb.Api.AuctionController do
   end
 
   def create_bid(conn, %{"id" => id} = params) do
-    case Launch.place_bid(id, params, conn.assigns[:current_human]) do
+    case launch_module().place_bid(id, params, conn.assigns[:current_human]) do
       {:ok, bid} ->
         json(conn, %{ok: true, bid: bid})
 
@@ -101,5 +101,11 @@ defmodule AutolaunchWeb.Api.AuctionController do
       {:error, reason} ->
         ApiError.render(conn, :unprocessable_entity, "bid_invalid", inspect(reason))
     end
+  end
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:auction_controller, [])
+    |> Keyword.get(:launch_module, Launch)
   end
 end

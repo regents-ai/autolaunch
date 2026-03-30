@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {AuctionParameters} from "src/cca/interfaces/IContinuousClearingAuction.sol";
 import {LaunchDeploymentController} from "src/LaunchDeploymentController.sol";
 import {LaunchFeeRegistry} from "src/LaunchFeeRegistry.sol";
+import {RegentLBPStrategy} from "src/RegentLBPStrategy.sol";
 import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
@@ -13,7 +14,9 @@ import {RevenueShareSplitter} from "src/revenue/RevenueShareSplitter.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {ExampleCCADeploymentScript} from "scripts/ExampleCCADeploymentScript.s.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
-import {MockContinuousClearingAuctionFactory} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
+import {
+    MockContinuousClearingAuctionFactory
+} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
 import {MockLaunchToken, MockTokenFactory} from "test/mocks/MockTokenFactory.sol";
 
@@ -45,7 +48,8 @@ contract ExampleCCADeploymentScriptTest is Test {
         poolManager = new MockHookPoolManager();
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         subjectRegistry = new SubjectRegistry(address(this));
-        revenueShareFactory = new RevenueShareFactory(address(script), address(usdc), subjectRegistry);
+        revenueShareFactory =
+            new RevenueShareFactory(address(script), address(usdc), subjectRegistry);
         revenueIngressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(script));
         strategyFactory = new RegentLBPStrategyFactory();
@@ -89,14 +93,18 @@ contract ExampleCCADeploymentScriptTest is Test {
 
         uint256 expectedAuctionAmount = TOTAL_SUPPLY / 10;
         uint256 expectedReserveAmount = (TOTAL_SUPPLY * 500) / 10_000;
-        uint256 expectedVestingAmount =
-            TOTAL_SUPPLY - expectedAuctionAmount - expectedReserveAmount;
+        uint256 expectedVestingAmount = TOTAL_SUPPLY - expectedAuctionAmount - expectedReserveAmount;
 
         MockLaunchToken token = MockLaunchToken(result.tokenAddress);
         assertEq(token.balanceOf(result.auctionAddress), expectedAuctionAmount);
         assertEq(token.balanceOf(result.strategyAddress), expectedReserveAmount);
         assertEq(token.balanceOf(result.vestingWalletAddress), expectedVestingAmount);
         assertEq(auctionFactory.lastAmount(), expectedAuctionAmount);
+        RegentLBPStrategy strategy = RegentLBPStrategy(result.strategyAddress);
+        assertEq(strategy.officialPoolFee(), 0);
+        assertEq(strategy.officialPoolTickSpacing(), 60);
+        assertEq(strategy.positionManager(), address(0xDEAD));
+        assertEq(strategy.poolManager(), address(poolManager));
 
         SubjectRegistry.SubjectConfig memory config = subjectRegistry.getSubject(result.subjectId);
         assertEq(config.stakeToken, result.tokenAddress);

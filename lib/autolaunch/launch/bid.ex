@@ -3,16 +3,18 @@ defmodule Autolaunch.Launch.Bid do
   use Autolaunch.Schema
 
   @primary_key {:bid_id, :string, autogenerate: false}
+  @sepolia_network "ethereum-sepolia"
+  @sepolia_chain_id 11_155_111
 
   schema "autolaunch_bids" do
     field :privy_user_id, :string
     field :owner_address, :string
     field :auction_id, :string
     field :auction_address, :string
-    field :chain_id, :integer
+    field :chain_id, :integer, default: @sepolia_chain_id
     field :agent_id, :string
     field :agent_name, :string
-    field :network, :string
+    field :network, :string, default: @sepolia_network
     field :onchain_bid_id, :string
     field :submit_tx_hash, :string
     field :submit_block_number, :integer
@@ -72,6 +74,8 @@ defmodule Autolaunch.Launch.Bid do
       :current_clearing_price,
       :current_status
     ])
+    |> validate_inclusion(:network, [@sepolia_network])
+    |> validate_inclusion(:chain_id, [@sepolia_chain_id])
   end
 
   def update_changeset(bid, attrs) do

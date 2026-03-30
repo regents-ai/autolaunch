@@ -24,7 +24,8 @@ contract RevenueIngressFactoryTest is Test {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         subjectRegistry = new SubjectRegistry(address(this));
         revenueShareFactory = new RevenueShareFactory(address(this), address(usdc), subjectRegistry);
-        ingressFactory = new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
+        ingressFactory =
+            new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
         subjectRegistry.transferOwnership(address(revenueShareFactory));
 
         revenueShareFactory.createSubjectSplitter(

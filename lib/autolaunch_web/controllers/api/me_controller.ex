@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.Api.MeController do
 
         positions =
           current_human
-          |> Launch.list_positions(filters)
+          |> launch_module().list_positions(filters)
           |> maybe_filter_auction(Map.get(params, "auction"))
 
         json(conn, %{ok: true, items: positions})
@@ -32,4 +32,10 @@ defmodule AutolaunchWeb.Api.MeController do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:me_controller, [])
+    |> Keyword.get(:launch_module, Launch)
+  end
 end

@@ -1,6 +1,8 @@
 defmodule AutolaunchWeb.AuctionGuideLive do
   use AutolaunchWeb, :live_view
 
+  alias AutolaunchWeb.RegentScenes
+
   @timeline_steps [
     %{
       order: 0,
@@ -70,12 +72,87 @@ defmodule AutolaunchWeb.AuctionGuideLive do
      socket
      |> assign(:page_title, "How auctions work")
      |> assign(:active_view, "guide")
-     |> assign(:timeline_steps, @timeline_steps)}
+     |> assign(:timeline_steps, @timeline_steps)
+     |> assign(:selected_step_index, 0)
+     |> assign_regent_scene()}
+  end
+
+  def handle_event("regent:node_select", %{"meta" => %{"stepIndex" => step_index}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_step_index, normalize_step_index(step_index))
+     |> assign_regent_scene()}
+  end
+
+  def handle_event("regent:node_select", _params, socket), do: {:noreply, socket}
+
+  def handle_event("regent:node_hover", _params, socket), do: {:noreply, socket}
+  def handle_event("regent:surface_ready", _params, socket), do: {:noreply, socket}
+
+  def handle_event("regent:surface_error", _params, socket) do
+    {:noreply, put_flash(socket, :error, "The autolaunch guide surface could not render in this browser session.")}
   end
 
   def render(assigns) do
+    selected_step =
+      Enum.find(assigns.timeline_steps, &(&1.order == assigns.selected_step_index)) ||
+        List.first(assigns.timeline_steps)
+
+    assigns = assign(assigns, :selected_step, selected_step)
+
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
+      <section class="al-regent-shell">
+        <.surface
+          id="auction-guide-surface"
+          class="rg-regent-theme-autolaunch"
+          scene={@regent_scene}
+          scene_version={@regent_scene_version}
+          selected_node_id={@regent_selected_node_id}
+          theme="autolaunch"
+          camera_distance={24}
+        >
+          <:chamber>
+            <.chamber
+              id="auction-guide-chamber"
+              title={@selected_step.title}
+              subtitle={@selected_step.eyebrow}
+              summary={@selected_step.body}
+            >
+              <div class="al-launch-tags" aria-label="Selected guide step">
+                <span class="al-launch-tag">{@selected_step.stat}</span>
+                <span class="al-launch-tag">{@selected_step.note}</span>
+              </div>
+            </.chamber>
+          </:chamber>
+
+          <:ledger>
+            <.ledger
+              id="auction-guide-ledger"
+              title="Operator summary"
+              subtitle="The symbolic surface stays brief. The ledger keeps the plain-English rules close."
+            >
+              <table class="rg-table">
+                <tbody>
+                  <tr>
+                    <th scope="row">Sale size</th>
+                    <td>10% public sale</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Currency</th>
+                    <td>USDC on Ethereum Sepolia</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Revenue</th>
+                    <td>Stake after claim to earn</td>
+                  </tr>
+                </tbody>
+              </table>
+            </.ledger>
+          </:ledger>
+        </.surface>
+      </section>
+
       <div id="auction-guide-page" phx-hook="AuctionGuideMotion">
         <section id="auction-guide-hero" class="al-panel al-guide-hero">
           <div class="al-guide-hero-copy">
@@ -219,4 +296,25 @@ defmodule AutolaunchWeb.AuctionGuideLive do
     </.shell>
     """
   end
+
+  defp assign_regent_scene(socket) do
+    next_version = (socket.assigns[:regent_scene_version] || 0) + 1
+    scene = RegentScenes.guide(socket.assigns.timeline_steps, socket.assigns.selected_step_index)
+
+    socket
+    |> assign(:regent_scene_version, next_version)
+    |> assign(:regent_scene, Map.put(scene, "sceneVersion", next_version))
+    |> assign(:regent_selected_node_id, "guide:step:#{socket.assigns.selected_step_index}")
+  end
+
+  defp normalize_step_index(value) when is_integer(value), do: value
+
+  defp normalize_step_index(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} -> parsed
+      _ -> 0
+    end
+  end
+
+  defp normalize_step_index(_value), do: 0
 end

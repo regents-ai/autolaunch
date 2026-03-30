@@ -13,9 +13,14 @@ verbosity = 2
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "@uniswap/v4-core/=lib/v4-core/",
+  "@uniswap/v4-periphery/=lib/v4-periphery/",
+  "permit2/=lib/permit2/",
+  "solmate/=lib/solmate/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
 ]
 
 [rpc_endpoints]
+base = "${BASE_MAINNET_RPC_URL}"
 mainnet = "${ETH_MAINNET_RPC_URL}"
 sepolia = "${ETH_SEPOLIA_RPC_URL}"
 

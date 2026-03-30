@@ -202,6 +202,51 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "To improve agent token reputation, you can optionally link an ENS name"
     assert html =~ "Skip for now"
     assert html =~ "Open ENS planner"
+
+    send(view.pid, {:poll_job, "job_queued"})
+    polled_html = render(view)
+    assert polled_html =~ "href=\"/contracts\""
+  end
+
+  test "launch review renders Sepolia signing data and current GitHub target", %{conn: conn} do
+    {:ok, human} =
+      Accounts.upsert_human_by_privy_id("did:privy:launch-chain", %{
+        "wallet_address" => "0x1111111111111111111111111111111111111111",
+        "wallet_addresses" => ["0x1111111111111111111111111111111111111111"],
+        "display_name" => "Launch Operator"
+      })
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, view, html} = live(conn, "/launch")
+
+    assert html =~ "https://github.com/regent-ai/autolaunch"
+    refute html =~ "https://github.com/regent-ai/monorepo"
+
+    view
+    |> element("button[phx-value-agent_id='11155111:42']")
+    |> render_click()
+
+    view
+    |> form("form", %{
+      "launch" => %{
+        "token_name" => "Atlas Coin",
+        "token_symbol" => "ATLAS",
+        "recovery_safe_address" => "0x1111111111111111111111111111111111111111",
+        "auction_proceeds_recipient" => "0x1111111111111111111111111111111111111111",
+        "ethereum_revenue_treasury" => "0x1111111111111111111111111111111111111111"
+      }
+    })
+    |> render_change()
+
+    view
+    |> element("button[phx-click='prepare_review']")
+    |> render_click()
+
+    review_html = render(view)
+
+    assert review_html =~ "data-launch-chain-id=\"11155111\""
+    assert review_html =~ "Sepolia USDC only counts after it reaches the revenue share splitter."
+    refute review_html =~ "Mainnet USDC only counts"
   end
 
   test "auctions page renders market copy", %{conn: conn} do

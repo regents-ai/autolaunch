@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.Api.AgentController do
     current_human = conn.assigns[:current_human]
 
     agents =
-      Launch.list_agents(current_human)
+      launch_module().list_agents(current_human)
       |> maybe_filter_launchable(Map.get(params, "launchable"))
 
     json(conn, %{ok: true, items: agents})
@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.Api.AgentController do
   def show(conn, %{"id" => id}) do
     current_human = conn.assigns[:current_human]
 
-    case Launch.get_agent(current_human, id) do
+    case launch_module().get_agent(current_human, id) do
       nil -> ApiError.render(conn, :not_found, "agent_not_found", "Agent not found")
       agent -> json(conn, %{ok: true, agent: agent})
     end
@@ -26,12 +26,12 @@ defmodule AutolaunchWeb.Api.AgentController do
   def readiness(conn, %{"id" => id}) do
     current_human = conn.assigns[:current_human]
 
-    case Launch.launch_readiness_for_agent(current_human, id) do
+    case launch_module().launch_readiness_for_agent(current_human, id) do
       nil ->
         ApiError.render(conn, :not_found, "readiness_not_found", "Agent readiness not found")
 
       readiness ->
-        agent = Launch.get_agent(current_human, id) || %{}
+        agent = launch_module().get_agent(current_human, id) || %{}
 
         json(conn, %{
           ok: true,
@@ -55,5 +55,11 @@ defmodule AutolaunchWeb.Api.AgentController do
     readiness.checks
     |> Enum.reject(& &1.passed)
     |> Enum.map(& &1.message)
+  end
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:agent_controller, [])
+    |> Keyword.get(:launch_module, Launch)
   end
 end

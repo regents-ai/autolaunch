@@ -21,6 +21,16 @@ contract MockContinuousClearingAuctionFactory is IContinuousClearingAuctionFacto
     bytes32 public lastSalt;
     address public lastAuction;
 
+    function _deploymentSalt(
+        address sender,
+        address token,
+        uint256 amount,
+        bytes calldata configData,
+        bytes32 salt
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(sender, token, amount, keccak256(configData), salt));
+    }
+
     function initializeDistribution(
         address token,
         uint256 amount,
@@ -32,16 +42,30 @@ contract MockContinuousClearingAuctionFactory is IContinuousClearingAuctionFacto
         lastConfigData = configData;
         lastSalt = salt;
 
-        MockDistributionContract auction = new MockDistributionContract();
+        MockDistributionContract auction = new MockDistributionContract{
+            salt: _deploymentSalt(msg.sender, token, amount, configData, salt)
+        }();
         lastAuction = address(auction);
         return auction;
     }
 
-    function getAuctionAddress(address, uint256, bytes calldata, bytes32, address)
-        external
-        view
-        returns (address)
-    {
-        return lastAuction;
+    function getAuctionAddress(
+        address token,
+        uint256 amount,
+        bytes calldata configData,
+        bytes32 salt,
+        address sender
+    ) external view returns (address) {
+        bytes32 deploymentSalt = _deploymentSalt(sender, token, amount, configData, salt);
+        bytes32 bytecodeHash = keccak256(type(MockDistributionContract).creationCode);
+        return address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(bytes1(0xff), address(this), deploymentSalt, bytecodeHash)
+                    )
+                )
+            )
+        );
     }
 }

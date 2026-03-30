@@ -13,6 +13,7 @@ contract RevenueIngressAccount is Owned {
     address public immutable splitter;
     address public immutable factory;
     bytes32 public immutable subjectId;
+    uint256 private _reentrancyGuard = 1;
 
     string public label;
 
@@ -24,6 +25,13 @@ contract RevenueIngressAccount is Owned {
         bytes32 indexed sourceRef
     );
     event RescueToken(address indexed token, uint256 amount, address indexed recipient);
+
+    modifier nonReentrant() {
+        require(_reentrancyGuard == 1, "REENTRANT");
+        _reentrancyGuard = 2;
+        _;
+        _reentrancyGuard = 1;
+    }
 
     constructor(
         address usdc_,
@@ -49,21 +57,27 @@ contract RevenueIngressAccount is Owned {
         emit LabelSet(label_);
     }
 
-    function sweepUSDC(bytes32 sourceRef) external returns (uint256 balance, uint256 recognized) {
+    function sweepUSDC(bytes32 sourceRef)
+        external
+        nonReentrant
+        returns (uint256 balance, uint256 recognized)
+    {
         balance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         require(balance != 0, "NOTHING_TO_SWEEP");
 
         usdc.forceApprove(splitter, balance);
-        recognized = IRevenueShareSplitter(splitter).depositUSDC(
-            balance,
-            bytes32("ingress_sweep"),
-            sourceRef
-        );
+        recognized = IRevenueShareSplitter(splitter)
+            .depositUSDC(balance, bytes32("ingress_sweep"), sourceRef);
+        usdc.forceApprove(splitter, 0);
 
         emit USDCSwept(msg.sender, balance, recognized, sourceRef);
     }
 
-    function rescueToken(address token, uint256 amount, address recipient) external onlyOwner {
+    function rescueToken(address token, uint256 amount, address recipient)
+        external
+        onlyOwner
+        nonReentrant
+    {
         require(token != address(0), "TOKEN_ZERO");
         require(token != usdc, "USE_SWEEP_USDC");
         require(recipient != address(0), "RECIPIENT_ZERO");

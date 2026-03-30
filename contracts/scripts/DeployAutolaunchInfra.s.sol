@@ -24,16 +24,64 @@ contract DeployAutolaunchInfraScript is Script {
             RegentLBPStrategyFactory strategyFactory
         )
     {
-        ScriptConfig memory cfg = _loadConfig();
+        ScriptConfig memory cfg = loadConfigFromEnv();
+
+        return deploy(cfg);
+    }
+
+    function deploy(ScriptConfig memory cfg)
+        public
+        returns (
+            SubjectRegistry subjectRegistry,
+            RevenueShareFactory revenueShareFactory,
+            RevenueIngressFactory revenueIngressFactory,
+            RegentLBPStrategyFactory strategyFactory
+        )
+    {
+        address broadcaster = tx.origin;
+        require(broadcaster != address(0), "BROADCASTER_ZERO");
 
         vm.startBroadcast();
-        subjectRegistry = new SubjectRegistry(cfg.owner);
+        subjectRegistry = new SubjectRegistry(broadcaster);
         revenueShareFactory = new RevenueShareFactory(cfg.owner, cfg.usdc, subjectRegistry);
         revenueIngressFactory =
             new RevenueIngressFactory(cfg.usdc, address(subjectRegistry), cfg.owner);
         strategyFactory = new RegentLBPStrategyFactory();
         subjectRegistry.transferOwnership(address(revenueShareFactory));
         vm.stopBroadcast();
+    }
+
+    function loadConfigFromEnv() public view returns (ScriptConfig memory cfg) {
+        cfg.owner = _envAddressOr("AUTOLAUNCH_INFRA_OWNER", _envAddressOr("DEPLOYER", address(0)));
+        require(cfg.owner != address(0), "OWNER_ZERO");
+
+        cfg.usdc = vm.envAddress("ETHEREUM_USDC_ADDRESS");
+        require(cfg.usdc != address(0), "USDC_ZERO");
+    }
+
+    function _envAddressOr(string memory key, address fallbackValue)
+        internal
+        view
+        returns (address)
+    {
+        try vm.envAddress(key) returns (address value) {
+            return value;
+        } catch {
+            return fallbackValue;
+        }
+    }
+
+    function run() external {
+        vm.startBroadcast();
+
+        ScriptConfig memory cfg = loadConfigFromEnv();
+
+        (
+            SubjectRegistry subjectRegistry,
+            RevenueShareFactory revenueShareFactory,
+            RevenueIngressFactory revenueIngressFactory,
+            RegentLBPStrategyFactory strategyFactory
+        ) = deploy(cfg);
 
         console2.log(
             string.concat(
@@ -52,25 +100,5 @@ contract DeployAutolaunchInfraScript is Script {
                 "\"}"
             )
         );
-    }
-
-    function _loadConfig() internal view returns (ScriptConfig memory cfg) {
-        cfg.owner = _envAddressOr("AUTOLAUNCH_INFRA_OWNER", _envAddressOr("DEPLOYER", address(0)));
-        require(cfg.owner != address(0), "OWNER_ZERO");
-
-        cfg.usdc = vm.envAddress("ETHEREUM_USDC_ADDRESS");
-        require(cfg.usdc != address(0), "USDC_ZERO");
-    }
-
-    function _envAddressOr(string memory key, address fallbackValue)
-        internal
-        view
-        returns (address)
-    {
-        try vm.envAddress(key) returns (address value) {
-            return value;
-        } catch {
-            return fallbackValue;
-        }
     }
 }

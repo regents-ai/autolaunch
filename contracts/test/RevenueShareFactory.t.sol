@@ -24,9 +24,8 @@ contract RevenueShareFactoryTest is Test {
     function setUp() external {
         subjectRegistry = new SubjectRegistry(OWNER);
         factory = new RevenueShareFactory(OWNER, USDC, subjectRegistry);
-        stakeToken = new SimpleMintableERC20(
-            "Agent", "AGENT", 18, address(this), 1000 ether, address(this)
-        );
+        stakeToken =
+            new SimpleMintableERC20("Agent", "AGENT", 18, address(this), 1000 ether, address(this));
 
         vm.prank(OWNER);
         subjectRegistry.transferOwnership(address(factory));
@@ -73,5 +72,63 @@ contract RevenueShareFactoryTest is Test {
         assertEq(factory.splitterOfSubject(SUBJECT_ID), splitter);
         assertEq(subjectRegistry.subjectOfStakeToken(address(stakeToken)), SUBJECT_ID);
         assertEq(subjectRegistry.subjectForIdentity(1, address(0x8004), 42), SUBJECT_ID);
+    }
+
+    function testRejectsMalformedIdentityLinkInputs() external {
+        vm.prank(OWNER);
+        factory.setAuthorizedCreator(CREATOR, true);
+
+        vm.prank(CREATOR);
+        vm.expectRevert("IDENTITY_REGISTRY_ZERO");
+        factory.createSubjectSplitter(
+            SUBJECT_ID,
+            address(stakeToken),
+            TREASURY,
+            PROTOCOL,
+            TREASURY_SAFE,
+            TREASURY_SAFE,
+            100,
+            "Agent",
+            1,
+            address(0),
+            42
+        );
+    }
+
+    function testRejectsZeroRecipients() external {
+        vm.prank(OWNER);
+        factory.setAuthorizedCreator(CREATOR, true);
+
+        vm.prank(CREATOR);
+        vm.expectRevert("TREASURY_RECIPIENT_ZERO");
+        factory.createSubjectSplitter(
+            SUBJECT_ID,
+            address(stakeToken),
+            address(0),
+            PROTOCOL,
+            TREASURY_SAFE,
+            TREASURY_SAFE,
+            100,
+            "Agent",
+            0,
+            address(0),
+            0
+        );
+
+        vm.prank(CREATOR);
+        vm.expectRevert("PROTOCOL_RECIPIENT_ZERO");
+        factory.createSubjectSplitter(
+            SUBJECT_ID,
+            address(stakeToken),
+            TREASURY,
+            address(0),
+            TREASURY_SAFE,
+            TREASURY_SAFE,
+            100,
+            "Agent",
+            0,
+            address(0),
+            0
+        );
     }
 }

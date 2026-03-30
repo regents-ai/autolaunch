@@ -35,6 +35,8 @@ defmodule AutolaunchWeb.Router do
       live "/auctions", AuctionsLive, :index
       live "/auctions/:id", AuctionLive, :show
       live "/positions", PositionsLive, :index
+      live "/contracts", ContractsLive, :index
+      live "/subjects/:id", SubjectLive, :show
     end
   end
 
@@ -69,6 +71,51 @@ defmodule AutolaunchWeb.Router do
     get "/agents", AgentController, :index
     get "/agents/:id", AgentController, :show
     get "/agents/:id/readiness", AgentController, :readiness
+
+    get "/subjects/:id", SubjectController, :show
+    get "/subjects/:id/ingress", SubjectController, :ingress
+    post "/subjects/:id/stake", SubjectController, :stake
+    post "/subjects/:id/unstake", SubjectController, :unstake
+    post "/subjects/:id/claim-usdc", SubjectController, :claim_usdc
+    post "/subjects/:id/ingress/:address/sweep", SubjectController, :sweep_ingress
+
+    get "/regent/staking", RegentStakingController, :show
+    get "/regent/staking/account/:address", RegentStakingController, :account
+    post "/regent/staking/stake", RegentStakingController, :stake
+    post "/regent/staking/unstake", RegentStakingController, :unstake
+    post "/regent/staking/claim-usdc", RegentStakingController, :claim_usdc
+    post "/regent/staking/deposit-usdc/prepare", RegentStakingController, :prepare_deposit
+
+    post "/regent/staking/withdraw-treasury/prepare",
+         RegentStakingController,
+         :prepare_withdraw_treasury
+
+    get "/prelaunch/plans", PrelaunchController, :index
+    post "/prelaunch/plans", PrelaunchController, :create
+    get "/prelaunch/plans/:id", PrelaunchController, :show
+    patch "/prelaunch/plans/:id", PrelaunchController, :update
+    post "/prelaunch/plans/:id/validate", PrelaunchController, :validate
+    post "/prelaunch/plans/:id/publish", PrelaunchController, :publish
+    post "/prelaunch/plans/:id/launch", PrelaunchController, :launch
+    post "/prelaunch/assets", PrelaunchController, :upload_asset
+    post "/prelaunch/plans/:id/metadata", PrelaunchController, :metadata
+    get "/prelaunch/plans/:id/metadata-preview", PrelaunchController, :metadata_preview
+
+    get "/lifecycle/jobs/:id", LifecycleController, :show_job
+    post "/lifecycle/jobs/:id/finalize/prepare", LifecycleController, :prepare_finalize
+    post "/lifecycle/jobs/:id/finalize/register", LifecycleController, :register_finalize
+    get "/lifecycle/jobs/:id/vesting", LifecycleController, :vesting
+
+    get "/contracts/admin", ContractsController, :admin
+    get "/contracts/jobs/:id", ContractsController, :show_job
+    get "/contracts/subjects/:id", ContractsController, :show_subject
+    post "/contracts/jobs/:id/:resource/:action/prepare", ContractsController, :prepare_job
+
+    post "/contracts/subjects/:id/:resource/:action/prepare",
+         ContractsController,
+         :prepare_subject
+
+    post "/contracts/admin/:resource/:action/prepare", ContractsController, :prepare_admin
 
     post "/launch/preview", LaunchController, :preview
     post "/launch/jobs", LaunchController, :create_job

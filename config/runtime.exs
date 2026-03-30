@@ -88,6 +88,12 @@ if config_env() != :test do
     deploy_private_key: env.("AUTOLAUNCH_DEPLOY_PRIVATE_KEY", ""),
     mock_deploy: env_bool.("AUTOLAUNCH_MOCK_DEPLOY", false)
 
+  config :autolaunch, :regent_staking,
+    chain_id: 8_453,
+    chain_label: "Base",
+    rpc_url: env.("BASE_MAINNET_RPC_URL", ""),
+    contract_address: env.("REGENT_REVENUE_STAKING_ADDRESS", "")
+
   config :agent_world, :world_id,
     app_id: env.("WORLD_ID_APP_ID", ""),
     action: env.("WORLD_ID_ACTION", "agentbook-registration"),

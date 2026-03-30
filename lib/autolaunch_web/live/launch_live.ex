@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.LaunchLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Launch
+  alias AutolaunchWeb.RegentScenes
 
   @job_poll_ms 2_000
   @agent_launch_total_supply "100000000000000000000000000000"
@@ -25,7 +26,8 @@ defmodule AutolaunchWeb.LaunchLive do
      |> assign(:launching, false)
      |> assign(:job_id, nil)
      |> assign(:current_job, nil)
-     |> assign(:fee_split, launch_module().fee_split_summary())}
+     |> assign(:fee_split, launch_module().fee_split_summary())
+     |> assign_regent_scene()}
   end
 
   def handle_event("select_agent", %{"agent_id" => agent_id}, socket) do
@@ -45,7 +47,8 @@ defmodule AutolaunchWeb.LaunchLive do
          |> assign(:readiness, readiness)
          |> assign(:form, form)
          |> assign(:preview, nil)
-         |> assign(:step, 2)}
+         |> assign(:step, 2)
+         |> assign_regent_scene()}
 
       %{state: state} ->
         {:noreply, put_flash(socket, :error, "Agent is #{String.replace(state, "_", " ")}.")}
@@ -61,13 +64,16 @@ defmodule AutolaunchWeb.LaunchLive do
 
   def handle_event("go_to_step", %{"step" => step}, socket) do
     target_step = normalize_step(step)
-    {:noreply, assign(socket, :step, min(target_step, max_available_step(socket)))}
+    {:noreply,
+     socket
+     |> assign(:step, min(target_step, max_available_step(socket)))
+     |> assign_regent_scene()}
   end
 
   def handle_event("prepare_review", _params, socket) do
     case launch_module().preview_launch(socket.assigns.form, socket.assigns.current_human) do
       {:ok, preview} ->
-        {:noreply, socket |> assign(:preview, preview) |> assign(:step, 3)}
+        {:noreply, socket |> assign(:preview, preview) |> assign(:step, 3) |> assign_regent_scene()}
 
       {:error, {:agent_not_eligible, _agent}} ->
         {:noreply, put_flash(socket, :error, "Selected agent is no longer eligible to launch.")}
@@ -81,11 +87,11 @@ defmodule AutolaunchWeb.LaunchLive do
   end
 
   def handle_event("launch_submitting", _params, socket) do
-    {:noreply, assign(socket, :launching, true)}
+    {:noreply, socket |> assign(:launching, true) |> assign_regent_scene()}
   end
 
   def handle_event("launch_error", %{"message" => message}, socket) do
-    {:noreply, socket |> assign(:launching, false) |> put_flash(:error, message)}
+    {:noreply, socket |> assign(:launching, false) |> assign_regent_scene() |> put_flash(:error, message)}
   end
 
   def handle_event("launch_queued", %{"job_id" => job_id}, socket) do
@@ -96,13 +102,27 @@ defmodule AutolaunchWeb.LaunchLive do
      |> put_flash(:info, "Launch job queued.")
      |> assign(:launching, false)
      |> assign(:job_id, job_id)
-     |> assign(:step, 4)}
+     |> assign(:step, 4)
+     |> assign_regent_scene()}
+  end
+
+  def handle_event("regent:node_select", %{"meta" => %{"step" => step}}, socket) do
+    handle_event("go_to_step", %{"step" => step}, socket)
+  end
+
+  def handle_event("regent:node_select", _params, socket), do: {:noreply, socket}
+
+  def handle_event("regent:node_hover", _params, socket), do: {:noreply, socket}
+  def handle_event("regent:surface_ready", _params, socket), do: {:noreply, socket}
+
+  def handle_event("regent:surface_error", _params, socket) do
+    {:noreply, put_flash(socket, :error, "The launch control surface could not render in this browser session.")}
   end
 
   def handle_info({:poll_job, job_id}, socket) do
     case launch_module().get_job_response(job_id) do
       %{job: job} = response ->
-        socket = assign(socket, :current_job, response)
+        socket = socket |> assign(:current_job, response) |> assign_regent_scene()
 
         if launch_module().terminal_status?(job.status) do
           flash =
@@ -132,17 +152,71 @@ defmodule AutolaunchWeb.LaunchLive do
       |> assign(:eligible_count, eligible_count)
       |> assign(:selected_agent, selected_agent)
       |> assign(:current_reputation_prompt, current_reputation_prompt)
+      |> assign(:regent_step_title, regent_step_title(assigns.step))
+      |> assign(:regent_step_summary, regent_step_summary(assigns.step, selected_agent, assigns.current_job))
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
+      <section class="al-regent-shell">
+        <.surface
+          id="launch-regent-surface"
+          class="rg-regent-theme-autolaunch"
+          scene={@regent_scene}
+          scene_version={@regent_scene_version}
+          selected_node_id={@regent_selected_node_id}
+          theme="autolaunch"
+          camera_distance={24}
+        >
+          <:chamber>
+            <.chamber
+              id="launch-regent-chamber"
+              title={@regent_step_title}
+              subtitle={"Step #{@step}"}
+              summary={@regent_step_summary}
+            >
+              <div class="al-launch-tags" aria-label="Launch scene status">
+                <span class="al-launch-tag">Eligible agents: {@eligible_count}</span>
+                <span class="al-launch-tag">Fee split: 2% total</span>
+                <span class="al-launch-tag">{regent_job_status(@current_job)}</span>
+              </div>
+            </.chamber>
+          </:chamber>
+
+          <:ledger>
+            <.ledger
+              id="launch-regent-ledger"
+              title="Control notes"
+              subtitle="The sigil surface keeps orientation short. The wizard below still owns the real launch inputs, review, and signing."
+            >
+              <table class="rg-table">
+                <tbody>
+                  <tr>
+                    <th scope="row">Current step</th>
+                    <td>{@step}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Selected agent</th>
+                    <td>{(@selected_agent && (@selected_agent.name || @selected_agent.agent_id)) || "Not selected"}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Queue state</th>
+                    <td>{regent_job_status(@current_job)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </.ledger>
+          </:ledger>
+        </.surface>
+      </section>
+
       <section id="launch-hero" class="al-hero al-launch-hero al-panel" phx-hook="MissionMotion">
         <div class="al-launch-copy">
           <p class="al-kicker">Autolaunch</p>
           <h2>Launch the Agent Coin flow from one operator-grade surface.</h2>
           <p class="al-subcopy">
-            Autolaunch sells 10% of a fixed 100 billion Agent Coin supply in a Continuous Clearing
-            Auction on Ethereum Sepolia. Bids settle in USDC, and recognized revenue only counts
-            after Sepolia USDC reaches the revenue share splitter that feeds staking.
+            The browser wizard is still here, but the main operator path now starts in the CLI:
+            prelaunch the launch plan, run the launch, monitor the auction, finalize the post-auction
+            actions, then release vested tokens later. This page stays useful for direct review and queue visibility.
           </p>
 
           <div class="al-hero-actions">
@@ -151,9 +225,9 @@ defmodule AutolaunchWeb.LaunchLive do
               class="al-cta-link al-cta-link--primary"
               data-copy-value={launch_hero_command()}
             >
-              Copy `regent autolaunch launch preview ...` example
+              Copy `regent autolaunch prelaunch wizard` example
             </button>
-            <a class="al-cta-link" href="https://github.com/regent-ai/monorepo" target="_blank" rel="noreferrer">Star on GitHub</a>
+            <a class="al-cta-link" href="https://github.com/regent-ai/autolaunch" target="_blank" rel="noreferrer">Star on GitHub</a>
             <a class="al-cta-link al-cta-link--quiet" href="#launch-wizard">Jump to wizard</a>
           </div>
 
@@ -179,8 +253,8 @@ defmodule AutolaunchWeb.LaunchLive do
                 <span></span>
               </div>
               <div>
-                <p class="al-kicker">Launch command</p>
-                <p class="al-terminal-title">CLI preview</p>
+                <p class="al-kicker">Golden path</p>
+                <p class="al-terminal-title">CLI-first launch flow</p>
               </div>
               <button
                 type="button"
@@ -211,37 +285,37 @@ defmodule AutolaunchWeb.LaunchLive do
           <p class="al-kicker">Before you launch</p>
           <h3>The first pass should feel short, direct, and easy to verify.</h3>
           <p class="al-subcopy">
-            Connect the right wallet, confirm where revenue should route, then sign once. The
-            optional trust check stays out of the way until the launch is already queued.
+            The safest operator path is now: save a prelaunch plan in the CLI, validate it against
+            backend checks, publish the hosted metadata draft, then queue the launch from that saved plan.
           </p>
         </div>
 
         <div class="al-onboard-grid">
           <article class="al-onboard-card">
             <p class="al-onboard-mark">01</p>
-            <strong>Bring the ERC-8004 wallet that can actually launch.</strong>
+            <strong>Start with the CLI prelaunch plan, not raw launch flags.</strong>
             <p>
-              Autolaunch checks owner and operator access. Wallet-bound identities can be viewed,
-              but they cannot start a CCA by themselves.
+              The backend now tracks one opinionated launch draft per agent identity. Use that to
+              lock the image, safes, backup wallet, and launch blockers before you sign anything.
             </p>
           </article>
 
           <article class="al-onboard-card">
             <p class="al-onboard-mark">02</p>
-            <strong>Confirm the fixed sale and revenue routing before you sign.</strong>
+            <strong>Use the browser for review, not as the only source of truth.</strong>
             <p>
-              The wizard pre-fills addresses from your connected wallet. The sale size stays fixed
-              at 10% of a 100 billion supply, and only Sepolia USDC that reaches the revenue share splitter is
-              counted for staking through the revenue share splitter.
+              The sale size stays fixed at 10% of a 100 billion supply, and only Sepolia USDC that
+              reaches the revenue share splitter counts for staking. The CLI plan is the cleaner way
+              to confirm where proceeds, treasury, and fallback control should route.
             </p>
           </article>
 
           <article class="al-onboard-card">
             <p class="al-onboard-mark">03</p>
-            <strong>Expect one signature, one queue, then a live auction page.</strong>
+            <strong>After launch, switch back to CLI monitor and finalize.</strong>
             <p>
-              After the deploy script returns the launch stack, the auction shows up in the listing
-              flow automatically.
+              Migration, currency sweep, token sweep, and vesting release are still lifecycle steps.
+              The CLI now owns that guided operator flow, while this page keeps the live queue and auction links visible.
             </p>
           </article>
         </div>
@@ -250,8 +324,8 @@ defmodule AutolaunchWeb.LaunchLive do
       <section id="launch-wizard" class="al-wizard-layout" phx-hook="MissionMotion">
         <article class="al-panel al-main-panel">
           <div class="al-step-intro">
-            Five short stages: choose the identity, confirm the fixed sale and routing, sign the
-            launch, optionally finish the trust check, then watch the queue turn into a live auction.
+            Use the browser wizard for local review if needed, but treat the CLI golden path as the
+            primary launch route: prelaunch, launch run, monitor, finalize, then vesting status.
           </div>
 
           <div class="al-step-row">
@@ -469,7 +543,7 @@ defmodule AutolaunchWeb.LaunchLive do
                 <div class="al-review-card">
                   <span>Revenue routing</span>
                   <strong>USDC treasury {@preview && short_address(@preview.token.ethereum_revenue_treasury)}</strong>
-                  <p>Mainnet USDC only counts after it reaches the revenue share splitter.</p>
+                  <p>Sepolia USDC only counts after it reaches the revenue share splitter.</p>
                 </div>
               </div>
 
@@ -621,11 +695,41 @@ defmodule AutolaunchWeb.LaunchLive do
                 <article class="al-note-card">
                   <p class="al-kicker">Next action</p>
                   <%= if @current_job.auction do %>
-                    <.link navigate={~p"/auctions/#{@current_job.auction.id}"} class="al-cta-link">
-                      Open auction detail
-                    </.link>
+                    <div class="al-action-row">
+                      <.link navigate={~p"/auctions/#{@current_job.auction.id}"} class="al-cta-link">
+                        Open auction detail
+                      </.link>
+                      <.link
+                        navigate={~p"/contracts?job_id=#{@current_job.job.job_id}"}
+                        class="al-ghost"
+                      >
+                        Open contracts console
+                      </.link>
+                      <.link
+                        :if={@current_job.job.subject_id}
+                        navigate={~p"/subjects/#{@current_job.job.subject_id}"}
+                        class="al-ghost"
+                      >
+                        Open subject revenue
+                      </.link>
+                    </div>
                   <% else %>
-                    <p>Stay on this page while launch orchestration runs.</p>
+                    <div class="al-action-row">
+                      <p>Stay on this page while launch orchestration runs.</p>
+                      <.link
+                        navigate={~p"/contracts?job_id=#{@current_job.job.job_id}"}
+                        class="al-ghost"
+                      >
+                        Open contracts console
+                      </.link>
+                      <.link
+                        :if={@current_job.job.subject_id}
+                        navigate={~p"/subjects/#{@current_job.job.subject_id}"}
+                        class="al-ghost"
+                      >
+                        Open subject revenue
+                      </.link>
+                    </div>
                   <% end %>
                 </article>
 
@@ -680,10 +784,29 @@ defmodule AutolaunchWeb.LaunchLive do
                       Pool ID: <strong>{@current_job.job.pool_id}</strong>
                     </li>
                   </ul>
+                  <div class="al-action-row">
+                    <.link
+                      navigate={~p"/contracts?job_id=#{@current_job.job.job_id}"}
+                      class="al-ghost"
+                    >
+                      Inspect full contract console
+                    </.link>
+                  </div>
                 </article>
               </div>
             <% else %>
-              <p class="al-inline-note">Waiting for launch job response.</p>
+              <div class="al-note-card">
+                <p class="al-inline-note">Waiting for launch job response.</p>
+                <div class="al-action-row">
+                  <.link
+                    :if={@job_id}
+                    navigate={~p"/contracts?job_id=#{@job_id}"}
+                    class="al-ghost"
+                  >
+                    Open contracts console
+                  </.link>
+                </div>
+              </div>
             <% end %>
           <% end %>
         </article>
@@ -772,6 +895,45 @@ defmodule AutolaunchWeb.LaunchLive do
   defp normalize_step(step) when is_integer(step), do: step
   defp normalize_step(_step), do: 1
 
+  defp assign_regent_scene(socket) do
+    next_version = (socket.assigns[:regent_scene_version] || 0) + 1
+    scene = RegentScenes.launch(socket.assigns)
+
+    socket
+    |> assign(:regent_scene_version, next_version)
+    |> assign(:regent_scene, Map.put(scene, "sceneVersion", next_version))
+    |> assign(:regent_selected_node_id, "launch:step:#{min(socket.assigns.step, 4)}")
+  end
+
+  defp regent_step_title(1), do: "Choose an eligible agent"
+  defp regent_step_title(2), do: "Set launch terms"
+  defp regent_step_title(3), do: "Review and sign"
+  defp regent_step_title(4), do: "Queue and monitor"
+  defp regent_step_title(5), do: "Deployment status"
+  defp regent_step_title(_step), do: "Launch control"
+
+  defp regent_step_summary(1, _selected_agent, _current_job),
+    do: "Pick the ERC-8004 identity that is actually allowed to launch. The spatial surface is only there to orient you; the review cards still hold the real evidence."
+
+  defp regent_step_summary(2, selected_agent, _current_job),
+    do:
+      "Set token routing and recovery details for #{selected_agent && (selected_agent.name || selected_agent.agent_id) || "the chosen agent"} before asking for any signature."
+
+  defp regent_step_summary(3, _selected_agent, _current_job),
+    do: "This is the irreversible checkpoint. Review the fixed supply, treasury routing, and the optional trust check before you sign."
+
+  defp regent_step_summary(4, _selected_agent, current_job),
+    do: "The job is queued. Keep the browser on live queue state while the CLI remains the cleaner operator path. Current state: #{regent_job_status(current_job)}."
+
+  defp regent_step_summary(5, _selected_agent, current_job),
+    do: "The launch stack is now in deployment tracking. Current state: #{regent_job_status(current_job)}."
+
+  defp regent_step_summary(_step, _selected_agent, _current_job),
+    do: "Launch control is live."
+
+  defp regent_job_status(nil), do: "Awaiting queue"
+  defp regent_job_status(%{job: %{status: status}}), do: String.replace(status, "_", " ")
+
   defp preview_error(:token_name_required), do: "Token name is required."
   defp preview_error(:token_symbol_required), do: "Token symbol is required."
 
@@ -841,23 +1003,24 @@ defmodule AutolaunchWeb.LaunchLive do
 
   defp launch_hero_command do
     """
-    regent autolaunch launch preview \
+    regent autolaunch prelaunch wizard \
       --agent 1:42 \
       --name "Atlas Coin" \
       --symbol ATLAS \
-      --recovery-safe-address 0x1111111111111111111111111111111111111111 \
+      --treasury-safe-address 0x1111111111111111111111111111111111111111 \
       --auction-proceeds-recipient 0x1111111111111111111111111111111111111111 \
-      --ethereum-revenue-treasury 0x1111111111111111111111111111111111111111
+      --ethereum-revenue-treasury 0x1111111111111111111111111111111111111111 \
+      --image-file ./atlas.png
     """
     |> String.trim()
   end
 
   defp launch_hero_transcript do
     """
-    > preview.ok = true
-    > chain = ethereum-sepolia
-    > total_supply = 100000000000000000000000000000
-    > next = sign in browser and queue launch
+    > plan.saved = true
+    > validation.launchable = true
+    > next = regent autolaunch launch run --plan plan_alpha
+    > after_launch = monitor -> finalize -> vesting status
     """
     |> String.trim()
   end

@@ -57,10 +57,19 @@ contract RevenueShareFactory is Owned {
     ) external onlyAuthorizedCreator returns (address splitter) {
         require(subjectId != bytes32(0), "SUBJECT_ZERO");
         require(stakeToken != address(0), "STAKE_TOKEN_ZERO");
+        require(treasuryRecipient != address(0), "TREASURY_RECIPIENT_ZERO");
+        require(protocolRecipient != address(0), "PROTOCOL_RECIPIENT_ZERO");
         require(splitterOfStakeToken[stakeToken] == address(0), "SPLITTER_EXISTS_FOR_TOKEN");
         require(splitterOfSubject[subjectId] == address(0), "SPLITTER_EXISTS_FOR_SUBJECT");
         require(splitterOwner != address(0), "SPLITTER_OWNER_ZERO");
         require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
+        bool hasIdentityLink =
+            identityChainId != 0 || identityRegistry != address(0) || identityAgentId != 0;
+        if (hasIdentityLink) {
+            require(identityChainId != 0, "IDENTITY_CHAIN_ID_ZERO");
+            require(identityRegistry != address(0), "IDENTITY_REGISTRY_ZERO");
+            require(identityAgentId != 0, "IDENTITY_AGENT_ID_ZERO");
+        }
 
         RevenueShareSplitter deployed = new RevenueShareSplitter(
             stakeToken,
@@ -72,18 +81,9 @@ contract RevenueShareFactory is Owned {
             address(this)
         );
 
-        deployed.transferOwnership(splitterOwner);
-
         splitter = address(deployed);
         splitterOfStakeToken[stakeToken] = splitter;
         splitterOfSubject[subjectId] = splitter;
-
-        subjectRegistry.createSubject(subjectId, stakeToken, splitter, treasurySafe, true, label);
-        if (identityChainId != 0 && identityRegistry != address(0) && identityAgentId != 0) {
-            subjectRegistry.linkIdentity(
-                subjectId, identityChainId, identityRegistry, identityAgentId
-            );
-        }
 
         emit SplitterDeployed(
             subjectId,
@@ -94,5 +94,14 @@ contract RevenueShareFactory is Owned {
             protocolRecipient,
             label
         );
+
+        subjectRegistry.createSubject(subjectId, stakeToken, splitter, treasurySafe, true, label);
+        if (hasIdentityLink) {
+            bytes32 identityHash = subjectRegistry.linkIdentity(
+                subjectId, identityChainId, identityRegistry, identityAgentId
+            );
+            require(identityHash != bytes32(0), "IDENTITY_LINK_FAILED");
+        }
+        deployed.transferOwnership(splitterOwner);
     }
 }

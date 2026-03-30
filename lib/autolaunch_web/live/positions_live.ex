@@ -176,7 +176,9 @@ defmodule AutolaunchWeb.PositionsLive do
   end
 
   defp load_positions(nil, _filters), do: []
-  defp load_positions(current_human, filters), do: Launch.list_positions(current_human, filters)
+
+  defp load_positions(current_human, filters),
+    do: launch_module().list_positions(current_human, filters)
 
   defp status_copy("active"), do: "Active — receiving tokens at the current clearing price."
   defp status_copy("ending-soon"), do: "Ending soon — the auction is near the finish line."
@@ -195,4 +197,10 @@ defmodule AutolaunchWeb.PositionsLive do
   defp status_copy("claimed"), do: "Claimed — purchased tokens have already been withdrawn."
   defp status_copy("settled"), do: "Settled — the auction outcome is finalized."
   defp status_copy(_status), do: "Monitor this position from the auction detail page."
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:positions_live, [])
+    |> Keyword.get(:launch_module, Launch)
+  end
 end

@@ -35,19 +35,19 @@ contract RegentLBPStrategyFactoryTest is Test {
                 positionRecipient: address(0x8888),
                 positionManager: address(0x9999),
                 poolManager: address(0xAAAA),
+                officialPoolFee: 3000,
+                officialPoolTickSpacing: 60,
                 migrationBlock: 20,
                 sweepBlock: 30,
-                lpCurrencyBps: 5_000,
+                lpCurrencyBps: 5000,
                 tokenSplitToAuctionMps: 6_666_666,
                 auctionTokenAmount: 100,
                 reserveTokenAmount: 50,
-                maxCurrencyAmountForLP: 1_000
+                maxCurrencyAmountForLP: 1000
             });
 
         address strategyAddress = address(
-            factory.initializeDistribution(
-                address(0x1111), 150, abi.encode(cfg), bytes32(0)
-            )
+            factory.initializeDistribution(address(0x1111), 150, abi.encode(cfg), bytes32(0))
         );
 
         RegentLBPStrategy strategy = RegentLBPStrategy(strategyAddress);
@@ -57,6 +57,8 @@ contract RegentLBPStrategyFactoryTest is Test {
         assertEq(strategy.agentTreasurySafe(), address(0x5555));
         assertEq(strategy.vestingWallet(), address(0x6666));
         assertEq(strategy.operator(), address(0x7777));
+        assertEq(strategy.officialPoolFee(), 3000);
+        assertEq(strategy.officialPoolTickSpacing(), 60);
         assertEq(strategy.totalStrategySupply(), 150);
         assertEq(strategy.auctionTokenAmount(), 100);
         assertEq(strategy.reserveTokenAmount(), 50);

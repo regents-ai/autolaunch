@@ -13,7 +13,9 @@ import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitter} from "src/revenue/RevenueShareSplitter.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
-import {MockContinuousClearingAuctionFactory} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
+import {
+    MockContinuousClearingAuctionFactory
+} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
 import {MockLaunchToken, MockTokenFactory} from "test/mocks/MockTokenFactory.sol";
 
@@ -70,6 +72,14 @@ contract LaunchDeploymentControllerTest is Test {
         controller.deploy(cfg);
     }
 
+    function testRejectsZeroLpCurrencyCap() external {
+        LaunchDeploymentController.DeploymentConfig memory cfg = defaultConfig();
+        cfg.maxCurrencyAmountForLP = 0;
+
+        vm.expectRevert("MAX_CCY_FOR_LP_ZERO");
+        controller.deploy(cfg);
+    }
+
     function testDeploysModelBLaunchStack() external {
         LaunchDeploymentController.DeploymentResult memory result =
             controller.deploy(defaultConfig());
@@ -80,8 +90,7 @@ contract LaunchDeploymentControllerTest is Test {
 
         uint256 expectedAuctionAmount = TOTAL_SUPPLY / 10;
         uint256 expectedReserveAmount = (TOTAL_SUPPLY * 500) / 10_000;
-        uint256 expectedVestingAmount =
-            TOTAL_SUPPLY - expectedAuctionAmount - expectedReserveAmount;
+        uint256 expectedVestingAmount = TOTAL_SUPPLY - expectedAuctionAmount - expectedReserveAmount;
 
         MockLaunchToken token = MockLaunchToken(result.tokenAddress);
         assertEq(token.balanceOf(result.auctionAddress), expectedAuctionAmount);
@@ -94,6 +103,10 @@ contract LaunchDeploymentControllerTest is Test {
         assertEq(strategy.auctionTokenAmount(), expectedAuctionAmount);
         assertEq(strategy.reserveTokenAmount(), expectedReserveAmount);
         assertEq(strategy.tokenSplitToAuctionMps(), 6_666_666);
+        assertEq(strategy.positionManager(), address(0xDEAD));
+        assertEq(strategy.poolManager(), address(poolManager));
+        assertEq(strategy.officialPoolFee(), 0);
+        assertEq(strategy.officialPoolTickSpacing(), 60);
 
         AuctionParameters memory parameters =
             abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
@@ -129,7 +142,9 @@ contract LaunchDeploymentControllerTest is Test {
         );
 
         RevenueIngressFactory ingressFactory = revenueIngressFactory;
-        assertEq(ingressFactory.defaultIngressOfSubject(result.subjectId), result.defaultIngressAddress);
+        assertEq(
+            ingressFactory.defaultIngressOfSubject(result.subjectId), result.defaultIngressAddress
+        );
         assertEq(ingressFactory.ingressAccountCount(result.subjectId), 1);
     }
 

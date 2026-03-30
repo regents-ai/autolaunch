@@ -2,8 +2,9 @@
 pragma solidity ^0.8.26;
 
 import {Owned} from "src/auth/Owned.sol";
+import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.sol";
 
-contract SimpleMintableERC20 is Owned {
+contract SimpleMintableERC20 is Owned, IERC20SupplyMinimal {
     string public name;
     string public symbol;
     uint8 public immutable decimals;

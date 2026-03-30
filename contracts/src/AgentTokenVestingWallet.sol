@@ -13,8 +13,16 @@ contract AgentTokenVestingWallet {
     address public immutable launchToken;
 
     uint256 public releasedLaunchToken;
+    uint256 private _reentrancyGuard = 1;
 
     event LaunchTokenReleased(address indexed beneficiary, uint256 amount);
+
+    modifier nonReentrant() {
+        require(_reentrancyGuard == 1, "REENTRANT");
+        _reentrancyGuard = 2;
+        _;
+        _reentrancyGuard = 1;
+    }
 
     constructor(
         address beneficiary_,
@@ -33,11 +41,11 @@ contract AgentTokenVestingWallet {
     }
 
     function releasableLaunchToken() external view returns (uint256) {
-        return _vestedAmount(block.timestamp) - releasedLaunchToken;
+        return _vestedAmount(_currentTime()) - releasedLaunchToken;
     }
 
-    function releaseLaunchToken() external returns (uint256 amount) {
-        uint256 vestedAmount = _vestedAmount(block.timestamp);
+    function releaseLaunchToken() external nonReentrant returns (uint256 amount) {
+        uint256 vestedAmount = _vestedAmount(_currentTime());
         amount = vestedAmount - releasedLaunchToken;
         require(amount != 0, "NOTHING_TO_RELEASE");
 
@@ -45,6 +53,11 @@ contract AgentTokenVestingWallet {
         launchToken.safeTransfer(beneficiary, amount);
 
         emit LaunchTokenReleased(beneficiary, amount);
+    }
+
+    function _currentTime() internal view returns (uint256 timestamp) {
+        // slither-disable-next-line timestamp
+        timestamp = block.timestamp;
     }
 
     function _vestedAmount(uint256 timestamp) internal view returns (uint256) {

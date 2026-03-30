@@ -4,8 +4,9 @@ pragma solidity ^0.8.26;
 import {Owned} from "src/auth/Owned.sol";
 import {LaunchFeeRegistry} from "src/LaunchFeeRegistry.sol";
 import {SafeTransferLib} from "src/libraries/SafeTransferLib.sol";
+import {ILaunchFeeVaultMinimal} from "src/revenue/interfaces/ILaunchFeeVaultMinimal.sol";
 
-contract LaunchFeeVault is Owned {
+contract LaunchFeeVault is Owned, ILaunchFeeVaultMinimal {
     using SafeTransferLib for address;
 
     LaunchFeeRegistry public immutable registryContract;

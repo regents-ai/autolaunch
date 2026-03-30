@@ -20,10 +20,11 @@ import {IDistributionStrategy} from "src/interfaces/IDistributionStrategy.sol";
 contract LaunchDeploymentController {
     uint256 internal constant BPS_DENOMINATOR = 10_000;
     uint256 internal constant MPS_TOTAL = 10_000_000;
-    uint16 internal constant PUBLIC_SALE_BPS = 1_000;
+    uint16 internal constant PUBLIC_SALE_BPS = 1000;
     uint16 internal constant LP_RESERVE_BPS = 500;
-    uint16 internal constant VESTING_BPS = 8_500;
-    uint16 internal constant LP_CURRENCY_BPS = 5_000;
+    uint16 internal constant VESTING_BPS = 8500;
+    uint16 internal constant LP_CURRENCY_BPS = 5000;
+    uint24 internal constant MAX_POOL_FEE = 1_000_000;
 
     struct DeploymentConfig {
         address recoverySafe;
@@ -89,6 +90,7 @@ contract LaunchDeploymentController {
         require(cfg.strategyFactory != address(0), "STRATEGY_FACTORY_ZERO");
         require(cfg.auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
         require(cfg.poolManager != address(0), "POOL_MANAGER_ZERO");
+        require(cfg.positionManager != address(0), "POSITION_MANAGER_ZERO");
         require(cfg.positionRecipient != address(0), "POSITION_RECIPIENT_ZERO");
         require(cfg.strategyOperator != address(0), "STRATEGY_OPERATOR_ZERO");
         require(cfg.usdcToken != address(0), "USDC_ZERO");
@@ -96,11 +98,12 @@ contract LaunchDeploymentController {
         require(cfg.identityAgentId != 0, "AGENT_ID_ZERO");
         require(cfg.totalSupply != 0, "SUPPLY_ZERO");
         require(cfg.officialPoolTickSpacing > 0, "POOL_TICK_SPACING_INVALID");
-        require(cfg.officialPoolFee <= 1_000_000, "POOL_FEE_INVALID");
+        require(cfg.officialPoolFee <= MAX_POOL_FEE, "POOL_FEE_INVALID");
         require(cfg.startBlock < cfg.endBlock, "START_BLOCK_INVALID");
         require(cfg.claimBlock >= cfg.endBlock, "CLAIM_BEFORE_END");
         require(cfg.migrationBlock > cfg.endBlock, "MIGRATION_BEFORE_END");
         require(cfg.sweepBlock > cfg.migrationBlock, "SWEEP_BEFORE_MIGRATION");
+        require(cfg.maxCurrencyAmountForLP != 0, "MAX_CCY_FOR_LP_ZERO");
         require(cfg.vestingDurationSeconds != 0, "VESTING_DURATION_ZERO");
         require(cfg.floorPrice > 0, "FLOOR_PRICE_ZERO");
         require(cfg.protocolSkimBps <= BPS_DENOMINATOR, "SKIM_BPS_INVALID");
@@ -122,19 +125,24 @@ contract LaunchDeploymentController {
         require(publicSaleAmount <= type(uint128).max, "PUBLIC_SALE_OVERFLOW");
         require(lpReserveAmount <= type(uint128).max, "LP_RESERVE_OVERFLOW");
 
-        uint24 tokenSplitToAuctionMps =
-            uint24((publicSaleAmount * MPS_TOTAL) / strategySupply);
+        uint256 tokenSplitToAuctionMpsRaw =
+            (cfg.totalSupply * PUBLIC_SALE_BPS * MPS_TOTAL) / (BPS_DENOMINATOR * strategySupply);
+        require(tokenSplitToAuctionMpsRaw <= type(uint24).max, "TOKEN_SPLIT_OVERFLOW");
+        uint24 tokenSplitToAuctionMps = uint24(tokenSplitToAuctionMpsRaw);
         require(tokenSplitToAuctionMps != 0, "TOKEN_SPLIT_ZERO");
+        require(tokenSplitToAuctionMps <= MPS_TOTAL, "TOKEN_SPLIT_INVALID");
 
-        address token = ITokenFactory(cfg.tokenFactory).createToken(
-            cfg.tokenName,
-            cfg.tokenSymbol,
-            18,
-            cfg.totalSupply,
-            address(this),
-            cfg.tokenFactoryData,
-            cfg.tokenFactorySalt
-        );
+        address token = ITokenFactory(cfg.tokenFactory)
+            .createToken(
+                cfg.tokenName,
+                cfg.tokenSymbol,
+                18,
+                cfg.totalSupply,
+                address(this),
+                cfg.tokenFactoryData,
+                cfg.tokenFactorySalt
+            );
+        require(token != address(0), "TOKEN_NOT_CREATED");
 
         AgentTokenVestingWallet vestingWallet = new AgentTokenVestingWallet(
             cfg.agentTreasurySafe, cfg.vestingStartTimestamp, cfg.vestingDurationSeconds, token
@@ -158,18 +166,22 @@ contract LaunchDeploymentController {
 
         address defaultIngress = RevenueIngressFactory(cfg.revenueIngressFactory)
             .createIngressAccount(subjectId, "default-usdc-ingress", true);
+        require(defaultIngress != address(0), "DEFAULT_INGRESS_NOT_CREATED");
 
         LaunchFeeRegistry launchFeeRegistry = new LaunchFeeRegistry(address(this));
         LaunchFeeVault feeVault = new LaunchFeeVault(address(this), address(launchFeeRegistry));
-        (bytes32 hookSalt,) = HookMiner.find(
+        (bytes32 hookSalt, address expectedHookAddress) = HookMiner.find(
             address(this),
             Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG,
             type(LaunchPoolFeeHook).creationCode,
-            abi.encode(address(this), cfg.poolManager, address(launchFeeRegistry), address(feeVault))
+            abi.encode(
+                address(this), cfg.poolManager, address(launchFeeRegistry), address(feeVault)
+            )
         );
         LaunchPoolFeeHook hook = new LaunchPoolFeeHook{salt: hookSalt}(
             address(this), cfg.poolManager, address(launchFeeRegistry), address(feeVault)
         );
+        require(address(hook) == expectedHookAddress, "HOOK_ADDRESS_MISMATCH");
         feeVault.setHook(address(hook));
 
         AuctionParameters memory auctionParameters = AuctionParameters({
@@ -202,6 +214,8 @@ contract LaunchDeploymentController {
                         positionRecipient: cfg.positionRecipient,
                         positionManager: cfg.positionManager,
                         poolManager: cfg.poolManager,
+                        officialPoolFee: cfg.officialPoolFee,
+                        officialPoolTickSpacing: cfg.officialPoolTickSpacing,
                         migrationBlock: cfg.migrationBlock,
                         sweepBlock: cfg.sweepBlock,
                         lpCurrencyBps: LP_CURRENCY_BPS,
@@ -214,9 +228,19 @@ contract LaunchDeploymentController {
                 bytes32(0)
             );
 
-        require(IERC20Like(token).transfer(address(strategy), strategySupply), "STRATEGY_TRANSFER_FAILED");
-        require(IERC20Like(token).transfer(address(vestingWallet), vestingAmount), "VESTING_TRANSFER_FAILED");
+        require(
+            IERC20Like(token).transfer(address(strategy), strategySupply),
+            "STRATEGY_TRANSFER_FAILED"
+        );
+        require(
+            IERC20Like(token).transfer(address(vestingWallet), vestingAmount),
+            "VESTING_TRANSFER_FAILED"
+        );
         strategy.onTokensReceived();
+        require(
+            RegentLBPStrategy(address(strategy)).auctionAddress() != address(0),
+            "AUCTION_NOT_CREATED"
+        );
 
         bytes32 poolId = launchFeeRegistry.registerPool(
             LaunchFeeRegistry.PoolRegistration({

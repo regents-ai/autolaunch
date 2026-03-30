@@ -1,0 +1,364 @@
+{
+  "prelaunch_plan": {
+    "plan_id": "plan_alpha",
+    "state": "draft",
+    "agent_id": "11155111:42",
+    "agent_name": "Atlas",
+    "chain_id": 11155111,
+    "token_name": "Atlas Coin",
+    "token_symbol": "ATLAS",
+    "treasury_safe_address": "0x1111111111111111111111111111111111111111",
+    "auction_proceeds_recipient": "0x2222222222222222222222222222222222222222",
+    "ethereum_revenue_treasury": "0x3333333333333333333333333333333333333333",
+    "backup_safe_address": "0x4444444444444444444444444444444444444444",
+    "fallback_operator_wallet": "0x5555555555555555555555555555555555555555",
+    "identity_snapshot": {
+      "agent_id": "11155111:42",
+      "name": "Atlas",
+      "image_url": "https://cdn.example/atlas-agent.png",
+      "web_endpoint": "https://atlas.example",
+      "agent_uri": "https://atlas.example/agent.json"
+    },
+    "metadata_draft": {
+      "title": "Atlas Launch",
+      "subtitle": "CCA launch draft",
+      "description": "Prepare the hosted launch page before the auction goes live.",
+      "website_url": "https://atlas.example",
+      "image_url": "/prelaunch-assets/asset_alpha.png",
+      "image_asset_id": "asset_alpha"
+    }
+  },
+  "prelaunch_validation": {
+    "ok": true,
+    "plan": {
+      "plan_id": "plan_alpha",
+      "state": "launchable"
+    },
+    "validation": {
+      "launchable": true,
+      "state": "launchable",
+      "blockers": [],
+      "warnings": [
+        "Auction proceeds recipient and Ethereum revenue treasury are the same address."
+      ],
+      "identity_status": {
+        "agent_id": "11155111:42",
+        "agent_name": "Atlas",
+        "current_image_url": "https://cdn.example/atlas-agent.png",
+        "current_web_endpoint": "https://atlas.example",
+        "current_agent_uri": "https://atlas.example/agent.json"
+      },
+      "trust_follow_up": {
+        "title": "Improve agent token reputation",
+        "optional": true
+      }
+    }
+  },
+  "launch_preview": {
+    "agent": {
+      "agent_id": "11155111:42",
+      "name": "Atlas"
+    },
+    "token": {
+      "name": "Atlas Coin",
+      "symbol": "ATLAS",
+      "chain": "ethereum-sepolia",
+      "chain_id": 11155111,
+      "chain_family": "ethereum",
+      "chain_label": "Ethereum Sepolia",
+      "recovery_safe_address": "0x1111111111111111111111111111111111111111",
+      "auction_proceeds_recipient": "0x2222222222222222222222222222222222222222",
+      "ethereum_revenue_treasury": "0x3333333333333333333333333333333333333333",
+      "total_supply": "100000000000000000000000000000"
+    },
+    "economics": {
+      "headline": "2% pool fee -> 1% subject treasury lane + 1% Regent/protocol lane.",
+      "trade_fee_bps": 200,
+      "agent_revenue_bps": 100,
+      "protocol_bps": 100
+    },
+    "launch_ready": true,
+    "launch_blockers": [],
+    "permanence_notes": [
+      "One ERC-8004 identity can launch at most one Agent Coin.",
+      "AgentLaunchToken supply is fixed at 100 billion from launch.",
+      "Recovery Safe, auction proceeds, and the Ethereum treasury safe are locked into the launch configuration you sign."
+    ],
+    "next_steps": [
+      "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
+      "Queue the Ethereum Sepolia launch deployment.",
+      "Wait for the deploy script to return the strategy, vesting wallet, fee hook, subject registry, revenue splitter, and ingress addresses."
+    ],
+    "launch_notes": "Launch runs on Ethereum Sepolia only.",
+    "completion_plan": {
+      "ens": {
+        "attached": false,
+        "ens_name": "atlas.eth",
+        "action_url": "/ens-link?identity_id=11155111%3A42&ens_name=atlas.eth",
+        "note": "Finish the ENS link so the creator identity advertises a public name."
+      },
+      "agentbook": {
+        "attached": false,
+        "human_id": null,
+        "network": "world",
+        "launch_count": 0,
+        "action_url": "/agentbook?agent_address=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&network=world&launch_job_id=job_queued",
+        "note": "World AgentBook proof becomes available after the token address exists."
+      }
+    },
+    "reputation_prompt": {
+      "title": "Improve agent token reputation",
+      "optional": true,
+      "prompt": "To improve agent token reputation, you can optionally link an ENS name and/or connect to a human's World ID.",
+      "warning": "You can skip this, though the token launch may be less trusted until these links are added.",
+      "skip_label": "Skip for now",
+      "instructions": [
+        "Link an ENS name so the creator identity advertises a public name.",
+        "After launch creates the token address, ask the human behind this token to complete the World AgentBook proof."
+      ],
+      "actions": [
+        {
+          "key": "ens",
+          "label": "Link ENS name",
+          "status": "available",
+          "completed": false,
+          "action_url": "/ens-link?identity_id=11155111%3A42&ens_name=atlas.eth",
+          "note": "Finish the ENS link so the creator identity advertises a public name."
+        },
+        {
+          "key": "world",
+          "label": "Connect World ID",
+          "status": "pending",
+          "completed": false,
+          "action_url": "/agentbook?agent_address=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&network=world&launch_job_id=job_queued",
+          "note": "A human must finish the World AgentBook proof for this launched token."
+        }
+      ]
+    }
+  },
+  "launch_job_response": {
+    "ok": true,
+    "job": {
+      "job_id": "job_queued",
+      "status": "ready",
+      "step": "ready",
+      "network": "ethereum-sepolia",
+      "chain_label": "Ethereum Sepolia",
+      "strategy_address": "0x9999999999999999999999999999999999999999",
+      "vesting_wallet_address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "launch_fee_vault_address": "0xcccccccccccccccccccccccccccccccccccccccc",
+      "revenue_share_splitter_address": "0xdddddddddddddddddddddddddddddddddddddddd",
+      "default_ingress_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "pool_id": "0x00000000000000000000000000000000000000000000000000000000000000ff",
+      "reputation_prompt": {
+        "title": "Improve agent token reputation",
+        "optional": true,
+        "prompt": "To improve agent token reputation, you can optionally link an ENS name and/or connect to a human's World ID.",
+        "warning": "You can skip this, though the token launch may be less trusted until these links are added.",
+        "skip_label": "Skip for now",
+        "instructions": [
+          "ENS is already linked for the creator identity.",
+          "Ask the human behind this token to complete the World AgentBook proof."
+        ],
+        "actions": [
+          {
+            "key": "ens",
+            "label": "Review ENS link",
+            "status": "complete",
+            "completed": true,
+            "action_url": "/ens-link?identity_id=11155111%3A42&ens_name=atlas.eth",
+            "note": "ENS link already present on the creator identity."
+          },
+          {
+            "key": "world",
+            "label": "Connect World ID",
+            "status": "available",
+            "completed": false,
+            "action_url": "/agentbook?agent_address=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&network=world&launch_job_id=job_queued",
+            "note": "A human must finish the World AgentBook proof for this launched token."
+          }
+        ]
+      }
+    },
+    "auction": null
+  },
+  "lifecycle_monitor": {
+    "ok": true,
+    "job": {
+      "job_id": "job_queued",
+      "status": "ready"
+    },
+    "auction": {
+      "id": "auc_queued",
+      "status": "settled",
+      "chain_id": 11155111
+    },
+    "current_block": 9876543,
+    "migrate_ready": true,
+    "currency_sweep_ready": false,
+    "token_sweep_ready": false,
+    "vesting_release_ready": false,
+    "recommended_action": "migrate"
+  },
+  "finalize_response": {
+    "ok": true,
+    "job": {
+      "job_id": "job_queued",
+      "status": "ready"
+    },
+    "recommended_action": "migrate",
+    "prepared": {
+      "resource": "strategy",
+      "action": "migrate",
+      "chain_id": 11155111,
+      "target": "0x9999999999999999999999999999999999999999",
+      "calldata": "0x8fd3ab80",
+      "tx_request": {
+        "chain_id": 11155111,
+        "to": "0x9999999999999999999999999999999999999999",
+        "value": "0x0",
+        "data": "0x8fd3ab80"
+      }
+    }
+  },
+  "vesting_status": {
+    "ok": true,
+    "job_id": "job_queued",
+    "vesting_wallet_address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "releasable_launch_token": 250000000000000000000000,
+    "released_launch_token": 100000000000000000000000,
+    "beneficiary": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "start_timestamp": 1774574400,
+    "duration_seconds": 31536000,
+    "release_ready": true
+  },
+  "regent_staking_overview": {
+    "ok": true,
+    "chain_id": 8453,
+    "chain_label": "Base",
+    "contract_address": "0x1111111111111111111111111111111111111111",
+    "owner_address": "0x2222222222222222222222222222222222222222",
+    "stake_token_address": "0x3333333333333333333333333333333333333333",
+    "usdc_address": "0x4444444444444444444444444444444444444444",
+    "treasury_recipient": "0x5555555555555555555555555555555555555555",
+    "staker_share_bps": 7000,
+    "paused": false,
+    "total_staked_raw": 500000000000000000000,
+    "total_staked": "500",
+    "total_recognized_rewards_usdc_raw": 1000000000,
+    "total_recognized_rewards_usdc": "1000",
+    "treasury_residual_usdc_raw": 150000000,
+    "treasury_residual_usdc": "150",
+    "wallet_address": "0x6666666666666666666666666666666666666666",
+    "wallet_stake_balance_raw": 20000000000000000000,
+    "wallet_stake_balance": "20",
+    "wallet_token_balance_raw": 123000000000000000000,
+    "wallet_token_balance": "123",
+    "wallet_claimable_usdc_raw": 12000000,
+    "wallet_claimable_usdc": "12"
+  },
+  "regent_staking_prepare": {
+    "ok": true,
+    "prepared": {
+      "resource": "regent_staking",
+      "action": "deposit_usdc",
+      "chain_id": 8453,
+      "target": "0x1111111111111111111111111111111111111111",
+      "calldata": "0x7dc6bb98",
+      "params": {
+        "amount": "250500000",
+        "source_tag": "0x626173655f6d616e75616c000000000000000000000000000000000000000000",
+        "source_ref": "0x323032362d303300000000000000000000000000000000000000000000000000"
+      },
+      "tx_request": {
+        "chain_id": 8453,
+        "to": "0x1111111111111111111111111111111111111111",
+        "value": "0x0",
+        "data": "0x7dc6bb98"
+      }
+    }
+  },
+  "bid_quote": {
+    "ok": true,
+    "auction_id": "auc_queued",
+    "amount": "250.0",
+    "max_price": "0.0010",
+    "current_clearing_price": "0.0009",
+    "projected_clearing_price": "0.0011",
+    "quote_mode": "onchain_exact_v1",
+    "would_be_active_now": true,
+    "status_band": "active",
+    "estimated_tokens_if_end_now": "250000.00",
+    "estimated_tokens_if_no_other_bids_change": "210000.00",
+    "inactive_above_price": "0.0011",
+    "time_remaining_seconds": 86400,
+    "warnings": [],
+    "tx_request": {
+      "chain_id": 11155111,
+      "to": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "value": "0x0",
+      "data": "0x1234"
+    }
+  },
+  "position": {
+    "bid_id": "auc_queued:7",
+    "onchain_bid_id": 7,
+    "auction_id": "auc_queued",
+    "agent_id": "11155111:42",
+    "agent_name": "Atlas",
+    "chain": "ethereum-sepolia",
+    "status": "claimable",
+    "amount": "250.0",
+    "max_price": "0.0010",
+    "current_clearing_price": "0.0009",
+    "estimated_tokens_if_end_now": "250000.00",
+    "estimated_tokens_if_no_other_bids_change": "210000.00",
+    "inactive_above_price": "0.0011",
+    "tokens_filled": "210000.00",
+    "next_action_label": "Claim purchased tokens now.",
+    "tx_actions": {
+      "exit": null,
+      "claim": {
+        "chain_id": 11155111,
+        "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "value": "0x0",
+        "data": "0x5678"
+      }
+    },
+    "auction": {
+      "id": "auc_queued",
+      "status": "settled",
+      "chain_id": 11155111
+    },
+    "inserted_at": "2026-03-27T12:00:00Z"
+  },
+  "reputation_prompt": {
+    "title": "Improve agent token reputation",
+    "optional": true,
+    "prompt": "To improve agent token reputation, you can optionally link an ENS name and/or connect to a human's World ID.",
+    "warning": "You can skip this, though the token launch may be less trusted until these links are added.",
+    "skip_label": "Skip for now",
+    "instructions": [
+      "Link an ENS name so the creator identity advertises a public name.",
+      "After launch creates the token address, ask the human behind this token to complete the World AgentBook proof."
+    ],
+    "actions": [
+      {
+        "key": "ens",
+        "label": "Link ENS name",
+        "status": "available",
+        "completed": false,
+        "action_url": "/ens-link?identity_id=11155111%3A42&ens_name=atlas.eth",
+        "note": "Finish the ENS link so the creator identity advertises a public name."
+      },
+      {
+        "key": "world",
+        "label": "Connect World ID",
+        "status": "pending",
+        "completed": false,
+        "action_url": "/agentbook?agent_address=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&network=world&launch_job_id=job_queued",
+        "note": "A human must finish the World AgentBook proof for this launched token."
+      }
+    ]
+  }
+}
