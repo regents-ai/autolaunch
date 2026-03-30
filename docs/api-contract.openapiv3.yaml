@@ -1,0 +1,897 @@
+openapi: 3.1.0
+info:
+  title: Autolaunch API Contract
+  version: 0.1.0
+  description: >
+    Source-of-truth HTTP contract for the live Autolaunch backend. This file owns
+    Autolaunch launch, prelaunch, lifecycle, market, ENS, contracts, and AgentBook
+    routes. Shared Regent staking lives in the shared Regent services contract instead.
+tags:
+  - name: health
+  - name: auth
+  - name: agentbook
+  - name: launch
+  - name: prelaunch
+  - name: lifecycle
+  - name: market
+  - name: subjects
+  - name: ens
+  - name: contracts
+paths:
+  /health:
+    get:
+      operationId: autolaunchHealth
+      tags: [health]
+      responses:
+        "200":
+          description: Health
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/siwa/nonce:
+    post:
+      operationId: autolaunchSiwaNonce
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Nonce
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/siwa/verify:
+    post:
+      operationId: autolaunchSiwaVerify
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/auth/privy/session:
+    post:
+      operationId: createPrivySession
+      tags: [auth]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+    delete:
+      operationId: deletePrivySession
+      tags: [auth]
+      responses:
+        "200":
+          description: Session cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkEnvelope" }
+
+  /api/agentbook/sessions:
+    post:
+      operationId: createAgentbookSession
+      tags: [agentbook]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/agentbook/sessions/{id}:
+    get:
+      operationId: getAgentbookSession
+      tags: [agentbook]
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/agentbook/sessions/{id}/submit:
+    post:
+      operationId: submitAgentbookSession
+      tags: [agentbook]
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Proof submitted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/agentbook/lookup:
+    get:
+      operationId: lookupAgentbookRegistration
+      tags: [agentbook]
+      parameters:
+        - name: agent_address
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/Address" }
+        - name: network
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lookup result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/agentbook/verify:
+    post:
+      operationId: verifyAgentbookHeader
+      tags: [agentbook]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/agents:
+    get:
+      operationId: listAgents
+      tags: [launch]
+      responses:
+        "200":
+          description: Agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+  /api/agents/{id}:
+    get:
+      operationId: getAgent
+      tags: [launch]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Agent detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/agents/{id}/readiness:
+    get:
+      operationId: getAgentReadiness
+      tags: [launch]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Agent readiness
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/prelaunch/plans:
+    get:
+      operationId: listPrelaunchPlans
+      tags: [prelaunch]
+      responses:
+        "200":
+          description: Prelaunch plans
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+    post:
+      operationId: createPrelaunchPlan
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "201":
+          description: Plan created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/prelaunch/plans/{id}:
+    get:
+      operationId: getPrelaunchPlan
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Plan detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+    patch:
+      operationId: updatePrelaunchPlan
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Plan updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/prelaunch/plans/{id}/validate:
+    post:
+      operationId: validatePrelaunchPlan
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/prelaunch/plans/{id}/publish:
+    post:
+      operationId: publishPrelaunchPlan
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Publish result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/prelaunch/plans/{id}/launch:
+    post:
+      operationId: launchPrelaunchPlan
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Launch started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/prelaunch/assets:
+    post:
+      operationId: uploadPrelaunchAsset
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Asset uploaded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/prelaunch/plans/{id}/metadata:
+    post:
+      operationId: savePrelaunchMetadata
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Metadata saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/prelaunch/plans/{id}/metadata-preview:
+    get:
+      operationId: getPrelaunchMetadataPreview
+      tags: [prelaunch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Metadata preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/launch/preview:
+    post:
+      operationId: previewLaunch
+      tags: [launch]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Launch preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/launch/jobs:
+    post:
+      operationId: createLaunchJob
+      tags: [launch]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "201":
+          description: Launch job created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/launch/jobs/{id}:
+    get:
+      operationId: getLaunchJob
+      tags: [launch]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Launch job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/lifecycle/jobs/{id}:
+    get:
+      operationId: getLifecycleJob
+      tags: [lifecycle]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Lifecycle job detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/lifecycle/jobs/{id}/finalize/prepare:
+    post:
+      operationId: prepareFinalizeLaunch
+      tags: [lifecycle]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Finalize prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/lifecycle/jobs/{id}/finalize/register:
+    post:
+      operationId: registerFinalizeLaunch
+      tags: [lifecycle]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Finalize registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/lifecycle/jobs/{id}/vesting:
+    get:
+      operationId: getVestingStatus
+      tags: [lifecycle]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Vesting status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/auctions:
+    get:
+      operationId: listAuctions
+      tags: [market]
+      responses:
+        "200":
+          description: Auctions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+  /api/auctions/{id}:
+    get:
+      operationId: getAuction
+      tags: [market]
+      parameters:
+        - $ref: "#/components/parameters/AuctionId"
+      responses:
+        "200":
+          description: Auction detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/auctions/{id}/bid_quote:
+    post:
+      operationId: quoteAuctionBid
+      tags: [market]
+      parameters:
+        - $ref: "#/components/parameters/AuctionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Bid quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/auctions/{id}/bids:
+    post:
+      operationId: createAuctionBid
+      tags: [market]
+      parameters:
+        - $ref: "#/components/parameters/AuctionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "201":
+          description: Bid created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/me/bids:
+    get:
+      operationId: listMyBids
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      responses:
+        "200":
+          description: Current user's bids
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+  /api/bids/{id}/exit:
+    post:
+      operationId: exitBid
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Exit prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/bids/{id}/claim:
+    post:
+      operationId: claimBid
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Claim prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/subjects/{id}:
+    get:
+      operationId: getSubject
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      responses:
+        "200":
+          description: Subject detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/subjects/{id}/ingress:
+    get:
+      operationId: getSubjectIngress
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      responses:
+        "200":
+          description: Subject ingress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/subjects/{id}/stake:
+    post:
+      operationId: stakeSubject
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Stake prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/subjects/{id}/unstake:
+    post:
+      operationId: unstakeSubject
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Unstake prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/subjects/{id}/claim-usdc:
+    post:
+      operationId: claimSubjectUsdc
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Claim prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/subjects/{id}/ingress/{address}/sweep:
+    post:
+      operationId: sweepSubjectIngress
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+        - name: address
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/Address" }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Sweep prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/ens/link/plan:
+    post:
+      operationId: planEnsLink
+      tags: [ens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: ENS link plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/ens/link/prepare-ensip25:
+    post:
+      operationId: prepareEnsip25Link
+      tags: [ens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: ENSIP-25 prepare result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/ens/link/prepare-erc8004:
+    post:
+      operationId: prepareErc8004Link
+      tags: [ens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: ERC-8004 prepare result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/ens/link/prepare-bidirectional:
+    post:
+      operationId: prepareBidirectionalEnsLink
+      tags: [ens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Bidirectional prepare result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /api/contracts/admin:
+    get:
+      operationId: getContractsAdminOverview
+      tags: [contracts]
+      security: [{ PrivySessionCookie: [] }]
+      responses:
+        "200":
+          description: Admin contracts overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/contracts/jobs/{id}:
+    get:
+      operationId: getContractsJobOverview
+      tags: [contracts]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Job contracts overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/contracts/subjects/{id}:
+    get:
+      operationId: getContractsSubjectOverview
+      tags: [contracts]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      responses:
+        "200":
+          description: Subject contracts overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /api/contracts/jobs/{id}/{resource}/{action}/prepare:
+    post:
+      operationId: prepareJobContractAction
+      tags: [contracts]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+        - $ref: "#/components/parameters/Resource"
+        - $ref: "#/components/parameters/Action"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Prepared job contract action
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+  /api/contracts/subjects/{id}/{resource}/{action}/prepare:
+    post:
+      operationId: prepareSubjectContractAction
+      tags: [contracts]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+        - $ref: "#/components/parameters/Resource"
+        - $ref: "#/components/parameters/Action"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Prepared subject contract action
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+  /api/contracts/admin/{resource}/{action}/prepare:
+    post:
+      operationId: prepareAdminContractAction
+      tags: [contracts]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Resource"
+        - $ref: "#/components/parameters/Action"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Prepared admin contract action
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+components:
+  securitySchemes:
+    PrivySessionCookie:
+      type: apiKey
+      in: cookie
+      name: _autolaunch_key
+  parameters:
+    AgentId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    PlanId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    JobId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    AuctionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    BidId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    SubjectId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    SessionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    Resource:
+      name: resource
+      in: path
+      required: true
+      schema: { type: string }
+    Action:
+      name: action
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    Address:
+      type: string
+      pattern: "^0x[a-fA-F0-9]{40}$"
+    LooseObject:
+      type: object
+      additionalProperties: true
+    OkEnvelope:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+      additionalProperties: true
+    LooseListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      additionalProperties: true
+    PreparedAction:
+      type: object
+      properties:
+        resource: { type: string }
+        action: { type: string }
+        chain_id: { type: integer }
+        target: { $ref: "#/components/schemas/Address" }
+        calldata: { type: string }
+        tx_request:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+    PreparedActionEnvelope:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          $ref: "#/components/schemas/PreparedAction"
+      additionalProperties: true

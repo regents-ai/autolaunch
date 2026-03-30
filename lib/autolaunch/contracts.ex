@@ -6,6 +6,7 @@ defmodule Autolaunch.Contracts do
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.CCA.Rpc
   alias Autolaunch.Contracts.Abi
+  alias Autolaunch.Contracts.Dispatch
   alias Autolaunch.Launch
   alias Autolaunch.Launch.Job
   alias Autolaunch.Repo
@@ -101,7 +102,7 @@ defmodule Autolaunch.Contracts do
 
   def prepare_job_action(job_id, resource, action, attrs, current_human \\ nil) do
     with {:ok, %{job: job, scope: _scope}} <- job_state(job_id, current_human),
-         {:ok, prepared} <- build_job_action(job, resource, action, attrs) do
+         {:ok, prepared} <- Dispatch.build_job_action(job, resource, action, attrs) do
       {:ok, %{job_id: job_id, prepared: prepared}}
     end
   end
@@ -110,13 +111,21 @@ defmodule Autolaunch.Contracts do
     with {:ok, %{subject: subject, registry: registry}} <-
            subject_state(subject_id, current_human),
          :ok <- authorize_subject_action(subject, registry, resource, action),
-         {:ok, prepared} <- build_subject_action(subject, registry, resource, action, attrs) do
+         {:ok, prepared} <-
+           Dispatch.build_subject_action(subject, registry, resource, action, attrs, %{
+             ingress_factory_address: ingress_factory_address()
+           }) do
       {:ok, %{subject_id: subject.subject_id, prepared: prepared}}
     end
   end
 
   def prepare_admin_action(resource, action, attrs) do
-    with {:ok, prepared} <- build_admin_action(resource, action, attrs) do
+    with {:ok, prepared} <-
+           Dispatch.build_admin_action(resource, action, attrs, %{
+             chain_id: @sepolia_chain_id,
+             ingress_factory_address: ingress_factory_address(),
+             revenue_share_factory_address: revenue_share_factory_address()
+           }) do
       {:ok, %{prepared: prepared}}
     end
   end
@@ -150,390 +159,6 @@ defmodule Autolaunch.Contracts do
         {:error, :forbidden}
     end
   end
-
-  defp build_job_action(job, "strategy", "migrate", _attrs) do
-    prepare_tx(
-      job.chain_id,
-      job.strategy_address,
-      Abi.encode_call(:migrate),
-      "strategy",
-      "migrate"
-    )
-  end
-
-  defp build_job_action(job, "strategy", "sweep_token", _attrs) do
-    prepare_tx(
-      job.chain_id,
-      job.strategy_address,
-      Abi.encode_call(:sweep_token),
-      "strategy",
-      "sweep_token"
-    )
-  end
-
-  defp build_job_action(job, "strategy", "sweep_currency", _attrs) do
-    prepare_tx(
-      job.chain_id,
-      job.strategy_address,
-      Abi.encode_call(:sweep_currency),
-      "strategy",
-      "sweep_currency"
-    )
-  end
-
-  defp build_job_action(job, "vesting", "release", _attrs) do
-    prepare_tx(
-      job.chain_id,
-      job.vesting_wallet_address,
-      Abi.encode_call(:release_launch_token),
-      "vesting",
-      "release"
-    )
-  end
-
-  defp build_job_action(job, "fee_registry", "set_hook_enabled", attrs) do
-    with {:ok, enabled} <- boolean_param(attrs, "enabled") do
-      prepare_tx(
-        job.chain_id,
-        job.launch_fee_registry_address,
-        Abi.encode_call(:set_hook_enabled, [{:bytes32, job.pool_id}, {:bool, enabled}]),
-        "fee_registry",
-        "set_hook_enabled",
-        %{enabled: enabled}
-      )
-    end
-  end
-
-  defp build_job_action(job, "fee_vault", "withdraw_treasury", attrs) do
-    with {:ok, currency} <- address_param(attrs, "currency"),
-         {:ok, amount} <- uint_param(attrs, "amount"),
-         {:ok, recipient} <- address_param(attrs, "recipient") do
-      prepare_tx(
-        job.chain_id,
-        job.launch_fee_vault_address,
-        Abi.encode_call(:withdraw_treasury, [
-          {:bytes32, job.pool_id},
-          {:address, currency},
-          {:uint256, amount},
-          {:address, recipient}
-        ]),
-        "fee_vault",
-        "withdraw_treasury",
-        %{currency: currency, amount: Integer.to_string(amount), recipient: recipient}
-      )
-    end
-  end
-
-  defp build_job_action(job, "fee_vault", "withdraw_regent_share", attrs) do
-    with {:ok, currency} <- address_param(attrs, "currency"),
-         {:ok, amount} <- uint_param(attrs, "amount"),
-         {:ok, recipient} <- address_param(attrs, "recipient") do
-      prepare_tx(
-        job.chain_id,
-        job.launch_fee_vault_address,
-        Abi.encode_call(:withdraw_regent_share, [
-          {:bytes32, job.pool_id},
-          {:address, currency},
-          {:uint256, amount},
-          {:address, recipient}
-        ]),
-        "fee_vault",
-        "withdraw_regent_share",
-        %{currency: currency, amount: Integer.to_string(amount), recipient: recipient}
-      )
-    end
-  end
-
-  defp build_job_action(job, "fee_vault", "set_hook", attrs) do
-    with {:ok, hook} <- address_param(attrs, "hook") do
-      prepare_tx(
-        job.chain_id,
-        job.launch_fee_vault_address,
-        Abi.encode_call(:set_hook, [{:address, hook}]),
-        "fee_vault",
-        "set_hook",
-        %{hook: hook}
-      )
-    end
-  end
-
-  defp build_job_action(_job, _resource, _action, _attrs), do: {:error, :unsupported_action}
-
-  defp build_subject_action(subject, _registry, "splitter", "set_paused", attrs) do
-    with {:ok, paused} <- boolean_param(attrs, "paused") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:set_paused, [{:bool, paused}]),
-        "splitter",
-        "set_paused",
-        %{paused: paused}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "splitter", "set_label", attrs) do
-    with {:ok, label} <- string_param(attrs, "label") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:set_label, [{:string, label}]),
-        "splitter",
-        "set_label",
-        %{label: label}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "splitter", "set_treasury_recipient", attrs) do
-    with {:ok, recipient} <- address_param(attrs, "recipient") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:set_treasury_recipient, [{:address, recipient}]),
-        "splitter",
-        "set_treasury_recipient",
-        %{recipient: recipient}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "splitter", "set_protocol_recipient", attrs) do
-    with {:ok, recipient} <- address_param(attrs, "recipient") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:set_protocol_recipient, [{:address, recipient}]),
-        "splitter",
-        "set_protocol_recipient",
-        %{recipient: recipient}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "splitter", "set_protocol_skim_bps", attrs) do
-    with {:ok, skim_bps} <- uint_param(attrs, "skim_bps") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:set_protocol_skim_bps, [{:uint16, skim_bps}]),
-        "splitter",
-        "set_protocol_skim_bps",
-        %{skim_bps: skim_bps}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "splitter", "withdraw_treasury_residual", attrs) do
-    with {:ok, amount} <- uint_param(attrs, "amount"),
-         {:ok, recipient} <- address_param(attrs, "recipient") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:withdraw_treasury_residual_usdc, [
-          {:uint256, amount},
-          {:address, recipient}
-        ]),
-        "splitter",
-        "withdraw_treasury_residual",
-        %{amount: Integer.to_string(amount), recipient: recipient}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "splitter", "withdraw_protocol_reserve", attrs) do
-    with {:ok, amount} <- uint_param(attrs, "amount"),
-         {:ok, recipient} <- address_param(attrs, "recipient") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:withdraw_protocol_reserve_usdc, [
-          {:uint256, amount},
-          {:address, recipient}
-        ]),
-        "splitter",
-        "withdraw_protocol_reserve",
-        %{amount: Integer.to_string(amount), recipient: recipient}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "splitter", "reassign_dust", attrs) do
-    with {:ok, amount} <- uint_param(attrs, "amount") do
-      prepare_tx(
-        subject.chain_id,
-        subject.splitter_address,
-        Abi.encode_call(:reassign_undistributed_dust_to_treasury, [{:uint256, amount}]),
-        "splitter",
-        "reassign_dust",
-        %{amount: Integer.to_string(amount)}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "ingress_factory", "create", attrs) do
-    with {:ok, label} <- string_param(attrs, "label"),
-         {:ok, make_default} <- boolean_param(attrs, "make_default") do
-      prepare_tx(
-        subject.chain_id,
-        ingress_factory_address(),
-        Abi.encode_call(:create_ingress_account, [
-          {:bytes32, subject.subject_id},
-          {:string, label},
-          {:bool, make_default}
-        ]),
-        "ingress_factory",
-        "create",
-        %{label: label, make_default: make_default}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "ingress_factory", "set_default", attrs) do
-    with {:ok, ingress} <- address_param(attrs, "ingress_address") do
-      prepare_tx(
-        subject.chain_id,
-        ingress_factory_address(),
-        Abi.encode_call(:set_default_ingress, [
-          {:bytes32, subject.subject_id},
-          {:address, ingress}
-        ]),
-        "ingress_factory",
-        "set_default",
-        %{ingress_address: ingress}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "ingress_account", "set_label", attrs) do
-    with {:ok, ingress} <- address_param(attrs, "ingress_address"),
-         {:ok, label} <- string_param(attrs, "label"),
-         :ok <- ensure_known_ingress(subject, ingress) do
-      prepare_tx(
-        subject.chain_id,
-        ingress,
-        Abi.encode_call(:set_label, [{:string, label}]),
-        "ingress_account",
-        "set_label",
-        %{ingress_address: ingress, label: label}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "ingress_account", "rescue", attrs) do
-    with {:ok, ingress} <- address_param(attrs, "ingress_address"),
-         {:ok, token} <- address_param(attrs, "token"),
-         {:ok, amount} <- uint_param(attrs, "amount"),
-         {:ok, recipient} <- address_param(attrs, "recipient"),
-         :ok <- ensure_known_ingress(subject, ingress) do
-      prepare_tx(
-        subject.chain_id,
-        ingress,
-        Abi.encode_call(:rescue_token, [
-          {:address, token},
-          {:uint256, amount},
-          {:address, recipient}
-        ]),
-        "ingress_account",
-        "rescue",
-        %{
-          ingress_address: ingress,
-          token: token,
-          amount: Integer.to_string(amount),
-          recipient: recipient
-        }
-      )
-    end
-  end
-
-  defp build_subject_action(subject, _registry, "ingress_account", "sweep", attrs) do
-    with {:ok, ingress} <- address_param(attrs, "ingress_address"),
-         :ok <- ensure_known_ingress(subject, ingress) do
-      prepare_tx(
-        subject.chain_id,
-        ingress,
-        Revenue.Abi.encode_sweep_usdc(subject.subject_id),
-        "ingress_account",
-        "sweep",
-        %{ingress_address: ingress}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, registry, "registry", "set_subject_manager", attrs) do
-    with {:ok, account} <- address_param(attrs, "account"),
-         {:ok, enabled} <- boolean_param(attrs, "enabled") do
-      prepare_tx(
-        subject.chain_id,
-        registry.address,
-        Abi.encode_call(:set_subject_manager, [
-          {:bytes32, subject.subject_id},
-          {:address, account},
-          {:bool, enabled}
-        ]),
-        "registry",
-        "set_subject_manager",
-        %{account: account, enabled: enabled}
-      )
-    end
-  end
-
-  defp build_subject_action(subject, registry, "registry", "link_identity", attrs) do
-    with {:ok, chain_id} <- uint_param(attrs, "identity_chain_id"),
-         {:ok, identity_registry} <- address_param(attrs, "identity_registry"),
-         {:ok, agent_id} <- uint_param(attrs, "identity_agent_id") do
-      prepare_tx(
-        subject.chain_id,
-        registry.address,
-        Abi.encode_call(:link_identity, [
-          {:bytes32, subject.subject_id},
-          {:uint256, chain_id},
-          {:address, identity_registry},
-          {:uint256, agent_id}
-        ]),
-        "registry",
-        "link_identity",
-        %{
-          identity_chain_id: chain_id,
-          identity_registry: identity_registry,
-          identity_agent_id: agent_id
-        }
-      )
-    end
-  end
-
-  defp build_subject_action(_subject, _registry, _resource, _action, _attrs),
-    do: {:error, :unsupported_action}
-
-  defp build_admin_action("revenue_share_factory", "set_authorized_creator", attrs) do
-    with {:ok, account} <- address_param(attrs, "account"),
-         {:ok, enabled} <- boolean_param(attrs, "enabled") do
-      prepare_tx(
-        @sepolia_chain_id,
-        revenue_share_factory_address(),
-        Abi.encode_call(:set_authorized_creator, [{:address, account}, {:bool, enabled}]),
-        "revenue_share_factory",
-        "set_authorized_creator",
-        %{account: account, enabled: enabled}
-      )
-    end
-  end
-
-  defp build_admin_action("revenue_ingress_factory", "set_authorized_creator", attrs) do
-    with {:ok, account} <- address_param(attrs, "account"),
-         {:ok, enabled} <- boolean_param(attrs, "enabled") do
-      prepare_tx(
-        @sepolia_chain_id,
-        ingress_factory_address(),
-        Abi.encode_call(:set_authorized_creator, [{:address, account}, {:bool, enabled}]),
-        "revenue_ingress_factory",
-        "set_authorized_creator",
-        %{account: account, enabled: enabled}
-      )
-    end
-  end
-
-  defp build_admin_action(_resource, _action, _attrs), do: {:error, :unsupported_action}
 
   defp controller_card(job) do
     %{
@@ -809,24 +434,6 @@ defmodule Autolaunch.Contracts do
     end
   end
 
-  defp prepare_tx(chain_id, to, data, resource, action, params \\ %{}) do
-    if blank?(to) or blank?(data) do
-      {:error, :unsupported_action}
-    else
-      {:ok,
-       %{
-         resource: resource,
-         action: action,
-         chain_id: chain_id,
-         target: to,
-         calldata: data,
-         tx_request: %{chain_id: chain_id, to: to, value: "0x0", data: data},
-         params: params,
-         submission_mode: "prepare_only"
-       }}
-    end
-  end
-
   defp safe_mapping_amount(chain_id, to, selector_name, pool_id, currency) do
     if blank?(currency) do
       nil
@@ -899,71 +506,6 @@ defmodule Autolaunch.Contracts do
         order_by: [desc: job.updated_at],
         limit: 1
     )
-  end
-
-  defp ensure_known_ingress(subject, ingress_address) do
-    if Enum.any?(subject.ingress_accounts, &(&1.address == ingress_address)) do
-      :ok
-    else
-      {:error, :ingress_not_found}
-    end
-  end
-
-  defp address_param(attrs, key) do
-    case normalize_address(Map.get(attrs, key) || Map.get(attrs, String.to_atom(key))) do
-      <<"0x", hex::binary>> = address when byte_size(hex) == 40 -> {:ok, address}
-      _ -> {:error, :invalid_address}
-    end
-  end
-
-  defp string_param(attrs, key) do
-    case Map.get(attrs, key) || Map.get(attrs, String.to_atom(key)) do
-      value when is_binary(value) ->
-        trimmed = String.trim(value)
-
-        if byte_size(trimmed) > 0 do
-          {:ok, trimmed}
-        else
-          {:error, :invalid_string}
-        end
-
-      _ ->
-        {:error, :invalid_string}
-    end
-  end
-
-  defp uint_param(attrs, key) do
-    value = Map.get(attrs, key) || Map.get(attrs, String.to_atom(key))
-
-    cond do
-      is_integer(value) and value >= 0 ->
-        {:ok, value}
-
-      is_binary(value) and value != "" ->
-        case Integer.parse(String.trim(value)) do
-          {parsed, ""} when parsed >= 0 -> {:ok, parsed}
-          _ -> {:error, :invalid_uint}
-        end
-
-      true ->
-        {:error, :invalid_uint}
-    end
-  end
-
-  defp boolean_param(attrs, key) do
-    value = Map.get(attrs, key) || Map.get(attrs, String.to_atom(key))
-
-    case value do
-      true -> {:ok, true}
-      false -> {:ok, false}
-      "true" -> {:ok, true}
-      "false" -> {:ok, false}
-      "1" -> {:ok, true}
-      "0" -> {:ok, false}
-      1 -> {:ok, true}
-      0 -> {:ok, false}
-      _ -> {:error, :invalid_boolean}
-    end
   end
 
   defp normalize_address(value) when is_binary(value), do: String.downcase(String.trim(value))

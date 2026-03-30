@@ -52,8 +52,20 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
        }}
     end
 
+    def prepare_job_action("job_invalid_address", _resource, _action, _attrs, _human),
+      do: {:error, :invalid_address}
+
     def prepare_job_action(_job_id, _resource, _action, _attrs, _human),
       do: {:error, :unsupported_action}
+
+    def prepare_subject_action(
+          "subject_forbidden",
+          _resource,
+          _action,
+          _attrs,
+          _human
+        ),
+        do: {:error, :forbidden}
 
     def prepare_subject_action(
           subject_id,
@@ -96,6 +108,9 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
          }
        }}
     end
+
+    def prepare_admin_action("broken", "set_authorized_creator", _attrs),
+      do: {:error, :invalid_uint}
 
     def prepare_admin_action(_resource, _action, _attrs), do: {:error, :unsupported_action}
   end
@@ -161,5 +176,41 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                "tx_request" => %{"data" => "0x16c38b3c"}
              }
            } = json_response(conn, 200)
+  end
+
+  test "prepare routes translate stable contract errors", %{conn: conn} do
+    invalid_address_conn =
+      post(conn, "/api/contracts/jobs/job_invalid_address/strategy/migrate/prepare", %{})
+
+    assert %{
+             "error" => %{
+               "code" => "invalid_address",
+               "message" => "Address is invalid"
+             }
+           } = json_response(invalid_address_conn, 422)
+
+    forbidden_conn =
+      post(
+        conn,
+        "/api/contracts/subjects/subject_forbidden/splitter/set_paused/prepare",
+        %{"paused" => "true"}
+      )
+
+    assert %{
+             "error" => %{
+               "code" => "contract_scope_forbidden",
+               "message" => "Contract action is not allowed"
+             }
+           } = json_response(forbidden_conn, 403)
+
+    invalid_uint_conn =
+      post(conn, "/api/contracts/admin/broken/set_authorized_creator/prepare", %{})
+
+    assert %{
+             "error" => %{
+               "code" => "invalid_amount",
+               "message" => "Amount must be a whole onchain unit"
+             }
+           } = json_response(invalid_uint_conn, 422)
   end
 end

@@ -2,15 +2,14 @@ defmodule AutolaunchWeb.LaunchLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Launch
+  alias AutolaunchWeb.LaunchLive.{Flow, Presenter}
   alias AutolaunchWeb.RegentScenes
 
   @job_poll_ms 2_000
-  @agent_launch_total_supply "100000000000000000000000000000"
-
   def mount(_params, _session, socket) do
     current_human = socket.assigns[:current_human]
     agents = launch_module().list_agents(current_human)
-    form = default_form(current_human)
+    form = Flow.default_form(current_human)
 
     {:ok,
      socket
@@ -63,17 +62,19 @@ defmodule AutolaunchWeb.LaunchLive do
   end
 
   def handle_event("go_to_step", %{"step" => step}, socket) do
-    target_step = normalize_step(step)
+    target_step = Flow.normalize_step(step)
+
     {:noreply,
      socket
-     |> assign(:step, min(target_step, max_available_step(socket)))
+     |> assign(:step, min(target_step, Flow.max_available_step(socket.assigns)))
      |> assign_regent_scene()}
   end
 
   def handle_event("prepare_review", _params, socket) do
     case launch_module().preview_launch(socket.assigns.form, socket.assigns.current_human) do
       {:ok, preview} ->
-        {:noreply, socket |> assign(:preview, preview) |> assign(:step, 3) |> assign_regent_scene()}
+        {:noreply,
+         socket |> assign(:preview, preview) |> assign(:step, 3) |> assign_regent_scene()}
 
       {:error, {:agent_not_eligible, _agent}} ->
         {:noreply, put_flash(socket, :error, "Selected agent is no longer eligible to launch.")}
@@ -82,7 +83,7 @@ defmodule AutolaunchWeb.LaunchLive do
         {:noreply, put_flash(socket, :error, "Privy session required before launch.")}
 
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, preview_error(reason))}
+        {:noreply, put_flash(socket, :error, Flow.preview_error(reason))}
     end
   end
 
@@ -91,7 +92,8 @@ defmodule AutolaunchWeb.LaunchLive do
   end
 
   def handle_event("launch_error", %{"message" => message}, socket) do
-    {:noreply, socket |> assign(:launching, false) |> assign_regent_scene() |> put_flash(:error, message)}
+    {:noreply,
+     socket |> assign(:launching, false) |> assign_regent_scene() |> put_flash(:error, message)}
   end
 
   def handle_event("launch_queued", %{"job_id" => job_id}, socket) do
@@ -116,7 +118,12 @@ defmodule AutolaunchWeb.LaunchLive do
   def handle_event("regent:surface_ready", _params, socket), do: {:noreply, socket}
 
   def handle_event("regent:surface_error", _params, socket) do
-    {:noreply, put_flash(socket, :error, "The launch control surface could not render in this browser session.")}
+    {:noreply,
+     put_flash(
+       socket,
+       :error,
+       "The launch control surface could not render in this browser session."
+     )}
   end
 
   def handle_info({:poll_job, job_id}, socket) do
@@ -145,15 +152,20 @@ defmodule AutolaunchWeb.LaunchLive do
   def render(assigns) do
     eligible_count = Enum.count(assigns.agents, &(&1.state == "eligible"))
     selected_agent = assigns.selected_agent
-    current_reputation_prompt = current_reputation_prompt(assigns.preview, assigns.current_job)
+
+    current_reputation_prompt =
+      Flow.current_reputation_prompt(assigns.preview, assigns.current_job)
 
     assigns =
       assigns
       |> assign(:eligible_count, eligible_count)
       |> assign(:selected_agent, selected_agent)
       |> assign(:current_reputation_prompt, current_reputation_prompt)
-      |> assign(:regent_step_title, regent_step_title(assigns.step))
-      |> assign(:regent_step_summary, regent_step_summary(assigns.step, selected_agent, assigns.current_job))
+      |> assign(:regent_step_title, Presenter.regent_step_title(assigns.step))
+      |> assign(
+        :regent_step_summary,
+        Presenter.regent_step_summary(assigns.step, selected_agent, assigns.current_job)
+      )
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
@@ -177,7 +189,7 @@ defmodule AutolaunchWeb.LaunchLive do
               <div class="al-launch-tags" aria-label="Launch scene status">
                 <span class="al-launch-tag">Eligible agents: {@eligible_count}</span>
                 <span class="al-launch-tag">Fee split: 2% total</span>
-                <span class="al-launch-tag">{regent_job_status(@current_job)}</span>
+                <span class="al-launch-tag">{Presenter.regent_job_status(@current_job)}</span>
               </div>
             </.chamber>
           </:chamber>
@@ -200,7 +212,7 @@ defmodule AutolaunchWeb.LaunchLive do
                   </tr>
                   <tr>
                     <th scope="row">Queue state</th>
-                    <td>{regent_job_status(@current_job)}</td>
+                    <td>{Presenter.regent_job_status(@current_job)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -379,14 +391,14 @@ defmodule AutolaunchWeb.LaunchLive do
                       </div>
 
                       <div class="al-pill-row">
-                        <span class={["al-network-badge", "al-access-badge"]}>{access_mode_label(agent.access_mode)}</span>
+                        <span class={["al-network-badge", "al-access-badge"]}>{Presenter.access_mode_label(agent.access_mode)}</span>
                         <span :for={chain <- agent.supported_chains} class="al-network-badge">{chain.short_label}</span>
                       </div>
 
                       <dl class="al-agent-meta">
                         <div>
                           <dt>Owner</dt>
-                          <dd>{short_address(agent.owner_address)}</dd>
+                          <dd>{Presenter.short_address(agent.owner_address)}</dd>
                         </div>
                         <div :if={(agent.operator_addresses || []) != []}>
                           <dt>Operators</dt>
@@ -423,7 +435,7 @@ defmodule AutolaunchWeb.LaunchLive do
                       </button>
 
                       <div :if={agent.state != "eligible"} class="al-muted-box">
-                        {disabled_agent_message(agent)}
+                        {Presenter.disabled_agent_message(agent)}
                       </div>
                     </article>
                   <% end %>
@@ -533,7 +545,7 @@ defmodule AutolaunchWeb.LaunchLive do
                 <div class="al-review-card">
                   <span>Launch network</span>
                   <strong>{@preview && @preview.token.chain_label}</strong>
-                  <p>Recovery Safe {@preview && short_address(@preview.token.recovery_safe_address)}</p>
+                  <p>Recovery Safe {@preview && Presenter.short_address(@preview.token.recovery_safe_address)}</p>
                 </div>
                 <div class="al-review-card">
                   <span>Fixed supply</span>
@@ -542,7 +554,7 @@ defmodule AutolaunchWeb.LaunchLive do
                 </div>
                 <div class="al-review-card">
                   <span>Revenue routing</span>
-                  <strong>USDC treasury {@preview && short_address(@preview.token.ethereum_revenue_treasury)}</strong>
+                  <strong>USDC treasury {@preview && Presenter.short_address(@preview.token.ethereum_revenue_treasury)}</strong>
                   <p>Sepolia USDC only counts after it reaches the revenue share splitter.</p>
                 </div>
               </div>
@@ -616,7 +628,7 @@ defmodule AutolaunchWeb.LaunchLive do
                   :for={action <- @current_reputation_prompt.actions}
                   class="al-note-card"
                 >
-                  <p class="al-kicker">{reputation_action_status(action.status)}</p>
+                  <p class="al-kicker">{Presenter.reputation_action_status(action.status)}</p>
                   <strong>{action.label}</strong>
                   <p>{action.note}</p>
                   <div class="al-pill-row">
@@ -856,45 +868,6 @@ defmodule AutolaunchWeb.LaunchLive do
     """
   end
 
-  defp default_form(nil) do
-    %{
-      "agent_id" => nil,
-      "token_name" => "",
-      "token_symbol" => "",
-      "recovery_safe_address" => "",
-      "auction_proceeds_recipient" => "",
-      "ethereum_revenue_treasury" => "",
-      "total_supply" => @agent_launch_total_supply,
-      "launch_notes" => ""
-    }
-  end
-
-  defp default_form(current_human) do
-    default_form(nil)
-    |> Map.put("recovery_safe_address", current_human.wallet_address || "")
-    |> Map.put("auction_proceeds_recipient", current_human.wallet_address || "")
-    |> Map.put("ethereum_revenue_treasury", current_human.wallet_address || "")
-  end
-
-  defp max_available_step(socket) do
-    cond do
-      socket.assigns.job_id -> 5
-      socket.assigns.preview -> 3
-      socket.assigns.selected_agent -> 2
-      true -> 1
-    end
-  end
-
-  defp normalize_step(step) when is_binary(step) do
-    case Integer.parse(step) do
-      {value, ""} -> value
-      _ -> 1
-    end
-  end
-
-  defp normalize_step(step) when is_integer(step), do: step
-  defp normalize_step(_step), do: 1
-
   defp assign_regent_scene(socket) do
     next_version = (socket.assigns[:regent_scene_version] || 0) + 1
     scene = RegentScenes.launch(socket.assigns)
@@ -905,95 +878,11 @@ defmodule AutolaunchWeb.LaunchLive do
     |> assign(:regent_selected_node_id, "launch:step:#{min(socket.assigns.step, 4)}")
   end
 
-  defp regent_step_title(1), do: "Choose an eligible agent"
-  defp regent_step_title(2), do: "Set launch terms"
-  defp regent_step_title(3), do: "Review and sign"
-  defp regent_step_title(4), do: "Queue and monitor"
-  defp regent_step_title(5), do: "Deployment status"
-  defp regent_step_title(_step), do: "Launch control"
-
-  defp regent_step_summary(1, _selected_agent, _current_job),
-    do: "Pick the ERC-8004 identity that is actually allowed to launch. The spatial surface is only there to orient you; the review cards still hold the real evidence."
-
-  defp regent_step_summary(2, selected_agent, _current_job),
-    do:
-      "Set token routing and recovery details for #{selected_agent && (selected_agent.name || selected_agent.agent_id) || "the chosen agent"} before asking for any signature."
-
-  defp regent_step_summary(3, _selected_agent, _current_job),
-    do: "This is the irreversible checkpoint. Review the fixed supply, treasury routing, and the optional trust check before you sign."
-
-  defp regent_step_summary(4, _selected_agent, current_job),
-    do: "The job is queued. Keep the browser on live queue state while the CLI remains the cleaner operator path. Current state: #{regent_job_status(current_job)}."
-
-  defp regent_step_summary(5, _selected_agent, current_job),
-    do: "The launch stack is now in deployment tracking. Current state: #{regent_job_status(current_job)}."
-
-  defp regent_step_summary(_step, _selected_agent, _current_job),
-    do: "Launch control is live."
-
-  defp regent_job_status(nil), do: "Awaiting queue"
-  defp regent_job_status(%{job: %{status: status}}), do: String.replace(status, "_", " ")
-
-  defp preview_error(:token_name_required), do: "Token name is required."
-  defp preview_error(:token_symbol_required), do: "Token symbol is required."
-
-  defp preview_error(:invalid_wallet_address),
-    do: "Each launch recipient must be a valid EVM address."
-
-  defp preview_error(:invalid_chain_id),
-    do: "Launch network is not configured."
-
-  defp preview_error(:agent_not_found), do: "Select an eligible agent first."
-  defp preview_error(_reason), do: "Launch preview could not be prepared."
-
-  defp short_address(nil), do: "pending"
-
-  defp short_address(address) when is_binary(address) do
-    address
-    |> String.downcase()
-    |> then(fn value ->
-      if String.length(value) > 12 do
-        String.slice(value, 0, 6) <> "..." <> String.slice(value, -4, 4)
-      else
-        value
-      end
-    end)
-  end
-
-  defp access_mode_label("owner"), do: "Owner"
-  defp access_mode_label("operator"), do: "Operator"
-  defp access_mode_label("wallet_bound"), do: "Wallet-bound"
-  defp access_mode_label(_mode), do: "Unknown"
-
-  defp disabled_agent_message(%{state: "already_launched"}),
-    do: "This ERC-8004 identity already has an Agent Coin."
-
-  defp disabled_agent_message(%{access_mode: "wallet_bound"}),
-    do:
-      "This identity is only wallet-bound. Launching requires ERC-8004 owner or operator access."
-
-  defp disabled_agent_message(_agent),
-    do: "Finish the missing setup before launch."
-
   defp launch_module do
     :autolaunch
     |> Application.get_env(:launch_live, [])
     |> Keyword.get(:launch_module, Launch)
   end
-
-  defp current_reputation_prompt(_preview, %{job: %{reputation_prompt: prompt}})
-       when is_map(prompt),
-       do: prompt
-
-  defp current_reputation_prompt(%{reputation_prompt: prompt}, _current_job) when is_map(prompt),
-    do: prompt
-
-  defp current_reputation_prompt(_preview, _current_job), do: nil
-
-  defp reputation_action_status("complete"), do: "Complete"
-  defp reputation_action_status("available"), do: "Ready now"
-  defp reputation_action_status("pending"), do: "Available after launch"
-  defp reputation_action_status(_status), do: "Optional"
 
   defp reputation_action_cta(%{key: "ens", completed: true}), do: "Review ENS planner"
   defp reputation_action_cta(%{key: "ens"}), do: "Open ENS planner"
