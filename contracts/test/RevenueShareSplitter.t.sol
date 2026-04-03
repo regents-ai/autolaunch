@@ -9,6 +9,7 @@ import {MintableBurnableERC20Mock} from "test/mocks/MintableBurnableERC20Mock.so
 contract RevenueShareSplitterTest is Test {
     uint256 internal constant XYZ = 1e18;
     uint256 internal constant USDC = 1e6;
+    uint256 internal constant INITIAL_SUPPLY_DENOMINATOR = 1000 * XYZ;
     uint256 internal constant INITIAL_INGRESS_DEPOSIT = 10_000 * USDC;
     uint256 internal constant SECOND_INGRESS_DEPOSIT = 5000 * USDC;
     uint256 internal constant DIRECT_DEPOSIT = 10_000 * USDC;
@@ -19,6 +20,7 @@ contract RevenueShareSplitterTest is Test {
     uint256 internal constant DAVE_STAKE = 30 * XYZ;
     uint256 internal constant DAVE_UNSTAKE = 10 * XYZ;
     uint256 internal constant EVE_STAKE = 20 * XYZ;
+    uint16 internal constant MAX_APR_BPS = 10_000;
 
     MintableBurnableERC20Mock internal stakeToken;
     MintableBurnableERC20Mock internal usdc;
@@ -31,20 +33,13 @@ contract RevenueShareSplitterTest is Test {
     address internal constant CAROL = address(0xC3);
     address internal constant DAVE = address(0xD4);
     address internal constant EVE = address(0xE5);
+    address internal constant FUNDER = address(0xF00D);
 
     function setUp() external {
         stakeToken = new MintableBurnableERC20Mock("Agent", "XYZ", 18);
         usdc = new MintableBurnableERC20Mock("USD Coin", "USDC", 6);
 
-        splitter = new RevenueShareSplitter(
-            address(stakeToken),
-            address(usdc),
-            TREASURY,
-            PROTOCOL_TREASURY,
-            100,
-            "XYZ splitter",
-            address(this)
-        );
+        splitter = _deploySplitter(stakeToken, INITIAL_SUPPLY_DENOMINATOR, "XYZ splitter");
 
         stakeToken.mint(ALICE, ALICE_STAKE);
         stakeToken.mint(BOB, BOB_INITIAL_STAKE + BOB_TOP_UP);
@@ -52,6 +47,7 @@ contract RevenueShareSplitterTest is Test {
         stakeToken.mint(DAVE, DAVE_STAKE);
         stakeToken.mint(EVE, EVE_STAKE);
         stakeToken.mint(TREASURY, 550 * XYZ);
+        stakeToken.mint(FUNDER, 10_000 * XYZ);
 
         _stake(splitter, stakeToken, ALICE, ALICE_STAKE);
         _stake(splitter, stakeToken, BOB, BOB_INITIAL_STAKE);
@@ -121,15 +117,7 @@ contract RevenueShareSplitterTest is Test {
         controlStake.mint(ALICE, 100 * XYZ);
         controlStake.mint(TREASURY, 900 * XYZ);
 
-        RevenueShareSplitter control = new RevenueShareSplitter(
-            address(controlStake),
-            address(usdc),
-            TREASURY,
-            PROTOCOL_TREASURY,
-            100,
-            "control",
-            address(this)
-        );
+        RevenueShareSplitter control = _deploySplitter(controlStake, 1000 * XYZ, "control");
 
         _stake(control, controlStake, ALICE, 100 * XYZ);
         usdc.mint(address(this), DIRECT_DEPOSIT);
@@ -142,15 +130,8 @@ contract RevenueShareSplitterTest is Test {
         stakedStake.mint(ALICE, 100 * XYZ);
         stakedStake.mint(TREASURY, 900 * XYZ);
 
-        RevenueShareSplitter stakedTreasury = new RevenueShareSplitter(
-            address(stakedStake),
-            address(usdc),
-            TREASURY,
-            PROTOCOL_TREASURY,
-            100,
-            "stakedTreasury",
-            address(this)
-        );
+        RevenueShareSplitter stakedTreasury =
+            _deploySplitter(stakedStake, 1000 * XYZ, "stakedTreasury");
 
         _stake(stakedTreasury, stakedStake, ALICE, 100 * XYZ);
         _stake(stakedTreasury, stakedStake, TREASURY, 900 * XYZ);
@@ -166,21 +147,198 @@ contract RevenueShareSplitterTest is Test {
         assertEq(treasuryResidualWithStake + treasuryAsStaker, 8910 * USDC);
     }
 
-    function testBurnChangesFutureDepositsOnly() external {
+    function testBurnDoesNotChangeFutureUsdcParticipation() external {
         usdc.mint(address(this), 1000 * USDC);
         usdc.approve(address(splitter), type(uint256).max);
         splitter.depositUSDC(1000 * USDC, bytes32("before_burn"), bytes32("1"));
         uint256 aliceBefore = splitter.previewClaimableUSDC(ALICE);
 
         stakeToken.burn(TREASURY, 100 * XYZ);
-        assertEq(stakeToken.totalSupply(), 900 * XYZ);
 
         usdc.mint(address(this), 1000 * USDC);
-        usdc.approve(address(splitter), type(uint256).max);
         splitter.depositUSDC(1000 * USDC, bytes32("after_burn"), bytes32("2"));
 
         uint256 aliceAfter = splitter.previewClaimableUSDC(ALICE) - aliceBefore;
-        assertEq(aliceAfter, 220 * USDC);
+        assertEq(aliceAfter, 198 * USDC);
+    }
+
+    function testTokenEmissionsAccrueByTimestamp() external {
+        _fundStakeTokenRewards(splitter, stakeToken, 1000 * XYZ);
+
+        vm.prank(address(this));
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 expectedAlice = _expectedEmission(ALICE_STAKE, MAX_APR_BPS, 30 days);
+        uint256 expectedBob = _expectedEmission(BOB_INITIAL_STAKE, MAX_APR_BPS, 30 days);
+
+        assertEq(splitter.previewClaimableStakeToken(ALICE), expectedAlice);
+        assertEq(splitter.previewClaimableStakeToken(BOB), expectedBob);
+    }
+
+    function testAprChangeMidstreamWorks() external {
+        _fundStakeTokenRewards(splitter, stakeToken, 1000 * XYZ);
+
+        splitter.setEmissionAprBps(5000);
+        vm.warp(90 days);
+        splitter.setEmissionAprBps(2500);
+        uint256 firstPeriod = _expectedEmission(ALICE_STAKE, 5000, 90 days);
+        assertApproxEqAbs(splitter.previewClaimableStakeToken(ALICE), firstPeriod, 1e14);
+        vm.warp(120 days);
+
+        uint256 expectedAlice = firstPeriod + _expectedEmission(ALICE_STAKE, 2500, 30 days);
+        assertApproxEqAbs(splitter.previewClaimableStakeToken(ALICE), expectedAlice, 1e14);
+    }
+
+    function testMultipleStakersEnteringAtDifferentTimesGetCorrectTokenEmissions() external {
+        MintableBurnableERC20Mock customStake = new MintableBurnableERC20Mock("Custom", "CSTM", 18);
+        RevenueShareSplitter custom = _deploySplitter(customStake, 1000 * XYZ, "custom");
+
+        customStake.mint(ALICE, 200 * XYZ);
+        customStake.mint(BOB, 300 * XYZ);
+        customStake.mint(FUNDER, 5000 * XYZ);
+
+        _stake(custom, customStake, ALICE, 200 * XYZ);
+        _fundStakeTokenRewards(custom, customStake, 1000 * XYZ);
+        custom.setEmissionAprBps(MAX_APR_BPS);
+
+        vm.warp(30 days);
+        uint256 firstPeriodAlice = custom.previewClaimableStakeToken(ALICE);
+        assertApproxEqAbs(
+            firstPeriodAlice, _expectedEmission(200 * XYZ, MAX_APR_BPS, 30 days), 1e14
+        );
+        _stake(custom, customStake, BOB, 300 * XYZ);
+        assertEq(custom.lastEmissionUpdate(), 30 days);
+        vm.warp(60 days);
+
+        uint256 expectedAlice =
+            firstPeriodAlice + _expectedEmission(200 * XYZ, MAX_APR_BPS, 30 days);
+        uint256 expectedBob = _expectedEmission(300 * XYZ, MAX_APR_BPS, 30 days);
+
+        assertApproxEqAbs(custom.previewClaimableStakeToken(ALICE), expectedAlice, 1e14);
+        assertApproxEqAbs(custom.previewClaimableStakeToken(BOB), expectedBob, 1e14);
+    }
+
+    function testClaimStakeTokenRevertsWhenInventoryIsShort() external {
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 365 days);
+
+        vm.expectRevert("REWARD_INVENTORY_LOW");
+        vm.prank(ALICE);
+        splitter.claimStakeToken(ALICE);
+    }
+
+    function testClaimAndRestakeStakeTokenRevertsWhenInventoryIsShort() external {
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 365 days);
+
+        vm.expectRevert("REWARD_INVENTORY_LOW");
+        vm.prank(ALICE);
+        splitter.claimAndRestakeStakeToken();
+    }
+
+    function testClaimStakeTokenTransfersAndTracksTotalClaimed() external {
+        _fundStakeTokenRewards(splitter, stakeToken, 1000 * XYZ);
+
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 expected = _expectedEmission(ALICE_STAKE, MAX_APR_BPS, 30 days);
+
+        vm.prank(ALICE);
+        uint256 claimed = splitter.claimStakeToken(ALICE);
+
+        assertEq(claimed, expected);
+        assertEq(splitter.totalClaimedStakeToken(), expected);
+        assertEq(stakeToken.balanceOf(ALICE), expected);
+        assertEq(splitter.previewClaimableStakeToken(ALICE), 0);
+    }
+
+    function testClaimAndRestakeStakeTokenCompoundsIntoStake() external {
+        _fundStakeTokenRewards(splitter, stakeToken, 1000 * XYZ);
+
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 expected = _expectedEmission(ALICE_STAKE, MAX_APR_BPS, 30 days);
+
+        vm.prank(ALICE);
+        uint256 compounded = splitter.claimAndRestakeStakeToken();
+
+        assertEq(compounded, expected);
+        assertEq(splitter.totalClaimedStakeToken(), expected);
+        assertEq(splitter.stakedBalance(ALICE), ALICE_STAKE + expected);
+        assertEq(splitter.previewClaimableStakeToken(ALICE), 0);
+    }
+
+    function testPausePreservesPrincipalExit() external {
+        _fundStakeTokenRewards(splitter, stakeToken, 1000 * XYZ);
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 30 days);
+        splitter.setPaused(true);
+
+        vm.expectRevert("PAUSED");
+        vm.prank(ALICE);
+        splitter.claimStakeToken(ALICE);
+
+        vm.expectRevert("PAUSED");
+        vm.prank(ALICE);
+        splitter.claimAndRestakeStakeToken();
+
+        vm.expectRevert("PAUSED");
+        vm.prank(ALICE);
+        splitter.stake(1 * XYZ, ALICE);
+
+        vm.expectRevert("PAUSED");
+        vm.prank(FUNDER);
+        splitter.fundStakeTokenRewards(1 * XYZ);
+
+        vm.prank(ALICE);
+        splitter.unstake(50 * XYZ, ALICE);
+
+        assertEq(splitter.stakedBalance(ALICE), ALICE_STAKE - 50 * XYZ);
+        assertEq(stakeToken.balanceOf(ALICE), 50 * XYZ);
+    }
+
+    function testTopUpsByAnyCallerIncreaseRewardInventoryOnly() external {
+        uint256 inventoryBefore = splitter.availableStakeTokenRewardInventory();
+
+        _fundStakeTokenRewards(splitter, stakeToken, 123 * XYZ);
+
+        assertEq(splitter.availableStakeTokenRewardInventory(), inventoryBefore + 123 * XYZ);
+        assertEq(splitter.totalFundedStakeToken(), 123 * XYZ);
+        assertEq(splitter.totalStaked(), 400 * XYZ);
+    }
+
+    function testLiabilityTracksMaterializedRoundedClaims() external {
+        MintableBurnableERC20Mock smallStake =
+            new MintableBurnableERC20Mock("Small Agent", "sAGENT", 18);
+        RevenueShareSplitter smallSplitter = _deploySplitter(smallStake, 3 * XYZ, "small-splitter");
+
+        address[3] memory stakers = [ALICE, BOB, CAROL];
+        for (uint256 i = 0; i < stakers.length; ++i) {
+            smallStake.mint(stakers[i], XYZ);
+            vm.startPrank(stakers[i]);
+            smallStake.approve(address(smallSplitter), type(uint256).max);
+            smallSplitter.stake(XYZ, stakers[i]);
+            vm.stopPrank();
+        }
+
+        smallStake.mint(FUNDER, 100 * XYZ);
+        _fundStakeTokenRewards(smallSplitter, smallStake, 100 * XYZ);
+
+        smallSplitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 2 days);
+
+        for (uint256 i = 0; i < stakers.length; ++i) {
+            smallSplitter.sync(stakers[i]);
+        }
+
+        uint256 expectedLiability = smallSplitter.previewClaimableStakeToken(ALICE)
+            + smallSplitter.previewClaimableStakeToken(BOB)
+            + smallSplitter.previewClaimableStakeToken(CAROL);
+        assertEq(smallSplitter.unclaimedStakeTokenLiability(), expectedLiability);
     }
 
     function testUnsupportedRewardTokenDoesNotGetProtocolCredit() external {
@@ -208,15 +366,8 @@ contract RevenueShareSplitterTest is Test {
     }
 
     function testDepositWithoutStakersLeavesNetInTreasury() external {
-        RevenueShareSplitter emptySplitter = new RevenueShareSplitter(
-            address(stakeToken),
-            address(usdc),
-            TREASURY,
-            PROTOCOL_TREASURY,
-            100,
-            "empty",
-            address(this)
-        );
+        RevenueShareSplitter emptySplitter =
+            _deploySplitter(stakeToken, INITIAL_SUPPLY_DENOMINATOR, "empty");
 
         usdc.mint(address(this), 1000 * USDC);
         usdc.approve(address(emptySplitter), type(uint256).max);
@@ -225,6 +376,23 @@ contract RevenueShareSplitterTest is Test {
         assertEq(emptySplitter.protocolReserveUsdc(), 10 * USDC);
         assertEq(emptySplitter.treasuryResidualUsdc(), 990 * USDC);
         assertEq(emptySplitter.previewClaimableUSDC(ALICE), 0);
+    }
+
+    function _deploySplitter(
+        MintableBurnableERC20Mock token,
+        uint256 denominator,
+        string memory splitterLabel
+    ) internal returns (RevenueShareSplitter) {
+        return new RevenueShareSplitter(
+            address(token),
+            address(usdc),
+            TREASURY,
+            PROTOCOL_TREASURY,
+            100,
+            denominator,
+            splitterLabel,
+            address(this)
+        );
     }
 
     function _stake(
@@ -237,5 +405,24 @@ contract RevenueShareSplitterTest is Test {
         token.approve(address(targetSplitter), type(uint256).max);
         targetSplitter.stake(amount, account);
         vm.stopPrank();
+    }
+
+    function _fundStakeTokenRewards(
+        RevenueShareSplitter targetSplitter,
+        MintableBurnableERC20Mock token,
+        uint256 amount
+    ) internal {
+        vm.startPrank(FUNDER);
+        token.approve(address(targetSplitter), type(uint256).max);
+        targetSplitter.fundStakeTokenRewards(amount);
+        vm.stopPrank();
+    }
+
+    function _expectedEmission(uint256 amount, uint256 aprBps, uint256 elapsed)
+        internal
+        pure
+        returns (uint256)
+    {
+        return (amount * aprBps * elapsed) / 10_000 / 365 days;
     }
 }

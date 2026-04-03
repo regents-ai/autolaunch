@@ -1,6 +1,6 @@
 import type { Hook } from "phoenix_live_view"
 
-import { IDKit, orbLegacy } from "@worldcoin/idkit-core"
+import { IDKit } from "@worldcoin/idkit-core"
 import QRCode from "qrcode"
 
 import { animate } from "../../vendor/anime.esm.js"
@@ -10,7 +10,6 @@ interface AgentbookFrontendRequest {
   action: string
   signal: string
   rp_context: Record<string, unknown>
-  allow_legacy_proofs: boolean
 }
 
 interface AgentbookSession {
@@ -39,7 +38,7 @@ const QR_OPTIONS = {
   },
 }
 
-function parseSession(raw: string | undefined): AgentbookSession | null {
+export function parseSession(raw: string | undefined): AgentbookSession | null {
   if (!raw) return null
 
   try {
@@ -47,6 +46,13 @@ function parseSession(raw: string | undefined): AgentbookSession | null {
     return parsed && typeof parsed === "object" ? parsed : null
   } catch {
     return null
+  }
+}
+
+export function buildVerificationConstraints(signal: string) {
+  return {
+    type: "proof_of_human" as const,
+    signal,
   }
 }
 
@@ -109,9 +115,9 @@ async function runAgentbookFlow(hook: AgentbookHookInstance): Promise<void> {
         expires_at: number
         signature: string
       },
-      allow_legacy_proofs: session.frontend_request.allow_legacy_proofs,
+      allow_legacy_proofs: false,
     })
-    const request = await builder.preset(orbLegacy({ signal: session.frontend_request.signal }))
+    const request = await builder.constraints(buildVerificationConstraints(session.frontend_request.signal))
 
     if (hook.el._agentbookSessionId !== session.session_id) return
 

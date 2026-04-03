@@ -52,7 +52,7 @@ contract ExampleCCADeploymentScript is Script {
     address internal constant ERC8004_SEPOLIA = 0x8004A818BFB912233c491871b3d84c89A494BD9e;
 
     uint256 internal constant DEFAULT_TOTAL_SUPPLY = 100_000_000_000e18;
-    uint256 internal constant DEFAULT_AUCTION_DURATION_BLOCKS = 21_600;
+    uint256 internal constant DEFAULT_AUCTION_DURATION_BLOCKS = 9258;
     uint24 internal constant DEFAULT_POOL_FEE = 0;
     int24 internal constant DEFAULT_POOL_TICK_SPACING = 60;
     uint16 internal constant DEFAULT_PROTOCOL_SKIM_BPS = 100;
@@ -60,34 +60,27 @@ contract ExampleCCADeploymentScript is Script {
     uint64 internal constant DEFAULT_MIGRATION_BLOCK_OFFSET = 128;
     uint64 internal constant DEFAULT_SWEEP_BLOCK_OFFSET = 256;
     uint64 internal constant DEFAULT_VESTING_DURATION_SECONDS = 365 days;
+    uint256 internal constant ETHEREUM_SEPOLIA_CHAIN_ID = 11_155_111;
 
     function _loadConfig() internal view returns (ScriptConfig memory cfg) {
-        address recoverySafe = _envAddressOr(
-            "AUTOLAUNCH_RECOVERY_SAFE_ADDRESS", _envAddressOr("RECOVERY_SAFE_ADDRESS", address(0))
-        );
+        require(block.chainid == ETHEREUM_SEPOLIA_CHAIN_ID, "SEPOLIA_ONLY");
+
+        address recoverySafe = vm.envAddress("AUTOLAUNCH_RECOVERY_SAFE_ADDRESS");
         require(recoverySafe != address(0), "RECOVERY_SAFE_ZERO");
 
-        uint256 totalSupply =
-            vm.envOr("TOTAL_SUPPLY", vm.envOr("AUTOLAUNCH_TOTAL_SUPPLY", DEFAULT_TOTAL_SUPPLY));
+        uint256 totalSupply = vm.envOr("AUTOLAUNCH_TOTAL_SUPPLY", DEFAULT_TOTAL_SUPPLY);
         require(totalSupply > 0, "TOTAL_SUPPLY_ZERO");
 
-        uint256 agentId =
-            _parseAgentId(vm.envOr("AUTOLAUNCH_AGENT_ID", vm.envOr("AGENT_ID", string(""))));
+        uint256 agentId = _parseAgentId(vm.envOr("AUTOLAUNCH_AGENT_ID", string("")));
         require(agentId > 0, "AGENT_ID_ZERO");
 
-        address agentTreasurySafe = _envAddressOr(
-            "AUTOLAUNCH_ETHEREUM_REVENUE_TREASURY",
-            _envAddressOr("ETHEREUM_REVENUE_TREASURY", recoverySafe)
-        );
+        address agentTreasurySafe = vm.envAddress("AUTOLAUNCH_ETHEREUM_REVENUE_TREASURY");
         require(agentTreasurySafe != address(0), "AGENT_TREASURY_ZERO");
 
-        address positionRecipient = _envAddressOr(
-            "AUTOLAUNCH_AUCTION_PROCEEDS_RECIPIENT",
-            _envAddressOr("POSITION_RECIPIENT", recoverySafe)
-        );
+        address positionRecipient = vm.envAddress("AUTOLAUNCH_AUCTION_PROCEEDS_RECIPIENT");
         require(positionRecipient != address(0), "POSITION_RECIPIENT_ZERO");
 
-        address strategyOperator = _envAddressOr("STRATEGY_OPERATOR", recoverySafe);
+        address strategyOperator = vm.envAddress("STRATEGY_OPERATOR");
         require(strategyOperator != address(0), "STRATEGY_OPERATOR_ZERO");
 
         uint256 poolFeeRaw = vm.envOr("OFFICIAL_POOL_FEE", uint256(DEFAULT_POOL_FEE));
@@ -119,30 +112,26 @@ contract ExampleCCADeploymentScript is Script {
         address tokenFactory = vm.envAddress("TOKEN_FACTORY_ADDRESS");
         require(tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
 
-        address auctionInitializerFactory =
-            vm.envOr("FACTORY_ADDRESS", _defaultFactoryForChain(block.chainid));
+        address auctionInitializerFactory = vm.envAddress("FACTORY_ADDRESS");
         require(auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
         require(auctionInitializerFactory.code.length > 0, "AUCTION_FACTORY_NOT_DEPLOYED");
 
         address poolManager = vm.envAddress("UNISWAP_V4_POOL_MANAGER");
         require(poolManager != address(0), "POOL_MANAGER_ZERO");
 
-        address positionManager = _envAddressOr("UNISWAP_V4_POSITION_MANAGER", address(0));
+        address positionManager = vm.envAddress("UNISWAP_V4_POSITION_MANAGER");
         require(positionManager != address(0), "POSITION_MANAGER_ZERO");
 
-        address usdcToken =
-            _envAddressOr("ETHEREUM_USDC_ADDRESS", _envAddressOr("USDC_ADDRESS", address(0)));
+        address usdcToken = vm.envAddress("ETHEREUM_USDC_ADDRESS");
         require(usdcToken != address(0), "USDC_ZERO");
 
-        address identityRegistry = _envAddressOr(
-            "AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", _defaultIdentityRegistryForChain(block.chainid)
-        );
+        address identityRegistry = vm.envAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS");
         require(identityRegistry != address(0), "IDENTITY_REGISTRY_ZERO");
 
-        address regentRecipient = _envAddressOr("REGENT_MULTISIG_ADDRESS", REGENT_MULTISIG);
+        address regentRecipient = vm.envAddress("REGENT_MULTISIG_ADDRESS");
         require(regentRecipient != address(0), "REGENT_RECIPIENT_ZERO");
 
-        address validationHook = _envAddressOr("CCA_VALIDATION_HOOK", address(0));
+        address validationHook = vm.envOr("CCA_VALIDATION_HOOK", address(0));
         uint256 auctionTickSpacing = vm.envUint("CCA_TICK_SPACING_Q96");
         uint256 floorPrice = vm.envUint("CCA_FLOOR_PRICE_Q96");
         uint256 requiredCurrencyRaisedRaw = vm.envUint("CCA_REQUIRED_CURRENCY_RAISED");
@@ -168,10 +157,8 @@ contract ExampleCCADeploymentScript is Script {
             vm.envOr("PROTOCOL_SKIM_BPS", uint256(DEFAULT_PROTOCOL_SKIM_BPS));
         require(protocolSkimBpsRaw <= type(uint16).max, "PROTOCOL_SKIM_BPS_TOO_LARGE");
 
-        string memory tokenName =
-            vm.envOr("AUTOLAUNCH_TOKEN_NAME", vm.envOr("AGENT_NAME", string("Regent Agent Token")));
-        string memory tokenSymbol =
-            vm.envOr("AUTOLAUNCH_TOKEN_SYMBOL", vm.envOr("AGENT_SYMBOL", string("RAGENT")));
+        string memory tokenName = vm.envOr("AUTOLAUNCH_TOKEN_NAME", string("Regent Agent Token"));
+        string memory tokenSymbol = vm.envOr("AUTOLAUNCH_TOKEN_SYMBOL", string("RAGENT"));
         string memory subjectLabel = vm.envOr("AUTOLAUNCH_SUBJECT_LABEL", tokenName);
 
         cfg.recoverySafe = recoverySafe;
@@ -326,24 +313,6 @@ contract ExampleCCADeploymentScript is Script {
         );
 
         vm.stopBroadcast();
-    }
-
-    function _envAddressOr(string memory key, address fallback_) internal view returns (address) {
-        try vm.envAddress(key) returns (address value) {
-            return value;
-        } catch {
-            return fallback_;
-        }
-    }
-
-    function _defaultFactoryForChain(uint256 chainId) internal pure returns (address) {
-        return chainId == 1 || chainId == 11_155_111 ? CANONICAL_CCA_FACTORY : address(0);
-    }
-
-    function _defaultIdentityRegistryForChain(uint256 chainId) internal pure returns (address) {
-        if (chainId == 1) return ERC8004_MAINNET;
-        if (chainId == 11_155_111) return ERC8004_SEPOLIA;
-        return address(0);
     }
 
     function _parseAgentId(string memory raw) internal pure returns (uint256) {

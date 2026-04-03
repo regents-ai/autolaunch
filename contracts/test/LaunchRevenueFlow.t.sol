@@ -61,6 +61,7 @@ contract LaunchRevenueFlowTest is Test {
             SUBJECT_TREASURY,
             PROTOCOL_TREASURY,
             100,
+            1000e18,
             "Atlas splitter",
             OWNER
         );

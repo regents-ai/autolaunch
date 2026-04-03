@@ -398,13 +398,13 @@ defmodule AutolaunchWeb.AgentbookLive do
   defp error_message(error), do: inspect(error)
 
   defp session_tx_request(session) when is_map(session) do
-    Map.get(session, :tx_request) || Map.get(session, "tx_request")
+    Map.get(session, :tx_request)
   end
 
   defp session_tx_request(_session), do: nil
 
   defp session_human_id(session) when is_map(session) do
-    Map.get(session, :human_id) || Map.get(session, "human_id")
+    Map.get(session, :human_id)
   end
 
   defp session_human_id(_session), do: nil

@@ -16,6 +16,8 @@ defmodule Autolaunch.CCA.Contract do
          {:ok, sum_currency_demand_above_clearing_q96} <-
            call_uint(chain_id, auction_address, :sum_currency_demand_above_clearing_q96),
          {:ok, total_supply} <- call_uint(chain_id, auction_address, :total_supply),
+         {:ok, required_currency_raised} <-
+           call_uint(chain_id, auction_address, :required_currency_raised),
          {:ok, currency_raised} <- call_uint(chain_id, auction_address, :currency_raised),
          {:ok, total_cleared} <- call_uint(chain_id, auction_address, :total_cleared),
          {:ok, start_block} <- call_uint(chain_id, auction_address, :start_block),
@@ -34,6 +36,7 @@ defmodule Autolaunch.CCA.Contract do
          next_active_tick_price_q96: next_active_tick_price_q96,
          sum_currency_demand_above_clearing_q96: sum_currency_demand_above_clearing_q96,
          total_supply: total_supply,
+         required_currency_raised_wei: required_currency_raised,
          currency_raised_wei: currency_raised,
          total_cleared_units: total_cleared,
          start_block: start_block,

@@ -52,8 +52,28 @@ defmodule Autolaunch.RegentStakingTest do
     assert state.total_staked == "500"
     assert state.total_recognized_rewards_usdc == "1000"
     assert state.treasury_residual_usdc == "150"
+    assert state.materialized_outstanding == "3"
+    assert state.available_reward_inventory == "8"
+    assert state.total_claimed_so_far == "5"
     assert state.wallet_stake_balance == "20"
     assert state.wallet_claimable_usdc == "12"
+    assert state.wallet_claimable_regent == "4"
+  end
+
+  test "obligation_metrics computes exact accrued totals from a provided staker list" do
+    assert {:ok, metrics} =
+             RegentStaking.obligation_metrics([
+               "0x1111111111111111111111111111111111111111",
+               "0x2222222222222222222222222222222222222222"
+             ])
+
+    assert metrics.staker_count == 2
+    assert metrics.exact_total_accrued_obligations == "7"
+    assert metrics.materialized_outstanding == "3"
+    assert metrics.available_reward_inventory == "8"
+    assert metrics.total_claimed_so_far == "5"
+    assert metrics.accrued_but_unsynced == "4"
+    assert metrics.funding_gap == "0"
   end
 
   test "stake returns a canonical wallet tx request", %{human: human} do
@@ -135,11 +155,23 @@ defmodule Autolaunch.RegentStakingTest do
         {contract, "0x92bfc075"} when contract == @contract ->
           {:ok, uint_word(1_000_000_000)}
 
+        {contract, "0xa8e345dd"} when contract == @contract ->
+          {:ok, uint_word(3 * 1_000_000_000_000_000_000)}
+
+        {contract, "0xe2cfe6b9"} when contract == @contract ->
+          {:ok, uint_word(8 * 1_000_000_000_000_000_000)}
+
+        {contract, "0x4cbf5721"} when contract == @contract ->
+          {:ok, uint_word(5 * 1_000_000_000_000_000_000)}
+
         {contract, "0x60217267"} when contract == @contract ->
           {:ok, uint_word(20 * 1_000_000_000_000_000_000)}
 
         {contract, "0xb026ee79"} when contract == @contract ->
           {:ok, uint_word(12_000_000)}
+
+        {contract, "0xf653a7f7" <> _address_word} when contract == @contract ->
+          {:ok, uint_word(preview_claimable_regent(data))}
 
         {token, "0x70a08231"} when token == @stake_token ->
           {:ok, uint_word(123 * 1_000_000_000_000_000_000)}
@@ -161,6 +193,14 @@ defmodule Autolaunch.RegentStakingTest do
          |> String.downcase()
          |> String.trim_leading("0x")
          |> String.pad_leading(64, "0"))
+    end
+
+    defp preview_claimable_regent(<<"0xf653a7f7", encoded::binary>>) do
+      case String.slice(encoded, -40, 40) |> String.downcase() do
+        "1111111111111111111111111111111111111111" -> 4 * 1_000_000_000_000_000_000
+        "2222222222222222222222222222222222222222" -> 3 * 1_000_000_000_000_000_000
+        _ -> 0
+      end
     end
   end
 end

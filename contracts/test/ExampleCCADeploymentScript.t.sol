@@ -44,6 +44,7 @@ contract ExampleCCADeploymentScriptTest is Test {
 
     function setUp() external {
         script = new ExampleCCADeploymentScript();
+        vm.chainId(11_155_111);
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new MockHookPoolManager();
         usdc = new MintableERC20Mock("USD Coin", "USDC");
@@ -69,10 +70,10 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.setEnv("UNISWAP_V4_POSITION_MANAGER", vm.toString(address(0xDEAD)));
         _setEnvAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", IDENTITY_REGISTRY);
         _setEnvAddress("STRATEGY_OPERATOR", STRATEGY_OPERATOR);
-        vm.setEnv("AGENT_NAME", "Launch Agent");
-        vm.setEnv("AGENT_SYMBOL", "LAGENT");
+        vm.setEnv("AUTOLAUNCH_TOKEN_NAME", "Launch Agent");
+        vm.setEnv("AUTOLAUNCH_TOKEN_SYMBOL", "LAGENT");
         vm.setEnv("AUTOLAUNCH_AGENT_ID", "1:42");
-        vm.setEnv("TOTAL_SUPPLY", vm.toString(TOTAL_SUPPLY));
+        vm.setEnv("AUTOLAUNCH_TOTAL_SUPPLY", vm.toString(TOTAL_SUPPLY));
         vm.setEnv("ETHEREUM_USDC_ADDRESS", vm.toString(address(usdc)));
         vm.setEnv("CCA_TICK_SPACING_Q96", vm.toString(CCA_TICK_SPACING_Q96));
         vm.setEnv("CCA_FLOOR_PRICE_Q96", vm.toString(CCA_FLOOR_PRICE_Q96));
@@ -139,7 +140,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(parameters.requiredCurrencyRaised, 1 ether);
         assertEq(parameters.claimBlock, parameters.endBlock + 64);
         assertEq(parameters.validationHook, address(0));
-        assertEq(parameters.endBlock - parameters.startBlock, 21_600);
+        assertEq(parameters.endBlock - parameters.startBlock, 9258);
 
         assertEq(
             revenueIngressFactory.defaultIngressOfSubject(result.subjectId),
@@ -164,5 +165,12 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertTrue(result.subjectRegistryAddress != address(0));
         assertTrue(result.revenueShareSplitterAddress != address(0));
         assertTrue(result.defaultIngressAddress != address(0));
+    }
+
+    function testDeployFromEnvRejectsNonSepolia() external {
+        vm.chainId(1);
+
+        vm.expectRevert("SEPOLIA_ONLY");
+        script.deployFromEnv();
     }
 }

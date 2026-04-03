@@ -107,6 +107,10 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     {:ok, _view, html} = live(conn, "/subjects/#{@subject_id}")
 
     assert html =~ "Stake, claim, and manage Sepolia revenue from one subject view."
+    assert html =~ "Your staked tokens"
+    assert html =~ "Wallet token balance"
+    assert html =~ "Claimable USDC"
+    assert html =~ "Wallet position"
     assert html =~ "Known USDC intake accounts"
     assert html =~ "Prepare USDC claim"
     assert html =~ "Open advanced contracts console"
@@ -122,13 +126,28 @@ defmodule AutolaunchWeb.SubjectLiveTest do
       |> render_change()
 
     assert html =~ "Prepare stake"
+    assert html =~ "Wallet balance: 90"
 
     html =
       view
-      |> element("button[phx-click='prepare_stake']")
+      |> element("button[phx-value-action='stake']")
       |> render_click()
 
     assert html =~ "Send stake transaction"
     assert html =~ ~s(data-register-body="{&quot;amount&quot;:&quot;1.5&quot;}")
+
+    html =
+      view
+      |> form("form[phx-change='unstake_changed']", %{"unstake" => %{"amount" => "0.5"}})
+      |> render_change()
+
+    assert html =~ "Prepare unstake"
+
+    html =
+      view
+      |> element("button[phx-value-action='claim']")
+      |> render_click()
+
+    assert html =~ "Send claim transaction"
   end
 end

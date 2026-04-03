@@ -22,14 +22,14 @@ defmodule Autolaunch.Contracts.ActionParams do
   end
 
   def address_param(attrs, key) do
-    case normalize_address(Map.get(attrs, key) || Map.get(attrs, String.to_atom(key))) do
+    case normalize_address(Map.get(attrs, key)) do
       <<"0x", hex::binary>> = address when byte_size(hex) == 40 -> {:ok, address}
       _ -> {:error, :invalid_address}
     end
   end
 
   def string_param(attrs, key) do
-    case Map.get(attrs, key) || Map.get(attrs, String.to_atom(key)) do
+    case Map.get(attrs, key) do
       value when is_binary(value) ->
         trimmed = String.trim(value)
 
@@ -45,7 +45,7 @@ defmodule Autolaunch.Contracts.ActionParams do
   end
 
   def uint_param(attrs, key) do
-    value = Map.get(attrs, key) || Map.get(attrs, String.to_atom(key))
+    value = Map.get(attrs, key)
 
     cond do
       is_integer(value) and value >= 0 ->
@@ -63,7 +63,7 @@ defmodule Autolaunch.Contracts.ActionParams do
   end
 
   def boolean_param(attrs, key) do
-    value = Map.get(attrs, key) || Map.get(attrs, String.to_atom(key))
+    value = Map.get(attrs, key)
 
     case value do
       true -> {:ok, true}

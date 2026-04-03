@@ -225,6 +225,10 @@ defmodule Autolaunch.ReleaseSmoke do
         "0x5f78d5f4" -> {:ok, uint(1 * Integer.pow(10, 6))}
         "0x60217267" -> {:ok, uint(12 * Integer.pow(10, 18))}
         "0xb026ee79" -> {:ok, uint(5 * Integer.pow(10, 6))}
+        "0x05e1fd68" -> {:ok, uint(3 * Integer.pow(10, 18))}
+        "0x05f15537" -> {:ok, uint(8 * Integer.pow(10, 18))}
+        "0xcfb3d0aa" -> {:ok, uint(40 * Integer.pow(10, 18))}
+        "0x66ffb8de" -> {:ok, uint(15 * Integer.pow(10, 18))}
         "0x3e413bee" -> {:ok, address(@usdc)}
         _ -> {:error, :unsupported_call}
       end

@@ -51,6 +51,7 @@ defmodule Autolaunch.RevenueTest do
       |> Repo.insert!()
 
     now = DateTime.utc_now()
+    nonce = "nonce-#{System.unique_integer([:positive])}"
 
     {:ok, job} =
       %Job{}
@@ -69,7 +70,7 @@ defmodule Autolaunch.RevenueTest do
         step: "ready",
         total_supply: "1000",
         message: "signed",
-        siwa_nonce: "nonce",
+        siwa_nonce: nonce,
         siwa_signature: "sig",
         issued_at: now
       })
@@ -96,8 +97,29 @@ defmodule Autolaunch.RevenueTest do
     assert subject.splitter_address == @splitter
     assert subject.wallet_stake_balance == "12"
     assert subject.claimable_usdc == "5"
+    assert subject.claimable_stake_token == "4"
+    assert subject.materialized_outstanding == "3"
+    assert subject.available_reward_inventory == "8"
+    assert subject.total_claimed_so_far == "6"
     assert subject.default_ingress_address == @ingress
     assert Enum.any?(subject.ingress_accounts, &(&1.address == @ingress and &1.is_default))
+  end
+
+  test "subject_obligation_metrics computes exact accrued totals from a provided staker list" do
+    assert {:ok, metrics} =
+             Revenue.subject_obligation_metrics(@subject_id, [
+               "0x1111111111111111111111111111111111111111",
+               "0x2222222222222222222222222222222222222222"
+             ])
+
+    assert metrics.subject_id == @subject_id
+    assert metrics.staker_count == 2
+    assert metrics.exact_total_accrued_obligations == "7"
+    assert metrics.materialized_outstanding == "3"
+    assert metrics.available_reward_inventory == "8"
+    assert metrics.total_claimed_so_far == "6"
+    assert metrics.accrued_but_unsynced == "4"
+    assert metrics.funding_gap == "0"
   end
 
   test "get_subject accepts uppercase subject ids", %{human: human} do
@@ -287,6 +309,10 @@ defmodule Autolaunch.RevenueTest do
         "0x5f78d5f4" -> {:ok, encode_uint(1 * Integer.pow(10, 6))}
         "0x60217267" -> {:ok, encode_uint(12 * Integer.pow(10, 18))}
         "0xb026ee79" -> {:ok, encode_uint(5 * Integer.pow(10, 6))}
+        "0x05e1fd68" -> {:ok, encode_uint(preview_claimable_stake_token(data))}
+        "0x05f15537" -> {:ok, encode_uint(3 * Integer.pow(10, 18))}
+        "0xcfb3d0aa" -> {:ok, encode_uint(8 * Integer.pow(10, 18))}
+        "0x66ffb8de" -> {:ok, encode_uint(6 * Integer.pow(10, 18))}
         "0x3e413bee" -> {:ok, encode_address(@usdc)}
         _ -> {:error, :unsupported_call}
       end
@@ -336,5 +362,13 @@ defmodule Autolaunch.RevenueTest do
     end
 
     defp encode_bool(true), do: "0x" <> String.pad_leading("1", 64, "0")
+
+    defp preview_claimable_stake_token(<<"0x05e1fd68", encoded::binary>>) do
+      case String.slice(encoded, -40, 40) |> String.downcase() do
+        "1111111111111111111111111111111111111111" -> 4 * Integer.pow(10, 18)
+        "2222222222222222222222222222222222222222" -> 3 * Integer.pow(10, 18)
+        _ -> 0
+      end
+    end
   end
 end

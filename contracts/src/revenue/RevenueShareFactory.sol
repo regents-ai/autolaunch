@@ -50,6 +50,7 @@ contract RevenueShareFactory is Owned {
         address splitterOwner,
         address treasurySafe,
         uint16 protocolSkimBps,
+        uint256 revenueShareSupplyDenominator,
         string calldata label,
         uint256 identityChainId,
         address identityRegistry,
@@ -63,6 +64,7 @@ contract RevenueShareFactory is Owned {
         require(splitterOfSubject[subjectId] == address(0), "SPLITTER_EXISTS_FOR_SUBJECT");
         require(splitterOwner != address(0), "SPLITTER_OWNER_ZERO");
         require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
+        require(revenueShareSupplyDenominator != 0, "SUPPLY_DENOMINATOR_ZERO");
         bool hasIdentityLink =
             identityChainId != 0 || identityRegistry != address(0) || identityAgentId != 0;
         if (hasIdentityLink) {
@@ -77,6 +79,7 @@ contract RevenueShareFactory is Owned {
             treasuryRecipient,
             protocolRecipient,
             protocolSkimBps,
+            revenueShareSupplyDenominator,
             label,
             address(this)
         );

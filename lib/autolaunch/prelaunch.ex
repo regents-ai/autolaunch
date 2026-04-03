@@ -202,6 +202,7 @@ defmodule Autolaunch.Prelaunch do
       "agent_id" => plan.agent_id,
       "token_name" => plan.token_name,
       "token_symbol" => plan.token_symbol,
+      "minimum_raise_usdc" => plan.minimum_raise_usdc,
       "recovery_safe_address" => plan.treasury_safe_address,
       "auction_proceeds_recipient" => plan.auction_proceeds_recipient,
       "ethereum_revenue_treasury" => plan.ethereum_revenue_treasury,
@@ -222,8 +223,8 @@ defmodule Autolaunch.Prelaunch do
           )
           |> maybe_block(blank?(image_url), "Add an image for the launch page.")
           |> maybe_block(
-            blank?(plan.backup_safe_address) and blank?(plan.fallback_operator_wallet),
-            "Set a backup safe or fallback operator wallet."
+            blank?(plan.backup_safe_address),
+            "Set a backup safe address."
           )
 
         warnings =
@@ -258,10 +259,9 @@ defmodule Autolaunch.Prelaunch do
                "current_web_endpoint" => Map.get(plan.identity_snapshot || %{}, "web_endpoint"),
                "current_agent_uri" => Map.get(plan.identity_snapshot || %{}, "agent_uri")
              },
-             "trust_follow_up" =>
-               Map.get(preview, :reputation_prompt) || Map.get(preview, "reputation_prompt"),
-             "next_steps" => Map.get(preview, :next_steps) || [],
-             "permanence_notes" => Map.get(preview, :permanence_notes) || []
+             "trust_follow_up" => preview.reputation_prompt,
+             "next_steps" => preview.next_steps || [],
+             "permanence_notes" => preview.permanence_notes || []
            }
          }}
 
@@ -288,6 +288,7 @@ defmodule Autolaunch.Prelaunch do
       "agent_id" => plan.agent_id,
       "token_name" => plan.token_name,
       "token_symbol" => plan.token_symbol,
+      "minimum_raise_usdc" => plan.minimum_raise_usdc,
       "recovery_safe_address" => plan.treasury_safe_address,
       "auction_proceeds_recipient" => plan.auction_proceeds_recipient,
       "ethereum_revenue_treasury" => plan.ethereum_revenue_treasury,
@@ -301,25 +302,28 @@ defmodule Autolaunch.Prelaunch do
   end
 
   defp normalize_plan_attrs(attrs, agent, require_all? \\ true) do
+    minimum_raise =
+      normalize_usdc_amount(Map.get(attrs, "minimum_raise_usdc"))
+
     fields = %{
       "agent_name" => agent.name,
       "token_name" => trim(Map.get(attrs, "token_name")),
       "token_symbol" => trim(Map.get(attrs, "token_symbol")),
+      "minimum_raise_usdc" => minimum_raise && minimum_raise.display,
+      "minimum_raise_usdc_raw" => minimum_raise && minimum_raise.raw,
       "treasury_safe_address" => normalize_address(Map.get(attrs, "treasury_safe_address")),
       "auction_proceeds_recipient" =>
         normalize_address(Map.get(attrs, "auction_proceeds_recipient")),
       "ethereum_revenue_treasury" =>
         normalize_address(Map.get(attrs, "ethereum_revenue_treasury")),
       "backup_safe_address" => normalize_optional_address(Map.get(attrs, "backup_safe_address")),
-      "fallback_operator_wallet" =>
-        normalize_optional_address(Map.get(attrs, "fallback_operator_wallet")),
       "launch_notes" => trim(Map.get(attrs, "launch_notes")),
       "metadata_draft" => metadata_draft(Map.get(attrs, "metadata_draft"))
     }
 
     if require_all? and
          Enum.any?(
-           ~w(token_name token_symbol treasury_safe_address auction_proceeds_recipient ethereum_revenue_treasury),
+           ~w(token_name token_symbol minimum_raise_usdc treasury_safe_address auction_proceeds_recipient ethereum_revenue_treasury),
            &blank?(fields[&1])
          ) do
       {:error, :invalid_plan}
@@ -330,13 +334,12 @@ defmodule Autolaunch.Prelaunch do
 
   defp metadata_draft(value) when is_map(value) do
     %{
-      "title" => trim(Map.get(value, "title") || Map.get(value, :title)),
-      "subtitle" => trim(Map.get(value, "subtitle") || Map.get(value, :subtitle)),
-      "description" => trim(Map.get(value, "description") || Map.get(value, :description)),
-      "website_url" => trim(Map.get(value, "website_url") || Map.get(value, :website_url)),
-      "image_asset_id" =>
-        trim(Map.get(value, "image_asset_id") || Map.get(value, :image_asset_id)),
-      "image_url" => trim(Map.get(value, "image_url") || Map.get(value, :image_url))
+      "title" => trim(Map.get(value, "title")),
+      "subtitle" => trim(Map.get(value, "subtitle")),
+      "description" => trim(Map.get(value, "description")),
+      "website_url" => trim(Map.get(value, "website_url")),
+      "image_asset_id" => trim(Map.get(value, "image_asset_id")),
+      "image_url" => trim(Map.get(value, "image_url"))
     }
     |> Enum.reject(fn {_key, val} -> is_nil(val) end)
     |> Map.new()
@@ -420,11 +423,12 @@ defmodule Autolaunch.Prelaunch do
       chain_id: plan.chain_id,
       token_name: plan.token_name,
       token_symbol: plan.token_symbol,
+      minimum_raise_usdc: plan.minimum_raise_usdc,
+      minimum_raise_usdc_raw: plan.minimum_raise_usdc_raw,
       treasury_safe_address: plan.treasury_safe_address,
       auction_proceeds_recipient: plan.auction_proceeds_recipient,
       ethereum_revenue_treasury: plan.ethereum_revenue_treasury,
       backup_safe_address: plan.backup_safe_address,
-      fallback_operator_wallet: plan.fallback_operator_wallet,
       launch_notes: plan.launch_notes,
       identity_snapshot: plan.identity_snapshot || %{},
       metadata_draft: plan.metadata_draft || %{},
@@ -504,6 +508,43 @@ defmodule Autolaunch.Prelaunch do
 
   defp maybe_warn(list, true, message), do: list ++ [message]
   defp maybe_warn(list, _condition, _message), do: list
+
+  defp normalize_usdc_amount(nil), do: nil
+
+  defp normalize_usdc_amount(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> case do
+      "" ->
+        nil
+
+      trimmed ->
+        case Decimal.parse(trimmed) do
+          {%Decimal{} = decimal, ""} ->
+            scaled = Decimal.mult(decimal, Decimal.new("1000000"))
+
+            cond do
+              Decimal.compare(decimal, Decimal.new(0)) != :gt ->
+                nil
+
+              Decimal.equal?(scaled, Decimal.round(scaled, 0)) ->
+                %{
+                  display: decimal |> Decimal.normalize() |> Decimal.to_string(:normal),
+                  raw: scaled |> Decimal.round(0) |> Decimal.to_integer() |> Integer.to_string()
+                }
+
+              true ->
+                nil
+            end
+
+          _ ->
+            nil
+        end
+    end
+  end
+
+  defp normalize_usdc_amount(value) when is_number(value),
+    do: normalize_usdc_amount(to_string(value))
 
   defp trim(value) when is_binary(value) do
     case String.trim(value) do

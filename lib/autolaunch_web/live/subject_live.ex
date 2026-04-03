@@ -1,13 +1,14 @@
 defmodule AutolaunchWeb.SubjectLive do
   use AutolaunchWeb, :live_view
 
+  alias AutolaunchWeb.Live.Refreshable
+
   @poll_ms 15_000
 
   def mount(%{"id" => subject_id}, _session, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-
     {:ok,
      socket
+     |> Refreshable.schedule(@poll_ms)
      |> assign(:page_title, "Subject Revenue")
      |> assign(:active_view, "subjects")
      |> assign(:subject_id, subject_id)
@@ -25,41 +26,40 @@ defmodule AutolaunchWeb.SubjectLive do
     {:noreply, assign(socket, :unstake_form, Map.merge(socket.assigns.unstake_form, attrs))}
   end
 
-  def handle_event("prepare_stake", _params, socket) do
-    {:noreply, prepare_action(socket, :stake, socket.assigns.stake_form)}
-  end
-
-  def handle_event("prepare_unstake", _params, socket) do
-    {:noreply, prepare_action(socket, :unstake, socket.assigns.unstake_form)}
-  end
-
-  def handle_event("prepare_claim", _params, socket) do
-    {:noreply, prepare_action(socket, :claim, %{})}
-  end
-
-  def handle_event("prepare_sweep", %{"address" => ingress_address}, socket) do
+  def handle_event(
+        "prepare_action",
+        %{"action" => "sweep", "address" => ingress_address},
+        socket
+      ) do
     {:noreply, prepare_action(socket, {:sweep, ingress_address}, %{})}
   end
 
+  def handle_event("prepare_action", %{"action" => "stake"}, socket) do
+    {:noreply, prepare_action(socket, :stake, socket.assigns.stake_form)}
+  end
+
+  def handle_event("prepare_action", %{"action" => "unstake"}, socket) do
+    {:noreply, prepare_action(socket, :unstake, socket.assigns.unstake_form)}
+  end
+
+  def handle_event("prepare_action", %{"action" => action}, socket) do
+    {:noreply, prepare_action(socket, action_to_atom(action), %{})}
+  end
+
   def handle_event("wallet_tx_started", %{"message" => message}, socket) do
-    {:noreply, put_flash(socket, :info, message)}
+    {:noreply, Refreshable.wallet_started(socket, message)}
   end
 
   def handle_event("wallet_tx_registered", %{"message" => message}, socket) do
-    {:noreply,
-     socket
-     |> assign(:pending_actions, %{})
-     |> assign_subject(socket.assigns.subject_id)
-     |> put_flash(:info, message)}
+    {:noreply, Refreshable.wallet_registered(socket, message, &reload_subject/1)}
   end
 
   def handle_event("wallet_tx_error", %{"message" => message}, socket) do
-    {:noreply, put_flash(socket, :error, message)}
+    {:noreply, Refreshable.wallet_error(socket, message)}
   end
 
   def handle_info(:refresh, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-    {:noreply, assign_subject(socket, socket.assigns.subject_id)}
+    {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_subject/1)}
   end
 
   def render(assigns) do
@@ -72,18 +72,35 @@ defmodule AutolaunchWeb.SubjectLive do
           <p class="al-kicker">Subject revenue</p>
           <h2>Stake, claim, and manage Sepolia revenue from one subject view.</h2>
           <p class="al-subcopy">
-            This page tracks the revenue-share splitter, default ingress, and wallet-specific claim
-            state for a launched agent token. Recognized revenue still means Sepolia USDC that has
-            already reached the splitter. For launch lifecycle work like monitor, finalize, and vesting,
-            the CLI is now the primary operator path.
+            This page tracks the subject splitter, the connected Privy wallet, and the exact token
+            amounts that wallet can still move, claim, or restake. Recognized revenue still means
+            Sepolia USDC that has already reached the splitter. For launch lifecycle work like
+            monitor, finalize, and vesting, the CLI is now the primary operator path.
           </p>
         </div>
 
         <div class="al-stat-grid">
           <.stat_card title="Subject" value={short_hash(@subject_id)} hint="Onchain subject id" />
-          <.stat_card title="Wallet stake" value={@subject && (@subject.wallet_stake_balance || "0")} hint="Currently staked from this wallet" />
-          <.stat_card title="Claimable USDC" value={@subject && (@subject.claimable_usdc || "0")} hint="Ready to claim now" />
-          <.stat_card title="Total staked" value={@subject && @subject.total_staked} hint="Across all stakers" />
+          <.stat_card
+            title="Your staked tokens"
+                value={subject_value(@subject, :wallet_stake_balance)}
+            hint="Currently staked from this wallet"
+          />
+          <.stat_card
+            title="Wallet token balance"
+                value={subject_value(@subject, :wallet_token_balance)}
+            hint="Still available to stake"
+          />
+          <.stat_card
+            title="Claimable USDC"
+                value={subject_value(@subject, :claimable_usdc)}
+            hint="Ready to withdraw now"
+          />
+          <.stat_card
+            title="Claimable emissions"
+                value={subject_value(@subject, :claimable_stake_token)}
+            hint="Reward tokens ready to claim or restake"
+          />
         </div>
       </section>
 
@@ -124,9 +141,13 @@ defmodule AutolaunchWeb.SubjectLive do
                 <p>Protocol skim retained inside the splitter.</p>
               </div>
               <div class="al-review-card">
-                <span>Wallet token balance</span>
-                <strong>{@subject.wallet_token_balance || "0"}</strong>
-                <p>Unstaked tokens available to move into the splitter.</p>
+                <span>Wallet position</span>
+                <strong>Wallet position</strong>
+                <p>Your staked balance, unstaked balance, and claimable USDC all live here.</p>
+                <p>Staked: {subject_value(@subject, :wallet_stake_balance)}</p>
+                <p>Wallet: {subject_value(@subject, :wallet_token_balance)}</p>
+                <p>USDC: {subject_value(@subject, :claimable_usdc)}</p>
+                <p>Emissions: {subject_value(@subject, :claimable_stake_token)}</p>
               </div>
             </div>
 
@@ -140,16 +161,26 @@ defmodule AutolaunchWeb.SubjectLive do
               <article class="al-note-card">
                 <p class="al-kicker">Stake</p>
                 <strong>Move claimed tokens into the splitter.</strong>
+                <p>Wallet balance: {subject_value(@subject, :wallet_token_balance)}.</p>
                 <p>Use the exact token amount you want this wallet to stake.</p>
                 <form phx-change="stake_changed" class="al-inline-form">
-                  <input type="text" name="stake[amount]" value={@stake_form["amount"]} placeholder="0.0" />
+                  <label class="al-kicker" for="subject-stake-amount">Amount</label>
+                  <input
+                    id="subject-stake-amount"
+                    type="text"
+                    inputmode="decimal"
+                    name="stake[amount]"
+                    value={@stake_form["amount"]}
+                    placeholder="0.0"
+                  />
                 </form>
                 <div class="al-action-row">
                   <button
                     :if={!@pending_actions[:stake]}
                     type="button"
                     class="al-submit"
-                    phx-click="prepare_stake"
+                    phx-click="prepare_action"
+                    phx-value-action="stake"
                   >
                     Prepare stake
                   </button>
@@ -171,16 +202,26 @@ defmodule AutolaunchWeb.SubjectLive do
               <article class="al-note-card">
                 <p class="al-kicker">Unstake</p>
                 <strong>Withdraw staked balance back to the same wallet.</strong>
+                <p>Currently staked: {subject_value(@subject, :wallet_stake_balance)}.</p>
                 <p>The amount is denominated in the launch token, not USDC.</p>
                 <form phx-change="unstake_changed" class="al-inline-form">
-                  <input type="text" name="unstake[amount]" value={@unstake_form["amount"]} placeholder="0.0" />
+                  <label class="al-kicker" for="subject-unstake-amount">Amount</label>
+                  <input
+                    id="subject-unstake-amount"
+                    type="text"
+                    inputmode="decimal"
+                    name="unstake[amount]"
+                    value={@unstake_form["amount"]}
+                    placeholder="0.0"
+                  />
                 </form>
                 <div class="al-action-row">
                   <button
                     :if={!@pending_actions[:unstake]}
                     type="button"
                     class="al-ghost"
-                    phx-click="prepare_unstake"
+                    phx-click="prepare_action"
+                    phx-value-action="unstake"
                   >
                     Prepare unstake
                   </button>
@@ -202,13 +243,15 @@ defmodule AutolaunchWeb.SubjectLive do
               <article class="al-note-card">
                 <p class="al-kicker">Claim</p>
                 <strong>Withdraw recognized USDC to the connected wallet.</strong>
+                <p>Claimable now: {subject_value(@subject, :claimable_usdc)}.</p>
                 <p>Claimable balance refreshes from onchain state after each confirmed transaction.</p>
                 <div class="al-action-row">
                   <button
                     :if={!@pending_actions[:claim]}
                     type="button"
                     class="al-submit"
-                    phx-click="prepare_claim"
+                    phx-click="prepare_action"
+                    phx-value-action="claim"
                   >
                     Prepare USDC claim
                   </button>
@@ -223,6 +266,57 @@ defmodule AutolaunchWeb.SubjectLive do
                     success_message="USDC claim registered."
                   >
                     Send claim transaction
+                  </.wallet_tx_button>
+                </div>
+              </article>
+
+              <article class="al-note-card">
+                <p class="al-kicker">Emissions</p>
+                <strong>Claim reward tokens or claim and restake them in one move.</strong>
+                <p>Claimable emissions: {subject_value(@subject, :claimable_stake_token)}.</p>
+                <div class="al-action-row">
+                  <button
+                    :if={!@pending_actions[:claim_emissions]}
+                    type="button"
+                    class="al-ghost"
+                    phx-click="prepare_action"
+                    phx-value-action="claim_emissions"
+                  >
+                    Prepare emissions claim
+                  </button>
+                  <.wallet_tx_button
+                    :if={@pending_actions[:claim_emissions]}
+                    id="subject-claim-emissions"
+                    class="al-ghost"
+                    tx_request={@pending_actions[:claim_emissions].tx_request}
+                    register_endpoint={~p"/api/subjects/#{@subject_id}/claim-emissions"}
+                    register_body={%{}}
+                    pending_message="Emission claim sent. Waiting for confirmation."
+                    success_message="Emission claim registered."
+                  >
+                    Send emissions claim
+                  </.wallet_tx_button>
+
+                  <button
+                    :if={!@pending_actions[:claim_and_stake_emissions]}
+                    type="button"
+                    class="al-submit"
+                    phx-click="prepare_action"
+                    phx-value-action="claim_and_stake_emissions"
+                  >
+                    Prepare claim and stake
+                  </button>
+                  <.wallet_tx_button
+                    :if={@pending_actions[:claim_and_stake_emissions]}
+                    id="subject-claim-and-stake-emissions"
+                    class="al-submit"
+                    tx_request={@pending_actions[:claim_and_stake_emissions].tx_request}
+                    register_endpoint={~p"/api/subjects/#{@subject_id}/claim-and-stake-emissions"}
+                    register_body={%{}}
+                    pending_message="Claim and stake sent. Waiting for confirmation."
+                    success_message="Emission claim and stake registered."
+                  >
+                    Send claim and stake
                   </.wallet_tx_button>
                 </div>
               </article>
@@ -253,7 +347,8 @@ defmodule AutolaunchWeb.SubjectLive do
                       :if={@subject.can_manage_ingress and !@pending_actions[{:sweep, ingress.address}]}
                       type="button"
                       class="al-ghost"
-                      phx-click="prepare_sweep"
+                      phx-click="prepare_action"
+                      phx-value-action="sweep"
                       phx-value-address={ingress.address}
                     >
                       Prepare sweep
@@ -295,6 +390,12 @@ defmodule AutolaunchWeb.SubjectLive do
     end
   end
 
+  defp reload_subject(socket) do
+    socket
+    |> assign(:pending_actions, %{})
+    |> assign_subject(socket.assigns.subject_id)
+  end
+
   defp prepare_action(socket, action, attrs) do
     subject_id = socket.assigns.subject_id
     current_human = socket.assigns.current_human
@@ -309,6 +410,12 @@ defmodule AutolaunchWeb.SubjectLive do
 
         :claim ->
           context_module().claim_usdc(subject_id, attrs, current_human)
+
+        :claim_emissions ->
+          context_module().claim_emissions(subject_id, attrs, current_human)
+
+        :claim_and_stake_emissions ->
+          context_module().claim_and_stake_emissions(subject_id, attrs, current_human)
 
         {:sweep, ingress_address} ->
           context_module().sweep_ingress(subject_id, ingress_address, attrs, current_human)
@@ -358,4 +465,14 @@ defmodule AutolaunchWeb.SubjectLive do
     |> Application.get_env(:revenue_live, [])
     |> Keyword.get(:context_module, Autolaunch.Revenue)
   end
+
+  defp subject_value(nil, _key), do: "0"
+  defp subject_value(subject, key) when is_map(subject), do: Map.get(subject, key, "0")
+
+  defp action_to_atom("stake"), do: :stake
+  defp action_to_atom("unstake"), do: :unstake
+  defp action_to_atom("claim"), do: :claim
+  defp action_to_atom("claim_emissions"), do: :claim_emissions
+  defp action_to_atom("claim_and_stake_emissions"), do: :claim_and_stake_emissions
+  defp action_to_atom(_), do: :claim
 end

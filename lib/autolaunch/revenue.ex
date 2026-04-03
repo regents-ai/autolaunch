@@ -73,6 +73,35 @@ defmodule Autolaunch.Revenue do
             Abi.encode_address_call(:preview_claimable_usdc, owner_address)
           )
 
+      claimable_stake_token_raw =
+        owner_address &&
+          call_uint(
+            job.chain_id,
+            job.revenue_share_splitter_address,
+            Abi.encode_address_call(:preview_claimable_stake_token, owner_address)
+          )
+
+      materialized_outstanding_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_no_args(:unclaimed_stake_token_liability)
+        )
+
+      available_reward_inventory_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_no_args(:available_stake_token_reward_inventory)
+        )
+
+      total_claimed_so_far_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_no_args(:total_claimed_stake_token)
+        )
+
       {:ok,
        %{
          subject_id: normalized_subject_id,
@@ -102,6 +131,16 @@ defmodule Autolaunch.Revenue do
            owner_address && format_units(wallet_token_balance_raw, @token_decimals),
          claimable_usdc_raw: claimable_usdc_raw,
          claimable_usdc: owner_address && format_units(claimable_usdc_raw, @usdc_decimals),
+         claimable_stake_token_raw: claimable_stake_token_raw,
+         claimable_stake_token:
+           owner_address && format_units(claimable_stake_token_raw, @token_decimals),
+         materialized_outstanding_raw: materialized_outstanding_raw,
+         materialized_outstanding: format_units(materialized_outstanding_raw, @token_decimals),
+         available_reward_inventory_raw: available_reward_inventory_raw,
+         available_reward_inventory:
+           format_units(available_reward_inventory_raw, @token_decimals),
+         total_claimed_so_far_raw: total_claimed_so_far_raw,
+         total_claimed_so_far: format_units(total_claimed_so_far_raw, @token_decimals),
          can_manage_ingress: can_manage || false
        }}
     else
@@ -116,6 +155,163 @@ defmodule Autolaunch.Revenue do
     with {:ok, subject} <- get_subject(subject_id, current_human) do
       {:ok, %{subject: subject}}
     end
+  end
+
+  def subject_wallet_position(subject_id, wallet_address) do
+    with {:ok, normalized_subject_id} <- normalize_subject_id(subject_id),
+         %Job{} = job <- load_subject_job(normalized_subject_id),
+         {:ok, normalized_wallet} <- normalize_required_address(wallet_address) do
+      wallet_stake_balance_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_address_call(:staked_balance, normalized_wallet)
+        )
+
+      claimable_usdc_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_address_call(:preview_claimable_usdc, normalized_wallet)
+        )
+
+      claimable_stake_token_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_address_call(:preview_claimable_stake_token, normalized_wallet)
+        )
+
+      {:ok,
+       %{
+         wallet_address: normalized_wallet,
+         wallet_stake_balance_raw: wallet_stake_balance_raw,
+         wallet_stake_balance: format_units(wallet_stake_balance_raw, @token_decimals),
+         claimable_usdc_raw: claimable_usdc_raw,
+         claimable_usdc: format_units(claimable_usdc_raw, @usdc_decimals),
+         claimable_stake_token_raw: claimable_stake_token_raw,
+         claimable_stake_token: format_units(claimable_stake_token_raw, @token_decimals)
+       }}
+    else
+      nil -> {:error, :not_found}
+      {:error, _} = error -> error
+    end
+  rescue
+    _ -> {:error, :subject_lookup_failed}
+  end
+
+  def subject_wallet_positions(subject_id, wallet_addresses) do
+    with {:ok, addresses} <- normalize_address_list(wallet_addresses) do
+      positions =
+        addresses
+        |> Enum.map(&subject_wallet_position(subject_id, &1))
+        |> Enum.filter(&match?({:ok, _}, &1))
+        |> Enum.map(fn {:ok, position} -> position end)
+
+      wallet_stake_balance_raw = Enum.reduce(positions, 0, &(&1.wallet_stake_balance_raw + &2))
+      claimable_usdc_raw = Enum.reduce(positions, 0, &(&1.claimable_usdc_raw + &2))
+
+      claimable_stake_token_raw =
+        Enum.reduce(positions, 0, &(&1.claimable_stake_token_raw + &2))
+
+      {:ok,
+       %{
+         wallet_addresses: addresses,
+         wallet_count: length(addresses),
+         wallet_stake_balance_raw: wallet_stake_balance_raw,
+         wallet_stake_balance: format_units(wallet_stake_balance_raw, @token_decimals),
+         claimable_usdc_raw: claimable_usdc_raw,
+         claimable_usdc: format_units(claimable_usdc_raw, @usdc_decimals),
+         claimable_stake_token_raw: claimable_stake_token_raw,
+         claimable_stake_token: format_units(claimable_stake_token_raw, @token_decimals)
+       }}
+    end
+  end
+
+  def subject_obligation_metrics(subject_id, staker_addresses) do
+    with {:ok, normalized_subject_id} <- normalize_subject_id(subject_id),
+         %Job{} = job <- load_subject_job(normalized_subject_id),
+         {:ok, addresses} <- normalize_address_list(staker_addresses) do
+      exact_total_accrued_obligations_raw =
+        Enum.reduce(addresses, 0, fn address, acc ->
+          acc +
+            call_uint(
+              job.chain_id,
+              job.revenue_share_splitter_address,
+              Abi.encode_address_call(:preview_claimable_stake_token, address)
+            )
+        end)
+
+      materialized_outstanding_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_no_args(:unclaimed_stake_token_liability)
+        )
+
+      available_reward_inventory_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_no_args(:available_stake_token_reward_inventory)
+        )
+
+      total_claimed_so_far_raw =
+        call_uint(
+          job.chain_id,
+          job.revenue_share_splitter_address,
+          Abi.encode_no_args(:total_claimed_stake_token)
+        )
+
+      {:ok,
+       %{
+         subject_id: normalized_subject_id,
+         chain_id: job.chain_id,
+         splitter_address: job.revenue_share_splitter_address,
+         staker_count: length(addresses),
+         exact_total_accrued_obligations_raw: exact_total_accrued_obligations_raw,
+         exact_total_accrued_obligations:
+           format_units(exact_total_accrued_obligations_raw, @token_decimals),
+         materialized_outstanding_raw: materialized_outstanding_raw,
+         materialized_outstanding: format_units(materialized_outstanding_raw, @token_decimals),
+         available_reward_inventory_raw: available_reward_inventory_raw,
+         available_reward_inventory:
+           format_units(available_reward_inventory_raw, @token_decimals),
+         total_claimed_so_far_raw: total_claimed_so_far_raw,
+         total_claimed_so_far: format_units(total_claimed_so_far_raw, @token_decimals),
+         accrued_but_unsynced_raw:
+           positive_difference(
+             exact_total_accrued_obligations_raw,
+             materialized_outstanding_raw
+           ),
+         accrued_but_unsynced:
+           format_units(
+             positive_difference(
+               exact_total_accrued_obligations_raw,
+               materialized_outstanding_raw
+             ),
+             @token_decimals
+           ),
+         funding_gap_raw:
+           positive_difference(
+             exact_total_accrued_obligations_raw,
+             available_reward_inventory_raw
+           ),
+         funding_gap:
+           format_units(
+             positive_difference(
+               exact_total_accrued_obligations_raw,
+               available_reward_inventory_raw
+             ),
+             @token_decimals
+           )
+       }}
+    else
+      nil -> {:error, :not_found}
+      {:error, _} = error -> error
+    end
+  rescue
+    _ -> {:error, :subject_lookup_failed}
   end
 
   def get_ingress(subject_id, current_human \\ nil) do
@@ -141,6 +337,12 @@ defmodule Autolaunch.Revenue do
 
   def claim_usdc(subject_id, attrs, current_human),
     do: write_action(:claim_usdc, subject_id, attrs, current_human)
+
+  def claim_emissions(subject_id, attrs, current_human),
+    do: write_action(:claim_emissions, subject_id, attrs, current_human)
+
+  def claim_and_stake_emissions(subject_id, attrs, current_human),
+    do: write_action(:claim_and_stake_emissions, subject_id, attrs, current_human)
 
   def sweep_ingress(subject_id, ingress_address, attrs, current_human) do
     with {:ok, subject} <- get_subject(subject_id, current_human),
@@ -203,9 +405,9 @@ defmodule Autolaunch.Revenue do
     end
   end
 
-  defp build_write_request(:stake, subject, wallet_address, attrs) do
-    with {:ok, amount_wei} <-
-           parse_token_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount)) do
+  defp build_write_request(action, subject, wallet_address, attrs)
+       when action in [:stake, :unstake] do
+    with {:ok, amount_wei} <- required_amount_wei(attrs) do
       {:ok,
        %{
          subject: subject,
@@ -214,30 +416,14 @@ defmodule Autolaunch.Revenue do
              chain_id: @sepolia_chain_id,
              to: subject.splitter_address,
              value_hex: "0x0",
-             data: Abi.encode_stake(amount_wei, wallet_address)
+             data: amount_action_call(action, amount_wei, wallet_address)
            })
        }}
     end
   end
 
-  defp build_write_request(:unstake, subject, wallet_address, attrs) do
-    with {:ok, amount_wei} <-
-           parse_token_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount)) do
-      {:ok,
-       %{
-         subject: subject,
-         tx_request:
-           serialize_tx_request(%{
-             chain_id: @sepolia_chain_id,
-             to: subject.splitter_address,
-             value_hex: "0x0",
-             data: Abi.encode_unstake(amount_wei, wallet_address)
-           })
-       }}
-    end
-  end
-
-  defp build_write_request(:claim_usdc, subject, wallet_address, _attrs) do
+  defp build_write_request(action, subject, wallet_address, _attrs)
+       when action in [:claim_usdc, :claim_emissions] do
     {:ok,
      %{
        subject: subject,
@@ -246,7 +432,21 @@ defmodule Autolaunch.Revenue do
            chain_id: @sepolia_chain_id,
            to: subject.splitter_address,
            value_hex: "0x0",
-           data: Abi.encode_claim_usdc(wallet_address)
+           data: single_recipient_action_call(action, wallet_address)
+         })
+     }}
+  end
+
+  defp build_write_request(:claim_and_stake_emissions, subject, _wallet_address, _attrs) do
+    {:ok,
+     %{
+       subject: subject,
+       tx_request:
+         serialize_tx_request(%{
+           chain_id: @sepolia_chain_id,
+           to: subject.splitter_address,
+           value_hex: "0x0",
+           data: Abi.encode_claim_and_restake_stake_token()
          })
      }}
   end
@@ -335,63 +535,28 @@ defmodule Autolaunch.Revenue do
     end
   end
 
-  defp registration_attrs(:stake, subject, wallet_address, attrs, tx_hash, _expected_to) do
-    with {:ok, amount_wei} <-
-           parse_token_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount)) do
-      {:ok,
-       %{
-         subject_id: subject.subject_id,
-         action: "stake",
-         owner_address: wallet_address,
-         chain_id: subject.chain_id,
-         tx_hash: tx_hash,
-         amount: Integer.to_string(amount_wei),
-         amount_wei: amount_wei,
-         status: "pending"
-       }}
+  defp registration_attrs(action, subject, wallet_address, attrs, tx_hash, expected_to) do
+    base_attrs = %{
+      subject_id: subject.subject_id,
+      action: action_name(action),
+      owner_address: wallet_address,
+      chain_id: subject.chain_id,
+      tx_hash: tx_hash,
+      status: "pending"
+    }
+
+    case action do
+      a when a in [:stake, :unstake] ->
+        with {:ok, amount_wei} <- required_amount_wei(attrs) do
+          {:ok, Map.put(base_attrs, :amount, Integer.to_string(amount_wei))}
+        end
+
+      :sweep_ingress ->
+        {:ok, Map.put(base_attrs, :ingress_address, expected_to)}
+
+      _ ->
+        {:ok, base_attrs}
     end
-  end
-
-  defp registration_attrs(:unstake, subject, wallet_address, attrs, tx_hash, _expected_to) do
-    with {:ok, amount_wei} <-
-           parse_token_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount)) do
-      {:ok,
-       %{
-         subject_id: subject.subject_id,
-         action: "unstake",
-         owner_address: wallet_address,
-         chain_id: subject.chain_id,
-         tx_hash: tx_hash,
-         amount: Integer.to_string(amount_wei),
-         amount_wei: amount_wei,
-         status: "pending"
-       }}
-    end
-  end
-
-  defp registration_attrs(:claim_usdc, subject, wallet_address, _attrs, tx_hash, _expected_to) do
-    {:ok,
-     %{
-       subject_id: subject.subject_id,
-       action: "claim_usdc",
-       owner_address: wallet_address,
-       chain_id: subject.chain_id,
-       tx_hash: tx_hash,
-       status: "pending"
-     }}
-  end
-
-  defp registration_attrs(:sweep_ingress, subject, wallet_address, _attrs, tx_hash, expected_to) do
-    {:ok,
-     %{
-       subject_id: subject.subject_id,
-       action: "sweep_ingress",
-       owner_address: wallet_address,
-       chain_id: subject.chain_id,
-       tx_hash: tx_hash,
-       ingress_address: expected_to,
-       status: "pending"
-     }}
   end
 
   defp ensure_registration(registration_attrs) do
@@ -468,7 +633,7 @@ defmodule Autolaunch.Revenue do
   end
 
   defp validate_registered_action(
-         :stake,
+         action,
          _subject,
          wallet_address,
          attrs,
@@ -476,17 +641,24 @@ defmodule Autolaunch.Revenue do
          expected_to,
          registration_attrs,
          _receipt_state
-       ) do
-    with {:ok, amount_wei} <-
-           parse_token_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount)),
+       )
+       when action in [:stake, :unstake] do
+    with {:ok, amount_wei} <- required_amount_wei(attrs),
          :ok <- validate_tx_sender(tx, wallet_address),
          :ok <- validate_tx_target(tx, expected_to) do
       case Abi.decode_call_data(tx.input) do
-        {:ok, %{action: :stake, amount_wei: decoded_amount, receiver: receiver}} ->
-          with :ok <- validate_equal(decoded_amount, amount_wei, :transaction_data_mismatch),
+        {:ok, %{action: ^action} = decoded} ->
+          decoded_address_key = if action == :stake, do: :receiver, else: :recipient
+
+          with :ok <-
+                 validate_equal(
+                   Map.get(decoded, :amount_wei),
+                   amount_wei,
+                   :transaction_data_mismatch
+                 ),
                :ok <-
                  validate_equal(
-                   normalize_address(receiver),
+                   normalize_address(Map.get(decoded, decoded_address_key)),
                    normalize_address(wallet_address),
                    :transaction_data_mismatch
                  ),
@@ -506,36 +678,27 @@ defmodule Autolaunch.Revenue do
   end
 
   defp validate_registered_action(
-         :unstake,
+         action,
          _subject,
          wallet_address,
-         attrs,
+         _attrs,
          tx,
          expected_to,
-         registration_attrs,
+         _registration_attrs,
          _receipt_state
-       ) do
-    with {:ok, amount_wei} <-
-           parse_token_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount)),
-         :ok <- validate_tx_sender(tx, wallet_address),
+       )
+       when action in [:claim_usdc, :claim_emissions] do
+    expected_decoded_action = if action == :claim_usdc, do: :claim_usdc, else: :claim_stake_token
+
+    with :ok <- validate_tx_sender(tx, wallet_address),
          :ok <- validate_tx_target(tx, expected_to) do
       case Abi.decode_call_data(tx.input) do
-        {:ok, %{action: :unstake, amount_wei: decoded_amount, recipient: recipient}} ->
-          with :ok <- validate_equal(decoded_amount, amount_wei, :transaction_data_mismatch),
-               :ok <-
-                 validate_equal(
-                   normalize_address(recipient),
-                   normalize_address(wallet_address),
-                   :transaction_data_mismatch
-                 ),
-               :ok <-
-                 validate_equal(
-                   Map.get(registration_attrs, :amount),
-                   Integer.to_string(amount_wei),
-                   :transaction_data_mismatch
-                 ) do
-            :ok
-          end
+        {:ok, %{action: ^expected_decoded_action, recipient: recipient}} ->
+          validate_equal(
+            normalize_address(recipient),
+            normalize_address(wallet_address),
+            :transaction_data_mismatch
+          )
 
         _ ->
           {:error, :transaction_data_mismatch}
@@ -544,7 +707,7 @@ defmodule Autolaunch.Revenue do
   end
 
   defp validate_registered_action(
-         :claim_usdc,
+         :claim_and_stake_emissions,
          _subject,
          wallet_address,
          _attrs,
@@ -556,15 +719,8 @@ defmodule Autolaunch.Revenue do
     with :ok <- validate_tx_sender(tx, wallet_address),
          :ok <- validate_tx_target(tx, expected_to) do
       case Abi.decode_call_data(tx.input) do
-        {:ok, %{action: :claim_usdc, recipient: recipient}} ->
-          validate_equal(
-            normalize_address(recipient),
-            normalize_address(wallet_address),
-            :transaction_data_mismatch
-          )
-
-        _ ->
-          {:error, :transaction_data_mismatch}
+        {:ok, %{action: :claim_and_restake_stake_token}} -> :ok
+        _ -> {:error, :transaction_data_mismatch}
       end
     end
   end
@@ -659,6 +815,29 @@ defmodule Autolaunch.Revenue do
   defp validate_equal(left, right, error_code) do
     if left == right, do: :ok, else: {:error, error_code}
   end
+
+  defp required_amount_wei(attrs) do
+    parse_token_amount(Map.get(attrs, "amount"))
+  end
+
+  defp amount_action_call(:stake, amount_wei, wallet_address),
+    do: Abi.encode_stake(amount_wei, wallet_address)
+
+  defp amount_action_call(:unstake, amount_wei, wallet_address),
+    do: Abi.encode_unstake(amount_wei, wallet_address)
+
+  defp single_recipient_action_call(:claim_usdc, wallet_address),
+    do: Abi.encode_claim_usdc(wallet_address)
+
+  defp single_recipient_action_call(:claim_emissions, wallet_address),
+    do: Abi.encode_claim_stake_token(wallet_address)
+
+  defp action_name(:stake), do: "stake"
+  defp action_name(:unstake), do: "unstake"
+  defp action_name(:claim_usdc), do: "claim_usdc"
+  defp action_name(:claim_emissions), do: "claim_emissions"
+  defp action_name(:claim_and_stake_emissions), do: "claim_and_stake_emissions"
+  defp action_name(:sweep_ingress), do: "sweep_ingress"
 
   defp validate_receipt_state(_tx, chain_id, tx_hash) do
     case Rpc.tx_receipt(chain_id, tx_hash) do
@@ -858,6 +1037,37 @@ defmodule Autolaunch.Revenue do
 
   defp primary_wallet_address(_human), do: nil
 
+  defp normalize_address_list(values) when is_list(values) do
+    values
+    |> Enum.map(fn value ->
+      normalized = normalize_address(value)
+
+      if is_binary(normalized) and Regex.match?(~r/^0x[0-9a-f]{40}$/, normalized),
+        do: normalized,
+        else: nil
+    end)
+    |> Enum.reduce_while([], fn
+      nil, _acc -> {:halt, {:error, :invalid_address}}
+      address, acc -> {:cont, [address | acc]}
+    end)
+    |> case do
+      {:error, _} = error -> error
+      addresses -> {:ok, addresses |> Enum.reverse() |> Enum.uniq()}
+    end
+  end
+
+  defp normalize_address_list(_values), do: {:error, :invalid_address}
+
+  defp normalize_required_address(value) when is_binary(value) do
+    normalized = normalize_address(value)
+
+    if is_binary(normalized) and Regex.match?(~r/^0x[0-9a-f]{40}$/, normalized),
+      do: {:ok, normalized},
+      else: {:error, :invalid_address}
+  end
+
+  defp normalize_required_address(_value), do: {:error, :invalid_address}
+
   defp serialize_tx_request(%{chain_id: chain_id, to: to, value_hex: value_hex, data: data}) do
     %{chain_id: chain_id, to: to, value: value_hex, data: data}
   end
@@ -893,6 +1103,9 @@ defmodule Autolaunch.Revenue do
     |> Decimal.normalize()
     |> Decimal.to_string(:normal)
   end
+
+  defp positive_difference(left, right) when left > right, do: left - right
+  defp positive_difference(_left, _right), do: 0
 
   defp normalize_subject_id("0x" <> hex = subject_id) when byte_size(hex) == 64 do
     {:ok, String.downcase(subject_id)}

@@ -144,6 +144,24 @@ The launch split is fixed:
 
 The launch is Sepolia-only and auction bids are in Sepolia USDC.
 
+The current live movement of auction proceeds is:
+
+- half of auction USDC is used for the Uniswap v4 LP position
+- the 5% LP token reserve pairs with that LP-side USDC
+- the remaining half of auction USDC is swept to the agent Safe for business operations
+
+### Why the launch uses a Continuous Clearing Auction
+
+Autolaunch uses a CCA because the intended behavior is simple and operationally healthy:
+
+- buyers state a real total budget and a real max price
+- the order runs across the remaining blocks like a TWAP
+- each block clears at the highest price where demand exceeds supply
+- buyers only fill while the clearing price stays below their max price
+- late timing games matter less than they do in a one-shot sale
+
+The product goal is to help quality teams bootstrap liquidity with better price discovery and fewer launch-day advantages for specialized traders or bots.
+
 ### What the launch script returns
 
 The launch script prints one machine-readable line:

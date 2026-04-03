@@ -205,7 +205,7 @@ paths:
           description: Prelaunch plans
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+              schema: { $ref: "#/components/schemas/PrelaunchPlanListEnvelope" }
     post:
       operationId: createPrelaunchPlan
       tags: [prelaunch]
@@ -214,13 +214,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/PrelaunchPlanUpsertRequest" }
       responses:
         "201":
           description: Plan created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
   /api/prelaunch/plans/{id}:
     get:
       operationId: getPrelaunchPlan
@@ -233,7 +233,7 @@ paths:
           description: Plan detail
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
     patch:
       operationId: updatePrelaunchPlan
       tags: [prelaunch]
@@ -244,13 +244,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/PrelaunchPlanUpsertRequest" }
       responses:
         "200":
           description: Plan updated
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
   /api/prelaunch/plans/{id}/validate:
     post:
       operationId: validatePrelaunchPlan
@@ -263,7 +263,7 @@ paths:
           description: Validation result
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
   /api/prelaunch/plans/{id}/publish:
     post:
       operationId: publishPrelaunchPlan
@@ -276,7 +276,7 @@ paths:
           description: Publish result
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
   /api/prelaunch/plans/{id}/launch:
     post:
       operationId: launchPrelaunchPlan
@@ -287,13 +287,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/LaunchPlanRequest" }
       responses:
         "200":
           description: Launch started
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LaunchPlanEnvelope" }
   /api/prelaunch/assets:
     post:
       operationId: uploadPrelaunchAsset
@@ -303,13 +303,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/PrelaunchAssetUploadRequest" }
       responses:
         "200":
           description: Asset uploaded
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchAssetEnvelope" }
   /api/prelaunch/plans/{id}/metadata:
     post:
       operationId: savePrelaunchMetadata
@@ -321,13 +321,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/PrelaunchMetadataRequest" }
       responses:
         "200":
           description: Metadata saved
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
   /api/prelaunch/plans/{id}/metadata-preview:
     get:
       operationId: getPrelaunchMetadataPreview
@@ -340,7 +340,7 @@ paths:
           description: Metadata preview
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrelaunchMetadataPreviewEnvelope" }
 
   /api/launch/preview:
     post:
@@ -351,13 +351,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/LaunchPreviewRequest" }
       responses:
         "200":
           description: Launch preview
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LaunchPreviewEnvelope" }
   /api/launch/jobs:
     post:
       operationId: createLaunchJob
@@ -367,13 +367,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/LaunchCreateRequest" }
       responses:
         "201":
           description: Launch job created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
   /api/launch/jobs/{id}:
     get:
       operationId: getLaunchJob
@@ -386,7 +386,7 @@ paths:
           description: Launch job
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
 
   /api/lifecycle/jobs/{id}:
     get:
@@ -510,24 +510,43 @@ paths:
       operationId: listAuctions
       tags: [market]
       parameters:
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [biddable, live, all, failed_minimum]
         - name: sort
           in: query
-          schema: { type: string }
-        - name: status
-          in: query
-          schema: { type: string }
-        - name: chain
-          in: query
-          schema: { type: string }
-        - name: mine_only
-          in: query
-          schema: { type: boolean }
+          schema:
+            type: string
+            enum: [newest, oldest, market_cap_desc, market_cap_asc, failure_recent]
       responses:
         "200":
           description: Auctions
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionListEnvelope" }
+  /api/auction-returns:
+    get:
+      operationId: listAuctionReturns
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Failed auctions available for returns
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuctionReturnsEnvelope" }
   /api/auctions/{id}:
     get:
       operationId: getAuction
@@ -550,13 +569,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/AuctionBidQuoteRequest" }
       responses:
         "200":
           description: Bid quote
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/AuctionBidQuoteEnvelope" }
   /api/auctions/{id}/bids:
     post:
       operationId: createAuctionBid
@@ -567,24 +586,66 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/CreateAuctionBidRequest" }
       responses:
         "201":
           description: Bid created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
   /api/me/bids:
     get:
       operationId: listMyBids
       tags: [market]
       security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - name: auction
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, borderline, inactive, claimable, exited, claimed, returnable]
       responses:
         "200":
           description: Current user's bids
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+              schema: { $ref: "#/components/schemas/BidPositionListEnvelope" }
+  /api/me/holdings:
+    get:
+      operationId: getMyHoldings
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      responses:
+        "200":
+          description: Current user's actionable holdings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HoldingsEnvelope" }
+  /api/me/profile:
+    get:
+      operationId: getMyProfile
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      responses:
+        "200":
+          description: Current user's cached token profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
+  /api/me/profile/refresh:
+    post:
+      operationId: refreshMyProfile
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      responses:
+        "200":
+          description: Profile refresh started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
   /api/bids/{id}/exit:
     post:
       operationId: exitBid
@@ -595,13 +656,30 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/BidMutationRequest" }
       responses:
         "200":
           description: Exit prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+  /api/bids/{id}/return-usdc:
+    post:
+      operationId: returnBidUsdc
+      tags: [market]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidMutationRequest" }
+      responses:
+        "200":
+          description: Return prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
   /api/bids/{id}/claim:
     post:
       operationId: claimBid
@@ -612,13 +690,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/BidMutationRequest" }
       responses:
         "200":
           description: Claim prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
 
   /api/subjects/{id}:
     get:
@@ -632,7 +710,7 @@ paths:
           description: Subject detail
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/SubjectEnvelope" }
   /api/subjects/{id}/ingress:
     get:
       operationId: getSubjectIngress
@@ -645,7 +723,7 @@ paths:
           description: Subject ingress
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/SubjectIngressEnvelope" }
   /api/subjects/{id}/stake:
     post:
       operationId: stakeSubject
@@ -657,13 +735,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/AmountRequest" }
       responses:
         "200":
           description: Stake prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
   /api/subjects/{id}/unstake:
     post:
       operationId: unstakeSubject
@@ -675,13 +753,13 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/AmountRequest" }
       responses:
         "200":
           description: Unstake prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
   /api/subjects/{id}/claim-usdc:
     post:
       operationId: claimSubjectUsdc
@@ -692,13 +770,47 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
       responses:
         "200":
           description: Claim prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+  /api/subjects/{id}/claim-emissions:
+    post:
+      operationId: claimSubjectEmissions
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Emissions claim prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+  /api/subjects/{id}/claim-and-stake-emissions:
+    post:
+      operationId: claimAndStakeSubjectEmissions
+      tags: [subjects]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Emissions compound prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
   /api/subjects/{id}/ingress/{address}/sweep:
     post:
       operationId: sweepSubjectIngress
@@ -713,13 +825,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
       responses:
         "200":
           description: Sweep prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
 
   /api/ens/link/plan:
     post:
@@ -931,12 +1043,26 @@ components:
     Address:
       type: string
       pattern: "^0x[a-fA-F0-9]{40}$"
+    DecimalString:
+      type: string
     DateTime:
       type: string
       format: date-time
+    HexData:
+      type: string
+      pattern: "^0x[a-fA-F0-9]*$"
     LooseObject:
       type: object
       additionalProperties: true
+    EmptyRequest:
+      type: object
+      additionalProperties: false
+    AmountRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount: { $ref: "#/components/schemas/DecimalString" }
+      additionalProperties: false
     OkEnvelope:
       type: object
       required: [ok]
@@ -960,10 +1086,9 @@ components:
         action: { type: string }
         chain_id: { type: integer }
         target: { $ref: "#/components/schemas/Address" }
-        calldata: { type: string }
+        calldata: { $ref: "#/components/schemas/HexData" }
         tx_request:
-          type: object
-          additionalProperties: true
+          $ref: "#/components/schemas/TxRequest"
       additionalProperties: true
     PreparedActionEnvelope:
       type: object
@@ -971,6 +1096,275 @@ components:
         ok: { type: boolean }
         data:
           $ref: "#/components/schemas/PreparedAction"
+      additionalProperties: true
+    TxRequest:
+      type: object
+      required: [chain_id, to, value, data]
+      properties:
+        chain_id: { type: integer }
+        to: { $ref: "#/components/schemas/Address" }
+        value: { $ref: "#/components/schemas/HexData" }
+        data: { $ref: "#/components/schemas/HexData" }
+      additionalProperties: false
+    PrelaunchMetadataDraft:
+      type: object
+      properties:
+        title:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        subtitle:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        description:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        website_url:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        image_url:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        image_asset_id:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    PrelaunchPlan:
+      type: object
+      required:
+        - plan_id
+        - agent_id
+        - token_name
+        - token_symbol
+        - treasury_safe_address
+        - auction_proceeds_recipient
+        - ethereum_revenue_treasury
+        - minimum_raise_usdc
+        - minimum_raise_usdc_raw
+      properties:
+        plan_id: { type: string }
+        agent_id: { type: string }
+        token_name: { type: string }
+        token_symbol: { type: string }
+        treasury_safe_address: { $ref: "#/components/schemas/Address" }
+        auction_proceeds_recipient: { $ref: "#/components/schemas/Address" }
+        ethereum_revenue_treasury: { $ref: "#/components/schemas/Address" }
+        backup_safe_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        launch_notes:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        metadata_draft:
+          anyOf:
+            - { $ref: "#/components/schemas/PrelaunchMetadataDraft" }
+            - { type: "null" }
+        minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
+        minimum_raise_usdc_raw: { type: string }
+        status:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: true
+    PrelaunchPlanUpsertRequest:
+      type: object
+      required:
+        - agent_id
+        - token_name
+        - token_symbol
+        - treasury_safe_address
+        - auction_proceeds_recipient
+        - ethereum_revenue_treasury
+        - minimum_raise_usdc
+      properties:
+        agent_id: { type: string }
+        token_name: { type: string }
+        token_symbol: { type: string }
+        treasury_safe_address: { $ref: "#/components/schemas/Address" }
+        auction_proceeds_recipient: { $ref: "#/components/schemas/Address" }
+        ethereum_revenue_treasury: { $ref: "#/components/schemas/Address" }
+        backup_safe_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        launch_notes:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        metadata_draft:
+          anyOf:
+            - { $ref: "#/components/schemas/PrelaunchMetadataDraft" }
+            - { type: "null" }
+        minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
+      additionalProperties: false
+    PrelaunchPlanEnvelope:
+      type: object
+      required: [ok, plan]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        plan: { $ref: "#/components/schemas/PrelaunchPlan" }
+      additionalProperties: false
+    PrelaunchPlanListEnvelope:
+      type: object
+      required: [ok, items]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PrelaunchPlan" }
+      additionalProperties: false
+    PrelaunchValidation:
+      type: object
+      properties:
+        launchable: { type: boolean }
+      additionalProperties: true
+    PrelaunchPlanValidationEnvelope:
+      type: object
+      required: [ok, plan, validation]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        plan: { $ref: "#/components/schemas/PrelaunchPlan" }
+        validation: { $ref: "#/components/schemas/PrelaunchValidation" }
+      additionalProperties: false
+    LaunchPlanRequest:
+      type: object
+      required: [wallet_address, nonce, message, signature, issued_at]
+      properties:
+        wallet_address: { $ref: "#/components/schemas/Address" }
+        nonce: { type: string }
+        message: { type: string }
+        signature: { type: string }
+        issued_at: { $ref: "#/components/schemas/DateTime" }
+      additionalProperties: false
+    LaunchRef:
+      type: object
+      properties:
+        job_id: { type: string }
+      additionalProperties: true
+    LaunchPlanEnvelope:
+      type: object
+      required: [ok, plan, launch]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        plan: { $ref: "#/components/schemas/PrelaunchPlan" }
+        launch: { $ref: "#/components/schemas/LaunchRef" }
+      additionalProperties: false
+    PrelaunchAssetUploadRequest:
+      type: object
+      properties:
+        source_url:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        file_name:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        media_type:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        content_base64:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    PrelaunchAsset:
+      type: object
+      properties:
+        asset_id: { type: string }
+        public_url: { type: string }
+      additionalProperties: true
+    PrelaunchAssetEnvelope:
+      type: object
+      required: [ok, asset]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        asset: { $ref: "#/components/schemas/PrelaunchAsset" }
+      additionalProperties: false
+    PrelaunchMetadataRequest:
+      type: object
+      required: [metadata]
+      properties:
+        metadata: { $ref: "#/components/schemas/PrelaunchMetadataDraft" }
+      additionalProperties: false
+    PrelaunchMetadataPreviewEnvelope:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        html:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: true
+    LaunchPreviewRequest:
+      type: object
+      required:
+        - agent_id
+        - chain_id
+        - token_name
+        - token_symbol
+        - recovery_safe_address
+        - auction_proceeds_recipient
+        - ethereum_revenue_treasury
+        - total_supply
+        - minimum_raise_usdc
+      properties:
+        agent_id: { type: string }
+        chain_id: { type: integer }
+        token_name: { type: string }
+        token_symbol: { type: string }
+        recovery_safe_address: { $ref: "#/components/schemas/Address" }
+        auction_proceeds_recipient: { $ref: "#/components/schemas/Address" }
+        ethereum_revenue_treasury: { $ref: "#/components/schemas/Address" }
+        total_supply: { type: string }
+        launch_notes:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
+      additionalProperties: false
+    LaunchPreviewEnvelope:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+      additionalProperties: true
+    LaunchCreateRequest:
+      allOf:
+        - $ref: "#/components/schemas/LaunchPreviewRequest"
+        - type: object
+          required: [wallet_address, nonce, message, signature, issued_at]
+          properties:
+            wallet_address: { $ref: "#/components/schemas/Address" }
+            nonce: { type: string }
+            message: { type: string }
+            signature: { type: string }
+            issued_at: { $ref: "#/components/schemas/DateTime" }
+          additionalProperties: false
+    LaunchJob:
+      type: object
+      properties:
+        job_id: { type: string }
+        status:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: true
+    LaunchJobEnvelope:
+      type: object
+      required: [ok, job]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        job: { $ref: "#/components/schemas/LaunchJob" }
       additionalProperties: true
     AuctionTrustErc8004:
       type: object
@@ -1084,6 +1478,14 @@ components:
             - { type: "null" }
         chain_id: { type: integer }
         status: { type: string }
+        phase:
+          anyOf:
+            - { type: string, enum: [biddable, live] }
+            - { type: "null" }
+        auction_outcome:
+          anyOf:
+            - { type: string, enum: [active, graduated, failed_minimum, settled] }
+            - { type: "null" }
         started_at:
           anyOf:
             - { $ref: "#/components/schemas/DateTime" }
@@ -1100,6 +1502,54 @@ components:
         raised_currency:
           anyOf:
             - { type: string }
+            - { type: "null" }
+        currency_raised_raw:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        currency_raised:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        required_currency_raised_raw:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        required_currency_raised:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        minimum_raise_progress_percent:
+          anyOf:
+            - { type: integer, minimum: 0 }
+            - { type: "null" }
+        minimum_raise_met:
+          anyOf:
+            - { type: boolean }
+            - { type: "null" }
+        is_graduated:
+          anyOf:
+            - { type: boolean }
+            - { type: "null" }
+        projected_final_currency_raised_raw:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        projected_final_currency_raised:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        projection_basis:
+          anyOf:
+            - { type: string, enum: [simple_pace] }
+            - { type: "null" }
+        time_remaining_seconds:
+          anyOf:
+            - { type: integer, minimum: 0 }
+            - { type: "null" }
+        returns_enabled:
+          anyOf:
+            - { type: boolean }
             - { type: "null" }
         target_currency:
           anyOf:
@@ -1122,11 +1572,19 @@ components:
             - { type: string }
             - { type: "null" }
         current_clearing_price: { type: string }
-        total_bid_volume: { type: string }
-        sort_score:
+        current_price_usdc:
           anyOf:
-            - { type: number }
+            - { type: string }
             - { type: "null" }
+        implied_market_cap_usdc:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        price_source:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        total_bid_volume: { type: string }
         notes:
           anyOf:
             - { type: string }
@@ -1145,6 +1603,14 @@ components:
             - { type: object, additionalProperties: true }
             - { type: "null" }
         your_bid_status:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        detail_url:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        subject_url:
           anyOf:
             - { type: string }
             - { type: "null" }
@@ -1167,6 +1633,403 @@ components:
       properties:
         ok: { type: boolean, enum: [true] }
         auction: { $ref: "#/components/schemas/AuctionSummary" }
+      additionalProperties: false
+    AuctionReturnsEnvelope:
+      type: object
+      required: [ok, items]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AuctionSummary" }
+        next_cursor:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    AuctionBidQuoteRequest:
+      type: object
+      required: [amount, max_price]
+      properties:
+        amount: { $ref: "#/components/schemas/DecimalString" }
+        max_price: { $ref: "#/components/schemas/DecimalString" }
+      additionalProperties: false
+    AuctionBidQuote:
+      type: object
+      required:
+        - auction_id
+        - amount
+        - max_price
+        - current_clearing_price
+        - projected_clearing_price
+        - quote_mode
+        - would_be_active_now
+        - status_band
+        - estimated_tokens_if_end_now
+        - estimated_tokens_if_no_other_bids_change
+        - inactive_above_price
+        - time_remaining_seconds
+        - warnings
+      properties:
+        auction_id: { type: string }
+        amount: { $ref: "#/components/schemas/DecimalString" }
+        max_price: { $ref: "#/components/schemas/DecimalString" }
+        current_clearing_price: { $ref: "#/components/schemas/DecimalString" }
+        projected_clearing_price: { $ref: "#/components/schemas/DecimalString" }
+        quote_mode: { type: string }
+        would_be_active_now: { type: boolean }
+        status_band: { type: string }
+        estimated_tokens_if_end_now: { $ref: "#/components/schemas/DecimalString" }
+        estimated_tokens_if_no_other_bids_change: { $ref: "#/components/schemas/DecimalString" }
+        inactive_above_price: { $ref: "#/components/schemas/DecimalString" }
+        time_remaining_seconds: { type: integer, minimum: 0 }
+        warnings:
+          type: array
+          items: { type: string }
+        tx_request:
+          anyOf:
+            - { $ref: "#/components/schemas/TxRequest" }
+            - { type: "null" }
+      additionalProperties: false
+    AuctionBidQuoteEnvelope:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+      additionalProperties: true
+    CreateAuctionBidRequest:
+      type: object
+      required: [amount, max_price]
+      properties:
+        amount: { $ref: "#/components/schemas/DecimalString" }
+        max_price: { $ref: "#/components/schemas/DecimalString" }
+        tx_hash:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        current_clearing_price:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        projected_clearing_price:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        estimated_tokens_if_end_now:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        estimated_tokens_if_no_other_bids_change:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        inactive_above_price:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        status_band:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    BidMutationRequest:
+      type: object
+      properties:
+        tx_hash:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    PositionAction:
+      type: object
+      properties:
+        tx_request:
+          anyOf:
+            - { $ref: "#/components/schemas/TxRequest" }
+            - { type: "null" }
+      additionalProperties: true
+    BidPosition:
+      type: object
+      required: [bid_id, auction_id, agent_id, agent_name, status, amount, max_price]
+      properties:
+        bid_id: { type: string }
+        onchain_bid_id:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        auction_id: { type: string }
+        agent_id: { type: string }
+        agent_name: { type: string }
+        chain: { type: string }
+        status:
+          type: string
+          enum: [active, borderline, inactive, claimable, exited, claimed, returnable]
+        amount: { $ref: "#/components/schemas/DecimalString" }
+        max_price: { $ref: "#/components/schemas/DecimalString" }
+        current_clearing_price: { $ref: "#/components/schemas/DecimalString" }
+        estimated_tokens_if_end_now:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        estimated_tokens_if_no_other_bids_change:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        inactive_above_price:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        tokens_filled:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        next_action_label:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        tx_actions:
+          type: object
+          properties:
+            exit:
+              anyOf:
+                - { $ref: "#/components/schemas/PositionAction" }
+                - { type: "null" }
+            claim:
+              anyOf:
+                - { $ref: "#/components/schemas/PositionAction" }
+                - { type: "null" }
+          additionalProperties: false
+        return_action:
+          anyOf:
+            - { $ref: "#/components/schemas/PositionAction" }
+            - { type: "null" }
+        auction:
+          anyOf:
+            - { $ref: "#/components/schemas/AuctionSummary" }
+            - { type: "null" }
+        inserted_at:
+          anyOf:
+            - { $ref: "#/components/schemas/DateTime" }
+            - { type: "null" }
+      additionalProperties: false
+    BidPositionEnvelope:
+      type: object
+      required: [ok, bid]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        bid: { $ref: "#/components/schemas/BidPosition" }
+      additionalProperties: false
+    BidPositionListEnvelope:
+      type: object
+      required: [ok, items]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BidPosition" }
+      additionalProperties: false
+    Subject:
+      type: object
+      required: [subject_id, chain_id, token_address, splitter_address]
+      properties:
+        subject_id: { type: string }
+        chain_id: { type: integer }
+        chain_label:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        token_address: { $ref: "#/components/schemas/Address" }
+        strategy_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        subject_registry_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        splitter_address: { $ref: "#/components/schemas/Address" }
+        default_ingress_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        ingress_accounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total_staked_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        total_staked:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        treasury_residual_usdc_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        treasury_residual_usdc:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        protocol_reserve_usdc_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        protocol_reserve_usdc:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        undistributed_dust_usdc_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        undistributed_dust_usdc:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        wallet_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        wallet_stake_balance_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        wallet_stake_balance:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        wallet_token_balance_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        wallet_token_balance:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        claimable_usdc_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        claimable_usdc:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        claimable_stake_token_raw:
+          anyOf:
+            - { type: integer }
+            - { type: "null" }
+        claimable_stake_token:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        can_manage_ingress:
+          anyOf:
+            - { type: boolean }
+            - { type: "null" }
+      additionalProperties: false
+    SubjectEnvelope:
+      type: object
+      required: [ok, subject]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        subject: { $ref: "#/components/schemas/Subject" }
+      additionalProperties: false
+    SubjectIngressEnvelope:
+      type: object
+      required: [ok, subject]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        subject: { $ref: "#/components/schemas/Subject" }
+      additionalProperties: false
+    PreparedSubjectActionEnvelope:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        subject:
+          anyOf:
+            - { $ref: "#/components/schemas/Subject" }
+            - { type: "null" }
+        tx_request:
+          anyOf:
+            - { $ref: "#/components/schemas/TxRequest" }
+            - { type: "null" }
+        prepared:
+          anyOf:
+            - { $ref: "#/components/schemas/PreparedAction" }
+            - { type: "null" }
+      additionalProperties: true
+    HoldingAction:
+      type: object
+      properties:
+        type: { type: string }
+        tx_request:
+          anyOf:
+            - { $ref: "#/components/schemas/TxRequest" }
+            - { type: "null" }
+      additionalProperties: true
+    HoldingRow:
+      type: object
+      required: [auction_id, subject_id, agent_id, agent_name, symbol]
+      properties:
+        auction_id: { type: string }
+        subject_id:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        agent_id: { type: string }
+        agent_name: { type: string }
+        symbol: { type: string }
+        phase:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        detail_url:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        unstaked_token_balance:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        staked_token_balance:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        claimable_usdc:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        claimable_emissions:
+          anyOf:
+            - { $ref: "#/components/schemas/DecimalString" }
+            - { type: "null" }
+        ingress_accounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        actions:
+          type: array
+          items: { $ref: "#/components/schemas/HoldingAction" }
+      additionalProperties: true
+    Holdings:
+      type: object
+      required: [holdings]
+      properties:
+        holdings:
+          type: array
+          items: { $ref: "#/components/schemas/HoldingRow" }
+      additionalProperties: false
+    HoldingsEnvelope:
+      type: object
+      required: [ok, holdings]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        holdings: { $ref: "#/components/schemas/Holdings" }
       additionalProperties: false
     AgentTrustEnvelope:
       type: object
@@ -1203,4 +2066,73 @@ components:
         handle: { type: string }
         profile_url: { type: string }
         provider_subject: { type: string }
+      additionalProperties: false
+    ProfileTokenRow:
+      type: object
+      properties:
+        auction_id: { type: string }
+        subject_id:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        agent_id: { type: string }
+        agent_name: { type: string }
+        symbol: { type: string }
+        phase: { type: string, enum: [biddable, live] }
+        current_price_usdc:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        implied_market_cap_usdc:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        detail_url: { type: string }
+        staked_token_amount:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        staked_usdc_value:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        claimable_usdc:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: true
+    ProfileSnapshot:
+      type: object
+      required: [status, launched_tokens, staked_tokens]
+      properties:
+        status: { type: string }
+        launched_tokens:
+          type: array
+          items: { $ref: "#/components/schemas/ProfileTokenRow" }
+        staked_tokens:
+          type: array
+          items: { $ref: "#/components/schemas/ProfileTokenRow" }
+        refreshed_at:
+          anyOf:
+            - { $ref: "#/components/schemas/DateTime" }
+            - { type: "null" }
+        refresh_started_at:
+          anyOf:
+            - { $ref: "#/components/schemas/DateTime" }
+            - { type: "null" }
+        next_manual_refresh_at:
+          anyOf:
+            - { $ref: "#/components/schemas/DateTime" }
+            - { type: "null" }
+        error_message:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    ProfileSnapshotEnvelope:
+      type: object
+      required: [ok, profile]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        profile: { $ref: "#/components/schemas/ProfileSnapshot" }
       additionalProperties: false

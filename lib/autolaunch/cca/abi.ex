@@ -14,6 +14,7 @@ defmodule Autolaunch.CCA.Abi do
     next_active_tick_price: "0x60d3ded7",
     sum_currency_demand_above_clearing_q96: "0xa9176e45",
     total_supply: "0x18160ddd",
+    required_currency_raised: "0x465a8928",
     end_block: "0x083c6323",
     claim_block: "0x37dfbc4b",
     start_block: "0x48cd4cb1",

@@ -34,7 +34,14 @@ defmodule Autolaunch.Revenue.SubjectActionRegistration do
       :error_message
     ])
     |> validate_required([:subject_id, :action, :owner_address, :chain_id, :tx_hash, :status])
-    |> validate_inclusion(:action, ["stake", "unstake", "claim_usdc", "sweep_ingress"])
+    |> validate_inclusion(:action, [
+      "stake",
+      "unstake",
+      "claim_usdc",
+      "claim_emissions",
+      "claim_and_stake_emissions",
+      "sweep_ingress"
+    ])
     |> validate_inclusion(:status, ["pending", "confirmed", "rejected"])
     |> unique_constraint(:tx_hash,
       name: :autolaunch_subject_action_registrations_tx_hash_unique

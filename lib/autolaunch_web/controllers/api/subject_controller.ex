@@ -36,6 +36,17 @@ defmodule AutolaunchWeb.Api.SubjectController do
     render_write(conn, Revenue.claim_usdc(subject_id, params, conn.assigns[:current_human]))
   end
 
+  def claim_emissions(conn, %{"id" => subject_id} = params) do
+    render_write(conn, Revenue.claim_emissions(subject_id, params, conn.assigns[:current_human]))
+  end
+
+  def claim_and_stake_emissions(conn, %{"id" => subject_id} = params) do
+    render_write(
+      conn,
+      Revenue.claim_and_stake_emissions(subject_id, params, conn.assigns[:current_human])
+    )
+  end
+
   def sweep_ingress(conn, %{"id" => subject_id, "address" => ingress_address} = params) do
     render_write(
       conn,

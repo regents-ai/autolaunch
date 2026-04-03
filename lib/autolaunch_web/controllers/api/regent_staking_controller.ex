@@ -24,6 +24,17 @@ defmodule AutolaunchWeb.Api.RegentStakingController do
     render_result(conn, context_module().claim_usdc(params, conn.assigns[:current_human]))
   end
 
+  def claim_regent(conn, params) do
+    render_result(conn, context_module().claim_regent(params, conn.assigns[:current_human]))
+  end
+
+  def claim_and_restake_regent(conn, params) do
+    render_result(
+      conn,
+      context_module().claim_and_restake_regent(params, conn.assigns[:current_human])
+    )
+  end
+
   def prepare_deposit(conn, params) do
     render_result(conn, context_module().prepare_deposit_usdc(params))
   end

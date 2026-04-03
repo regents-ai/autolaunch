@@ -23,8 +23,6 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
            expires_at: 2,
            signature: "0xsig"
          },
-         allow_legacy_proofs: true,
-         preset: "orb_legacy",
          connector_uri: nil,
          deep_link_uri: nil,
          expires_at: DateTime.utc_now() |> DateTime.add(300, :second),

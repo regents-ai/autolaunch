@@ -10,6 +10,8 @@ import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 
 contract DeployAutolaunchInfraScript is Script {
+    uint256 internal constant ETHEREUM_SEPOLIA_CHAIN_ID = 11_155_111;
+
     struct ScriptConfig {
         address owner;
         address usdc;
@@ -52,28 +54,16 @@ contract DeployAutolaunchInfraScript is Script {
     }
 
     function loadConfigFromEnv() public view returns (ScriptConfig memory cfg) {
-        cfg.owner = _envAddressOr("AUTOLAUNCH_INFRA_OWNER", _envAddressOr("DEPLOYER", address(0)));
+        require(block.chainid == ETHEREUM_SEPOLIA_CHAIN_ID, "SEPOLIA_ONLY");
+
+        cfg.owner = vm.envAddress("AUTOLAUNCH_INFRA_OWNER");
         require(cfg.owner != address(0), "OWNER_ZERO");
 
         cfg.usdc = vm.envAddress("ETHEREUM_USDC_ADDRESS");
         require(cfg.usdc != address(0), "USDC_ZERO");
     }
 
-    function _envAddressOr(string memory key, address fallbackValue)
-        internal
-        view
-        returns (address)
-    {
-        try vm.envAddress(key) returns (address value) {
-            return value;
-        } catch {
-            return fallbackValue;
-        }
-    }
-
     function run() external {
-        vm.startBroadcast();
-
         ScriptConfig memory cfg = loadConfigFromEnv();
 
         (

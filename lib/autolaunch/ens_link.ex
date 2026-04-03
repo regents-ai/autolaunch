@@ -44,7 +44,7 @@ defmodule Autolaunch.EnsLink do
 
   defp build_input(%HumanUser{} = human, attrs) do
     with {:ok, identity} <- resolve_identity(human, attrs),
-         {:ok, ens_name} <- required_text(Map.get(attrs, "ens_name") || Map.get(attrs, :ens_name)),
+         {:ok, ens_name} <- required_text(Map.get(attrs, "ens_name")),
          {:ok, chain_id} <- required_chain_id(identity.chain_id),
          {:ok, rpc_url} <- provided_or_chain_rpc_url(attrs, chain_id),
          {:ok, signer_address} <- resolve_signer_address(human, attrs) do
@@ -55,22 +55,19 @@ defmodule Autolaunch.EnsLink do
          registry_address: identity.registry_address,
          agent_id: identity.token_id,
          rpc_url: rpc_url,
-         rpc_module: Map.get(attrs, "rpc_module") || Map.get(attrs, :rpc_module),
+         rpc_module: Map.get(attrs, "rpc_module"),
          signer_address: signer_address,
-         include_reverse?:
-           truthy?(Map.get(attrs, "include_reverse") || Map.get(attrs, :include_reverse)),
+         include_reverse?: truthy?(Map.get(attrs, "include_reverse")),
          current_agent_uri: identity.agent_uri,
-         erc8004_fetcher: Map.get(attrs, "erc8004_fetcher") || Map.get(attrs, :erc8004_fetcher),
-         erc8004_fetch_opts:
-           Map.get(attrs, "erc8004_fetch_opts") || Map.get(attrs, :erc8004_fetch_opts),
-         reverse_registrar:
-           Map.get(attrs, "reverse_registrar") || Map.get(attrs, :reverse_registrar)
+         erc8004_fetcher: Map.get(attrs, "erc8004_fetcher"),
+         erc8004_fetch_opts: Map.get(attrs, "erc8004_fetch_opts"),
+         reverse_registrar: Map.get(attrs, "reverse_registrar")
        }}
     end
   end
 
   defp resolve_identity(%HumanUser{} = human, attrs) do
-    identity_id = Map.get(attrs, "identity_id") || Map.get(attrs, :identity_id)
+    identity_id = Map.get(attrs, "identity_id")
 
     cond do
       is_binary(identity_id) and identity_id != "" ->
@@ -81,12 +78,8 @@ defmodule Autolaunch.EnsLink do
 
       true ->
         with {:ok, chain_id} <-
-               required_chain_id(Map.get(attrs, "chain_id") || Map.get(attrs, :chain_id)),
-             {:ok, token_id} <-
-               required_numeric(
-                 Map.get(attrs, "agent_id") || Map.get(attrs, :agent_id),
-                 :agent_id
-               ),
+               required_chain_id(Map.get(attrs, "chain_id")),
+             {:ok, token_id} <- required_numeric(Map.get(attrs, "agent_id"), :agent_id),
              registry_address when is_binary(registry_address) <-
                ERC8004.identity_registry(chain_id) do
           {:ok,
@@ -94,7 +87,7 @@ defmodule Autolaunch.EnsLink do
              chain_id: chain_id,
              token_id: token_id,
              registry_address: registry_address,
-             agent_uri: Map.get(attrs, "current_agent_uri") || Map.get(attrs, :current_agent_uri)
+             agent_uri: Map.get(attrs, "current_agent_uri")
            }}
         else
           nil -> {:error, :identity_registry_not_configured}
@@ -104,7 +97,7 @@ defmodule Autolaunch.EnsLink do
   end
 
   defp resolve_signer_address(%HumanUser{} = human, attrs) do
-    requested = Map.get(attrs, "signer_address") || Map.get(attrs, :signer_address)
+    requested = Map.get(attrs, "signer_address")
     linked_addresses = linked_wallet_addresses(human)
 
     signer =
@@ -133,7 +126,7 @@ defmodule Autolaunch.EnsLink do
   end
 
   defp provided_or_chain_rpc_url(attrs, chain_id) do
-    case Map.get(attrs, "rpc_url") || Map.get(attrs, :rpc_url) do
+    case Map.get(attrs, "rpc_url") do
       value when is_binary(value) and value != "" -> {:ok, value}
       _ -> chain_rpc_url(chain_id)
     end

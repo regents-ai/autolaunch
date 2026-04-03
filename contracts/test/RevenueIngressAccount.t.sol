@@ -38,6 +38,7 @@ contract RevenueIngressAccountTest is Test {
             TREASURY_SAFE,
             TREASURY_SAFE,
             100,
+            1000e18,
             "Subject",
             block.chainid,
             address(0x8004),

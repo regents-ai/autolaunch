@@ -17,8 +17,6 @@ defmodule Autolaunch.Agentbook.Session do
     field :rp_id, :string
     field :signal, :string
     field :rp_context, :map
-    field :allow_legacy_proofs, :boolean, default: true
-    field :preset, :string, default: "orb_legacy"
     field :connector_uri, :string
     field :deep_link_uri, :string
     field :proof_payload, :map
@@ -48,8 +46,6 @@ defmodule Autolaunch.Agentbook.Session do
       :rp_id,
       :signal,
       :rp_context,
-      :allow_legacy_proofs,
-      :preset,
       :connector_uri,
       :deep_link_uri,
       :proof_payload,
@@ -72,8 +68,6 @@ defmodule Autolaunch.Agentbook.Session do
       :rp_id,
       :signal,
       :rp_context,
-      :allow_legacy_proofs,
-      :preset,
       :status,
       :expires_at
     ])

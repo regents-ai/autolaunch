@@ -24,11 +24,70 @@ defmodule Autolaunch.RegentStaking do
     end
   end
 
+  def obligation_metrics(staker_addresses) do
+    with {:ok, cfg} <- config(),
+         {:ok, addresses} <- normalize_address_list(staker_addresses) do
+      exact_total_accrued_obligations =
+        Enum.reduce(addresses, 0, fn address, acc ->
+          acc +
+            call_uint(
+              cfg.chain_id,
+              cfg.contract_address,
+              Abi.encode_address_call(:preview_claimable_regent, address)
+            )
+        end)
+
+      materialized_outstanding =
+        call_uint(
+          cfg.chain_id,
+          cfg.contract_address,
+          Abi.encode_call(:unclaimed_regent_liability)
+        )
+
+      available_reward_inventory =
+        call_uint(
+          cfg.chain_id,
+          cfg.contract_address,
+          Abi.encode_call(:available_regent_reward_inventory)
+        )
+
+      total_claimed_so_far =
+        call_uint(cfg.chain_id, cfg.contract_address, Abi.encode_call(:total_claimed_regent))
+
+      {:ok,
+       %{
+         staker_count: length(addresses),
+         exact_total_accrued_obligations_raw: exact_total_accrued_obligations,
+         exact_total_accrued_obligations:
+           format_units(exact_total_accrued_obligations, @token_decimals),
+         materialized_outstanding_raw: materialized_outstanding,
+         materialized_outstanding: format_units(materialized_outstanding, @token_decimals),
+         available_reward_inventory_raw: available_reward_inventory,
+         available_reward_inventory: format_units(available_reward_inventory, @token_decimals),
+         total_claimed_so_far_raw: total_claimed_so_far,
+         total_claimed_so_far: format_units(total_claimed_so_far, @token_decimals),
+         accrued_but_unsynced_raw:
+           positive_difference(exact_total_accrued_obligations, materialized_outstanding),
+         accrued_but_unsynced:
+           format_units(
+             positive_difference(exact_total_accrued_obligations, materialized_outstanding),
+             @token_decimals
+           ),
+         funding_gap_raw:
+           positive_difference(exact_total_accrued_obligations, available_reward_inventory),
+         funding_gap:
+           format_units(
+             positive_difference(exact_total_accrued_obligations, available_reward_inventory),
+             @token_decimals
+           )
+       }}
+    end
+  end
+
   def stake(attrs, current_human) do
     with {:ok, cfg} <- config(),
          {:ok, wallet_address} <- required_wallet(current_human),
-         {:ok, amount} <-
-           parse_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount), @token_decimals) do
+         {:ok, amount} <- parse_amount(Map.get(attrs, "amount"), @token_decimals) do
       {:ok,
        %{
          staking: compact_state(cfg, wallet_address),
@@ -46,8 +105,7 @@ defmodule Autolaunch.RegentStaking do
   def unstake(attrs, current_human) do
     with {:ok, cfg} <- config(),
          {:ok, wallet_address} <- required_wallet(current_human),
-         {:ok, amount} <-
-           parse_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount), @token_decimals) do
+         {:ok, amount} <- parse_amount(Map.get(attrs, "amount"), @token_decimals) do
       {:ok,
        %{
          staking: compact_state(cfg, wallet_address),
@@ -79,20 +137,45 @@ defmodule Autolaunch.RegentStaking do
     end
   end
 
+  def claim_regent(_attrs, current_human) do
+    with {:ok, cfg} <- config(),
+         {:ok, wallet_address} <- required_wallet(current_human) do
+      {:ok,
+       %{
+         staking: compact_state(cfg, wallet_address),
+         tx_request:
+           serialize_tx_request(%{
+             chain_id: @base_chain_id,
+             to: cfg.contract_address,
+             value_hex: "0x0",
+             data: Abi.encode_claim_regent(wallet_address)
+           })
+       }}
+    end
+  end
+
+  def claim_and_restake_regent(_attrs, current_human) do
+    with {:ok, cfg} <- config(),
+         {:ok, wallet_address} <- required_wallet(current_human) do
+      {:ok,
+       %{
+         staking: compact_state(cfg, wallet_address),
+         tx_request:
+           serialize_tx_request(%{
+             chain_id: @base_chain_id,
+             to: cfg.contract_address,
+             value_hex: "0x0",
+             data: Abi.encode_claim_and_restake_regent()
+           })
+       }}
+    end
+  end
+
   def prepare_deposit_usdc(attrs) do
     with {:ok, cfg} <- config(),
-         {:ok, amount} <-
-           parse_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount), @usdc_decimals),
-         {:ok, source_tag} <-
-           bytes32_param(
-             Map.get(attrs, "source_tag") || Map.get(attrs, :source_tag),
-             :source_tag_required
-           ),
-         {:ok, source_ref} <-
-           bytes32_param(
-             Map.get(attrs, "source_ref") || Map.get(attrs, :source_ref),
-             :source_ref_required
-           ) do
+         {:ok, amount} <- parse_amount(Map.get(attrs, "amount"), @usdc_decimals),
+         {:ok, source_tag} <- bytes32_param(Map.get(attrs, "source_tag"), :source_tag_required),
+         {:ok, source_ref} <- bytes32_param(Map.get(attrs, "source_ref"), :source_ref_required) do
       {:ok,
        %{
          prepared:
@@ -114,12 +197,9 @@ defmodule Autolaunch.RegentStaking do
     with {:ok, cfg} <- config(),
          treasury_recipient <-
            call_address(cfg.chain_id, cfg.contract_address, Abi.encode_call(:treasury_recipient)),
-         {:ok, amount} <-
-           parse_amount(Map.get(attrs, "amount") || Map.get(attrs, :amount), @usdc_decimals),
+         {:ok, amount} <- parse_amount(Map.get(attrs, "amount"), @usdc_decimals),
          {:ok, recipient} <-
-           normalize_required_address(
-             Map.get(attrs, "recipient") || Map.get(attrs, :recipient) || treasury_recipient
-           ) do
+           normalize_required_address(Map.get(attrs, "recipient") || treasury_recipient) do
       {:ok,
        %{
          prepared:
@@ -157,6 +237,23 @@ defmodule Autolaunch.RegentStaking do
         Abi.encode_call(:total_recognized_rewards_usdc)
       )
 
+    materialized_outstanding =
+      call_uint(
+        cfg.chain_id,
+        cfg.contract_address,
+        Abi.encode_call(:unclaimed_regent_liability)
+      )
+
+    available_reward_inventory =
+      call_uint(
+        cfg.chain_id,
+        cfg.contract_address,
+        Abi.encode_call(:available_regent_reward_inventory)
+      )
+
+    total_claimed_so_far =
+      call_uint(cfg.chain_id, cfg.contract_address, Abi.encode_call(:total_claimed_regent))
+
     wallet_stake_balance_raw =
       wallet_address &&
         call_uint(
@@ -171,6 +268,14 @@ defmodule Autolaunch.RegentStaking do
           cfg.chain_id,
           cfg.contract_address,
           Abi.encode_address_call(:preview_claimable_usdc, wallet_address)
+        )
+
+    wallet_claimable_regent_raw =
+      wallet_address &&
+        call_uint(
+          cfg.chain_id,
+          cfg.contract_address,
+          Abi.encode_address_call(:preview_claimable_regent, wallet_address)
         )
 
     wallet_token_balance_raw =
@@ -194,6 +299,12 @@ defmodule Autolaunch.RegentStaking do
        total_recognized_rewards_usdc: format_units(total_recognized_rewards_usdc, @usdc_decimals),
        treasury_residual_usdc_raw: treasury_residual_usdc,
        treasury_residual_usdc: format_units(treasury_residual_usdc, @usdc_decimals),
+       materialized_outstanding_raw: materialized_outstanding,
+       materialized_outstanding: format_units(materialized_outstanding, @token_decimals),
+       available_reward_inventory_raw: available_reward_inventory,
+       available_reward_inventory: format_units(available_reward_inventory, @token_decimals),
+       total_claimed_so_far_raw: total_claimed_so_far,
+       total_claimed_so_far: format_units(total_claimed_so_far, @token_decimals),
        wallet_address: wallet_address,
        wallet_stake_balance_raw: wallet_stake_balance_raw,
        wallet_stake_balance:
@@ -203,7 +314,10 @@ defmodule Autolaunch.RegentStaking do
          wallet_address && format_units(wallet_token_balance_raw, @token_decimals),
        wallet_claimable_usdc_raw: wallet_claimable_usdc_raw,
        wallet_claimable_usdc:
-         wallet_address && format_units(wallet_claimable_usdc_raw, @usdc_decimals)
+         wallet_address && format_units(wallet_claimable_usdc_raw, @usdc_decimals),
+       wallet_claimable_regent_raw: wallet_claimable_regent_raw,
+       wallet_claimable_regent:
+         wallet_address && format_units(wallet_claimable_regent_raw, @token_decimals)
      }}
   end
 
@@ -340,6 +454,21 @@ defmodule Autolaunch.RegentStaking do
     end
   end
 
+  defp normalize_address_list(values) when is_list(values) do
+    values
+    |> Enum.map(&normalize_address/1)
+    |> Enum.reduce_while([], fn
+      nil, _acc -> {:halt, {:error, :invalid_address}}
+      address, acc -> {:cont, [address | acc]}
+    end)
+    |> case do
+      {:error, _} = error -> error
+      addresses -> {:ok, addresses |> Enum.reverse() |> Enum.uniq()}
+    end
+  end
+
+  defp normalize_address_list(_values), do: {:error, :invalid_address}
+
   defp normalize_address(value) when is_binary(value) do
     trimmed = String.downcase(String.trim(value))
 
@@ -366,6 +495,9 @@ defmodule Autolaunch.RegentStaking do
   defp format_units(nil, _decimals), do: nil
 
   defp integer_pow10(exponent) when exponent >= 0, do: Integer.pow(10, exponent)
+
+  defp positive_difference(left, right) when left > right, do: left - right
+  defp positive_difference(_left, _right), do: 0
 
   defp blank?(value), do: value in [nil, ""]
 end

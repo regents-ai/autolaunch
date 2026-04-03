@@ -12,12 +12,18 @@ defmodule Autolaunch.Revenue.Abi do
     total_staked: "0x817b1cd2",
     staked_balance: "0x60217267",
     preview_claimable_usdc: "0xb026ee79",
+    preview_claimable_stake_token: "0x05e1fd68",
     treasury_residual_usdc: "0x966ed108",
     protocol_reserve_usdc: "0x76459dd5",
     undistributed_dust_usdc: "0x5f78d5f4",
+    unclaimed_stake_token_liability: "0x05f15537",
+    available_stake_token_reward_inventory: "0xcfb3d0aa",
+    total_claimed_stake_token: "0x66ffb8de",
     stake: "0x7acb7757",
     unstake: "0x8381e182",
     claim_usdc: "0x42852610",
+    claim_stake_token: "0xa47b7e27",
+    claim_and_restake_stake_token: "0x9de65fcc",
     sweep_usdc: "0xbe25fb30",
     balance_of: "0x70a08231",
     can_manage_subject: "0x41c2ab07"
@@ -67,6 +73,14 @@ defmodule Autolaunch.Revenue.Abi do
     encode_address_call(:claim_usdc, recipient)
   end
 
+  def encode_claim_stake_token(recipient) do
+    encode_address_call(:claim_stake_token, recipient)
+  end
+
+  def encode_claim_and_restake_stake_token do
+    selector(:claim_and_restake_stake_token)
+  end
+
   def encode_sweep_usdc(source_ref) do
     encode_bytes32_call(:sweep_usdc, source_ref)
   end
@@ -78,6 +92,8 @@ defmodule Autolaunch.Revenue.Abi do
       "7acb7757" -> decode_stake_call(args)
       "8381e182" -> decode_unstake_call(args)
       "42852610" -> decode_claim_usdc_call(args)
+      "a47b7e27" -> decode_claim_stake_token_call(args)
+      "9de65fcc" -> decode_claim_and_restake_stake_token_call(args)
       "be25fb30" -> decode_sweep_usdc_call(args)
       _ -> {:error, :unsupported_call_selector}
     end
@@ -167,6 +183,19 @@ defmodule Autolaunch.Revenue.Abi do
     with {:ok, [source_ref_word]} <- decode_words(args, 1),
          {:ok, source_ref} <- decode_bytes32_word(source_ref_word) do
       {:ok, %{action: :sweep_ingress, source_ref: source_ref}}
+    end
+  end
+
+  defp decode_claim_stake_token_call(args) do
+    with {:ok, [recipient_word]} <- decode_words(args, 1),
+         {:ok, recipient} <- decode_address_word(recipient_word) do
+      {:ok, %{action: :claim_stake_token, recipient: recipient}}
+    end
+  end
+
+  defp decode_claim_and_restake_stake_token_call(args) do
+    with {:ok, []} <- decode_words(args, 0) do
+      {:ok, %{action: :claim_and_restake_stake_token}}
     end
   end
 

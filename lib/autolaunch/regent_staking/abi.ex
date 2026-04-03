@@ -11,12 +11,18 @@ defmodule Autolaunch.RegentStaking.Abi do
     total_staked: "0x817b1cd2",
     staked_balance: "0x60217267",
     preview_claimable_usdc: "0xb026ee79",
+    preview_claimable_regent: "0xf653a7f7",
     treasury_residual_usdc: "0x966ed108",
     total_recognized_rewards_usdc: "0x92bfc075",
+    unclaimed_regent_liability: "0xa8e345dd",
+    available_regent_reward_inventory: "0xe2cfe6b9",
+    total_claimed_regent: "0x4cbf5721",
     balance_of: "0x70a08231",
     stake: "0x7acb7757",
     unstake: "0x8381e182",
     claim_usdc: "0x42852610",
+    claim_regent: "0x739c8d0d",
+    claim_and_restake_regent: "0xe72a8732",
     deposit_usdc: "0x7dc6bb98",
     withdraw_treasury_residual: "0xe13b5822"
   }
@@ -34,6 +40,8 @@ defmodule Autolaunch.RegentStaking.Abi do
     do: encode_call(:unstake, [{:uint256, amount}, {:address, recipient}])
 
   def encode_claim_usdc(recipient), do: encode_call(:claim_usdc, [{:address, recipient}])
+  def encode_claim_regent(recipient), do: encode_call(:claim_regent, [{:address, recipient}])
+  def encode_claim_and_restake_regent, do: encode_call(:claim_and_restake_regent, [])
 
   def encode_deposit_usdc(amount, source_tag, source_ref) do
     encode_call(

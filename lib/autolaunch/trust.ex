@@ -75,7 +75,8 @@ defmodule Autolaunch.Trust do
         agent_id: agent_id,
         token_id: identity_value(identity, :token_id) || token_id,
         chain_id: identity_value(identity, :chain_id) || chain_id,
-        registry_address: identity_value(identity, :registry_address) || ERC8004.identity_registry(chain_id),
+        registry_address:
+          identity_value(identity, :registry_address) || ERC8004.identity_registry(chain_id),
         web_endpoint: identity_value(identity, :web_endpoint),
         image_url: identity_value(identity, :image_url)
       },
@@ -112,20 +113,14 @@ defmodule Autolaunch.Trust do
   def prepare_x_link(_human, _agent_id), do: {:error, :unauthorized}
 
   def upsert_x_account(%HumanUser{} = human, attrs) when is_map(attrs) do
-    agent_id = normalize_optional_text(Map.get(attrs, "agent_id") || Map.get(attrs, :agent_id), 255)
-    handle = normalize_handle(Map.get(attrs, "handle") || Map.get(attrs, :handle))
+    agent_id = normalize_optional_text(Map.get(attrs, "agent_id"), 255)
+
+    handle = normalize_handle(Map.get(attrs, "handle"))
 
     provider_subject =
-      normalize_optional_text(
-        Map.get(attrs, "provider_subject") || Map.get(attrs, :provider_subject),
-        255
-      )
+      normalize_optional_text(Map.get(attrs, "provider_subject"), 255)
 
-    profile_url =
-      normalize_profile_url(
-        Map.get(attrs, "profile_url") || Map.get(attrs, :profile_url),
-        handle
-      )
+    profile_url = normalize_profile_url(Map.get(attrs, "profile_url"), handle)
 
     with {:ok, _identity} <- require_controlled_identity(human, agent_id),
          false <- blank?(handle),

@@ -158,6 +158,7 @@ contract LaunchDeploymentController {
                 cfg.recoverySafe,
                 cfg.recoverySafe,
                 cfg.protocolSkimBps,
+                cfg.totalSupply,
                 cfg.subjectLabel,
                 block.chainid,
                 cfg.identityRegistry,

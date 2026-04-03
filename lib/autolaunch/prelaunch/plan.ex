@@ -14,11 +14,12 @@ defmodule Autolaunch.Prelaunch.Plan do
     field :chain_id, :integer, default: 11_155_111
     field :token_name, :string
     field :token_symbol, :string
+    field :minimum_raise_usdc, :string
+    field :minimum_raise_usdc_raw, :string
     field :treasury_safe_address, :string
     field :auction_proceeds_recipient, :string
     field :ethereum_revenue_treasury, :string
     field :backup_safe_address, :string
-    field :fallback_operator_wallet, :string
     field :launch_notes, :string
     field :identity_snapshot, :map, default: %{}
     field :metadata_draft, :map, default: %{}
@@ -40,11 +41,12 @@ defmodule Autolaunch.Prelaunch.Plan do
       :chain_id,
       :token_name,
       :token_symbol,
+      :minimum_raise_usdc,
+      :minimum_raise_usdc_raw,
       :treasury_safe_address,
       :auction_proceeds_recipient,
       :ethereum_revenue_treasury,
       :backup_safe_address,
-      :fallback_operator_wallet,
       :launch_notes,
       :identity_snapshot,
       :metadata_draft,
@@ -78,11 +80,12 @@ defmodule Autolaunch.Prelaunch.Plan do
       :agent_name,
       :token_name,
       :token_symbol,
+      :minimum_raise_usdc,
+      :minimum_raise_usdc_raw,
       :treasury_safe_address,
       :auction_proceeds_recipient,
       :ethereum_revenue_treasury,
       :backup_safe_address,
-      :fallback_operator_wallet,
       :launch_notes,
       :identity_snapshot,
       :metadata_draft,

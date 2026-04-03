@@ -34,13 +34,23 @@ defmodule AutolaunchWeb.Api.TrustController do
             })
 
           {:error, :agent_not_found} ->
-            ApiError.render(conn, :not_found, "agent_not_found", "Agent not found for this session")
+            ApiError.render(
+              conn,
+              :not_found,
+              "agent_not_found",
+              "Agent not found for this session"
+            )
 
           {:error, :unauthorized} ->
             ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
 
           _ ->
-            ApiError.render(conn, :unprocessable_entity, "x_link_invalid", "Unable to start X link")
+            ApiError.render(
+              conn,
+              :unprocessable_entity,
+              "x_link_invalid",
+              "Unable to start X link"
+            )
         end
     end
   end
@@ -57,7 +67,12 @@ defmodule AutolaunchWeb.Api.TrustController do
             json(conn, %{ok: true, agent_id: account.agent_id, trust: trust})
 
           {:error, :agent_not_found} ->
-            ApiError.render(conn, :not_found, "agent_not_found", "Agent not found for this session")
+            ApiError.render(
+              conn,
+              :not_found,
+              "agent_not_found",
+              "Agent not found for this session"
+            )
 
           {:error, :invalid_x_account} ->
             ApiError.render(

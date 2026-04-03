@@ -10,11 +10,94 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
   @token "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   @wallet "0x1111111111111111111111111111111111111111"
 
+  defmodule FakeRpc do
+    @splitter "0x9999999999999999999999999999999999999999"
+    @token "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    @ingress_factory "0x2222222222222222222222222222222222222222"
+    @subject_registry "0x3333333333333333333333333333333333333333"
+    @ingress "0x7777777777777777777777777777777777777777"
+    @usdc "0x5555555555555555555555555555555555555555"
+
+    def block_number(_chain_id), do: {:ok, 1}
+
+    def eth_call(11_155_111, @splitter, data) do
+      selector = String.slice(data, 0, 10)
+
+      case selector do
+        "0x817b1cd2" -> {:ok, encode_uint(250 * Integer.pow(10, 18))}
+        "0x966ed108" -> {:ok, encode_uint(25 * Integer.pow(10, 6))}
+        "0x76459dd5" -> {:ok, encode_uint(10 * Integer.pow(10, 6))}
+        "0x5f78d5f4" -> {:ok, encode_uint(1 * Integer.pow(10, 6))}
+        "0x60217267" -> {:ok, encode_uint(12 * Integer.pow(10, 18))}
+        "0xb026ee79" -> {:ok, encode_uint(5 * Integer.pow(10, 6))}
+        "0x05e1fd68" -> {:ok, encode_uint(preview_claimable_stake_token(data))}
+        "0x05f15537" -> {:ok, encode_uint(3 * Integer.pow(10, 18))}
+        "0xcfb3d0aa" -> {:ok, encode_uint(8 * Integer.pow(10, 18))}
+        "0x66ffb8de" -> {:ok, encode_uint(6 * Integer.pow(10, 18))}
+        "0x3e413bee" -> {:ok, encode_address(@usdc)}
+        _ -> {:error, :unsupported_call}
+      end
+    end
+
+    def eth_call(11_155_111, @token, "0x70a08231" <> _rest),
+      do: {:ok, encode_uint(90 * Integer.pow(10, 18))}
+
+    def eth_call(11_155_111, @usdc, "0x70a08231" <> _rest),
+      do: {:ok, encode_uint(7 * Integer.pow(10, 6))}
+
+    def eth_call(11_155_111, @ingress_factory, data) do
+      selector = String.slice(data, 0, 10)
+
+      case selector do
+        "0xca23dd76" -> {:ok, encode_uint(1)}
+        "0xb87d9995" -> {:ok, encode_address(@ingress)}
+        "0xb396721d" -> {:ok, encode_address(@ingress)}
+        _ -> {:error, :unsupported_call}
+      end
+    end
+
+    def eth_call(11_155_111, @subject_registry, "0x41c2ab07" <> _rest),
+      do: {:ok, encode_bool(true)}
+
+    def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}
+
+    def tx_by_hash(_chain_id, tx_hash) do
+      case Process.get(:fake_rpc_transaction) do
+        %{transaction_hash: ^tx_hash} = tx -> {:ok, tx}
+        _ -> {:ok, nil}
+      end
+    end
+
+    def tx_receipt(_chain_id, _tx_hash), do: {:ok, Process.get(:fake_rpc_receipt)}
+    def get_logs(_chain_id, _filter), do: {:ok, []}
+
+    defp encode_uint(value) do
+      value
+      |> Integer.to_string(16)
+      |> String.pad_leading(64, "0")
+      |> then(&("0x" <> &1))
+    end
+
+    defp encode_address(address) do
+      "0x" <> String.pad_leading(String.slice(address, 2..-1//1), 64, "0")
+    end
+
+    defp encode_bool(true), do: "0x" <> String.pad_leading("1", 64, "0")
+
+    defp preview_claimable_stake_token(<<"0x05e1fd68", encoded::binary>>) do
+      case String.slice(encoded, -40, 40) |> String.downcase() do
+        "1111111111111111111111111111111111111111" -> 4 * Integer.pow(10, 18)
+        "2222222222222222222222222222222222222222" -> 3 * Integer.pow(10, 18)
+        _ -> 0
+      end
+    end
+  end
+
   setup %{conn: conn} do
     previous_adapter = Application.get_env(:autolaunch, :cca_rpc_adapter)
     previous_launch = Application.get_env(:autolaunch, :launch, [])
 
-    Application.put_env(:autolaunch, :cca_rpc_adapter, Autolaunch.RevenueTest.FakeRpc)
+    Application.put_env(:autolaunch, :cca_rpc_adapter, FakeRpc)
 
     Application.put_env(
       :autolaunch,
@@ -44,6 +127,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       })
 
     now = DateTime.utc_now()
+    nonce = "nonce-#{System.unique_integer([:positive])}"
 
     {:ok, job} =
       %Job{}
@@ -62,7 +146,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
         step: "ready",
         total_supply: "1000",
         message: "signed",
-        siwa_nonce: "nonce",
+        siwa_nonce: nonce,
         siwa_signature: "sig",
         issued_at: now
       })

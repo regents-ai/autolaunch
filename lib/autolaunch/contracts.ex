@@ -84,7 +84,8 @@ defmodule Autolaunch.Contracts do
          ingress_factory: ingress_factory,
          revenue_share_factory: revenue_share_factory,
          available_actions: %{
-           subject: ~w(stake unstake claim_usdc sweep_ingress),
+           subject:
+             ~w(stake unstake claim_usdc claim_emissions claim_and_stake_emissions sweep_ingress),
            splitter:
              ~w(set_paused set_label set_treasury_recipient set_protocol_recipient set_protocol_skim_bps withdraw_treasury_residual withdraw_protocol_reserve reassign_dust),
            ingress_factory: ~w(create set_default),

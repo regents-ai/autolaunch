@@ -33,8 +33,6 @@ defmodule AutolaunchWeb.AgentbookLiveTest do
            app_id: "app_test",
            action: "agentbook-registration",
            rp_context: %{nonce: "n", created_at: 1, expires_at: 2, signature: "0xsig"},
-           allow_legacy_proofs: true,
-           preset: "orb_legacy",
            signal: "0xsignal"
          }
        }}
@@ -91,8 +89,6 @@ defmodule AutolaunchWeb.AgentbookLiveTest do
            app_id: "app_test",
            action: "agentbook-registration",
            rp_context: %{nonce: "n", created_at: 1, expires_at: 2, signature: "0xsig"},
-           allow_legacy_proofs: true,
-           preset: "orb_legacy",
            signal: "0xsignal"
          }
        }}

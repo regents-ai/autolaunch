@@ -18,6 +18,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
 
     function setUp() external {
         script = new DeployAutolaunchInfraScript();
+        vm.chainId(11_155_111);
     }
 
     function testDeployCreatesInfraAndTransfersRegistryOwnership() external {
@@ -78,5 +79,21 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(revenueIngressFactory.owner(), OWNER);
         assertEq(revenueShareFactory.usdc(), USDC);
         assertTrue(address(strategyFactory) != address(0));
+    }
+
+    function testRunUsesSingleBroadcastPath() external {
+        vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
+        vm.setEnv("ETHEREUM_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
+
+        script.run();
+    }
+
+    function testLoadConfigFromEnvRejectsNonSepolia() external {
+        vm.chainId(1);
+        vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
+        vm.setEnv("ETHEREUM_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
+
+        vm.expectRevert("SEPOLIA_ONLY");
+        script.loadConfigFromEnv();
     }
 }
