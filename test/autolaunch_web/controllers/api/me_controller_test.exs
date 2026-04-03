@@ -5,26 +5,26 @@ defmodule AutolaunchWeb.Api.MeControllerTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
 
-  defmodule LaunchStub do
-    def list_positions(nil, _filters), do: []
+  defmodule PortfolioStub do
+    def get_snapshot(_human) do
+      {:ok,
+       %{
+         status: "ready",
+         launched_tokens: [%{agent_name: "Atlas"}],
+         staked_tokens: [%{agent_name: "Nova"}],
+         refreshed_at: nil,
+         next_manual_refresh_at: nil
+       }}
+    end
 
-    def list_positions(_human, filters) do
-      items = [
-        %{bid_id: "bid_active", auction_id: "auc_1", status: "active"},
-        %{bid_id: "bid_claimable", auction_id: "auc_2", status: "claimable"}
-      ]
-
-      case filters["status"] do
-        nil -> items
-        "" -> items
-        status -> Enum.filter(items, &(&1.status == status))
-      end
+    def request_manual_refresh(_human) do
+      {:error, {:cooldown, 12}}
     end
   end
 
   setup %{conn: conn} do
     original = Application.get_env(:autolaunch, :me_controller, [])
-    Application.put_env(:autolaunch, :me_controller, launch_module: LaunchStub)
+    Application.put_env(:autolaunch, :me_controller, portfolio_module: PortfolioStub)
 
     on_exit(fn ->
       Application.put_env(:autolaunch, :me_controller, original)
@@ -40,16 +40,29 @@ defmodule AutolaunchWeb.Api.MeControllerTest do
     %{conn: conn, human: human}
   end
 
-  test "bids still require auth", %{conn: conn} do
-    conn = get(conn, "/api/me/bids")
-    assert %{"ok" => false, "error" => %{"code" => "auth_required"}} = json_response(conn, 401)
+  test "profile returns the cached snapshot", %{conn: conn, human: human} do
+    conn =
+      conn
+      |> init_test_session(privy_user_id: human.privy_user_id)
+      |> get("/api/me/profile")
+
+    assert %{
+             "ok" => true,
+             "profile" => %{
+               "status" => "ready",
+               "launched_tokens" => [%{"agent_name" => "Atlas"}],
+               "staked_tokens" => [%{"agent_name" => "Nova"}]
+             }
+           } = json_response(conn, 200)
   end
 
-  test "bids filters by status and auction id", %{conn: conn, human: human} do
-    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    conn = get(conn, "/api/me/bids?status=claimable&auction=auc_2")
+  test "refresh_profile enforces cooldown responses", %{conn: conn, human: human} do
+    conn =
+      conn
+      |> init_test_session(privy_user_id: human.privy_user_id)
+      |> post("/api/me/profile/refresh")
 
-    assert %{"ok" => true, "items" => [%{"bid_id" => "bid_claimable", "auction_id" => "auc_2"}]} =
-             json_response(conn, 200)
+    assert %{"ok" => false, "error" => %{"code" => "profile_refresh_cooldown"}} =
+             json_response(conn, 429)
   end
 end

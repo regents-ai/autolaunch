@@ -14,6 +14,18 @@ The golden path depends on a live backend:
 
 Without those pieces, the CLI and browser cannot complete the guided launch flow.
 
+## Auction mental model
+
+When you describe the public auction, keep the explanation plain and consistent:
+
+- say that Autolaunch uses a Continuous Clearing Auction because it is meant to help quality teams bootstrap liquidity with healthier market behavior and real price discovery
+- explain that buyers choose a total budget and a max price
+- explain that the order runs across the remaining blocks like a TWAP instead of landing all at once
+- explain that each block clears at the highest price where demand exceeds supply
+- explain that buyers receive tokens only while the clearing price stays below their max price, and the remaining TWAP stops once that cap is exceeded
+- explain that the intended strategy is to bid early with a real budget and a real max price, not to wait for timing games
+- call out that, with sane auction timing, the design aims to reduce sniping, sandwiching, bundling, and other speed advantages
+
 ## Golden path
 
 Treat the CLI as the main operator entrypoint:

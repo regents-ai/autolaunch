@@ -7,22 +7,24 @@ defmodule AutolaunchWeb.AuctionGuideLive do
     %{
       order: 0,
       index: "01",
-      eyebrow: "What is being sold",
-      title: "Each auction sells 10% of an agent's revenue token supply.",
+      eyebrow: "Why this model exists",
+      title:
+        "The auction is built for quality teams to bootstrap liquidity with real price discovery.",
       body:
-        "The token launch supply is fixed at 100 billion units. The agent keeps the other 90% from the start, so the auction only sets the price for the public 10% slice.",
-      note: "The sale is a discovery mechanism, not the whole token supply.",
-      stat: "10% sold, 100B total"
+        "We put a lot of thought into an auction model that avoids launch-day timing games and gives buyers one clear way to express conviction. The goal is healthier market behavior, not a race to exploit mechanics.",
+      note: "The design is about fair access and honest bidding, not speed tricks.",
+      stat: "Healthy market behavior"
     },
     %{
       order: 1,
       index: "02",
-      eyebrow: "Where the money lives",
-      title: "All auctions are denominated in USDC on Ethereum Sepolia.",
+      eyebrow: "What is being sold",
+      title: "Each auction sells 10% of a fixed 100 billion token supply.",
       body:
-        "Bids do not hop across networks. Every auction uses USDC on Ethereum Sepolia, which keeps the settlement path predictable and the user-facing price math simple.",
-      note: "No network chooser, no conversion detours.",
-      stat: "USDC only"
+        "The agent keeps the other 90% from the start, so the auction is only discovering the market price for the public 10% slice. Every bid is still placed in USDC on Ethereum Sepolia.",
+      note:
+        "The sale discovers the public launch price, not the value of the whole supply at once.",
+      stat: "10% sold, 100B total"
     },
     %{
       order: 2,
@@ -30,40 +32,52 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       eyebrow: "How you enter",
       title: "You set a total budget and a max price.",
       body:
-        "The amount is split across the remaining auction blocks instead of landing all at once. That gives you a limit-order style position that can stay active over time without manual babysitting.",
-      note: "The same bid can participate in many blocks.",
+        "That is the whole mental model for a buyer. You say how much you want to spend in total and the highest price you are willing to pay for a token, then the system handles the block-by-block execution.",
+      note: "One bid expresses both your size and your discipline.",
       stat: "Budget + ceiling"
     },
     %{
       order: 3,
       index: "04",
-      eyebrow: "How the market clears",
-      title: "Clearing prices rise as the auction progresses.",
+      eyebrow: "How your order runs",
+      title: "Your order is spread across the remaining blocks like a TWAP.",
       body:
-        "If your max price stays above the live clearing price, you remain in range. If the price moves above your ceiling, the remaining portion is no longer active and the page should show that clearly.",
-      note: "Early blocks are usually cheaper than later blocks.",
-      stat: "In range / out of range"
+        "Instead of landing all at once, your budget is distributed over the remaining auction duration. Bidding earlier means you participate in more blocks, while waiting shortens your TWAP and usually worsens your average entry.",
+      note: "The model rewards showing up honestly early, not trying to time one perfect block.",
+      stat: "TWAP across blocks"
     },
     %{
       order: 4,
       index: "05",
-      eyebrow: "What happens at the end",
-      title: "When the auction ends, you claim the filled tokens and refunds.",
+      eyebrow: "How the market clears",
+      title:
+        "The auction starts at a floor price and clears higher only when demand requires it.",
       body:
-        "The user should be able to see what filled, what was returned, and what still needs to be claimed. The point is to make the outcome obvious, not to hide the accounting behind the contract.",
-      note: "Claiming is the finish line for the sale itself.",
-      stat: "Claim allocation"
+        "Each block clears at the highest price where that block's demand exceeds that block's supply. Everyone who clears the same block gets the same clearing price, and nobody pays their own max price if the market clears lower.",
+      note: "The clearing price moves with real demand instead of rewarding sniping.",
+      stat: "Floor to clearing"
     },
     %{
       order: 5,
       index: "06",
-      eyebrow: "What makes the token earn",
-      title: "The acquired tokens must be staked to earn revenue.",
+      eyebrow: "What the game theory says",
+      title: "Bid early with your real budget and your real max price.",
       body:
-        "Buying the token is not enough. To earn revenue, the tokens have to be staked, and revenue only counts after Sepolia USDC reaches the revenue share splitter and is finalized from onchain state.",
+        "Each block where the clearing price stays below your max price buys tokens for a slice of your budget. Once the clearing price moves above your cap, the remaining portion of your TWAP stops instead of forcing you to overpay.",
       note:
-        "Stake turns ownership into a revenue claim once recognized USDC reaches the revenue share splitter.",
-      stat: "Stake required"
+        "Your max price protects you, and waiting only gives you fewer blocks at usually worse prices.",
+      stat: "Honest early bidding"
+    },
+    %{
+      order: 6,
+      index: "07",
+      eyebrow: "What happens after",
+      title:
+        "When the auction ends, you claim the filled tokens, then stake if you want revenue exposure.",
+      body:
+        "The page should make the outcome obvious: what filled, what was refunded, and what still needs to be claimed. After claim, tokens must be staked before they participate in recognized Sepolia USDC revenue and token fee share.",
+      note: "The sale ends at claim. Earning starts only after staking.",
+      stat: "Claim, then stake"
     }
   ]
 
@@ -94,7 +108,12 @@ defmodule AutolaunchWeb.AuctionGuideLive do
   def handle_event("regent:surface_ready", _params, socket), do: {:noreply, socket}
 
   def handle_event("regent:surface_error", _params, socket) do
-    {:noreply, put_flash(socket, :error, "The autolaunch guide surface could not render in this browser session.")}
+    {:noreply,
+     put_flash(
+       socket,
+       :error,
+       "The autolaunch guide surface could not render in this browser session."
+     )}
   end
 
   def render(assigns) do
@@ -122,7 +141,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 <p class="al-kicker">Guide strip</p>
                 <div>
                   <h2>Understand the sale before touching the controls.</h2>
-                  <p class="al-subcopy">The symbolic path is short on purpose. The rules stay plain-English in the chamber and ledger.</p>
+                  <p class="al-subcopy">The symbolic path is short on purpose. The plain-English version explains why the auction exists, how it clears, and why honest early bids are the intended strategy.</p>
                 </div>
               </div>
 
@@ -187,51 +206,90 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       <div id="auction-guide-page" phx-hook="AuctionGuideMotion">
         <section id="auction-guide-hero" class="al-panel al-guide-hero">
           <div class="al-guide-hero-copy">
-            <p class="al-kicker">Auction guide</p>
-            <h2>How autolaunch auctions work.</h2>
+            <p class="al-kicker">Provable agent revenue</p>
+            <h2>Back an agent with USDC, or launch one through your own agent.</h2>
             <p class="al-subcopy">
-              The auction sets the price for the public 10% of an agent's revenue token supply.
-              Bidders pay in USDC on Ethereum Sepolia, then stake the tokens they win if they want
-              to earn after recognized Sepolia USDC reaches the revenue share splitter.
+              This page is built for people who may be new to crypto. The short version is simple:
+              you are using stablecoins to back an agent with provable revenue, and the auction is
+              designed to feel fair instead of fast-twitch. A practical first bid is your budget at
+              the current displayed floor or clearing price, with the understanding that you may
+              need to update that bid later if demand moves up.
             </p>
 
-            <div class="al-hero-actions">
-              <.link navigate={~p"/auctions"} class="al-submit">Open live auctions</.link>
-              <.link navigate={~p"/launch"} class="al-ghost">Launch an agent</.link>
-            </div>
+            <div class="al-choice-grid">
+              <article class="al-choice-card" data-guide-choice>
+                <p class="al-kicker">Card A</p>
+                <h3>Bid on active 3-day agent revsplit token auctions</h3>
+                <p>
+                  Use USDC to invest in an agent. The auction sells the revsplit token in a way
+                  that is meant to be simple and fair, not dominated by timing games.
+                </p>
 
-            <div class="al-launch-tags" aria-label="Auction facts">
-              <span class="al-launch-tag">10% sold at launch</span>
-              <span class="al-launch-tag">USDC on Ethereum Sepolia</span>
-              <span class="al-launch-tag">Stake required for revenue</span>
+                <div class="al-launch-tags" aria-label="Bid path facts">
+                  <span class="al-launch-tag">3-day sale window</span>
+                  <span class="al-launch-tag">USDC on Ethereum Sepolia</span>
+                  <span class="al-launch-tag">Stake after claim to earn USDC</span>
+                </div>
+
+                <p class="al-inline-note">
+                  Recommended first move: bid your budget at the current displayed floor or clearing
+                  price, then update later if the auction moves out of range.
+                </p>
+
+                <div class="al-choice-actions">
+                  <.link navigate={~p"/auctions"} class="al-submit">Open active auctions</.link>
+                  <.link navigate={~p"/how-auctions-work"} class="al-ghost">Why this auction is fair</.link>
+                </div>
+              </article>
+
+              <article class="al-choice-card" data-guide-choice>
+                <p class="al-kicker">Card B</p>
+                <h3>Launch a token through your OpenClaw or Hermes Agent. Easy to configure via CLI.</h3>
+                <p>
+                  Operators should treat the CLI as the source of truth. Save the plan, validate
+                  it, run the launch, monitor the three-day auction, then finalize the post-auction
+                  actions.
+                </p>
+
+                <pre class="al-choice-command"><code>regent autolaunch prelaunch wizard</code></pre>
+
+                <div class="al-choice-actions">
+                  <button
+                    type="button"
+                    class="al-submit"
+                    data-copy-value="regent autolaunch prelaunch wizard"
+                  >
+                    Copy CLI command
+                  </button>
+                  <.link navigate={~p"/launch-via-agent"} class="al-ghost">How to use agents</.link>
+                </div>
+              </article>
             </div>
           </div>
 
           <aside class="al-guide-summary">
             <div class="al-section-head">
               <div>
-                <p class="al-kicker">At a glance</p>
-                <h3>Three things to remember</h3>
+                <p class="al-kicker">Current live economics</p>
+                <h3>What the launch does today</h3>
               </div>
             </div>
 
-            <div class="al-guide-summary-grid">
-              <.stat_card title="Sale size" value="10%" hint="The agent keeps the other 90%." />
-              <.stat_card title="Supply" value="100B" hint="AgentLaunchToken supply is fixed." />
-              <.stat_card title="Currency" value="USDC" hint="All auctions settle on Ethereum Sepolia." />
-              <.stat_card title="Revenue" value="Stake first" hint="Tokens must be staked after recognized Sepolia USDC reaches the revenue share splitter." />
-              <.stat_card
-                title="Fee share"
-                value="Included"
-                hint="Staked tokens also receive the token fee revenue share."
-              />
+            <div class="al-guide-summary-grid al-guide-facts-grid">
+              <.stat_card title="Auction sale" value="10%" hint="10 billion of the 100 billion token supply are sold in the auction." />
+              <.stat_card title="LP reserve" value="5%" hint="5 billion tokens are held back for the Uniswap v4 pool." />
+              <.stat_card title="USDC to LP" value="50%" hint="Half of the auction USDC pairs with the 5 billion LP tokens." />
+              <.stat_card title="USDC to agent Safe" value="50%" hint="The other half is swept to the agent Safe for business operations." />
+              <.stat_card title="Vesting" value="85%" hint="The remaining 85 billion tokens vest to the agent treasury over 1 year." />
+              <.stat_card title="Auction style" value="Simple + fair" hint="Budget plus max price, same block price for everyone, less timing edge." />
             </div>
 
             <div class="al-inline-banner al-guide-banner">
-              <strong>Plain version.</strong>
+              <strong>Simple bidding mental model.</strong>
               <p>
-                Buy the public 10%, claim what you win, then stake it if you want recognized
-                Sepolia USDC revenue to start accruing.
+                Choose a total budget and a max price. The order keeps buying only while the market
+                stays below that cap, so you are backing the agent with stablecoins without giving
+                up price discipline.
               </p>
             </div>
           </aside>
@@ -248,8 +306,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
 
             <div class="al-guide-rail-copy">
               <p>
-                Follow the sale from price discovery to claiming and staking. Each step mirrors the
-                live auction flow instead of hiding it behind jargon.
+                Follow the sale from launch rationale to claim and staking. Each step mirrors the
+                live auction flow instead of hiding the market design behind jargon.
               </p>
 
               <div class="al-guide-rail-progress" aria-hidden="true">
@@ -296,28 +354,28 @@ defmodule AutolaunchWeb.AuctionGuideLive do
         <section class="al-panel al-guide-finish">
           <div class="al-section-head">
             <div>
-              <p class="al-kicker">After the sale</p>
-              <h3>Claim first, stake second, earn third.</h3>
+              <p class="al-kicker">Why participants like it</p>
+              <h3>Less timing game, more actual price discovery.</h3>
             </div>
           </div>
 
           <div class="al-guide-outcomes">
             <article class="al-guide-outcome">
               <span>1</span>
-              <strong>Claim the tokens you won.</strong>
-              <p>The auction ends with a concrete allocation and any applicable refund.</p>
+              <strong>Everyone gets the same block price.</strong>
+              <p>There is less room for sniping, bundling, or sandwiching your way into a better fill.</p>
             </article>
 
             <article class="al-guide-outcome">
               <span>2</span>
-              <strong>Stake the tokens to become revenue-eligible.</strong>
-              <p>Staking is what turns ownership into a share of the agent's revenue stream.</p>
+              <strong>Advanced users do not get a special timing edge.</strong>
+              <p>With sane auction parameters, buyers are competing on price conviction, not on who can play block games better.</p>
             </article>
 
             <article class="al-guide-outcome">
               <span>3</span>
-              <strong>Collect revenue, including token fee share.</strong>
-              <p>The staked position participates in the agent's income and the token fee split.</p>
+              <strong>Claim first, stake second, earn third.</strong>
+              <p>Settlement stays simple: claim the result, then stake if you want ongoing revenue exposure.</p>
             </article>
           </div>
         </section>

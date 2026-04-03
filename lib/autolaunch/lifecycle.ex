@@ -22,7 +22,7 @@ defmodule Autolaunch.Lifecycle do
          current_block: current_block,
          recommended_action: recommended_action(flags)
        }}
-       |> then(&Map.merge(&1, flags))
+      |> then(&Map.merge(&1, flags))
     else
       nil -> {:error, :not_found}
       {:error, _} = error -> error
@@ -114,7 +114,8 @@ defmodule Autolaunch.Lifecycle do
     end
   end
 
-  defp job_ready_with_strategy?(job, strategy), do: job.status == "ready" and present?(strategy[:address])
+  defp job_ready_with_strategy?(job, strategy),
+    do: job.status == "ready" and present?(strategy[:address])
 
   defp current_block(chain_id) do
     case Rpc.block_number(chain_id) do

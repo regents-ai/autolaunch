@@ -70,7 +70,10 @@ defmodule Autolaunch.LifecycleTest do
   describe "prepare_scope_action/1" do
     test "maps the recommended action to the contract surface" do
       assert Lifecycle.prepare_scope_action("migrate") == {:ok, {"strategy", "migrate"}}
-      assert Lifecycle.prepare_scope_action("sweep_currency") == {:ok, {"strategy", "sweep_currency"}}
+
+      assert Lifecycle.prepare_scope_action("sweep_currency") ==
+               {:ok, {"strategy", "sweep_currency"}}
+
       assert Lifecycle.prepare_scope_action("sweep_token") == {:ok, {"strategy", "sweep_token"}}
       assert Lifecycle.prepare_scope_action("release_vesting") == {:ok, {"vesting", "release"}}
       assert Lifecycle.prepare_scope_action("wait") == :noop

@@ -33,7 +33,9 @@ defmodule Autolaunch.Launch.External.SocialAccount do
     |> validate_length(:handle, max: 255)
     |> validate_length(:profile_url, max: 500)
     |> validate_length(:provider_subject, max: 255)
-    |> unique_constraint([:agent_id, :provider], name: :agent_social_accounts_agent_provider_unique)
+    |> unique_constraint([:agent_id, :provider],
+      name: :agent_social_accounts_agent_provider_unique
+    )
     |> unique_constraint([:provider, :provider_subject],
       name: :agent_social_accounts_provider_subject_unique
     )

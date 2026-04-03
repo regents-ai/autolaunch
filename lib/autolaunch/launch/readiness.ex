@@ -155,6 +155,7 @@ defmodule Autolaunch.Launch.Readiness do
         Enum.all?(checks, fn check ->
           check.passed or check.key not in @blocking_check_keys
         end)
+
       blocking = blocking_error(checks)
 
       %{
@@ -207,8 +208,7 @@ defmodule Autolaunch.Launch.Readiness do
       %{
         key: "xVerified",
         passed: false,
-        message:
-          "X verification is optional public trust metadata and cannot be confirmed here."
+        message: "X verification is optional public trust metadata and cannot be confirmed here."
       },
       %{
         key: "stakeLockActive",

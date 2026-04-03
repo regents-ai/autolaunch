@@ -2,13 +2,16 @@ defmodule AutolaunchWeb.PrivySessionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch.Accounts
+  alias Autolaunch.Portfolio
   alias Autolaunch.Privy
   alias AutolaunchWeb.ApiError
 
   def create(conn, params) do
     with {:ok, token} <- fetch_bearer_token(conn),
-         {:ok, %{privy_user_id: privy_user_id}} <- Privy.verify_token(token),
+         {:ok, %{privy_user_id: privy_user_id}} <- privy_module().verify_token(token),
          {:ok, human} <- Accounts.upsert_human_by_privy_id(privy_user_id, session_attrs(params)) do
+      :ok = portfolio_module().schedule_login_refresh(human)
+
       conn
       |> put_session(:privy_user_id, privy_user_id)
       |> json(%{
@@ -80,4 +83,16 @@ defmodule AutolaunchWeb.PrivySessionController do
   end
 
   defp normalize_wallet_address(_value), do: nil
+
+  defp portfolio_module do
+    :autolaunch
+    |> Application.get_env(:privy_session_controller, [])
+    |> Keyword.get(:portfolio_module, Portfolio)
+  end
+
+  defp privy_module do
+    :autolaunch
+    |> Application.get_env(:privy_session_controller, [])
+    |> Keyword.get(:privy_module, Privy)
+  end
 end

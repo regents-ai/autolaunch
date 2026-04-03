@@ -6,6 +6,7 @@ import { AuctionGuideMotion } from "./auction-guide-motion"
 import { LaunchForm } from "./launch-form"
 import { MissionMotion } from "./mission-motion"
 import { PrivyAuth } from "./privy-auth"
+import { ShellChrome } from "./shell-chrome"
 import { WalletTxButton } from "./wallet-tx-button"
 import { XLinkFlow } from "./x-link-flow"
 
@@ -16,6 +17,7 @@ export const hooks: HooksOptions = {
   LaunchForm,
   MissionMotion,
   PrivyAuth,
+  ShellChrome,
   WalletTxButton,
   XLinkFlow,
 }

@@ -11,18 +11,26 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
         %{
           id: "auc_1",
           agent_name: "Atlas",
-          status: "active",
-          your_bid_status:
-            if(filters["mine_only"] in [true, "true", "1"], do: "active", else: "none")
+          phase: "biddable",
+          current_price_usdc: "0.0050",
+          implied_market_cap_usdc: "500000000"
         }
       ]
 
-      case filters["mine_only"] do
-        value when value in [true, "true", "1"] ->
-          base
+      case filters["mode"] do
+        "live" ->
+          [
+            %{
+              id: "auc_2",
+              agent_name: "Nova",
+              phase: "live",
+              current_price_usdc: "0.0110",
+              implied_market_cap_usdc: "1100000000"
+            }
+          ]
 
         _ ->
-          base ++ [%{id: "auc_2", agent_name: "Nova", status: "settled", your_bid_status: "none"}]
+          base
       end
     end
 
@@ -90,7 +98,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
   end
 
   test "index returns a non-empty auction payload", %{conn: conn} do
-    conn = get(conn, "/api/auctions?mine_only=true")
+    conn = get(conn, "/api/auctions?mode=biddable&sort=newest")
 
     assert %{"ok" => true, "items" => [%{"id" => "auc_1"}]} = json_response(conn, 200)
   end

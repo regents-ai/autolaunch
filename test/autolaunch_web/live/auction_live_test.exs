@@ -115,6 +115,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     assert html =~ "Detail strip"
     assert html =~ "The detail terrain stays orienting only."
     assert html =~ "Bid composer"
+    assert html =~ "real budget and your real max price"
     assert html =~ "Submit bid from wallet"
     assert html =~ "Claim tokens"
     assert html =~ "Identity and trust status"
@@ -156,14 +157,14 @@ defmodule AutolaunchWeb.AuctionLiveTest do
         "meta" => %{"panel" => "detail:trust"}
       })
 
-    assert html =~ "Back to bid"
+    assert html =~ "Back to overview"
 
     html =
       view
       |> element("button[phx-click='scene-back']")
       |> render_click()
 
-    refute html =~ "Back to bid"
+    refute html =~ "Back to overview"
     assert html =~ "Bid composer"
   end
 end

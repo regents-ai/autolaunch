@@ -3,13 +3,12 @@ defmodule AutolaunchWeb.AuctionLive do
 
   alias Autolaunch.Launch
   alias AutolaunchWeb.LaunchComponents
+  alias AutolaunchWeb.Live.Refreshable
   alias AutolaunchWeb.RegentScenes
 
   @poll_ms 12_000
 
   def mount(%{"id" => auction_id}, _session, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-
     auction = launch_module().get_auction(auction_id, socket.assigns[:current_human])
     form = default_bid_form(auction)
     quote = maybe_quote(auction, form, socket.assigns[:current_human])
@@ -17,6 +16,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
     {:ok,
      socket
+     |> Refreshable.schedule(@poll_ms)
      |> assign(:page_title, "Auction Detail")
      |> assign(:active_view, "auctions")
      |> assign(:auction_id, auction_id)
@@ -49,27 +49,15 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   def handle_event("wallet_tx_started", %{"message" => message}, socket) do
-    {:noreply, put_flash(socket, :info, message)}
+    {:noreply, Refreshable.wallet_started(socket, message)}
   end
 
   def handle_event("wallet_tx_registered", %{"message" => message}, socket) do
-    auction = launch_module().get_auction(socket.assigns.auction_id, socket.assigns.current_human)
-    positions = positions_for_auction(socket.assigns.current_human, socket.assigns.auction_id)
-
-    {:noreply,
-     socket
-     |> put_flash(:info, message)
-     |> assign(:auction, auction)
-     |> assign(:positions, positions)
-      |> assign(
-        :quote,
-        maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human)
-      )
-     |> assign_regent_scene()}
+    {:noreply, Refreshable.wallet_registered(socket, message, &reload_auction/1)}
   end
 
   def handle_event("wallet_tx_error", %{"message" => message}, socket) do
-    {:noreply, put_flash(socket, :error, message)}
+    {:noreply, Refreshable.wallet_error(socket, message)}
   end
 
   def handle_event("regent:node_select", %{"meta" => %{"panel" => panel}}, socket) do
@@ -86,24 +74,16 @@ defmodule AutolaunchWeb.AuctionLive do
   def handle_event("regent:surface_ready", _params, socket), do: {:noreply, socket}
 
   def handle_event("regent:surface_error", _params, socket) do
-    {:noreply, put_flash(socket, :error, "The auction detail surface could not render in this browser session.")}
+    {:noreply,
+     put_flash(
+       socket,
+       :error,
+       "The auction detail surface could not render in this browser session."
+     )}
   end
 
   def handle_info(:refresh, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-
-    auction = launch_module().get_auction(socket.assigns.auction_id, socket.assigns.current_human)
-    positions = positions_for_auction(socket.assigns.current_human, socket.assigns.auction_id)
-
-    {:noreply,
-     socket
-     |> assign(:auction, auction)
-     |> assign(:positions, positions)
-      |> assign(
-        :quote,
-        maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human)
-      )
-     |> assign_regent_scene()}
+    {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_auction/1)}
   end
 
   def render(assigns) do
@@ -113,7 +93,10 @@ defmodule AutolaunchWeb.AuctionLive do
       assigns
       |> assign(:latest_position, latest_position)
       |> assign(:regent_detail_title, regent_detail_title(assigns.detail_focus))
-      |> assign(:regent_detail_summary, regent_detail_summary(assigns.detail_focus, assigns.quote, latest_position))
+      |> assign(
+        :regent_detail_summary,
+        regent_detail_summary(assigns.detail_focus, assigns.quote, latest_position)
+      )
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
@@ -139,6 +122,9 @@ defmodule AutolaunchWeb.AuctionLive do
                 </div>
 
                 <div class="al-terrain-strip-controls">
+                  <.link navigate={~p"/auction-returns"} class="al-ghost">
+                    Auction returns
+                  </.link>
                   <button
                     :if={@detail_focus != "detail:bid"}
                     type="button"
@@ -146,7 +132,7 @@ defmodule AutolaunchWeb.AuctionLive do
                     class="rg-surface-back"
                   >
                     <span class="rg-surface-back-icon" aria-hidden="true">←</span>
-                    Back to bid
+                    Back to overview
                   </button>
                   <span class="al-network-badge">{@auction.status}</span>
                   <span class="al-network-badge">{LaunchComponents.time_left_label(@auction.ends_at)}</span>
@@ -202,13 +188,18 @@ defmodule AutolaunchWeb.AuctionLive do
             <p class="al-kicker">Auction detail</p>
             <h2>{@auction.agent_name}</h2>
             <p class="al-subcopy">
-              This page is built around the estimator because CCA behavior is easier to trust with a live quote.
+              This page is built around the estimator because the auction is easiest to trust when
+              you can see how a real budget and max price behave block by block.
             </p>
           </div>
 
           <div class="al-stat-grid">
             <.stat_card title="Clearing price" value={@auction.current_clearing_price} />
             <.stat_card title="Bid volume" value={@auction.total_bid_volume} />
+            <.stat_card
+              title="Minimum raise"
+              value={auction_value(@auction, :required_currency_raised, "Unavailable")}
+            />
             <.stat_card title="Time remaining" value={LaunchComponents.time_left_label(@auction.ends_at)} />
             <.stat_card
               title="Your status"
@@ -264,15 +255,17 @@ defmodule AutolaunchWeb.AuctionLive do
             <div class="al-section-head">
               <div>
                 <p class="al-kicker">Bid composer</p>
-                <h3>Choose amount and max price</h3>
+                <h3>Bid your real budget and your real max price</h3>
               </div>
               <.status_badge status={@auction.status} />
             </div>
 
             <div class="al-inline-banner">
-              <strong>Wallet-driven bid path.</strong>
+              <strong>Simple buyer model.</strong>
               <p>
-                The quote is computed on the server, but the bid itself is sent straight to the CCA contract from your wallet.
+                Your order is spread across the remaining blocks like a TWAP. It only keeps buying
+                while the clearing price stays below your cap, so you never pay above the max price
+                you chose.
               </p>
             </div>
 
@@ -372,6 +365,45 @@ defmodule AutolaunchWeb.AuctionLive do
         </section>
 
         <section class="al-detail-layout">
+          <article id="auction-minimum-raise-card" class="al-panel al-card" phx-hook="MissionMotion">
+            <div class="al-section-head">
+              <div>
+                <p class="al-kicker">Minimum raise</p>
+                <h3>How close the auction is to graduating</h3>
+              </div>
+              <.link navigate={~p"/auction-returns"} class="al-ghost">Auction returns</.link>
+            </div>
+
+            <div class="al-stat-grid">
+              <.stat_card
+                title="Raised now"
+                value={auction_value(@auction, :currency_raised, @auction.total_bid_volume)}
+              />
+              <.stat_card
+                title="Minimum needed"
+                value={auction_value(@auction, :required_currency_raised, "Unavailable")}
+              />
+              <.stat_card
+                title="Progress"
+                value={
+                  if(is_number(auction_value(@auction, :minimum_raise_progress_percent)),
+                    do: "#{auction_value(@auction, :minimum_raise_progress_percent)}%",
+                    else: "Unavailable"
+                  )
+                }
+              />
+              <.stat_card
+                title="Simple pace estimate"
+                value={auction_value(@auction, :projected_final_currency_raised, "Waiting for more time")}
+                hint="Estimate only, not a promise"
+              />
+            </div>
+
+            <p class="al-inline-note">
+              {minimum_raise_copy(@auction)}
+            </p>
+          </article>
+
           <article id="auction-position-card" class="al-panel al-card" phx-hook="MissionMotion">
             <div class="al-section-head">
               <div>
@@ -403,12 +435,23 @@ defmodule AutolaunchWeb.AuctionLive do
 
               <p class="al-inline-note">{position.next_action_label}</p>
 
-              <div class="al-action-row">
+                  <div class="al-action-row">
                     <.wallet_tx_button
-                      :if={position.tx_actions.exit}
+                      :if={return_action(position)}
+                      id={"auction-return-#{position.bid_id}"}
+                      class="al-submit"
+                      tx_request={return_action(position).tx_request}
+                      register_endpoint={~p"/api/bids/#{position.bid_id}/return-usdc"}
+                      pending_message="Return transaction sent. Waiting for confirmation."
+                      success_message="USDC return registered."
+                    >
+                      Return USDC
+                    </.wallet_tx_button>
+                    <.wallet_tx_button
+                      :if={tx_action(position, :exit) && is_nil(return_action(position))}
                       id={"auction-exit-#{position.bid_id}"}
                       class="al-ghost"
-                      tx_request={position.tx_actions.exit.tx_request}
+                      tx_request={tx_action(position, :exit).tx_request}
                       register_endpoint={~p"/api/bids/#{position.bid_id}/exit"}
                       pending_message="Exit transaction sent. Waiting for confirmation."
                       success_message="Bid exit registered."
@@ -417,10 +460,10 @@ defmodule AutolaunchWeb.AuctionLive do
                     </.wallet_tx_button>
 
                     <.wallet_tx_button
-                      :if={position.tx_actions.claim}
+                      :if={tx_action(position, :claim)}
                       id={"auction-claim-#{position.bid_id}"}
                       class="al-submit"
-                      tx_request={position.tx_actions.claim.tx_request}
+                      tx_request={tx_action(position, :claim).tx_request}
                       register_endpoint={~p"/api/bids/#{position.bid_id}/claim"}
                       pending_message="Claim transaction sent. Waiting for confirmation."
                       success_message="Claim registered."
@@ -437,14 +480,14 @@ defmodule AutolaunchWeb.AuctionLive do
             <div class="al-section-head">
               <div>
                 <p class="al-kicker">How this works</p>
-                <h3>Keep the CCA model practical</h3>
+                <h3>Why the model is useful</h3>
               </div>
             </div>
 
             <ul class="al-compact-list">
-              <li>Active bids receive tokens at the current clearing price.</li>
-              <li>Inactive bids stop participating until the clearing price moves back below the bid cap.</li>
-              <li>The estimator is the operational summary: active now, tokens now, tokens if nothing changes, and your inactive threshold.</li>
+              <li>Bid early with your real budget and your real max price instead of waiting for a last-second entry.</li>
+              <li>Your max price protects you from overpaying, and everyone in the same block gets the same clearing price.</li>
+              <li>With sane auction timing, there is far less room for sniping, bundling, sandwiching, or other speed advantages.</li>
             </ul>
           </article>
         </section>
@@ -506,6 +549,35 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp preset_form(_auction, form, _preset), do: form
 
+  defp reload_auction(socket) do
+    auction = launch_module().get_auction(socket.assigns.auction_id, socket.assigns.current_human)
+    positions = positions_for_auction(socket.assigns.current_human, socket.assigns.auction_id)
+
+    socket
+    |> assign(:auction, auction)
+    |> assign(:positions, positions)
+    |> assign(:quote, maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human))
+    |> assign_regent_scene()
+  end
+
+  defp minimum_raise_copy(auction) do
+    case auction_value(auction, :auction_outcome) do
+      "failed_minimum" ->
+        "This auction ended below the minimum raise. Buyers can return their USDC from the wallet actions on this page or from Positions."
+
+      _ ->
+        minimum_raise_copy_by_state(auction)
+    end
+  end
+
+  defp minimum_raise_copy_by_state(auction) do
+    if auction_value(auction, :minimum_raise_met) == true do
+      "The auction has already met its minimum raise, so it can graduate if bidding holds through the end."
+    else
+      "Simple pace assumes the current bidding rate continues for the rest of the three-day auction. It is there to orient visitors, not to promise the final outcome."
+    end
+  end
+
   defp decimal_plus(left, right) do
     with {lhs, ""} <- Decimal.parse(left),
          {rhs, ""} <- Decimal.parse(right) do
@@ -521,10 +593,33 @@ defmodule AutolaunchWeb.AuctionLive do
   defp human_position_status(nil), do: "No bid"
   defp human_position_status(position), do: String.capitalize(position.status)
 
+  defp auction_value(auction, key, default \\ nil)
+  defp auction_value(nil, _key, default), do: default
+
+  defp auction_value(auction, key, default) when is_map(auction) do
+    Map.get(auction, key, default)
+  end
+
+  defp return_action(position) when is_map(position) do
+    Map.get(position, :return_action)
+  end
+
+  defp tx_action(position, action) when is_map(position) do
+    position
+    |> Map.get(:tx_actions, %{})
+    |> Map.get(action)
+  end
+
   defp assign_regent_scene(socket) do
     latest_position = List.first(socket.assigns.positions || [])
     next_version = (socket.assigns[:regent_scene_version] || 0) + 1
-    scene = RegentScenes.auction_detail(socket.assigns.auction, latest_position, socket.assigns.detail_focus)
+
+    scene =
+      RegentScenes.auction_detail(
+        socket.assigns.auction,
+        latest_position,
+        socket.assigns.detail_focus
+      )
 
     socket
     |> assign(:regent_scene_version, next_version)
@@ -550,7 +645,7 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   defp regent_detail_summary(_detail_focus, _quote, _latest_position) do
-    "Set the budget and max price here, then use the live quote below to decide whether the bid should stay active."
+    "Set the budget and max price here, then use the live quote below to see how that order would TWAP across the remaining blocks."
   end
 
   defp launch_module do

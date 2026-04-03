@@ -14,6 +14,8 @@ defmodule Autolaunch.Launch.Job do
     field :ens_name, :string
     field :token_name, :string
     field :token_symbol, :string
+    field :minimum_raise_usdc, :string
+    field :minimum_raise_usdc_raw, :string
     field :recovery_safe_address, :string
     field :auction_proceeds_recipient, :string
     field :ethereum_revenue_treasury, :string
@@ -71,6 +73,8 @@ defmodule Autolaunch.Launch.Job do
       :ens_name,
       :token_name,
       :token_symbol,
+      :minimum_raise_usdc,
+      :minimum_raise_usdc_raw,
       :recovery_safe_address,
       :auction_proceeds_recipient,
       :ethereum_revenue_treasury,

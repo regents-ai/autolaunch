@@ -195,6 +195,9 @@ defmodule Autolaunch.MarketTrackingTest do
         selector == Abi.selector(:currency_raised) ->
           {:ok, encode_words([config.currency_raised_wei])}
 
+        selector == Abi.selector(:required_currency_raised) ->
+          {:ok, encode_words([config.required_currency_raised_wei])}
+
         selector == Abi.selector(:total_cleared) ->
           {:ok, encode_words([config.total_cleared_units])}
 
@@ -262,6 +265,7 @@ defmodule Autolaunch.MarketTrackingTest do
         sum_currency_demand_above_clearing_q96: 0,
         total_supply: 1_000_000_000_000_000_000,
         currency_raised_wei: 2_000_000_000_000_000_000,
+        required_currency_raised_wei: 1_000_000_000_000_000_000,
         total_cleared_units: 1_000_000_000_000_000_000,
         is_graduated: true,
         bids: %{
@@ -317,6 +321,7 @@ defmodule Autolaunch.MarketTrackingTest do
         sum_currency_demand_above_clearing_q96: 0,
         total_supply: 1_000_000_000_000_000_000,
         currency_raised_wei: 5_000_000_000_000_000_000,
+        required_currency_raised_wei: 1_000_000_000_000_000_000,
         total_cleared_units: 12_000_000_000_000_000_000,
         is_graduated: true,
         bids: %{
@@ -350,6 +355,7 @@ defmodule Autolaunch.MarketTrackingTest do
         sum_currency_demand_above_clearing_q96: 0,
         total_supply: 1_000_000_000_000_000_000,
         currency_raised_wei: 4_000_000_000_000_000_000,
+        required_currency_raised_wei: 1_000_000_000_000_000_000,
         total_cleared_units: 4_000_000_000_000_000_000,
         is_graduated: true,
         bids: %{

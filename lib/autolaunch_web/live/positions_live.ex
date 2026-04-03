@@ -2,16 +2,16 @@ defmodule AutolaunchWeb.PositionsLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Launch
+  alias AutolaunchWeb.Live.Refreshable
 
   @poll_ms 15_000
 
   def mount(_params, _session, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-
     filters = %{"status" => ""}
 
     {:ok,
      socket
+     |> Refreshable.schedule(@poll_ms)
      |> assign(:page_title, "Positions")
      |> assign(:active_view, "positions")
      |> assign(:filters, filters)
@@ -28,29 +28,19 @@ defmodule AutolaunchWeb.PositionsLive do
   end
 
   def handle_event("wallet_tx_started", %{"message" => message}, socket) do
-    {:noreply, put_flash(socket, :info, message)}
+    {:noreply, Refreshable.wallet_started(socket, message)}
   end
 
   def handle_event("wallet_tx_registered", %{"message" => message}, socket) do
-    {:noreply,
-     socket
-     |> put_flash(:info, message)
-     |> assign(:positions, load_positions(socket.assigns.current_human, socket.assigns.filters))}
+    {:noreply, Refreshable.wallet_registered(socket, message, &reload_positions/1)}
   end
 
   def handle_event("wallet_tx_error", %{"message" => message}, socket) do
-    {:noreply, put_flash(socket, :error, message)}
+    {:noreply, Refreshable.wallet_error(socket, message)}
   end
 
   def handle_info(:refresh, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-
-    {:noreply,
-     assign(
-       socket,
-       :positions,
-       load_positions(socket.assigns.current_human, socket.assigns.filters)
-     )}
+    {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_positions/1)}
   end
 
   def render(assigns) do
@@ -58,6 +48,7 @@ defmodule AutolaunchWeb.PositionsLive do
     borderline = Enum.count(assigns.positions, &(&1.status == "borderline"))
     inactive = Enum.count(assigns.positions, &(&1.status == "inactive"))
     claimable = Enum.count(assigns.positions, &(&1.status == "claimable"))
+    returnable = Enum.count(assigns.positions, &(&1.status == "returnable"))
 
     assigns =
       assigns
@@ -65,6 +56,7 @@ defmodule AutolaunchWeb.PositionsLive do
       |> assign(:borderline_count, borderline)
       |> assign(:inactive_count, inactive)
       |> assign(:claimable_count, claimable)
+      |> assign(:returnable_count, returnable)
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
@@ -82,6 +74,7 @@ defmodule AutolaunchWeb.PositionsLive do
           <.stat_card title="Borderline" value={Integer.to_string(@borderline_count)} />
           <.stat_card title="Inactive" value={Integer.to_string(@inactive_count)} />
           <.stat_card title="Claimable" value={Integer.to_string(@claimable_count)} />
+          <.stat_card title="Returns" value={Integer.to_string(@returnable_count)} />
         </div>
       </section>
 
@@ -101,6 +94,7 @@ defmodule AutolaunchWeb.PositionsLive do
               <option value="ending-soon" selected={@filters["status"] == "ending-soon"}>Ending soon</option>
               <option value="borderline" selected={@filters["status"] == "borderline"}>Borderline</option>
               <option value="inactive" selected={@filters["status"] == "inactive"}>Inactive</option>
+              <option value="returnable" selected={@filters["status"] == "returnable"}>Returnable</option>
               <option value="claimable" selected={@filters["status"] == "claimable"}>Claimable</option>
               <option value="pending-claim" selected={@filters["status"] == "pending-claim"}>Pending claim</option>
               <option value="claimed" selected={@filters["status"] == "claimed"}>Claimed</option>
@@ -143,10 +137,21 @@ defmodule AutolaunchWeb.PositionsLive do
               <div class="al-action-row">
                 <.link navigate={~p"/auctions/#{position.auction_id}"} class="al-ghost">Inspect auction</.link>
                 <.wallet_tx_button
-                  :if={position.tx_actions.exit}
+                  :if={return_action(position)}
+                  id={"positions-return-#{position.bid_id}"}
+                  class="al-submit"
+                  tx_request={return_action(position).tx_request}
+                  register_endpoint={~p"/api/bids/#{position.bid_id}/return-usdc"}
+                  pending_message="Return transaction sent. Waiting for confirmation."
+                  success_message="USDC return registered."
+                >
+                  Return USDC
+                </.wallet_tx_button>
+                <.wallet_tx_button
+                  :if={tx_action(position, :exit) && is_nil(return_action(position))}
                   id={"positions-exit-#{position.bid_id}"}
                   class="al-ghost"
-                  tx_request={position.tx_actions.exit.tx_request}
+                  tx_request={tx_action(position, :exit).tx_request}
                   register_endpoint={~p"/api/bids/#{position.bid_id}/exit"}
                   pending_message="Exit transaction sent. Waiting for confirmation."
                   success_message="Bid exit registered."
@@ -154,10 +159,10 @@ defmodule AutolaunchWeb.PositionsLive do
                   Exit bid
                 </.wallet_tx_button>
                 <.wallet_tx_button
-                  :if={position.tx_actions.claim}
+                  :if={tx_action(position, :claim)}
                   id={"positions-claim-#{position.bid_id}"}
                   class="al-submit"
-                  tx_request={position.tx_actions.claim.tx_request}
+                  tx_request={tx_action(position, :claim).tx_request}
                   register_endpoint={~p"/api/bids/#{position.bid_id}/claim"}
                   pending_message="Claim transaction sent. Waiting for confirmation."
                   success_message="Claim registered."
@@ -180,12 +185,23 @@ defmodule AutolaunchWeb.PositionsLive do
   defp load_positions(current_human, filters),
     do: launch_module().list_positions(current_human, filters)
 
+  defp reload_positions(socket) do
+    assign(
+      socket,
+      :positions,
+      load_positions(socket.assigns.current_human, socket.assigns.filters)
+    )
+  end
+
   defp status_copy("active"), do: "Active — receiving tokens at the current clearing price."
   defp status_copy("ending-soon"), do: "Ending soon — the auction is near the finish line."
   defp status_copy("borderline"), do: "Borderline — one move away from inactive."
 
   defp status_copy("inactive"),
     do: "Inactive — not receiving tokens at the current clearing price."
+
+  defp status_copy("returnable"),
+    do: "Returnable — this auction failed its minimum raise and your USDC can be returned."
 
   defp status_copy("claimable"),
     do: "Claimable — the bid is exited and purchased tokens can be claimed."
@@ -197,6 +213,16 @@ defmodule AutolaunchWeb.PositionsLive do
   defp status_copy("claimed"), do: "Claimed — purchased tokens have already been withdrawn."
   defp status_copy("settled"), do: "Settled — the auction outcome is finalized."
   defp status_copy(_status), do: "Monitor this position from the auction detail page."
+
+  defp return_action(position) when is_map(position) do
+    Map.get(position, :return_action)
+  end
+
+  defp tx_action(position, action) when is_map(position) do
+    position
+    |> Map.get(:tx_actions, %{})
+    |> Map.get(action)
+  end
 
   defp launch_module do
     :autolaunch

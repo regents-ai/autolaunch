@@ -13,6 +13,8 @@ defmodule Autolaunch.Launch.Auction do
     field :owner_address, :string
     field :auction_address, :string
     field :token_address, :string
+    field :minimum_raise_usdc, :string
+    field :minimum_raise_usdc_raw, :string
     field :network, :string, default: @sepolia_network
     field :chain_id, :integer, default: @sepolia_chain_id
     field :status, :string, default: "active"
@@ -43,6 +45,8 @@ defmodule Autolaunch.Launch.Auction do
       :owner_address,
       :auction_address,
       :token_address,
+      :minimum_raise_usdc,
+      :minimum_raise_usdc_raw,
       :network,
       :chain_id,
       :status,

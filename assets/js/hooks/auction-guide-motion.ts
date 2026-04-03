@@ -1,5 +1,7 @@
 import type { Hook } from "phoenix_live_view"
 
+import { animate } from "../../vendor/anime.esm.js"
+
 import {
   prefersReducedMotion,
   pulseElement,
@@ -36,6 +38,21 @@ function reveal(root: GuideRoot): void {
     translateY: 24,
     delay: 90,
     duration: 700,
+  })
+
+  const heroCards = Array.from(
+    root.querySelectorAll<HTMLElement>("[data-guide-choice], .al-guide-summary-grid .al-stat-card"),
+  )
+
+  if (heroCards.length === 0 || reducedMotion()) return
+
+  animate(heroCards, {
+    opacity: [0, 1],
+    translateY: [20, 0],
+    scale: [0.97, 1],
+    delay: (_element: Element, index: number) => 180 + index * 70,
+    duration: 720,
+    ease: "outExpo",
   })
 }
 
@@ -140,6 +157,7 @@ export const AuctionGuideMotion: Hook = {
   updated() {
     const root = this.el as GuideRoot
     teardown(root)
+    reveal(root)
     observeSteps(root)
     mountScroll(root)
   },

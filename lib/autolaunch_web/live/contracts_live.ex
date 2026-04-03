@@ -2,14 +2,14 @@ defmodule AutolaunchWeb.ContractsLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Contracts
+  alias AutolaunchWeb.Live.Refreshable
 
   @poll_ms 15_000
 
   def mount(params, _session, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-
     {:ok,
      socket
+     |> Refreshable.schedule(@poll_ms)
      |> assign(:page_title, "Contracts")
      |> assign(:active_view, "contracts")
      |> assign(:job_id, Map.get(params, "job_id"))
@@ -84,8 +84,7 @@ defmodule AutolaunchWeb.ContractsLive do
   end
 
   def handle_info(:refresh, socket) do
-    if connected?(socket), do: Process.send_after(self(), :refresh, @poll_ms)
-    {:noreply, load_console(socket)}
+    {:noreply, Refreshable.refresh(socket, @poll_ms, &load_console/1)}
   end
 
   def render(assigns) do

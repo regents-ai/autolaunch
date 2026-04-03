@@ -30,11 +30,14 @@ defmodule AutolaunchWeb.Router do
       live "/", AuctionGuideLive, :index
       live "/how-auctions-work", AuctionGuideLive, :index
       live "/launch", LaunchLive, :index
+      live "/launch-via-agent", LaunchViaAgentLive, :index
       live "/agentbook", AgentbookLive, :index
       live "/ens-link", EnsLinkLive, :index
       live "/x-link", XLinkLive, :index
       live "/auctions", AuctionsLive, :index
+      live "/auction-returns", AuctionReturnsLive, :index
       live "/auctions/:id", AuctionLive, :show
+      live "/profile", ProfileLive, :index
       live "/positions", PositionsLive, :index
       live "/contracts", ContractsLive, :index
       live "/subjects/:id", SubjectLive, :show
@@ -81,6 +84,12 @@ defmodule AutolaunchWeb.Router do
     post "/subjects/:id/stake", SubjectController, :stake
     post "/subjects/:id/unstake", SubjectController, :unstake
     post "/subjects/:id/claim-usdc", SubjectController, :claim_usdc
+    post "/subjects/:id/claim-emissions", SubjectController, :claim_emissions
+
+    post "/subjects/:id/claim-and-stake-emissions",
+         SubjectController,
+         :claim_and_stake_emissions
+
     post "/subjects/:id/ingress/:address/sweep", SubjectController, :sweep_ingress
 
     get "/regent/staking", RegentStakingController, :show
@@ -88,6 +97,12 @@ defmodule AutolaunchWeb.Router do
     post "/regent/staking/stake", RegentStakingController, :stake
     post "/regent/staking/unstake", RegentStakingController, :unstake
     post "/regent/staking/claim-usdc", RegentStakingController, :claim_usdc
+    post "/regent/staking/claim-regent", RegentStakingController, :claim_regent
+
+    post "/regent/staking/claim-and-restake-regent",
+         RegentStakingController,
+         :claim_and_restake_regent
+
     post "/regent/staking/deposit-usdc/prepare", RegentStakingController, :prepare_deposit
 
     post "/regent/staking/withdraw-treasury/prepare",
@@ -126,12 +141,16 @@ defmodule AutolaunchWeb.Router do
     get "/launch/jobs/:id", LaunchController, :show_job
 
     get "/auctions", AuctionController, :index
+    get "/auction-returns", AuctionController, :returns
     get "/auctions/:id", AuctionController, :show
+    get "/me/profile", MeController, :profile
+    post "/me/profile/refresh", MeController, :refresh_profile
+    get "/me/holdings", MeController, :holdings
     post "/auctions/:id/bid_quote", AuctionController, :bid_quote
     post "/auctions/:id/bids", AuctionController, :create_bid
-
     get "/me/bids", MeController, :bids
 
+    post "/bids/:id/return-usdc", BidController, :return_usdc
     post "/bids/:id/exit", BidController, :exit
     post "/bids/:id/claim", BidController, :claim
 

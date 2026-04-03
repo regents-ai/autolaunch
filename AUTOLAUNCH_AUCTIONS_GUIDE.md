@@ -2,6 +2,19 @@
 
 This guide mirrors the public page at `/` and `/how-auctions-work`. It is written for humans, agents, and any other system that needs the shortest accurate explanation of the auction.
 
+## Why autolaunch uses this model
+
+We put a lot of thought into what auction model is actually best for quality projects and teams that need to bootstrap liquidity.
+
+The goal is not just to sell tokens. The goal is to get:
+
+- healthier market behavior
+- fewer timing games
+- equal access for normal participants
+- real price discovery
+
+In plain English, autolaunch wants a launch where buyers compete on how much they want to spend and the highest price they are willing to pay, not on who is best at sniping blocks or using advanced bot tactics.
+
 ## The fixed rules
 
 - Every autolaunch sale is a Continuous Clearing Auction.
@@ -11,13 +24,31 @@ This guide mirrors the public page at `/` and `/how-auctions-work`. It is writte
 - Claiming is not the end state. The token is meant to be **staked** after settlement.
 - Staking is what makes the token earn routed agent revenue once Sepolia USDC reaches the revsplit, including the share of token fee revenue.
 
+## The current live launch split
+
+- 10 billion tokens are sold in the auction.
+- 5 billion tokens are reserved for the Uniswap v4 LP position.
+- Half of the auction USDC is paired with those 5 billion LP tokens.
+- The other half of the auction USDC is swept to the agent Safe for business operations.
+- The remaining 85 billion tokens vest to the agent treasury over 1 year.
+
 ## What bidders are actually buying
 
 Autolaunch is not pricing an entire token supply at once.
 
 It is discovering a market price for the public 10% slice of a fixed 100 billion supply, while the agent treasury keeps the remaining 90% from the beginning.
 
-## The auction path
+## The simple buyer mental model
+
+- You choose a total USDC budget.
+- You choose the highest token price you are willing to pay.
+- Your order is spread across all remaining blocks and runs over time, like a TWAP.
+- The auction starts at a floor price and only moves higher when demand requires it.
+- Each block clears at the highest price where that block's demand exceeds that block's supply.
+- If the clearing price for a block is below your max price, part of your budget buys tokens in that block.
+- If the clearing price rises above your max price, the remaining part of your TWAP stops instead of forcing you to overpay.
+
+## The auction path in order
 
 ### 1. Launch begins
 
@@ -35,9 +66,9 @@ The website guides the launch and bidding flow, but the contracts are the source
 A bidder chooses:
 
 - a total USDC budget
-- optionally, a maximum price they are willing to pay per token
+- a maximum price they are willing to pay per token
 
-A simple or market-style bid mainly expresses size. A capped bid expresses both size and price discipline.
+That one bid expresses both conviction and discipline.
 
 ### 3. The contract spreads the bid across the remaining blocks
 
@@ -47,7 +78,7 @@ Instead, the contract distributes the budget across the remaining auction blocks
 
 - earlier bids participate in more future blocks
 - later bids participate in fewer future blocks
-- timing matters less than it would in a one-shot sale
+- waiting usually gives you a worse average entry instead of an advantage
 
 ### 4. Each block finds one clearing price
 
@@ -70,6 +101,29 @@ That is normal CCA behavior. Price discovery happens across time, so a final res
 - fully filled blocks
 - partially filled edge blocks
 - blocks where the bid no longer clears
+
+## The intended game theory
+
+Autolaunch wants the optimal strategy to be simple:
+
+- bid early
+- use your real budget
+- use your real max price
+
+Why that works:
+
+- your max price ensures you do not buy a single token above what you are actually willing to pay
+- your order already runs over time across the remaining blocks, so waiting mainly shortens your participation window
+- earlier participation usually gives you a better average price than trying to jump in late
+
+With a well-parameterized auction that is not rushed, this reduces the value of:
+
+- sniping
+- bundling
+- sandwiching
+- other MEV-style timing advantages
+
+The design goal is that everyone gets access to the same block clearing prices at the same rates, instead of rewarding whoever has the best timing infrastructure.
 
 ## What happens when the auction ends
 
@@ -111,4 +165,4 @@ Autolaunch is currently split into these public surfaces:
 
 Autolaunch sells 10% of a fixed 100 billion Agent Coin supply through an onchain Continuous Clearing Auction.
 
-Bidders bring USDC on Ethereum Sepolia, the auction discovers clearing prices over time, and the winning tokens are meant to be staked after settlement so they can start earning once recognized Sepolia USDC reaches the revsplit.
+Bidders bring USDC on Ethereum Sepolia, choose a total budget and a max price, and let the order run over the remaining blocks like a TWAP. The auction clears block by block at real market prices, avoids most timing games, and is meant to produce cleaner price discovery before the winning tokens are claimed and staked.

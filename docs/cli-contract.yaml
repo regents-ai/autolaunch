@@ -41,8 +41,6 @@ command_groups:
       - autolaunch prelaunch show
       - autolaunch prelaunch validate
       - autolaunch prelaunch publish
-      - autolaunch launch preview
-      - autolaunch launch create
       - autolaunch launch run
       - autolaunch launch monitor
       - autolaunch launch finalize
@@ -73,30 +71,49 @@ command_groups:
     commands:
       - autolaunch auctions list
       - autolaunch auction <id>
+      - autolaunch auction-returns list
       - autolaunch bids quote
       - autolaunch bids place
       - autolaunch bids mine
       - autolaunch bids exit
       - autolaunch bids claim
+      - autolaunch positions list
+      - autolaunch positions return-usdc
+      - autolaunch positions exit
+      - autolaunch positions claim
+      - autolaunch holdings list
+      - autolaunch holdings stake
+      - autolaunch holdings unstake
+      - autolaunch holdings claim-usdc
+      - autolaunch holdings claim-emissions
+      - autolaunch holdings claim-and-stake-emissions
+      - autolaunch holdings sweep-ingress
       - autolaunch subjects show
       - autolaunch subjects ingress
       - autolaunch subjects stake
       - autolaunch subjects unstake
       - autolaunch subjects claim-usdc
+      - autolaunch subjects claim-emissions
+      - autolaunch subjects claim-and-stake-emissions
       - autolaunch subjects sweep-ingress
     path_templates:
       - /api/auctions
+      - /api/auction-returns
       - /api/auctions/{id}
       - /api/auctions/{id}/bid_quote
       - /api/auctions/{id}/bids
       - /api/me/bids
+      - /api/me/holdings
       - /api/bids/{id}/exit
+      - /api/bids/{id}/return-usdc
       - /api/bids/{id}/claim
       - /api/subjects/{id}
       - /api/subjects/{id}/ingress
       - /api/subjects/{id}/stake
       - /api/subjects/{id}/unstake
       - /api/subjects/{id}/claim-usdc
+      - /api/subjects/{id}/claim-emissions
+      - /api/subjects/{id}/claim-and-stake-emissions
       - /api/subjects/{id}/ingress/{address}/sweep
   - name: ens-contracts
     interface: http

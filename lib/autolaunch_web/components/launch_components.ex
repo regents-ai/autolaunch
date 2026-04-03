@@ -16,14 +16,18 @@ defmodule AutolaunchWeb.LaunchComponents do
 
   def shell(assigns) do
     ~H"""
-    <div class="al-app-shell rg-app-shell rg-regent-theme-autolaunch">
+    <div
+      id="autolaunch-shell"
+      class="al-app-shell rg-app-shell rg-regent-theme-autolaunch"
+      phx-hook="ShellChrome"
+    >
       <.background_grid id="autolaunch-background-grid" class="rg-regent-theme-autolaunch" />
       <header class="al-topbar al-panel">
         <div class="al-brand">
           <p class="al-kicker">Regent CCA</p>
           <div>
             <h1>autolaunch.sh</h1>
-            <p>Guided launches for operators. Deterministic routes for auctions, positions, and trust checks.</p>
+            <p>Continuous clearing auctions built to help quality teams bootstrap liquidity with healthier market behavior and real price discovery.</p>
           </div>
         </div>
 
@@ -34,7 +38,8 @@ defmodule AutolaunchWeb.LaunchComponents do
           <.nav_link active={@active_view == "launch"} navigate={~p"/launch"}>Launch</.nav_link>
           <.nav_link active={@active_view == "agentbook"} navigate={~p"/agentbook"}>Trust Check</.nav_link>
           <.nav_link active={@active_view == "ens"} navigate={~p"/ens-link"}>ENS Link</.nav_link>
-          <.nav_link active={@active_view == "auctions"} navigate={~p"/auctions"}>Auctions</.nav_link>
+          <.nav_link active={@active_view == "auctions"} navigate={~p"/auctions"}>Tokens</.nav_link>
+          <.nav_link active={@active_view == "profile"} navigate={~p"/profile"}>Profile</.nav_link>
           <.nav_link active={@active_view == "positions"} navigate={~p"/positions"}>Positions</.nav_link>
           <.nav_link active={@active_view == "contracts"} navigate={~p"/contracts"}>Contracts</.nav_link>
         </nav>
@@ -175,6 +180,48 @@ defmodule AutolaunchWeb.LaunchComponents do
     >
       {render_slot(@inner_block)}
     </button>
+    """
+  end
+
+  attr :kicker, :string, required: true
+  attr :title, :string, required: true
+  attr :command, :string, required: true
+  attr :output_label, :string, required: true
+  attr :output, :string, required: true
+  attr :copy_label, :string, default: "Copy command"
+
+  def terminal_command_panel(assigns) do
+    ~H"""
+    <aside class="al-terminal-panel" aria-label={@title}>
+      <div class="al-terminal-shell">
+        <div class="al-terminal-topbar">
+          <div class="al-terminal-dots" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div>
+            <p class="al-kicker">{@kicker}</p>
+            <p class="al-terminal-title">{@title}</p>
+          </div>
+          <button
+            type="button"
+            class="al-copy-trigger"
+            data-copy-value={@command}
+            data-copy-label={@copy_label}
+          >
+            {@copy_label}
+          </button>
+        </div>
+
+        <pre class="al-terminal-command"><code>{@command}</code></pre>
+
+        <div class="al-terminal-output">
+          <p class="al-terminal-output-label">{@output_label}</p>
+          <pre><code>{@output}</code></pre>
+        </div>
+      </div>
+    </aside>
     """
   end
 

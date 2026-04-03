@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@worldcoin/idkit-core": "^4.0.15",
-    "heerich": "0.5.0",
+    "heerich": "^0.6.4",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {

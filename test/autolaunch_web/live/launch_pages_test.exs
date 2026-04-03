@@ -152,17 +152,29 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     :ok
   end
 
-  test "launch page renders agent-first copy", %{conn: conn} do
+  test "launch page renders the CLI-first review page", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "Launch strip"
-    assert html =~ "Queue the launch without losing the operator context."
-    assert html =~ "Choose an eligible agent"
+    assert html =~ "Launch planning lives in the CLI. The browser stays for review."
+    assert html =~ "regent autolaunch prelaunch wizard"
+    assert html =~ "Launch via agent"
+    assert html =~ "What the CLI needs"
     assert html =~ "ERC-8004"
-    assert html =~ "Configure token"
+    assert html =~ "Minimum raise is explicit before launch."
   end
 
-  test "launch flow shows an optional trust step that can be skipped", %{conn: conn} do
+  test "launch via agent page explains the CLI-first path", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/launch-via-agent")
+
+    assert html =~ "Launch a token through your OpenClaw or Hermes Agent."
+    assert html =~ "regent autolaunch prelaunch wizard"
+    assert html =~ "Keep the launch boring in the best way."
+    assert html =~ "Run the launch and monitor the three-day auction."
+  end
+
+  test "launch page links operators toward the CLI flow and browser follow-up pages", %{
+    conn: conn
+  } do
     {:ok, human} =
       Accounts.upsert_human_by_privy_id("did:privy:launch-live", %{
         "wallet_address" => "0x1111111111111111111111111111111111111111",
@@ -171,46 +183,18 @@ defmodule AutolaunchWeb.LaunchPagesTest do
       })
 
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, view, _html} = live(conn, "/launch")
+    {:ok, _view, html} = live(conn, "/launch")
 
-    view
-    |> element("button[phx-value-agent_id='11155111:42']")
-    |> render_click()
-
-    view
-    |> form("form", %{
-      "launch" => %{
-        "token_name" => "Atlas Coin",
-        "token_symbol" => "ATLAS",
-        "recovery_safe_address" => "0x1111111111111111111111111111111111111111",
-        "auction_proceeds_recipient" => "0x1111111111111111111111111111111111111111",
-        "ethereum_revenue_treasury" => "0x1111111111111111111111111111111111111111"
-      }
-    })
-    |> render_change()
-
-    view
-    |> element("button[phx-click='prepare_review']")
-    |> render_click()
-
-    assert render(view) =~ "Optional trust check"
-
-    assert render(view) =~
-             "The next screen gives the links and lets you skip this without blocking launch."
-
-    html = render_hook(view, "launch_queued", %{"job_id" => "job_queued"})
-
-    assert html =~ "Optional trust check"
-    assert html =~ "To improve agent token reputation, you can optionally link an ENS name"
-    assert html =~ "Skip for now"
-    assert html =~ "Open ENS planner"
-
-    send(view.pid, {:poll_job, "job_queued"})
-    polled_html = render(view)
-    assert polled_html =~ "href=\"/contracts\""
+    assert html =~ "The launch sequence"
+    assert html =~ "regent autolaunch launch run --plan"
+    assert html =~ "regent autolaunch launch finalize --job"
+    assert html =~ "Starter command"
+    assert html =~ "Browse active auctions"
   end
 
-  test "launch strip exposes a back button after advancing past the first step", %{conn: conn} do
+  test "launch page keeps the browser role focused on review rather than launch creation", %{
+    conn: conn
+  } do
     {:ok, human} =
       Accounts.upsert_human_by_privy_id("did:privy:launch-back", %{
         "wallet_address" => "0x1111111111111111111111111111111111111111",
@@ -219,25 +203,17 @@ defmodule AutolaunchWeb.LaunchPagesTest do
       })
 
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, view, _html} = live(conn, "/launch")
+    {:ok, _view, html} = live(conn, "/launch")
 
-    html =
-      view
-      |> element("button[phx-value-agent_id='11155111:42']")
-      |> render_click()
-
-    assert html =~ "Back one step"
-
-    html =
-      view
-      |> element("button[phx-click='scene-back']")
-      |> render_click()
-
-    refute html =~ "Back one step"
-    assert html =~ "Step 1"
+    assert html =~ "The browser remains the place for bidders and token holders."
+    assert html =~ "Auctions, returns, positions, staking, and claims stay available here."
+    refute html =~ "Choose an eligible agent"
+    refute html =~ "Queue deploy job."
   end
 
-  test "launch review renders Sepolia signing data and current GitHub target", %{conn: conn} do
+  test "launch page renders the CLI command sequence instead of the removed browser wizard", %{
+    conn: conn
+  } do
     {:ok, human} =
       Accounts.upsert_human_by_privy_id("did:privy:launch-chain", %{
         "wallet_address" => "0x1111111111111111111111111111111111111111",
@@ -246,43 +222,21 @@ defmodule AutolaunchWeb.LaunchPagesTest do
       })
 
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, view, html} = live(conn, "/launch")
+    {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "https://github.com/regent-ai/autolaunch"
-    refute html =~ "https://github.com/regent-ai/monorepo"
-
-    view
-    |> element("button[phx-value-agent_id='11155111:42']")
-    |> render_click()
-
-    view
-    |> form("form", %{
-      "launch" => %{
-        "token_name" => "Atlas Coin",
-        "token_symbol" => "ATLAS",
-        "recovery_safe_address" => "0x1111111111111111111111111111111111111111",
-        "auction_proceeds_recipient" => "0x1111111111111111111111111111111111111111",
-        "ethereum_revenue_treasury" => "0x1111111111111111111111111111111111111111"
-      }
-    })
-    |> render_change()
-
-    view
-    |> element("button[phx-click='prepare_review']")
-    |> render_click()
-
-    review_html = render(view)
-
-    assert review_html =~ "data-launch-chain-id=\"11155111\""
-    assert review_html =~ "Sepolia USDC only counts after it reaches the revenue share splitter."
-    refute review_html =~ "Mainnet USDC only counts"
+    assert html =~ "regent autolaunch prelaunch validate --plan"
+    assert html =~ "regent autolaunch prelaunch publish --plan"
+    assert html =~ "regent autolaunch launch monitor --job"
+    assert html =~ "Foundry script"
+    refute html =~ "Prepare review"
   end
 
-  test "auctions page renders market copy", %{conn: conn} do
+  test "auctions page renders token directory copy", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/auctions")
 
-    assert html =~ "Auction Market"
-    assert html =~ "No auctions match the current filter."
+    assert html =~ "Active auctions"
+    assert html =~ "Use stablecoins to back agents with provable revenue."
+    assert html =~ "No tokens match this directory view yet."
   end
 
   test "positions page renders sign-in guidance for guests", %{conn: conn} do

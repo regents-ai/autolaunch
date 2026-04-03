@@ -2,16 +2,14 @@ defmodule AutolaunchWeb.Api.AuctionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch.Launch
-  alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.ApiErrorTranslator
 
   def index(conn, params) do
     current_human = conn.assigns[:current_human]
 
     filters = %{
-      "sort" => Map.get(params, "sort", "hottest"),
-      "status" => Map.get(params, "status", ""),
-      "chain" => Map.get(params, "chain", ""),
-      "mine_only" => Map.get(params, "mine_only", false)
+      "mode" => Map.get(params, "mode", "biddable"),
+      "sort" => Map.get(params, "sort", "newest")
     }
 
     json(conn, %{
@@ -23,9 +21,22 @@ defmodule AutolaunchWeb.Api.AuctionController do
 
   def show(conn, %{"id" => id}) do
     case launch_module().get_auction(id, conn.assigns[:current_human]) do
-      nil -> ApiError.render(conn, :not_found, "auction_not_found", "Auction not found")
+      nil -> ApiErrorTranslator.render(conn, :auction_show, :auction_not_found)
       auction -> json(conn, %{ok: true, auction: auction})
     end
+  end
+
+  def returns(conn, params) do
+    payload =
+      launch_module().list_auction_returns(
+        %{
+          "limit" => Map.get(params, "limit"),
+          "offset" => Map.get(params, "offset")
+        },
+        conn.assigns[:current_human]
+      )
+
+    json(conn, Map.put(payload, :ok, true))
   end
 
   def bid_quote(conn, %{"id" => id} = params) do
@@ -33,41 +44,8 @@ defmodule AutolaunchWeb.Api.AuctionController do
       {:ok, quote} ->
         json(conn, Map.put(quote, :ok, true))
 
-      {:error, :auction_not_found} ->
-        ApiError.render(conn, :not_found, "auction_not_found", "Auction not found")
-
-      {:error, :bid_must_be_above_clearing_price} ->
-        ApiError.render(
-          conn,
-          :unprocessable_entity,
-          "bid_above_clearing_required",
-          "Bid max price must be above the current clearing price"
-        )
-
-      {:error, :invalid_tick_price} ->
-        ApiError.render(
-          conn,
-          :unprocessable_entity,
-          "invalid_tick_price",
-          "Bid max price must land on a valid auction tick"
-        )
-
-      {:error, :auction_is_over} ->
-        ApiError.render(conn, :unprocessable_entity, "auction_is_over", "Auction is over")
-
-      {:error, :auction_not_started} ->
-        ApiError.render(
-          conn,
-          :unprocessable_entity,
-          "auction_not_started",
-          "Auction has not started"
-        )
-
-      {:error, :auction_sold_out} ->
-        ApiError.render(conn, :unprocessable_entity, "auction_sold_out", "Auction has sold out")
-
       {:error, reason} ->
-        ApiError.render(conn, :unprocessable_entity, "bid_quote_invalid", inspect(reason))
+        ApiErrorTranslator.render(conn, :auction_bid_quote, reason)
     end
   end
 
@@ -76,30 +54,8 @@ defmodule AutolaunchWeb.Api.AuctionController do
       {:ok, bid} ->
         json(conn, %{ok: true, bid: bid})
 
-      {:error, :unauthorized} ->
-        ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
-
-      {:error, :auction_not_found} ->
-        ApiError.render(conn, :not_found, "auction_not_found", "Auction not found")
-
-      {:error, :transaction_pending} ->
-        ApiError.render(
-          conn,
-          :accepted,
-          "transaction_pending",
-          "Transaction is still pending confirmation"
-        )
-
-      {:error, :transaction_failed} ->
-        ApiError.render(
-          conn,
-          :unprocessable_entity,
-          "transaction_failed",
-          "Transaction failed onchain"
-        )
-
       {:error, reason} ->
-        ApiError.render(conn, :unprocessable_entity, "bid_invalid", inspect(reason))
+        ApiErrorTranslator.render(conn, :auction_create_bid, reason)
     end
   end
 

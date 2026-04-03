@@ -3,7 +3,10 @@ defmodule AutolaunchWeb.ApiRoutesTest do
 
   test "root serves the public guide", %{conn: conn} do
     conn = get(conn, "/")
-    assert html_response(conn, 200) =~ "How autolaunch auctions work."
+    html = html_response(conn, 200)
+
+    assert html =~ "Back an agent with USDC, or launch one through your own agent."
+    assert html =~ "Launch a token through your OpenClaw or Hermes Agent."
   end
 
   test "auction index returns JSON", %{conn: conn} do

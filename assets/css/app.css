@@ -995,6 +995,55 @@ textarea {
   align-content: start;
 }
 
+.al-choice-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.al-choice-card {
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+  padding: 1rem;
+  border-radius: 1.45rem;
+  border: 1px solid var(--al-border);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(15, 118, 110, 0.07)),
+    rgba(255, 255, 255, 0.05);
+}
+
+.al-choice-card h3 {
+  margin: 0;
+  font-size: clamp(1.1rem, 2vw, 1.65rem);
+  line-height: 1.08;
+}
+
+.al-choice-card p {
+  margin: 0;
+}
+
+.al-choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.al-choice-command {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--al-border);
+  background: color-mix(in srgb, var(--al-panel-strong) 88%, transparent);
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+.al-choice-command code {
+  font: inherit;
+}
+
 .al-guide-hero h2 {
   max-width: 11ch;
   font-size: clamp(2.2rem, 4vw, 4.1rem);
@@ -1017,6 +1066,10 @@ textarea {
   display: grid;
   gap: 0.8rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.al-guide-facts-grid .al-stat-card strong {
+  font-size: clamp(1.1rem, 2vw, 1.8rem);
 }
 
 .al-guide-banner {
@@ -1805,18 +1858,253 @@ textarea {
     height: 2.5rem;
   }
 
-  .al-guide-marker {
-    width: 2.15rem;
-    height: 2.15rem;
+.al-guide-marker {
+  width: 2.15rem;
+  height: 2.15rem;
+  }
+}
+
+.al-directory-hero,
+.al-profile-hero {
+  position: relative;
+  overflow: clip;
+}
+
+.al-directory-hero::before,
+.al-profile-hero::before,
+.al-directory-hero::after,
+.al-profile-hero::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  opacity: 0.78;
+}
+
+.al-directory-hero::before,
+.al-profile-hero::before {
+  inset: -4rem auto auto 58%;
+  width: 18rem;
+  height: 18rem;
+  background: radial-gradient(circle, rgba(13, 124, 112, 0.18), transparent 70%);
+}
+
+.al-directory-hero::after,
+.al-profile-hero::after {
+  inset: auto auto -5rem 18%;
+  width: 24rem;
+  height: 12rem;
+  background: radial-gradient(circle, rgba(196, 106, 27, 0.12), transparent 74%);
+}
+
+.al-directory-copy,
+.al-profile-toolbar,
+.al-profile-section {
+  position: relative;
+  z-index: 1;
+}
+
+.al-directory-controls,
+.al-profile-toolbar,
+.al-profile-section {
+  border-radius: 1.7rem;
+  padding: clamp(1rem, 2.4vw, 1.4rem);
+}
+
+.al-directory-facts {
+  border-radius: 1.7rem;
+  padding: clamp(1rem, 2.4vw, 1.4rem);
+  display: grid;
+  gap: 1rem;
+}
+
+.al-directory-facts-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.al-directory-fact-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 1.35rem;
+  border: 1px solid var(--al-border);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(15, 118, 110, 0.05)),
+    color-mix(in srgb, var(--al-panel-strong) 88%, transparent);
+}
+
+.al-directory-fact-card span {
+  color: var(--al-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.68rem;
+}
+
+.al-directory-fact-card strong {
+  font-family: var(--al-font-display);
+  font-size: clamp(1rem, 1.8vw, 1.45rem);
+  line-height: 1.18;
+}
+
+.al-directory-fact-card p {
+  margin: 0;
+  color: var(--al-muted);
+  line-height: 1.65;
+}
+
+.al-directory-form {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(220px, 320px);
+  gap: 1rem;
+  align-items: center;
+}
+
+.al-segmented {
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--al-border);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.al-segmented-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8rem;
+  border-radius: 999px;
+  padding: 0.72rem 1rem;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.al-segmented-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.al-segmented-option.is-active {
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.22), rgba(132, 204, 22, 0.15));
+}
+
+.al-token-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 1rem;
+}
+
+.al-token-card,
+.al-profile-section {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(15, 118, 110, 0.05)),
+    var(--al-panel);
+}
+
+.al-token-card {
+  border-radius: 1.7rem;
+  padding: 1.1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.al-token-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.al-token-card h3,
+.al-profile-toolbar h3 {
+  margin: 0;
+}
+
+.al-profile-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.al-profile-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.al-table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--al-border);
+  border-radius: 1.35rem;
+  background: color-mix(in srgb, var(--al-panel-strong) 92%, transparent);
+}
+
+.al-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 42rem;
+}
+
+.al-table th,
+.al-table td {
+  padding: 0.95rem 1rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--al-border);
+}
+
+.al-table thead th {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--al-muted);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.al-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.al-table tbody tr:hover {
+  background: rgba(13, 124, 112, 0.06);
+}
+
+@media (max-width: 980px) {
+  .al-choice-grid,
+  .al-directory-facts-grid,
+  .al-directory-form,
+  .al-profile-toolbar {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .al-segmented {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .al-segmented-option {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }
 
 .al-terrain-surface .rg-surface-scene {
   min-height: 34rem;
   background:
-    radial-gradient(circle at 16% 16%, rgba(15, 118, 110, 0.18), transparent 24%),
-    radial-gradient(circle at 84% 10%, rgba(196, 106, 27, 0.16), transparent 24%),
-    linear-gradient(180deg, rgba(255, 248, 240, 0.84), rgba(223, 205, 183, 0.72));
+    radial-gradient(circle at 16% 16%, rgba(15, 118, 110, 0.12), transparent 20%),
+    radial-gradient(circle at 84% 10%, rgba(196, 106, 27, 0.1), transparent 20%),
+    linear-gradient(180deg, rgba(255, 248, 240, 0.8), rgba(223, 205, 183, 0.68));
 }
 
 .al-terrain-strip {
@@ -1824,30 +2112,33 @@ textarea {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.85rem 1rem;
+  gap: 0.72rem 0.95rem;
   width: 100%;
 }
 
 .al-terrain-strip-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.3rem;
 }
 
 .al-terrain-strip-copy h2 {
   margin: 0;
-  font-size: clamp(1rem, 1.8vw, 1.45rem);
+  font-size: clamp(1.08rem, 1.55vw, 1.45rem);
 }
 
 .al-terrain-strip-copy p {
   margin: 0;
+  max-width: 38rem;
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 
 .al-terrain-strip-controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.55rem;
+  gap: 0.45rem;
   align-items: center;
 }
 

@@ -6,6 +6,15 @@ defmodule Autolaunch.LaunchTest do
   alias Autolaunch.Launch
   alias Autolaunch.Repo
 
+  defmodule TokenPricingStub do
+    def current_token_price_usdc(_chain_id, _pool_id, token_address) do
+      case String.downcase(token_address) do
+        "0xdddddddddddddddddddddddddddddddddddddddd" -> {:ok, "0.011"}
+        _ -> {:error, :missing_quote}
+      end
+    end
+  end
+
   defp launch_recipients do
     %{
       recovery_safe_address: "0x1111111111111111111111111111111111111111",
@@ -30,6 +39,17 @@ defmodule Autolaunch.LaunchTest do
 
   test "auction listings expose ENS and world completion state" do
     now = DateTime.utc_now()
+    previous_launch = Application.get_env(:autolaunch, :launch, [])
+
+    Application.put_env(
+      :autolaunch,
+      :launch,
+      Keyword.put(previous_launch, :token_pricing_module, TokenPricingStub)
+    )
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :launch, previous_launch)
+    end)
 
     {:ok, _first} =
       %Auction{}
@@ -62,19 +82,142 @@ defmodule Autolaunch.LaunchTest do
         token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
         network: "ethereum-sepolia",
         chain_id: 11_155_111,
-        status: "active",
-        started_at: now,
+        status: "settled",
+        started_at: DateTime.add(now, -9 * 86_400, :second),
+        ends_at: DateTime.add(now, -2 * 86_400, :second),
         world_registered: true,
         world_human_id: "0x1234"
       })
       |> Repo.insert()
 
-    [latest | _rest] = Launch.list_auctions(%{"sort" => "recent"}, nil)
+    {:ok, _job} =
+      %Job{}
+      |> Job.create_changeset(%{
+        job_id: "job_second",
+        owner_address: "0x2222222222222222222222222222222222222222",
+        agent_id: "11155111:99",
+        token_name: "Nova Coin",
+        token_symbol: "NOVA",
+        recovery_safe_address: "0x2222222222222222222222222222222222222222",
+        auction_proceeds_recipient: "0x2222222222222222222222222222222222222222",
+        ethereum_revenue_treasury: "0x2222222222222222222222222222222222222222",
+        network: "ethereum-sepolia",
+        chain_id: 11_155_111,
+        status: "ready",
+        step: "ready",
+        total_supply: "1000",
+        message: "signed",
+        siwa_nonce: "nonce-second",
+        siwa_signature: "sig",
+        issued_at: now
+      })
+      |> Repo.insert()
 
-    assert latest.world_registered
-    assert latest.world_human_id == "0x1234"
-    assert latest.world_launch_count == 2
+    Repo.get!(Job, "job_second")
+    |> Job.update_changeset(%{
+      token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
+      pool_id: "0x" <> String.duplicate("f", 64),
+      subject_id: "0x" <> String.duplicate("1", 64),
+      revenue_share_splitter_address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    })
+    |> Repo.update!()
+
+    [latest | _rest] = Launch.list_auctions(%{"mode" => "all", "sort" => "newest"}, nil)
+
+    assert latest.trust.world.connected
+    assert latest.trust.world.human_id == "0x1234"
+    assert latest.trust.world.launch_count == 2
     assert latest.completion_plan.agentbook.launch_count == 2
+  end
+
+  test "auction listings default to biddable newest first and compute live market cap from quoted price" do
+    previous_launch = Application.get_env(:autolaunch, :launch, [])
+
+    Application.put_env(
+      :autolaunch,
+      :launch,
+      Keyword.put(previous_launch, :token_pricing_module, TokenPricingStub)
+    )
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :launch, previous_launch)
+    end)
+
+    newer = DateTime.utc_now()
+    older = DateTime.add(newer, -8 * 86_400, :second)
+
+    Repo.insert!(
+      Auction.changeset(%Auction{}, %{
+        source_job_id: "auc_new",
+        agent_id: "11155111:10",
+        agent_name: "Fresh",
+        owner_address: "0x1111111111111111111111111111111111111111",
+        auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        network: "ethereum-sepolia",
+        chain_id: 11_155_111,
+        status: "active",
+        started_at: newer,
+        ends_at: DateTime.add(newer, 3_600, :second)
+      })
+    )
+
+    Repo.insert!(
+      Auction.changeset(%Auction{}, %{
+        source_job_id: "auc_old",
+        agent_id: "11155111:11",
+        agent_name: "Mature",
+        owner_address: "0x1111111111111111111111111111111111111111",
+        auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
+        token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
+        network: "ethereum-sepolia",
+        chain_id: 11_155_111,
+        status: "settled",
+        started_at: older,
+        ends_at: DateTime.add(older, 86_400, :second)
+      })
+    )
+
+    Repo.insert!(
+      %Job{}
+      |> Job.create_changeset(%{
+        job_id: "job_old",
+        owner_address: "0x1111111111111111111111111111111111111111",
+        agent_id: "11155111:11",
+        token_name: "Mature Coin",
+        token_symbol: "MAT",
+        recovery_safe_address: "0x1111111111111111111111111111111111111111",
+        auction_proceeds_recipient: "0x1111111111111111111111111111111111111111",
+        ethereum_revenue_treasury: "0x1111111111111111111111111111111111111111",
+        network: "ethereum-sepolia",
+        chain_id: 11_155_111,
+        status: "ready",
+        step: "ready",
+        total_supply: "1000",
+        message: "signed",
+        siwa_nonce: "nonce-old",
+        siwa_signature: "sig",
+        issued_at: older
+      })
+    )
+
+    Repo.get!(Job, "job_old")
+    |> Job.update_changeset(%{
+      token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
+      pool_id: "0x" <> String.duplicate("e", 64),
+      subject_id: "0x" <> String.duplicate("2", 64),
+      revenue_share_splitter_address: "0xffffffffffffffffffffffffffffffffffffffff"
+    })
+    |> Repo.update!()
+
+    [row] = Launch.list_auctions()
+    assert row.id == "auc_new"
+    assert row.phase == "biddable"
+
+    [live_row] = Launch.list_auctions(%{"mode" => "live", "sort" => "market_cap_desc"}, nil)
+    assert live_row.id == "auc_old"
+    assert live_row.current_price_usdc == "0.011"
+    assert live_row.implied_market_cap_usdc == "1100000000"
   end
 
   test "record_world_agentbook_completion updates the launch job and auction" do

@@ -7,19 +7,23 @@ defmodule AutolaunchWeb.AuctionGuideLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     assert html =~ "Guide strip"
-    assert html =~ "How autolaunch auctions work."
-    assert html =~ "Each auction sells 10% of an agent&#39;s revenue token supply."
-    assert html =~ "USDC on Ethereum Sepolia"
-    assert html =~ "Stake required"
+    assert html =~ "Back an agent with USDC, or launch one through your own agent."
+    assert html =~ "Bid on active 3-day agent revsplit token auctions"
+
+    assert html =~
+             "Launch a token through your OpenClaw or Hermes Agent. Easy to configure via CLI."
+
+    assert html =~ "What the launch does today"
+    assert html =~ "10 billion of the 100 billion token supply are sold in the auction."
     assert html =~ "The auction in order"
-    assert html =~ "Claim first, stake second, earn third."
+    assert html =~ "Less timing game, more actual price discovery."
   end
 
   test "alias route serves the same guide", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/how-auctions-work")
 
-    assert html =~ "How autolaunch auctions work."
-    assert html =~ "All auctions are denominated in USDC on Ethereum Sepolia."
+    assert html =~ "Back an agent with USDC, or launch one through your own agent."
+    assert html =~ "Everyone who clears the same block gets the same clearing price"
   end
 
   test "guide back returns to the overview step", %{conn: conn} do
