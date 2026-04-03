@@ -1,11 +1,13 @@
 import Config
 
+Code.require_file("env_local.exs", __DIR__)
+
 if System.get_env("PHX_SERVER") do
   config :autolaunch, AutolaunchWeb.Endpoint, server: true
 end
 
 env = fn key, default ->
-  System.get_env(key) || default
+  Autolaunch.ConfigEnvLocal.fetch(key, default)
 end
 
 env_int = fn key, default ->
@@ -21,7 +23,8 @@ end
 
 if config_env() != :test do
   if config_env() == :dev do
-    database_url = System.get_env("LOCAL_DATABASE_URL") || System.get_env("DATABASE_URL")
+    database_url =
+      env.("LOCAL_DATABASE_URL", env.("DATABASE_URL", ""))
 
     if is_binary(database_url) and String.trim(database_url) != "" do
       config :autolaunch, Autolaunch.Repo,
@@ -31,25 +34,23 @@ if config_env() != :test do
         pool_size: 10
     else
       config :autolaunch, Autolaunch.Repo,
-        username:
-          System.get_env("DB_USER") || System.get_env("PGUSER") || System.get_env("USER") ||
-            "postgres",
-        password: System.get_env("DB_PASS") || System.get_env("PGPASSWORD") || "",
-        hostname: System.get_env("DB_HOST") || System.get_env("PGHOST") || "localhost",
+        username: env.("DB_USER", env.("PGUSER", System.get_env("USER") || "postgres")),
+        password: env.("DB_PASS", env.("PGPASSWORD", "")),
+        hostname: env.("DB_HOST", env.("PGHOST", "localhost")),
         port: env_int.("DB_PORT", 5432),
-        database: System.get_env("DB_NAME") || "autolaunch_dev",
+        database: env.("DB_NAME", "autolaunch_dev"),
         stacktrace: true,
         show_sensitive_data_on_connection_error: true,
         pool_size: 10
     end
 
     config :autolaunch, AutolaunchWeb.Endpoint,
-      http: [ip: {127, 0, 0, 1}, port: env_int.("PORT", 4010)],
+      http: [ip: {127, 0, 0, 1}, port: env_int.("PORT", 4002)],
       check_origin: false,
       code_reloader: true,
       debug_errors: true
   else
-    config :autolaunch, AutolaunchWeb.Endpoint, http: [port: env_int.("PORT", 4010)]
+    config :autolaunch, AutolaunchWeb.Endpoint, http: [port: env_int.("PORT", 4002)]
   end
 
   config :autolaunch, :privy,
@@ -128,27 +129,27 @@ end
 
 if config_env() == :prod do
   database_url =
-    System.get_env("DATABASE_URL") ||
+    env.("DATABASE_URL", "") ||
       raise """
       environment variable DATABASE_URL is missing.
       """
 
   secret_key_base =
-    System.get_env("SECRET_KEY_BASE") ||
+    env.("SECRET_KEY_BASE", "") ||
       raise """
       environment variable SECRET_KEY_BASE is missing.
       """
 
-  host = System.get_env("PHX_HOST") || "autolaunch.sh"
+  host = env.("PHX_HOST", "autolaunch.sh")
 
   config :autolaunch, Autolaunch.Repo,
     url: database_url,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
+    pool_size: String.to_integer(env.("POOL_SIZE", "10"))
 
-  config :autolaunch, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :autolaunch, :dns_cluster_query, env.("DNS_CLUSTER_QUERY", "")
 
   config :autolaunch, AutolaunchWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
-    http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: env_int.("PORT", 4010)],
+    http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: env_int.("PORT", 4002)],
     secret_key_base: secret_key_base
 end

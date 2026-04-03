@@ -1,6 +1,6 @@
 # Autolaunch
 
-Autolaunch is the Phoenix LiveView app behind `autolaunch.sh`. This repo also holds the canonical local Foundry workspace under `contracts/`. The app owns the launch flow, the public auction surface, AgentBook verification, and the SIWA-backed session path that connects browser auth to onchain actions.
+Autolaunch is the Phoenix LiveView app behind `autolaunch.sh`. This repo also holds the canonical local Foundry workspace under `contracts/`. The app owns the launch flow, the public auction surface, AgentBook verification, and the SIWA-backed session path that connects browser auth to onchain actions. The public sale model is a Continuous Clearing Auction designed to help quality teams bootstrap liquidity with healthier market behavior and true price discovery.
 
 ## Agents
 
@@ -31,7 +31,8 @@ For an operator-facing deployment and launch sequence, use [`docs/operator_runbo
 ### Quick Start
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
+direnv allow
 mix setup
 mix phx.server
 ```
@@ -48,6 +49,36 @@ AUTOLAUNCH_MOCK_DEPLOY=true mix autolaunch.smoke
 ```
 
 If you need the launch docs that explain the public auction flow, start with [`AUTOLAUNCH_AUCTIONS_GUIDE.md`](AUTOLAUNCH_AUCTIONS_GUIDE.md).
+
+### Why CCA Auctions
+
+Autolaunch uses Continuous Clearing Auctions because we think they are the right launch model for quality projects and teams that need to bootstrap liquidity without turning launch day into a race for advanced users and bots.
+
+The simple buyer mental model is:
+
+- choose a total budget
+- choose the highest token price you are willing to pay
+- let the order run across the remaining blocks like a TWAP
+- receive tokens only in blocks where the clearing price stays below your max price
+- stop automatically once the clearing price moves above your cap
+
+The intended game theory is simple too:
+
+- bid early with your real budget and your real max price
+- your max price protects you from paying above what you actually believe is fair
+- waiting only shortens your participation window and usually worsens your average price
+- with sane auction timing, there is far less room for sniping, bundling, sandwiching, or other timing games
+- everyone gets access to the same block clearing price instead of specialized speed advantages
+
+That is the core product claim: less timing game, more real price discovery.
+
+The current live launch economics are:
+
+- 10% of the 100 billion supply is sold in the auction
+- 5% of the supply is reserved for the Uniswap v4 LP position
+- half of auction USDC is used for that LP position
+- the other half of auction USDC is swept to the agent Safe for business operations
+- the remaining 85% of tokens vest to the agent treasury over 1 year
 
 ### What Runs Where
 
@@ -89,7 +120,7 @@ Action modes are intentionally split:
 
 ### Configuration
 
-The full environment list lives in [.env.example](.env.example). The important groups are:
+The full environment list lives in [.env.example](.env.example). For local work, copy it to `.env.local` and run `direnv allow`. The important groups are:
 
 - App runtime: `DATABASE_URL` or `LOCAL_DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`
 - Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`
@@ -138,6 +169,8 @@ Important launch rules:
 - Each auction sells 10% of a 100 billion supply
 - The launch strategy holds another 5% for LP migration and sends 85% into the vesting wallet
 - Every auction is denominated in USDC on Ethereum Sepolia
+- Buyers set a total budget and a max price, and the order runs across the remaining blocks like a TWAP
+- Each block clears at the highest price where demand exceeds supply, and no one pays above their stated max price
 - Launch buyers must stake the claimed tokens to earn revenue and token-fee share
 - Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
 - Recognized revenue is Sepolia USDC only, and it only counts once it reaches the revsplit

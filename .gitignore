@@ -12,9 +12,9 @@
 /.elixir_ls/
 /.DS_Store
 /.env
+/.env.local
 /.env.*
 !/.env.example
-/.envrc
 /.direnv/
 /*.db
 /*.sqlite3

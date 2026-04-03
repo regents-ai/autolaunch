@@ -1,9 +1,15 @@
 import Config
 
+Code.require_file("env_local.exs", __DIR__)
+
+env_or_local = fn key, default ->
+  Autolaunch.ConfigEnvLocal.fetch(key, default)
+end
+
 test_database_url =
-  System.get_env("LOCAL_DATABASE_URL") ||
-    System.get_env("DATABASE_URL") ||
-    System.get_env("DATABASE_URL_UNPOOLED")
+  env_or_local.("LOCAL_DATABASE_URL", "") ||
+    env_or_local.("DATABASE_URL", "") ||
+    env_or_local.("DATABASE_URL_UNPOOLED", "")
 
 if is_binary(test_database_url) and String.trim(test_database_url) != "" do
   config :autolaunch, Autolaunch.Repo,
@@ -13,12 +19,11 @@ if is_binary(test_database_url) and String.trim(test_database_url) != "" do
 else
   config :autolaunch, Autolaunch.Repo,
     username:
-      System.get_env("DB_USER") || System.get_env("PGUSER") || System.get_env("USER") ||
-        "postgres",
-    password: System.get_env("DB_PASS") || System.get_env("PGPASSWORD") || "",
-    hostname: System.get_env("DB_HOST") || System.get_env("PGHOST") || "localhost",
-    port: String.to_integer(System.get_env("DB_PORT") || System.get_env("PGPORT") || "5432"),
-    database: System.get_env("DB_NAME") || "autolaunch_test",
+      env_or_local.("DB_USER", env_or_local.("PGUSER", System.get_env("USER") || "postgres")),
+    password: env_or_local.("DB_PASS", env_or_local.("PGPASSWORD", "")),
+    hostname: env_or_local.("DB_HOST", env_or_local.("PGHOST", "localhost")),
+    port: String.to_integer(env_or_local.("DB_PORT", env_or_local.("PGPORT", "5432"))),
+    database: env_or_local.("DB_NAME", "autolaunch_test"),
     pool: Ecto.Adapters.SQL.Sandbox,
     pool_size: 10
 end

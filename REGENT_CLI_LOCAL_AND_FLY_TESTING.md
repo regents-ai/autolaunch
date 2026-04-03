@@ -60,7 +60,8 @@ Start from the checked-in example:
 
 ```bash
 cd /Users/sean/Documents/regent/autolaunch
-cp .env.example .env
+cp .env.example .env.local
+direnv allow
 ```
 
 Fill the required values:
@@ -103,7 +104,7 @@ mix phx.server
 
 Then check:
 
-- `http://127.0.0.1:4010/health`
+- `http://127.0.0.1:4002/health`
 - `/`
 - `/launch`
 - `/auctions`
@@ -124,7 +125,7 @@ pnpm test
 Point the CLI at the local app:
 
 ```bash
-export AUTOLAUNCH_BASE_URL=http://127.0.0.1:4010
+export AUTOLAUNCH_BASE_URL=http://127.0.0.1:4002
 ```
 
 For authenticated commands, provide one of:
