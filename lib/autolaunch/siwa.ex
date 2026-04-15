@@ -3,33 +3,30 @@ defmodule Autolaunch.Siwa do
 
   @default_connect_timeout_ms 2_000
   @default_receive_timeout_ms 5_000
-  @shared_secret_header "x-tech-tree-secret"
 
   def issue_nonce(params) do
     payload = %{
-      "kind" => "nonce_request",
-      "walletAddress" => Map.fetch!(params, :wallet_address),
-      "chainId" => Map.fetch!(params, :chain_id),
+      "wallet_address" => Map.fetch!(params, :wallet_address),
+      "chain_id" => Map.fetch!(params, :chain_id),
       "audience" => Map.get(params, :audience, "autolaunch")
     }
 
-    proxy("/v1/nonce", payload)
+    proxy("/v1/agent/siwa/nonce", payload)
   end
 
   def verify_wallet_signature(params) do
     payload =
       %{
-        "kind" => "verify_request",
-        "walletAddress" => Map.fetch!(params, :wallet_address),
-        "chainId" => Map.fetch!(params, :chain_id),
+        "wallet_address" => Map.fetch!(params, :wallet_address),
+        "chain_id" => Map.fetch!(params, :chain_id),
         "nonce" => Map.fetch!(params, :nonce),
         "message" => Map.fetch!(params, :message),
         "signature" => Map.fetch!(params, :signature)
       }
-      |> maybe_put("registryAddress", Map.get(params, :registry_address))
-      |> maybe_put("tokenId", Map.get(params, :token_id))
+      |> maybe_put("registry_address", Map.get(params, :registry_address))
+      |> maybe_put("token_id", Map.get(params, :token_id))
 
-    case proxy("/v1/verify", payload) do
+    case proxy("/v1/agent/siwa/verify", payload) do
       {:ok, %{"ok" => true} = response} -> {:ok, response}
       {:ok, response} -> {:error, {:verify_failed, response}}
       {:error, reason} -> {:error, reason}
@@ -42,7 +39,6 @@ defmodule Autolaunch.Siwa do
            Req.post(
              url: "#{config.internal_url}#{path}",
              json: payload,
-             headers: [{@shared_secret_header, config.shared_secret}],
              connect_options: [timeout: config.connect_timeout_ms],
              receive_timeout: config.receive_timeout_ms
            ) do
@@ -61,7 +57,6 @@ defmodule Autolaunch.Siwa do
   defp fetch_http_config do
     siwa_cfg = Application.get_env(:autolaunch, :siwa, [])
     internal_url = Keyword.get(siwa_cfg, :internal_url)
-    shared_secret = Keyword.get(siwa_cfg, :shared_secret, "")
 
     connect_timeout_ms =
       normalize_timeout(
@@ -75,12 +70,10 @@ defmodule Autolaunch.Siwa do
         @default_receive_timeout_ms
       )
 
-    if is_binary(internal_url) and internal_url != "" and is_binary(shared_secret) and
-         shared_secret != "" do
+    if is_binary(internal_url) and internal_url != "" do
       {:ok,
        %{
          internal_url: internal_url,
-         shared_secret: shared_secret,
          connect_timeout_ms: connect_timeout_ms,
          receive_timeout_ms: receive_timeout_ms
        }}

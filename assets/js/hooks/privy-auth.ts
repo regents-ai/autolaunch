@@ -8,7 +8,6 @@ import {
   type PrivyLike,
   type PrivyUser,
   walletForUser,
-  walletsForUser,
 } from "./privy-wallet.ts"
 
 const SESSION_ENDPOINT = "/api/auth/privy/session"
@@ -47,7 +46,6 @@ export const PrivyAuth: Hook = {
         body: JSON.stringify({
           display_name: labelForUser(user),
           wallet_address: walletForUser(user),
-          wallet_addresses: walletsForUser(user),
         }),
       })
 

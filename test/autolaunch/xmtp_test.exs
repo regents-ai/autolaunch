@@ -12,14 +12,23 @@ defmodule Autolaunch.XmtpTest do
     Application.put_env(
       :autolaunch,
       Xmtp,
-      Keyword.merge(previous_config,
-        agent_private_key: @agent_private_key,
-        room_key: "autolaunch_wire",
-        room_capacity: 200,
-        moderator_wallets: [],
-        presence_timeout_ms: :timer.minutes(2),
-        presence_check_interval_ms: :timer.seconds(30)
-      )
+      rooms: [
+        %{
+          key: "autolaunch_wire",
+          name: "Autolaunch Wire",
+          description: "The shared Autolaunch chat room.",
+          app_data: "autolaunch-wire",
+          agent_private_key: @agent_private_key,
+          moderator_wallets: [],
+          capacity: 200,
+          presence_timeout_ms: :timer.minutes(2),
+          presence_check_interval_ms: :timer.seconds(30),
+          policy_options: %{
+            allowed_kinds: [:human, :agent],
+            required_claims: %{}
+          }
+        }
+      ]
     )
 
     :ok = Xmtp.reset_for_test!()
@@ -138,7 +147,7 @@ defmodule Autolaunch.XmtpTest do
     join_human!(human)
 
     flush_refreshes()
-    send(Autolaunch.Xmtp.Agent, :presence_tick)
+    send(GenServer.whereis(Xmtp.room_server()), :presence_tick)
     assert_receive {:xmtp_public_room, :refresh}, 500
 
     assert {:ok, kicked_panel} = Xmtp.public_room_panel(human)
@@ -193,8 +202,14 @@ defmodule Autolaunch.XmtpTest do
   end
 
   defp put_xmtp_config(overrides) do
-    current = Application.get_env(:autolaunch, Xmtp, [])
-    Application.put_env(:autolaunch, Xmtp, Keyword.merge(current, overrides))
+    overrides =
+      case Keyword.pop(overrides, :room_capacity) do
+        {nil, rest} -> rest
+        {capacity, rest} -> Keyword.put(rest, :capacity, capacity)
+      end
+
+    [room] = Application.get_env(:autolaunch, Xmtp, []) |> Keyword.fetch!(:rooms)
+    Application.put_env(:autolaunch, Xmtp, rooms: [Map.merge(room, Map.new(overrides))])
     :ok = Xmtp.reset_for_test!()
   end
 

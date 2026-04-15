@@ -51,7 +51,7 @@ defmodule Autolaunch.MixProject do
        compile: false,
        depth: 1},
       {:req, "~> 0.5"},
-      {:xmtp_elixir_sdk, path: "../xmtp/xmtp-elixir-sdk"},
+      {:xmtp, path: "../packages/xmtp"},
       {:agent_ens, path: "../packages/agent-ens"},
       {:agent_world, path: "../packages/agent-world"},
       {:regent_ui, path: "../packages/regent_ui"},

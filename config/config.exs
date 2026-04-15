@@ -22,12 +22,23 @@ config :autolaunch, :launch,
   deploy_script_target: ""
 
 config :autolaunch, Autolaunch.Xmtp,
-  room_key: "autolaunch_wire",
-  agent_private_key: nil,
-  moderator_wallets: [],
-  room_capacity: 200,
-  presence_timeout_ms: :timer.minutes(2),
-  presence_check_interval_ms: :timer.seconds(30)
+  rooms: [
+    %{
+      key: "autolaunch_wire",
+      name: "Autolaunch Wire",
+      description: "The shared Autolaunch chat room.",
+      app_data: "autolaunch-wire",
+      agent_private_key: nil,
+      moderator_wallets: [],
+      capacity: 200,
+      presence_timeout_ms: :timer.minutes(2),
+      presence_check_interval_ms: :timer.seconds(30),
+      policy_options: %{
+        allowed_kinds: [:human, :agent],
+        required_claims: %{}
+      }
+    }
+  ]
 
 config :autolaunch, :regent_staking,
   chain_id: 8_453,

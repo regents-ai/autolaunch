@@ -1,7 +1,6 @@
 defmodule AutolaunchWeb.AuctionGuideLive do
   use AutolaunchWeb, :live_view
 
-  alias Autolaunch.Xmtp
   alias AutolaunchWeb.RegentScenes
 
   @timeline_steps [
@@ -83,26 +82,13 @@ defmodule AutolaunchWeb.AuctionGuideLive do
   ]
 
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      :ok = Xmtp.subscribe()
-    end
-
     {:ok,
      socket
      |> assign(:page_title, "How auctions work")
      |> assign(:active_view, "guide")
-     |> assign(
-       :privy_app_id,
-       Keyword.get(Application.get_env(:autolaunch, :privy, []), :app_id, "")
-     )
      |> assign(:timeline_steps, @timeline_steps)
      |> assign(:selected_step_index, 0)
-     |> assign(:xmtp_room, load_xmtp_panel(socket.assigns[:current_human]))
      |> assign_regent_scene()}
-  end
-
-  def handle_info({:xmtp_public_room, :refresh}, socket) do
-    {:noreply, assign(socket, :xmtp_room, load_xmtp_panel(socket.assigns.current_human))}
   end
 
   def handle_event("regent:node_select", %{"meta" => %{"stepIndex" => step_index}}, socket) do
@@ -128,81 +114,6 @@ defmodule AutolaunchWeb.AuctionGuideLive do
        :error,
        "The autolaunch guide surface could not render in this browser session."
      )}
-  end
-
-  def handle_event("xmtp_send", %{"body" => body}, socket) do
-    case Xmtp.send_public_message(socket.assigns.current_human, body) do
-      {:ok, panel} ->
-        {:noreply,
-         socket
-         |> assign(:xmtp_room, panel)}
-
-      {:error, reason} ->
-        {:noreply, assign(socket, :xmtp_room, xmtp_error_panel(socket.assigns, reason))}
-    end
-  end
-
-  def handle_event("xmtp_join", _params, socket) do
-    case Xmtp.request_join(socket.assigns.current_human) do
-      {:ok, panel} ->
-        {:noreply, assign(socket, :xmtp_room, panel)}
-
-      {:needs_signature, %{request_id: request_id, signature_text: signature_text, panel: panel}} ->
-        {:noreply,
-         socket
-         |> assign(:xmtp_room, panel)
-         |> push_event("xmtp:sign-request", %{
-           request_id: request_id,
-           signature_text: signature_text,
-           wallet_address: panel.connected_wallet
-         })}
-
-      {:error, reason} ->
-        {:noreply, assign(socket, :xmtp_room, xmtp_error_panel(socket.assigns, reason))}
-    end
-  end
-
-  def handle_event(
-        "xmtp_join_signature_signed",
-        %{"request_id" => request_id, "signature" => signature},
-        socket
-      ) do
-    case Xmtp.complete_join_signature(socket.assigns.current_human, request_id, signature) do
-      {:ok, panel} ->
-        {:noreply, assign(socket, :xmtp_room, panel)}
-
-      {:error, reason} ->
-        {:noreply, assign(socket, :xmtp_room, xmtp_error_panel(socket.assigns, reason))}
-    end
-  end
-
-  def handle_event("xmtp_join_signature_failed", %{"message" => message}, socket) do
-    {:noreply, update(socket, :xmtp_room, &Map.put(&1, :status, message))}
-  end
-
-  def handle_event("xmtp_heartbeat", _params, socket) do
-    :ok = Xmtp.heartbeat(socket.assigns.current_human)
-    {:noreply, socket}
-  end
-
-  def handle_event("xmtp_delete_message", %{"message_id" => message_id}, socket) do
-    case Xmtp.moderator_delete_message(socket.assigns.current_human, message_id) do
-      {:ok, panel} ->
-        {:noreply, assign(socket, :xmtp_room, panel)}
-
-      {:error, reason} ->
-        {:noreply, assign(socket, :xmtp_room, xmtp_error_panel(socket.assigns, reason))}
-    end
-  end
-
-  def handle_event("xmtp_kick_user", %{"target" => target}, socket) do
-    case Xmtp.moderator_kick_user(socket.assigns.current_human, target) do
-      {:ok, panel} ->
-        {:noreply, assign(socket, :xmtp_room, panel)}
-
-      {:error, reason} ->
-        {:noreply, assign(socket, :xmtp_room, xmtp_error_panel(socket.assigns, reason))}
-    end
   end
 
   def render(assigns) do
@@ -470,119 +381,6 @@ defmodule AutolaunchWeb.AuctionGuideLive do
           </div>
         </section>
 
-        <section
-          id="auction-guide-xmtp-room"
-          class="al-panel al-xmtp-room"
-          phx-hook="PrivyXmtpRoom"
-          data-privy-app-id={@privy_app_id}
-          data-pending-request-id={@xmtp_room.pending_signature_request_id}
-          data-connected-wallet={@xmtp_room.connected_wallet}
-          data-membership-state={@xmtp_room.membership_state}
-          data-can-join={to_string(@xmtp_room.can_join?)}
-          data-can-send={to_string(@xmtp_room.can_send?)}
-        >
-          <div class="al-xmtp-head">
-            <div class="al-xmtp-copy">
-              <p class="al-kicker">Public room</p>
-              <h2>Join the live Autolaunch wire with your Privy wallet.</h2>
-              <p class="al-subcopy">
-                This page stays server-run. The browser only handles Privy wallet connection and the
-                one XMTP signature needed to create your messaging identity.
-              </p>
-            </div>
-
-            <div class="al-xmtp-badges">
-              <span class="al-network-badge">XMTP group</span>
-              <span class="al-network-badge">
-                {@xmtp_room.member_count}/{@xmtp_room.seat_count} private seats
-              </span>
-              <span class="al-network-badge">{length(@xmtp_room.messages)} recent</span>
-              <span class="al-network-badge">
-                {String.replace(to_string(@xmtp_room.membership_state), "_", " ")}
-              </span>
-            </div>
-          </div>
-
-          <div class="al-xmtp-layout">
-            <div class="al-xmtp-feed" data-xmtp-feed>
-              <%= if @xmtp_room.messages == [] do %>
-                <div class="al-xmtp-empty">
-                  No public posts yet. Connect your Privy wallet and send the first one.
-                </div>
-              <% else %>
-                <%= for message <- @xmtp_room.messages do %>
-                  <article
-                    id={"xmtp-room-message-#{message.key}"}
-                    class={["al-xmtp-bubble", message.side == :self && "is-self"]}
-                    data-xmtp-entry
-                    data-message-key={message.key}
-                  >
-                    <header>
-                      <strong>{message.author}</strong>
-                      <span>{message.stamp}</span>
-                    </header>
-                    <p>{message.body}</p>
-                    <div :if={@xmtp_room.moderator?} class="al-xmtp-moderation">
-                      <button
-                        :if={message.can_delete?}
-                        type="button"
-                        class="al-ghost"
-                        phx-click="xmtp_delete_message"
-                        phx-value-message_id={message.key}
-                      >
-                        Delete on website
-                      </button>
-                      <button
-                        :if={message.can_kick?}
-                        type="button"
-                        class="al-ghost"
-                        phx-click="xmtp_kick_user"
-                        phx-value-target={message.sender_wallet || message.sender_inbox_id}
-                      >
-                        Kick user
-                      </button>
-                    </div>
-                  </article>
-                <% end %>
-              <% end %>
-            </div>
-
-            <div class="al-xmtp-composer">
-              <div class="al-xmtp-composer-head">
-                <button type="button" class="al-submit" data-xmtp-auth>
-                  {if @current_human, do: "Disconnect wallet", else: "Connect wallet with Privy"}
-                </button>
-
-                <button
-                  :if={@current_human}
-                  type="button"
-                  class="al-ghost"
-                  data-xmtp-join
-                  disabled={!@xmtp_room.can_join?}
-                >
-                  Join Chat
-                </button>
-
-                <p class="al-inline-note" data-xmtp-state>{@xmtp_room.status}</p>
-              </div>
-
-              <label class="al-xmtp-input-wrap">
-                <span>Wire</span>
-                <input
-                  type="text"
-                  maxlength="2000"
-                  placeholder="Write into the private XMTP room"
-                  data-xmtp-input
-                  disabled={!@xmtp_room.can_send?}
-                />
-              </label>
-
-              <button type="button" class="al-submit" data-xmtp-send disabled={!@xmtp_room.can_send?}>
-                Send to the Autolaunch wire
-              </button>
-            </div>
-          </div>
-        </section>
       </div>
 
       <.flash_group flash={@flash} />
@@ -610,73 +408,4 @@ defmodule AutolaunchWeb.AuctionGuideLive do
   end
 
   defp normalize_step_index(_value), do: 0
-
-  defp load_xmtp_panel(current_human) do
-    {:ok, panel} = Xmtp.public_room_panel(current_human)
-    panel
-  end
-
-  defp xmtp_error_panel(assigns, :wallet_required) do
-    Map.put(
-      assigns.xmtp_room,
-      :status,
-      "Connect your Privy wallet before joining the private room."
-    )
-  end
-
-  defp xmtp_error_panel(assigns, :message_required) do
-    Map.put(assigns.xmtp_room, :status, "Write a message before sending.")
-  end
-
-  defp xmtp_error_panel(assigns, :message_too_long) do
-    Map.put(assigns.xmtp_room, :status, "Messages must stay under 2,000 characters.")
-  end
-
-  defp xmtp_error_panel(assigns, :signature_request_missing) do
-    Map.put(assigns.xmtp_room, :status, "The XMTP signature request expired. Click join again.")
-  end
-
-  defp xmtp_error_panel(assigns, :join_required) do
-    Map.put(assigns.xmtp_room, :status, "Join the private room before sending.")
-  end
-
-  defp xmtp_error_panel(assigns, :room_full) do
-    Map.put(
-      assigns.xmtp_room,
-      :status,
-      "The private room is full. The website stays view-only until a seat opens."
-    )
-  end
-
-  defp xmtp_error_panel(assigns, :kicked) do
-    Map.put(
-      assigns.xmtp_room,
-      :status,
-      "You were removed from the private room. Click join again when ready."
-    )
-  end
-
-  defp xmtp_error_panel(assigns, :moderator_required) do
-    Map.put(
-      assigns.xmtp_room,
-      :status,
-      "Only allowlisted moderator wallets can manage the public mirror."
-    )
-  end
-
-  defp xmtp_error_panel(assigns, :message_not_found) do
-    Map.put(
-      assigns.xmtp_room,
-      :status,
-      "That message is no longer available in the website mirror."
-    )
-  end
-
-  defp xmtp_error_panel(assigns, :member_not_found) do
-    Map.put(assigns.xmtp_room, :status, "That user is no longer inside the private room.")
-  end
-
-  defp xmtp_error_panel(assigns, _reason) do
-    Map.put(assigns.xmtp_room, :status, "The XMTP room is unavailable right now.")
-  end
 end

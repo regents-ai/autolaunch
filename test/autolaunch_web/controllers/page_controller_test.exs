@@ -1,12 +1,12 @@
 defmodule AutolaunchWeb.PageControllerTest do
   use AutolaunchWeb.ConnCase, async: false
 
-  test "root serves the public auction guide", %{conn: conn} do
+  test "root serves the command-first homepage", %{conn: conn} do
     conn = get(conn, "/")
 
     html = html_response(conn, 200)
 
-    assert html =~ "Pick the job you came here for, then go straight to it."
-    assert html =~ "Back an active auction with USDC."
+    assert html =~ "Start the wizard. Let OpenClaw or Hermes carry the launch."
+    assert html =~ "Copy OpenClaw brief"
   end
 end

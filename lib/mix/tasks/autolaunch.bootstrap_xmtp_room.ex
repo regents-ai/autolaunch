@@ -7,11 +7,15 @@ defmodule Mix.Tasks.Autolaunch.BootstrapXmtpRoom do
 
   @impl true
   def run(args) do
-    {opts, _rest, _invalid} = OptionParser.parse(args, strict: [reuse: :boolean])
+    {opts, _rest, _invalid} =
+      OptionParser.parse(args, strict: [reuse: :boolean, room_key: :string])
 
     Mix.Task.run("app.start")
 
-    case Autolaunch.Xmtp.bootstrap_room!(reuse: Keyword.get(opts, :reuse, false)) do
+    case Autolaunch.Xmtp.bootstrap_room!(
+           reuse: Keyword.get(opts, :reuse, false),
+           room_key: Keyword.get(opts, :room_key, Autolaunch.Xmtp.room_key())
+         ) do
       {:ok, room_info} ->
         Mix.shell().info("Autolaunch XMTP room ready.")
         Mix.shell().info("Room key: #{room_info.room_key}")

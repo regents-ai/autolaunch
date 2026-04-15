@@ -1,79 +1,90 @@
 defmodule Autolaunch.Xmtp do
   @moduledoc false
 
-  alias Autolaunch.Xmtp.Agent
+  alias Autolaunch.Accounts.HumanUser
+  alias Xmtp.Principal
 
-  @pubsub_topic "autolaunch:xmtp:public_room"
-
-  @type membership_state :: :view_only | :join_pending_signature | :joined | :full | :kicked
-
-  @type panel_message :: %{
-          key: String.t(),
-          author: String.t(),
-          body: String.t(),
-          stamp: String.t(),
-          side: :self | :other,
-          sender_inbox_id: String.t(),
-          sender_wallet: String.t() | nil,
-          website_state: :visible | :moderator_deleted,
-          can_delete?: boolean(),
-          can_kick?: boolean()
-        }
-
-  @type panel :: %{
-          room_name: String.t(),
-          room_id: String.t() | nil,
-          connected_wallet: String.t() | nil,
-          ready?: boolean(),
-          joined?: boolean(),
-          can_join?: boolean(),
-          can_send?: boolean(),
-          moderator?: boolean(),
-          membership_state: membership_state(),
-          status: String.t(),
-          pending_signature_request_id: String.t() | nil,
-          member_count: non_neg_integer(),
-          seat_count: pos_integer(),
-          seats_remaining: non_neg_integer(),
-          messages: [panel_message()]
-        }
+  @manager __MODULE__.Manager
 
   def child_spec(opts \\ []) do
-    Agent.child_spec(opts)
+    Xmtp.child_spec(
+      Keyword.merge(opts,
+        name: @manager,
+        repo: Autolaunch.Repo,
+        pubsub: Autolaunch.PubSub,
+        rooms: {:mfa, __MODULE__, :rooms, []}
+      )
+    )
   end
 
   def subscribe do
-    Phoenix.PubSub.subscribe(Autolaunch.PubSub, @pubsub_topic)
+    Xmtp.subscribe(@manager, default_room_key())
   end
 
-  def topic, do: @pubsub_topic
+  def topic, do: Xmtp.topic(@manager, default_room_key())
 
-  def public_room_panel(current_human \\ nil) do
-    GenServer.call(Agent, {:public_room_panel, current_human})
+  def room_server(room_key \\ default_room_key()) do
+    Xmtp.Manager.via(@manager, room_key)
   end
 
-  def request_join(current_human) do
-    GenServer.call(Agent, {:request_join, current_human})
+  def public_room_panel(current_human \\ nil, claims \\ %{}) do
+    Xmtp.public_room_panel(
+      @manager,
+      default_room_key(),
+      principal(current_human),
+      claims
+    )
   end
 
-  def complete_join_signature(current_human, request_id, signature) do
-    GenServer.call(Agent, {:complete_join_signature, current_human, request_id, signature})
+  def request_join(current_human, claims \\ %{}) do
+    Xmtp.request_join(@manager, default_room_key(), principal(current_human), claims)
+  end
+
+  def complete_join_signature(current_human, request_id, signature, claims \\ %{}) do
+    Xmtp.complete_join_signature(
+      @manager,
+      default_room_key(),
+      principal(current_human),
+      request_id,
+      signature,
+      claims
+    )
   end
 
   def send_public_message(current_human, body) do
-    GenServer.call(Agent, {:send_public_message, current_human, body})
+    Xmtp.send_public_message(
+      @manager,
+      default_room_key(),
+      principal(current_human),
+      body
+    )
   end
 
   def invite_user(current_human_or_system, target_wallet_or_inbox) do
-    GenServer.call(Agent, {:invite_user, current_human_or_system, target_wallet_or_inbox})
+    Xmtp.invite_user(
+      @manager,
+      default_room_key(),
+      actor(current_human_or_system),
+      target_wallet_or_inbox
+    )
   end
 
   def kick_user(current_human_or_system, target_wallet_or_inbox) do
-    GenServer.call(Agent, {:kick_user, current_human_or_system, target_wallet_or_inbox})
+    Xmtp.kick_user(
+      @manager,
+      default_room_key(),
+      actor(current_human_or_system),
+      target_wallet_or_inbox
+    )
   end
 
   def moderator_delete_message(current_human, message_id) do
-    GenServer.call(Agent, {:moderator_delete_message, current_human, message_id})
+    Xmtp.moderator_delete_message(
+      @manager,
+      default_room_key(),
+      principal(current_human),
+      message_id
+    )
   end
 
   def moderator_kick_user(current_human, target_wallet_or_inbox) do
@@ -81,22 +92,58 @@ defmodule Autolaunch.Xmtp do
   end
 
   def heartbeat(current_human) do
-    GenServer.cast(Agent, {:heartbeat, current_human})
+    Xmtp.heartbeat(@manager, default_room_key(), principal(current_human))
   end
 
   def bootstrap_room!(opts \\ []) do
-    GenServer.call(Agent, {:bootstrap_room, opts}, :timer.seconds(30))
+    room_key = Keyword.get(opts, :room_key, default_room_key())
+    Xmtp.bootstrap_room!(@manager, room_key, opts)
   end
 
   def reset_for_test! do
-    GenServer.call(Agent, :reset_for_test, :timer.seconds(30))
+    Xmtp.reset_for_test!(@manager, default_room_key())
   end
 
-  def room_key do
+  def room_key, do: default_room_key()
+
+  def rooms do
     :autolaunch
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:room_key, "autolaunch_wire")
+    |> Keyword.fetch!(:rooms)
   end
 
-  def pubsub_topic, do: @pubsub_topic
+  def default_room_key do
+    rooms()
+    |> List.first()
+    |> Map.fetch!(:key)
+  end
+
+  defp principal(nil), do: nil
+
+  defp principal(%HumanUser{} = human) do
+    Principal.human(%{
+      id: human.id,
+      wallet_address: human.wallet_address,
+      wallet_addresses: Map.get(human, :wallet_addresses, []),
+      display_name: human.display_name
+    })
+  end
+
+  defp principal(%{} = current_human) do
+    Principal.human(%{
+      id: Map.get(current_human, :id) || Map.get(current_human, "id"),
+      wallet_address:
+        Map.get(current_human, :wallet_address) || Map.get(current_human, "wallet_address"),
+      wallet_addresses:
+        Map.get(current_human, :wallet_addresses) ||
+          Map.get(current_human, "wallet_addresses", []),
+      display_name:
+        Map.get(current_human, :display_name) || Map.get(current_human, "display_name")
+    })
+  end
+
+  defp principal(_current_human), do: nil
+
+  defp actor(:system), do: :system
+  defp actor(value), do: principal(value)
 end

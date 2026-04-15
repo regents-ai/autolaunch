@@ -1,13 +1,14 @@
 defmodule AutolaunchWeb.ApiRoutesTest do
-  use AutolaunchWeb.ConnCase, async: true
+  use AutolaunchWeb.ConnCase, async: false
 
-  test "root serves the public guide", %{conn: conn} do
+  test "root serves the command-first homepage", %{conn: conn} do
     conn = get(conn, "/")
     html = html_response(conn, 200)
 
-    assert html =~ "Pick the job you came here for, then go straight to it."
-    assert html =~ "Back an active auction with USDC."
-    assert html =~ "Launch through the CLI, then return here for the live market."
+    assert html =~ "Copy the wizard command. Let your agent carry the launch."
+    assert html =~ "Copy wizard command"
+    assert html =~ "Copy OpenClaw brief"
+    assert html =~ "Copy Hermes brief"
   end
 
   test "auction index returns JSON", %{conn: conn} do
@@ -27,16 +28,6 @@ defmodule AutolaunchWeb.ApiRoutesTest do
       })
 
     assert %{"ok" => false, "error" => %{"code" => "auth_required"}} = json_response(conn, 401)
-  end
-
-  test "siwa nonce rejects invalid chain ids", %{conn: conn} do
-    conn =
-      post(conn, "/v1/agent/siwa/nonce", %{
-        "walletAddress" => "0x0000000000000000000000000000000000000001",
-        "chainId" => "10"
-      })
-
-    assert %{"ok" => false, "error" => %{"code" => "invalid_chain_id"}} = json_response(conn, 422)
   end
 
   test "ens link planner requires auth", %{conn: conn} do

@@ -58,11 +58,26 @@ if config_env() != :test do
     verification_key: env.("PRIVY_VERIFICATION_KEY", "")
 
   config :autolaunch, Autolaunch.Xmtp,
-    agent_private_key: env.("AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY", "")
+    rooms: [
+      %{
+        key: "autolaunch_wire",
+        name: "Autolaunch Wire",
+        description: "The shared Autolaunch chat room.",
+        app_data: "autolaunch-wire",
+        agent_private_key: env.("AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY", ""),
+        moderator_wallets: [],
+        capacity: 200,
+        presence_timeout_ms: :timer.minutes(2),
+        presence_check_interval_ms: :timer.seconds(30),
+        policy_options: %{
+          allowed_kinds: [:human, :agent],
+          required_claims: %{}
+        }
+      }
+    ]
 
   config :autolaunch, :siwa,
     internal_url: env.("SIWA_INTERNAL_URL", "http://siwa-sidecar:4100"),
-    shared_secret: env.("SIWA_SHARED_SECRET", ""),
     http_connect_timeout_ms: env_int.("SIWA_HTTP_CONNECT_TIMEOUT_MS", 2_000),
     http_receive_timeout_ms: env_int.("SIWA_HTTP_RECEIVE_TIMEOUT_MS", 5_000),
     skip_http_verify: env_bool.("SIWA_SKIP_HTTP_VERIFY", false)
@@ -73,6 +88,7 @@ if config_env() != :test do
     deploy_binary: env.("AUTOLAUNCH_DEPLOY_BINARY", "forge"),
     deploy_workdir: env.("AUTOLAUNCH_DEPLOY_WORKDIR", ""),
     deploy_script_target: env.("AUTOLAUNCH_DEPLOY_SCRIPT_TARGET", ""),
+    deploy_timeout_ms: env_int.("AUTOLAUNCH_DEPLOY_TIMEOUT_MS", 180_000),
     deploy_output_marker: env.("AUTOLAUNCH_DEPLOY_OUTPUT_MARKER", "CCA_RESULT_JSON:"),
     eth_sepolia_rpc_url: env.("ETH_SEPOLIA_RPC_URL", ""),
     eth_sepolia_factory_address:
@@ -93,9 +109,9 @@ if config_env() != :test do
     mock_deploy: env_bool.("AUTOLAUNCH_MOCK_DEPLOY", false)
 
   config :autolaunch, :regent_staking,
-    chain_id: 8_453,
-    chain_label: "Base",
-    rpc_url: env.("BASE_MAINNET_RPC_URL", ""),
+    chain_id: env_int.("REGENT_STAKING_CHAIN_ID", 84_532),
+    chain_label: env.("REGENT_STAKING_CHAIN_LABEL", "Base Sepolia"),
+    rpc_url: env.("REGENT_STAKING_RPC_URL", ""),
     contract_address: env.("REGENT_REVENUE_STAKING_ADDRESS", "")
 
   config :agent_world, :world_id,

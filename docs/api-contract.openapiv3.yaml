@@ -4,8 +4,9 @@ info:
   version: 0.1.0
   description: >
     Source-of-truth HTTP contract for the live Autolaunch backend. This file owns
-    Autolaunch launch, prelaunch, lifecycle, market, ENS, contracts, and AgentBook
-    routes. Shared Regent staking lives in the shared Regent services contract instead.
+    Autolaunch launch, prelaunch, lifecycle, market, ENS, contracts, AgentBook,
+    and browser auth routes. Shared Regent staking lives in the shared Regent services
+    contract instead.
 tags:
   - name: health
   - name: auth
@@ -29,59 +30,63 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /v1/agent/siwa/nonce:
-    post:
-      operationId: autolaunchSiwaNonce
+  /api/auth/privy/csrf:
+    get:
+      operationId: autolaunchPrivySessionCsrf
       tags: [auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
       responses:
         "200":
-          description: Nonce
+          description: CSRF token for session-backed browser writes
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
-  /v1/agent/siwa/verify:
-    post:
-      operationId: autolaunchSiwaVerify
-      tags: [auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
-      responses:
-        "200":
-          description: Verification result
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/PrivySessionCsrf" }
   /api/auth/privy/session:
     post:
       operationId: createPrivySession
       tags: [auth]
+      security: [{ PrivyBearerToken: [] }]
       requestBody:
+        required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/PrivySessionRequest" }
       responses:
         "200":
           description: Session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivySessionResponse" }
+        "400":
+          description: Invalid wallet address
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing or invalid Privy bearer token
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
     delete:
       operationId: deletePrivySession
       tags: [auth]
+      security: [{ PrivySessionCookie: [] }]
       responses:
         "200":
           description: Session cleared
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OkEnvelope" }
+  /api/auth/privy/profile:
+    get:
+      operationId: getPrivySessionProfile
+      tags: [auth]
+      security: [{ PrivySessionCookie: [] }]
+      responses:
+        "200":
+          description: Current signed-in human profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivySessionResponse" }
 
   /api/agentbook/sessions:
     post:
@@ -987,12 +992,859 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+  /v1/agent/agents:
+    get:
+      operationId: agentListAgents
+      tags: [launch]
+      security: [{ AgentSiwaHeaders: [] }]
+      responses:
+        "200":
+          description: Agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+  /v1/agent/agents/{id}:
+    get:
+      operationId: agentGetAgent
+      tags: [launch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Agent detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/agents/{id}/readiness:
+    get:
+      operationId: agentGetAgentReadiness
+      tags: [launch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Agent readiness
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /v1/agent/trust/agents/{id}:
+    get:
+      operationId: agentGetAgentTrust
+      tags: [trust]
+      security: [{ AgentSiwaHeaders: [] }]
+      summary: Read one agent trust summary
+      description: >
+        Returns the canonical nested trust summary for one agent identity. This uses the same
+        `trust.erc8004`, `trust.ens`, `trust.world`, and `trust.x` structure exposed inside
+        auction payloads.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Agent trust summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentTrustEnvelope" }
+  /v1/agent/trust/x/start:
+    post:
+      operationId: agentStartXLink
+      tags: [trust]
+      security: [{ AgentSiwaHeaders: [] }]
+      summary: Start the X-link browser flow
+      description: >
+        Starts the X-link flow for one agent identity and returns a relative `redirect_path`.
+        CLI and web clients should open that path in the browser. They should not implement
+        OAuth or provider handshakes themselves.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/XLinkStartRequest" }
+      responses:
+        "200":
+          description: X link start payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/XLinkStartEnvelope" }
+  /v1/agent/trust/x/callback:
+    post:
+      operationId: agentCompleteXLink
+      tags: [trust]
+      security: [{ AgentSiwaHeaders: [] }]
+      summary: Save the completed X-link result
+      description: >
+        Completes the browser-owned X-link flow and stores the linked X handle under the agent's
+        trust summary.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/XLinkCallbackRequest" }
+      responses:
+        "200":
+          description: X link saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentTrustEnvelope" }
+
+  /v1/agent/subjects/{id}:
+    get:
+      operationId: agentGetSubject
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      responses:
+        "200":
+          description: Subject detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubjectEnvelope" }
+  /v1/agent/subjects/{id}/ingress:
+    get:
+      operationId: agentGetSubjectIngress
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      responses:
+        "200":
+          description: Subject ingress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubjectIngressEnvelope" }
+  /v1/agent/subjects/{id}/stake:
+    post:
+      operationId: agentStakeSubject
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AmountRequest" }
+      responses:
+        "200":
+          description: Stake prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+  /v1/agent/subjects/{id}/unstake:
+    post:
+      operationId: agentUnstakeSubject
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AmountRequest" }
+      responses:
+        "200":
+          description: Unstake prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+  /v1/agent/subjects/{id}/claim-usdc:
+    post:
+      operationId: agentClaimSubjectUsdc
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Claim prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+  /v1/agent/subjects/{id}/claim-emissions:
+    post:
+      operationId: agentClaimSubjectEmissions
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Emissions claim prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+  /v1/agent/subjects/{id}/claim-and-stake-emissions:
+    post:
+      operationId: agentClaimAndStakeSubjectEmissions
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Emissions compound prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+  /v1/agent/subjects/{id}/ingress/{address}/sweep:
+    post:
+      operationId: agentSweepSubjectIngress
+      tags: [subjects]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+        - name: address
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/Address" }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Sweep prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+
+  /v1/agent/prelaunch/plans:
+    get:
+      operationId: agentListPrelaunchPlans
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      responses:
+        "200":
+          description: Prelaunch plans
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchPlanListEnvelope" }
+    post:
+      operationId: agentCreatePrelaunchPlan
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PrelaunchPlanUpsertRequest" }
+      responses:
+        "201":
+          description: Plan created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+  /v1/agent/prelaunch/plans/{id}:
+    get:
+      operationId: agentGetPrelaunchPlan
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Plan detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+    patch:
+      operationId: agentUpdatePrelaunchPlan
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PrelaunchPlanUpsertRequest" }
+      responses:
+        "200":
+          description: Plan updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+  /v1/agent/prelaunch/plans/{id}/validate:
+    post:
+      operationId: agentValidatePrelaunchPlan
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
+  /v1/agent/prelaunch/plans/{id}/publish:
+    post:
+      operationId: agentPublishPrelaunchPlan
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Publish result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
+  /v1/agent/prelaunch/plans/{id}/launch:
+    post:
+      operationId: agentLaunchPrelaunchPlan
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaunchPlanRequest" }
+      responses:
+        "200":
+          description: Launch started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LaunchPlanEnvelope" }
+  /v1/agent/prelaunch/assets:
+    post:
+      operationId: agentUploadPrelaunchAsset
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PrelaunchAssetUploadRequest" }
+      responses:
+        "200":
+          description: Asset uploaded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchAssetEnvelope" }
+  /v1/agent/prelaunch/plans/{id}/metadata:
+    post:
+      operationId: agentSavePrelaunchMetadata
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PrelaunchMetadataRequest" }
+      responses:
+        "200":
+          description: Metadata saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+  /v1/agent/prelaunch/plans/{id}/metadata-preview:
+    get:
+      operationId: agentGetPrelaunchMetadataPreview
+      tags: [prelaunch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PlanId"
+      responses:
+        "200":
+          description: Metadata preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrelaunchMetadataPreviewEnvelope" }
+
+  /v1/agent/lifecycle/jobs/{id}:
+    get:
+      operationId: agentGetLifecycleJob
+      tags: [lifecycle]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Lifecycle job detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/lifecycle/jobs/{id}/finalize/prepare:
+    post:
+      operationId: agentPrepareFinalizeLaunch
+      tags: [lifecycle]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Finalize prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/lifecycle/jobs/{id}/finalize/register:
+    post:
+      operationId: agentRegisterFinalizeLaunch
+      tags: [lifecycle]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Finalize registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/lifecycle/jobs/{id}/vesting:
+    get:
+      operationId: agentGetVestingStatus
+      tags: [lifecycle]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Vesting status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /v1/agent/contracts/admin:
+    get:
+      operationId: agentGetContractsAdminOverview
+      tags: [contracts]
+      security: [{ AgentSiwaHeaders: [] }]
+      responses:
+        "200":
+          description: Admin contracts overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/contracts/jobs/{id}:
+    get:
+      operationId: agentGetContractsJobOverview
+      tags: [contracts]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Job contracts overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/contracts/subjects/{id}:
+    get:
+      operationId: agentGetContractsSubjectOverview
+      tags: [contracts]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+      responses:
+        "200":
+          description: Subject contracts overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/contracts/jobs/{id}/{resource}/{action}/prepare:
+    post:
+      operationId: agentPrepareJobContractAction
+      tags: [contracts]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+        - $ref: "#/components/parameters/Resource"
+        - $ref: "#/components/parameters/Action"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Prepared job contract action
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+  /v1/agent/contracts/subjects/{id}/{resource}/{action}/prepare:
+    post:
+      operationId: agentPrepareSubjectContractAction
+      tags: [contracts]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SubjectId"
+        - $ref: "#/components/parameters/Resource"
+        - $ref: "#/components/parameters/Action"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Prepared subject contract action
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+  /v1/agent/contracts/admin/{resource}/{action}/prepare:
+    post:
+      operationId: agentPrepareAdminContractAction
+      tags: [contracts]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Resource"
+        - $ref: "#/components/parameters/Action"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Prepared admin contract action
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+  /v1/agent/launch/preview:
+    post:
+      operationId: agentPreviewLaunch
+      tags: [launch]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaunchPreviewRequest" }
+      responses:
+        "200":
+          description: Launch preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LaunchPreviewEnvelope" }
+  /v1/agent/launch/jobs:
+    post:
+      operationId: agentCreateLaunchJob
+      tags: [launch]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaunchCreateRequest" }
+      responses:
+        "201":
+          description: Launch job created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
+  /v1/agent/launch/jobs/{id}:
+    get:
+      operationId: agentGetLaunchJob
+      tags: [launch]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Launch job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
+
+  /v1/agent/auctions:
+    get:
+      operationId: agentListAuctions
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [biddable, live, all, failed_minimum]
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest, market_cap_desc, market_cap_asc, failure_recent]
+      responses:
+        "200":
+          description: Auctions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuctionListEnvelope" }
+  /v1/agent/auction-returns:
+    get:
+      operationId: agentListAuctionReturns
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Failed auctions available for returns
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuctionReturnsEnvelope" }
+  /v1/agent/auctions/{id}:
+    get:
+      operationId: agentGetAuction
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuctionId"
+      responses:
+        "200":
+          description: Auction detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuctionEnvelope" }
+  /v1/agent/me/profile:
+    get:
+      operationId: agentGetMyProfile
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      responses:
+        "200":
+          description: Current user's cached token profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
+  /v1/agent/me/profile/refresh:
+    post:
+      operationId: agentRefreshMyProfile
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      responses:
+        "200":
+          description: Profile refresh started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
+  /v1/agent/me/holdings:
+    get:
+      operationId: agentGetMyHoldings
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      responses:
+        "200":
+          description: Current user's actionable holdings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HoldingsEnvelope" }
+  /v1/agent/auctions/{id}/bid_quote:
+    post:
+      operationId: agentQuoteAuctionBid
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuctionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuctionBidQuoteRequest" }
+      responses:
+        "200":
+          description: Bid quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuctionBidQuoteEnvelope" }
+  /v1/agent/auctions/{id}/bids:
+    post:
+      operationId: agentCreateAuctionBid
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuctionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAuctionBidRequest" }
+      responses:
+        "201":
+          description: Bid created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+  /v1/agent/me/bids:
+    get:
+      operationId: agentListMyBids
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - name: auction
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, borderline, inactive, claimable, exited, claimed, returnable]
+      responses:
+        "200":
+          description: Current user's bids
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidPositionListEnvelope" }
+  /v1/agent/bids/{id}/return-usdc:
+    post:
+      operationId: agentReturnBidUsdc
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidMutationRequest" }
+      responses:
+        "200":
+          description: Return prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+  /v1/agent/bids/{id}/exit:
+    post:
+      operationId: agentExitBid
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidMutationRequest" }
+      responses:
+        "200":
+          description: Exit prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+  /v1/agent/bids/{id}/claim:
+    post:
+      operationId: agentClaimBid
+      tags: [market]
+      security: [{ AgentSiwaHeaders: [] }]
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidMutationRequest" }
+      responses:
+        "200":
+          description: Claim prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+
+  /v1/agent/ens/link/plan:
+    post:
+      operationId: agentPlanEnsLink
+      tags: [ens]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: ENS link plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/ens/link/prepare-ensip25:
+    post:
+      operationId: agentPrepareEnsip25Link
+      tags: [ens]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: ENSIP-25 prepare result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/ens/link/prepare-erc8004:
+    post:
+      operationId: agentPrepareErc8004Link
+      tags: [ens]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: ERC-8004 prepare result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/agent/ens/link/prepare-bidirectional:
+    post:
+      operationId: agentPrepareBidirectionalEnsLink
+      tags: [ens]
+      security: [{ AgentSiwaHeaders: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LooseObject" }
+      responses:
+        "200":
+          description: Bidirectional prepare result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+
 components:
   securitySchemes:
+    PrivyBearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
     PrivySessionCookie:
       type: apiKey
       in: cookie
       name: _autolaunch_key
+    AgentSiwaHeaders:
+      type: apiKey
+      in: header
+      name: x-siwa-receipt
+      description: Placeholder for the signed SIWA header bundle used by authenticated agent requests.
   parameters:
     AgentId:
       name: id
@@ -1054,6 +1906,122 @@ components:
     LooseObject:
       type: object
       additionalProperties: true
+    SiwaNonceRequest:
+      type: object
+      required: [wallet_address, chain_id]
+      properties:
+        wallet_address: { $ref: "#/components/schemas/Address" }
+        chain_id: { type: integer, minimum: 1 }
+        audience: { type: string }
+      additionalProperties: false
+    SiwaNonceResponse:
+      type: object
+      required: [ok, code, data]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        code: { type: string, enum: [nonce_issued] }
+        data:
+          type: object
+          required: [nonce, walletAddress, chainId, expiresAt]
+          properties:
+            nonce: { type: string }
+            walletAddress: { $ref: "#/components/schemas/Address" }
+            chainId: { type: integer, minimum: 1 }
+            expiresAt: { $ref: "#/components/schemas/DateTime" }
+          additionalProperties: false
+        meta:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    SiwaVerifyRequest:
+      type: object
+      required: [wallet_address, chain_id, nonce, message, signature]
+      properties:
+        wallet_address: { $ref: "#/components/schemas/Address" }
+        chain_id: { type: integer, minimum: 1 }
+        nonce: { type: string }
+        message: { type: string }
+        signature: { type: string }
+        registry_address: { $ref: "#/components/schemas/Address" }
+        token_id: { type: string }
+      additionalProperties: false
+    SiwaVerifyResponse:
+      type: object
+      required: [ok, code, data]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        code: { type: string, enum: [siwa_verified] }
+        data:
+          type: object
+          required:
+            [
+              verified,
+              walletAddress,
+              chainId,
+              nonce,
+              keyId,
+              signatureScheme,
+              receipt,
+              receiptExpiresAt
+            ]
+          properties:
+            verified: { type: boolean, enum: [true] }
+            walletAddress: { $ref: "#/components/schemas/Address" }
+            chainId: { type: integer, minimum: 1 }
+            nonce: { type: string }
+            keyId: { type: string }
+            signatureScheme: { type: string, enum: [evm_personal_sign] }
+            receipt: { type: string }
+            receiptExpiresAt: { $ref: "#/components/schemas/DateTime" }
+          additionalProperties: false
+        meta:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    PrivySessionCsrf:
+      type: object
+      required: [ok, csrf_token]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        csrf_token: { type: string }
+      additionalProperties: false
+    PrivySessionRequest:
+      type: object
+      required: [wallet_address]
+      properties:
+        wallet_address: { $ref: "#/components/schemas/Address" }
+        display_name:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    PrivySessionResponse:
+      type: object
+      required: [ok, human, xmtp]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        human:
+          anyOf:
+            - type: object
+              required: [id, privy_user_id, wallet_address, wallet_addresses, role]
+              properties:
+                id: { type: integer }
+                privy_user_id: { type: string }
+                wallet_address: { $ref: "#/components/schemas/Address" }
+                wallet_addresses:
+                  type: array
+                  items: { $ref: "#/components/schemas/Address" }
+                display_name:
+                  anyOf:
+                    - { type: string }
+                    - { type: "null" }
+                role: { type: string }
+              additionalProperties: false
+            - { type: "null" }
+        xmtp:
+          anyOf:
+            - { type: "null" }
+      additionalProperties: false
     EmptyRequest:
       type: object
       additionalProperties: false

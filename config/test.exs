@@ -39,7 +39,6 @@ config :autolaunch, :privy,
 
 config :autolaunch, :siwa,
   internal_url: "http://localhost:4100",
-  shared_secret: "test-secret",
   skip_http_verify: true
 
 config :agent_world, :world_id,

@@ -42,7 +42,6 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       |> put_req_header("authorization", "Bearer good-token")
       |> post("/api/auth/privy/session", %{
         "wallet_address" => "0x1111111111111111111111111111111111111111",
-        "wallet_addresses" => ["0x1111111111111111111111111111111111111111"],
         "display_name" => "Operator"
       })
 

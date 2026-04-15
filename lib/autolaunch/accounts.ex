@@ -1,6 +1,8 @@
 defmodule Autolaunch.Accounts do
   @moduledoc false
 
+  import Ecto.Query
+
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.Repo
 
@@ -8,6 +10,21 @@ defmodule Autolaunch.Accounts do
 
   def get_human_by_privy_id(privy_user_id) when is_binary(privy_user_id) do
     Repo.get_by(HumanUser, privy_user_id: privy_user_id)
+  end
+
+  def get_human_by_wallet_address(nil), do: nil
+
+  def get_human_by_wallet_address(wallet_address) when is_binary(wallet_address) do
+    normalized_wallet = normalize_address(wallet_address)
+
+    from(human in HumanUser,
+      where:
+        human.wallet_address == ^normalized_wallet or
+          fragment("? = ANY(?)", ^normalized_wallet, human.wallet_addresses),
+      order_by: [asc: human.id],
+      limit: 1
+    )
+    |> Repo.one()
   end
 
   def upsert_human_by_privy_id(privy_user_id, attrs) do
