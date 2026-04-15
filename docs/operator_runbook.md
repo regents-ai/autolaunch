@@ -123,6 +123,34 @@ Use `smoke` to prove the app can carry a synthetic launch through to a readable 
 
 Use `verify_deploy` immediately after a real launch is marked ready. It checks the live contracts for the post-deploy invariants that matter most: controller resolution from the deploy receipt, controller authorization cleanup in the shared factories, accepted ownership on the fee contracts, fee-vault canonical tokens, completed migration, recorded pool and position ids, hook-enabled state, and subject plus ingress wiring.
 
+## Phase 2.5: Create the Agent Safe on Sepolia
+
+Before a launch plan is signed, create one Safe that will be used for:
+
+- treasury receipts
+- vesting receipts
+- splitter ownership
+- fee contract ownership
+
+The recommended signer set is:
+
+1. the local agent wallet from `regent-cli`
+2. the website wallet created through the Privy login
+3. one backup wallet
+
+Use a `2-of-3` threshold.
+
+The CLI now supports this flow in two steps:
+
+```bash
+regent autolaunch safe wizard --backup-signer-address 0x...
+regent autolaunch safe create --backup-signer-address 0x... --website-wallet-address 0x...
+```
+
+If the website wallet does not exist yet, the Safe wizard will stop cleanly and tell you to wait until the website login creates it.
+
+After the Safe is created on Sepolia, use that Safe address as the `agent_safe_address` in the launch plan.
+
 ## Phase 3: Deploy one launch stack
 
 This is the per-token deployment.
@@ -190,7 +218,7 @@ That result includes the important addresses the app needs to track the launch:
 - default ingress
 - pool id
 
-The fee registry, fee vault, and fee hook now use a two-step ownership handoff. The deployment sets the recovery Safe as the pending owner. Treat those transfers as incomplete until the Safe accepts ownership.
+The fee registry, fee vault, and fee hook now use a two-step ownership handoff. The deployment sets the Agent Safe as the pending owner. Treat those transfers as incomplete until the Safe accepts ownership.
 
 ### What to verify after launch deploy
 
@@ -202,8 +230,8 @@ Do not treat the launch as complete until you verify:
 4. The subject page is live.
 5. The subject has a default ingress address.
 6. The revenue splitter and subject id exist.
-7. The fee registry, fee vault, and fee hook show the recovery Safe as pending owner.
-8. The recovery Safe has accepted ownership if you need those admin controls immediately.
+7. The fee registry, fee vault, and fee hook show the Agent Safe as pending owner.
+8. The Agent Safe has accepted ownership if you need those admin controls immediately.
 
 ## Phase 4: Auction goes live
 

@@ -14,6 +14,24 @@ The golden path depends on a live backend:
 
 Without those pieces, the CLI and browser cannot complete the guided launch flow.
 
+For agent-driven operation through `regent-cli`, assume these environment values are part of the setup:
+
+- `AUTOLAUNCH_BASE_URL`
+- either `AUTOLAUNCH_SESSION_COOKIE`
+- or `AUTOLAUNCH_PRIVY_BEARER_TOKEN` plus `AUTOLAUNCH_WALLET_ADDRESS`
+- optional `AUTOLAUNCH_DISPLAY_NAME`
+
+Before a real launch, expect the launch node to pass:
+
+- `mix autolaunch.doctor`
+- `AUTOLAUNCH_MOCK_DEPLOY=true mix autolaunch.smoke`
+
+After a real launch reaches `ready`, expect:
+
+- `mix autolaunch.verify_deploy --job <job-id>`
+
+If deploys are timing out because Sepolia or the deploy node is slow, adjust `AUTOLAUNCH_DEPLOY_TIMEOUT_MS` in the environment rather than changing the code path.
+
 ## Auction mental model
 
 When you describe the public auction, keep the explanation plain and consistent:
@@ -30,14 +48,30 @@ When you describe the public auction, keep the explanation plain and consistent:
 
 Treat the CLI as the main operator entrypoint:
 
-1. `regent autolaunch prelaunch wizard`
-2. `regent autolaunch prelaunch validate`
-3. `regent autolaunch prelaunch publish`
-4. `regent autolaunch launch run`
-5. `regent autolaunch launch monitor`
-6. `regent autolaunch launch finalize`
-7. `regent autolaunch vesting status`
-8. `regent autolaunch vesting release`
+1. `regent autolaunch safe wizard`
+2. `regent autolaunch safe create`
+3. `regent autolaunch prelaunch wizard`
+4. `regent autolaunch prelaunch validate`
+5. `regent autolaunch prelaunch publish`
+6. `regent autolaunch launch run`
+7. `regent autolaunch launch monitor`
+8. `regent autolaunch launch finalize`
+9. `regent autolaunch vesting status`
+10. `regent autolaunch vesting release`
+
+Skip the Safe steps only when the agent Safe already exists and the plan already points to it.
+
+If you are working from the `regent-cli` source checkout instead of an installed package, run the same flow through:
+
+`pnpm --filter @regentlabs/cli exec regent autolaunch ...`
+
+## Local plan and auth rules
+
+- `prelaunch wizard` is the command that creates or refreshes the saved local plan used by later guided commands.
+- `launch run` and later steps should reuse that saved plan unless the operator explicitly names a different plan.
+- Do not invent alternate local state flows outside the CLI state directory unless the product contract changes.
+- When authenticated CLI calls fail, check the Privy bearer token or session cookie path first.
+- When launch execution fails before any chain write, check `mix autolaunch.doctor` before assuming product logic is wrong.
 
 ## Prelaunch-first rules
 

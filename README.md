@@ -97,7 +97,7 @@ The main LiveView and API routes are:
 - `/api/auth/privy/session` for browser session exchange
 - `/api/prelaunch/*` for saved launch drafts, hosted metadata, and upload-backed launch assets
 - `/api/lifecycle/*` for launch monitoring, finalize guidance, and vesting status
-- `/api/regent/staking/*` for the separate Base-mainnet REGENT staking rail
+- `/api/regent/staking/*` for the separate REGENT staking rail
 - `/api/agents`, `/api/launch/*`, `/api/auctions/*`, `/api/bids/*`, `/api/subjects/*`, `/api/contracts/*`, `/api/agentbook/*`, and `/api/ens/link/*` for the supporting JSON flows
 
 `/api/agents` is the agent inventory. `/api/agents/:id/readiness` is the launch-readiness check. They are related, but they answer different questions.
@@ -125,11 +125,11 @@ Action modes are intentionally split:
 The full environment list lives in [.env.example](.env.example). For local work, copy it to `.env.local` and run `direnv allow`. The important groups are:
 
 - App runtime: `DATABASE_URL` or `LOCAL_DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`
-- Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`
+- Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`, `AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY`
 - SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`, `SIWA_HMAC_SECRET`
 - Launch deployment: `ETH_SEPOLIA_RPC_URL`, `ETH_SEPOLIA_FACTORY_ADDRESS`, `ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER`, `ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER`, `ETH_SEPOLIA_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
 - Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `ERC8004_SEPOLIA_SUBGRAPH_URL`
-- Regent staking rail: `BASE_MAINNET_RPC_URL`, `REGENT_REVENUE_STAKING_ADDRESS`
+- Regent staking rail: `REGENT_STAKING_RPC_URL`, `REGENT_STAKING_CHAIN_ID`, `REGENT_STAKING_CHAIN_LABEL`, `REGENT_REVENUE_STAKING_ADDRESS`
 - AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
 
 The launch path is Ethereum Sepolia only.
@@ -138,18 +138,19 @@ If product copy, launch docs, or contract docs disagree about the active rules, 
 
 ### REGENT Staking Rail
 
-Autolaunch now also exposes a separate Base-mainnet rail for Regent Labs itself.
+Autolaunch now also exposes a separate Regent staking rail for Regent Labs itself.
 
 - It is not part of the Sepolia launch flow.
-- It uses the existing `$REGENT` token on Base as the stake token.
-- It accepts Base USDC deposits manually.
+- Its production target is Base mainnet, but local rehearsal can point it at Base Sepolia with `REGENT_STAKING_*`.
+- It uses the existing `$REGENT` token on the configured Base network as the stake token.
+- It accepts USDC deposits manually on the configured Base network.
 - It pays the configured staker share to `$REGENT` stakers and leaves the rest accruing for the Regent treasury.
 - Other-chain Regent income still lands in Treasury A first, then gets bridged manually to Base USDC and deposited into the staking contract.
 
 This rail is separate from agent subject splitters:
 
 - agent subject splitters are per-agent revenue-rights contracts on Sepolia
-- REGENT staking is one singleton company-token rewards rail on Base mainnet
+- REGENT staking is one singleton company-token rewards rail on the configured Base network
 
 ### Launch Flow
 

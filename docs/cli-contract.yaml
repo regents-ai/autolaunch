@@ -18,7 +18,7 @@ command_groups:
       - /api/agentbook/verify
   - name: agents-trust
     interface: http
-    auth_mode: privy-session
+    auth_mode: agent-siwa
     output_envelope: loose-object
     commands:
       - autolaunch agents list
@@ -26,15 +26,15 @@ command_groups:
       - autolaunch agent readiness <id>
       - autolaunch trust x-link
     path_templates:
-      - /api/agents
-      - /api/agents/{id}
-      - /api/agents/{id}/readiness
-      - /api/trust/agents/{id}
-      - /api/trust/x/start
-      - /api/trust/x/callback
+      - /v1/agent/agents
+      - /v1/agent/agents/{id}
+      - /v1/agent/agents/{id}/readiness
+      - /v1/agent/trust/agents/{id}
+      - /v1/agent/trust/x/start
+      - /v1/agent/trust/x/callback
   - name: prelaunch-launch
     interface: mixed
-    auth_mode: mixed
+    auth_mode: agent-siwa
     output_envelope: launch-envelopes
     commands:
       - autolaunch prelaunch wizard
@@ -51,25 +51,32 @@ command_groups:
       - autolaunch vesting cancel-beneficiary-rotation
       - autolaunch vesting execute-beneficiary-rotation
     path_templates:
-      - /api/prelaunch/plans
-      - /api/prelaunch/plans/{id}
-      - /api/prelaunch/plans/{id}/validate
-      - /api/prelaunch/plans/{id}/publish
-      - /api/prelaunch/plans/{id}/launch
-      - /api/prelaunch/assets
-      - /api/prelaunch/plans/{id}/metadata
-      - /api/prelaunch/plans/{id}/metadata-preview
-      - /api/launch/preview
-      - /api/launch/jobs
-      - /api/launch/jobs/{id}
-      - /api/lifecycle/jobs/{id}
-      - /api/lifecycle/jobs/{id}/finalize/prepare
-      - /api/lifecycle/jobs/{id}/finalize/register
-      - /api/lifecycle/jobs/{id}/vesting
-      - /api/contracts/jobs/{id}/{resource}/{action}/prepare
+      - /v1/agent/prelaunch/plans
+      - /v1/agent/prelaunch/plans/{id}
+      - /v1/agent/prelaunch/plans/{id}/validate
+      - /v1/agent/prelaunch/plans/{id}/publish
+      - /v1/agent/prelaunch/plans/{id}/launch
+      - /v1/agent/prelaunch/assets
+      - /v1/agent/prelaunch/plans/{id}/metadata
+      - /v1/agent/prelaunch/plans/{id}/metadata-preview
+      - /v1/agent/launch/preview
+      - /v1/agent/launch/jobs
+      - /v1/agent/launch/jobs/{id}
+      - /v1/agent/lifecycle/jobs/{id}
+      - /v1/agent/lifecycle/jobs/{id}/finalize/prepare
+      - /v1/agent/lifecycle/jobs/{id}/finalize/register
+      - /v1/agent/lifecycle/jobs/{id}/vesting
+      - /v1/agent/contracts/jobs/{id}/{resource}/{action}/prepare
+  - name: safe-setup
+    interface: local
+    auth_mode: none
+    output_envelope: loose-object
+    commands:
+      - autolaunch safe wizard
+      - autolaunch safe create
   - name: markets-subjects
     interface: http
-    auth_mode: privy-session
+    auth_mode: agent-siwa
     output_envelope: market-envelopes
     commands:
       - autolaunch auctions list
@@ -100,27 +107,27 @@ command_groups:
       - autolaunch subjects claim-and-stake-emissions
       - autolaunch subjects sweep-ingress
     path_templates:
-      - /api/auctions
-      - /api/auction-returns
-      - /api/auctions/{id}
-      - /api/auctions/{id}/bid_quote
-      - /api/auctions/{id}/bids
-      - /api/me/bids
-      - /api/me/holdings
-      - /api/bids/{id}/exit
-      - /api/bids/{id}/return-usdc
-      - /api/bids/{id}/claim
-      - /api/subjects/{id}
-      - /api/subjects/{id}/ingress
-      - /api/subjects/{id}/stake
-      - /api/subjects/{id}/unstake
-      - /api/subjects/{id}/claim-usdc
-      - /api/subjects/{id}/claim-emissions
-      - /api/subjects/{id}/claim-and-stake-emissions
-      - /api/subjects/{id}/ingress/{address}/sweep
+      - /v1/agent/auctions
+      - /v1/agent/auction-returns
+      - /v1/agent/auctions/{id}
+      - /v1/agent/auctions/{id}/bid_quote
+      - /v1/agent/auctions/{id}/bids
+      - /v1/agent/me/bids
+      - /v1/agent/me/holdings
+      - /v1/agent/bids/{id}/exit
+      - /v1/agent/bids/{id}/return-usdc
+      - /v1/agent/bids/{id}/claim
+      - /v1/agent/subjects/{id}
+      - /v1/agent/subjects/{id}/ingress
+      - /v1/agent/subjects/{id}/stake
+      - /v1/agent/subjects/{id}/unstake
+      - /v1/agent/subjects/{id}/claim-usdc
+      - /v1/agent/subjects/{id}/claim-emissions
+      - /v1/agent/subjects/{id}/claim-and-stake-emissions
+      - /v1/agent/subjects/{id}/ingress/{address}/sweep
   - name: ens-contracts
     interface: http
-    auth_mode: privy-session
+    auth_mode: agent-siwa
     output_envelope: prepared-action-or-status
     commands:
       - autolaunch ens plan
@@ -160,13 +167,13 @@ command_groups:
       - autolaunch factory revenue-share set-authorized-creator
       - autolaunch factory revenue-ingress set-authorized-creator
     path_templates:
-      - /api/ens/link/plan
-      - /api/ens/link/prepare-ensip25
-      - /api/ens/link/prepare-erc8004
-      - /api/ens/link/prepare-bidirectional
-      - /api/contracts/admin
-      - /api/contracts/jobs/{id}
-      - /api/contracts/subjects/{id}
-      - /api/contracts/jobs/{id}/{resource}/{action}/prepare
-      - /api/contracts/subjects/{id}/{resource}/{action}/prepare
-      - /api/contracts/admin/{resource}/{action}/prepare
+      - /v1/agent/ens/link/plan
+      - /v1/agent/ens/link/prepare-ensip25
+      - /v1/agent/ens/link/prepare-erc8004
+      - /v1/agent/ens/link/prepare-bidirectional
+      - /v1/agent/contracts/admin
+      - /v1/agent/contracts/jobs/{id}
+      - /v1/agent/contracts/subjects/{id}
+      - /v1/agent/contracts/jobs/{id}/{resource}/{action}/prepare
+      - /v1/agent/contracts/subjects/{id}/{resource}/{action}/prepare
+      - /v1/agent/contracts/admin/{resource}/{action}/prepare

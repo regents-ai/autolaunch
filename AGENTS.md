@@ -94,6 +94,37 @@ Start Solidity work with:
 - The browser wizard exists, but the preferred operator flow is CLI-first.
 - `regent-staking` is a separate shared rail and should stay distinct from the Sepolia launch flow.
 
+## Agent Operator Path
+
+For launch work, treat `regent-cli` as the default operator surface.
+
+- Read `/Users/sean/Documents/regent/regent-cli/docs/autolaunch-cli.md` before changing or operating the guided flow.
+- Use `regent autolaunch prelaunch wizard`, `validate`, `publish`, `launch run`, `launch monitor`, `launch finalize`, and `vesting status` as the main path.
+- Use `regent autolaunch safe wizard` and `safe create` before launch planning if the agent Safe does not exist yet.
+- Keep raw `launch create`, strategy, splitter, ingress, and registry commands for debugging or incident recovery only.
+
+The CLI auth path for Autolaunch expects:
+
+- `AUTOLAUNCH_BASE_URL`
+- either `AUTOLAUNCH_SESSION_COOKIE`
+- or `AUTOLAUNCH_PRIVY_BEARER_TOKEN` plus `AUTOLAUNCH_WALLET_ADDRESS`
+- optional `AUTOLAUNCH_DISPLAY_NAME`
+
+Before a real launch, verify the launch node with:
+
+```bash
+mix autolaunch.doctor
+AUTOLAUNCH_MOCK_DEPLOY=true mix autolaunch.smoke
+```
+
+After a real launch reaches `ready`, verify it with:
+
+```bash
+mix autolaunch.verify_deploy --job <job-id>
+```
+
+If a legitimate deploy needs more time on a slow or congested Sepolia path, raise `AUTOLAUNCH_DEPLOY_TIMEOUT_MS` in the environment. Do not patch the timeout in code for one-off operations.
+
 ## Validation
 
 For app changes:
