@@ -54,4 +54,27 @@ contract RevenueIngressFactoryTest is Test {
         assertEq(RevenueIngressAccount(payable(ingress)).owner(), TREASURY_SAFE);
         assertEq(RevenueIngressAccount(payable(ingress)).subjectId(), SUBJECT_ID);
     }
+
+    function testInactiveSubjectBlocksIngressCreationAndDefaultSelection() external {
+        vm.prank(TREASURY_SAFE);
+        address ingressA =
+            ingressFactory.createIngressAccount(SUBJECT_ID, "default-usdc-ingress", true);
+
+        vm.prank(TREASURY_SAFE);
+        address ingressB = ingressFactory.createIngressAccount(SUBJECT_ID, "backup-ingress", false);
+
+        address activeSplitter = revenueShareFactory.splitterOfSubject(SUBJECT_ID);
+        vm.prank(TREASURY_SAFE);
+        subjectRegistry.updateSubject(SUBJECT_ID, activeSplitter, TREASURY_SAFE, false, "Subject");
+
+        assertEq(ingressFactory.defaultIngressOfSubject(SUBJECT_ID), ingressA);
+
+        vm.prank(TREASURY_SAFE);
+        vm.expectRevert("SUBJECT_INACTIVE");
+        ingressFactory.createIngressAccount(SUBJECT_ID, "late-ingress", false);
+
+        vm.prank(TREASURY_SAFE);
+        vm.expectRevert("SUBJECT_INACTIVE");
+        ingressFactory.setDefaultIngress(SUBJECT_ID, ingressB);
+    }
 }

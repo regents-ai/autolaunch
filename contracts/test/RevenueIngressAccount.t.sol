@@ -95,4 +95,15 @@ contract RevenueIngressAccountTest is Test {
         vm.expectRevert("NOTHING_TO_SWEEP");
         ingress.sweepUSDC(keccak256("invoice-2"));
     }
+
+    function testSweepRevertsWhenSubjectIsInactive() external {
+        address activeSplitter = revenueShareFactory.splitterOfSubject(SUBJECT_ID);
+        vm.prank(TREASURY_SAFE);
+        subjectRegistry.updateSubject(SUBJECT_ID, activeSplitter, TREASURY_SAFE, false, "Subject");
+
+        usdc.mint(address(ingress), 1000e18);
+
+        vm.expectRevert("SUBJECT_INACTIVE");
+        ingress.sweepUSDC(keccak256("invoice-3"));
+    }
 }

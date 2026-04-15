@@ -7,6 +7,7 @@ import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.sol";
 import {ILaunchFeeVaultMinimal} from "src/revenue/interfaces/ILaunchFeeVaultMinimal.sol";
 import {IRevenueShareSplitter} from "src/revenue/interfaces/IRevenueShareSplitter.sol";
+import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
 
 contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     using SafeTransferLib for address;
@@ -19,6 +20,8 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
 
     address public immutable override stakeToken;
     address public immutable override usdc;
+    address public immutable subjectRegistry;
+    bytes32 public immutable subjectId;
     uint256 public immutable revenueShareSupplyDenominator;
 
     string public label;
@@ -32,6 +35,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     uint16 public emissionAprBps;
 
     bool public paused;
+    bool public subjectLifecycleRetired;
     uint256 public override totalStaked;
     uint256 public accRewardPerTokenUsdc;
     uint256 public accRewardPerTokenStakeToken;
@@ -88,6 +92,8 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     constructor(
         address stakeToken_,
         address usdc_,
+        address subjectRegistry_,
+        bytes32 subjectId_,
         address treasuryRecipient_,
         address protocolRecipient_,
         uint16 protocolSkimBps_,
@@ -97,6 +103,8 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     ) Owned(owner_) {
         require(stakeToken_ != address(0), "STAKE_TOKEN_ZERO");
         require(usdc_ != address(0), "USDC_ZERO");
+        require(subjectRegistry_ != address(0), "SUBJECT_REGISTRY_ZERO");
+        require(subjectId_ != bytes32(0), "SUBJECT_ZERO");
         require(treasuryRecipient_ != address(0), "TREASURY_ZERO");
         require(protocolRecipient_ != address(0), "PROTOCOL_ZERO");
         require(protocolSkimBps_ <= BPS_DENOMINATOR, "SKIM_BPS_INVALID");
@@ -104,6 +112,8 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
 
         stakeToken = stakeToken_;
         usdc = usdc_;
+        subjectRegistry = subjectRegistry_;
+        subjectId = subjectId_;
         revenueShareSupplyDenominator = revenueShareSupplyDenominator_;
         treasuryRecipient = treasuryRecipient_;
         treasuryRotationDelay = DEFAULT_TREASURY_ROTATION_DELAY;
@@ -123,6 +133,16 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         _reentrancyGuard = 2;
         _;
         _reentrancyGuard = 1;
+    }
+
+    modifier onlyActiveSubject() {
+        require(_subjectIsActive(), "SUBJECT_INACTIVE");
+        _;
+    }
+
+    modifier onlySubjectRegistry() {
+        require(msg.sender == subjectRegistry, "ONLY_SUBJECT_REGISTRY");
+        _;
     }
 
     function setPaused(bool paused_) external onlyOwner {
@@ -189,16 +209,20 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         emit LabelSet(label_);
     }
 
-    function stake(uint256 amount, address receiver) external whenNotPaused nonReentrant {
+    function stake(uint256 amount, address receiver)
+        external
+        whenNotPaused
+        onlyActiveSubject
+        nonReentrant
+    {
         require(amount != 0, "AMOUNT_ZERO");
         require(receiver != address(0), "RECEIVER_ZERO");
 
         _sync(receiver);
+        _pullExactStakeToken(msg.sender, amount);
 
         stakedBalance[receiver] += amount;
         totalStaked += amount;
-
-        stakeToken.safeTransferFrom(msg.sender, address(this), amount);
 
         emit StakeUpdated(receiver, stakedBalance[receiver], totalStaked);
     }
@@ -218,13 +242,14 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         }
 
         emit StakeUpdated(msg.sender, stakedBalance[msg.sender], totalStaked);
-        stakeToken.safeTransfer(recipient, amount);
+        _pushExactStakeToken(recipient, amount);
     }
 
     function depositUSDC(uint256 amount, bytes32 sourceTag, bytes32 sourceRef)
         external
         override
         whenNotPaused
+        onlyActiveSubject
         nonReentrant
         returns (uint256 received)
     {
@@ -245,7 +270,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         bytes32 poolId,
         uint256 amount,
         bytes32 sourceRef
-    ) external whenNotPaused nonReentrant returns (uint256 received) {
+    ) external whenNotPaused onlyActiveSubject nonReentrant returns (uint256 received) {
         require(vault != address(0), "VAULT_ZERO");
         require(amount != 0, "AMOUNT_ZERO");
         _settleStakeTokenEmissions();
@@ -335,12 +360,13 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         totalClaimedStakeToken += amount;
 
         emit RewardTokenClaimed(msg.sender, amount, recipient);
-        stakeToken.safeTransfer(recipient, amount);
+        _pushExactStakeToken(recipient, amount);
     }
 
     function claimAndRestakeStakeToken()
         external
         whenNotPaused
+        onlyActiveSubject
         nonReentrant
         returns (uint256 amount)
     {
@@ -387,20 +413,31 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     function fundStakeTokenRewards(uint256 amount)
         external
         whenNotPaused
+        onlyActiveSubject
         nonReentrant
         returns (uint256 received)
     {
         require(amount != 0, "AMOUNT_ZERO");
         _settleStakeTokenEmissions();
 
-        uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(address(this));
-        stakeToken.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 afterBalance = IERC20SupplyMinimal(stakeToken).balanceOf(address(this));
-        received = afterBalance - beforeBalance;
-        require(received > 0, "NOTHING_RECEIVED");
+        received = _pullExactStakeToken(msg.sender, amount);
 
         totalFundedStakeToken += received;
         emit RewardTokenFunded(msg.sender, received);
+    }
+
+    function syncSubjectLifecycle(bool active_, bool retiring_) external onlySubjectRegistry {
+        if (retiring_) {
+            _settleStakeTokenEmissions();
+            subjectLifecycleRetired = true;
+            lastEmissionUpdate = block.timestamp;
+            return;
+        }
+
+        if (!active_) {
+            _settleStakeTokenEmissions();
+        }
+        lastEmissionUpdate = block.timestamp;
     }
 
     function availableStakeTokenRewardInventory() public view returns (uint256 available) {
@@ -500,7 +537,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
 
     function _previewAccRewardPerTokenStakeToken() internal view returns (uint256 currentAcc) {
         currentAcc = accRewardPerTokenStakeToken;
-        if (emissionAprBps == 0 || totalStaked == 0) {
+        if (!_subjectIsActive() || emissionAprBps == 0 || totalStaked == 0) {
             return currentAcc;
         }
 
@@ -516,12 +553,16 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
     }
 
     function _settleStakeTokenEmissions() internal {
+        if (subjectLifecycleRetired) {
+            return;
+        }
+
         uint256 timestamp = block.timestamp;
         if (timestamp <= lastEmissionUpdate) {
             return;
         }
 
-        if (emissionAprBps == 0 || totalStaked == 0) {
+        if (!_subjectIsActive() || emissionAprBps == 0 || totalStaked == 0) {
             lastEmissionUpdate = timestamp;
             return;
         }
@@ -538,5 +579,24 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         accRewardPerTokenStakeToken += deltaAcc;
         totalEmittedStakeToken += FullMath.mulDiv(totalStaked, deltaAcc, ACC_PRECISION);
         lastEmissionUpdate = timestamp;
+    }
+
+    function _subjectIsActive() internal view returns (bool) {
+        return !subjectLifecycleRetired && ISubjectRegistry(subjectRegistry).getSubject(subjectId).active;
+    }
+
+    function _pullExactStakeToken(address from, uint256 amount) internal returns (uint256 received) {
+        uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(address(this));
+        stakeToken.safeTransferFrom(from, address(this), amount);
+        uint256 afterBalance = IERC20SupplyMinimal(stakeToken).balanceOf(address(this));
+        received = afterBalance - beforeBalance;
+        require(received == amount, "STAKE_TOKEN_IN_EXACT");
+    }
+
+    function _pushExactStakeToken(address recipient, uint256 amount) internal {
+        uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(recipient);
+        stakeToken.safeTransfer(recipient, amount);
+        uint256 afterBalance = IERC20SupplyMinimal(stakeToken).balanceOf(recipient);
+        require(afterBalance - beforeBalance == amount, "STAKE_TOKEN_OUT_EXACT");
     }
 }

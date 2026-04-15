@@ -4,7 +4,9 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 
 import {RevenueShareSplitter} from "src/revenue/RevenueShareSplitter.sol";
+import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableBurnableERC20Mock} from "test/mocks/MintableBurnableERC20Mock.sol";
+import {TransferFeeERC20Mock} from "test/mocks/TransferFeeERC20Mock.sol";
 
 contract RevenueShareSplitterTest is Test {
     uint256 internal constant XYZ = 1e18;
@@ -25,6 +27,8 @@ contract RevenueShareSplitterTest is Test {
     MintableBurnableERC20Mock internal stakeToken;
     MintableBurnableERC20Mock internal usdc;
     RevenueShareSplitter internal splitter;
+    mapping(address => SubjectRegistry) internal registryOfSplitter;
+    mapping(address => bytes32) internal subjectIdOfSplitter;
 
     address internal constant TREASURY = address(0xA11CE);
     address internal constant PROTOCOL_TREASURY = address(0xBEEF);
@@ -221,6 +225,209 @@ contract RevenueShareSplitterTest is Test {
 
         assertApproxEqAbs(custom.previewClaimableStakeToken(ALICE), expectedAlice, 1e14);
         assertApproxEqAbs(custom.previewClaimableStakeToken(BOB), expectedBob, 1e14);
+    }
+
+    function testInactiveSubjectStopsNewLifecycleWorkButPreservesExit() external {
+        SubjectRegistry registry = registryOfSplitter[address(splitter)];
+        bytes32 subjectId = subjectIdOfSplitter[address(splitter)];
+
+        _fundStakeTokenRewards(splitter, stakeToken, 1000 * XYZ);
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+
+        vm.warp(block.timestamp + 30 days);
+        registry.updateSubject(subjectId, address(splitter), TREASURY, false, "XYZ splitter");
+
+        uint256 expectedAlice = _expectedEmission(ALICE_STAKE, MAX_APR_BPS, 30 days);
+        assertEq(splitter.previewClaimableStakeToken(ALICE), expectedAlice);
+
+        vm.warp(block.timestamp + 60 days);
+        assertEq(splitter.previewClaimableStakeToken(ALICE), expectedAlice);
+
+        usdc.mint(address(this), 100 * USDC);
+        usdc.approve(address(splitter), type(uint256).max);
+        vm.expectRevert("SUBJECT_INACTIVE");
+        splitter.depositUSDC(100 * USDC, bytes32("inactive"), bytes32("1"));
+
+        vm.prank(ALICE);
+        vm.expectRevert("SUBJECT_INACTIVE");
+        splitter.stake(XYZ, ALICE);
+
+        vm.prank(ALICE);
+        vm.expectRevert("SUBJECT_INACTIVE");
+        splitter.claimAndRestakeStakeToken();
+
+        vm.prank(ALICE);
+        uint256 claimed = splitter.claimStakeToken(ALICE);
+        assertEq(claimed, expectedAlice);
+
+        vm.prank(ALICE);
+        splitter.unstake(10 * XYZ, ALICE);
+        assertEq(splitter.stakedBalance(ALICE), ALICE_STAKE - 10 * XYZ);
+    }
+
+    function testRotatingToANewSplitterWhileInactiveResetsTheNewLifecycleClock() external {
+        SubjectRegistry registry = registryOfSplitter[address(splitter)];
+        bytes32 subjectId = subjectIdOfSplitter[address(splitter)];
+        uint256 initialTimestamp = 1;
+        uint256 inactiveRotationTimestamp = 86_401;
+        uint256 reactivationTimestamp = 2_678_401;
+        uint256 postReactivationTimestamp = 2_764_801;
+        uint256 oneDay = 1 days;
+
+        RevenueShareSplitter rotatedSplitter = new RevenueShareSplitter(
+            address(stakeToken),
+            address(usdc),
+            address(registry),
+            subjectId,
+            TREASURY,
+            PROTOCOL_TREASURY,
+            100,
+            INITIAL_SUPPLY_DENOMINATOR,
+            "XYZ splitter v2",
+            address(this)
+        );
+
+        stakeToken.mint(ALICE, ALICE_STAKE);
+        vm.startPrank(ALICE);
+        stakeToken.approve(address(rotatedSplitter), type(uint256).max);
+        rotatedSplitter.stake(ALICE_STAKE, ALICE);
+        vm.stopPrank();
+
+        _fundStakeTokenRewards(rotatedSplitter, stakeToken, 1000 * XYZ);
+        rotatedSplitter.setEmissionAprBps(MAX_APR_BPS);
+
+        // Keep the checkpoints pinned so this regression stays focused on lifecycle handoff timing.
+        assertEq(block.timestamp, initialTimestamp);
+
+        vm.warp(inactiveRotationTimestamp);
+        uint256 expectedBeforeRotation = _expectedEmission(ALICE_STAKE, MAX_APR_BPS, oneDay);
+        assertApproxEqAbs(
+            rotatedSplitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+
+        registry.updateSubject(subjectId, address(rotatedSplitter), TREASURY, false, "XYZ splitter v2");
+        assertEq(rotatedSplitter.lastEmissionUpdate(), inactiveRotationTimestamp);
+
+        assertApproxEqAbs(
+            rotatedSplitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+
+        vm.warp(reactivationTimestamp);
+        assertApproxEqAbs(
+            rotatedSplitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+
+        registry.updateSubject(subjectId, address(rotatedSplitter), TREASURY, true, "XYZ splitter v2");
+        assertEq(rotatedSplitter.lastEmissionUpdate(), reactivationTimestamp);
+
+        assertApproxEqAbs(rotatedSplitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14);
+
+        vm.warp(postReactivationTimestamp);
+        uint256 expectedAfterReactivate =
+            expectedBeforeRotation + _expectedEmission(ALICE_STAKE, MAX_APR_BPS, oneDay);
+        assertApproxEqAbs(
+            rotatedSplitter.previewClaimableStakeToken(ALICE), expectedAfterReactivate, 1e14
+        );
+    }
+
+    function testRotatedAwaySplitterStopsAccruingAcrossLaterLifecycleFlips() external {
+        SubjectRegistry registry = registryOfSplitter[address(splitter)];
+        bytes32 subjectId = subjectIdOfSplitter[address(splitter)];
+
+        _fundStakeTokenRewards(splitter, stakeToken, 1000 * XYZ);
+        splitter.setEmissionAprBps(MAX_APR_BPS);
+
+        vm.warp(block.timestamp + 1 days);
+        uint256 expectedBeforeRotation = _expectedEmission(ALICE_STAKE, MAX_APR_BPS, 1 days);
+        assertApproxEqAbs(
+            splitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+
+        RevenueShareSplitter rotatedSplitter = new RevenueShareSplitter(
+            address(stakeToken),
+            address(usdc),
+            address(registry),
+            subjectId,
+            TREASURY,
+            PROTOCOL_TREASURY,
+            100,
+            INITIAL_SUPPLY_DENOMINATOR,
+            "XYZ splitter v2",
+            address(this)
+        );
+
+        uint256 rotationTime = block.timestamp;
+        registry.updateSubject(subjectId, address(rotatedSplitter), TREASURY, true, "XYZ splitter v2");
+
+        assertEq(splitter.lastEmissionUpdate(), rotationTime);
+        assertApproxEqAbs(
+            splitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+
+        vm.warp(block.timestamp + 30 days);
+        assertApproxEqAbs(
+            splitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+
+        registry.updateSubject(subjectId, address(rotatedSplitter), TREASURY, false, "XYZ splitter v2");
+
+        vm.warp(block.timestamp + 30 days);
+        assertApproxEqAbs(
+            splitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+
+        registry.updateSubject(subjectId, address(rotatedSplitter), TREASURY, true, "XYZ splitter v2");
+
+        vm.warp(block.timestamp + 1 days);
+        assertApproxEqAbs(
+            splitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
+        );
+        assertEq(splitter.lastEmissionUpdate(), rotationTime);
+    }
+
+    function testStakeRejectsInboundFeeOnTransferToken() external {
+        TransferFeeERC20Mock taxed = new TransferFeeERC20Mock("Taxed", "TAX", 18, address(0));
+        (RevenueShareSplitter taxedSplitter,,) =
+            _deployCustomSplitter(address(taxed), INITIAL_SUPPLY_DENOMINATOR, "taxed-in");
+
+        taxed.setFeeBps(500);
+        taxed.setFeeTriggers(address(taxedSplitter), false, true);
+        taxed.mint(ALICE, 100 * XYZ);
+
+        vm.startPrank(ALICE);
+        taxed.approve(address(taxedSplitter), type(uint256).max);
+        vm.expectRevert("STAKE_TOKEN_IN_EXACT");
+        taxedSplitter.stake(100 * XYZ, ALICE);
+        vm.stopPrank();
+    }
+
+    function testClaimRejectsOutboundFeeOnTransferToken() external {
+        TransferFeeERC20Mock taxed = new TransferFeeERC20Mock("Taxed", "TAX", 18, address(0));
+        (RevenueShareSplitter taxedSplitter,,) =
+            _deployCustomSplitter(address(taxed), INITIAL_SUPPLY_DENOMINATOR, "taxed-out");
+
+        taxed.mint(ALICE, 100 * XYZ);
+        taxed.mint(FUNDER, 1000 * XYZ);
+
+        vm.startPrank(ALICE);
+        taxed.approve(address(taxedSplitter), type(uint256).max);
+        taxedSplitter.stake(100 * XYZ, ALICE);
+        vm.stopPrank();
+
+        vm.startPrank(FUNDER);
+        taxed.approve(address(taxedSplitter), type(uint256).max);
+        taxedSplitter.fundStakeTokenRewards(1000 * XYZ);
+        vm.stopPrank();
+
+        taxedSplitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 30 days);
+
+        taxed.setFeeBps(500);
+        taxed.setFeeTriggers(address(taxedSplitter), true, false);
+
+        vm.prank(ALICE);
+        vm.expectRevert("STAKE_TOKEN_OUT_EXACT");
+        taxedSplitter.claimStakeToken(ALICE);
     }
 
     function testClaimStakeTokenRevertsWhenInventoryIsShort() external {
@@ -475,9 +682,24 @@ contract RevenueShareSplitterTest is Test {
         uint256 denominator,
         string memory splitterLabel
     ) internal returns (RevenueShareSplitter) {
-        return new RevenueShareSplitter(
-            address(token),
+        (RevenueShareSplitter deployed, SubjectRegistry registry, bytes32 subjectId) =
+            _deployCustomSplitter(address(token), denominator, splitterLabel);
+        registryOfSplitter[address(deployed)] = registry;
+        subjectIdOfSplitter[address(deployed)] = subjectId;
+        return deployed;
+    }
+
+    function _deployCustomSplitter(address token, uint256 denominator, string memory splitterLabel)
+        internal
+        returns (RevenueShareSplitter deployed, SubjectRegistry registry, bytes32 subjectId)
+    {
+        registry = new SubjectRegistry(address(this));
+        subjectId = keccak256(abi.encodePacked(splitterLabel, token, denominator, block.timestamp));
+        deployed = new RevenueShareSplitter(
+            token,
             address(usdc),
+            address(registry),
+            subjectId,
             TREASURY,
             PROTOCOL_TREASURY,
             100,
@@ -485,6 +707,8 @@ contract RevenueShareSplitterTest is Test {
             splitterLabel,
             address(this)
         );
+
+        registry.createSubject(subjectId, token, address(deployed), TREASURY, true, splitterLabel);
     }
 
     function _stake(

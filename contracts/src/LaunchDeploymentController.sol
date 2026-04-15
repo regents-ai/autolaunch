@@ -155,6 +155,13 @@ contract LaunchDeploymentController is Owned {
         require(tokenSplitToAuctionMps != 0, "TOKEN_SPLIT_ZERO");
         require(tokenSplitToAuctionMps <= MPS_TOTAL, "TOKEN_SPLIT_INVALID");
 
+        SubjectRegistry subjectRegistry =
+            RevenueShareFactory(cfg.revenueShareFactory).subjectRegistry();
+        require(
+            subjectRegistry.owner() == cfg.revenueShareFactory,
+            "SUBJECT_REGISTRY_NOT_OWNED_BY_FACTORY"
+        );
+
         address token = ITokenFactory(cfg.tokenFactory)
             .createToken(
                 cfg.tokenName,

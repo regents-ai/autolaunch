@@ -69,8 +69,7 @@ contract RevenueIngressFactory is Owned {
         internal
         returns (address ingress)
     {
-        ISubjectRegistry.SubjectConfig memory cfg =
-            ISubjectRegistry(subjectRegistry).getSubject(subjectId);
+        ISubjectRegistry.SubjectConfig memory cfg = _subjectConfig(subjectId);
         require(cfg.stakeToken != address(0), "SUBJECT_UNKNOWN");
         require(cfg.splitter != address(0), "SPLITTER_ZERO");
         require(cfg.active, "SUBJECT_INACTIVE");
@@ -101,6 +100,7 @@ contract RevenueIngressFactory is Owned {
         external
         onlySubjectManager(subjectId)
     {
+        require(_subjectConfig(subjectId).active, "SUBJECT_INACTIVE");
         require(isIngressAccount[ingress], "INGRESS_UNKNOWN");
         require(
             RevenueIngressAccount(payable(ingress)).subjectId() == subjectId,
@@ -121,5 +121,13 @@ contract RevenueIngressFactory is Owned {
 
     function ingressAccountsOfSubject(bytes32 subjectId) external view returns (address[] memory) {
         return ingressAccountsBySubject[subjectId];
+    }
+
+    function _subjectConfig(bytes32 subjectId)
+        internal
+        view
+        returns (ISubjectRegistry.SubjectConfig memory)
+    {
+        return ISubjectRegistry(subjectRegistry).getSubject(subjectId);
     }
 }

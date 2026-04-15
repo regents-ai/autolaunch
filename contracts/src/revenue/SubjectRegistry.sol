@@ -4,6 +4,10 @@ pragma solidity ^0.8.26;
 import {Owned} from "src/auth/Owned.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
 
+interface ISubjectLifecycleSync {
+    function syncSubjectLifecycle(bool active_, bool retiring_) external;
+}
+
 contract SubjectRegistry is Owned, ISubjectRegistry {
     struct IdentityLink {
         uint256 chainId;
@@ -91,8 +95,11 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         string calldata label
     ) external onlySubjectManager(subjectId) {
         SubjectConfig storage cfg = _subjectStorage(subjectId);
+        address previousSplitter = cfg.splitter;
         require(splitter != address(0), "SPLITTER_ZERO");
         require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
+        bool splitterChanged = previousSplitter != splitter;
+        bool activeChanged = cfg.active != active;
 
         if (cfg.treasurySafe != treasurySafe) {
             subjectManagers[subjectId][cfg.treasurySafe] = false;
@@ -101,9 +108,16 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
             emit SubjectManagerSet(subjectId, treasurySafe, true);
         }
 
+        if (activeChanged || splitterChanged) {
+            ISubjectLifecycleSync(previousSplitter).syncSubjectLifecycle(active, splitterChanged);
+        }
+        if (splitterChanged) {
+            ISubjectLifecycleSync(splitter).syncSubjectLifecycle(active, false);
+        }
+
+        cfg.active = active;
         cfg.splitter = splitter;
         cfg.treasurySafe = treasurySafe;
-        cfg.active = active;
         cfg.label = label;
 
         emit SubjectUpdated(subjectId, splitter, treasurySafe, active, label);

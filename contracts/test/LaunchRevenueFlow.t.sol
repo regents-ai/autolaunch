@@ -11,6 +11,7 @@ import {LaunchFeeRegistry} from "src/LaunchFeeRegistry.sol";
 import {LaunchFeeVault} from "src/LaunchFeeVault.sol";
 import {LaunchPoolFeeHook} from "src/LaunchPoolFeeHook.sol";
 import {RevenueShareSplitter} from "src/revenue/RevenueShareSplitter.sol";
+import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableBurnableERC20Mock} from "test/mocks/MintableBurnableERC20Mock.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockHookDeployer} from "test/mocks/MockHookDeployer.sol";
@@ -31,6 +32,7 @@ contract LaunchRevenueFlowTest is Test {
     address internal constant ALICE = address(0xA1);
     address internal constant LAUNCH_TOKEN = address(0x1001);
     address internal constant TRADER = address(0xB0B);
+    bytes32 internal constant SUBJECT_ID = keccak256("launch-revenue-flow");
 
     LaunchFeeRegistry internal registry;
     LaunchFeeVault internal vault;
@@ -40,6 +42,7 @@ contract LaunchRevenueFlowTest is Test {
     MintableERC20Mock internal usdc;
     MintableBurnableERC20Mock internal stakeToken;
     RevenueShareSplitter internal splitter;
+    SubjectRegistry internal subjectRegistry;
 
     bytes32 internal poolId;
     PoolKey internal poolKey;
@@ -55,15 +58,21 @@ contract LaunchRevenueFlowTest is Test {
 
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableBurnableERC20Mock("Agent", "AGENT", 18);
+        subjectRegistry = new SubjectRegistry(OWNER);
         splitter = new RevenueShareSplitter(
             address(stakeToken),
             address(usdc),
+            address(subjectRegistry),
+            SUBJECT_ID,
             SUBJECT_TREASURY,
             PROTOCOL_TREASURY,
             100,
             1000e18,
             "Atlas splitter",
             OWNER
+        );
+        subjectRegistry.createSubject(
+            SUBJECT_ID, address(stakeToken), address(splitter), SUBJECT_TREASURY, true, "Atlas splitter"
         );
 
         poolId = registry.registerPool(

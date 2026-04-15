@@ -101,6 +101,24 @@ contract LaunchDeploymentControllerTest is Test {
         controller.deploy(defaultConfig());
     }
 
+    function testRejectsDeployWhenSubjectRegistryOwnershipNotAccepted() external {
+        SubjectRegistry localSubjectRegistry = new SubjectRegistry(address(this));
+        RevenueShareFactory localRevenueShareFactory =
+            new RevenueShareFactory(address(this), address(usdc), localSubjectRegistry);
+        RevenueIngressFactory localRevenueIngressFactory =
+            new RevenueIngressFactory(address(usdc), address(localSubjectRegistry), address(this));
+
+        localRevenueShareFactory.setAuthorizedCreator(address(controller), true);
+        localRevenueIngressFactory.setAuthorizedCreator(address(controller), true);
+
+        LaunchDeploymentController.DeploymentConfig memory cfg = defaultConfig();
+        cfg.revenueShareFactory = address(localRevenueShareFactory);
+        cfg.revenueIngressFactory = address(localRevenueIngressFactory);
+
+        vm.expectRevert("SUBJECT_REGISTRY_NOT_OWNED_BY_FACTORY");
+        controller.deploy(cfg);
+    }
+
     function testDeploysModelBLaunchStack() external {
         LaunchDeploymentController.DeploymentResult memory result =
             controller.deploy(defaultConfig());

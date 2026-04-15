@@ -127,4 +127,16 @@ contract RevenueShareFactoryTest is Test {
             0
         );
     }
+
+    function testOwnerCanTransferSubjectRegistryOwnershipOutOfFactory() external {
+        vm.prank(OWNER);
+        factory.transferSubjectRegistryOwnership(TREASURY);
+
+        assertEq(subjectRegistry.pendingOwner(), TREASURY);
+
+        vm.prank(TREASURY);
+        subjectRegistry.acceptOwnership();
+
+        assertEq(subjectRegistry.owner(), TREASURY);
+    }
 }

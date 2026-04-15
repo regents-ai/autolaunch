@@ -23,6 +23,9 @@ contract RevenueShareFactory is Owned {
         string label
     );
     event AuthorizedCreatorSet(address indexed account, bool enabled);
+    event SubjectRegistryOwnershipTransferStarted(
+        address indexed currentOwner, address indexed pendingOwner
+    );
 
     constructor(address owner_, address usdc_, SubjectRegistry subjectRegistry_) Owned(owner_) {
         require(usdc_ != address(0), "USDC_ZERO");
@@ -38,6 +41,11 @@ contract RevenueShareFactory is Owned {
 
     function acceptSubjectRegistryOwnership() external {
         subjectRegistry.acceptOwnership();
+    }
+
+    function transferSubjectRegistryOwnership(address newOwner) external onlyOwner {
+        subjectRegistry.transferOwnership(newOwner);
+        emit SubjectRegistryOwnershipTransferStarted(address(this), newOwner);
     }
 
     function setAuthorizedCreator(address account, bool enabled) external onlyOwner {
@@ -76,6 +84,8 @@ contract RevenueShareFactory is Owned {
         RevenueShareSplitter deployed = new RevenueShareSplitter(
             stakeToken,
             usdc,
+            address(subjectRegistry),
+            subjectId,
             agentSafe,
             protocolRecipient,
             protocolSkimBps,
