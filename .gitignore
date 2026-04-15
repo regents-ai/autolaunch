@@ -16,6 +16,7 @@
 /.env.*
 !/.env.example
 /.direnv/
+RECENT_AUTOLAUNCH_MESSAGES.md
 /*.db
 /*.sqlite3
 /npm-debug.log*
