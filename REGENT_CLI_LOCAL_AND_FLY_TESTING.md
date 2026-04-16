@@ -1,31 +1,48 @@
-# Autolaunch + Regent CLI Local Rehearsal
+# Autolaunch Local Rehearsal
 
-This guide is for the current local-only rehearsal path.
+This is the current **local-only** rehearsal path for Autolaunch.
 
-It is intentionally pure testnet:
+Treat it as a pure testnet run:
 
-- Regent staking deploys to Base Sepolia
-- Autolaunch shared infra and launch jobs deploy to Ethereum Sepolia
-- Fly is not part of this rehearsal
+- Regent staking deploys to **Base Sepolia**
+- Autolaunch shared infra and launch jobs deploy to **Ethereum Sepolia**
+- the local website must be able to **read the freshly deployed Base Sepolia staking rail**
+- Fly is **not** part of this rehearsal
 
 The launch chain is still Ethereum Sepolia only. Base Sepolia is only for the separate Regent staking rail in this rehearsal.
 
-## What has to be running
+## 1. Gather the required values first
 
-Autolaunch is one Phoenix app for both frontend and backend. To test it end to end with `regent-cli`, you also need:
+Do not start deploying until you already have these:
 
-- Postgres
-- Privy session exchange
-- the SIWA sidecar
-- the local Foundry contracts workspace
-- a reachable Base Sepolia RPC for Regent staking rehearsal
-- a reachable Ethereum Sepolia RPC for Autolaunch
-- deployed Regent staking support values on Base Sepolia
-- deployed Autolaunch shared support contracts on Ethereum Sepolia
+- Base Sepolia RPC URL
+- Base Sepolia `$REGENT` test token address
+- Base Sepolia USDC or test-USDC address
+- Ethereum Sepolia RPC URL
+- Sepolia CCA factory address
+- Sepolia Uniswap v4 pool manager address
+- Sepolia Uniswap v4 position manager address
+- Sepolia USDC address
+- Sepolia token factory address
+- Sepolia ERC-8004 subgraph URL
+- Sepolia identity registry address
+- strategy operator address
+- CCA values:
+  - `CCA_FLOOR_PRICE_Q96`
+  - `CCA_TICK_SPACING_Q96`
+  - `CCA_REQUIRED_CURRENCY_RAISED`
+- Privy values
+- SIWA values
+- XMTP agent private key
+- deployer private key
+- treasury and safe addresses
 
-Unlike Techtree, Autolaunch does not need the Regent runtime daemon for normal CLI use.
+Important warnings:
 
-## Stage 1: Deploy Regent staking on Base Sepolia
+- `TOKEN_FACTORY_ADDRESS` is still external. The shared infra deploy does not create it.
+- `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, and the required `CCA_*` values still matter for a real launch even after shared infra is live.
+
+## 2. Deploy Regent staking on Base Sepolia
 
 Validate contracts first:
 
@@ -47,34 +64,39 @@ export REGENT_REVENUE_SUPPLY_DENOMINATOR=100000000000000000000000000000
 export PRIVATE_KEY=...
 ```
 
-Important notes:
+Important defaults:
 
-- `REGENT_REVENUE_STAKER_SHARE_BPS=10000` means 100% of each USDC deposit is staker-eligible before unstaked-supply remainder stays in treasury.
-- `REGENT_REVENUE_SUPPLY_DENOMINATOR` must be the raw 18-decimal unit value for 100 billion tokens, not the human-readable `100000000000`.
+- `REGENT_REVENUE_STAKER_SHARE_BPS=10000` means **100% of each USDC deposit is staker-eligible**
+- `REGENT_REVENUE_SUPPLY_DENOMINATOR=100000000000000000000000000000` is **100 billion tokens in raw 18-decimal units**
 
 Deploy the staking contract:
 
 ```bash
-cd /Users/sean/Documents/regent/autolaunch/contracts
-
 forge script scripts/DeployRegentRevenueStaking.s.sol:DeployRegentRevenueStakingScript \
   --rpc-url "$BASE_SEPOLIA_RPC_URL" \
   --broadcast
 ```
 
-Save the output:
+Save the printed `REGENT_REVENUE_STAKING_RESULT_JSON` values:
 
-- `REGENT_REVENUE_STAKING_ADDRESS`
+- `contractAddress`
+- `regentTokenAddress`
+- `usdcAddress`
+- `treasuryRecipient`
+- `owner`
+- `stakerShareBps`
+- `revenueShareSupplyDenominator`
 
-After deploy, the Regent emission flow is:
+Use `contractAddress` as `REGENT_REVENUE_STAKING_ADDRESS` later.
 
-1. approve `$REGENT` to the staking contract
-2. call `fundRegentRewards(amount)`
-3. then call `setEmissionAprBps(2000)`
+## 3. Deploy shared Autolaunch infra on Ethereum Sepolia
 
-`stakerShareBps` is fixed at deploy. `emissionAprBps` is the adjustable APR control owned by `REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS`.
+Validate contracts first if you have not already:
 
-## Stage 2: Deploy shared Autolaunch infra on Ethereum Sepolia
+```bash
+cd /Users/sean/Documents/regent/autolaunch/contracts
+forge test --offline
+```
 
 Set the shared infra deploy inputs:
 
@@ -88,25 +110,29 @@ export PRIVATE_KEY=...
 Deploy the shared Autolaunch infra:
 
 ```bash
-cd /Users/sean/Documents/regent/autolaunch/contracts
-
 forge script scripts/DeployAutolaunchInfra.s.sol:DeployAutolaunchInfraScript \
   --rpc-url "$ETH_SEPOLIA_RPC_URL" \
   --broadcast
 ```
 
-Save the output:
+Save the printed `AUTOLAUNCH_INFRA_RESULT_JSON` values:
+
+- `subjectRegistryAddress`
+- `revenueShareFactoryAddress`
+- `revenueIngressFactoryAddress`
+- `strategyFactoryAddress`
+- `usdcAddress`
+- `owner`
+
+Map those into app env as:
 
 - `REVENUE_SHARE_FACTORY_ADDRESS`
 - `REVENUE_INGRESS_FACTORY_ADDRESS`
 - `LBP_STRATEGY_FACTORY_ADDRESS`
-- `SUBJECT_REGISTRY_ADDRESS`
 
-Important warning:
+Keep `subjectRegistryAddress` recorded as `SUBJECT_REGISTRY_ADDRESS` for reference even though the app runtime does not take it directly.
 
-- `TOKEN_FACTORY_ADDRESS` is still an external dependency. The shared infra deploy does not create it for you.
-
-## Stage 3: Prepare the local app runtime
+## 4. Prepare the local app runtime
 
 Start from the checked-in example:
 
@@ -116,49 +142,63 @@ cp .env.example .env.local
 direnv allow
 ```
 
-Fill these required values in `.env.local`:
+Fill `.env.local` with at least:
 
-- `DATABASE_URL` or `LOCAL_DATABASE_URL`
-- `SECRET_KEY_BASE`
-- `PHX_HOST`
-- `PORT`
-- `PRIVY_APP_ID`
-- `PRIVY_VERIFICATION_KEY`
-- `AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY`
-- `SIWA_INTERNAL_URL`
-- `SIWA_SHARED_SECRET`
-- `SIWA_HMAC_SECRET`
-- `AUTOLAUNCH_DEPLOY_WORKDIR=/Users/sean/Documents/regent/autolaunch/contracts`
-- `AUTOLAUNCH_DEPLOY_BINARY=forge`
-- `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET=scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript`
-- `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
-- `ETH_SEPOLIA_RPC_URL`
-- `ETH_SEPOLIA_FACTORY_ADDRESS`
-- `ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER`
-- `ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER`
-- `ETH_SEPOLIA_USDC_ADDRESS`
-- `REVENUE_SHARE_FACTORY_ADDRESS`
-- `REVENUE_INGRESS_FACTORY_ADDRESS`
-- `LBP_STRATEGY_FACTORY_ADDRESS`
-- `TOKEN_FACTORY_ADDRESS`
-- `ERC8004_SEPOLIA_SUBGRAPH_URL`
-- `REGENT_STAKING_RPC_URL`
-- `REGENT_STAKING_CHAIN_ID=84532`
-- `REGENT_STAKING_CHAIN_LABEL=Base Sepolia`
-- `REGENT_REVENUE_STAKING_ADDRESS`
+```bash
+export DATABASE_URL=...
+export SECRET_KEY_BASE=...
+export PHX_HOST=127.0.0.1
+export PORT=4002
 
-These values are still required for a real Sepolia launch even if shared infra deploys cleanly:
+export PRIVY_APP_ID=...
+export PRIVY_VERIFICATION_KEY=...
+export AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY=...
 
-- `TOKEN_FACTORY_ADDRESS`
-- `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`
-- `STRATEGY_OPERATOR`
-- `OFFICIAL_POOL_FEE`
-- `OFFICIAL_POOL_TICK_SPACING`
-- required `CCA_*` values
+export SIWA_INTERNAL_URL=...
+export SIWA_SHARED_SECRET=...
+export SIWA_HMAC_SECRET=...
 
-If you want AgentBook trust-check coverage too, also fill the World/Base/Base Sepolia AgentBook values already present in `.env.example`.
+export AUTOLAUNCH_DEPLOY_WORKDIR=/Users/sean/Documents/regent/autolaunch/contracts
+export AUTOLAUNCH_DEPLOY_BINARY=forge
+export AUTOLAUNCH_DEPLOY_SCRIPT_TARGET=scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript
+export AUTOLAUNCH_DEPLOY_PRIVATE_KEY=...
+export AUTOLAUNCH_MOCK_DEPLOY=false
 
-## Stage 4: Boot and validate the local app
+export ETH_SEPOLIA_RPC_URL=...
+export ETH_SEPOLIA_FACTORY_ADDRESS=0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5
+export ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER=...
+export ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER=...
+export ETH_SEPOLIA_USDC_ADDRESS=...
+
+export REVENUE_SHARE_FACTORY_ADDRESS=...
+export REVENUE_INGRESS_FACTORY_ADDRESS=...
+export LBP_STRATEGY_FACTORY_ADDRESS=...
+export TOKEN_FACTORY_ADDRESS=...
+export ERC8004_SEPOLIA_SUBGRAPH_URL=...
+
+export REGENT_STAKING_RPC_URL=...
+export REGENT_STAKING_CHAIN_ID=84532
+export REGENT_STAKING_CHAIN_LABEL=Base\ Sepolia
+export REGENT_REVENUE_STAKING_ADDRESS=...
+
+export AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS=...
+export STRATEGY_OPERATOR=...
+export OFFICIAL_POOL_FEE=...
+export OFFICIAL_POOL_TICK_SPACING=...
+export CCA_FLOOR_PRICE_Q96=...
+export CCA_TICK_SPACING_Q96=...
+export CCA_REQUIRED_CURRENCY_RAISED=...
+export CCA_VALIDATION_HOOK=...
+export CCA_CLAIM_BLOCK_OFFSET=0
+```
+
+Important corrections:
+
+- `REGENT_STAKING_RPC_URL` is what the app uses to read the Base Sepolia staking rail
+- `BASE_SEPOLIA_RPC_URL` is only separately needed if you also want Base Sepolia AgentBook trust flows
+- `mix autolaunch.doctor` validates the core launch environment, but it does **not** prove every ambient Foundry launch-script variable is present
+
+## 5. Boot and validate the local website
 
 Bring up the app:
 
@@ -172,13 +212,20 @@ mix phx.server
 Then check:
 
 - `http://127.0.0.1:4002/health`
-- `/`
-- `/launch`
-- `/auctions`
-- `/positions`
-- `/agentbook`
+- `http://127.0.0.1:4002/`
+- `http://127.0.0.1:4002/launch`
+- `http://127.0.0.1:4002/auctions`
+- `http://127.0.0.1:4002/positions`
+- `http://127.0.0.1:4002/agentbook`
 
-Bootstrap the XMTP room once:
+Also verify the Base Sepolia staking rail is readable through the app:
+
+- `GET /api/regent/staking`
+- `GET /api/regent/staking/account/<wallet>`
+
+## 6. Bootstrap XMTP once
+
+From the app repo:
 
 ```bash
 mix autolaunch.bootstrap_xmtp_room
@@ -197,7 +244,7 @@ Record the bootstrap output:
 - agent wallet
 - agent inbox
 
-## Stage 5: Validate the local CLI
+## 7. Validate CLI and staking reads against the local app
 
 Validate the CLI repo:
 
@@ -217,72 +264,48 @@ export AUTOLAUNCH_BASE_URL=http://127.0.0.1:4002
 For authenticated commands, provide one of:
 
 - `AUTOLAUNCH_SESSION_COOKIE`
-- `AUTOLAUNCH_PRIVY_BEARER_TOKEN`
+- `AUTOLAUNCH_PRIVY_BEARER_TOKEN` plus `AUTOLAUNCH_WALLET_ADDRESS`
 
-The CLI still treats Ethereum Sepolia as the only launch chain. If you omit `--chain`, it uses Sepolia.
-
-Run the read checks first:
+Run local read checks first:
 
 ```bash
 pnpm --filter @regentlabs/cli exec regent autolaunch agents list
 pnpm --filter @regentlabs/cli exec regent autolaunch auctions list
+pnpm --filter @regentlabs/cli exec regent regent-staking show
+pnpm --filter @regentlabs/cli exec regent regent-staking account 0xYOUR_WALLET
 ```
 
-## Stage 6: Run the first real Sepolia launch from local
+This step matters because the rehearsal includes the app actively reading the newly deployed Base Sepolia staking rail.
 
-Representative launch preview:
+## 8. Run the first real Sepolia launch through the guided flow
+
+Use the guided operator path, not raw `launch create`, as the main run sheet:
 
 ```bash
-pnpm --filter @regentlabs/cli exec regent autolaunch launch preview \
-  --agent YOUR_AGENT_ID \
-  --chain-id 11155111 \
-  --name "Agent Coin Name" \
-  --symbol "AGENT" \
-  --treasury-address 0xYOUR_SAFE
+pnpm --filter @regentlabs/cli exec regent autolaunch safe wizard --backup-signer-address 0x...
+pnpm --filter @regentlabs/cli exec regent autolaunch safe create --backup-signer-address 0x... --website-wallet-address 0x...
+pnpm --filter @regentlabs/cli exec regent autolaunch prelaunch wizard --agent <agent-id> --name "Agent Coin Name" --symbol "AGENT" --agent-safe-address <safe-address>
+pnpm --filter @regentlabs/cli exec regent autolaunch prelaunch validate --plan <plan-id>
+pnpm --filter @regentlabs/cli exec regent autolaunch prelaunch publish --plan <plan-id>
+pnpm --filter @regentlabs/cli exec regent autolaunch launch run --plan <plan-id>
+pnpm --filter @regentlabs/cli exec regent autolaunch launch monitor --job <job-id> --watch
+pnpm --filter @regentlabs/cli exec regent autolaunch launch finalize --job <job-id> --submit
+pnpm --filter @regentlabs/cli exec regent autolaunch vesting status --job <job-id>
 ```
 
-Representative launch creation:
+Keep these low-level commands as debug-only fallback, not the main worksheet path:
 
-```bash
-pnpm --filter @regentlabs/cli exec regent autolaunch launch create \
-  --agent YOUR_AGENT_ID \
-  --chain-id 11155111 \
-  --name "Agent Coin Name" \
-  --symbol "AGENT" \
-  --treasury-address 0xYOUR_SAFE \
-  --wallet-address 0xYOUR_WALLET \
-  --nonce YOUR_NONCE \
-  --message "YOUR_SIWA_MESSAGE" \
-  --signature "YOUR_SIGNATURE" \
-  --issued-at 2026-04-10T00:00:00Z
-```
+- `regent autolaunch launch preview`
+- `regent autolaunch launch create`
+- `regent autolaunch jobs watch`
 
-Watch the job:
-
-```bash
-pnpm --filter @regentlabs/cli exec regent autolaunch jobs watch YOUR_JOB_ID --watch
-```
-
-Success means the job response includes the launch stack fields, including:
-
-- `strategy_address`
-- `vesting_wallet_address`
-- `hook_address`
-- `launch_fee_registry_address`
-- `launch_fee_vault_address`
-- `subject_registry_address`
-- `subject_id`
-- `revenue_share_splitter_address`
-- `default_ingress_address`
-- `pool_id`
-
-## Stage 7: Run live post-deploy verification
+## 9. Verify the real deployed launch
 
 After the real launch job reaches `ready`, verify the live deployment:
 
 ```bash
 cd /Users/sean/Documents/regent/autolaunch
-mix autolaunch.verify_deploy --job YOUR_JOB_ID
+mix autolaunch.verify_deploy --job <job-id>
 ```
 
 This checks the live contract invariants that matter most:
@@ -296,13 +319,32 @@ This checks the live contract invariants that matter most:
 - hook-enabled state
 - subject and ingress wiring
 
-## Rehearsal status and warning
+## 10. Fund Regent emissions after staking deploy
+
+Do this only after the Base Sepolia staking contract exists:
+
+1. approve `$REGENT` to the staking contract
+2. call `fundRegentRewards(amount)`
+3. then call `setEmissionAprBps(2000)`
+
+Important notes:
+
+- `stakerShareBps` is the fixed USDC revenue split and is already locked at deploy
+- `emissionAprBps` is the adjustable reward APR lever controlled by `REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS`
+- do not turn emissions on before the contract has `$REGENT` reward inventory
+
+## What a good rehearsal produces
+
+Do not call the rehearsal successful until you have all of these:
+
+- saved `REGENT_REVENUE_STAKING_RESULT_JSON` from Base Sepolia
+- saved `AUTOLAUNCH_INFRA_RESULT_JSON` from Ethereum Sepolia
+- local app booted cleanly with `mix autolaunch.doctor` passing
+- successful XMTP bootstrap output
+- successful app and CLI reads against the Base Sepolia staking rail
+- successful guided launch flow through local app and Sepolia
+- successful `mix autolaunch.verify_deploy --job <job-id>`
+
+## Final warning
 
 This is a Base Sepolia plus Ethereum Sepolia rehearsal configuration. It should not be confused with the eventual production Regent staking rail on Base mainnet.
-
-Treat the system as ready for a first controlled testnet attempt, not fully proven, until you have these four artifacts:
-
-- real Base Sepolia staking deploy output
-- real Ethereum Sepolia shared infra deploy output
-- successful local launch preview and launch create flow
-- successful `mix autolaunch.verify_deploy --job ...`

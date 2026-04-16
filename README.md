@@ -129,10 +129,13 @@ The full environment list lives in [.env.example](.env.example). For local work,
 - SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`, `SIWA_HMAC_SECRET`
 - Launch deployment: `ETH_SEPOLIA_RPC_URL`, `ETH_SEPOLIA_FACTORY_ADDRESS`, `ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER`, `ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER`, `ETH_SEPOLIA_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
 - Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `ERC8004_SEPOLIA_SUBGRAPH_URL`
+- Launch-script ambient env: `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, `CCA_FLOOR_PRICE_Q96`, `CCA_TICK_SPACING_Q96`, `CCA_REQUIRED_CURRENCY_RAISED`, optional `CCA_VALIDATION_HOOK`, optional `CCA_CLAIM_BLOCK_OFFSET`
 - Regent staking rail: `REGENT_STAKING_RPC_URL`, `REGENT_STAKING_CHAIN_ID`, `REGENT_STAKING_CHAIN_LABEL`, `REGENT_REVENUE_STAKING_ADDRESS`
 - AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
 
 The launch path is Ethereum Sepolia only.
+
+For the current local-only rehearsal, use the run sheet in [REGENT_CLI_LOCAL_AND_FLY_TESTING.md](/Users/sean/Documents/regent/autolaunch/REGENT_CLI_LOCAL_AND_FLY_TESTING.md). It treats Regent staking as Base Sepolia, Autolaunch infra and launches as Ethereum Sepolia, and the guided CLI lifecycle as the main operator path.
 
 If product copy, launch docs, or contract docs disagree about the active rules, use [`docs/product_invariants.md`](docs/product_invariants.md) as the source of truth and update the other surface.
 
@@ -210,6 +213,8 @@ Doctor checks map directly to product breakage:
 - deploy binary, workdir, or script-target failure means launches cannot be executed on that node
 - Sepolia RPC failure means launch reads, quote reads, and transaction verification become unreliable
 - trust-network warnings only affect trust follow-up surfaces; launch and auction flows should still work
+
+`mix autolaunch.doctor` does not prove every Foundry launch-script variable is present. The ambient launch-script values like `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, and required `CCA_*` values still need to be set correctly for a real launch.
 
 ### What Must Be Alive
 
