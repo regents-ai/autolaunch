@@ -137,4 +137,22 @@ defmodule AutolaunchWeb.HomeLiveTest do
     assert html =~ "Hello from home"
     assert html =~ "joined"
   end
+
+  test "home page shows the unavailable chat state before bootstrap", %{conn: conn} do
+    {:ok, human} =
+      Accounts.upsert_human_by_privy_id("did:privy:home-xmtp-unavailable", %{
+        "wallet_address" => "0x4444444444444444444444444444444444444444",
+        "wallet_addresses" => ["0x4444444444444444444444444444444444444444"],
+        "display_name" => "Wire Operator"
+      })
+
+    :ok = Xmtp.reset_for_test!()
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+
+    {:ok, view, html} = live(conn, "/")
+
+    assert html =~ "Keep the operator room close, not in the way."
+    assert has_element?(view, "#home-xmtp-room button[data-xmtp-join][disabled]")
+    assert has_element?(view, "#home-xmtp-room button[data-xmtp-send][disabled]")
+  end
 end

@@ -6,6 +6,7 @@ import { MissionMotion } from "./mission-motion"
 import { PrivyAuth } from "./privy-auth"
 import { PrivyXmtpRoom } from "./privy-xmtp-room"
 import { ShellChrome } from "./shell-chrome"
+import { WalletSwitchModal } from "./wallet-switch-modal"
 import { WelcomeModal } from "./welcome-modal"
 import { WalletTxButton } from "./wallet-tx-button"
 import { XLinkFlow } from "./x-link-flow"
@@ -17,6 +18,7 @@ export const hooks: HooksOptions = {
   PrivyAuth,
   PrivyXmtpRoom,
   ShellChrome,
+  WalletSwitchModal,
   WelcomeModal,
   WalletTxButton,
   XLinkFlow,

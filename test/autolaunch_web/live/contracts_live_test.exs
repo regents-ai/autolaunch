@@ -3,6 +3,8 @@ defmodule AutolaunchWeb.ContractsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias Autolaunch.Accounts
+
   defmodule ContextStub do
     def admin_overview do
       {:ok,
@@ -21,6 +23,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
        %{
          job: %{
            job_id: "job_contracts",
+           owner_address: "0x2222222222222222222222222222222222222222",
            token_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
          },
          controller: %{
@@ -114,17 +117,17 @@ defmodule AutolaunchWeb.ContractsLiveTest do
              }
            ]
          },
-        splitter: %{
-          owner: "0x3333333333333333333333333333333333333333",
-          paused: false,
-          treasury_recipient: "0x2222222222222222222222222222222222222222",
-          pending_treasury_recipient: nil,
-          pending_treasury_recipient_eta: 0,
-          treasury_rotation_delay: 259_200,
-          protocol_recipient: "0x1111111111111111111111111111111111111111",
-          protocol_skim_bps: 100,
-          label: "Atlas revenue"
-        },
+         splitter: %{
+           owner: "0x3333333333333333333333333333333333333333",
+           paused: false,
+           treasury_recipient: "0x2222222222222222222222222222222222222222",
+           pending_treasury_recipient: nil,
+           pending_treasury_recipient_eta: 0,
+           treasury_rotation_delay: 259_200,
+           protocol_recipient: "0x1111111111111111111111111111111111111111",
+           protocol_skim_bps: 100,
+           label: "Atlas revenue"
+         },
          ingress_factory: %{
            address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
            owner: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -223,6 +226,27 @@ defmodule AutolaunchWeb.ContractsLiveTest do
     assert html =~ "LBP runtime state"
     assert html =~ "Advanced revenue controls"
     assert html =~ "Prepared action"
+  end
+
+  test "contracts page prompts for the linked owner wallet when a different linked wallet is active",
+       %{conn: conn} do
+    {:ok, human} =
+      Accounts.upsert_human_by_privy_id("did:privy:contracts-wallet-switch", %{
+        "wallet_address" => "0x1111111111111111111111111111111111111111",
+        "wallet_addresses" => [
+          "0x1111111111111111111111111111111111111111",
+          "0x2222222222222222222222222222222222222222"
+        ],
+        "display_name" => "Contracts Operator"
+      })
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+
+    {:ok, _view, html} = live(conn, "/contracts?job_id=job_contracts")
+
+    assert html =~ "Wallet required"
+    assert html =~ "This page belongs to a different linked wallet."
+    assert html =~ "Switch wallets in your browser wallet, then continue here."
   end
 
   test "contracts page prepares transaction payloads", %{conn: conn} do

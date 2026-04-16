@@ -12,6 +12,7 @@ defmodule AutolaunchWeb.LaunchComponents do
 
   attr :current_human, :map, default: nil
   attr :active_view, :string, default: "launch"
+  attr :wallet_switch, :map, default: nil
   slot :inner_block, required: true
 
   def shell(assigns) do
@@ -83,10 +84,60 @@ defmodule AutolaunchWeb.LaunchComponents do
       </header>
 
       <.welcome_modal />
+      <.wallet_switch_modal wallet_switch={@wallet_switch} />
 
       <main class="al-stage">
         {render_slot(@inner_block)}
       </main>
+    </div>
+    """
+  end
+
+  attr :wallet_switch, :map, default: nil
+
+  def wallet_switch_modal(%{wallet_switch: nil} = assigns) do
+    ~H"""
+    """
+  end
+
+  def wallet_switch_modal(assigns) do
+    ~H"""
+    <div
+      id="autolaunch-wallet-switch-modal"
+      class="modal modal-open modal-middle al-welcome-modal"
+      phx-hook="WalletSwitchModal"
+      phx-update="ignore"
+      data-wallet-switch-address={@wallet_switch.wallet_address}
+    >
+      <div
+        class="modal-box al-welcome-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="autolaunch-wallet-switch-title"
+        aria-describedby="autolaunch-wallet-switch-copy"
+      >
+        <div class="al-welcome-hero">
+          <div>
+            <p class="al-kicker">Wallet required</p>
+            <h2 id="autolaunch-wallet-switch-title">
+              Switch to wallet '{@wallet_switch.wallet_address}' to access.
+            </h2>
+          </div>
+        </div>
+
+        <p id="autolaunch-wallet-switch-copy" class="al-welcome-copy">
+          This page belongs to a different linked wallet. Continue when that wallet is active in
+          your browser wallet.
+        </p>
+
+        <div class="al-welcome-actions">
+          <button type="button" class="al-submit" data-wallet-switch-continue>Continue</button>
+        </div>
+
+        <p class="al-welcome-footnote" data-wallet-switch-status>
+          Switch wallets in your browser wallet, then continue here.
+        </p>
+      </div>
     </div>
     """
   end

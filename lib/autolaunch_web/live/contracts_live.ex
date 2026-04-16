@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.ContractsLive do
      |> assign(:job_scope, nil)
      |> assign(:subject_scope, nil)
      |> assign(:admin_scope, nil)
+     |> assign(:wallet_switch, nil)
      |> assign(:forms, default_forms())
      |> assign(:prepared, nil)
      |> load_console()}
@@ -89,7 +90,11 @@ defmodule AutolaunchWeb.ContractsLive do
 
   def render(assigns) do
     ~H"""
-    <.shell current_human={@current_human} active_view={@active_view}>
+    <.shell
+      current_human={@current_human}
+      active_view={@active_view}
+      wallet_switch={@wallet_switch}
+    >
       <section id="contracts-hero" class="al-hero al-panel al-contracts-hero" phx-hook="MissionMotion">
         <div>
           <p class="al-kicker">Contracts</p>
@@ -507,10 +512,14 @@ defmodule AutolaunchWeb.ContractsLive do
   end
 
   defp load_console(socket) do
+    job_scope = load_job_scope(socket.assigns.job_id, socket.assigns.current_human)
+    subject_scope = load_subject_scope(socket.assigns.subject_id, socket.assigns.current_human)
+
     assign(socket,
       admin_scope: load_admin_scope(),
-      job_scope: load_job_scope(socket.assigns.job_id, socket.assigns.current_human),
-      subject_scope: load_subject_scope(socket.assigns.subject_id, socket.assigns.current_human)
+      job_scope: job_scope,
+      subject_scope: subject_scope,
+      wallet_switch: wallet_switch_prompt(socket.assigns.current_human, job_scope, subject_scope)
     )
   end
 
@@ -634,4 +643,60 @@ defmodule AutolaunchWeb.ContractsLive do
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
+
+  defp wallet_switch_prompt(nil, _job_scope, _subject_scope), do: nil
+
+  defp wallet_switch_prompt(current_human, job_scope, subject_scope) do
+    active_wallet = normalize_wallet(Map.get(current_human, :wallet_address))
+    linked_wallets = linked_wallets(current_human)
+
+    cond do
+      target =
+          linked_wallet_target(
+            active_wallet,
+            linked_wallets,
+            get_in(job_scope, [:job, :owner_address])
+          ) ->
+        %{wallet_address: target}
+
+      target =
+          linked_wallet_target(
+            active_wallet,
+            linked_wallets,
+            get_in(subject_scope, [:registry, :subject_config, :treasury_safe])
+          ) ->
+        %{wallet_address: target}
+
+      true ->
+        nil
+    end
+  end
+
+  defp linked_wallet_target(active_wallet, linked_wallets, target_wallet) do
+    normalized_target = normalize_wallet(target_wallet)
+
+    if normalized_target && normalized_target != active_wallet &&
+         normalized_target in linked_wallets,
+       do: normalized_target,
+       else: nil
+  end
+
+  defp linked_wallets(current_human) do
+    [
+      Map.get(current_human, :wallet_address)
+      | List.wrap(Map.get(current_human, :wallet_addresses))
+    ]
+    |> Enum.map(&normalize_wallet/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_wallet(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      normalized -> String.downcase(normalized)
+    end
+  end
+
+  defp normalize_wallet(_value), do: nil
 end

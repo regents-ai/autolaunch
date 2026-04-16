@@ -10,6 +10,7 @@ import {
   type PrivyLike,
   type PrivyUser,
   walletForUser,
+  walletsForUser,
 } from "./privy-wallet.ts"
 
 interface XmtpRoomElement extends HTMLElement {
@@ -43,6 +44,7 @@ function syncSession(privy: PrivyLike, user: PrivyUser) {
       body: JSON.stringify({
         display_name: labelForUser(user),
         wallet_address: walletForUser(user),
+        wallet_addresses: walletsForUser(user),
       }),
     })
 

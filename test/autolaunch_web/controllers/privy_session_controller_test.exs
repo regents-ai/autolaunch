@@ -42,12 +42,32 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       |> put_req_header("authorization", "Bearer good-token")
       |> post("/api/auth/privy/session", %{
         "wallet_address" => "0x1111111111111111111111111111111111111111",
+        "wallet_addresses" => [
+          "0x1111111111111111111111111111111111111111",
+          "0x2222222222222222222222222222222222222222"
+        ],
         "display_name" => "Operator"
       })
 
-    assert %{"ok" => true, "human" => %{"privy_user_id" => "did:privy:session"}} =
+    assert %{
+             "ok" => true,
+             "human" => %{
+               "privy_user_id" => "did:privy:session",
+               "wallet_address" => "0x1111111111111111111111111111111111111111",
+               "wallet_addresses" => [
+                 "0x1111111111111111111111111111111111111111",
+                 "0x2222222222222222222222222222222222222222"
+               ]
+             }
+           } =
              json_response(conn, 200)
 
     assert_received {:scheduled_portfolio_refresh, "did:privy:session"}
+  end
+
+  test "profile returns an empty session when signed out", %{conn: conn} do
+    conn = get(conn, "/api/auth/privy/profile")
+
+    assert %{"ok" => true, "human" => nil, "xmtp" => nil} = json_response(conn, 200)
   end
 end

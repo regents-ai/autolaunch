@@ -80,10 +80,9 @@ paths:
     get:
       operationId: getPrivySessionProfile
       tags: [auth]
-      security: [{ PrivySessionCookie: [] }]
       responses:
         "200":
-          description: Current signed-in human profile
+          description: Current Privy session profile, or an empty session when signed out
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrivySessionResponse" }
@@ -1987,9 +1986,13 @@ components:
       additionalProperties: false
     PrivySessionRequest:
       type: object
-      required: [wallet_address]
+      required: [wallet_address, wallet_addresses]
       properties:
         wallet_address: { $ref: "#/components/schemas/Address" }
+        wallet_addresses:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Address" }
         display_name:
           anyOf:
             - { type: string }

@@ -6,7 +6,7 @@ defmodule AutolaunchWeb.PageControllerTest do
 
     html = html_response(conn, 200)
 
-    assert html =~ "Start the wizard. Let OpenClaw or Hermes carry the launch."
-    assert html =~ "Copy OpenClaw brief"
+    assert html =~ "Copy the wizard command. Start the launch from one clear place."
+    assert html =~ "Open operator path"
   end
 end

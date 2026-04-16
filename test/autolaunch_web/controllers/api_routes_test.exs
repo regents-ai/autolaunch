@@ -5,10 +5,10 @@ defmodule AutolaunchWeb.ApiRoutesTest do
     conn = get(conn, "/")
     html = html_response(conn, 200)
 
-    assert html =~ "Copy the wizard command. Let your agent carry the launch."
+    assert html =~ "Copy the wizard command. Start the launch from one clear place."
     assert html =~ "Copy wizard command"
-    assert html =~ "Copy OpenClaw brief"
-    assert html =~ "Copy Hermes brief"
+    assert html =~ "Open operator path"
+    assert html =~ "Keep the operator room close, not in the way."
   end
 
   test "auction index returns JSON", %{conn: conn} do

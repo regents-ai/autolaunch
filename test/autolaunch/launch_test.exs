@@ -311,7 +311,7 @@ defmodule Autolaunch.LaunchTest do
     })
     |> Repo.update!()
 
-    response = Launch.get_job_response("job_prompt")
+    assert {:ok, response} = Launch.get_job_response("job_prompt")
 
     assert response.job.strategy_address == "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
@@ -367,7 +367,7 @@ defmodule Autolaunch.LaunchTest do
         assert :ok = Launch.process_job("job_canonical_output")
 
         job = Repo.get!(Job, "job_canonical_output")
-        response = Launch.get_job_response("job_canonical_output")
+        assert {:ok, response} = Launch.get_job_response("job_canonical_output")
 
         assert job.status == "ready"
         assert job.strategy_address == "0x9999999999999999999999999999999999999999"

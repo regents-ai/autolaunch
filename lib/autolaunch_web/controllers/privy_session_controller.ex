@@ -17,11 +17,14 @@ defmodule AutolaunchWeb.PrivySessionController do
 
   def create(conn, params) do
     with {:ok, wallet_address} <- normalize_required_wallet(Map.get(params, "wallet_address")),
+         {:ok, wallet_addresses} <-
+           normalize_wallet_addresses(Map.get(params, "wallet_addresses"), wallet_address),
          {:ok, token} <- fetch_bearer_token(conn),
          {:ok, %{privy_user_id: privy_user_id}} <- privy_module().verify_token(token),
          {:ok, human} <-
            Accounts.upsert_human_by_privy_id(privy_user_id, %{
              "wallet_address" => wallet_address,
+             "wallet_addresses" => wallet_addresses,
              "display_name" => normalize_text(Map.get(params, "display_name"))
            }) do
       :ok = portfolio_module().schedule_login_refresh(human)
@@ -36,6 +39,14 @@ defmodule AutolaunchWeb.PrivySessionController do
           :bad_request,
           "invalid_wallet_address",
           "wallet_address must be a valid EVM address"
+        )
+
+      {:error, :invalid_wallet_addresses} ->
+        ApiError.render(
+          conn,
+          :bad_request,
+          "invalid_wallet_addresses",
+          "wallet_addresses must include one or more valid EVM addresses"
         )
 
       _ ->
@@ -96,6 +107,32 @@ defmodule AutolaunchWeb.PrivySessionController do
   end
 
   defp normalize_required_wallet(_value), do: {:error, :invalid_wallet_address}
+
+  defp normalize_wallet_addresses(values, primary_wallet) when is_list(values) do
+    normalized =
+      values
+      |> Enum.map(&normalize_wallet_value/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    cond do
+      normalized == [] -> {:error, :invalid_wallet_addresses}
+      primary_wallet in normalized -> {:ok, normalized}
+      true -> {:ok, [primary_wallet | normalized]}
+    end
+  end
+
+  defp normalize_wallet_addresses(_values, _primary_wallet),
+    do: {:error, :invalid_wallet_addresses}
+
+  defp normalize_wallet_value(value) when is_binary(value) do
+    case normalize_required_wallet(value) do
+      {:ok, normalized} -> normalized
+      _ -> nil
+    end
+  end
+
+  defp normalize_wallet_value(_value), do: nil
 
   defp normalize_text(value) when is_binary(value) do
     case String.trim(value) do

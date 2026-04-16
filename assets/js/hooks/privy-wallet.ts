@@ -99,7 +99,10 @@ export async function requireEthereumProvider(): Promise<EthereumProvider> {
   return provider
 }
 
-export async function buildPrivyWallet(provider: EthereumProvider): Promise<PrivyWalletShape> {
+export async function buildPrivyWallet(
+  provider: EthereumProvider,
+  expectedAddress?: string | null,
+): Promise<PrivyWalletShape> {
   const accounts = (await provider.request({ method: "eth_requestAccounts" })) as unknown
   const address = Array.isArray(accounts) ? String(accounts[0] ?? "").trim().toLowerCase() : ""
   const chainId = parseChainId(await provider.request({ method: "eth_chainId" }))
@@ -112,6 +115,14 @@ export async function buildPrivyWallet(provider: EthereumProvider): Promise<Priv
     throw new Error("The connected wallet did not report a usable chain id.")
   }
 
+  if (
+    typeof expectedAddress === "string" &&
+    expectedAddress.trim().length > 0 &&
+    address !== expectedAddress.trim().toLowerCase()
+  ) {
+    throw new Error(`Switch to wallet ${expectedAddress.trim()} before continuing.`)
+  }
+
   return {
     address: address as `0x${string}`,
     chainId,
@@ -119,8 +130,12 @@ export async function buildPrivyWallet(provider: EthereumProvider): Promise<Priv
   }
 }
 
-export async function loginWithPrivyWallet(privy: PrivyLike, provider: EthereumProvider): Promise<void> {
-  const wallet = await buildPrivyWallet(provider)
+export async function loginWithPrivyWallet(
+  privy: PrivyLike,
+  provider: EthereumProvider,
+  expectedAddress?: string | null,
+): Promise<void> {
+  const wallet = await buildPrivyWallet(provider, expectedAddress)
   const { message } = await privy.auth.siwe.init(wallet, window.location.host, window.location.origin)
   const signature = await provider.request({
     method: "personal_sign",
