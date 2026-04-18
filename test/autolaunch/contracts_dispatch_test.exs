@@ -7,7 +7,7 @@ defmodule Autolaunch.ContractsDispatchTest do
     assert {:ok, prepared} =
              Dispatch.build_job_action(
                %{
-                 chain_id: 11_155_111,
+                 chain_id: 84_532,
                  strategy_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
                },
                "strategy",
@@ -22,7 +22,7 @@ defmodule Autolaunch.ContractsDispatchTest do
 
   test "subject dispatch returns stable invalid address and ingress errors" do
     subject = %{
-      chain_id: 11_155_111,
+      chain_id: 84_532,
       subject_id: "0x" <> String.duplicate("a", 64),
       ingress_accounts: [%{address: "0x1111111111111111111111111111111111111111"}]
     }
@@ -45,6 +45,40 @@ defmodule Autolaunch.ContractsDispatchTest do
                "sweep",
                %{"ingress_address" => "0x9999999999999999999999999999999999999999"},
                %{ingress_factory_address: "0x3333333333333333333333333333333333333333"}
+             )
+  end
+
+  test "removed fee mutation actions stay unsupported in dispatch" do
+    job = %{
+      chain_id: 84_532,
+      launch_fee_registry_address: "0x1111111111111111111111111111111111111111",
+      launch_fee_vault_address: "0x2222222222222222222222222222222222222222",
+      pool_id: "0x" <> String.duplicate("a", 64)
+    }
+
+    subject = %{
+      chain_id: 84_532,
+      splitter_address: "0x3333333333333333333333333333333333333333"
+    }
+
+    assert {:error, :unsupported_action} =
+             Dispatch.build_job_action(job, "fee_registry", "set_hook_enabled", %{
+               "enabled" => "false"
+             })
+
+    assert {:error, :unsupported_action} =
+             Dispatch.build_job_action(job, "fee_vault", "set_hook", %{
+               "hook" => "0x4444444444444444444444444444444444444444"
+             })
+
+    assert {:error, :unsupported_action} =
+             Dispatch.build_subject_action(
+               subject,
+               %{address: "0x5555555555555555555555555555555555555555"},
+               "splitter",
+               "set_protocol_skim_bps",
+               %{"skim_bps" => "250"},
+               %{ingress_factory_address: "0x6666666666666666666666666666666666666666"}
              )
   end
 end

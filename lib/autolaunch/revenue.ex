@@ -10,7 +10,6 @@ defmodule Autolaunch.Revenue do
   alias Autolaunch.Revenue.Abi
   alias Autolaunch.Revenue.SubjectActionRegistration
 
-  @sepolia_chain_id 11_155_111
   @usdc_decimals 6
   @token_decimals 18
 
@@ -199,7 +198,7 @@ defmodule Autolaunch.Revenue do
              subject: subject,
              tx_request:
                serialize_tx_request(%{
-                 chain_id: @sepolia_chain_id,
+                 chain_id: subject.chain_id,
                  to: ingress.address,
                  value_hex: "0x0",
                  data: Abi.encode_sweep_usdc(source_ref)
@@ -253,7 +252,7 @@ defmodule Autolaunch.Revenue do
          subject: subject,
          tx_request:
            serialize_tx_request(%{
-             chain_id: @sepolia_chain_id,
+             chain_id: subject.chain_id,
              to: subject.splitter_address,
              value_hex: "0x0",
              data: amount_action_call(action, amount_wei, wallet_address)
@@ -269,7 +268,7 @@ defmodule Autolaunch.Revenue do
        subject: subject,
        tx_request:
          serialize_tx_request(%{
-           chain_id: @sepolia_chain_id,
+           chain_id: subject.chain_id,
            to: subject.splitter_address,
            value_hex: "0x0",
            data: single_recipient_action_call(action, wallet_address)
@@ -283,7 +282,7 @@ defmodule Autolaunch.Revenue do
        subject: subject,
        tx_request:
          serialize_tx_request(%{
-           chain_id: @sepolia_chain_id,
+           chain_id: subject.chain_id,
            to: subject.splitter_address,
            value_hex: "0x0",
            data: Abi.encode_claim_and_restake_stake_token()
@@ -299,7 +298,7 @@ defmodule Autolaunch.Revenue do
        subject: subject,
        tx_request:
          serialize_tx_request(%{
-           chain_id: @sepolia_chain_id,
+           chain_id: subject.chain_id,
            to: subject.default_ingress_address,
            value_hex: "0x0",
            data: Abi.encode_sweep_usdc(source_ref)
@@ -740,14 +739,22 @@ defmodule Autolaunch.Revenue do
   defp default_error_message(_), do: "Transaction registration failed"
 
   defp fetch_subject_job(subject_id) do
-    case Repo.one(
-           from job in Job,
-             where: job.subject_id == ^subject_id and job.status == "ready",
-             order_by: [desc: job.updated_at],
-             limit: 1
-         ) do
-      %Job{} = job -> {:ok, job}
-      nil -> {:error, :not_found}
+    case launch_chain_id() do
+      {:ok, active_chain_id} ->
+        case Repo.one(
+               from job in Job,
+                 where:
+                   job.subject_id == ^subject_id and job.status == "ready" and
+                     job.chain_id == ^active_chain_id,
+                 order_by: [desc: job.updated_at],
+                 limit: 1
+             ) do
+          %Job{} = job -> {:ok, job}
+          nil -> {:error, :not_found}
+        end
+
+      {:error, _} ->
+        {:error, :not_found}
     end
   end
 
@@ -840,7 +847,7 @@ defmodule Autolaunch.Revenue do
      %{
        subject_id: subject_id,
        chain_id: job.chain_id,
-       chain_label: "Ethereum Sepolia",
+       chain_label: chain_label(job.chain_id),
        token_address: job.token_address,
        strategy_address: job.strategy_address,
        subject_registry_address: job.subject_registry_address,
@@ -937,7 +944,7 @@ defmodule Autolaunch.Revenue do
   end
 
   defp load_ingress_accounts(job, subject_id) do
-    factory = revenue_ingress_factory_address()
+    factory = revenue_ingress_factory_address(job.chain_id)
 
     if blank?(factory) do
       %{default_address: job.default_ingress_address, accounts: default_ingress_list(job)}
@@ -1100,6 +1107,10 @@ defmodule Autolaunch.Revenue do
     %{chain_id: chain_id, to: to, value: value_hex, data: data}
   end
 
+  defp chain_label(84_532), do: "Base Sepolia"
+  defp chain_label(8_453), do: "Base"
+  defp chain_label(_chain_id), do: "Base"
+
   defp parse_token_amount(value) when is_binary(value) do
     with {decimal, ""} <- Decimal.parse(String.trim(value)),
          true <- Decimal.compare(decimal, 0) == :gt || {:error, :amount_required} do
@@ -1144,10 +1155,25 @@ defmodule Autolaunch.Revenue do
   defp normalize_address(value) when is_binary(value), do: String.downcase(String.trim(value))
   defp normalize_address(_value), do: nil
 
-  defp revenue_ingress_factory_address do
-    Application.get_env(:autolaunch, :launch, [])
-    |> Keyword.get(:revenue_ingress_factory_address, "")
-    |> normalize_address()
+  defp revenue_ingress_factory_address(chain_id) do
+    case launch_chain_id() do
+      {:ok, ^chain_id} ->
+        Application.get_env(:autolaunch, :launch, [])
+        |> Keyword.get(:revenue_ingress_factory_address, "")
+        |> normalize_address()
+
+      _ ->
+        nil
+    end
+  end
+
+  defp launch_chain_id do
+    config = Application.get_env(:autolaunch, :launch, [])
+
+    case Keyword.get(config, :chain_id, 84_532) do
+      value when is_integer(value) -> {:ok, value}
+      _ -> {:error, :invalid_chain_id}
+    end
   end
 
   defp tx_hash_param(attrs) do

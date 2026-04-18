@@ -81,7 +81,7 @@ defmodule Autolaunch.EnsLinkTest do
     assert {:ok, prepared} =
              EnsLink.prepare_bidirectional_link(human, %{
                "ens_name" => "vitalik.eth",
-               "chain_id" => "1",
+               "chain_id" => "84532",
                "agent_id" => "42",
                "registry_address" => "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
                "rpc_url" => "https://example.invalid",

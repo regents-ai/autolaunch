@@ -26,9 +26,9 @@ The canonical product rules live in `/Users/sean/Documents/regent/autolaunch/doc
 
 ## Product rule
 
-- Only Sepolia USDC that reaches the subject revsplit counts as recognized revenue.
+- Only Base-family USDC that reaches the subject revsplit counts as recognized revenue.
 - The Regent-side fee lane is a plain treasury payout. There is no REGENT reward-accounting contract in the active path.
-- A separate Base-mainnet `RegentRevenueStaking` rail now exists for `$REGENT` rewards. It is fed manually with Base USDC and does not change the active Sepolia launch path.
+- A separate Base-mainnet `RegentRevenueStaking` rail now exists for `$REGENT` rewards. It is fed manually with Base USDC and does not change the active launch path.
 - The launch deployment uses the configured official pool fee, tick spacing, and position manager as part of the hard-cutover migration path.
 
 ## Deployment helpers
@@ -37,7 +37,7 @@ The canonical product rules live in `/Users/sean/Documents/regent/autolaunch/doc
 - `scripts/ExampleCCADeploymentScript.s.sol`
 - `scripts/DeployRegentRevenueStaking.s.sol`
 
-The launch script expects the active Sepolia inputs, including `UNISWAP_V4_POSITION_MANAGER`, `OFFICIAL_POOL_FEE`, and `OFFICIAL_POOL_TICK_SPACING`.
+The launch script expects the active Base-family inputs, including `UNISWAP_V4_POSITION_MANAGER`, `OFFICIAL_POOL_FEE`, and `OFFICIAL_POOL_TICK_SPACING`.
 
 Important script output markers stay unchanged:
 
@@ -65,7 +65,7 @@ Revenue tests:
 ## Working here
 
 - Put all Autolaunch Solidity contracts, Foundry scripts, and Foundry tests in this folder.
-- Put Autolaunch CLI work in `/Users/sean/Documents/regent/regent-cli`.
+- Put Autolaunch CLI work in `/Users/sean/Documents/regent/regents-cli`.
 - Put Autolaunch Phoenix app work in `/Users/sean/Documents/regent/autolaunch`.
 
 ## Build and test

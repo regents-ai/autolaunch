@@ -9,9 +9,9 @@ The canonical product rules live in `/Users/sean/Documents/regent/autolaunch/doc
 Autolaunch has one launch stack and one ongoing revenue stack.
 
 - The launch stack creates the token, auction, pool fee plumbing, subject wiring, and the official v4 LP migration path.
-- The revenue stack recognizes only Sepolia USDC that reaches the subject revsplit.
+- The revenue stack recognizes only Base-family USDC that reaches the subject revsplit.
 - The Regent-side fee lane is a plain treasury payout, not a rewards rail.
-- A separate Base-mainnet `RegentRevenueStaking` rail can accept manual Base USDC deposits for `$REGENT` stakers, but it is outside the active Sepolia launch path.
+- A separate Base-mainnet `RegentRevenueStaking` rail can accept manual Base USDC deposits for `$REGENT` stakers, but it is outside the active launch path.
 
 ## Core contracts
 
@@ -83,7 +83,7 @@ The fee vault stores those balances until the configured recipients withdraw the
 
 The active rule is simple:
 
-- only Sepolia USDC counts
+- only Base-family USDC counts
 - it counts only when it reaches the subject revsplit
 
 That keeps one canonical accounting point and avoids cross-chain or offchain revenue bookkeeping inside the protocol core.
@@ -92,5 +92,5 @@ That keeps one canonical accounting point and avoids cross-chain or offchain rev
 
 - the old rights-hub plus vault split
 - the old per-launch agent registry shape
-- automatic REGENT reward accounting inside the Sepolia launch path
+- automatic REGENT reward accounting inside the launch path
 - building new Autolaunch work in `monorepo/contracts`

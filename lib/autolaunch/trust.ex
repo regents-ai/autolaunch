@@ -278,10 +278,10 @@ defmodule Autolaunch.Trust do
         {String.to_integer(chain_id), token_id}
 
       _ ->
-        {11_155_111, agent_id}
+        {launch_chain_id(), agent_id}
     end
   rescue
-    _ -> {11_155_111, agent_id}
+    _ -> {launch_chain_id(), agent_id}
   end
 
   defp iso(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
@@ -291,4 +291,9 @@ defmodule Autolaunch.Trust do
   defp present?(value), do: is_binary(value) and value != ""
 
   defp truthy?(value), do: value in [true, "true", "1", 1, "on", "yes"]
+
+  defp launch_chain_id do
+    Application.get_env(:autolaunch, :launch, [])
+    |> Keyword.get(:chain_id, 84_532)
+  end
 end

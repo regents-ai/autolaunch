@@ -23,8 +23,9 @@ defmodule Autolaunch.RevenueTest do
     Application.put_env(
       :autolaunch,
       :launch,
-      Keyword.put(
-        previous_launch,
+      previous_launch
+      |> Keyword.put(:chain_id, 84_532)
+      |> Keyword.put(
         :revenue_ingress_factory_address,
         "0x2222222222222222222222222222222222222222"
       )
@@ -58,12 +59,12 @@ defmodule Autolaunch.RevenueTest do
       |> Job.create_changeset(%{
         job_id: "job_subject",
         owner_address: @wallet,
-        agent_id: "11155111:42",
+        agent_id: "84532:42",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: @wallet,
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -116,6 +117,41 @@ defmodule Autolaunch.RevenueTest do
     assert {:error, :not_found} = Revenue.subject_scope(missing_subject_id, human)
   end
 
+  test "subject_scope stays scoped to the active launch chain", %{human: human} do
+    other_subject_id = "0x" <> String.duplicate("3c", 32)
+
+    %Job{}
+    |> Job.create_changeset(%{
+      job_id: "job_subject_mainnet",
+      owner_address: @wallet,
+      agent_id: "8453:42",
+      token_name: "Atlas Coin",
+      token_symbol: "ATLAS",
+      agent_safe_address: @wallet,
+      network: "base-mainnet",
+      chain_id: 8_453,
+      status: "ready",
+      step: "ready",
+      total_supply: "1000",
+      message: "signed",
+      siwa_nonce: "nonce-mainnet",
+      siwa_signature: "sig",
+      issued_at: DateTime.utc_now()
+    })
+    |> Repo.insert!()
+    |> Job.update_changeset(%{
+      token_address: @token,
+      strategy_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      subject_registry_address: "0x3333333333333333333333333333333333333333",
+      revenue_share_splitter_address: @splitter,
+      default_ingress_address: @ingress,
+      subject_id: other_subject_id
+    })
+    |> Repo.update!()
+
+    assert {:error, :not_found} = Revenue.subject_scope(other_subject_id, human)
+  end
+
   test "subject_portfolio_state returns subject and aggregated wallet position", %{human: human} do
     assert {:ok, %{subject: subject, position: position}} =
              Revenue.subject_portfolio_state(@subject_id, [@wallet], human)
@@ -160,7 +196,7 @@ defmodule Autolaunch.RevenueTest do
     assert {:ok, %{tx_request: tx_request}} =
              Revenue.stake(@subject_id, %{"amount" => "1.5"}, human)
 
-    assert tx_request.chain_id == 11_155_111
+    assert tx_request.chain_id == 84_532
     assert tx_request.to == @splitter
     assert String.starts_with?(tx_request.data, "0x7acb7757")
   end
@@ -326,7 +362,7 @@ defmodule Autolaunch.RevenueTest do
 
     def block_number(_chain_id), do: {:ok, 1}
 
-    def eth_call(11_155_111, @splitter, data) do
+    def eth_call(84_532, @splitter, data) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -345,13 +381,13 @@ defmodule Autolaunch.RevenueTest do
       end
     end
 
-    def eth_call(11_155_111, @token, "0x70a08231" <> _rest),
+    def eth_call(84_532, @token, "0x70a08231" <> _rest),
       do: {:ok, encode_uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(11_155_111, @usdc, "0x70a08231" <> _rest),
+    def eth_call(84_532, @usdc, "0x70a08231" <> _rest),
       do: {:ok, encode_uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(11_155_111, @ingress_factory, data) do
+    def eth_call(84_532, @ingress_factory, data) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -362,7 +398,7 @@ defmodule Autolaunch.RevenueTest do
       end
     end
 
-    def eth_call(11_155_111, @subject_registry, "0x41c2ab07" <> _rest),
+    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest),
       do: {:ok, encode_bool(true)}
 
     def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}

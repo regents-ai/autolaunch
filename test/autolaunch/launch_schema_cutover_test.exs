@@ -4,24 +4,43 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
   alias Autolaunch.Launch.Auction
   alias Autolaunch.Launch.Bid
   alias Autolaunch.Launch.Job
+  alias Autolaunch.Launch
   alias Autolaunch.Repo
 
-  @sepolia_network "ethereum-sepolia"
-  @sepolia_chain_id 11_155_111
-  @mainnet_network "ethereum-mainnet"
-  @mainnet_chain_id 1
+  @sepolia_network "base-sepolia"
+  @sepolia_chain_id 84_532
+  @invalid_network "ethereum-mainnet"
+  @invalid_chain_id 1
+  @mainnet_network "base-mainnet"
+  @mainnet_chain_id 8_453
 
-  test "launch schemas reject mainnet values before persistence" do
+  setup do
+    previous_launch = Application.get_env(:autolaunch, :launch, [])
+
+    Application.put_env(
+      :autolaunch,
+      :launch,
+      Keyword.merge(previous_launch, chain_id: @sepolia_chain_id)
+    )
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :launch, previous_launch)
+    end)
+
+    :ok
+  end
+
+  test "launch schemas reject non-base launch values before persistence" do
     assert invalid_field_errors(
-             Job.create_changeset(%Job{}, job_attrs(@mainnet_network, @mainnet_chain_id))
+             Job.create_changeset(%Job{}, job_attrs(@invalid_network, @invalid_chain_id))
            )
 
     assert invalid_field_errors(
-             Auction.changeset(%Auction{}, auction_attrs(@mainnet_network, @mainnet_chain_id))
+             Auction.changeset(%Auction{}, auction_attrs(@invalid_network, @invalid_chain_id))
            )
 
     assert invalid_field_errors(
-             Bid.create_changeset(%Bid{}, bid_attrs(@mainnet_network, @mainnet_chain_id))
+             Bid.create_changeset(%Bid{}, bid_attrs(@invalid_network, @invalid_chain_id))
            )
   end
 
@@ -37,10 +56,10 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
     assert column_default("autolaunch_bids", "chain_id") =~ Integer.to_string(@sepolia_chain_id)
   end
 
-  test "database rejects mainnet inserts for launch tables" do
-    assert_raise Postgrex.Error, fn -> insert_job_row(@mainnet_network, @mainnet_chain_id) end
-    assert_raise Postgrex.Error, fn -> insert_auction_row(@mainnet_network, @mainnet_chain_id) end
-    assert_raise Postgrex.Error, fn -> insert_bid_row(@mainnet_network, @mainnet_chain_id) end
+  test "database allows Base-family inserts for launch tables" do
+    assert_insert_allowed(insert_job_row(@mainnet_network, @mainnet_chain_id))
+    assert_insert_allowed(insert_auction_row(@mainnet_network, @mainnet_chain_id))
+    assert_insert_allowed(insert_bid_row(@mainnet_network, @mainnet_chain_id))
   end
 
   test "migration delete rule removes non-sepolia rows from a fixture table" do
@@ -65,7 +84,7 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
       [
         "job_sepolia",
         "0x1111111111111111111111111111111111111111",
-        "11155111:42",
+        "84532:42",
         "0x1111111111111111111111111111111111111111",
         @sepolia_network,
         @sepolia_chain_id,
@@ -78,7 +97,7 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
         DateTime.utc_now(),
         "job_mainnet",
         "0x2222222222222222222222222222222222222222",
-        "11155111:99",
+        "84532:99",
         "0x2222222222222222222222222222222222222222",
         @mainnet_network,
         @mainnet_chain_id,
@@ -112,6 +131,16 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
              ])
   end
 
+  test "job reads stay scoped to the active launch chain" do
+    {:ok, _} = insert_active_chain_job("job_active_chain", @sepolia_network, @sepolia_chain_id)
+    {:ok, _} = insert_active_chain_job("job_other_chain", @mainnet_network, @mainnet_chain_id)
+
+    assert {:ok, %{job: %{job_id: "job_active_chain", chain_id: @sepolia_chain_id}}} =
+             Launch.get_job_response("job_active_chain")
+
+    assert {:error, :not_found} = Launch.get_job_response("job_other_chain")
+  end
+
   defp invalid_field_errors(changeset) do
     refute changeset.valid?
     error_keys = Keyword.keys(changeset.errors)
@@ -120,11 +149,35 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
     true
   end
 
+  defp assert_insert_allowed(%Postgrex.Result{}), do: true
+
+  defp insert_active_chain_job(job_id, network, chain_id) do
+    %Job{}
+    |> Job.create_changeset(%{
+      job_id: job_id,
+      owner_address: "0x1111111111111111111111111111111111111111",
+      agent_id: "#{chain_id}:42",
+      token_name: "Atlas Coin",
+      token_symbol: "ATLAS",
+      agent_safe_address: "0x1111111111111111111111111111111111111111",
+      network: network,
+      chain_id: chain_id,
+      status: "ready",
+      step: "ready",
+      total_supply: "1000",
+      message: "signed",
+      siwa_nonce: "nonce-#{job_id}",
+      siwa_signature: "sig",
+      issued_at: DateTime.utc_now()
+    })
+    |> Repo.insert()
+  end
+
   defp job_attrs(network, chain_id) do
     %{
       job_id: "job_schema_cutover",
       owner_address: "0x1111111111111111111111111111111111111111",
-      agent_id: "11155111:42",
+      agent_id: "84532:42",
       token_name: "Atlas Coin",
       token_symbol: "ATLAS",
       agent_safe_address: "0x1111111111111111111111111111111111111111",
@@ -143,7 +196,7 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
   defp auction_attrs(network, chain_id) do
     %{
       source_job_id: "job_schema_cutover",
-      agent_id: "11155111:42",
+      agent_id: "84532:42",
       agent_name: "Atlas",
       owner_address: "0x1111111111111111111111111111111111111111",
       auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -161,7 +214,7 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
       owner_address: "0x1111111111111111111111111111111111111111",
       auction_id: "auc_schema_cutover",
       auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      agent_id: "11155111:42",
+      agent_id: "84532:42",
       agent_name: "Atlas",
       network: network,
       chain_id: chain_id,
@@ -196,7 +249,7 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
       ) VALUES (
         'job_test',
         '0x1111111111111111111111111111111111111111',
-        '11155111:42',
+        '84532:42',
         '0x1111111111111111111111111111111111111111',
         $1,
         $2,
@@ -223,7 +276,7 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
         network, chain_id, status, started_at, inserted_at, updated_at
       ) VALUES (
         'job_test',
-        '11155111:42',
+        '84532:42',
         'Atlas',
         '0x1111111111111111111111111111111111111111',
         '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -249,7 +302,7 @@ defmodule Autolaunch.LaunchSchemaCutoverTest do
         'bid_test',
         '0x1111111111111111111111111111111111111111',
         'auc_test',
-        '11155111:42',
+        '84532:42',
         1.0,
         0.0010,
         0.0010,

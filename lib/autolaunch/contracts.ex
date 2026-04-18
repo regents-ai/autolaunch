@@ -8,32 +8,32 @@ defmodule Autolaunch.Contracts do
   alias Autolaunch.Launch
   alias Autolaunch.Revenue
 
-  @sepolia_chain_id 11_155_111
   @zero_address "0x0000000000000000000000000000000000000000"
 
   def admin_overview do
     launch = launch_config()
+    chain_id = launch_chain_id()
 
     {:ok,
      %{
-       chain_id: @sepolia_chain_id,
+       chain_id: chain_id,
        dependencies: %{
-         usdc_address: config_value(launch, :eth_sepolia_usdc_address),
-         pool_manager_address: config_value(launch, :eth_sepolia_pool_manager_address),
-         position_manager_address: config_value(launch, :eth_sepolia_position_manager_address),
-         cca_factory_address: config_value(launch, :eth_sepolia_factory_address)
+         usdc_address: config_value(launch, :usdc_address),
+         pool_manager_address: config_value(launch, :pool_manager_address),
+         position_manager_address: config_value(launch, :position_manager_address),
+         cca_factory_address: config_value(launch, :cca_factory_address)
        },
        admin_contracts: %{
          revenue_share_factory:
-           contract_admin_card(config_value(launch, :revenue_share_factory_address), [
+           contract_admin_card(chain_id, config_value(launch, :revenue_share_factory_address), [
              "set_authorized_creator"
            ]),
          revenue_ingress_factory:
-           contract_admin_card(config_value(launch, :revenue_ingress_factory_address), [
+           contract_admin_card(chain_id, config_value(launch, :revenue_ingress_factory_address), [
              "set_authorized_creator"
            ]),
          regent_lbp_strategy_factory:
-           contract_admin_card(config_value(launch, :lbp_strategy_factory_address), [])
+           contract_admin_card(chain_id, config_value(launch, :lbp_strategy_factory_address), [])
        }
      }}
   end
@@ -55,8 +55,8 @@ defmodule Autolaunch.Contracts do
          {:ok, _job_scope} <- authorize_job_scope(job, current_human) do
       registry = subject_registry_card(job, subject, current_human)
       splitter = splitter_card(subject)
-      ingress_factory = ingress_factory_card(subject.subject_id)
-      revenue_share_factory = revenue_share_factory_card()
+      ingress_factory = ingress_factory_card(subject.chain_id, subject.subject_id)
+      revenue_share_factory = revenue_share_factory_card(subject.chain_id)
 
       {:ok,
        %{
@@ -65,14 +65,14 @@ defmodule Autolaunch.Contracts do
          splitter: splitter,
          ingress_factory: ingress_factory,
          revenue_share_factory: revenue_share_factory,
-          available_actions: %{
-            subject:
-              ~w(stake unstake claim_usdc claim_emissions claim_and_stake_emissions sweep_ingress),
-            splitter:
+         available_actions: %{
+           subject:
+             ~w(stake unstake claim_usdc claim_emissions claim_and_stake_emissions sweep_ingress),
+           splitter:
              ~w(set_paused set_label propose_treasury_recipient_rotation cancel_treasury_recipient_rotation execute_treasury_recipient_rotation set_protocol_recipient sweep_treasury_residual sweep_protocol_reserve reassign_dust),
-            ingress_factory: ~w(create set_default),
-            ingress_account: ~w(set_label rescue sweep),
-            registry: ~w(set_subject_manager link_identity rotate_safe)
+           ingress_factory: ~w(create set_default),
+           ingress_account: ~w(set_label rescue sweep),
+           registry: ~w(set_subject_manager link_identity rotate_safe)
          }
        }}
     end
@@ -97,7 +97,7 @@ defmodule Autolaunch.Contracts do
          :ok <- authorize_subject_action(subject, registry, resource, action),
          {:ok, prepared} <-
            Dispatch.build_subject_action(subject, registry, resource, action, attrs, %{
-             ingress_factory_address: ingress_factory_address()
+             ingress_factory_address: ingress_factory_address(subject.chain_id)
            }) do
       {:ok, %{subject_id: subject.subject_id, prepared: prepared}}
     end
@@ -106,9 +106,9 @@ defmodule Autolaunch.Contracts do
   def prepare_admin_action(resource, action, attrs) do
     with {:ok, prepared} <-
            Dispatch.build_admin_action(resource, action, attrs, %{
-             chain_id: @sepolia_chain_id,
-             ingress_factory_address: ingress_factory_address(),
-             revenue_share_factory_address: revenue_share_factory_address()
+             chain_id: launch_chain_id(),
+             ingress_factory_address: ingress_factory_address(launch_chain_id()),
+             revenue_share_factory_address: revenue_share_factory_address(launch_chain_id())
            }) do
       {:ok, %{prepared: prepared}}
     end
@@ -189,7 +189,7 @@ defmodule Autolaunch.Contracts do
   end
 
   defp strategy_card(job) do
-    usdc = config_value(launch_config(), :eth_sepolia_usdc_address)
+    usdc = config_value(launch_config(), :usdc_address)
 
     %{
       address: job.strategy_address,
@@ -266,7 +266,7 @@ defmodule Autolaunch.Contracts do
   end
 
   defp fee_vault_card(job) do
-    usdc = config_value(launch_config(), :eth_sepolia_usdc_address)
+    usdc = config_value(launch_config(), :usdc_address)
 
     %{
       address: job.launch_fee_vault_address,
@@ -397,36 +397,36 @@ defmodule Autolaunch.Contracts do
     }
   end
 
-  defp ingress_factory_card(subject_id) do
-    address = ingress_factory_address()
+  defp ingress_factory_card(chain_id, subject_id) do
+    address = ingress_factory_address(chain_id)
 
     %{
       address: address,
-      owner: safe_address_call(@sepolia_chain_id, address, :owner),
+      owner: safe_address_call(chain_id, address, :owner),
       default_ingress_address:
-        safe_address_call(@sepolia_chain_id, address, :default_ingress_of_subject, [
+        safe_address_call(chain_id, address, :default_ingress_of_subject, [
           {:bytes32, subject_id}
         ]),
       ingress_account_count:
-        safe_uint_call(@sepolia_chain_id, address, :ingress_account_count, [
+        safe_uint_call(chain_id, address, :ingress_account_count, [
           {:bytes32, subject_id}
         ])
     }
   end
 
-  defp revenue_share_factory_card do
-    address = revenue_share_factory_address()
+  defp revenue_share_factory_card(chain_id) do
+    address = revenue_share_factory_address(chain_id)
 
     %{
       address: address,
-      owner: safe_address_call(@sepolia_chain_id, address, :owner)
+      owner: safe_address_call(chain_id, address, :owner)
     }
   end
 
-  defp contract_admin_card(address, actions) do
+  defp contract_admin_card(chain_id, address, actions) do
     %{
       address: address,
-      owner: safe_address_call(@sepolia_chain_id, address, :owner),
+      owner: safe_address_call(chain_id, address, :owner),
       actions: actions
     }
   end
@@ -549,11 +549,24 @@ defmodule Autolaunch.Contracts do
 
   defp launch_config, do: Application.get_env(:autolaunch, :launch, [])
 
-  defp ingress_factory_address,
-    do: config_value(launch_config(), :revenue_ingress_factory_address)
+  defp launch_chain_id do
+    launch_config()
+    |> Keyword.get(:chain_id, 84_532)
+  end
 
-  defp revenue_share_factory_address,
-    do: config_value(launch_config(), :revenue_share_factory_address)
+  defp ingress_factory_address(chain_id),
+    do: config_value_for_chain(chain_id, :revenue_ingress_factory_address)
+
+  defp revenue_share_factory_address(chain_id),
+    do: config_value_for_chain(chain_id, :revenue_share_factory_address)
+
+  defp config_value_for_chain(chain_id, key) do
+    if launch_chain_id() == chain_id do
+      config_value(launch_config(), key)
+    else
+      ""
+    end
+  end
 
   defp blank?(value), do: value in [nil, "", @zero_address]
 end

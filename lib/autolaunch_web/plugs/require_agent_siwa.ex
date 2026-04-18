@@ -19,12 +19,10 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
         Map.put(acc, String.downcase(key), value)
       end)
 
-    with :ok <- verify_with_broker(conn, headers),
-         {:ok, claims} <- extract_claims(headers),
-         %HumanUser{} = current_human <- load_current_human(claims) do
+    with {:ok, claims} <- verify_with_broker(conn, headers) do
       conn
       |> assign(:current_agent_claims, claims)
-      |> assign(:current_human, current_human)
+      |> maybe_assign_current_human(claims)
     else
       _ -> unauthorized(conn)
     end
@@ -45,7 +43,12 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
              receive_timeout: config.receive_timeout_ms
            ) do
       case response do
-        %{status: 200, body: %{"ok" => true, "code" => "http_envelope_valid"}} -> :ok
+        %{
+          status: 200,
+          body: %{"ok" => true, "code" => "http_envelope_valid", "data" => %{"agent_claims" => claims}}
+        } ->
+          normalize_claims(claims)
+
         _ -> {:error, :siwa_auth_denied}
       end
     else
@@ -81,27 +84,40 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
     end
   end
 
-  defp extract_claims(headers) do
+  defp normalize_claims(claims) when is_map(claims) do
     with wallet when is_binary(wallet) and wallet != "" <-
-           Map.get(headers, "x-agent-wallet-address"),
+           claims["wallet_address"] || claims["walletAddress"],
          chain_id when is_binary(chain_id) and chain_id != "" <-
-           Map.get(headers, "x-agent-chain-id") do
+           claims["chain_id"] || claims["chainId"],
+         registry_address when is_binary(registry_address) and registry_address != "" <-
+           claims["registry_address"] || claims["registryAddress"],
+         token_id when is_binary(token_id) and token_id != "" <-
+           claims["token_id"] || claims["tokenId"] do
       {:ok,
        %{
          "wallet_address" => String.downcase(String.trim(wallet)),
          "chain_id" => String.trim(chain_id),
-         "registry_address" =>
-           normalize_optional_value(Map.get(headers, "x-agent-registry-address")),
-         "token_id" => normalize_optional_value(Map.get(headers, "x-agent-token-id")),
-         "label" => normalize_optional_value(Map.get(headers, "x-agent-label"))
+         "registry_address" => String.trim(registry_address),
+         "token_id" => String.trim(token_id),
+         "label" =>
+           normalize_optional_value(claims["label"] || claims["agentLabel"] || claims["agent_label"])
        }}
     else
       _ -> {:error, :missing_agent_headers}
     end
   end
 
+  defp normalize_claims(_claims), do: {:error, :missing_agent_headers}
+
   defp load_current_human(%{"wallet_address" => wallet_address}) do
     Accounts.get_human_by_wallet_address(wallet_address)
+  end
+
+  defp maybe_assign_current_human(conn, claims) do
+    case load_current_human(claims) do
+      %HumanUser{} = current_human -> assign(conn, :current_human, current_human)
+      _ -> conn
+    end
   end
 
   defp normalize_timeout(value, _fallback) when is_integer(value) and value > 0, do: value

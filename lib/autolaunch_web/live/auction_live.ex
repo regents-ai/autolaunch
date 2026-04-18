@@ -492,7 +492,7 @@ defmodule AutolaunchWeb.AuctionLive do
           title="Auction not found."
           body="The requested auction could not be loaded from the local launch view."
           action_label="Back to auctions"
-          action_href={~p"/auctions"}
+          action_href={~p"/home"}
         />
       <% end %>
 

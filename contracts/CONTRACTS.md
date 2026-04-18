@@ -41,7 +41,7 @@ This package now covers the full Autolaunch contract system, from launch through
   - receives raw USDC and sweeps it into splitter accounting
 - `RevenueShareSplitter`
   - canonical revsplit and staking contract for the launched token
-  - only Sepolia USDC that reaches this contract counts as recognized revenue
+  - only Base-family USDC that reaches this contract counts as recognized revenue
 - `RegentRevenueStaking`
   - singleton Base-mainnet staking and Base USDC rewards rail for the existing `$REGENT` token
   - fed manually after Treasury A bridges non-Base income into Base USDC
@@ -76,5 +76,5 @@ This package now covers the full Autolaunch contract system, from launch through
 ## Routing rules for the wider project
 
 - Autolaunch contracts live here: `/Users/sean/Documents/regent/autolaunch/contracts`
-- Autolaunch CLI work lives in: `/Users/sean/Documents/regent/regent-cli`
+- Autolaunch CLI work lives in: `/Users/sean/Documents/regent/regents-cli`
 - Autolaunch Phoenix app work lives in: `/Users/sean/Documents/regent/autolaunch`

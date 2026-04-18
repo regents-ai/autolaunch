@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
                resource: "strategy",
                action: "migrate",
                tx_request: %{
-                 chain_id: 11_155_111,
+                 chain_id: 84_532,
                  to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                  value: "0x0",
                  data: "0x8fd3ab80"

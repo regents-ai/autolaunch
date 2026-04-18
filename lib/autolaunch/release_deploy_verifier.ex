@@ -45,7 +45,7 @@ defmodule Autolaunch.ReleaseDeployVerifier do
               fee_vault_canonical_tokens_check(job),
               strategy_migration_check(job),
               pool_and_position_recorded_check(job),
-              hook_enabled_check(job),
+              fee_hook_pool_wiring_check(job),
               fee_vault_hook_check(job),
               subject_registry_wiring_check(job),
               ingress_wiring_check(job)
@@ -201,29 +201,35 @@ defmodule Autolaunch.ReleaseDeployVerifier do
     end
   end
 
-  defp hook_enabled_check(job) do
+  defp fee_hook_pool_wiring_check(job) do
     expected_hook = normalize_address(job.hook_address)
-    expected_quote_token = config_value(launch_config(), :eth_sepolia_usdc_address)
+    expected_quote_token = config_value(launch_config(), :usdc_address)
+    expected_pool_manager = config_value(launch_config(), :pool_manager_address)
 
     case pool_config(job) do
-      %{hook_enabled: true, hook: hook, quote_token: quote_token} ->
+      %{hook_enabled: true, hook: hook, quote_token: quote_token, pool_manager: pool_manager} ->
         if normalize_address(hook) == expected_hook and
-             normalize_address(quote_token) == normalize_address(expected_quote_token) do
-          ok_check("hook_enabled", :error, "Fee hook is enabled on the expected pool config.")
+             normalize_address(quote_token) == normalize_address(expected_quote_token) and
+             normalize_address(pool_manager) == normalize_address(expected_pool_manager) do
+          ok_check(
+            "fee_hook_pool_wiring",
+            :error,
+            "Pool config points at the expected fixed fee hook, pool manager, and quote token."
+          )
         else
           fail_check(
-            "hook_enabled",
+            "fee_hook_pool_wiring",
             :error,
             "Pool config is present but does not match the expected hook wiring."
           )
         end
 
       %{hook_enabled: false} ->
-        fail_check("hook_enabled", :error, "Fee hook is disabled in the pool config.")
+        fail_check("fee_hook_pool_wiring", :error, "Fee hook is disabled in the pool config.")
 
       _ ->
         fail_check(
-          "hook_enabled",
+          "fee_hook_pool_wiring",
           :error,
           "Pool config could not be read from the fee registry."
         )
@@ -290,7 +296,7 @@ defmodule Autolaunch.ReleaseDeployVerifier do
     quote_token =
       safe_address_call(job.chain_id, job.launch_fee_vault_address, :canonical_quote_token)
 
-    expected_quote_token = config_value(launch_config(), :eth_sepolia_usdc_address)
+    expected_quote_token = config_value(launch_config(), :usdc_address)
 
     cond do
       normalize_address(launch_token) != normalize_address(job.token_address) ->

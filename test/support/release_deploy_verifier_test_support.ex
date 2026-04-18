@@ -1,12 +1,14 @@
 defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
   @moduledoc false
 
+  import Ecto.Query, only: [from: 2]
+
   alias Autolaunch.Launch.Job
   alias Autolaunch.Repo
 
   @launch_stack_deployed_topic0 "0x0f4620e4f0d6524b6aca672f72348ff2535a365b816545538f83084e8d073077"
 
-  def chain_id, do: 11_155_111
+  def chain_id, do: 84_532
   def job_id, do: "job_verify_deploy"
   def tx_hash, do: "0x" <> String.duplicate("a", 64)
   def pool_id, do: "0x" <> String.duplicate("b", 64)
@@ -34,7 +36,8 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
 
   def launch_config(previous \\ []) do
     Keyword.merge(previous,
-      eth_sepolia_usdc_address: address(:usdc),
+      usdc_address: address(:usdc),
+      pool_manager_address: address(:pool_manager),
       revenue_share_factory_address: address(:revenue_share_factory),
       revenue_ingress_factory_address: address(:revenue_ingress_factory)
     )
@@ -43,16 +46,18 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
   def insert_ready_job! do
     now = DateTime.utc_now()
 
+    Repo.delete_all(from job in Job, where: job.job_id == ^job_id())
+
     {:ok, job} =
       %Job{}
       |> Job.create_changeset(%{
         job_id: job_id(),
         owner_address: address(:owner),
-        agent_id: "11155111:4242",
+        agent_id: "84532:4242",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: address(:agent_safe),
-        network: "ethereum-sepolia",
+        network: "base-sepolia",
         chain_id: chain_id(),
         status: "ready",
         step: "ready",
@@ -91,7 +96,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     alias Autolaunch.Contracts.Abi
     alias Autolaunch.ReleaseDeployVerifierTestSupport, as: Support
 
-    def eth_call(chain_id, to, data) when chain_id == 11_155_111 do
+    def eth_call(chain_id, to, data) when chain_id == 84_532 do
       address = normalize(to)
       selector = String.slice(data, 0, 10)
 
@@ -162,7 +167,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     def eth_call(chain_id, _to, _data), do: {:error, {:unexpected_chain_id, chain_id}}
 
     def tx_receipt(chain_id, tx_hash) do
-      if chain_id == 11_155_111 and tx_hash == Support.tx_hash() do
+      if chain_id == 84_532 and tx_hash == Support.tx_hash() do
         {:ok,
          %{
            logs: [

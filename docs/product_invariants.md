@@ -9,13 +9,13 @@ If another document, script note, page, or CLI help text disagrees with this fil
 Autolaunch has one launch stack and one revenue-recognition stack.
 
 - The launch stack creates the token, auction, fee plumbing, subject wiring, and official Uniswap v4 migration path.
-- The revenue stack starts only when Sepolia USDC reaches the subject revenue splitter.
+- The revenue stack starts only when Base-family USDC reaches the subject revenue splitter.
 - Ingress is a routing wrapper for receiving and sweeping USDC. It is not a second accounting system.
 
 ## Hard product rules
 
-1. Recognized subject revenue is Sepolia USDC only.
-2. Subject revenue counts only when that Sepolia USDC reaches the subject revenue splitter.
+1. Recognized subject revenue is Base-family USDC only.
+2. Subject revenue counts only when that Base-family USDC reaches the subject revenue splitter.
 3. The launch token allocation story is fixed:
    - 10% public sale
    - 5% LP reserve
@@ -39,11 +39,11 @@ Autolaunch has one launch stack and one revenue-recognition stack.
 6. The launch-side fee lane and the subject revenue splitter are different things:
    - the launch-side fee hook captures pool fees
    - the Regent-side fee lane is a plain treasury payout
-   - subject rewards only come from Sepolia USDC that reaches the splitter
+   - subject rewards only come from Base-family USDC that reaches the splitter
 7. Rescue is not revenue accounting:
    - wrong tokens or stray ETH can be recovered by the contract owner or treasury controller
    - rescued assets do not count as recognized subject revenue
-   - recognized subject revenue still starts only when deliberate Sepolia USDC reaches the subject splitter
+   - recognized subject revenue still starts only when deliberate Base-family USDC reaches the subject splitter
 
 ## Migration rule
 

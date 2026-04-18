@@ -52,7 +52,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTest do
              "fee_vault_canonical_tokens",
              "strategy_migrated",
              "strategy_pool_and_position",
-             "hook_enabled",
+             "fee_hook_pool_wiring",
              "fee_vault_hook",
              "subject_registry_wiring",
              "ingress_wiring"

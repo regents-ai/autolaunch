@@ -44,10 +44,11 @@ defmodule Autolaunch.ReleaseDoctorTest do
         deploy_workdir: tempdir,
         deploy_script_target:
           "scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript",
-        eth_sepolia_factory_address: "0x1111111111111111111111111111111111111111",
-        eth_sepolia_pool_manager_address: "0x2222222222222222222222222222222222222222",
-        eth_sepolia_position_manager_address: "0x3333333333333333333333333333333333333333",
-        eth_sepolia_usdc_address: "0x4444444444444444444444444444444444444444",
+        cca_factory_address: "0x1111111111111111111111111111111111111111",
+        pool_manager_address: "0x2222222222222222222222222222222222222222",
+        position_manager_address: "0x3333333333333333333333333333333333333333",
+        usdc_address: "0x4444444444444444444444444444444444444444",
+        identity_registry_address: "0x9999999999999999999999999999999999999998",
         revenue_share_factory_address: "0x5555555555555555555555555555555555555555",
         revenue_ingress_factory_address: "0x6666666666666666666666666666666666666666",
         lbp_strategy_factory_address: "0x7777777777777777777777777777777777777777",
@@ -120,7 +121,7 @@ defmodule Autolaunch.ReleaseDoctorTest do
   end
 
   defmodule DoctorRpc do
-    def block_number(11_155_111), do: {:ok, 123}
+    def block_number(84_532), do: {:ok, 123}
     def eth_call(_chain_id, _to, _data), do: {:error, :unsupported}
     def tx_receipt(_chain_id, _tx_hash), do: {:ok, nil}
     def tx_by_hash(_chain_id, _tx_hash), do: {:ok, nil}

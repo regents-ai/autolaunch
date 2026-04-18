@@ -75,7 +75,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                resource: "strategy",
                action: "migrate",
                tx_request: %{
-                 chain_id: 11_155_111,
+                 chain_id: 84_532,
                  to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                  value: "0x0",
                  data: "0x8fd3ab80"
@@ -108,7 +108,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                action: "propose_beneficiary_rotation",
                params: %{"beneficiary" => beneficiary},
                tx_request: %{
-                 chain_id: 11_155_111,
+                 chain_id: 84_532,
                  to: "0xdddddddddddddddddddddddddddddddddddddddd",
                  value: "0x0",
                  data: "0xc178cb2d"
@@ -159,7 +159,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                resource: "splitter",
                action: "set_paused",
                tx_request: %{
-                 chain_id: 11_155_111,
+                 chain_id: 84_532,
                  to: "0x9999999999999999999999999999999999999999",
                  value: "0x0",
                  data: "0x16c38b3c"
@@ -191,7 +191,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                resource: "splitter",
                action: "sweep_treasury_residual",
                tx_request: %{
-                 chain_id: 11_155_111,
+                 chain_id: 84_532,
                  to: "0x9999999999999999999999999999999999999999",
                  value: "0x0",
                  data: "0xe37459b1"
@@ -224,7 +224,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                action: "rotate_safe",
                params: %{"new_safe" => new_safe},
                tx_request: %{
-                 chain_id: 11_155_111,
+                 chain_id: 84_532,
                  to: "0x2222222222222222222222222222222222222222",
                  value: "0x0",
                  data: "0xdbf6fd39"
@@ -255,7 +255,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
            resource: "revenue_share_factory",
            action: "set_authorized_creator",
            tx_request: %{
-             chain_id: 11_155_111,
+             chain_id: 84_532,
              to: "0x1111111111111111111111111111111111111111",
              value: "0x0",
              data: "0xe1434f4e"
@@ -407,6 +407,44 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                  "paused" => "true"
                }),
                403
+             )
+  end
+
+  test "removed fee mutation actions return unsupported action errors", %{conn: conn, human: human} do
+    conn = signed_in_conn(conn, human)
+
+    assert %{"ok" => false, "error" => %{"code" => "unsupported_contract_action"}} =
+             json_response(
+               post(
+                 conn,
+                 contracts_job_prepare_path("job_contracts", "fee_registry", "set_hook_enabled"),
+                 %{"enabled" => "false"}
+               ),
+               422
+             )
+
+    assert %{"ok" => false, "error" => %{"code" => "unsupported_contract_action"}} =
+             json_response(
+               post(
+                 conn,
+                 contracts_job_prepare_path("job_contracts", "fee_vault", "set_hook"),
+                 %{"hook" => "0x4444444444444444444444444444444444444444"}
+               ),
+               422
+             )
+
+    assert %{"ok" => false, "error" => %{"code" => "unsupported_contract_action"}} =
+             json_response(
+               post(
+                 conn,
+                 contracts_subject_prepare_path(
+                   "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                   "splitter",
+                   "set_protocol_skim_bps"
+                 ),
+                 %{"skim_bps" => "250"}
+               ),
+               422
              )
   end
 

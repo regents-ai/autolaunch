@@ -9,7 +9,6 @@ defmodule Autolaunch.Prelaunch do
   alias Autolaunch.Prelaunch.Plan
   alias Autolaunch.Repo
 
-  @chain_id 11_155_111
   @draft_states ~w(draft validated launchable)
   @uploads_dir "priv/static/prelaunch-assets"
   @allowed_media_types ~w(image/png image/jpeg image/webp image/gif)
@@ -36,7 +35,7 @@ defmodule Autolaunch.Prelaunch do
              Map.merge(attrs, %{
                plan_id: "plan_" <> Ecto.UUID.generate(),
                privy_user_id: human.privy_user_id,
-               chain_id: @chain_id,
+               chain_id: launch_chain_id(),
                identity_snapshot: identity_snapshot(agent),
                metadata_draft: metadata_draft(Map.get(attrs, "metadata_draft"))
              })
@@ -320,6 +319,11 @@ defmodule Autolaunch.Prelaunch do
   end
 
   defp metadata_draft(_value), do: %{}
+
+  defp launch_chain_id do
+    Application.get_env(:autolaunch, :launch, [])
+    |> Keyword.get(:chain_id, 84_532)
+  end
 
   defp identity_snapshot(agent) do
     %{

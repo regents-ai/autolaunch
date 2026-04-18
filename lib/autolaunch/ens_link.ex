@@ -77,8 +77,7 @@ defmodule Autolaunch.EnsLink do
     else
       with {:ok, chain_id} <- required_chain_id(Map.get(attrs, "chain_id")),
            {:ok, token_id} <- required_numeric(Map.get(attrs, "agent_id"), :agent_id),
-           registry_address when is_binary(registry_address) <-
-             ERC8004.identity_registry(chain_id) do
+           {:ok, registry_address} <- resolve_registry_address(attrs, chain_id) do
         {:ok,
          %{
            chain_id: chain_id,
@@ -90,6 +89,17 @@ defmodule Autolaunch.EnsLink do
         nil -> {:error, :identity_registry_not_configured}
         {:error, _} = error -> error
       end
+    end
+  end
+
+  defp resolve_registry_address(attrs, chain_id) do
+    case normalize_address(Map.get(attrs, "registry_address")) do
+      value when is_binary(value) -> {:ok, value}
+      nil ->
+        case ERC8004.identity_registry(chain_id) do
+          value when is_binary(value) -> {:ok, value}
+          _ -> {:error, :identity_registry_not_configured}
+        end
     end
   end
 
@@ -110,10 +120,13 @@ defmodule Autolaunch.EnsLink do
     end
   end
 
-  defp chain_rpc_url(1), do: configured_rpc_url(:eth_mainnet_rpc_url)
-  defp chain_rpc_url(11_155_111), do: configured_rpc_url(:eth_sepolia_rpc_url)
-
-  defp chain_rpc_url(_chain_id), do: {:error, :invalid_chain_id}
+  defp chain_rpc_url(chain_id) do
+    if chain_id == launch_chain_id() do
+      configured_rpc_url(:rpc_url)
+    else
+      {:error, :invalid_chain_id}
+    end
+  end
 
   defp configured_rpc_url(key) do
     case Keyword.get(launch_config(), key, "") do
@@ -151,7 +164,7 @@ defmodule Autolaunch.EnsLink do
   defp required_numeric(_value, _field), do: {:error, :invalid_agent_id}
 
   defp required_chain_id(value) when is_integer(value) do
-    if value in [1, 11_155_111], do: {:ok, value}, else: {:error, :invalid_chain_id}
+    if value in [84_532, 8_453], do: {:ok, value}, else: {:error, :invalid_chain_id}
   end
 
   defp required_chain_id(value) when is_binary(value) do
@@ -184,6 +197,11 @@ defmodule Autolaunch.EnsLink do
   defp truthy?(value), do: value in [true, "true", "1", 1]
 
   defp launch_config, do: Application.get_env(:autolaunch, :launch, [])
+
+  defp launch_chain_id do
+    launch_config()
+    |> Keyword.get(:chain_id, 84_532)
+  end
 
   defp serialize(value) when is_struct(value) do
     value

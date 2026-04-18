@@ -6,12 +6,12 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
       {:ok, [%{plan_id: "plan_alpha", state: "draft"}]}
     end
 
-    def create_plan(%{"agent_id" => "11155111:42"} = params, _human) do
+    def create_plan(%{"agent_id" => "84532:42"} = params, _human) do
       {:ok,
        %{
          plan_id: "plan_alpha",
          state: "draft",
-         agent_id: "11155111:42",
+         agent_id: "84532:42",
          token_name: params["token_name"],
          metadata_draft: params["metadata_draft"] || %{}
        }}
@@ -24,7 +24,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
        %{
          plan_id: "plan_alpha",
          state: "validated",
-         agent_id: "11155111:42",
+         agent_id: "84532:42",
          validation_summary: %{"launchable" => false}
        }}
     end
@@ -144,7 +144,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
   test "creates and shows a plan", %{conn: conn} do
     create_conn =
       post(conn, "/api/prelaunch/plans", %{
-        "agent_id" => "11155111:42",
+        "agent_id" => "84532:42",
         "token_name" => "Atlas Coin",
         "token_symbol" => "ATLAS",
         "agent_safe_address" => "0x1111111111111111111111111111111111111111",

@@ -107,7 +107,7 @@ defmodule AutolaunchWeb.ContractsLive do
           <div class="al-contract-pill-row">
             <span class="al-launch-tag">Review before you sign</span>
             <span class="al-launch-tag">Open from launch and subject pages</span>
-            <span class="al-launch-tag">Sepolia launch details</span>
+            <span class="al-launch-tag">Launch details</span>
           </div>
         </div>
 
@@ -318,7 +318,7 @@ defmodule AutolaunchWeb.ContractsLive do
             </form>
             <form phx-change="update_form" class="al-contract-form-grid">
               <input type="hidden" name="form_name" value="registry_identity" />
-              <input type="text" name="form[identity_chain_id]" value={form_value(@forms, "registry_identity", "identity_chain_id", "11155111")} placeholder="Identity chain id" />
+              <input type="text" name="form[identity_chain_id]" value={form_value(@forms, "registry_identity", "identity_chain_id", "84532")} placeholder="Identity chain id" />
               <input type="text" name="form[identity_registry]" value={form_value(@forms, "registry_identity", "identity_registry")} placeholder="Identity registry" />
               <input type="text" name="form[identity_agent_id]" value={form_value(@forms, "registry_identity", "identity_agent_id")} placeholder="Identity agent id" />
             </form>
@@ -369,7 +369,6 @@ defmodule AutolaunchWeb.ContractsLive do
             <form phx-change="update_form" class="al-contract-form-grid">
               <input type="hidden" name="form_name" value="splitter_protocol" />
               <input type="text" name="form[recipient]" value={form_value(@forms, "splitter_protocol", "recipient")} placeholder="Protocol recipient" />
-              <input type="text" name="form[skim_bps]" value={form_value(@forms, "splitter_protocol", "skim_bps")} placeholder="Protocol skim bps" />
             </form>
 
             <form phx-change="update_form" class="al-contract-form-grid">

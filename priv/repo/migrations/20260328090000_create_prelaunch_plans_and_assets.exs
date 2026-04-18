@@ -25,7 +25,7 @@ defmodule Autolaunch.Repo.Migrations.CreatePrelaunchPlansAndAssets do
       add :state, :string, null: false, default: "draft"
       add :agent_id, :string, null: false
       add :agent_name, :string
-      add :chain_id, :bigint, null: false, default: 11_155_111
+      add :chain_id, :bigint, null: false, default: 84_532
       add :token_name, :string, null: false
       add :token_symbol, :string, null: false
       add :treasury_safe_address, :string, null: false

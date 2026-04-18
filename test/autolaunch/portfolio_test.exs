@@ -14,7 +14,7 @@ defmodule Autolaunch.PortfolioTest do
         %{
           id: "auc_1",
           owner_address: "0x1111111111111111111111111111111111111111",
-          agent_id: "11155111:42",
+          agent_id: "84532:42",
           agent_name: "Atlas",
           symbol: "ATLAS",
           phase: "biddable",
@@ -27,7 +27,7 @@ defmodule Autolaunch.PortfolioTest do
         %{
           id: "auc_2",
           owner_address: "0x2222222222222222222222222222222222222222",
-          agent_id: "11155111:99",
+          agent_id: "84532:99",
           agent_name: "Nova",
           symbol: "NOVA",
           phase: "live",

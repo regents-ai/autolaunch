@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.SubjectLive do
           <p class="al-kicker">Subject revenue</p>
           <h2>See the revenue state, then take the one action that matters most.</h2>
           <p class="al-subcopy">
-            Recognized revenue still means Sepolia USDC that has already reached the splitter. This
+            Recognized revenue still means Base USDC that has already reached the splitter. This
             page stays focused on what the connected wallet can claim, stake, unstake, or sweep now.
           </p>
         </div>
@@ -329,7 +329,7 @@ defmodule AutolaunchWeb.SubjectLive do
                 <div class="al-review-card">
                   <span>Default ingress</span>
                   <strong>{short_address(@subject.default_ingress_address)}</strong>
-                  <p>Sepolia USDC can be swept from ingress into the splitter.</p>
+                  <p>Base USDC can be swept from ingress into the splitter.</p>
                 </div>
                 <div class="al-review-card">
                   <span>Treasury residual</span>
@@ -411,7 +411,7 @@ defmodule AutolaunchWeb.SubjectLive do
       <% else %>
         <.empty_state
           title="Subject state is unavailable."
-          body="Check that the launch finished successfully and that this subject id exists in the current Sepolia launch stack."
+          body="Check that the launch finished successfully and that this subject id exists in the current launch stack."
         />
       <% end %>
 

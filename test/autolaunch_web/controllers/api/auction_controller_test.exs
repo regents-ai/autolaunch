@@ -62,7 +62,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
          tx_request:
            if(human,
              do: %{
-               chain_id: 11_155_111,
+               chain_id: 84_532,
                to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                data: "0x1234"
              },
@@ -123,7 +123,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
              "ok" => true,
              "auction_id" => "auc_1",
              "status_band" => "active",
-             "tx_request" => %{"chain_id" => 11_155_111}
+             "tx_request" => %{"chain_id" => 84_532}
            } = json_response(conn, 200)
   end
 

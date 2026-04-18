@@ -127,15 +127,15 @@ The full environment list lives in [.env.example](.env.example). For local work,
 - App runtime: `DATABASE_URL` or `LOCAL_DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`
 - Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`, `AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY`
 - SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`, `SIWA_HMAC_SECRET`
-- Launch deployment: `ETH_SEPOLIA_RPC_URL`, `ETH_SEPOLIA_FACTORY_ADDRESS`, `ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER`, `ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER`, `ETH_SEPOLIA_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
-- Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `ERC8004_SEPOLIA_SUBGRAPH_URL`
+- Launch deployment: `AUTOLAUNCH_RPC_URL`, `AUTOLAUNCH_CCA_FACTORY_ADDRESS`, `AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER`, `AUTOLAUNCH_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
+- Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `AUTOLAUNCH_ERC8004_SUBGRAPH_URL`
 - Launch-script ambient env: `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, `CCA_FLOOR_PRICE_Q96`, `CCA_TICK_SPACING_Q96`, `CCA_REQUIRED_CURRENCY_RAISED`, optional `CCA_VALIDATION_HOOK`, optional `CCA_CLAIM_BLOCK_OFFSET`
 - Regent staking rail: `REGENT_STAKING_RPC_URL`, `REGENT_STAKING_CHAIN_ID`, `REGENT_STAKING_CHAIN_LABEL`, `REGENT_REVENUE_STAKING_ADDRESS`
 - AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
 
-The launch path is Ethereum Sepolia only.
+The launch path is Base Sepolia only.
 
-For the current local-only rehearsal, use the run sheet in [REGENT_CLI_LOCAL_AND_FLY_TESTING.md](/Users/sean/Documents/regent/autolaunch/REGENT_CLI_LOCAL_AND_FLY_TESTING.md). It treats Regent staking as Base Sepolia, Autolaunch infra and launches as Ethereum Sepolia, and the guided CLI lifecycle as the main operator path.
+For the current local-only rehearsal, use the run sheet in [REGENT_CLI_LOCAL_AND_FLY_TESTING.md](/Users/sean/Documents/regent/autolaunch/REGENT_CLI_LOCAL_AND_FLY_TESTING.md). It treats Regent staking as Base Sepolia, Autolaunch infra and launches as Base Sepolia, and the guided CLI lifecycle as the main operator path.
 
 If product copy, launch docs, or contract docs disagree about the active rules, use [`docs/product_invariants.md`](docs/product_invariants.md) as the source of truth and update the other surface.
 
@@ -143,7 +143,7 @@ If product copy, launch docs, or contract docs disagree about the active rules, 
 
 Autolaunch now also exposes a separate Regent staking rail for Regent Labs itself.
 
-- It is not part of the Sepolia launch flow.
+- It is not part of the launch flow itself.
 - Its production target is Base mainnet, but local rehearsal can point it at Base Sepolia with `REGENT_STAKING_*`.
 - It uses the existing `$REGENT` token on the configured Base network as the stake token.
 - It accepts USDC deposits manually on the configured Base network.
@@ -152,7 +152,7 @@ Autolaunch now also exposes a separate Regent staking rail for Regent Labs itsel
 
 This rail is separate from agent subject splitters:
 
-- agent subject splitters are per-agent revenue-rights contracts on Sepolia
+- agent subject splitters are per-agent revenue-rights contracts on the active Base-family launch network
 - REGENT staking is one singleton company-token rewards rail on the configured Base network
 
 ### Launch Flow
@@ -176,12 +176,12 @@ Important launch rules:
 
 - Each auction sells 10% of a 100 billion supply
 - The launch strategy holds another 5% for LP migration and sends 85% into the vesting wallet
-- Every auction is denominated in USDC on Ethereum Sepolia
+- Every auction is denominated in USDC on Base Sepolia
 - Buyers set a total budget and a max price, and the order runs across the remaining blocks like a TWAP
 - Each block clears at the highest price where demand exceeds supply, and no one pays above their stated max price
-- Launch buyers must stake the claimed tokens to earn recognized Sepolia USDC revenue once it reaches the revsplit
+- Launch buyers must stake the claimed tokens to earn recognized Base-family USDC revenue once it reaches the revsplit
 - Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
-- Recognized revenue is Sepolia USDC only, and it only counts once it reaches the revsplit
+- Recognized revenue is Base-family USDC only, and it only counts once it reaches the revsplit
 - The fee hook is the launch-side fee lane, while the revsplit is the ongoing revenue-rights lane
 - `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET` is required at runtime; there is no baked-in example deploy script target anymore
 - `config/runtime.exs` is the runtime environment path; `config/dev.exs` stays limited to dev-only browser tooling and reload support
@@ -203,7 +203,7 @@ AUTOLAUNCH_MOCK_DEPLOY=true mix autolaunch.smoke
 mix autolaunch.verify_deploy --job <job-id>
 ```
 
-`mix autolaunch.doctor` is the blocking release gate for database reachability, Sepolia launch config, SIWA, and deploy dependencies. `mix autolaunch.smoke` is the synthetic in-repo launch-to-subject smoke. `mix autolaunch.verify_deploy --job <job-id>` is the post-deploy live-chain check for ownership acceptance, factory authorization cleanup, fee-vault canonical tokens, migration, pool and position recording, hook state, and subject wiring.
+`mix autolaunch.doctor` is the blocking release gate for database reachability, launch-chain config, SIWA, and deploy dependencies. `mix autolaunch.smoke` is the synthetic in-repo launch-to-subject smoke. `mix autolaunch.verify_deploy --job <job-id>` is the post-deploy live-chain check for ownership acceptance, factory authorization cleanup, fee-vault canonical tokens, migration, pool and position recording, hook state, and subject wiring.
 
 Doctor checks map directly to product breakage:
 
@@ -211,7 +211,7 @@ Doctor checks map directly to product breakage:
 - Privy failure means browser and CLI session exchange cannot start authenticated flows
 - SIWA failure means launch creation cannot verify the wallet signature
 - deploy binary, workdir, or script-target failure means launches cannot be executed on that node
-- Sepolia RPC failure means launch reads, quote reads, and transaction verification become unreliable
+- launch-chain RPC failure means launch reads, quote reads, and transaction verification become unreliable
 - trust-network warnings only affect trust follow-up surfaces; launch and auction flows should still work
 
 `mix autolaunch.doctor` does not prove every Foundry launch-script variable is present. The ambient launch-script values like `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, and required `CCA_*` values still need to be set correctly for a real launch.
@@ -224,7 +224,7 @@ Autolaunch is not a static frontend. A working environment needs:
   This handles Privy session exchange, SIWA verification, launch preview, launch creation, in-process launch job execution, queue polling, quote computation, transaction registration, and the contract-read models used by the web app and CLI.
 - a live Postgres database
   Jobs, auctions, bids, human sessions, and subject action registrations are all persisted there.
-- a live Sepolia RPC
+- a live launch-chain RPC
   The app uses it for launch status reads, auction reads, quote checks, and transaction verification.
 - a reachable SIWA sidecar
   Launch creation depends on it for signature verification.
@@ -250,8 +250,8 @@ The Phoenix aliases in `mix.exs` also include `ecto.reset` and the usual asset s
 
 ### External Dependencies
 
-- The canonical CLI lives in the standalone [`regent-ai/regent-cli`](https://github.com/regent-ai/regent-cli) repo, with the expected local checkout at `/Users/sean/Documents/regent/regent-cli`, as `regent autolaunch ...`
+- The canonical CLI lives in the standalone [`regent-ai/regents-cli`](https://github.com/regent-ai/regents-cli) repo, with the expected local checkout at `/Users/sean/Documents/regent/regents-cli`, as `regent autolaunch ...`
 - The Autolaunch contracts live in [`contracts/`](contracts)
 - The public guide content for auctions lives in [`AUTOLAUNCH_AUCTIONS_GUIDE.md`](AUTOLAUNCH_AUCTIONS_GUIDE.md)
 
-The CLI namespace, routing flags, and CLI-side trust follow-up commands are tracked in `regent-cli`. This repo documents the shared launch contract and the web surfaces only.
+The CLI namespace, routing flags, and CLI-side trust follow-up commands are tracked in `regents-cli`. This repo documents the shared launch contract and the web surfaces only.

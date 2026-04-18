@@ -22,6 +22,8 @@ env_bool = fn key, default ->
 end
 
 if config_env() != :test do
+  launch_chain_id_default = if config_env() == :prod, do: 8_453, else: 84_532
+
   if config_env() == :dev do
     database_url =
       env.("LOCAL_DATABASE_URL", env.("DATABASE_URL", ""))
@@ -83,24 +85,25 @@ if config_env() != :test do
     skip_http_verify: env_bool.("SIWA_SKIP_HTTP_VERIFY", false)
 
   config :autolaunch, :launch,
-    chain_id: 11_155_111,
+    chain_id: env_int.("AUTOLAUNCH_CHAIN_ID", launch_chain_id_default),
     allow_unverified_owner: env_bool.("AUTOLAUNCH_ALLOW_UNVERIFIED_OWNER", false),
     deploy_binary: env.("AUTOLAUNCH_DEPLOY_BINARY", "forge"),
     deploy_workdir: env.("AUTOLAUNCH_DEPLOY_WORKDIR", ""),
     deploy_script_target: env.("AUTOLAUNCH_DEPLOY_SCRIPT_TARGET", ""),
     deploy_timeout_ms: env_int.("AUTOLAUNCH_DEPLOY_TIMEOUT_MS", 180_000),
     deploy_output_marker: env.("AUTOLAUNCH_DEPLOY_OUTPUT_MARKER", "CCA_RESULT_JSON:"),
-    eth_sepolia_rpc_url: env.("ETH_SEPOLIA_RPC_URL", ""),
-    eth_sepolia_factory_address:
-      env.("ETH_SEPOLIA_FACTORY_ADDRESS", "0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5"),
-    eth_sepolia_pool_manager_address: env.("ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER", ""),
-    eth_sepolia_position_manager_address: env.("ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER", ""),
-    eth_sepolia_usdc_address: env.("ETH_SEPOLIA_USDC_ADDRESS", ""),
-    revenue_share_factory_address: env.("REVENUE_SHARE_FACTORY_ADDRESS", ""),
-    revenue_ingress_factory_address: env.("REVENUE_INGRESS_FACTORY_ADDRESS", ""),
-    lbp_strategy_factory_address: env.("LBP_STRATEGY_FACTORY_ADDRESS", ""),
-    token_factory_address: env.("TOKEN_FACTORY_ADDRESS", ""),
-    erc8004_sepolia_subgraph_url: env.("ERC8004_SEPOLIA_SUBGRAPH_URL", ""),
+    rpc_url: env.("AUTOLAUNCH_RPC_URL", ""),
+    cca_factory_address:
+      env.("AUTOLAUNCH_CCA_FACTORY_ADDRESS", "0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5"),
+    pool_manager_address: env.("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", ""),
+    position_manager_address: env.("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", ""),
+    usdc_address: env.("AUTOLAUNCH_USDC_ADDRESS", ""),
+    revenue_share_factory_address: env.("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", ""),
+    revenue_ingress_factory_address: env.("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS", ""),
+    lbp_strategy_factory_address: env.("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", ""),
+    token_factory_address: env.("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", ""),
+    erc8004_subgraph_url: env.("AUTOLAUNCH_ERC8004_SUBGRAPH_URL", ""),
+    identity_registry_address: env.("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", ""),
     regent_multisig_address:
       env.("REGENT_MULTISIG_ADDRESS", "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"),
     deploy_account: env.("AUTOLAUNCH_DEPLOY_ACCOUNT", ""),

@@ -19,12 +19,12 @@ Keep this file short and current. Use it as the fast start map for new coding ag
 
 Start contract work here, in this order:
 
-- `/Users/sean/Documents/regent/regent-cli/docs/api-contract-workflow.md`
+- `/Users/sean/Documents/regent/regents-cli/docs/api-contract-workflow.md`
 - `/Users/sean/Documents/regent/autolaunch/docs/api-contract.openapiv3.yaml`
 - `/Users/sean/Documents/regent/autolaunch/docs/cli-contract.yaml`
-- `/Users/sean/Documents/regent/regent-cli/docs/regent-services-contract.openapiv3.yaml`
-- `/Users/sean/Documents/regent/regent-cli/docs/shared-cli-contract.yaml`
-- `/Users/sean/Documents/regent/regent-cli/packages/regent-cli/src/contracts/api-ownership.ts`
+- `/Users/sean/Documents/regent/regents-cli/docs/regent-services-contract.openapiv3.yaml`
+- `/Users/sean/Documents/regent/regents-cli/docs/shared-cli-contract.yaml`
+- `/Users/sean/Documents/regent/regents-cli/packages/regents-cli/src/contracts/api-ownership.ts`
 
 Do not define HTTP behavior from Phoenix route files first and “fix the CLI later.” Change the contract files first, then make app code and CLI code match.
 
@@ -88,17 +88,17 @@ Start Solidity work with:
 
 ## Product Story
 
-- The launch path is Ethereum Sepolia only.
+- The launch path is Base-family only: Base Sepolia for rehearsal and Base mainnet for production.
 - Browser auth is Privy-based.
 - Agent auth is SIWA-based.
 - The browser wizard exists, but the preferred operator flow is CLI-first.
-- `regent-staking` is a separate shared rail and should stay distinct from the Sepolia launch flow.
+- `regent-staking` is a separate shared rail and should stay distinct from the Base-family launch flow.
 
 ## Agent Operator Path
 
-For launch work, treat `regent-cli` as the default operator surface.
+For launch work, treat `regents-cli` as the default operator surface.
 
-- Read `/Users/sean/Documents/regent/regent-cli/docs/autolaunch-cli.md` before changing or operating the guided flow.
+- Read `/Users/sean/Documents/regent/regents-cli/docs/autolaunch-cli.md` before changing or operating the guided flow.
 - Use `regent autolaunch prelaunch wizard`, `validate`, `publish`, `launch run`, `launch monitor`, `launch finalize`, and `vesting status` as the main path.
 - Use `regent autolaunch safe wizard` and `safe create` before launch planning if the agent Safe does not exist yet.
 - Keep raw `launch create`, strategy, splitter, ingress, and registry commands for debugging or incident recovery only.
@@ -148,7 +148,7 @@ cd /Users/sean/Documents/regent/autolaunch/contracts
 forge test
 ```
 
-For cross-repo API or CLI changes, also validate `/Users/sean/Documents/regent/regent-cli`.
+For cross-repo API or CLI changes, also validate `/Users/sean/Documents/regent/regents-cli`.
 
 ## Core Rules
 

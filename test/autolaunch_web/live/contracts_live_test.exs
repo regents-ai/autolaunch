@@ -111,7 +111,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
            },
            identity_links: [
              %{
-               chain_id: 11_155_111,
+               chain_id: 84_532,
                registry: "0x4444444444444444444444444444444444444444",
                agent_id: 42
              }
@@ -148,11 +148,11 @@ defmodule AutolaunchWeb.ContractsLiveTest do
          prepared: %{
            resource: "strategy",
            action: "migrate",
-           chain_id: 11_155_111,
+           chain_id: 84_532,
            target: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
            calldata: "0x8fd3ab80",
            tx_request: %{
-             chain_id: 11_155_111,
+             chain_id: 84_532,
              to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
              value: "0x0",
              data: "0x8fd3ab80"
@@ -169,11 +169,11 @@ defmodule AutolaunchWeb.ContractsLiveTest do
          prepared: %{
            resource: "splitter",
            action: "set_paused",
-           chain_id: 11_155_111,
+           chain_id: 84_532,
            target: "0x9999999999999999999999999999999999999999",
            calldata: "0x16c38b3c",
            tx_request: %{
-             chain_id: 11_155_111,
+             chain_id: 84_532,
              to: "0x9999999999999999999999999999999999999999",
              value: "0x0",
              data: "0x16c38b3c"
@@ -189,11 +189,11 @@ defmodule AutolaunchWeb.ContractsLiveTest do
          prepared: %{
            resource: "revenue_share_factory",
            action: "set_authorized_creator",
-           chain_id: 11_155_111,
+           chain_id: 84_532,
            target: "0x2222222222222222222222222222222222222222",
            calldata: "0xe1434f4e",
            tx_request: %{
-             chain_id: 11_155_111,
+             chain_id: 84_532,
              to: "0x2222222222222222222222222222222222222222",
              value: "0x0",
              data: "0xe1434f4e"
@@ -226,6 +226,8 @@ defmodule AutolaunchWeb.ContractsLiveTest do
     assert html =~ "LBP runtime state"
     assert html =~ "Advanced revenue controls"
     assert html =~ "Prepared action"
+    assert html =~ "Protocol skim bps"
+    refute html =~ ~s(name="form[skim_bps]")
   end
 
   test "contracts page prompts for the linked owner wallet when a different linked wallet is active",

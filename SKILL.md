@@ -8,13 +8,13 @@ The golden path depends on a live backend:
 
 - Phoenix running
 - Postgres running
-- Sepolia RPC configured and reachable
+- launch-chain RPC configured and reachable
 - SIWA sidecar reachable
 - deploy binary, deploy workdir, and deploy script target present on the launch node
 
 Without those pieces, the CLI and browser cannot complete the guided launch flow.
 
-For agent-driven operation through `regent-cli`, assume these environment values are part of the setup:
+For agent-driven operation through `regents-cli`, assume these environment values are part of the setup:
 
 - `AUTOLAUNCH_BASE_URL`
 - either `AUTOLAUNCH_SESSION_COOKIE`
@@ -61,9 +61,9 @@ Treat the CLI as the main operator entrypoint:
 
 Skip the Safe steps only when the agent Safe already exists and the plan already points to it.
 
-If you are working from the `regent-cli` source checkout instead of an installed package, run the same flow through:
+If you are working from the `regents-cli` source checkout instead of an installed package, run the same flow through:
 
-`pnpm --filter @regentlabs/cli exec regent autolaunch ...`
+`pnpm --filter @regentslabs/cli exec regent autolaunch ...`
 
 ## Local plan and auth rules
 

@@ -5,8 +5,8 @@ info:
   description: >
     Source-of-truth HTTP contract for the live Autolaunch backend. This file owns
     Autolaunch launch, prelaunch, lifecycle, market, ENS, contracts, AgentBook,
-    and browser auth routes. Shared Regent staking lives in the shared Regent services
-    contract instead.
+    and browser auth routes. Shared SIWA auth and shared Regent staking live in the
+    shared Regent services contract instead.
 tags:
   - name: health
   - name: auth
@@ -86,6 +86,43 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrivySessionResponse" }
+
+  /api/auth/agent/session:
+    get:
+      operationId: getAutolaunchAgentSession
+      tags: [auth]
+      security: [{ AgentSessionCookie: [] }]
+      responses:
+        "200":
+          description: Current local autolaunch agent session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentSessionResponse" }
+    post:
+      operationId: createAutolaunchAgentSession
+      tags: [auth]
+      security: [{ AgentSiwaHeaders: [] }]
+      responses:
+        "200":
+          description: Local autolaunch session created from a shared SIWA receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentSessionResponse" }
+        "401":
+          description: Missing or invalid shared SIWA receipt
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+    delete:
+      operationId: deleteAutolaunchAgentSession
+      tags: [auth]
+      security: [{ AgentSessionCookie: [] }]
+      responses:
+        "200":
+          description: Local autolaunch agent session cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkEnvelope" }
 
   /api/agentbook/sessions:
     post:
@@ -1839,6 +1876,10 @@ components:
       type: apiKey
       in: cookie
       name: _autolaunch_key
+    AgentSessionCookie:
+      type: apiKey
+      in: cookie
+      name: _autolaunch_key
     AgentSiwaHeaders:
       type: apiKey
       in: header
@@ -1894,6 +1935,9 @@ components:
     Address:
       type: string
       pattern: "^0x[a-fA-F0-9]{40}$"
+    AutolaunchChainId:
+      type: integer
+      enum: [84532, 8453]
     DecimalString:
       type: string
     DateTime:
@@ -1905,78 +1949,6 @@ components:
     LooseObject:
       type: object
       additionalProperties: true
-    SiwaNonceRequest:
-      type: object
-      required: [wallet_address, chain_id]
-      properties:
-        wallet_address: { $ref: "#/components/schemas/Address" }
-        chain_id: { type: integer, minimum: 1 }
-        audience: { type: string }
-      additionalProperties: false
-    SiwaNonceResponse:
-      type: object
-      required: [ok, code, data]
-      properties:
-        ok: { type: boolean, enum: [true] }
-        code: { type: string, enum: [nonce_issued] }
-        data:
-          type: object
-          required: [nonce, walletAddress, chainId, expiresAt]
-          properties:
-            nonce: { type: string }
-            walletAddress: { $ref: "#/components/schemas/Address" }
-            chainId: { type: integer, minimum: 1 }
-            expiresAt: { $ref: "#/components/schemas/DateTime" }
-          additionalProperties: false
-        meta:
-          type: object
-          additionalProperties: true
-      additionalProperties: false
-    SiwaVerifyRequest:
-      type: object
-      required: [wallet_address, chain_id, nonce, message, signature]
-      properties:
-        wallet_address: { $ref: "#/components/schemas/Address" }
-        chain_id: { type: integer, minimum: 1 }
-        nonce: { type: string }
-        message: { type: string }
-        signature: { type: string }
-        registry_address: { $ref: "#/components/schemas/Address" }
-        token_id: { type: string }
-      additionalProperties: false
-    SiwaVerifyResponse:
-      type: object
-      required: [ok, code, data]
-      properties:
-        ok: { type: boolean, enum: [true] }
-        code: { type: string, enum: [siwa_verified] }
-        data:
-          type: object
-          required:
-            [
-              verified,
-              walletAddress,
-              chainId,
-              nonce,
-              keyId,
-              signatureScheme,
-              receipt,
-              receiptExpiresAt
-            ]
-          properties:
-            verified: { type: boolean, enum: [true] }
-            walletAddress: { $ref: "#/components/schemas/Address" }
-            chainId: { type: integer, minimum: 1 }
-            nonce: { type: string }
-            keyId: { type: string }
-            signatureScheme: { type: string, enum: [evm_personal_sign] }
-            receipt: { type: string }
-            receiptExpiresAt: { $ref: "#/components/schemas/DateTime" }
-          additionalProperties: false
-        meta:
-          type: object
-          additionalProperties: true
-      additionalProperties: false
     PrivySessionCsrf:
       type: object
       required: [ok, csrf_token]
@@ -2040,6 +2012,27 @@ components:
       properties:
         ok: { type: boolean, enum: [true] }
       additionalProperties: true
+    AgentSessionResponse:
+      type: object
+      required: [ok, session]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        session:
+          anyOf:
+            - type: object
+              required: [session_id, audience, wallet_address, chain_id, registry_address, token_id, issued_at, expires_at]
+              properties:
+                session_id: { type: string }
+                audience: { type: string, enum: [autolaunch] }
+                wallet_address: { $ref: "#/components/schemas/Address" }
+                chain_id: { type: string }
+                registry_address: { $ref: "#/components/schemas/Address" }
+                token_id: { type: string }
+                issued_at: { $ref: "#/components/schemas/DateTime" }
+                expires_at: { $ref: "#/components/schemas/DateTime" }
+              additionalProperties: false
+            - { type: "null" }
+      additionalProperties: false
     LooseListEnvelope:
       type: object
       required: [data]
@@ -2055,7 +2048,7 @@ components:
       properties:
         resource: { type: string }
         action: { type: string }
-        chain_id: { type: integer }
+        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
         target: { $ref: "#/components/schemas/Address" }
         calldata: { $ref: "#/components/schemas/HexData" }
         tx_request:
@@ -2072,7 +2065,7 @@ components:
       type: object
       required: [chain_id, to, value, data]
       properties:
-        chain_id: { type: integer }
+        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
         to: { $ref: "#/components/schemas/Address" }
         value: { $ref: "#/components/schemas/HexData" }
         data: { $ref: "#/components/schemas/HexData" }
@@ -2272,7 +2265,7 @@ components:
         - minimum_raise_usdc
       properties:
         agent_id: { type: string }
-        chain_id: { type: integer }
+        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
         token_name: { type: string }
         token_symbol: { type: string }
         agent_safe_address: { $ref: "#/components/schemas/Address" }
@@ -2324,7 +2317,7 @@ components:
         connected: { type: boolean, enum: [true] }
         agent_id: { type: string }
         token_id: { type: string }
-        chain_id: { type: integer }
+        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
         registry_address:
           anyOf:
             - { $ref: "#/components/schemas/Address" }

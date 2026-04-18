@@ -75,7 +75,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       title:
         "When the auction ends, you claim the filled tokens, then stake if you want revenue exposure.",
       body:
-        "The page should make the outcome obvious: what filled, what was refunded, and what still needs to be claimed. After claim, tokens must be staked before they participate in recognized Sepolia USDC revenue, and that revenue only counts once it reaches the subject splitter.",
+        "The page should make the outcome obvious: what filled, what was refunded, and what still needs to be claimed. After claim, tokens must be staked before they participate in recognized Ethereum Sepolia USDC revenue, and that revenue only counts once it reaches the subject splitter.",
       note: "The sale ends at claim. Earning starts only after staking.",
       stat: "Claim, then stake"
     }
@@ -157,7 +157,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 </button>
                 <span class="al-network-badge">Steps {length(@timeline_steps)}</span>
                 <span class="al-network-badge">Current {@selected_step_index + 1}</span>
-                <.link navigate={~p"/auctions"} class="al-ghost">Open live auctions</.link>
+                <.link navigate={~p"/home"} class="al-ghost">Open live auctions</.link>
               </div>
             </div>
           </:header_strip>
@@ -234,7 +234,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 </p>
 
                 <div class="al-choice-actions">
-                  <.link navigate={~p"/auctions"} class="al-submit">Open active auctions</.link>
+                  <.link navigate={~p"/home"} class="al-submit">Open active auctions</.link>
                   <.link navigate={~p"/auction-returns"} class="al-ghost">Auction returns</.link>
                 </div>
               </article>

@@ -18,7 +18,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
 
     function setUp() external {
         script = new DeployAutolaunchInfraScript();
-        vm.chainId(11_155_111);
+        vm.chainId(84532);
     }
 
     function testDeployCreatesInfraAndTransfersRegistryOwnership() external {
@@ -55,7 +55,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
 
     function testLoadConfigFromEnvReadsExplicitOwnerAndUsdc() external {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
-        vm.setEnv("ETHEREUM_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
+        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
 
         DeployAutolaunchInfraScript.ScriptConfig memory cfg = script.loadConfigFromEnv();
 
@@ -65,7 +65,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
 
     function testDeployFromEnvUsesLoadedConfig() external {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
-        vm.setEnv("ETHEREUM_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
+        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
 
         (
             SubjectRegistry subjectRegistry,
@@ -83,17 +83,17 @@ contract DeployAutolaunchInfraScriptTest is Test {
 
     function testRunUsesSingleBroadcastPath() external {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
-        vm.setEnv("ETHEREUM_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
+        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
 
         script.run();
     }
 
-    function testLoadConfigFromEnvRejectsNonSepolia() external {
+    function testLoadConfigFromEnvRejectsNonBaseFamilyChain() external {
         vm.chainId(1);
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
-        vm.setEnv("ETHEREUM_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
+        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", "0x0000000000000000000000000000000000C0FFEE");
 
-        vm.expectRevert("SEPOLIA_ONLY");
+        vm.expectRevert("BASE_FAMILY_ONLY");
         script.loadConfigFromEnv();
     }
 }

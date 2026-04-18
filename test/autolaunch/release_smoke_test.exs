@@ -16,14 +16,15 @@ defmodule Autolaunch.ReleaseSmokeTest do
         deploy_binary: "forge",
         deploy_script_target:
           "scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript",
-        eth_sepolia_factory_address: "0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        chain_id: 8_453,
+        cca_factory_address: "0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
         revenue_share_factory_address: "0x1111111111111111111111111111111111111111",
         revenue_ingress_factory_address: "0x2222222222222222222222222222222222222222",
         lbp_strategy_factory_address: "0x3333333333333333333333333333333333333333",
         token_factory_address: "0x4444444444444444444444444444444444444444",
-        eth_sepolia_pool_manager_address: "0x5555555555555555555555555555555555555555",
-        eth_sepolia_position_manager_address: "0x6666666666666666666666666666666666666666",
-        eth_sepolia_usdc_address: "0x7777777777777777777777777777777777777777"
+        pool_manager_address: "0x5555555555555555555555555555555555555555",
+        position_manager_address: "0x6666666666666666666666666666666666666666",
+        usdc_address: "0x7777777777777777777777777777777777777777"
       )
     )
 
@@ -41,7 +42,15 @@ defmodule Autolaunch.ReleaseSmokeTest do
   end
 
   test "smoke drives a synthetic launch job to ready and proves subject reads" do
-    assert %{ok: true, job_id: job_id, subject_id: subject_id, checks: checks} =
+    assert %{
+             ok: true,
+             job_id: job_id,
+             subject_id: subject_id,
+             chain_id: chain_id,
+             network: network,
+             agent_id: agent_id,
+             checks: checks
+           } =
              ReleaseSmoke.run()
 
     assert String.starts_with?(job_id, "job_smoke_")
@@ -53,5 +62,9 @@ defmodule Autolaunch.ReleaseSmokeTest do
              "subject_read",
              "ingress_read"
            ]
+
+    assert chain_id == 8_453
+    assert network == "base-mainnet"
+    assert agent_id == "8453:42"
   end
 end

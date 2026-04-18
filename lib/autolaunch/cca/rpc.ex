@@ -2,31 +2,67 @@ defmodule Autolaunch.CCA.Rpc do
   @moduledoc false
 
   def block_number(chain_id) do
-    rpc_adapter().block_number(chain_id)
+    block_number(chain_id, [])
+  end
+
+  def block_number(chain_id, opts) do
+    call_adapter(:block_number, [chain_id], opts)
   end
 
   def eth_call(chain_id, to, data) do
-    rpc_adapter().eth_call(chain_id, to, data)
+    eth_call(chain_id, to, data, [])
+  end
+
+  def eth_call(chain_id, to, data, opts) do
+    call_adapter(:eth_call, [chain_id, to, data], opts)
   end
 
   def tx_receipt(chain_id, tx_hash) do
-    rpc_adapter().tx_receipt(chain_id, tx_hash)
+    tx_receipt(chain_id, tx_hash, [])
+  end
+
+  def tx_receipt(chain_id, tx_hash, opts) do
+    call_adapter(:tx_receipt, [chain_id, tx_hash], opts)
   end
 
   def tx_by_hash(chain_id, tx_hash) do
-    rpc_adapter().tx_by_hash(chain_id, tx_hash)
+    tx_by_hash(chain_id, tx_hash, [])
+  end
+
+  def tx_by_hash(chain_id, tx_hash, opts) do
+    call_adapter(:tx_by_hash, [chain_id, tx_hash], opts)
   end
 
   def get_logs(chain_id, filter) do
-    rpc_adapter().get_logs(chain_id, filter)
+    get_logs(chain_id, filter, [])
+  end
+
+  def get_logs(chain_id, filter, opts) do
+    call_adapter(:get_logs, [chain_id, filter], opts)
   end
 
   def rpc_url(chain_id) do
-    __MODULE__.HttpAdapter.rpc_url(chain_id)
+    rpc_url(chain_id, [])
+  end
+
+  def rpc_url(chain_id, opts) do
+    call_adapter(:rpc_url, [chain_id], opts)
   end
 
   defp rpc_adapter do
     Application.get_env(:autolaunch, :cca_rpc_adapter, __MODULE__.HttpAdapter)
+  end
+
+  defp call_adapter(function_name, args, opts) do
+    adapter = rpc_adapter()
+
+    cond do
+      function_exported?(adapter, function_name, length(args) + 1) ->
+        apply(adapter, function_name, args ++ [opts])
+
+      true ->
+        apply(adapter, function_name, args)
+    end
   end
 
   defmodule HttpAdapter do
@@ -35,18 +71,30 @@ defmodule Autolaunch.CCA.Rpc do
     @timeout 15_000
 
     def block_number(chain_id) do
+      block_number(chain_id, [])
+    end
+
+    def block_number(chain_id, opts) do
       chain_id
-      |> call("eth_blockNumber", [])
+      |> call("eth_blockNumber", [], opts)
       |> decode_quantity()
     end
 
     def eth_call(chain_id, to, data) do
-      call(chain_id, "eth_call", [%{"to" => to, "data" => data}, "latest"])
+      eth_call(chain_id, to, data, [])
+    end
+
+    def eth_call(chain_id, to, data, opts) do
+      call(chain_id, "eth_call", [%{"to" => to, "data" => data}, "latest"], opts)
       |> normalize_hex_result()
     end
 
     def tx_receipt(chain_id, tx_hash) do
-      case call(chain_id, "eth_getTransactionReceipt", [tx_hash]) do
+      tx_receipt(chain_id, tx_hash, [])
+    end
+
+    def tx_receipt(chain_id, tx_hash, opts) do
+      case call(chain_id, "eth_getTransactionReceipt", [tx_hash], opts) do
         {:ok, nil} -> {:ok, nil}
         {:ok, %{} = receipt} -> {:ok, normalize_receipt(receipt)}
         {:error, _} = error -> error
@@ -55,7 +103,11 @@ defmodule Autolaunch.CCA.Rpc do
     end
 
     def tx_by_hash(chain_id, tx_hash) do
-      case call(chain_id, "eth_getTransactionByHash", [tx_hash]) do
+      tx_by_hash(chain_id, tx_hash, [])
+    end
+
+    def tx_by_hash(chain_id, tx_hash, opts) do
+      case call(chain_id, "eth_getTransactionByHash", [tx_hash], opts) do
         {:ok, nil} -> {:ok, nil}
         {:ok, %{} = tx} -> {:ok, normalize_transaction(tx)}
         {:error, _} = error -> error
@@ -64,7 +116,11 @@ defmodule Autolaunch.CCA.Rpc do
     end
 
     def get_logs(chain_id, filter) when is_map(filter) do
-      case call(chain_id, "eth_getLogs", [filter]) do
+      get_logs(chain_id, filter, [])
+    end
+
+    def get_logs(chain_id, filter, opts) when is_map(filter) do
+      case call(chain_id, "eth_getLogs", [filter], opts) do
         {:ok, logs} when is_list(logs) -> {:ok, Enum.map(logs, &normalize_log/1)}
         {:error, _} = error -> error
         _ -> {:error, :invalid_rpc_response}
@@ -72,16 +128,23 @@ defmodule Autolaunch.CCA.Rpc do
     end
 
     def rpc_url(chain_id) do
+      rpc_url(chain_id, [])
+    end
+
+    def rpc_url(chain_id, opts) do
       launch_config = Application.get_env(:autolaunch, :launch, [])
       regent_staking_config = Application.get_env(:autolaunch, :regent_staking, [])
       regent_staking_chain_id = Keyword.get(regent_staking_config, :chain_id)
+      launch_chain_id = Keyword.get(launch_config, :chain_id)
+      source = Keyword.get(opts, :source, :launch)
 
       cond do
-        chain_id == 1 ->
-          fetch_url(launch_config, :eth_mainnet_rpc_url)
+        source == :regent_staking and is_integer(regent_staking_chain_id) and
+            chain_id == regent_staking_chain_id ->
+          fetch_url(regent_staking_config, :rpc_url)
 
-        chain_id == 11_155_111 ->
-          fetch_url(launch_config, :eth_sepolia_rpc_url)
+        is_integer(launch_chain_id) and chain_id == launch_chain_id ->
+          fetch_url(launch_config, :rpc_url)
 
         is_integer(regent_staking_chain_id) and chain_id == regent_staking_chain_id ->
           fetch_url(regent_staking_config, :rpc_url)
@@ -91,8 +154,8 @@ defmodule Autolaunch.CCA.Rpc do
       end
     end
 
-    defp call(chain_id, method, params) do
-      with {:ok, rpc_url} <- rpc_url(chain_id),
+    defp call(chain_id, method, params, opts) do
+      with {:ok, rpc_url} <- rpc_url(chain_id, opts),
            {:ok, response} <-
              Req.post(rpc_url,
                json: %{

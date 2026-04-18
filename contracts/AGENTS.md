@@ -6,7 +6,7 @@ This is the canonical contracts home for Autolaunch.
 
 - Put all Autolaunch Solidity contracts, Foundry scripts, and Foundry tests here.
 - Keep the active Autolaunch architecture in this project, not in `monorepo/contracts`.
-- For API <-> backend functionality, the source of truth is the Regent CLI contract surface. Start from `/Users/sean/Documents/regent/regent-cli/docs/api-contract-workflow.md`, `/Users/sean/Documents/regent/autolaunch/docs/api-contract.openapiv3.yaml`, `/Users/sean/Documents/regent/regent-cli/docs/regent-services-contract.openapiv3.yaml`, and `/Users/sean/Documents/regent/regent-cli/packages/regent-cli/src/contracts/api-ownership.ts`.
+- For API <-> backend functionality, the source of truth is the Regents CLI contract surface. Start from `/Users/sean/Documents/regent/regents-cli/docs/api-contract-workflow.md`, `/Users/sean/Documents/regent/autolaunch/docs/api-contract.openapiv3.yaml`, `/Users/sean/Documents/regent/regents-cli/docs/regent-services-contract.openapiv3.yaml`, and `/Users/sean/Documents/regent/regents-cli/packages/regents-cli/src/contracts/api-ownership.ts`.
 - Contract file meanings:
   - `api-contract.openapiv3.yaml` is the source of truth for a product's HTTP backend contract, including routes, auth, request bodies, response shapes, and stable error envelopes.
   - `regent-services-contract.openapiv3.yaml` is the source of truth for shared HTTP backend contracts that are not owned by one product, such as `regent-staking`.
@@ -16,7 +16,7 @@ This is the canonical contracts home for Autolaunch.
 ## Project split
 
 - `contracts/` for Autolaunch contracts
-- `/Users/sean/Documents/regent/regent-cli` for Autolaunch CLI flows
+- `/Users/sean/Documents/regent/regents-cli` for Autolaunch CLI flows
 - `autolaunch/` for Phoenix frontend and backend work
 
 ## Routing rule

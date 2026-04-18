@@ -21,8 +21,8 @@ remappings = [
 
 [rpc_endpoints]
 base = "${BASE_MAINNET_RPC_URL}"
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
 mainnet = "${ETH_MAINNET_RPC_URL}"
-sepolia = "${ETH_SEPOLIA_RPC_URL}"
 
 [fmt]
 line_length = 100

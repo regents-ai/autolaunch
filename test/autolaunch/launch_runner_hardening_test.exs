@@ -74,12 +74,12 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
       |> Job.create_changeset(%{
         job_id: job_id,
         owner_address: "0x1111111111111111111111111111111111111111",
-        agent_id: "11155111:42",
+        agent_id: "84532:42",
         agent_name: "Atlas",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "queued",
         step: "queued",
         total_supply: "1000",
@@ -117,15 +117,15 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
         deploy_workdir: tmp_dir,
         deploy_script_target: "ignored",
         deploy_timeout_ms: 180_000,
-        eth_sepolia_rpc_url: "http://127.0.0.1:8545",
+        rpc_url: "http://127.0.0.1:8545",
         revenue_share_factory_address: "0x1111111111111111111111111111111111111111",
         revenue_ingress_factory_address: "0x2222222222222222222222222222222222222222",
         lbp_strategy_factory_address: "0x6666666666666666666666666666666666666666",
         token_factory_address: "0x7777777777777777777777777777777777777777",
-        eth_sepolia_pool_manager_address: "0x3333333333333333333333333333333333333333",
-        eth_sepolia_factory_address: "0x4444444444444444444444444444444444444444",
-        eth_sepolia_usdc_address: "0x5555555555555555555555555555555555555555",
-        eth_sepolia_position_manager_address: "0x8888888888888888888888888888888888888888"
+        pool_manager_address: "0x3333333333333333333333333333333333333333",
+        cca_factory_address: "0x4444444444444444444444444444444444444444",
+        usdc_address: "0x5555555555555555555555555555555555555555",
+        position_manager_address: "0x8888888888888888888888888888888888888888"
       )
       |> Keyword.merge(launch_overrides)
     )

@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.Router do
       live "/x-link", XLinkLive, :index
       live "/terms", TermsLive, :index
       live "/privacy", PrivacyLive, :index
-      live "/auctions", AuctionsLive, :index
+      live "/home", AuctionsLive, :index
       live "/auction-returns", AuctionReturnsLive, :index
       live "/auctions/:id", AuctionLive, :show
       live "/profile", ProfileLive, :index
@@ -64,6 +64,19 @@ defmodule AutolaunchWeb.Router do
     post "/privy/session", PrivySessionController, :create
     get "/privy/profile", PrivySessionController, :show
     delete "/privy/session", PrivySessionController, :delete
+  end
+
+  scope "/api/auth/agent", AutolaunchWeb do
+    pipe_through :session_api
+
+    get "/session", AgentSessionController, :show
+    delete "/session", AgentSessionController, :delete
+  end
+
+  scope "/api/auth/agent", AutolaunchWeb do
+    pipe_through [:session_api, :agent_api]
+
+    post "/session", AgentSessionController, :create
   end
 
   scope "/api", AutolaunchWeb.Api do

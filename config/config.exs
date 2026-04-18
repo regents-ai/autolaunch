@@ -16,8 +16,8 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   live_view: [signing_salt: "DRIHbY4r"]
 
 config :autolaunch, :launch,
-  chain_id: 11_155_111,
-  network: "ethereum-sepolia",
+  chain_id: 84_532,
+  network: "base-sepolia",
   allow_unverified_owner: false,
   deploy_script_target: ""
 

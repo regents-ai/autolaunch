@@ -29,8 +29,8 @@ defmodule Autolaunch.LaunchTest do
     refute Launch.terminal_status?("queued")
   end
 
-  test "chain options expose ethereum sepolia only" do
-    assert Enum.map(Launch.chain_options(), & &1.id) == [11_155_111]
+  test "chain options expose the Base family only" do
+    assert Enum.map(Launch.chain_options(), & &1.id) == [84_532, 8_453]
   end
 
   test "auction listings expose ENS and world completion state" do
@@ -51,14 +51,14 @@ defmodule Autolaunch.LaunchTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_first",
-        agent_id: "11155111:42",
+        agent_id: "84532:42",
         agent_name: "Atlas",
         ens_name: "atlas.eth",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "active",
         started_at: now,
         world_registered: true,
@@ -70,14 +70,14 @@ defmodule Autolaunch.LaunchTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_second",
-        agent_id: "11155111:99",
+        agent_id: "84532:99",
         agent_name: "Nova",
         ens_name: nil,
         owner_address: "0x2222222222222222222222222222222222222222",
         auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
         token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "settled",
         started_at: DateTime.add(now, -9 * 86_400, :second),
         ends_at: DateTime.add(now, -2 * 86_400, :second),
@@ -91,12 +91,12 @@ defmodule Autolaunch.LaunchTest do
       |> Job.create_changeset(%{
         job_id: "job_second",
         owner_address: "0x2222222222222222222222222222222222222222",
-        agent_id: "11155111:99",
+        agent_id: "84532:99",
         token_name: "Nova Coin",
         token_symbol: "NOVA",
         agent_safe_address: "0x2222222222222222222222222222222222222222",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -145,13 +145,13 @@ defmodule Autolaunch.LaunchTest do
     Repo.insert!(
       Auction.changeset(%Auction{}, %{
         source_job_id: "auc_new",
-        agent_id: "11155111:10",
+        agent_id: "84532:10",
         agent_name: "Fresh",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "active",
         started_at: newer,
         ends_at: DateTime.add(newer, 3_600, :second)
@@ -161,13 +161,13 @@ defmodule Autolaunch.LaunchTest do
     Repo.insert!(
       Auction.changeset(%Auction{}, %{
         source_job_id: "auc_old",
-        agent_id: "11155111:11",
+        agent_id: "84532:11",
         agent_name: "Mature",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
         token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "settled",
         started_at: older,
         ends_at: DateTime.add(older, 86_400, :second)
@@ -179,12 +179,12 @@ defmodule Autolaunch.LaunchTest do
       |> Job.create_changeset(%{
         job_id: "job_old",
         owner_address: "0x1111111111111111111111111111111111111111",
-        agent_id: "11155111:11",
+        agent_id: "84532:11",
         token_name: "Mature Coin",
         token_symbol: "MAT",
         agent_safe_address: "0x1111111111111111111111111111111111111111",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -223,11 +223,11 @@ defmodule Autolaunch.LaunchTest do
         %{
           job_id: "job_completion",
           owner_address: "0x1111111111111111111111111111111111111111",
-          agent_id: "11155111:42",
+          agent_id: "84532:42",
           token_name: "Atlas Coin",
           token_symbol: "ATLAS",
-          network: "ethereum-sepolia",
-          chain_id: 11_155_111,
+          network: "base-sepolia",
+          chain_id: 84_532,
           status: "ready",
           step: "ready",
           total_supply: "1000",
@@ -244,13 +244,13 @@ defmodule Autolaunch.LaunchTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_completion",
-        agent_id: "11155111:42",
+        agent_id: "84532:42",
         agent_name: "Atlas",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "active",
         started_at: now
       })
@@ -280,12 +280,12 @@ defmodule Autolaunch.LaunchTest do
         %{
           job_id: "job_prompt",
           owner_address: "0x1111111111111111111111111111111111111111",
-          agent_id: "11155111:42",
+          agent_id: "84532:42",
           ens_name: "atlas.eth",
           token_name: "Atlas Coin",
           token_symbol: "ATLAS",
-          network: "ethereum-sepolia",
-          chain_id: 11_155_111,
+          network: "base-sepolia",
+          chain_id: 84_532,
           status: "queued",
           step: "queued",
           total_supply: "1000",
@@ -413,12 +413,12 @@ defmodule Autolaunch.LaunchTest do
         %{
           job_id: job_id,
           owner_address: "0x1111111111111111111111111111111111111111",
-          agent_id: "11155111:42",
+          agent_id: "84532:42",
           agent_name: "Atlas",
           token_name: "Atlas Coin",
           token_symbol: "ATLAS",
-          network: "ethereum-sepolia",
-          chain_id: 11_155_111,
+          network: "base-sepolia",
+          chain_id: 84_532,
           status: "queued",
           step: "queued",
           total_supply: "1000",
@@ -456,15 +456,15 @@ defmodule Autolaunch.LaunchTest do
         deploy_binary: script_path,
         deploy_workdir: tmp_dir,
         deploy_script_target: "ignored",
-        eth_sepolia_rpc_url: "http://127.0.0.1:8545",
+        rpc_url: "http://127.0.0.1:8545",
         revenue_share_factory_address: "0x1111111111111111111111111111111111111111",
         revenue_ingress_factory_address: "0x2222222222222222222222222222222222222222",
         lbp_strategy_factory_address: "0x6666666666666666666666666666666666666666",
         token_factory_address: "0x7777777777777777777777777777777777777777",
-        eth_sepolia_pool_manager_address: "0x3333333333333333333333333333333333333333",
-        eth_sepolia_factory_address: "0x4444444444444444444444444444444444444444",
-        eth_sepolia_usdc_address: "0x5555555555555555555555555555555555555555",
-        eth_sepolia_position_manager_address: "0x8888888888888888888888888888888888888888"
+        pool_manager_address: "0x3333333333333333333333333333333333333333",
+        cca_factory_address: "0x4444444444444444444444444444444444444444",
+        usdc_address: "0x5555555555555555555555555555555555555555",
+        position_manager_address: "0x8888888888888888888888888888888888888888"
       )
     )
 

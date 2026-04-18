@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
          token: %{
            name: params["token_name"],
            symbol: params["token_symbol"],
-           chain_id: 11_155_111
+           chain_id: 84_532
          }
        }}
     end
@@ -98,7 +98,7 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
 
   defp launch_preview_payload do
     %{
-      "agent_id" => "11155111:42",
+      "agent_id" => "84532:42",
       "token_name" => "Atlas Coin",
       "token_symbol" => "ATLAS"
     }
@@ -106,7 +106,7 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
 
   defp launch_job_payload(signature) do
     %{
-      "agent_id" => "11155111:42",
+      "agent_id" => "84532:42",
       "token_name" => "Atlas Coin",
       "token_symbol" => "ATLAS",
       "wallet_address" => @wallet,
@@ -127,8 +127,8 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
     assert %{
              "ok" => true,
              "preview" => %{
-               "agent" => %{"agent_id" => "11155111:42"},
-               "token" => %{"chain_id" => 11_155_111, "symbol" => "ATLAS"}
+               "agent" => %{"agent_id" => "84532:42"},
+               "token" => %{"chain_id" => 84_532, "symbol" => "ATLAS"}
              }
            } = json_response(conn, 200)
   end

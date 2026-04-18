@@ -3,8 +3,8 @@ defmodule Autolaunch.Launch.Job do
   use Autolaunch.Schema
 
   @primary_key {:job_id, :string, autogenerate: false}
-  @sepolia_network "ethereum-sepolia"
-  @sepolia_chain_id 11_155_111
+  @supported_networks ~w(base-sepolia base-mainnet)
+  @supported_chain_ids [84_532, 8_453]
 
   schema "autolaunch_jobs" do
     field :privy_user_id, :string
@@ -17,8 +17,8 @@ defmodule Autolaunch.Launch.Job do
     field :minimum_raise_usdc, :string
     field :minimum_raise_usdc_raw, :string
     field :agent_safe_address, :string
-    field :network, :string, default: @sepolia_network
-    field :chain_id, :integer, default: @sepolia_chain_id
+    field :network, :string, default: "base-sepolia"
+    field :chain_id, :integer, default: 84_532
     field :broadcast, :boolean, default: true
     field :status, :string, default: "queued"
     field :step, :string, default: "queued"
@@ -109,8 +109,8 @@ defmodule Autolaunch.Launch.Job do
       :siwa_signature,
       :issued_at
     ])
-    |> validate_inclusion(:network, [@sepolia_network])
-    |> validate_inclusion(:chain_id, [@sepolia_chain_id])
+    |> validate_inclusion(:network, @supported_networks)
+    |> validate_inclusion(:chain_id, @supported_chain_ids)
   end
 
   def update_changeset(job, attrs) do

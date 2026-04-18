@@ -235,8 +235,8 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     refute html =~ "Prepare review"
   end
 
-  test "auctions page renders token directory copy", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/auctions")
+  test "market page renders token directory copy", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/home")
 
     assert html =~ "Choose a live market, then open the bid page."
     assert html =~ "Biddable 0"

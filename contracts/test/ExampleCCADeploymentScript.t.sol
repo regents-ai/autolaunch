@@ -42,7 +42,7 @@ contract ExampleCCADeploymentScriptTest is Test {
 
     function setUp() external {
         script = new ExampleCCADeploymentScript();
-        vm.chainId(11_155_111);
+        vm.chainId(84532);
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new MockHookPoolManager();
         usdc = new MintableERC20Mock("USD Coin", "USDC");
@@ -58,20 +58,29 @@ contract ExampleCCADeploymentScriptTest is Test {
 
         _setEnvAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS", AGENT_SAFE);
         _setEnvAddress("REGENT_MULTISIG_ADDRESS", REGENT_MULTISIG);
-        vm.setEnv("REVENUE_SHARE_FACTORY_ADDRESS", vm.toString(address(revenueShareFactory)));
-        vm.setEnv("REVENUE_INGRESS_FACTORY_ADDRESS", vm.toString(address(revenueIngressFactory)));
-        vm.setEnv("LBP_STRATEGY_FACTORY_ADDRESS", vm.toString(address(strategyFactory)));
-        vm.setEnv("TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
-        vm.setEnv("FACTORY_ADDRESS", vm.toString(address(auctionFactory)));
-        vm.setEnv("UNISWAP_V4_POOL_MANAGER", vm.toString(address(poolManager)));
-        vm.setEnv("UNISWAP_V4_POSITION_MANAGER", vm.toString(address(0xDEAD)));
+        vm.setEnv(
+            "AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS",
+            vm.toString(address(revenueShareFactory))
+        );
+        vm.setEnv(
+            "AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS",
+            vm.toString(address(revenueIngressFactory))
+        );
+        vm.setEnv(
+            "AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS",
+            vm.toString(address(strategyFactory))
+        );
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
+        vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(address(auctionFactory)));
+        vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", vm.toString(address(poolManager)));
+        vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", vm.toString(address(0xDEAD)));
         _setEnvAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", IDENTITY_REGISTRY);
         _setEnvAddress("STRATEGY_OPERATOR", STRATEGY_OPERATOR);
         vm.setEnv("AUTOLAUNCH_TOKEN_NAME", "Launch Agent");
         vm.setEnv("AUTOLAUNCH_TOKEN_SYMBOL", "LAGENT");
         vm.setEnv("AUTOLAUNCH_AGENT_ID", "1:42");
         vm.setEnv("AUTOLAUNCH_TOTAL_SUPPLY", vm.toString(TOTAL_SUPPLY));
-        vm.setEnv("ETHEREUM_USDC_ADDRESS", vm.toString(address(usdc)));
+        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(address(usdc)));
         vm.setEnv("CCA_TICK_SPACING_Q96", vm.toString(CCA_TICK_SPACING_Q96));
         vm.setEnv("CCA_FLOOR_PRICE_Q96", vm.toString(CCA_FLOOR_PRICE_Q96));
         vm.setEnv("CCA_REQUIRED_CURRENCY_RAISED", "1000000000000000000");
@@ -166,10 +175,10 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertTrue(result.defaultIngressAddress != address(0));
     }
 
-    function testDeployFromEnvRejectsNonSepolia() external {
+    function testDeployFromEnvRejectsNonBaseFamilyChain() external {
         vm.chainId(1);
 
-        vm.expectRevert("SEPOLIA_ONLY");
+        vm.expectRevert("BASE_FAMILY_ONLY");
         script.deployFromEnv();
     }
 }

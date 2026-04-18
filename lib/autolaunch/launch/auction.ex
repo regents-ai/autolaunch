@@ -2,8 +2,8 @@ defmodule Autolaunch.Launch.Auction do
   @moduledoc false
   use Autolaunch.Schema
 
-  @sepolia_network "ethereum-sepolia"
-  @sepolia_chain_id 11_155_111
+  @supported_networks ~w(base-sepolia base-mainnet)
+  @supported_chain_ids [84_532, 8_453]
 
   schema "autolaunch_auctions" do
     field :source_job_id, :string
@@ -15,8 +15,8 @@ defmodule Autolaunch.Launch.Auction do
     field :token_address, :string
     field :minimum_raise_usdc, :string
     field :minimum_raise_usdc_raw, :string
-    field :network, :string, default: @sepolia_network
-    field :chain_id, :integer, default: @sepolia_chain_id
+    field :network, :string, default: "base-sepolia"
+    field :chain_id, :integer, default: 84_532
     field :status, :string, default: "active"
     field :started_at, :utc_datetime_usec
     field :ends_at, :utc_datetime_usec
@@ -74,7 +74,7 @@ defmodule Autolaunch.Launch.Auction do
       :status,
       :started_at
     ])
-    |> validate_inclusion(:network, [@sepolia_network])
-    |> validate_inclusion(:chain_id, [@sepolia_chain_id])
+    |> validate_inclusion(:network, @supported_networks)
+    |> validate_inclusion(:chain_id, @supported_chain_ids)
   end
 end

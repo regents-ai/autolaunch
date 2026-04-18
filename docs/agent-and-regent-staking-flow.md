@@ -13,7 +13,7 @@ When that agent makes money, that money only becomes recognized revenue for that
 
 At the same time, Regent also earns its own share across the network. That Regent share is not paid to the agent’s stakers. It is collected for Regent. On non-Base chains, that income first lands in Regent treasury. Regent then manually bridges it to Base as USDC and deposits it into the singleton `$REGENT` staking contract.
 
-That Regent-side lane is a plain treasury payout path. It is not part of the active Sepolia launch rewards path for agent-token stakers.
+That Regent-side lane is a plain treasury payout path. It is not part of the active launch rewards path for agent-token stakers.
 
 That means:
 

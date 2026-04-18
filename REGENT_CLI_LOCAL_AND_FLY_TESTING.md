@@ -5,11 +5,11 @@ This is the current **local-only** rehearsal path for Autolaunch.
 Treat it as a pure testnet run:
 
 - Regent staking deploys to **Base Sepolia**
-- Autolaunch shared infra and launch jobs deploy to **Ethereum Sepolia**
+- Autolaunch shared infra and launch jobs deploy to **Base Sepolia**
 - the local website must be able to **read the freshly deployed Base Sepolia staking rail**
 - Fly is **not** part of this rehearsal
 
-The launch chain is still Ethereum Sepolia only. Base Sepolia is only for the separate Regent staking rail in this rehearsal.
+The launch chain is Base Sepolia for this rehearsal.
 
 ## 1. Gather the required values first
 
@@ -18,14 +18,14 @@ Do not start deploying until you already have these:
 - Base Sepolia RPC URL
 - Base Sepolia `$REGENT` test token address
 - Base Sepolia USDC or test-USDC address
-- Ethereum Sepolia RPC URL
-- Sepolia CCA factory address
-- Sepolia Uniswap v4 pool manager address
-- Sepolia Uniswap v4 position manager address
-- Sepolia USDC address
-- Sepolia token factory address
-- Sepolia ERC-8004 subgraph URL
-- Sepolia identity registry address
+- Base Sepolia RPC URL
+- Base Sepolia CCA factory address
+- Base Sepolia Uniswap v4 pool manager address
+- Base Sepolia Uniswap v4 position manager address
+- Base Sepolia USDC address
+- Base Sepolia token factory address
+- Base Sepolia ERC-8004 subgraph URL
+- Base Sepolia identity registry address
 - strategy operator address
 - CCA values:
   - `CCA_FLOOR_PRICE_Q96`
@@ -89,7 +89,7 @@ Save the printed `REGENT_REVENUE_STAKING_RESULT_JSON` values:
 
 Use `contractAddress` as `REGENT_REVENUE_STAKING_ADDRESS` later.
 
-## 3. Deploy shared Autolaunch infra on Ethereum Sepolia
+## 3. Deploy shared Autolaunch infra on Base Sepolia
 
 Validate contracts first if you have not already:
 
@@ -101,8 +101,8 @@ forge test --offline
 Set the shared infra deploy inputs:
 
 ```bash
-export ETH_SEPOLIA_RPC_URL=...
-export ETHEREUM_USDC_ADDRESS=...
+export AUTOLAUNCH_RPC_URL=...
+export AUTOLAUNCH_USDC_ADDRESS=...
 export AUTOLAUNCH_INFRA_OWNER=...
 export PRIVATE_KEY=...
 ```
@@ -111,7 +111,7 @@ Deploy the shared Autolaunch infra:
 
 ```bash
 forge script scripts/DeployAutolaunchInfra.s.sol:DeployAutolaunchInfraScript \
-  --rpc-url "$ETH_SEPOLIA_RPC_URL" \
+  --rpc-url "$AUTOLAUNCH_RPC_URL" \
   --broadcast
 ```
 
@@ -164,17 +164,17 @@ export AUTOLAUNCH_DEPLOY_SCRIPT_TARGET=scripts/ExampleCCADeploymentScript.s.sol:
 export AUTOLAUNCH_DEPLOY_PRIVATE_KEY=...
 export AUTOLAUNCH_MOCK_DEPLOY=false
 
-export ETH_SEPOLIA_RPC_URL=...
-export ETH_SEPOLIA_FACTORY_ADDRESS=0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5
-export ETH_SEPOLIA_UNISWAP_V4_POOL_MANAGER=...
-export ETH_SEPOLIA_UNISWAP_V4_POSITION_MANAGER=...
-export ETH_SEPOLIA_USDC_ADDRESS=...
+export AUTOLAUNCH_RPC_URL=...
+export AUTOLAUNCH_CCA_FACTORY_ADDRESS=0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5
+export AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER=...
+export AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER=...
+export AUTOLAUNCH_USDC_ADDRESS=...
 
 export REVENUE_SHARE_FACTORY_ADDRESS=...
 export REVENUE_INGRESS_FACTORY_ADDRESS=...
 export LBP_STRATEGY_FACTORY_ADDRESS=...
 export TOKEN_FACTORY_ADDRESS=...
-export ERC8004_SEPOLIA_SUBGRAPH_URL=...
+export AUTOLAUNCH_ERC8004_SUBGRAPH_URL=...
 
 export REGENT_STAKING_RPC_URL=...
 export REGENT_STAKING_CHAIN_ID=84532
@@ -249,7 +249,7 @@ Record the bootstrap output:
 Validate the CLI repo:
 
 ```bash
-cd /Users/sean/Documents/regent/regent-cli
+cd /Users/sean/Documents/regent/regents-cli
 pnpm build
 pnpm typecheck
 pnpm test
@@ -269,28 +269,28 @@ For authenticated commands, provide one of:
 Run local read checks first:
 
 ```bash
-pnpm --filter @regentlabs/cli exec regent autolaunch agents list
-pnpm --filter @regentlabs/cli exec regent autolaunch auctions list
-pnpm --filter @regentlabs/cli exec regent regent-staking show
-pnpm --filter @regentlabs/cli exec regent regent-staking account 0xYOUR_WALLET
+pnpm --filter @regentslabs/cli exec regent autolaunch agents list
+pnpm --filter @regentslabs/cli exec regent autolaunch auctions list
+pnpm --filter @regentslabs/cli exec regent regent-staking show
+pnpm --filter @regentslabs/cli exec regent regent-staking account 0xYOUR_WALLET
 ```
 
 This step matters because the rehearsal includes the app actively reading the newly deployed Base Sepolia staking rail.
 
-## 8. Run the first real Sepolia launch through the guided flow
+## 8. Run the first real Base Sepolia launch through the guided flow
 
 Use the guided operator path, not raw `launch create`, as the main run sheet:
 
 ```bash
-pnpm --filter @regentlabs/cli exec regent autolaunch safe wizard --backup-signer-address 0x...
-pnpm --filter @regentlabs/cli exec regent autolaunch safe create --backup-signer-address 0x... --website-wallet-address 0x...
-pnpm --filter @regentlabs/cli exec regent autolaunch prelaunch wizard --agent <agent-id> --name "Agent Coin Name" --symbol "AGENT" --agent-safe-address <safe-address>
-pnpm --filter @regentlabs/cli exec regent autolaunch prelaunch validate --plan <plan-id>
-pnpm --filter @regentlabs/cli exec regent autolaunch prelaunch publish --plan <plan-id>
-pnpm --filter @regentlabs/cli exec regent autolaunch launch run --plan <plan-id>
-pnpm --filter @regentlabs/cli exec regent autolaunch launch monitor --job <job-id> --watch
-pnpm --filter @regentlabs/cli exec regent autolaunch launch finalize --job <job-id> --submit
-pnpm --filter @regentlabs/cli exec regent autolaunch vesting status --job <job-id>
+pnpm --filter @regentslabs/cli exec regent autolaunch safe wizard --backup-signer-address 0x...
+pnpm --filter @regentslabs/cli exec regent autolaunch safe create --backup-signer-address 0x... --website-wallet-address 0x...
+pnpm --filter @regentslabs/cli exec regent autolaunch prelaunch wizard --agent <agent-id> --name "Agent Coin Name" --symbol "AGENT" --agent-safe-address <safe-address>
+pnpm --filter @regentslabs/cli exec regent autolaunch prelaunch validate --plan <plan-id>
+pnpm --filter @regentslabs/cli exec regent autolaunch prelaunch publish --plan <plan-id>
+pnpm --filter @regentslabs/cli exec regent autolaunch launch run --plan <plan-id>
+pnpm --filter @regentslabs/cli exec regent autolaunch launch monitor --job <job-id> --watch
+pnpm --filter @regentslabs/cli exec regent autolaunch launch finalize --job <job-id> --submit
+pnpm --filter @regentslabs/cli exec regent autolaunch vesting status --job <job-id>
 ```
 
 Keep these low-level commands as debug-only fallback, not the main worksheet path:
@@ -338,7 +338,7 @@ Important notes:
 Do not call the rehearsal successful until you have all of these:
 
 - saved `REGENT_REVENUE_STAKING_RESULT_JSON` from Base Sepolia
-- saved `AUTOLAUNCH_INFRA_RESULT_JSON` from Ethereum Sepolia
+- saved `AUTOLAUNCH_INFRA_RESULT_JSON` from Base Sepolia
 - local app booted cleanly with `mix autolaunch.doctor` passing
 - successful XMTP bootstrap output
 - successful app and CLI reads against the Base Sepolia staking rail
@@ -347,4 +347,4 @@ Do not call the rehearsal successful until you have all of these:
 
 ## Final warning
 
-This is a Base Sepolia plus Ethereum Sepolia rehearsal configuration. It should not be confused with the eventual production Regent staking rail on Base mainnet.
+This is a Base Sepolia plus Base Sepolia rehearsal configuration. It should not be confused with the eventual production Regent staking rail on Base mainnet.

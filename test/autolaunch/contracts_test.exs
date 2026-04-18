@@ -50,12 +50,12 @@ defmodule Autolaunch.ContractsTest do
       |> Job.create_changeset(%{
         job_id: "job_contracts_helper",
         owner_address: @wallet,
-        agent_id: "11155111:42",
+        agent_id: "84532:42",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: @wallet,
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -165,6 +165,37 @@ defmodule Autolaunch.ContractsTest do
              )
   end
 
+  test "removed fee mutation actions stay unavailable through the contracts context", %{
+    human: human
+  } do
+    assert {:error, :unsupported_action} =
+             Contracts.prepare_job_action(
+               "job_contracts_helper",
+               "fee_registry",
+               "set_hook_enabled",
+               %{"enabled" => "false"},
+               human
+             )
+
+    assert {:error, :unsupported_action} =
+             Contracts.prepare_job_action(
+               "job_contracts_helper",
+               "fee_vault",
+               "set_hook",
+               %{"hook" => "0x4444444444444444444444444444444444444444"},
+               human
+             )
+
+    assert {:error, :unsupported_action} =
+             Contracts.prepare_subject_action(
+               @subject_id,
+               "splitter",
+               "set_protocol_skim_bps",
+               %{"skim_bps" => "250"},
+               human
+             )
+  end
+
   defmodule FakeRpc do
     @splitter "0x9999999999999999999999999999999999999999"
     @token "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -174,7 +205,7 @@ defmodule Autolaunch.ContractsTest do
 
     def block_number(_chain_id), do: {:ok, 1}
 
-    def eth_call(11_155_111, @splitter, data) do
+    def eth_call(84_532, @splitter, data) do
       case String.slice(data, 0, 10) do
         "0x817b1cd2" -> {:ok, uint(250 * Integer.pow(10, 18))}
         "0x966ed108" -> {:ok, uint(25 * Integer.pow(10, 6))}
@@ -192,13 +223,13 @@ defmodule Autolaunch.ContractsTest do
       end
     end
 
-    def eth_call(11_155_111, @token, "0x70a08231" <> _rest),
+    def eth_call(84_532, @token, "0x70a08231" <> _rest),
       do: {:ok, uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(11_155_111, @usdc, "0x70a08231" <> _rest),
+    def eth_call(84_532, @usdc, "0x70a08231" <> _rest),
       do: {:ok, uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(11_155_111, @subject_registry, "0x41c2ab07" <> data) do
+    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> data) do
       wallet =
         data
         |> String.slice(-40, 40)
@@ -207,8 +238,8 @@ defmodule Autolaunch.ContractsTest do
       {:ok, bool(wallet == @wallet)}
     end
 
-    def eth_call(11_155_111, @subject_registry, "0x8da5cb5b"), do: {:ok, address(@wallet)}
-    def eth_call(11_155_111, @subject_registry, "0x0f3f0a8f" <> _rest), do: {:ok, uint(0)}
+    def eth_call(84_532, @subject_registry, "0x8da5cb5b"), do: {:ok, address(@wallet)}
+    def eth_call(84_532, @subject_registry, "0x0f3f0a8f" <> _rest), do: {:ok, uint(0)}
 
     def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}
 

@@ -9,14 +9,14 @@ defmodule AutolaunchWeb.EnsLinkLiveTest do
     def list_agents(_human) do
       [
         %{
-          agent_id: "11155111:42",
-          id: "11155111:42",
+          agent_id: "84532:42",
+          id: "84532:42",
           name: "Atlas",
           state: "eligible",
           access_mode: "owner",
           owner_address: "0x1111111111111111111111111111111111111111",
-          supported_chains: [%{id: 11_155_111, label: "Ethereum Sepolia"}],
-          chain_id: 11_155_111,
+          supported_chains: [%{id: 84_532, label: "Base Sepolia"}],
+          chain_id: 84_532,
           ens: nil
         }
       ]
@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.EnsLinkLiveTest do
 
   defmodule EnsLinkStub do
     def prepare_bidirectional_link(_human, %{
-          "identity_id" => "11155111:42",
+          "identity_id" => "84532:42",
           "ens_name" => "atlas.eth"
         }) do
       {:ok,
@@ -53,7 +53,7 @@ defmodule AutolaunchWeb.EnsLinkLiveTest do
          },
          erc8004: %{
            tx: %{
-             chain_id: 11_155_111,
+             chain_id: 84_532,
              to: "0x2222222222222222222222222222222222222222",
              data: "0xabc",
              value: "0x0"
@@ -61,7 +61,7 @@ defmodule AutolaunchWeb.EnsLinkLiveTest do
          },
          ensip25: %{
            tx: %{
-             chain_id: 11_155_111,
+             chain_id: 84_532,
              to: "0x3333333333333333333333333333333333333333",
              data: "0xdef",
              value: "0x0"
@@ -126,7 +126,7 @@ defmodule AutolaunchWeb.EnsLinkLiveTest do
 
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
 
-    {:ok, _view, html} = live(conn, "/ens-link?identity_id=11155111:42&ens_name=atlas.eth")
+    {:ok, _view, html} = live(conn, "/ens-link?identity_id=84532:42&ens_name=atlas.eth")
 
     assert html =~ "atlas.eth"
     assert html =~ "Launch follow-up"

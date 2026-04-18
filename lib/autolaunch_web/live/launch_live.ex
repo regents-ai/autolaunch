@@ -31,7 +31,7 @@ defmodule AutolaunchWeb.LaunchLive do
               Copy wizard command
             </button>
             <.link navigate={~p"/launch-via-agent"} class="al-ghost">Operator briefs</.link>
-            <.link navigate={~p"/auctions"} class="al-ghost">Browse auctions</.link>
+            <.link navigate={~p"/home"} class="al-ghost">Browse auctions</.link>
           </div>
 
           <div class="al-launch-tags" aria-label="Launch summary">
@@ -155,7 +155,7 @@ defmodule AutolaunchWeb.LaunchLive do
 
         <div class="al-action-row">
           <.link navigate={~p"/launch-via-agent"} class="al-submit">How to use agents</.link>
-          <.link navigate={~p"/auctions"} class="al-ghost">Browse active auctions</.link>
+          <.link navigate={~p"/home"} class="al-ghost">Browse active auctions</.link>
           <.link navigate={~p"/contracts"} class="al-ghost">Open contracts</.link>
         </div>
       </section>

@@ -25,7 +25,7 @@ Status key:
 
 - [x] Freeze the canonical product rules in one document.
 - [x] Make the repo docs match the canonical rules:
-  - Sepolia USDC only for recognized subject revenue
+  - Base-family USDC only for recognized subject revenue
   - 10% / 5% / 85% allocation story
   - CLI-first launch, browser-first participation
   - ingress as receive-and-sweep wrapper only

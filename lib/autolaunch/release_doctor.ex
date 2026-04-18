@@ -5,16 +5,16 @@ defmodule Autolaunch.ReleaseDoctor do
   alias Autolaunch.CCA.Rpc
   alias Autolaunch.Repo
 
-  @sepolia_chain_id 11_155_111
   @launch_address_checks [
-    {:eth_sepolia_factory_address, "Sepolia CCA factory address"},
-    {:eth_sepolia_pool_manager_address, "Sepolia Uniswap v4 pool manager address"},
-    {:eth_sepolia_position_manager_address, "Sepolia Uniswap v4 position manager address"},
-    {:eth_sepolia_usdc_address, "Sepolia USDC address"},
+    {:cca_factory_address, "CCA factory address"},
+    {:pool_manager_address, "Uniswap v4 pool manager address"},
+    {:position_manager_address, "Uniswap v4 position manager address"},
+    {:usdc_address, "USDC address"},
     {:revenue_share_factory_address, "revenue share factory address"},
     {:revenue_ingress_factory_address, "revenue ingress factory address"},
     {:lbp_strategy_factory_address, "Regent LBP strategy factory address"},
-    {:token_factory_address, "token factory address"}
+    {:token_factory_address, "token factory address"},
+    {:identity_registry_address, "identity registry address"}
   ]
   @trust_networks [
     {"world", "World AgentBook config"},
@@ -32,7 +32,7 @@ defmodule Autolaunch.ReleaseDoctor do
         deploy_binary_check(),
         deploy_workdir_check(),
         deploy_script_target_check(),
-        sepolia_rpc_check()
+        launch_rpc_check()
       ] ++ launch_address_checks() ++ trust_checks()
 
     %{
@@ -139,19 +139,22 @@ defmodule Autolaunch.ReleaseDoctor do
     end
   end
 
-  defp sepolia_rpc_check do
-    case Rpc.block_number(@sepolia_chain_id) do
+  defp launch_rpc_check do
+    chain_id = launch_chain_id()
+    chain_label = launch_chain_label(chain_id)
+
+    case Rpc.block_number(chain_id) do
       {:ok, block_number} when is_integer(block_number) and block_number > 0 ->
-        ok_check("sepolia_rpc", :error, "Sepolia RPC returned block #{block_number}.")
+        ok_check("launch_rpc", :error, "#{chain_label} RPC returned block #{block_number}.")
 
       {:error, reason} ->
-        fail_check("sepolia_rpc", :error, "Sepolia RPC failed: #{inspect(reason)}")
+        fail_check("launch_rpc", :error, "#{chain_label} RPC failed: #{inspect(reason)}")
 
       other ->
         fail_check(
-          "sepolia_rpc",
+          "launch_rpc",
           :error,
-          "Sepolia RPC returned an invalid response: #{inspect(other)}"
+          "#{chain_label} RPC returned an invalid response: #{inspect(other)}"
         )
     end
   end
@@ -222,6 +225,15 @@ defmodule Autolaunch.ReleaseDoctor do
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(_value), do: false
+
+  defp launch_chain_id do
+    Application.get_env(:autolaunch, :launch, [])
+    |> Keyword.get(:chain_id, 84_532)
+  end
+
+  defp launch_chain_label(84_532), do: "Base Sepolia"
+  defp launch_chain_label(8_453), do: "Base"
+  defp launch_chain_label(_chain_id), do: "Launch"
 
   defp ok_check(key, severity, detail),
     do: %{key: key, ok: true, severity: severity, detail: detail}

@@ -29,17 +29,26 @@ defmodule Autolaunch.Launch.Internal do
   @default_auction_duration_seconds 259_200
   @directory_supply Decimal.new("100000000000")
   @chain_configs %{
-    11_155_111 => %{
-      id: 11_155_111,
-      key: "ethereum-sepolia",
-      family: "ethereum",
-      label: "Ethereum Sepolia",
-      short_label: "Sepolia",
-      uniswap_network: "sepolia",
+    84_532 => %{
+      id: 84_532,
+      key: "base-sepolia",
+      family: "base",
+      label: "Base Sepolia",
+      short_label: "Base Sepolia",
+      uniswap_network: "base_sepolia",
       testnet?: true
+    },
+    8_453 => %{
+      id: 8_453,
+      key: "base-mainnet",
+      family: "base",
+      label: "Base",
+      short_label: "Base",
+      uniswap_network: "base",
+      testnet?: false
     }
   }
-  @supported_chain_ids [11_155_111]
+  @supported_chain_ids [84_532, 8_453]
 
   def fee_split_summary, do: @fee_split
 
@@ -176,13 +185,13 @@ defmodule Autolaunch.Launch.Internal do
           "One ERC-8004 identity can launch at most one Agent Coin.",
           "AgentLaunchToken supply is fixed at 100 billion from launch.",
           "The Agent Safe is locked into the launch configuration you sign.",
-          "Only Sepolia USDC that reaches the revsplit counts as recognized subject revenue."
+          "Only Base USDC that reaches the revsplit counts as recognized subject revenue."
         ],
         next_steps: [
           "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
-          "Queue the Ethereum Sepolia launch deployment.",
+          "Queue the Base-family launch deployment.",
           "Wait for the deploy script to return the strategy, vesting wallet, fee hook, subject registry, revenue splitter, and ingress addresses.",
-          "Wait for the auction page, then stake claimed tokens to earn recognized Sepolia USDC revenue."
+          "Wait for the auction page, then stake claimed tokens to earn recognized Base USDC revenue."
         ],
         launch_notes: launch_notes,
         completion_plan:
@@ -281,9 +290,19 @@ defmodule Autolaunch.Launch.Internal do
   def create_launch_job(_attrs, _human, _request_ip), do: {:error, :unauthorized}
 
   def get_job_response(job_id) do
-    case Repo.get(Job, job_id) do
-      nil -> {:error, :not_found}
-      %Job{} = job -> {:ok, %{job: serialize_job(job), auction: maybe_load_job_auction(job)}}
+    with {:ok, active_chain_id} <- launch_chain_id() do
+      case Repo.get(Job, job_id) do
+        nil ->
+          {:error, :not_found}
+
+        %Job{chain_id: ^active_chain_id} = job ->
+          {:ok, %{job: serialize_job(job), auction: maybe_load_job_auction(job)}}
+
+        %Job{} ->
+          {:error, :not_found}
+      end
+    else
+      _ -> {:error, :not_found}
     end
   rescue
     DBConnection.ConnectionError -> {:error, :job_lookup_failed}
@@ -291,30 +310,35 @@ defmodule Autolaunch.Launch.Internal do
   end
 
   def list_auctions(filters \\ %{}, current_human \\ nil) do
-    auctions =
-      Repo.all(
-        from auction in Auction,
-          order_by: [desc: auction.inserted_at]
-      )
+    with {:ok, active_chain_id} <- launch_chain_id() do
+      auctions =
+        Repo.all(
+          from auction in Auction,
+            where: auction.chain_id == ^active_chain_id,
+            order_by: [desc: auction.inserted_at]
+        )
 
-    identity_index = identity_index_for_auctions(auctions)
-    job_index = job_index_for_auctions(auctions)
-    human_launch_counts = world_launch_counts()
-    x_accounts = x_accounts_for_auctions(auctions)
+      identity_index = identity_index_for_auctions(auctions)
+      job_index = job_index_for_auctions(auctions)
+      human_launch_counts = world_launch_counts()
+      x_accounts = x_accounts_for_auctions(auctions)
 
-    auctions
-    |> Enum.map(
-      &serialize_auction(
-        &1,
-        current_human,
-        identity_index,
-        job_index,
-        human_launch_counts,
-        x_accounts
+      auctions
+      |> Enum.map(
+        &serialize_auction(
+          &1,
+          current_human,
+          identity_index,
+          job_index,
+          human_launch_counts,
+          x_accounts
+        )
       )
-    )
-    |> filter_auctions(filters)
-    |> sort_auctions(filters)
+      |> filter_auctions(filters)
+      |> sort_auctions(filters)
+    else
+      _ -> []
+    end
   rescue
     DBConnection.ConnectionError -> []
     Postgrex.Error -> []
@@ -339,24 +363,30 @@ defmodule Autolaunch.Launch.Internal do
   end
 
   def get_auction(auction_id, current_human \\ nil) do
-    Repo.one(
-      from auction in Auction,
-        where: fragment("coalesce(?, '')", auction.source_job_id) == ^auction_id,
-        limit: 1
-    )
-    |> case do
-      nil ->
-        nil
+    with {:ok, active_chain_id} <- launch_chain_id() do
+      Repo.one(
+        from auction in Auction,
+          where:
+            fragment("coalesce(?, '')", auction.source_job_id) == ^auction_id and
+              auction.chain_id == ^active_chain_id,
+          limit: 1
+      )
+      |> case do
+        nil ->
+          nil
 
-      auction ->
-        serialize_auction(
-          auction,
-          current_human,
-          identity_index_for_auctions([auction]),
-          job_index_for_auctions([auction]),
-          world_launch_counts(),
-          x_accounts_for_auctions([auction])
-        )
+        auction ->
+          serialize_auction(
+            auction,
+            current_human,
+            identity_index_for_auctions([auction]),
+            job_index_for_auctions([auction]),
+            world_launch_counts(),
+            x_accounts_for_auctions([auction])
+          )
+      end
+    else
+      _ -> nil
     end
   rescue
     DBConnection.ConnectionError -> nil
@@ -509,16 +539,20 @@ defmodule Autolaunch.Launch.Internal do
   def list_positions(%HumanUser{} = human, filters) do
     wallet_addresses = linked_wallet_addresses(human)
 
-    bids =
-      Repo.all(
-        from bid in Bid,
-          where: bid.owner_address in ^wallet_addresses,
-          order_by: [desc: bid.inserted_at]
-      )
+    with {:ok, active_chain_id} <- launch_chain_id() do
+      bids =
+        Repo.all(
+          from bid in Bid,
+            where: bid.owner_address in ^wallet_addresses and bid.chain_id == ^active_chain_id,
+            order_by: [desc: bid.inserted_at]
+        )
 
-    bids
-    |> Enum.map(&decorate_bid_position(&1, human))
-    |> filter_positions(filters)
+      bids
+      |> Enum.map(&decorate_bid_position(&1, human))
+      |> filter_positions(filters)
+    else
+      _ -> []
+    end
   rescue
     DBConnection.ConnectionError -> []
     Postgrex.Error -> []
@@ -2124,7 +2158,7 @@ defmodule Autolaunch.Launch.Internal do
   end
 
   defp launch_chain_id do
-    normalize_chain_id(Keyword.get(launch_config(), :chain_id, 11_155_111))
+    normalize_chain_id(Keyword.get(launch_config(), :chain_id, 84_532))
   end
 
   defp deploy_binary do
@@ -2159,12 +2193,7 @@ defmodule Autolaunch.Launch.Internal do
   end
 
   defp deploy_rpc_url(chain_id) do
-    config = launch_config()
-
-    case chain_id do
-      11_155_111 -> Keyword.get(config, :eth_sepolia_rpc_url, "")
-      _ -> ""
-    end
+    config_value_for_chain(chain_id, :rpc_url)
   end
 
   defp deploy_rpc_host(chain_id) do
@@ -2219,15 +2248,15 @@ defmodule Autolaunch.Launch.Internal do
       {"AUTOLAUNCH_LAUNCH_NOTES", job.launch_notes || ""},
       {"AUTOLAUNCH_NETWORK", job.network},
       {"AUTOLAUNCH_CHAIN_ID", Integer.to_string(job.chain_id)},
-      {"REVENUE_SHARE_FACTORY_ADDRESS", deploy_revenue_share_factory_address()},
-      {"REVENUE_INGRESS_FACTORY_ADDRESS", deploy_revenue_ingress_factory_address()},
-      {"LBP_STRATEGY_FACTORY_ADDRESS", deploy_lbp_strategy_factory_address()},
-      {"TOKEN_FACTORY_ADDRESS", deploy_token_factory_address()},
+      {"AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", deploy_revenue_share_factory_address()},
+      {"AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS", deploy_revenue_ingress_factory_address()},
+      {"AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", deploy_lbp_strategy_factory_address()},
+      {"AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", deploy_token_factory_address()},
       {"REGENT_MULTISIG_ADDRESS", deploy_regent_multisig_address()},
-      {"ETHEREUM_USDC_ADDRESS", deploy_ethereum_usdc_address(job.chain_id)},
-      {"FACTORY_ADDRESS", deploy_factory_address(job.chain_id)},
-      {"UNISWAP_V4_POOL_MANAGER", deploy_pool_manager_address(job.chain_id)},
-      {"UNISWAP_V4_POSITION_MANAGER", deploy_position_manager_address(job.chain_id)}
+      {"AUTOLAUNCH_USDC_ADDRESS", deploy_usdc_address(job.chain_id)},
+      {"AUTOLAUNCH_CCA_FACTORY_ADDRESS", deploy_factory_address(job.chain_id)},
+      {"AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", deploy_pool_manager_address(job.chain_id)},
+      {"AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", deploy_position_manager_address(job.chain_id)}
     ]
   end
 
@@ -2266,7 +2295,7 @@ defmodule Autolaunch.Launch.Internal do
     do: human |> linked_wallet_addresses() |> List.first()
 
   defp normalize_chain_id(value) when is_integer(value) do
-    if value == 11_155_111, do: {:ok, value}, else: {:error, :invalid_chain_id}
+    if value in @supported_chain_ids, do: {:ok, value}, else: {:error, :invalid_chain_id}
   end
 
   defp normalize_chain_id(value) when is_binary(value) do
@@ -2402,17 +2431,11 @@ defmodule Autolaunch.Launch.Internal do
   end
 
   defp deploy_factory_address(chain_id) do
-    case chain_id do
-      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_factory_address, "")
-      _ -> ""
-    end
+    config_value_for_chain(chain_id, :cca_factory_address)
   end
 
   defp deploy_pool_manager_address(chain_id) do
-    case chain_id do
-      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_pool_manager_address, "")
-      _ -> ""
-    end
+    config_value_for_chain(chain_id, :pool_manager_address)
   end
 
   defp deploy_regent_multisig_address do
@@ -2436,17 +2459,11 @@ defmodule Autolaunch.Launch.Internal do
     do: Keyword.get(launch_config(), :token_factory_address, "")
 
   defp deploy_position_manager_address(chain_id) do
-    case chain_id do
-      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_position_manager_address, "")
-      _ -> ""
-    end
+    config_value_for_chain(chain_id, :position_manager_address)
   end
 
-  defp deploy_ethereum_usdc_address(chain_id) do
-    case chain_id do
-      11_155_111 -> Keyword.get(launch_config(), :eth_sepolia_usdc_address, "")
-      _ -> ""
-    end
+  defp deploy_usdc_address(chain_id) do
+    config_value_for_chain(chain_id, :usdc_address)
   end
 
   defp deploy_env_error(chain_id) do
@@ -2476,7 +2493,7 @@ defmodule Autolaunch.Launch.Internal do
         blank?(deploy_factory_address(chain_id)) ->
           "Missing #{chain.label} CCA factory address."
 
-        blank?(deploy_ethereum_usdc_address(chain_id)) ->
+        blank?(deploy_usdc_address(chain_id)) ->
           "Missing #{chain.label} USDC address."
 
         true ->
@@ -2554,6 +2571,15 @@ defmodule Autolaunch.Launch.Internal do
       {:ok, scaled |> Decimal.round(0) |> Decimal.to_integer()}
     else
       {:error, :invalid_amount_precision}
+    end
+  end
+
+  defp config_value_for_chain(chain_id, key) do
+    with {:ok, active_chain_id} <- launch_chain_id(),
+         true <- chain_id == active_chain_id do
+      Keyword.get(launch_config(), key, "")
+    else
+      _ -> ""
     end
   end
 

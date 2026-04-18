@@ -191,7 +191,7 @@ defmodule AutolaunchWeb.XLinkLive do
                 <button type="button" class="al-submit" data-x-link-action="connect">
                   {if @current_connected, do: "Reconnect X", else: "Connect X"}
                 </button>
-                <.link navigate={~p"/auctions"} class="al-cta-link">Back to auctions</.link>
+                <.link navigate={~p"/home"} class="al-cta-link">Back to auctions</.link>
               </div>
             </div>
           <% else %>
@@ -249,7 +249,8 @@ defmodule AutolaunchWeb.XLinkLive do
   defp connect_state_label(_state, false), do: "Waiting"
 
   defp network_label(%{chain_id: 1}), do: "Ethereum mainnet"
-  defp network_label(%{chain_id: 11_155_111}), do: "Ethereum Sepolia"
+  defp network_label(%{chain_id: 84_532}), do: "Base Sepolia"
+  defp network_label(%{chain_id: 8_453}), do: "Base"
   defp network_label(_identity), do: "ERC-8004"
 
   defp access_mode_label("owner"), do: "Owner"

@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
        %{
          subject: get_subject(@subject_id, nil) |> elem(1),
          tx_request: %{
-           chain_id: 11_155_111,
+           chain_id: 84_532,
            to: "0x9999999999999999999999999999999999999999",
            value: "0x0",
            data: "0x7acb7757"
@@ -52,7 +52,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
        %{
          subject: get_subject(@subject_id, nil) |> elem(1),
          tx_request: %{
-           chain_id: 11_155_111,
+           chain_id: 84_532,
            to: "0x9999999999999999999999999999999999999999",
            value: "0x0",
            data: "0x8381e182"
@@ -65,7 +65,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
        %{
          subject: get_subject(@subject_id, nil) |> elem(1),
          tx_request: %{
-           chain_id: 11_155_111,
+           chain_id: 84_532,
            to: "0x9999999999999999999999999999999999999999",
            value: "0x0",
            data: "0x42852610"
@@ -78,7 +78,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
        %{
          subject: get_subject(@subject_id, nil) |> elem(1),
          tx_request: %{
-           chain_id: 11_155_111,
+           chain_id: 84_532,
            to: "0x7777777777777777777777777777777777777777",
            value: "0x0",
            data: "0xbe25fb30"

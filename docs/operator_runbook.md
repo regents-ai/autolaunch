@@ -38,7 +38,7 @@ You need five things working before any real launch should be attempted:
    The app stores launch jobs, auctions, bids, sessions, and subject-action tracking there.
 2. A live Phoenix app
    The app is the system that queues launches, watches jobs, verifies transactions, and shows operator state.
-3. A live Sepolia RPC
+3. A live launch-chain RPC
    Launch reads, quote reads, and transaction verification depend on it.
 4. A reachable SIWA sidecar
    Launch creation uses it to verify the wallet signature.
@@ -73,7 +73,7 @@ The script creates four things:
 At minimum, the shared infra script needs:
 
 - the owner address for the shared factories
-- the Sepolia USDC address
+- the Base-family USDC address
 
 ### What the script returns
 
@@ -101,13 +101,13 @@ Once the shared infrastructure is live, wire those returned addresses into the a
 
 The important config groups are:
 
-- Sepolia RPC
+- launch-chain RPC
 - SIWA config
 - Privy config
 - shared infra addresses
 - launch deploy binary, workdir, and script target
 
-The app expects the launch path to be Sepolia-only.
+The app expects the launch path to stay on the Base family only.
 
 The app-side validation steps are:
 
@@ -134,7 +134,7 @@ Before a launch plan is signed, create one Safe that will be used for:
 
 The recommended signer set is:
 
-1. the local agent wallet from `regent-cli`
+1. the local agent wallet from `regents-cli`
 2. the website wallet created through the Privy login
 3. one backup wallet
 
@@ -177,7 +177,7 @@ The launch split is fixed:
 - 5% reserved for LP migration
 - 85% sent to vesting
 
-The launch is Sepolia-only and auction bids are in Sepolia USDC.
+The launch stays on the Base family and auction bids are in the configured Base-family USDC.
 
 The current live movement of auction proceeds is:
 
@@ -257,12 +257,12 @@ From there, the fee and revenue path is:
 1. Pool activity creates launch-pool fees.
 2. The fee hook records those fees in the fee vault.
 3. The subject treasury lane can be pulled from the fee vault into the revenue splitter.
-4. Recognized Sepolia USDC can also arrive through ingress accounts and be swept into the splitter.
+4. Recognized Base-family USDC can also arrive through ingress accounts and be swept into the splitter.
 5. The splitter makes the staker share claimable and tracks the treasury and protocol shares separately.
 
 Important rule:
 
-- revenue only counts once Sepolia USDC reaches the subject’s revenue splitter
+- revenue only counts once Base-family USDC reaches the subject’s revenue splitter
 
 That is the point where the system treats revenue as recognized.
 
@@ -290,7 +290,7 @@ Use the subject page for normal actions and the contracts page for deeper inspec
 
 ## Trust and identity follow-up
 
-Launch itself is Sepolia-only.
+Launch itself stays on the Base family only.
 
 Trust follow-up is separate.
 
@@ -299,7 +299,7 @@ After launch, the operator may still need to:
 - attach ENS to the creator identity
 - complete AgentBook or World trust follow-up for the launched token
 
-Those are valid follow-up tasks, but they are not part of the core Sepolia launch deployment itself.
+Those are valid follow-up tasks, but they are not part of the core launch deployment itself.
 
 ## Release checklist
 
@@ -308,7 +308,7 @@ Use this as the short operator checklist.
 ### Before shared infra
 
 - `mix autolaunch.doctor` passes
-- Sepolia RPC is reachable
+- launch-chain RPC is reachable
 - SIWA is reachable
 - deploy binary, workdir, and script target are configured
 
@@ -367,6 +367,6 @@ The operator process is:
 2. wire those addresses into the app and launch environment
 3. deploy one launch stack per token
 4. verify the auction and subject surfaces
-5. let fees and recognized Sepolia USDC flow into the subject splitter over time
+5. let fees and recognized Base-family USDC flow into the subject splitter over time
 
 That is the full infrastructure setup story in operational form.

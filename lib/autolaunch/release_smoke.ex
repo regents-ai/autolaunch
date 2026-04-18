@@ -41,6 +41,9 @@ defmodule Autolaunch.ReleaseSmoke do
         ok: true,
         job_id: job.job_id,
         subject_id: @subject_id,
+        chain_id: job.chain_id,
+        network: job.network,
+        agent_id: job.agent_id,
         checks: [
           %{
             key: "launch_job_ready",
@@ -109,19 +112,21 @@ defmodule Autolaunch.ReleaseSmoke do
     nonce = "smoke-nonce-" <> Ecto.UUID.generate()
     signature = "smoke-signature-" <> Ecto.UUID.generate()
     message = "smoke-message-" <> Ecto.UUID.generate()
+    chain_id = launch_chain_id()
+    network = chain_label(chain_id)
 
     Repo.insert(
       Job.create_changeset(%Job{}, %{
         job_id: job_id,
         privy_user_id: human.privy_user_id,
         owner_address: @wallet,
-        agent_id: "11155111:42",
+        agent_id: "#{chain_id}:42",
         agent_name: "Smoke Agent",
         token_name: "Smoke Coin",
         token_symbol: "SMOKE",
         agent_safe_address: @wallet,
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: network,
+        chain_id: chain_id,
         status: "queued",
         step: "queued",
         total_supply: "100000000000000000000000000000",
@@ -213,58 +218,71 @@ defmodule Autolaunch.ReleaseSmoke do
     @ingress "0x7777777777777777777777777777777777777777"
     @usdc "0x5555555555555555555555555555555555555555"
 
-    def block_number(11_155_111), do: {:ok, 1}
+    def block_number(chain_id) do
+      if chain_id == smoke_chain_id(), do: {:ok, 1}, else: {:error, :unsupported_chain_id}
+    end
 
-    def eth_call(11_155_111, @splitter, data) do
-      selector = String.slice(data, 0, 10)
+    def eth_call(chain_id, @splitter, data) do
+      if chain_id == smoke_chain_id() do
+        selector = String.slice(data, 0, 10)
 
-      case selector do
-        "0x817b1cd2" -> {:ok, uint(250 * Integer.pow(10, 18))}
-        "0x966ed108" -> {:ok, uint(25 * Integer.pow(10, 6))}
-        "0x76459dd5" -> {:ok, uint(10 * Integer.pow(10, 6))}
-        "0x5f78d5f4" -> {:ok, uint(1 * Integer.pow(10, 6))}
-        "0x60217267" -> {:ok, uint(12 * Integer.pow(10, 18))}
-        "0xb026ee79" -> {:ok, uint(5 * Integer.pow(10, 6))}
-        "0x05e1fd68" -> {:ok, uint(3 * Integer.pow(10, 18))}
-        "0x05f15537" -> {:ok, uint(8 * Integer.pow(10, 18))}
-        "0xcfb3d0aa" -> {:ok, uint(40 * Integer.pow(10, 18))}
-        "0x66ffb8de" -> {:ok, uint(15 * Integer.pow(10, 18))}
-        "0x3e413bee" -> {:ok, address(@usdc)}
-        _ -> {:error, :unsupported_call}
+        case selector do
+          "0x817b1cd2" -> {:ok, uint(250 * Integer.pow(10, 18))}
+          "0x966ed108" -> {:ok, uint(25 * Integer.pow(10, 6))}
+          "0x76459dd5" -> {:ok, uint(10 * Integer.pow(10, 6))}
+          "0x5f78d5f4" -> {:ok, uint(1 * Integer.pow(10, 6))}
+          "0x60217267" -> {:ok, uint(12 * Integer.pow(10, 18))}
+          "0xb026ee79" -> {:ok, uint(5 * Integer.pow(10, 6))}
+          "0x05e1fd68" -> {:ok, uint(3 * Integer.pow(10, 18))}
+          "0x05f15537" -> {:ok, uint(8 * Integer.pow(10, 18))}
+          "0xcfb3d0aa" -> {:ok, uint(40 * Integer.pow(10, 18))}
+          "0x66ffb8de" -> {:ok, uint(15 * Integer.pow(10, 18))}
+          "0x3e413bee" -> {:ok, address(@usdc)}
+          _ -> {:error, :unsupported_call}
+        end
+      else
+        {:error, :unsupported_call}
       end
     end
 
-    def eth_call(11_155_111, to, "0x70a08231" <> _rest) do
-      cond do
-        String.downcase(to) == @usdc ->
-          {:ok, uint(7 * Integer.pow(10, 6))}
+    def eth_call(chain_id, to, "0x70a08231" <> _rest) do
+      if chain_id == smoke_chain_id() do
+        cond do
+          String.downcase(to) == @usdc ->
+            {:ok, uint(7 * Integer.pow(10, 6))}
 
-        String.downcase(to) == smoke_state().token_address ->
-          {:ok, uint(90 * Integer.pow(10, 18))}
+          String.downcase(to) == smoke_state().token_address ->
+            {:ok, uint(90 * Integer.pow(10, 18))}
 
-        true ->
-          {:error, :unsupported_call}
+          true ->
+            {:error, :unsupported_call}
+        end
+      else
+        {:error, :unsupported_call}
       end
     end
 
-    def eth_call(11_155_111, to, "0xca23dd76" <> _rest) do
-      if to == ingress_factory_address(), do: {:ok, uint(1)}, else: {:error, :unsupported_call}
+    def eth_call(chain_id, to, "0xca23dd76" <> _rest) do
+      if chain_id == smoke_chain_id() and to == ingress_factory_address(),
+        do: {:ok, uint(1)},
+        else: {:error, :unsupported_call}
     end
 
-    def eth_call(11_155_111, to, "0xb87d9995" <> _rest) do
-      if to == ingress_factory_address(),
+    def eth_call(chain_id, to, "0xb87d9995" <> _rest) do
+      if chain_id == smoke_chain_id() and to == ingress_factory_address(),
         do: {:ok, address(@ingress)},
         else: {:error, :unsupported_call}
     end
 
-    def eth_call(11_155_111, to, "0xb396721d" <> _rest) do
-      if to == ingress_factory_address(),
+    def eth_call(chain_id, to, "0xb396721d" <> _rest) do
+      if chain_id == smoke_chain_id() and to == ingress_factory_address(),
         do: {:ok, address(@ingress)},
         else: {:error, :unsupported_call}
     end
 
-    def eth_call(11_155_111, subject_registry_address, "0x41c2ab07" <> _rest) do
-      if subject_registry_address == smoke_state().subject_registry_address do
+    def eth_call(chain_id, subject_registry_address, "0x41c2ab07" <> _rest) do
+      if chain_id == smoke_chain_id() and
+           subject_registry_address == smoke_state().subject_registry_address do
         {:ok, bool(true)}
       else
         {:error, :unsupported_call}
@@ -291,10 +309,24 @@ defmodule Autolaunch.ReleaseSmoke do
       Application.get_env(:autolaunch, :release_smoke_state, %{})
     end
 
+    defp smoke_chain_id do
+      Application.get_env(:autolaunch, :launch, [])
+      |> Keyword.get(:chain_id, 84_532)
+    end
+
     defp ingress_factory_address do
       Application.get_env(:autolaunch, :launch, [])
       |> Keyword.get(:revenue_ingress_factory_address, "")
       |> String.downcase()
     end
   end
+
+  defp launch_chain_id do
+    Application.get_env(:autolaunch, :launch, [])
+    |> Keyword.get(:chain_id, 84_532)
+  end
+
+  defp chain_label(84_532), do: "base-sepolia"
+  defp chain_label(8_453), do: "base-mainnet"
+  defp chain_label(_chain_id), do: "base-sepolia"
 end

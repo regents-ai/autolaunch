@@ -369,17 +369,17 @@ defmodule Autolaunch.RegentStaking do
   end
 
   defp call_uint(chain_id, to, data) do
-    {:ok, result} = Rpc.eth_call(chain_id, to, data)
+    {:ok, result} = Rpc.eth_call(chain_id, to, data, source: :regent_staking)
     Abi.decode_uint256(result)
   end
 
   defp call_address(chain_id, to, data) do
-    {:ok, result} = Rpc.eth_call(chain_id, to, data)
+    {:ok, result} = Rpc.eth_call(chain_id, to, data, source: :regent_staking)
     Abi.decode_address(result)
   end
 
   defp call_bool(chain_id, to, data) do
-    {:ok, result} = Rpc.eth_call(chain_id, to, data)
+    {:ok, result} = Rpc.eth_call(chain_id, to, data, source: :regent_staking)
     Abi.decode_bool(result)
   end
 

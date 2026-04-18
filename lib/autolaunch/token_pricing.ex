@@ -62,27 +62,23 @@ defmodule Autolaunch.TokenPricing do
     end
   end
 
-  defp pool_manager_address(11_155_111) do
+  defp pool_manager_address(chain_id) do
     config = Application.get_env(:autolaunch, :launch, [])
 
-    case Keyword.get(config, :eth_sepolia_pool_manager_address, "") do
-      "0x" <> _ = address -> normalize_address(address)
+    case {Keyword.get(config, :chain_id), Keyword.get(config, :pool_manager_address, "")} do
+      {^chain_id, "0x" <> _ = address} -> normalize_address(address)
       _ -> {:error, :missing_pool_manager}
     end
   end
 
-  defp pool_manager_address(_chain_id), do: {:error, :unsupported_chain}
-
-  defp usdc_address(11_155_111) do
+  defp usdc_address(chain_id) do
     config = Application.get_env(:autolaunch, :launch, [])
 
-    case Keyword.get(config, :eth_sepolia_usdc_address, "") do
-      "0x" <> _ = address -> normalize_address(address)
+    case {Keyword.get(config, :chain_id), Keyword.get(config, :usdc_address, "")} do
+      {^chain_id, "0x" <> _ = address} -> normalize_address(address)
       _ -> {:error, :missing_usdc}
     end
   end
-
-  defp usdc_address(_chain_id), do: {:error, :unsupported_chain}
 
   defp normalize_address("0x" <> address = original) when byte_size(address) == 40 do
     {:ok, String.downcase(original)}

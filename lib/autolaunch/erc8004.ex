@@ -1,18 +1,6 @@
 defmodule Autolaunch.ERC8004 do
   @moduledoc false
 
-  @default_subgraph_urls %{
-    1 =>
-      "https://gateway.thegraph.com/api/7fd2e7d89ce3ef24cd0d4590298f0b2c/subgraphs/id/FV6RR6y13rsnCxBAicKuQEwDp8ioEGiNaWaZUmvr1F8k",
-    11_155_111 =>
-      "https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT"
-  }
-
-  @identity_registries %{
-    1 => "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
-    11_155_111 => "0x8004A818BFB912233c491871b3d84c89A494BD9e"
-  }
-
   @agent_query """
   query Agents($where: Agent_filter, $first: Int!) {
     agents(where: $where, first: $first, orderBy: updatedAt, orderDirection: desc) {
@@ -61,7 +49,7 @@ defmodule Autolaunch.ERC8004 do
 
   @max_results 100
 
-  def list_accessible_identities(wallet_addresses, chain_ids \\ [1, 11_155_111]) do
+  def list_accessible_identities(wallet_addresses, chain_ids \\ nil) do
     wallets =
       wallet_addresses
       |> Enum.map(&normalize_address/1)
@@ -71,7 +59,7 @@ defmodule Autolaunch.ERC8004 do
     if wallets == [] do
       []
     else
-      chain_ids
+      resolved_chain_ids(chain_ids)
       |> Enum.flat_map(&fetch_chain_identities(&1, wallets))
       |> Enum.reduce(%{}, &merge_identity/2)
       |> Map.values()
@@ -79,11 +67,21 @@ defmodule Autolaunch.ERC8004 do
     end
   end
 
-  def identity_registry(chain_id), do: Map.get(@identity_registries, chain_id)
+  def identity_registry(chain_id) do
+    if chain_id == active_chain_id() do
+      case Keyword.get(launch_config(), :identity_registry_address, "") do
+        value when is_binary(value) and value != "" -> String.downcase(String.trim(value))
+        _ -> nil
+      end
+    else
+      nil
+    end
+  end
 
   def get_identities_by_agent_ids(agent_ids) when is_list(agent_ids) do
     agent_ids
     |> Enum.flat_map(&parse_agent_id/1)
+    |> Enum.filter(fn {chain_id, _token_id} -> chain_id == active_chain_id() end)
     |> Enum.group_by(fn {chain_id, _token_id} -> chain_id end, fn {_chain_id, token_id} ->
       token_id
     end)
@@ -160,16 +158,13 @@ defmodule Autolaunch.ERC8004 do
   defp subgraph_url(chain_id) do
     launch_config = Application.get_env(:autolaunch, :launch, [])
 
-    value =
-      case chain_id do
-        1 -> Keyword.get(launch_config, :erc8004_mainnet_subgraph_url)
-        11_155_111 -> Keyword.get(launch_config, :erc8004_sepolia_subgraph_url)
-        _ -> nil
+    if chain_id == active_chain_id() do
+      case Keyword.get(launch_config, :erc8004_subgraph_url, "") do
+        url when is_binary(url) and url != "" -> {:ok, url}
+        _ -> {:error, :missing_subgraph_url}
       end
-
-    case value do
-      url when is_binary(url) and url != "" -> {:ok, url}
-      _ -> {:ok, Map.fetch!(@default_subgraph_urls, chain_id)}
+    else
+      {:error, :missing_subgraph_url}
     end
   end
 
@@ -279,4 +274,21 @@ defmodule Autolaunch.ERC8004 do
   end
 
   defp normalize_address(_value), do: nil
+
+  defp resolved_chain_ids(nil), do: [active_chain_id()]
+
+  defp resolved_chain_ids(chain_ids) when is_list(chain_ids) do
+    active = active_chain_id()
+
+    chain_ids
+    |> Enum.filter(&(&1 == active))
+    |> Enum.uniq()
+  end
+
+  defp active_chain_id do
+    launch_config()
+    |> Keyword.get(:chain_id, 84_532)
+  end
+
+  defp launch_config, do: Application.get_env(:autolaunch, :launch, [])
 end

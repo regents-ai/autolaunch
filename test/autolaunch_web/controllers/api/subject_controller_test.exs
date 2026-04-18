@@ -20,7 +20,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
 
     def block_number(_chain_id), do: {:ok, 1}
 
-    def eth_call(11_155_111, @splitter, data) do
+    def eth_call(84_532, @splitter, data) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -39,13 +39,13 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       end
     end
 
-    def eth_call(11_155_111, @token, "0x70a08231" <> _rest),
+    def eth_call(84_532, @token, "0x70a08231" <> _rest),
       do: {:ok, encode_uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(11_155_111, @usdc, "0x70a08231" <> _rest),
+    def eth_call(84_532, @usdc, "0x70a08231" <> _rest),
       do: {:ok, encode_uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(11_155_111, @ingress_factory, data) do
+    def eth_call(84_532, @ingress_factory, data) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -56,7 +56,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       end
     end
 
-    def eth_call(11_155_111, @subject_registry, "0x41c2ab07" <> _rest),
+    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest),
       do: {:ok, encode_bool(true)}
 
     def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}
@@ -134,12 +134,12 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       |> Job.create_changeset(%{
         job_id: "job_subject_controller",
         owner_address: @wallet,
-        agent_id: "11155111:42",
+        agent_id: "84532:42",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: @wallet,
-        network: "ethereum-sepolia",
-        chain_id: 11_155_111,
+        network: "base-sepolia",
+        chain_id: 84_532,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -208,7 +208,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     assert %{
              "ok" => true,
              "tx_request" => %{
-               "chain_id" => 11_155_111,
+               "chain_id" => 84_532,
                "to" => @splitter,
                "data" => data
              }

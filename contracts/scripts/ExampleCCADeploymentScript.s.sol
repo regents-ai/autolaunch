@@ -46,9 +46,6 @@ contract ExampleCCADeploymentScript is Script {
 
     address internal constant CANONICAL_CCA_FACTORY = 0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5;
     address internal constant REGENT_MULTISIG = 0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e;
-    address internal constant ERC8004_MAINNET = 0x8004A169FB4a3325136EB29fA0ceB6D2e539a432;
-    address internal constant ERC8004_SEPOLIA = 0x8004A818BFB912233c491871b3d84c89A494BD9e;
-
     uint256 internal constant DEFAULT_TOTAL_SUPPLY = 100_000_000_000e18;
     uint256 internal constant DEFAULT_AUCTION_DURATION_BLOCKS = 9258;
     uint24 internal constant DEFAULT_POOL_FEE = 0;
@@ -57,10 +54,14 @@ contract ExampleCCADeploymentScript is Script {
     uint64 internal constant DEFAULT_MIGRATION_BLOCK_OFFSET = 128;
     uint64 internal constant DEFAULT_SWEEP_BLOCK_OFFSET = 256;
     uint64 internal constant DEFAULT_VESTING_DURATION_SECONDS = 365 days;
-    uint256 internal constant ETHEREUM_SEPOLIA_CHAIN_ID = 11_155_111;
+    uint256 internal constant BASE_MAINNET_CHAIN_ID = 8453;
+    uint256 internal constant BASE_SEPOLIA_CHAIN_ID = 84532;
 
     function _loadConfig() internal view returns (ScriptConfig memory cfg) {
-        require(block.chainid == ETHEREUM_SEPOLIA_CHAIN_ID, "SEPOLIA_ONLY");
+        require(
+            block.chainid == BASE_SEPOLIA_CHAIN_ID || block.chainid == BASE_MAINNET_CHAIN_ID,
+            "BASE_FAMILY_ONLY"
+        );
 
         address agentSafe = vm.envAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS");
         require(agentSafe != address(0), "AGENT_SAFE_ZERO");
@@ -91,29 +92,29 @@ contract ExampleCCADeploymentScript is Script {
             block.number + auctionDurationBlocks <= type(uint64).max, "AUCTION_END_BLOCK_TOO_LARGE"
         );
 
-        address revenueShareFactory = vm.envAddress("REVENUE_SHARE_FACTORY_ADDRESS");
+        address revenueShareFactory = vm.envAddress("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS");
         require(revenueShareFactory != address(0), "REVENUE_SHARE_FACTORY_ZERO");
 
-        address revenueIngressFactory = vm.envAddress("REVENUE_INGRESS_FACTORY_ADDRESS");
+        address revenueIngressFactory = vm.envAddress("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS");
         require(revenueIngressFactory != address(0), "REVENUE_INGRESS_FACTORY_ZERO");
 
-        address strategyFactory = vm.envAddress("LBP_STRATEGY_FACTORY_ADDRESS");
+        address strategyFactory = vm.envAddress("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS");
         require(strategyFactory != address(0), "STRATEGY_FACTORY_ZERO");
 
-        address tokenFactory = vm.envAddress("TOKEN_FACTORY_ADDRESS");
+        address tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
         require(tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
 
-        address auctionInitializerFactory = vm.envAddress("FACTORY_ADDRESS");
+        address auctionInitializerFactory = vm.envAddress("AUTOLAUNCH_CCA_FACTORY_ADDRESS");
         require(auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
         require(auctionInitializerFactory.code.length > 0, "AUCTION_FACTORY_NOT_DEPLOYED");
 
-        address poolManager = vm.envAddress("UNISWAP_V4_POOL_MANAGER");
+        address poolManager = vm.envAddress("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER");
         require(poolManager != address(0), "POOL_MANAGER_ZERO");
 
-        address positionManager = vm.envAddress("UNISWAP_V4_POSITION_MANAGER");
+        address positionManager = vm.envAddress("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER");
         require(positionManager != address(0), "POSITION_MANAGER_ZERO");
 
-        address usdcToken = vm.envAddress("ETHEREUM_USDC_ADDRESS");
+        address usdcToken = vm.envAddress("AUTOLAUNCH_USDC_ADDRESS");
         require(usdcToken != address(0), "USDC_ZERO");
 
         address identityRegistry = vm.envAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS");
