@@ -92,8 +92,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     port = available_port()
 
     start_supervised!(
-      {Bandit,
-       plug: Autolaunch.TestSupport.SiwaBrokerStub, ip: {127, 0, 0, 1}, port: port}
+      {Bandit, plug: Autolaunch.TestSupport.SiwaBrokerStub, ip: {127, 0, 0, 1}, port: port}
     )
 
     Application.put_env(:autolaunch, :siwa,

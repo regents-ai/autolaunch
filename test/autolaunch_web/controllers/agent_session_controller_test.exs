@@ -11,8 +11,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     port = available_port()
 
     start_supervised!(
-      {Bandit,
-       plug: Autolaunch.TestSupport.SiwaBrokerStub, ip: {127, 0, 0, 1}, port: port}
+      {Bandit, plug: Autolaunch.TestSupport.SiwaBrokerStub, ip: {127, 0, 0, 1}, port: port}
     )
 
     Application.put_env(:autolaunch, :siwa,
@@ -26,9 +25,10 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     :ok
   end
 
-  test "create, show, and delete keep the full verified agent identity in the local app session", %{
-    conn: conn
-  } do
+  test "create, show, and delete keep the full verified agent identity in the local app session",
+       %{
+         conn: conn
+       } do
     created_conn =
       conn
       |> init_test_session(%{})
@@ -85,6 +85,33 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     assert response["session"]["wallet_address"] == @wallet_address
     assert response["session"]["registry_address"] == @registry_address
     assert response["session"]["token_id"] == @token_id
+  end
+
+  test "show clears an expired agent session", %{conn: conn} do
+    expired_session = %{
+      "session_id" => Ecto.UUID.generate(),
+      "audience" => "autolaunch",
+      "wallet_address" => @wallet_address,
+      "chain_id" => @chain_id,
+      "registry_address" => @registry_address,
+      "token_id" => @token_id,
+      "issued_at" => DateTime.utc_now() |> DateTime.add(-3_600, :second) |> DateTime.to_iso8601(),
+      "expires_at" => DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.to_iso8601()
+    }
+
+    conn =
+      conn
+      |> init_test_session(%{agent_session: expired_session})
+      |> get("/api/auth/agent/session")
+
+    assert %{"ok" => true, "session" => nil} = json_response(conn, 200)
+
+    followup_conn =
+      conn
+      |> recycle()
+      |> get("/api/auth/agent/session")
+
+    assert %{"ok" => true, "session" => nil} = json_response(followup_conn, 200)
   end
 
   defp with_agent_headers(conn) do

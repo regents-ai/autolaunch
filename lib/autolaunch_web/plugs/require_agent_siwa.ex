@@ -45,11 +45,16 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
       case response do
         %{
           status: 200,
-          body: %{"ok" => true, "code" => "http_envelope_valid", "data" => %{"agent_claims" => claims}}
+          body: %{
+            "ok" => true,
+            "code" => "http_envelope_valid",
+            "data" => %{"agent_claims" => claims}
+          }
         } ->
           normalize_claims(claims)
 
-        _ -> {:error, :siwa_auth_denied}
+        _ ->
+          {:error, :siwa_auth_denied}
       end
     else
       _ -> {:error, :siwa_auth_denied}
@@ -100,7 +105,9 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
          "registry_address" => String.trim(registry_address),
          "token_id" => String.trim(token_id),
          "label" =>
-           normalize_optional_value(claims["label"] || claims["agentLabel"] || claims["agent_label"])
+           normalize_optional_value(
+             claims["label"] || claims["agentLabel"] || claims["agent_label"]
+           )
        }}
     else
       _ -> {:error, :missing_agent_headers}

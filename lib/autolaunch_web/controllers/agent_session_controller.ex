@@ -40,24 +40,30 @@ defmodule AutolaunchWeb.AgentSessionController do
 
   defp build_session(claims) do
     issued_at = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-    expires_at = DateTime.utc_now() |> DateTime.add(@session_ttl_seconds, :second) |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+    expires_at =
+      DateTime.utc_now()
+      |> DateTime.add(@session_ttl_seconds, :second)
+      |> DateTime.truncate(:second)
+      |> DateTime.to_iso8601()
 
     %{
-      session_id: Ecto.UUID.generate(),
-      audience: @audience,
-      wallet_address: claims["wallet_address"],
-      chain_id: claims["chain_id"],
-      registry_address: claims["registry_address"],
-      token_id: claims["token_id"],
-      issued_at: issued_at,
-      expires_at: expires_at
+      "session_id" => Ecto.UUID.generate(),
+      "audience" => @audience,
+      "wallet_address" => claims["wallet_address"],
+      "chain_id" => claims["chain_id"],
+      "registry_address" => claims["registry_address"],
+      "token_id" => claims["token_id"],
+      "issued_at" => issued_at,
+      "expires_at" => expires_at
     }
   end
 
   defp current_session(conn) do
     case get_session(conn, @session_key) do
       %{"expires_at" => expires_at} = session when is_binary(expires_at) ->
-        if DateTime.compare(DateTime.utc_now(), DateTime.from_iso8601(expires_at) |> elem(1)) == :lt do
+        if DateTime.compare(DateTime.utc_now(), DateTime.from_iso8601(expires_at) |> elem(1)) ==
+             :lt do
           {:ok, session}
         else
           :expired

@@ -410,7 +410,10 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
              )
   end
 
-  test "removed fee mutation actions return unsupported action errors", %{conn: conn, human: human} do
+  test "removed fee mutation actions return unsupported action errors", %{
+    conn: conn,
+    human: human
+  } do
     conn = signed_in_conn(conn, human)
 
     assert %{"ok" => false, "error" => %{"code" => "unsupported_contract_action"}} =
