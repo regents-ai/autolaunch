@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.Router do
       live "/x-link", XLinkLive, :index
       live "/terms", TermsLive, :index
       live "/privacy", PrivacyLive, :index
-      live "/home", AuctionsLive, :index
+      live "/auctions", AuctionsLive, :index
       live "/auction-returns", AuctionReturnsLive, :index
       live "/auctions/:id", AuctionLive, :show
       live "/profile", ProfileLive, :index

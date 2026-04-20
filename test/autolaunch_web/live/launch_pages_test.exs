@@ -158,6 +158,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "Operator briefs"
     assert html =~ "What you need"
     assert html =~ "What to run"
+    assert html =~ "Base Sepolia + Base mainnet"
     assert html =~ "Canonical operator path"
   end
 
@@ -236,7 +237,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
   end
 
   test "market page renders token directory copy", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/home")
+    {:ok, _view, html} = live(conn, "/auctions")
 
     assert html =~ "Choose a live market, then open the bid page."
     assert html =~ "Biddable 0"

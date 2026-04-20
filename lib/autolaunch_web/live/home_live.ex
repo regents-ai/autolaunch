@@ -95,7 +95,7 @@ defmodule AutolaunchWeb.HomeLive do
           <a :for={item <- @anchor_nav} href={item.href}>{item.label}</a>
         </nav>
 
-        <.link navigate={~p"/home"} class="al-homepage-cta">Open auctions</.link>
+        <.link navigate={~p"/auctions"} class="al-homepage-cta">Open auctions</.link>
       </header>
 
       <main class="al-homepage-main">
@@ -110,7 +110,7 @@ defmodule AutolaunchWeb.HomeLive do
               </p>
 
               <div class="al-homepage-hero-actions">
-                <.link navigate={~p"/home"} class="al-homepage-cta">Open auctions</.link>
+                <.link navigate={~p"/auctions"} class="al-homepage-cta">Open auctions</.link>
                 <.link navigate={~p"/launch"} class="al-homepage-about-secondary">
                   Open launch path
                 </.link>
@@ -242,7 +242,7 @@ defmodule AutolaunchWeb.HomeLive do
             </p>
 
             <div class="al-homepage-about-actions">
-              <.link navigate={~p"/home"} class="al-homepage-about-primary">Open markets</.link>
+              <.link navigate={~p"/auctions"} class="al-homepage-about-primary">Open markets</.link>
               <.link navigate={~p"/launch-via-agent"} class="al-homepage-about-secondary">
                 Use an agent
               </.link>

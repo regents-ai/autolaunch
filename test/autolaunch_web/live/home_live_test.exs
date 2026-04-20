@@ -65,7 +65,7 @@ defmodule AutolaunchWeb.HomeLiveTest do
     assert html =~ "Start with one launch path"
     assert html =~ "Bid with a budget and a price cap"
     assert html =~ "Come back after the auction"
-    assert html =~ ~s(href="/home")
+    assert html =~ ~s(href="/auctions")
   end
 
   test "home page keeps the market table actions aligned with active and past tokens", %{

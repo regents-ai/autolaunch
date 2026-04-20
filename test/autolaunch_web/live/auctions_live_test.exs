@@ -95,7 +95,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     human: human
   } do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, _view, html} = live(conn, "/home")
+    {:ok, _view, html} = live(conn, "/auctions")
 
     assert html =~ "Choose a live market, then open the bid page."
     assert html =~ "Biddable"
@@ -108,7 +108,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
 
   test "mode toggle switches from biddable to live tokens", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, view, _html} = live(conn, "/home")
+    {:ok, view, _html} = live(conn, "/auctions")
 
     html =
       view

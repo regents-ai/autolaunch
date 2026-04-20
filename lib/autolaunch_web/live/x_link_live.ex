@@ -191,7 +191,7 @@ defmodule AutolaunchWeb.XLinkLive do
                 <button type="button" class="al-submit" data-x-link-action="connect">
                   {if @current_connected, do: "Reconnect X", else: "Connect X"}
                 </button>
-                <.link navigate={~p"/home"} class="al-cta-link">Back to auctions</.link>
+                <.link navigate={~p"/auctions"} class="al-cta-link">Back to auctions</.link>
               </div>
             </div>
           <% else %>

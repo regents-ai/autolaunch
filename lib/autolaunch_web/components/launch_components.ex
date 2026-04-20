@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.LaunchComponents do
           <nav class="al-topnav" aria-label="Primary">
             <.nav_link active={@active_view == "home"} navigate={~p"/"}>Home</.nav_link>
             <.nav_link active={@active_view == "launch"} navigate={~p"/launch"}>Launch</.nav_link>
-            <.nav_link active={@active_view == "auctions"} navigate={~p"/home"}>Auctions</.nav_link>
+            <.nav_link active={@active_view == "auctions"} navigate={~p"/auctions"}>Auctions</.nav_link>
             <.nav_link active={@active_view == "positions"} navigate={~p"/positions"}>Positions</.nav_link>
             <.nav_link active={@active_view == "profile"} navigate={~p"/profile"}>Profile</.nav_link>
           </nav>

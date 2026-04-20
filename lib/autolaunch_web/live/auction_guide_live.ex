@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       eyebrow: "What is being sold",
       title: "Each auction sells 10% of a fixed 100 billion token supply.",
       body:
-        "The agent keeps the other 90% from the start, so the auction is only discovering the market price for the public 10% slice. Every bid is still placed in USDC on Ethereum Sepolia.",
+        "The agent keeps the other 90% from the start, so the auction is only discovering the market price for the public 10% slice. Every bid is still placed in USDC on Base Sepolia or Base mainnet.",
       note:
         "The sale discovers the public launch price, not the value of the whole supply at once.",
       stat: "10% sold, 100B total"
@@ -75,7 +75,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       title:
         "When the auction ends, you claim the filled tokens, then stake if you want revenue exposure.",
       body:
-        "The page should make the outcome obvious: what filled, what was refunded, and what still needs to be claimed. After claim, tokens must be staked before they participate in recognized Ethereum Sepolia USDC revenue, and that revenue only counts once it reaches the subject splitter.",
+        "The page should make the outcome obvious: what filled, what was refunded, and what still needs to be claimed. After claim, tokens must be staked before they participate in recognized USDC revenue on Base, and that revenue only counts once it reaches the subject splitter.",
       note: "The sale ends at claim. Earning starts only after staking.",
       stat: "Claim, then stake"
     }
@@ -157,7 +157,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 </button>
                 <span class="al-network-badge">Steps {length(@timeline_steps)}</span>
                 <span class="al-network-badge">Current {@selected_step_index + 1}</span>
-                <.link navigate={~p"/home"} class="al-ghost">Open live auctions</.link>
+                <.link navigate={~p"/auctions"} class="al-ghost">Open live auctions</.link>
               </div>
             </div>
           </:header_strip>
@@ -190,7 +190,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                   </tr>
                   <tr>
                     <th scope="row">Currency</th>
-                    <td>USDC on Ethereum Sepolia</td>
+                    <td>USDC on Base Sepolia or Base mainnet</td>
                   </tr>
                   <tr>
                     <th scope="row">Revenue</th>
@@ -225,8 +225,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
 
                 <div class="al-launch-tags" aria-label="Bid path facts">
                   <span class="al-launch-tag">3-day sale window</span>
-                  <span class="al-launch-tag">USDC on Ethereum Sepolia</span>
-                  <span class="al-launch-tag">Stake after claim to earn USDC</span>
+                  <span class="al-launch-tag">USDC on Base</span>
+                  <span class="al-launch-tag">Stake after claim to earn revenue</span>
                 </div>
 
                 <p class="al-inline-note">
@@ -234,7 +234,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 </p>
 
                 <div class="al-choice-actions">
-                  <.link navigate={~p"/home"} class="al-submit">Open active auctions</.link>
+                  <.link navigate={~p"/auctions"} class="al-submit">Open active auctions</.link>
                   <.link navigate={~p"/auction-returns"} class="al-ghost">Auction returns</.link>
                 </div>
               </article>
