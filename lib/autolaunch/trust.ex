@@ -41,28 +41,38 @@ defmodule Autolaunch.Trust do
   end
 
   def summary_for_agent(agent_id) when is_binary(agent_id) do
-    identity = ERC8004.get_identities_by_agent_ids([agent_id]) |> Map.get(agent_id)
-    auction = latest_agent_auction(agent_id)
-    x_account = x_accounts_by_agent_ids([agent_id]) |> Map.get(agent_id)
+    with {:ok, _parsed_agent_id} <- parse_agent_id(agent_id) do
+      identity = ERC8004.get_identities_by_agent_ids([agent_id]) |> Map.get(agent_id)
+      auction = latest_agent_auction(agent_id)
+      x_account = x_accounts_by_agent_ids([agent_id]) |> Map.get(agent_id)
 
-    world_human_id = auction && auction.world_human_id
-    world_connected = truthy?(auction && auction.world_registered) and present?(world_human_id)
-    ens_name = live_ens_name(identity, auction)
+      world_human_id = auction && auction.world_human_id
+      world_connected = truthy?(auction && auction.world_registered) and present?(world_human_id)
+      ens_name = live_ens_name(identity, auction)
 
-    compose_summary(agent_id, identity, %{
-      ens_name: ens_name,
-      world_connected: world_connected,
-      world_human_id: world_human_id,
-      world_network: auction && auction.world_network,
-      world_launch_count: if(world_connected, do: world_launch_count(world_human_id), else: 0),
-      x_account: x_account
-    })
+      compose_summary(agent_id, identity, %{
+        ens_name: ens_name,
+        world_connected: world_connected,
+        world_human_id: world_human_id,
+        world_network: auction && auction.world_network,
+        world_launch_count: if(world_connected, do: world_launch_count(world_human_id), else: 0),
+        x_account: x_account
+      })
+    else
+      :error -> {:error, :invalid_agent_id}
+    end
   end
 
   def summary_for_agent(_agent_id), do: {:error, :invalid_agent_id}
 
   def compose_summary(agent_id, identity, attrs) when is_binary(agent_id) and is_map(attrs) do
-    {chain_id, token_id} = parse_agent_id(agent_id)
+    {chain_id, token_id} =
+      case parse_agent_id(agent_id) do
+        {:ok, parsed} -> parsed
+        :error -> {nil, nil}
+      end
+
+    erc8004_connected = is_map(identity)
     x_account = Map.get(attrs, :x_account)
     ens_name = Map.get(attrs, :ens_name)
     world_connected = Map.get(attrs, :world_connected, false)
@@ -71,7 +81,7 @@ defmodule Autolaunch.Trust do
 
     %{
       erc8004: %{
-        connected: true,
+        connected: erc8004_connected,
         agent_id: agent_id,
         token_id: identity_value(identity, :token_id) || token_id,
         chain_id: identity_value(identity, :chain_id) || chain_id,
@@ -275,13 +285,20 @@ defmodule Autolaunch.Trust do
   defp parse_agent_id(agent_id) do
     case String.split(agent_id, ":", parts: 2) do
       [chain_id, token_id] ->
-        {String.to_integer(chain_id), token_id}
+        parsed_chain_id = String.to_integer(String.trim(chain_id))
+        normalized_token_id = normalize_optional_text(token_id, 255)
+
+        if parsed_chain_id in [84_532, 8_453] and is_binary(normalized_token_id) do
+          {:ok, {parsed_chain_id, normalized_token_id}}
+        else
+          :error
+        end
 
       _ ->
-        {launch_chain_id(), agent_id}
+        :error
     end
   rescue
-    _ -> {launch_chain_id(), agent_id}
+    _ -> :error
   end
 
   defp iso(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
@@ -291,9 +308,4 @@ defmodule Autolaunch.Trust do
   defp present?(value), do: is_binary(value) and value != ""
 
   defp truthy?(value), do: value in [true, "true", "1", 1, "on", "yes"]
-
-  defp launch_chain_id do
-    Application.get_env(:autolaunch, :launch, [])
-    |> Keyword.get(:chain_id, 84_532)
-  end
 end

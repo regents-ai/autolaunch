@@ -100,10 +100,38 @@ if config_env() != :test do
     usdc_address: env.("AUTOLAUNCH_USDC_ADDRESS", ""),
     revenue_share_factory_address: env.("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", ""),
     revenue_ingress_factory_address: env.("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS", ""),
+    pool_manager_addresses: %{
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_UNISWAP_V4_POOL_MANAGER", ""),
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_UNISWAP_V4_POOL_MANAGER", "")
+    },
+    usdc_addresses: %{
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_USDC_ADDRESS", ""),
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_USDC_ADDRESS", "")
+    },
+    revenue_share_factory_addresses: %{
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_REVENUE_SHARE_FACTORY_ADDRESS", ""),
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_REVENUE_SHARE_FACTORY_ADDRESS", "")
+    },
+    revenue_ingress_factory_addresses: %{
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_REVENUE_INGRESS_FACTORY_ADDRESS", ""),
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_REVENUE_INGRESS_FACTORY_ADDRESS", "")
+    },
     lbp_strategy_factory_address: env.("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", ""),
     token_factory_address: env.("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", ""),
     erc8004_subgraph_url: env.("AUTOLAUNCH_ERC8004_SUBGRAPH_URL", ""),
     identity_registry_address: env.("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", ""),
+    chain_rpc_urls: %{
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_RPC_URL", ""),
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_RPC_URL", "")
+    },
+    erc8004_subgraph_urls: %{
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_ERC8004_SUBGRAPH_URL", ""),
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_ERC8004_SUBGRAPH_URL", "")
+    },
+    identity_registry_addresses: %{
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_IDENTITY_REGISTRY_ADDRESS", ""),
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS", "")
+    },
     regent_multisig_address:
       env.("REGENT_MULTISIG_ADDRESS", "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"),
     deploy_account: env.("AUTOLAUNCH_DEPLOY_ACCOUNT", ""),

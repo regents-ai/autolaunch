@@ -59,6 +59,20 @@ defmodule Autolaunch.ReleaseDeployVerifierTest do
            ]
   end
 
+  test "verifier uses the job chain address book instead of the active launch chain", %{job: job} do
+    assert %{ok: true, checks: checks} = ReleaseDeployVerifier.run(job.job_id)
+
+    assert Enum.any?(
+             checks,
+             &(&1.key == "fee_hook_pool_wiring" and &1.ok)
+           )
+
+    assert Enum.any?(
+             checks,
+             &(&1.key == "revenue_share_factory_controller_auth" and &1.ok)
+           )
+  end
+
   test "verifier fails when pending ownership is not accepted", %{job: job} do
     Support.set_rpc_mode(:pending_owner)
 
@@ -68,6 +82,37 @@ defmodule Autolaunch.ReleaseDeployVerifierTest do
              checks,
              &(&1.key == "fee_vault_ownership" and not &1.ok and
                  String.contains?(&1.detail, "Pending owner"))
+           )
+  end
+
+  test "verifier reports missing per-chain verifier config clearly", %{job: job} do
+    previous_launch = Application.get_env(:autolaunch, :launch, [])
+
+    Application.put_env(
+      :autolaunch,
+      :launch,
+      Keyword.merge(previous_launch,
+        usdc_addresses: %{
+          84_532 => "",
+          8_453 => Support.address(:mainnet_usdc)
+        }
+      )
+    )
+
+    on_exit(fn -> Application.put_env(:autolaunch, :launch, previous_launch) end)
+
+    assert %{ok: false, checks: checks} = ReleaseDeployVerifier.run(job.job_id)
+
+    assert Enum.any?(
+             checks,
+             &(&1.key == "fee_vault_canonical_tokens" and not &1.ok and
+                 String.contains?(&1.detail, "Verifier config is missing the USDC address"))
+           )
+
+    assert Enum.any?(
+             checks,
+             &(&1.key == "fee_hook_pool_wiring" and not &1.ok and
+                 String.contains?(&1.detail, "Verifier config is missing the USDC address"))
            )
   end
 end

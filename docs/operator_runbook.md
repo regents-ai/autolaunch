@@ -123,6 +123,8 @@ Use `smoke` to prove the app can carry a synthetic launch through to a readable 
 
 Use `verify_deploy` immediately after a real launch is marked ready. It checks the live contracts for the post-deploy invariants that matter most: controller resolution from the deploy receipt, controller authorization cleanup in the shared factories, accepted ownership on the fee contracts, fee-vault canonical tokens, completed migration, recorded pool and position ids, hook-enabled state, and subject plus ingress wiring.
 
+`verify_deploy` now reads the shared addresses for the launch's own Base network from the per-chain verifier address books in the environment. Keep those Base Sepolia and Base mainnet values filled in before you rely on the result.
+
 ## Phase 2.5: Create the Agent Safe on Sepolia
 
 Before a launch plan is signed, create one Safe that will be used for:

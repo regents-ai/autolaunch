@@ -1,6 +1,8 @@
 defmodule Autolaunch.ERC8004 do
   @moduledoc false
 
+  @supported_chain_ids [84_532, 8_453]
+
   @agent_query """
   query Agents($where: Agent_filter, $first: Int!) {
     agents(where: $where, first: $first, orderBy: updatedAt, orderDirection: desc) {
@@ -68,20 +70,12 @@ defmodule Autolaunch.ERC8004 do
   end
 
   def identity_registry(chain_id) do
-    if chain_id == active_chain_id() do
-      case Keyword.get(launch_config(), :identity_registry_address, "") do
-        value when is_binary(value) and value != "" -> String.downcase(String.trim(value))
-        _ -> nil
-      end
-    else
-      nil
-    end
+    chain_address_config(:identity_registry_addresses, chain_id)
   end
 
   def get_identities_by_agent_ids(agent_ids) when is_list(agent_ids) do
     agent_ids
     |> Enum.flat_map(&parse_agent_id/1)
-    |> Enum.filter(fn {chain_id, _token_id} -> chain_id == active_chain_id() end)
     |> Enum.group_by(fn {chain_id, _token_id} -> chain_id end, fn {_chain_id, token_id} ->
       token_id
     end)
@@ -120,7 +114,8 @@ defmodule Autolaunch.ERC8004 do
       |> Enum.map(&to_string/1)
       |> Enum.uniq()
 
-    with false <- unique_token_ids == [],
+    with true <- configured_chain?(chain_id),
+         false <- unique_token_ids == [],
          {:ok, url} <- subgraph_url(chain_id),
          {:ok, response} <-
            Req.post(url,
@@ -156,15 +151,9 @@ defmodule Autolaunch.ERC8004 do
   end
 
   defp subgraph_url(chain_id) do
-    launch_config = Application.get_env(:autolaunch, :launch, [])
-
-    if chain_id == active_chain_id() do
-      case Keyword.get(launch_config, :erc8004_subgraph_url, "") do
-        url when is_binary(url) and url != "" -> {:ok, url}
-        _ -> {:error, :missing_subgraph_url}
-      end
-    else
-      {:error, :missing_subgraph_url}
+    case chain_string_config(:erc8004_subgraph_urls, chain_id) do
+      value when is_binary(value) -> {:ok, value}
+      _ -> {:error, :missing_subgraph_url}
     end
   end
 
@@ -253,8 +242,10 @@ defmodule Autolaunch.ERC8004 do
     case String.split(agent_id, ":", parts: 2) do
       [chain_id, token_id] ->
         with {parsed_chain_id, ""} <- Integer.parse(chain_id),
-             false <- token_id == "" do
-          [{parsed_chain_id, token_id}]
+             true <- parsed_chain_id in @supported_chain_ids,
+             normalized_token_id when is_binary(normalized_token_id) <-
+               normalize_token_id(token_id) do
+          [{parsed_chain_id, normalized_token_id}]
         else
           _ -> []
         end
@@ -275,20 +266,56 @@ defmodule Autolaunch.ERC8004 do
 
   defp normalize_address(_value), do: nil
 
-  defp resolved_chain_ids(nil), do: [active_chain_id()]
-
-  defp resolved_chain_ids(chain_ids) when is_list(chain_ids) do
-    active = active_chain_id()
-
-    chain_ids
-    |> Enum.filter(&(&1 == active))
-    |> Enum.uniq()
+  defp normalize_token_id(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 
-  defp active_chain_id do
-    launch_config()
-    |> Keyword.get(:chain_id, 84_532)
+  defp normalize_token_id(_value), do: nil
+
+  defp resolved_chain_ids(nil), do: Enum.filter(@supported_chain_ids, &configured_chain?/1)
+
+  defp resolved_chain_ids(chain_ids) when is_list(chain_ids) do
+    chain_ids
+    |> Enum.filter(&(&1 in @supported_chain_ids))
+    |> Enum.uniq()
+    |> Enum.filter(&configured_chain?/1)
+  end
+
+  defp configured_chain?(chain_id) do
+    is_binary(chain_string_config(:erc8004_subgraph_urls, chain_id)) and
+      is_binary(chain_address_config(:identity_registry_addresses, chain_id))
   end
 
   defp launch_config, do: Application.get_env(:autolaunch, :launch, [])
+
+  defp chain_string_config(key, chain_id) do
+    case Keyword.get(launch_config(), key, %{}) do
+      %{} = values ->
+        values
+        |> Map.get(chain_id)
+        |> normalize_optional_text()
+
+      _ ->
+        nil
+    end
+  end
+
+  defp chain_address_config(key, chain_id) do
+    case chain_string_config(key, chain_id) do
+      value when is_binary(value) -> String.downcase(value)
+      _ -> nil
+    end
+  end
+
+  defp normalize_optional_text(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_optional_text(_value), do: nil
 end

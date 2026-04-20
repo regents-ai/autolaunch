@@ -11,6 +11,8 @@ defmodule Autolaunch.EnsLinkTest do
     @resolver "0x226159d592e2b063810a10ebf6dcbada94ed68b8"
     @signer "0x1111111111111111111111111111111111111111"
 
+    def eth_call(_rpc_url, nil, _data), do: {:error, :unsupported_call}
+
     def eth_call(_rpc_url, to, data) do
       case {String.downcase(to), data} do
         {@ens_registry, "0x0178b8bf" <> _node} ->
@@ -68,6 +70,29 @@ defmodule Autolaunch.EnsLinkTest do
     end
   end
 
+  setup do
+    previous_launch = Application.get_env(:autolaunch, :launch, [])
+
+    Application.put_env(
+      :autolaunch,
+      :launch,
+      Keyword.merge(previous_launch,
+        chain_rpc_urls: %{
+          84_532 => "https://base-sepolia.example",
+          8_453 => "https://base.example"
+        },
+        identity_registry_addresses: %{
+          84_532 => "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+          8_453 => "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+        }
+      )
+    )
+
+    on_exit(fn -> Application.put_env(:autolaunch, :launch, previous_launch) end)
+
+    :ok
+  end
+
   test "prepares bidirectional ENS link data for a linked wallet" do
     {:ok, human} =
       %HumanUser{}
@@ -91,5 +116,64 @@ defmodule Autolaunch.EnsLinkTest do
     assert prepared.plan.verify_status == :ens_record_missing
     assert prepared.ensip25.tx.to == "0x226159d592e2b063810a10ebf6dcbada94ed68b8"
     assert prepared.erc8004.tx.to == "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432"
+  end
+
+  test "prepares ENS link data for Base mainnet identities using configured chain RPCs" do
+    {:ok, human} =
+      %HumanUser{}
+      |> HumanUser.changeset(%{
+        privy_user_id: "did:privy:base-mainnet",
+        wallet_address: "0x1111111111111111111111111111111111111111",
+        wallet_addresses: ["0x1111111111111111111111111111111111111111"]
+      })
+      |> Repo.insert()
+
+    assert {:ok, prepared} =
+             EnsLink.prepare_bidirectional_link(human, %{
+               "ens_name" => "atlas.eth",
+               "chain_id" => "8453",
+               "agent_id" => "42",
+               "signer_address" => "0x1111111111111111111111111111111111111111",
+               "rpc_module" => RpcReady
+             })
+
+    assert prepared.ensip25.tx.chain_id == 8_453
+    assert prepared.erc8004.tx.chain_id == 8_453
+    assert prepared.erc8004.tx.to == "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432"
+  end
+
+  test "returns rpc_not_configured when a valid Base chain is missing its RPC setting" do
+    previous_launch = Application.get_env(:autolaunch, :launch, [])
+
+    Application.put_env(
+      :autolaunch,
+      :launch,
+      Keyword.merge(previous_launch,
+        chain_rpc_urls: %{
+          84_532 => "https://base-sepolia.example",
+          8_453 => ""
+        }
+      )
+    )
+
+    on_exit(fn -> Application.put_env(:autolaunch, :launch, previous_launch) end)
+
+    {:ok, human} =
+      %HumanUser{}
+      |> HumanUser.changeset(%{
+        privy_user_id: "did:privy:rpc-missing",
+        wallet_address: "0x1111111111111111111111111111111111111111",
+        wallet_addresses: ["0x1111111111111111111111111111111111111111"]
+      })
+      |> Repo.insert()
+
+    assert {:error, :rpc_not_configured} =
+             EnsLink.prepare_bidirectional_link(human, %{
+               "ens_name" => "atlas.eth",
+               "chain_id" => "8453",
+               "agent_id" => "42",
+               "signer_address" => "0x1111111111111111111111111111111111111111",
+               "rpc_module" => RpcReady
+             })
   end
 end

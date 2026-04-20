@@ -94,7 +94,9 @@ defmodule Autolaunch.EnsLink do
 
   defp resolve_registry_address(attrs, chain_id) do
     case normalize_address(Map.get(attrs, "registry_address")) do
-      value when is_binary(value) -> {:ok, value}
+      value when is_binary(value) ->
+        {:ok, value}
+
       nil ->
         case ERC8004.identity_registry(chain_id) do
           value when is_binary(value) -> {:ok, value}
@@ -121,16 +123,8 @@ defmodule Autolaunch.EnsLink do
   end
 
   defp chain_rpc_url(chain_id) do
-    if chain_id == launch_chain_id() do
-      configured_rpc_url(:rpc_url)
-    else
-      {:error, :invalid_chain_id}
-    end
-  end
-
-  defp configured_rpc_url(key) do
-    case Keyword.get(launch_config(), key, "") do
-      value when is_binary(value) and value != "" -> {:ok, value}
+    case chain_string_config(:chain_rpc_urls, chain_id) do
+      value when is_binary(value) -> {:ok, value}
       _ -> {:error, :rpc_not_configured}
     end
   end
@@ -198,9 +192,17 @@ defmodule Autolaunch.EnsLink do
 
   defp launch_config, do: Application.get_env(:autolaunch, :launch, [])
 
-  defp launch_chain_id do
-    launch_config()
-    |> Keyword.get(:chain_id, 84_532)
+  defp chain_string_config(key, chain_id) do
+    case Keyword.get(launch_config(), key, %{}) do
+      %{} = values ->
+        case Map.get(values, chain_id) do
+          value when is_binary(value) and value != "" -> String.trim(value)
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
   end
 
   defp serialize(value) when is_struct(value) do

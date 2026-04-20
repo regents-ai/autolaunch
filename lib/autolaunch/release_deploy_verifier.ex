@@ -90,14 +90,14 @@ defmodule Autolaunch.ReleaseDeployVerifier do
       authorized_creator_revoked_check(
         "revenue_share_factory_controller_auth",
         job.chain_id,
-        revenue_share_factory_address(),
+        revenue_share_factory_address(job.chain_id),
         controller_address,
         "Revenue share factory no longer authorizes the deployment controller."
       ),
       authorized_creator_revoked_check(
         "revenue_ingress_factory_controller_auth",
         job.chain_id,
-        revenue_ingress_factory_address(),
+        revenue_ingress_factory_address(job.chain_id),
         controller_address,
         "Revenue ingress factory no longer authorizes the deployment controller."
       )
@@ -203,36 +203,53 @@ defmodule Autolaunch.ReleaseDeployVerifier do
 
   defp fee_hook_pool_wiring_check(job) do
     expected_hook = normalize_address(job.hook_address)
-    expected_quote_token = config_value(launch_config(), :usdc_address)
-    expected_pool_manager = config_value(launch_config(), :pool_manager_address)
+    expected_quote_token = usdc_address(job.chain_id)
+    expected_pool_manager = pool_manager_address(job.chain_id)
 
-    case pool_config(job) do
-      %{hook_enabled: true, hook: hook, quote_token: quote_token, pool_manager: pool_manager} ->
-        if normalize_address(hook) == expected_hook and
-             normalize_address(quote_token) == normalize_address(expected_quote_token) and
-             normalize_address(pool_manager) == normalize_address(expected_pool_manager) do
-          ok_check(
-            "fee_hook_pool_wiring",
-            :error,
-            "Pool config points at the expected fixed fee hook, pool manager, and quote token."
-          )
-        else
-          fail_check(
-            "fee_hook_pool_wiring",
-            :error,
-            "Pool config is present but does not match the expected hook wiring."
-          )
-        end
-
-      %{hook_enabled: false} ->
-        fail_check("fee_hook_pool_wiring", :error, "Fee hook is disabled in the pool config.")
-
-      _ ->
+    cond do
+      not configured_address?(expected_quote_token) ->
         fail_check(
           "fee_hook_pool_wiring",
           :error,
-          "Pool config could not be read from the fee registry."
+          "Verifier config is missing the USDC address for chain #{job.chain_id}."
         )
+
+      not configured_address?(expected_pool_manager) ->
+        fail_check(
+          "fee_hook_pool_wiring",
+          :error,
+          "Verifier config is missing the pool manager address for chain #{job.chain_id}."
+        )
+
+      true ->
+        case pool_config(job) do
+          %{hook_enabled: true, hook: hook, quote_token: quote_token, pool_manager: pool_manager} ->
+            if normalize_address(hook) == expected_hook and
+                 normalize_address(quote_token) == normalize_address(expected_quote_token) and
+                 normalize_address(pool_manager) == normalize_address(expected_pool_manager) do
+              ok_check(
+                "fee_hook_pool_wiring",
+                :error,
+                "Pool config points at the expected fixed fee hook, pool manager, and quote token."
+              )
+            else
+              fail_check(
+                "fee_hook_pool_wiring",
+                :error,
+                "Pool config is present but does not match the expected hook wiring."
+              )
+            end
+
+          %{hook_enabled: false} ->
+            fail_check("fee_hook_pool_wiring", :error, "Fee hook is disabled in the pool config.")
+
+          _ ->
+            fail_check(
+              "fee_hook_pool_wiring",
+              :error,
+              "Pool config could not be read from the fee registry."
+            )
+        end
     end
   end
 
@@ -243,25 +260,35 @@ defmodule Autolaunch.ReleaseDeployVerifier do
          controller_address,
          detail
        ) do
-    case safe_bool_call(chain_id, factory_address, :authorized_creators, [
-           {:address, controller_address}
-         ]) do
-      false ->
-        ok_check(key, :error, detail)
+    cond do
+      not configured_address?(factory_address) ->
+        fail_check(
+          key,
+          :error,
+          "Verifier config is missing the factory address for chain #{chain_id}."
+        )
 
       true ->
-        fail_check(
-          key,
-          :error,
-          "Deployment controller #{controller_address} is still authorized in #{factory_address}."
-        )
+        case safe_bool_call(chain_id, factory_address, :authorized_creators, [
+               {:address, controller_address}
+             ]) do
+          false ->
+            ok_check(key, :error, detail)
 
-      _ ->
-        fail_check(
-          key,
-          :error,
-          "Could not read authorized creator status from #{factory_address}."
-        )
+          true ->
+            fail_check(
+              key,
+              :error,
+              "Deployment controller #{controller_address} is still authorized in #{factory_address}."
+            )
+
+          _ ->
+            fail_check(
+              key,
+              :error,
+              "Could not read authorized creator status from #{factory_address}."
+            )
+        end
     end
   end
 
@@ -296,9 +323,16 @@ defmodule Autolaunch.ReleaseDeployVerifier do
     quote_token =
       safe_address_call(job.chain_id, job.launch_fee_vault_address, :canonical_quote_token)
 
-    expected_quote_token = config_value(launch_config(), :usdc_address)
+    expected_quote_token = usdc_address(job.chain_id)
 
     cond do
+      not configured_address?(expected_quote_token) ->
+        fail_check(
+          "fee_vault_canonical_tokens",
+          :error,
+          "Verifier config is missing the USDC address for chain #{job.chain_id}."
+        )
+
       normalize_address(launch_token) != normalize_address(job.token_address) ->
         fail_check(
           "fee_vault_canonical_tokens",
@@ -449,25 +483,33 @@ defmodule Autolaunch.ReleaseDeployVerifier do
   end
 
   defp ingress_wiring_check(job) do
-    ingress_factory = revenue_ingress_factory_address()
+    ingress_factory = revenue_ingress_factory_address(job.chain_id)
 
-    case safe_address_call(job.chain_id, ingress_factory, :default_ingress_of_subject, [
-           {:bytes32, job.subject_id}
-         ]) do
-      ingress ->
-        if normalize_address(ingress) == normalize_address(job.default_ingress_address) do
-          ok_check(
-            "ingress_wiring",
-            :error,
-            "Default ingress matches the recorded launch output."
-          )
-        else
-          fail_check(
-            "ingress_wiring",
-            :error,
-            "Default ingress is #{ingress || "unreadable"}, expected #{job.default_ingress_address}."
-          )
-        end
+    if not configured_address?(ingress_factory) do
+      fail_check(
+        "ingress_wiring",
+        :error,
+        "Verifier config is missing the revenue ingress factory address for chain #{job.chain_id}."
+      )
+    else
+      case safe_address_call(job.chain_id, ingress_factory, :default_ingress_of_subject, [
+             {:bytes32, job.subject_id}
+           ]) do
+        ingress ->
+          if normalize_address(ingress) == normalize_address(job.default_ingress_address) do
+            ok_check(
+              "ingress_wiring",
+              :error,
+              "Default ingress matches the recorded launch output."
+            )
+          else
+            fail_check(
+              "ingress_wiring",
+              :error,
+              "Default ingress is #{ingress || "unreadable"}, expected #{job.default_ingress_address}."
+            )
+          end
+      end
     end
   end
 
@@ -543,15 +585,25 @@ defmodule Autolaunch.ReleaseDeployVerifier do
 
   defp launch_config, do: Application.get_env(:autolaunch, :launch, [])
 
-  defp revenue_share_factory_address,
-    do: config_value(launch_config(), :revenue_share_factory_address)
+  defp pool_manager_address(chain_id),
+    do: config_value_for_chain(chain_id, :pool_manager_addresses)
 
-  defp revenue_ingress_factory_address,
-    do: config_value(launch_config(), :revenue_ingress_factory_address)
+  defp usdc_address(chain_id),
+    do: config_value_for_chain(chain_id, :usdc_addresses)
 
-  defp config_value(config, key) do
-    config
-    |> Keyword.get(key, "")
+  defp revenue_share_factory_address(chain_id),
+    do: config_value_for_chain(chain_id, :revenue_share_factory_addresses)
+
+  defp revenue_ingress_factory_address(chain_id),
+    do: config_value_for_chain(chain_id, :revenue_ingress_factory_addresses)
+
+  defp config_value_for_chain(chain_id, key) do
+    launch_config()
+    |> Keyword.get(key, %{})
+    |> case do
+      %{} = values -> Map.get(values, chain_id)
+      _ -> nil
+    end
     |> normalize_address()
   end
 

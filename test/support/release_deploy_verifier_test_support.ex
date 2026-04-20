@@ -31,15 +31,36 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
   def address(:regent_recipient), do: "0xffffffffffffffffffffffffffffffffffffffff"
   def address(:pool_manager), do: "0x1212121212121212121212121212121212121212"
   def address(:pending_owner), do: "0x1313131313131313131313131313131313131313"
+  def address(:mainnet_usdc), do: "0x1414141414141414141414141414141414141414"
+  def address(:mainnet_pool_manager), do: "0x1515151515151515151515151515151515151515"
+  def address(:mainnet_revenue_share_factory), do: "0x1616161616161616161616161616161616161616"
+  def address(:mainnet_revenue_ingress_factory), do: "0x1717171717171717171717171717171717171717"
   def address(:currency0), do: address(:launch_token)
   def address(:currency1), do: address(:usdc)
 
   def launch_config(previous \\ []) do
     Keyword.merge(previous,
-      usdc_address: address(:usdc),
-      pool_manager_address: address(:pool_manager),
-      revenue_share_factory_address: address(:revenue_share_factory),
-      revenue_ingress_factory_address: address(:revenue_ingress_factory)
+      chain_id: 8_453,
+      usdc_address: address(:mainnet_usdc),
+      pool_manager_address: address(:mainnet_pool_manager),
+      revenue_share_factory_address: address(:mainnet_revenue_share_factory),
+      revenue_ingress_factory_address: address(:mainnet_revenue_ingress_factory),
+      usdc_addresses: %{
+        84_532 => address(:usdc),
+        8_453 => address(:mainnet_usdc)
+      },
+      pool_manager_addresses: %{
+        84_532 => address(:pool_manager),
+        8_453 => address(:mainnet_pool_manager)
+      },
+      revenue_share_factory_addresses: %{
+        84_532 => address(:revenue_share_factory),
+        8_453 => address(:mainnet_revenue_share_factory)
+      },
+      revenue_ingress_factory_addresses: %{
+        84_532 => address(:revenue_ingress_factory),
+        8_453 => address(:mainnet_revenue_ingress_factory)
+      }
     )
   end
 

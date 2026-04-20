@@ -1,6 +1,6 @@
 # Autolaunch Mainnet Readiness Checklist
 
-This checklist tracks the hardening items that matter before Ethereum mainnet launch operations.
+This checklist tracks the hardening items that matter before Base mainnet launch operations.
 
 Status key:
 
