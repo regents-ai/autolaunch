@@ -16,6 +16,16 @@ defmodule Autolaunch.ReleaseDoctor do
     {:token_factory_address, "token factory address"},
     {:identity_registry_address, "identity registry address"}
   ]
+  @verifier_chain_address_checks [
+    {:pool_manager_addresses, "Uniswap v4 pool manager address"},
+    {:usdc_addresses, "USDC address"},
+    {:revenue_share_factory_addresses, "revenue share factory address"},
+    {:revenue_ingress_factory_addresses, "revenue ingress factory address"}
+  ]
+  @verifier_chains [
+    {84_532, "Base Sepolia"},
+    {8_453, "Base"}
+  ]
   @trust_networks [
     {"world", "World AgentBook config"},
     {"base", "Base AgentBook config"},
@@ -33,7 +43,7 @@ defmodule Autolaunch.ReleaseDoctor do
         deploy_workdir_check(),
         deploy_script_target_check(),
         launch_rpc_check()
-      ] ++ launch_address_checks() ++ trust_checks()
+      ] ++ launch_address_checks() ++ verifier_chain_address_checks() ++ trust_checks()
 
     %{
       ok: Enum.all?(checks, &blocking_check_ok?/1),
@@ -188,6 +198,31 @@ defmodule Autolaunch.ReleaseDoctor do
         )
       end
     end)
+  end
+
+  defp verifier_chain_address_checks do
+    launch = Application.get_env(:autolaunch, :launch, [])
+
+    for {chain_id, chain_label} <- @verifier_chains,
+        {key, label} <- @verifier_chain_address_checks do
+      value =
+        launch
+        |> Keyword.get(key, %{})
+        |> case do
+          %{} = values -> Map.get(values, chain_id)
+          _ -> nil
+        end
+
+      if configured_address?(value) do
+        ok_check("launch_#{key}_#{chain_id}", :error, "#{chain_label} #{label} is configured.")
+      else
+        fail_check(
+          "launch_#{key}_#{chain_id}",
+          :error,
+          "#{chain_label} #{label} is missing or invalid."
+        )
+      end
+    end
   end
 
   defp blocking_check_ok?(%{severity: :warning}), do: true

@@ -48,9 +48,25 @@ defmodule Autolaunch.ReleaseDoctorTest do
         pool_manager_address: "0x2222222222222222222222222222222222222222",
         position_manager_address: "0x3333333333333333333333333333333333333333",
         usdc_address: "0x4444444444444444444444444444444444444444",
+        pool_manager_addresses: %{
+          84_532 => "0x2222222222222222222222222222222222222222",
+          8_453 => "0x1212121212121212121212121212121212121212"
+        },
+        usdc_addresses: %{
+          84_532 => "0x4444444444444444444444444444444444444444",
+          8_453 => "0x1313131313131313131313131313131313131313"
+        },
         identity_registry_address: "0x9999999999999999999999999999999999999998",
         revenue_share_factory_address: "0x5555555555555555555555555555555555555555",
         revenue_ingress_factory_address: "0x6666666666666666666666666666666666666666",
+        revenue_share_factory_addresses: %{
+          84_532 => "0x5555555555555555555555555555555555555555",
+          8_453 => "0x1414141414141414141414141414141414141414"
+        },
+        revenue_ingress_factory_addresses: %{
+          84_532 => "0x6666666666666666666666666666666666666666",
+          8_453 => "0x1515151515151515151515151515151515151515"
+        },
         lbp_strategy_factory_address: "0x7777777777777777777777777777777777777777",
         token_factory_address: "0x8888888888888888888888888888888888888888"
       )
@@ -92,6 +108,24 @@ defmodule Autolaunch.ReleaseDoctorTest do
 
     assert %{ok: false, checks: checks} = ReleaseDoctor.run()
     assert Enum.any?(checks, &(&1.key == "deploy_script_target" and not &1.ok))
+  end
+
+  test "doctor fails when a verifier address book entry is missing" do
+    launch =
+      Application.get_env(:autolaunch, :launch, [])
+      |> Keyword.put(:usdc_addresses, %{
+        84_532 => "0x4444444444444444444444444444444444444444",
+        8_453 => ""
+      })
+
+    Application.put_env(:autolaunch, :launch, launch)
+
+    assert %{ok: false, checks: checks} = ReleaseDoctor.run()
+
+    assert Enum.any?(
+             checks,
+             &(&1.key == "launch_usdc_addresses_8453" and not &1.ok)
+           )
   end
 
   test "doctor fails when a path deploy binary exists but is not executable", %{tempdir: tempdir} do
