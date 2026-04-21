@@ -61,21 +61,35 @@ defmodule AutolaunchWeb.AgentSessionController do
 
   defp current_session(conn) do
     case get_session(conn, @session_key) do
-      %{"expires_at" => expires_at} = session when is_binary(expires_at) ->
-        if DateTime.compare(DateTime.utc_now(), DateTime.from_iso8601(expires_at) |> elem(1)) ==
-             :lt do
-          {:ok, session}
-        else
-          :expired
-        end
-
       %{} = session ->
-        {:ok, session}
+        with {:ok, expires_at} <- fetch_session_value(session, "expires_at"),
+             {:ok, audience} <- fetch_session_value(session, "audience"),
+             true <- audience == @audience,
+             {:ok, parsed_expires_at, _offset} <- DateTime.from_iso8601(expires_at),
+             :lt <- DateTime.compare(DateTime.utc_now(), parsed_expires_at) do
+          {:ok, stringify_session(session)}
+        else
+          _ -> :expired
+        end
 
       _ ->
         :missing
     end
   rescue
     _ -> :expired
+  end
+
+  defp fetch_session_value(session, key) do
+    case Map.get(session, key) || Map.get(session, String.to_atom(key)) do
+      value when is_binary(value) and value != "" -> {:ok, value}
+      _ -> {:error, :invalid_session}
+    end
+  end
+
+  defp stringify_session(session) do
+    Map.new(session, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+      {key, value} -> {key, value}
+    end)
   end
 end

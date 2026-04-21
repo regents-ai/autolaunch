@@ -28,11 +28,11 @@ defmodule Autolaunch.Application do
   defp enforce_siwa_runtime_guard! do
     runtime_env = Application.get_env(:autolaunch, :runtime_env, :dev)
     siwa_cfg = Application.get_env(:autolaunch, :siwa, [])
-    skip_http_verify? = Keyword.get(siwa_cfg, :skip_http_verify, false)
+    shared_secret = Keyword.get(siwa_cfg, :shared_secret)
 
-    if skip_http_verify? and runtime_env != :test do
+    if runtime_env == :prod and (not is_binary(shared_secret) or String.trim(shared_secret) == "") do
       raise """
-      invalid SIWA configuration: :siwa, skip_http_verify may only be enabled in :test.
+      invalid SIWA configuration: :siwa, shared_secret must be configured in :prod.
       """
     end
 

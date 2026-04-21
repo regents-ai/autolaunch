@@ -4,6 +4,9 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
   alias Autolaunch.Accounts
 
   @wallet "0x1111111111111111111111111111111111111111"
+  @registry "0x2222222222222222222222222222222222222222"
+  @token_id "44"
+  @receipt_secret "autolaunch-test-shared-secret"
 
   defmodule LaunchStub do
     def list_agents(nil) do
@@ -97,6 +100,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
 
     Application.put_env(:autolaunch, :siwa,
       internal_url: "http://127.0.0.1:#{port}",
+      shared_secret: @receipt_secret,
       http_connect_timeout_ms: 2_000,
       http_receive_timeout_ms: 5_000
     )
@@ -108,8 +112,9 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
       |> put_req_header("accept", "application/json")
       |> put_req_header("x-agent-wallet-address", @wallet)
       |> put_req_header("x-agent-chain-id", "84532")
-      |> put_req_header("x-agent-registry-address", "0x2222222222222222222222222222222222222222")
-      |> put_req_header("x-agent-token-id", "44")
+      |> put_req_header("x-agent-registry-address", @registry)
+      |> put_req_header("x-agent-token-id", @token_id)
+      |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
       |> get("/v1/agent/agents")
 
     assert %{"ok" => true, "items" => items} = json_response(conn, 200)
@@ -123,5 +128,37 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     {:ok, port} = :inet.port(socket)
     :ok = :gen_tcp.close(socket)
     port
+  end
+
+  defp receipt_token(audience) do
+    now = DateTime.utc_now() |> DateTime.to_unix()
+
+    header =
+      %{"alg" => "HS256", "typ" => "JWT"}
+      |> Jason.encode!()
+      |> Base.url_encode64(padding: false)
+
+    payload =
+      %{
+        "typ" => "siwa_receipt",
+        "jti" => Ecto.UUID.generate(),
+        "sub" => @wallet,
+        "aud" => audience,
+        "iat" => now,
+        "exp" => now + 600,
+        "chainId" => 84_532,
+        "nonce" => "nonce-#{System.unique_integer([:positive])}",
+        "keyId" => @wallet,
+        "registryAddress" => @registry,
+        "tokenId" => @token_id
+      }
+      |> Jason.encode!()
+      |> Base.url_encode64(padding: false)
+
+    signature =
+      :crypto.mac(:hmac, :sha256, @receipt_secret, "#{header}.#{payload}")
+      |> Base.url_encode64(padding: false)
+
+    "#{header}.#{payload}.#{signature}"
   end
 end

@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.Router do
   pipeline :session_api do
     plug :accepts, ["json"]
     plug :fetch_session
+    plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug AutolaunchWeb.Plugs.LoadCurrentHuman
   end

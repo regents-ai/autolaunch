@@ -5,10 +5,14 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
 
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.SiwaReceipt
 
   @http_verify_path "/v1/agent/siwa/http-verify"
   @default_connect_timeout_ms 2_000
   @default_receive_timeout_ms 5_000
+  @audience "autolaunch"
+  @hex_address_regex ~r/^0x[0-9a-fA-F]{40}$/
+  @positive_int_regex ~r/^[1-9][0-9]*$/
 
   def init(opts), do: opts
 
@@ -19,7 +23,8 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
         Map.put(acc, String.downcase(key), value)
       end)
 
-    with {:ok, claims} <- verify_with_broker(conn, headers) do
+    with :ok <- verify_receipt(headers),
+         {:ok, claims} <- verify_with_broker(conn, headers) do
       conn
       |> assign(:current_agent_claims, claims)
       |> maybe_assign_current_human(claims)
@@ -90,24 +95,21 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
   end
 
   defp normalize_claims(claims) when is_map(claims) do
-    with wallet when is_binary(wallet) and wallet != "" <-
-           claims["wallet_address"] || claims["walletAddress"],
-         chain_id when is_binary(chain_id) and chain_id != "" <-
-           claims["chain_id"] || claims["chainId"],
-         registry_address when is_binary(registry_address) and registry_address != "" <-
-           claims["registry_address"] || claims["registryAddress"],
-         token_id when is_binary(token_id) and token_id != "" <-
-           claims["token_id"] || claims["tokenId"] do
+    with wallet when is_binary(wallet) <- claims["wallet_address"],
+         :ok <- ensure_hex_address(wallet),
+         chain_id when is_binary(chain_id) <- claims["chain_id"],
+         :ok <- ensure_positive_int(chain_id),
+         registry_address when is_binary(registry_address) <- claims["registry_address"],
+         :ok <- ensure_hex_address(registry_address),
+         token_id when is_binary(token_id) <- claims["token_id"],
+         :ok <- ensure_positive_int(token_id) do
       {:ok,
        %{
          "wallet_address" => String.downcase(String.trim(wallet)),
          "chain_id" => String.trim(chain_id),
-         "registry_address" => String.trim(registry_address),
+         "registry_address" => String.downcase(String.trim(registry_address)),
          "token_id" => String.trim(token_id),
-         "label" =>
-           normalize_optional_value(
-             claims["label"] || claims["agentLabel"] || claims["agent_label"]
-           )
+         "label" => normalize_optional_value(claims["label"])
        }}
     else
       _ -> {:error, :missing_agent_headers}
@@ -137,6 +139,34 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
   end
 
   defp normalize_timeout(_value, fallback), do: fallback
+
+  defp verify_receipt(headers) do
+    with {:ok, secret} <- fetch_shared_secret() do
+      case SiwaReceipt.verify_request_headers(headers, audience: @audience, secret: secret) do
+        {:ok, _claims} -> :ok
+        {:error, _reason} -> {:error, :siwa_auth_denied}
+      end
+    end
+  end
+
+  defp fetch_shared_secret do
+    case Application.get_env(:autolaunch, :siwa, []) |> Keyword.get(:shared_secret) do
+      secret when is_binary(secret) and secret != "" -> {:ok, secret}
+      _ -> {:error, :invalid_siwa_config}
+    end
+  end
+
+  defp ensure_hex_address(value) when is_binary(value) do
+    if value =~ @hex_address_regex, do: :ok, else: {:error, :invalid_agent_header}
+  end
+
+  defp ensure_hex_address(_value), do: {:error, :invalid_agent_header}
+
+  defp ensure_positive_int(value) when is_binary(value) do
+    if value =~ @positive_int_regex, do: :ok, else: {:error, :invalid_agent_header}
+  end
+
+  defp ensure_positive_int(_value), do: {:error, :invalid_agent_header}
 
   defp normalize_optional_value(value) when is_binary(value) do
     case String.trim(value) do

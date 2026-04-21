@@ -80,9 +80,9 @@ if config_env() != :test do
 
   config :autolaunch, :siwa,
     internal_url: env.("SIWA_INTERNAL_URL", "http://siwa-sidecar:4100"),
+    shared_secret: env.("SIWA_SHARED_SECRET", ""),
     http_connect_timeout_ms: env_int.("SIWA_HTTP_CONNECT_TIMEOUT_MS", 2_000),
-    http_receive_timeout_ms: env_int.("SIWA_HTTP_RECEIVE_TIMEOUT_MS", 5_000),
-    skip_http_verify: env_bool.("SIWA_SKIP_HTTP_VERIFY", false)
+    http_receive_timeout_ms: env_int.("SIWA_HTTP_RECEIVE_TIMEOUT_MS", 5_000)
 
   config :autolaunch, :launch,
     chain_id: env_int.("AUTOLAUNCH_CHAIN_ID", launch_chain_id_default),

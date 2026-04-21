@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
   @chain_id "84532"
   @registry_address "0x2222222222222222222222222222222222222222"
   @token_id "44"
+  @receipt_secret "autolaunch-test-shared-secret"
 
   setup_all do
     original_siwa_cfg = Application.get_env(:autolaunch, :siwa, [])
@@ -16,6 +17,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
 
     Application.put_env(:autolaunch, :siwa,
       internal_url: "http://127.0.0.1:#{port}",
+      shared_secret: @receipt_secret,
       http_connect_timeout_ms: 2_000,
       http_receive_timeout_ms: 5_000
     )
@@ -33,6 +35,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
       conn
       |> init_test_session(%{})
       |> with_agent_headers()
+      |> with_csrf()
       |> post("/api/auth/agent/session", %{})
 
     created = json_response(created_conn, 200)
@@ -60,6 +63,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     delete_conn =
       show_conn
       |> recycle()
+      |> with_csrf()
       |> delete("/api/auth/agent/session")
 
     assert %{"ok" => true} = json_response(delete_conn, 200)
@@ -77,6 +81,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
       conn
       |> init_test_session(%{})
       |> with_agent_headers()
+      |> with_csrf()
       |> post("/api/auth/agent/session", %{})
 
     response = json_response(conn, 200)
@@ -114,13 +119,90 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     assert %{"ok" => true, "session" => nil} = json_response(followup_conn, 200)
   end
 
-  defp with_agent_headers(conn) do
+  test "show clears a malformed local agent session without expiry", %{conn: conn} do
+    malformed_session = %{
+      "session_id" => Ecto.UUID.generate(),
+      "audience" => "autolaunch",
+      "wallet_address" => @wallet_address,
+      "chain_id" => @chain_id,
+      "registry_address" => @registry_address,
+      "token_id" => @token_id,
+      "issued_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    conn =
+      conn
+      |> init_test_session(%{agent_session: malformed_session})
+      |> get("/api/auth/agent/session")
+
+    assert %{"ok" => true, "session" => nil} = json_response(conn, 200)
+  end
+
+  test "session creation rejects a receipt minted for another app", %{conn: conn} do
+    conn =
+      conn
+      |> init_test_session(%{})
+      |> with_agent_headers(receipt_audience: "techtree")
+      |> with_csrf()
+      |> post("/api/auth/agent/session", %{})
+
+    assert %{"error" => %{"code" => "siwa_auth_denied"}} = json_response(conn, 401)
+  end
+
+  defp with_agent_headers(conn, opts \\ []) do
+    wallet_address = Keyword.get(opts, :wallet_address, @wallet_address)
+    chain_id = Keyword.get(opts, :chain_id, @chain_id)
+    registry_address = Keyword.get(opts, :registry_address, @registry_address)
+    token_id = Keyword.get(opts, :token_id, @token_id)
+    receipt_audience = Keyword.get(opts, :receipt_audience, "autolaunch")
+
     conn
     |> put_req_header("accept", "application/json")
-    |> put_req_header("x-agent-wallet-address", @wallet_address)
-    |> put_req_header("x-agent-chain-id", @chain_id)
-    |> put_req_header("x-agent-registry-address", @registry_address)
-    |> put_req_header("x-agent-token-id", @token_id)
+    |> put_req_header("x-agent-wallet-address", wallet_address)
+    |> put_req_header("x-agent-chain-id", chain_id)
+    |> put_req_header("x-agent-registry-address", registry_address)
+    |> put_req_header("x-agent-token-id", token_id)
+    |> put_req_header(
+      "x-siwa-receipt",
+      receipt_token(wallet_address, chain_id, registry_address, token_id, receipt_audience)
+    )
+  end
+
+  defp with_csrf(conn) do
+    csrf_token = Plug.CSRFProtection.get_csrf_token()
+    put_req_header(conn, "x-csrf-token", csrf_token)
+  end
+
+  defp receipt_token(wallet_address, chain_id, registry_address, token_id, audience) do
+    now = DateTime.utc_now() |> DateTime.to_unix()
+
+    header =
+      %{"alg" => "HS256", "typ" => "JWT"}
+      |> Jason.encode!()
+      |> Base.url_encode64(padding: false)
+
+    payload =
+      %{
+        "typ" => "siwa_receipt",
+        "jti" => Ecto.UUID.generate(),
+        "sub" => wallet_address,
+        "aud" => audience,
+        "iat" => now,
+        "exp" => now + 600,
+        "chainId" => String.to_integer(chain_id),
+        "nonce" => "nonce-#{System.unique_integer([:positive])}",
+        "keyId" => wallet_address,
+        "registryAddress" => registry_address,
+        "tokenId" => token_id
+      }
+      |> Jason.encode!()
+      |> Base.url_encode64(padding: false)
+
+    signature =
+      :crypto.mac(:hmac, :sha256, @receipt_secret, "#{header}.#{payload}")
+      |> Base.url_encode64(padding: false)
+
+    "#{header}.#{payload}.#{signature}"
   end
 
   defp available_port do
