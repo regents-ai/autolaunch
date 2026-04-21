@@ -1,21 +1,6 @@
 version: 1
 product: autolaunch
 command_groups:
-  - name: agentbook
-    interface: http
-    auth_mode: mixed
-    output_envelope: loose-object
-    commands:
-      - agentbook register
-      - agentbook sessions watch
-      - agentbook lookup
-      - agentbook verify-header
-    path_templates:
-      - /api/agentbook/sessions
-      - /api/agentbook/sessions/{id}
-      - /api/agentbook/sessions/{id}/submit
-      - /api/agentbook/lookup
-      - /api/agentbook/verify
   - name: agents-trust
     interface: http
     auth_mode: agent-siwa
