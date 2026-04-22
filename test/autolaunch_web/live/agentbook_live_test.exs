@@ -127,9 +127,11 @@ defmodule AutolaunchWeb.AgentbookLiveTest do
   test "public page renders register and lookup panels", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/agentbook")
 
+    assert html =~ "Back to profile"
+    assert html =~ "Profile trust"
     assert html =~ "Register agent wallet"
     assert html =~ "Lookup existing record"
-    assert html =~ "No Privy needed"
+    assert html =~ "No app login"
   end
 
   test "launch follow-up query preloads the world proof form", %{conn: conn} do

@@ -4,9 +4,12 @@ defmodule AutolaunchWeb.AuctionLive do
   alias Autolaunch.Launch
   alias AutolaunchWeb.LaunchComponents
   alias AutolaunchWeb.Live.Refreshable
-  alias AutolaunchWeb.RegentScenes
+  alias Decimal, as: D
 
   @poll_ms 12_000
+  @auctions_css_path Path.expand("../../../assets/css/auctions-live.css", __DIR__)
+  @external_resource @auctions_css_path
+  @auctions_css File.read!(@auctions_css_path)
 
   def mount(%{"id" => auction_id}, _session, socket) do
     auction = launch_module().get_auction(auction_id, socket.assigns[:current_human])
@@ -23,9 +26,7 @@ defmodule AutolaunchWeb.AuctionLive do
      |> assign(:auction, auction)
      |> assign(:bid_form, form)
      |> assign(:quote, quote)
-     |> assign(:positions, positions)
-     |> assign(:detail_focus, "detail:bid")
-     |> assign_regent_scene()}
+     |> assign(:positions, positions)}
   end
 
   def handle_event("quote_changed", %{"bid" => attrs}, socket) do
@@ -34,8 +35,7 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply,
      socket
      |> assign(:bid_form, form)
-     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))
-     |> assign_regent_scene()}
+     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))}
   end
 
   def handle_event("apply_preset", %{"preset" => preset}, socket) do
@@ -44,8 +44,7 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply,
      socket
      |> assign(:bid_form, form)
-     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))
-     |> assign_regent_scene()}
+     |> assign(:quote, maybe_quote(socket.assigns.auction, form, socket.assigns.current_human))}
   end
 
   def handle_event("wallet_tx_started", %{"message" => message}, socket) do
@@ -60,349 +59,397 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply, Refreshable.wallet_error(socket, message)}
   end
 
-  def handle_event("regent:node_select", %{"meta" => %{"panel" => panel}}, socket) do
-    {:noreply, socket |> assign(:detail_focus, panel) |> assign_regent_scene()}
-  end
-
-  def handle_event("regent:node_select", _params, socket), do: {:noreply, socket}
-
-  def handle_event("scene-back", _params, socket) do
-    {:noreply, socket |> assign(:detail_focus, "detail:bid") |> assign_regent_scene()}
-  end
-
-  def handle_event("regent:node_hover", _params, socket), do: {:noreply, socket}
-  def handle_event("regent:surface_ready", _params, socket), do: {:noreply, socket}
-
-  def handle_event("regent:surface_error", _params, socket) do
-    {:noreply,
-     put_flash(
-       socket,
-       :error,
-       "The auction detail surface could not render in this browser session."
-     )}
-  end
-
   def handle_info(:refresh, socket) do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_auction/1)}
   end
 
   def render(assigns) do
     latest_position = List.first(assigns.positions)
-    auction_trust = auction_trust(assigns.auction)
-
     assigns =
       assigns
       |> assign(:latest_position, latest_position)
-      |> assign(:trust_summary, auction_trust_summary(auction_trust))
-      |> assign(:regent_detail_title, regent_detail_title(assigns.detail_focus))
-      |> assign(
-        :regent_detail_summary,
-        regent_detail_summary(assigns.detail_focus, assigns.quote, latest_position)
-      )
+      |> assign(:trust_summary, auction_trust_summary(auction_trust(assigns.auction)))
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
+      <style id="auction-detail-css">
+        <%= raw(route_css()) %>
+      </style>
+
       <%= if @auction do %>
-        <section id="auction-detail-hero" class="al-detail-hero al-panel" phx-hook="MissionMotion">
-          <div>
-            <p class="al-kicker">Auction detail</p>
-            <h2>{@auction.agent_name}</h2>
-            <p class="al-subcopy">
-              Start with the bid composer. The supporting cards below are there to confirm price,
-              time, minimum raise, and your current position without competing with the action area.
-            </p>
-
-            <div class="al-launch-tags">
-              <span class="al-launch-tag">{LaunchComponents.time_left_label(@auction.ends_at)}</span>
-              <span class="al-launch-tag">Status {@auction.status}</span>
-              <span class="al-launch-tag">Trust {@trust_summary.status}</span>
-            </div>
-          </div>
-
-          <div class="al-stat-grid">
-            <.stat_card title="Clearing price" value={@auction.current_clearing_price} />
-            <.stat_card title="Bid volume" value={@auction.total_bid_volume} />
-            <.stat_card
-              title="Your status"
-              value={human_position_status(@latest_position)}
-              hint="Active, borderline, inactive, claimable, pending claim, claimed, exited, ending soon, settled"
-            />
-          </div>
-        </section>
-
-        <section class="al-auction-primary-layout">
-          <article id="auction-bid-composer" class="al-panel al-card" phx-hook="MissionMotion">
-            <div class="al-section-head">
-              <div>
-                <p class="al-kicker">Bid composer</p>
-                <h3>Bid your real budget and your real max price.</h3>
-              </div>
-              <.status_badge status={@auction.status} />
-            </div>
-
-            <div class="al-inline-banner">
-              <strong>Simple buyer model.</strong>
-              <p>
-                Your order is spread across the remaining blocks like a TWAP. It only keeps buying
-                while the clearing price stays below your cap, so you never pay above the max price
-                you chose.
-              </p>
-            </div>
-
-            <form phx-change="quote_changed" class="al-form">
-              <div class="al-field-grid">
-                <label>
-                  <span>Amount</span>
-                  <input type="text" name="bid[amount]" value={@bid_form["amount"]} />
-                </label>
-                <label>
-                  <span>Max price</span>
-                  <input type="text" name="bid[max_price]" value={@bid_form["max_price"]} />
-                </label>
-              </div>
-            </form>
-
-            <div class="al-pill-row">
-              <button type="button" class="al-filter" phx-click="apply_preset" phx-value-preset="starter">Starter bid</button>
-              <button type="button" class="al-filter" phx-click="apply_preset" phx-value-preset="stay_active">Stay-active bid</button>
-              <button type="button" class="al-filter" phx-click="apply_preset" phx-value-preset="aggressive">Aggressive</button>
-            </div>
-
-            <div class="al-action-row">
-              <.wallet_tx_button
-                :if={@quote && @quote.tx_request}
-                id={"submit-bid-#{@auction_id}"}
-                class="al-submit"
-                tx_request={@quote.tx_request}
-                register_endpoint={~p"/api/auctions/#{@auction_id}/bids"}
-                register_body={%{
-                  "amount" => @quote.amount,
-                  "max_price" => @quote.max_price,
-                  "current_clearing_price" => @quote.current_clearing_price,
-                  "projected_clearing_price" => @quote.projected_clearing_price,
-                  "estimated_tokens_if_end_now" => @quote.estimated_tokens_if_end_now,
-                  "estimated_tokens_if_no_other_bids_change" =>
-                    @quote.estimated_tokens_if_no_other_bids_change,
-                  "inactive_above_price" => @quote.inactive_above_price,
-                  "status_band" => @quote.status_band
-                }}
-                pending_message="Bid transaction sent. Waiting for chain confirmation."
-                success_message="Bid registered from the confirmed onchain transaction."
-              >
-                Submit bid from wallet
-              </.wallet_tx_button>
-              <span :if={is_nil(@current_human)} class="al-inline-note">
-                Privy session required before the wallet transaction can be registered.
-              </span>
-            </div>
-          </article>
-
-          <article id="auction-estimator-card" class="al-panel al-card" phx-hook="MissionMotion">
-            <div class="al-section-head">
-              <div>
-                <p class="al-kicker">Live estimator</p>
-                <h3>If nothing else changes, this is where your bid lands.</h3>
-              </div>
-            </div>
-
-            <%= if @quote do %>
-              <div class="al-stat-grid">
-                <.stat_card
-                  title="Active now?"
-                  value={if @quote.would_be_active_now, do: "Yes", else: "No"}
-                  hint={@quote.status_band}
-                />
-                <.stat_card
-                  title="If auction ended now"
-                  value={@quote.estimated_tokens_if_end_now}
-                />
-                <.stat_card
-                  title="If no bids change"
-                  value={@quote.estimated_tokens_if_no_other_bids_change}
-                />
-                <.stat_card
-                  title="Inactive above"
-                  value={@quote.inactive_above_price}
-                />
-              </div>
-
-              <ul class="al-compact-list">
-                <li>
-                  Current clearing price: <strong>{@quote.current_clearing_price}</strong>
-                </li>
-                <li>
-                  Status band: <strong>{String.capitalize(@quote.status_band)}</strong>
-                </li>
-                <li>
-                  Time remaining: <strong>{Integer.to_string(@quote.time_remaining_seconds)} seconds</strong>
-                </li>
-                <li :for={warning <- @quote.warnings}>{warning}</li>
-              </ul>
-            <% else %>
-              <p class="al-inline-note">Enter a valid amount and max price to calculate the estimator.</p>
-            <% end %>
-
-            <%= if @positions != [] do %>
-              <div class="al-inline-banner al-auction-position-callout">
-                <strong>Your latest bid</strong>
-                <p>{@latest_position.next_action_label}</p>
-              </div>
-            <% end %>
-          </article>
-        </section>
-
-        <section class="al-regent-shell">
-          <.surface
-            id="auction-detail-regent-surface"
-            class="rg-regent-theme-autolaunch al-terrain-surface"
-            scene={@regent_scene}
-            scene_version={@regent_scene_version}
-            selected_target_id={@regent_selected_target_id}
-            theme="autolaunch"
-            camera_distance={24}
+        <div class="al-auction-detail-route">
+          <section
+            id="auction-detail-page-head"
+            class="al-auction-detail-page-head"
+            phx-hook="MissionMotion"
           >
-            <:header_strip>
-              <div class="al-terrain-strip">
-                <div class="al-terrain-strip-copy">
-                  <p class="al-kicker">Detail strip</p>
-                  <div>
-                    <h2>{@auction.agent_name}</h2>
-                    <p class="al-subcopy">The detail terrain stays orienting only. Bids, claims, trust checks, and estimator math remain in the readable cards below.</p>
+            <div class="breadcrumbs text-sm">
+              <ul>
+                <li><.link navigate={~p"/auctions"}>Auctions</.link></li>
+                <li>Detail</li>
+              </ul>
+            </div>
+
+            <div class="al-auction-detail-title-row">
+              <div>
+                <p class="al-kicker">Auction detail</p>
+                <h1>{@auction.agent_name}</h1>
+              </div>
+
+              <div class="al-auction-detail-page-actions">
+                <.link navigate={~p"/auction-returns"} class="btn btn-ghost btn-sm">
+                  Auction returns
+                </.link>
+                <.link
+                  :if={is_binary(auction_value(@auction, :subject_url))}
+                  navigate={auction_value(@auction, :subject_url)}
+                  class="btn btn-outline btn-sm"
+                >
+                  Open token page
+                </.link>
+                <a
+                  :if={is_binary(auction_value(@auction, :uniswap_url))}
+                  href={auction_value(@auction, :uniswap_url)}
+                  class="btn btn-outline btn-sm"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Uniswap
+                </a>
+              </div>
+            </div>
+          </section>
+
+          <section
+            id="auction-detail-hero"
+            class="al-auction-detail-hero al-panel"
+            phx-hook="MissionMotion"
+          >
+            <div class="al-auction-detail-hero-main">
+              <div class="al-auction-detail-brand-mark">{agent_monogram(@auction.agent_name)}</div>
+
+              <div class="al-auction-detail-hero-copy">
+                <div class="al-auction-detail-hero-heading">
+                  <h2>{@auction.agent_name}</h2>
+                  <span class={["al-status-badge", status_tone(@auction)]}>
+                    {detail_status_label(@auction)}
+                  </span>
+                </div>
+
+                <p class="al-auction-detail-hero-meta">
+                  {auction_symbol(@auction)} <span>•</span> {network_label(@auction)} <span>•</span>
+                  {@trust_summary.status |> String.capitalize()}
+                </p>
+
+                <p class="al-subcopy">{auction_description(@auction)}</p>
+
+                <div class="al-auction-detail-hero-badges">
+                  <span :if={@trust_summary.ens.title == "Linked"} class="badge badge-outline">
+                    ENS linked
+                  </span>
+                  <span :if={@trust_summary.world.title == "Checked"} class="badge badge-outline">
+                    Trust checked
+                  </span>
+                  <span :if={truthy?(auction_value(@auction, :returns_enabled))} class="badge badge-outline">
+                    Returns ready if needed
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="al-auction-detail-hero-stats">
+              <article>
+                <span>Auction status</span>
+                <strong>{detail_status_value(@auction)}</strong>
+                <p>{LaunchComponents.time_left_label(@auction.ends_at)}</p>
+              </article>
+              <article>
+                <span>Clearing price</span>
+                <strong>{auction_value(@auction, :current_clearing_price, "Unavailable")}</strong>
+                <p>{price_source_label(@auction)}</p>
+              </article>
+              <article>
+                <span>Bid volume</span>
+                <strong>{auction_value(@auction, :total_bid_volume, "Unavailable")}</strong>
+                <p>{bidder_copy(@auction)}</p>
+              </article>
+            </div>
+          </section>
+
+          <section
+            id="auction-detail-primary"
+            class="al-auction-detail-primary"
+            phx-hook="MissionMotion"
+          >
+            <article class="al-auction-detail-composer">
+              <div class="al-auction-detail-card-head">
+                <div>
+                  <p class="al-kicker">Bid composer</p>
+                  <h3>Bid your real budget and your real max price.</h3>
+                </div>
+                <span class="badge badge-outline">Simple buyer model</span>
+              </div>
+
+              <p class="al-auction-detail-dark-copy">
+                Your order keeps buying while the clearing price stays below your cap. Start with
+                the budget you can actually commit, then tune the max price to stay active where
+                you want to be.
+              </p>
+
+              <form phx-change="quote_changed" class="al-auction-detail-form">
+                <label class="al-auction-detail-field">
+                  <span>Amount</span>
+                  <div class="al-auction-detail-input-shell">
+                    <input type="text" name="bid[amount]" value={@bid_form["amount"]} />
+                    <span>USDC</span>
+                  </div>
+                </label>
+
+                <label class="al-auction-detail-field">
+                  <span>Max price</span>
+                  <div class="al-auction-detail-input-shell">
+                    <input type="text" name="bid[max_price]" value={@bid_form["max_price"]} />
+                    <span>USD</span>
+                  </div>
+                </label>
+              </form>
+
+              <div class="al-auction-detail-presets">
+                <button type="button" class="al-auction-detail-preset is-active" phx-click="apply_preset" phx-value-preset="starter">
+                  <strong>Starter bid</strong>
+                  <span>Conservative entry</span>
+                </button>
+                <button type="button" class="al-auction-detail-preset" phx-click="apply_preset" phx-value-preset="stay_active">
+                  <strong>Stay-active bid</strong>
+                  <span>Higher clearing odds</span>
+                </button>
+                <button type="button" class="al-auction-detail-preset" phx-click="apply_preset" phx-value-preset="aggressive">
+                  <strong>Aggressive</strong>
+                  <span>Maximum allocation</span>
+                </button>
+              </div>
+
+              <div class="al-auction-detail-primary-action">
+                <.wallet_tx_button
+                  :if={@quote && @quote.tx_request}
+                  id={"submit-bid-#{@auction_id}"}
+                  class="al-submit"
+                  tx_request={@quote.tx_request}
+                  register_endpoint={~p"/api/auctions/#{@auction_id}/bids"}
+                  register_body={%{
+                    "amount" => @quote.amount,
+                    "max_price" => @quote.max_price,
+                    "current_clearing_price" => @quote.current_clearing_price,
+                    "projected_clearing_price" => @quote.projected_clearing_price,
+                    "estimated_tokens_if_end_now" => @quote.estimated_tokens_if_end_now,
+                    "estimated_tokens_if_no_other_bids_change" =>
+                      @quote.estimated_tokens_if_no_other_bids_change,
+                    "inactive_above_price" => @quote.inactive_above_price,
+                    "status_band" => @quote.status_band
+                  }}
+                  pending_message="Bid transaction sent. Waiting for chain confirmation."
+                  success_message="Bid registered from the confirmed onchain transaction."
+                >
+                  Submit bid from wallet
+                </.wallet_tx_button>
+
+                <p :if={is_nil(@current_human)} class="al-auction-detail-wallet-note">
+                  Sign in first so the wallet action can be recorded after it confirms.
+                </p>
+              </div>
+            </article>
+
+            <article class="al-auction-detail-estimator al-panel">
+              <div class="al-auction-detail-card-head">
+                <div>
+                  <p class="al-kicker">Live estimator</p>
+                  <h3>If nothing else changes, this is where your bid lands.</h3>
+                </div>
+                <span class="al-auction-detail-timestamp">{metrics_updated_copy(@auction)}</span>
+              </div>
+
+              <%= if @quote do %>
+                <div class="al-auction-detail-estimator-grid">
+                  <article>
+                    <span>Active now?</span>
+                    <strong>{if @quote.would_be_active_now, do: "You are active", else: "Below the line"}</strong>
+                    <p>{String.capitalize(@quote.status_band)}</p>
+                  </article>
+                  <article>
+                    <span>If auction ended now</span>
+                    <strong>{@quote.current_clearing_price}</strong>
+                    <p>~{@quote.estimated_tokens_if_end_now} tokens</p>
+                  </article>
+                  <article>
+                    <span>If no bids change</span>
+                    <strong>{@quote.projected_clearing_price}</strong>
+                    <p>~{@quote.estimated_tokens_if_no_other_bids_change} tokens</p>
+                  </article>
+                </div>
+
+                <div class="al-auction-detail-estimator-foot">
+                  <span>Inactive above</span>
+                  <strong>{@quote.inactive_above_price}</strong>
+                </div>
+
+                <ul :if={@quote.warnings != []} class="al-compact-list">
+                  <li :for={warning <- @quote.warnings}>{warning}</li>
+                </ul>
+              <% else %>
+                <p class="al-inline-note">Enter both fields to calculate the live estimate.</p>
+              <% end %>
+            </article>
+          </section>
+
+          <section
+            id="auction-detail-strip"
+            class="al-auction-detail-strip"
+            phx-hook="MissionMotion"
+          >
+            <article>
+              <span>Your latest bid</span>
+              <strong>{latest_bid_value(@latest_position)}</strong>
+              <p>{latest_bid_copy(@latest_position)}</p>
+            </article>
+            <article>
+              <span>Auction returns</span>
+              <strong>{returns_strip_title(@auction, @latest_position)}</strong>
+              <p>{returns_strip_copy(@auction, @latest_position)}</p>
+            </article>
+            <article>
+              <span>Clearing price</span>
+              <strong>{auction_value(@auction, :current_clearing_price, "Unavailable")}</strong>
+              <p>{price_source_label(@auction)}</p>
+            </article>
+            <article>
+              <span>Bid volume</span>
+              <strong>{auction_value(@auction, :total_bid_volume, "Unavailable")}</strong>
+              <p>{bidder_copy(@auction)}</p>
+            </article>
+            <article>
+              <span>Your status</span>
+              <strong>{human_position_status(@latest_position)}</strong>
+              <p>{status_strip_copy(@latest_position)}</p>
+            </article>
+          </section>
+
+          <section
+            id="auction-detail-lower"
+            class="al-auction-detail-lower"
+            phx-hook="MissionMotion"
+          >
+            <article class="al-panel al-auction-detail-info-card">
+              <div class="al-auction-detail-card-head">
+                <div>
+                  <p class="al-kicker">Auction information</p>
+                  <h3>Key dates and market state</h3>
+                </div>
+              </div>
+
+              <table class="al-auction-detail-info-table">
+                <tbody>
+                  <tr>
+                    <th scope="row">Auction type</th>
+                    <td>Dutch auction</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Start time</th>
+                    <td>{format_timestamp(auction_value(@auction, :started_at))}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">End time</th>
+                    <td>{format_timestamp(@auction.ends_at)}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Network</th>
+                    <td>{network_label(@auction)}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Minimum needed</th>
+                    <td>{auction_value(@auction, :required_currency_raised, "Unavailable")}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Raised now</th>
+                    <td>{auction_value(@auction, :currency_raised, auction_value(@auction, :total_bid_volume, "Unavailable"))}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+
+            <article class="al-panel al-auction-detail-curve-card">
+              <div class="al-auction-detail-card-head">
+                <div>
+                  <p class="al-kicker">Price path</p>
+                  <h3>Current and projected market pace</h3>
+                </div>
+              </div>
+
+              <%= if price_curve_path(@auction, @quote) do %>
+                <div class="al-auction-detail-curve-shell">
+                  <svg viewBox="0 0 360 180" class="al-auction-detail-curve" aria-hidden="true">
+                    <path d="M 16 18 L 16 152 L 344 152" class="al-auction-detail-axis" />
+                    <path d={price_curve_path(@auction, @quote)} class="al-auction-detail-line" />
+                    <circle cx="316" cy={price_curve_current_y(@auction, @quote)} r="5" class="al-auction-detail-line-dot" />
+                  </svg>
+                  <div class="al-auction-detail-curve-tag">
+                    {auction_value(@auction, :current_clearing_price, "Unavailable")}
                   </div>
                 </div>
+              <% else %>
+                <p class="al-inline-note">Price path appears once the current clearing price is available.</p>
+              <% end %>
 
-                <div class="al-terrain-strip-controls">
-                  <.link navigate={~p"/auction-returns"} class="al-ghost">
-                    Auction returns
-                  </.link>
-                  <button
-                    :if={@detail_focus != "detail:bid"}
-                    type="button"
-                    phx-click="scene-back"
-                    class="rg-surface-back"
-                  >
-                    <span class="rg-surface-back-icon" aria-hidden="true">←</span>
-                    Back to overview
-                  </button>
-                  <span class="al-network-badge">{@auction.status}</span>
-                  <span class="al-network-badge">{LaunchComponents.time_left_label(@auction.ends_at)}</span>
-                  <span class="al-network-badge">Trust {@trust_summary.status}</span>
+              <div class="al-auction-detail-curve-meta">
+                <div>
+                  <span>Current</span>
+                  <strong>{auction_value(@auction, :current_clearing_price, "Unavailable")}</strong>
+                </div>
+                <div>
+                  <span>Projected</span>
+                  <strong>{quote_value(@quote, :projected_clearing_price, "Waiting for live quote")}</strong>
                 </div>
               </div>
-            </:header_strip>
+            </article>
 
-            <:chamber>
-              <.chamber
-                id="auction-detail-regent-chamber"
-                title={@regent_detail_title}
-                subtitle={@auction.agent_name}
-                summary={@regent_detail_summary}
-              >
-                <div class="al-launch-tags" aria-label="Auction detail summary">
-                  <span class="al-launch-tag">Clearing price: {@auction.current_clearing_price}</span>
-                  <span class="al-launch-tag">Bid volume: {@auction.total_bid_volume}</span>
-                  <span class="al-launch-tag">Your status: {human_position_status(@latest_position)}</span>
+            <article class="al-panel al-auction-detail-position-card">
+              <div class="al-auction-detail-card-head">
+                <div>
+                  <p class="al-kicker">Your position</p>
+                  <h3>What you can do from here</h3>
                 </div>
-              </.chamber>
-            </:chamber>
-
-            <:ledger>
-              <.ledger
-                id="auction-detail-regent-ledger"
-                title="Live state"
-                subtitle="Use the regular cards below to bid, claim, and inspect the estimator."
-              >
-                <table class="rg-table">
-                  <tbody>
-                    <tr>
-                      <th scope="row">Status</th>
-                      <td>{@auction.status}</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Time remaining</th>
-                      <td>{LaunchComponents.time_left_label(@auction.ends_at)}</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Trust</th>
-                      <td>{String.capitalize(@trust_summary.status)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </.ledger>
-            </:ledger>
-          </.surface>
-        </section>
-
-        <section class="al-detail-layout">
-          <article id="auction-minimum-raise-card" class="al-panel al-card" phx-hook="MissionMotion">
-            <div class="al-section-head">
-              <div>
-                <p class="al-kicker">Minimum raise</p>
-                <h3>How close the auction is to graduating</h3>
               </div>
-              <.link navigate={~p"/auction-returns"} class="al-ghost">Auction returns</.link>
-            </div>
 
-            <div class="al-stat-grid">
-              <.stat_card
-                title="Raised now"
-                value={auction_value(@auction, :currency_raised, @auction.total_bid_volume)}
-              />
-              <.stat_card
-                title="Minimum needed"
-                value={auction_value(@auction, :required_currency_raised, "Unavailable")}
-              />
-              <.stat_card
-                title="Progress"
-                value={
-                  if(is_number(auction_value(@auction, :minimum_raise_progress_percent)),
-                    do: "#{auction_value(@auction, :minimum_raise_progress_percent)}%",
-                    else: "Unavailable"
-                  )
-                }
-              />
-              <.stat_card
-                title="Simple pace estimate"
-                value={auction_value(@auction, :projected_final_currency_raised, "Waiting for more time")}
-                hint="Estimate only, not a promise"
-              />
-            </div>
-
-            <p class="al-inline-note">
-              {minimum_raise_copy(@auction)}
-            </p>
-          </article>
-
-          <article id="auction-position-card" class="al-panel al-card" phx-hook="MissionMotion">
-            <div class="al-section-head">
-              <div>
-                <p class="al-kicker">Your position</p>
-                <h3>What you can do from here</h3>
-              </div>
-            </div>
-
-            <%= if @positions == [] do %>
-              <p class="al-inline-note">
-                No bids recorded for this auction yet. The first quote tells you whether you would be active right now.
-              </p>
-            <% else %>
-              <div class="al-position-list">
-                <article :for={position <- @positions} class="al-position-card">
-                  <div class="al-agent-card-head">
+              <%= if @positions == [] do %>
+                <p class="al-inline-note">
+                  No bids recorded for this auction yet. Use the estimate above to see where a new
+                  bid would land before you send the wallet action.
+                </p>
+              <% else %>
+                <article :for={position <- @positions} class="al-auction-detail-position-row">
+                  <div class="al-auction-detail-position-top">
                     <div>
-                      <strong>{position.amount}</strong>
+                      <strong>{position.amount} USDC</strong>
                       <p>{position.max_price} max price</p>
                     </div>
                     <.status_badge status={position.status} />
                   </div>
 
-                  <div class="al-stat-grid">
-                    <.stat_card title="Tokens filled" value={position.tokens_filled} />
-                    <.stat_card title="If end now" value={position.estimated_tokens_if_end_now} />
-                    <.stat_card title="Inactive above" value={position.inactive_above_price} />
+                  <div class="al-auction-detail-position-metrics">
+                    <article>
+                      <span>Tokens filled</span>
+                      <strong>{position.tokens_filled}</strong>
+                    </article>
+                    <article>
+                      <span>If end now</span>
+                      <strong>{position.estimated_tokens_if_end_now}</strong>
+                    </article>
+                    <article>
+                      <span>Inactive above</span>
+                      <strong>{position.inactive_above_price}</strong>
+                    </article>
                   </div>
 
-              <p class="al-inline-note">{position.next_action_label}</p>
+                  <p class="al-inline-note">{position.next_action_label}</p>
 
                   <div class="al-action-row">
                     <.wallet_tx_button
@@ -416,6 +463,7 @@ defmodule AutolaunchWeb.AuctionLive do
                     >
                       Return USDC
                     </.wallet_tx_button>
+
                     <.wallet_tx_button
                       :if={tx_action(position, :exit) && is_nil(return_action(position))}
                       id={"auction-exit-#{position.bid_id}"}
@@ -441,52 +489,56 @@ defmodule AutolaunchWeb.AuctionLive do
                     </.wallet_tx_button>
                   </div>
                 </article>
+              <% end %>
+            </article>
+          </section>
+
+          <section
+            id="auction-detail-secondary"
+            class="al-auction-detail-secondary"
+            phx-hook="MissionMotion"
+          >
+            <details class="al-panel al-disclosure">
+              <summary class="al-disclosure-summary">
+                <div>
+                  <p class="al-kicker">Creator completion</p>
+                  <h3>Identity and trust status</h3>
+                </div>
+                <span class="al-network-badge">Secondary</span>
+              </summary>
+
+              <div class="al-note-grid">
+                <article class="al-note-card">
+                  <span>ENS link</span>
+                  <strong>{@trust_summary.ens.title}</strong>
+                  <p>{@trust_summary.ens.body}</p>
+                </article>
+
+                <article class="al-note-card">
+                  <span>Trust record</span>
+                  <strong>{@trust_summary.world.title}</strong>
+                  <p>{@trust_summary.world.body}</p>
+                </article>
               </div>
-            <% end %>
-          </article>
-        </section>
+            </details>
 
-        <section class="al-detail-layout">
-          <details id="auction-trust-card" class="al-panel al-disclosure" phx-hook="MissionMotion">
-            <summary class="al-disclosure-summary">
-              <div>
-                <p class="al-kicker">Creator completion</p>
-                <h3>Identity and trust status</h3>
-              </div>
-              <span class="al-network-badge">Secondary</span>
-            </summary>
+            <details class="al-panel al-disclosure">
+              <summary class="al-disclosure-summary">
+                <div>
+                  <p class="al-kicker">Auction model</p>
+                  <h3>Why the market behaves this way</h3>
+                </div>
+                <span class="al-network-badge">Secondary</span>
+              </summary>
 
-            <div class="al-note-grid">
-              <article class="al-note-card">
-                <span>ENS link</span>
-                <strong>{@trust_summary.ens.title}</strong>
-                <p>{@trust_summary.ens.body}</p>
-              </article>
-
-              <article class="al-note-card">
-                <span>Trust record</span>
-                <strong>{@trust_summary.world.title}</strong>
-                <p>{@trust_summary.world.body}</p>
-              </article>
-            </div>
-          </details>
-
-          <details id="auction-model-card" class="al-panel al-disclosure" phx-hook="MissionMotion">
-            <summary class="al-disclosure-summary">
-              <div>
-                <p class="al-kicker">Auction model</p>
-                <h3>Why the auction behaves this way</h3>
-              </div>
-              <span class="al-network-badge">Secondary</span>
-            </summary>
-
-            <ul class="al-compact-list">
-              <li>Bid early with your real budget and your real max price instead of waiting for a last-second entry.</li>
-              <li>Your max price protects you from overpaying, and everyone in the same block gets the same clearing price.</li>
-              <li>With sane auction timing, there is far less room for sniping, bundling, sandwiching, or other speed advantages.</li>
-            </ul>
-          </details>
-        </section>
+              <ul class="al-compact-list">
+                <li>Bid early with your real budget and your real max price instead of waiting for a last-second entry.</li>
+                <li>Your max price keeps you from overpaying, and each block clears at one shared price.</li>
+                <li>Slower, visible price discovery leaves less room for sniping and speed advantages.</li>
+              </ul>
+            </details>
+          </section>
+        </div>
       <% else %>
         <.empty_state
           title="Auction not found."
@@ -546,21 +598,12 @@ defmodule AutolaunchWeb.AuctionLive do
   defp preset_form(_auction, form, _preset), do: form
 
   defp auction_trust(nil), do: %{}
-
   defp auction_trust(%{trust: trust}) when is_map(trust), do: trust
-
   defp auction_trust(_auction), do: %{}
 
   defp auction_trust_summary(%{
-         ens: %{
-           connected: ens_connected,
-           name: ens_name
-         },
-         world: %{
-           connected: world_connected,
-           human_id: human_id,
-           launch_count: launch_count
-         }
+         ens: %{connected: ens_connected, name: ens_name},
+         world: %{connected: world_connected, human_id: human_id, launch_count: launch_count}
        }) do
     %{
       status: if(world_connected, do: "checked", else: "pending"),
@@ -586,10 +629,7 @@ defmodule AutolaunchWeb.AuctionLive do
   defp auction_trust_summary(_trust) do
     %{
       status: "pending",
-      ens: %{
-        title: "Needs link",
-        body: "The creator identity still needs an ENS name attached."
-      },
+      ens: %{title: "Needs link", body: "The creator identity still needs an ENS name attached."},
       world: %{
         title: "Needs check",
         body: "A trust check still needs to be completed for this token."
@@ -605,25 +645,6 @@ defmodule AutolaunchWeb.AuctionLive do
     |> assign(:auction, auction)
     |> assign(:positions, positions)
     |> assign(:quote, maybe_quote(auction, socket.assigns.bid_form, socket.assigns.current_human))
-    |> assign_regent_scene()
-  end
-
-  defp minimum_raise_copy(auction) do
-    case auction_value(auction, :auction_outcome) do
-      "failed_minimum" ->
-        "This auction ended below the minimum raise. Buyers can return their USDC from the wallet actions on this page or from Positions."
-
-      _ ->
-        minimum_raise_copy_by_state(auction)
-    end
-  end
-
-  defp minimum_raise_copy_by_state(auction) do
-    if auction_value(auction, :minimum_raise_met) == true do
-      "The auction has already met its minimum raise, so it can graduate if bidding holds through the end."
-    else
-      "Simple pace assumes the current bidding rate continues for the rest of the three-day auction. It is there to orient visitors, not to promise the final outcome."
-    end
   end
 
   defp decimal_plus(left, right) do
@@ -638,19 +659,191 @@ defmodule AutolaunchWeb.AuctionLive do
     end
   end
 
+  defp auction_description(auction) do
+    case auction_value(auction, :notes) do
+      notes when is_binary(notes) and notes != "" ->
+        notes
+
+      _ ->
+        "Use the bid composer first, then confirm the live estimate, minimum raise pace, and your current position before you send the wallet action."
+    end
+  end
+
+  defp agent_monogram(name) when is_binary(name) do
+    name
+    |> String.split(~r/[\s-]+/, trim: true)
+    |> Enum.map(&String.first/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.take(2)
+    |> Enum.join()
+    |> String.upcase()
+  end
+
+  defp agent_monogram(_name), do: "AL"
+
+  defp auction_symbol(auction) do
+    case auction_value(auction, :symbol) do
+      value when is_binary(value) and value != "" -> value
+      _ -> "Token"
+    end
+  end
+
+  defp detail_status_label(auction) do
+    cond do
+      truthy?(auction_value(auction, :returns_enabled)) -> "Returns ready"
+      auction_value(auction, :status) in ["active", "biddable"] -> "Live"
+      auction_value(auction, :phase) == "live" -> "Live"
+      true -> LaunchComponents.time_left_label(auction_value(auction, :ends_at))
+    end
+  end
+
+  defp detail_status_value(auction) do
+    auction
+    |> auction_value(:status, "active")
+    |> to_string()
+    |> String.capitalize()
+  end
+
+  defp bidder_copy(auction) do
+    case auction_value(auction, :bidders) do
+      bidders when is_integer(bidders) and bidders > 0 -> "#{bidders} bids"
+      bidders when is_binary(bidders) and bidders != "" -> "#{bidders} bids"
+      _ -> "Live auction activity"
+    end
+  end
+
+  defp price_source_label(auction) do
+    case auction_value(auction, :price_source) do
+      "auction_clearing" -> "Auction clearing"
+      "uniswap_spot" -> "Uniswap spot"
+      "uniswap_spot_unavailable" -> "Quote pending"
+      _ -> "Live price"
+    end
+  end
+
+  defp latest_bid_value(nil), do: "No bid yet"
+  defp latest_bid_value(position), do: "#{position.amount} USDC"
+
+  defp latest_bid_copy(nil), do: "Run the estimate first to preview where a new bid would land."
+  defp latest_bid_copy(position), do: "#{position.max_price} max price"
+
+  defp returns_strip_title(auction, latest_position) do
+    cond do
+      latest_position && return_action(latest_position) -> "Return ready"
+      truthy?(auction_value(auction, :returns_enabled)) -> "Open if needed"
+      true -> "Not needed"
+    end
+  end
+
+  defp returns_strip_copy(auction, latest_position) do
+    cond do
+      latest_position && return_action(latest_position) ->
+        "This position can pull USDC back."
+
+      truthy?(auction_value(auction, :returns_enabled)) ->
+        "This market ended below the minimum raise."
+
+      true ->
+        "Returns only open if the market misses the minimum raise."
+    end
+  end
+
+  defp status_strip_copy(nil), do: "No bid recorded"
+  defp status_strip_copy(position), do: position.next_action_label
+
   defp human_position_status(nil), do: "No bid"
   defp human_position_status(position), do: String.capitalize(position.status)
+
+  defp format_timestamp(nil), do: "Unknown"
+
+  defp format_timestamp(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _} -> Calendar.strftime(datetime, "%b %-d, %Y %I:%M %p UTC")
+      _ -> "Unknown"
+    end
+  end
+
+  defp metrics_updated_copy(auction) do
+    case auction_value(auction, :metrics_updated_at) do
+      nil -> "Live estimate"
+      value -> "Updated #{format_short_timestamp(value)}"
+    end
+  end
+
+  defp format_short_timestamp(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _} -> Calendar.strftime(datetime, "%b %-d")
+      _ -> "recently"
+    end
+  end
+
+  defp quote_value(nil, _key, default), do: default
+  defp quote_value(quote, key, default), do: Map.get(quote, key, default)
+
+  defp price_curve_path(auction, quote) do
+    with current when is_number(current) <-
+           decimal_to_float(auction_value(auction, :current_clearing_price)),
+         projected when is_number(projected) <-
+           decimal_to_float(quote_value(quote, :projected_clearing_price, nil)) do
+      top = max(current, projected)
+      base = max(top * 1.18, 0.0001)
+      start_y = scale_curve(base, current * 1.14)
+      mid_y = scale_curve(base, (current + projected) / 2 + current * 0.08)
+      end_y = scale_curve(base, current)
+      projected_y = scale_curve(base, projected)
+
+      "M 20 #{start_y} C 92 #{start_y + 4}, 132 #{mid_y}, 198 #{mid_y + 16} S 276 #{projected_y + 10}, 316 #{end_y}"
+    else
+      _ -> nil
+    end
+  end
+
+  defp price_curve_current_y(auction, quote) do
+    with current when is_number(current) <-
+           decimal_to_float(auction_value(auction, :current_clearing_price)),
+         projected when is_number(projected) <-
+           decimal_to_float(quote_value(quote, :projected_clearing_price, nil)) do
+      top = max(current, projected)
+      scale_curve(max(top * 1.18, 0.0001), current)
+    else
+      _ -> 118
+    end
+  end
+
+  defp scale_curve(base, value) do
+    normalized = if base <= 0, do: 0.5, else: min(max(value / base, 0.05), 1.0)
+    24 + Float.round((1.0 - normalized) * 112, 2)
+  end
+
+  defp decimal_to_float(nil), do: nil
+
+  defp decimal_to_float(value) when is_binary(value) do
+    case D.parse(value) do
+      {decimal, ""} -> D.to_float(decimal)
+      _ -> nil
+    end
+  end
+
+  defp decimal_to_float(value) when is_integer(value), do: value * 1.0
+  defp decimal_to_float(_value), do: nil
+
+  defp status_tone(auction) do
+    cond do
+      truthy?(auction_value(auction, :returns_enabled)) -> "is-muted"
+      auction_value(auction, :status) in ["active", "biddable"] -> "is-warn"
+      true -> "is-muted"
+    end
+  end
+
+  defp truthy?(value), do: value in [true, "true", 1, "1"]
 
   defp auction_value(auction, key, default \\ nil)
   defp auction_value(nil, _key, default), do: default
 
-  defp auction_value(auction, key, default) when is_map(auction) do
-    Map.get(auction, key, default)
-  end
+  defp auction_value(auction, key, default) when is_map(auction),
+    do: Map.get(auction, key, default)
 
-  defp return_action(position) when is_map(position) do
-    Map.get(position, :return_action)
-  end
+  defp return_action(position) when is_map(position), do: Map.get(position, :return_action)
 
   defp tx_action(position, action) when is_map(position) do
     position
@@ -658,42 +851,11 @@ defmodule AutolaunchWeb.AuctionLive do
     |> Map.get(action)
   end
 
-  defp assign_regent_scene(socket) do
-    latest_position = List.first(socket.assigns.positions || [])
-    next_version = (socket.assigns[:regent_scene_version] || 0) + 1
-
-    scene =
-      RegentScenes.auction_detail(
-        socket.assigns.auction,
-        latest_position,
-        socket.assigns.detail_focus
-      )
-
-    socket
-    |> assign(:regent_scene_version, next_version)
-    |> assign(:regent_scene, Map.put(scene, "sceneVersion", next_version))
-    |> assign(:regent_selected_target_id, socket.assigns.detail_focus)
-  end
-
-  defp regent_detail_title("detail:estimate"), do: "Live estimator"
-  defp regent_detail_title("detail:trust"), do: "Trust and identity"
-  defp regent_detail_title("detail:claim"), do: "Position state"
-  defp regent_detail_title(_detail_focus), do: "Bid composer"
-
-  defp regent_detail_summary("detail:estimate", quote, _latest_position) when is_map(quote) do
-    "If nothing else moved right now, you would receive #{quote.estimated_tokens_if_end_now} tokens, and the bid would go inactive above #{quote.inactive_above_price}."
-  end
-
-  defp regent_detail_summary("detail:trust", _quote, _latest_position) do
-    "This view keeps ENS and trust status visible so the market context stays legible without turning the bidding controls into a maze."
-  end
-
-  defp regent_detail_summary("detail:claim", _quote, latest_position) do
-    "Current position state: #{human_position_status(latest_position)}. Claiming and exits stay as explicit wallet actions in the human-readable cards below."
-  end
-
-  defp regent_detail_summary(_detail_focus, _quote, _latest_position) do
-    "Set the budget and max price here, then use the live quote below to see how that order would TWAP across the remaining blocks."
+  defp network_label(auction) do
+    case auction_value(auction, :chain) do
+      chain when is_binary(chain) and chain != "" -> chain
+      _ -> auction_value(auction, :network, "Unknown")
+    end
   end
 
   defp launch_module do
@@ -701,4 +863,6 @@ defmodule AutolaunchWeb.AuctionLive do
     |> Application.get_env(:auction_live, [])
     |> Keyword.get(:launch_module, Launch)
   end
+
+  defp route_css, do: @auctions_css
 end

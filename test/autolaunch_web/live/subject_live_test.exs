@@ -106,7 +106,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/subjects/#{@subject_id}")
 
-    assert html =~ "Review what this wallet can claim"
+    assert html =~ "Back to auctions"
     assert html =~ "Your staked tokens"
     assert html =~ "Wallet token balance"
     assert html =~ "Claimable USDC"
@@ -115,7 +115,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     assert html =~ "Advanced review"
     assert html =~ "Known USDC intake accounts"
     assert html =~ "Prepare USDC claim"
-    assert html =~ "Open advanced contracts console"
+    assert html =~ "Open contracts"
   end
 
   test "subject page prepares wallet actions", %{conn: conn, human: human} do

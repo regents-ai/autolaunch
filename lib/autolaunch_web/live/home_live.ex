@@ -12,56 +12,26 @@ defmodule AutolaunchWeb.HomeLive do
 
   @poll_ms 15_000
 
-  @anchor_nav [
-    %{label: "Markets", href: "#home-markets"},
-    %{label: "How it works", href: "#home-how-it-works"},
-    %{label: "About", href: "#home-about"}
-  ]
-
-  @agent_badges [
-    %{label: "Hermes", mark: "HM", href: "/launch-via-agent"},
-    %{label: "OpenClaw", mark: "OC", href: "/launch-via-agent"},
-    %{label: "IronClaw", mark: "IC", href: "/launch"},
-    %{label: "Codex", mark: "CX", href: "/launch"},
-    %{label: "Claude", mark: "CL", href: "/launch"}
-  ]
-
-  @feature_cards [
+  @launch_steps [
     %{
-      title: "Raise before you scale",
-      body:
-        "Bring your agent to market, raise USDC, and fund the next stretch before your product is live.",
-      href: "/launch"
+      index: "1",
+      title: "Plan",
+      body: "Define your agent, economics, and launch parameters."
     },
     %{
-      title: "Give supporters a reason to stay",
-      body:
-        "Claims, staking, and revenue stay close once the sale is over, so the market can keep compounding around your agent.",
-      href: "/profile"
-    }
-  ]
-
-  @workflow_steps [
-    %{
-      step: "1",
-      label: "Launch path",
-      title: "Raise before you scale",
-      body:
-        "Define your agent, set the sale rails, and prepare a reviewed launch plan before the market opens."
+      index: "2",
+      title: "Deploy",
+      body: "Deploy the launch setup and configure the market on Base."
     },
     %{
-      step: "2",
-      label: "Live market",
-      title: "Bid with a budget and a ceiling",
-      body:
-        "Each buyer chooses a total budget and the highest price they will pay, then the sale clears block by block."
+      index: "3",
+      title: "Fund and activate",
+      body: "Fund the strategy and open the auction."
     },
     %{
-      step: "3",
-      label: "After the sale",
-      title: "Give supporters a reason to stay",
-      body:
-        "Come back for claims, staking, and revenue actions once the market moves from sale to ownership."
+      index: "4",
+      title: "Launch and grow",
+      body: "Distribute tokens and move into claims, staking, and revenue."
     }
   ]
 
@@ -71,10 +41,7 @@ defmodule AutolaunchWeb.HomeLive do
      |> Refreshable.schedule(@poll_ms)
      |> assign(:page_title, "Autolaunch")
      |> assign(:active_view, "home")
-     |> assign(:anchor_nav, @anchor_nav)
-     |> assign(:agent_badges, @agent_badges)
-     |> assign(:feature_cards, @feature_cards)
-     |> assign(:workflow_steps, @workflow_steps)
+     |> assign(:launch_steps, @launch_steps)
      |> assign_home_market()}
   end
 
@@ -85,278 +52,148 @@ defmodule AutolaunchWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <style><%= Phoenix.HTML.raw(home_live_css()) %></style>
-    <div
-      id="autolaunch-homepage"
-      class="al-homepage-shell rg-app-shell rg-regent-theme-autolaunch"
-      phx-hook="ShellChrome"
-    >
-      <div class="al-homepage-surface">
-        <div class="al-homepage-glow" aria-hidden="true"></div>
+    <.shell current_human={@current_human} active_view={@active_view}>
+      <div id="autolaunch-home-dashboard">
+        <section
+          id="home-dashboard-hero"
+          class="al-panel al-home-dashboard-hero"
+          phx-hook="HomeHeroMotion"
+        >
+          <div class="al-home-dashboard-copy">
+            <p class="al-kicker">Home</p>
+            <h2>Launch and grow agent economies</h2>
+            <p class="al-subcopy">
+              Autolaunch helps operators launch, fund, and grow agent economies on Base with one
+              reviewed path from setup to live market.
+            </p>
 
-        <header class="al-homepage-header">
-          <.link navigate={~p"/"} class="al-homepage-brand">
-            <img src={~p"/images/autolaunch-logo-large.png"} alt="Autolaunch" width="48" height="48" />
-            <div>
-              <p>Autolaunch</p>
-              <span>Agent markets</span>
-            </div>
-          </.link>
-
-          <nav class="al-homepage-nav" aria-label="Homepage">
-            <a :for={item <- @anchor_nav} href={item.href}>{item.label}</a>
-          </nav>
-
-          <div class="al-homepage-header-actions">
-            <.link navigate={~p"/auctions"} class="al-homepage-header-cta btn btn-primary">
-              Open auctions
-            </.link>
-            <div class="al-homepage-identity" aria-label="Current operator">
-              <span class="al-homepage-identity-dot"></span>
-              <span>{identity_label(@current_human)}</span>
+            <div class="al-home-dashboard-actions">
+              <.link navigate={~p"/launch"} class="al-submit">Go to Launch</.link>
+              <.link navigate={~p"/auctions"} class="al-ghost">Explore auctions</.link>
             </div>
           </div>
-        </header>
 
-        <main class="al-homepage-main">
-          <section id="home-hero" class="al-homepage-hero" phx-hook="HomeHeroMotion">
-            <div class="al-homepage-hero-copy">
-              <p class="al-homepage-kicker" data-home-hero-reveal>For agents with edge</p>
-              <h1 data-home-hero-reveal>Turn agent edge into runway.</h1>
-              <p class="al-homepage-subcopy" data-home-hero-reveal>
-                Raise capital from people who believe in the agent, keep the sale fair, and come
-                back for claims, staking, and revenue once the auction closes.
-              </p>
+          <div class="al-home-dashboard-visual" aria-hidden="true">
+            <div class="al-home-dashboard-orbit">
+              <img src={~p"/images/autolaunch-logo-large.png"} alt="" />
+            </div>
+            <span class="al-home-dashboard-chip is-top">Auctions</span>
+            <span class="al-home-dashboard-chip is-right">Growth</span>
+            <span class="al-home-dashboard-chip is-bottom">Trust</span>
+          </div>
+        </section>
 
-              <div class="al-homepage-hero-actions" data-home-hero-reveal>
-                <.link navigate={~p"/launch"} class="al-homepage-primary btn btn-primary">
-                  Open launch path
-                </.link>
-                <.link navigate={~p"/auctions"} class="al-homepage-secondary btn btn-outline">
-                  Open auctions
-                </.link>
-                <.link navigate={~p"/how-auctions-work"} class="al-homepage-text-link">
-                  How auctions work
-                </.link>
-              </div>
-
-              <div class="al-homepage-command-block" data-home-hero-reveal>
-                <p class="al-homepage-command-label">Start here</p>
-                <div class="al-homepage-command-bar">
-                  <span class="al-homepage-command-sigil" aria-hidden="true">$</span>
-                  <code>regent autolaunch prelaunch wizard</code>
-                  <button
-                    type="button"
-                    class="al-homepage-command-copy"
-                    data-copy-value={wizard_command()}
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              <p class="al-homepage-install-copy" data-home-hero-reveal>
-                Works with the operator surfaces below
-              </p>
-
-              <div
-                class="al-homepage-badge-row"
-                aria-label="Agent entry points"
-                data-home-hero-reveal
-              >
-                <.link
-                  :for={badge <- @agent_badges}
-                  navigate={badge.href}
-                  class="al-homepage-badge badge badge-outline"
-                >
-                  <span class="al-homepage-badge-mark">{badge.mark}</span>
-                  <span>{badge.label}</span>
-                </.link>
-              </div>
+        <section id="home-dashboard-grid" class="al-home-dashboard-grid" phx-hook="MissionMotion">
+          <article class="al-panel al-home-dashboard-card">
+            <div class="al-home-card-head">
+              <h3>Market snapshot</h3>
             </div>
 
-            <aside class="al-homepage-market-panel" data-home-hero-reveal>
-              <div class="al-homepage-market-panel-head">
-                <p class="al-homepage-market-eyebrow">
-                  <span class="al-homepage-market-eyebrow-dot"></span>
-                  Live market
-                </p>
-                <div class="al-homepage-market-grid">
-                  <article>
-                    <span>Biddable</span>
-                    <strong>{@biddable_count}</strong>
-                    <p>auctions open</p>
-                  </article>
-                  <article>
-                    <span>Live</span>
-                    <strong>{@live_count}</strong>
-                    <p>tokens live</p>
-                  </article>
-                </div>
+            <div class="al-home-market-primary">
+              <div>
+                <span>Tracked market cap</span>
+                <strong>{@tracked_market_cap}</strong>
               </div>
-
-              <div class="al-homepage-market-value">
-                <div>
-                  <span>Tracked market cap</span>
-                  <strong>{@tracked_market_cap}</strong>
-                </div>
-                <p>
-                  {spotlight_copy(@spotlight_token)}
-                </p>
-              </div>
-
-              <div class="al-homepage-market-curve" aria-hidden="true">
-                <span :for={column <- market_curve_columns()} style={"--curve-height: #{column}%"}></span>
-              </div>
-
-              <div class="al-homepage-market-foot">
-                <div>
-                  <span>Market focus</span>
-                  <strong>{spotlight_label(@spotlight_token)}</strong>
-                </div>
-                <div>
-                  <span>Next step</span>
-                  <strong>{spotlight_action_label(@spotlight_token)}</strong>
-                </div>
-              </div>
-            </aside>
-          </section>
-
-          <section id="homepage-feature-row" class="al-homepage-feature-row" phx-hook="MissionMotion">
-            <article
-              :for={card <- @feature_cards}
-              class="al-homepage-feature-card"
-            >
-              <div class="al-homepage-feature-icon" aria-hidden="true">
-                <span>{feature_icon(card.title)}</span>
-              </div>
-              <div class="al-homepage-feature-copy">
-                <h2>{card.title}</h2>
-                <p>{card.body}</p>
-              </div>
-              <.link navigate={card.href} class="al-homepage-feature-arrow" aria-label={card.title}>
-                →
-              </.link>
-            </article>
-          </section>
-
-          <section id="home-markets" class="al-homepage-section" phx-hook="MissionMotion">
-            <div class="al-homepage-market-table-grid">
-              <.market_table
-                title="Open auctions"
-                count_label="View all"
-                tokens={@active_tokens}
-                empty_message="No auctions are open right now."
-              />
-
-              <.market_table
-                title="Post-auction tokens"
-                count_label="View all"
-                tokens={@past_tokens}
-                empty_message="No past tokens are available yet."
-              />
+              <p>{market_snapshot_copy(@spotlight_token)}</p>
             </div>
-          </section>
 
-          <section id="home-how-it-works" class="al-homepage-section" phx-hook="MissionMotion">
-            <div class="al-homepage-steps-grid">
-              <article :for={step <- @workflow_steps} class="al-homepage-step-card">
-                <div class="al-homepage-step-top">
-                  <span class="al-homepage-step-number">{step.step}</span>
-                  <div>
-                    <p class="al-homepage-kicker">{step.label}</p>
-                    <h3>{step.title}</h3>
-                  </div>
-                </div>
-                <p>{step.body}</p>
+            <div class="al-home-market-mini-grid">
+              <article :for={item <- @snapshot_items}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
               </article>
             </div>
-          </section>
 
-          <section id="home-about" class="al-homepage-section" phx-hook="MissionMotion">
-            <div class="al-homepage-about-card">
-              <div class="al-homepage-about-brand">
-                <img src={~p"/images/autolaunch-logo-large.png"} alt="" width="56" height="56" />
-              </div>
-              <div class="al-homepage-about-copy">
-                <p class="al-homepage-kicker">About</p>
-                <h2>Raise first. Build longer.</h2>
-                <p>
-                  Start from one reviewed launch path. Use the market page to find active sales.
-                  Then come back when holders need claims, staking, and revenue actions.
-                </p>
-              </div>
-
-              <div class="al-homepage-about-actions">
-                <.link navigate={~p"/launch"} class="al-homepage-primary btn btn-primary">
-                  Open launch path
-                </.link>
-                <.link navigate={~p"/launch-via-agent"} class="al-homepage-secondary btn btn-outline">
-                  Use an agent
-                </.link>
-              </div>
+            <div class="al-home-card-footer">
+              <.link navigate={~p"/auctions"}>View all markets →</.link>
             </div>
-          </section>
-        </main>
+          </article>
+
+          <article class="al-panel al-home-dashboard-card">
+            <div class="al-home-card-head">
+              <h3>Featured auctions</h3>
+              <.link navigate={~p"/auctions"}>View all →</.link>
+            </div>
+
+            <div class="al-home-auction-list">
+              <article :for={token <- @featured_tokens} class="al-home-auction-row">
+                <div class="al-home-auction-avatar" aria-hidden="true">
+                  {String.first(token.symbol || token.agent_name || "?")}
+                </div>
+                <div class="al-home-auction-copy">
+                  <strong>{token.agent_name}</strong>
+                  <p>${token.symbol}</p>
+                </div>
+                <div class="al-home-auction-meta">
+                  <strong>{format_currency(token.implied_market_cap_usdc, 0)}</strong>
+                  <span class={["al-home-status-pill", featured_status_class(token)]}>
+                    {featured_status_label(token)}
+                  </span>
+                </div>
+              </article>
+            </div>
+
+            <div class="al-home-card-footer">
+              <.link navigate={~p"/auctions"}>Browse all auctions →</.link>
+            </div>
+          </article>
+
+          <article class="al-panel al-home-dashboard-card">
+            <div class="al-home-card-head">
+              <h3>Launch path</h3>
+            </div>
+
+            <div class="al-home-launch-steps">
+              <article :for={step <- @launch_steps} class="al-home-launch-step">
+                <span>{step.index}</span>
+                <div>
+                  <strong>{step.title}</strong>
+                  <p>{step.body}</p>
+                </div>
+              </article>
+            </div>
+
+            <div class="al-home-card-footer">
+              <.link navigate={~p"/launch"} class="al-submit">Go to Launch</.link>
+            </div>
+          </article>
+        </section>
+
+        <section
+          id="home-dashboard-bottom"
+          class="al-home-dashboard-bottom"
+          phx-hook="MissionMotion"
+        >
+          <article class="al-panel al-home-metric-strip">
+            <div :for={item <- @metric_items} class="al-home-metric-item">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <p>{item.note}</p>
+            </div>
+          </article>
+
+          <article class="al-panel al-home-activity-card">
+            <div class="al-home-card-head">
+              <h3>Latest activity</h3>
+              <.link navigate={~p"/auctions"}>View all →</.link>
+            </div>
+
+            <div class="al-home-activity-list">
+              <article :for={item <- @activity_items} class="al-home-activity-row">
+                <div class="al-home-activity-dot" data-phase={item.phase}></div>
+                <div class="al-home-activity-copy">
+                  <strong>{item.title}</strong>
+                  <p>{item.note}</p>
+                </div>
+                <span>{item.value}</span>
+              </article>
+            </div>
+          </article>
+        </section>
       </div>
 
       <.flash_group flash={@flash} />
-    </div>
-    """
-  end
-
-  attr :title, :string, required: true
-  attr :count_label, :string, required: true
-  attr :tokens, :list, required: true
-  attr :empty_message, :string, required: true
-
-  defp market_table(assigns) do
-    ~H"""
-    <section class="al-homepage-table-card card">
-      <div class="al-homepage-table-head">
-        <h3>{@title}</h3>
-        <span>{@count_label}</span>
-      </div>
-
-      <div class="al-homepage-table-wrap">
-        <table class="al-homepage-table table">
-          <thead>
-            <tr>
-              <th scope="col">Agent</th>
-              <th scope="col">Market cap</th>
-              <th scope="col">Trust</th>
-              <th scope="col">Timing</th>
-              <th scope="col">Price</th>
-              <th scope="col">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%= if @tokens == [] do %>
-              <tr>
-                <td colspan="6" class="al-homepage-table-empty">{@empty_message}</td>
-              </tr>
-            <% else %>
-              <tr :for={token <- @tokens}>
-                <td>
-                  <div class="al-homepage-token-cell">
-                    <strong>{token.agent_name}</strong>
-                    <span>{token.symbol} • {token.agent_id}</span>
-                  </div>
-                </td>
-                <td>{format_currency(token.implied_market_cap_usdc, 0)}</td>
-                <td>{trust_summary(token.trust)}</td>
-                <td>{market_timing_label(token)}</td>
-                <td>{format_currency(token.current_price_usdc, 4)}</td>
-                <td>
-                  <.link navigate={primary_action_href(token)} class="al-homepage-table-link">
-                    {primary_action_label(token)}
-                  </.link>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </.shell>
     """
   end
 
@@ -369,37 +206,106 @@ defmodule AutolaunchWeb.HomeLive do
         socket.assigns[:current_human]
       )
 
+    biddable_count = Enum.count(directory, &(&1.phase == "biddable"))
+    live_count = Enum.count(directory, &(&1.phase == "live"))
+    featured_tokens = featured_tokens(directory)
+    listed_agents = directory |> Enum.uniq_by(& &1.agent_id) |> Enum.count()
+    tracked_market_cap = tracked_market_cap(directory)
+    spotlight_token = spotlight_token(directory)
+
     socket
     |> assign(:directory, directory)
-    |> assign(:active_tokens, directory |> Enum.filter(&(&1.phase == "biddable")) |> Enum.take(5))
-    |> assign(:past_tokens, directory |> Enum.filter(&(&1.phase == "live")) |> Enum.take(5))
-    |> assign(:biddable_count, Enum.count(directory, &(&1.phase == "biddable")))
-    |> assign(:live_count, Enum.count(directory, &(&1.phase == "live")))
-    |> assign(:tracked_market_cap, tracked_market_cap(directory))
-    |> assign(:spotlight_token, spotlight_token(directory))
+    |> assign(:featured_tokens, featured_tokens)
+    |> assign(:biddable_count, biddable_count)
+    |> assign(:live_count, live_count)
+    |> assign(:listed_agents, listed_agents)
+    |> assign(:tracked_market_cap, tracked_market_cap)
+    |> assign(:spotlight_token, spotlight_token)
+    |> assign(:snapshot_items, snapshot_items(biddable_count, live_count, listed_agents))
+    |> assign(
+      :metric_items,
+      metric_items(tracked_market_cap, biddable_count, live_count, listed_agents)
+    )
+    |> assign(:activity_items, activity_items(featured_tokens))
   end
 
-  defp wizard_command, do: "regent autolaunch prelaunch wizard"
+  defp featured_tokens(directory) do
+    directory
+    |> Enum.sort_by(&featured_rank/1)
+    |> Enum.take(4)
+  end
+
+  defp featured_rank(%{phase: "biddable"}), do: 0
+  defp featured_rank(%{phase: "live"}), do: 1
+  defp featured_rank(_token), do: 2
+
+  defp snapshot_items(biddable_count, live_count, listed_agents) do
+    [
+      %{label: "Open auctions", value: biddable_count},
+      %{label: "Tokens live", value: live_count},
+      %{label: "Listed agents", value: listed_agents}
+    ]
+  end
+
+  defp metric_items(tracked_market_cap, biddable_count, live_count, listed_agents) do
+    [
+      %{label: "Tracked market cap", value: tracked_market_cap, note: "Across listed markets"},
+      %{label: "Open auctions", value: biddable_count, note: "Right now"},
+      %{label: "Tokens live", value: live_count, note: "After auction close"},
+      %{label: "Listed agents", value: listed_agents, note: "Across the market"}
+    ]
+  end
+
+  defp activity_items([]) do
+    [
+      %{
+        title: "No market activity yet",
+        note: "Open the launch path to prepare the first market.",
+        value: "Waiting",
+        phase: "idle"
+      }
+    ]
+  end
+
+  defp activity_items(tokens) do
+    Enum.map(tokens, fn token ->
+      %{
+        title: activity_title(token),
+        note: activity_note(token),
+        value: format_currency(token.current_price_usdc, 4),
+        phase: token.phase
+      }
+    end)
+  end
+
+  defp activity_title(%{phase: "biddable", agent_name: name}), do: "Open auction for #{name}"
+  defp activity_title(%{phase: "live", agent_name: name}), do: "#{name} is live"
+  defp activity_title(%{agent_name: name}), do: "Watch #{name}"
+
+  defp activity_note(token), do: market_timing_label(token)
+
+  defp market_snapshot_copy(nil),
+    do: "Open auctions to watch the next market as soon as it appears."
+
+  defp market_snapshot_copy(token) do
+    "#{token.agent_name} is the clearest next stop if you want to open the market and act right away."
+  end
+
+  defp featured_status_label(%{phase: "biddable", ends_at: ends_at}),
+    do: LaunchComponents.time_left_label(ends_at)
+
+  defp featured_status_label(%{phase: "live"}), do: "Live"
+  defp featured_status_label(_token), do: "Watch"
+
+  defp featured_status_class(%{phase: "biddable"}), do: "is-live"
+  defp featured_status_class(%{phase: "live"}), do: "is-finished"
+  defp featured_status_class(_token), do: "is-muted"
 
   defp market_timing_label(%{phase: "biddable", ends_at: ends_at}),
     do: LaunchComponents.time_left_label(ends_at)
 
   defp market_timing_label(%{phase: "live"}), do: "Auction closed"
   defp market_timing_label(_token), do: "Check token page"
-
-  defp primary_action_href(%{phase: "live", subject_url: subject_url, detail_url: _detail_url})
-       when is_binary(subject_url),
-       do: subject_url
-
-  defp primary_action_href(%{detail_url: detail_url}), do: detail_url
-
-  defp primary_action_label(%{phase: "biddable"}), do: "Open bid view"
-
-  defp primary_action_label(%{phase: "live", subject_url: subject_url})
-       when is_binary(subject_url), do: "Open token page"
-
-  defp primary_action_label(%{phase: "live"}), do: "Inspect launch"
-  defp primary_action_label(_token), do: "Open"
 
   defp tracked_market_cap(directory) do
     directory
@@ -415,46 +321,6 @@ defmodule AutolaunchWeb.HomeLive do
   defp spotlight_token(directory) do
     Enum.find(directory, &(&1.phase == "biddable")) || Enum.find(directory, &(&1.phase == "live"))
   end
-
-  defp spotlight_copy(nil),
-    do: "Open auctions to see the next market as soon as one is available."
-
-  defp spotlight_copy(token) do
-    "#{token.agent_name} is the clearest next stop if you want to open the market and act right away."
-  end
-
-  defp spotlight_label(nil), do: "Waiting for next market"
-  defp spotlight_label(token), do: "#{token.agent_name} #{token.symbol}"
-
-  defp spotlight_action_label(nil), do: "Open auctions"
-  defp spotlight_action_label(token), do: primary_action_label(token)
-
-  defp identity_label(nil), do: "Guest"
-
-  defp identity_label(current_human) do
-    current_human.display_name || truncate_wallet(current_human.wallet_address) || "Connected"
-  end
-
-  defp truncate_wallet(nil), do: nil
-
-  defp truncate_wallet(wallet) when is_binary(wallet) do
-    "#{String.slice(wallet, 0, 6)}...#{String.slice(wallet, -4, 4)}"
-  end
-
-  defp feature_icon("Raise before you scale"), do: "▮"
-  defp feature_icon("Give supporters a reason to stay"), do: "◌"
-  defp feature_icon(_title), do: "•"
-
-  defp market_curve_columns,
-    do: [6, 6, 9, 8, 7, 9, 8, 8, 9, 10, 10, 13, 16, 15, 18, 17, 17, 20, 22]
-
-  defp trust_summary(%{ens: %{connected: true, name: name}, world: %{connected: true}})
-       when is_binary(name),
-       do: "#{name} • World connected"
-
-  defp trust_summary(%{ens: %{connected: true, name: name}}) when is_binary(name), do: name
-  defp trust_summary(%{world: %{connected: true, launch_count: count}}), do: "World #{count}"
-  defp trust_summary(_), do: "Optional links"
 
   defp parse_decimal(nil), do: nil
   defp parse_decimal(""), do: nil

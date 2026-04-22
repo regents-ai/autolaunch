@@ -61,25 +61,47 @@ defmodule AutolaunchWeb.XLinkLive do
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
-      <section id="x-link-hero" class="al-hero al-panel" phx-hook="MissionMotion">
-        <div>
-          <p class="al-kicker">Identity link</p>
-          <h2>Choose an identity, then connect the matching X account.</h2>
-          <p class="al-subcopy">
-            This is a soft public trust signal. It shows the handle on auction pages when connected,
-            but missing X does not block launch, bids, or staking.
-          </p>
-        </div>
+      <.identity_page_styles />
 
-        <div class="al-stat-grid">
-          <.stat_card title="Identities" value={Integer.to_string(length(@identities))} hint="Owned or operated by linked wallets" />
-          <.stat_card title="Signal" value="Optional" hint="Visible on auction cards and detail pages" />
-          <.stat_card title="Provider" value="X" hint="Connected through the browser flow" />
-          <.stat_card title="Current state" value={connect_state_label(@connect_state, @current_connected)} hint="Session and browser both need to be present" />
-        </div>
-      </section>
+      <section class="al-identity-route">
+        <header id="x-link-header" class="al-identity-header" phx-hook="MissionMotion">
+          <div class="al-identity-header-copy">
+            <.link navigate={~p"/profile"} class="al-identity-back">
+              <span aria-hidden="true">←</span>
+              <span>Back to profile</span>
+            </.link>
+            <p class="al-kicker">Profile trust</p>
+            <h1>Connect the X account people expect to see.</h1>
+            <p>
+              Choose the right identity, finish the browser connection, and keep the public handle aligned with the agent you operate.
+            </p>
+          </div>
 
-      <section class="al-ens-layout">
+          <div class="al-identity-header-links">
+            <.link navigate={~p"/agentbook"} class="al-ghost">Open Agentbook</.link>
+            <.link navigate={~p"/ens-link"} class="al-ghost">Link ENS</.link>
+          </div>
+        </header>
+
+        <section id="x-link-hero" class="al-hero al-panel" phx-hook="MissionMotion">
+          <div>
+            <p class="al-kicker">X</p>
+            <h2>Choose an identity, then connect the matching X account.</h2>
+            <p class="al-subcopy">
+              This is a soft public trust signal. It shows the handle on auction pages when connected,
+              but missing X does not block launch, bids, or staking.
+            </p>
+          </div>
+
+          <div class="al-stat-grid">
+            <.stat_card title="Identities" value={Integer.to_string(length(@identities))} hint="Owned or operated by linked wallets" />
+            <.stat_card title="Signal" value="Optional" hint="Visible on auction cards and detail pages" />
+            <.stat_card title="Provider" value="X" hint="Connected through the browser flow" />
+            <.stat_card title="Current state" value={connect_state_label(@connect_state, @current_connected)} hint="Session and browser both need to be present" />
+          </div>
+        </section>
+
+        <section class="al-ens-layout">
         <article class="al-panel al-main-panel">
           <div class="al-section-head">
             <div>
@@ -201,10 +223,75 @@ defmodule AutolaunchWeb.XLinkLive do
             />
           <% end %>
         </article>
+        </section>
       </section>
 
       <.flash_group flash={@flash} />
     </.shell>
+    """
+  end
+
+  defp identity_page_styles(assigns) do
+    ~H"""
+    <style>
+      .al-identity-route {
+        display: grid;
+        gap: clamp(1rem, 2vw, 1.5rem);
+      }
+
+      .al-identity-header {
+        border: 1px solid color-mix(in srgb, var(--al-border) 88%, white 12%);
+        background: color-mix(in srgb, var(--al-panel-strong) 94%, white 6%);
+        box-shadow: 0 20px 60px -48px rgba(17, 35, 64, 0.2);
+        border-radius: 1.5rem;
+        padding: clamp(1.1rem, 2.4vw, 1.45rem);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+
+      .al-identity-header-copy,
+      .al-identity-header-links {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .al-identity-header-copy h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 0.95;
+      }
+
+      .al-identity-header-copy p:not(.al-kicker) {
+        margin: 0;
+        color: var(--al-muted);
+        max-width: 52rem;
+      }
+
+      .al-identity-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--al-muted);
+        text-decoration: none;
+      }
+
+      .al-identity-header-links {
+        justify-items: end;
+      }
+
+      @media (max-width: 900px) {
+        .al-identity-header {
+          flex-direction: column;
+        }
+
+        .al-identity-header-links {
+          justify-items: start;
+          grid-auto-flow: column;
+        }
+      }
+    </style>
     """
   end
 

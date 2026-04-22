@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
-@import "../../../brand-regent/design_system_tokens.css";
-@import "../../../packages/regent_ui/assets/css/regent.css";
+@import "../../../design-system/design_system_tokens.css";
+@import "../../../platform/assets/regent/css/regent.css";
 @source "../css";
 @source "../js";
 @source "../../lib/autolaunch_web";
@@ -296,6 +296,19 @@ textarea {
   background: color-mix(in srgb, white 84%, var(--brand-primary) 16%);
 }
 
+.al-shell-network-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.al-shell-network-caret {
+  width: 0.92rem;
+  height: 0.92rem;
+  color: var(--al-muted);
+}
+
 .al-shell-network-row {
   display: flex;
   align-items: flex-start;
@@ -505,6 +518,20 @@ textarea {
   margin-bottom: 0.4rem;
 }
 
+.al-shell-popover .menu li > a,
+.al-shell-popover .menu li > button {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  border-radius: 0.82rem;
+}
+
+.al-shell-menu-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
 .al-shell-content {
   min-width: 0;
   padding: 1.1rem;
@@ -554,6 +581,21 @@ textarea {
 .al-shell-footer-social a {
   color: color-mix(in srgb, var(--al-text) 88%, transparent);
   text-decoration: none;
+}
+
+.al-shell-footer-links a + a {
+  position: relative;
+}
+
+.al-shell-footer-links a + a::before {
+  content: "";
+  position: absolute;
+  left: -0.7rem;
+  top: 50%;
+  width: 1px;
+  height: 1rem;
+  background: color-mix(in srgb, var(--al-border) 86%, white 14%);
+  transform: translateY(-50%);
 }
 
 .al-shell-footer-links a:hover,

@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.SubjectLive do
   use AutolaunchWeb, :live_view
 
+  alias Autolaunch.Launch
   alias AutolaunchWeb.Live.Refreshable
 
   @poll_ms 15_000
@@ -10,13 +11,14 @@ defmodule AutolaunchWeb.SubjectLive do
     {:ok,
      socket
      |> Refreshable.schedule(@poll_ms)
-     |> assign(:page_title, "Subject Revenue")
-     |> assign(:active_view, "subjects")
+     |> assign(:page_title, "Token detail")
+     |> assign(:active_view, "auction-detail")
      |> assign(:subject_id, subject_id)
      |> assign(:side_tab, "state")
      |> assign(:stake_form, %{"amount" => ""})
      |> assign(:unstake_form, %{"amount" => ""})
      |> assign(:pending_actions, %{})
+     |> assign(:subject_market, load_subject_market(subject_id))
      |> assign_subject(subject_id)}
   end
 
@@ -80,9 +82,14 @@ defmodule AutolaunchWeb.SubjectLive do
       |> assign(:recommended_action, recommended)
       |> assign(:wallet_position, wallet_position)
       |> assign(:ingress_accounts, ingress_accounts)
-      |> assign(:subject_heading, subject_heading(subject, assigns.subject_id))
-      |> assign(:subject_summary, subject_summary(subject))
+      |> assign(
+        :subject_heading,
+        subject_heading(subject, assigns.subject_id, assigns.subject_market)
+      )
+      |> assign(:subject_summary, subject_summary(subject, assigns.subject_market))
       |> assign(:ingress_count, length(ingress_accounts))
+      |> assign(:subject_symbol, subject_symbol(assigns.subject_market))
+      |> assign(:subject_auction_href, subject_auction_href(assigns.subject_market))
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
@@ -92,9 +99,9 @@ defmodule AutolaunchWeb.SubjectLive do
         <section id="subject-overview" class="al-subject-page">
           <header class="al-subject-header">
             <div class="al-subject-title-group">
-              <.link navigate={~p"/profile"} class="al-subject-back">
+              <.link navigate={~p"/auctions"} class="al-subject-back">
                 <span aria-hidden="true">←</span>
-                <span>Back to profile</span>
+                <span>Back to auctions</span>
               </.link>
 
               <div class="al-subject-title-row">
@@ -105,7 +112,7 @@ defmodule AutolaunchWeb.SubjectLive do
                 <div class="al-subject-heading-block">
                   <div class="al-subject-heading-line">
                     <h1>{@subject_heading}</h1>
-                    <span class="al-subject-chip">Revenue</span>
+                    <span :if={@subject_symbol} class="al-subject-chip">{@subject_symbol}</span>
                   </div>
 
                   <div class="al-subject-meta">
@@ -124,11 +131,15 @@ defmodule AutolaunchWeb.SubjectLive do
             </div>
 
             <div class="al-subject-header-actions">
-              <.link navigate={~p"/contracts?subject_id=#{@subject_id}"} class="al-subject-secondary-button">
-                Advanced review
+              <.link
+                :if={@subject_auction_href}
+                navigate={@subject_auction_href}
+                class="al-subject-secondary-button"
+              >
+                Open auction page
               </.link>
-              <.link navigate={~p"/how-auctions-work"} class="al-subject-primary-button">
-                How auctions work
+              <.link navigate={~p"/contracts?subject_id=#{@subject_id}"} class="al-subject-primary-button">
+                Open contracts
               </.link>
             </div>
           </header>
@@ -1185,6 +1196,7 @@ defmodule AutolaunchWeb.SubjectLive do
   defp reload_subject(socket) do
     socket
     |> assign(:pending_actions, %{})
+    |> assign(:subject_market, load_subject_market(socket.assigns.subject_id))
     |> assign_subject(socket.assigns.subject_id)
   end
 
@@ -1329,20 +1341,52 @@ defmodule AutolaunchWeb.SubjectLive do
   defp recommended_status_label(:claim_and_stake_emissions), do: "Emissions ready"
   defp recommended_status_label(_), do: "Active"
 
-  defp subject_heading(subject, subject_id) when is_map(subject) do
+  defp subject_heading(_subject, _subject_id, %{agent_name: agent_name})
+       when is_binary(agent_name) and agent_name != "" do
+    agent_name
+  end
+
+  defp subject_heading(subject, subject_id, _subject_market) when is_map(subject) do
     "Subject #{String.slice(subject.subject_id || subject_id, 0, 10)}"
   end
 
-  defp subject_heading(_subject, subject_id) do
+  defp subject_heading(_subject, subject_id, _subject_market) do
     "Subject #{String.slice(subject_id, 0, 10)}"
   end
 
-  defp subject_summary(subject) when is_map(subject) do
-    "Review what this wallet can claim, what is already committed, and which ingress balances still need attention."
+  defp subject_summary(_subject, %{phase: "live"}) do
+    "Use this page for the next wallet action: claim, stake, unstake, or move revenue out after the market has settled."
   end
 
-  defp subject_summary(_subject) do
-    "Review what this wallet can claim, what is already committed, and which ingress balances still need attention."
+  defp subject_summary(_subject, %{phase: "biddable"}) do
+    "This token is still in market. Use the auction page for price discovery and this page for the balances that follow."
+  end
+
+  defp subject_summary(subject, _subject_market) when is_map(subject) do
+    "Use this page for the next wallet action: claim, stake, unstake, or move revenue out when the balance is ready."
+  end
+
+  defp subject_summary(_subject, _subject_market) do
+    "Review what this wallet can claim, what is already committed, and which intake balances still need attention."
+  end
+
+  defp subject_symbol(%{symbol: symbol}) when is_binary(symbol) and symbol != "", do: symbol
+  defp subject_symbol(_subject_market), do: nil
+
+  defp subject_auction_href(%{id: id}) when is_binary(id), do: ~p"/auctions/#{id}"
+  defp subject_auction_href(_subject_market), do: nil
+
+  defp load_subject_market(subject_id) do
+    launch_module().list_auctions(%{"mode" => "all", "sort" => "newest"}, nil)
+    |> Enum.find(fn row -> row.subject_id == subject_id end)
+  rescue
+    _ -> nil
+  end
+
+  defp launch_module do
+    :autolaunch
+    |> Application.get_env(:subject_live, [])
+    |> Keyword.get(:launch_module, Launch)
   end
 
   defp subject_initials(heading) when is_binary(heading) do

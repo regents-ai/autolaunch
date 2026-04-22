@@ -126,25 +126,47 @@ defmodule AutolaunchWeb.AgentbookLive do
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
-      <section id="agentbook-hero" class="al-hero al-panel" phx-hook="MissionMotion">
-        <div>
-          <p class="al-kicker">Trust check + AgentBook</p>
-          <h2>Start a trust check here, then look up existing records separately.</h2>
-          <p class="al-subcopy">
-            This flow creates the request, waits for proof, and then finishes registration either
-            through the relay or through a normal wallet transaction if sponsorship is unavailable.
-          </p>
-        </div>
+      <.identity_page_styles />
 
-        <div class="al-stat-grid">
-          <.stat_card title="Public flow" value="No Privy needed" hint="Works for web pages and CLI callers" />
-          <.stat_card title="Submission" value="Relay first" hint="Falls back to wallet send when sponsorship is unavailable" />
-          <.stat_card title="Networks" value="World + Base" hint="World mainnet, Base mainnet, and Base Sepolia" />
-          <.stat_card title="Lookup" value={lookup_label(@lookup_result)} hint="Reads the live AgentBook contract" />
-        </div>
-      </section>
+      <section class="al-identity-route">
+        <header id="agentbook-header" class="al-identity-header" phx-hook="MissionMotion">
+          <div class="al-identity-header-copy">
+            <.link navigate={~p"/profile"} class="al-identity-back">
+              <span aria-hidden="true">←</span>
+              <span>Back to profile</span>
+            </.link>
+            <p class="al-kicker">Profile trust</p>
+            <h1>Verify the human behind an agent.</h1>
+            <p>
+              Start a trust check, finish the registration, and keep a separate lookup panel nearby when you need to confirm an existing record.
+            </p>
+          </div>
 
-      <section class="al-agentbook-layout">
+          <div class="al-identity-header-links">
+            <.link navigate={~p"/ens-link"} class="al-ghost">Link ENS</.link>
+            <.link navigate={~p"/x-link"} class="al-ghost">Connect X</.link>
+          </div>
+        </header>
+
+        <section id="agentbook-hero" class="al-hero al-panel" phx-hook="MissionMotion">
+          <div>
+            <p class="al-kicker">Agentbook</p>
+            <h2>Public trust check</h2>
+            <p class="al-subcopy">
+              This flow creates the request, waits for proof, and then finishes registration either
+              through the relay or through a wallet send when sponsorship is unavailable.
+            </p>
+          </div>
+
+          <div class="al-stat-grid">
+            <.stat_card title="Public flow" value="No app login" hint="Works for web pages and CLI callers" />
+            <.stat_card title="Submission" value="Relay first" hint="Falls back to wallet send if sponsorship is unavailable" />
+            <.stat_card title="Networks" value="World + Base" hint="World mainnet, Base mainnet, and Base Sepolia" />
+            <.stat_card title="Lookup" value={lookup_label(@lookup_result)} hint="Reads the live registration record" />
+          </div>
+        </section>
+
+        <section class="al-agentbook-layout">
         <article class="al-panel al-main-panel">
           <div class="al-section-head">
             <div>
@@ -346,8 +368,73 @@ defmodule AutolaunchWeb.AgentbookLive do
             </li>
           </ul>
         </article>
+        </section>
       </section>
     </.shell>
+    """
+  end
+
+  defp identity_page_styles(assigns) do
+    ~H"""
+    <style>
+      .al-identity-route {
+        display: grid;
+        gap: clamp(1rem, 2vw, 1.5rem);
+      }
+
+      .al-identity-header {
+        border: 1px solid color-mix(in srgb, var(--al-border) 88%, white 12%);
+        background: color-mix(in srgb, var(--al-panel-strong) 94%, white 6%);
+        box-shadow: 0 20px 60px -48px rgba(17, 35, 64, 0.2);
+        border-radius: 1.5rem;
+        padding: clamp(1.1rem, 2.4vw, 1.45rem);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+
+      .al-identity-header-copy,
+      .al-identity-header-links {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .al-identity-header-copy h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 0.95;
+      }
+
+      .al-identity-header-copy p:not(.al-kicker) {
+        margin: 0;
+        color: var(--al-muted);
+        max-width: 52rem;
+      }
+
+      .al-identity-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--al-muted);
+        text-decoration: none;
+      }
+
+      .al-identity-header-links {
+        justify-items: end;
+      }
+
+      @media (max-width: 900px) {
+        .al-identity-header {
+          flex-direction: column;
+        }
+
+        .al-identity-header-links {
+          justify-items: start;
+          grid-auto-flow: column;
+        }
+      }
+    </style>
     """
   end
 

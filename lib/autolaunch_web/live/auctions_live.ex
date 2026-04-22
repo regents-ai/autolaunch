@@ -41,6 +41,17 @@ defmodule AutolaunchWeb.AuctionsLive do
       </style>
 
       <div class="al-auctions-route">
+        <section id="auctions-page-head" class="al-auctions-page-head" phx-hook="MissionMotion">
+          <div>
+            <h1>Auctions</h1>
+          </div>
+
+          <nav class="tabs tabs-boxed al-auctions-page-tabs" aria-label="Auction pages">
+            <.link navigate={~p"/auctions"} class="tab tab-active">Open markets</.link>
+            <.link navigate={~p"/auction-returns"} class="tab">Auction returns</.link>
+          </nav>
+        </section>
+
         <section
           id="auctions-market"
           class="al-panel al-auctions-market-shell"
@@ -48,16 +59,8 @@ defmodule AutolaunchWeb.AuctionsLive do
         >
           <div class="al-auctions-market-topline" data-market-reveal>
             <div>
-              <p class="al-kicker">Auctions</p>
-              <p class="al-subcopy">Scan the market, compare active launches, and move fast when a bid window opens.</p>
-            </div>
-            <div class="al-auctions-market-links">
-              <.link navigate={~p"/how-auctions-work"} class="al-ghost">
-                How auctions work
-              </.link>
-              <.link navigate={~p"/auction-returns"} class="al-cta-link">
-                Auction returns
-              </.link>
+              <p class="al-kicker">Market workspace</p>
+              <p class="al-subcopy">Compare open launches, check the leaderboard, and move into a bid page without losing the market read.</p>
             </div>
           </div>
 
@@ -65,7 +68,37 @@ defmodule AutolaunchWeb.AuctionsLive do
           <article class="al-auctions-market-stat" data-market-reveal>
             <div class="al-auctions-market-stat-head">
               <span class="al-auctions-market-dot is-open"></span>
-              <span>Open now</span>
+              <span>Total market cap</span>
+            </div>
+            <strong
+              data-market-counter={@market_totals.total_market_cap_raw || "0"}
+              data-market-prefix="$"
+              data-market-suffix=""
+              data-market-decimals="0"
+            >
+              {@market_totals.total_market_cap}
+            </strong>
+            <p>Across this view</p>
+          </article>
+          <article class="al-auctions-market-stat" data-market-reveal>
+            <div class="al-auctions-market-stat-head">
+              <span class="al-auctions-market-dot is-volume"></span>
+              <span>Total bid volume</span>
+            </div>
+            <strong
+              data-market-counter={@market_totals.visible_bid_volume_raw || "0"}
+              data-market-prefix="$"
+              data-market-suffix=""
+              data-market-decimals="0"
+            >
+              {@market_totals.visible_bid_volume}
+            </strong>
+            <p>Visible auctions</p>
+          </article>
+          <article class="al-auctions-market-stat" data-market-reveal>
+            <div class="al-auctions-market-stat-head">
+              <span class="al-auctions-market-dot is-shown"></span>
+              <span>Active auctions</span>
             </div>
             <strong
               data-market-counter={Integer.to_string(@market_totals.open_count)}
@@ -73,48 +106,33 @@ defmodule AutolaunchWeb.AuctionsLive do
             >
               {@market_totals.open_count}
             </strong>
-            <p>Live auctions</p>
+            <p>Live now</p>
           </article>
           <article class="al-auctions-market-stat" data-market-reveal>
             <div class="al-auctions-market-stat-head">
               <span class="al-auctions-market-dot is-finished"></span>
-              <span>Finished</span>
+              <span>Ending soon</span>
             </div>
             <strong
-              data-market-counter={Integer.to_string(@market_totals.finished_count)}
+              data-market-counter={Integer.to_string(@market_totals.ending_soon_count)}
               data-market-decimals="0"
             >
-              {@market_totals.finished_count}
+              {@market_totals.ending_soon_count}
             </strong>
-            <p>Completed</p>
+            <p>Less than 2h</p>
           </article>
           <article class="al-auctions-market-stat" data-market-reveal>
             <div class="al-auctions-market-stat-head">
-              <span class="al-auctions-market-dot is-shown"></span>
-              <span>Shown</span>
+              <span class="al-auctions-market-dot is-volume"></span>
+              <span>Returns ready</span>
             </div>
             <strong
-              data-market-counter={Integer.to_string(@market_totals.shown_count)}
+              data-market-counter={Integer.to_string(@market_totals.returns_ready_count)}
               data-market-decimals="0"
             >
-              {@market_totals.shown_count}
+              {@market_totals.returns_ready_count}
             </strong>
-            <p>On this page</p>
-          </article>
-          <article class="al-auctions-market-stat is-volume" data-market-reveal>
-            <div class="al-auctions-market-stat-head">
-              <span class="al-auctions-market-dot is-volume"></span>
-              <span>Bid volume shown</span>
-            </div>
-            <strong
-              data-market-counter={@market_totals.visible_bid_volume_raw || "0"}
-              data-market-prefix="$"
-              data-market-suffix=" USDC"
-              data-market-decimals="2"
-            >
-              {@market_totals.visible_bid_volume}
-            </strong>
-            <p>Across the visible list</p>
+            <p>Ready to claim</p>
           </article>
         </div>
 
@@ -128,8 +146,8 @@ defmodule AutolaunchWeb.AuctionsLive do
                     <p class="al-kicker">Featured market</p>
                     <h2>{@featured_auction.agent_name}</h2>
                     <div class="al-auctions-feature-badges">
-                      <span class={["al-status-badge", phase_badge_class(@featured_auction.phase)]}>
-                        {phase_label(@featured_auction.phase)}
+                      <span class={["al-status-badge", status_badge_class(@featured_auction)]}>
+                        {row_status_label(@featured_auction)}
                       </span>
                       <span class="al-network-badge">{network_label(@featured_auction)}</span>
                     </div>
@@ -153,11 +171,11 @@ defmodule AutolaunchWeb.AuctionsLive do
                   <strong>{format_large_currency(@featured_auction.implied_market_cap_usdc)}</strong>
                 </article>
                 <article>
-                  <span>Bid volume</span>
+                  <span>Total bids</span>
                   <strong>{format_volume(@featured_auction.total_bid_volume)}</strong>
                 </article>
                 <article>
-                  <span>Time</span>
+                  <span>Time left</span>
                   <strong>{LaunchComponents.time_left_label(@featured_auction.ends_at)}</strong>
                 </article>
               </div>
@@ -231,7 +249,7 @@ defmodule AutolaunchWeb.AuctionsLive do
             <div class="al-auctions-leaderboard-head">
               <div>
                 <p class="al-kicker">Leaderboard</p>
-                <h3>Largest visible markets</h3>
+                <h3>Top markets</h3>
               </div>
               <a href="#auctions-list" class="al-auctions-inline-link">View all</a>
             </div>
@@ -255,15 +273,15 @@ defmodule AutolaunchWeb.AuctionsLive do
                   </div>
                   <div class="al-auctions-leaderboard-value">
                     <strong>{format_large_currency(auction.implied_market_cap_usdc)}</strong>
-                    <span class={["al-status-badge", phase_badge_class(auction.phase)]}>
-                      {phase_label(auction.phase)}
+                    <span class={["al-status-badge", status_badge_class(auction)]}>
+                      {row_status_label(auction)}
                     </span>
                   </div>
                 </.link>
               <% end %>
             </div>
 
-            <div class="al-auctions-leaderboard-foot">Market cap (USDC)</div>
+            <div class="al-auctions-leaderboard-foot">Market cap</div>
           </aside>
         </div>
         </section>
@@ -365,13 +383,14 @@ defmodule AutolaunchWeb.AuctionsLive do
               <table class="al-table al-auctions-table">
                 <thead>
                   <tr>
-                    <th>Token</th>
-                    <th>Phase</th>
+                    <th>Auction</th>
+                    <th>Network</th>
+                    <th>Status</th>
                     <th>Price</th>
                     <th>Market cap</th>
                     <th>Bid volume</th>
-                    <th>Time</th>
-                    <th>Trust</th>
+                    <th>Time left</th>
+                    <th>Progress</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -386,14 +405,17 @@ defmodule AutolaunchWeb.AuctionsLive do
                             <span class="al-auctions-token-symbol">{token.symbol}</span>
                           </div>
                           <p class="al-auctions-table-meta">
-                            {token.agent_id} • {network_label(token)}
+                            {token.agent_id} • {trust_compact(token.trust)}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <span class={["al-status-badge", phase_badge_class(token.phase)]}>
-                        {phase_label(token.phase)}
+                      {network_label(token)}
+                    </td>
+                    <td>
+                      <span class={["al-status-badge", status_badge_class(token)]}>
+                        {row_status_label(token)}
                       </span>
                     </td>
                     <td>
@@ -406,17 +428,18 @@ defmodule AutolaunchWeb.AuctionsLive do
                     </td>
                     <td>{format_large_currency(token.implied_market_cap_usdc)}</td>
                     <td>{format_volume(token.total_bid_volume)}</td>
-                    <td class="al-auctions-time">{LaunchComponents.time_left_label(token.ends_at)}</td>
+                    <td class="al-auctions-time">{time_cell_copy(token)}</td>
                     <td>
-                      <span
-                        class={[
-                          "al-auctions-trust-pill",
-                          trust_compact(token.trust) == "Optional links" && "is-optional"
-                        ]}
-                      >
-                        <span class="al-auctions-trust-dot"></span>
-                        <span>{trust_compact(token.trust)}</span>
-                      </span>
+                      <div class="al-auctions-progress-cell">
+                        <span>{progress_label(token.minimum_raise_progress_percent)}</span>
+                        <div class="al-auctions-progress-track">
+                          <div
+                            class="al-auctions-progress-fill"
+                            style={"width: #{progress_value(token.minimum_raise_progress_percent)}%"}
+                          >
+                          </div>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <.link navigate={primary_action_href(token)} class="al-auctions-row-action">
@@ -564,14 +587,30 @@ defmodule AutolaunchWeb.AuctionsLive do
         [first | rest] -> Enum.reduce(rest, first, &D.add/2)
       end
 
+    total_market_cap_raw =
+      visible_rows
+      |> Enum.map(&parse_decimal(&1.implied_market_cap_usdc))
+      |> Enum.reject(&is_nil/1)
+      |> case do
+        [] -> nil
+        [first | rest] -> Enum.reduce(rest, first, &D.add/2)
+      end
+
     %{
       open_count: Enum.count(directory, &(&1.phase == "biddable")),
-      finished_count: Enum.count(directory, &(&1.phase == "live")),
       shown_count: length(visible_rows),
+      ending_soon_count: Enum.count(visible_rows, &ending_soon?/1),
+      returns_ready_count: Enum.count(directory, &truthy?(Map.get(&1, :returns_enabled))),
+      total_market_cap_raw:
+        if(total_market_cap_raw, do: D.to_string(total_market_cap_raw, :normal), else: nil),
+      total_market_cap:
+        format_large_currency(
+          if(total_market_cap_raw, do: D.to_string(total_market_cap_raw, :normal), else: "0")
+        ),
       visible_bid_volume_raw:
         if(visible_bid_volume_raw, do: D.to_string(visible_bid_volume_raw, :normal), else: nil),
       visible_bid_volume:
-        format_volume(
+        format_large_currency(
           if(visible_bid_volume_raw, do: D.to_string(visible_bid_volume_raw, :normal), else: "0")
         )
     }
@@ -662,6 +701,34 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp primary_action_href(row), do: row.detail_url
 
+  defp row_status_label(row) do
+    cond do
+      truthy?(Map.get(row, :returns_enabled)) -> "Returns ready"
+      row.phase == "biddable" and ending_soon?(row) -> "Ending soon"
+      row.phase == "biddable" -> "Live"
+      row.phase == "live" -> "Market live"
+      true -> phase_label(row.phase)
+    end
+  end
+
+  defp status_badge_class(row) do
+    cond do
+      truthy?(Map.get(row, :returns_enabled)) -> "is-muted"
+      row.phase == "biddable" and ending_soon?(row) -> "is-warn"
+      row.phase == "biddable" -> "is-live"
+      row.phase == "live" -> "is-muted"
+      true -> phase_badge_class(row.phase)
+    end
+  end
+
+  defp time_cell_copy(row) do
+    cond do
+      truthy?(Map.get(row, :returns_enabled)) -> "Returns ready"
+      row.phase == "live" -> "Ended"
+      true -> LaunchComponents.time_left_label(row.ends_at)
+    end
+  end
+
   defp secondary_subject_href(%{subject_url: subject_url} = row) when is_binary(subject_url) do
     if primary_action_href(row) == subject_url, do: nil, else: subject_url
   end
@@ -725,6 +792,19 @@ defmodule AutolaunchWeb.AuctionsLive do
   defp network_label(%{chain: chain}) when is_binary(chain) and chain != "", do: chain
   defp network_label(%{network: network}) when is_binary(network) and network != "", do: network
   defp network_label(_row), do: "Unknown"
+
+  defp ending_soon?(%{ends_at: ends_at}), do: ending_soon?(ends_at)
+
+  defp ending_soon?(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _} -> DateTime.diff(datetime, DateTime.utc_now(), :second) in 1..7_200
+      _ -> false
+    end
+  end
+
+  defp ending_soon?(_value), do: false
+
+  defp truthy?(value), do: value in [true, "true", 1, "1"]
 
   defp market_cap_desc?(left, right) do
     compare_market_caps(left.implied_market_cap_usdc, right.implied_market_cap_usdc) in [:gt, :eq]

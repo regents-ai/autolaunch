@@ -47,33 +47,29 @@ defmodule AutolaunchWeb.HomeLiveTest do
     :ok
   end
 
-  test "home page renders the new landing layout with market tables", %{conn: conn} do
+  test "home page renders the signed-in dashboard layout", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert html =~ "Turn agent edge into runway."
-    assert html =~ "Open auctions"
-    assert html =~ "regent autolaunch prelaunch wizard"
-    assert html =~ "Hermes"
-    assert html =~ "OpenClaw"
-    assert html =~ "IronClaw"
-    assert html =~ "Codex"
-    assert html =~ "Claude"
-    assert html =~ "Open auctions"
-    assert html =~ "Post-auction tokens"
+    assert html =~ "Launch and grow agent economies"
+    assert html =~ "Go to Launch"
+    assert html =~ "Explore auctions"
+    assert html =~ "Market snapshot"
+    assert html =~ "Featured auctions"
+    assert html =~ "Launch path"
+    assert html =~ "Latest activity"
     assert html =~ "Atlas"
     assert html =~ "Beacon"
-    assert html =~ "Raise before you scale"
-    assert html =~ "Bid with a budget and a ceiling"
-    assert html =~ "Give supporters a reason to stay"
-    assert html =~ ~s(href="/auctions")
+    assert html =~ "$ATLAS"
+    assert html =~ "$BECN"
+    assert html =~ ~s(href="/launch")
   end
 
-  test "home page keeps the market table actions aligned with active and past tokens", %{
+  test "home page keeps featured market and activity data aligned with live auctions", %{
     conn: conn
   } do
     {:ok, view, _html} = live(conn, "/")
 
-    assert has_element?(view, "a[href='/auctions/auction-1']", "Open bid view")
-    assert has_element?(view, "a[href='/subjects/subject-2']", "Open token page")
+    assert has_element?(view, "article", "Open auction for Atlas")
+    assert has_element?(view, "article", "Atlas is the clearest next stop")
   end
 end

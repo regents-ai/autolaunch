@@ -83,25 +83,47 @@ defmodule AutolaunchWeb.EnsLinkLive do
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
-      <section id="ens-link-hero" class="al-hero al-panel" phx-hook="MissionMotion">
-        <div>
-          <p class="al-kicker">Identity link</p>
-          <h2>Choose an identity, choose an ENS name, then send only the missing writes.</h2>
-          <p class="al-subcopy">
-            This page checks the ENS side and the ERC-8004 side separately, then prepares only the
-            wallet actions that still need to happen.
-          </p>
-        </div>
+      <.identity_page_styles />
 
-        <div class="al-stat-grid">
-          <.stat_card title="Identities" value={Integer.to_string(length(@identities))} hint="Owned or operated by linked wallets" />
-          <.stat_card title="Actionable writes" value={Integer.to_string(@ready_actions)} hint="Only counted after you run a plan" />
-          <.stat_card title="ENS record" value={if @verified?, do: "Verified", else: "Unchecked"} hint="ENSIP-25 text record" />
-          <.stat_card title="ERC-8004 file" value={if @ens_synced?, do: "Synced", else: "Unchecked"} hint="Registration file ENS service" />
-        </div>
-      </section>
+      <section class="al-identity-route">
+        <header id="ens-link-header" class="al-identity-header" phx-hook="MissionMotion">
+          <div class="al-identity-header-copy">
+            <.link navigate={~p"/profile"} class="al-identity-back">
+              <span aria-hidden="true">←</span>
+              <span>Back to profile</span>
+            </.link>
+            <p class="al-kicker">Profile trust</p>
+            <h1>Link the ENS name people should trust.</h1>
+            <p>
+              Pick the right identity, check what is already in place, and only send the missing name updates.
+            </p>
+          </div>
 
-      <section class="al-ens-layout">
+          <div class="al-identity-header-links">
+            <.link navigate={~p"/agentbook"} class="al-ghost">Open Agentbook</.link>
+            <.link navigate={~p"/x-link"} class="al-ghost">Connect X</.link>
+          </div>
+        </header>
+
+        <section id="ens-link-hero" class="al-hero al-panel" phx-hook="MissionMotion">
+          <div>
+            <p class="al-kicker">ENS</p>
+            <h2>Choose an identity, choose an ENS name, then send only the missing writes.</h2>
+            <p class="al-subcopy">
+              This page checks the ENS side and the ERC-8004 side separately, then prepares only the
+              wallet actions that still need to happen.
+            </p>
+          </div>
+
+          <div class="al-stat-grid">
+            <.stat_card title="Identities" value={Integer.to_string(length(@identities))} hint="Owned or operated by linked wallets" />
+            <.stat_card title="Actionable writes" value={Integer.to_string(@ready_actions)} hint="Only counted after you run a plan" />
+            <.stat_card title="ENS record" value={if @verified?, do: "Verified", else: "Unchecked"} hint="ENSIP-25 text record" />
+            <.stat_card title="ERC-8004 file" value={if @ens_synced?, do: "Synced", else: "Unchecked"} hint="Registration file ENS service" />
+          </div>
+        </section>
+
+        <section class="al-ens-layout">
         <article class="al-panel al-main-panel">
           <div class="al-section-head">
             <div>
@@ -326,7 +348,72 @@ defmodule AutolaunchWeb.EnsLinkLive do
           </article>
         </section>
       <% end %>
+      </section>
     </.shell>
+    """
+  end
+
+  defp identity_page_styles(assigns) do
+    ~H"""
+    <style>
+      .al-identity-route {
+        display: grid;
+        gap: clamp(1rem, 2vw, 1.5rem);
+      }
+
+      .al-identity-header {
+        border: 1px solid color-mix(in srgb, var(--al-border) 88%, white 12%);
+        background: color-mix(in srgb, var(--al-panel-strong) 94%, white 6%);
+        box-shadow: 0 20px 60px -48px rgba(17, 35, 64, 0.2);
+        border-radius: 1.5rem;
+        padding: clamp(1.1rem, 2.4vw, 1.45rem);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+
+      .al-identity-header-copy,
+      .al-identity-header-links {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .al-identity-header-copy h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 0.95;
+      }
+
+      .al-identity-header-copy p:not(.al-kicker) {
+        margin: 0;
+        color: var(--al-muted);
+        max-width: 52rem;
+      }
+
+      .al-identity-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--al-muted);
+        text-decoration: none;
+      }
+
+      .al-identity-header-links {
+        justify-items: end;
+      }
+
+      @media (max-width: 900px) {
+        .al-identity-header {
+          flex-direction: column;
+        }
+
+        .al-identity-header-links {
+          justify-items: start;
+          grid-auto-flow: column;
+        }
+      }
+    </style>
     """
   end
 

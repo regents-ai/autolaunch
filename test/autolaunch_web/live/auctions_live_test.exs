@@ -159,14 +159,16 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/auctions")
 
-    assert html =~ "Open now"
+    assert html =~ "Open markets"
+    assert html =~ "Total market cap"
+    assert html =~ "Total bid volume"
     assert html =~ "Featured market"
-    assert html =~ "Largest visible markets"
+    assert html =~ "Top markets"
     assert html =~ "Atlas"
     assert html =~ "Cinder"
     refute html =~ "Nova"
     assert html =~ "Auction clearing"
-    assert html =~ "Bid volume shown"
+    assert html =~ "Active auctions"
     assert html =~ "Search by name, symbol, agent ID, or ENS"
     assert html =~ "Open bid page"
     assert html =~ "Cinder"
@@ -212,7 +214,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     refute has_element?(view, "#auction-row-auc_live")
     assert render(view) =~ "Base Sepolia"
     assert render(view) =~ "Atlas"
-    refute render(view) =~ "Featured market</p><h2>Cinder"
+    refute render(view) =~ "Cinder</h2>"
   end
 
   test "featured market falls back to a live auction when no biddable auction exists", %{
@@ -255,6 +257,6 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
       |> render_change()
 
     assert render(view) =~ "No auctions match this view yet."
-    refute render(view) =~ "Featured market</p><h2>Atlas"
+    refute render(view) =~ "Atlas</h2>"
   end
 end

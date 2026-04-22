@@ -60,10 +60,26 @@ defmodule AutolaunchWeb.PositionsLiveTest do
         }
       ]
 
-      case filters["status"] do
-        nil -> positions
-        "" -> positions
-        status -> Enum.filter(positions, &(&1.status == status))
+      positions =
+        case filters["status"] do
+          nil -> positions
+          "" -> positions
+          status -> Enum.filter(positions, &(&1.status == status))
+        end
+
+      case String.trim(filters["search"] || "") do
+        "" ->
+          positions
+
+        query ->
+          downcased = String.downcase(query)
+
+          Enum.filter(positions, fn position ->
+            Enum.any?(
+              [position.agent_name, position.auction_id, position.bid_id],
+              &(is_binary(&1) and String.contains?(String.downcase(&1), downcased))
+            )
+          end)
       end
     end
   end
@@ -88,10 +104,11 @@ defmodule AutolaunchWeb.PositionsLiveTest do
 
   test "signed-in positions render exit and claim actions", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, view, html} = live(conn, "/positions")
+    {:ok, _view, html} = live(conn, "/positions")
 
-    assert has_element?(view, "nav[aria-label='Account workspace']")
-    assert html =~ "Positions triage"
+    assert html =~ "Portfolio overview"
+    assert html =~ "Returns available"
+    assert html =~ "Recent activity"
     assert html =~ "Search by token or auction ID"
     assert html =~ "Exit bid"
     assert html =~ "Claim tokens"
@@ -105,11 +122,12 @@ defmodule AutolaunchWeb.PositionsLiveTest do
 
     html =
       view
-      |> element("button[phx-value-status='claimable']")
+      |> element(".al-positions-filter-row button[phx-value-status='claimable']")
       |> render_click()
 
     assert html =~ "Nova"
-    refute html =~ "Atlas"
+    refute has_element?(view, "#position-row-bid_exit")
+    assert has_element?(view, "#position-row-bid_claim")
     assert html =~ "Claim tokens"
     refute html =~ "Exit bid"
   end
@@ -124,7 +142,8 @@ defmodule AutolaunchWeb.PositionsLiveTest do
       |> render_change()
 
     assert html =~ "Atlas"
-    refute html =~ "Nova"
+    refute has_element?(view, "#position-row-bid_claim")
+    assert has_element?(view, "#position-row-bid_exit")
     assert html =~ "Exit bid"
   end
 end

@@ -74,17 +74,18 @@ defmodule AutolaunchWeb.ProfileLiveTest do
 
   test "profile page shows launched and staked token summaries", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, view, html} = live(conn, "/profile")
+    {:ok, _view, html} = live(conn, "/profile")
 
-    assert has_element?(view, "nav[aria-label='Account workspace']")
-    assert html =~ "Your launch and staking snapshot"
-    assert html =~ "Tokens launched from your linked wallets."
-    assert html =~ "Your active revenue positions."
+    assert html =~ "Identity and trust"
+    assert html =~ "Wallet overview"
+    assert html =~ "Profile trust lives here now."
+    assert html =~ "Linked identities"
+    assert html =~ "Launch history"
     assert html =~ "Atlas"
     assert html =~ "Nova"
     assert html =~ "13.2 USDC"
     assert html =~ "Open token page"
-    assert html =~ "Open positions workspace"
+    assert html =~ "Open positions"
   end
 
   test "manual refresh starts cooldown state", %{conn: conn, human: human} do
@@ -97,7 +98,6 @@ defmodule AutolaunchWeb.ProfileLiveTest do
       |> render_click()
 
     assert html =~ "Refresh in"
-    assert html =~ "The snapshot is rebuilding in the background."
     assert html =~ "Refreshing"
   end
 end

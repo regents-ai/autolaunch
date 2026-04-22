@@ -126,14 +126,17 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/auctions/auc_1")
 
-    assert html =~ "Detail strip"
-    assert html =~ "The detail terrain stays orienting only."
+    assert html =~ "Auction detail"
+    assert html =~ "Auctions"
     assert html =~ "Bid composer"
     assert html =~ "real budget and your real max price"
+    assert html =~ "Live estimator"
+    assert html =~ "Your latest bid"
+    assert html =~ "Auction information"
     assert html =~ "Submit bid from wallet"
     assert html =~ "Claim tokens"
     assert html =~ "Identity and trust status"
-    assert html =~ "Why the auction behaves this way"
+    assert html =~ "Why the market behaves this way"
   end
 
   test "aggressive preset updates the form and keeps the submit path visible", %{
@@ -157,30 +160,23 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     {:ok, _view, html} = live(conn, "/auctions/auc_1")
 
     refute html =~ "Submit bid from wallet"
-    assert html =~ "Privy session required before the wallet transaction can be registered."
+    assert html =~ "Sign in first so the wallet action can be recorded after it confirms."
   end
 
-  test "detail strip back returns focus to bid composer", %{conn: conn, human: human} do
+  test "aggressive preset keeps the detail layout and lower cards intact", %{
+    conn: conn,
+    human: human
+  } do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, view, _html} = live(conn, "/auctions/auc_1")
 
     html =
       view
-      |> element("#auction-detail-regent-surface-scene")
-      |> render_hook("regent:node_select", %{
-        "target_id" => "detail:trust",
-        "face_id" => "auction",
-        "meta" => %{"panel" => "detail:trust"}
-      })
-
-    assert html =~ "Back to overview"
-
-    html =
-      view
-      |> element("button[phx-click='scene-back']")
+      |> element("button[phx-value-preset='aggressive']")
       |> render_click()
 
-    refute html =~ "Back to overview"
-    assert html =~ "Bid composer"
+    assert html =~ "Current and projected market pace"
+    assert html =~ "Your position"
+    assert html =~ ~s(value="500.0")
   end
 end

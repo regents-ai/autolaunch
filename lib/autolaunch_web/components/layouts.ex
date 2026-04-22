@@ -59,7 +59,10 @@ defmodule AutolaunchWeb.Layouts do
 
           <div class="al-shell-sidebar-foot">
             <div class="al-shell-network-card">
-              <span class="al-shell-network-kicker">Network</span>
+              <div class="al-shell-network-head">
+                <span class="al-shell-network-kicker">Network</span>
+                <.shell_icon name="chevron-down" class="al-shell-network-caret" />
+              </div>
               <div class="al-shell-network-row">
                 <span class="al-shell-network-dot"></span>
                 <div>
@@ -167,6 +170,7 @@ defmodule AutolaunchWeb.Layouts do
                       <ul class="menu menu-sm gap-1 px-0">
                         <li :if={@wallet_explorer_href}>
                           <a href={@wallet_explorer_href} target="_blank" rel="noreferrer">
+                            <.shell_icon name="arrow-up-right" class="al-shell-menu-icon" />
                             View on explorer
                           </a>
                         </li>
@@ -176,13 +180,25 @@ defmodule AutolaunchWeb.Layouts do
                             data-copy-value={@wallet_address}
                             data-copy-label="Copy address"
                           >
+                            <.shell_icon name="copy" class="al-shell-menu-icon" />
                             Copy address
                           </button>
                         </li>
-                        <li><.link navigate={~p"/profile"}>Profile</.link></li>
-                        <li><.link navigate={~p"/positions"}>Positions</.link></li>
+                        <li>
+                          <.link navigate={~p"/profile"}>
+                            <.shell_icon name="profile" class="al-shell-menu-icon" />
+                            Profile
+                          </.link>
+                        </li>
+                        <li>
+                          <.link navigate={~p"/positions"}>
+                            <.shell_icon name="positions" class="al-shell-menu-icon" />
+                            Positions
+                          </.link>
+                        </li>
                         <li class="mt-2 border-t border-base-300 pt-2">
                           <button type="button" class="text-error" data-privy-action="toggle">
+                            <.shell_icon name="logout" class="al-shell-menu-icon" />
                             Disconnect
                           </button>
                         </li>
@@ -301,6 +317,16 @@ defmodule AutolaunchWeb.Layouts do
           <path d="M18 16H6l1.3-1.8V10a4.7 4.7 0 1 1 9.4 0v4.2Z" />
         <% "chevron-down" -> %>
           <path d="M6.5 9.5L12 15l5.5-5.5" />
+        <% "copy" -> %>
+          <rect x="9" y="9" width="9" height="11" rx="2" />
+          <path d="M6 15V6a2 2 0 0 1 2-2h7" />
+        <% "arrow-up-right" -> %>
+          <path d="M8 16L16 8" />
+          <path d="M10 8h6v6" />
+        <% "logout" -> %>
+          <path d="M10 6H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" />
+          <path d="M13 16l4-4-4-4" />
+          <path d="M17 12H9" />
         <% _ -> %>
           <circle cx="12" cy="12" r="8" />
       <% end %>
@@ -362,14 +388,14 @@ defmodule AutolaunchWeb.Layouts do
   defp wallet_label(nil), do: "Wallet"
 
   defp wallet_label(%{} = current_human) do
-    case current_human[:display_name] do
+    case Map.get(current_human, :display_name) do
       value when is_binary(value) and value != "" -> value
-      _ -> short_wallet(current_human[:wallet_address]) || "Connected wallet"
+      _ -> short_wallet(Map.get(current_human, :wallet_address)) || "Connected wallet"
     end
   end
 
   defp wallet_address(nil), do: nil
-  defp wallet_address(%{} = current_human), do: current_human[:wallet_address]
+  defp wallet_address(%{} = current_human), do: Map.get(current_human, :wallet_address)
 
   defp wallet_explorer_href(%{wallet_address: "0x" <> _ = wallet_address}),
     do: "https://basescan.org/address/#{wallet_address}"
