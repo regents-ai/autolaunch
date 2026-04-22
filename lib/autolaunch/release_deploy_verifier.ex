@@ -260,35 +260,33 @@ defmodule Autolaunch.ReleaseDeployVerifier do
          controller_address,
          detail
        ) do
-    cond do
-      not configured_address?(factory_address) ->
-        fail_check(
-          key,
-          :error,
-          "Verifier config is missing the factory address for chain #{chain_id}."
-        )
+    if configured_address?(factory_address) do
+      case safe_bool_call(chain_id, factory_address, :authorized_creators, [
+             {:address, controller_address}
+           ]) do
+        false ->
+          ok_check(key, :error, detail)
 
-      true ->
-        case safe_bool_call(chain_id, factory_address, :authorized_creators, [
-               {:address, controller_address}
-             ]) do
-          false ->
-            ok_check(key, :error, detail)
+        true ->
+          fail_check(
+            key,
+            :error,
+            "Deployment controller #{controller_address} is still authorized in #{factory_address}."
+          )
 
-          true ->
-            fail_check(
-              key,
-              :error,
-              "Deployment controller #{controller_address} is still authorized in #{factory_address}."
-            )
-
-          _ ->
-            fail_check(
-              key,
-              :error,
-              "Could not read authorized creator status from #{factory_address}."
-            )
-        end
+        _ ->
+          fail_check(
+            key,
+            :error,
+            "Could not read authorized creator status from #{factory_address}."
+          )
+      end
+    else
+      fail_check(
+        key,
+        :error,
+        "Verifier config is missing the factory address for chain #{chain_id}."
+      )
     end
   end
 
@@ -485,13 +483,7 @@ defmodule Autolaunch.ReleaseDeployVerifier do
   defp ingress_wiring_check(job) do
     ingress_factory = revenue_ingress_factory_address(job.chain_id)
 
-    if not configured_address?(ingress_factory) do
-      fail_check(
-        "ingress_wiring",
-        :error,
-        "Verifier config is missing the revenue ingress factory address for chain #{job.chain_id}."
-      )
-    else
+    if configured_address?(ingress_factory) do
       case safe_address_call(job.chain_id, ingress_factory, :default_ingress_of_subject, [
              {:bytes32, job.subject_id}
            ]) do
@@ -510,6 +502,12 @@ defmodule Autolaunch.ReleaseDeployVerifier do
             )
           end
       end
+    else
+      fail_check(
+        "ingress_wiring",
+        :error,
+        "Verifier config is missing the revenue ingress factory address for chain #{job.chain_id}."
+      )
     end
   end
 

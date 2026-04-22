@@ -41,9 +41,12 @@ defmodule Autolaunch.DocsExamplesTest do
 
     lifecycle_monitor = bundle["lifecycle_monitor"]
     assert lifecycle_monitor["recommended_action"] == "migrate"
-    assert lifecycle_monitor["migrate_ready"] == true
+    assert lifecycle_monitor["settlement_state"] == "awaiting_migration"
+    assert lifecycle_monitor["allowed_actions"] == ["migrate"]
+    assert lifecycle_monitor["balance_snapshot"]["strategy"]["usdc_balance"] == 120_000_000
 
     finalize_response = bundle["finalize_response"]
+    assert finalize_response["settlement_state"] == "awaiting_migration"
     assert finalize_response["prepared"]["action"] == "migrate"
     assert finalize_response["prepared"]["tx_request"]["chain_id"] == 84_532
 

@@ -15,6 +15,16 @@ defmodule Autolaunch.Contracts.Dispatch do
     )
   end
 
+  def build_job_action(job, "strategy", "recover_failed_auction", _attrs) do
+    ActionParams.prepare_tx(
+      job.chain_id,
+      job.strategy_address,
+      Abi.encode_call(:recover_failed_auction),
+      "strategy",
+      "recover_failed_auction"
+    )
+  end
+
   def build_job_action(job, "strategy", "sweep_token", _attrs) do
     ActionParams.prepare_tx(
       job.chain_id,
@@ -32,6 +42,26 @@ defmodule Autolaunch.Contracts.Dispatch do
       Abi.encode_call(:sweep_currency),
       "strategy",
       "sweep_currency"
+    )
+  end
+
+  def build_job_action(job, "auction", "sweep_currency", _attrs) do
+    ActionParams.prepare_tx(
+      job.chain_id,
+      job.auction_address,
+      Abi.encode_call(:sweep_currency),
+      "auction",
+      "sweep_currency"
+    )
+  end
+
+  def build_job_action(job, "auction", "sweep_unsold_tokens", _attrs) do
+    ActionParams.prepare_tx(
+      job.chain_id,
+      job.auction_address,
+      Abi.encode_call(:sweep_unsold_tokens),
+      "auction",
+      "sweep_unsold_tokens"
     )
   end
 
@@ -98,6 +128,16 @@ defmodule Autolaunch.Contracts.Dispatch do
     end
   end
 
+  def build_job_action(job, "fee_registry", "accept_ownership", _attrs) do
+    ActionParams.prepare_tx(
+      job.chain_id,
+      job.launch_fee_registry_address,
+      Abi.encode_call(:accept_ownership),
+      "fee_registry",
+      "accept_ownership"
+    )
+  end
+
   def build_job_action(job, "fee_vault", "withdraw_regent_share", attrs) do
     with {:ok, currency} <- ActionParams.address_param(attrs, "currency"),
          {:ok, amount} <- ActionParams.uint_param(attrs, "amount"),
@@ -116,6 +156,26 @@ defmodule Autolaunch.Contracts.Dispatch do
         %{currency: currency, amount: Integer.to_string(amount), recipient: recipient}
       )
     end
+  end
+
+  def build_job_action(job, "fee_vault", "accept_ownership", _attrs) do
+    ActionParams.prepare_tx(
+      job.chain_id,
+      job.launch_fee_vault_address,
+      Abi.encode_call(:accept_ownership),
+      "fee_vault",
+      "accept_ownership"
+    )
+  end
+
+  def build_job_action(job, "hook", "accept_ownership", _attrs) do
+    ActionParams.prepare_tx(
+      job.chain_id,
+      job.hook_address,
+      Abi.encode_call(:accept_ownership),
+      "hook",
+      "accept_ownership"
+    )
   end
 
   def build_job_action(_job, _resource, _action, _attrs), do: {:error, :unsupported_action}

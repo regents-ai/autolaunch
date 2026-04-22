@@ -123,12 +123,18 @@ command_groups:
       - autolaunch contracts job
       - autolaunch contracts subject
       - autolaunch strategy migrate
+      - autolaunch strategy recover-failed-auction
+      - autolaunch auction sweep-currency
+      - autolaunch auction sweep-unsold-tokens
       - autolaunch strategy sweep-token
       - autolaunch strategy sweep-currency
       - autolaunch fee-registry show
+      - autolaunch fee-registry accept-ownership
       - autolaunch fee-vault show
+      - autolaunch fee-vault accept-ownership
       - autolaunch fee-vault withdraw-treasury
       - autolaunch fee-vault withdraw-regent
+      - autolaunch hook accept-ownership
       - autolaunch splitter show
       - autolaunch splitter set-paused
       - autolaunch splitter set-label

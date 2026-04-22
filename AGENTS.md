@@ -66,6 +66,16 @@ The main route types are:
 - `RegentStaking` owns the shared staking rail
 - `XMTPMirror` owns the mirrored Autolaunch public-room model and stays aligned with Techtree's room flow
 
+## Settlement Flow
+
+- Post-auction settlement is now a separate concern from launch-job progress. Do not try to model deploy progress and settlement as one giant state machine.
+- `Lifecycle` now returns a settlement summary with: `settlement_state`, `blocked_reason`, `recommended_action`, `allowed_actions`, `required_actor`, `balance_snapshot`, and `ownership_status`.
+- The main settlement branches are: `awaiting_migration`, `awaiting_auction_asset_return`, `failed_auction_recoverable`, `post_recovery_cleanup`, `awaiting_sweeps`, `ownership_acceptance_required`, `settled`, and `wait`.
+- `Contracts` now reads both strategy-side and auction-side balances for launch settlement, plus fee-contract owner and pending-owner state for the fee registry, fee vault, and hook.
+- Prepared job actions now include: strategy `recover_failed_auction`, auction `sweep_currency` and `sweep_unsold_tokens`, and fee-contract `accept_ownership` actions for the fee registry, fee vault, and hook.
+- `launch finalize` should be treated as a dispatcher over the settlement summary, not as a hardcoded “migrate, then sweep” flow.
+- Do not use `mix autolaunch.verify_deploy --job <job-id>` as a pre-finalize gate. Treat deploy sanity and settlement completion as separate checks when reasoning about operator flow.
+
 ## Contracts Workspace
 
 The local contracts workspace is canonical for Autolaunch Solidity:

@@ -56,12 +56,10 @@ defmodule Autolaunch.CCA.Rpc do
   defp call_adapter(function_name, args, opts) do
     adapter = rpc_adapter()
 
-    cond do
-      function_exported?(adapter, function_name, length(args) + 1) ->
-        apply(adapter, function_name, args ++ [opts])
-
-      true ->
-        apply(adapter, function_name, args)
+    if function_exported?(adapter, function_name, length(args) + 1) do
+      apply(adapter, function_name, args ++ [opts])
+    else
+      apply(adapter, function_name, args)
     end
   end
 

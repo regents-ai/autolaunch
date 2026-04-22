@@ -20,6 +20,50 @@ defmodule Autolaunch.ContractsDispatchTest do
     assert prepared.tx_request.to == "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   end
 
+  test "job dispatch prepares the new settlement transactions" do
+    job = %{
+      chain_id: 84_532,
+      strategy_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
+      launch_fee_registry_address: "0x1111111111111111111111111111111111111111",
+      launch_fee_vault_address: "0x2222222222222222222222222222222222222222",
+      hook_address: "0x3333333333333333333333333333333333333333"
+    }
+
+    assert {:ok, recover} =
+             Dispatch.build_job_action(job, "strategy", "recover_failed_auction", %{})
+
+    assert recover.action == "recover_failed_auction"
+    assert recover.tx_request.to == job.strategy_address
+
+    assert {:ok, auction_currency} =
+             Dispatch.build_job_action(job, "auction", "sweep_currency", %{})
+
+    assert auction_currency.action == "sweep_currency"
+    assert auction_currency.tx_request.to == job.auction_address
+
+    assert {:ok, auction_tokens} =
+             Dispatch.build_job_action(job, "auction", "sweep_unsold_tokens", %{})
+
+    assert auction_tokens.action == "sweep_unsold_tokens"
+    assert auction_tokens.tx_request.to == job.auction_address
+
+    assert {:ok, registry_acceptance} =
+             Dispatch.build_job_action(job, "fee_registry", "accept_ownership", %{})
+
+    assert registry_acceptance.tx_request.to == job.launch_fee_registry_address
+
+    assert {:ok, vault_acceptance} =
+             Dispatch.build_job_action(job, "fee_vault", "accept_ownership", %{})
+
+    assert vault_acceptance.tx_request.to == job.launch_fee_vault_address
+
+    assert {:ok, hook_acceptance} =
+             Dispatch.build_job_action(job, "hook", "accept_ownership", %{})
+
+    assert hook_acceptance.tx_request.to == job.hook_address
+  end
+
   test "subject dispatch returns stable invalid address and ingress errors" do
     subject = %{
       chain_id: 84_532,

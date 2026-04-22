@@ -6,7 +6,9 @@ defmodule Autolaunch.Contracts.Abi do
   @selectors %{
     owner: "0x8da5cb5b",
     pending_owner: "0xe30c3978",
+    accept_ownership: "0x79ba5097",
     auction_address: "0x5476ea9e",
+    is_graduated: "0x9e5f2602",
     migrated: "0x2c678c64",
     migrated_pool_id: "0x5bf380d3",
     migrated_position_id: "0x91f6dcdb",
@@ -73,8 +75,10 @@ defmodule Autolaunch.Contracts.Abi do
     withdraw_treasury: "0x06183605",
     withdraw_regent_share: "0xf1127043",
     migrate: "0x8fd3ab80",
+    recover_failed_auction: "0xcd3c3763",
     sweep_token: "0x532cce18",
     sweep_currency: "0x7c121574",
+    sweep_unsold_tokens: "0x5dd13ca7",
     release_launch_token: "0xa99b3481"
   }
 

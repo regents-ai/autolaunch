@@ -18,5 +18,7 @@ struct AuctionParameters {
 interface IContinuousClearingAuction {
     function isGraduated() external view returns (bool);
 
+    function sweepCurrency() external;
+
     function sweepUnsoldTokens() external;
 }

@@ -1,4 +1,6 @@
 defmodule Autolaunch.TestSupport.SiwaBrokerStub do
+  @moduledoc false
+
   use Plug.Router
 
   plug :match

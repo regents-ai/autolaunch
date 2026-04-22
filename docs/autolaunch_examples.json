@@ -183,14 +183,56 @@
     "auction": {
       "id": "auc_queued",
       "status": "settled",
-      "chain_id": 84532
+      "chain_id": 84532,
+      "address": "0xcccccccccccccccccccccccccccccccccccccccc",
+      "graduated": true,
+      "token_balance": 0,
+      "currency_balance": 0
+    },
+    "strategy": {
+      "address": "0x9999999999999999999999999999999999999999"
+    },
+    "vesting": {
+      "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     },
     "current_block": 9876543,
-    "migrate_ready": true,
-    "currency_sweep_ready": false,
-    "token_sweep_ready": false,
-    "vesting_release_ready": false,
-    "recommended_action": "migrate"
+    "settlement_state": "awaiting_migration",
+    "blocked_reason": null,
+    "recommended_action": "migrate",
+    "allowed_actions": ["migrate"],
+    "required_actor": "operator",
+    "balance_snapshot": {
+      "strategy": {
+        "token_balance": 50000000000000000000,
+        "usdc_balance": 120000000
+      },
+      "auction": {
+        "token_balance": 0,
+        "usdc_balance": 0
+      }
+    },
+    "ownership_status": {
+      "fee_registry": {
+        "owner_address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "pending_owner_address": null,
+        "accepted": true,
+        "status": "accepted"
+      },
+      "fee_vault": {
+        "owner_address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "pending_owner_address": null,
+        "accepted": true,
+        "status": "accepted"
+      },
+      "hook": {
+        "owner_address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "pending_owner_address": null,
+        "accepted": true,
+        "status": "accepted"
+      },
+      "pending_actions": [],
+      "all_accepted": true
+    }
   },
   "finalize_response": {
     "ok": true,
@@ -198,7 +240,55 @@
       "job_id": "job_queued",
       "status": "ready"
     },
+    "auction": {
+      "id": "auc_queued",
+      "status": "settled",
+      "address": "0xcccccccccccccccccccccccccccccccccccccccc"
+    },
+    "strategy": {
+      "address": "0x9999999999999999999999999999999999999999"
+    },
+    "vesting": {
+      "address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "current_block": 9876543,
+    "settlement_state": "awaiting_migration",
+    "blocked_reason": null,
     "recommended_action": "migrate",
+    "allowed_actions": ["migrate"],
+    "required_actor": "operator",
+    "balance_snapshot": {
+      "strategy": {
+        "token_balance": 50000000000000000000,
+        "usdc_balance": 120000000
+      },
+      "auction": {
+        "token_balance": 0,
+        "usdc_balance": 0
+      }
+    },
+    "ownership_status": {
+      "fee_registry": {
+        "owner_address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "pending_owner_address": null,
+        "accepted": true,
+        "status": "accepted"
+      },
+      "fee_vault": {
+        "owner_address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "pending_owner_address": null,
+        "accepted": true,
+        "status": "accepted"
+      },
+      "hook": {
+        "owner_address": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "pending_owner_address": null,
+        "accepted": true,
+        "status": "accepted"
+      },
+      "pending_actions": [],
+      "all_accepted": true
+    },
     "prepared": {
       "resource": "strategy",
       "action": "migrate",

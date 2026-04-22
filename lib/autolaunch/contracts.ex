@@ -5,6 +5,7 @@ defmodule Autolaunch.Contracts do
   alias Autolaunch.CCA.Rpc
   alias Autolaunch.Contracts.Abi
   alias Autolaunch.Contracts.Dispatch
+  alias Autolaunch.Lifecycle
   alias Autolaunch.Launch
   alias Autolaunch.Revenue
 
@@ -44,9 +45,9 @@ defmodule Autolaunch.Contracts do
     end
   end
 
-  def job_state_from_response(%{job: job}, current_human) do
+  def job_state_from_response(%{job: job} = response, current_human) do
     with {:ok, job_scope} <- authorize_job_scope(job, current_human) do
-      {:ok, build_job_state(job, job_scope)}
+      {:ok, build_job_state(response, job_scope)}
     end
   end
 
@@ -144,22 +145,45 @@ defmodule Autolaunch.Contracts do
     end
   end
 
-  defp build_job_state(job, job_scope) do
+  defp build_job_state(%{job: job} = response, job_scope) do
+    current_block = current_block(job.chain_id)
+    strategy = strategy_card(job)
+    auction = auction_card(job, Map.get(response, :auction), strategy)
+    vesting = vesting_card(job)
+    fee_registry = fee_registry_card(job)
+    fee_vault = fee_vault_card(job)
+    hook = hook_card(job)
+
     %{
       job: job,
       scope: job_scope,
+      current_block: current_block,
       controller: controller_card(job),
-      strategy: strategy_card(job),
-      vesting: vesting_card(job),
-      fee_registry: fee_registry_card(job),
-      fee_vault: fee_vault_card(job),
-      hook: hook_card(job),
+      strategy: strategy,
+      auction: auction,
+      vesting: vesting,
+      fee_registry: fee_registry,
+      fee_vault: fee_vault,
+      hook: hook,
+      settlement:
+        Lifecycle.settlement_summary(
+          job,
+          strategy,
+          auction,
+          vesting,
+          fee_registry,
+          fee_vault,
+          hook,
+          current_block
+        ),
       available_actions: %{
-        strategy: ~w(migrate sweep_token sweep_currency),
+        strategy: ~w(recover_failed_auction migrate sweep_token sweep_currency),
+        auction: ~w(sweep_currency sweep_unsold_tokens),
         vesting:
           ~w(release propose_beneficiary_rotation cancel_beneficiary_rotation execute_beneficiary_rotation),
-        fee_registry: [],
-        fee_vault: ~w(withdraw_treasury withdraw_regent_share)
+        fee_registry: ~w(accept_ownership),
+        fee_vault: ~w(withdraw_treasury withdraw_regent_share accept_ownership),
+        hook: ~w(accept_ownership)
       }
     }
   end
@@ -213,8 +237,25 @@ defmodule Autolaunch.Contracts do
         safe_uint_call(job.chain_id, job.strategy_address, :migrated_currency_for_lp),
       migrated_token_for_lp:
         safe_uint_call(job.chain_id, job.strategy_address, :migrated_token_for_lp),
-      token_balance: safe_token_balance(job.chain_id, job.strategy_address, job.token_address),
-      currency_balance: safe_token_balance(job.chain_id, job.strategy_address, usdc)
+      token_balance: safe_token_balance(job.chain_id, job.token_address, job.strategy_address),
+      currency_balance: safe_token_balance(job.chain_id, usdc, job.strategy_address)
+    }
+  end
+
+  defp auction_card(job, auction_response, strategy) do
+    usdc = config_value(launch_config(), :usdc_address)
+
+    address =
+      normalize_address(job.auction_address || map_value(auction_response, :auction_address))
+
+    %{
+      id: map_value(auction_response, :id) || map_value(auction_response, :auction_id),
+      status: map_value(auction_response, :status),
+      address: address,
+      graduated:
+        safe_bool_call(job.chain_id, address || strategy[:auction_address], :is_graduated),
+      token_balance: safe_token_balance(job.chain_id, job.token_address, address),
+      currency_balance: safe_token_balance(job.chain_id, usdc, address)
     }
   end
 
@@ -263,6 +304,9 @@ defmodule Autolaunch.Contracts do
       pool_id: job.pool_id,
       pool_config: config
     }
+    |> Map.merge(
+      ownership_card(job.chain_id, job.launch_fee_registry_address, job.agent_safe_address)
+    )
   end
 
   defp fee_vault_card(job) do
@@ -308,6 +352,9 @@ defmodule Autolaunch.Contracts do
           )
       }
     }
+    |> Map.merge(
+      ownership_card(job.chain_id, job.launch_fee_vault_address, job.agent_safe_address)
+    )
   end
 
   defp hook_card(job) do
@@ -315,6 +362,7 @@ defmodule Autolaunch.Contracts do
       address: job.hook_address,
       pool_id: job.pool_id
     }
+    |> Map.merge(ownership_card(job.chain_id, job.hook_address, job.agent_safe_address))
   end
 
   defp subject_registry_card(job, subject, current_human) do
@@ -473,6 +521,42 @@ defmodule Autolaunch.Contracts do
     end
   end
 
+  defp ownership_card(chain_id, address, expected_owner) do
+    owner = safe_address_call(chain_id, address, :owner)
+    pending_owner = safe_address_call(chain_id, address, :pending_owner)
+
+    accepted =
+      present?(owner) and present?(expected_owner) and
+        normalize_address(owner) == normalize_address(expected_owner) and blank?(pending_owner)
+
+    status =
+      cond do
+        blank?(address) ->
+          "unavailable"
+
+        accepted ->
+          "accepted"
+
+        normalize_address(pending_owner) == normalize_address(expected_owner) ->
+          "pending_acceptance"
+
+        present?(owner) ->
+          "owner_mismatch"
+
+        true ->
+          "unreadable"
+      end
+
+    %{
+      owner: owner,
+      pending_owner: pending_owner,
+      expected_owner: expected_owner,
+      ownership_accepted: accepted,
+      ownership_status: status,
+      pending_acceptance: status == "pending_acceptance"
+    }
+  end
+
   defp safe_uint_call(chain_id, to, selector_name, args \\ []) do
     case safe_call(chain_id, to, Abi.encode_call(selector_name, args)) do
       {:ok, data} -> Abi.decode_uint256(data)
@@ -522,12 +606,24 @@ defmodule Autolaunch.Contracts do
     end
   end
 
+  defp current_block(chain_id) do
+    case Rpc.block_number(chain_id) do
+      {:ok, value} -> value
+      _ -> nil
+    end
+  end
+
   defp job_metadata(job, key, fallback_path) do
     Map.get(job, key) || get_in(job, fallback_path)
   end
 
   defp normalize_address(value) when is_binary(value), do: String.downcase(String.trim(value))
   defp normalize_address(_value), do: nil
+  defp map_value(nil, _key), do: nil
+  defp map_value(map, key), do: Map.get(map, key) || Map.get(map, Atom.to_string(key))
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(nil), do: false
+  defp present?(_value), do: true
 
   defp config_value(config, key) do
     config

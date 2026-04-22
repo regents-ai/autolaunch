@@ -467,7 +467,7 @@ paths:
           description: Lifecycle job detail
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LifecycleJobEnvelope" }
   /api/lifecycle/jobs/{id}/finalize/prepare:
     post:
       operationId: prepareFinalizeLaunch
@@ -480,7 +480,7 @@ paths:
           description: Finalize prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LifecycleFinalizeEnvelope" }
   /api/lifecycle/jobs/{id}/finalize/register:
     post:
       operationId: registerFinalizeLaunch
@@ -491,13 +491,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/LifecycleFinalizeRegisterRequest" }
       responses:
         "200":
           description: Finalize registered
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LifecycleFinalizeRegisterEnvelope" }
   /api/lifecycle/jobs/{id}/vesting:
     get:
       operationId: getVestingStatus
@@ -1446,7 +1446,7 @@ paths:
           description: Lifecycle job detail
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LifecycleJobEnvelope" }
   /v1/agent/lifecycle/jobs/{id}/finalize/prepare:
     post:
       operationId: agentPrepareFinalizeLaunch
@@ -1459,7 +1459,7 @@ paths:
           description: Finalize prepared
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LifecycleFinalizeEnvelope" }
   /v1/agent/lifecycle/jobs/{id}/finalize/register:
     post:
       operationId: agentRegisterFinalizeLaunch
@@ -1470,13 +1470,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/LooseObject" }
+            schema: { $ref: "#/components/schemas/LifecycleFinalizeRegisterRequest" }
       responses:
         "200":
           description: Finalize registered
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/LifecycleFinalizeRegisterEnvelope" }
   /v1/agent/lifecycle/jobs/{id}/vesting:
     get:
       operationId: agentGetVestingStatus
@@ -1952,11 +1952,18 @@ components:
       in: path
       required: true
       schema: { type: string }
+      description: >
+        Canonical contract scope. Job-scoped settlement actions use `strategy`, `auction`,
+        `fee_registry`, `fee_vault`, `hook`, and `vesting`.
     Action:
       name: action
       in: path
       required: true
       schema: { type: string }
+      description: >
+        Canonical contract action. Settlement actions include `migrate`,
+        `recover_failed_auction`, `sweep_currency`, `sweep_unsold_tokens`,
+        `accept_ownership`, `sweep_token`, and `release`.
   schemas:
     Address:
       type: string
@@ -2366,6 +2373,238 @@ components:
         ok: { type: boolean, enum: [true] }
         job: { $ref: "#/components/schemas/LaunchJob" }
       additionalProperties: true
+    UintLike:
+      anyOf:
+        - { type: integer, minimum: 0 }
+        - { type: string }
+        - { type: "null" }
+    LifecycleSettlementState:
+      type: string
+      enum:
+        - awaiting_migration
+        - awaiting_auction_asset_return
+        - failed_auction_recoverable
+        - post_recovery_cleanup
+        - awaiting_sweeps
+        - ownership_acceptance_required
+        - settled
+        - wait
+    LifecycleAction:
+      type: string
+      enum:
+        - migrate
+        - auction_sweep_currency
+        - auction_sweep_unsold_tokens
+        - recover_failed_auction
+        - sweep_currency
+        - sweep_token
+        - accept_fee_registry_ownership
+        - accept_fee_vault_ownership
+        - accept_hook_ownership
+        - release_vesting
+        - wait
+    LifecycleBalanceBucket:
+      type: object
+      properties:
+        token_balance: { $ref: "#/components/schemas/UintLike" }
+        usdc_balance: { $ref: "#/components/schemas/UintLike" }
+      additionalProperties: false
+    LifecycleBalanceSnapshot:
+      type: object
+      required: [strategy, auction]
+      properties:
+        strategy: { $ref: "#/components/schemas/LifecycleBalanceBucket" }
+        auction: { $ref: "#/components/schemas/LifecycleBalanceBucket" }
+      additionalProperties: false
+    LifecycleOwnershipCard:
+      type: object
+      properties:
+        owner_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        pending_owner_address:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
+        accepted:
+          anyOf:
+            - { type: boolean }
+            - { type: "null" }
+        status:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+      additionalProperties: false
+    LifecycleOwnershipStatus:
+      type: object
+      required: [fee_registry, fee_vault, hook, pending_actions, all_accepted]
+      properties:
+        fee_registry: { $ref: "#/components/schemas/LifecycleOwnershipCard" }
+        fee_vault: { $ref: "#/components/schemas/LifecycleOwnershipCard" }
+        hook: { $ref: "#/components/schemas/LifecycleOwnershipCard" }
+        pending_actions:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleAction" }
+        all_accepted: { type: boolean }
+      additionalProperties: false
+    LifecycleSummary:
+      type: object
+      required:
+        - current_block
+        - settlement_state
+        - blocked_reason
+        - recommended_action
+        - allowed_actions
+        - required_actor
+        - balance_snapshot
+        - ownership_status
+      properties:
+        current_block:
+          anyOf:
+            - { type: integer, minimum: 0 }
+            - { type: "null" }
+        settlement_state: { $ref: "#/components/schemas/LifecycleSettlementState" }
+        blocked_reason:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        recommended_action: { $ref: "#/components/schemas/LifecycleAction" }
+        allowed_actions:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleAction" }
+        required_actor:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        balance_snapshot: { $ref: "#/components/schemas/LifecycleBalanceSnapshot" }
+        ownership_status: { $ref: "#/components/schemas/LifecycleOwnershipStatus" }
+      additionalProperties: false
+    LifecycleJobEnvelope:
+      type: object
+      required:
+        - ok
+        - job
+        - auction
+        - strategy
+        - vesting
+        - current_block
+        - settlement_state
+        - blocked_reason
+        - recommended_action
+        - allowed_actions
+        - required_actor
+        - balance_snapshot
+        - ownership_status
+      properties:
+        ok: { type: boolean, enum: [true] }
+        job: { $ref: "#/components/schemas/LaunchJob" }
+        auction:
+          anyOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        strategy:
+          anyOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        vesting:
+          anyOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        current_block:
+          anyOf:
+            - { type: integer, minimum: 0 }
+            - { type: "null" }
+        settlement_state: { $ref: "#/components/schemas/LifecycleSettlementState" }
+        blocked_reason:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        recommended_action: { $ref: "#/components/schemas/LifecycleAction" }
+        allowed_actions:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleAction" }
+        required_actor:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        balance_snapshot: { $ref: "#/components/schemas/LifecycleBalanceSnapshot" }
+        ownership_status: { $ref: "#/components/schemas/LifecycleOwnershipStatus" }
+      additionalProperties: false
+    LifecycleFinalizeEnvelope:
+      type: object
+      required:
+        - ok
+        - job
+        - auction
+        - strategy
+        - vesting
+        - current_block
+        - settlement_state
+        - blocked_reason
+        - recommended_action
+        - allowed_actions
+        - required_actor
+        - balance_snapshot
+        - ownership_status
+        - prepared
+      properties:
+        ok: { type: boolean, enum: [true] }
+        job: { $ref: "#/components/schemas/LaunchJob" }
+        auction:
+          anyOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        strategy:
+          anyOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        vesting:
+          anyOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        current_block:
+          anyOf:
+            - { type: integer, minimum: 0 }
+            - { type: "null" }
+        settlement_state: { $ref: "#/components/schemas/LifecycleSettlementState" }
+        blocked_reason:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        recommended_action: { $ref: "#/components/schemas/LifecycleAction" }
+        allowed_actions:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleAction" }
+        required_actor:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        balance_snapshot: { $ref: "#/components/schemas/LifecycleBalanceSnapshot" }
+        ownership_status: { $ref: "#/components/schemas/LifecycleOwnershipStatus" }
+        prepared:
+          anyOf:
+            - { $ref: "#/components/schemas/PreparedAction" }
+            - { type: "null" }
+      additionalProperties: false
+    LifecycleFinalizeRegisterRequest:
+      type: object
+      required: [tx_hash]
+      properties:
+        tx_hash: { $ref: "#/components/schemas/HexData" }
+      additionalProperties: false
+    LifecycleFinalizeRegisterEnvelope:
+      type: object
+      required: [ok, job_id, tx_hash, recommended_action, settlement_state, status, next_summary]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        job_id: { type: string }
+        tx_hash: { $ref: "#/components/schemas/HexData" }
+        recommended_action: { $ref: "#/components/schemas/LifecycleAction" }
+        settlement_state: { $ref: "#/components/schemas/LifecycleSettlementState" }
+        status: { type: string, enum: [submitted] }
+        next_summary: { $ref: "#/components/schemas/LifecycleJobEnvelope" }
+      additionalProperties: false
     AuctionTrustErc8004:
       type: object
       required: [connected, agent_id, token_id, chain_id]

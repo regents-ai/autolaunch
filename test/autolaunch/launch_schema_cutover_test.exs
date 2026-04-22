@@ -1,10 +1,10 @@
 defmodule Autolaunch.LaunchSchemaCutoverTest do
   use Autolaunch.DataCase, async: false
 
+  alias Autolaunch.Launch
   alias Autolaunch.Launch.Auction
   alias Autolaunch.Launch.Bid
   alias Autolaunch.Launch.Job
-  alias Autolaunch.Launch
   alias Autolaunch.Repo
 
   @sepolia_network "base-sepolia"

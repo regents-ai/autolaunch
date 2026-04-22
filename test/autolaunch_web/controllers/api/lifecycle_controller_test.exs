@@ -14,13 +14,43 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
           {:ok,
            %{
              job: %{job_id: "job_alpha", status: "ready"},
-             auction: %{auction_id: "auc_alpha", status: "settled"},
+             auction: %{
+               id: "auc_alpha",
+               status: "settled",
+               token_balance: 20,
+               currency_balance: 30
+             },
+             strategy: %{address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+             vesting: %{address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
              current_block: 1_234,
-             migrate_ready: true,
-             currency_sweep_ready: false,
-             token_sweep_ready: false,
-             vesting_release_ready: false,
-             recommended_action: "migrate"
+             settlement_state: "awaiting_migration",
+             blocked_reason: nil,
+             recommended_action: "migrate",
+             allowed_actions: ["migrate"],
+             required_actor: "operator",
+             balance_snapshot: %{
+               strategy: %{usdc_balance: 12, token_balance: 50},
+               auction: %{usdc_balance: 0, token_balance: 0}
+             },
+             ownership_status: %{
+               fee_registry: %{
+                 owner_address: @authorized_wallet,
+                 pending_owner_address: nil,
+                 accepted: true
+               },
+               fee_vault: %{
+                 owner_address: @authorized_wallet,
+                 pending_owner_address: nil,
+                 accepted: true
+               },
+               hook: %{
+                 owner_address: @authorized_wallet,
+                 pending_owner_address: nil,
+                 accepted: true
+               },
+               pending_actions: [],
+               all_accepted: true
+             }
            }}
 
         :unauthorized ->
@@ -45,7 +75,38 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
           {:ok,
            %{
              job: %{job_id: "job_alpha", status: "ready"},
+             auction: %{id: "auc_alpha", status: "settled"},
+             strategy: %{address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+             vesting: %{address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+             current_block: 1_234,
+             settlement_state: "awaiting_migration",
+             blocked_reason: nil,
              recommended_action: "migrate",
+             allowed_actions: ["migrate"],
+             required_actor: "operator",
+             balance_snapshot: %{
+               strategy: %{usdc_balance: 12, token_balance: 50},
+               auction: %{usdc_balance: 0, token_balance: 0}
+             },
+             ownership_status: %{
+               fee_registry: %{
+                 owner_address: @authorized_wallet,
+                 pending_owner_address: nil,
+                 accepted: true
+               },
+               fee_vault: %{
+                 owner_address: @authorized_wallet,
+                 pending_owner_address: nil,
+                 accepted: true
+               },
+               hook: %{
+                 owner_address: @authorized_wallet,
+                 pending_owner_address: nil,
+                 accepted: true
+               },
+               pending_actions: [],
+               all_accepted: true
+             },
              prepared: %{
                resource: "strategy",
                action: "migrate",
@@ -84,7 +145,42 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
                tx_hash: tx_hash,
                status: "submitted",
                recommended_action: "migrate",
-               next_summary: %{recommended_action: "wait"}
+               settlement_state: "awaiting_migration",
+               next_summary: %{
+                 job: %{job_id: "job_alpha", status: "ready"},
+                 auction: %{id: "auc_alpha", status: "settled"},
+                 strategy: %{address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+                 vesting: %{address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                 current_block: 1_235,
+                 settlement_state: "wait",
+                 blocked_reason: "Waiting for the migration block.",
+                 recommended_action: "wait",
+                 allowed_actions: [],
+                 required_actor: nil,
+                 balance_snapshot: %{
+                   strategy: %{usdc_balance: 0, token_balance: 50},
+                   auction: %{usdc_balance: 0, token_balance: 0}
+                 },
+                 ownership_status: %{
+                   fee_registry: %{
+                     owner_address: @authorized_wallet,
+                     pending_owner_address: nil,
+                     accepted: true
+                   },
+                   fee_vault: %{
+                     owner_address: @authorized_wallet,
+                     pending_owner_address: nil,
+                     accepted: true
+                   },
+                   hook: %{
+                     owner_address: @authorized_wallet,
+                     pending_owner_address: nil,
+                     accepted: true
+                   },
+                   pending_actions: [],
+                   all_accepted: true
+                 }
+               }
              }}
           else
             {:error, :invalid_transaction_hash}
@@ -331,7 +427,9 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
              "ok" => true,
              "job" => %{"job_id" => "job_alpha"},
              "recommended_action" => "migrate",
-             "migrate_ready" => true
+             "settlement_state" => "awaiting_migration",
+             "allowed_actions" => ["migrate"],
+             "required_actor" => "operator"
            } = json_response(conn, 200)
   end
 
@@ -344,6 +442,7 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
 
     assert %{
              "ok" => true,
+             "settlement_state" => "awaiting_migration",
              "prepared" => %{
                "resource" => "strategy",
                "action" => "migrate",
@@ -366,6 +465,7 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
     assert %{
              "ok" => true,
              "status" => "submitted",
+             "settlement_state" => "awaiting_migration",
              "tx_hash" => "0x" <> _
            } = json_response(conn, 200)
   end
