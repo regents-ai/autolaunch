@@ -4,6 +4,10 @@ defmodule AutolaunchWeb.ContractsLive do
   alias Autolaunch.Contracts
   alias AutolaunchWeb.Live.Refreshable
 
+  @route_css_path Path.expand("../../../priv/static/launch-docs-live.css", __DIR__)
+  @external_resource @route_css_path
+  @route_css File.read!(@route_css_path)
+
   @poll_ms 15_000
 
   def mount(params, _session, socket) do
@@ -90,30 +94,38 @@ defmodule AutolaunchWeb.ContractsLive do
 
   def render(assigns) do
     ~H"""
+    <style><%= Phoenix.HTML.raw(route_css()) %></style>
     <.shell
       current_human={@current_human}
       active_view={@active_view}
       wallet_switch={@wallet_switch}
     >
+      <div id="al-docs-page" data-docs-page="contracts">
+      <AutolaunchWeb.DocsFamilyComponents.header
+        active="contracts"
+        title="Review the contract view you need before you prepare anything."
+        body="Open one launch job, one token subject, or the shared admin view. Keep the read side close so you can confirm the next approved action before anything is signed."
+      />
+
       <section id="contracts-hero" class="al-hero al-panel al-contracts-hero" phx-hook="MissionMotion">
         <div>
           <p class="al-kicker">Contracts</p>
           <h2>Pick the contract view you need before you review or prepare anything.</h2>
           <p class="al-subcopy">
-            Start with a launch job, a subject id, or the shared admin view. This page is for
+            Start with a launch job, a subject id, or the shared admin view. This page keeps
             review first and preparation second.
           </p>
 
           <div class="al-contract-pill-row">
             <span class="al-launch-tag">Review before you sign</span>
-            <span class="al-launch-tag">Open from launch and subject pages</span>
-            <span class="al-launch-tag">Launch details</span>
+            <span class="al-launch-tag">Open from launch and token pages</span>
+            <span class="al-launch-tag">Shared admin view</span>
           </div>
         </div>
 
         <div class="al-stat-grid">
           <.stat_card title="Review mode" value="Check first" hint="Prepare the action here, then send it from your wallet." />
-          <.stat_card title="Prepared action" value={if(@prepared, do: @prepared.action, else: "none")} hint="Most recent action you drafted" />
+          <.stat_card title="Prepared action" value={if(@prepared, do: @prepared.action, else: "None yet")} hint="Most recent action you drafted" />
         </div>
       </section>
 
@@ -506,6 +518,7 @@ defmodule AutolaunchWeb.ContractsLive do
           <pre class="al-contract-json"><code>{Jason.encode!(@prepared, pretty: true)}</code></pre>
         </article>
       </section>
+      </div>
     </.shell>
     """
   end
@@ -698,4 +711,5 @@ defmodule AutolaunchWeb.ContractsLive do
   end
 
   defp normalize_wallet(_value), do: nil
+  defp route_css, do: @route_css
 end

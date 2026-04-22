@@ -1,6 +1,10 @@
 defmodule AutolaunchWeb.PrivacyLive do
   use AutolaunchWeb, :live_view
 
+  @route_css_path Path.expand("../../../priv/static/launch-docs-live.css", __DIR__)
+  @external_resource @route_css_path
+  @route_css File.read!(@route_css_path)
+
   @sections [
     %{
       title: "1. What this policy covers",
@@ -62,34 +66,46 @@ defmodule AutolaunchWeb.PrivacyLive do
 
   def render(assigns) do
     ~H"""
+    <style><%= Phoenix.HTML.raw(route_css()) %></style>
     <.shell current_human={@current_human} active_view={@active_view}>
-      <section class="al-panel al-legal-hero">
-        <div>
-          <p class="al-kicker">Privacy Policy</p>
-          <h2>How autolaunch.sh handles data</h2>
-          <p class="al-subcopy">
-            Last updated April 7, 2026. This policy covers the site, the launch and auction
-            workflow, and related services operated by Regents Labs, Inc.
+      <div id="al-docs-page" data-docs-page="privacy">
+        <AutolaunchWeb.DocsFamilyComponents.header
+          active="privacy"
+          title="How autolaunch.sh handles data"
+          body="Last updated April 7, 2026. This policy covers the site, launch workflow, auction pages, and related services operated by Regents Labs, Inc."
+          eyebrow="Privacy"
+        />
+
+        <section class="al-panel al-legal-hero">
+          <div>
+            <p class="al-kicker">Privacy policy</p>
+            <h2>What we collect and what stays public onchain</h2>
+            <p class="al-subcopy">
+              This page explains what information we use to run the service, what cookies help
+              keep working, and why blockchain activity may still be public.
+            </p>
+          </div>
+        </section>
+
+        <section class="al-legal-grid">
+          <article :for={section <- @sections} class="al-panel al-legal-card">
+            <h3>{section.title}</h3>
+            <p :for={paragraph <- section.paragraphs}>{paragraph}</p>
+          </article>
+        </section>
+
+        <section class="al-panel al-legal-footer">
+          <p>
+            Some activity on public blockchains cannot be erased from the network. For questions
+            about privacy or your data, contact us through the support channel on the site.
           </p>
-        </div>
-      </section>
-
-      <section class="al-legal-grid">
-        <article :for={section <- @sections} class="al-panel al-legal-card">
-          <h3>{section.title}</h3>
-          <p :for={paragraph <- section.paragraphs}>{paragraph}</p>
-        </article>
-      </section>
-
-      <section class="al-panel al-legal-footer">
-        <p>
-          The public nature of blockchains means some activity cannot be erased from the network.
-          For questions about privacy or data, contact us through the site's support channel.
-        </p>
-      </section>
+        </section>
+      </div>
 
       <.flash_group flash={@flash} />
     </.shell>
     """
   end
+
+  defp route_css, do: @route_css
 end

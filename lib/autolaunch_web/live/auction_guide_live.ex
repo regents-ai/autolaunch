@@ -3,6 +3,10 @@ defmodule AutolaunchWeb.AuctionGuideLive do
 
   alias AutolaunchWeb.RegentScenes
 
+  @route_css_path Path.expand("../../../priv/static/launch-docs-live.css", __DIR__)
+  @external_resource @route_css_path
+  @route_css File.read!(@route_css_path)
+
   @timeline_steps [
     %{
       order: 0,
@@ -124,86 +128,97 @@ defmodule AutolaunchWeb.AuctionGuideLive do
     assigns = assign(assigns, :selected_step, selected_step)
 
     ~H"""
+    <style><%= Phoenix.HTML.raw(route_css()) %></style>
     <.shell current_human={@current_human} active_view={@active_view}>
-      <section class="al-regent-shell">
-        <.surface
-          id="auction-guide-surface"
-          class="rg-regent-theme-autolaunch al-terrain-surface"
-          scene={@regent_scene}
-          scene_version={@regent_scene_version}
-          selected_target_id={@regent_selected_target_id}
-          theme="autolaunch"
-          camera_distance={24}
-        >
-          <:header_strip>
-            <div class="al-terrain-strip">
-              <div class="al-terrain-strip-copy">
-                <p class="al-kicker">Guide strip</p>
-                <div>
-                  <h2>Understand the sale before touching the controls.</h2>
-                  <p class="al-subcopy">The symbolic path is short on purpose. The plain-English version explains why the auction exists, how it clears, and why honest early bids are the intended strategy.</p>
+      <div id="al-docs-page" data-docs-page="guide">
+        <AutolaunchWeb.DocsFamilyComponents.header
+          active="guide"
+          title="Everything you need to understand and operate on Autolaunch."
+          body="Guides, contract references, and legal pages stay close so operators can move from reading to action without guessing."
+        />
+
+        <section class="al-regent-shell al-docs-surface-shell">
+          <.surface
+            id="auction-guide-surface"
+            class="rg-regent-theme-autolaunch al-terrain-surface"
+            scene={@regent_scene}
+            scene_version={@regent_scene_version}
+            selected_target_id={@regent_selected_target_id}
+            theme="autolaunch"
+            camera_distance={24}
+          >
+            <:header_strip>
+              <div class="al-terrain-strip">
+                <div class="al-terrain-strip-copy">
+                  <p class="al-kicker">Guide strip</p>
+                  <div>
+                    <h2>Understand the sale before touching the controls.</h2>
+                    <p class="al-subcopy">
+                      The symbolic path stays short on purpose. The plain-English guide below explains
+                      why the auction exists, how it clears, and what honest bidding looks like.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="al-terrain-strip-controls">
+                  <button
+                    :if={@selected_step_index > 0}
+                    type="button"
+                    phx-click="scene-back"
+                    class="rg-surface-back"
+                  >
+                    <span class="rg-surface-back-icon" aria-hidden="true">←</span>
+                    Back to overview
+                  </button>
+                  <span class="al-network-badge">Steps {length(@timeline_steps)}</span>
+                  <span class="al-network-badge">Current {@selected_step_index + 1}</span>
+                  <.link navigate={~p"/auctions"} class="al-ghost">Open auctions</.link>
                 </div>
               </div>
+            </:header_strip>
 
-              <div class="al-terrain-strip-controls">
-                <button
-                  :if={@selected_step_index > 0}
-                  type="button"
-                  phx-click="scene-back"
-                  class="rg-surface-back"
-                >
-                  <span class="rg-surface-back-icon" aria-hidden="true">←</span>
-                  Back to overview
-                </button>
-                <span class="al-network-badge">Steps {length(@timeline_steps)}</span>
-                <span class="al-network-badge">Current {@selected_step_index + 1}</span>
-                <.link navigate={~p"/auctions"} class="al-ghost">Open live auctions</.link>
-              </div>
-            </div>
-          </:header_strip>
+            <:chamber>
+              <.chamber
+                id="auction-guide-chamber"
+                title={@selected_step.title}
+                subtitle={@selected_step.eyebrow}
+                summary={@selected_step.body}
+              >
+                <div class="al-launch-tags" aria-label="Selected guide step">
+                  <span class="al-launch-tag">{@selected_step.stat}</span>
+                  <span class="al-launch-tag">{@selected_step.note}</span>
+                </div>
+              </.chamber>
+            </:chamber>
 
-          <:chamber>
-            <.chamber
-              id="auction-guide-chamber"
-              title={@selected_step.title}
-              subtitle={@selected_step.eyebrow}
-              summary={@selected_step.body}
-            >
-              <div class="al-launch-tags" aria-label="Selected guide step">
-                <span class="al-launch-tag">{@selected_step.stat}</span>
-                <span class="al-launch-tag">{@selected_step.note}</span>
-              </div>
-            </.chamber>
-          </:chamber>
+            <:ledger>
+              <.ledger
+                id="auction-guide-ledger"
+                title="Operator summary"
+                subtitle="Keep the sale model close while you decide whether to bid or launch."
+              >
+                <table class="rg-table">
+                  <tbody>
+                    <tr>
+                      <th scope="row">Sale size</th>
+                      <td>10% public sale</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Currency</th>
+                      <td>USDC on Base Sepolia or Base mainnet</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Revenue</th>
+                      <td>Stake after claim to earn</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </.ledger>
+            </:ledger>
+          </.surface>
+        </section>
 
-          <:ledger>
-            <.ledger
-              id="auction-guide-ledger"
-              title="Operator summary"
-              subtitle="The symbolic surface stays brief. The ledger keeps the plain-English rules close."
-            >
-              <table class="rg-table">
-                <tbody>
-                  <tr>
-                    <th scope="row">Sale size</th>
-                    <td>10% public sale</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Currency</th>
-                    <td>USDC on Base Sepolia or Base mainnet</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Revenue</th>
-                    <td>Stake after claim to earn</td>
-                  </tr>
-                </tbody>
-              </table>
-            </.ledger>
-          </:ledger>
-        </.surface>
-      </section>
-
-      <div id="auction-guide-page">
+        <div id="auction-guide-page">
         <section id="auction-guide-hero" class="al-panel al-guide-hero">
           <div class="al-guide-hero-copy">
             <p class="al-kicker">Guide</p>
@@ -381,6 +396,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
           </div>
         </section>
 
+        </div>
       </div>
 
       <.flash_group flash={@flash} />
@@ -408,4 +424,6 @@ defmodule AutolaunchWeb.AuctionGuideLive do
   end
 
   defp normalize_step_index(_value), do: 0
+
+  defp route_css, do: @route_css
 end

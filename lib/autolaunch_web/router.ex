@@ -48,7 +48,7 @@ defmodule AutolaunchWeb.Router do
       live "/", HomeLive, :index
       live "/how-auctions-work", AuctionGuideLive, :index
       live "/launch", LaunchLive, :index
-      live "/launch-via-agent", LaunchViaAgentLive, :index
+      live "/launch-via-agent", LaunchLive, :agent
       live "/agentbook", AgentbookLive, :index
       live "/ens-link", EnsLinkLive, :index
       live "/x-link", XLinkLive, :index

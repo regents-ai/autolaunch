@@ -1,6 +1,10 @@
 defmodule AutolaunchWeb.TermsLive do
   use AutolaunchWeb, :live_view
 
+  @route_css_path Path.expand("../../../priv/static/launch-docs-live.css", __DIR__)
+  @external_resource @route_css_path
+  @route_css File.read!(@route_css_path)
+
   @sections [
     %{
       title: "1. What this covers",
@@ -62,34 +66,46 @@ defmodule AutolaunchWeb.TermsLive do
 
   def render(assigns) do
     ~H"""
+    <style><%= Phoenix.HTML.raw(route_css()) %></style>
     <.shell current_human={@current_human} active_view={@active_view}>
-      <section class="al-panel al-legal-hero">
-        <div>
-          <p class="al-kicker">Terms & Conditions</p>
-          <h2>Terms for autolaunch.sh</h2>
-          <p class="al-subcopy">
-            Last updated April 7, 2026. These Terms cover the website and the related launch,
-            auction, and token-holder tools operated by Regents Labs, Inc.
+      <div id="al-docs-page" data-docs-page="terms">
+        <AutolaunchWeb.DocsFamilyComponents.header
+          active="terms"
+          title="Terms for autolaunch.sh"
+          body="Last updated April 7, 2026. These terms cover the website, launch workflow, auction pages, token holder tools, and related services operated by Regents Labs, Inc."
+          eyebrow="Terms"
+        />
+
+        <section class="al-panel al-legal-hero">
+          <div>
+            <p class="al-kicker">Terms and conditions</p>
+            <h2>What this agreement covers</h2>
+            <p class="al-subcopy">
+              This page explains who can use the service, how onchain actions work, and the limits
+              of what Autolaunch provides.
+            </p>
+          </div>
+        </section>
+
+        <section class="al-legal-grid">
+          <article :for={section <- @sections} class="al-panel al-legal-card">
+            <h3>{section.title}</h3>
+            <p :for={paragraph <- section.paragraphs}>{paragraph}</p>
+          </article>
+        </section>
+
+        <section class="al-panel al-legal-footer">
+          <p>
+            autolaunch.sh is a product of Regents Labs, Inc. The service is built for operator
+            review, token auctions, and related agent-token flows.
           </p>
-        </div>
-      </section>
-
-      <section class="al-legal-grid">
-        <article :for={section <- @sections} class="al-panel al-legal-card">
-          <h3>{section.title}</h3>
-          <p :for={paragraph <- section.paragraphs}>{paragraph}</p>
-        </article>
-      </section>
-
-      <section class="al-panel al-legal-footer">
-        <p>
-          autolaunch.sh is a product of Regents Labs, Inc. The site is for operator review,
-          token auctions, and related agent-token flows.
-        </p>
-      </section>
+        </section>
+      </div>
 
       <.flash_group flash={@flash} />
     </.shell>
     """
   end
+
+  defp route_css, do: @route_css
 end

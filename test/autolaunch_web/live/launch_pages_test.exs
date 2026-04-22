@@ -153,23 +153,23 @@ defmodule AutolaunchWeb.LaunchPagesTest do
   test "launch page renders the CLI-first review page", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "Turn a strong agent into funded runway."
+    assert html =~ "Launch your agent on Base, the right way."
     assert html =~ "regent autolaunch prelaunch wizard"
-    assert html =~ "Operator briefs"
-    assert html =~ "What you need"
-    assert html =~ "What to run"
-    assert html =~ "Fair price discovery"
-    assert html =~ "One path through settlement"
+    assert html =~ "Launch console"
+    assert html =~ "Direct operator path"
+    assert html =~ "Agent-assisted path"
+    assert html =~ "Review launch setup"
   end
 
   test "launch via agent page explains the CLI-first path", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/launch-via-agent")
 
-    assert html =~ "Choose the agent handoff, then move into the main launch console."
+    assert html =~ "Launch your agent on Base, the right way."
     assert html =~ "regent autolaunch prelaunch wizard"
-    assert html =~ "Pick the agent that should carry the run."
-    assert html =~ "Keep the run boring in the best way."
-    assert html =~ "Run the launch and watch the sale."
+    assert html =~ "Agent-assisted path"
+    assert html =~ "OpenClaw"
+    assert html =~ "Hermes"
+    assert html =~ "Start agent-assisted flow"
   end
 
   test "launch page links operators toward the CLI flow and browser follow-up pages", %{
@@ -185,12 +185,10 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "The exact sequence"
-    assert html =~ "regent autolaunch launch run --plan"
-    assert html =~ "regent autolaunch launch finalize --job"
     assert html =~ "Starter command"
-    assert html =~ "Browse auctions"
-    assert html =~ "One repeatable operator path"
+    assert html =~ "Start direct operator flow"
+    assert html =~ "Start agent-assisted flow"
+    assert html =~ "Review launch setup"
   end
 
   test "launch page keeps the browser role focused on review rather than launch creation", %{
@@ -206,8 +204,8 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "Come back here when the market is live"
-    assert html =~ "Claim, stake, unstake, and sweep from the token page."
+    assert html =~ "Stay in one operator flow from command line to live market."
+    assert html =~ "Open contracts"
     refute html =~ "Choose an eligible agent"
     refute html =~ "Queue deploy job."
   end
@@ -225,13 +223,10 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "regent autolaunch prelaunch validate --plan"
-    assert html =~ "regent autolaunch prelaunch publish --plan"
-    assert html =~ "regent autolaunch launch monitor --job"
-
-    assert html =~
-             "Open the contracts page when you want to review addresses or prepare the next action."
-
+    assert html =~ "Run this in your terminal to start the guided launch flow."
+    assert html =~ "Deploy the Safe, strategy, splitter, ingress, and registry."
+    assert html =~ "Fund the strategy and set the launch allocations."
+    assert html =~ "Start the market on Base and keep the operator run moving."
     assert html =~ "Open contracts"
     refute html =~ "Prepare review"
   end
@@ -239,9 +234,9 @@ defmodule AutolaunchWeb.LaunchPagesTest do
   test "market page renders token directory copy", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/auctions")
 
-    assert html =~ "Open now"
-    assert html =~ "Bid volume shown"
-    assert html =~ "No auctions match this view yet."
+    assert html =~ "Open markets"
+    assert html =~ "Total market cap"
+    assert html =~ "Total bid volume"
   end
 
   test "positions page renders sign-in guidance for guests", %{conn: conn} do
@@ -250,7 +245,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "Sign in to inspect your bids."
   end
 
-  test "shell keeps five primary destinations and a secondary utility row", %{conn: conn} do
+  test "shell keeps five primary destinations in the sidebar", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/launch")
 
     assert html =~ ~s(aria-label="Primary")
@@ -259,10 +254,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "Auctions"
     assert html =~ "Positions"
     assert html =~ "Profile"
-    assert html =~ "More"
-    assert html =~ "Guide"
-    assert html =~ "Trust Check"
-    assert html =~ "X Link"
-    assert html =~ "Contracts"
+    assert html =~ "Network"
+    assert html =~ "Base mainnet"
   end
 end

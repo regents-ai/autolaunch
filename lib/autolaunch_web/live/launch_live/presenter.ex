@@ -107,6 +107,21 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
     ]
   end
 
+  def launch_checklist(current_human) do
+    [
+      %{
+        title: "Operator wallet connected",
+        detail: short_address(current_human && current_human.wallet_address),
+        status: if(current_human, do: "Connected", else: "Needed")
+      },
+      %{title: "Network", detail: "Base Sepolia (testnet)", status: "Ready"},
+      %{title: "Agent profile", detail: "Display name, links, metadata", status: "Ready"},
+      %{title: "Fees and allocations", detail: "Launch fee 1%, Creator 5%", status: "Ready"},
+      %{title: "Assets", detail: "Logo, banner, description", status: "Optional"},
+      %{title: "Review and confirm", detail: "Preview and launch", status: "Pending"}
+    ]
+  end
+
   def launch_flow do
     [
       %{index: 1, label: "Save plan"},
@@ -115,6 +130,90 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
       %{index: 4, label: "Run"},
       %{index: 5, label: "Monitor"},
       %{index: 6, label: "Finalize"}
+    ]
+  end
+
+  def launch_console_steps do
+    [
+      %{
+        title: "Deploy",
+        body: "Deploy the Safe, strategy, splitter, ingress, and registry."
+      },
+      %{
+        title: "Fund",
+        body: "Fund the strategy and set the launch allocations."
+      },
+      %{
+        title: "Go live",
+        body: "Start the market on Base and keep the operator run moving."
+      }
+    ]
+  end
+
+  def direct_operator_cards do
+    [
+      %{
+        title: "What to run",
+        body: "Follow the guided command line steps from saved plan to live market."
+      },
+      %{
+        title: "What happens next",
+        body: "The contracts are prepared and the launch is ready for review."
+      },
+      %{
+        title: "You go live",
+        body: "Review once more, then launch when the market setup is right."
+      }
+    ]
+  end
+
+  def operator_guides do
+    [
+      %{
+        eyebrow: "OpenClaw",
+        title: "Autonomous launch operator",
+        status: "Recommended",
+        copy_label: "Copy OpenClaw brief",
+        prompt: """
+        Use Autolaunch to prepare and run a token launch for me.
+
+        Start with `regent autolaunch prelaunch wizard`.
+        Ask me for any missing launch details before you continue.
+        Save the plan, validate it, publish it, run the launch, and monitor the auction.
+        Stop for confirmation before every signing step and explain what happens next in plain English.
+        """
+      },
+      %{
+        eyebrow: "Hermes",
+        title: "Guided agent assistant",
+        status: nil,
+        copy_label: "Copy Hermes brief",
+        prompt: """
+        Help me launch through Autolaunch as an operator.
+
+        Begin with `regent autolaunch prelaunch wizard`.
+        Keep the saved plan as the source of truth.
+        Walk me through validate, publish, launch, and monitor in order.
+        Before each signing step, tell me what it will do and what to check after it lands.
+        """
+      }
+    ]
+  end
+
+  def agent_assisted_cards do
+    [
+      %{
+        title: "What to run",
+        body: "Grant permissions, hand over the launch brief, and let the agent carry the run."
+      },
+      %{
+        title: "What happens next",
+        body: "The agent keeps the launch moving and reports each checkpoint in plain English."
+      },
+      %{
+        title: "You go live",
+        body: "Approve the signing steps and send the market live when the plan is ready."
+      }
     ]
   end
 

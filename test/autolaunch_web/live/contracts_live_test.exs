@@ -218,7 +218,8 @@ defmodule AutolaunchWeb.ContractsLiveTest do
         "/contracts?job_id=job_contracts&subject_id=0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       )
 
-    assert html =~ "Pick the contract view you need before you review or prepare anything."
+    assert html =~ "Review the contract view you need before you prepare anything."
+    assert html =~ "Contracts"
     assert html =~ "Open one launch job"
     assert html =~ "Open one subject"
 

@@ -1,0 +1,368 @@
+#al-launch-page,
+#al-docs-page {
+  display: grid;
+  gap: 1rem;
+}
+
+#al-launch-page .al-route-hero,
+#al-docs-page .al-docs-masthead,
+#al-docs-page .al-legal-hero,
+#al-launch-page .al-launch-console-strip,
+#al-launch-page .al-launch-checklist-card,
+#al-launch-page .al-launch-path-card,
+#al-launch-page .al-launch-footnote-strip,
+#al-docs-page .al-guide-hero,
+#al-docs-page .al-guide-summary,
+#al-docs-page .al-legal-card,
+#al-docs-page .al-legal-footer,
+#al-docs-page .al-contract-card,
+#al-docs-page .al-empty-state {
+  border-radius: 1.75rem;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--al-panel-strong) 96%, white 4%), var(--al-panel)),
+    linear-gradient(135deg, color-mix(in oklab, var(--al-accent) 7%, transparent), transparent 68%);
+}
+
+#al-launch-page .al-route-hero,
+#al-docs-page .al-docs-masthead,
+#al-docs-page .al-legal-hero,
+#al-launch-page .al-launch-console-strip,
+#al-launch-page .al-launch-footnote-strip {
+  padding: clamp(1.15rem, 2.8vw, 1.85rem);
+}
+
+#al-launch-page .al-route-hero-copy,
+#al-docs-page .al-docs-masthead-copy {
+  display: grid;
+  gap: 0.9rem;
+}
+
+#al-launch-page .al-route-hero h2,
+#al-docs-page .al-docs-masthead h2,
+#al-docs-page .al-legal-hero h2 {
+  margin: 0;
+  font-size: clamp(2.3rem, 4.4vw, 4.6rem);
+  line-height: 0.94;
+  letter-spacing: -0.06em;
+}
+
+#al-launch-page .al-route-hero--launch {
+  min-height: 10rem;
+  align-items: center;
+}
+
+#al-launch-page .al-launch-console-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+#al-launch-page .al-launch-console-shell,
+#al-launch-page .al-launch-console-head,
+#al-launch-page .al-launch-console-steps,
+#al-launch-page .al-launch-checklist,
+#al-launch-page .al-launch-agent-guides,
+#al-launch-page .al-launch-path-list,
+#al-launch-page .al-launch-footnote-copy {
+  display: grid;
+  gap: 0.9rem;
+}
+
+#al-launch-page .al-launch-console-head {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+#al-launch-page .al-launch-console-badge,
+#al-launch-page .al-launch-path-icon,
+#al-docs-page .al-docs-feature-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #edf3ff, #d7e6ff);
+  color: color-mix(in oklab, var(--al-accent) 82%, #1c4ed8 18%);
+  font-family: var(--al-font-display);
+}
+
+#al-launch-page .al-launch-console-head h3,
+#al-launch-page .al-launch-path-head h3,
+#al-docs-page .al-docs-feature-copy strong,
+#al-docs-page .al-legal-card h3 {
+  margin: 0;
+  font-size: clamp(1.1rem, 1.9vw, 1.55rem);
+  line-height: 1.08;
+}
+
+#al-launch-page .al-launch-command-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 1.15rem;
+  border: 1px solid color-mix(in oklab, var(--al-border) 72%, white 28%);
+  background: linear-gradient(180deg, #17386f, #102b5a);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+#al-launch-page .al-launch-command-bar code {
+  overflow: hidden;
+  color: #f4f8ff;
+  font-family: var(--al-font-display);
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#al-launch-page .al-launch-console-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#al-launch-page .al-launch-console-steps li,
+#al-launch-page .al-launch-path-head,
+#al-launch-page .al-launch-checklist-item,
+#al-launch-page .al-launch-agent-guide,
+#al-docs-page .al-docs-feature-card {
+  display: grid;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+#al-launch-page .al-launch-console-steps li {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+#al-launch-page .al-launch-console-step-mark,
+#al-launch-page .al-launch-checklist-mark {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--al-accent) 72%, white 28%);
+}
+
+#al-launch-page .al-launch-split-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+#al-launch-page .al-launch-checklist-card,
+#al-launch-page .al-launch-path-card {
+  padding: 1.2rem;
+}
+
+#al-launch-page .al-launch-checklist-item,
+#al-launch-page .al-launch-agent-guide {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--al-border) 68%, white 32%);
+}
+
+#al-launch-page .al-launch-checklist-item:last-child,
+#al-launch-page .al-launch-agent-guide:last-child {
+  border-bottom: none;
+}
+
+#al-launch-page .al-launch-checklist-copy strong,
+#al-launch-page .al-launch-agent-guide strong,
+#al-launch-page .al-launch-path-list strong {
+  display: block;
+}
+
+#al-launch-page .al-launch-checklist-copy p,
+#al-launch-page .al-launch-agent-guide p,
+#al-launch-page .al-launch-path-list p,
+#al-launch-page .al-launch-console-steps p,
+#al-docs-page .al-docs-feature-copy p,
+#al-docs-page .al-legal-card p,
+#al-docs-page .al-legal-footer p {
+  margin: 0.25rem 0 0;
+  color: var(--al-muted);
+  line-height: 1.55;
+}
+
+#al-launch-page .al-launch-path-head {
+  grid-template-columns: auto minmax(0, 1fr);
+  margin-bottom: 0.6rem;
+}
+
+#al-launch-page .al-launch-path-card.is-focused {
+  border-color: color-mix(in oklab, var(--al-accent) 34%, var(--al-border));
+  box-shadow: 0 28px 70px -48px color-mix(in oklab, var(--al-accent) 30%, transparent);
+}
+
+#al-launch-page .al-launch-path-card.is-agent {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--al-panel-strong) 92%, #ebfbff 8%), var(--al-panel)),
+    linear-gradient(135deg, rgba(34, 171, 206, 0.08), transparent 68%);
+}
+
+#al-launch-page .al-launch-agent-guide-actions,
+#al-launch-page .al-launch-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#al-launch-page .al-launch-pill {
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(82, 105, 146, 0.12);
+  color: #526992;
+  font-size: 0.76rem;
+}
+
+#al-launch-page .al-launch-pill.connected,
+#al-launch-page .al-launch-pill.ready {
+  background: rgba(16, 185, 129, 0.1);
+  color: #158f61;
+}
+
+#al-launch-page .al-launch-pill.optional {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2454c6;
+}
+
+#al-launch-page .al-launch-pill.recommended {
+  background: rgba(34, 171, 206, 0.12);
+  color: #0e84a1;
+}
+
+#al-launch-page .al-launch-footnote-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+#al-docs-page .al-docs-masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.42fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+#al-docs-page .al-docs-masthead-illustration {
+  min-height: 12rem;
+  display: grid;
+  place-items: center;
+}
+
+#al-docs-page .al-docs-masthead-book {
+  position: relative;
+  width: min(14rem, 42vw);
+  aspect-ratio: 1;
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.92), rgba(221, 233, 255, 0.54) 58%, transparent 62%),
+    radial-gradient(circle at 62% 44%, rgba(48, 112, 255, 0.18), transparent 70%);
+}
+
+#al-docs-page .al-docs-masthead-book::before,
+#al-docs-page .al-docs-masthead-book::after {
+  content: "";
+  position: absolute;
+  top: 18%;
+  width: 32%;
+  height: 48%;
+  border-radius: 1rem 1rem 1.4rem 1.4rem;
+  border: 2px solid rgba(57, 102, 214, 0.28);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+#al-docs-page .al-docs-masthead-book::before {
+  left: 18%;
+  transform: skewY(-6deg);
+}
+
+#al-docs-page .al-docs-masthead-book::after {
+  right: 18%;
+  transform: skewY(6deg);
+}
+
+#al-docs-page .al-docs-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+#al-docs-page .al-docs-feature-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+  align-content: start;
+}
+
+#al-docs-page .al-docs-feature-card.is-active {
+  border-color: color-mix(in oklab, var(--al-accent) 34%, var(--al-border));
+  box-shadow: 0 20px 50px -40px color-mix(in oklab, var(--al-accent) 24%, transparent);
+}
+
+#al-docs-page .al-docs-feature-link {
+  grid-column: 1 / -1;
+  color: color-mix(in oklab, var(--al-accent) 78%, #1c4ed8 22%);
+}
+
+#al-docs-page .al-docs-surface-shell {
+  margin-top: 0.1rem;
+}
+
+#al-docs-page .al-guide-hero,
+#al-docs-page .al-legal-hero {
+  padding: clamp(1.15rem, 2.8vw, 1.85rem);
+}
+
+#al-docs-page .al-guide-summary,
+#al-docs-page .al-legal-card,
+#al-docs-page .al-legal-footer {
+  padding: 1.15rem;
+}
+
+#al-docs-page .al-legal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 1100px) {
+  #al-launch-page .al-launch-split-layout,
+  #al-docs-page .al-docs-feature-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #al-launch-page .al-launch-console-strip,
+  #al-docs-page .al-docs-masthead,
+  #al-launch-page .al-launch-footnote-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  #al-launch-page .al-launch-split-layout,
+  #al-docs-page .al-docs-feature-grid,
+  #al-docs-page .al-legal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #al-launch-page .al-launch-command-bar {
+    grid-template-columns: 1fr;
+  }
+
+  #al-launch-page .al-launch-checklist-item,
+  #al-launch-page .al-launch-agent-guide {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  #al-launch-page .al-launch-pill,
+  #al-launch-page .al-launch-agent-guide-actions .al-ghost {
+    grid-column: 2;
+  }
+}
