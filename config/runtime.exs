@@ -123,8 +123,10 @@ if config_env() != :test do
     erc8004_subgraph_url: env.("AUTOLAUNCH_ERC8004_SUBGRAPH_URL", ""),
     identity_registry_address: env.("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", ""),
     chain_rpc_urls: %{
+      1 => env.("AUTOLAUNCH_ETH_MAINNET_RPC_URL", ""),
       8_453 => env.("AUTOLAUNCH_BASE_MAINNET_RPC_URL", ""),
-      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_RPC_URL", "")
+      84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_RPC_URL", ""),
+      11_155_111 => env.("AUTOLAUNCH_ETH_SEPOLIA_RPC_URL", "")
     },
     erc8004_subgraph_urls: %{
       8_453 => env.("AUTOLAUNCH_BASE_MAINNET_ERC8004_SUBGRAPH_URL", ""),

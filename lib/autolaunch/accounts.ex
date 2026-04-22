@@ -15,21 +15,25 @@ defmodule Autolaunch.Accounts do
   def get_human_by_wallet_address(nil), do: nil
 
   def get_human_by_wallet_address(wallet_address) when is_binary(wallet_address) do
-    normalized_wallet = normalize_address(wallet_address)
+    case normalize_address(wallet_address) do
+      nil ->
+        nil
 
-    from(human in HumanUser,
-      where:
-        human.wallet_address == ^normalized_wallet or
-          fragment("? = ANY(?)", ^normalized_wallet, human.wallet_addresses),
-      order_by: [asc: human.id],
-      limit: 1
-    )
-    |> Repo.one()
+      normalized_wallet ->
+        from(human in HumanUser,
+          where:
+            human.wallet_address == ^normalized_wallet or
+              fragment("? = ANY(?)", ^normalized_wallet, human.wallet_addresses),
+          order_by: [asc: human.id],
+          limit: 1
+        )
+        |> Repo.one()
+    end
   end
 
   def upsert_human_by_privy_id(privy_user_id, attrs) do
     now = DateTime.utc_now()
-    normalized_attrs = Map.put(attrs, "privy_user_id", privy_user_id)
+    normalized_attrs = attrs |> normalize_human_attrs() |> Map.put("privy_user_id", privy_user_id)
 
     Repo.insert(
       HumanUser.changeset(%HumanUser{}, normalized_attrs),
@@ -51,7 +55,7 @@ defmodule Autolaunch.Accounts do
 
   def update_human(%HumanUser{} = human, attrs) when is_map(attrs) do
     human
-    |> HumanUser.changeset(normalize_wallet_attrs(attrs))
+    |> HumanUser.changeset(normalize_human_attrs(attrs))
     |> Repo.update()
   end
 
@@ -74,7 +78,26 @@ defmodule Autolaunch.Accounts do
   defp normalize_attr_key(key) when is_binary(key), do: key
   defp normalize_attr_key(_key), do: nil
 
-  defp normalize_address(value) when is_binary(value), do: String.downcase(String.trim(value))
+  defp normalize_human_attrs(attrs) when is_map(attrs) do
+    attrs
+    |> maybe_put_normalized("wallet_address", normalize_address(Map.get(attrs, "wallet_address")))
+    |> maybe_put_normalized(
+      "wallet_addresses",
+      case Map.get(attrs, "wallet_addresses") do
+        values when is_list(values) -> normalize_addresses(values)
+        _ -> nil
+      end
+    )
+    |> maybe_put_normalized("xmtp_inbox_id", normalize_text(Map.get(attrs, "xmtp_inbox_id")))
+  end
+
+  defp normalize_address(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> String.downcase(trimmed)
+    end
+  end
+
   defp normalize_address(_value), do: nil
 
   defp normalize_addresses(values) when is_list(values) do
@@ -85,18 +108,6 @@ defmodule Autolaunch.Accounts do
   end
 
   defp normalize_addresses(_values), do: []
-
-  defp normalize_wallet_attrs(attrs) when is_map(attrs) do
-    attrs
-    |> maybe_put_normalized("wallet_address", normalize_address(Map.get(attrs, "wallet_address")))
-    |> maybe_put_normalized(
-      "wallet_addresses",
-      case Map.fetch(attrs, "wallet_addresses") do
-        {:ok, values} -> normalize_addresses(values)
-        :error -> nil
-      end
-    )
-  end
 
   defp maybe_put_normalized(attrs, _key, nil), do: attrs
   defp maybe_put_normalized(attrs, key, value), do: Map.put(attrs, key, value)

@@ -24,8 +24,17 @@ defmodule Autolaunch.EnsLinkTest do
         {@resolver, "0x59d1d43c" <> _rest} ->
           {:ok, encode_string("")}
 
-        {@resolver, "0x01ffc9a7" <> "4920eeb0" <> _padding} ->
+        {@resolver, "0x01ffc9a7" <> "59d1d43c" <> _padding} ->
           {:ok, bool_word(true)}
+
+        {@resolver, "0x01ffc9a7" <> "3b3b57de" <> _padding} ->
+          {:ok, bool_word(true)}
+
+        {@resolver, "0x3b3b57de" <> _rest} ->
+          {:ok, address_word(@signer)}
+
+        {@resolver, "0x691f3431" <> _rest} ->
+          {:ok, encode_string("")}
 
         {@registry, "0x6352211e" <> _rest} ->
           {:ok, address_word(@signer)}
@@ -78,8 +87,10 @@ defmodule Autolaunch.EnsLinkTest do
       :launch,
       Keyword.merge(previous_launch,
         chain_rpc_urls: %{
+          1 => "https://ethereum.example",
           84_532 => "https://base-sepolia.example",
-          8_453 => "https://base.example"
+          8_453 => "https://base.example",
+          11_155_111 => "https://ethereum-sepolia.example"
         },
         identity_registry_addresses: %{
           84_532 => "0x8004A818BFB912233c491871b3d84c89A494BD9e",
@@ -137,7 +148,7 @@ defmodule Autolaunch.EnsLinkTest do
                "rpc_module" => RpcReady
              })
 
-    assert prepared.ensip25.tx.chain_id == 8_453
+    assert prepared.ensip25.tx.chain_id == 1
     assert prepared.erc8004.tx.chain_id == 8_453
     assert prepared.erc8004.tx.to == "0x8004a169fb4a3325136eb29fa0ceb6d2e539a432"
   end
@@ -150,8 +161,10 @@ defmodule Autolaunch.EnsLinkTest do
       :launch,
       Keyword.merge(previous_launch,
         chain_rpc_urls: %{
+          1 => "https://ethereum.example",
           84_532 => "https://base-sepolia.example",
-          8_453 => ""
+          8_453 => "",
+          11_155_111 => "https://ethereum-sepolia.example"
         }
       )
     )

@@ -45,16 +45,21 @@ defmodule Autolaunch.EnsLink do
   defp build_input(%HumanUser{} = human, attrs) do
     with {:ok, identity} <- resolve_identity(human, attrs),
          {:ok, ens_name} <- required_text(Map.get(attrs, "ens_name")),
-         {:ok, chain_id} <- required_chain_id(identity.chain_id),
-         {:ok, rpc_url} <- provided_or_chain_rpc_url(attrs, chain_id),
+         {:ok, registry_chain_id} <- required_chain_id(identity.chain_id),
+         {:ok, agent_id} <- required_numeric(identity.token_id, :agent_id),
+         {:ok, ens_chain_id} <- ens_chain_id(registry_chain_id),
+         {:ok, {ens_rpc_url, registry_rpc_url}} <-
+           provided_or_chain_rpc_urls(attrs, ens_chain_id, registry_chain_id),
          {:ok, signer_address} <- resolve_signer_address(human, attrs) do
       {:ok,
        %{
          ens_name: ens_name,
-         chain_id: chain_id,
+         ens_chain_id: ens_chain_id,
+         ens_rpc_url: ens_rpc_url,
+         registry_chain_id: registry_chain_id,
+         registry_rpc_url: registry_rpc_url,
          registry_address: identity.registry_address,
-         agent_id: identity.token_id,
-         rpc_url: rpc_url,
+         agent_id: agent_id,
          rpc_module: Map.get(attrs, "rpc_module"),
          signer_address: signer_address,
          include_reverse?: truthy?(Map.get(attrs, "include_reverse")),
@@ -129,10 +134,16 @@ defmodule Autolaunch.EnsLink do
     end
   end
 
-  defp provided_or_chain_rpc_url(attrs, chain_id) do
+  defp provided_or_chain_rpc_urls(attrs, ens_chain_id, registry_chain_id) do
     case Map.get(attrs, "rpc_url") do
-      value when is_binary(value) and value != "" -> {:ok, value}
-      _ -> chain_rpc_url(chain_id)
+      value when is_binary(value) and value != "" ->
+        {:ok, {value, value}}
+
+      _ ->
+        with {:ok, ens_rpc_url} <- chain_rpc_url(ens_chain_id),
+             {:ok, registry_rpc_url} <- chain_rpc_url(registry_chain_id) do
+          {:ok, {ens_rpc_url, registry_rpc_url}}
+        end
     end
   end
 
@@ -145,12 +156,11 @@ defmodule Autolaunch.EnsLink do
 
   defp required_text(_value), do: {:error, :ens_name_required}
 
-  defp required_numeric(value, _field) when is_integer(value) and value >= 0,
-    do: {:ok, Integer.to_string(value)}
+  defp required_numeric(value, _field) when is_integer(value) and value >= 0, do: {:ok, value}
 
   defp required_numeric(value, _field) when is_binary(value) do
     case Integer.parse(String.trim(value)) do
-      {parsed, ""} when parsed >= 0 -> {:ok, Integer.to_string(parsed)}
+      {parsed, ""} when parsed >= 0 -> {:ok, parsed}
       _ -> {:error, :invalid_agent_id}
     end
   end
@@ -169,6 +179,10 @@ defmodule Autolaunch.EnsLink do
   end
 
   defp required_chain_id(_value), do: {:error, :invalid_chain_id}
+
+  defp ens_chain_id(84_532), do: {:ok, 11_155_111}
+  defp ens_chain_id(8_453), do: {:ok, 1}
+  defp ens_chain_id(_value), do: {:error, :invalid_chain_id}
 
   defp linked_wallet_addresses(%HumanUser{} = human) do
     [human.wallet_address | List.wrap(human.wallet_addresses)]
