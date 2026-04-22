@@ -8,8 +8,9 @@ import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.so
 import {ILaunchFeeVaultMinimal} from "src/revenue/interfaces/ILaunchFeeVaultMinimal.sol";
 import {IRevenueShareSplitter} from "src/revenue/interfaces/IRevenueShareSplitter.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
+import {ISubjectLifecycleSync} from "src/revenue/interfaces/ISubjectLifecycleSync.sol";
 
-contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
+contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycleSync {
     using SafeTransferLib for address;
 
     uint256 public constant BPS_DENOMINATOR = 10_000;
@@ -141,6 +142,16 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         _;
     }
 
+    modifier onlyTreasurySweepCaller() {
+        require(msg.sender == owner || msg.sender == treasuryRecipient, "ONLY_TREASURY");
+        _;
+    }
+
+    modifier onlyProtocolSweepCaller() {
+        require(msg.sender == owner || msg.sender == protocolRecipient, "ONLY_PROTOCOL");
+        _;
+    }
+
     function setPaused(bool paused_) external onlyOwner {
         paused = paused_;
         emit PausedSet(paused_);
@@ -199,6 +210,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         emit LabelSet(label_);
     }
 
+    // slither-disable-next-line reentrancy-no-eth
     function stake(uint256 amount, address receiver)
         external
         whenNotPaused
@@ -380,7 +392,12 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         emit StakeUpdated(msg.sender, stakedBalance[msg.sender], totalStaked);
     }
 
-    function sweepTreasuryResidualUSDC(uint256 amount) external whenNotPaused nonReentrant {
+    function sweepTreasuryResidualUSDC(uint256 amount)
+        external
+        whenNotPaused
+        onlyTreasurySweepCaller
+        nonReentrant
+    {
         require(treasuryResidualUsdc >= amount, "TREASURY_BALANCE_LOW");
 
         treasuryResidualUsdc -= amount;
@@ -388,7 +405,12 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         usdc.safeTransfer(treasuryRecipient, amount);
     }
 
-    function sweepProtocolReserveUSDC(uint256 amount) external whenNotPaused nonReentrant {
+    function sweepProtocolReserveUSDC(uint256 amount)
+        external
+        whenNotPaused
+        onlyProtocolSweepCaller
+        nonReentrant
+    {
         require(protocolReserveUsdc >= amount, "PROTOCOL_BALANCE_LOW");
 
         protocolReserveUsdc -= amount;
@@ -413,6 +435,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         require(amount != 0, "AMOUNT_ZERO");
         _settleStakeTokenEmissions();
 
+        // slither-disable-next-line reentrancy-benign
         received = _pullExactStakeToken(msg.sender, amount);
 
         totalFundedStakeToken += received;
@@ -578,6 +601,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         return !subjectLifecycleRetired && ISubjectRegistry(subjectRegistry).getSubject(subjectId).active;
     }
 
+    // slither-disable-next-line reentrancy-balance
     function _pullExactStakeToken(address from, uint256 amount) internal returns (uint256 received) {
         uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(address(this));
         stakeToken.safeTransferFrom(from, address(this), amount);
@@ -586,6 +610,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         require(received == amount, "STAKE_TOKEN_IN_EXACT");
     }
 
+    // slither-disable-next-line reentrancy-balance
     function _pushExactStakeToken(address recipient, uint256 amount) internal {
         uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(recipient);
         stakeToken.safeTransfer(recipient, amount);

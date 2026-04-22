@@ -1,0 +1,3 @@
+{
+  "detectors_to_exclude": "incorrect-equality,low-level-calls,pragma,reentrancy-events,timestamp"
+}

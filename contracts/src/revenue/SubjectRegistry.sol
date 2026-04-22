@@ -3,10 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Owned} from "src/auth/Owned.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
-
-interface ISubjectLifecycleSync {
-    function syncSubjectLifecycle(bool active_, bool retiring_) external;
-}
+import {ISubjectLifecycleSync} from "src/revenue/interfaces/ISubjectLifecycleSync.sol";
 
 contract SubjectRegistry is Owned, ISubjectRegistry {
     struct IdentityLink {

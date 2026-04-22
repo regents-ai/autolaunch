@@ -63,25 +63,26 @@ contract ExampleCCADeploymentScript is Script {
             "BASE_FAMILY_ONLY"
         );
 
-        address agentSafe = vm.envAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS");
-        require(agentSafe != address(0), "AGENT_SAFE_ZERO");
+        cfg.agentSafe = vm.envAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS");
+        require(cfg.agentSafe != address(0), "AGENT_SAFE_ZERO");
 
-        uint256 totalSupply = vm.envOr("AUTOLAUNCH_TOTAL_SUPPLY", DEFAULT_TOTAL_SUPPLY);
-        require(totalSupply > 0, "TOTAL_SUPPLY_ZERO");
+        cfg.totalSupply = vm.envOr("AUTOLAUNCH_TOTAL_SUPPLY", DEFAULT_TOTAL_SUPPLY);
+        require(cfg.totalSupply > 0, "TOTAL_SUPPLY_ZERO");
 
-        uint256 agentId = _parseAgentId(vm.envOr("AUTOLAUNCH_AGENT_ID", string("")));
-        require(agentId > 0, "AGENT_ID_ZERO");
+        cfg.agentId = _parseAgentId(vm.envOr("AUTOLAUNCH_AGENT_ID", string("")));
+        require(cfg.agentId > 0, "AGENT_ID_ZERO");
 
-        address strategyOperator = vm.envAddress("STRATEGY_OPERATOR");
-        require(strategyOperator != address(0), "STRATEGY_OPERATOR_ZERO");
+        cfg.strategyOperator = vm.envAddress("STRATEGY_OPERATOR");
+        require(cfg.strategyOperator != address(0), "STRATEGY_OPERATOR_ZERO");
 
-        uint256 poolFeeRaw = vm.envOr("OFFICIAL_POOL_FEE", uint256(DEFAULT_POOL_FEE));
-        require(poolFeeRaw <= 1_000_000, "POOL_FEE_INVALID");
+        cfg.officialPoolFee = uint24(vm.envOr("OFFICIAL_POOL_FEE", uint256(DEFAULT_POOL_FEE)));
+        require(cfg.officialPoolFee <= 1_000_000, "POOL_FEE_INVALID");
 
-        int256 poolTickSpacingRaw =
+        int256 poolTickSpacing =
             vm.envOr("OFFICIAL_POOL_TICK_SPACING", int256(DEFAULT_POOL_TICK_SPACING));
-        require(poolTickSpacingRaw > 0, "POOL_TICK_SPACING_INVALID");
-        require(poolTickSpacingRaw <= type(int24).max, "POOL_TICK_SPACING_TOO_LARGE");
+        require(poolTickSpacing > 0, "POOL_TICK_SPACING_INVALID");
+        require(poolTickSpacing <= type(int24).max, "POOL_TICK_SPACING_TOO_LARGE");
+        cfg.officialPoolTickSpacing = int24(poolTickSpacing);
 
         uint256 auctionDurationBlocks =
             vm.envOr("AUCTION_DURATION_BLOCKS", DEFAULT_AUCTION_DURATION_BLOCKS);
@@ -92,40 +93,40 @@ contract ExampleCCADeploymentScript is Script {
             block.number + auctionDurationBlocks <= type(uint64).max, "AUCTION_END_BLOCK_TOO_LARGE"
         );
 
-        address revenueShareFactory = vm.envAddress("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS");
-        require(revenueShareFactory != address(0), "REVENUE_SHARE_FACTORY_ZERO");
+        cfg.revenueShareFactory = vm.envAddress("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS");
+        require(cfg.revenueShareFactory != address(0), "REVENUE_SHARE_FACTORY_ZERO");
 
-        address revenueIngressFactory = vm.envAddress("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS");
-        require(revenueIngressFactory != address(0), "REVENUE_INGRESS_FACTORY_ZERO");
+        cfg.revenueIngressFactory = vm.envAddress("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS");
+        require(cfg.revenueIngressFactory != address(0), "REVENUE_INGRESS_FACTORY_ZERO");
 
-        address strategyFactory = vm.envAddress("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS");
-        require(strategyFactory != address(0), "STRATEGY_FACTORY_ZERO");
+        cfg.strategyFactory = vm.envAddress("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS");
+        require(cfg.strategyFactory != address(0), "STRATEGY_FACTORY_ZERO");
 
-        address tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
-        require(tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
+        cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
+        require(cfg.tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
 
-        address auctionInitializerFactory = vm.envAddress("AUTOLAUNCH_CCA_FACTORY_ADDRESS");
-        require(auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
-        require(auctionInitializerFactory.code.length > 0, "AUCTION_FACTORY_NOT_DEPLOYED");
+        cfg.auctionInitializerFactory = vm.envAddress("AUTOLAUNCH_CCA_FACTORY_ADDRESS");
+        require(cfg.auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
+        require(cfg.auctionInitializerFactory.code.length > 0, "AUCTION_FACTORY_NOT_DEPLOYED");
 
-        address poolManager = vm.envAddress("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER");
-        require(poolManager != address(0), "POOL_MANAGER_ZERO");
+        cfg.poolManager = vm.envAddress("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER");
+        require(cfg.poolManager != address(0), "POOL_MANAGER_ZERO");
 
-        address positionManager = vm.envAddress("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER");
-        require(positionManager != address(0), "POSITION_MANAGER_ZERO");
+        cfg.positionManager = vm.envAddress("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER");
+        require(cfg.positionManager != address(0), "POSITION_MANAGER_ZERO");
 
-        address usdcToken = vm.envAddress("AUTOLAUNCH_USDC_ADDRESS");
-        require(usdcToken != address(0), "USDC_ZERO");
+        cfg.usdcToken = vm.envAddress("AUTOLAUNCH_USDC_ADDRESS");
+        require(cfg.usdcToken != address(0), "USDC_ZERO");
 
-        address identityRegistry = vm.envAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS");
-        require(identityRegistry != address(0), "IDENTITY_REGISTRY_ZERO");
+        cfg.identityRegistry = vm.envAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS");
+        require(cfg.identityRegistry != address(0), "IDENTITY_REGISTRY_ZERO");
 
-        address regentRecipient = vm.envAddress("REGENT_MULTISIG_ADDRESS");
-        require(regentRecipient != address(0), "REGENT_RECIPIENT_ZERO");
+        cfg.regentRecipient = vm.envAddress("REGENT_MULTISIG_ADDRESS");
+        require(cfg.regentRecipient != address(0), "REGENT_RECIPIENT_ZERO");
 
-        address validationHook = vm.envOr("CCA_VALIDATION_HOOK", address(0));
-        uint256 auctionTickSpacing = vm.envUint("CCA_TICK_SPACING_Q96");
-        uint256 floorPrice = vm.envUint("CCA_FLOOR_PRICE_Q96");
+        cfg.validationHook = vm.envOr("CCA_VALIDATION_HOOK", address(0));
+        cfg.auctionTickSpacing = vm.envUint("CCA_TICK_SPACING_Q96");
+        cfg.floorPrice = vm.envUint("CCA_FLOOR_PRICE_Q96");
         uint256 requiredCurrencyRaisedRaw = vm.envUint("CCA_REQUIRED_CURRENCY_RAISED");
         require(requiredCurrencyRaisedRaw <= type(uint128).max, "REQUIRED_RAISED_TOO_LARGE");
 
@@ -145,29 +146,7 @@ contract ExampleCCADeploymentScript is Script {
             vm.envOr("MAX_CURRENCY_AMOUNT_FOR_LP", type(uint128).max);
         require(maxCurrencyAmountForLPRaw <= type(uint128).max, "MAX_CCY_FOR_LP_TOO_LARGE");
 
-        string memory tokenName = vm.envOr("AUTOLAUNCH_TOKEN_NAME", string("Regent Agent Token"));
-        string memory tokenSymbol = vm.envOr("AUTOLAUNCH_TOKEN_SYMBOL", string("RAGENT"));
-        string memory subjectLabel = vm.envOr("AUTOLAUNCH_SUBJECT_LABEL", tokenName);
-
-        cfg.agentSafe = agentSafe;
-        cfg.revenueShareFactory = revenueShareFactory;
-        cfg.revenueIngressFactory = revenueIngressFactory;
-        cfg.identityRegistry = identityRegistry;
-        cfg.tokenFactory = tokenFactory;
-        cfg.strategyFactory = strategyFactory;
-        cfg.auctionInitializerFactory = auctionInitializerFactory;
-        cfg.poolManager = poolManager;
-        cfg.positionManager = positionManager;
-        cfg.positionRecipient = agentSafe;
-        cfg.strategyOperator = strategyOperator;
-        cfg.usdcToken = usdcToken;
-        cfg.regentRecipient = regentRecipient;
-        cfg.validationHook = validationHook;
-        cfg.agentId = agentId;
-        cfg.totalSupply = totalSupply;
-        cfg.officialPoolFee = uint24(poolFeeRaw);
-        cfg.officialPoolTickSpacing = int24(poolTickSpacingRaw);
-        cfg.auctionTickSpacing = auctionTickSpacing;
+        cfg.positionRecipient = cfg.agentSafe;
         cfg.startBlock = uint64(block.number);
         cfg.endBlock = uint64(block.number + auctionDurationBlocks);
         cfg.claimBlock = uint64(block.number + auctionDurationBlocks + claimBlockOffset);
@@ -175,12 +154,11 @@ contract ExampleCCADeploymentScript is Script {
         cfg.sweepBlock = cfg.migrationBlock + sweepBlockOffset;
         cfg.vestingStartTimestamp = vestingStartTimestamp;
         cfg.vestingDurationSeconds = vestingDurationSeconds;
-        cfg.floorPrice = floorPrice;
         cfg.requiredCurrencyRaised = uint128(requiredCurrencyRaisedRaw);
         cfg.maxCurrencyAmountForLP = uint128(maxCurrencyAmountForLPRaw);
-        cfg.tokenName = tokenName;
-        cfg.tokenSymbol = tokenSymbol;
-        cfg.subjectLabel = subjectLabel;
+        cfg.tokenName = vm.envOr("AUTOLAUNCH_TOKEN_NAME", string("Regent Agent Token"));
+        cfg.tokenSymbol = vm.envOr("AUTOLAUNCH_TOKEN_SYMBOL", string("RAGENT"));
+        cfg.subjectLabel = vm.envOr("AUTOLAUNCH_SUBJECT_LABEL", cfg.tokenName);
     }
 
     function deployFromEnv()
@@ -252,49 +230,7 @@ contract ExampleCCADeploymentScript is Script {
         address broadcaster = tx.origin;
         require(broadcaster != address(0), "BROADCASTER_ZERO");
 
-        console2.log("Factory used:", factoryAddress);
-        console2.log("Broadcaster used:", broadcaster);
-        console2.log("Token deployed to:", result.tokenAddress);
-        console2.log("Auction deployed to:", result.auctionAddress);
-        console2.log("Strategy deployed to:", result.strategyAddress);
-        console2.log("Vesting wallet deployed to:", result.vestingWalletAddress);
-        console2.log("Fee hook deployed to:", result.hookAddress);
-        console2.log("Launch fee registry deployed to:", result.launchFeeRegistryAddress);
-        console2.log("Launch fee vault deployed to:", result.feeVaultAddress);
-        console2.log("Subject registry used:", result.subjectRegistryAddress);
-        console2.log("Revenue share splitter deployed to:", result.revenueShareSplitterAddress);
-        console2.log("Default ingress deployed to:", result.defaultIngressAddress);
-        console2.log(
-            string.concat(
-                "CCA_RESULT_JSON:{\"factoryAddress\":\"",
-                vm.toString(factoryAddress),
-                "\",\"auctionAddress\":\"",
-                vm.toString(result.auctionAddress),
-                "\",\"tokenAddress\":\"",
-                vm.toString(result.tokenAddress),
-                "\",\"strategyAddress\":\"",
-                vm.toString(result.strategyAddress),
-                "\",\"vestingWalletAddress\":\"",
-                vm.toString(result.vestingWalletAddress),
-                "\",\"hookAddress\":\"",
-                vm.toString(result.hookAddress),
-                "\",\"launchFeeRegistryAddress\":\"",
-                vm.toString(result.launchFeeRegistryAddress),
-                "\",\"feeVaultAddress\":\"",
-                vm.toString(result.feeVaultAddress),
-                "\",\"subjectRegistryAddress\":\"",
-                vm.toString(result.subjectRegistryAddress),
-                "\",\"subjectId\":\"",
-                vm.toString(result.subjectId),
-                "\",\"revenueShareSplitterAddress\":\"",
-                vm.toString(result.revenueShareSplitterAddress),
-                "\",\"defaultIngressAddress\":\"",
-                vm.toString(result.defaultIngressAddress),
-                "\",\"poolId\":\"",
-                vm.toString(result.poolId),
-                "\"}"
-            )
-        );
+        _logDeploymentResult(factoryAddress, broadcaster, result);
 
         vm.stopBroadcast();
     }
@@ -334,6 +270,61 @@ contract ExampleCCADeploymentScript is Script {
         for (uint256 i; i < out.length; ++i) {
             out[i] = data[start + i];
         }
+    }
+
+    function _logDeploymentResult(
+        address factoryAddress,
+        address broadcaster,
+        LaunchDeploymentController.DeploymentResult memory result
+    ) internal view {
+        console2.log("Factory used:", factoryAddress);
+        console2.log("Broadcaster used:", broadcaster);
+        console2.log("Token deployed to:", result.tokenAddress);
+        console2.log("Auction deployed to:", result.auctionAddress);
+        console2.log("Strategy deployed to:", result.strategyAddress);
+        console2.log("Vesting wallet deployed to:", result.vestingWalletAddress);
+        console2.log("Fee hook deployed to:", result.hookAddress);
+        console2.log("Launch fee registry deployed to:", result.launchFeeRegistryAddress);
+        console2.log("Launch fee vault deployed to:", result.feeVaultAddress);
+        console2.log("Subject registry used:", result.subjectRegistryAddress);
+        console2.log("Revenue share splitter deployed to:", result.revenueShareSplitterAddress);
+        console2.log("Default ingress deployed to:", result.defaultIngressAddress);
+        console2.log(_resultJson(factoryAddress, result));
+    }
+
+    function _resultJson(
+        address factoryAddress,
+        LaunchDeploymentController.DeploymentResult memory result
+    ) internal view returns (string memory) {
+        return string.concat(
+            "CCA_RESULT_JSON:{\"factoryAddress\":\"",
+            vm.toString(factoryAddress),
+            "\",\"auctionAddress\":\"",
+            vm.toString(result.auctionAddress),
+            "\",\"tokenAddress\":\"",
+            vm.toString(result.tokenAddress),
+            "\",\"strategyAddress\":\"",
+            vm.toString(result.strategyAddress),
+            "\",\"vestingWalletAddress\":\"",
+            vm.toString(result.vestingWalletAddress),
+            "\",\"hookAddress\":\"",
+            vm.toString(result.hookAddress),
+            "\",\"launchFeeRegistryAddress\":\"",
+            vm.toString(result.launchFeeRegistryAddress),
+            "\",\"feeVaultAddress\":\"",
+            vm.toString(result.feeVaultAddress),
+            "\",\"subjectRegistryAddress\":\"",
+            vm.toString(result.subjectRegistryAddress),
+            "\",\"subjectId\":\"",
+            vm.toString(result.subjectId),
+            "\",\"revenueShareSplitterAddress\":\"",
+            vm.toString(result.revenueShareSplitterAddress),
+            "\",\"defaultIngressAddress\":\"",
+            vm.toString(result.defaultIngressAddress),
+            "\",\"poolId\":\"",
+            vm.toString(result.poolId),
+            "\"}"
+        );
     }
 
     function cfgFactoryAddress() internal view returns (address) {

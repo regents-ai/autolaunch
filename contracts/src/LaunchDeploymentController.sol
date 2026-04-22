@@ -26,6 +26,8 @@ contract LaunchDeploymentController is Owned {
     uint16 internal constant VESTING_BPS = 8500;
     uint16 internal constant LP_CURRENCY_BPS = 5000;
     uint24 internal constant MAX_POOL_FEE = 1_000_000;
+    uint160 internal constant REQUIRED_HOOK_FLAGS =
+        Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG;
 
     struct DeploymentConfig {
         address agentSafe;
@@ -79,6 +81,26 @@ contract LaunchDeploymentController is Owned {
         bytes32 poolId;
     }
 
+    struct AllocationData {
+        uint256 publicSaleAmount;
+        uint256 lpReserveAmount;
+        uint256 vestingAmount;
+        uint256 strategySupply;
+        uint24 tokenSplitToAuctionMps;
+    }
+
+    struct FeeInfra {
+        LaunchFeeRegistry launchFeeRegistry;
+        LaunchFeeVault feeVault;
+        LaunchPoolFeeHook hook;
+    }
+
+    struct RevenueSubject {
+        bytes32 subjectId;
+        address revenueShareSplitter;
+        address defaultIngress;
+    }
+
     event LaunchStackDeployed(
         address indexed deployer,
         bytes32 indexed subjectId,
@@ -103,6 +125,70 @@ contract LaunchDeploymentController is Owned {
         onlyOwner
         returns (DeploymentResult memory result)
     {
+        _validateConfig(cfg);
+
+        AllocationData memory allocation = _allocationData(cfg.totalSupply);
+        SubjectRegistry subjectRegistry = _subjectRegistryOrRevert(cfg.revenueShareFactory);
+
+        address token = _createToken(cfg);
+        AgentTokenVestingWallet vestingWallet = _createVestingWallet(cfg, token);
+        RevenueSubject memory revenueSubject = _createRevenueSubject(cfg, token);
+
+        FeeInfra memory feeInfra = _deployFeeInfra(cfg);
+        IDistributionContract strategy =
+            _initializeStrategy(cfg, token, vestingWallet, feeInfra.hook, allocation);
+
+        require(
+            IERC20Like(token).transfer(address(strategy), allocation.strategySupply),
+            "STRATEGY_TRANSFER_FAILED"
+        );
+        require(
+            IERC20Like(token).transfer(address(vestingWallet), allocation.vestingAmount),
+            "VESTING_TRANSFER_FAILED"
+        );
+        strategy.onTokensReceived();
+        require(
+            RegentLBPStrategy(address(strategy)).auctionAddress() != address(0),
+            "AUCTION_NOT_CREATED"
+        );
+
+        bytes32 poolId = feeInfra.launchFeeRegistry.registerPool(
+            LaunchFeeRegistry.PoolRegistration({
+                launchToken: token,
+                quoteToken: cfg.usdcToken,
+                treasury: revenueSubject.revenueShareSplitter,
+                regentRecipient: cfg.regentRecipient,
+                poolFee: cfg.officialPoolFee,
+                tickSpacing: cfg.officialPoolTickSpacing,
+                poolManager: cfg.poolManager,
+                hook: address(feeInfra.hook)
+            })
+        );
+        feeInfra.feeVault.setCanonicalTokens(token, cfg.usdcToken);
+
+        feeInfra.launchFeeRegistry.transferOwnership(cfg.agentSafe);
+        feeInfra.feeVault.transferOwnership(cfg.agentSafe);
+        feeInfra.hook.transferOwnership(cfg.agentSafe);
+
+        result = DeploymentResult({
+            tokenAddress: token,
+            auctionAddress: RegentLBPStrategy(address(strategy)).auctionAddress(),
+            strategyAddress: address(strategy),
+            vestingWalletAddress: address(vestingWallet),
+            hookAddress: address(feeInfra.hook),
+            feeVaultAddress: address(feeInfra.feeVault),
+            launchFeeRegistryAddress: address(feeInfra.launchFeeRegistry),
+            subjectRegistryAddress: address(subjectRegistry),
+            revenueShareSplitterAddress: revenueSubject.revenueShareSplitter,
+            defaultIngressAddress: revenueSubject.defaultIngress,
+            subjectId: revenueSubject.subjectId,
+            poolId: poolId
+        });
+
+        _emitLaunchStackDeployed(result, cfg.agentSafe);
+    }
+
+    function _validateConfig(DeploymentConfig memory cfg) internal pure {
         require(cfg.agentSafe != address(0), "AGENT_SAFE_ZERO");
         require(cfg.revenueShareFactory != address(0), "REVENUE_SHARE_FACTORY_ZERO");
         require(cfg.revenueIngressFactory != address(0), "REVENUE_INGRESS_FACTORY_ZERO");
@@ -134,52 +220,100 @@ contract LaunchDeploymentController is Owned {
             PUBLIC_SALE_BPS + LP_RESERVE_BPS + VESTING_BPS == BPS_DENOMINATOR,
             "ALLOCATION_BPS_INVALID"
         );
+    }
 
-        uint256 publicSaleAmount = (cfg.totalSupply * PUBLIC_SALE_BPS) / BPS_DENOMINATOR;
-        uint256 lpReserveAmount = (cfg.totalSupply * LP_RESERVE_BPS) / BPS_DENOMINATOR;
-        uint256 vestingAmount = cfg.totalSupply - publicSaleAmount - lpReserveAmount;
-        uint256 strategySupply = publicSaleAmount + lpReserveAmount;
-        require(publicSaleAmount != 0, "PUBLIC_SALE_ZERO");
-        require(lpReserveAmount != 0, "LP_RESERVE_ZERO");
-        require(vestingAmount != 0, "VESTING_ZERO");
-        require(strategySupply <= type(uint128).max, "STRATEGY_SUPPLY_OVERFLOW");
-        require(publicSaleAmount <= type(uint128).max, "PUBLIC_SALE_OVERFLOW");
-        require(lpReserveAmount <= type(uint128).max, "LP_RESERVE_OVERFLOW");
+    function _allocationData(uint256 totalSupply) internal pure returns (AllocationData memory data) {
+        data.publicSaleAmount = (totalSupply * PUBLIC_SALE_BPS) / BPS_DENOMINATOR;
+        data.lpReserveAmount = (totalSupply * LP_RESERVE_BPS) / BPS_DENOMINATOR;
+        data.vestingAmount = totalSupply - data.publicSaleAmount - data.lpReserveAmount;
+        data.strategySupply = data.publicSaleAmount + data.lpReserveAmount;
+
+        require(data.publicSaleAmount != 0, "PUBLIC_SALE_ZERO");
+        require(data.lpReserveAmount != 0, "LP_RESERVE_ZERO");
+        require(data.vestingAmount != 0, "VESTING_ZERO");
+        require(data.strategySupply <= type(uint128).max, "STRATEGY_SUPPLY_OVERFLOW");
+        require(data.publicSaleAmount <= type(uint128).max, "PUBLIC_SALE_OVERFLOW");
+        require(data.lpReserveAmount <= type(uint128).max, "LP_RESERVE_OVERFLOW");
 
         uint256 tokenSplitToAuctionMpsRaw =
-            (cfg.totalSupply * PUBLIC_SALE_BPS * MPS_TOTAL) / (BPS_DENOMINATOR * strategySupply);
+            (totalSupply * PUBLIC_SALE_BPS * MPS_TOTAL) / (BPS_DENOMINATOR * data.strategySupply);
         require(tokenSplitToAuctionMpsRaw <= type(uint24).max, "TOKEN_SPLIT_OVERFLOW");
-        uint24 tokenSplitToAuctionMps = uint24(tokenSplitToAuctionMpsRaw);
-        require(tokenSplitToAuctionMps != 0, "TOKEN_SPLIT_ZERO");
-        require(tokenSplitToAuctionMps <= MPS_TOTAL, "TOKEN_SPLIT_INVALID");
+        data.tokenSplitToAuctionMps = uint24(tokenSplitToAuctionMpsRaw);
+        require(data.tokenSplitToAuctionMps != 0, "TOKEN_SPLIT_ZERO");
+        require(data.tokenSplitToAuctionMps <= MPS_TOTAL, "TOKEN_SPLIT_INVALID");
+    }
 
-        SubjectRegistry subjectRegistry =
-            RevenueShareFactory(cfg.revenueShareFactory).subjectRegistry();
+    function _subjectRegistryOrRevert(address revenueShareFactory)
+        internal
+        view
+        returns (SubjectRegistry subjectRegistry)
+    {
+        subjectRegistry = RevenueShareFactory(revenueShareFactory).subjectRegistry();
         require(
-            subjectRegistry.owner() == cfg.revenueShareFactory,
+            subjectRegistry.owner() == revenueShareFactory,
             "SUBJECT_REGISTRY_NOT_OWNED_BY_FACTORY"
         );
+    }
 
-        address token = ITokenFactory(cfg.tokenFactory)
-            .createToken(
-                cfg.tokenName,
-                cfg.tokenSymbol,
-                18,
-                cfg.totalSupply,
-                address(this),
-                cfg.tokenFactoryData,
-                cfg.tokenFactorySalt
-            );
+    function _createToken(DeploymentConfig memory cfg) internal returns (address token) {
+        token = ITokenFactory(cfg.tokenFactory).createToken(
+            cfg.tokenName,
+            cfg.tokenSymbol,
+            18,
+            cfg.totalSupply,
+            address(this),
+            cfg.tokenFactoryData,
+            cfg.tokenFactorySalt
+        );
         require(token != address(0), "TOKEN_NOT_CREATED");
+    }
 
-        AgentTokenVestingWallet vestingWallet = new AgentTokenVestingWallet(
+    function _createVestingWallet(DeploymentConfig memory cfg, address token)
+        internal
+        returns (AgentTokenVestingWallet vestingWallet)
+    {
+        vestingWallet = new AgentTokenVestingWallet(
             cfg.agentSafe, cfg.vestingStartTimestamp, cfg.vestingDurationSeconds, token
         );
+    }
 
-        bytes32 subjectId = keccak256(abi.encode(block.chainid, token));
-        address revenueShareSplitter = RevenueShareFactory(cfg.revenueShareFactory)
-            .createSubjectSplitter(
-                subjectId,
+    function _deployFeeInfra(DeploymentConfig memory cfg) internal returns (FeeInfra memory feeInfra) {
+        feeInfra.launchFeeRegistry = new LaunchFeeRegistry(address(this));
+        feeInfra.feeVault =
+            new LaunchFeeVault(address(this), address(feeInfra.launchFeeRegistry));
+
+        // slither-disable-next-line too-many-digits
+        (bytes32 hookSalt, address expectedHookAddress) = HookMiner.find(
+            address(this),
+            REQUIRED_HOOK_FLAGS,
+            type(LaunchPoolFeeHook).creationCode,
+            abi.encode(
+                address(this),
+                cfg.poolManager,
+                address(feeInfra.launchFeeRegistry),
+                address(feeInfra.feeVault)
+            )
+        );
+
+        feeInfra.hook = new LaunchPoolFeeHook{salt: hookSalt}(
+            address(this),
+            cfg.poolManager,
+            address(feeInfra.launchFeeRegistry),
+            address(feeInfra.feeVault)
+        );
+        require(address(feeInfra.hook) == expectedHookAddress, "HOOK_ADDRESS_MISMATCH");
+
+        feeInfra.feeVault.setHook(address(feeInfra.hook));
+    }
+
+    function _createRevenueSubject(DeploymentConfig memory cfg, address token)
+        internal
+        returns (RevenueSubject memory revenueSubject)
+    {
+        revenueSubject.subjectId = keccak256(abi.encode(block.chainid, token));
+        revenueSubject.revenueShareSplitter =
+            RevenueShareFactory(cfg.revenueShareFactory).createSubjectSplitter(
+                revenueSubject.subjectId,
                 token,
                 cfg.agentSafe,
                 cfg.regentRecipient,
@@ -190,27 +324,54 @@ contract LaunchDeploymentController is Owned {
                 cfg.identityAgentId
             );
 
-        address defaultIngress = RevenueIngressFactory(cfg.revenueIngressFactory)
-            .createIngressAccount(subjectId, "default-usdc-ingress", true);
-        require(defaultIngress != address(0), "DEFAULT_INGRESS_NOT_CREATED");
+        revenueSubject.defaultIngress = RevenueIngressFactory(cfg.revenueIngressFactory)
+            .createIngressAccount(revenueSubject.subjectId, "default-usdc-ingress", true);
+        require(revenueSubject.defaultIngress != address(0), "DEFAULT_INGRESS_NOT_CREATED");
+    }
 
-        LaunchFeeRegistry launchFeeRegistry = new LaunchFeeRegistry(address(this));
-        LaunchFeeVault feeVault = new LaunchFeeVault(address(this), address(launchFeeRegistry));
-        (bytes32 hookSalt, address expectedHookAddress) = HookMiner.find(
-            address(this),
-            Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG,
-            type(LaunchPoolFeeHook).creationCode,
+    function _initializeStrategy(
+        DeploymentConfig memory cfg,
+        address token,
+        AgentTokenVestingWallet vestingWallet,
+        LaunchPoolFeeHook hook,
+        AllocationData memory allocation
+    ) internal returns (IDistributionContract strategy) {
+        strategy = IDistributionStrategy(cfg.strategyFactory).initializeDistribution(
+            token,
+            allocation.strategySupply,
             abi.encode(
-                address(this), cfg.poolManager, address(launchFeeRegistry), address(feeVault)
-            )
+                RegentLBPStrategyFactory.RegentLBPStrategyConfig({
+                    usdc: cfg.usdcToken,
+                    auctionInitializerFactory: cfg.auctionInitializerFactory,
+                    auctionParameters: _auctionParameters(cfg),
+                    officialPoolHook: address(hook),
+                    agentSafe: cfg.agentSafe,
+                    vestingWallet: address(vestingWallet),
+                    operator: cfg.strategyOperator,
+                    positionRecipient: cfg.positionRecipient,
+                    positionManager: cfg.positionManager,
+                    poolManager: cfg.poolManager,
+                    officialPoolFee: cfg.officialPoolFee,
+                    officialPoolTickSpacing: cfg.officialPoolTickSpacing,
+                    migrationBlock: cfg.migrationBlock,
+                    sweepBlock: cfg.sweepBlock,
+                    lpCurrencyBps: LP_CURRENCY_BPS,
+                    tokenSplitToAuctionMps: allocation.tokenSplitToAuctionMps,
+                    auctionTokenAmount: uint128(allocation.publicSaleAmount),
+                    reserveTokenAmount: uint128(allocation.lpReserveAmount),
+                    maxCurrencyAmountForLP: cfg.maxCurrencyAmountForLP
+                })
+            ),
+            bytes32(0)
         );
-        LaunchPoolFeeHook hook = new LaunchPoolFeeHook{salt: hookSalt}(
-            address(this), cfg.poolManager, address(launchFeeRegistry), address(feeVault)
-        );
-        require(address(hook) == expectedHookAddress, "HOOK_ADDRESS_MISMATCH");
-        feeVault.setHook(address(hook));
+    }
 
-        AuctionParameters memory auctionParameters = AuctionParameters({
+    function _auctionParameters(DeploymentConfig memory cfg)
+        internal
+        pure
+        returns (AuctionParameters memory)
+    {
+        return AuctionParameters({
             currency: cfg.usdcToken,
             tokensRecipient: address(0),
             fundsRecipient: address(0),
@@ -223,86 +384,9 @@ contract LaunchDeploymentController is Owned {
             requiredCurrencyRaised: cfg.requiredCurrencyRaised,
             auctionStepsData: bytes("")
         });
+    }
 
-        IDistributionContract strategy = IDistributionStrategy(cfg.strategyFactory)
-            .initializeDistribution(
-                token,
-                strategySupply,
-                abi.encode(
-                    RegentLBPStrategyFactory.RegentLBPStrategyConfig({
-                        usdc: cfg.usdcToken,
-                        auctionInitializerFactory: cfg.auctionInitializerFactory,
-                        auctionParameters: auctionParameters,
-                        officialPoolHook: address(hook),
-                        agentSafe: cfg.agentSafe,
-                        vestingWallet: address(vestingWallet),
-                        operator: cfg.strategyOperator,
-                        positionRecipient: cfg.positionRecipient,
-                        positionManager: cfg.positionManager,
-                        poolManager: cfg.poolManager,
-                        officialPoolFee: cfg.officialPoolFee,
-                        officialPoolTickSpacing: cfg.officialPoolTickSpacing,
-                        migrationBlock: cfg.migrationBlock,
-                        sweepBlock: cfg.sweepBlock,
-                        lpCurrencyBps: LP_CURRENCY_BPS,
-                        tokenSplitToAuctionMps: tokenSplitToAuctionMps,
-                        auctionTokenAmount: uint128(publicSaleAmount),
-                        reserveTokenAmount: uint128(lpReserveAmount),
-                        maxCurrencyAmountForLP: cfg.maxCurrencyAmountForLP
-                    })
-                ),
-                bytes32(0)
-            );
-
-        require(
-            IERC20Like(token).transfer(address(strategy), strategySupply),
-            "STRATEGY_TRANSFER_FAILED"
-        );
-        require(
-            IERC20Like(token).transfer(address(vestingWallet), vestingAmount),
-            "VESTING_TRANSFER_FAILED"
-        );
-        strategy.onTokensReceived();
-        require(
-            RegentLBPStrategy(address(strategy)).auctionAddress() != address(0),
-            "AUCTION_NOT_CREATED"
-        );
-
-        bytes32 poolId = launchFeeRegistry.registerPool(
-            LaunchFeeRegistry.PoolRegistration({
-                launchToken: token,
-                quoteToken: cfg.usdcToken,
-                treasury: revenueShareSplitter,
-                regentRecipient: cfg.regentRecipient,
-                poolFee: cfg.officialPoolFee,
-                tickSpacing: cfg.officialPoolTickSpacing,
-                poolManager: cfg.poolManager,
-                hook: address(hook)
-            })
-        );
-        feeVault.setCanonicalTokens(token, cfg.usdcToken);
-
-        launchFeeRegistry.transferOwnership(cfg.agentSafe);
-        feeVault.transferOwnership(cfg.agentSafe);
-        hook.transferOwnership(cfg.agentSafe);
-
-        result = DeploymentResult({
-            tokenAddress: token,
-            auctionAddress: RegentLBPStrategy(address(strategy)).auctionAddress(),
-            strategyAddress: address(strategy),
-            vestingWalletAddress: address(vestingWallet),
-            hookAddress: address(hook),
-            feeVaultAddress: address(feeVault),
-            launchFeeRegistryAddress: address(launchFeeRegistry),
-            subjectRegistryAddress: address(
-                SubjectRegistry(RevenueShareFactory(cfg.revenueShareFactory).subjectRegistry())
-            ),
-            revenueShareSplitterAddress: revenueShareSplitter,
-            defaultIngressAddress: defaultIngress,
-            subjectId: subjectId,
-            poolId: poolId
-        });
-
+    function _emitLaunchStackDeployed(DeploymentResult memory result, address agentSafe) internal {
         emit LaunchStackDeployed(
             msg.sender,
             result.subjectId,
@@ -317,7 +401,7 @@ contract LaunchDeploymentController is Owned {
             result.revenueShareSplitterAddress,
             result.defaultIngressAddress,
             result.poolId,
-            cfg.agentSafe
+            agentSafe
         );
     }
 }

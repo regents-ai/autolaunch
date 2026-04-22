@@ -68,8 +68,7 @@ abstract contract Owned {
         require(msg.sender == owner, "ONLY_OWNER");
     }
 
-    function _isProtectedToken(address token) internal view virtual returns (bool) {
-        token;
+    function _isProtectedToken(address) internal view virtual returns (bool) {
         return false;
     }
 }

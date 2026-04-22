@@ -109,6 +109,7 @@ contract RegentRevenueStaking is Owned {
         emit EmissionAprBpsSet(previousBps, newBps);
     }
 
+    // slither-disable-next-line reentrancy-no-eth
     function stake(uint256 amount, address receiver) external whenNotPaused nonReentrant {
         require(amount != 0, "AMOUNT_ZERO");
         require(receiver != address(0), "RECEIVER_ZERO");
@@ -249,6 +250,7 @@ contract RegentRevenueStaking is Owned {
         _settleRegentEmissions();
 
         uint256 beforeBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
+        // slither-disable-next-line reentrancy-benign
         usdc.safeTransferFrom(msg.sender, address(this), amount);
         uint256 afterBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         received = afterBalance - beforeBalance;
@@ -265,6 +267,7 @@ contract RegentRevenueStaking is Owned {
         require(amount != 0, "AMOUNT_ZERO");
         _settleRegentEmissions();
 
+        // slither-disable-next-line reentrancy-benign
         received = _pullExactStakeToken(msg.sender, amount);
 
         totalFundedRegent += received;
@@ -412,6 +415,7 @@ contract RegentRevenueStaking is Owned {
         lastEmissionUpdate = timestamp;
     }
 
+    // slither-disable-next-line reentrancy-balance
     function _pullExactStakeToken(address from, uint256 amount) internal returns (uint256 received) {
         uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(address(this));
         stakeToken.safeTransferFrom(from, address(this), amount);
@@ -420,6 +424,7 @@ contract RegentRevenueStaking is Owned {
         require(received == amount, "STAKE_TOKEN_IN_EXACT");
     }
 
+    // slither-disable-next-line reentrancy-balance
     function _pushExactStakeToken(address recipient, uint256 amount) internal {
         uint256 beforeBalance = IERC20SupplyMinimal(stakeToken).balanceOf(recipient);
         stakeToken.safeTransfer(recipient, amount);

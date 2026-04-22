@@ -37,6 +37,7 @@ Capabilities:
 - set splitter protocol recipient
 - set splitter emissions rate
 - reassign undistributed dust to treasury
+- enable or disable launch fee capture for a registered pool
 - manage subject metadata and managers through `SubjectRegistry`
 - withdraw launch fee vault treasury share for the registered pool treasury
 - rescue non-canonical assets or native balance from the strategy
@@ -179,6 +180,7 @@ These paths combine privilege with meaningful asset movement:
 - `RevenueShareSplitter.claimAndRestakeStakeToken`
 - `RevenueShareSplitter.sweepTreasuryResidualUSDC`
 - `RevenueShareSplitter.sweepProtocolReserveUSDC`
+- `LaunchFeeRegistry.setHookEnabled`
 - `SubjectRegistry.updateSubject`
 - `RevenueIngressAccount.sweepUSDC`
 - `RegentRevenueStaking.depositUSDC`

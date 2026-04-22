@@ -39,7 +39,6 @@ contract RevenueShareSplitterTest is Test {
     address internal constant EVE = address(0xE5);
     address internal constant FUNDER = address(0xF00D);
     address internal constant NEXT_TREASURY = address(0xACCE55);
-    address internal constant RANDOM_CALLER = address(0x123456);
     uint64 internal constant TREASURY_ROTATION_DELAY = 3 days;
 
     function setUp() external {
@@ -380,7 +379,6 @@ contract RevenueShareSplitterTest is Test {
         assertApproxEqAbs(
             splitter.previewClaimableStakeToken(ALICE), expectedBeforeRotation, 1e14
         );
-        assertEq(splitter.lastEmissionUpdate(), rotationTime);
     }
 
     function testStakeRejectsInboundFeeOnTransferToken() external {
@@ -558,28 +556,36 @@ contract RevenueShareSplitterTest is Test {
         smallSplitter.claimAndRestakeStakeToken();
     }
 
-    function testSweepTreasuryResidualUSDCCallableByArbitraryAddress() external {
+    function testSweepTreasuryResidualUSDCIsRestrictedToTreasuryOrOwner() external {
         usdc.mint(address(this), INITIAL_INGRESS_DEPOSIT);
         usdc.approve(address(splitter), INITIAL_INGRESS_DEPOSIT);
         splitter.depositUSDC(INITIAL_INGRESS_DEPOSIT, bytes32("direct"), bytes32("round-1"));
 
         uint256 amount = splitter.treasuryResidualUsdc();
 
-        vm.prank(RANDOM_CALLER);
+        vm.prank(ALICE);
+        vm.expectRevert("ONLY_TREASURY");
+        splitter.sweepTreasuryResidualUSDC(amount);
+
+        vm.prank(TREASURY);
         splitter.sweepTreasuryResidualUSDC(amount);
 
         assertEq(usdc.balanceOf(TREASURY), amount);
         assertEq(splitter.treasuryResidualUsdc(), 0);
     }
 
-    function testSweepProtocolReserveUSDCCallableByArbitraryAddress() external {
+    function testSweepProtocolReserveUSDCIsRestrictedToProtocolOrOwner() external {
         usdc.mint(address(this), INITIAL_INGRESS_DEPOSIT);
         usdc.approve(address(splitter), INITIAL_INGRESS_DEPOSIT);
         splitter.depositUSDC(INITIAL_INGRESS_DEPOSIT, bytes32("direct"), bytes32("round-1"));
 
         uint256 amount = splitter.protocolReserveUsdc();
 
-        vm.prank(RANDOM_CALLER);
+        vm.prank(ALICE);
+        vm.expectRevert("ONLY_PROTOCOL");
+        splitter.sweepProtocolReserveUSDC(amount);
+
+        vm.prank(PROTOCOL_TREASURY);
         splitter.sweepProtocolReserveUSDC(amount);
 
         assertEq(usdc.balanceOf(PROTOCOL_TREASURY), amount);

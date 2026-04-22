@@ -198,6 +198,19 @@ contract LaunchPoolFeeHookTest is Test {
         _simulateSwap(unknownKey, true, -100e18, -100e18, 80e18);
     }
 
+    function testOwnerCanDisableAndReEnableFeeCapture() external {
+        vm.prank(OWNER);
+        registry.setHookEnabled(poolId, false);
+
+        vm.expectRevert("HOOK_DISABLED");
+        _simulateSwap(poolKey, true, -100e18, -100e18, 80e18);
+
+        vm.prank(OWNER);
+        registry.setHookEnabled(poolId, true);
+
+        _assertSwapFee(poolKey, true, -100e18, -100e18, 80e18);
+    }
+
     function testTreasuryWithdrawIsAccessControlled() external {
         _simulateSwap(
             poolKey,

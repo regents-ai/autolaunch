@@ -81,18 +81,14 @@ contract RevenueIngressFactory is Owned {
         ingressAccountsBySubject[subjectId].push(ingress);
         isIngressAccount[ingress] = true;
 
-        if (makeDefault || defaultIngressOfSubject[subjectId] == address(0)) {
+        bool selectedAsDefault = makeDefault || defaultIngressOfSubject[subjectId] == address(0);
+        if (selectedAsDefault) {
             defaultIngressOfSubject[subjectId] = ingress;
             emit DefaultIngressSet(subjectId, ingress);
         }
 
         emit IngressAccountCreated(
-            subjectId,
-            ingress,
-            cfg.splitter,
-            cfg.treasurySafe,
-            label,
-            makeDefault || defaultIngressOfSubject[subjectId] == ingress
+            subjectId, ingress, cfg.splitter, cfg.treasurySafe, label, selectedAsDefault
         );
     }
 

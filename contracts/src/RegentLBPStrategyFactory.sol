@@ -48,27 +48,29 @@ contract RegentLBPStrategyFactory is IDistributionStrategy {
         distributionContract = IDistributionContract(
             address(
                 new RegentLBPStrategy(
-                    token,
-                    cfg.usdc,
-                    cfg.auctionInitializerFactory,
-                    cfg.auctionParameters,
-                    cfg.officialPoolHook,
-                    cfg.agentSafe,
-                    cfg.vestingWallet,
-                    cfg.operator,
-                    cfg.positionRecipient,
-                    cfg.positionManager,
-                    cfg.poolManager,
-                    cfg.officialPoolFee,
-                    cfg.officialPoolTickSpacing,
-                    cfg.migrationBlock,
-                    cfg.sweepBlock,
-                    cfg.lpCurrencyBps,
-                    cfg.tokenSplitToAuctionMps,
-                    uint128(amount),
-                    cfg.auctionTokenAmount,
-                    cfg.reserveTokenAmount,
-                    cfg.maxCurrencyAmountForLP
+                    RegentLBPStrategy.StrategyConfig({
+                        token: token,
+                        usdc: cfg.usdc,
+                        auctionInitializerFactory: cfg.auctionInitializerFactory,
+                        auctionParameters: cfg.auctionParameters,
+                        officialPoolHook: cfg.officialPoolHook,
+                        agentSafe: cfg.agentSafe,
+                        vestingWallet: cfg.vestingWallet,
+                        operator: cfg.operator,
+                        positionRecipient: cfg.positionRecipient,
+                        positionManager: cfg.positionManager,
+                        poolManager: cfg.poolManager,
+                        officialPoolFee: cfg.officialPoolFee,
+                        officialPoolTickSpacing: cfg.officialPoolTickSpacing,
+                        migrationBlock: cfg.migrationBlock,
+                        sweepBlock: cfg.sweepBlock,
+                        lpCurrencyBps: cfg.lpCurrencyBps,
+                        tokenSplitToAuctionMps: cfg.tokenSplitToAuctionMps,
+                        totalStrategySupply: uint128(amount),
+                        auctionTokenAmount: cfg.auctionTokenAmount,
+                        reserveTokenAmount: cfg.reserveTokenAmount,
+                        maxCurrencyAmountForLP: cfg.maxCurrencyAmountForLP
+                    })
                 )
             )
         );

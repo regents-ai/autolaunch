@@ -111,41 +111,7 @@ contract RegentLBPStrategyTest is Test {
         mismatchAuctionFactory = new MismatchAuctionFactory();
         sentinelPositionManager = new SentinelPositionManager();
 
-        strategy = new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(auctionFactory),
-            AuctionParameters({
-                currency: address(usdc),
-                tokensRecipient: address(0),
-                fundsRecipient: address(0),
-                startBlock: 1,
-                endBlock: 101,
-                claimBlock: 101,
-                tickSpacing: 1000,
-                validationHook: address(0),
-                floorPrice: 1000,
-                requiredCurrencyRaised: 0,
-                auctionStepsData: bytes("")
-            }),
-            address(hook),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(positionManager),
-            address(poolManager),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        strategy = new RegentLBPStrategy(_strategyConfig(0));
 
         token.mint(address(strategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
     }
@@ -174,29 +140,9 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testOnTokensReceivedRequiresPredictedAuctionMatch() external {
-        RegentLBPStrategy mismatchStrategy = new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(mismatchAuctionFactory),
-            _auctionParameters(),
-            address(hook),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(positionManager),
-            address(poolManager),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        RegentLBPStrategy.StrategyConfig memory cfg = _strategyConfig(0);
+        cfg.auctionInitializerFactory = address(mismatchAuctionFactory);
+        RegentLBPStrategy mismatchStrategy = new RegentLBPStrategy(cfg);
         token.mint(address(mismatchStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
 
         vm.expectRevert("AUCTION_ADDRESS_MISMATCH");
@@ -213,80 +159,21 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testConstructorRejectsCriticalZeroAddresses() external {
+        RegentLBPStrategy.StrategyConfig memory cfg = _strategyConfig(0);
+
         vm.expectRevert("HOOK_ZERO");
-        new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(auctionFactory),
-            _auctionParameters(),
-            address(0),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(positionManager),
-            address(poolManager),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        cfg.officialPoolHook = address(0);
+        new RegentLBPStrategy(cfg);
 
         vm.expectRevert("POSITION_MANAGER_ZERO");
-        new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(auctionFactory),
-            _auctionParameters(),
-            address(hook),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(0),
-            address(poolManager),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        cfg = _strategyConfig(0);
+        cfg.positionManager = address(0);
+        new RegentLBPStrategy(cfg);
 
         vm.expectRevert("POOL_MANAGER_ZERO");
-        new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(auctionFactory),
-            _auctionParameters(),
-            address(hook),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(positionManager),
-            address(0),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        cfg = _strategyConfig(0);
+        cfg.poolManager = address(0);
+        new RegentLBPStrategy(cfg);
     }
 
     function testMigrateCreatesRealV4PositionAndSweepsRemainders() external {
@@ -362,29 +249,9 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testMigrateRevertsWhenPoolInitializationFails() external {
-        RegentLBPStrategy failingStrategy = new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(auctionFactory),
-            _auctionParameters(),
-            address(hook),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(sentinelPositionManager),
-            address(poolManager),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        RegentLBPStrategy.StrategyConfig memory cfg = _strategyConfig(0);
+        cfg.positionManager = address(sentinelPositionManager);
+        RegentLBPStrategy failingStrategy = new RegentLBPStrategy(cfg);
         token.mint(address(failingStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
 
         failingStrategy.onTokensReceived();
@@ -412,29 +279,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testRecoverFailedAuctionSweepsReturnedTokensIntoVesting() external {
-        RegentLBPStrategy failedStrategy = new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(auctionFactory),
-            _auctionParameters(1),
-            address(hook),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(positionManager),
-            address(poolManager),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        RegentLBPStrategy failedStrategy = new RegentLBPStrategy(_strategyConfig(1));
         token.mint(address(failedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         failedStrategy.onTokensReceived();
 
@@ -451,29 +296,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testGraduatedAuctionSweepsFundsAfterEndAndMigrationUsesSweptCurrency() external {
-        RegentLBPStrategy graduatedStrategy = new RegentLBPStrategy(
-            address(token),
-            address(usdc),
-            address(auctionFactory),
-            _auctionParameters(100e18),
-            address(hook),
-            AGENT_TREASURY,
-            VESTING_WALLET,
-            OPERATOR,
-            POSITION_RECIPIENT,
-            address(positionManager),
-            address(poolManager),
-            OFFICIAL_POOL_FEE,
-            OFFICIAL_POOL_TICK_SPACING,
-            202,
-            303,
-            5000,
-            6_666_666,
-            AUCTION_AMOUNT + RESERVE_AMOUNT,
-            AUCTION_AMOUNT,
-            RESERVE_AMOUNT,
-            type(uint128).max
-        );
+        RegentLBPStrategy graduatedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
         token.mint(address(graduatedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         graduatedStrategy.onTokensReceived();
 
@@ -577,6 +400,36 @@ contract RegentLBPStrategyTest is Test {
             floorPrice: 1000,
             requiredCurrencyRaised: requiredCurrencyRaised,
             auctionStepsData: bytes("")
+        });
+    }
+
+    function _strategyConfig(uint128 requiredCurrencyRaised)
+        internal
+        view
+        returns (RegentLBPStrategy.StrategyConfig memory)
+    {
+        return RegentLBPStrategy.StrategyConfig({
+            token: address(token),
+            usdc: address(usdc),
+            auctionInitializerFactory: address(auctionFactory),
+            auctionParameters: _auctionParameters(requiredCurrencyRaised),
+            officialPoolHook: address(hook),
+            agentSafe: AGENT_TREASURY,
+            vestingWallet: VESTING_WALLET,
+            operator: OPERATOR,
+            positionRecipient: POSITION_RECIPIENT,
+            positionManager: address(positionManager),
+            poolManager: address(poolManager),
+            officialPoolFee: OFFICIAL_POOL_FEE,
+            officialPoolTickSpacing: OFFICIAL_POOL_TICK_SPACING,
+            migrationBlock: 202,
+            sweepBlock: 303,
+            lpCurrencyBps: 5000,
+            tokenSplitToAuctionMps: 6_666_666,
+            totalStrategySupply: AUCTION_AMOUNT + RESERVE_AMOUNT,
+            auctionTokenAmount: AUCTION_AMOUNT,
+            reserveTokenAmount: RESERVE_AMOUNT,
+            maxCurrencyAmountForLP: type(uint128).max
         });
     }
 }

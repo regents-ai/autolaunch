@@ -63,6 +63,30 @@ contract RegentLBPStrategy is IDistributionContract {
     uint256 private _reentrancyGuard = 1;
     int24 internal constant POOL_INIT_FAILED = type(int24).max;
 
+    struct StrategyConfig {
+        address token;
+        address usdc;
+        address auctionInitializerFactory;
+        AuctionParameters auctionParameters;
+        address officialPoolHook;
+        address agentSafe;
+        address vestingWallet;
+        address operator;
+        address positionRecipient;
+        address positionManager;
+        address poolManager;
+        uint24 officialPoolFee;
+        int24 officialPoolTickSpacing;
+        uint64 migrationBlock;
+        uint64 sweepBlock;
+        uint16 lpCurrencyBps;
+        uint24 tokenSplitToAuctionMps;
+        uint128 totalStrategySupply;
+        uint128 auctionTokenAmount;
+        uint128 reserveTokenAmount;
+        uint128 maxCurrencyAmountForLP;
+    }
+
     event AuctionCreated(address indexed auction, uint128 auctionTokenAmount);
     event Migrated(
         bytes32 indexed poolId,
@@ -92,81 +116,60 @@ contract RegentLBPStrategy is IDistributionContract {
         _;
     }
 
-    constructor(
-        address token_,
-        address usdc_,
-        address auctionInitializerFactory_,
-        AuctionParameters memory auctionParameters_,
-        address officialPoolHook_,
-        address agentSafe_,
-        address vestingWallet_,
-        address operator_,
-        address positionRecipient_,
-        address positionManager_,
-        address poolManager_,
-        uint24 officialPoolFee_,
-        int24 officialPoolTickSpacing_,
-        uint64 migrationBlock_,
-        uint64 sweepBlock_,
-        uint16 lpCurrencyBps_,
-        uint24 tokenSplitToAuctionMps_,
-        uint128 totalStrategySupply_,
-        uint128 auctionTokenAmount_,
-        uint128 reserveTokenAmount_,
-        uint128 maxCurrencyAmountForLP_
-    ) {
-        require(token_ != address(0), "TOKEN_ZERO");
-        require(usdc_ != address(0), "USDC_ZERO");
-        require(auctionInitializerFactory_ != address(0), "AUCTION_FACTORY_ZERO");
-        require(officialPoolHook_ != address(0), "HOOK_ZERO");
-        require(agentSafe_ != address(0), "AGENT_SAFE_ZERO");
-        require(vestingWallet_ != address(0), "VESTING_ZERO");
-        require(operator_ != address(0), "OPERATOR_ZERO");
-        require(positionRecipient_ != address(0), "POSITION_RECIPIENT_ZERO");
-        require(positionManager_ != address(0), "POSITION_MANAGER_ZERO");
-        require(poolManager_ != address(0), "POOL_MANAGER_ZERO");
-        require(officialPoolTickSpacing_ > 0, "POOL_TICK_SPACING_INVALID");
-        require(officialPoolFee_ <= 1_000_000, "POOL_FEE_INVALID");
-        require(auctionParameters_.currency == usdc_, "AUCTION_CURRENCY_MISMATCH");
+    constructor(StrategyConfig memory cfg) {
+        require(cfg.token != address(0), "TOKEN_ZERO");
+        require(cfg.usdc != address(0), "USDC_ZERO");
+        require(cfg.auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
+        require(cfg.officialPoolHook != address(0), "HOOK_ZERO");
+        require(cfg.agentSafe != address(0), "AGENT_SAFE_ZERO");
+        require(cfg.vestingWallet != address(0), "VESTING_ZERO");
+        require(cfg.operator != address(0), "OPERATOR_ZERO");
+        require(cfg.positionRecipient != address(0), "POSITION_RECIPIENT_ZERO");
+        require(cfg.positionManager != address(0), "POSITION_MANAGER_ZERO");
+        require(cfg.poolManager != address(0), "POOL_MANAGER_ZERO");
+        require(cfg.officialPoolTickSpacing > 0, "POOL_TICK_SPACING_INVALID");
+        require(cfg.officialPoolFee <= 1_000_000, "POOL_FEE_INVALID");
+        require(cfg.auctionParameters.currency == cfg.usdc, "AUCTION_CURRENCY_MISMATCH");
         require(
-            auctionParameters_.startBlock < auctionParameters_.endBlock, "AUCTION_BLOCKS_INVALID"
+            cfg.auctionParameters.startBlock < cfg.auctionParameters.endBlock, "AUCTION_BLOCKS_INVALID"
         );
-        require(auctionParameters_.claimBlock >= auctionParameters_.endBlock, "CLAIM_BEFORE_END");
-        require(migrationBlock_ > auctionParameters_.endBlock, "MIGRATION_BEFORE_END");
-        require(sweepBlock_ > migrationBlock_, "SWEEP_BEFORE_MIGRATION");
-        require(lpCurrencyBps_ <= BPS_DENOMINATOR, "LP_BPS_INVALID");
-        require(tokenSplitToAuctionMps_ != 0, "TOKEN_SPLIT_ZERO");
-        require(tokenSplitToAuctionMps_ <= 10_000_000, "TOKEN_SPLIT_INVALID");
-        require(totalStrategySupply_ != 0, "SUPPLY_ZERO");
+        require(cfg.auctionParameters.claimBlock >= cfg.auctionParameters.endBlock, "CLAIM_BEFORE_END");
+        require(cfg.migrationBlock > cfg.auctionParameters.endBlock, "MIGRATION_BEFORE_END");
+        require(cfg.sweepBlock > cfg.migrationBlock, "SWEEP_BEFORE_MIGRATION");
+        require(cfg.lpCurrencyBps <= BPS_DENOMINATOR, "LP_BPS_INVALID");
+        require(cfg.tokenSplitToAuctionMps != 0, "TOKEN_SPLIT_ZERO");
+        require(cfg.tokenSplitToAuctionMps <= 10_000_000, "TOKEN_SPLIT_INVALID");
+        require(cfg.totalStrategySupply != 0, "SUPPLY_ZERO");
         require(
-            uint256(auctionTokenAmount_) + uint256(reserveTokenAmount_) == totalStrategySupply_,
+            uint256(cfg.auctionTokenAmount) + uint256(cfg.reserveTokenAmount)
+                == cfg.totalStrategySupply,
             "SUPPLY_SPLIT_INVALID"
         );
-        require(auctionTokenAmount_ != 0, "AUCTION_SUPPLY_ZERO");
-        require(reserveTokenAmount_ != 0, "RESERVE_SUPPLY_ZERO");
-        require(maxCurrencyAmountForLP_ != 0, "MAX_CCY_FOR_LP_ZERO");
+        require(cfg.auctionTokenAmount != 0, "AUCTION_SUPPLY_ZERO");
+        require(cfg.reserveTokenAmount != 0, "RESERVE_SUPPLY_ZERO");
+        require(cfg.maxCurrencyAmountForLP != 0, "MAX_CCY_FOR_LP_ZERO");
 
-        token = token_;
-        usdc = usdc_;
-        auctionInitializerFactory = auctionInitializerFactory_;
-        officialPoolHook = officialPoolHook_;
-        agentSafe = agentSafe_;
-        vestingWallet = vestingWallet_;
-        operator = operator_;
-        positionRecipient = positionRecipient_;
-        positionManager = positionManager_;
-        poolManager = poolManager_;
-        officialPoolFee = officialPoolFee_;
-        officialPoolTickSpacing = officialPoolTickSpacing_;
-        migrationBlock = migrationBlock_;
-        sweepBlock = sweepBlock_;
-        lpCurrencyBps = lpCurrencyBps_;
-        tokenSplitToAuctionMps = tokenSplitToAuctionMps_;
-        totalStrategySupply = totalStrategySupply_;
-        auctionTokenAmount = auctionTokenAmount_;
-        reserveTokenAmount = reserveTokenAmount_;
-        maxCurrencyAmountForLP = maxCurrencyAmountForLP_;
-        auctionParameters = auctionParameters_;
+        token = cfg.token;
+        usdc = cfg.usdc;
+        auctionInitializerFactory = cfg.auctionInitializerFactory;
+        officialPoolHook = cfg.officialPoolHook;
+        agentSafe = cfg.agentSafe;
+        vestingWallet = cfg.vestingWallet;
+        operator = cfg.operator;
+        positionRecipient = cfg.positionRecipient;
+        positionManager = cfg.positionManager;
+        poolManager = cfg.poolManager;
+        officialPoolFee = cfg.officialPoolFee;
+        officialPoolTickSpacing = cfg.officialPoolTickSpacing;
+        migrationBlock = cfg.migrationBlock;
+        sweepBlock = cfg.sweepBlock;
+        lpCurrencyBps = cfg.lpCurrencyBps;
+        tokenSplitToAuctionMps = cfg.tokenSplitToAuctionMps;
+        totalStrategySupply = cfg.totalStrategySupply;
+        auctionTokenAmount = cfg.auctionTokenAmount;
+        reserveTokenAmount = cfg.reserveTokenAmount;
+        maxCurrencyAmountForLP = cfg.maxCurrencyAmountForLP;
+        auctionParameters = cfg.auctionParameters;
     }
 
     function onTokensReceived() external nonReentrant {

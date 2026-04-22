@@ -37,7 +37,7 @@ These documents and contracts are consistent on the main operating rules:
 
 - deployment inputs are prepared correctly before `deploy`
 - the operator runs migration only after the configured auction window and before recovery expectations change
-- off-chain operators understand that coverage and Slither are not yet producing stable audit artifacts
+- off-chain operators understand that the supported audit artifacts are `forge coverage --report summary --ir-minimum` and the curated Slither baseline
 - any manual funding of `RegentRevenueStaking` is operationally distinct from the launch path
 
 ## Trust Boundaries

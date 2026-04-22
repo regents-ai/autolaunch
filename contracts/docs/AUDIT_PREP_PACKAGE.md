@@ -1,27 +1,29 @@
 # Autolaunch Contracts Audit Prep Package
 
-Prepared on: 2026-04-21
+Prepared on: 2026-04-22
 Workspace: `/Users/sean/Documents/regent/autolaunch/contracts`
-Commit: `2a804d6600b783eb552022df1e0ca1773b03001f`
-Branch: `main`
+Freeze branch: `codex/audit-freeze-2026-04-22`
+Freeze commit: record the branch head after the audit-prep commit is created
 
 ## Status
 
-This workspace is materially ready for review, but not fully audit-ready yet.
+This workspace is materially ready for external review.
 
 Completed:
 
 - source scope reviewed
 - build verified
 - full Foundry test suite verified
+- stable Foundry coverage baseline verified
+- stable Slither baseline verified
 - actor and privilege map documented
 - workflow and trust assumptions documented
 - glossary documented
+- operator runbook documented
 
-Still open:
+Known hot path still worth focused review:
 
-- Slither does not currently produce a usable report in this workspace
-- Foundry coverage does not currently produce a usable coverage summary in this workspace
+- `RegentLBPStrategy.migrate` is now the only remaining live Slither warning family after baseline cleanup
 
 ## Assumed Review Goals
 
@@ -66,7 +68,7 @@ forge test
 Result:
 
 - succeeded
-- 126 tests passed
+- 131 tests passed
 - 0 failed
 - 0 skipped
 
@@ -90,7 +92,7 @@ forge coverage --report summary
 Result:
 
 - failed
-- Foundry disables the current compile mode for coverage and then hits a stack-depth compiler failure in `src/revenue/RevenueIngressFactory.sol`
+- Foundry disables IR for the default report mode and still hits a generic stack-depth compiler failure during instrumented compilation
 
 Second attempt:
 
@@ -100,12 +102,14 @@ forge coverage --report summary --ir-minimum
 
 Result:
 
-- failed
-- the build moved past the first compiler error but then failed with a Yul exception while compiling `RegentLBPStrategy`
+- succeeded
+- 131 tests passed under coverage
+- this is now the reproducible audit coverage command for the workspace
 
 Conclusion:
 
-- the codebase has tests, but it does not currently have a reproducible coverage report
+- the codebase now has a reproducible coverage baseline through `--ir-minimum`
+- the default non-IR coverage command still fails and should be treated as a tooling limitation, not the canonical audit command
 
 ### Static Analysis
 
@@ -117,22 +121,14 @@ slither . --exclude-dependencies
 
 Result:
 
-- failed before analysis output
-- `crytic-compile` raised `KeyError: 'output'` while parsing the Foundry project
-
-Retry:
-
-```bash
-slither . --compile-force-framework foundry --foundry-compile-all --exclude-dependencies
-```
-
-Result:
-
-- did not complete within the observed run after the build step
+- succeeded
+- local baseline exclusions now remove generic noise from timestamp, pragma, low-level-call, and event-order reports
+- the remaining report is concentrated on `RegentLBPStrategy.migrate`
 
 Conclusion:
 
-- a fresh Slither report is currently blocked by tool integration, not by missing source files
+- Slither now produces a stable report for this workspace
+- the remaining live warning family is the auction-to-pool migration path that should stay on the manual review list
 
 ## In-Scope Files
 
@@ -169,11 +165,11 @@ Normally out of scope for primary manual review:
 
 These remain useful as evidence for behavior and setup.
 
-## Preparation Gaps To Close Before External Review
+## Preparation Gaps To Close Before Or During External Review
 
-1. Make Slither produce a stable report for this Foundry workspace.
-2. Make Foundry produce a stable coverage report for this workspace.
-3. Freeze a dedicated audit branch once the above is resolved.
+1. Decide whether the team wants to pursue a default non-IR coverage report, or accept `--ir-minimum` as the canonical audit baseline.
+2. Perform a manual line-by-line review of `RegentLBPStrategy.migrate` against the runbook and migration assumptions.
+3. Record the final freeze commit on this branch when the handoff commit is created.
 
 ## Audit Hand-Off Documents
 
@@ -183,6 +179,8 @@ This package adds the following audit-facing documents:
 - `contracts/docs/AUDIT_ACTORS_AND_PRIVILEGES.md`
 - `contracts/docs/AUDIT_ASSUMPTIONS_AND_TRUST_BOUNDARIES.md`
 - `contracts/docs/AUDIT_GLOSSARY.md`
+- `contracts/docs/AUDIT_OPERATOR_RUNBOOK.md`
+- `contracts/slither.config.json`
 
 Related existing project documents:
 
@@ -194,8 +192,8 @@ Related existing project documents:
 
 ## Suggested Next Step
 
-If the goal is to be genuinely audit-ready rather than just audit-oriented, the next pass should focus on code changes:
+The next pass should focus on reviewer efficiency rather than broad prep work:
 
-1. make coverage reproducible
-2. make Slither reproducible
-3. cut an audit branch and rerun this package on that frozen commit
+1. review `RegentLBPStrategy.migrate` with the runbook in hand
+2. decide whether to keep or further reduce the remaining Slither warning family
+3. hand auditors this frozen branch and its verification commands
