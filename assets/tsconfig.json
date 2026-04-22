@@ -13,7 +13,6 @@
   "include": [
     "js/**/*.ts",
     "js/**/*.d.ts",
-    "vendor/**/*.d.ts",
-    "../../packages/regent_ui/assets/js/**/*"
+    "vendor/**/*.d.ts"
   ]
 }
