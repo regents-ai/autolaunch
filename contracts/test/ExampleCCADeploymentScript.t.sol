@@ -13,7 +13,6 @@ import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitter} from "src/revenue/RevenueShareSplitter.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {ExampleCCADeploymentScript} from "scripts/ExampleCCADeploymentScript.s.sol";
-import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {
     MockContinuousClearingAuctionFactory
 } from "test/mocks/MockContinuousClearingAuctionFactory.sol";
@@ -25,6 +24,7 @@ contract ExampleCCADeploymentScriptTest is Test {
     address internal constant REGENT_MULTISIG = address(0x9FA1);
     address internal constant IDENTITY_REGISTRY = address(0x8004);
     address internal constant STRATEGY_OPERATOR = address(0xBEEF);
+    address internal constant USDC = address(0xC0FFEE);
     uint256 internal constant IDENTITY_AGENT_ID = 42;
     uint256 internal constant TOTAL_SUPPLY = 1_000_000_000_000_000_000_000;
     uint256 internal constant CCA_TICK_SPACING_Q96 = 1_000_000_000_000_000;
@@ -33,7 +33,6 @@ contract ExampleCCADeploymentScriptTest is Test {
     ExampleCCADeploymentScript internal script;
     MockContinuousClearingAuctionFactory internal auctionFactory;
     MockHookPoolManager internal poolManager;
-    MintableERC20Mock internal usdc;
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal revenueShareFactory;
     RevenueIngressFactory internal revenueIngressFactory;
@@ -45,12 +44,11 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.chainId(84532);
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new MockHookPoolManager();
-        usdc = new MintableERC20Mock("USD Coin", "USDC");
         subjectRegistry = new SubjectRegistry(address(this));
         revenueShareFactory =
-            new RevenueShareFactory(address(script), address(usdc), subjectRegistry);
+            new RevenueShareFactory(address(script), USDC, subjectRegistry);
         revenueIngressFactory =
-            new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(script));
+            new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
         strategyFactory = new RegentLBPStrategyFactory();
         tokenFactory = new MockTokenFactory();
         subjectRegistry.transferOwnership(address(revenueShareFactory));
@@ -80,7 +78,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_TOKEN_SYMBOL", "LAGENT");
         vm.setEnv("AUTOLAUNCH_AGENT_ID", "1:42");
         vm.setEnv("AUTOLAUNCH_TOTAL_SUPPLY", vm.toString(TOTAL_SUPPLY));
-        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(address(usdc)));
+        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("CCA_TICK_SPACING_Q96", vm.toString(CCA_TICK_SPACING_Q96));
         vm.setEnv("CCA_FLOOR_PRICE_Q96", vm.toString(CCA_FLOOR_PRICE_Q96));
         vm.setEnv("CCA_REQUIRED_CURRENCY_RAISED", "1000000000000000000");
@@ -123,13 +121,13 @@ contract ExampleCCADeploymentScriptTest is Test {
         LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
         LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
         assertEq(poolConfig.launchToken, result.tokenAddress);
-        assertEq(poolConfig.quoteToken, address(usdc));
+        assertEq(poolConfig.quoteToken, USDC);
         assertEq(poolConfig.treasury, result.revenueShareSplitterAddress);
         assertEq(poolConfig.regentRecipient, REGENT_MULTISIG);
 
         RevenueShareSplitter splitter = RevenueShareSplitter(result.revenueShareSplitterAddress);
         assertEq(splitter.stakeToken(), result.tokenAddress);
-        assertEq(splitter.usdc(), address(usdc));
+        assertEq(splitter.usdc(), USDC);
         assertEq(splitter.treasuryRecipient(), AGENT_SAFE);
         assertEq(splitter.protocolRecipient(), REGENT_MULTISIG);
         assertEq(splitter.protocolSkimBps(), 100);
@@ -140,7 +138,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         );
         AuctionParameters memory parameters =
             abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
-        assertEq(parameters.currency, address(usdc));
+        assertEq(parameters.currency, USDC);
         assertEq(parameters.tokensRecipient, result.strategyAddress);
         assertEq(parameters.fundsRecipient, result.strategyAddress);
         assertEq(parameters.tickSpacing, CCA_TICK_SPACING_Q96);

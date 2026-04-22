@@ -209,6 +209,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
         require(receiver != address(0), "RECEIVER_ZERO");
 
         _sync(receiver);
+        require(totalStaked + amount <= revenueShareSupplyDenominator, "STAKE_CAP_EXCEEDED");
         _pullExactStakeToken(msg.sender, amount);
 
         stakedBalance[receiver] += amount;
@@ -344,6 +345,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
             return 0;
         }
         require(availableStakeTokenRewardInventory() >= amount, "REWARD_INVENTORY_LOW");
+        require(totalStaked + amount <= revenueShareSupplyDenominator, "STAKE_CAP_EXCEEDED");
 
         storedClaimableStakeToken[msg.sender] = 0;
         unclaimedStakeTokenLiability -= amount;
@@ -366,6 +368,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter {
             return 0;
         }
         require(availableStakeTokenRewardInventory() >= amount, "REWARD_INVENTORY_LOW");
+        require(totalStaked + amount <= revenueShareSupplyDenominator, "STAKE_CAP_EXCEEDED");
 
         storedClaimableStakeToken[msg.sender] = 0;
         unclaimedStakeTokenLiability -= amount;

@@ -10,7 +10,6 @@ import {TransferFeeERC20Mock} from "test/mocks/TransferFeeERC20Mock.sol";
 contract RegentRevenueStakingTest is Test {
     uint256 internal constant REGENT = 1e18;
     uint256 internal constant USDC = 1e6;
-    uint16 internal constant STAKER_SHARE_BPS = 7000;
     uint256 internal constant REVENUE_SHARE_SUPPLY_DENOMINATOR = 1000 * REGENT;
     uint16 internal constant MAX_APR_BPS = 2000;
 
@@ -33,7 +32,6 @@ contract RegentRevenueStakingTest is Test {
             address(regent),
             address(usdc),
             TREASURY,
-            STAKER_SHARE_BPS,
             REVENUE_SHARE_SUPPLY_DENOMINATOR,
             OWNER
         );
@@ -52,14 +50,14 @@ contract RegentRevenueStakingTest is Test {
         staking.depositUSDC(1000 * USDC, bytes32("manual"), bytes32("round-1"));
 
         assertEq(staking.totalRecognizedRewardsUsdc(), 1000 * USDC);
-        assertEq(staking.previewClaimableUSDC(ALICE), 140 * USDC);
-        assertEq(staking.treasuryResidualUsdc(), 860 * USDC);
+        assertEq(staking.previewClaimableUSDC(ALICE), 200 * USDC);
+        assertEq(staking.treasuryResidualUsdc(), 800 * USDC);
 
         vm.prank(ALICE);
         uint256 claimed = staking.claimUSDC(ALICE);
 
-        assertEq(claimed, 140 * USDC);
-        assertEq(usdc.balanceOf(ALICE), 140 * USDC);
+        assertEq(claimed, 200 * USDC);
+        assertEq(usdc.balanceOf(ALICE), 200 * USDC);
         assertEq(staking.previewClaimableUSDC(ALICE), 0);
     }
 
@@ -71,19 +69,19 @@ contract RegentRevenueStakingTest is Test {
         usdc.approve(address(staking), type(uint256).max);
         staking.depositUSDC(1000 * USDC, bytes32("manual"), bytes32("round-1"));
 
-        assertEq(staking.previewClaimableUSDC(ALICE), 140 * USDC);
-        assertEq(staking.previewClaimableUSDC(BOB), 210 * USDC);
-        assertEq(staking.treasuryResidualUsdc(), 650 * USDC);
+        assertEq(staking.previewClaimableUSDC(ALICE), 200 * USDC);
+        assertEq(staking.previewClaimableUSDC(BOB), 300 * USDC);
+        assertEq(staking.treasuryResidualUsdc(), 500 * USDC);
 
         _stake(CAROL, 500 * REGENT);
 
         usdc.mint(address(this), 500 * USDC);
         staking.depositUSDC(500 * USDC, bytes32("manual"), bytes32("round-2"));
 
-        assertEq(staking.previewClaimableUSDC(ALICE), 210 * USDC);
-        assertEq(staking.previewClaimableUSDC(BOB), 315 * USDC);
-        assertEq(staking.previewClaimableUSDC(CAROL), 175 * USDC);
-        assertEq(staking.treasuryResidualUsdc(), 800 * USDC);
+        assertEq(staking.previewClaimableUSDC(ALICE), 300 * USDC);
+        assertEq(staking.previewClaimableUSDC(BOB), 450 * USDC);
+        assertEq(staking.previewClaimableUSDC(CAROL), 250 * USDC);
+        assertEq(staking.treasuryResidualUsdc(), 500 * USDC);
     }
 
     function testBurningTokensElsewhereDoesNotChangeUsdcParticipation() external {
@@ -100,7 +98,7 @@ contract RegentRevenueStakingTest is Test {
         staking.depositUSDC(1000 * USDC, bytes32("manual"), bytes32("round-2"));
 
         uint256 aliceAfter = staking.previewClaimableUSDC(ALICE) - aliceBefore;
-        assertEq(aliceAfter, 140 * USDC);
+        assertEq(aliceAfter, 200 * USDC);
     }
 
     function testNoStakersLeavesFullDepositInTreasuryResidual() external {
@@ -123,9 +121,9 @@ contract RegentRevenueStakingTest is Test {
         staking.withdrawTreasuryResidual(10 * USDC, TREASURY);
 
         vm.prank(TREASURY);
-        staking.withdrawTreasuryResidual(93 * USDC, TREASURY);
+        staking.withdrawTreasuryResidual(90 * USDC, TREASURY);
 
-        assertEq(usdc.balanceOf(TREASURY), 93 * USDC);
+        assertEq(usdc.balanceOf(TREASURY), 90 * USDC);
         assertEq(staking.treasuryResidualUsdc(), 0);
     }
 
@@ -152,14 +150,8 @@ contract RegentRevenueStakingTest is Test {
 
     function testStakeRejectsInboundFeeOnTransferToken() external {
         TransferFeeERC20Mock taxed = new TransferFeeERC20Mock("Taxed Regent", "tREG", 18, address(0));
-        RegentRevenueStaking taxedStaking = new RegentRevenueStaking(
-            address(taxed),
-            address(usdc),
-            TREASURY,
-            STAKER_SHARE_BPS,
-            REVENUE_SHARE_SUPPLY_DENOMINATOR,
-            OWNER
-        );
+        RegentRevenueStaking taxedStaking =
+            new RegentRevenueStaking(address(taxed), address(usdc), TREASURY, REVENUE_SHARE_SUPPLY_DENOMINATOR, OWNER);
 
         taxed.setFeeBps(500);
         taxed.setFeeTriggers(address(taxedStaking), false, true);
@@ -174,14 +166,8 @@ contract RegentRevenueStakingTest is Test {
 
     function testClaimRejectsOutboundFeeOnTransferToken() external {
         TransferFeeERC20Mock taxed = new TransferFeeERC20Mock("Taxed Regent", "tREG", 18, address(0));
-        RegentRevenueStaking taxedStaking = new RegentRevenueStaking(
-            address(taxed),
-            address(usdc),
-            TREASURY,
-            STAKER_SHARE_BPS,
-            REVENUE_SHARE_SUPPLY_DENOMINATOR,
-            OWNER
-        );
+        RegentRevenueStaking taxedStaking =
+            new RegentRevenueStaking(address(taxed), address(usdc), TREASURY, REVENUE_SHARE_SUPPLY_DENOMINATOR, OWNER);
 
         taxed.mint(ALICE, 100 * REGENT);
         taxed.mint(FUNDER, 1000 * REGENT);
@@ -319,6 +305,51 @@ contract RegentRevenueStakingTest is Test {
         assertEq(regent.balanceOf(ALICE), 100 * REGENT);
     }
 
+    function testStakeRevertsWhenCapWouldBeExceeded() external {
+        _stake(ALICE, 200 * REGENT);
+        _stake(BOB, 300 * REGENT);
+        _stake(CAROL, 500 * REGENT);
+
+        regent.mint(address(0xD4), REGENT);
+
+        vm.startPrank(address(0xD4));
+        regent.approve(address(staking), type(uint256).max);
+        vm.expectRevert("STAKE_CAP_EXCEEDED");
+        staking.stake(REGENT, address(0xD4));
+        vm.stopPrank();
+    }
+
+    function testClaimAndRestakeRegentRevertsWhenCapWouldBeExceeded() external {
+        MintableBurnableERC20Mock smallRegent =
+            new MintableBurnableERC20Mock("Small Regent", "sREGENT", 18);
+        RegentRevenueStaking smallStaking = new RegentRevenueStaking(
+            address(smallRegent), address(usdc), TREASURY, 3 * REGENT, OWNER
+        );
+
+        address[3] memory stakers = [ALICE, BOB, CAROL];
+        for (uint256 i = 0; i < stakers.length; ++i) {
+            smallRegent.mint(stakers[i], REGENT);
+            vm.startPrank(stakers[i]);
+            smallRegent.approve(address(smallStaking), type(uint256).max);
+            smallStaking.stake(REGENT, stakers[i]);
+            vm.stopPrank();
+        }
+
+        smallRegent.mint(FUNDER, 100 * REGENT);
+        vm.startPrank(FUNDER);
+        smallRegent.approve(address(smallStaking), type(uint256).max);
+        smallStaking.fundRegentRewards(100 * REGENT);
+        vm.stopPrank();
+
+        vm.prank(OWNER);
+        smallStaking.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 10 days);
+
+        vm.prank(ALICE);
+        vm.expectRevert("STAKE_CAP_EXCEEDED");
+        smallStaking.claimAndRestakeRegent();
+    }
+
     function testPauseBlocksFundingClaimsAndStakeButNotUnstake() external {
         _stake(ALICE, 100 * REGENT);
         _fundRegentRewards(1000 * REGENT);
@@ -387,7 +418,7 @@ contract RegentRevenueStakingTest is Test {
         MintableBurnableERC20Mock smallRegent =
             new MintableBurnableERC20Mock("Small Regent", "sREGENT", 18);
         RegentRevenueStaking smallStaking = new RegentRevenueStaking(
-            address(smallRegent), address(usdc), TREASURY, STAKER_SHARE_BPS, 3 * REGENT, OWNER
+            address(smallRegent), address(usdc), TREASURY, 3 * REGENT, OWNER
         );
 
         address[3] memory stakers = [ALICE, BOB, CAROL];

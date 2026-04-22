@@ -59,14 +59,12 @@ export BASE_REGENT_TOKEN_ADDRESS=...
 export BASE_USDC_ADDRESS=...
 export REGENT_REVENUE_TREASURY_ADDRESS=...
 export REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS=...
-export REGENT_REVENUE_STAKER_SHARE_BPS=10000
 export REGENT_REVENUE_SUPPLY_DENOMINATOR=100000000000000000000000000000
 export PRIVATE_KEY=...
 ```
 
 Important defaults:
 
-- `REGENT_REVENUE_STAKER_SHARE_BPS=10000` means **100% of each USDC deposit is staker-eligible**
 - `REGENT_REVENUE_SUPPLY_DENOMINATOR=100000000000000000000000000000` is **100 billion tokens in raw 18-decimal units**
 
 Deploy the staking contract:
@@ -84,7 +82,6 @@ Save the printed `REGENT_REVENUE_STAKING_RESULT_JSON` values:
 - `usdcAddress`
 - `treasuryRecipient`
 - `owner`
-- `stakerShareBps`
 - `revenueShareSupplyDenominator`
 
 Use `contractAddress` as `REGENT_REVENUE_STAKING_ADDRESS` later.
@@ -329,7 +326,7 @@ Do this only after the Base Sepolia staking contract exists:
 
 Important notes:
 
-- `stakerShareBps` is the fixed USDC revenue split and is already locked at deploy
+- all Regent revenue deposits are now fully staker-eligible, with the live staked share measured against the fixed denominator
 - `emissionAprBps` is the adjustable reward APR lever controlled by `REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS`
 - do not turn emissions on before the contract has `$REGENT` reward inventory
 

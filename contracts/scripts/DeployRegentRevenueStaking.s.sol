@@ -11,7 +11,6 @@ contract DeployRegentRevenueStakingScript is Script {
         address regentToken;
         address usdc;
         address treasuryRecipient;
-        uint16 stakerShareBps;
         uint256 revenueShareSupplyDenominator;
         address owner;
     }
@@ -26,7 +25,6 @@ contract DeployRegentRevenueStakingScript is Script {
             cfg.regentToken,
             cfg.usdc,
             cfg.treasuryRecipient,
-            cfg.stakerShareBps,
             cfg.revenueShareSupplyDenominator,
             cfg.owner
         );
@@ -45,9 +43,6 @@ contract DeployRegentRevenueStakingScript is Script {
 
         cfg.owner = vm.envAddress("REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS");
         require(cfg.owner != address(0), "OWNER_ZERO");
-
-        cfg.stakerShareBps = uint16(vm.envUint("REGENT_REVENUE_STAKER_SHARE_BPS"));
-        require(cfg.stakerShareBps <= 10_000, "STAKER_SHARE_BPS_INVALID");
 
         cfg.revenueShareSupplyDenominator = vm.envUint("REGENT_REVENUE_SUPPLY_DENOMINATOR");
         require(cfg.revenueShareSupplyDenominator != 0, "SUPPLY_DENOMINATOR_ZERO");
@@ -69,9 +64,7 @@ contract DeployRegentRevenueStakingScript is Script {
                 vm.toString(cfg.treasuryRecipient),
                 "\",\"owner\":\"",
                 vm.toString(cfg.owner),
-                "\",\"stakerShareBps\":",
-                vm.toString(uint256(cfg.stakerShareBps)),
-                ",\"revenueShareSupplyDenominator\":",
+                "\",\"revenueShareSupplyDenominator\":",
                 vm.toString(cfg.revenueShareSupplyDenominator),
                 "}"
             )

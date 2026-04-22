@@ -3,9 +3,9 @@ pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 
-import {SimpleMintableERC20} from "src/SimpleMintableERC20.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
+import {MintableBurnableERC20Mock} from "test/mocks/MintableBurnableERC20Mock.sol";
 
 contract RevenueShareFactoryTest is Test {
     address internal constant OWNER = address(0xA11CE);
@@ -19,13 +19,13 @@ contract RevenueShareFactoryTest is Test {
 
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal factory;
-    SimpleMintableERC20 internal stakeToken;
+    MintableBurnableERC20Mock internal stakeToken;
 
     function setUp() external {
         subjectRegistry = new SubjectRegistry(OWNER);
         factory = new RevenueShareFactory(OWNER, USDC, subjectRegistry);
-        stakeToken =
-            new SimpleMintableERC20("Agent", "AGENT", 18, address(this), 1000 ether, address(this));
+        stakeToken = new MintableBurnableERC20Mock("Agent", "AGENT", 18);
+        stakeToken.mint(address(this), 1000 ether);
 
         vm.prank(OWNER);
         subjectRegistry.transferOwnership(address(factory));

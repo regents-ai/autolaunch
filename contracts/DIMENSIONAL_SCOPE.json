@@ -126,20 +126,6 @@
       "step4": "VALIDATED"
     },
     {
-      "path": "src/SimpleMintableERC20.sol",
-      "priority": "MEDIUM",
-      "score": 76,
-      "category": "peripheral",
-      "matched_patterns": [
-        "totalSupply and balance accounting",
-        "allowance decrement",
-        "mint and transfer balance updates"
-      ],
-      "step2": "REVIEWED_NO_ANCHOR_CHANGES",
-      "step3": "REVIEWED_NO_PROPAGATION_CHANGES",
-      "step4": "VALIDATED"
-    },
-    {
       "path": "src/RegentLBPStrategyFactory.sol",
       "priority": "MEDIUM",
       "score": 72,
@@ -319,20 +305,6 @@
         "accrued fee balances",
         "withdrawal balance subtraction",
         "protected token accounting"
-      ],
-      "step2": "PENDING",
-      "step3": "PENDING",
-      "step4": "PENDING"
-    },
-    {
-      "path": "src/SimpleMintableERC20.sol",
-      "priority": "MEDIUM",
-      "score": 76,
-      "category": "peripheral",
-      "matched_patterns": [
-        "totalSupply and balance accounting",
-        "allowance decrement",
-        "mint and transfer balance updates"
       ],
       "step2": "PENDING",
       "step3": "PENDING",

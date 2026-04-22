@@ -523,6 +523,41 @@ contract RevenueShareSplitterTest is Test {
         assertEq(splitter.previewClaimableStakeToken(ALICE), 0);
     }
 
+    function testStakeRevertsWhenCapWouldBeExceeded() external {
+        stakeToken.mint(address(0xD4D4), 601 * XYZ);
+
+        vm.startPrank(address(0xD4D4));
+        stakeToken.approve(address(splitter), type(uint256).max);
+        vm.expectRevert("STAKE_CAP_EXCEEDED");
+        splitter.stake(601 * XYZ, address(0xD4D4));
+        vm.stopPrank();
+    }
+
+    function testClaimAndRestakeStakeTokenRevertsWhenCapWouldBeExceeded() external {
+        MintableBurnableERC20Mock smallStake =
+            new MintableBurnableERC20Mock("Small Agent", "sAGENT", 18);
+        RevenueShareSplitter smallSplitter = _deploySplitter(smallStake, 3 * XYZ, "small-cap");
+
+        address[3] memory stakers = [ALICE, BOB, CAROL];
+        for (uint256 i = 0; i < stakers.length; ++i) {
+            smallStake.mint(stakers[i], XYZ);
+            vm.startPrank(stakers[i]);
+            smallStake.approve(address(smallSplitter), type(uint256).max);
+            smallSplitter.stake(XYZ, stakers[i]);
+            vm.stopPrank();
+        }
+
+        smallStake.mint(FUNDER, 100 * XYZ);
+        _fundStakeTokenRewards(smallSplitter, smallStake, 100 * XYZ);
+
+        smallSplitter.setEmissionAprBps(MAX_APR_BPS);
+        vm.warp(block.timestamp + 365 days);
+
+        vm.prank(ALICE);
+        vm.expectRevert("STAKE_CAP_EXCEEDED");
+        smallSplitter.claimAndRestakeStakeToken();
+    }
+
     function testSweepTreasuryResidualUSDCCallableByArbitraryAddress() external {
         usdc.mint(address(this), INITIAL_INGRESS_DEPOSIT);
         usdc.approve(address(splitter), INITIAL_INGRESS_DEPOSIT);

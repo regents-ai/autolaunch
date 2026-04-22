@@ -16,7 +16,6 @@ contract RegentRevenueStaking is Owned {
 
     address public immutable stakeToken;
     address public immutable usdc;
-    uint16 public immutable stakerShareBps;
     uint256 public immutable revenueShareSupplyDenominator;
 
     address public treasuryRecipient;
@@ -64,20 +63,17 @@ contract RegentRevenueStaking is Owned {
         address stakeToken_,
         address usdc_,
         address treasuryRecipient_,
-        uint16 stakerShareBps_,
         uint256 revenueShareSupplyDenominator_,
         address owner_
     ) Owned(owner_) {
         require(stakeToken_ != address(0), "STAKE_TOKEN_ZERO");
         require(usdc_ != address(0), "USDC_ZERO");
         require(treasuryRecipient_ != address(0), "TREASURY_ZERO");
-        require(stakerShareBps_ <= BPS_DENOMINATOR, "STAKER_SHARE_BPS_INVALID");
         require(revenueShareSupplyDenominator_ != 0, "SUPPLY_DENOMINATOR_ZERO");
 
         stakeToken = stakeToken_;
         usdc = usdc_;
         treasuryRecipient = treasuryRecipient_;
-        stakerShareBps = stakerShareBps_;
         revenueShareSupplyDenominator = revenueShareSupplyDenominator_;
         lastEmissionUpdate = block.timestamp;
     }
@@ -118,6 +114,7 @@ contract RegentRevenueStaking is Owned {
         require(receiver != address(0), "RECEIVER_ZERO");
 
         _sync(receiver);
+        require(totalStaked + amount <= revenueShareSupplyDenominator, "STAKE_CAP_EXCEEDED");
         _pullExactStakeToken(msg.sender, amount);
 
         stakedBalance[receiver] += amount;
@@ -230,6 +227,7 @@ contract RegentRevenueStaking is Owned {
             return 0;
         }
         require(availableRegentRewardInventory() >= amount, "REWARD_INVENTORY_LOW");
+        require(totalStaked + amount <= revenueShareSupplyDenominator, "STAKE_CAP_EXCEEDED");
 
         storedClaimableRegent[msg.sender] = 0;
         unclaimedRegentLiability -= amount;
@@ -349,10 +347,7 @@ contract RegentRevenueStaking is Owned {
 
         totalRecognizedRewardsUsdc += received;
 
-        uint256 stakerPool = 0;
-        if (stakerShareBps > 0) {
-            stakerPool = FullMath.mulDiv(received, stakerShareBps, BPS_DENOMINATOR);
-        }
+        uint256 stakerPool = received;
 
         uint256 creditedToStakers = 0;
         if (stakerPool > 0) {

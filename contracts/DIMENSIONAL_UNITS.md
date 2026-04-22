@@ -16,7 +16,7 @@
 - `D7{1}`: 1e7-scaled allocation ratio used by `tokenSplitToAuctionMps`.
 
 # Precision Prefixes
-- `D4`: Basis-point precision, used for fee and allocation ratios such as `stakerShareBps`, `emissionAprBps`, and `lpCurrencyBps`.
+- `D4`: Basis-point precision, used for fee and allocation ratios such as `emissionAprBps` and `lpCurrencyBps`.
 - `D6`: 1e6-scaled precision, used for Uniswap-style pool fees and fee caps.
 - `D7`: 1e7-scaled precision, used for the auction split scalar in `tokenSplitToAuctionMps`.
 - `D18`: Standard ERC20 and fixed-point precision, common for launch-token math and 18-decimal values.
