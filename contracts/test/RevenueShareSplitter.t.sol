@@ -496,7 +496,6 @@ contract RevenueShareSplitterTest is Test {
 
         assertEq(splitter.eligibleRevenueShareBps(), 9000);
         assertEq(splitter.pendingEligibleRevenueShareBps(), 0);
-        assertEq(splitter.currentRevenuePolicyEpoch(), 2);
         assertEq(splitter.eligibleRevenueShareCooldownEnd(), activationTime + 30 days);
     }
 
@@ -525,7 +524,7 @@ contract RevenueShareSplitterTest is Test {
         assertEq(fullSplitter.previewClaimableUSDC(ALICE), 99 * USDC);
     }
 
-    function testCheckpointedIngressBalanceKeepsOldShareAfterActivation() external {
+    function testIngressSweepBeforeActivationUsesOldShare() external {
         (
             RevenueShareSplitter ingressSplitter,
             SubjectRegistry registry,
@@ -539,55 +538,104 @@ contract RevenueShareSplitterTest is Test {
         usdc.mint(ingress, 1000 * USDC);
 
         ingressSplitter.proposeEligibleRevenueShare(8000);
-        vm.warp(block.timestamp + 30 days);
-        vm.prank(ALICE);
-        ingressSplitter.activateEligibleRevenueShare();
 
-        assertEq(ingressSplitter.ingressCarryoverUsdc(ingress, 1), 1000 * USDC);
+        RevenueIngressAccount(payable(ingress)).sweepUSDC(bytes32("before-activation"));
 
-        usdc.mint(ingress, 500 * USDC);
-        RevenueIngressAccount(payable(ingress)).sweepUSDC(bytes32("checkpoint"));
-
-        assertEq(ingressSplitter.eligibleRevenueShareBps(), 8000);
-        assertEq(ingressSplitter.protocolReserveUsdc(), 15 * USDC);
-        assertEq(ingressSplitter.stakerEligibleInflowUsdc(), 1386 * USDC);
-        assertEq(ingressSplitter.treasuryReservedInflowUsdc(), 99 * USDC);
-        assertEq(ingressSplitter.treasuryReservedUsdc(), 99 * USDC);
-        assertEq(ingressSplitter.treasuryResidualUsdc(), 1386 * USDC);
+        assertEq(ingressSplitter.eligibleRevenueShareBps(), 10_000);
+        assertEq(ingressSplitter.pendingEligibleRevenueShareBps(), 8000);
+        assertEq(ingressSplitter.protocolReserveUsdc(), 10 * USDC);
+        assertEq(ingressSplitter.stakerEligibleInflowUsdc(), 990 * USDC);
+        assertEq(ingressSplitter.treasuryReservedInflowUsdc(), 0);
+        assertEq(ingressSplitter.treasuryReservedUsdc(), 0);
+        assertEq(ingressSplitter.treasuryResidualUsdc(), 990 * USDC);
     }
 
-    function testActivationCheckpointsMultipleIngressAccounts() external {
+    function testIngressSweepAfterActivationUsesNewShareForEarlierUsdc() external {
         (
             RevenueShareSplitter ingressSplitter,
             SubjectRegistry registry,
             RevenueIngressFactory ingressFactory,
             bytes32 subjectId
-        ) = _deploySplitterWithIngressFactory("multi-ingress");
+        ) = _deploySplitterWithIngressFactory("sweep-after-activation");
+        registryOfSplitter[address(ingressSplitter)] = registry;
+        subjectIdOfSplitter[address(ingressSplitter)] = subjectId;
+
+        address ingress = ingressFactory.createIngressAccount(subjectId, "default", true);
+        usdc.mint(ingress, 1000 * USDC);
+
+        ingressSplitter.proposeEligibleRevenueShare(8000);
+        vm.warp(block.timestamp + 30 days);
+        vm.prank(ALICE);
+        ingressSplitter.activateEligibleRevenueShare();
+
+        RevenueIngressAccount(payable(ingress)).sweepUSDC(bytes32("after-activation"));
+
+        assertEq(ingressSplitter.eligibleRevenueShareBps(), 8000);
+        assertEq(ingressSplitter.protocolReserveUsdc(), 10 * USDC);
+        assertEq(ingressSplitter.stakerEligibleInflowUsdc(), 792 * USDC);
+        assertEq(ingressSplitter.treasuryReservedInflowUsdc(), 198 * USDC);
+        assertEq(ingressSplitter.treasuryReservedUsdc(), 198 * USDC);
+        assertEq(ingressSplitter.treasuryResidualUsdc(), 792 * USDC);
+    }
+
+    function testActivationDoesNotReadIngressBalances() external {
+        (
+            RevenueShareSplitter ingressSplitter,
+            SubjectRegistry registry,
+            RevenueIngressFactory ingressFactory,
+            bytes32 subjectId
+        ) = _deploySplitterWithIngressFactory("activation-no-balance-read");
+        registryOfSplitter[address(ingressSplitter)] = registry;
+        subjectIdOfSplitter[address(ingressSplitter)] = subjectId;
+
+        address ingressA = ingressFactory.createIngressAccount(subjectId, "default", true);
+        usdc.mint(ingressA, 1000 * USDC);
+
+        ingressSplitter.proposeEligibleRevenueShare(8000);
+        vm.warp(block.timestamp + 30 days);
+        vm.mockCallRevert(
+            address(usdc),
+            abi.encodeWithSignature("balanceOf(address)", ingressA),
+            bytes("BALANCE_READ_BLOCKED")
+        );
+
+        ingressSplitter.activateEligibleRevenueShare();
+
+        vm.clearMockedCalls();
+
+        assertEq(ingressSplitter.eligibleRevenueShareBps(), 8000);
+        assertEq(ingressSplitter.grossInflowUsdc(), 0);
+        assertEq(usdc.balanceOf(ingressA), 1000 * USDC);
+    }
+
+    function testMultipleIngressAccountsUseCurrentShareAtSweepTime() external {
+        (
+            RevenueShareSplitter ingressSplitter,
+            SubjectRegistry registry,
+            RevenueIngressFactory ingressFactory,
+            bytes32 subjectId
+        ) = _deploySplitterWithIngressFactory("multi-ingress-current-share");
         registryOfSplitter[address(ingressSplitter)] = registry;
         subjectIdOfSplitter[address(ingressSplitter)] = subjectId;
 
         address ingressA = ingressFactory.createIngressAccount(subjectId, "default", true);
         address ingressB = ingressFactory.createIngressAccount(subjectId, "backup", false);
         usdc.mint(ingressA, 1000 * USDC);
-        usdc.mint(ingressB, 500 * USDC);
 
         ingressSplitter.proposeEligibleRevenueShare(8000);
         vm.warp(block.timestamp + 30 days);
         ingressSplitter.activateEligibleRevenueShare();
 
-        assertEq(ingressSplitter.ingressCarryoverUsdc(ingressA, 1), 1000 * USDC);
-        assertEq(ingressSplitter.ingressCarryoverUsdc(ingressB, 1), 500 * USDC);
-
-        usdc.mint(ingressA, 100 * USDC);
-        usdc.mint(ingressB, 100 * USDC);
+        usdc.mint(ingressB, 500 * USDC);
 
         RevenueIngressAccount(payable(ingressA)).sweepUSDC(bytes32("ingress-a"));
         RevenueIngressAccount(payable(ingressB)).sweepUSDC(bytes32("ingress-b"));
 
-        assertEq(ingressSplitter.protocolReserveUsdc(), 17 * USDC);
-        assertEq(ingressSplitter.treasuryReservedInflowUsdc(), 39_600_000);
-        assertEq(ingressSplitter.treasuryReservedUsdc(), 39_600_000);
-        assertEq(ingressSplitter.stakerEligibleInflowUsdc(), 1_643_400_000);
+        assertEq(ingressSplitter.protocolReserveUsdc(), 15 * USDC);
+        assertEq(ingressSplitter.stakerEligibleInflowUsdc(), 1188 * USDC);
+        assertEq(ingressSplitter.treasuryReservedInflowUsdc(), 297 * USDC);
+        assertEq(ingressSplitter.treasuryReservedUsdc(), 297 * USDC);
+        assertEq(ingressSplitter.treasuryResidualUsdc(), 1188 * USDC);
     }
 
     function testIngressFactoryCapsAccountsPerSubject() external {

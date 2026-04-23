@@ -193,7 +193,7 @@ defmodule AutolaunchWeb.SubjectLive do
                 <h2>Follow the live share, the queued change, and every tracked dollar.</h2>
               </div>
               <p>
-                All recognized USDC still comes through the same intake path. This section shows how the live routing rule splits that money between the Regent skim, the staker-eligible lane, and the subject reserve lane.
+                Revenue counts when USDC reaches this subject's revenue contract. Money waiting in an intake account can be swept before a pending share change takes effect; money swept later follows the live share at that time.
               </p>
 
               <div class="al-routing-policy-stats">
@@ -674,8 +674,8 @@ defmodule AutolaunchWeb.SubjectLive do
                 <article class="al-subject-secondary-card">
                   <div>
                     <p class="al-kicker">Ingress</p>
-                    <h3>Move USDC from intake accounts into the splitter.</h3>
-                    <p>Known USDC intake accounts: {@ingress_count}.</p>
+                    <h3>Move USDC from intake accounts into revenue.</h3>
+                    <p>Known USDC intake accounts: {@ingress_count}. Money here counts after it is swept.</p>
                   </div>
 
                   <%= if @subject.can_manage_ingress and @ingress_accounts != [] do %>

@@ -16,6 +16,8 @@ Autolaunch has one launch stack and one revenue-recognition stack.
 
 1. Recognized subject revenue is Base-family USDC only.
 2. Subject revenue counts only when that Base-family USDC reaches the subject revenue splitter.
+   - USDC waiting in an ingress account is not recognized revenue yet.
+   - USDC swept after a share change goes live uses the new live share.
 3. The launch token allocation story is fixed:
    - 10% public sale
    - 5% LP reserve

@@ -213,6 +213,7 @@ Important launch rules:
 - Launch buyers must stake the claimed tokens to earn recognized Base-family USDC revenue once it reaches the revsplit
 - Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
 - Recognized revenue is Base-family USDC only, and it only counts once it reaches the revsplit
+- Funds waiting in an ingress account are not recognized yet; they can be swept before a pending share change takes effect, and anything swept later uses the live share at that time
 - The fee hook is the launch-side fee lane, while the revsplit is the ongoing revenue-rights lane
 - `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET` is required at runtime
 - `config/runtime.exs` is the runtime environment path; `config/dev.exs` stays limited to dev-only browser tooling and reload support

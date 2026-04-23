@@ -95,10 +95,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
     );
     event EligibleRevenueShareCancelled(uint16 indexed cancelledBps, uint64 cooldownEnd);
     event EligibleRevenueShareActivated(
-        uint16 indexed previousBps,
-        uint16 indexed newBps,
-        uint64 activatedAt,
-        uint64 cooldownEnd
+        uint16 indexed previousBps, uint16 indexed newBps, uint64 activatedAt, uint64 cooldownEnd
     );
     event StakeUpdated(address indexed account, uint256 newStakeBalance, uint256 totalStaked);
     event USDCRevenueDeposited(
@@ -272,10 +269,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         eligibleRevenueShareCooldownEnd = uint64(block.timestamp) + ELIGIBLE_REVENUE_SHARE_DELAY;
 
         emit EligibleRevenueShareActivated(
-            previousBps,
-            newBps,
-            _toUint64(block.timestamp),
-            eligibleRevenueShareCooldownEnd
+            previousBps, newBps, _toUint64(block.timestamp), eligibleRevenueShareCooldownEnd
         );
     }
 
@@ -630,12 +624,9 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         rewardDebtUsdc[account] = currentAcc;
     }
 
-    function _recordRevenue(
-        uint256 received,
-        uint16 shareBps,
-        bytes32 sourceTag,
-        bytes32 sourceRef
-    ) internal {
+    function _recordRevenue(uint256 received, uint16 shareBps, bytes32 sourceTag, bytes32 sourceRef)
+        internal
+    {
         require(received > 0, "NOTHING_RECEIVED");
 
         uint256 protocolAmount = 0;

@@ -274,6 +274,7 @@ From there, the fee and revenue path is:
 Important rule:
 
 - revenue only counts once Base-family USDC reaches the subject’s revenue splitter
+- USDC waiting in an ingress account can be swept before a pending share change goes live; USDC swept later uses the live share at that time
 
 That is the point where the system treats revenue as recognized.
 
