@@ -41,7 +41,9 @@ defmodule AutolaunchWeb.Api.BidControllerTest do
 
   test "exit returns the updated bid position", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    conn = post(conn, "/api/bids/bid_1/exit", %{"tx_hash" => "0x" <> String.duplicate("1", 64)})
+
+    conn =
+      post(conn, "/v1/app/bids/bid_1/exit", %{"tx_hash" => "0x" <> String.duplicate("1", 64)})
 
     assert %{"ok" => true, "bid" => %{"bid_id" => "bid_1", "status" => "exited"}} =
              json_response(conn, 200)
@@ -51,7 +53,9 @@ defmodule AutolaunchWeb.Api.BidControllerTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
 
     conn =
-      post(conn, "/api/bids/bid_forbidden/exit", %{"tx_hash" => "0x" <> String.duplicate("2", 64)})
+      post(conn, "/v1/app/bids/bid_forbidden/exit", %{
+        "tx_hash" => "0x" <> String.duplicate("2", 64)
+      })
 
     assert %{"ok" => false, "error" => %{"code" => "bid_forbidden"}} = json_response(conn, 403)
   end
@@ -60,7 +64,9 @@ defmodule AutolaunchWeb.Api.BidControllerTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
 
     conn =
-      post(conn, "/api/bids/bid_pending/claim", %{"tx_hash" => "0x" <> String.duplicate("3", 64)})
+      post(conn, "/v1/app/bids/bid_pending/claim", %{
+        "tx_hash" => "0x" <> String.duplicate("3", 64)
+      })
 
     assert %{"ok" => false, "error" => %{"code" => "transaction_pending"}} =
              json_response(conn, 202)
@@ -70,7 +76,9 @@ defmodule AutolaunchWeb.Api.BidControllerTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
 
     conn =
-      post(conn, "/api/bids/bid_missing/claim", %{"tx_hash" => "0x" <> String.duplicate("4", 64)})
+      post(conn, "/v1/app/bids/bid_missing/claim", %{
+        "tx_hash" => "0x" <> String.duplicate("4", 64)
+      })
 
     assert %{"ok" => false, "error" => %{"code" => "bid_not_found"}} = json_response(conn, 404)
   end

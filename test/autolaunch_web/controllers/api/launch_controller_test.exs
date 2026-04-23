@@ -116,8 +116,8 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
     }
   end
 
-  defp launch_job_path(job_id), do: "/api/launch/jobs/#{job_id}"
-  defp launch_preview_path, do: "/api/launch/preview"
+  defp launch_job_path(job_id), do: "/v1/app/launch/jobs/#{job_id}"
+  defp launch_preview_path, do: "/v1/app/launch/preview"
 
   test "preview returns the normalized launch review", %{conn: conn, human: human} do
     conn = signed_in_conn(conn, human)
@@ -145,7 +145,7 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
   } do
     conn = signed_in_conn(conn, human)
 
-    conn = post(conn, "/api/launch/jobs", launch_job_payload("good"))
+    conn = post(conn, "/v1/app/launch/jobs", launch_job_payload("good"))
 
     assert %{"ok" => true, "job_id" => "job_123", "status" => "queued"} = json_response(conn, 200)
   end
@@ -160,7 +160,7 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
       |> signed_in_conn(human)
       |> put_req_header("x-forwarded-for", "198.51.100.77")
 
-    conn = post(conn, "/api/launch/jobs", launch_job_payload("good"))
+    conn = post(conn, "/v1/app/launch/jobs", launch_job_payload("good"))
 
     assert %{
              "ok" => true,
@@ -174,7 +174,7 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
   } do
     conn = signed_in_conn(conn, human)
 
-    conn = post(conn, "/api/launch/jobs", launch_job_payload("bad"))
+    conn = post(conn, "/v1/app/launch/jobs", launch_job_payload("bad"))
 
     assert %{"ok" => false, "reason" => "bad signature"} = json_response(conn, 401)
   end
@@ -182,7 +182,7 @@ defmodule AutolaunchWeb.Api.LaunchControllerTest do
   test "launch job creation returns sidecar failures", %{conn: conn, human: human} do
     conn = signed_in_conn(conn, human)
 
-    conn = post(conn, "/api/launch/jobs", launch_job_payload("sidecar"))
+    conn = post(conn, "/v1/app/launch/jobs", launch_job_payload("sidecar"))
 
     assert %{"ok" => false, "error" => "siwa_down"} = json_response(conn, 503)
   end

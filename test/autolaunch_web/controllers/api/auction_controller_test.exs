@@ -98,13 +98,13 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
   end
 
   test "index returns a non-empty auction payload", %{conn: conn} do
-    conn = get(conn, "/api/auctions?mode=biddable&sort=newest")
+    conn = get(conn, "/v1/app/auctions?mode=biddable&sort=newest")
 
     assert %{"ok" => true, "items" => [%{"id" => "auc_1"}]} = json_response(conn, 200)
   end
 
   test "show returns not found when the auction is missing", %{conn: conn} do
-    conn = get(conn, "/api/auctions/auc_missing")
+    conn = get(conn, "/v1/app/auctions/auc_missing")
 
     assert %{"ok" => false, "error" => %{"code" => "auction_not_found"}} =
              json_response(conn, 404)
@@ -117,7 +117,10 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
 
     conn =
-      post(conn, "/api/auctions/auc_1/bid_quote", %{"amount" => "250.0", "max_price" => "0.0060"})
+      post(conn, "/v1/app/auctions/auc_1/bid_quote", %{
+        "amount" => "250.0",
+        "max_price" => "0.0060"
+      })
 
     assert %{
              "ok" => true,
@@ -129,7 +132,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
 
   test "bid_quote returns specific auction lifecycle errors", %{conn: conn} do
     conn =
-      post(conn, "/api/auctions/auc_sold/bid_quote", %{
+      post(conn, "/v1/app/auctions/auc_sold/bid_quote", %{
         "amount" => "250.0",
         "max_price" => "0.0060"
       })
@@ -141,7 +144,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     tx_hash = "0x" <> "p" <> String.duplicate("1", 63)
 
-    conn = post(conn, "/api/auctions/auc_1/bids", %{"tx_hash" => tx_hash})
+    conn = post(conn, "/v1/app/auctions/auc_1/bids", %{"tx_hash" => tx_hash})
 
     assert %{"ok" => false, "error" => %{"code" => "transaction_pending"}} =
              json_response(conn, 202)

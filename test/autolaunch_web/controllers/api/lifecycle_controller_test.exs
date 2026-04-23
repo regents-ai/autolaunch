@@ -286,15 +286,15 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
     init_test_session(conn, privy_user_id: human.privy_user_id)
   end
 
-  defp lifecycle_job_path(job_id), do: "/api/lifecycle/jobs/#{job_id}"
+  defp lifecycle_job_path(job_id), do: "/v1/app/lifecycle/jobs/#{job_id}"
 
   defp lifecycle_finalize_prepare_path(job_id),
-    do: "/api/lifecycle/jobs/#{job_id}/finalize/prepare"
+    do: "/v1/app/lifecycle/jobs/#{job_id}/finalize/prepare"
 
   defp lifecycle_finalize_register_path(job_id),
-    do: "/api/lifecycle/jobs/#{job_id}/finalize/register"
+    do: "/v1/app/lifecycle/jobs/#{job_id}/finalize/register"
 
-  defp lifecycle_vesting_path(job_id), do: "/api/lifecycle/jobs/#{job_id}/vesting"
+  defp lifecycle_vesting_path(job_id), do: "/v1/app/lifecycle/jobs/#{job_id}/vesting"
 
   test "lifecycle summary rejects unauthenticated access", %{conn: conn} do
     summary_conn = get(conn, lifecycle_job_path("job_alpha"))

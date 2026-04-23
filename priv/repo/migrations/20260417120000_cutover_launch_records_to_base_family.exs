@@ -45,7 +45,9 @@ defmodule Autolaunch.Repo.Migrations.CutoverLaunchRecordsToBaseFamily do
       DROP CONSTRAINT IF EXISTS autolaunch_jobs_chain_id_sepolia_only,
       DROP CONSTRAINT IF EXISTS autolaunch_jobs_network_sepolia_only,
       DROP CONSTRAINT IF EXISTS autolaunch_jobs_chain_id_base_only,
-      DROP CONSTRAINT IF EXISTS autolaunch_jobs_network_base_only
+      DROP CONSTRAINT IF EXISTS autolaunch_jobs_network_base_only,
+      DROP CONSTRAINT IF EXISTS autolaunch_jobs_chain_id_base_family_only,
+      DROP CONSTRAINT IF EXISTS autolaunch_jobs_network_base_family_only
     """)
 
     execute("""
@@ -55,7 +57,9 @@ defmodule Autolaunch.Repo.Migrations.CutoverLaunchRecordsToBaseFamily do
       DROP CONSTRAINT IF EXISTS autolaunch_auctions_chain_id_sepolia_only,
       DROP CONSTRAINT IF EXISTS autolaunch_auctions_network_sepolia_only,
       DROP CONSTRAINT IF EXISTS autolaunch_auctions_chain_id_base_only,
-      DROP CONSTRAINT IF EXISTS autolaunch_auctions_network_base_only
+      DROP CONSTRAINT IF EXISTS autolaunch_auctions_network_base_only,
+      DROP CONSTRAINT IF EXISTS autolaunch_auctions_chain_id_base_family_only,
+      DROP CONSTRAINT IF EXISTS autolaunch_auctions_network_base_family_only
     """)
 
     execute("""
@@ -65,7 +69,9 @@ defmodule Autolaunch.Repo.Migrations.CutoverLaunchRecordsToBaseFamily do
       DROP CONSTRAINT IF EXISTS autolaunch_bids_chain_id_sepolia_only,
       DROP CONSTRAINT IF EXISTS autolaunch_bids_network_sepolia_only,
       DROP CONSTRAINT IF EXISTS autolaunch_bids_chain_id_base_only,
-      DROP CONSTRAINT IF EXISTS autolaunch_bids_network_base_only
+      DROP CONSTRAINT IF EXISTS autolaunch_bids_network_base_only,
+      DROP CONSTRAINT IF EXISTS autolaunch_bids_chain_id_base_family_only,
+      DROP CONSTRAINT IF EXISTS autolaunch_bids_network_base_family_only
     """)
 
     execute("""

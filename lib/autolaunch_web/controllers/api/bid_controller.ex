@@ -3,10 +3,12 @@ defmodule AutolaunchWeb.Api.BidController do
 
   alias Autolaunch.Launch
   alias AutolaunchWeb.ApiErrorTranslator
+  alias AutolaunchWeb.LiveUpdates
 
   def exit(conn, %{"id" => id} = params) do
     case launch_module().exit_bid(id, params, conn.assigns[:current_human]) do
       {:ok, position} ->
+        LiveUpdates.broadcast([:market, :positions])
         json(conn, %{ok: true, bid: position})
 
       {:error, reason} ->
@@ -17,6 +19,7 @@ defmodule AutolaunchWeb.Api.BidController do
   def return_usdc(conn, %{"id" => id} = params) do
     case launch_module().return_bid(id, params, conn.assigns[:current_human]) do
       {:ok, position} ->
+        LiveUpdates.broadcast([:market, :positions])
         json(conn, %{ok: true, bid: position})
 
       {:error, reason} ->
@@ -27,6 +30,7 @@ defmodule AutolaunchWeb.Api.BidController do
   def claim(conn, %{"id" => id} = params) do
     case launch_module().claim_bid(id, params, conn.assigns[:current_human]) do
       {:ok, position} ->
+        LiveUpdates.broadcast([:market, :positions])
         json(conn, %{ok: true, bid: position})
 
       {:error, reason} ->

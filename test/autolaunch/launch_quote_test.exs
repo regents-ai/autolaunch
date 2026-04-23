@@ -6,10 +6,10 @@ defmodule Autolaunch.LaunchQuoteTest do
   alias Autolaunch.Repo
 
   defmodule MissingRpcAdapter do
-    def block_number(_chain_id), do: {:error, :missing_rpc_url}
-    def eth_call(_chain_id, _to, _data), do: {:error, :missing_rpc_url}
-    def tx_receipt(_chain_id, _tx_hash), do: {:error, :missing_rpc_url}
-    def get_logs(_chain_id, _filter), do: {:error, :missing_rpc_url}
+    def block_number(_chain_id, _opts), do: {:error, :missing_rpc_url}
+    def eth_call(_chain_id, _to, _data, _opts), do: {:error, :missing_rpc_url}
+    def tx_receipt(_chain_id, _tx_hash, _opts), do: {:error, :missing_rpc_url}
+    def get_logs(_chain_id, _filter, _opts), do: {:error, :missing_rpc_url}
   end
 
   setup do

@@ -157,11 +157,11 @@ defmodule Autolaunch.MarketTrackingTest do
     @auction_address "0x0000000000000000000000000000000000000011"
     @owner_address "0x00000000000000000000000000000000000000aa"
 
-    def block_number(84_532) do
+    def block_number(84_532, _opts) do
       {:ok, scenario() |> scenario_data() |> Map.fetch!(:block_number)}
     end
 
-    def eth_call(84_532, @auction_address, data) do
+    def eth_call(84_532, @auction_address, data, _opts) do
       selector = String.slice(data, 0, 10)
       config = scenario() |> scenario_data()
 
@@ -236,7 +236,7 @@ defmodule Autolaunch.MarketTrackingTest do
       end
     end
 
-    def tx_receipt(84_532, tx_hash) do
+    def tx_receipt(84_532, tx_hash, _opts) do
       {:ok,
        scenario()
        |> scenario_data()
@@ -244,7 +244,7 @@ defmodule Autolaunch.MarketTrackingTest do
        |> Map.get(String.downcase(tx_hash))}
     end
 
-    def get_logs(84_532, _filter) do
+    def get_logs(84_532, _filter, _opts) do
       {:ok, scenario() |> scenario_data() |> Map.get(:checkpoint_logs, [])}
     end
 

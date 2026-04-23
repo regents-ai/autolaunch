@@ -1,4 +1,4 @@
-defmodule Autolaunch.Launch.Internal do
+defmodule Autolaunch.Launch.Core do
   @moduledoc false
 
   import Ecto.Query, warn: false
@@ -6,10 +6,13 @@ defmodule Autolaunch.Launch.Internal do
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.CCA.Contract, as: CCAContract
   alias Autolaunch.CCA.Market, as: CCAMarket
-  alias Autolaunch.CCA.QuoteEngine
   alias Autolaunch.ERC8004
   alias Autolaunch.Launch.Auction
+  alias Autolaunch.Launch.AuctionDetails
   alias Autolaunch.Launch.Bid
+  alias Autolaunch.Launch.BidFlow
+  alias Autolaunch.Launch.Deployment
+  alias Autolaunch.Launch.Directory
   alias Autolaunch.Launch.External.TokenLaunch
   alias Autolaunch.Launch.Job
   alias Autolaunch.Repo
@@ -17,7 +20,6 @@ defmodule Autolaunch.Launch.Internal do
   alias Autolaunch.TokenPricing
   alias Autolaunch.Trust
 
-  @terminal_statuses ~w(ready failed blocked)
   @agent_launch_total_supply "100000000000000000000000000000"
   @eligibility_check_keys ~w(ownerOrOperatorAuthorized noPriorSuccessfulLaunch)
   @fee_split %{
@@ -26,7 +28,6 @@ defmodule Autolaunch.Launch.Internal do
     agent_revenue_bps: 100,
     protocol_bps: 100
   }
-  @default_auction_duration_seconds 259_200
   @directory_supply Decimal.new("100000000000")
   @chain_configs %{
     84_532 => %{
@@ -218,7 +219,10 @@ defmodule Autolaunch.Launch.Internal do
 
   def preview_launch(_attrs, _human), do: {:error, :unauthorized}
 
-  def create_launch_job(attrs, %HumanUser{} = human, request_ip) do
+  def create_launch_job(attrs, human, request_ip),
+    do: create_launch_job(attrs, human, request_ip, [])
+
+  def create_launch_job(attrs, %HumanUser{} = human, request_ip, opts) do
     with :ok <- ensure_authenticated_human(human),
          {:ok, preview} <- preview_launch(attrs, human),
          {:ok, wallet_address} <- required_address(Map.get(attrs, :wallet_address)),
@@ -267,10 +271,10 @@ defmodule Autolaunch.Launch.Internal do
         siwa_signature: signature,
         issued_at: issued_at,
         request_ip: request_ip,
-        script_target: deploy_script_target(),
-        deploy_workdir: deploy_workdir(),
-        deploy_binary: deploy_binary(),
-        rpc_host: deploy_rpc_host(chain_id)
+        script_target: Deployment.deploy_script_target(),
+        deploy_workdir: Deployment.deploy_workdir(),
+        deploy_binary: Deployment.deploy_binary(),
+        rpc_host: Deployment.deploy_rpc_host(chain_id)
       }
 
       {:ok, job} =
@@ -278,8 +282,11 @@ defmodule Autolaunch.Launch.Internal do
         |> Job.create_changeset(job_attrs)
         |> Repo.insert()
 
-      maybe_record_external_launch(job)
-      queue_processing(job.job_id)
+      Deployment.record_external_launch(job)
+
+      if Keyword.get(opts, :queue?, true) do
+        Autolaunch.Launch.Jobs.queue_processing(job.job_id)
+      end
 
       {:ok, serialize_job(job)}
     else
@@ -287,7 +294,7 @@ defmodule Autolaunch.Launch.Internal do
     end
   end
 
-  def create_launch_job(_attrs, _human, _request_ip), do: {:error, :unauthorized}
+  def create_launch_job(_attrs, _human, _request_ip, _opts), do: {:error, :unauthorized}
 
   def get_job_response(job_id) do
     with {:ok, active_chain_id} <- launch_chain_id() do
@@ -310,224 +317,23 @@ defmodule Autolaunch.Launch.Internal do
   end
 
   def list_auctions(filters \\ %{}, current_human \\ nil) do
-    with {:ok, active_chain_id} <- launch_chain_id() do
-      auctions =
-        Repo.all(
-          from auction in Auction,
-            where: auction.chain_id == ^active_chain_id,
-            order_by: [desc: auction.inserted_at]
-        )
-
-      identity_index = identity_index_for_auctions(auctions)
-      job_index = job_index_for_auctions(auctions)
-      human_launch_counts = world_launch_counts()
-      x_accounts = x_accounts_for_auctions(auctions)
-
-      auctions
-      |> Enum.map(
-        &serialize_auction(
-          &1,
-          current_human,
-          identity_index,
-          job_index,
-          human_launch_counts,
-          x_accounts
-        )
-      )
-      |> filter_auctions(filters)
-      |> sort_auctions(filters)
-    else
-      _ -> []
-    end
-  rescue
-    DBConnection.ConnectionError -> []
-    Postgrex.Error -> []
-    Ecto.QueryError -> []
+    Directory.list_auctions(filters, current_human)
   end
 
   def list_auction_returns(filters \\ %{}, current_human \\ nil) do
-    limit = normalize_limit(Map.get(filters, :limit), 20)
-    offset = normalize_offset(Map.get(filters, :offset), 0)
-
-    items =
-      list_auctions(%{mode: "failed_minimum", sort: "failure_recent"}, current_human)
-      |> Enum.drop(offset)
-      |> Enum.take(limit)
-
-    %{
-      items: items,
-      limit: limit,
-      offset: offset,
-      next_offset: if(length(items) == limit, do: offset + limit, else: nil)
-    }
+    Directory.list_auction_returns(filters, current_human)
   end
 
   def get_auction(auction_id, current_human \\ nil) do
-    with {:ok, active_chain_id} <- launch_chain_id() do
-      Repo.one(
-        from auction in Auction,
-          where:
-            fragment("coalesce(?, '')", auction.source_job_id) == ^auction_id and
-              auction.chain_id == ^active_chain_id,
-          limit: 1
-      )
-      |> case do
-        nil ->
-          nil
-
-        auction ->
-          serialize_auction(
-            auction,
-            current_human,
-            identity_index_for_auctions([auction]),
-            job_index_for_auctions([auction]),
-            world_launch_counts(),
-            x_accounts_for_auctions([auction])
-          )
-      end
-    else
-      _ -> nil
-    end
-  rescue
-    DBConnection.ConnectionError -> nil
-    Postgrex.Error -> nil
-    Ecto.QueryError -> nil
+    AuctionDetails.get_auction(auction_id, current_human)
   end
 
   def quote_bid(auction_id, attrs, current_human \\ nil) do
-    with auction when is_map(auction) <- get_auction(auction_id, current_human),
-         {:ok, amount_decimal} <- required_decimal(Map.get(attrs, :amount), :amount_required),
-         {:ok, max_price_decimal} <-
-           required_decimal(Map.get(attrs, :max_price), :max_price_required),
-         {:ok, amount_wei} <- decimal_to_wei(amount_decimal),
-         {:ok, max_price_q96} <- decimal_price_to_q96(max_price_decimal),
-         {:ok, raw_quote} <-
-           QuoteEngine.quote(auction.chain_id, auction.auction_address, amount_wei, max_price_q96) do
-      time_remaining_seconds = time_remaining_seconds(auction.ends_at)
-      owner_address = current_human && primary_wallet_address(current_human)
-
-      tx_request =
-        if owner_address do
-          case CCAMarket.build_submit_tx_request(
-                 auction,
-                 owner_address,
-                 amount_wei,
-                 max_price_q96
-               ) do
-            {:ok, request} -> serialize_tx_request(request)
-            _ -> nil
-          end
-        end
-
-      quote = %{
-        auction_id: auction.id,
-        amount: decimal_string(amount_decimal),
-        max_price: decimal_string(max_price_decimal, 8),
-        current_clearing_price: q96_price_to_string(raw_quote.current_clearing_price_q96),
-        projected_clearing_price: q96_price_to_string(raw_quote.projected_clearing_price_q96),
-        quote_mode: raw_quote.quote_mode,
-        would_be_active_now: raw_quote.would_be_active_now,
-        status_band: raw_quote.status_band,
-        estimated_tokens_if_end_now:
-          token_units_to_string(raw_quote.estimated_tokens_if_end_now_units),
-        estimated_tokens_if_no_other_bids_change:
-          token_units_to_string(raw_quote.estimated_tokens_if_no_other_bids_change_units),
-        inactive_above_price: q96_price_to_string(raw_quote.inactive_above_price_q96),
-        time_remaining_seconds: time_remaining_seconds,
-        warnings: raw_quote.warnings,
-        tx_request: tx_request
-      }
-
-      {:ok, quote}
-    else
-      nil -> {:error, :auction_not_found}
-      {:error, _} = error -> error
-    end
+    BidFlow.quote_bid(auction_id, attrs, current_human)
   end
 
   def place_bid(auction_id, attrs, %HumanUser{} = human) do
-    with :ok <- ensure_authenticated_human(human),
-         {:ok, wallet_address} <- required_address(human.wallet_address),
-         {:ok, tx_hash} <- required_tx_hash(Map.get(attrs, :tx_hash)),
-         {:ok, auction} <- fetch_auction_for_bid(auction_id, human),
-         {:ok, amount_decimal} <- required_decimal(Map.get(attrs, :amount), :amount_required),
-         {:ok, max_price_decimal} <-
-           required_decimal(Map.get(attrs, :max_price), :max_price_required),
-         {:ok, amount_wei} <- decimal_to_wei(amount_decimal),
-         {:ok, max_price_q96} <- decimal_price_to_q96(max_price_decimal),
-         {:ok, snapshot} <- CCAContract.snapshot(auction.chain_id, auction.auction_address),
-         {:ok, registration} <-
-           CCAMarket.register_submitted_bid(
-             snapshot,
-             tx_hash,
-             wallet_address,
-             amount_wei,
-             max_price_q96
-           ) do
-      bid_id = local_bid_id(auction_id, registration.onchain_bid_id)
-      quote_snapshot = build_bid_quote_snapshot(attrs, snapshot)
-      now = DateTime.utc_now()
-
-      bid_attrs = %{
-        bid_id: bid_id,
-        privy_user_id: human.privy_user_id,
-        owner_address: wallet_address,
-        auction_id: auction_id,
-        auction_address: auction.auction_address,
-        chain_id: auction.chain_id,
-        agent_id: auction.agent_id,
-        agent_name: auction.agent_name,
-        network: auction.network,
-        onchain_bid_id: Integer.to_string(registration.onchain_bid_id),
-        submit_tx_hash: registration.submit_tx_hash,
-        submit_block_number: registration.submit_block_number,
-        amount: amount_decimal,
-        max_price: max_price_decimal,
-        current_clearing_price: q96_to_decimal(snapshot.checkpoint.clearing_price_q96),
-        current_status: "active",
-        estimated_tokens_if_end_now:
-          decimal_from_string(Map.get(attrs, :estimated_tokens_if_end_now)),
-        estimated_tokens_if_no_other_bids_change:
-          decimal_from_string(Map.get(attrs, :estimated_tokens_if_no_other_bids_change)),
-        inactive_above_price: decimal_from_string(Map.get(attrs, :inactive_above_price)),
-        quote_snapshot: quote_snapshot,
-        inserted_at: now,
-        updated_at: now
-      }
-
-      {:ok, _bid} =
-        Repo.insert(
-          struct(Bid, bid_attrs),
-          on_conflict: [
-            set: [
-              submit_tx_hash: registration.submit_tx_hash,
-              submit_block_number: registration.submit_block_number,
-              amount: amount_decimal,
-              max_price: max_price_decimal,
-              current_clearing_price: q96_to_decimal(snapshot.checkpoint.clearing_price_q96),
-              current_status: "active",
-              estimated_tokens_if_end_now:
-                decimal_from_string(Map.get(attrs, :estimated_tokens_if_end_now)),
-              estimated_tokens_if_no_other_bids_change:
-                decimal_from_string(Map.get(attrs, :estimated_tokens_if_no_other_bids_change)),
-              inactive_above_price: decimal_from_string(Map.get(attrs, :inactive_above_price)),
-              quote_snapshot: quote_snapshot,
-              updated_at: now
-            ]
-          ],
-          conflict_target: [:auction_id, :onchain_bid_id]
-        )
-
-      with %Bid{} = tracked_bid <- Repo.get(Bid, bid_id) do
-        {:ok, decorate_bid_position(tracked_bid, human)}
-      else
-        _ -> {:error, :bid_tracking_failed}
-      end
-    else
-      {:error, :transaction_pending} -> {:error, :transaction_pending}
-      {:error, :transaction_failed} -> {:error, :transaction_failed}
-      {:error, _} = error -> error
-    end
+    BidFlow.place_bid(auction_id, attrs, human)
   end
 
   def place_bid(_auction_id, _attrs, _human), do: {:error, :unauthorized}
@@ -537,54 +343,11 @@ defmodule Autolaunch.Launch.Internal do
   def list_positions(nil, _filters), do: []
 
   def list_positions(%HumanUser{} = human, filters) do
-    wallet_addresses = linked_wallet_addresses(human)
-
-    with {:ok, active_chain_id} <- launch_chain_id() do
-      bids =
-        Repo.all(
-          from bid in Bid,
-            where: bid.owner_address in ^wallet_addresses and bid.chain_id == ^active_chain_id,
-            order_by: [desc: bid.inserted_at]
-        )
-
-      bids
-      |> Enum.map(&decorate_bid_position(&1, human))
-      |> filter_positions(filters)
-    else
-      _ -> []
-    end
-  rescue
-    DBConnection.ConnectionError -> []
-    Postgrex.Error -> []
-    Ecto.QueryError -> []
+    BidFlow.list_positions(human, filters)
   end
 
   def exit_bid(bid_id, attrs, %HumanUser{} = human) do
-    with :ok <- ensure_authenticated_human(human),
-         {:ok, wallet_address} <- required_address(human.wallet_address),
-         {:ok, tx_hash} <- required_tx_hash(Map.get(attrs, :tx_hash)),
-         %Bid{} = bid <- Repo.get(Bid, bid_id),
-         :ok <- ensure_bid_belongs_to_owner(bid, wallet_address),
-         {:ok, auction} <- fetch_auction_for_bid(bid.auction_id, human),
-         {:ok, snapshot} <- CCAContract.snapshot(auction.chain_id, auction.auction_address),
-         {:ok, onchain_bid_id} <- parse_onchain_bid_id(bid.onchain_bid_id),
-         {:ok, registration} <-
-           CCAMarket.register_exit(snapshot, tx_hash, wallet_address, onchain_bid_id),
-         {:ok, _updated_bid} <-
-           bid
-           |> Bid.update_changeset(%{
-             current_status: "exited",
-             exit_tx_hash: registration.exit_tx_hash,
-             exited_at: DateTime.utc_now()
-           })
-           |> Repo.update() do
-      {:ok, decorate_bid_position(Repo.get!(Bid, bid.bid_id), human)}
-    else
-      nil -> {:error, :not_found}
-      {:error, :transaction_pending} -> {:error, :transaction_pending}
-      {:error, :transaction_failed} -> {:error, :transaction_failed}
-      {:error, _} = error -> error
-    end
+    BidFlow.exit_bid(bid_id, attrs, human)
   end
 
   def exit_bid(_bid_id, _attrs, _human), do: {:error, :unauthorized}
@@ -592,136 +355,10 @@ defmodule Autolaunch.Launch.Internal do
   def return_bid(bid_id, attrs, current_human), do: exit_bid(bid_id, attrs, current_human)
 
   def claim_bid(bid_id, attrs, %HumanUser{} = human) do
-    with :ok <- ensure_authenticated_human(human),
-         {:ok, wallet_address} <- required_address(human.wallet_address),
-         {:ok, tx_hash} <- required_tx_hash(Map.get(attrs, :tx_hash)),
-         %Bid{} = bid <- Repo.get(Bid, bid_id),
-         :ok <- ensure_bid_belongs_to_owner(bid, wallet_address),
-         {:ok, auction} <- fetch_auction_for_bid(bid.auction_id, human),
-         {:ok, snapshot} <- CCAContract.snapshot(auction.chain_id, auction.auction_address),
-         {:ok, onchain_bid_id} <- parse_onchain_bid_id(bid.onchain_bid_id),
-         {:ok, registration} <-
-           CCAMarket.register_claim(snapshot, tx_hash, wallet_address, onchain_bid_id),
-         {:ok, _updated_bid} <-
-           bid
-           |> Bid.update_changeset(%{
-             current_status: "claimed",
-             claim_tx_hash: registration.claim_tx_hash,
-             claimed_at: DateTime.utc_now()
-           })
-           |> Repo.update() do
-      {:ok, decorate_bid_position(Repo.get!(Bid, bid.bid_id), human)}
-    else
-      nil -> {:error, :not_found}
-      {:error, :transaction_pending} -> {:error, :transaction_pending}
-      {:error, :transaction_failed} -> {:error, :transaction_failed}
-      {:error, _} = error -> error
-    end
+    BidFlow.claim_bid(bid_id, attrs, human)
   end
 
   def claim_bid(_bid_id, _attrs, _human), do: {:error, :unauthorized}
-
-  def queue_processing(job_id) do
-    Task.Supervisor.start_child(Autolaunch.TaskSupervisor, fn -> process_job(job_id) end)
-    :ok
-  end
-
-  def terminal_status?(status), do: status in @terminal_statuses
-
-  def process_job(job_id) do
-    case Repo.get(Job, job_id) do
-      nil ->
-        :ok
-
-      %Job{} = job ->
-        now = DateTime.utc_now()
-
-        {:ok, job} =
-          job
-          |> Job.update_changeset(%{status: "running", step: "deploying", started_at: now})
-          |> Repo.update()
-
-        case run_launch(job) do
-          {:ok, result} ->
-            auction = persist_auction(job, result)
-
-            {:ok, _updated_job} =
-              job
-              |> Job.update_changeset(%{
-                status: "ready",
-                step: "ready",
-                finished_at: DateTime.utc_now(),
-                auction_address: result.auction_address,
-                token_address: result.token_address,
-                strategy_address: result.strategy_address,
-                vesting_wallet_address: result.vesting_wallet_address,
-                hook_address: result.hook_address,
-                launch_fee_registry_address: result.launch_fee_registry_address,
-                launch_fee_vault_address: result.launch_fee_vault_address,
-                subject_registry_address: result.subject_registry_address,
-                subject_id: result.subject_id,
-                revenue_share_splitter_address: result.revenue_share_splitter_address,
-                default_ingress_address: result.default_ingress_address,
-                pool_id: result.pool_id,
-                tx_hash: result.tx_hash,
-                uniswap_url: result.uniswap_url,
-                stdout_tail: result.stdout_tail,
-                stderr_tail: result.stderr_tail
-              })
-              |> Repo.update()
-
-            mark_external_launch(job.job_id, "succeeded", %{
-              auction_address: auction.auction_address,
-              token_address: auction.token_address,
-              metadata: %{
-                "strategy_address" => result.strategy_address,
-                "vesting_wallet_address" => result.vesting_wallet_address,
-                "hook_address" => result.hook_address,
-                "launch_fee_registry_address" => result.launch_fee_registry_address,
-                "launch_fee_vault_address" => result.launch_fee_vault_address,
-                "subject_registry_address" => result.subject_registry_address,
-                "subject_id" => result.subject_id,
-                "revenue_share_splitter_address" => result.revenue_share_splitter_address,
-                "default_ingress_address" => result.default_ingress_address,
-                "pool_id" => result.pool_id
-              },
-              launch_tx_hash: result.tx_hash,
-              completed_at: DateTime.utc_now()
-            })
-
-          {:error, reason, logs} ->
-            job
-            |> Job.update_changeset(%{
-              status: "failed",
-              step: "failed",
-              error_message: reason,
-              finished_at: DateTime.utc_now(),
-              stdout_tail: Map.get(logs, :stdout_tail, ""),
-              stderr_tail: Map.get(logs, :stderr_tail, "")
-            })
-            |> Repo.update()
-
-            mark_external_launch(job.job_id, "failed", %{completed_at: DateTime.utc_now()})
-        end
-    end
-  rescue
-    error ->
-      case Repo.get(Job, job_id) do
-        %Job{} = job ->
-          _ =
-            job
-            |> Job.update_changeset(%{
-              status: "failed",
-              step: "failed",
-              error_message: Exception.message(error),
-              finished_at: DateTime.utc_now()
-            })
-            |> Repo.update()
-
-        _ ->
-          :ok
-      end
-  end
 
   defp agent_card_from_identity(identity, wallet_addresses) do
     existing_launch =
@@ -841,33 +478,7 @@ defmodule Autolaunch.Launch.Internal do
   defp ensure_agent_eligible(%{state: "eligible"}), do: :ok
   defp ensure_agent_eligible(agent), do: {:error, {:agent_not_eligible, agent}}
 
-  defp fetch_auction_for_bid(auction_id, current_human) do
-    case get_auction(auction_id, current_human) do
-      nil -> {:error, :auction_not_found}
-      auction -> {:ok, auction}
-    end
-  end
-
-  defp local_bid_id(auction_id, onchain_bid_id) when is_integer(onchain_bid_id) do
-    "#{auction_id}:#{onchain_bid_id}"
-  end
-
-  defp build_bid_quote_snapshot(attrs, snapshot) do
-    %{
-      "quote_mode" => "onchain_exact_v1",
-      "current_clearing_price" =>
-        Map.get(attrs, :current_clearing_price) ||
-          q96_price_to_string(snapshot.checkpoint.clearing_price_q96),
-      "estimated_tokens_if_end_now" => Map.get(attrs, :estimated_tokens_if_end_now),
-      "estimated_tokens_if_no_other_bids_change" =>
-        Map.get(attrs, :estimated_tokens_if_no_other_bids_change),
-      "inactive_above_price" => Map.get(attrs, :inactive_above_price),
-      "status_band" => Map.get(attrs, :status_band),
-      "projected_clearing_price" => Map.get(attrs, :projected_clearing_price)
-    }
-  end
-
-  defp serialize_tx_request(%{chain_id: chain_id, to: to, value_hex: value_hex, data: data}) do
+  def serialize_tx_request(%{chain_id: chain_id, to: to, value_hex: value_hex, data: data}) do
     %{
       chain_id: chain_id,
       to: to,
@@ -876,149 +487,16 @@ defmodule Autolaunch.Launch.Internal do
     }
   end
 
-  defp serialize_action_request(nil), do: nil
+  def serialize_action_request(nil), do: nil
 
-  defp serialize_action_request(%{tx_request: tx_request} = action) do
+  def serialize_action_request(%{tx_request: tx_request} = action) do
     action
     |> Map.drop([:tx_request])
     |> Map.put(:tx_request, serialize_tx_request(tx_request))
   end
 
-  defp fallback_bid_clearing_price(auction, bid) do
-    if auction[:current_clearing_price],
-      do: auction.current_clearing_price,
-      else: decimal_string(bid.current_clearing_price)
-  end
-
-  defp next_action_label(nil, "claimable"), do: "Claim purchased tokens."
-  defp next_action_label(nil, "exited"), do: "Position has already exited."
-  defp next_action_label(nil, "claimed"), do: "Tokens already claimed."
-
-  defp next_action_label(nil, "returnable"),
-    do: "Return the remaining USDC from this failed auction."
-
-  defp next_action_label(nil, "inactive"), do: "Monitor the auction until an exit becomes valid."
-  defp next_action_label(nil, _status), do: "No wallet action available yet."
-
-  defp next_action_label(%{claim_action: %{}} = _market_position, _status),
-    do: "Claim purchased tokens now."
-
-  defp next_action_label(%{exit_action: %{type: :exit_partially_filled_bid}}, _status),
-    do: "Exit this bid with checkpoint hints."
-
-  defp next_action_label(%{exit_action: %{type: :exit_bid}}, _status),
-    do: "Exit this bid and settle the refund."
-
-  defp next_action_label(_market_position, "returnable"),
-    do: "This auction missed its minimum raise. Return your USDC."
-
-  defp next_action_label(_market_position, "inactive"),
-    do: "Outbid for now. Exit becomes available only once the contract allows it."
-
-  defp next_action_label(_market_position, "borderline"),
-    do: "At the clearing boundary. Stay alert for displacement."
-
-  defp next_action_label(_market_position, _status), do: "Bid is still participating."
-
-  defp returnable_bid?(
-         %{auction_outcome: "failed_minimum"},
-         %{exit_action: %{type: :exit_bid}},
-         status
-       )
-       when status not in ["claimed", "exited"],
-       do: true
-
-  defp returnable_bid?(_auction, _market_position, _status), do: false
-
-  defp filter_positions(positions, filters) do
-    case Map.get(filters, :status) do
-      nil -> positions
-      "" -> positions
-      status -> Enum.filter(positions, &(&1.status == status))
-    end
-  end
-
-  defp decorate_bid_position(%Bid{} = bid, current_human) do
-    auction = get_auction(bid.auction_id, current_human) || %{}
-
-    market_position =
-      with %{auction_address: auction_address, chain_id: chain_id}
-           when is_binary(auction_address) and is_integer(chain_id) <- auction,
-           {:ok, snapshot} <- CCAContract.snapshot(chain_id, auction_address),
-           {:ok, market_position} <- CCAMarket.sync_bid_position(snapshot, bid) do
-        market_position
-      else
-        _ -> nil
-      end
-
-    derived_status =
-      if market_position,
-        do: market_position.current_status,
-        else: derive_position_status(bid, auction)
-
-    derived_status =
-      if returnable_bid?(auction, market_position, derived_status) do
-        "returnable"
-      else
-        derived_status
-      end
-
-    return_action =
-      if derived_status == "returnable" do
-        serialize_action_request(market_position && market_position.exit_action)
-      else
-        nil
-      end
-
-    tx_actions =
-      if market_position do
-        %{
-          return_usdc: return_action,
-          exit: serialize_action_request(market_position.exit_action),
-          claim: serialize_action_request(market_position.claim_action)
-        }
-      else
-        %{return_usdc: nil, exit: nil, claim: nil}
-      end
-
-    %{
-      bid_id: bid.bid_id,
-      onchain_bid_id: bid.onchain_bid_id,
-      auction_id: bid.auction_id,
-      agent_id: bid.agent_id,
-      agent_name: bid.agent_name,
-      chain: bid.network,
-      status: derived_status,
-      amount: decimal_string(bid.amount),
-      max_price: decimal_string(bid.max_price),
-      current_clearing_price:
-        if(market_position,
-          do: q96_price_to_string(market_position.current_clearing_price_q96),
-          else: fallback_bid_clearing_price(auction, bid)
-        ),
-      estimated_tokens_if_end_now: decimal_string(bid.estimated_tokens_if_end_now, 2),
-      estimated_tokens_if_no_other_bids_change:
-        decimal_string(bid.estimated_tokens_if_no_other_bids_change, 2),
-      inactive_above_price: decimal_string(bid.inactive_above_price),
-      tokens_filled:
-        if(market_position,
-          do: token_units_to_string(market_position.onchain_bid.tokens_filled_units),
-          else: "0"
-        ),
-      next_action_label: next_action_label(market_position, derived_status),
-      return_action: return_action,
-      tx_actions: tx_actions,
-      auction: auction,
-      inserted_at: iso(bid.inserted_at)
-    }
-  end
-
   defp derive_position_status(%Bid{claimed_at: %DateTime{}}, _auction), do: "claimed"
   defp derive_position_status(%Bid{exited_at: %DateTime{}}, _auction), do: "exited"
-
-  defp derive_position_status(%Bid{} = _bid, %{status: status})
-       when status in ["settled", "pending-claim"],
-       do: "claimable"
 
   defp derive_position_status(%Bid{} = bid, auction) do
     clearing =
@@ -1040,60 +518,14 @@ defmodule Autolaunch.Launch.Internal do
     end
   end
 
-  defp ensure_bid_belongs_to_owner(%Bid{owner_address: owner_address}, wallet_address) do
-    if owner_address == normalize_address(wallet_address), do: :ok, else: {:error, :forbidden}
-  end
-
-  defp parse_onchain_bid_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {parsed, ""} -> {:ok, parsed}
-      _ -> {:error, :invalid_onchain_bid_id}
-    end
-  end
-
-  defp parse_onchain_bid_id(_value), do: {:error, :invalid_onchain_bid_id}
-
-  defp filter_auctions(auctions, filters) do
-    auctions
-    |> maybe_filter_mode(Map.get(filters, :mode, "biddable"))
-  end
-
-  defp maybe_filter_mode(auctions, nil), do: Enum.filter(auctions, &(&1.phase == "biddable"))
-  defp maybe_filter_mode(auctions, ""), do: Enum.filter(auctions, &(&1.phase == "biddable"))
-  defp maybe_filter_mode(auctions, "all"), do: auctions
-
-  defp maybe_filter_mode(auctions, "failed_minimum"),
-    do: Enum.filter(auctions, &(&1.auction_outcome == "failed_minimum"))
-
-  defp maybe_filter_mode(auctions, mode), do: Enum.filter(auctions, &(&1.phase == mode))
-
-  defp sort_auctions(auctions, filters) do
-    case Map.get(filters, :sort, "newest") do
-      "oldest" ->
-        Enum.sort_by(auctions, &sort_timestamp(&1.started_at, &1.created_at), :asc)
-
-      "market_cap_desc" ->
-        Enum.sort_by(auctions, &market_cap_sort_key(&1.implied_market_cap_usdc, :desc), :asc)
-
-      "market_cap_asc" ->
-        Enum.sort_by(auctions, &market_cap_sort_key(&1.implied_market_cap_usdc, :asc), :asc)
-
-      "failure_recent" ->
-        Enum.sort_by(auctions, &sort_timestamp(&1.ends_at, &1.created_at), :desc)
-
-      _ ->
-        Enum.sort_by(auctions, &sort_timestamp(&1.started_at, &1.created_at), :desc)
-    end
-  end
-
-  defp serialize_auction(
-         %Auction{} = auction,
-         current_human,
-         identity_index,
-         job_index,
-         human_launch_counts,
-         x_accounts
-       ) do
+  def serialize_auction(
+        %Auction{} = auction,
+        current_human,
+        identity_index,
+        job_index,
+        human_launch_counts,
+        x_accounts
+      ) do
     public_id = auction.source_job_id || "auc_#{auction.id}"
     your_bid_status = current_bid_status(public_id, current_human)
     chain = chain_config(auction.chain_id)
@@ -1242,7 +674,7 @@ defmodule Autolaunch.Launch.Internal do
       metrics_source:
         if(live_snapshot != %{},
           do: "onchain",
-          else: if(auction.metrics_updated_at, do: "live", else: "fallback")
+          else: if(auction.metrics_updated_at, do: "live", else: "estimated")
         ),
       quote_mode: if(live_snapshot != %{}, do: "onchain_exact_v1", else: "approximate_preview"),
       current_clearing_price: current_clearing_price,
@@ -1278,7 +710,7 @@ defmodule Autolaunch.Launch.Internal do
     }
   end
 
-  defp get_auction_by_address(network, auction_address, _current_human) do
+  def get_auction_by_address(network, auction_address, _current_human) do
     Repo.get_by(Auction, network: network, auction_address: auction_address)
     |> case do
       nil ->
@@ -1343,27 +775,27 @@ defmodule Autolaunch.Launch.Internal do
 
   defp current_bid_status(_auction_id, _human), do: nil
 
-  defp normalize_limit(value, _default) when is_integer(value) and value > 0, do: value
+  def normalize_limit(value, _default) when is_integer(value) and value > 0, do: value
 
-  defp normalize_limit(value, default) when is_binary(value) do
+  def normalize_limit(value, default) when is_binary(value) do
     case Integer.parse(value) do
       {parsed, ""} when parsed > 0 -> parsed
       _ -> default
     end
   end
 
-  defp normalize_limit(_value, default), do: default
+  def normalize_limit(_value, default), do: default
 
-  defp normalize_offset(value, _default) when is_integer(value) and value >= 0, do: value
+  def normalize_offset(value, _default) when is_integer(value) and value >= 0, do: value
 
-  defp normalize_offset(value, default) when is_binary(value) do
+  def normalize_offset(value, default) when is_binary(value) do
     case Integer.parse(value) do
       {parsed, ""} when parsed >= 0 -> parsed
       _ -> default
     end
   end
 
-  defp normalize_offset(_value, default), do: default
+  def normalize_offset(_value, default), do: default
 
   defp auction_symbol(auction, public_id) do
     case auction.notes do
@@ -1371,15 +803,15 @@ defmodule Autolaunch.Launch.Internal do
         if String.starts_with?(notes, "$") do
           notes
         else
-          fallback_auction_symbol(public_id)
+          derived_auction_symbol(public_id)
         end
 
       _ ->
-        fallback_auction_symbol(public_id)
+        derived_auction_symbol(public_id)
     end
   end
 
-  defp fallback_auction_symbol(public_id) do
+  defp derived_auction_symbol(public_id) do
     suffix =
       public_id
       |> String.split("_")
@@ -1389,7 +821,7 @@ defmodule Autolaunch.Launch.Internal do
     "$" <> suffix
   end
 
-  defp job_index_for_auctions(auctions) do
+  def job_index_for_auctions(auctions) do
     job_ids =
       auctions
       |> Enum.map(&source_job_to_job_id(&1.source_job_id))
@@ -1451,19 +883,19 @@ defmodule Autolaunch.Launch.Internal do
     |> Decimal.to_string(:normal)
   end
 
-  defp sort_timestamp(nil, created_at), do: sort_timestamp(created_at, nil)
-  defp sort_timestamp(value, _fallback) when is_binary(value), do: value
-  defp sort_timestamp(%DateTime{} = value, _fallback), do: DateTime.to_unix(value, :microsecond)
-  defp sort_timestamp(_value, nil), do: 0
+  def sort_timestamp(nil, created_at), do: sort_timestamp(created_at, nil)
+  def sort_timestamp(value, _created_at) when is_binary(value), do: value
+  def sort_timestamp(%DateTime{} = value, _created_at), do: DateTime.to_unix(value, :microsecond)
+  def sort_timestamp(_value, nil), do: 0
 
-  defp market_cap_sort_key(nil, :desc), do: {1, Decimal.new(0)}
-  defp market_cap_sort_key(nil, :asc), do: {1, Decimal.new(0)}
+  def market_cap_sort_key(nil, :desc), do: {1, Decimal.new(0)}
+  def market_cap_sort_key(nil, :asc), do: {1, Decimal.new(0)}
 
-  defp market_cap_sort_key(value, :desc) do
+  def market_cap_sort_key(value, :desc) do
     {0, Decimal.negate(Decimal.new(value))}
   end
 
-  defp market_cap_sort_key(value, :asc) do
+  def market_cap_sort_key(value, :asc) do
     {0, Decimal.new(value)}
   end
 
@@ -1479,276 +911,13 @@ defmodule Autolaunch.Launch.Internal do
     Decimal.round(Decimal.mult(base, multiplier), 6)
   end
 
-  defp maybe_record_external_launch(job) do
-    now = DateTime.utc_now()
-    launch_id = "atl_" <> Ecto.UUID.generate()
+  def time_remaining_seconds(nil), do: 0
 
-    attrs = %{
-      launch_id: launch_id,
-      owner_address: job.owner_address,
-      agent_id: job.agent_id,
-      lifecycle_run_id: job.lifecycle_run_id,
-      chain_id: job.chain_id,
-      total_supply: job.total_supply,
-      vesting_beneficiary: job.agent_safe_address,
-      beneficiary_confirmed_at: now,
-      vesting_start_at: now,
-      vesting_end_at: DateTime.add(now, 365 * 24 * 60 * 60, :second),
-      launch_status: "queued",
-      launch_job_id: job.job_id,
-      metadata: %{
-        "source" => "autolaunch",
-        "token_name" => job.token_name,
-        "token_symbol" => job.token_symbol
-      }
-    }
-
-    %TokenLaunch{}
-    |> TokenLaunch.changeset(attrs)
-    |> Repo.insert(
-      on_conflict: [set: [launch_status: "queued", updated_at: now]],
-      conflict_target: :launch_job_id
-    )
-  rescue
-    _ -> :ok
-  end
-
-  defp mark_external_launch(job_id, status, attrs) do
-    if launch = Repo.get_by(TokenLaunch, launch_job_id: job_id) do
-      attrs =
-        case Map.get(attrs, :metadata) do
-          metadata when is_map(metadata) ->
-            Map.put(attrs, :metadata, Map.merge(launch.metadata || %{}, metadata))
-
-          _ ->
-            attrs
-        end
-
-      launch
-      |> TokenLaunch.changeset(Map.put(attrs, :launch_status, status))
-      |> Repo.update()
-    else
-      :ok
-    end
-  rescue
-    _ -> :ok
-  end
-
-  defp persist_auction(job, result) do
-    now = DateTime.utc_now()
-
-    attrs = %{
-      source_job_id: "auc_" <> String.replace_prefix(job.job_id, "job_", ""),
-      agent_id: job.agent_id,
-      agent_name: job.agent_name || job.agent_id,
-      ens_name: job.ens_name,
-      owner_address: job.owner_address,
-      auction_address: result.auction_address,
-      token_address: result.token_address,
-      minimum_raise_usdc: job.minimum_raise_usdc,
-      minimum_raise_usdc_raw: job.minimum_raise_usdc_raw,
-      network: job.network,
-      chain_id: job.chain_id,
-      status: "active",
-      started_at: now,
-      ends_at: DateTime.add(now, @default_auction_duration_seconds, :second),
-      bidders: 0,
-      raised_currency: "0 USDC",
-      target_currency: "Not published",
-      progress_percent: 0,
-      metrics_updated_at: now,
-      notes: job.token_symbol || job.launch_notes,
-      uniswap_url: result.uniswap_url,
-      world_network: job.world_network || "world",
-      world_registered: job.world_registered,
-      world_human_id: job.world_human_id
-    }
-
-    {:ok, auction} =
-      Repo.insert(
-        Auction.changeset(%Auction{}, attrs),
-        conflict_target: [:network, :auction_address],
-        on_conflict: [set: Keyword.drop(Map.to_list(attrs), [:source_job_id])],
-        returning: true
-      )
-
-    auction
-  end
-
-  defp run_launch(job) do
-    if mock_deploy?(), do: simulate_launch(job), else: run_command_launch(job)
-  end
-
-  defp simulate_launch(job) do
-    :timer.sleep(1_200)
-
-    suffix =
-      Ecto.UUID.generate()
-      |> String.replace("-", "")
-      |> String.slice(0, 40)
-
-    auction_address = "0x" <> suffix
-    token_address = "0x" <> String.reverse(suffix)
-    strategy_address = "0x" <> String.duplicate("a", 40)
-    vesting_wallet_address = "0x" <> String.duplicate("9", 40)
-    hook_address = "0x" <> String.duplicate("b", 40)
-    launch_fee_registry_address = "0x" <> String.duplicate("c", 40)
-    launch_fee_vault_address = "0x" <> String.duplicate("e", 40)
-    subject_registry_address = "0x" <> String.duplicate("d", 40)
-    subject_id = "0x" <> String.duplicate("1", 64)
-    revenue_share_splitter_address = "0x" <> String.duplicate("6", 40)
-    default_ingress_address = "0x" <> String.duplicate("7", 40)
-    pool_id = "0x" <> String.duplicate("f", 64)
-
-    {:ok,
-     %{
-       auction_address: auction_address,
-       token_address: token_address,
-       strategy_address: strategy_address,
-       vesting_wallet_address: vesting_wallet_address,
-       hook_address: hook_address,
-       launch_fee_registry_address: launch_fee_registry_address,
-       launch_fee_vault_address: launch_fee_vault_address,
-       subject_registry_address: subject_registry_address,
-       subject_id: subject_id,
-       revenue_share_splitter_address: revenue_share_splitter_address,
-       default_ingress_address: default_ingress_address,
-       pool_id: pool_id,
-       tx_hash: "0x" <> String.duplicate("a", 64),
-       uniswap_url: to_uniswap_url(job.chain_id, token_address),
-       stdout_tail:
-         "CCA_RESULT_JSON:{\"factoryAddress\":\"#{deploy_factory_address(job.chain_id)}\",\"auctionAddress\":\"#{auction_address}\",\"tokenAddress\":\"#{token_address}\",\"strategyAddress\":\"#{strategy_address}\",\"vestingWalletAddress\":\"#{vesting_wallet_address}\",\"hookAddress\":\"#{hook_address}\",\"launchFeeRegistryAddress\":\"#{launch_fee_registry_address}\",\"feeVaultAddress\":\"#{launch_fee_vault_address}\",\"subjectRegistryAddress\":\"#{subject_registry_address}\",\"subjectId\":\"#{subject_id}\",\"revenueShareSplitterAddress\":\"#{revenue_share_splitter_address}\",\"defaultIngressAddress\":\"#{default_ingress_address}\",\"poolId\":\"#{pool_id}\"}",
-       stderr_tail: ""
-     }}
-  end
-
-  defp run_command_launch(job) do
-    binary = deploy_binary()
-    workdir = deploy_workdir()
-    script_target = deploy_script_target()
-    rpc_url = deploy_rpc_url(job.chain_id)
-    deploy_error = deploy_env_error(job.chain_id)
-
-    cond do
-      blank?(rpc_url) ->
-        {:error, "Missing deploy RPC URL for #{job.network}.",
-         %{stdout_tail: "", stderr_tail: ""}}
-
-      deploy_error ->
-        {:error, deploy_error, %{stdout_tail: "", stderr_tail: ""}}
-
-      true ->
-        args =
-          ["script", script_target, "--rpc-url", rpc_url] ++
-            credentials_args() ++ broadcast_args(job)
-
-        task =
-          Task.async(fn ->
-            command_runner().cmd(binary, args,
-              cd: workdir,
-              env: command_env(job),
-              stderr_to_stdout: true
-            )
-          end)
-
-        case Task.yield(task, deploy_timeout_ms()) do
-          {:ok, {output, 0}} ->
-            parse_launch_output(job, output)
-
-          {:ok, {output, exit_code}} ->
-            {:error, "Forge exited with status #{exit_code}.",
-             %{stdout_tail: trim_tail(output), stderr_tail: ""}}
-
-          nil ->
-            Task.shutdown(task, :brutal_kill)
-
-            {:error, "Forge timed out while waiting for deployment.",
-             %{stdout_tail: "", stderr_tail: ""}}
-        end
-    end
-  rescue
-    error ->
-      {:error, Exception.message(error), %{stdout_tail: "", stderr_tail: ""}}
-  end
-
-  defp parse_launch_output(job, output) do
-    marker = deploy_output_marker()
-
-    with {:ok, parsed} <- parse_launch_output_payload(output, marker),
-         {:ok, auction_address} <- required_launch_output_address(parsed, "auctionAddress"),
-         {:ok, token_address} <- required_launch_output_address(parsed, "tokenAddress"),
-         {:ok, strategy_address} <- required_launch_output_address(parsed, "strategyAddress"),
-         {:ok, vesting_wallet_address} <-
-           required_launch_output_address(parsed, "vestingWalletAddress"),
-         {:ok, hook_address} <- required_launch_output_address(parsed, "hookAddress"),
-         {:ok, launch_fee_registry_address} <-
-           required_launch_output_address(parsed, "launchFeeRegistryAddress"),
-         {:ok, launch_fee_vault_address} <-
-           required_launch_output_address(parsed, "feeVaultAddress"),
-         {:ok, subject_registry_address} <-
-           required_launch_output_address(parsed, "subjectRegistryAddress"),
-         {:ok, subject_id} <- required_launch_output_hex(parsed, "subjectId", 64),
-         {:ok, revenue_share_splitter_address} <-
-           required_launch_output_address(parsed, "revenueShareSplitterAddress"),
-         {:ok, default_ingress_address} <-
-           required_launch_output_address(parsed, "defaultIngressAddress"),
-         {:ok, pool_id} <- required_launch_output_hex(parsed, "poolId", 64) do
-      {:ok,
-       %{
-         auction_address: auction_address,
-         token_address: token_address,
-         strategy_address: strategy_address,
-         vesting_wallet_address: vesting_wallet_address,
-         hook_address: hook_address,
-         launch_fee_registry_address: launch_fee_registry_address,
-         launch_fee_vault_address: launch_fee_vault_address,
-         subject_registry_address: subject_registry_address,
-         subject_id: subject_id,
-         revenue_share_splitter_address: revenue_share_splitter_address,
-         default_ingress_address: default_ingress_address,
-         pool_id: pool_id,
-         tx_hash: Map.get(parsed, "txHash"),
-         uniswap_url: to_uniswap_url(job.chain_id, token_address),
-         stdout_tail: trim_tail(output),
-         stderr_tail: ""
-       }}
-    else
-      {:error, message} ->
-        {:error, message, %{stdout_tail: trim_tail(output), stderr_tail: ""}}
-    end
-  end
-
-  defp parse_launch_output_payload(output, marker) do
-    case latest_marked_json(output, marker) do
-      nil -> {:error, "Deployment output missing deterministic marker #{marker}."}
-      parsed -> {:ok, parsed}
-    end
-  end
-
-  defp latest_marked_json(output, marker) do
-    output
-    |> String.split(~r/\r?\n/)
-    |> Enum.reduce(nil, fn line, latest ->
-      case String.split(line, marker, parts: 2) do
-        [_prefix, suffix] ->
-          case Jason.decode(String.trim(suffix)) do
-            {:ok, parsed} -> parsed
-            _ -> latest
-          end
-
-        _ ->
-          latest
-      end
-    end)
-  end
-
-  defp time_remaining_seconds(nil), do: 0
-
-  defp time_remaining_seconds(%DateTime{} = datetime) do
+  def time_remaining_seconds(%DateTime{} = datetime) do
     max(DateTime.diff(datetime, DateTime.utc_now(), :second), 0)
   end
 
-  defp time_remaining_seconds(iso) when is_binary(iso) do
+  def time_remaining_seconds(iso) when is_binary(iso) do
     case DateTime.from_iso8601(iso) do
       {:ok, datetime, _} -> max(DateTime.diff(datetime, DateTime.utc_now(), :second), 0)
       _ -> 0
@@ -1846,7 +1015,7 @@ defmodule Autolaunch.Launch.Internal do
     end
   end
 
-  defp serialize_job(job) do
+  def serialize_job(job) do
     chain = chain_config(job.chain_id)
 
     trust =
@@ -1926,14 +1095,14 @@ defmodule Autolaunch.Launch.Internal do
     }
   end
 
-  defp identity_index_for_auctions(auctions) do
+  def identity_index_for_auctions(auctions) do
     auctions
     |> Enum.map(& &1.agent_id)
     |> Enum.reject(&blank?/1)
     |> ERC8004.get_identities_by_agent_ids()
   end
 
-  defp x_accounts_for_auctions(auctions) do
+  def x_accounts_for_auctions(auctions) do
     auctions
     |> Enum.map(& &1.agent_id)
     |> Trust.x_accounts_by_agent_ids()
@@ -2104,7 +1273,7 @@ defmodule Autolaunch.Launch.Internal do
 
   defp world_note(base_note, _world), do: base_note
 
-  defp world_launch_counts do
+  def world_launch_counts do
     Repo.all(
       from auction in Auction,
         where:
@@ -2137,10 +1306,10 @@ defmodule Autolaunch.Launch.Internal do
   defp source_job_to_job_id("auc_" <> rest), do: "job_" <> rest
   defp source_job_to_job_id(_source_job_id), do: nil
 
-  defp ensure_authenticated_human(%HumanUser{privy_user_id: privy_user_id})
-       when is_binary(privy_user_id), do: :ok
+  def ensure_authenticated_human(%HumanUser{privy_user_id: privy_user_id})
+      when is_binary(privy_user_id), do: :ok
 
-  defp ensure_authenticated_human(_human), do: {:error, :unauthorized}
+  def ensure_authenticated_human(_human), do: {:error, :unauthorized}
 
   defp ensure_wallet_matches_human(%HumanUser{} = human, wallet) do
     normalized_wallet = normalize_address(wallet)
@@ -2157,141 +1326,32 @@ defmodule Autolaunch.Launch.Internal do
     end
   end
 
-  defp launch_chain_id do
+  def launch_chain_id do
     normalize_chain_id(Keyword.get(launch_config(), :chain_id, 84_532))
   end
 
-  defp deploy_binary do
-    Application.get_env(:autolaunch, :launch, [])
-    |> Keyword.get(:deploy_binary, "forge")
-  end
-
-  defp deploy_workdir do
-    Application.get_env(:autolaunch, :launch, [])
-    |> Keyword.get(:deploy_workdir, "")
-  end
-
-  defp deploy_script_target do
-    Application.get_env(:autolaunch, :launch, [])
-    |> Keyword.get(:deploy_script_target, "")
-  end
-
-  defp deploy_output_marker do
-    Application.get_env(:autolaunch, :launch, [])
-    |> Keyword.get(:deploy_output_marker, "CCA_RESULT_JSON:")
-  end
-
-  defp deploy_timeout_ms do
-    launch_config()
-    |> Keyword.get(:deploy_timeout_ms, 180_000)
-    |> normalize_timeout_ms()
-  end
-
-  defp command_runner do
-    launch_config()
-    |> Keyword.get(:command_runner_module, System)
-  end
-
-  defp deploy_rpc_url(chain_id) do
-    config_value_for_chain(chain_id, :rpc_url)
-  end
-
-  defp deploy_rpc_host(chain_id) do
-    case deploy_rpc_url(chain_id) do
-      nil ->
-        nil
-
-      "" ->
-        nil
-
-      url ->
-        case URI.parse(url) do
-          %URI{host: host} when is_binary(host) -> host
-          _ -> "custom"
-        end
-    end
-  end
-
-  defp mock_deploy? do
-    launch_config()
-    |> Keyword.get(:mock_deploy, false)
-  end
-
-  defp credentials_args do
-    config = launch_config()
-    account = Keyword.get(config, :deploy_account, "")
-    password = Keyword.get(config, :deploy_password, "")
-    private_key = Keyword.get(config, :deploy_private_key, "")
-
-    cond do
-      account != "" and password != "" -> ["--account", account, "--password", password]
-      account != "" -> ["--account", account]
-      private_key != "" -> ["--private-key", private_key]
-      true -> []
-    end
-  end
-
-  defp broadcast_args(%Job{broadcast: true}), do: ["--broadcast"]
-  defp broadcast_args(_job), do: []
-
-  defp command_env(job) do
-    [
-      {"AUTOLAUNCH_OWNER_ADDRESS", job.owner_address},
-      {"AUTOLAUNCH_AGENT_ID", job.agent_id},
-      {"AUTOLAUNCH_AGENT_NAME", job.agent_name || ""},
-      {"AUTOLAUNCH_TOKEN_NAME", job.token_name || ""},
-      {"AUTOLAUNCH_TOKEN_SYMBOL", job.token_symbol || ""},
-      {"CCA_REQUIRED_CURRENCY_RAISED", job.minimum_raise_usdc_raw || "0"},
-      {"AUTOLAUNCH_TOTAL_SUPPLY", job.total_supply},
-      {"AUTOLAUNCH_AGENT_SAFE_ADDRESS", job.agent_safe_address || ""},
-      {"AUTOLAUNCH_LIFECYCLE_RUN_ID", job.lifecycle_run_id || ""},
-      {"AUTOLAUNCH_LAUNCH_NOTES", job.launch_notes || ""},
-      {"AUTOLAUNCH_NETWORK", job.network},
-      {"AUTOLAUNCH_CHAIN_ID", Integer.to_string(job.chain_id)},
-      {"AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", deploy_revenue_share_factory_address()},
-      {"AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS", deploy_revenue_ingress_factory_address()},
-      {"AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", deploy_lbp_strategy_factory_address()},
-      {"AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", deploy_token_factory_address()},
-      {"REGENT_MULTISIG_ADDRESS", deploy_regent_multisig_address()},
-      {"AUTOLAUNCH_USDC_ADDRESS", deploy_usdc_address(job.chain_id)},
-      {"AUTOLAUNCH_CCA_FACTORY_ADDRESS", deploy_factory_address(job.chain_id)},
-      {"AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", deploy_pool_manager_address(job.chain_id)},
-      {"AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", deploy_position_manager_address(job.chain_id)}
-    ]
-  end
-
-  defp to_uniswap_url(chain_id, token_address) do
-    case chain_config(chain_id) do
-      %{uniswap_network: network} when is_binary(network) and is_binary(token_address) ->
-        "https://app.uniswap.org/explore/tokens/#{network}/#{token_address}"
-
-      _ ->
-        nil
-    end
-  end
-
-  defp iso(nil), do: nil
-  defp iso(%DateTime{} = value), do: DateTime.to_iso8601(value)
+  def iso(nil), do: nil
+  def iso(%DateTime{} = value), do: DateTime.to_iso8601(value)
 
   defp truthy?(value), do: value in [true, "true", "1", 1, "on", "yes"]
 
-  defp normalize_address(value) when is_binary(value) do
+  def normalize_address(value) when is_binary(value) do
     trimmed = String.trim(value)
     if trimmed == "", do: nil, else: String.downcase(trimmed)
   end
 
-  defp normalize_address(_value), do: nil
+  def normalize_address(_value), do: nil
 
-  defp linked_wallet_addresses(%HumanUser{} = human) do
+  def linked_wallet_addresses(%HumanUser{} = human) do
     [human.wallet_address | List.wrap(human.wallet_addresses)]
     |> Enum.map(&normalize_address/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
   end
 
-  defp linked_wallet_addresses(_human), do: []
+  def linked_wallet_addresses(_human), do: []
 
-  defp primary_wallet_address(%HumanUser{} = human),
+  def primary_wallet_address(%HumanUser{} = human),
     do: human |> linked_wallet_addresses() |> List.first()
 
   defp normalize_chain_id(value) when is_integer(value) do
@@ -2320,7 +1380,7 @@ defmodule Autolaunch.Launch.Internal do
 
   defp required_text(_value, _max_length, error_atom), do: {:error, error_atom}
 
-  defp required_address(value) do
+  def required_address(value) do
     case normalize_address(value) do
       address when is_binary(address) ->
         if Regex.match?(~r/^0x[0-9a-f]{40}$/, address) do
@@ -2334,21 +1394,21 @@ defmodule Autolaunch.Launch.Internal do
     end
   end
 
-  defp required_decimal(value, error_atom) when is_binary(value) do
+  def required_decimal(value, error_atom) when is_binary(value) do
     case Decimal.parse(String.trim(value)) do
       {decimal, ""} -> {:ok, decimal}
       _ -> {:error, error_atom}
     end
   end
 
-  defp required_decimal(value, _error_atom) when is_number(value), do: {:ok, decimal(value)}
-  defp required_decimal(_value, error_atom), do: {:error, error_atom}
+  def required_decimal(value, _error_atom) when is_number(value), do: {:ok, decimal(value)}
+  def required_decimal(_value, error_atom), do: {:error, error_atom}
 
   defp ensure_positive_decimal(%Decimal{} = value, error_atom) do
     if Decimal.compare(value, Decimal.new(0)) == :gt, do: :ok, else: {:error, error_atom}
   end
 
-  defp required_tx_hash(value) when is_binary(value) do
+  def required_tx_hash(value) when is_binary(value) do
     tx_hash = String.downcase(String.trim(value))
 
     if Regex.match?(~r/^0x[0-9a-f]{64}$/, tx_hash) do
@@ -2358,7 +1418,7 @@ defmodule Autolaunch.Launch.Internal do
     end
   end
 
-  defp required_tx_hash(_value), do: {:error, :invalid_transaction_hash}
+  def required_tx_hash(_value), do: {:error, :invalid_transaction_hash}
 
   defp normalize_optional_text(value, max_length) when is_binary(value) do
     value
@@ -2380,24 +1440,6 @@ defmodule Autolaunch.Launch.Internal do
 
   defp parse_issued_at(_value), do: DateTime.utc_now()
 
-  defp trim_tail(output) when is_binary(output) do
-    String.slice(output, max(String.length(output) - 20_000, 0), 20_000)
-  end
-
-  defp required_launch_output_address(parsed, key) do
-    case normalize_address(Map.get(parsed, key)) do
-      value when is_binary(value) -> {:ok, value}
-      _ -> {:error, "Deployment output did not include #{key}."}
-    end
-  end
-
-  defp required_launch_output_hex(parsed, key, bytes) do
-    case Map.get(parsed, key) do
-      "0x" <> value = hex when byte_size(value) == bytes -> {:ok, String.downcase(hex)}
-      _ -> {:error, "Deployment output did not include #{key}."}
-    end
-  end
-
   defp maybe_load_job_auction(%Job{auction_address: address, network: network})
        when is_binary(address) and address != "" do
     get_auction_by_address(network, address, nil)
@@ -2406,9 +1448,6 @@ defmodule Autolaunch.Launch.Internal do
   defp maybe_load_job_auction(_job), do: nil
 
   defp blank?(value), do: value in [nil, ""]
-
-  defp normalize_timeout_ms(value) when is_integer(value) and value > 0, do: value
-  defp normalize_timeout_ms(_value), do: 180_000
 
   defp launch_config do
     Application.get_env(:autolaunch, :launch, [])
@@ -2427,80 +1466,6 @@ defmodule Autolaunch.Launch.Internal do
     case chain_config(chain_id) do
       nil -> raise ArgumentError, "unsupported chain id #{inspect(chain_id)}"
       config -> config
-    end
-  end
-
-  defp deploy_factory_address(chain_id) do
-    config_value_for_chain(chain_id, :cca_factory_address)
-  end
-
-  defp deploy_pool_manager_address(chain_id) do
-    config_value_for_chain(chain_id, :pool_manager_address)
-  end
-
-  defp deploy_regent_multisig_address do
-    Keyword.get(
-      launch_config(),
-      :regent_multisig_address,
-      "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
-    )
-  end
-
-  defp deploy_revenue_share_factory_address,
-    do: Keyword.get(launch_config(), :revenue_share_factory_address, "")
-
-  defp deploy_revenue_ingress_factory_address,
-    do: Keyword.get(launch_config(), :revenue_ingress_factory_address, "")
-
-  defp deploy_lbp_strategy_factory_address,
-    do: Keyword.get(launch_config(), :lbp_strategy_factory_address, "")
-
-  defp deploy_token_factory_address,
-    do: Keyword.get(launch_config(), :token_factory_address, "")
-
-  defp deploy_position_manager_address(chain_id) do
-    config_value_for_chain(chain_id, :position_manager_address)
-  end
-
-  defp deploy_usdc_address(chain_id) do
-    config_value_for_chain(chain_id, :usdc_address)
-  end
-
-  defp deploy_env_error(chain_id) do
-    with {:ok, chain} <- fetch_chain_config(chain_id) do
-      cond do
-        blank?(deploy_script_target()) ->
-          "Missing launch deploy script target."
-
-        blank?(deploy_workdir()) ->
-          "Missing launch deploy workdir."
-
-        blank?(deploy_revenue_share_factory_address()) ->
-          "Missing revenue share factory address."
-
-        blank?(deploy_revenue_ingress_factory_address()) ->
-          "Missing revenue ingress factory address."
-
-        blank?(deploy_lbp_strategy_factory_address()) ->
-          "Missing Regent LBP strategy factory address."
-
-        blank?(deploy_token_factory_address()) ->
-          "Missing token factory address."
-
-        blank?(deploy_pool_manager_address(chain_id)) ->
-          "Missing #{chain.label} Uniswap v4 pool manager address."
-
-        blank?(deploy_factory_address(chain_id)) ->
-          "Missing #{chain.label} CCA factory address."
-
-        blank?(deploy_usdc_address(chain_id)) ->
-          "Missing #{chain.label} USDC address."
-
-        true ->
-          nil
-      end
-    else
-      _ -> "Unsupported deploy network."
     end
   end
 
@@ -2543,28 +1508,28 @@ defmodule Autolaunch.Launch.Internal do
   defp parse_float(value) when is_number(value), do: value * 1.0
   defp parse_float(_value), do: 0.0
 
-  defp parse_decimal(value) when is_binary(value), do: decimal(parse_float(value))
-  defp parse_decimal(%Decimal{} = value), do: value
-  defp parse_decimal(value) when is_number(value), do: decimal(value)
-  defp parse_decimal(_value), do: decimal("0")
+  def parse_decimal(value) when is_binary(value), do: decimal(parse_float(value))
+  def parse_decimal(%Decimal{} = value), do: value
+  def parse_decimal(value) when is_number(value), do: decimal(value)
+  def parse_decimal(_value), do: decimal("0")
 
-  defp decimal_from_string(nil), do: nil
+  def decimal_from_string(nil), do: nil
 
-  defp decimal_from_string(value) when is_binary(value) do
+  def decimal_from_string(value) when is_binary(value) do
     case Decimal.parse(String.trim(value)) do
       {decimal, ""} -> decimal
       _ -> nil
     end
   end
 
-  defp decimal_from_string(%Decimal{} = value), do: value
-  defp decimal_from_string(_value), do: nil
+  def decimal_from_string(%Decimal{} = value), do: value
+  def decimal_from_string(_value), do: nil
 
   defp decimal(value) when is_binary(value), do: Decimal.new(value)
   defp decimal(value) when is_float(value), do: Decimal.from_float(value)
   defp decimal(value) when is_integer(value), do: Decimal.new(value)
 
-  defp decimal_to_wei(%Decimal{} = value) do
+  def decimal_to_wei(%Decimal{} = value) do
     scaled = Decimal.mult(value, Decimal.new("1000000"))
 
     if Decimal.equal?(scaled, Decimal.round(scaled, 0)) do
@@ -2574,16 +1539,7 @@ defmodule Autolaunch.Launch.Internal do
     end
   end
 
-  defp config_value_for_chain(chain_id, key) do
-    with {:ok, active_chain_id} <- launch_chain_id(),
-         true <- chain_id == active_chain_id do
-      Keyword.get(launch_config(), key, "")
-    else
-      _ -> ""
-    end
-  end
-
-  defp decimal_price_to_q96(%Decimal{} = value) do
+  def decimal_price_to_q96(%Decimal{} = value) do
     scaled = Decimal.mult(value, Decimal.new("79228162514264337593543950336"))
 
     if Decimal.equal?(scaled, Decimal.round(scaled, 0)) do
@@ -2595,7 +1551,7 @@ defmodule Autolaunch.Launch.Internal do
     _ -> {:error, :invalid_max_price}
   end
 
-  defp q96_price_to_string(value) when is_integer(value) and value >= 0 do
+  def q96_price_to_string(value) when is_integer(value) and value >= 0 do
     value
     |> Decimal.new()
     |> Decimal.div(Decimal.new("79228162514264337593543950336"))
@@ -2603,14 +1559,14 @@ defmodule Autolaunch.Launch.Internal do
     |> Decimal.to_string(:normal)
   end
 
-  defp q96_to_decimal(value) when is_integer(value) and value >= 0 do
+  def q96_to_decimal(value) when is_integer(value) and value >= 0 do
     value
     |> Decimal.new()
     |> Decimal.div(Decimal.new("79228162514264337593543950336"))
     |> Decimal.round(12)
   end
 
-  defp token_units_to_string(value) when is_integer(value) and value >= 0 do
+  def token_units_to_string(value) when is_integer(value) and value >= 0 do
     value
     |> Decimal.new()
     |> Decimal.div(Decimal.new("1000000000000000000"))
@@ -2630,13 +1586,13 @@ defmodule Autolaunch.Launch.Internal do
 
   defp wei_to_float(value) when is_integer(value), do: value / 1.0e6
 
-  defp decimal_string(value, places \\ 4)
+  def decimal_string(value, places \\ 4)
 
-  defp decimal_string(%Decimal{} = value, places) do
+  def decimal_string(%Decimal{} = value, places) do
     value
     |> Decimal.round(places)
     |> Decimal.to_string(:normal)
   end
 
-  defp decimal_string(nil, _places), do: "0"
+  def decimal_string(nil, _places), do: "0"
 end

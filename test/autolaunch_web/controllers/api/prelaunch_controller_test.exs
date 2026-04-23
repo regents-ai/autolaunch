@@ -65,7 +65,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
       {:ok,
        %{
          plan: %{plan_id: "plan_alpha", state: "launchable"},
-         metadata_url: "/api/prelaunch/plans/plan_alpha/metadata-preview"
+         metadata_url: "/v1/app/prelaunch/plans/plan_alpha/metadata-preview"
        }}
     end
 
@@ -135,7 +135,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
   end
 
   test "lists plans", %{conn: conn} do
-    conn = get(conn, "/api/prelaunch/plans")
+    conn = get(conn, "/v1/app/prelaunch/plans")
 
     assert %{"ok" => true, "plans" => [%{"plan_id" => "plan_alpha", "state" => "draft"}]} =
              json_response(conn, 200)
@@ -143,7 +143,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
 
   test "creates and shows a plan", %{conn: conn} do
     create_conn =
-      post(conn, "/api/prelaunch/plans", %{
+      post(conn, "/v1/app/prelaunch/plans", %{
         "agent_id" => "84532:42",
         "token_name" => "Atlas Coin",
         "token_symbol" => "ATLAS",
@@ -154,29 +154,29 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
     assert %{"ok" => true, "plan" => %{"plan_id" => "plan_alpha"}} =
              json_response(create_conn, 200)
 
-    show_conn = get(conn, "/api/prelaunch/plans/plan_alpha")
+    show_conn = get(conn, "/v1/app/prelaunch/plans/plan_alpha")
 
     assert %{"ok" => true, "plan" => %{"plan_id" => "plan_alpha", "state" => "validated"}} =
              json_response(show_conn, 200)
   end
 
   test "validates, publishes, and launches a plan", %{conn: conn} do
-    validate_conn = post(conn, "/api/prelaunch/plans/plan_alpha/validate", %{})
+    validate_conn = post(conn, "/v1/app/prelaunch/plans/plan_alpha/validate", %{})
 
     assert %{
              "ok" => true,
              "validation" => %{"launchable" => true, "warnings" => []}
            } = json_response(validate_conn, 200)
 
-    publish_conn = post(conn, "/api/prelaunch/plans/plan_alpha/publish", %{})
+    publish_conn = post(conn, "/v1/app/prelaunch/plans/plan_alpha/publish", %{})
 
     assert %{
              "ok" => true,
-             "metadata_url" => "/api/prelaunch/plans/plan_alpha/metadata-preview"
+             "metadata_url" => "/v1/app/prelaunch/plans/plan_alpha/metadata-preview"
            } = json_response(publish_conn, 200)
 
     launch_conn =
-      post(conn, "/api/prelaunch/plans/plan_alpha/launch", %{
+      post(conn, "/v1/app/prelaunch/plans/plan_alpha/launch", %{
         "wallet_address" => "0x00000000000000000000000000000000000000aa",
         "nonce" => "nonce_123",
         "message" => "sign me",
@@ -200,7 +200,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
       |> put_req_header("x-forwarded-for", "198.51.100.88")
 
     launch_conn =
-      post(conn, "/api/prelaunch/plans/plan_alpha/launch", %{
+      post(conn, "/v1/app/prelaunch/plans/plan_alpha/launch", %{
         "wallet_address" => "0x00000000000000000000000000000000000000aa",
         "nonce" => "nonce_123",
         "message" => "sign me",
@@ -216,7 +216,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
 
   test "uploads assets and updates metadata preview", %{conn: conn} do
     upload_conn =
-      post(conn, "/api/prelaunch/assets", %{
+      post(conn, "/v1/app/prelaunch/assets", %{
         "file_name" => "atlas.png",
         "media_type" => "image/png",
         "content_base64" => Base.encode64("atlas")
@@ -226,7 +226,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
              json_response(upload_conn, 200)
 
     metadata_conn =
-      post(conn, "/api/prelaunch/plans/plan_alpha/metadata", %{
+      post(conn, "/v1/app/prelaunch/plans/plan_alpha/metadata", %{
         "metadata" => %{
           "title" => "Atlas Launch",
           "image_url" => "/prelaunch-assets/asset_upload.png"
@@ -241,7 +241,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
              }
            } = json_response(metadata_conn, 200)
 
-    preview_conn = get(conn, "/api/prelaunch/plans/plan_alpha/metadata-preview")
+    preview_conn = get(conn, "/v1/app/prelaunch/plans/plan_alpha/metadata-preview")
 
     assert %{
              "ok" => true,

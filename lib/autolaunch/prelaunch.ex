@@ -28,19 +28,7 @@ defmodule Autolaunch.Prelaunch do
     with {:ok, agent_id} <- required_text(Map.get(attrs, "agent_id"), 255),
          %{} = agent <- Launch.get_agent(human, agent_id),
          attrs <- normalize_plan_attrs(attrs, agent),
-         :ok <- archive_existing_agent_drafts(agent_id, human.privy_user_id),
-         {:ok, plan} <-
-           %Plan{}
-           |> Plan.create_changeset(
-             Map.merge(attrs, %{
-               plan_id: "plan_" <> Ecto.UUID.generate(),
-               privy_user_id: human.privy_user_id,
-               chain_id: launch_chain_id(),
-               identity_snapshot: identity_snapshot(agent),
-               metadata_draft: metadata_draft(Map.get(attrs, "metadata_draft"))
-             })
-           )
-           |> Repo.insert() do
+         {:ok, plan} <- insert_plan_with_archived_drafts(agent_id, attrs, agent, human) do
       {:ok, serialize_plan(plan)}
     else
       nil -> {:error, :agent_not_found}
@@ -49,6 +37,40 @@ defmodule Autolaunch.Prelaunch do
   end
 
   def create_plan(_attrs, _human), do: {:error, :unauthorized}
+
+  defp insert_plan_with_archived_drafts(agent_id, attrs, agent, %HumanUser{} = human) do
+    now = DateTime.utc_now()
+
+    plan_changeset =
+      %Plan{}
+      |> Plan.create_changeset(
+        Map.merge(attrs, %{
+          plan_id: "plan_" <> Ecto.UUID.generate(),
+          privy_user_id: human.privy_user_id,
+          chain_id: launch_chain_id(),
+          identity_snapshot: identity_snapshot(agent),
+          metadata_draft: metadata_draft(Map.get(attrs, "metadata_draft"))
+        })
+      )
+
+    Ecto.Multi.new()
+    |> Ecto.Multi.update_all(
+      :archive_drafts,
+      from(plan in Plan,
+        where:
+          plan.agent_id == ^agent_id and plan.privy_user_id == ^human.privy_user_id and
+            plan.state in ^@draft_states
+      ),
+      set: [state: "archived", updated_at: now]
+    )
+    |> Ecto.Multi.insert(:plan, plan_changeset)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{plan: plan}} -> {:ok, plan}
+      {:error, :plan, changeset, _changes} -> {:error, changeset}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
 
   def get_plan(plan_id, %HumanUser{} = human) do
     case load_plan(plan_id, human.privy_user_id) do
@@ -176,16 +198,9 @@ defmodule Autolaunch.Prelaunch do
          {:ok, %{validation: validation}} <- validate_plan(plan_id, human),
          true <- validation["launchable"] || {:error, :not_launchable},
          launch_attrs <- build_launch_attrs(plan, attrs),
-         {:ok, job} <- Launch.create_launch_job(launch_attrs, human, request_ip),
-         {:ok, updated} <-
-           plan
-           |> Plan.update_changeset(%{
-             state: "launched",
-             launch_job_id: job.job_id,
-             published_metadata_url:
-               plan.published_metadata_url || metadata_preview_url(plan.plan_id)
-           })
-           |> Repo.update() do
+         {:ok, %{plan: updated, launch: job}} <-
+           create_launch_and_mark_plan_launched(plan, launch_attrs, human, request_ip),
+         :ok <- Launch.queue_processing(job.job_id) do
       {:ok, %{plan: serialize_plan(updated), launch: job}}
     else
       nil -> {:error, :not_found}
@@ -195,6 +210,25 @@ defmodule Autolaunch.Prelaunch do
   end
 
   def launch_plan(_plan_id, _attrs, _human, _request_ip), do: {:error, :unauthorized}
+
+  defp create_launch_and_mark_plan_launched(plan, launch_attrs, human, request_ip) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:launch, fn _repo, _changes ->
+      Launch.create_launch_job(launch_attrs, human, request_ip, queue?: false)
+    end)
+    |> Ecto.Multi.update(:plan, fn %{launch: job} ->
+      Plan.update_changeset(plan, %{
+        state: "launched",
+        launch_job_id: job.job_id,
+        published_metadata_url: plan.published_metadata_url || metadata_preview_url(plan.plan_id)
+      })
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{plan: plan, launch: job}} -> {:ok, %{plan: plan, launch: job}}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
 
   defp build_validation(plan, %HumanUser{} = human) do
     preview_attrs = %{
@@ -454,20 +488,6 @@ defmodule Autolaunch.Prelaunch do
     )
   end
 
-  defp archive_existing_agent_drafts(agent_id, privy_user_id) do
-    {_, _} =
-      Repo.update_all(
-        from(plan in Plan,
-          where:
-            plan.agent_id == ^agent_id and plan.privy_user_id == ^privy_user_id and
-              plan.state in ^@draft_states
-        ),
-        set: [state: "archived", updated_at: DateTime.utc_now()]
-      )
-
-    :ok
-  end
-
   defp required_text(value, max) when is_integer(max) do
     value = trim(value)
 
@@ -541,7 +561,7 @@ defmodule Autolaunch.Prelaunch do
 
   defp blank?(value), do: is_nil(value) or value == ""
 
-  defp metadata_preview_url(plan_id), do: "/api/prelaunch/plans/#{plan_id}/metadata-preview"
+  defp metadata_preview_url(plan_id), do: "/v1/app/prelaunch/plans/#{plan_id}/metadata-preview"
 
   defp filename_from_url(source_url) do
     source_url

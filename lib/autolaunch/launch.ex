@@ -13,6 +13,7 @@ defmodule Autolaunch.Launch do
 
   defdelegate preview_launch(attrs, human), to: Preview
   defdelegate create_launch_job(attrs, human, request_ip), to: Preview
+  defdelegate create_launch_job(attrs, human, request_ip, opts), to: Preview
 
   defdelegate get_job_response(job_id), to: Jobs
   defdelegate queue_processing(job_id), to: Jobs
