@@ -30,7 +30,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/auth/privy/csrf:
+  /v1/auth/privy/csrf:
     get:
       operationId: autolaunchPrivySessionCsrf
       tags: [auth]
@@ -40,7 +40,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrivySessionCsrf" }
-  /api/auth/privy/session:
+  /v1/auth/privy/session:
     post:
       operationId: createPrivySession
       tags: [auth]
@@ -76,7 +76,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OkEnvelope" }
-  /api/auth/privy/xmtp/complete:
+  /v1/auth/privy/xmtp/complete:
     post:
       operationId: completePrivyXmtpSetup
       tags: [auth]
@@ -102,7 +102,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/auth/privy/profile:
+  /v1/auth/privy/profile:
     get:
       operationId: getPrivySessionProfile
       tags: [auth]
@@ -113,7 +113,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PrivySessionResponse" }
 
-  /api/auth/agent/session:
+  /v1/auth/agent/session:
     get:
       operationId: getAutolaunchAgentSession
       tags: [auth]
@@ -150,7 +150,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/OkEnvelope" }
 
-  /api/agentbook/sessions:
+  /v1/app/agentbook/sessions:
     post:
       operationId: createAgentbookSession
       tags: [agentbook]
@@ -165,7 +165,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/agentbook/sessions/{id}:
+  /v1/app/agentbook/sessions/{id}:
     get:
       operationId: getAgentbookSession
       tags: [agentbook]
@@ -177,7 +177,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/agentbook/sessions/{id}/submit:
+  /v1/app/agentbook/sessions/{id}/submit:
     post:
       operationId: submitAgentbookSession
       tags: [agentbook]
@@ -194,7 +194,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/agentbook/lookup:
+  /v1/app/agentbook/lookup:
     get:
       operationId: lookupAgentbookRegistration
       tags: [agentbook]
@@ -212,7 +212,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/agentbook/verify:
+  /v1/app/agentbook/verify:
     post:
       operationId: verifyAgentbookHeader
       tags: [agentbook]
@@ -228,7 +228,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
-  /api/agents:
+  /v1/app/agents:
     get:
       operationId: listAgents
       tags: [launch]
@@ -238,7 +238,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseListEnvelope" }
-  /api/agents/{id}:
+  /v1/app/agents/{id}:
     get:
       operationId: getAgent
       tags: [launch]
@@ -250,7 +250,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/agents/{id}/readiness:
+  /v1/app/agents/{id}/readiness:
     get:
       operationId: getAgentReadiness
       tags: [launch]
@@ -263,7 +263,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
-  /api/prelaunch/plans:
+  /v1/app/prelaunch/plans:
     get:
       operationId: listPrelaunchPlans
       tags: [prelaunch]
@@ -288,7 +288,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
-  /api/prelaunch/plans/{id}:
+  /v1/app/prelaunch/plans/{id}:
     get:
       operationId: getPrelaunchPlan
       tags: [prelaunch]
@@ -318,7 +318,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
-  /api/prelaunch/plans/{id}/validate:
+  /v1/app/prelaunch/plans/{id}/validate:
     post:
       operationId: validatePrelaunchPlan
       tags: [prelaunch]
@@ -331,7 +331,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
-  /api/prelaunch/plans/{id}/publish:
+  /v1/app/prelaunch/plans/{id}/publish:
     post:
       operationId: publishPrelaunchPlan
       tags: [prelaunch]
@@ -344,7 +344,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
-  /api/prelaunch/plans/{id}/launch:
+  /v1/app/prelaunch/plans/{id}/launch:
     post:
       operationId: launchPrelaunchPlan
       tags: [prelaunch]
@@ -361,7 +361,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchPlanEnvelope" }
-  /api/prelaunch/assets:
+  /v1/app/prelaunch/assets:
     post:
       operationId: uploadPrelaunchAsset
       tags: [prelaunch]
@@ -377,7 +377,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchAssetEnvelope" }
-  /api/prelaunch/plans/{id}/metadata:
+  /v1/app/prelaunch/plans/{id}/metadata:
     post:
       operationId: savePrelaunchMetadata
       tags: [prelaunch]
@@ -395,7 +395,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
-  /api/prelaunch/plans/{id}/metadata-preview:
+  /v1/app/prelaunch/plans/{id}/metadata-preview:
     get:
       operationId: getPrelaunchMetadataPreview
       tags: [prelaunch]
@@ -409,7 +409,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchMetadataPreviewEnvelope" }
 
-  /api/launch/preview:
+  /v1/app/launch/preview:
     post:
       operationId: previewLaunch
       tags: [launch]
@@ -425,7 +425,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchPreviewEnvelope" }
-  /api/launch/jobs:
+  /v1/app/launch/jobs:
     post:
       operationId: createLaunchJob
       tags: [launch]
@@ -441,7 +441,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
-  /api/launch/jobs/{id}:
+  /v1/app/launch/jobs/{id}:
     get:
       operationId: getLaunchJob
       tags: [launch]
@@ -455,7 +455,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
 
-  /api/lifecycle/jobs/{id}:
+  /v1/app/lifecycle/jobs/{id}:
     get:
       operationId: getLifecycleJob
       tags: [lifecycle]
@@ -468,7 +468,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleJobEnvelope" }
-  /api/lifecycle/jobs/{id}/finalize/prepare:
+  /v1/app/lifecycle/jobs/{id}/finalize/prepare:
     post:
       operationId: prepareFinalizeLaunch
       tags: [lifecycle]
@@ -481,7 +481,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleFinalizeEnvelope" }
-  /api/lifecycle/jobs/{id}/finalize/register:
+  /v1/app/lifecycle/jobs/{id}/finalize/register:
     post:
       operationId: registerFinalizeLaunch
       tags: [lifecycle]
@@ -498,7 +498,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleFinalizeRegisterEnvelope" }
-  /api/lifecycle/jobs/{id}/vesting:
+  /v1/app/lifecycle/jobs/{id}/vesting:
     get:
       operationId: getVestingStatus
       tags: [lifecycle]
@@ -512,7 +512,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
-  /api/trust/agents/{id}:
+  /v1/app/trust/agents/{id}:
     get:
       operationId: getAgentTrust
       tags: [trust]
@@ -530,7 +530,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentTrustEnvelope" }
-  /api/trust/x/start:
+  /v1/app/trust/x/start:
     post:
       operationId: startXLink
       tags: [trust]
@@ -551,7 +551,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/XLinkStartEnvelope" }
-  /api/trust/x/callback:
+  /v1/app/trust/x/callback:
     post:
       operationId: completeXLink
       tags: [trust]
@@ -572,7 +572,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AgentTrustEnvelope" }
 
-  /api/auctions:
+  /v1/app/auctions:
     get:
       operationId: listAuctions
       tags: [market]
@@ -593,7 +593,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionListEnvelope" }
-  /api/auction-returns:
+  /v1/app/auction-returns:
     get:
       operationId: listAuctionReturns
       tags: [market]
@@ -614,7 +614,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionReturnsEnvelope" }
-  /api/auctions/{id}:
+  /v1/app/auctions/{id}:
     get:
       operationId: getAuction
       tags: [market]
@@ -626,7 +626,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionEnvelope" }
-  /api/auctions/{id}/bid_quote:
+  /v1/app/auctions/{id}/bid_quote:
     post:
       operationId: quoteAuctionBid
       tags: [market]
@@ -643,7 +643,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionBidQuoteEnvelope" }
-  /api/auctions/{id}/bids:
+  /v1/app/auctions/{id}/bids:
     post:
       operationId: createAuctionBid
       tags: [market]
@@ -660,7 +660,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
-  /api/me/bids:
+  /v1/app/me/bids:
     get:
       operationId: listMyBids
       tags: [market]
@@ -680,7 +680,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionListEnvelope" }
-  /api/me/holdings:
+  /v1/app/me/holdings:
     get:
       operationId: getMyHoldings
       tags: [market]
@@ -691,7 +691,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/HoldingsEnvelope" }
-  /api/me/profile:
+  /v1/app/me/profile:
     get:
       operationId: getMyProfile
       tags: [market]
@@ -702,7 +702,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
-  /api/me/profile/refresh:
+  /v1/app/me/profile/refresh:
     post:
       operationId: refreshMyProfile
       tags: [market]
@@ -713,7 +713,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
-  /api/bids/{id}/exit:
+  /v1/app/bids/{id}/exit:
     post:
       operationId: exitBid
       tags: [market]
@@ -730,7 +730,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
-  /api/bids/{id}/return-usdc:
+  /v1/app/bids/{id}/return-usdc:
     post:
       operationId: returnBidUsdc
       tags: [market]
@@ -747,7 +747,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
-  /api/bids/{id}/claim:
+  /v1/app/bids/{id}/claim:
     post:
       operationId: claimBid
       tags: [market]
@@ -765,7 +765,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
 
-  /api/subjects/{id}:
+  /v1/app/subjects/{id}:
     get:
       operationId: getSubject
       tags: [subjects]
@@ -778,7 +778,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectEnvelope" }
-  /api/subjects/{id}/ingress:
+  /v1/app/subjects/{id}/ingress:
     get:
       operationId: getSubjectIngress
       tags: [subjects]
@@ -791,7 +791,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectIngressEnvelope" }
-  /api/subjects/{id}/stake:
+  /v1/app/subjects/{id}/stake:
     post:
       operationId: stakeSubject
       tags: [subjects]
@@ -809,7 +809,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
-  /api/subjects/{id}/unstake:
+  /v1/app/subjects/{id}/unstake:
     post:
       operationId: unstakeSubject
       tags: [subjects]
@@ -827,7 +827,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
-  /api/subjects/{id}/claim-usdc:
+  /v1/app/subjects/{id}/claim-usdc:
     post:
       operationId: claimSubjectUsdc
       tags: [subjects]
@@ -844,7 +844,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
-  /api/subjects/{id}/claim-emissions:
+  /v1/app/subjects/{id}/claim-emissions:
     post:
       operationId: claimSubjectEmissions
       tags: [subjects]
@@ -861,7 +861,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
-  /api/subjects/{id}/claim-and-stake-emissions:
+  /v1/app/subjects/{id}/claim-and-stake-emissions:
     post:
       operationId: claimAndStakeSubjectEmissions
       tags: [subjects]
@@ -878,7 +878,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
-  /api/subjects/{id}/ingress/{address}/sweep:
+  /v1/app/subjects/{id}/ingress/{address}/sweep:
     post:
       operationId: sweepSubjectIngress
       tags: [subjects]
@@ -900,7 +900,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
 
-  /api/ens/link/plan:
+  /v1/app/ens/link/plan:
     post:
       operationId: planEnsLink
       tags: [ens]
@@ -915,7 +915,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/ens/link/prepare-ensip25:
+  /v1/app/ens/link/prepare-ensip25:
     post:
       operationId: prepareEnsip25Link
       tags: [ens]
@@ -930,7 +930,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/ens/link/prepare-erc8004:
+  /v1/app/ens/link/prepare-erc8004:
     post:
       operationId: prepareErc8004Link
       tags: [ens]
@@ -945,7 +945,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/ens/link/prepare-bidirectional:
+  /v1/app/ens/link/prepare-bidirectional:
     post:
       operationId: prepareBidirectionalEnsLink
       tags: [ens]
@@ -961,7 +961,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
-  /api/contracts/admin:
+  /v1/app/contracts/admin:
     get:
       operationId: getContractsAdminOverview
       tags: [contracts]
@@ -972,7 +972,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/contracts/jobs/{id}:
+  /v1/app/contracts/jobs/{id}:
     get:
       operationId: getContractsJobOverview
       tags: [contracts]
@@ -985,7 +985,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/contracts/subjects/{id}:
+  /v1/app/contracts/subjects/{id}:
     get:
       operationId: getContractsSubjectOverview
       tags: [contracts]
@@ -998,7 +998,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
-  /api/contracts/jobs/{id}/{resource}/{action}/prepare:
+  /v1/app/contracts/jobs/{id}/{resource}/{action}/prepare:
     post:
       operationId: prepareJobContractAction
       tags: [contracts]
@@ -1017,7 +1017,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
-  /api/contracts/subjects/{id}/{resource}/{action}/prepare:
+  /v1/app/contracts/subjects/{id}/{resource}/{action}/prepare:
     post:
       operationId: prepareSubjectContractAction
       tags: [contracts]
@@ -1036,7 +1036,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
-  /api/contracts/admin/{resource}/{action}/prepare:
+  /v1/app/contracts/admin/{resource}/{action}/prepare:
     post:
       operationId: prepareAdminContractAction
       tags: [contracts]
