@@ -5,8 +5,8 @@ defmodule Autolaunch.Contracts do
   alias Autolaunch.CCA.Rpc
   alias Autolaunch.Contracts.Abi
   alias Autolaunch.Contracts.Dispatch
-  alias Autolaunch.Lifecycle
   alias Autolaunch.Launch
+  alias Autolaunch.Lifecycle
   alias Autolaunch.Revenue
 
   @zero_address "0x0000000000000000000000000000000000000000"
@@ -191,9 +191,9 @@ defmodule Autolaunch.Contracts do
   defp controller_card(job) do
     %{
       address: nil,
-      deploy_binary: job_metadata(job, :deploy_binary, [:command_summary, :binary]),
-      deploy_workdir: job_metadata(job, :deploy_workdir, [:command_summary, :cwd]),
-      script_target: job_metadata(job, :script_target, [:command_summary, :script_target]),
+      deploy_binary: Map.get(job, :deploy_binary),
+      deploy_workdir: Map.get(job, :deploy_workdir),
+      script_target: Map.get(job, :script_target),
       deploy_tx_hash: job.tx_hash,
       result_addresses: %{
         auction_address: job.auction_address,
@@ -640,10 +640,6 @@ defmodule Autolaunch.Contracts do
       {:ok, value} -> value
       _ -> nil
     end
-  end
-
-  defp job_metadata(job, key, fallback_path) do
-    Map.get(job, key) || get_in(job, fallback_path)
   end
 
   defp normalize_address(value) when is_binary(value), do: String.downcase(String.trim(value))

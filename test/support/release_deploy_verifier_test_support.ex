@@ -117,7 +117,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     alias Autolaunch.Contracts.Abi
     alias Autolaunch.ReleaseDeployVerifierTestSupport, as: Support
 
-    def eth_call(chain_id, to, data) when chain_id == 84_532 do
+    def eth_call(chain_id, to, data, _opts) when chain_id == 84_532 do
       address = normalize(to)
       selector = String.slice(data, 0, 10)
 
@@ -185,9 +185,9 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
       end
     end
 
-    def eth_call(chain_id, _to, _data), do: {:error, {:unexpected_chain_id, chain_id}}
+    def eth_call(chain_id, _to, _data, _opts), do: {:error, {:unexpected_chain_id, chain_id}}
 
-    def tx_receipt(chain_id, tx_hash) do
+    def tx_receipt(chain_id, tx_hash, _opts) do
       if chain_id == 84_532 and tx_hash == Support.tx_hash() do
         {:ok,
          %{
@@ -204,8 +204,8 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
       end
     end
 
-    def tx_by_hash(_chain_id, _tx_hash), do: {:ok, nil}
-    def get_logs(_chain_id, _filter), do: {:ok, []}
+    def tx_by_hash(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
 
     defp pending_owner_for_fee_vault do
       case Application.get_env(:autolaunch, :release_deploy_verifier_rpc_mode, :healthy) do

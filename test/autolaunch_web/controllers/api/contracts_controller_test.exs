@@ -316,21 +316,21 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
     init_test_session(conn, privy_user_id: human.privy_user_id)
   end
 
-  defp contracts_admin_path, do: "/api/contracts/admin"
-  defp contracts_job_path(job_id), do: "/api/contracts/jobs/#{job_id}"
+  defp contracts_admin_path, do: "/v1/app/contracts/admin"
+  defp contracts_job_path(job_id), do: "/v1/app/contracts/jobs/#{job_id}"
 
   defp contracts_job_prepare_path(job_id, resource, action) do
-    "/api/contracts/jobs/#{job_id}/#{resource}/#{action}/prepare"
+    "/v1/app/contracts/jobs/#{job_id}/#{resource}/#{action}/prepare"
   end
 
-  defp contracts_subject_path(subject_id), do: "/api/contracts/subjects/#{subject_id}"
+  defp contracts_subject_path(subject_id), do: "/v1/app/contracts/subjects/#{subject_id}"
 
   defp contracts_subject_prepare_path(subject_id, resource, action) do
-    "/api/contracts/subjects/#{subject_id}/#{resource}/#{action}/prepare"
+    "/v1/app/contracts/subjects/#{subject_id}/#{resource}/#{action}/prepare"
   end
 
   defp contracts_admin_prepare_path(resource, action) do
-    "/api/contracts/admin/#{resource}/#{action}/prepare"
+    "/v1/app/contracts/admin/#{resource}/#{action}/prepare"
   end
 
   test "contract routes reject unauthenticated access across admin, job, subject, and prepare flows",

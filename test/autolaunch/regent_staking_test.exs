@@ -141,12 +141,12 @@ defmodule Autolaunch.RegentStakingTest do
     @treasury "0xcccccccccccccccccccccccccccccccccccccccc"
     @owner "0xdddddddddddddddddddddddddddddddddddddddd"
 
-    def block_number(_chain_id), do: {:ok, 1}
-    def tx_receipt(_chain_id, _tx_hash), do: {:ok, nil}
-    def tx_by_hash(_chain_id, _tx_hash), do: {:ok, nil}
-    def get_logs(_chain_id, _filter), do: {:ok, []}
+    def block_number(_chain_id, _opts), do: {:ok, 1}
+    def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def tx_by_hash(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
 
-    def eth_call(_chain_id, to, data) do
+    def eth_call(_chain_id, to, data, _opts) do
       case {String.downcase(to), String.slice(data, 0, 10)} do
         {contract, "0x8da5cb5b"} when contract == @contract ->
           {:ok, address_word(@owner)}

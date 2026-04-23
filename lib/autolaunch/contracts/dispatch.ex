@@ -5,6 +5,10 @@ defmodule Autolaunch.Contracts.Dispatch do
   alias Autolaunch.Contracts.ActionParams
   alias Autolaunch.Revenue
 
+  @eligible_revenue_share_min_bps 1_000
+  @eligible_revenue_share_max_bps 10_000
+  @eligible_revenue_share_max_step_bps 2_000
+
   def build_job_action(job, "strategy", "migrate", _attrs) do
     ActionParams.prepare_tx(
       job.chain_id,
@@ -214,7 +218,8 @@ defmodule Autolaunch.Contracts.Dispatch do
         attrs,
         _config
       ) do
-    with {:ok, share_bps} <- ActionParams.uint_param(attrs, "share_bps") do
+    with {:ok, share_bps} <- ActionParams.uint_param(attrs, "share_bps"),
+         :ok <- validate_eligible_revenue_share_bps(subject, share_bps) do
       ActionParams.prepare_tx(
         subject.chain_id,
         subject.splitter_address,
@@ -612,6 +617,24 @@ defmodule Autolaunch.Contracts.Dispatch do
       :ok
     else
       {:error, :ingress_not_found}
+    end
+  end
+
+  defp validate_eligible_revenue_share_bps(_subject, share_bps)
+       when share_bps < @eligible_revenue_share_min_bps,
+       do: {:error, :eligible_share_too_low}
+
+  defp validate_eligible_revenue_share_bps(_subject, share_bps)
+       when share_bps > @eligible_revenue_share_max_bps,
+       do: {:error, :eligible_share_too_high}
+
+  defp validate_eligible_revenue_share_bps(subject, share_bps) do
+    current_bps = Map.get(subject, :eligible_revenue_share_bps, @eligible_revenue_share_max_bps)
+
+    if abs(current_bps - share_bps) > @eligible_revenue_share_max_step_bps do
+      {:error, :eligible_share_step_too_large}
+    else
+      :ok
     end
   end
 end

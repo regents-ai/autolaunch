@@ -218,18 +218,27 @@ defmodule Autolaunch.ReleaseSmoke do
     @ingress "0x7777777777777777777777777777777777777777"
     @usdc "0x5555555555555555555555555555555555555555"
 
-    def block_number(chain_id) do
+    def block_number(chain_id, _opts) do
       if chain_id == smoke_chain_id(), do: {:ok, 1}, else: {:error, :unsupported_chain_id}
     end
 
-    def eth_call(chain_id, @splitter, data) do
+    def eth_call(chain_id, @splitter, data, _opts) do
       if chain_id == smoke_chain_id() do
         selector = String.slice(data, 0, 10)
 
         case selector do
           "0x817b1cd2" -> {:ok, uint(250 * Integer.pow(10, 18))}
           "0x966ed108" -> {:ok, uint(25 * Integer.pow(10, 6))}
+          "0xe76bcce9" -> {:ok, uint(10 * Integer.pow(10, 6))}
           "0x76459dd5" -> {:ok, uint(10 * Integer.pow(10, 6))}
+          "0x549b5d48" -> {:ok, uint(5_000)}
+          "0xb663660a" -> {:ok, uint(0)}
+          "0x8c37a52f" -> {:ok, uint(0)}
+          "0x5cc76060" -> {:ok, uint(0)}
+          "0x8064d80c" -> {:ok, uint(100 * Integer.pow(10, 6))}
+          "0x1aa91287" -> {:ok, uint(2 * Integer.pow(10, 6))}
+          "0x08c23673" -> {:ok, uint(50 * Integer.pow(10, 6))}
+          "0xddffd82a" -> {:ok, uint(48 * Integer.pow(10, 6))}
           "0x5f78d5f4" -> {:ok, uint(1 * Integer.pow(10, 6))}
           "0x60217267" -> {:ok, uint(12 * Integer.pow(10, 18))}
           "0xb026ee79" -> {:ok, uint(5 * Integer.pow(10, 6))}
@@ -237,6 +246,7 @@ defmodule Autolaunch.ReleaseSmoke do
           "0x05f15537" -> {:ok, uint(8 * Integer.pow(10, 18))}
           "0xcfb3d0aa" -> {:ok, uint(40 * Integer.pow(10, 18))}
           "0x66ffb8de" -> {:ok, uint(15 * Integer.pow(10, 18))}
+          "0x51ed6a30" -> {:ok, address(smoke_state().token_address)}
           "0x3e413bee" -> {:ok, address(@usdc)}
           _ -> {:error, :unsupported_call}
         end
@@ -245,7 +255,7 @@ defmodule Autolaunch.ReleaseSmoke do
       end
     end
 
-    def eth_call(chain_id, to, "0x70a08231" <> _rest) do
+    def eth_call(chain_id, to, "0x70a08231" <> _rest, _opts) do
       if chain_id == smoke_chain_id() do
         cond do
           String.downcase(to) == @usdc ->
@@ -262,25 +272,25 @@ defmodule Autolaunch.ReleaseSmoke do
       end
     end
 
-    def eth_call(chain_id, to, "0xca23dd76" <> _rest) do
+    def eth_call(chain_id, to, "0xca23dd76" <> _rest, _opts) do
       if chain_id == smoke_chain_id() and to == ingress_factory_address(),
         do: {:ok, uint(1)},
         else: {:error, :unsupported_call}
     end
 
-    def eth_call(chain_id, to, "0xb87d9995" <> _rest) do
+    def eth_call(chain_id, to, "0xb87d9995" <> _rest, _opts) do
       if chain_id == smoke_chain_id() and to == ingress_factory_address(),
         do: {:ok, address(@ingress)},
         else: {:error, :unsupported_call}
     end
 
-    def eth_call(chain_id, to, "0xb396721d" <> _rest) do
+    def eth_call(chain_id, to, "0xb396721d" <> _rest, _opts) do
       if chain_id == smoke_chain_id() and to == ingress_factory_address(),
         do: {:ok, address(@ingress)},
         else: {:error, :unsupported_call}
     end
 
-    def eth_call(chain_id, subject_registry_address, "0x41c2ab07" <> _rest) do
+    def eth_call(chain_id, subject_registry_address, "0x41c2ab07" <> _rest, _opts) do
       if chain_id == smoke_chain_id() and
            subject_registry_address == smoke_state().subject_registry_address do
         {:ok, bool(true)}
@@ -289,11 +299,11 @@ defmodule Autolaunch.ReleaseSmoke do
       end
     end
 
-    def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}
+    def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}
 
-    def tx_receipt(_chain_id, _tx_hash), do: {:ok, nil}
-    def tx_by_hash(_chain_id, _tx_hash), do: {:ok, nil}
-    def get_logs(_chain_id, _filter), do: {:ok, []}
+    def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def tx_by_hash(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
 
     defp uint(value) do
       "0x" <> (value |> Integer.to_string(16) |> String.pad_leading(64, "0"))

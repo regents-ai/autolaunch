@@ -17,6 +17,11 @@ defmodule Autolaunch.RevenueTest do
   setup do
     previous_adapter = Application.get_env(:autolaunch, :cca_rpc_adapter)
     previous_launch = Application.get_env(:autolaunch, :launch, [])
+    previous_dragonfly_enabled = Application.get_env(:autolaunch, :dragonfly_enabled)
+    previous_dragonfly_name = Application.get_env(:autolaunch, :dragonfly_name)
+
+    previous_dragonfly_command_module =
+      Application.get_env(:autolaunch, :dragonfly_command_module)
 
     Application.put_env(:autolaunch, :cca_rpc_adapter, __MODULE__.FakeRpc)
 
@@ -39,6 +44,11 @@ defmodule Autolaunch.RevenueTest do
       end
 
       Application.put_env(:autolaunch, :launch, previous_launch)
+      restore_env(:dragonfly_enabled, previous_dragonfly_enabled)
+      restore_env(:dragonfly_name, previous_dragonfly_name)
+      restore_env(:dragonfly_command_module, previous_dragonfly_command_module)
+      Process.delete(:revenue_dragonfly_values)
+      Process.delete(:revenue_dragonfly_commands)
     end)
 
     human =
@@ -173,6 +183,19 @@ defmodule Autolaunch.RevenueTest do
              Revenue.subject_wallet_positions(@subject_id, ["not-an-address"])
   end
 
+  test "subject_wallet_positions uses Dragonfly after the first successful read" do
+    configure_dragonfly_cache()
+
+    assert {:ok, first} = Revenue.subject_wallet_positions(@subject_id, [@wallet])
+    assert {:ok, second} = Revenue.subject_wallet_positions(@subject_id, [@wallet])
+
+    assert first == second
+
+    commands = Process.get(:revenue_dragonfly_commands)
+    assert Enum.count(commands, &match?(["SET", _key, _value, "EX", 10], &1)) == 1
+    assert Enum.count(commands, &match?(["GET", _key], &1)) >= 2
+  end
+
   test "subject_obligation_metrics computes exact accrued totals from a provided staker list" do
     assert {:ok, metrics} =
              Revenue.subject_obligation_metrics(@subject_id, [
@@ -204,6 +227,31 @@ defmodule Autolaunch.RevenueTest do
     assert tx_request.chain_id == 84_532
     assert tx_request.to == @splitter
     assert String.starts_with?(tx_request.data, "0x7acb7757")
+  end
+
+  test "revenue actions keep missing subject, wallet, data, and amount reasons separate", %{
+    human: human
+  } do
+    missing_subject_id = "0x" <> String.duplicate("4d", 32)
+    walletless_human = %{human | wallet_address: nil, wallet_addresses: []}
+
+    assert {:error, :not_found} =
+             Revenue.stake(missing_subject_id, %{"amount" => "1.0"}, human)
+
+    assert {:error, :unauthorized} =
+             Revenue.claim_usdc(@subject_id, %{}, walletless_human)
+
+    assert {:error, :amount_required} =
+             Revenue.stake(@subject_id, %{"amount" => "0"}, human)
+
+    Repo.get_by!(Job, job_id: "job_subject")
+    |> Job.update_changeset(%{
+      revenue_share_splitter_address: "0x4444444444444444444444444444444444444444"
+    })
+    |> Repo.update!()
+
+    assert {:error, :subject_lookup_failed} =
+             Revenue.claim_usdc(@subject_id, %{}, human)
   end
 
   test "stake with tx hash persists pending and reuses the registration", %{human: human} do
@@ -365,9 +413,9 @@ defmodule Autolaunch.RevenueTest do
     @ingress "0x7777777777777777777777777777777777777777"
     @usdc "0x5555555555555555555555555555555555555555"
 
-    def block_number(_chain_id), do: {:ok, 1}
+    def block_number(_chain_id, _opts), do: {:ok, 1}
 
-    def eth_call(84_532, @splitter, data) do
+    def eth_call(84_532, @splitter, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -395,13 +443,13 @@ defmodule Autolaunch.RevenueTest do
       end
     end
 
-    def eth_call(84_532, @token, "0x70a08231" <> _rest),
+    def eth_call(84_532, @token, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(84_532, @usdc, "0x70a08231" <> _rest),
+    def eth_call(84_532, @usdc, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(84_532, @ingress_factory, data) do
+    def eth_call(84_532, @ingress_factory, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -412,22 +460,22 @@ defmodule Autolaunch.RevenueTest do
       end
     end
 
-    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest),
+    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest, _opts),
       do: {:ok, encode_bool(true)}
 
-    def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}
+    def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}
 
-    def tx_by_hash(_chain_id, tx_hash) do
+    def tx_by_hash(_chain_id, tx_hash, _opts) do
       case Process.get(:fake_rpc_transaction) do
         %{transaction_hash: ^tx_hash} = tx -> {:ok, tx}
         _ -> {:ok, nil}
       end
     end
 
-    def tx_receipt(_chain_id, _tx_hash), do: {:ok, Process.get(:fake_rpc_receipt)}
-    def get_logs(_chain_id, _filter), do: {:ok, []}
+    def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, Process.get(:fake_rpc_receipt)}
+    def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
 
-    def block_by_number(_chain_id, block_number),
+    def block_by_number(_chain_id, block_number, _opts),
       do: {:ok, %{number: block_number, timestamp: 1_700_000_000}}
 
     defp encode_uint(value) do
@@ -448,6 +496,43 @@ defmodule Autolaunch.RevenueTest do
         "1111111111111111111111111111111111111111" -> 4 * Integer.pow(10, 18)
         "2222222222222222222222222222222222222222" -> 3 * Integer.pow(10, 18)
         _ -> 0
+      end
+    end
+  end
+
+  defp configure_dragonfly_cache do
+    Application.put_env(:autolaunch, :dragonfly_enabled, true)
+    Application.put_env(:autolaunch, :dragonfly_name, self())
+    Application.put_env(:autolaunch, :dragonfly_command_module, __MODULE__.FakeRedix)
+    Process.put(:revenue_dragonfly_values, %{})
+    Process.put(:revenue_dragonfly_commands, [])
+  end
+
+  defp restore_env(key, nil), do: Application.delete_env(:autolaunch, key)
+  defp restore_env(key, value), do: Application.put_env(:autolaunch, key, value)
+
+  defmodule FakeRedix do
+    def command(_owner, command) do
+      commands = Process.get(:revenue_dragonfly_commands, [])
+      Process.put(:revenue_dragonfly_commands, commands ++ [command])
+
+      values = Process.get(:revenue_dragonfly_values, %{})
+
+      case command do
+        ["GET", key] ->
+          {:ok, Map.get(values, key)}
+
+        ["SET", key, value, "EX", _ttl] ->
+          Process.put(:revenue_dragonfly_values, Map.put(values, key, value))
+          {:ok, "OK"}
+
+        ["INCR", key] ->
+          next = values |> Map.get(key, "0") |> String.to_integer() |> Kernel.+(1)
+          Process.put(:revenue_dragonfly_values, Map.put(values, key, Integer.to_string(next)))
+          {:ok, next}
+
+        ["PING"] ->
+          {:ok, "PONG"}
       end
     end
   end

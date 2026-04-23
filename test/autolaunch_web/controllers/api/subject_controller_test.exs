@@ -18,9 +18,9 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     @ingress "0x7777777777777777777777777777777777777777"
     @usdc "0x5555555555555555555555555555555555555555"
 
-    def block_number(_chain_id), do: {:ok, 1}
+    def block_number(_chain_id, _opts), do: {:ok, 1}
 
-    def eth_call(84_532, @splitter, data) do
+    def eth_call(84_532, @splitter, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -48,13 +48,13 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       end
     end
 
-    def eth_call(84_532, @token, "0x70a08231" <> _rest),
+    def eth_call(84_532, @token, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(84_532, @usdc, "0x70a08231" <> _rest),
+    def eth_call(84_532, @usdc, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(84_532, @ingress_factory, data) do
+    def eth_call(84_532, @ingress_factory, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -65,20 +65,20 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       end
     end
 
-    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest),
+    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest, _opts),
       do: {:ok, encode_bool(true)}
 
-    def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}
+    def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}
 
-    def tx_by_hash(_chain_id, tx_hash) do
+    def tx_by_hash(_chain_id, tx_hash, _opts) do
       case Process.get(:fake_rpc_transaction) do
         %{transaction_hash: ^tx_hash} = tx -> {:ok, tx}
         _ -> {:ok, nil}
       end
     end
 
-    def tx_receipt(_chain_id, _tx_hash), do: {:ok, Process.get(:fake_rpc_receipt)}
-    def get_logs(_chain_id, _filter), do: {:ok, []}
+    def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, Process.get(:fake_rpc_receipt)}
+    def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
 
     defp encode_uint(value) do
       value
@@ -174,7 +174,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
   end
 
   test "show returns subject state", %{conn: conn} do
-    conn = get(conn, "/api/subjects/#{@subject_id}")
+    conn = get(conn, "/v1/app/subjects/#{@subject_id}")
 
     assert %{
              "ok" => true,
@@ -195,13 +195,13 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
   test "show accepts uppercase subject ids", %{conn: conn} do
     upper_subject_id = "0x" <> String.upcase(String.slice(@subject_id, 2..-1//1))
 
-    conn = get(conn, "/api/subjects/#{upper_subject_id}")
+    conn = get(conn, "/v1/app/subjects/#{upper_subject_id}")
 
     assert %{"ok" => true, "subject" => %{"subject_id" => @subject_id}} = json_response(conn, 200)
   end
 
   test "ingress returns subject ingress state", %{conn: conn} do
-    conn = get(conn, "/api/subjects/#{@subject_id}/ingress")
+    conn = get(conn, "/v1/app/subjects/#{@subject_id}/ingress")
 
     assert %{
              "ok" => true,
@@ -221,12 +221,16 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
 
   test "stake requires auth", %{conn: conn} do
     conn = delete_session(conn, :privy_user_id)
-    conn = post(conn, "/api/subjects/#{@subject_id}/stake", %{"amount" => "1.0"})
-    assert %{"ok" => false, "error" => %{"code" => "auth_required"}} = json_response(conn, 401)
+    conn = post(conn, "/v1/app/subjects/#{@subject_id}/stake", %{"amount" => "1.0"})
+
+    assert %{
+             "ok" => false,
+             "error" => %{"code" => "auth_required", "message" => "Connect a wallet first"}
+           } = json_response(conn, 401)
   end
 
   test "stake returns canonical tx request", %{conn: conn} do
-    conn = post(conn, "/api/subjects/#{@subject_id}/stake", %{"amount" => "1.5"})
+    conn = post(conn, "/v1/app/subjects/#{@subject_id}/stake", %{"amount" => "1.5"})
 
     assert %{
              "ok" => true,
@@ -242,7 +246,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
 
   test "stake with tx hash requires amount", %{conn: conn} do
     conn =
-      post(conn, "/api/subjects/#{@subject_id}/stake", %{
+      post(conn, "/v1/app/subjects/#{@subject_id}/stake", %{
         "tx_hash" => "0x" <> String.duplicate("b", 64)
       })
 
@@ -264,7 +268,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     Process.put(:fake_rpc_receipt, nil)
 
     conn =
-      post(conn, "/api/subjects/#{@subject_id}/stake", %{
+      post(conn, "/v1/app/subjects/#{@subject_id}/stake", %{
         "amount" => "1.5",
         "tx_hash" => tx_hash
       })
@@ -288,7 +292,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     Process.put(:fake_rpc_receipt, nil)
 
     conn =
-      post(conn, "/api/subjects/#{@subject_id}/stake", %{
+      post(conn, "/v1/app/subjects/#{@subject_id}/stake", %{
         "amount" => "1.5",
         "tx_hash" => tx_hash
       })
@@ -296,7 +300,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     assert %{"ok" => false, "error" => %{"code" => "transaction_pending"}} =
              json_response(conn, 202)
 
-    conn = post(conn, "/api/subjects/#{@subject_id}/claim-usdc", %{"tx_hash" => tx_hash})
+    conn = post(conn, "/v1/app/subjects/#{@subject_id}/claim-usdc", %{"tx_hash" => tx_hash})
 
     assert %{"ok" => false, "error" => %{"code" => "transaction_hash_reused"}} =
              json_response(conn, 409)
@@ -323,7 +327,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     })
 
     conn =
-      post(conn, "/api/subjects/#{@subject_id}/unstake", %{
+      post(conn, "/v1/app/subjects/#{@subject_id}/unstake", %{
         "amount" => "0.25",
         "tx_hash" => tx_hash
       })
@@ -352,7 +356,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     })
 
     conn =
-      post(conn, "/api/subjects/#{@subject_id}/claim-usdc", %{
+      post(conn, "/v1/app/subjects/#{@subject_id}/claim-usdc", %{
         "tx_hash" => tx_hash
       })
 
@@ -382,7 +386,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     conn =
       post(
         conn,
-        "/api/subjects/#{@subject_id}/ingress/0x7777777777777777777777777777777777777777/sweep",
+        "/v1/app/subjects/#{@subject_id}/ingress/0x7777777777777777777777777777777777777777/sweep",
         %{
           "tx_hash" => tx_hash
         }
@@ -393,7 +397,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
 
   test "malformed tx hashes are rejected", %{conn: conn} do
     conn =
-      post(conn, "/api/subjects/#{@subject_id}/stake", %{
+      post(conn, "/v1/app/subjects/#{@subject_id}/stake", %{
         "amount" => "1.0",
         "tx_hash" => "bad-hash"
       })

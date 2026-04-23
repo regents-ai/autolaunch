@@ -187,11 +187,11 @@ defmodule Autolaunch.ReleaseDoctorTest do
   end
 
   defmodule DoctorRpc do
-    def block_number(84_532), do: {:ok, 123}
-    def eth_call(_chain_id, _to, _data), do: {:error, :unsupported}
-    def tx_receipt(_chain_id, _tx_hash), do: {:ok, nil}
-    def tx_by_hash(_chain_id, _tx_hash), do: {:ok, nil}
-    def get_logs(_chain_id, _filter), do: {:ok, []}
+    def block_number(84_532, _opts), do: {:ok, 123}
+    def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported}
+    def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def tx_by_hash(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
   end
 
   defmodule DoctorHttp do

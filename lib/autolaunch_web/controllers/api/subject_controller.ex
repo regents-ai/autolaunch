@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Api.SubjectController do
 
   alias Autolaunch.Revenue
   alias AutolaunchWeb.ApiError
+  alias AutolaunchWeb.LiveUpdates
 
   def show(conn, %{"id" => subject_id}) do
     case Revenue.subject_state(subject_id, conn.assigns[:current_human]) do
@@ -55,16 +56,17 @@ defmodule AutolaunchWeb.Api.SubjectController do
   end
 
   defp render_write(conn, {:ok, payload}) do
+    LiveUpdates.broadcast([:subjects, :positions, :regent])
     json(conn, Map.put(payload, :ok, true))
   end
 
   defp render_write(conn, {:error, reason}), do: render_error(conn, reason)
 
   defp render_error(conn, :unauthorized),
-    do: ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+    do: ApiError.render(conn, :unauthorized, "auth_required", "Connect a wallet first")
 
   defp render_error(conn, :not_found),
-    do: ApiError.render(conn, :not_found, "subject_not_found", "Subject not found")
+    do: ApiError.render(conn, :not_found, "subject_not_found", "Token page not found")
 
   defp render_error(conn, :subject_lookup_failed),
     do:
@@ -72,11 +74,11 @@ defmodule AutolaunchWeb.Api.SubjectController do
         conn,
         :internal_server_error,
         "subject_lookup_failed",
-        "Subject state could not be loaded"
+        "Token details could not be loaded"
       )
 
   defp render_error(conn, :forbidden),
-    do: ApiError.render(conn, :forbidden, "subject_forbidden", "Subject action is not allowed")
+    do: ApiError.render(conn, :forbidden, "subject_forbidden", "Use the connected wallet")
 
   defp render_error(conn, :transaction_pending),
     do:
@@ -93,7 +95,7 @@ defmodule AutolaunchWeb.Api.SubjectController do
         conn,
         :unprocessable_entity,
         "transaction_failed",
-        "Transaction failed onchain"
+        "The wallet action failed"
       )
 
   defp render_error(conn, :transaction_target_mismatch),
@@ -102,7 +104,7 @@ defmodule AutolaunchWeb.Api.SubjectController do
         conn,
         :forbidden,
         "transaction_target_mismatch",
-        "Transaction target does not match this subject"
+        "This wallet action is for a different token"
       )
 
   defp render_error(conn, :transaction_hash_reused),
@@ -120,7 +122,7 @@ defmodule AutolaunchWeb.Api.SubjectController do
         conn,
         :unprocessable_entity,
         "transaction_data_mismatch",
-        "Transaction input does not match this subject action"
+        "This wallet action does not match the selected action"
       )
 
   defp render_error(conn, :invalid_transaction_hash),
@@ -134,7 +136,7 @@ defmodule AutolaunchWeb.Api.SubjectController do
 
   defp render_error(conn, :invalid_subject_id),
     do:
-      ApiError.render(conn, :unprocessable_entity, "invalid_subject_id", "Subject id is invalid")
+      ApiError.render(conn, :unprocessable_entity, "invalid_subject_id", "Token page is invalid")
 
   defp render_error(conn, :invalid_amount),
     do: ApiError.render(conn, :unprocessable_entity, "invalid_amount", "Amount is invalid")
@@ -157,7 +159,7 @@ defmodule AutolaunchWeb.Api.SubjectController do
         conn,
         :unprocessable_entity,
         "invalid_ingress_address",
-        "Ingress address is invalid"
+        "USDC intake address is invalid"
       )
 
   defp render_error(conn, :ingress_not_found),
@@ -166,7 +168,7 @@ defmodule AutolaunchWeb.Api.SubjectController do
         conn,
         :not_found,
         "ingress_not_found",
-        "Ingress address does not belong to this subject"
+        "USDC intake address does not belong to this token"
       )
 
   defp render_error(conn, :invalid_source_ref),

@@ -169,6 +169,49 @@ defmodule Autolaunch.ContractsTest do
              )
   end
 
+  test "prepare_subject_action validates eligible share proposals against splitter rules", %{
+    human: human
+  } do
+    assert {:error, :eligible_share_too_low} =
+             Contracts.prepare_subject_action(
+               @subject_id,
+               "splitter",
+               "propose_eligible_revenue_share",
+               %{"share_bps" => "999"},
+               human
+             )
+
+    assert {:error, :eligible_share_too_high} =
+             Contracts.prepare_subject_action(
+               @subject_id,
+               "splitter",
+               "propose_eligible_revenue_share",
+               %{"share_bps" => "10001"},
+               human
+             )
+
+    assert {:error, :eligible_share_step_too_large} =
+             Contracts.prepare_subject_action(
+               @subject_id,
+               "splitter",
+               "propose_eligible_revenue_share",
+               %{"share_bps" => "7000"},
+               human
+             )
+
+    assert {:ok, %{prepared: prepared}} =
+             Contracts.prepare_subject_action(
+               @subject_id,
+               "splitter",
+               "propose_eligible_revenue_share",
+               %{"share_bps" => "8000"},
+               human
+             )
+
+    assert prepared.action == "propose_eligible_revenue_share"
+    assert prepared.params == %{share_bps: "8000"}
+  end
+
   test "removed fee mutation actions stay unavailable through the contracts context", %{
     human: human
   } do
@@ -207,9 +250,9 @@ defmodule Autolaunch.ContractsTest do
     @usdc "0x5555555555555555555555555555555555555555"
     @wallet "0x1111111111111111111111111111111111111111"
 
-    def block_number(_chain_id), do: {:ok, 1}
+    def block_number(_chain_id, _opts), do: {:ok, 1}
 
-    def eth_call(84_532, @splitter, data) do
+    def eth_call(84_532, @splitter, data, _opts) do
       case String.slice(data, 0, 10) do
         "0x817b1cd2" -> {:ok, uint(250 * Integer.pow(10, 18))}
         "0x549b5d48" -> {:ok, uint(10_000)}
@@ -236,13 +279,13 @@ defmodule Autolaunch.ContractsTest do
       end
     end
 
-    def eth_call(84_532, @token, "0x70a08231" <> _rest),
+    def eth_call(84_532, @token, "0x70a08231" <> _rest, _opts),
       do: {:ok, uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(84_532, @usdc, "0x70a08231" <> _rest),
+    def eth_call(84_532, @usdc, "0x70a08231" <> _rest, _opts),
       do: {:ok, uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> data) do
+    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> data, _opts) do
       wallet =
         data
         |> String.slice(-40, 40)
@@ -251,14 +294,14 @@ defmodule Autolaunch.ContractsTest do
       {:ok, bool(wallet == @wallet)}
     end
 
-    def eth_call(84_532, @subject_registry, "0x8da5cb5b"), do: {:ok, address(@wallet)}
-    def eth_call(84_532, @subject_registry, "0x0f3f0a8f" <> _rest), do: {:ok, uint(0)}
+    def eth_call(84_532, @subject_registry, "0x8da5cb5b", _opts), do: {:ok, address(@wallet)}
+    def eth_call(84_532, @subject_registry, "0x0f3f0a8f" <> _rest, _opts), do: {:ok, uint(0)}
 
-    def eth_call(_chain_id, _to, _data), do: {:error, :unsupported_call}
+    def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}
 
-    def tx_receipt(_chain_id, _tx_hash), do: {:ok, nil}
-    def tx_by_hash(_chain_id, _tx_hash), do: {:ok, nil}
-    def get_logs(_chain_id, _filter), do: {:ok, []}
+    def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def tx_by_hash(_chain_id, _tx_hash, _opts), do: {:ok, nil}
+    def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
 
     defp uint(value), do: "0x" <> (value |> Integer.to_string(16) |> String.pad_leading(64, "0"))
 

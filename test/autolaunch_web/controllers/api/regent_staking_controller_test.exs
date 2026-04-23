@@ -92,7 +92,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
   end
 
   test "show returns the regent staking overview", %{conn: conn} do
-    conn = get(conn, "/api/regent/staking")
+    conn = get(conn, "/v1/app/regent/staking")
 
     assert %{
              "ok" => true,
@@ -102,7 +102,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
   end
 
   test "account returns account state", %{conn: conn} do
-    conn = get(conn, "/api/regent/staking/account/0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    conn = get(conn, "/v1/app/regent/staking/account/0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 
     assert %{
              "ok" => true,
@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
   end
 
   test "stake returns a wallet tx request", %{conn: conn} do
-    conn = post(conn, "/api/regent/staking/stake", %{"amount" => "1.5"})
+    conn = post(conn, "/v1/app/regent/staking/stake", %{"amount" => "1.5"})
 
     assert %{
              "ok" => true,
@@ -122,7 +122,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
 
   test "deposit prepare returns a multisig payload", %{conn: conn} do
     conn =
-      post(conn, "/api/regent/staking/deposit-usdc/prepare", %{
+      post(conn, "/v1/app/regent/staking/deposit-usdc/prepare", %{
         "amount" => "250.5",
         "source_tag" => "base_manual",
         "source_ref" => "2026-03"
