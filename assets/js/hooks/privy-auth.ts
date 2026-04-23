@@ -13,7 +13,7 @@ import {
   walletsForUser,
 } from "./privy-wallet.ts"
 
-const SESSION_ENDPOINT = "/api/auth/privy/session"
+const SESSION_ENDPOINT = "/v1/auth/privy/session"
 
 interface PrivyAuthRoot extends HTMLElement {
   _walletSwitchListener?: EventListener

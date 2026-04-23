@@ -10,6 +10,9 @@
 #al-launch-page .al-launch-console-strip,
 #al-launch-page .al-launch-checklist-card,
 #al-launch-page .al-launch-path-card,
+#al-launch-page .al-launch-metadata-card,
+#al-launch-page .al-launch-preview-card,
+#al-launch-page .al-launch-companion-empty,
 #al-launch-page .al-launch-footnote-strip,
 #al-docs-page .al-guide-hero,
 #al-docs-page .al-guide-summary,
@@ -227,8 +230,17 @@
   gap: 1rem;
 }
 
+#al-launch-page .al-launch-companion-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.68fr);
+  gap: 1rem;
+}
+
 #al-launch-page .al-launch-checklist-card,
-#al-launch-page .al-launch-path-card {
+#al-launch-page .al-launch-path-card,
+#al-launch-page .al-launch-metadata-card,
+#al-launch-page .al-launch-preview-card,
+#al-launch-page .al-launch-companion-empty {
   padding: 1.2rem;
 }
 
@@ -241,6 +253,107 @@
 
 #al-launch-page .al-launch-path-card {
   box-shadow: 0 26px 68px -46px rgba(23, 40, 69, 0.18);
+}
+
+#al-launch-page .al-launch-metadata-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+#al-launch-page .al-launch-metadata-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+#al-launch-page .al-launch-metadata-form label span {
+  color: var(--al-muted);
+  font-size: 0.8rem;
+}
+
+#al-launch-page .al-launch-metadata-form input,
+#al-launch-page .al-launch-metadata-form textarea {
+  width: 100%;
+  border: 1px solid color-mix(in oklab, var(--al-border) 78%, white 22%);
+  border-radius: 0.95rem;
+  background: color-mix(in oklab, white 92%, var(--color-bg) 8%);
+  color: var(--al-ink);
+  font: inherit;
+  padding: 0.85rem 0.95rem;
+  outline: none;
+}
+
+#al-launch-page .al-launch-metadata-form input:focus,
+#al-launch-page .al-launch-metadata-form textarea:focus {
+  border-color: color-mix(in oklab, var(--al-accent) 46%, var(--al-border) 54%);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--al-accent) 14%, transparent);
+}
+
+#al-launch-page .al-launch-field-wide,
+#al-launch-page .al-launch-form-actions {
+  grid-column: 1 / -1;
+}
+
+#al-launch-page .al-launch-form-actions,
+#al-launch-page .al-launch-trust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+#al-launch-page .al-launch-preview-art {
+  margin-top: 1rem;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 1.2rem;
+  border: 1px solid color-mix(in oklab, var(--al-border) 72%, white 28%);
+  background:
+    radial-gradient(circle at 72% 16%, color-mix(in oklab, var(--al-accent) 18%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in oklab, var(--al-panel-strong) 92%, white 8%), color-mix(in oklab, var(--al-panel) 92%, white 8%));
+  display: grid;
+  place-items: center;
+}
+
+#al-launch-page .al-launch-preview-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#al-launch-page .al-launch-preview-art span {
+  font-family: var(--al-font-display);
+  font-size: clamp(3rem, 8vw, 5rem);
+  color: color-mix(in oklab, var(--al-accent) 64%, white 36%);
+}
+
+#al-launch-page .al-launch-preview-copy,
+#al-launch-page .al-launch-trust-actions {
+  margin-top: 1rem;
+}
+
+#al-launch-page .al-launch-preview-copy strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+#al-launch-page .al-launch-preview-copy p {
+  color: var(--al-muted);
+  line-height: 1.55;
+}
+
+#al-launch-page .al-launch-preview-copy a {
+  color: color-mix(in oklab, var(--al-accent) 80%, #1c4ed8 20%);
+  overflow-wrap: anywhere;
+}
+
+#al-launch-page .al-launch-companion-empty {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
 #al-launch-page .al-launch-checklist-item,
@@ -262,6 +375,7 @@
 }
 
 #al-launch-page .al-launch-checklist-copy p,
+#al-launch-page .al-launch-next-action p,
 #al-launch-page .al-launch-agent-guide p,
 #al-launch-page .al-launch-path-list p,
 #al-launch-page .al-launch-console-steps p,
@@ -271,6 +385,18 @@
   margin: 0.25rem 0 0;
   color: var(--al-muted);
   line-height: 1.55;
+}
+
+#al-launch-page .al-launch-next-action {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in oklab, var(--al-border) 68%, white 32%);
+}
+
+#al-launch-page .al-launch-next-action strong {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 1.06rem;
 }
 
 #al-launch-page .al-launch-path-head {
@@ -317,9 +443,27 @@
   color: #2454c6;
 }
 
+#al-launch-page .al-launch-pill.pending {
+  background: rgba(196, 106, 44, 0.12);
+  color: #a65320;
+}
+
 #al-launch-page .al-launch-pill.recommended {
   background: rgba(34, 171, 206, 0.12);
   color: #0e84a1;
+}
+
+#al-launch-page .al-launch-checklist-mark[data-status="connected"],
+#al-launch-page .al-launch-checklist-mark[data-status="ready"] {
+  background: #16a66a;
+}
+
+#al-launch-page .al-launch-checklist-mark[data-status="recommended"] {
+  background: #0e9ab8;
+}
+
+#al-launch-page .al-launch-checklist-mark[data-status="pending"] {
+  background: #c46a2c;
 }
 
 #al-launch-page .al-launch-footnote-strip {
@@ -425,6 +569,7 @@
   }
 
   #al-launch-page .al-launch-split-layout,
+  #al-launch-page .al-launch-companion-grid,
   #al-docs-page .al-docs-feature-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -442,8 +587,13 @@
   }
 
   #al-launch-page .al-launch-split-layout,
+  #al-launch-page .al-launch-companion-grid,
   #al-docs-page .al-docs-feature-grid,
   #al-docs-page .al-legal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #al-launch-page .al-launch-metadata-form {
     grid-template-columns: 1fr;
   }
 

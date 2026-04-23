@@ -6,7 +6,7 @@
 @source "../../lib/autolaunch_web";
 
 @plugin "../vendor/heroicons";
-@plugin "../vendor/daisyui.js";
+@plugin "../vendor/daisyui-tailwind.js";
 
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
@@ -365,6 +365,7 @@ textarea {
   border-radius: 1rem;
   border: 1px solid color-mix(in srgb, var(--al-border) 90%, white 10%);
   background: color-mix(in srgb, white 88%, var(--brand-primary) 12%);
+  cursor: text;
 }
 
 .al-shell-search input {
@@ -411,6 +412,18 @@ textarea {
   background: color-mix(in srgb, white 92%, var(--brand-primary) 8%);
 }
 
+.al-shell-regent-pill.is-live {
+  border-color: color-mix(in srgb, var(--color-success) 34%, var(--al-border) 66%);
+}
+
+.al-shell-regent-pill.is-warn {
+  border-color: color-mix(in srgb, var(--color-warning) 42%, var(--al-border) 58%);
+}
+
+.al-shell-regent-pill.is-muted {
+  opacity: 0.78;
+}
+
 .al-shell-regent-pill strong {
   display: block;
   font-family: var(--al-font-body);
@@ -418,12 +431,297 @@ textarea {
   letter-spacing: 0.01em;
 }
 
-.al-shell-regent-pill strong span {
-  color: color-mix(in srgb, var(--color-success) 88%, #0f6b55 12%);
-}
-
 .al-shell-regent-pill p {
   margin: 0.22rem 0 0;
+}
+
+.al-command-palette[hidden] {
+  display: none;
+}
+
+.al-command-palette {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: start center;
+  padding: clamp(1rem, 8vh, 5.5rem) 1rem 1rem;
+}
+
+.al-command-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(18, 27, 43, 0.42);
+  cursor: default;
+}
+
+.al-command-dialog {
+  position: relative;
+  width: min(44rem, 100%);
+  max-height: min(42rem, calc(100dvh - 2rem));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--al-border) 82%, white 18%);
+  border-radius: 1.35rem;
+  background: color-mix(in srgb, var(--al-panel-strong) 96%, white 4%);
+  box-shadow: 0 32px 90px -42px rgba(11, 23, 44, 0.5);
+}
+
+.al-command-search-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.9rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--al-border) 86%, white 14%);
+}
+
+.al-command-search-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--al-muted);
+}
+
+.al-command-search-row input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--al-text);
+  font-size: 1rem;
+}
+
+.al-command-search-row button {
+  border: 1px solid color-mix(in srgb, var(--al-border) 86%, white 14%);
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  background: transparent;
+  color: var(--al-muted);
+}
+
+.al-command-list {
+  display: grid;
+  gap: 0.25rem;
+  max-height: min(33rem, calc(100dvh - 8rem));
+  overflow: auto;
+  padding: 0.65rem;
+}
+
+.al-command-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  min-height: 4rem;
+  border-radius: 1rem;
+  padding: 0.7rem;
+  color: var(--al-text);
+  text-decoration: none;
+}
+
+.al-command-item:hover,
+.al-command-item:focus-visible,
+.al-command-item.is-active {
+  outline: 0;
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent 90%);
+}
+
+.al-command-mark {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  aspect-ratio: 1;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--brand-primary) 14%, white 86%);
+  color: color-mix(in srgb, var(--brand-primary) 70%, var(--al-text) 30%);
+  font-family: var(--al-font-display);
+  font-size: 0.78rem;
+}
+
+.al-command-item strong,
+.al-command-item small {
+  display: block;
+}
+
+.al-command-item small,
+.al-command-empty {
+  color: var(--al-muted);
+}
+
+.al-command-empty {
+  margin: 0;
+  padding: 1rem;
+}
+
+.al-action-desk {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(17rem, 0.75fr);
+  gap: clamp(0.85rem, 2vw, 1.15rem);
+  align-items: stretch;
+  border: 1px solid color-mix(in srgb, var(--al-border) 84%, white 16%);
+  border-radius: 1.45rem;
+  padding: clamp(1rem, 2.2vw, 1.35rem);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--al-panel-strong) 96%, white 4%), color-mix(in srgb, var(--brand-primary) 7%, var(--al-panel-strong) 93%));
+  box-shadow: 0 24px 70px -48px rgba(17, 35, 64, 0.34);
+}
+
+.al-action-desk-main,
+.al-action-desk-copy,
+.al-action-desk-aside {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.al-action-desk-main {
+  align-content: space-between;
+}
+
+.al-action-desk-copy h2,
+.al-action-desk-copy p {
+  margin: 0;
+}
+
+.al-action-desk-copy h2 {
+  font-size: clamp(1.45rem, 3vw, 2.35rem);
+  line-height: 1;
+}
+
+.al-action-desk-copy p {
+  max-width: 56rem;
+  color: var(--al-muted);
+  line-height: 1.55;
+}
+
+.al-action-desk-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.al-action-desk-status {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.32rem 0.68rem;
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent 90%);
+  color: color-mix(in srgb, var(--brand-primary) 76%, var(--al-text) 24%);
+  font-size: 0.76rem;
+}
+
+@media (max-width: 900px) {
+  .al-action-desk {
+    grid-template-columns: 1fr;
+  }
+}
+
+.al-status-page {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.al-status-hero,
+.al-status-check {
+  border: 1px solid color-mix(in srgb, var(--al-border) 86%, white 14%);
+  background: color-mix(in srgb, var(--al-panel-strong) 94%, white 6%);
+  box-shadow: 0 24px 70px -48px rgba(17, 35, 64, 0.24);
+}
+
+.al-status-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  border-radius: 1.5rem;
+  padding: clamp(1.1rem, 2.4vw, 1.5rem);
+}
+
+.al-status-hero h1,
+.al-status-hero p,
+.al-status-check h2,
+.al-status-check p {
+  margin: 0;
+}
+
+.al-status-hero h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 0.96;
+}
+
+.al-status-hero p,
+.al-status-hero-actions,
+.al-status-check p {
+  color: var(--al-muted);
+}
+
+.al-status-hero-actions {
+  display: grid;
+  gap: 0.7rem;
+  justify-items: end;
+}
+
+.al-status-check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.al-status-check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: start;
+  border-radius: 1.25rem;
+  padding: 1rem;
+}
+
+.al-status-check-mark {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  aspect-ratio: 1;
+  border-radius: 0.85rem;
+  font-family: var(--al-font-display);
+  font-size: 0.75rem;
+}
+
+.al-status-check > span {
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.al-status-check.is-ready .al-status-check-mark,
+.al-status-check.is-ready > span {
+  background: color-mix(in srgb, var(--color-success) 13%, transparent 87%);
+  color: color-mix(in srgb, var(--color-success) 76%, var(--al-text) 24%);
+}
+
+.al-status-check.is-muted .al-status-check-mark,
+.al-status-check.is-muted > span {
+  background: color-mix(in srgb, var(--al-muted) 12%, transparent 88%);
+  color: var(--al-muted);
+}
+
+.al-status-check.is-blocked .al-status-check-mark,
+.al-status-check.is-blocked > span {
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent 84%);
+  color: color-mix(in srgb, var(--color-warning) 66%, var(--al-text) 34%);
+}
+
+@media (max-width: 1100px) {
+  .al-status-check-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .al-status-hero {
+    flex-direction: column;
+  }
+
+  .al-status-hero-actions {
+    justify-items: start;
+  }
 }
 
 .al-shell-icon-button {
@@ -2682,11 +2980,41 @@ textarea {
 }
 
 .al-empty-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: start;
   padding: 1.4rem;
 }
 
+.al-empty-state-mark {
+  display: grid;
+  place-items: center;
+  width: 2.7rem;
+  aspect-ratio: 1;
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent 88%);
+  color: color-mix(in srgb, var(--brand-primary) 74%, var(--al-text) 26%);
+  font-family: var(--al-font-display);
+  font-size: 0.8rem;
+}
+
+.al-empty-state-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .al-empty-state h3 {
-  margin: 0 0 0.5rem;
+  margin: 0;
+}
+
+.al-empty-state p {
+  margin: 0;
+}
+
+.al-empty-state .al-cta-link {
+  grid-column: 2;
+  width: fit-content;
 }
 
 .al-position-card .al-action-row,

@@ -146,4 +146,14 @@ defmodule AutolaunchWeb.PositionsLiveTest do
     assert has_element?(view, "#position-row-bid_exit")
     assert html =~ "Exit bid"
   end
+
+  test "query params restore a shared positions view", %{conn: conn, human: human} do
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, view, html} = live(conn, "/positions?status=claimable&search=nova")
+
+    assert html =~ "Nova"
+    assert has_element?(view, "#position-row-bid_claim")
+    refute has_element?(view, "#position-row-bid_exit")
+    assert html =~ "Review claims"
+  end
 end

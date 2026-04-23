@@ -39,6 +39,7 @@ defmodule AutolaunchWeb.HomeLive do
     {:ok,
      socket
      |> Refreshable.schedule(@poll_ms)
+     |> Refreshable.subscribe([:market, :system])
      |> assign(:page_title, "Autolaunch")
      |> assign(:active_view, "home")
      |> assign(:launch_steps, @launch_steps)
@@ -47,6 +48,10 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_info(:refresh, socket) do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_home/1)}
+  end
+
+  def handle_info({:autolaunch_live_update, :changed}, socket) do
+    {:noreply, reload_home(socket)}
   end
 
   def render(assigns) do

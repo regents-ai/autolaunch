@@ -5,37 +5,40 @@ defmodule AutolaunchWeb.PositionsLive do
   alias AutolaunchWeb.Live.Refreshable
 
   @poll_ms 15_000
+  @default_filters %{"status" => "", "search" => ""}
 
   def mount(_params, _session, socket) do
-    filters = %{"status" => "", "search" => ""}
     all_positions = load_positions(socket.assigns[:current_human])
 
     {:ok,
      socket
      |> Refreshable.schedule(@poll_ms)
+     |> Refreshable.subscribe([:positions, :market, :system])
      |> assign(:page_title, "Positions")
      |> assign(:active_view, "positions")
-     |> assign(:filters, filters)
      |> assign(:all_positions, all_positions)
-     |> assign(:positions, filter_positions(all_positions, filters))}
+     |> assign(:positions, all_positions)}
   end
 
-  def handle_event("filters_changed", %{"filters" => filters}, socket) do
-    merged = Map.merge(socket.assigns.filters, filters)
-
-    {:noreply,
-     socket
-     |> assign(:filters, merged)
-     |> assign(:positions, filter_positions(socket.assigns.all_positions, merged))}
-  end
-
-  def handle_event("quick_filter", %{"status" => status}, socket) do
-    filters = Map.put(socket.assigns.filters, "status", status)
+  def handle_params(params, _uri, socket) do
+    filters = sanitize_filters(Map.merge(@default_filters, params))
 
     {:noreply,
      socket
      |> assign(:filters, filters)
      |> assign(:positions, filter_positions(socket.assigns.all_positions, filters))}
+  end
+
+  def handle_event("filters_changed", %{"filters" => filters}, socket) do
+    merged = Map.merge(socket.assigns.filters, filters)
+
+    {:noreply, push_patch(socket, to: ~p"/positions?#{filter_query(merged)}")}
+  end
+
+  def handle_event("quick_filter", %{"status" => status}, socket) do
+    filters = Map.put(socket.assigns.filters, "status", status)
+
+    {:noreply, push_patch(socket, to: ~p"/positions?#{filter_query(filters)}")}
   end
 
   def handle_event("wallet_tx_started", %{"message" => message}, socket) do
@@ -52,6 +55,10 @@ defmodule AutolaunchWeb.PositionsLive do
 
   def handle_info(:refresh, socket) do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_positions/1)}
+  end
+
+  def handle_info({:autolaunch_live_update, :changed}, socket) do
+    {:noreply, reload_positions(socket)}
   end
 
   def render(assigns) do
@@ -87,6 +94,9 @@ defmodule AutolaunchWeb.PositionsLive do
           <.empty_state
             title="Sign in to inspect your bids."
             body="This workspace keeps your active bids, claims, and returns in one place."
+            mark="PO"
+            action_label="Browse auctions"
+            action_href={~p"/auctions"}
           />
         <% else %>
           <section
@@ -124,6 +134,35 @@ defmodule AutolaunchWeb.PositionsLive do
               <p>Settled or claimable</p>
             </article>
           </section>
+
+          <.action_desk
+            id="positions-action-desk"
+            title={positions_action_title(@summary)}
+            body={positions_action_body(@summary)}
+            status_label={"#{@summary.claimable_count} claimable / #{@summary.returnable_count} returns"}
+            class="al-positions-action-desk"
+          >
+            <:primary>
+              <button
+                type="button"
+                class="al-submit"
+                phx-click="quick_filter"
+                phx-value-status={positions_primary_status(@summary)}
+              >
+                {positions_primary_label(@summary)}
+              </button>
+            </:primary>
+            <:secondary>
+              <.link navigate={~p"/auctions"} class="al-ghost">Browse auctions</.link>
+            </:secondary>
+            <:aside>
+              <div class="al-positions-desk-ledger">
+                <span>Tracked exposure</span>
+                <strong>{display_money(@summary.tracked_exposure)}</strong>
+                <p>{@summary.total_count} positions watched from this wallet</p>
+              </div>
+            </:aside>
+          </.action_desk>
 
           <section
             id="positions-priority-grid"
@@ -248,6 +287,9 @@ defmodule AutolaunchWeb.PositionsLive do
                 <.empty_state
                   title="No bids match the current view."
                   body="Clear the search or switch buckets to see more positions."
+                  mark="FI"
+                  action_label="Show all positions"
+                  action_href={~p"/positions"}
                 />
               <% else %>
                 <div class="al-account-table-shell">
@@ -311,7 +353,7 @@ defmodule AutolaunchWeb.PositionsLive do
                               id={"positions-return-#{position.bid_id}"}
                               class="al-submit"
                               tx_request={return_action(position).tx_request}
-                              register_endpoint={~p"/api/bids/#{position.bid_id}/return-usdc"}
+                              register_endpoint={~p"/v1/app/bids/#{position.bid_id}/return-usdc"}
                               pending_message="Return transaction sent. Waiting for confirmation."
                               success_message="USDC return registered."
                             >
@@ -322,7 +364,7 @@ defmodule AutolaunchWeb.PositionsLive do
                               id={"positions-exit-#{position.bid_id}"}
                               class="al-ghost"
                               tx_request={tx_action(position, :exit).tx_request}
-                              register_endpoint={~p"/api/bids/#{position.bid_id}/exit"}
+                              register_endpoint={~p"/v1/app/bids/#{position.bid_id}/exit"}
                               pending_message="Exit transaction sent. Waiting for confirmation."
                               success_message="Bid exit registered."
                             >
@@ -333,7 +375,7 @@ defmodule AutolaunchWeb.PositionsLive do
                               id={"positions-claim-#{position.bid_id}"}
                               class="al-submit"
                               tx_request={tx_action(position, :claim).tx_request}
-                              register_endpoint={~p"/api/bids/#{position.bid_id}/claim"}
+                              register_endpoint={~p"/v1/app/bids/#{position.bid_id}/claim"}
                               pending_message="Claim transaction sent. Waiting for confirmation."
                               success_message="Claim registered."
                             >
@@ -360,6 +402,9 @@ defmodule AutolaunchWeb.PositionsLive do
                 <.empty_state
                   title="No position activity yet."
                   body="Once you place bids or claim balances, the latest actions will show up here."
+                  mark="AC"
+                  action_label="Open auctions"
+                  action_href={~p"/auctions"}
                 />
               <% else %>
                 <div class="al-positions-activity-list">
@@ -401,6 +446,28 @@ defmodule AutolaunchWeb.PositionsLive do
     positions
     |> filter_by_status(filters["status"])
     |> filter_by_search(filters["search"])
+  end
+
+  defp sanitize_filters(filters) do
+    %{
+      "status" => sanitize_status(Map.get(filters, "status")),
+      "search" => filters |> Map.get("search", "") |> to_string() |> String.trim()
+    }
+  end
+
+  defp sanitize_status(status)
+       when status in ["", "active", "borderline", "claimable", "returnable", "inactive"],
+       do: status
+
+  defp sanitize_status(_status), do: ""
+
+  defp filter_query(filters) do
+    filters
+    |> sanitize_filters()
+    |> Enum.reject(fn {key, value} ->
+      Map.get(@default_filters, key) == value or value in [nil, ""]
+    end)
+    |> Map.new()
   end
 
   defp filter_by_status(positions, nil), do: positions
@@ -510,6 +577,37 @@ defmodule AutolaunchWeb.PositionsLive do
 
   defp return_priority_copy(count),
     do: "#{count} positions can return USDC from failed raises."
+
+  defp positions_action_title(%{claimable_count: count}) when count > 0,
+    do: "Claim ready balances first."
+
+  defp positions_action_title(%{returnable_count: count}) when count > 0,
+    do: "Clear failed-auction returns."
+
+  defp positions_action_title(%{active_total_count: count}) when count > 0,
+    do: "Watch active bids."
+
+  defp positions_action_title(_summary), do: "No wallet action is waiting."
+
+  defp positions_action_body(%{claimable_count: count}) when count > 0,
+    do: "#{count} positions can be claimed now. Review them before checking new markets."
+
+  defp positions_action_body(%{returnable_count: count}) when count > 0,
+    do: "#{count} positions can return USDC from failed raises."
+
+  defp positions_action_body(%{active_total_count: count}) when count > 0,
+    do: "#{count} active bids are still moving with the market."
+
+  defp positions_action_body(_summary),
+    do: "New bids, claims, and returns will collect here once this wallet is active."
+
+  defp positions_primary_status(%{claimable_count: count}) when count > 0, do: "claimable"
+  defp positions_primary_status(%{returnable_count: count}) when count > 0, do: "returnable"
+  defp positions_primary_status(_summary), do: ""
+
+  defp positions_primary_label(%{claimable_count: count}) when count > 0, do: "Review claims"
+  defp positions_primary_label(%{returnable_count: count}) when count > 0, do: "Review returns"
+  defp positions_primary_label(_summary), do: "Show all positions"
 
   defp status_copy("active"), do: "Active — receiving tokens at the current clearing price."
   defp status_copy("ending-soon"), do: "Ending soon — the auction is near the finish line."
@@ -696,6 +794,26 @@ defmodule AutolaunchWeb.PositionsLive do
       .al-positions-activity-row span {
         color: var(--al-muted);
         white-space: nowrap;
+      }
+
+      .al-positions-desk-ledger {
+        display: grid;
+        gap: 0.25rem;
+        align-content: center;
+        min-height: 100%;
+        border-radius: 1.1rem;
+        padding: 1rem;
+        background: color-mix(in srgb, var(--brand-primary) 8%, transparent 92%);
+      }
+
+      .al-positions-desk-ledger span,
+      .al-positions-desk-ledger p {
+        color: var(--al-muted);
+      }
+
+      .al-positions-desk-ledger strong {
+        font-family: var(--al-font-display);
+        font-size: clamp(1.4rem, 2.6vw, 2.2rem);
       }
 
       @media (max-width: 1100px) {

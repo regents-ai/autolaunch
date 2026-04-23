@@ -148,7 +148,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     assert html =~ "Your staked tokens"
     assert html =~ "Wallet token balance"
     assert html =~ "Claimable USDC"
-    assert html =~ "Primary next step"
+    assert html =~ "Action desk"
     assert html =~ "Move wallet tokens into the splitter."
     assert html =~ "Revenue routing"
     assert html =~ "Share history"

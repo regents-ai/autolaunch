@@ -14,6 +14,7 @@ defmodule AutolaunchWeb.ContractsLive do
     {:ok,
      socket
      |> Refreshable.schedule(@poll_ms)
+     |> Refreshable.subscribe([:market, :subjects, :system])
      |> assign(:page_title, "Contracts")
      |> assign(:active_view, "contracts")
      |> assign(:job_id, Map.get(params, "job_id"))
@@ -91,6 +92,10 @@ defmodule AutolaunchWeb.ContractsLive do
 
   def handle_info(:refresh, socket) do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &load_console/1)}
+  end
+
+  def handle_info({:autolaunch_live_update, :changed}, socket) do
+    {:noreply, load_console(socket)}
   end
 
   def render(assigns) do
@@ -172,6 +177,9 @@ defmodule AutolaunchWeb.ContractsLive do
         <.empty_state
           title="No launch or subject is selected yet."
           body="Use the entry cards above to open a launch job or a subject. The shared admin view still stays available below."
+          mark="CO"
+          action_label="Open system status"
+          action_href={~p"/status"}
         />
       <% end %>
 
@@ -740,6 +748,11 @@ defmodule AutolaunchWeb.ContractsLive do
   defp prepare_error(:invalid_uint), do: "Amounts must be provided in whole onchain units."
   defp prepare_error(:invalid_string), do: "A text value is required."
   defp prepare_error(:invalid_boolean), do: "Choose a valid true or false option."
+  defp prepare_error(:eligible_share_too_low), do: "Eligible share must be at least 10%."
+  defp prepare_error(:eligible_share_too_high), do: "Eligible share cannot exceed 100%."
+
+  defp prepare_error(:eligible_share_step_too_large),
+    do: "Eligible share changes can only move by up to 20 percentage points at a time."
 
   defp prepare_error(:ingress_not_found),
     do: "That ingress account does not belong to the current subject."

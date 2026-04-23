@@ -44,7 +44,7 @@ defmodule AutolaunchWeb.Api.MeControllerTest do
     conn =
       conn
       |> init_test_session(privy_user_id: human.privy_user_id)
-      |> get("/api/me/profile")
+      |> get("/v1/app/me/profile")
 
     assert %{
              "ok" => true,
@@ -60,7 +60,7 @@ defmodule AutolaunchWeb.Api.MeControllerTest do
     conn =
       conn
       |> init_test_session(privy_user_id: human.privy_user_id)
-      |> post("/api/me/profile/refresh")
+      |> post("/v1/app/me/profile/refresh")
 
     assert %{"ok" => false, "error" => %{"code" => "profile_refresh_cooldown"}} =
              json_response(conn, 429)

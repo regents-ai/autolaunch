@@ -200,8 +200,8 @@ defmodule AutolaunchWeb.XLinkLive do
               phx-hook="XLinkFlow"
               data-agent-id={@selected_identity.agent_id}
               data-privy-app-id={privy_app_id()}
-              data-start-endpoint={~p"/api/trust/x/start"}
-              data-callback-endpoint={~p"/api/trust/x/callback"}
+              data-start-endpoint={~p"/v1/app/trust/x/start"}
+              data-callback-endpoint={~p"/v1/app/trust/x/callback"}
               data-redirect-path={~p"/x-link?identity_id=#{@selected_identity.agent_id}"}
             >
               <strong>Browser flow</strong>

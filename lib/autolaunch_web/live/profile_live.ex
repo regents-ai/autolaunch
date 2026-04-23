@@ -87,6 +87,9 @@ defmodule AutolaunchWeb.ProfileLive do
           <.empty_state
             title="Sign in to see your token portfolio."
             body="This workspace is built from the wallets linked to your account."
+            mark="ID"
+            action_label="Browse auctions"
+            action_href={~p"/auctions"}
           />
         <% else %>
           <section id="profile-grid" class="al-profile-grid" phx-hook="MissionMotion">

@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     end
   end
 
-  test "POST /api/auth/privy/session writes the browser session and returns the next room step",
+  test "POST /v1/auth/privy/session writes the browser session and returns the next room step",
        %{conn: conn, privy: privy} do
     wallet_address = cast_wallet_address!(@test_wallet_private_key) |> String.downcase()
 
@@ -48,7 +48,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       conn
       |> csrf_json_conn()
       |> with_privy_bearer("privy-autolaunch-user", privy.app_id, privy.private_pem)
-      |> post("/api/auth/privy/session", %{
+      |> post("/v1/auth/privy/session", %{
         "display_name" => "Autolaunch User",
         "wallet_address" => wallet_address,
         "wallet_addresses" => [wallet_address]
@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
            } = Accounts.get_human_by_privy_id("privy-autolaunch-user")
   end
 
-  test "POST /api/auth/privy/xmtp/complete stores the room identity and returns a ready session",
+  test "POST /v1/auth/privy/xmtp/complete stores the room identity and returns a ready session",
        %{conn: conn, privy: privy} do
     wallet_address = cast_wallet_address!(@test_wallet_private_key) |> String.downcase()
 
@@ -95,7 +95,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       conn
       |> csrf_json_conn()
       |> with_privy_bearer("privy-autolaunch-complete", privy.app_id, privy.private_pem)
-      |> post("/api/auth/privy/session", %{
+      |> post("/v1/auth/privy/session", %{
         "display_name" => "Complete User",
         "wallet_address" => wallet_address,
         "wallet_addresses" => [wallet_address]
@@ -116,7 +116,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       session_conn
       |> recycle()
       |> csrf_json_conn()
-      |> post("/api/auth/privy/xmtp/complete", %{
+      |> post("/v1/auth/privy/xmtp/complete", %{
         "wallet_address" => wallet_address,
         "client_id" => client_id,
         "signature_request_id" => signature_request_id,
@@ -139,13 +139,13 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
            } = Accounts.get_human_by_privy_id("privy-autolaunch-complete")
   end
 
-  test "GET /api/auth/privy/profile returns an empty session when signed out", %{conn: conn} do
-    conn = get(conn, "/api/auth/privy/profile")
+  test "GET /v1/auth/privy/profile returns an empty session when signed out", %{conn: conn} do
+    conn = get(conn, "/v1/auth/privy/profile")
 
     assert %{"ok" => true, "human" => nil, "xmtp" => nil} = json_response(conn, 200)
   end
 
-  test "GET /api/auth/privy/profile keeps a ready inbox for a known wallet", %{
+  test "GET /v1/auth/privy/profile keeps a ready inbox for a known wallet", %{
     conn: conn,
     privy: privy
   } do
@@ -164,7 +164,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       conn
       |> csrf_json_conn()
       |> with_privy_bearer("privy-autolaunch-ready", privy.app_id, privy.private_pem)
-      |> post("/api/auth/privy/session", %{
+      |> post("/v1/auth/privy/session", %{
         "display_name" => "Ready User",
         "wallet_address" => wallet_address,
         "wallet_addresses" => [wallet_address]

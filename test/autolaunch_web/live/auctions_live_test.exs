@@ -217,6 +217,18 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     refute render(view) =~ "Cinder</h2>"
   end
 
+  test "query params restore a shared market view", %{conn: conn, human: human} do
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+
+    {:ok, view, html} =
+      live(conn, "/auctions?search=atlas.eth&network=base-sepolia&sort=market_cap_desc")
+
+    assert html =~ "Atlas"
+    assert has_element?(view, "#auction-row-auc_active")
+    refute has_element?(view, "#auction-row-auc_beta")
+    assert has_element?(view, "input[value='atlas.eth']")
+  end
+
   test "featured market falls back to a live auction when no biddable auction exists", %{
     conn: conn,
     human: human

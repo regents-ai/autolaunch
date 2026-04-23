@@ -73,7 +73,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
 
   test "index supports the launchable filter", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    conn = get(conn, "/api/agents?launchable=true")
+    conn = get(conn, "/v1/app/agents?launchable=true")
 
     assert %{"ok" => true, "items" => items} = json_response(conn, 200)
     assert Enum.any?(items, &(&1["agent_id"] == "84532:42"))
@@ -81,7 +81,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
 
   test "readiness maps failed checks into launch blockers", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    conn = get(conn, "/api/agents/84532:42/readiness")
+    conn = get(conn, "/v1/app/agents/84532:42/readiness")
 
     assert %{
              "ok" => true,

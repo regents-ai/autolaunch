@@ -20,6 +20,7 @@ defmodule AutolaunchWeb.AuctionLive do
     {:ok,
      socket
      |> Refreshable.schedule(@poll_ms)
+     |> Refreshable.subscribe([:market, :positions, :system])
      |> assign(:page_title, "Auction Detail")
      |> assign(:active_view, "auctions")
      |> assign(:auction_id, auction_id)
@@ -63,8 +64,13 @@ defmodule AutolaunchWeb.AuctionLive do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_auction/1)}
   end
 
+  def handle_info({:autolaunch_live_update, :changed}, socket) do
+    {:noreply, reload_auction(socket)}
+  end
+
   def render(assigns) do
     latest_position = List.first(assigns.positions)
+
     assigns =
       assigns
       |> assign(:latest_position, latest_position)
@@ -235,7 +241,7 @@ defmodule AutolaunchWeb.AuctionLive do
                   id={"submit-bid-#{@auction_id}"}
                   class="al-submit"
                   tx_request={@quote.tx_request}
-                  register_endpoint={~p"/api/auctions/#{@auction_id}/bids"}
+                  register_endpoint={~p"/v1/app/auctions/#{@auction_id}/bids"}
                   register_body={%{
                     "amount" => @quote.amount,
                     "max_price" => @quote.max_price,
@@ -350,7 +356,7 @@ defmodule AutolaunchWeb.AuctionLive do
                 <tbody>
                   <tr>
                     <th scope="row">Auction type</th>
-                    <td>Dutch auction</td>
+                    <td>Continuous clearing auction</td>
                   </tr>
                   <tr>
                     <th scope="row">Start time</th>
@@ -457,7 +463,7 @@ defmodule AutolaunchWeb.AuctionLive do
                       id={"auction-return-#{position.bid_id}"}
                       class="al-submit"
                       tx_request={return_action(position).tx_request}
-                      register_endpoint={~p"/api/bids/#{position.bid_id}/return-usdc"}
+                      register_endpoint={~p"/v1/app/bids/#{position.bid_id}/return-usdc"}
                       pending_message="Return transaction sent. Waiting for confirmation."
                       success_message="USDC return registered."
                     >
@@ -469,7 +475,7 @@ defmodule AutolaunchWeb.AuctionLive do
                       id={"auction-exit-#{position.bid_id}"}
                       class="al-ghost"
                       tx_request={tx_action(position, :exit).tx_request}
-                      register_endpoint={~p"/api/bids/#{position.bid_id}/exit"}
+                      register_endpoint={~p"/v1/app/bids/#{position.bid_id}/exit"}
                       pending_message="Exit transaction sent. Waiting for confirmation."
                       success_message="Bid exit registered."
                     >
@@ -481,7 +487,7 @@ defmodule AutolaunchWeb.AuctionLive do
                       id={"auction-claim-#{position.bid_id}"}
                       class="al-submit"
                       tx_request={tx_action(position, :claim).tx_request}
-                      register_endpoint={~p"/api/bids/#{position.bid_id}/claim"}
+                      register_endpoint={~p"/v1/app/bids/#{position.bid_id}/claim"}
                       pending_message="Claim transaction sent. Waiting for confirmation."
                       success_message="Claim registered."
                     >
@@ -533,7 +539,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
               <ul class="al-compact-list">
                 <li>Bid early with your real budget and your real max price instead of waiting for a last-second entry.</li>
-                <li>Your max price keeps you from overpaying, and each block clears at one shared price.</li>
+                <li>Each block uses one shared clearing price. Your bid participates while that price is at or below your max price.</li>
                 <li>Slower, visible price discovery leaves less room for sniping and speed advantages.</li>
               </ul>
             </details>

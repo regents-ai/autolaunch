@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
       |> init_test_session(%{})
       |> with_agent_headers()
       |> with_csrf()
-      |> post("/api/auth/agent/session", %{})
+      |> post("/v1/auth/agent/session", %{})
 
     created = json_response(created_conn, 200)
 
@@ -51,7 +51,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     show_conn =
       created_conn
       |> recycle()
-      |> get("/api/auth/agent/session")
+      |> get("/v1/auth/agent/session")
 
     shown = json_response(show_conn, 200)
 
@@ -64,14 +64,14 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
       show_conn
       |> recycle()
       |> with_csrf()
-      |> delete("/api/auth/agent/session")
+      |> delete("/v1/auth/agent/session")
 
     assert %{"ok" => true} = json_response(delete_conn, 200)
 
     cleared_conn =
       delete_conn
       |> recycle()
-      |> get("/api/auth/agent/session")
+      |> get("/v1/auth/agent/session")
 
     assert %{"ok" => true, "session" => nil} = json_response(cleared_conn, 200)
   end
@@ -82,7 +82,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
       |> init_test_session(%{})
       |> with_agent_headers()
       |> with_csrf()
-      |> post("/api/auth/agent/session", %{})
+      |> post("/v1/auth/agent/session", %{})
 
     response = json_response(conn, 200)
 
@@ -107,14 +107,14 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     conn =
       conn
       |> init_test_session(%{agent_session: expired_session})
-      |> get("/api/auth/agent/session")
+      |> get("/v1/auth/agent/session")
 
     assert %{"ok" => true, "session" => nil} = json_response(conn, 200)
 
     followup_conn =
       conn
       |> recycle()
-      |> get("/api/auth/agent/session")
+      |> get("/v1/auth/agent/session")
 
     assert %{"ok" => true, "session" => nil} = json_response(followup_conn, 200)
   end
@@ -133,7 +133,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
     conn =
       conn
       |> init_test_session(%{agent_session: malformed_session})
-      |> get("/api/auth/agent/session")
+      |> get("/v1/auth/agent/session")
 
     assert %{"ok" => true, "session" => nil} = json_response(conn, 200)
   end
@@ -144,7 +144,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
       |> init_test_session(%{})
       |> with_agent_headers(receipt_audience: "techtree")
       |> with_csrf()
-      |> post("/api/auth/agent/session", %{})
+      |> post("/v1/auth/agent/session", %{})
 
     assert %{"error" => %{"code" => "siwa_auth_denied"}} = json_response(conn, 401)
   end

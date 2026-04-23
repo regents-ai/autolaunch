@@ -143,10 +143,97 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     def terminal_status?(status), do: status in ["ready", "failed", "blocked"]
   end
 
+  defmodule PrelaunchStub do
+    def update_metadata("plan_alpha", %{"metadata" => metadata}, %{
+          privy_user_id: "did:privy:launch-plan"
+        }) do
+      if pid = Application.get_env(:autolaunch, :launch_pages_test_pid) do
+        send(pid, {:metadata_updated, metadata})
+      end
+
+      {:ok,
+       %{
+         plan: %{
+           plan_id: "plan_alpha",
+           state: "launchable",
+           metadata_draft: metadata
+         },
+         metadata_preview: %{
+           title: metadata["title"],
+           subtitle: metadata["subtitle"],
+           description: metadata["description"],
+           image_url: metadata["image_url"],
+           website_url: metadata["website_url"]
+         }
+       }}
+    end
+
+    def update_metadata(_plan_id, _attrs, _human), do: {:error, :not_found}
+
+    def list_plans(%{privy_user_id: "did:privy:launch-plan"}) do
+      {:ok,
+       [
+         %{
+           plan_id: "plan_alpha",
+           state: "launchable",
+           agent_id: "11155111:42",
+           agent_name: "Atlas",
+           token_name: "Atlas Coin",
+           token_symbol: "ATLAS",
+           metadata_draft: %{
+             "title" => "Atlas Launch",
+             "subtitle" => "Agent market",
+             "description" => "A saved plan from the CLI.",
+             "website_url" => "https://atlas.example",
+             "image_url" => "https://atlas.example/cover.png"
+           },
+           identity_snapshot: %{},
+           launch_job_id: nil
+         }
+       ]}
+    end
+
+    def list_plans(%{privy_user_id: "did:privy:launch-live-plan"}) do
+      {:ok,
+       [
+         %{
+           plan_id: "plan_live",
+           state: "launched",
+           agent_id: "11155111:42",
+           agent_name: "Atlas",
+           token_name: "Atlas Coin",
+           token_symbol: "ATLAS",
+           metadata_draft: %{},
+           identity_snapshot: %{},
+           launch_job_id: "job_alpha"
+         }
+       ]}
+    end
+
+    def list_plans(_human), do: {:ok, []}
+  end
+
   setup do
     original = Application.get_env(:autolaunch, :launch_live, [])
-    Application.put_env(:autolaunch, :launch_live, launch_module: LaunchStub)
-    on_exit(fn -> Application.put_env(:autolaunch, :launch_live, original) end)
+    original_test_pid = Application.get_env(:autolaunch, :launch_pages_test_pid)
+
+    Application.put_env(:autolaunch, :launch_live,
+      launch_module: LaunchStub,
+      prelaunch_module: PrelaunchStub
+    )
+
+    Application.put_env(:autolaunch, :launch_pages_test_pid, self())
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :launch_live, original)
+
+      if is_nil(original_test_pid) do
+        Application.delete_env(:autolaunch, :launch_pages_test_pid)
+      else
+        Application.put_env(:autolaunch, :launch_pages_test_pid, original_test_pid)
+      end
+    end)
+
     :ok
   end
 
@@ -169,7 +256,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "Agent-assisted path"
     assert html =~ "OpenClaw"
     assert html =~ "Hermes"
-    assert html =~ "Start agent-assisted flow"
+    assert html =~ "Open agent-assisted brief"
   end
 
   test "launch page links operators toward the CLI flow and browser follow-up pages", %{
@@ -186,8 +273,8 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     {:ok, _view, html} = live(conn, "/launch")
 
     assert html =~ "Starter command"
-    assert html =~ "Start direct operator flow"
-    assert html =~ "Start agent-assisted flow"
+    assert html =~ "Copy direct CLI command"
+    assert html =~ "Open agent-assisted brief"
     assert html =~ "Review launch setup"
   end
 
@@ -229,6 +316,83 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "Start the market on Base and keep the operator run moving."
     assert html =~ "Open contracts"
     refute html =~ "Prepare review"
+  end
+
+  test "launch page uses wallet, profile, identity, and plan state for the next action", %{
+    conn: conn
+  } do
+    {:ok, human} =
+      Accounts.upsert_human_by_privy_id("did:privy:launch-plan", %{
+        "wallet_address" => "0x1111111111111111111111111111111111111111",
+        "wallet_addresses" => ["0x1111111111111111111111111111111111111111"],
+        "display_name" => "Launch Operator"
+      })
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, _view, html} = live(conn, "/launch")
+
+    assert html =~ "Operator wallet"
+    assert html =~ "Launch Operator"
+    assert html =~ "1 identity ready for launch."
+    assert html =~ "ATLAS plan is ready to publish and run."
+    assert html =~ "Run the launch"
+    assert html =~ "Copy launch command"
+    assert html =~ "CLI starts the launch. Web completes public details and trust review."
+    assert html =~ "Atlas Launch"
+    assert html =~ "A saved plan from the CLI."
+  end
+
+  test "launch page saves public metadata without launching from the browser", %{conn: conn} do
+    {:ok, human} =
+      Accounts.upsert_human_by_privy_id("did:privy:launch-plan", %{
+        "wallet_address" => "0x1111111111111111111111111111111111111111",
+        "wallet_addresses" => ["0x1111111111111111111111111111111111111111"],
+        "display_name" => "Launch Operator"
+      })
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, view, _html} = live(conn, "/launch")
+
+    html =
+      view
+      |> form("#launch-metadata-form", %{
+        "metadata" => %{
+          "title" => "Atlas Public Launch",
+          "subtitle" => "Operator reviewed",
+          "description" => "Public launch details for bidders.",
+          "website_url" => "https://atlas.example/public",
+          "image_url" => "https://atlas.example/public.png"
+        }
+      })
+      |> render_submit()
+
+    assert_received {:metadata_updated,
+                     %{
+                       "title" => "Atlas Public Launch",
+                       "image_url" => "https://atlas.example/public.png"
+                     }}
+
+    assert html =~ "Atlas Public Launch"
+    assert html =~ "Public launch details for bidders."
+    refute html =~ "Publish plan"
+    refute html =~ "Run from browser"
+    refute html =~ "Finalize launch"
+  end
+
+  test "launch page points launched plans to contract review", %{conn: conn} do
+    {:ok, human} =
+      Accounts.upsert_human_by_privy_id("did:privy:launch-live-plan", %{
+        "wallet_address" => "0x1111111111111111111111111111111111111111",
+        "wallet_addresses" => ["0x1111111111111111111111111111111111111111"],
+        "display_name" => "Launch Operator"
+      })
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, _view, html} = live(conn, "/launch")
+
+    assert html =~ "Launch tracking is open for job_alpha."
+    assert html =~ "Track launch work"
+    assert html =~ "Open contracts"
   end
 
   test "market page renders token directory copy", %{conn: conn} do

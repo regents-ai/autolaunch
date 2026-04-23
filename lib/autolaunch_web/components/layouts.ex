@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.Layouts do
   embed_templates "layouts/*"
 
   alias AutolaunchWeb.LaunchComponents
+  alias AutolaunchWeb.RegentStatus
 
   attr :current_human, :map, default: nil
   attr :active_view, :string, default: nil
@@ -20,6 +21,8 @@ defmodule AutolaunchWeb.Layouts do
       |> assign(:wallet_label, wallet_label(assigns.current_human))
       |> assign(:wallet_address, wallet_address(assigns.current_human))
       |> assign(:wallet_explorer_href, wallet_explorer_href(assigns.current_human))
+      |> assign(:regent_status, RegentStatus.snapshot(assigns.current_human))
+      |> assign(:command_entries, command_entries())
       |> assign(:docs_href, ~p"/how-auctions-work")
       |> assign(:terms_href, ~p"/terms")
       |> assign(:privacy_href, ~p"/privacy")
@@ -77,7 +80,7 @@ defmodule AutolaunchWeb.Layouts do
 
         <div class="al-shell-main">
           <header class="al-shell-header">
-            <form class="al-shell-search" role="search" method="get" action={~p"/auctions"}>
+            <form class="al-shell-search" role="search" method="get" action={~p"/auctions"} data-command-open>
               <label for="autolaunch-global-search" class="sr-only">Search</label>
               <span class="al-shell-search-icon" aria-hidden="true">
                 <.shell_icon name="search" />
@@ -89,6 +92,8 @@ defmodule AutolaunchWeb.Layouts do
                 placeholder="Search tokens, auctions, docs..."
                 autocomplete="off"
                 aria-keyshortcuts="Meta+K Control+K"
+                readonly
+                data-command-open
               />
               <span class="al-shell-search-shortcut" aria-hidden="true">
                 <kbd class="kbd kbd-sm">⌘</kbd>
@@ -97,9 +102,12 @@ defmodule AutolaunchWeb.Layouts do
             </form>
 
             <div class="al-shell-header-actions">
-              <div class="al-shell-regent-pill" aria-label="Regent market status">
-                <strong>$REGENT : 1.3 mil mcap <span>(+4.2%)</span></strong>
-                <p>Updated on the hour</p>
+              <div
+                class={["al-shell-regent-pill", "is-#{@regent_status.tone}"]}
+                aria-label="Regent staking status"
+              >
+                <strong>{@regent_status.headline}</strong>
+                <p>{@regent_status.detail}</p>
               </div>
 
               <button
@@ -256,6 +264,75 @@ defmodule AutolaunchWeb.Layouts do
           </footer>
         </div>
       </div>
+
+      <div
+        id="autolaunch-command-palette"
+        class="al-command-palette"
+        data-command-palette
+        hidden
+      >
+        <button type="button" class="al-command-scrim" data-command-close aria-label="Close search">
+        </button>
+        <section class="al-command-dialog" role="dialog" aria-modal="true" aria-label="Search Autolaunch">
+          <div class="al-command-search-row">
+            <.shell_icon name="search" class="al-command-search-icon" />
+            <input
+              id="autolaunch-command-input"
+              type="search"
+              placeholder="Find auctions, positions, docs, and account actions"
+              autocomplete="off"
+              data-command-input
+            />
+            <button type="button" data-command-close>Close</button>
+          </div>
+
+          <div class="al-command-list" data-command-list>
+            <a
+              :for={entry <- @command_entries}
+              href={entry.href}
+              class="al-command-item"
+              data-command-item
+              data-command-search={entry.search}
+            >
+              <span class="al-command-mark">{entry.mark}</span>
+              <span>
+                <strong>{entry.label}</strong>
+                <small>{entry.note}</small>
+              </span>
+            </a>
+
+            <a
+              href={~p"/auctions"}
+              class="al-command-item"
+              data-command-query-action
+              data-command-query-template={~p"/auctions?#{%{search: "__QUERY__"}}"}
+              hidden
+            >
+              <span class="al-command-mark">AU</span>
+              <span>
+                <strong data-command-query-label="Search auctions"></strong>
+                <small>Match token, agent, symbol, or ENS</small>
+              </span>
+            </a>
+
+            <a
+              href={~p"/positions"}
+              class="al-command-item"
+              data-command-query-action
+              data-command-query-template={~p"/positions?#{%{search: "__QUERY__"}}"}
+              hidden
+            >
+              <span class="al-command-mark">PO</span>
+              <span>
+                <strong data-command-query-label="Search positions"></strong>
+                <small>Filter bids and claimable balances</small>
+              </span>
+            </a>
+
+            <p class="al-command-empty" data-command-empty hidden>No matching commands.</p>
+          </div>
+        </section>
+      </div>
     </div>
     """
   end
@@ -345,6 +422,60 @@ defmodule AutolaunchWeb.Layouts do
       %{id: "profile", label: "Profile", href: ~p"/profile", icon: "profile"},
       %{id: "launch", label: "Launch", href: ~p"/launch", icon: "launch"},
       %{id: "docs", label: "Docs", href: ~p"/how-auctions-work", icon: "docs"}
+    ]
+  end
+
+  defp command_entries do
+    [
+      %{
+        label: "Open auctions",
+        note: "Compare live raises and market pages",
+        href: ~p"/auctions",
+        mark: "AU",
+        search: "auctions markets bids tokens agent symbol ens"
+      },
+      %{
+        label: "Open positions",
+        note: "Review bids, claims, and returns",
+        href: ~p"/positions",
+        mark: "PO",
+        search: "positions portfolio bids claims returns wallet"
+      },
+      %{
+        label: "Launch an agent",
+        note: "Start with the Regent CLI",
+        href: ~p"/launch",
+        mark: "LA",
+        search: "launch agent regent cli prelaunch"
+      },
+      %{
+        label: "How auctions work",
+        note: "Continuous clearing mechanics and follow-up",
+        href: ~p"/how-auctions-work",
+        mark: "DO",
+        search: "docs guide auction continuous clearing mechanics"
+      },
+      %{
+        label: "Open contracts",
+        note: "Review deployment and revenue contracts",
+        href: ~p"/contracts",
+        mark: "CO",
+        search: "contracts addresses deployment revenue staking"
+      },
+      %{
+        label: "System status",
+        note: "Check launch, cache, auth, and service readiness",
+        href: ~p"/status",
+        mark: "ST",
+        search: "status health readiness cache dragonfly siwa xmtp database"
+      },
+      %{
+        label: "Profile and identity",
+        note: "Wallet, ENS, X, and AgentBook links",
+        href: ~p"/profile",
+        mark: "ID",
+        search: "profile identity wallet ens x agentbook"
+      }
     ]
   end
 

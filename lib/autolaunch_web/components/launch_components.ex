@@ -206,18 +206,23 @@ defmodule AutolaunchWeb.LaunchComponents do
 
   attr :title, :string, required: true
   attr :body, :string, required: true
+  attr :kicker, :string, default: "Next step"
+  attr :mark, :string, default: "AL"
   attr :action_label, :string, default: nil
   attr :action_href, :string, default: nil
 
   def empty_state(assigns) do
     ~H"""
     <article class="al-panel al-empty-state">
-      <p class="al-kicker">No result</p>
-      <h3>{@title}</h3>
-      <p>{@body}</p>
-      <%= if @action_label && @action_href do %>
-        <a href={@action_href} class="al-cta-link">{@action_label}</a>
-      <% end %>
+      <div class="al-empty-state-mark" aria-hidden="true">{@mark}</div>
+      <div class="al-empty-state-copy">
+        <p class="al-kicker">{@kicker}</p>
+        <h3>{@title}</h3>
+        <p>{@body}</p>
+      </div>
+      <a :if={@action_label && @action_href} href={@action_href} class="al-cta-link">
+        {@action_label}
+      </a>
     </article>
     """
   end
@@ -251,6 +256,42 @@ defmodule AutolaunchWeb.LaunchComponents do
     >
       {render_slot(@inner_block)}
     </button>
+    """
+  end
+
+  attr :kicker, :string, default: "Action desk"
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :body, :string, required: true
+  attr :status_label, :string, default: nil
+  attr :class, :string, default: nil
+  slot :primary
+  slot :secondary
+  slot :aside
+
+  def action_desk(assigns) do
+    ~H"""
+    <section id={@id} class={["al-action-desk", @class]} phx-hook="MissionMotion">
+      <div class="al-action-desk-main">
+        <div class="al-action-desk-copy">
+          <div>
+            <p class="al-kicker">{@kicker}</p>
+            <h2>{@title}</h2>
+          </div>
+          <p>{@body}</p>
+          <span :if={@status_label} class="al-action-desk-status">{@status_label}</span>
+        </div>
+
+        <div :if={@primary != [] or @secondary != []} class="al-action-desk-buttons">
+          {render_slot(@primary)}
+          {render_slot(@secondary)}
+        </div>
+      </div>
+
+      <div :if={@aside != []} class="al-action-desk-aside">
+        {render_slot(@aside)}
+      </div>
+    </section>
     """
   end
 

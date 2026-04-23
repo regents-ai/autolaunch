@@ -79,7 +79,7 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
 
   test "creates a public agentbook session", %{conn: conn} do
     conn =
-      post(conn, "/api/agentbook/sessions", %{
+      post(conn, "/v1/app/agentbook/sessions", %{
         "agent_address" => "0x1111111111111111111111111111111111111111",
         "network" => "world",
         "launch_job_id" => "job_followup"
@@ -96,9 +96,11 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
            } = json_response(conn, 200)
   end
 
-  test "proof submission returns manual tx fallback when relay is unavailable", %{conn: conn} do
+  test "proof submission returns wallet confirmation when sponsorship is unavailable", %{
+    conn: conn
+  } do
     conn =
-      post(conn, "/api/agentbook/sessions", %{
+      post(conn, "/v1/app/agentbook/sessions", %{
         "agent_address" => "0x1111111111111111111111111111111111111111",
         "network" => "world"
       })
@@ -106,7 +108,7 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
     assert %{"session" => %{"session_id" => session_id}} = json_response(conn, 200)
 
     conn =
-      post(conn, "/api/agentbook/sessions/#{session_id}/submit", %{
+      post(conn, "/v1/app/agentbook/sessions/#{session_id}/submit", %{
         "proof" => %{
           "merkle_root" => "0x01",
           "nullifier_hash" => "0x02",
@@ -125,7 +127,7 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
 
   test "lookup returns human-backed registration state", %{conn: conn} do
     conn =
-      get(conn, "/api/agentbook/lookup", %{
+      get(conn, "/v1/app/agentbook/lookup", %{
         "agent_address" => "0x1111111111111111111111111111111111111111",
         "network" => "world"
       })
@@ -142,7 +144,7 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
 
   test "wallet registration writes back the human id", %{conn: conn} do
     conn =
-      post(conn, "/api/agentbook/sessions", %{
+      post(conn, "/v1/app/agentbook/sessions", %{
         "agent_address" => "0x1111111111111111111111111111111111111111",
         "network" => "world",
         "launch_job_id" => "job_followup"
@@ -151,7 +153,7 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
     assert %{"session" => %{"session_id" => session_id}} = json_response(conn, 200)
 
     conn =
-      post(conn, "/api/agentbook/sessions/#{session_id}/submit", %{
+      post(conn, "/v1/app/agentbook/sessions/#{session_id}/submit", %{
         "tx_hash" => "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       })
 

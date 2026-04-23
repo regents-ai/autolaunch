@@ -137,6 +137,12 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     assert html =~ "Claim tokens"
     assert html =~ "Identity and trust status"
     assert html =~ "Why the market behaves this way"
+    assert html =~ "Continuous clearing auction"
+
+    assert html =~
+             "Each block uses one shared clearing price. Your bid participates while that price is at or below your max price."
+
+    refute html =~ "Dutch auction"
   end
 
   test "aggressive preset updates the form and keeps the submit path visible", %{

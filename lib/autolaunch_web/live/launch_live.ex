@@ -20,11 +20,31 @@ defmodule AutolaunchWeb.LaunchLive do
      |> assign(:direct_operator_cards, Presenter.direct_operator_cards())
      |> assign(:operator_guides, Presenter.operator_guides())
      |> assign(:agent_assisted_cards, Presenter.agent_assisted_cards())
+     |> assign_launch_state()
      |> assign_launch_focus()}
   end
 
   def handle_params(_params, _uri, socket) do
     {:noreply, assign_launch_focus(socket)}
+  end
+
+  def handle_event("change_metadata", %{"metadata" => metadata}, socket) do
+    {:noreply, assign(socket, :metadata_form, Presenter.metadata_form(metadata))}
+  end
+
+  def handle_event("save_metadata", %{"metadata" => metadata}, socket) do
+    case socket.assigns.launch_readiness.active_plan do
+      nil ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Save a launch plan from the CLI before adding public details."
+         )}
+
+      %{plan_id: plan_id} ->
+        save_plan_metadata(socket, plan_id, metadata)
+    end
   end
 
   def render(assigns) do
@@ -119,20 +139,39 @@ defmodule AutolaunchWeb.LaunchLive do
             </div>
 
             <div class="al-launch-checklist">
-              <article :for={item <- Presenter.launch_checklist(@current_human)} class="al-launch-checklist-item">
+              <article :for={item <- @launch_readiness.steps} class="al-launch-checklist-item">
                 <div class="al-launch-checklist-mark" data-status={status_token(item.status)}></div>
                 <div class="al-launch-checklist-copy">
                   <strong>{item.title}</strong>
-                  <p>{item.detail || "Connect wallet"}</p>
+                  <p>{item.detail}</p>
                 </div>
                 <span class={["al-launch-pill", status_token(item.status)]}>{item.status}</span>
               </article>
             </div>
 
-            <div class="al-launch-card-footer">
-              <button type="button" class="al-ghost" data-copy-value={@cli_command}>
-                Review launch setup
-              </button>
+            <div class="al-launch-next-action">
+              <p class="al-kicker">Next action</p>
+              <strong>{@launch_readiness.next_action.title}</strong>
+              <p>{@launch_readiness.next_action.body}</p>
+
+              <div class="al-launch-card-footer">
+                <.link
+                  :if={@launch_readiness.next_action.path}
+                  navigate={@launch_readiness.next_action.path}
+                  class="al-submit"
+                >
+                  {@launch_readiness.next_action.label}
+                </.link>
+
+                <button
+                  :if={@launch_readiness.next_action.copy_command}
+                  type="button"
+                  class="al-submit"
+                  data-copy-value={@launch_readiness.next_action.command || @cli_command}
+                >
+                  {@launch_readiness.next_action.label}
+                </button>
+              </div>
             </div>
           </article>
 
@@ -154,7 +193,7 @@ defmodule AutolaunchWeb.LaunchLive do
 
             <div class="al-launch-card-footer">
               <button type="button" class="al-submit" data-copy-value={@cli_command}>
-                Start direct operator flow
+                Copy direct CLI command
               </button>
             </div>
           </article>
@@ -193,11 +232,128 @@ defmodule AutolaunchWeb.LaunchLive do
 
             <div class="al-launch-card-footer">
               <.link navigate={~p"/launch-via-agent"} class="al-submit">
-                Start agent-assisted flow
+                Open agent-assisted brief
               </.link>
             </div>
           </article>
         </section>
+
+        <%= if @launch_readiness.active_plan do %>
+          <section
+            id="launch-plan-companion"
+            class="al-launch-companion-grid"
+            phx-hook="MissionMotion"
+          >
+            <article class="al-panel al-launch-metadata-card">
+              <div class="al-section-head">
+                <div>
+                  <p class="al-kicker">Public details</p>
+                  <h3>Complete the page people see before they bid.</h3>
+                </div>
+                <span class={["al-launch-pill", status_token(@launch_readiness.enrichment.status)]}>
+                  {@launch_readiness.enrichment.status}
+                </span>
+              </div>
+
+              <p class="al-inline-note">
+                CLI starts the launch. Web completes public details and trust review.
+              </p>
+
+              <.form
+                for={to_form(@metadata_form, as: :metadata)}
+                id="launch-metadata-form"
+                phx-change="change_metadata"
+                phx-submit="save_metadata"
+                class="al-launch-metadata-form"
+              >
+                <label>
+                  <span>Title</span>
+                  <input type="text" name="metadata[title]" value={@metadata_form["title"]} />
+                </label>
+
+                <label>
+                  <span>Subtitle</span>
+                  <input type="text" name="metadata[subtitle]" value={@metadata_form["subtitle"]} />
+                </label>
+
+                <label class="al-launch-field-wide">
+                  <span>Description</span>
+                  <textarea name="metadata[description]" rows="5"><%= @metadata_form["description"] %></textarea>
+                </label>
+
+                <label>
+                  <span>Website</span>
+                  <input
+                    type="url"
+                    name="metadata[website_url]"
+                    value={@metadata_form["website_url"]}
+                  />
+                </label>
+
+                <label>
+                  <span>Image URL</span>
+                  <input type="url" name="metadata[image_url]" value={@metadata_form["image_url"]} />
+                </label>
+
+                <div class="al-launch-form-actions">
+                  <button type="submit" class="al-submit">Save public details</button>
+                  <button type="button" class="al-ghost" data-copy-value={@cli_command}>
+                    Copy CLI command
+                  </button>
+                </div>
+              </.form>
+            </article>
+
+            <aside class="al-panel al-launch-preview-card">
+              <div class="al-section-head">
+                <div>
+                  <p class="al-kicker">Plan preview</p>
+                  <h3>{@launch_preview.title}</h3>
+                </div>
+              </div>
+
+              <div class="al-launch-preview-art">
+                <%= if @launch_preview.image_url do %>
+                  <img src={@launch_preview.image_url} alt="" />
+                <% else %>
+                  <span aria-hidden="true">◎</span>
+                <% end %>
+              </div>
+
+              <div class="al-launch-preview-copy">
+                <strong>{@launch_preview.subtitle}</strong>
+                <p>{@launch_preview.description}</p>
+                <a :if={@launch_preview.website_url} href={@launch_preview.website_url}>
+                  {@launch_preview.website_url}
+                </a>
+              </div>
+
+              <div class="al-launch-trust-actions">
+                <p class="al-kicker">Trust review</p>
+                <.link :for={action <- @launch_readiness.trust_actions} navigate={action.path} class="al-ghost">
+                  {action.label}
+                </.link>
+              </div>
+            </aside>
+          </section>
+        <% else %>
+          <section
+            id="launch-plan-companion-empty"
+            class="al-panel al-launch-companion-empty"
+            phx-hook="MissionMotion"
+          >
+            <div>
+              <p class="al-kicker">Plan companion</p>
+              <h3>Save a plan from the CLI first.</h3>
+              <p>
+                After the plan exists, this space opens public details, preview, and trust review without moving launch execution into the browser.
+              </p>
+            </div>
+            <button type="button" class="al-submit" data-copy-value={@cli_command}>
+              Copy starter command
+            </button>
+          </section>
+        <% end %>
 
         <section
           id="launch-footnote-strip"
@@ -208,8 +364,8 @@ defmodule AutolaunchWeb.LaunchLive do
             <p class="al-kicker">What comes next</p>
             <h3>Stay in one operator flow from command line to live market.</h3>
             <p>
-              Use this page to start the run. Come back for auctions, token holder actions, and
-              contract review after the market is live.
+              Use this page to review the saved plan, complete public details, and return for
+              auctions, token holder actions, and contract review after the market is live.
             </p>
           </div>
 
@@ -226,6 +382,42 @@ defmodule AutolaunchWeb.LaunchLive do
     """
   end
 
+  defp assign_launch_state(socket) do
+    readiness =
+      Presenter.launch_readiness(
+        socket.assigns[:current_human],
+        launch_module(),
+        prelaunch_module()
+      )
+
+    socket
+    |> assign(:launch_readiness, readiness)
+    |> assign(:metadata_form, Presenter.metadata_form(readiness.active_plan))
+    |> assign(:launch_preview, Presenter.metadata_preview(readiness.active_plan))
+  end
+
+  defp save_plan_metadata(socket, plan_id, metadata) do
+    case prelaunch_module().update_metadata(
+           plan_id,
+           %{"metadata" => metadata},
+           socket.assigns.current_human
+         ) do
+      {:ok, %{metadata_preview: preview}} ->
+        {:noreply,
+         socket
+         |> assign_launch_state()
+         |> assign(:metadata_form, Presenter.metadata_form(metadata))
+         |> assign(:launch_preview, Presenter.metadata_preview(preview))
+         |> put_flash(:info, "Public details saved.")}
+
+      {:ok, _payload} ->
+        {:noreply, socket |> assign_launch_state() |> put_flash(:info, "Public details saved.")}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Public details could not be saved.")}
+    end
+  end
+
   defp assign_launch_focus(socket) do
     path_focus =
       case socket.assigns.live_action do
@@ -238,8 +430,20 @@ defmodule AutolaunchWeb.LaunchLive do
 
   defp status_token("Connected"), do: "connected"
   defp status_token("Ready"), do: "ready"
+  defp status_token("Live"), do: "ready"
   defp status_token("Optional"), do: "optional"
+  defp status_token("In progress"), do: "recommended"
   defp status_token(_status), do: "pending"
 
   defp route_css, do: @route_css
+
+  defp launch_module do
+    Application.get_env(:autolaunch, :launch_live, [])
+    |> Keyword.get(:launch_module, Autolaunch.Launch)
+  end
+
+  defp prelaunch_module do
+    Application.get_env(:autolaunch, :launch_live, [])
+    |> Keyword.get(:prelaunch_module, Autolaunch.Prelaunch)
+  end
 end

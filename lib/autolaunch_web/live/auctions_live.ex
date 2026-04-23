@@ -18,19 +18,27 @@ defmodule AutolaunchWeb.AuctionsLive do
     {:ok,
      socket
      |> Refreshable.schedule(@poll_ms)
+     |> Refreshable.subscribe([:market, :system])
      |> assign(:page_title, "Auctions")
-     |> assign(:active_view, "auctions")
-     |> assign_directory(@default_filters)}
+     |> assign(:active_view, "auctions")}
+  end
+
+  def handle_params(params, _uri, socket) do
+    {:noreply, assign_directory(socket, Map.merge(@default_filters, params))}
   end
 
   def handle_event("filters_changed", %{"filters" => filters}, socket) do
     merged = Map.merge(socket.assigns.filters, filters)
 
-    {:noreply, assign_directory(socket, merged)}
+    {:noreply, push_patch(socket, to: ~p"/auctions?#{filter_query(merged)}")}
   end
 
   def handle_info(:refresh, socket) do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_directory/1)}
+  end
+
+  def handle_info({:autolaunch_live_update, :changed}, socket) do
+    {:noreply, reload_directory(socket)}
   end
 
   def render(assigns) do
@@ -485,6 +493,14 @@ defmodule AutolaunchWeb.AuctionsLive do
   end
 
   defp reload_directory(socket), do: assign_directory(socket, socket.assigns.filters)
+
+  defp filter_query(filters) do
+    filters
+    |> Enum.reject(fn {key, value} ->
+      Map.get(@default_filters, key) == value or value in [nil, ""]
+    end)
+    |> Map.new()
+  end
 
   defp sanitize_filters(filters, network_options) do
     network_values = Enum.map(network_options, & &1.value)

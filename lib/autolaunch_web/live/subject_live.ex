@@ -3,14 +3,14 @@ defmodule AutolaunchWeb.SubjectLive do
 
   alias Autolaunch.Launch
   alias AutolaunchWeb.Live.Refreshable
+  alias AutolaunchWeb.SubjectLive.Presenter
 
   @poll_ms 15_000
-  @side_tabs ~w(state balances addresses)
-
   def mount(%{"id" => subject_id}, _session, socket) do
     {:ok,
      socket
      |> Refreshable.schedule(@poll_ms)
+     |> Refreshable.subscribe([:subjects, :regent, :system])
      |> assign(:page_title, "Token detail")
      |> assign(:active_view, "auction-detail")
      |> assign(:subject_id, subject_id)
@@ -30,8 +30,16 @@ defmodule AutolaunchWeb.SubjectLive do
     {:noreply, assign(socket, :unstake_form, Map.merge(socket.assigns.unstake_form, attrs))}
   end
 
-  def handle_event("side_tab_changed", %{"tab" => tab}, socket) when tab in @side_tabs do
-    {:noreply, assign(socket, :side_tab, tab)}
+  def handle_event("side_tab_changed", %{"tab" => tab}, socket) do
+    if tab in Presenter.side_tabs() do
+      {:noreply, assign(socket, :side_tab, tab)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("side_tab_changed", _params, socket) do
+    {:noreply, socket}
   end
 
   def handle_event(
@@ -51,7 +59,13 @@ defmodule AutolaunchWeb.SubjectLive do
   end
 
   def handle_event("prepare_action", %{"action" => action}, socket) do
-    {:noreply, prepare_action(socket, action_to_atom(action), %{})}
+    case action_to_atom(action) do
+      {:ok, action} ->
+        {:noreply, prepare_action(socket, action, %{})}
+
+      :error ->
+        {:noreply, put_flash(socket, :error, "That subject action is not available.")}
+    end
   end
 
   def handle_event("wallet_tx_started", %{"message" => message}, socket) do
@@ -70,10 +84,14 @@ defmodule AutolaunchWeb.SubjectLive do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_subject/1)}
   end
 
+  def handle_info({:autolaunch_live_update, :changed}, socket) do
+    {:noreply, reload_subject(socket)}
+  end
+
   def render(assigns) do
     subject = assigns.subject
-    recommended = recommended_action(subject)
-    wallet_position = wallet_position(subject)
+    recommended = Presenter.recommended_action(subject)
+    wallet_position = Presenter.wallet_position(subject)
     ingress_accounts = if(subject, do: subject.ingress_accounts || [], else: [])
 
     assigns =
@@ -85,12 +103,12 @@ defmodule AutolaunchWeb.SubjectLive do
       |> assign(:ingress_accounts, ingress_accounts)
       |> assign(
         :subject_heading,
-        subject_heading(subject, assigns.subject_id, assigns.subject_market)
+        Presenter.subject_heading(subject, assigns.subject_id, assigns.subject_market)
       )
-      |> assign(:subject_summary, subject_summary(subject, assigns.subject_market))
+      |> assign(:subject_summary, Presenter.subject_summary(subject, assigns.subject_market))
       |> assign(:ingress_count, length(ingress_accounts))
-      |> assign(:subject_symbol, subject_symbol(assigns.subject_market))
-      |> assign(:subject_auction_href, subject_auction_href(assigns.subject_market))
+      |> assign(:subject_symbol, Presenter.subject_symbol(assigns.subject_market))
+      |> assign(:subject_auction_href, Presenter.subject_auction_href(assigns.subject_market))
 
     ~H"""
     <.shell current_human={@current_human} active_view={@active_view}>
@@ -107,7 +125,7 @@ defmodule AutolaunchWeb.SubjectLive do
 
               <div class="al-subject-title-row">
                 <div class="al-subject-mark">
-                  <span>{subject_initials(@subject_heading)}</span>
+                  <span>{Presenter.subject_initials(@subject_heading)}</span>
                 </div>
 
                 <div class="al-subject-heading-block">
@@ -120,7 +138,7 @@ defmodule AutolaunchWeb.SubjectLive do
                     <span>on {Map.get(@subject, :chain_label, "Base")}</span>
                     <span class="al-subject-status">
                       <span class="al-subject-status-dot"></span>
-                      <span>{recommended_status_label(@recommended_action)}</span>
+                      <span>{Presenter.recommended_status_label(@recommended_action)}</span>
                     </span>
                   </div>
 
@@ -329,121 +347,122 @@ defmodule AutolaunchWeb.SubjectLive do
 
           <section class="al-subject-main-grid">
             <div class="al-subject-main-stack">
-              <article class="al-subject-hero-panel">
-                <div class="al-subject-hero-copy">
-                  <p class="al-kicker">Primary next step</p>
-                  <h2>{recommended_action_heading(@recommended_action)}</h2>
-                  <p>
-                    {recommended_action_summary(@recommended_action, @wallet_position)}
-                  </p>
+              <.action_desk
+                id="subject-primary-action-desk"
+                title={Presenter.recommended_action_heading(@recommended_action)}
+                body={Presenter.recommended_action_summary(@recommended_action, @wallet_position)}
+                status_label="Review the prepared transaction before signing."
+                class="al-subject-action-desk"
+              >
+                <:primary>
+                  <%= case @recommended_action do %>
+                    <% :stake -> %>
+                      <%= if @pending_actions[:stake] do %>
+                        <.wallet_tx_button
+                          id="subject-stake-primary"
+                          class="al-subject-primary-button"
+                          tx_request={@pending_actions[:stake].tx_request}
+                          register_endpoint={~p"/v1/app/subjects/#{@subject_id}/stake"}
+                          register_body={%{"amount" => @stake_form["amount"]}}
+                          pending_message="Stake transaction sent. Waiting for confirmation."
+                          success_message="Stake registered."
+                        >
+                          Send stake transaction
+                        </.wallet_tx_button>
+                      <% else %>
+                        <button
+                          type="button"
+                          class="al-subject-primary-button"
+                          phx-click="prepare_action"
+                          phx-value-action="stake"
+                        >
+                          Prepare stake
+                        </button>
+                      <% end %>
+                    <% :claim -> %>
+                      <%= if @pending_actions[:claim] do %>
+                        <.wallet_tx_button
+                          id="subject-claim-primary"
+                          class="al-subject-primary-button"
+                          tx_request={@pending_actions[:claim].tx_request}
+                          register_endpoint={~p"/v1/app/subjects/#{@subject_id}/claim-usdc"}
+                          register_body={%{}}
+                          pending_message="Claim transaction sent. Waiting for confirmation."
+                          success_message="USDC claim registered."
+                        >
+                          Send claim transaction
+                        </.wallet_tx_button>
+                      <% else %>
+                        <button
+                          type="button"
+                          class="al-subject-primary-button"
+                          phx-click="prepare_action"
+                          phx-value-action="claim"
+                        >
+                          Prepare USDC claim
+                        </button>
+                      <% end %>
+                    <% :unstake -> %>
+                      <%= if @pending_actions[:unstake] do %>
+                        <.wallet_tx_button
+                          id="subject-unstake-primary"
+                          class="al-subject-primary-button"
+                          tx_request={@pending_actions[:unstake].tx_request}
+                          register_endpoint={~p"/v1/app/subjects/#{@subject_id}/unstake"}
+                          register_body={%{"amount" => @unstake_form["amount"]}}
+                          pending_message="Unstake transaction sent. Waiting for confirmation."
+                          success_message="Unstake registered."
+                        >
+                          Send unstake transaction
+                        </.wallet_tx_button>
+                      <% else %>
+                        <button
+                          type="button"
+                          class="al-subject-primary-button"
+                          phx-click="prepare_action"
+                          phx-value-action="unstake"
+                        >
+                          Prepare unstake
+                        </button>
+                      <% end %>
+                    <% :claim_and_stake_emissions -> %>
+                      <%= if @pending_actions[:claim_and_stake_emissions] do %>
+                        <.wallet_tx_button
+                          id="subject-claim-and-stake-primary"
+                          class="al-subject-primary-button"
+                          tx_request={@pending_actions[:claim_and_stake_emissions].tx_request}
+                          register_endpoint={~p"/v1/app/subjects/#{@subject_id}/claim-and-stake-emissions"}
+                          register_body={%{}}
+                          pending_message="Claim and stake sent. Waiting for confirmation."
+                          success_message="Emission claim and stake registered."
+                        >
+                          Send claim and stake
+                        </.wallet_tx_button>
+                      <% else %>
+                        <button
+                          type="button"
+                          class="al-subject-primary-button"
+                          phx-click="prepare_action"
+                          phx-value-action="claim_and_stake_emissions"
+                        >
+                          Prepare claim and stake
+                        </button>
+                      <% end %>
+                    <% _ -> %>
+                      <.link navigate={~p"/contracts?subject_id=#{@subject_id}"} class="al-subject-primary-button">
+                        Open advanced review
+                      </.link>
+                  <% end %>
+                </:primary>
 
-                  <div class="al-subject-hero-actions">
-                    <%= case @recommended_action do %>
-                      <% :stake -> %>
-                        <%= if @pending_actions[:stake] do %>
-                          <.wallet_tx_button
-                            id="subject-stake-primary"
-                            class="al-subject-primary-button"
-                            tx_request={@pending_actions[:stake].tx_request}
-                            register_endpoint={~p"/api/subjects/#{@subject_id}/stake"}
-                            register_body={%{"amount" => @stake_form["amount"]}}
-                            pending_message="Stake transaction sent. Waiting for confirmation."
-                            success_message="Stake registered."
-                          >
-                            Send stake transaction
-                          </.wallet_tx_button>
-                        <% else %>
-                          <button
-                            type="button"
-                            class="al-subject-primary-button"
-                            phx-click="prepare_action"
-                            phx-value-action="stake"
-                          >
-                            Prepare stake
-                          </button>
-                        <% end %>
-                      <% :claim -> %>
-                        <%= if @pending_actions[:claim] do %>
-                          <.wallet_tx_button
-                            id="subject-claim-primary"
-                            class="al-subject-primary-button"
-                            tx_request={@pending_actions[:claim].tx_request}
-                            register_endpoint={~p"/api/subjects/#{@subject_id}/claim-usdc"}
-                            register_body={%{}}
-                            pending_message="Claim transaction sent. Waiting for confirmation."
-                            success_message="USDC claim registered."
-                          >
-                            Send claim transaction
-                          </.wallet_tx_button>
-                        <% else %>
-                          <button
-                            type="button"
-                            class="al-subject-primary-button"
-                            phx-click="prepare_action"
-                            phx-value-action="claim"
-                          >
-                            Prepare USDC claim
-                          </button>
-                        <% end %>
-                      <% :unstake -> %>
-                        <%= if @pending_actions[:unstake] do %>
-                          <.wallet_tx_button
-                            id="subject-unstake-primary"
-                            class="al-subject-primary-button"
-                            tx_request={@pending_actions[:unstake].tx_request}
-                            register_endpoint={~p"/api/subjects/#{@subject_id}/unstake"}
-                            register_body={%{"amount" => @unstake_form["amount"]}}
-                            pending_message="Unstake transaction sent. Waiting for confirmation."
-                            success_message="Unstake registered."
-                          >
-                            Send unstake transaction
-                          </.wallet_tx_button>
-                        <% else %>
-                          <button
-                            type="button"
-                            class="al-subject-primary-button"
-                            phx-click="prepare_action"
-                            phx-value-action="unstake"
-                          >
-                            Prepare unstake
-                          </button>
-                        <% end %>
-                      <% :claim_and_stake_emissions -> %>
-                        <%= if @pending_actions[:claim_and_stake_emissions] do %>
-                          <.wallet_tx_button
-                            id="subject-claim-and-stake-primary"
-                            class="al-subject-primary-button"
-                            tx_request={@pending_actions[:claim_and_stake_emissions].tx_request}
-                            register_endpoint={~p"/api/subjects/#{@subject_id}/claim-and-stake-emissions"}
-                            register_body={%{}}
-                            pending_message="Claim and stake sent. Waiting for confirmation."
-                            success_message="Emission claim and stake registered."
-                          >
-                            Send claim and stake
-                          </.wallet_tx_button>
-                        <% else %>
-                          <button
-                            type="button"
-                            class="al-subject-primary-button"
-                            phx-click="prepare_action"
-                            phx-value-action="claim_and_stake_emissions"
-                          >
-                            Prepare claim and stake
-                          </button>
-                        <% end %>
-                      <% _ -> %>
-                        <.link navigate={~p"/contracts?subject_id=#{@subject_id}"} class="al-subject-primary-button">
-                          Open advanced review
-                        </.link>
-                    <% end %>
+                <:secondary>
+                  <.link navigate={~p"/contracts?subject_id=#{@subject_id}"} class="al-subject-secondary-button">
+                    Review contracts
+                  </.link>
+                </:secondary>
 
-                    <span class="al-subject-footnote">
-                      Staked tokens stay committed in the splitter until you choose to unstake them.
-                    </span>
-                  </div>
-                </div>
-
-                <div class="al-subject-flow-card" aria-hidden="true">
+                <:aside>
+                  <div class="al-subject-flow-card" aria-hidden="true">
                   <div class="al-subject-flow-box">
                     <span>Your wallet</span>
                     <strong>{@wallet_position.wallet_token_balance}</strong>
@@ -462,7 +481,8 @@ defmodule AutolaunchWeb.SubjectLive do
                     <p>USDC ready now</p>
                   </div>
                 </div>
-              </article>
+                </:aside>
+              </.action_desk>
 
               <section class="al-subject-action-grid">
                 <article class="al-subject-action-card">
@@ -490,7 +510,7 @@ defmodule AutolaunchWeb.SubjectLive do
                         id="subject-stake"
                         class="al-subject-action-button"
                         tx_request={@pending_actions[:stake].tx_request}
-                        register_endpoint={~p"/api/subjects/#{@subject_id}/stake"}
+                        register_endpoint={~p"/v1/app/subjects/#{@subject_id}/stake"}
                         register_body={%{"amount" => @stake_form["amount"]}}
                         pending_message="Stake transaction sent. Waiting for confirmation."
                         success_message="Stake registered."
@@ -530,7 +550,7 @@ defmodule AutolaunchWeb.SubjectLive do
                         id="subject-claim"
                         class="al-subject-action-button"
                         tx_request={@pending_actions[:claim].tx_request}
-                        register_endpoint={~p"/api/subjects/#{@subject_id}/claim-usdc"}
+                        register_endpoint={~p"/v1/app/subjects/#{@subject_id}/claim-usdc"}
                         register_body={%{}}
                         pending_message="Claim transaction sent. Waiting for confirmation."
                         success_message="USDC claim registered."
@@ -575,7 +595,7 @@ defmodule AutolaunchWeb.SubjectLive do
                         id="subject-unstake"
                         class="al-subject-ghost-button"
                         tx_request={@pending_actions[:unstake].tx_request}
-                        register_endpoint={~p"/api/subjects/#{@subject_id}/unstake"}
+                        register_endpoint={~p"/v1/app/subjects/#{@subject_id}/unstake"}
                         register_body={%{"amount" => @unstake_form["amount"]}}
                         pending_message="Unstake transaction sent. Waiting for confirmation."
                         success_message="Unstake registered."
@@ -608,7 +628,7 @@ defmodule AutolaunchWeb.SubjectLive do
                         id="subject-claim-emissions"
                         class="al-subject-ghost-button"
                         tx_request={@pending_actions[:claim_emissions].tx_request}
-                        register_endpoint={~p"/api/subjects/#{@subject_id}/claim-emissions"}
+                        register_endpoint={~p"/v1/app/subjects/#{@subject_id}/claim-emissions"}
                         register_body={%{}}
                         pending_message="Emission claim sent. Waiting for confirmation."
                         success_message="Emission claim registered."
@@ -631,7 +651,7 @@ defmodule AutolaunchWeb.SubjectLive do
                         id="subject-claim-and-stake-emissions"
                         class="al-subject-ghost-button"
                         tx_request={@pending_actions[:claim_and_stake_emissions].tx_request}
-                        register_endpoint={~p"/api/subjects/#{@subject_id}/claim-and-stake-emissions"}
+                        register_endpoint={~p"/v1/app/subjects/#{@subject_id}/claim-and-stake-emissions"}
                         register_body={%{}}
                         pending_message="Claim and stake sent. Waiting for confirmation."
                         success_message="Emission claim and stake registered."
@@ -666,7 +686,7 @@ defmodule AutolaunchWeb.SubjectLive do
                             id={"subject-sweep-#{ingress.address}"}
                             class="al-subject-ghost-button"
                             tx_request={@pending_actions[{:sweep, ingress.address}].tx_request}
-                            register_endpoint={~p"/api/subjects/#{@subject_id}/ingress/#{ingress.address}/sweep"}
+                            register_endpoint={~p"/v1/app/subjects/#{@subject_id}/ingress/#{ingress.address}/sweep"}
                             register_body={%{}}
                             pending_message="Sweep transaction sent. Waiting for confirmation."
                             success_message="Ingress sweep registered."
@@ -723,7 +743,7 @@ defmodule AutolaunchWeb.SubjectLive do
             <aside class="al-subject-side-panel">
               <div class="al-subject-side-tabs" role="tablist" aria-label="Subject side tabs">
                 <button
-                  :for={tab <- side_tabs()}
+                  :for={tab <- Presenter.side_tabs()}
                   type="button"
                   role="tab"
                   aria-selected={@side_tab == tab}
@@ -731,7 +751,7 @@ defmodule AutolaunchWeb.SubjectLive do
                   phx-click="side_tab_changed"
                   phx-value-tab={tab}
                 >
-                  {side_tab_label(tab)}
+                  {Presenter.side_tab_label(tab)}
                 </button>
               </div>
 
@@ -740,7 +760,7 @@ defmodule AutolaunchWeb.SubjectLive do
                   <div class="al-subject-state-head">
                     <span class="al-subject-status">
                       <span class="al-subject-status-dot"></span>
-                      <span>{recommended_status_label(@recommended_action)}</span>
+                      <span>{Presenter.recommended_status_label(@recommended_action)}</span>
                     </span>
                     <span>{Map.get(@subject, :chain_label, "Base")}</span>
                   </div>
@@ -835,6 +855,9 @@ defmodule AutolaunchWeb.SubjectLive do
         <.empty_state
           title="Subject state is unavailable."
           body="Check that the launch finished successfully and that this subject id exists in the current launch stack."
+          mark="SU"
+          action_label="Back to auctions"
+          action_href={~p"/auctions"}
         />
       <% end %>
 
@@ -1663,33 +1686,6 @@ defmodule AutolaunchWeb.SubjectLive do
     |> Keyword.get(:context_module, Autolaunch.Revenue)
   end
 
-  defp subject_value(nil, _key), do: "0"
-  defp subject_value(subject, key) when is_map(subject), do: Map.get(subject, key, "0")
-
-  defp wallet_position(subject) do
-    staked = subject_value(subject, :wallet_stake_balance)
-    wallet = subject_value(subject, :wallet_token_balance)
-    claimable_usdc = subject_value(subject, :claimable_usdc)
-    claimable_emissions = subject_value(subject, :claimable_stake_token)
-
-    %{
-      wallet_stake_balance: staked,
-      wallet_token_balance: wallet,
-      claimable_usdc: claimable_usdc,
-      claimable_stake_token: claimable_emissions,
-      summary:
-        "Your staked balance, wallet balance, claimable USDC, and claimable emissions all live here.",
-      staked_line: "Staked: #{staked}",
-      wallet_line: "Wallet: #{wallet}",
-      claimable_usdc_line: "USDC: #{claimable_usdc}",
-      claimable_emissions_line: "Emissions: #{claimable_emissions}",
-      stake_note: "Wallet balance: #{wallet}.",
-      unstake_note: "Currently staked: #{staked}.",
-      claim_note: "Claimable now: #{claimable_usdc}.",
-      emissions_note: "Claimable emissions: #{claimable_emissions}."
-    }
-  end
-
   defp routing_snapshot(nil) do
     %{
       live_share: "100%",
@@ -1859,88 +1855,6 @@ defmodule AutolaunchWeb.SubjectLive do
     min_y + round(inverted_share * (max_y - min_y) / 10_000)
   end
 
-  defp recommended_action(nil), do: nil
-
-  defp recommended_action(subject) do
-    cond do
-      positive_amount?(Map.get(subject, :claimable_usdc)) -> :claim
-      positive_amount?(Map.get(subject, :wallet_token_balance)) -> :stake
-      positive_amount?(Map.get(subject, :wallet_stake_balance)) -> :unstake
-      positive_amount?(Map.get(subject, :claimable_stake_token)) -> :claim_and_stake_emissions
-      true -> nil
-    end
-  end
-
-  defp recommended_action_heading(:claim), do: "Claim recognized USDC first"
-  defp recommended_action_heading(:stake), do: "Stake idle wallet balance next"
-  defp recommended_action_heading(:unstake), do: "Unstake if you need wallet liquidity"
-
-  defp recommended_action_heading(:claim_and_stake_emissions),
-    do: "Roll emissions back into stake"
-
-  defp recommended_action_heading(_), do: "No urgent wallet action detected"
-
-  defp recommended_action_summary(:claim, wallet_position) do
-    "The wallet already has #{wallet_position.claimable_usdc} USDC ready. Pull that out before moving on to the rest of the subject actions."
-  end
-
-  defp recommended_action_summary(:stake, wallet_position) do
-    "This wallet still holds #{wallet_position.wallet_token_balance} unstaked tokens. Move the amount you want into the splitter so revenue stays attached to the position."
-  end
-
-  defp recommended_action_summary(:unstake, wallet_position) do
-    "There is no claimable USDC or idle wallet balance, but #{wallet_position.wallet_stake_balance} tokens are still committed. Unstake only if you want that balance back in the wallet."
-  end
-
-  defp recommended_action_summary(:claim_and_stake_emissions, _wallet_position) do
-    "Reward emissions are available now. Claim them on their own or move them straight back into the splitter."
-  end
-
-  defp recommended_action_summary(_, _wallet_position) do
-    "Everything important is in view. Use the action cards below when you need to claim, stake, sweep, or inspect the contract details."
-  end
-
-  defp recommended_status_label(:claim), do: "Claim ready"
-  defp recommended_status_label(:stake), do: "Stake ready"
-  defp recommended_status_label(:unstake), do: "Unstake available"
-  defp recommended_status_label(:claim_and_stake_emissions), do: "Emissions ready"
-  defp recommended_status_label(_), do: "Active"
-
-  defp subject_heading(_subject, _subject_id, %{agent_name: agent_name})
-       when is_binary(agent_name) and agent_name != "" do
-    agent_name
-  end
-
-  defp subject_heading(subject, subject_id, _subject_market) when is_map(subject) do
-    "Subject #{String.slice(subject.subject_id || subject_id, 0, 10)}"
-  end
-
-  defp subject_heading(_subject, subject_id, _subject_market) do
-    "Subject #{String.slice(subject_id, 0, 10)}"
-  end
-
-  defp subject_summary(_subject, %{phase: "live"}) do
-    "Use this page for the next wallet action: claim, stake, unstake, or move revenue out after the market has settled."
-  end
-
-  defp subject_summary(_subject, %{phase: "biddable"}) do
-    "This token is still in market. Use the auction page for price discovery and this page for the balances that follow."
-  end
-
-  defp subject_summary(subject, _subject_market) when is_map(subject) do
-    "Use this page for the next wallet action: claim, stake, unstake, or move revenue out when the balance is ready."
-  end
-
-  defp subject_summary(_subject, _subject_market) do
-    "Review what this wallet can claim, what is already committed, and which intake balances still need attention."
-  end
-
-  defp subject_symbol(%{symbol: symbol}) when is_binary(symbol) and symbol != "", do: symbol
-  defp subject_symbol(_subject_market), do: nil
-
-  defp subject_auction_href(%{id: id}) when is_binary(id), do: ~p"/auctions/#{id}"
-  defp subject_auction_href(_subject_market), do: nil
-
   defp load_subject_market(subject_id) do
     launch_module().list_auctions(%{"mode" => "all", "sort" => "newest"}, nil)
     |> Enum.find(fn row -> row.subject_id == subject_id end)
@@ -1954,31 +1868,10 @@ defmodule AutolaunchWeb.SubjectLive do
     |> Keyword.get(:launch_module, Launch)
   end
 
-  defp subject_initials(heading) when is_binary(heading) do
-    heading
-    |> String.replace("Subject ", "")
-    |> String.slice(0, 2)
-    |> String.upcase()
-  end
-
-  defp side_tab_label("state"), do: "Subject state"
-  defp side_tab_label("balances"), do: "Balances"
-  defp side_tab_label("addresses"), do: "Addresses"
-  defp side_tabs, do: @side_tabs
-
-  defp positive_amount?(nil), do: false
-
-  defp positive_amount?(value) when is_binary(value) do
-    case Decimal.parse(value) do
-      {decimal, ""} -> Decimal.compare(decimal, Decimal.new(0)) == :gt
-      _ -> false
-    end
-  end
-
-  defp action_to_atom("stake"), do: :stake
-  defp action_to_atom("unstake"), do: :unstake
-  defp action_to_atom("claim"), do: :claim
-  defp action_to_atom("claim_emissions"), do: :claim_emissions
-  defp action_to_atom("claim_and_stake_emissions"), do: :claim_and_stake_emissions
-  defp action_to_atom(_), do: :claim
+  defp action_to_atom("stake"), do: {:ok, :stake}
+  defp action_to_atom("unstake"), do: {:ok, :unstake}
+  defp action_to_atom("claim"), do: {:ok, :claim}
+  defp action_to_atom("claim_emissions"), do: {:ok, :claim_emissions}
+  defp action_to_atom("claim_and_stake_emissions"), do: {:ok, :claim_and_stake_emissions}
+  defp action_to_atom(_), do: :error
 end

@@ -153,8 +153,7 @@ defmodule AutolaunchWeb.AgentbookLive do
             <p class="al-kicker">Agentbook</p>
             <h2>Public trust check</h2>
             <p class="al-subcopy">
-              This flow creates the request, waits for proof, and then finishes registration either
-              through the relay or through a wallet send when sponsorship is unavailable.
+              This flow creates the request, waits for proof, and then helps you finish registration.
             </p>
           </div>
 
@@ -267,9 +266,9 @@ defmodule AutolaunchWeb.AgentbookLive do
 
               <%= if session_tx_request(@active_session) && @active_session.status == "proof_ready" do %>
                 <div class="al-inline-banner">
-                  <strong>Relay fallback</strong>
+                  <strong>Wallet confirmation needed</strong>
                   <p>
-                    The relay did not sponsor this registration. Send the onchain `register(...)` transaction from your wallet to finish the flow.
+                    Confirm this registration from your wallet to finish the trust check.
                   </p>
                 </div>
 
@@ -277,7 +276,7 @@ defmodule AutolaunchWeb.AgentbookLive do
                   id="agentbook-register-wallet-tx"
                   class="al-submit"
                   tx_request={session_tx_request(@active_session)}
-                  register_endpoint={"/api/agentbook/sessions/#{@active_session.session_id}/submit"}
+                  register_endpoint={"/v1/app/agentbook/sessions/#{@active_session.session_id}/submit"}
                   register_body={%{}}
                   pending_message="AgentBook registration sent. Waiting for confirmation."
                   success_message="AgentBook registration confirmed."

@@ -15,7 +15,6 @@ function readCsrfToken(): string {
 installHeerich(Heerich)
 
 const liveSocket = new LiveSocket("/live", Socket, {
-  longPollFallbackMs: 2500,
   params: { _csrf_token: readCsrfToken() },
   hooks,
 })
