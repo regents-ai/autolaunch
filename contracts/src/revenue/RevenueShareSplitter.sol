@@ -49,7 +49,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
     uint16 public pendingEligibleRevenueShareBps;
     uint64 public pendingEligibleRevenueShareEta;
     uint64 public eligibleRevenueShareCooldownEnd;
-    uint64 public currentRevenuePolicyEpoch;
 
     bool public paused;
     bool public subjectLifecycleRetired;
@@ -75,9 +74,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
     mapping(address => uint256) public storedClaimableUsdc;
     mapping(address => uint256) public rewardDebtStakeToken;
     mapping(address => uint256) public storedClaimableStakeToken;
-    mapping(uint64 => uint16) public revenueShareBpsByEpoch;
-    mapping(address => uint64) public ingressNextUnsweptEpoch;
-    mapping(address => mapping(uint64 => uint256)) public ingressCarryoverUsdc;
 
     uint256 private _reentrancyGuard = 1;
 
@@ -102,26 +98,13 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         uint16 indexed previousBps,
         uint16 indexed newBps,
         uint64 activatedAt,
-        uint64 cooldownEnd,
-        uint64 newEpoch
-    );
-    event IngressCheckpointRecorded(
-        address indexed ingress, uint64 indexed epoch, uint16 shareBps, uint256 amount
-    );
-    event IngressCarryoverConsumed(
-        address indexed ingress,
-        uint64 indexed epoch,
-        uint16 shareBps,
-        uint256 amountConsumed,
-        uint256 amountRemaining,
-        bytes32 indexed sourceRef
+        uint64 cooldownEnd
     );
     event StakeUpdated(address indexed account, uint256 newStakeBalance, uint256 totalStaked);
     event USDCRevenueDeposited(
         uint256 amountReceived,
         uint256 protocolAmount,
         uint16 eligibleShareBps,
-        uint64 policyEpoch,
         uint256 stakerEligibleAmount,
         uint256 treasuryReservedAmount,
         uint256 stakerEntitlement,
@@ -173,8 +156,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         label = label_;
         lastEmissionUpdate = block.timestamp;
         eligibleRevenueShareBps = DEFAULT_ELIGIBLE_REVENUE_SHARE_BPS;
-        currentRevenuePolicyEpoch = 1;
-        revenueShareBpsByEpoch[1] = DEFAULT_ELIGIBLE_REVENUE_SHARE_BPS;
     }
 
     modifier whenNotPaused() {
@@ -285,35 +266,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         _settleStakeTokenEmissions();
 
         uint16 previousBps = eligibleRevenueShareBps;
-        uint64 previousEpoch = currentRevenuePolicyEpoch;
-        uint256 ingressCount =
-            IRevenueIngressFactoryMinimal(ingressFactory).ingressAccountCount(subjectId);
-
-        for (uint256 i; i < ingressCount; ++i) {
-            address ingress =
-                IRevenueIngressFactoryMinimal(ingressFactory).ingressAccountAt(subjectId, i);
-            uint256 balance = IERC20SupplyMinimal(usdc).balanceOf(ingress);
-            uint256 priorCarryover = _totalOutstandingIngressCarryover(ingress, previousEpoch);
-            require(balance >= priorCarryover, "INGRESS_CARRYOVER_OVERFLOW");
-
-            uint256 checkpointAmount = balance - priorCarryover;
-            if (checkpointAmount == 0) {
-                continue;
-            }
-
-            ingressCarryoverUsdc[ingress][previousEpoch] += checkpointAmount;
-            uint64 nextEpoch = ingressNextUnsweptEpoch[ingress];
-            if (nextEpoch == 0 || nextEpoch > previousEpoch) {
-                ingressNextUnsweptEpoch[ingress] = previousEpoch;
-            }
-
-            emit IngressCheckpointRecorded(ingress, previousEpoch, previousBps, checkpointAmount);
-        }
-
-        uint64 newEpoch = previousEpoch + 1;
-        currentRevenuePolicyEpoch = newEpoch;
         eligibleRevenueShareBps = newBps;
-        revenueShareBpsByEpoch[newEpoch] = newBps;
         pendingEligibleRevenueShareBps = 0;
         pendingEligibleRevenueShareEta = 0;
         eligibleRevenueShareCooldownEnd = uint64(block.timestamp) + ELIGIBLE_REVENUE_SHARE_DELAY;
@@ -322,8 +275,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
             previousBps,
             newBps,
             _toUint64(block.timestamp),
-            eligibleRevenueShareCooldownEnd,
-            newEpoch
+            eligibleRevenueShareCooldownEnd
         );
     }
 
@@ -401,9 +353,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         uint256 afterBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         received = afterBalance - beforeBalance;
 
-        _recordRevenue(
-            received, eligibleRevenueShareBps, currentRevenuePolicyEpoch, sourceTag, sourceRef
-        );
+        _recordRevenue(received, eligibleRevenueShareBps, sourceTag, sourceRef);
     }
 
     function recordIngressSweep(uint256 amount, bytes32 sourceRef)
@@ -420,54 +370,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         _settleStakeTokenEmissions();
 
         recognized = amount;
-        uint256 remaining = amount;
-        uint64 epoch = ingressNextUnsweptEpoch[msg.sender];
-        if (epoch == 0) {
-            epoch = 1;
-        }
-
-        uint64 liveEpoch = currentRevenuePolicyEpoch;
-        while (remaining > 0 && epoch < liveEpoch) {
-            uint256 carryover = ingressCarryoverUsdc[msg.sender][epoch];
-            if (carryover == 0) {
-                unchecked {
-                    ++epoch;
-                }
-                continue;
-            }
-
-            uint256 consumed = carryover > remaining ? remaining : carryover;
-            uint256 amountRemaining = carryover - consumed;
-            ingressCarryoverUsdc[msg.sender][epoch] = amountRemaining;
-
-            _recordRevenue(
-                consumed, revenueShareBpsByEpoch[epoch], epoch, bytes32("ingress_sweep"), sourceRef
-            );
-
-            emit IngressCarryoverConsumed(
-                msg.sender,
-                epoch,
-                revenueShareBpsByEpoch[epoch],
-                consumed,
-                amountRemaining,
-                sourceRef
-            );
-
-            remaining -= consumed;
-            if (amountRemaining == 0) {
-                unchecked {
-                    ++epoch;
-                }
-            }
-        }
-
-        ingressNextUnsweptEpoch[msg.sender] = epoch;
-
-        if (remaining > 0) {
-            _recordRevenue(
-                remaining, eligibleRevenueShareBps, liveEpoch, bytes32("ingress_sweep"), sourceRef
-            );
-        }
+        _recordRevenue(amount, eligibleRevenueShareBps, bytes32("ingress_sweep"), sourceRef);
     }
 
     function pullTreasuryShareFromLaunchVault(
@@ -486,13 +389,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         uint256 afterBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
         received = afterBalance - beforeBalance;
 
-        _recordRevenue(
-            received,
-            eligibleRevenueShareBps,
-            currentRevenuePolicyEpoch,
-            bytes32("launch_treasury"),
-            sourceRef
-        );
+        _recordRevenue(received, eligibleRevenueShareBps, bytes32("launch_treasury"), sourceRef);
     }
 
     function sync(address account) external whenNotPaused nonReentrant {
@@ -697,10 +594,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         }
     }
 
-    function totalOutstandingIngressCarryover(address ingress) external view returns (uint256) {
-        return _totalOutstandingIngressCarryover(ingress, currentRevenuePolicyEpoch);
-    }
-
     function _isProtectedToken(address token) internal view override returns (bool) {
         return token == usdc || token == stakeToken;
     }
@@ -740,7 +633,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
     function _recordRevenue(
         uint256 received,
         uint16 shareBps,
-        uint64 policyEpoch,
         bytes32 sourceTag,
         bytes32 sourceRef
     ) internal {
@@ -790,7 +682,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
             received,
             protocolAmount,
             shareBps,
-            policyEpoch,
             stakerEligibleAmount,
             treasuryReservedAmount,
             stakerEntitlement,
@@ -880,24 +771,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
             return ingressUsdc == usdc;
         } catch {
             return false;
-        }
-    }
-
-    function _totalOutstandingIngressCarryover(address ingress, uint64 liveEpoch)
-        internal
-        view
-        returns (uint256 outstanding)
-    {
-        uint64 epoch = ingressNextUnsweptEpoch[ingress];
-        if (epoch == 0) {
-            epoch = 1;
-        }
-
-        while (epoch < liveEpoch) {
-            outstanding += ingressCarryoverUsdc[ingress][epoch];
-            unchecked {
-                ++epoch;
-            }
         }
     }
 
