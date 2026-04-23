@@ -70,10 +70,14 @@ defmodule AutolaunchWeb.AuctionLive do
 
   def render(assigns) do
     latest_position = List.first(assigns.positions)
+    planner = bid_planner(assigns.quote, assigns.bid_form)
+    settlement = settlement_panel(assigns.auction, latest_position)
 
     assigns =
       assigns
       |> assign(:latest_position, latest_position)
+      |> assign(:planner, planner)
+      |> assign(:settlement, settlement)
       |> assign(:trust_summary, auction_trust_summary(auction_trust(assigns.auction)))
 
     ~H"""
@@ -191,20 +195,19 @@ defmodule AutolaunchWeb.AuctionLive do
               <div class="al-auction-detail-card-head">
                 <div>
                   <p class="al-kicker">Bid composer</p>
-                  <h3>Bid your real budget and your real max price.</h3>
+                  <h3>Plan your spend before you sign.</h3>
                 </div>
-                <span class="badge badge-outline">Simple buyer model</span>
+                <span class="badge badge-outline">Bid planner</span>
               </div>
 
               <p class="al-auction-detail-dark-copy">
-                Your order keeps buying while the clearing price stays below your cap. Start with
-                the budget you can actually commit, then tune the max price to stay active where
-                you want to be.
+                Enter the most you want to spend and the exposure you want. The estimate shows how
+                close this bid gets before you send anything from your wallet.
               </p>
 
               <form phx-change="quote_changed" class="al-auction-detail-form">
                 <label class="al-auction-detail-field">
-                  <span>Amount</span>
+                  <span>Max spend</span>
                   <div class="al-auction-detail-input-shell">
                     <input type="text" name="bid[amount]" value={@bid_form["amount"]} />
                     <span>USDC</span>
@@ -218,7 +221,32 @@ defmodule AutolaunchWeb.AuctionLive do
                     <span>USD</span>
                   </div>
                 </label>
+
+                <label class="al-auction-detail-field">
+                  <span>Desired exposure</span>
+                  <div class="al-auction-detail-input-shell">
+                    <input
+                      type="text"
+                      name="bid[desired_exposure]"
+                      value={@bid_form["desired_exposure"]}
+                    />
+                    <span>tokens</span>
+                  </div>
+                </label>
               </form>
+
+              <div class="al-auction-detail-plan-card">
+                <div>
+                  <span>Expected outcome</span>
+                  <strong>{@planner.title}</strong>
+                  <p>{@planner.body}</p>
+                </div>
+                <div>
+                  <span>Target check</span>
+                  <strong>{@planner.target_title}</strong>
+                  <p>{@planner.target_body}</p>
+                </div>
+              </div>
 
               <div class="al-auction-detail-presets">
                 <button type="button" class="al-auction-detail-preset is-active" phx-click="apply_preset" phx-value-preset="starter">
@@ -260,7 +288,7 @@ defmodule AutolaunchWeb.AuctionLive do
                 </.wallet_tx_button>
 
                 <p :if={is_nil(@current_human)} class="al-auction-detail-wallet-note">
-                  Sign in first so the wallet action can be recorded after it confirms.
+                  Sign in first so your bid can be recorded after it confirms.
                 </p>
               </div>
             </article>
@@ -420,6 +448,36 @@ defmodule AutolaunchWeb.AuctionLive do
             <article class="al-panel al-auction-detail-position-card">
               <div class="al-auction-detail-card-head">
                 <div>
+                  <p class="al-kicker">Settlement</p>
+                  <h3>{@settlement.title}</h3>
+                </div>
+                <span class={["al-status-badge", @settlement.tone]}>{@settlement.label}</span>
+              </div>
+
+              <p class="al-inline-note">{@settlement.body}</p>
+
+              <div class="al-auction-detail-settlement-grid">
+                <article class={settlement_step_class(@settlement.state, "open")}>
+                  <span>Open</span>
+                </article>
+                <article class={settlement_step_class(@settlement.state, "closing")}>
+                  <span>Closing</span>
+                </article>
+                <article class={settlement_step_class(@settlement.state, "claimable")}>
+                  <span>Claimable</span>
+                </article>
+                <article class={settlement_step_class(@settlement.state, "refunded")}>
+                  <span>Refunded</span>
+                </article>
+                <article class={settlement_step_class(@settlement.state, "complete")}>
+                  <span>Complete</span>
+                </article>
+              </div>
+            </article>
+
+            <article class="al-panel al-auction-detail-position-card">
+              <div class="al-auction-detail-card-head">
+                <div>
                   <p class="al-kicker">Your position</p>
                   <h3>What you can do from here</h3>
                 </div>
@@ -559,12 +617,14 @@ defmodule AutolaunchWeb.AuctionLive do
     """
   end
 
-  defp default_bid_form(nil), do: %{"amount" => "250.0", "max_price" => "0.0050"}
+  defp default_bid_form(nil),
+    do: %{"amount" => "250.0", "max_price" => "0.0050", "desired_exposure" => "12"}
 
   defp default_bid_form(auction) do
     %{
       "amount" => "250.0",
-      "max_price" => decimal_plus(auction.current_clearing_price, "0.0008")
+      "max_price" => decimal_plus(auction.current_clearing_price, "0.0008"),
+      "desired_exposure" => "12"
     }
   end
 
@@ -588,17 +648,22 @@ defmodule AutolaunchWeb.AuctionLive do
   defp preset_form(nil, form, _preset), do: form
 
   defp preset_form(auction, form, "starter") do
-    Map.put(form, "max_price", decimal_plus(auction.current_clearing_price, "0.0005"))
+    form
+    |> Map.put("max_price", decimal_plus(auction.current_clearing_price, "0.0005"))
+    |> Map.put("desired_exposure", "8")
   end
 
   defp preset_form(auction, form, "stay_active") do
-    Map.put(form, "max_price", decimal_plus(auction.current_clearing_price, "0.0009"))
+    form
+    |> Map.put("max_price", decimal_plus(auction.current_clearing_price, "0.0009"))
+    |> Map.put("desired_exposure", "16")
   end
 
   defp preset_form(auction, form, "aggressive") do
     form
     |> Map.put("amount", "500.0")
     |> Map.put("max_price", decimal_plus(auction.current_clearing_price, "0.0014"))
+    |> Map.put("desired_exposure", "28")
   end
 
   defp preset_form(_auction, form, _preset), do: form
@@ -663,6 +728,177 @@ defmodule AutolaunchWeb.AuctionLive do
     else
       _ -> left
     end
+  end
+
+  defp bid_planner(nil, form) do
+    %{
+      title: "Waiting for estimate",
+      body: "Enter max spend and max price to preview the bid.",
+      target_title: exposure_target(form),
+      target_body: "The target check appears with the estimate."
+    }
+  end
+
+  defp bid_planner(quote, form) do
+    expected = decimal_from_text(Map.get(quote, :estimated_tokens_if_no_other_bids_change))
+    target = decimal_from_text(Map.get(form, "desired_exposure"))
+    spend = Map.get(quote, :amount) || Map.get(form, "amount") || "0"
+    max_price = Map.get(quote, :max_price) || Map.get(form, "max_price") || "0"
+
+    %{
+      title: "~#{Map.get(quote, :estimated_tokens_if_no_other_bids_change, "0")} tokens",
+      body: "This bid can spend up to #{spend} USDC while the price is at or below #{max_price}.",
+      target_title: target_result_title(expected, target),
+      target_body: target_result_body(expected, target)
+    }
+  end
+
+  defp exposure_target(form) do
+    case Map.get(form, "desired_exposure") do
+      value when is_binary(value) and value != "" -> "#{value} tokens"
+      _ -> "No target yet"
+    end
+  end
+
+  defp target_result_title(nil, _target), do: "Waiting"
+  defp target_result_title(_expected, nil), do: "Add a target"
+
+  defp target_result_title(expected, target) do
+    if Decimal.compare(expected, target) in [:eq, :gt],
+      do: "On pace for target",
+      else: "Below target"
+  end
+
+  defp target_result_body(nil, _target), do: "The estimate needs both bid fields."
+  defp target_result_body(_expected, nil), do: "Add desired exposure to compare the estimate."
+
+  defp target_result_body(expected, target) do
+    gap = Decimal.sub(target, expected)
+
+    if Decimal.compare(gap, Decimal.new(0)) == :gt do
+      "About #{decimal_display(gap)} more tokens needed to reach the target."
+    else
+      "The current estimate meets the desired exposure."
+    end
+  end
+
+  defp settlement_panel(nil, _position) do
+    %{
+      state: "open",
+      label: "Open",
+      tone: "is-muted",
+      title: "Settlement status will appear here.",
+      body: "Load an auction to see what happens next."
+    }
+  end
+
+  defp settlement_panel(_auction, %{status: "claimable"}) do
+    %{
+      state: "claimable",
+      label: "Claimable",
+      tone: "is-live",
+      title: "Tokens are ready to claim.",
+      body: "Collect the purchased tokens when you are ready."
+    }
+  end
+
+  defp settlement_panel(_auction, %{status: status}) when status in ["returnable", "exited"] do
+    %{
+      state: "refunded",
+      label: "Refunded",
+      tone: "is-warn",
+      title: "USDC return is ready.",
+      body: "Return the remaining USDC to finish this position."
+    }
+  end
+
+  defp settlement_panel(_auction, %{status: status}) when status in ["claimed", "settled"] do
+    %{
+      state: "complete",
+      label: "Complete",
+      tone: "is-muted",
+      title: "This position is complete.",
+      body: "No wallet action is waiting for this bid."
+    }
+  end
+
+  defp settlement_panel(auction, _position) do
+    cond do
+      truthy?(auction_value(auction, :returns_enabled)) ->
+        %{
+          state: "refunded",
+          label: "Refunded",
+          tone: "is-warn",
+          title: "USDC return is available.",
+          body: "This market ended below the minimum raise."
+        }
+
+      auction_value(auction, :phase) == "biddable" and detail_closing_soon?(auction) ->
+        %{
+          state: "closing",
+          label: "Closing",
+          tone: "is-warn",
+          title: "This auction is closing soon.",
+          body: "Review your bid before the market closes."
+        }
+
+      auction_value(auction, :phase) == "live" ->
+        %{
+          state: "complete",
+          label: "Complete",
+          tone: "is-muted",
+          title: "The auction has closed.",
+          body: "Check your position for any available claim."
+        }
+
+      true ->
+        %{
+          state: "open",
+          label: "Open",
+          tone: "is-live",
+          title: "This auction is open.",
+          body: "Use the planner to estimate the bid before signing."
+        }
+    end
+  end
+
+  defp settlement_step_class(current, step) do
+    ["al-auction-detail-settlement-step", current == step && "is-active"]
+  end
+
+  defp detail_closing_soon?(auction) do
+    case auction_value(auction, :ends_at) do
+      value when is_binary(value) ->
+        case DateTime.from_iso8601(value) do
+          {:ok, datetime, _} ->
+            seconds = DateTime.diff(datetime, DateTime.utc_now(), :second)
+            seconds > 0 and seconds <= 7_200
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end
+  end
+
+  defp decimal_from_text(nil), do: nil
+
+  defp decimal_from_text(value) when is_binary(value) do
+    case Decimal.parse(value) do
+      {decimal, ""} -> decimal
+      _ -> nil
+    end
+  end
+
+  defp decimal_from_text(value) when is_integer(value), do: Decimal.new(value)
+  defp decimal_from_text(_value), do: nil
+
+  defp decimal_display(%Decimal{} = value) do
+    value
+    |> Decimal.round(2)
+    |> Decimal.to_string(:normal)
   end
 
   defp auction_description(auction) do

@@ -83,6 +83,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
           max_price: "0.0060",
           tokens_filled: "12",
           estimated_tokens_if_end_now: "0",
+          current_clearing_price: "0.0050",
           inactive_above_price: "0.0049",
           next_action_label: "Claim purchased tokens now.",
           tx_actions: %{
@@ -129,7 +130,11 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     assert html =~ "Auction detail"
     assert html =~ "Auctions"
     assert html =~ "Bid composer"
-    assert html =~ "real budget and your real max price"
+    assert html =~ "Plan your spend before you sign"
+    assert html =~ "Expected outcome"
+    assert html =~ "Target check"
+    assert html =~ "Settlement"
+    assert html =~ "Tokens are ready to claim"
     assert html =~ "Live estimator"
     assert html =~ "Your latest bid"
     assert html =~ "Auction information"
@@ -158,6 +163,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
       |> render_click()
 
     assert html =~ ~s(value="500.0")
+    assert html =~ ~s(value="28")
     assert html =~ "Submit bid from wallet"
     assert html =~ "If nothing else changes"
   end
@@ -166,7 +172,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     {:ok, _view, html} = live(conn, "/auctions/auc_1")
 
     refute html =~ "Submit bid from wallet"
-    assert html =~ "Sign in first so the wallet action can be recorded after it confirms."
+    assert html =~ "Sign in first so your bid can be recorded after it confirms."
   end
 
   test "aggressive preset keeps the detail layout and lower cards intact", %{
@@ -184,5 +190,6 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     assert html =~ "Current and projected market pace"
     assert html =~ "Your position"
     assert html =~ ~s(value="500.0")
+    assert html =~ "Below target"
   end
 end
