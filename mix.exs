@@ -57,7 +57,7 @@ defmodule Autolaunch.MixProject do
       {:xmtp_elixir_sdk, path: "../elixir-utils/xmtp"},
       {:ens_elixir, path: "../elixir-utils/ens"},
       {:agent_world, path: "../elixir-utils/world/agentbook"},
-      {:regent_ui, path: "../packages/regent_ui"},
+      {:regent_ui, path: "../design-system/regent_ui"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
@@ -87,7 +87,7 @@ defmodule Autolaunch.MixProject do
   end
 
   defp sync_regent_assets(_args) do
-    source = Path.expand("../packages/regent_ui/priv/static/regent", __DIR__)
+    source = Path.expand("../design-system/regent_ui/priv/static/regent", __DIR__)
     destination = Path.expand("priv/static/regent", __DIR__)
 
     File.rm_rf!(destination)

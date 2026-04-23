@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
 @import "../../../design-system/design_system_tokens.css";
-@import "../../../platform/assets/regent/css/regent.css";
+@import "../../../design-system/regent_ui/assets/css/regent.css";
 @source "../css";
 @source "../js";
 @source "../../lib/autolaunch_web";
