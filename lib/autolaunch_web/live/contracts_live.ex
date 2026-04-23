@@ -418,12 +418,21 @@ defmodule AutolaunchWeb.ContractsLive do
             <div class="al-contract-kv">
               <div><span>Owner</span><strong>{short_address(@subject_scope.splitter.owner)}</strong></div>
               <div><span>Paused</span><strong>{yes_no(@subject_scope.splitter.paused)}</strong></div>
+              <div><span>Eligible share</span><strong>{display_bps_percent(@subject_scope.splitter.eligible_revenue_share_bps)}</strong></div>
+              <div><span>Pending eligible share</span><strong>{display_bps_percent(@subject_scope.splitter.pending_eligible_revenue_share_bps)}</strong></div>
+              <div><span>Share activation ETA</span><strong>{display_timestamp(@subject_scope.splitter.pending_eligible_revenue_share_eta)}</strong></div>
+              <div><span>Share cooldown end</span><strong>{display_timestamp(@subject_scope.splitter.eligible_revenue_share_cooldown_end)}</strong></div>
               <div><span>Treasury recipient</span><strong>{short_address(@subject_scope.splitter.treasury_recipient)}</strong></div>
               <div><span>Pending treasury recipient</span><strong>{short_address(@subject_scope.splitter.pending_treasury_recipient)}</strong></div>
               <div><span>Treasury rotation ETA</span><strong>{display_timestamp(@subject_scope.splitter.pending_treasury_recipient_eta)}</strong></div>
               <div><span>Treasury rotation delay</span><strong>{display_seconds(@subject_scope.splitter.treasury_rotation_delay)}</strong></div>
               <div><span>Protocol recipient</span><strong>{short_address(@subject_scope.splitter.protocol_recipient)}</strong></div>
               <div><span>Protocol skim bps</span><strong>{display_uint(@subject_scope.splitter.protocol_skim_bps)}</strong></div>
+              <div><span>Gross inflow</span><strong>{display_uint(@subject_scope.splitter.gross_inflow_usdc_raw)}</strong></div>
+              <div><span>Regent skim</span><strong>{display_uint(@subject_scope.splitter.regent_skim_usdc_raw)}</strong></div>
+              <div><span>Staker-eligible inflow</span><strong>{display_uint(@subject_scope.splitter.staker_eligible_inflow_usdc_raw)}</strong></div>
+              <div><span>Treasury-reserved inflow</span><strong>{display_uint(@subject_scope.splitter.treasury_reserved_inflow_usdc_raw)}</strong></div>
+              <div><span>Treasury reserve</span><strong>{display_uint(@subject_scope.splitter.treasury_reserved_usdc_raw)}</strong></div>
               <div><span>Label</span><strong>{@subject_scope.splitter.label || "n/a"}</strong></div>
             </div>
 
@@ -438,6 +447,11 @@ defmodule AutolaunchWeb.ContractsLive do
             <form phx-change="update_form" class="al-contract-form-grid">
               <input type="hidden" name="form_name" value="splitter_label" />
               <input type="text" name="form[label]" value={form_value(@forms, "splitter_label", "label")} placeholder="Label" />
+            </form>
+
+            <form phx-change="update_form" class="al-contract-form-grid">
+              <input type="hidden" name="form_name" value="splitter_share" />
+              <input type="text" name="form[share_bps]" value={form_value(@forms, "splitter_share", "share_bps")} placeholder="Eligible share bps" />
             </form>
 
             <form phx-change="update_form" class="al-contract-form-grid">
@@ -463,11 +477,15 @@ defmodule AutolaunchWeb.ContractsLive do
             <div class="al-contract-action-row">
               <button type="button" class="al-submit" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="set_paused" phx-value-form_name="splitter_paused">Prepare pause toggle</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="set_label" phx-value-form_name="splitter_label">Prepare label update</button>
+              <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="propose_eligible_revenue_share" phx-value-form_name="splitter_share">Prepare share proposal</button>
+              <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="cancel_eligible_revenue_share" phx-value-form_name="splitter_share">Prepare share cancel</button>
+              <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="activate_eligible_revenue_share" phx-value-form_name="splitter_share">Prepare share activation</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="propose_treasury_recipient_rotation" phx-value-form_name="splitter_treasury_rotation">Prepare treasury proposal</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="cancel_treasury_recipient_rotation" phx-value-form_name="splitter_treasury_rotation">Prepare treasury cancel</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="execute_treasury_recipient_rotation" phx-value-form_name="splitter_treasury_rotation">Prepare treasury execute</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="set_protocol_recipient" phx-value-form_name="splitter_protocol">Prepare protocol recipient</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="sweep_treasury_residual" phx-value-form_name="splitter_sweeps">Prepare treasury sweep</button>
+              <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="sweep_treasury_reserved" phx-value-form_name="splitter_sweeps">Prepare reserve sweep</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="sweep_protocol_reserve" phx-value-form_name="splitter_sweeps">Prepare protocol sweep</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="subject" phx-value-resource="splitter" phx-value-action="reassign_dust" phx-value-form_name="splitter_dust">Prepare dust reassignment</button>
             </div>
@@ -634,6 +652,7 @@ defmodule AutolaunchWeb.ContractsLive do
       "ingress_factory_create" => %{"make_default" => "false"},
       "registry_manager" => %{"enabled" => "true"},
       "splitter_paused" => %{"paused" => "false"},
+      "splitter_share" => %{"share_bps" => "10000"},
       "admin_revenue_share" => %{"enabled" => "true"},
       "admin_revenue_ingress" => %{"enabled" => "true"}
     }
@@ -667,6 +686,22 @@ defmodule AutolaunchWeb.ContractsLive do
   defp display_uint(nil), do: "n/a"
   defp display_uint(value) when is_integer(value), do: Integer.to_string(value)
   defp display_uint(value), do: to_string(value)
+
+  defp display_bps_percent(nil), do: "n/a"
+  defp display_bps_percent(0), do: "n/a"
+
+  defp display_bps_percent(value) when is_integer(value) do
+    percent =
+      value
+      |> Decimal.new()
+      |> Decimal.div(Decimal.new(100))
+      |> Decimal.normalize()
+      |> Decimal.to_string(:normal)
+
+    percent <> "%"
+  end
+
+  defp display_bps_percent(value), do: to_string(value)
 
   defp display_int(nil), do: "n/a"
   defp display_int(value) when is_integer(value), do: Integer.to_string(value)

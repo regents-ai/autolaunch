@@ -81,6 +81,7 @@ defmodule AutolaunchWeb.SubjectLive do
       |> assign(:pending_actions, assigns.pending_actions || %{})
       |> assign(:recommended_action, recommended)
       |> assign(:wallet_position, wallet_position)
+      |> assign(:routing_snapshot, routing_snapshot(subject))
       |> assign(:ingress_accounts, ingress_accounts)
       |> assign(
         :subject_heading,
@@ -165,6 +166,165 @@ defmodule AutolaunchWeb.SubjectLive do
               value={@wallet_position.claimable_stake_token}
               hint={@wallet_position.claimable_emissions_line}
             />
+          </section>
+
+          <section class="al-routing-policy-panel">
+            <div class="al-routing-policy-copy">
+              <div>
+                <p class="al-kicker">Revenue routing</p>
+                <h2>Follow the live share, the queued change, and every tracked dollar.</h2>
+              </div>
+              <p>
+                All recognized USDC still comes through the same intake path. This section shows how the live routing rule splits that money between the Regent skim, the staker-eligible lane, and the subject reserve lane.
+              </p>
+
+              <div class="al-routing-policy-stats">
+                <article>
+                  <span>Live eligible share</span>
+                  <strong>{@routing_snapshot.live_share}</strong>
+                  <p>The share of post-Regent revenue that still stays eligible for stakers.</p>
+                </article>
+                <article>
+                  <span>Pending share</span>
+                  <strong>{@routing_snapshot.pending_share}</strong>
+                  <p>{@routing_snapshot.pending_note}</p>
+                </article>
+                <article>
+                  <span>Activation date</span>
+                  <strong>{@routing_snapshot.activation_date}</strong>
+                  <p>When the pending share can first go live.</p>
+                </article>
+                <article>
+                  <span>Cooldown end</span>
+                  <strong>{@routing_snapshot.cooldown_end}</strong>
+                  <p>When another proposal can be queued after the latest cancel or activation.</p>
+                </article>
+              </div>
+
+              <%= if @routing_snapshot.change_chart do %>
+                <section
+                  class="al-routing-change-visual"
+                  role="img"
+                  aria-label={"Upcoming eligible share change from #{@routing_snapshot.change_chart.current_rate} on #{@routing_snapshot.change_chart.current_date} to #{@routing_snapshot.change_chart.next_rate} on #{@routing_snapshot.change_chart.next_date}"}
+                >
+                  <div class="al-routing-change-copy">
+                    <div>
+                      <span>Upcoming change</span>
+                      <strong>{@routing_snapshot.change_chart.headline}</strong>
+                    </div>
+                    <p>{@routing_snapshot.change_chart.summary}</p>
+                  </div>
+
+                  <div class="al-routing-change-chart">
+                    <div class="al-routing-change-point is-current">
+                      <span>{@routing_snapshot.change_chart.current_date}</span>
+                      <strong>{@routing_snapshot.change_chart.current_rate}</strong>
+                    </div>
+
+                    <svg viewBox="0 0 240 132" aria-hidden="true">
+                      <line x1="22" y1="108" x2="218" y2="108" class="al-routing-change-axis" />
+                      <polyline
+                        points={@routing_snapshot.change_chart.line_points}
+                        class="al-routing-change-line"
+                      />
+                      <circle
+                        cx={@routing_snapshot.change_chart.current_x}
+                        cy={@routing_snapshot.change_chart.current_y}
+                        r="5"
+                        class="al-routing-change-dot is-current"
+                      />
+                      <circle
+                        cx={@routing_snapshot.change_chart.next_x}
+                        cy={@routing_snapshot.change_chart.next_y}
+                        r="5"
+                        class="al-routing-change-dot is-next"
+                      />
+                      <text
+                        x={@routing_snapshot.change_chart.current_x}
+                        y={@routing_snapshot.change_chart.current_label_y}
+                        text-anchor="middle"
+                        class="al-routing-change-rate"
+                      >
+                        {@routing_snapshot.change_chart.current_rate}
+                      </text>
+                      <text
+                        x={@routing_snapshot.change_chart.next_x}
+                        y={@routing_snapshot.change_chart.next_label_y}
+                        text-anchor="middle"
+                        class="al-routing-change-rate"
+                      >
+                        {@routing_snapshot.change_chart.next_rate}
+                      </text>
+                    </svg>
+
+                    <div class="al-routing-change-point is-next">
+                      <span>{@routing_snapshot.change_chart.next_date}</span>
+                      <strong>{@routing_snapshot.change_chart.next_rate}</strong>
+                    </div>
+                  </div>
+                </section>
+              <% end %>
+            </div>
+
+            <div class="al-routing-ledger">
+              <article class="al-routing-ledger-card">
+                <span>Gross inflow</span>
+                <strong>{@routing_snapshot.gross_inflow}</strong>
+                <p>Total recognized USDC that reached the subject splitter.</p>
+              </article>
+              <article class="al-routing-ledger-card">
+                <span>Regent skim</span>
+                <strong>{@routing_snapshot.regent_skim}</strong>
+                <p>The fixed 1% share kept for Regent.</p>
+              </article>
+              <article class="al-routing-ledger-card">
+                <span>Staker-eligible inflow</span>
+                <strong>{@routing_snapshot.staker_eligible_inflow}</strong>
+                <p>The portion that still feeds the subject lane before stake-based allocation.</p>
+              </article>
+              <article class="al-routing-ledger-card">
+                <span>Treasury-reserved inflow</span>
+                <strong>{@routing_snapshot.treasury_reserved_inflow}</strong>
+                <p>The portion routed straight into the subject reserve lane.</p>
+              </article>
+              <article class="al-routing-ledger-card">
+                <span>Subject reserve now</span>
+                <strong>{@routing_snapshot.treasury_reserved_balance}</strong>
+                <p>The reserve balance still sitting inside the splitter.</p>
+              </article>
+              <article class="al-routing-ledger-card">
+                <span>Staker lane residual</span>
+                <strong>{@routing_snapshot.treasury_residual}</strong>
+                <p>The unstaked remainder still inside the eligible lane.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="al-routing-history-panel">
+            <div class="al-routing-history-head">
+              <div>
+                <p class="al-kicker">Share history</p>
+                <h3>See every proposal, cancel, and activation in order.</h3>
+              </div>
+              <span>{@routing_snapshot.history_count}</span>
+            </div>
+
+            <%= if @subject.share_change_history == [] do %>
+              <p class="al-subject-muted-copy">
+                No share changes have been recorded yet. The live routing rule is still the original launch setting.
+              </p>
+            <% else %>
+              <div class="al-routing-history-list">
+                <article :for={entry <- @subject.share_change_history} class="al-routing-history-item">
+                  <div class="al-routing-history-meta">
+                    <span class="al-routing-history-pill">{history_label(entry)}</span>
+                    <strong>{history_primary_value(entry)}</strong>
+                  </div>
+                  <p>{history_copy(entry)}</p>
+                  <span>{history_timestamp(entry)}</span>
+                </article>
+              </div>
+            <% end %>
           </section>
 
           <section class="al-subject-main-grid">
@@ -721,6 +881,9 @@ defmodule AutolaunchWeb.SubjectLive do
 
       .al-subject-header,
       .al-subject-metric-card,
+      .al-routing-policy-panel,
+      .al-routing-history-panel,
+      .al-routing-ledger-card,
       .al-subject-action-card,
       .al-subject-secondary-card,
       .al-subject-side-panel,
@@ -881,6 +1044,226 @@ defmodule AutolaunchWeb.SubjectLive do
         display: grid;
         gap: 1rem;
         grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .al-routing-policy-panel {
+        border-radius: 1.55rem;
+        padding: clamp(1.1rem, 2.3vw, 1.5rem);
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        align-items: start;
+      }
+
+      .al-routing-policy-copy,
+      .al-routing-policy-stats,
+      .al-routing-ledger,
+      .al-routing-history-list {
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .al-routing-policy-copy h2,
+      .al-routing-history-head h3 {
+        margin: 0;
+        font-size: clamp(1.4rem, 3vw, 2rem);
+        line-height: 1.02;
+      }
+
+      .al-routing-policy-copy > p {
+        margin: 0;
+        color: var(--al-muted);
+        line-height: 1.7;
+      }
+
+      .al-routing-policy-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .al-routing-change-visual {
+        border-radius: 1.25rem;
+        padding: 1rem;
+        background:
+          linear-gradient(180deg, rgba(8, 31, 74, 0.04), rgba(8, 31, 74, 0)),
+          color-mix(in srgb, white 90%, var(--al-panel) 10%);
+        display: grid;
+        gap: 0.9rem;
+      }
+
+      .al-routing-change-copy,
+      .al-routing-change-chart {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .al-routing-change-copy {
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        align-items: end;
+      }
+
+      .al-routing-change-copy span {
+        display: inline-flex;
+        color: var(--al-muted);
+        font-size: 0.78rem;
+      }
+
+      .al-routing-change-copy strong {
+        display: block;
+        margin-top: 0.15rem;
+        font-family: var(--al-font-display);
+        font-size: clamp(1.05rem, 2vw, 1.4rem);
+        line-height: 1.04;
+      }
+
+      .al-routing-change-copy p {
+        margin: 0;
+        color: var(--al-muted);
+        line-height: 1.6;
+      }
+
+      .al-routing-change-chart {
+        grid-template-columns: minmax(5.8rem, 0.55fr) minmax(0, 1fr) minmax(5.8rem, 0.55fr);
+        align-items: end;
+      }
+
+      .al-routing-change-chart svg {
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+
+      .al-routing-change-axis {
+        stroke: color-mix(in srgb, var(--al-border) 72%, white 28%);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+      }
+
+      .al-routing-change-line {
+        fill: none;
+        stroke: color-mix(in srgb, var(--brand-primary) 78%, #1d4ed8 22%);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .al-routing-change-dot {
+        stroke: white;
+        stroke-width: 3;
+      }
+
+      .al-routing-change-dot.is-current {
+        fill: color-mix(in srgb, var(--brand-primary) 82%, white 18%);
+      }
+
+      .al-routing-change-dot.is-next {
+        fill: color-mix(in srgb, #16a34a 78%, white 22%);
+      }
+
+      .al-routing-change-rate {
+        fill: color-mix(in srgb, var(--al-text) 92%, var(--brand-primary) 8%);
+        font-family: var(--al-font-display);
+        font-size: 0.9rem;
+        letter-spacing: 0.02em;
+      }
+
+      .al-routing-change-point {
+        display: grid;
+        gap: 0.25rem;
+        color: var(--al-muted);
+      }
+
+      .al-routing-change-point strong {
+        color: var(--al-text);
+        font-family: var(--al-font-display);
+        font-size: 1.1rem;
+        line-height: 1;
+      }
+
+      .al-routing-change-point.is-next {
+        text-align: right;
+      }
+
+      .al-routing-policy-stats article,
+      .al-routing-ledger-card,
+      .al-routing-history-item {
+        border-radius: 1.2rem;
+        padding: 1rem;
+        background: color-mix(in srgb, white 88%, var(--al-panel) 12%);
+        display: grid;
+        gap: 0.3rem;
+      }
+
+      .al-routing-policy-stats span,
+      .al-routing-ledger-card span,
+      .al-routing-history-item span,
+      .al-routing-policy-stats p,
+      .al-routing-ledger-card p,
+      .al-routing-history-item p {
+        margin: 0;
+        color: var(--al-muted);
+      }
+
+      .al-routing-policy-stats strong,
+      .al-routing-ledger-card strong {
+        font-family: var(--al-font-display);
+        font-size: clamp(1.15rem, 2vw, 1.55rem);
+        line-height: 0.98;
+      }
+
+      .al-routing-ledger {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .al-routing-ledger-card {
+        min-height: 100%;
+      }
+
+      .al-routing-history-panel {
+        border-radius: 1.45rem;
+        padding: 1rem 1.15rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .al-routing-history-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .al-routing-history-head > span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.8rem;
+        min-height: 2.8rem;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--brand-primary) 12%, white 88%);
+        color: color-mix(in srgb, var(--brand-primary) 72%, var(--al-text) 28%);
+        font-family: var(--al-font-display);
+      }
+
+      .al-routing-history-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .al-routing-history-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+
+      .al-routing-history-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 1.8rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(36, 94, 255, 0.08);
+        color: color-mix(in srgb, var(--brand-primary) 78%, var(--al-text) 22%);
+        font-size: 0.74rem;
       }
 
       .al-subject-metric-card {
@@ -1162,13 +1545,26 @@ defmodule AutolaunchWeb.SubjectLive do
       @media (max-width: 1120px) {
         .al-subject-main-grid,
         .al-subject-hero-panel,
+        .al-routing-policy-panel,
         .al-subject-metric-grid,
-        .al-subject-review-grid {
+        .al-subject-review-grid,
+        .al-routing-history-list {
           grid-template-columns: 1fr;
         }
 
         .al-subject-action-grid {
           grid-template-columns: 1fr;
+        }
+
+        .al-routing-policy-stats,
+        .al-routing-ledger,
+        .al-routing-change-copy,
+        .al-routing-change-chart {
+          grid-template-columns: 1fr;
+        }
+
+        .al-routing-change-point.is-next {
+          text-align: left;
         }
       }
 
@@ -1292,6 +1688,175 @@ defmodule AutolaunchWeb.SubjectLive do
       claim_note: "Claimable now: #{claimable_usdc}.",
       emissions_note: "Claimable emissions: #{claimable_emissions}."
     }
+  end
+
+  defp routing_snapshot(nil) do
+    %{
+      live_share: "100%",
+      pending_share: "No pending change",
+      pending_note: "No delayed share update is queued right now.",
+      activation_date: "Not scheduled",
+      cooldown_end: "Ready now",
+      gross_inflow: "0",
+      regent_skim: "0",
+      staker_eligible_inflow: "0",
+      treasury_reserved_inflow: "0",
+      treasury_reserved_balance: "0",
+      treasury_residual: "0",
+      history_count: "0 recorded changes",
+      change_chart: nil
+    }
+  end
+
+  defp routing_snapshot(subject) do
+    history_count = length(Map.get(subject, :share_change_history, []))
+    pending_share = Map.get(subject, :pending_eligible_revenue_share_percent)
+
+    %{
+      live_share: percent_value(Map.get(subject, :eligible_revenue_share_percent, "100")),
+      pending_share:
+        if(pending_share, do: percent_value(pending_share), else: "No pending change"),
+      pending_note:
+        if(pending_share,
+          do: "This delayed update is waiting for its activation window.",
+          else: "No delayed share update is queued right now."
+        ),
+      activation_date:
+        display_datetime(Map.get(subject, :pending_eligible_revenue_share_eta)) || "Not scheduled",
+      cooldown_end:
+        display_datetime(Map.get(subject, :eligible_revenue_share_cooldown_end)) || "Ready now",
+      gross_inflow: money_value(Map.get(subject, :gross_inflow_usdc)),
+      regent_skim: money_value(Map.get(subject, :regent_skim_usdc)),
+      staker_eligible_inflow: money_value(Map.get(subject, :staker_eligible_inflow_usdc)),
+      treasury_reserved_inflow: money_value(Map.get(subject, :treasury_reserved_inflow_usdc)),
+      treasury_reserved_balance: money_value(Map.get(subject, :treasury_reserved_usdc)),
+      treasury_residual: money_value(Map.get(subject, :treasury_residual_usdc)),
+      history_count:
+        if(history_count == 1, do: "1 recorded change", else: "#{history_count} recorded changes"),
+      change_chart: rate_change_chart(subject)
+    }
+  end
+
+  defp rate_change_chart(subject) do
+    current_bps = Map.get(subject, :eligible_revenue_share_bps, 10_000)
+    pending_bps = Map.get(subject, :pending_eligible_revenue_share_bps)
+
+    if is_integer(pending_bps) and pending_bps > 0 do
+      current_x = 36
+      next_x = 204
+      current_y = share_chart_y(current_bps)
+      next_y = share_chart_y(pending_bps)
+
+      %{
+        current_date: display_chart_date(DateTime.utc_now()),
+        current_rate: percent_value(Map.get(subject, :eligible_revenue_share_percent, "100")),
+        next_date: display_chart_date(Map.get(subject, :pending_eligible_revenue_share_eta)),
+        next_rate: percent_value(Map.get(subject, :pending_eligible_revenue_share_percent)),
+        headline:
+          "This share is scheduled to move from #{format_bps_percent(current_bps)} to #{format_bps_percent(pending_bps)}.",
+        summary:
+          "Today the live share is #{format_bps_percent(current_bps)}. On #{display_chart_date(Map.get(subject, :pending_eligible_revenue_share_eta))}, it is scheduled to change to #{format_bps_percent(pending_bps)}.",
+        current_x: current_x,
+        current_y: current_y,
+        next_x: next_x,
+        next_y: next_y,
+        current_label_y: max(current_y - 12, 18),
+        next_label_y: max(next_y - 12, 18),
+        line_points: "#{current_x},#{current_y} #{next_x},#{next_y}"
+      }
+    end
+  end
+
+  defp history_label(%{type: "proposed"}), do: "Queued"
+  defp history_label(%{type: "cancelled"}), do: "Cancelled"
+  defp history_label(%{type: "activated"}), do: "Live"
+  defp history_label(_entry), do: "Update"
+
+  defp history_primary_value(%{type: "proposed", pending_share_percent: percent}),
+    do: percent_value(percent)
+
+  defp history_primary_value(%{type: "cancelled", cancelled_share_percent: percent}),
+    do: percent_value(percent)
+
+  defp history_primary_value(%{type: "activated", new_share_percent: percent}),
+    do: percent_value(percent)
+
+  defp history_primary_value(_entry), do: "Recorded"
+
+  defp history_copy(%{
+         type: "proposed",
+         current_share_percent: current,
+         pending_share_percent: pending,
+         activation_eta: eta
+       }) do
+    "A delayed change from #{percent_value(current)} to #{percent_value(pending)} was queued. It can first go live on #{display_datetime(eta) || "the recorded activation date"}."
+  end
+
+  defp history_copy(%{
+         type: "cancelled",
+         cancelled_share_percent: percent,
+         cooldown_end: cooldown_end
+       }) do
+    "The pending #{percent_value(percent)} change was cleared. A fresh proposal can be queued after #{display_datetime(cooldown_end) || "the recorded cooldown date"}."
+  end
+
+  defp history_copy(%{
+         type: "activated",
+         previous_share_percent: previous,
+         new_share_percent: new_share,
+         cooldown_end: cooldown_end
+       }) do
+    "The live share moved from #{percent_value(previous)} to #{percent_value(new_share)}. Another proposal can be queued after #{display_datetime(cooldown_end) || "the recorded cooldown date"}."
+  end
+
+  defp history_copy(_entry), do: "This share change was recorded onchain."
+
+  defp history_timestamp(%{happened_at: happened_at}) do
+    display_datetime(happened_at) || "Time unavailable"
+  end
+
+  defp money_value(nil), do: "0 USDC"
+  defp money_value(value), do: "#{value} USDC"
+
+  defp percent_value(nil), do: "n/a"
+  defp percent_value(value), do: "#{value}%"
+
+  defp format_bps_percent(value) when is_integer(value) do
+    value
+    |> Kernel./(100)
+    |> :erlang.float_to_binary(decimals: 2)
+    |> String.trim_trailing("0")
+    |> String.trim_trailing(".")
+    |> percent_value()
+  end
+
+  defp display_datetime(nil), do: nil
+
+  defp display_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> Calendar.strftime(datetime, "%b %-d, %Y at %-I:%M %p UTC")
+      _ -> value
+    end
+  end
+
+  defp display_chart_date(%DateTime{} = value) do
+    Calendar.strftime(value, "%b %-d, %Y")
+  end
+
+  defp display_chart_date(nil), do: "Scheduled date"
+
+  defp display_chart_date(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> Calendar.strftime(datetime, "%b %-d, %Y")
+      _ -> value
+    end
+  end
+
+  defp share_chart_y(bps) when is_integer(bps) do
+    min_y = 24
+    max_y = 92
+    inverted_share = 10_000 - bps
+    min_y + round(inverted_share * (max_y - min_y) / 10_000)
   end
 
   defp recommended_action(nil), do: nil

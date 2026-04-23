@@ -155,12 +155,21 @@ defmodule AutolaunchWeb.ContractsLiveTest do
          splitter: %{
            owner: "0x3333333333333333333333333333333333333333",
            paused: false,
+           eligible_revenue_share_bps: 8_000,
+           pending_eligible_revenue_share_bps: 6_000,
+           pending_eligible_revenue_share_eta: 1_725_123_456,
+           eligible_revenue_share_cooldown_end: 1_725_234_567,
            treasury_recipient: "0x2222222222222222222222222222222222222222",
            pending_treasury_recipient: nil,
            pending_treasury_recipient_eta: 0,
            treasury_rotation_delay: 259_200,
            protocol_recipient: "0x1111111111111111111111111111111111111111",
            protocol_skim_bps: 100,
+           gross_inflow_usdc_raw: 125_000_000,
+           regent_skim_usdc_raw: 1_000_000,
+           staker_eligible_inflow_usdc_raw: 99_000_000,
+           treasury_reserved_inflow_usdc_raw: 25_000_000,
+           treasury_reserved_usdc_raw: 25_000_000,
            label: "Atlas revenue"
          },
          ingress_factory: %{
@@ -265,7 +274,9 @@ defmodule AutolaunchWeb.ContractsLiveTest do
     assert html =~ "Prepare auction currency return"
     assert html =~ "Advanced revenue controls"
     assert html =~ "Prepared action"
-    assert html =~ "Protocol skim bps"
+    assert html =~ "Eligible share"
+    assert html =~ "Pending eligible share"
+    assert html =~ "Treasury-reserved inflow"
     refute html =~ ~s(name="form[skim_bps]")
   end
 

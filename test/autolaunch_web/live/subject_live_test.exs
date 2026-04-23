@@ -17,8 +17,31 @@ defmodule AutolaunchWeb.SubjectLiveTest do
          token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
          splitter_address: "0x9999999999999999999999999999999999999999",
          default_ingress_address: "0x7777777777777777777777777777777777777777",
+         eligible_revenue_share_bps: 8_000,
+         eligible_revenue_share_percent: "80",
+         pending_eligible_revenue_share_bps: 6_000,
+         pending_eligible_revenue_share_percent: "60",
+         pending_eligible_revenue_share_eta: "2026-05-22 14:30 UTC",
+         eligible_revenue_share_cooldown_end: "2026-06-21 14:30 UTC",
+         gross_inflow_usdc: "125",
+         regent_skim_usdc: "1",
+         staker_eligible_inflow_usdc: "99",
+         treasury_reserved_inflow_usdc: "25",
+         treasury_reserved_usdc: "25",
          treasury_residual_usdc: "25",
          protocol_reserve_usdc: "10",
+         share_change_history: [
+           %{
+             event: "activated",
+             share_percent: "80",
+             happened_at: "2026-04-22 14:30 UTC"
+           },
+           %{
+             event: "proposed",
+             share_percent: "60",
+             happened_at: "2026-05-22 14:30 UTC"
+           }
+         ],
          wallet_stake_balance: "12",
          wallet_token_balance: "90",
          claimable_usdc: "5",
@@ -87,6 +110,21 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     end
   end
 
+  defmodule NoPendingContextStub do
+    @subject_id "0x" <> String.duplicate("1a", 32)
+
+    def get_subject(@subject_id, human) do
+      {:ok,
+       ContextStub.get_subject(@subject_id, human)
+       |> elem(1)
+       |> Map.merge(%{
+         pending_eligible_revenue_share_bps: nil,
+         pending_eligible_revenue_share_percent: nil,
+         pending_eligible_revenue_share_eta: nil
+       })}
+    end
+  end
+
   setup do
     original = Application.get_env(:autolaunch, :revenue_live, [])
     Application.put_env(:autolaunch, :revenue_live, context_module: ContextStub)
@@ -112,10 +150,29 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     assert html =~ "Claimable USDC"
     assert html =~ "Primary next step"
     assert html =~ "Move wallet tokens into the splitter."
+    assert html =~ "Revenue routing"
+    assert html =~ "Share history"
+    assert html =~ "Live eligible share"
+    assert html =~ "This share is scheduled to move from 80% to 60%."
+    assert html =~ "Treasury-reserved inflow"
     assert html =~ "Advanced review"
     assert html =~ "Known USDC intake accounts"
     assert html =~ "Prepare USDC claim"
     assert html =~ "Open contracts"
+  end
+
+  test "subject page hides the change diagram when no share update is queued", %{
+    conn: conn,
+    human: human
+  } do
+    original = Application.get_env(:autolaunch, :revenue_live, [])
+    Application.put_env(:autolaunch, :revenue_live, context_module: NoPendingContextStub)
+    on_exit(fn -> Application.put_env(:autolaunch, :revenue_live, original) end)
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, _view, html} = live(conn, "/subjects/#{@subject_id}")
+
+    refute html =~ "This share is scheduled to move from"
   end
 
   test "subject page prepares wallet actions", %{conn: conn, human: human} do
