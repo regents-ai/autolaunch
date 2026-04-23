@@ -63,12 +63,7 @@ defmodule Autolaunch.CCA.Rpc do
 
   defp call_adapter(function_name, args, opts) do
     adapter = rpc_adapter()
-
-    if function_exported?(adapter, function_name, length(args) + 1) do
-      apply(adapter, function_name, args ++ [opts])
-    else
-      apply(adapter, function_name, args)
-    end
+    apply(adapter, function_name, args ++ [opts])
   end
 
   defmodule HttpAdapter do

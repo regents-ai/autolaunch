@@ -71,6 +71,14 @@ defmodule AutolaunchWeb.InternalXmtpController do
           "Reactions payload is invalid"
         )
 
+      {:error, :invalid_sent_at} ->
+        ApiError.render(
+          conn,
+          :unprocessable_entity,
+          "invalid_sent_at",
+          "Message timestamp is invalid"
+        )
+
       {:error, %Ecto.Changeset{} = changeset} ->
         render_changeset_error(conn, "message_ingest_failed", changeset)
     end
@@ -102,15 +110,13 @@ defmodule AutolaunchWeb.InternalXmtpController do
   def resolve_command(conn, %{"id" => id} = params) do
     case parse_positive_int(id) do
       {:ok, normalized_id} ->
-        with_existing_command(conn, fn ->
-          case XMTPMirror.resolve_command(normalized_id, %{
-                 status: params["status"],
-                 error: params["error"]
-               }) do
-            :ok -> :ok
-            {:error, :invalid_resolution_status} -> {:error, :invalid_resolution_status}
-          end
-        end)
+        render_command_resolution(
+          conn,
+          XMTPMirror.resolve_command(normalized_id, %{
+            status: params["status"],
+            error: params["error"]
+          })
+        )
 
       {:error, _reason} ->
         ApiError.render(
@@ -148,10 +154,21 @@ defmodule AutolaunchWeb.InternalXmtpController do
     })
   end
 
-  defp with_existing_command(conn, command_fun) when is_function(command_fun, 0) do
-    case command_fun.() do
+  defp render_command_resolution(conn, result) do
+    case result do
       :ok ->
         json(conn, %{ok: true})
+
+      {:error, :command_not_found} ->
+        ApiError.render(conn, :not_found, "command_not_found", "Command not found")
+
+      {:error, :invalid_command_id} ->
+        ApiError.render(
+          conn,
+          :unprocessable_entity,
+          "invalid_command_id",
+          "Command id is invalid"
+        )
 
       {:error, :invalid_resolution_status} ->
         ApiError.render(
@@ -161,9 +178,6 @@ defmodule AutolaunchWeb.InternalXmtpController do
           "Command resolution status is invalid"
         )
     end
-  rescue
-    Ecto.NoResultsError ->
-      ApiError.render(conn, :not_found, "command_not_found", "Command not found")
   end
 
   defp parse_positive_int(value) when is_integer(value) and value > 0, do: {:ok, value}

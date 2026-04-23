@@ -231,31 +231,19 @@ defmodule Autolaunch.XMTPMirrorTest do
     assert command_count(room.id, human.id, "remove_member") == 1
   end
 
-  test "remove_human_from_canonical_room reuses the last known room inbox when setup was cleared" do
+  test "remove_human_from_canonical_room requires the current ready inbox" do
     room = create_canonical_room!()
     human = create_human!("stale-remove")
-    original_inbox_id = human.xmtp_inbox_id
 
     _joined = insert_membership_command!(room, human, "add_member", "done")
+    insert_stale_presence!(room, human)
 
     {:ok, stale_human} = Accounts.update_human(human, %{"xmtp_inbox_id" => nil})
 
-    assert {:ok, :enqueued} = XMTPMirror.remove_human_from_canonical_room(stale_human.id)
+    assert {:error, :xmtp_identity_required} =
+             XMTPMirror.remove_human_from_canonical_room(stale_human.id)
 
-    assert %XmtpMembershipCommand{
-             op: "remove_member",
-             status: "pending",
-             xmtp_inbox_id: ^original_inbox_id
-           } =
-             XmtpMembershipCommand
-             |> where(
-               [command],
-               command.room_id == ^room.id and command.human_user_id == ^human.id and
-                 command.op == "remove_member"
-             )
-             |> order_by([command], desc: command.inserted_at, desc: command.id)
-             |> limit(1)
-             |> Repo.one!()
+    assert command_count(room.id, human.id, "remove_member") == 0
   end
 
   test "ingest_message is idempotent for repeated xmtp_message_id and listing excludes hidden" do
@@ -286,6 +274,45 @@ defmodule Autolaunch.XMTPMirrorTest do
 
     messages = XMTPMirror.list_public_messages(%{"limit" => "10"})
     assert Enum.map(messages, & &1.id) == [newest.id, tie_second.id, first.id]
+  end
+
+  test "ingest_message rejects missing or invalid sent_at" do
+    room = create_canonical_room!()
+
+    attrs = %{
+      room_id: room.id,
+      xmtp_message_id: "msg-invalid-time",
+      sender_inbox_id: "inbox-invalid-time",
+      sender_wallet_address: "0x1111111111111111111111111111111111111111",
+      sender_label: "sender",
+      sender_type: :human,
+      body: "hello",
+      raw_payload: %{"kind" => "message"},
+      moderation_state: "visible"
+    }
+
+    assert {:error, :invalid_sent_at} = XMTPMirror.ingest_message(attrs)
+
+    assert {:error, :invalid_sent_at} =
+             XMTPMirror.ingest_message(Map.put(attrs, :sent_at, "nope"))
+
+    assert Repo.aggregate(XmtpMessage, :count, :id) == 0
+  end
+
+  test "create_human_message rejects missing or invalid sent_at" do
+    _room = create_canonical_room!()
+    human = create_human!("human-message-time")
+
+    assert {:error, :invalid_sent_at} =
+             XMTPMirror.create_human_message(human, %{body: "hello", sent_at: nil})
+
+    assert {:error, :invalid_sent_at} =
+             XMTPMirror.create_human_message(human, %{body: "hello", sent_at: "nope"})
+  end
+
+  test "resolve_command returns clean errors for bad ids" do
+    assert {:error, :invalid_command_id} = XMTPMirror.resolve_command("bad-id", %{status: "done"})
+    assert {:error, :command_not_found} = XMTPMirror.resolve_command(999_999, %{status: "done"})
   end
 
   defp create_canonical_room! do

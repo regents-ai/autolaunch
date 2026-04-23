@@ -5,11 +5,10 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
 
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.Siwa.Config
   alias Autolaunch.SiwaReceipt
 
   @http_verify_path "/v1/agent/siwa/http-verify"
-  @default_connect_timeout_ms 2_000
-  @default_receive_timeout_ms 5_000
   @audience "autolaunch"
   @hex_address_regex ~r/^0x[0-9a-fA-F]{40}$/
   @positive_int_regex ~r/^[1-9][0-9]*$/
@@ -34,7 +33,7 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
   end
 
   defp verify_with_broker(conn, headers) do
-    with {:ok, config} <- fetch_http_config(),
+    with {:ok, config} <- Config.fetch_http_config(),
          {:ok, response} <-
            Req.post(
              url: "#{config.internal_url}#{@http_verify_path}",
@@ -59,34 +58,6 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
       end
     else
       _ -> {:error, :siwa_auth_denied}
-    end
-  end
-
-  defp fetch_http_config do
-    siwa_cfg = Application.get_env(:autolaunch, :siwa, [])
-    internal_url = Keyword.get(siwa_cfg, :internal_url)
-
-    connect_timeout_ms =
-      normalize_timeout(
-        Keyword.get(siwa_cfg, :http_connect_timeout_ms),
-        @default_connect_timeout_ms
-      )
-
-    receive_timeout_ms =
-      normalize_timeout(
-        Keyword.get(siwa_cfg, :http_receive_timeout_ms),
-        @default_receive_timeout_ms
-      )
-
-    if is_binary(internal_url) and String.trim(internal_url) != "" do
-      {:ok,
-       %{
-         internal_url: String.trim(internal_url),
-         connect_timeout_ms: connect_timeout_ms,
-         receive_timeout_ms: receive_timeout_ms
-       }}
-    else
-      {:error, :invalid_siwa_config}
     end
   end
 
@@ -124,17 +95,6 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
       _ -> conn
     end
   end
-
-  defp normalize_timeout(value, _fallback) when is_integer(value) and value > 0, do: value
-
-  defp normalize_timeout(value, fallback) when is_binary(value) do
-    case Integer.parse(value) do
-      {parsed, ""} when parsed > 0 -> parsed
-      _ -> fallback
-    end
-  end
-
-  defp normalize_timeout(_value, fallback), do: fallback
 
   defp build_http_verify_payload(conn, headers) do
     base_payload = %{

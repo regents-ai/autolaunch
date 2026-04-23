@@ -37,7 +37,7 @@ defmodule Autolaunch.CCARpcTest do
     :ok
   end
 
-  test "rpc_url resolves chain-specific launch RPC urls before legacy fallbacks" do
+  test "rpc_url resolves chain-specific launch RPC urls before shared launch routing" do
     assert {:ok, "https://base-sepolia-launch.example"} = Rpc.rpc_url(84_532)
     assert {:ok, "https://base-mainnet-launch.example"} = Rpc.rpc_url(8_453)
   end

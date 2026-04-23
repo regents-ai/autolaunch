@@ -56,14 +56,20 @@ defmodule Autolaunch.XMTPMirror do
   @spec ingest_message(map()) ::
           {:ok, XmtpMessage.t()}
           | {:error,
-             :room_not_found | :invalid_reply_to_message | :invalid_reactions | Ecto.Changeset.t()}
+             :room_not_found
+             | :invalid_reply_to_message
+             | :invalid_reactions
+             | :invalid_sent_at
+             | Ecto.Changeset.t()}
   def ingest_message(attrs) when is_map(attrs) do
     with {:ok, room} <- resolve_message_room(attrs),
          :ok <- validate_reaction_payload(attrs),
-         :ok <- validate_reply_to_message(attrs) do
+         :ok <- validate_reply_to_message(attrs),
+         {:ok, sent_at} <- parse_sent_at(value_for(attrs, :sent_at)) do
       message_attrs =
         attrs
         |> normalize_message_attrs(room)
+        |> Map.put(:sent_at, sent_at)
         |> Map.put(:room_id, room.id)
 
       %XmtpMessage{}
@@ -115,31 +121,37 @@ defmodule Autolaunch.XMTPMirror do
   end
 
   @spec resolve_command(integer() | String.t(), map()) ::
-          :ok | {:error, :invalid_resolution_status}
+          :ok | {:error, :command_not_found | :invalid_command_id | :invalid_resolution_status}
   def resolve_command(command_id, attrs) do
-    command = Repo.get!(XmtpMembershipCommand, normalize_id(command_id))
-    status = normalize_status(value_for(attrs, :status))
+    with {:ok, normalized_id} <- parse_positive_id(command_id),
+         %XmtpMembershipCommand{} = command <-
+           Repo.get(XmtpMembershipCommand, normalized_id) do
+      status = normalize_status(value_for(attrs, :status))
 
-    case status do
-      "done" ->
-        command
-        |> Ecto.Changeset.change(status: "done", last_error: nil)
-        |> Repo.update!()
+      case status do
+        "done" ->
+          command
+          |> Ecto.Changeset.change(status: "done", last_error: nil)
+          |> Repo.update!()
 
-        :ok
+          :ok
 
-      "failed" ->
-        command
-        |> Ecto.Changeset.change(
-          status: "failed",
-          last_error: normalize_error_message(value_for(attrs, :error))
-        )
-        |> Repo.update!()
+        "failed" ->
+          command
+          |> Ecto.Changeset.change(
+            status: "failed",
+            last_error: normalize_error_message(value_for(attrs, :error))
+          )
+          |> Repo.update!()
 
-        :ok
+          :ok
 
-      _ ->
-        {:error, :invalid_resolution_status}
+        _ ->
+          {:error, :invalid_resolution_status}
+      end
+    else
+      {:error, :invalid_command_id} -> {:error, :invalid_command_id}
+      nil -> {:error, :command_not_found}
     end
   end
 
@@ -185,12 +197,17 @@ defmodule Autolaunch.XMTPMirror do
   @spec create_human_message(HumanUser.t(), map()) ::
           {:ok, XmtpMessage.t()}
           | {:error,
-             :human_banned | :room_not_found | :xmtp_identity_required | Ecto.Changeset.t()}
+             :human_banned
+             | :room_not_found
+             | :xmtp_identity_required
+             | :invalid_sent_at
+             | Ecto.Changeset.t()}
   def create_human_message(%HumanUser{role: "banned"}, _attrs), do: {:error, :human_banned}
 
   def create_human_message(%HumanUser{} = human, attrs) when is_map(attrs) do
     with {:ok, inbox_id} <- require_human_inbox_id(human),
-         {:ok, room} <- resolve_message_room(attrs) do
+         {:ok, room} <- resolve_message_room(attrs),
+         {:ok, sent_at} <- parse_sent_at(value_for(attrs, :sent_at)) do
       message_id =
         value_for(attrs, :xmtp_message_id) ||
           "xmtp-#{room.id}-#{human.id}-#{System.unique_integer([:positive, :monotonic])}"
@@ -203,7 +220,7 @@ defmodule Autolaunch.XMTPMirror do
         sender_label: human.display_name,
         sender_type: :human,
         body: value_for(attrs, :body) || "",
-        sent_at: normalize_sent_at(value_for(attrs, :sent_at)),
+        sent_at: sent_at,
         raw_payload: value_for(attrs, :raw_payload) || %{},
         moderation_state: value_for(attrs, :moderation_state) || "visible",
         reply_to_message_id: value_for(attrs, :reply_to_message_id),
@@ -362,7 +379,7 @@ defmodule Autolaunch.XMTPMirror do
             {:ok, :already_pending_removal}
 
           _ ->
-            case require_human_room_inbox_id(human, room) do
+            case require_human_inbox_id(human) do
               {:ok, inbox_id} ->
                 case create_membership_command(human, room, inbox_id, "remove_member") do
                   {:ok, _command} -> {:ok, :enqueued}
@@ -549,56 +566,6 @@ defmodule Autolaunch.XMTPMirror do
     end
   end
 
-  defp require_human_room_inbox_id(%HumanUser{} = human, %XmtpRoom{} = room) do
-    case require_human_inbox_id(human) do
-      {:ok, inbox_id} ->
-        {:ok, inbox_id}
-
-      {:error, :xmtp_identity_required} ->
-        case fallback_room_inbox_id(human, room) do
-          nil -> {:error, :xmtp_identity_required}
-          inbox_id -> {:ok, inbox_id}
-        end
-    end
-  end
-
-  defp fallback_room_inbox_id(%HumanUser{} = human, %XmtpRoom{} = room) do
-    latest_presence_inbox_id(human, room) || latest_membership_inbox_id(human, room)
-  end
-
-  defp latest_presence_inbox_id(%HumanUser{} = human, %XmtpRoom{} = room) do
-    XmtpPresence
-    |> where(
-      [presence],
-      presence.room_id == ^room.id and presence.human_user_id == ^human.id and
-        is_nil(presence.evicted_at)
-    )
-    |> order_by([presence], desc: presence.last_seen_at, desc: presence.id)
-    |> limit(1)
-    |> select([presence], presence.xmtp_inbox_id)
-    |> Repo.one()
-    |> normalize_inbox_id()
-  end
-
-  defp latest_membership_inbox_id(%HumanUser{} = human, %XmtpRoom{} = room) do
-    XmtpMembershipCommand
-    |> where([command], command.room_id == ^room.id and command.human_user_id == ^human.id)
-    |> order_by([command], desc: command.inserted_at, desc: command.id)
-    |> limit(1)
-    |> select([command], command.xmtp_inbox_id)
-    |> Repo.one()
-    |> normalize_inbox_id()
-  end
-
-  defp normalize_inbox_id(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      trimmed -> trimmed
-    end
-  end
-
-  defp normalize_inbox_id(_value), do: nil
-
   defp fetch_human(human_id) do
     case Repo.get(HumanUser, normalize_id(human_id)) do
       %HumanUser{} = human -> {:ok, human}
@@ -730,7 +697,7 @@ defmodule Autolaunch.XMTPMirror do
       sender_label: value_for(attrs, :sender_label),
       sender_type: value_for(attrs, :sender_type) || :human,
       body: value_for(attrs, :body),
-      sent_at: normalize_sent_at(value_for(attrs, :sent_at)),
+      sent_at: value_for(attrs, :sent_at),
       raw_payload: value_for(attrs, :raw_payload) || %{},
       moderation_state: value_for(attrs, :moderation_state) || "visible",
       reply_to_message_id: value_for(attrs, :reply_to_message_id),
@@ -768,16 +735,16 @@ defmodule Autolaunch.XMTPMirror do
     end
   end
 
-  defp normalize_sent_at(%DateTime{} = dt), do: dt
+  defp parse_sent_at(%DateTime{} = dt), do: {:ok, dt}
 
-  defp normalize_sent_at(value) when is_binary(value) do
+  defp parse_sent_at(value) when is_binary(value) do
     case DateTime.from_iso8601(value) do
-      {:ok, dt, _offset} -> dt
-      _ -> DateTime.utc_now()
+      {:ok, dt, _offset} -> {:ok, dt}
+      _ -> {:error, :invalid_sent_at}
     end
   end
 
-  defp normalize_sent_at(_value), do: DateTime.utc_now()
+  defp parse_sent_at(_value), do: {:error, :invalid_sent_at}
 
   defp normalize_status(status) when is_binary(status), do: String.trim(status)
   defp normalize_status(status) when is_atom(status), do: Atom.to_string(status)
@@ -824,6 +791,17 @@ defmodule Autolaunch.XMTPMirror do
   end
 
   defp normalize_id(_value), do: raise(Ecto.NoResultsError)
+
+  defp parse_positive_id(value) when is_integer(value) and value > 0, do: {:ok, value}
+
+  defp parse_positive_id(value) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {id, ""} when id > 0 -> {:ok, id}
+      _ -> {:error, :invalid_command_id}
+    end
+  end
+
+  defp parse_positive_id(_value), do: {:error, :invalid_command_id}
 
   defp value_for(attrs, key) when is_map(attrs) do
     Map.get(attrs, key, Map.get(attrs, Atom.to_string(key)))

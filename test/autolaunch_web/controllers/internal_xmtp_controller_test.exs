@@ -19,7 +19,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/api/internal/xmtp/rooms/ensure", %{
+      |> post("/v1/internal/xmtp/rooms/ensure", %{
         "room_key" => "public-chatbox",
         "xmtp_group_id" => "xmtp-public-chatbox",
         "name" => "Public Chatbox",
@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     conn =
       conn
       |> put_req_header("accept", "application/json")
-      |> post("/api/internal/xmtp/rooms/ensure", %{
+      |> post("/v1/internal/xmtp/rooms/ensure", %{
         "room_key" => "public-chatbox",
         "xmtp_group_id" => "xmtp-public-chatbox",
         "name" => "Public Chatbox",
@@ -53,7 +53,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     authed_conn = with_secret(conn)
 
     room_conn =
-      post(authed_conn, "/api/internal/xmtp/rooms/ensure", %{
+      post(authed_conn, "/v1/internal/xmtp/rooms/ensure", %{
         "room_key" => "public-chatbox",
         "xmtp_group_id" => "xmtp-public-chatbox",
         "name" => "Public Chatbox",
@@ -70,7 +70,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
            } = json_response(room_conn, 200)
 
     message_conn =
-      post(authed_conn, "/api/internal/xmtp/messages/ingest", %{
+      post(authed_conn, "/v1/internal/xmtp/messages/ingest", %{
         "room_key" => "public-chatbox",
         "xmtp_message_id" => "msg-1",
         "sender_inbox_id" => "inbox-1",
@@ -86,6 +86,33 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     assert %{"data" => %{"id" => _id}} = json_response(message_conn, 200)
   end
 
+  test "message ingest rejects invalid sent_at", %{conn: conn} do
+    authed_conn = with_secret(conn)
+
+    post(authed_conn, "/v1/internal/xmtp/rooms/ensure", %{
+      "room_key" => "public-chatbox",
+      "xmtp_group_id" => "xmtp-public-chatbox",
+      "name" => "Public Chatbox",
+      "status" => "active"
+    })
+
+    message_conn =
+      post(authed_conn, "/v1/internal/xmtp/messages/ingest", %{
+        "room_key" => "public-chatbox",
+        "xmtp_message_id" => "msg-invalid-time",
+        "sender_inbox_id" => "inbox-1",
+        "sender_wallet_address" => "0xsender",
+        "sender_label" => "sender",
+        "sender_type" => "human",
+        "body" => "hello",
+        "sent_at" => "not-a-timestamp",
+        "raw_payload" => %{"kind" => "message"},
+        "moderation_state" => "visible"
+      })
+
+    assert %{"error" => %{"code" => "invalid_sent_at"}} = json_response(message_conn, 422)
+  end
+
   test "lease and resolve command flow", %{conn: conn} do
     authed_conn = with_secret(conn)
 
@@ -98,7 +125,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     room_id = room_conn["id"]
 
     lease_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/lease", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/lease", %{
         "room_key" => "public-chatbox"
       })
 
@@ -111,7 +138,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
            } = json_response(lease_conn, 200)
 
     resolve_done_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/#{leased_id}/resolve", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/#{leased_id}/resolve", %{
         "status" => "done"
       })
 
@@ -128,14 +155,14 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
       })
 
     lease_conn2 =
-      post(authed_conn, "/api/internal/xmtp/commands/lease", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/lease", %{
         "room_key" => "public-chatbox"
       })
 
     assert %{"data" => %{"id" => leased_id2}} = json_response(lease_conn2, 200)
 
     resolve_failed_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/#{leased_id2}/resolve", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/#{leased_id2}/resolve", %{
         "status" => "failed",
         "error" => "simulated failure"
       })
@@ -151,7 +178,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     conn =
       conn
       |> with_secret()
-      |> post("/api/internal/xmtp/commands/lease", %{})
+      |> post("/v1/internal/xmtp/commands/lease", %{})
 
     assert %{"error" => %{"code" => "room_key_required"}} = json_response(conn, 422)
   end
@@ -160,7 +187,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     authed_conn = with_secret(conn)
 
     resolve_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/999999/resolve", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/999999/resolve", %{
         "status" => "done"
       })
 
@@ -171,7 +198,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
     authed_conn = with_secret(conn)
 
     resolve_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/not-an-id/resolve", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/not-an-id/resolve", %{
         "status" => "done"
       })
 
@@ -188,14 +215,14 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
       })
 
     lease_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/lease", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/lease", %{
         "room_key" => "public-chatbox"
       })
 
     assert %{"data" => %{"id" => leased_id}} = json_response(lease_conn, 200)
 
     resolve_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/#{leased_id}/resolve", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/#{leased_id}/resolve", %{
         "status" => "failed",
         "error" => ""
       })
@@ -216,14 +243,14 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
       })
 
     lease_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/lease", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/lease", %{
         "room_key" => "public-chatbox"
       })
 
     assert %{"data" => %{"id" => leased_id}} = json_response(lease_conn, 200)
 
     resolve_conn =
-      post(authed_conn, "/api/internal/xmtp/commands/#{leased_id}/resolve", %{
+      post(authed_conn, "/v1/internal/xmtp/commands/#{leased_id}/resolve", %{
         "status" => "bogus"
       })
 
@@ -239,7 +266,7 @@ defmodule AutolaunchWeb.InternalXmtpControllerTest do
 
   defp ensure_room_and_seed_command(conn, command_attrs) do
     room_conn =
-      post(conn, "/api/internal/xmtp/rooms/ensure", %{
+      post(conn, "/v1/internal/xmtp/rooms/ensure", %{
         "room_key" => "public-chatbox",
         "xmtp_group_id" => "xmtp-public-chatbox",
         "name" => "Public Chatbox",

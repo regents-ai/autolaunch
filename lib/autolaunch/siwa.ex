@@ -1,8 +1,7 @@
 defmodule Autolaunch.Siwa do
   @moduledoc false
 
-  @default_connect_timeout_ms 2_000
-  @default_receive_timeout_ms 5_000
+  alias Autolaunch.Siwa.Config
 
   def issue_nonce(params) do
     payload = %{
@@ -34,7 +33,7 @@ defmodule Autolaunch.Siwa do
   end
 
   def proxy(path, payload) do
-    with {:ok, config} <- fetch_http_config(),
+    with {:ok, config} <- Config.fetch_http_config(),
          {:ok, response} <-
            Req.post(
              url: "#{config.internal_url}#{path}",
@@ -53,45 +52,6 @@ defmodule Autolaunch.Siwa do
       {:error, reason} -> {:error, reason}
     end
   end
-
-  defp fetch_http_config do
-    siwa_cfg = Application.get_env(:autolaunch, :siwa, [])
-    internal_url = Keyword.get(siwa_cfg, :internal_url)
-
-    connect_timeout_ms =
-      normalize_timeout(
-        Keyword.get(siwa_cfg, :http_connect_timeout_ms),
-        @default_connect_timeout_ms
-      )
-
-    receive_timeout_ms =
-      normalize_timeout(
-        Keyword.get(siwa_cfg, :http_receive_timeout_ms),
-        @default_receive_timeout_ms
-      )
-
-    if is_binary(internal_url) and internal_url != "" do
-      {:ok,
-       %{
-         internal_url: internal_url,
-         connect_timeout_ms: connect_timeout_ms,
-         receive_timeout_ms: receive_timeout_ms
-       }}
-    else
-      {:error, :invalid_siwa_config}
-    end
-  end
-
-  defp normalize_timeout(value, _fallback) when is_integer(value) and value > 0, do: value
-
-  defp normalize_timeout(value, fallback) when is_binary(value) do
-    case Integer.parse(value) do
-      {parsed, ""} when parsed > 0 -> parsed
-      _ -> fallback
-    end
-  end
-
-  defp normalize_timeout(_value, fallback), do: fallback
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, ""), do: map

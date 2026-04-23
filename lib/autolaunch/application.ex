@@ -6,15 +6,17 @@ defmodule Autolaunch.Application do
   @impl true
   def start(_type, _args) do
     :ok = enforce_siwa_runtime_guard!()
+    dragonfly_children = if dragonfly_enabled?(), do: [dragonfly_child_spec()], else: []
 
-    children = [
-      Autolaunch.Repo,
-      {DNSCluster, query: Application.get_env(:autolaunch, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Autolaunch.PubSub},
-      {Task.Supervisor, name: Autolaunch.TaskSupervisor},
-      Autolaunch.XmtpIdentity,
-      AutolaunchWeb.Endpoint
-    ]
+    children =
+      [
+        Autolaunch.Repo,
+        {DNSCluster, query: Application.get_env(:autolaunch, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Autolaunch.PubSub},
+        {Task.Supervisor, name: Autolaunch.TaskSupervisor},
+        Autolaunch.XmtpIdentity,
+        AutolaunchWeb.Endpoint
+      ] ++ dragonfly_children
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Autolaunch.Supervisor)
   end
@@ -37,5 +39,13 @@ defmodule Autolaunch.Application do
     end
 
     :ok
+  end
+
+  defp dragonfly_child_spec do
+    RegentCache.Dragonfly.child_spec(:autolaunch)
+  end
+
+  defp dragonfly_enabled? do
+    Application.get_env(:autolaunch, :dragonfly_enabled, true) == true
   end
 end
