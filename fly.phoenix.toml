@@ -1,0 +1,39 @@
+app = "autolaunch-sepolia"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "autolaunch/Dockerfile"
+
+[deploy]
+  release_command = "/app/bin/migrate"
+
+[env]
+  PHX_SERVER = "true"
+  PHX_HOST = "autolaunch-sepolia.fly.dev"
+  PORT = "8080"
+  DRAGONFLY_ENABLED = "true"
+  DRAGONFLY_PORT = "6379"
+  AUTOLAUNCH_CHAIN_ID = "84532"
+  REGENT_STAKING_CHAIN_ID = "84532"
+  REGENT_STAKING_CHAIN_LABEL = "Base Sepolia"
+  AUTOLAUNCH_DEPLOY_WORKDIR = "/app/contracts"
+  AUTOLAUNCH_DEPLOY_BINARY = "forge"
+  AUTOLAUNCH_DEPLOY_SCRIPT_TARGET = "scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript"
+  AUTOLAUNCH_DEPLOY_TIMEOUT_MS = "180000"
+  AUTOLAUNCH_MOCK_DEPLOY = "false"
+  CCA_CLAIM_BLOCK_OFFSET = "0"
+  WORLD_ID_ACTION = "agentbook-registration"
+  WORLD_ID_TTL_SECONDS = "300"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 2048

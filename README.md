@@ -47,6 +47,7 @@ regents autolaunch vesting status
 Use the website for market discovery, auction participation, subject pages, staking, claims, trust follow-up, and AgentBook.
 
 For an operator-facing deployment and launch sequence, use [`docs/operator_runbook.md`](docs/operator_runbook.md).
+For launch, subject, revenue, and next-action wording, use [`docs/operator-status.md`](docs/operator-status.md).
 The canonical product rules live in [`docs/product_invariants.md`](docs/product_invariants.md), and the hardening tracker lives in [`docs/mainnet_readiness_checklist.md`](docs/mainnet_readiness_checklist.md).
 
 ## Humans
@@ -108,7 +109,7 @@ The current fixed fee rules are:
 
 - the launch-pool fee is fixed at 2% on swaps in the official pool
 - that 2% split is fixed at 1% to Regent and 1% to the agent treasury
-- recognized subject revenue first sends a fixed 1% skim to Regent
+- subject USDC received first sends a fixed 1% skim to Regent
 - the remaining 99% stays in the subject lane, where stakers earn their formula share and the remainder accrues to the agent treasury
 
 ### What Runs Where
@@ -166,7 +167,7 @@ The full environment list lives in [.env.example](.env.example). For local work,
 
 The launch path supports Base Sepolia for rehearsal and Base mainnet for production.
 
-For the current local-only rehearsal, use the run sheet in [REGENT_CLI_LOCAL_AND_FLY_TESTING.md](/Users/sean/Documents/regent/autolaunch/REGENT_CLI_LOCAL_AND_FLY_TESTING.md). It treats Regent staking as Base Sepolia, Autolaunch infra and launches as Base Sepolia, and the guided CLI lifecycle as the main operator path.
+For the current promotion path, use the run sheet in [REGENT_CLI_LOCAL_AND_FLY_TESTING.md](/Users/sean/Documents/regent/autolaunch/REGENT_CLI_LOCAL_AND_FLY_TESTING.md). It treats Regent staking as a Base mainnet rail, Autolaunch launch rehearsal as Base Sepolia, and the guided CLI lifecycle as the main operator path.
 
 If product copy, launch docs, or contract docs disagree about the active rules, use [`docs/product_invariants.md`](docs/product_invariants.md) as the source of truth and update the other surface.
 
@@ -175,7 +176,7 @@ If product copy, launch docs, or contract docs disagree about the active rules, 
 Autolaunch exposes a separate Regent staking rail for Regent Labs itself.
 
 - It is not part of the launch flow itself.
-- Its production target is Base mainnet, but local rehearsal can point it at Base Sepolia with `REGENT_STAKING_*`.
+- Its production target is Base mainnet.
 - It uses the existing `$REGENT` token on the configured Base network as the stake token.
 - It accepts USDC deposits manually on the configured Base network.
 - It pays the configured staker share to `$REGENT` stakers and leaves the rest accruing for the Regent treasury.
@@ -210,10 +211,10 @@ Important launch rules:
 - Every auction is denominated in USDC on Base Sepolia
 - Buyers set a total budget and a max price, and the order runs across the remaining blocks like a TWAP
 - Each block clears at the highest price where demand exceeds supply, and no one pays above their stated max price
-- Launch buyers must stake the claimed tokens to earn recognized Base-family USDC revenue once it reaches the revsplit
+- Launch buyers must stake the claimed tokens to earn Base-family USDC once it reaches the subject revenue contract
 - Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
-- Recognized revenue is Base-family USDC only, and it only counts once it reaches the revsplit
-- Funds waiting in an ingress account are not recognized yet; they can be swept before a pending share change takes effect, and anything swept later uses the live share at that time
+- Subject USDC is counted once Base-family USDC reaches the revsplit
+- Funds waiting in an ingress account have not reached the revsplit yet; they can be swept before a pending share change takes effect, and anything swept later uses the live share at that time
 - The fee hook is the launch-side fee lane, while the revsplit is the ongoing revenue-rights lane
 - `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET` is required at runtime
 - `config/runtime.exs` is the runtime environment path; `config/dev.exs` stays limited to dev-only browser tooling and reload support
@@ -229,6 +230,8 @@ The CLI is the first stop for launch planning, launch execution, monitoring, fin
 - Keep one current contract shape. Remove obsolete handling instead of documenting or preserving it.
 - Use Foundry for EVM contract development and testing.
 - Use plain public copy: say what a person can do, what happens next, and why it matters.
+
+Before including Autolaunch in a cross-repo release, use the shared Regent release spine in [`../docs/release-spine.md`](../docs/release-spine.md) and the Autolaunch operator status checks in [`docs/operator-status.md`](docs/operator-status.md).
 
 ### Commands
 

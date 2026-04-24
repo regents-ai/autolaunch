@@ -22,9 +22,12 @@ If you remember only one thing, remember this:
 
 If another document disagrees about the product rules, use `docs/product_invariants.md` as the source of truth and update the drifted surface.
 
+The operator status model lives in [`docs/operator-status.md`](operator-status.md). Use it when reviewing launch timelines, revenue state, subject pages, contract-console actions, and trust follow-up. A release is not ready if the page does not make the current state and next action clear.
+
 ## The main files
 
 - App overview: [/Users/sean/Documents/regent/autolaunch/README.md](README.md)
+- Staking and Fly promotion run sheet: [/Users/sean/Documents/regent/autolaunch/REGENT_CLI_LOCAL_AND_FLY_TESTING.md](../REGENT_CLI_LOCAL_AND_FLY_TESTING.md)
 - Canonical product rules: [/Users/sean/Documents/regent/autolaunch/docs/product_invariants.md](product_invariants.md)
 - Mainnet hardening checklist: [/Users/sean/Documents/regent/autolaunch/docs/mainnet_readiness_checklist.md](mainnet_readiness_checklist.md)
 - Contract overview: [/Users/sean/Documents/regent/autolaunch/contracts/README.md](../contracts/README.md)
@@ -193,7 +196,7 @@ The current fixed fee rules are:
 
 - the official launch pool charges a fixed 2% fee on swaps
 - that 2% split is fixed at 1% to Regent and 1% to the agent treasury
-- recognized subject revenue first sends a fixed 1% skim to Regent
+- subject USDC received first sends a fixed 1% skim to Regent
 - the remaining 99% stays in the subject lane, where stakers earn their formula share and the treasury keeps the remainder
 
 ### Why the launch uses a Continuous Clearing Auction
@@ -268,15 +271,16 @@ From there, the fee and revenue path is:
 1. Pool activity creates launch-pool fees.
 2. The fee hook records those fees in the fee vault.
 3. The subject treasury lane can be pulled from the fee vault into the revenue splitter.
-4. Recognized Base-family USDC can also arrive through ingress accounts and be swept into the splitter.
+4. Base-family USDC can also arrive through ingress accounts and be swept into the splitter.
 5. The splitter makes the staker share claimable and tracks the treasury and protocol shares separately.
 
 Important rule:
 
-- revenue only counts once Base-family USDC reaches the subject’s revenue splitter
+- subject USDC is counted once Base-family USDC reaches the subject’s revenue splitter
+- direct manual deposits are listed separately from verified ingress and launch-fee revenue
 - USDC waiting in an ingress account can be swept before a pending share change goes live; USDC swept later uses the live share at that time
 
-That is the point where the system treats revenue as recognized.
+That is the point where the system adds it to the subject’s revenue totals.
 
 ## Phase 6: Subject operations after launch
 
@@ -367,7 +371,7 @@ Do not move forward. The app expects the full returned stack.
 
 That means the launch output was not stored or surfaced correctly. Treat it as a broken launch state until resolved.
 
-### USDC arrives somewhere but is not recognized as revenue
+### USDC arrives somewhere but does not appear in subject totals
 
 That usually means it has not actually reached the revenue splitter yet.
 
@@ -379,6 +383,6 @@ The operator process is:
 2. wire those addresses into the app and launch environment
 3. deploy one launch stack per token
 4. verify the auction and subject surfaces
-5. let fees and recognized Base-family USDC flow into the subject splitter over time
+5. let fees and Base-family USDC flow into the subject splitter over time
 
 That is the full infrastructure setup story in operational form.

@@ -1,59 +1,149 @@
-# Autolaunch Local Rehearsal
+# Autolaunch Local, Base Sepolia, and Fly Runbook
 
-This is the current **local-only** rehearsal path for Autolaunch.
+This runbook is the operator path for rehearsing Autolaunch end to end:
 
-Treat it as a pure testnet run:
+1. prove the contracts locally
+2. deploy the shared contracts to Base Sepolia
+3. run the Phoenix app locally against those contracts
+4. deploy Dragonfly and the Phoenix app to Fly
+5. run the first guided Base Sepolia launch through Regents CLI
+6. verify the live launch
 
-- Regent staking deploys to **Base Sepolia**
-- Autolaunch shared infra and launch jobs deploy to **Base Sepolia**
-- the local website must be able to **read the freshly deployed Base Sepolia staking rail**
-- Fly is **not** part of this rehearsal
+Use Base Sepolia for this rehearsal. Do not mix this with the later Base mainnet production rail.
 
-The launch chain is Base Sepolia for this rehearsal.
+## Operator Rules
 
-## 1. Gather the required values first
+- Never paste private keys into a file committed to git.
+- Never commit `.env`, `.env.local`, Foundry broadcast files with secrets, or Fly secrets.
+- Use Foundry for contract deploys and contract tests.
+- Run the guided Regents CLI path for launch work. Keep raw launch commands for debugging only.
+- Keep the browser app as a review and follow-up surface. The CLI starts and runs launches.
+- Record every deployed address immediately after each deploy.
+- Use one terminal for local shell exports and one terminal for long-running servers.
 
-Do not start deploying until you already have these:
+## Files Added for Fly
 
-- Base Sepolia RPC URL
-- Base Sepolia `$REGENT` test token address
-- Base Sepolia USDC or test-USDC address
-- Base Sepolia RPC URL
-- Base Sepolia CCA factory address
-- Base Sepolia Uniswap v4 pool manager address
-- Base Sepolia Uniswap v4 position manager address
-- Base Sepolia USDC address
-- Base Sepolia token factory address
-- Base Sepolia ERC-8004 subgraph URL
-- Base Sepolia identity registry address
-- strategy operator address
-- CCA values:
-  - `CCA_FLOOR_PRICE_Q96`
-  - `CCA_TICK_SPACING_Q96`
-  - `CCA_REQUIRED_CURRENCY_RAISED`
-- Privy values
-- SIWA values
-- XMTP agent private key
-- deployer private key
-- treasury and safe addresses
+The repo includes Fly-ready support files:
 
-Important warnings:
+- `Dockerfile`: builds the Phoenix release from the Regent repo root and includes Foundry for runtime launch jobs.
+- `Dockerfile.dragonfly`: builds a small Dragonfly cache service.
+- `fly.phoenix.toml`: Phoenix app template.
+- `fly.dragonfly.toml`: Dragonfly service template.
+- `rel/overlays/bin/server`: starts the release with `PHX_SERVER=true`.
+- `rel/overlays/bin/migrate`: runs database migrations in the release.
 
-- `TOKEN_FACTORY_ADDRESS` is still external. The shared infra deploy does not create it.
-- `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, and the required `CCA_*` values still matter for a real launch even after shared infra is live.
+The Docker build context must be the Regent repo root because Autolaunch depends on sibling local packages.
 
-## 2. Deploy Regent staking on Base Sepolia
+## 0. Local Tooling Checklist
 
-Validate contracts first:
+Install these before starting:
+
+```bash
+brew install flyctl
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
+
+Check the tools:
+
+```bash
+fly version
+forge --version
+cast --version
+elixir --version
+mix --version
+node --version
+pnpm --version
+```
+
+Check Fly auth:
+
+```bash
+fly auth whoami
+```
+
+## 1. Gather Values Before Deploying
+
+Do not deploy until these values are known and written into a private operator note:
+
+| Value | Used by |
+| --- | --- |
+| Base Sepolia RPC URL | contracts, app, CLI |
+| Base Sepolia `$REGENT` test token | staking deploy |
+| Base Sepolia USDC or test-USDC | staking and launch deploys |
+| CCA factory address | launch deploys |
+| Uniswap v4 pool manager | launch deploys |
+| Uniswap v4 position manager | launch deploys |
+| token factory address | launch deploys |
+| ERC-8004 subgraph URL | launch reads |
+| identity registry address | launch validation |
+| strategy operator address | launch migration |
+| treasury recipient | staking deploy |
+| governance Safe | staking deploy |
+| deployer wallet | Foundry broadcasts |
+| Privy app id and verification key | browser auth |
+| SIWA sidecar URL and shared secret | agent auth |
+| XMTP agent private key | public room agent |
+| database URL | Phoenix runtime |
+| Fly app names | Fly deploy |
+
+CCA values needed by real launch jobs:
+
+```bash
+CCA_FLOOR_PRICE_Q96=
+CCA_TICK_SPACING_Q96=
+CCA_REQUIRED_CURRENCY_RAISED=
+CCA_VALIDATION_HOOK=
+CCA_CLAIM_BLOCK_OFFSET=0
+```
+
+Important notes:
+
+- `AUTOLAUNCH_TOKEN_FACTORY_ADDRESS` is external. The shared infra deploy does not create it.
+- `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, and the `CCA_*` values still matter after shared infra is live.
+- `REGENT_STAKING_RPC_URL` is the app read path for the staking rail.
+- `BASE_SEPOLIA_RPC_URL` is separately used by Base Sepolia AgentBook trust flows.
+
+## 2. Validate Contracts Locally
 
 ```bash
 cd /Users/sean/Documents/regent/autolaunch/contracts
+forge build
 forge test --offline
 ```
 
-Set the Base Sepolia staking deploy inputs in your shell:
+Optional local dry run:
 
 ```bash
+forge test --match-contract ExampleCCADeploymentScriptTest --offline -vvv
+```
+
+If tests fail, stop. Do not deploy.
+
+## 3. Deploy a Base Sepolia Test `$REGENT` Token If Needed
+
+Skip this if you already have a Base Sepolia `$REGENT` token address.
+
+```bash
+cd /Users/sean/Documents/regent/autolaunch/contracts
+
+export BASE_SEPOLIA_RPC_URL=...
+export PRIVATE_KEY=...
+
+forge script scripts/DeployTestnetMintableERC20.s.sol:DeployTestnetMintableERC20Script \
+  --rpc-url "$BASE_SEPOLIA_RPC_URL" \
+  --broadcast
+```
+
+Save the printed token address. Use it as `BASE_REGENT_TOKEN_ADDRESS`.
+
+## 4. Deploy Regent Staking on Base Sepolia
+
+Set deploy inputs:
+
+```bash
+cd /Users/sean/Documents/regent/autolaunch/contracts
+
 export BASE_SEPOLIA_RPC_URL=...
 export BASE_REGENT_TOKEN_ADDRESS=...
 export BASE_USDC_ADDRESS=...
@@ -63,11 +153,11 @@ export REGENT_REVENUE_SUPPLY_DENOMINATOR=100000000000000000000000000000
 export PRIVATE_KEY=...
 ```
 
-Important defaults:
+Important default:
 
-- `REGENT_REVENUE_SUPPLY_DENOMINATOR=100000000000000000000000000000` is **100 billion tokens in raw 18-decimal units**
+- `REGENT_REVENUE_SUPPLY_DENOMINATOR=100000000000000000000000000000` means 100 billion tokens in raw 18-decimal units.
 
-Deploy the staking contract:
+Deploy:
 
 ```bash
 forge script scripts/DeployRegentRevenueStaking.s.sol:DeployRegentRevenueStakingScript \
@@ -75,36 +165,33 @@ forge script scripts/DeployRegentRevenueStaking.s.sol:DeployRegentRevenueStaking
   --broadcast
 ```
 
-Save the printed `REGENT_REVENUE_STAKING_RESULT_JSON` values:
+Save the `REGENT_REVENUE_STAKING_RESULT_JSON` output:
 
-- `contractAddress`
-- `regentTokenAddress`
-- `usdcAddress`
-- `treasuryRecipient`
-- `owner`
-- `revenueShareSupplyDenominator`
+```text
+contractAddress
+regentTokenAddress
+usdcAddress
+treasuryRecipient
+owner
+revenueShareSupplyDenominator
+```
 
-Use `contractAddress` as `REGENT_REVENUE_STAKING_ADDRESS` later.
+Use `contractAddress` as `REGENT_REVENUE_STAKING_ADDRESS`.
 
-## 3. Deploy shared Autolaunch infra on Base Sepolia
+## 5. Deploy Shared Autolaunch Infra on Base Sepolia
 
-Validate contracts first if you have not already:
+Set deploy inputs:
 
 ```bash
 cd /Users/sean/Documents/regent/autolaunch/contracts
-forge test --offline
-```
 
-Set the shared infra deploy inputs:
-
-```bash
 export AUTOLAUNCH_RPC_URL=...
 export AUTOLAUNCH_USDC_ADDRESS=...
 export AUTOLAUNCH_INFRA_OWNER=...
 export PRIVATE_KEY=...
 ```
 
-Deploy the shared Autolaunch infra:
+Deploy:
 
 ```bash
 forge script scripts/DeployAutolaunchInfra.s.sol:DeployAutolaunchInfraScript \
@@ -112,24 +199,28 @@ forge script scripts/DeployAutolaunchInfra.s.sol:DeployAutolaunchInfraScript \
   --broadcast
 ```
 
-Save the printed `AUTOLAUNCH_INFRA_RESULT_JSON` values:
+Save the `AUTOLAUNCH_INFRA_RESULT_JSON` output:
 
-- `subjectRegistryAddress`
-- `revenueShareFactoryAddress`
-- `revenueIngressFactoryAddress`
-- `strategyFactoryAddress`
-- `usdcAddress`
-- `owner`
+```text
+subjectRegistryAddress
+revenueShareFactoryAddress
+revenueIngressFactoryAddress
+strategyFactoryAddress
+usdcAddress
+owner
+```
 
-Map those into app env as:
+Map those into app env:
 
-- `REVENUE_SHARE_FACTORY_ADDRESS`
-- `REVENUE_INGRESS_FACTORY_ADDRESS`
-- `LBP_STRATEGY_FACTORY_ADDRESS`
+```bash
+AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS=<revenueShareFactoryAddress>
+AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS=<revenueIngressFactoryAddress>
+AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS=<strategyFactoryAddress>
+```
 
-Keep `subjectRegistryAddress` recorded as `SUBJECT_REGISTRY_ADDRESS` for reference even though the app runtime does not take it directly.
+Keep `subjectRegistryAddress` recorded as `SUBJECT_REGISTRY_ADDRESS` for operator reference.
 
-## 4. Prepare the local app runtime
+## 6. Create the Local App Environment
 
 Start from the checked-in example:
 
@@ -139,11 +230,11 @@ cp .env.example .env.local
 direnv allow
 ```
 
-Fill `.env.local` with at least:
+Fill `.env.local` with local-safe values:
 
 ```bash
-export DATABASE_URL=...
-export SECRET_KEY_BASE=...
+export DATABASE_URL=ecto://postgres:postgres@localhost/autolaunch_dev
+export SECRET_KEY_BASE=replace_me_with_mix_phx_gen_secret_output
 export PHX_HOST=127.0.0.1
 export PORT=4002
 
@@ -151,34 +242,45 @@ export PRIVY_APP_ID=...
 export PRIVY_VERIFICATION_KEY=...
 export AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY=...
 
-export SIWA_INTERNAL_URL=...
+export SIWA_INTERNAL_URL=http://localhost:4100
 export SIWA_SHARED_SECRET=...
 export SIWA_HMAC_SECRET=...
 
-export AUTOLAUNCH_DEPLOY_WORKDIR=/Users/sean/Documents/regent/autolaunch/contracts
-export AUTOLAUNCH_DEPLOY_BINARY=forge
-export AUTOLAUNCH_DEPLOY_SCRIPT_TARGET=scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript
-export AUTOLAUNCH_DEPLOY_PRIVATE_KEY=...
-export AUTOLAUNCH_MOCK_DEPLOY=false
+export DRAGONFLY_ENABLED=false
 
+export AUTOLAUNCH_CHAIN_ID=84532
 export AUTOLAUNCH_RPC_URL=...
 export AUTOLAUNCH_CCA_FACTORY_ADDRESS=0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5
 export AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER=...
 export AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER=...
 export AUTOLAUNCH_USDC_ADDRESS=...
-
-export REVENUE_SHARE_FACTORY_ADDRESS=...
-export REVENUE_INGRESS_FACTORY_ADDRESS=...
-export LBP_STRATEGY_FACTORY_ADDRESS=...
-export TOKEN_FACTORY_ADDRESS=...
+export AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS=...
+export AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS=...
+export AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS=...
+export AUTOLAUNCH_TOKEN_FACTORY_ADDRESS=...
 export AUTOLAUNCH_ERC8004_SUBGRAPH_URL=...
+export AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS=...
+
+export AUTOLAUNCH_BASE_SEPOLIA_RPC_URL=...
+export AUTOLAUNCH_BASE_SEPOLIA_UNISWAP_V4_POOL_MANAGER=...
+export AUTOLAUNCH_BASE_SEPOLIA_USDC_ADDRESS=...
+export AUTOLAUNCH_BASE_SEPOLIA_REVENUE_SHARE_FACTORY_ADDRESS=...
+export AUTOLAUNCH_BASE_SEPOLIA_REVENUE_INGRESS_FACTORY_ADDRESS=...
+export AUTOLAUNCH_BASE_SEPOLIA_ERC8004_SUBGRAPH_URL=...
+export AUTOLAUNCH_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS=...
+
+export AUTOLAUNCH_DEPLOY_WORKDIR=/Users/sean/Documents/regent/autolaunch/contracts
+export AUTOLAUNCH_DEPLOY_BINARY=forge
+export AUTOLAUNCH_DEPLOY_SCRIPT_TARGET=scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript
+export AUTOLAUNCH_DEPLOY_TIMEOUT_MS=180000
+export AUTOLAUNCH_DEPLOY_PRIVATE_KEY=...
+export AUTOLAUNCH_MOCK_DEPLOY=false
 
 export REGENT_STAKING_RPC_URL=...
 export REGENT_STAKING_CHAIN_ID=84532
 export REGENT_STAKING_CHAIN_LABEL=Base\ Sepolia
 export REGENT_REVENUE_STAKING_ADDRESS=...
 
-export AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS=...
 export STRATEGY_OPERATOR=...
 export OFFICIAL_POOL_FEE=...
 export OFFICIAL_POOL_TICK_SPACING=...
@@ -187,17 +289,24 @@ export CCA_TICK_SPACING_Q96=...
 export CCA_REQUIRED_CURRENCY_RAISED=...
 export CCA_VALIDATION_HOOK=...
 export CCA_CLAIM_BLOCK_OFFSET=0
+
+export WORLD_ID_APP_ID=...
+export WORLD_ID_ACTION=agentbook-registration
+export WORLD_ID_RP_ID=...
+export WORLD_ID_SIGNING_KEY=...
+export WORLD_ID_TTL_SECONDS=300
+export BASE_SEPOLIA_RPC_URL=...
+export BASE_SEPOLIA_AGENTBOOK_ADDRESS=...
+export BASE_SEPOLIA_AGENTBOOK_RELAY_URL=...
 ```
 
-Important corrections:
+Generate a local secret if needed:
 
-- `REGENT_STAKING_RPC_URL` is what the app uses to read the Base Sepolia staking rail
-- `BASE_SEPOLIA_RPC_URL` is only separately needed if you also want Base Sepolia AgentBook trust flows
-- `mix autolaunch.doctor` validates the core launch environment, but it does **not** prove every ambient Foundry launch-script variable is present
+```bash
+mix phx.gen.secret
+```
 
-## 5. Boot and validate the local website
-
-Bring up the app:
+## 7. Boot and Validate Locally
 
 ```bash
 cd /Users/sean/Documents/regent/autolaunch
@@ -206,77 +315,292 @@ mix autolaunch.doctor
 mix phx.server
 ```
 
-Then check:
-
-- `http://127.0.0.1:4002/health`
-- `http://127.0.0.1:4002/`
-- `http://127.0.0.1:4002/launch`
-- `http://127.0.0.1:4002/auctions`
-- `http://127.0.0.1:4002/positions`
-- `http://127.0.0.1:4002/agentbook`
-
-Also verify the Base Sepolia staking rail is readable through the app:
-
-- `GET /api/regent/staking`
-- `GET /api/regent/staking/account/<wallet>`
-
-## 6. Bootstrap XMTP once
-
-From the app repo:
+Check pages:
 
 ```bash
+open http://127.0.0.1:4002/health
+open http://127.0.0.1:4002/
+open http://127.0.0.1:4002/launch
+open http://127.0.0.1:4002/auctions
+open http://127.0.0.1:4002/positions
+open http://127.0.0.1:4002/contracts
+open http://127.0.0.1:4002/agentbook
+```
+
+Check JSON reads:
+
+```bash
+curl -s http://127.0.0.1:4002/health
+curl -s http://127.0.0.1:4002/api/regent/staking
+curl -s http://127.0.0.1:4002/api/regent/staking/account/0xYOUR_WALLET
+```
+
+## 8. Bootstrap XMTP Once
+
+```bash
+cd /Users/sean/Documents/regent/autolaunch
 mix autolaunch.bootstrap_xmtp_room
 ```
 
-If the room already exists and you want to keep using it:
+If the room already exists and you want to keep it:
 
 ```bash
 mix autolaunch.bootstrap_xmtp_room --reuse
 ```
 
-Record the bootstrap output:
+Record:
 
-- room key
-- conversation id
-- agent wallet
-- agent inbox
+```text
+room key
+conversation id
+agent wallet
+agent inbox
+```
 
-## 7. Validate CLI and staking reads against the local app
-
-Validate the CLI repo:
+## 9. Validate Regents CLI Against Local App
 
 ```bash
 cd /Users/sean/Documents/regent/regents-cli
 pnpm build
 pnpm typecheck
 pnpm test
-```
 
-Point the CLI at the local app:
-
-```bash
 export AUTOLAUNCH_BASE_URL=http://127.0.0.1:4002
 ```
 
 For authenticated commands, provide one of:
 
-- `AUTOLAUNCH_SESSION_COOKIE`
-- `AUTOLAUNCH_PRIVY_BEARER_TOKEN` plus `AUTOLAUNCH_WALLET_ADDRESS`
+```bash
+export AUTOLAUNCH_SESSION_COOKIE=...
+```
 
-Run local read checks first:
+or:
+
+```bash
+export AUTOLAUNCH_PRIVY_BEARER_TOKEN=...
+export AUTOLAUNCH_WALLET_ADDRESS=0x...
+```
+
+Run local read checks:
 
 ```bash
 pnpm --filter @regentslabs/cli exec regent autolaunch agents list
 pnpm --filter @regentslabs/cli exec regent autolaunch auctions list
+pnpm --filter @regentslabs/cli exec regent autolaunch contracts admin
 pnpm --filter @regentslabs/cli exec regent regent-staking show
 pnpm --filter @regentslabs/cli exec regent regent-staking account 0xYOUR_WALLET
 ```
 
-This step matters because the rehearsal includes the app actively reading the newly deployed Base Sepolia staking rail.
+## 10. Prepare Fly Apps
 
-## 8. Run the first real Base Sepolia launch through the guided flow
+Pick names before running commands:
 
-Use the guided operator path, not raw `launch create`, as the main run sheet:
+```bash
+export FLY_ORG=personal
+export FLY_REGION=sjc
+export AUTOLAUNCH_FLY_APP=autolaunch-sepolia
+export AUTOLAUNCH_DRAGONFLY_APP=autolaunch-sepolia-dragonfly
+```
+
+Edit these files before first deploy:
+
+- `fly.phoenix.toml`: set `app = "<AUTOLAUNCH_FLY_APP>"`
+- `fly.dragonfly.toml`: set `app = "<AUTOLAUNCH_DRAGONFLY_APP>"`
+- `fly.phoenix.toml`: set `PHX_HOST` to the final host
+- `fly.phoenix.toml`: set `DRAGONFLY_HOST` to the private hostname printed after Dragonfly deploy
+
+Create apps:
+
+```bash
+fly apps create "$AUTOLAUNCH_DRAGONFLY_APP" --org "$FLY_ORG"
+fly apps create "$AUTOLAUNCH_FLY_APP" --org "$FLY_ORG"
+```
+
+Create Postgres if this is a new Fly environment:
+
+```bash
+fly postgres create \
+  --name autolaunch-sepolia-db \
+  --region "$FLY_REGION" \
+  --org "$FLY_ORG"
+
+fly postgres attach autolaunch-sepolia-db --app "$AUTOLAUNCH_FLY_APP"
+```
+
+After `postgres attach`, Fly sets `DATABASE_URL` for the app.
+
+## 11. Deploy Dragonfly to Fly
+
+Run from the Regent repo root:
+
+```bash
+cd /Users/sean/Documents/regent
+fly deploy --config autolaunch/fly.dragonfly.toml .
+```
+
+Private hostname pattern:
+
+```text
+<AUTOLAUNCH_DRAGONFLY_APP>.internal
+```
+
+Check it:
+
+```bash
+fly status --app "$AUTOLAUNCH_DRAGONFLY_APP"
+```
+
+## 12. Set Fly Secrets for Phoenix
+
+Generate `SECRET_KEY_BASE`:
+
+```bash
+cd /Users/sean/Documents/regent/autolaunch
+mix phx.gen.secret
+```
+
+Set secrets. Replace placeholders before running:
+
+```bash
+fly secrets set --app "$AUTOLAUNCH_FLY_APP" \
+  SECRET_KEY_BASE=... \
+  PHX_HOST=... \
+  PORT=8080 \
+  PHX_SERVER=true \
+  DRAGONFLY_ENABLED=true \
+  DRAGONFLY_HOST="$AUTOLAUNCH_DRAGONFLY_APP.internal" \
+  DRAGONFLY_PORT=6379 \
+  AUTOLAUNCH_CHAIN_ID=84532 \
+  AUTOLAUNCH_RPC_URL=... \
+  AUTOLAUNCH_BASE_SEPOLIA_RPC_URL=... \
+  AUTOLAUNCH_CCA_FACTORY_ADDRESS=... \
+  AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER=... \
+  AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER=... \
+  AUTOLAUNCH_USDC_ADDRESS=... \
+  AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS=... \
+  AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS=... \
+  AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS=... \
+  AUTOLAUNCH_TOKEN_FACTORY_ADDRESS=... \
+  AUTOLAUNCH_ERC8004_SUBGRAPH_URL=... \
+  AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS=... \
+  AUTOLAUNCH_DEPLOY_WORKDIR=/app/contracts \
+  AUTOLAUNCH_DEPLOY_BINARY=forge \
+  AUTOLAUNCH_DEPLOY_SCRIPT_TARGET=scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript \
+  AUTOLAUNCH_DEPLOY_TIMEOUT_MS=180000 \
+  AUTOLAUNCH_DEPLOY_PRIVATE_KEY=... \
+  AUTOLAUNCH_MOCK_DEPLOY=false \
+  REGENT_STAKING_RPC_URL=... \
+  REGENT_STAKING_CHAIN_ID=84532 \
+  REGENT_STAKING_CHAIN_LABEL="Base Sepolia" \
+  REGENT_REVENUE_STAKING_ADDRESS=... \
+  PRIVY_APP_ID=... \
+  PRIVY_VERIFICATION_KEY=... \
+  AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY=... \
+  SIWA_INTERNAL_URL=... \
+  SIWA_SHARED_SECRET=... \
+  SIWA_HMAC_SECRET=... \
+  STRATEGY_OPERATOR=... \
+  OFFICIAL_POOL_FEE=... \
+  OFFICIAL_POOL_TICK_SPACING=... \
+  CCA_FLOOR_PRICE_Q96=... \
+  CCA_TICK_SPACING_Q96=... \
+  CCA_REQUIRED_CURRENCY_RAISED=... \
+  CCA_VALIDATION_HOOK=... \
+  CCA_CLAIM_BLOCK_OFFSET=0 \
+  WORLD_ID_APP_ID=... \
+  WORLD_ID_ACTION=agentbook-registration \
+  WORLD_ID_RP_ID=... \
+  WORLD_ID_SIGNING_KEY=... \
+  WORLD_ID_TTL_SECONDS=300 \
+  BASE_SEPOLIA_RPC_URL=... \
+  BASE_SEPOLIA_AGENTBOOK_ADDRESS=... \
+  BASE_SEPOLIA_AGENTBOOK_RELAY_URL=...
+```
+
+Check secrets names without printing values:
+
+```bash
+fly secrets list --app "$AUTOLAUNCH_FLY_APP"
+```
+
+## 13. Deploy Phoenix to Fly
+
+Run from the Regent repo root:
+
+```bash
+cd /Users/sean/Documents/regent
+fly deploy --config autolaunch/fly.phoenix.toml .
+```
+
+The deploy runs database migrations with:
+
+```text
+/app/bin/migrate
+```
+
+Check release status:
+
+```bash
+fly status --app "$AUTOLAUNCH_FLY_APP"
+fly logs --app "$AUTOLAUNCH_FLY_APP"
+```
+
+Run release checks:
+
+```bash
+fly ssh console --app "$AUTOLAUNCH_FLY_APP" -C "/app/bin/autolaunch eval 'Autolaunch.ReleaseDoctor.run() |> IO.inspect(label: :doctor)'"
+```
+
+Check HTTP:
+
+```bash
+curl -s https://<PHX_HOST>/health
+curl -s https://<PHX_HOST>/api/regent/staking
+```
+
+## 14. Optional Fly Smoke With Mock Deploy
+
+Use this only before allowing real launch jobs:
+
+```bash
+fly secrets set --app "$AUTOLAUNCH_FLY_APP" AUTOLAUNCH_MOCK_DEPLOY=true
+fly deploy --config autolaunch/fly.phoenix.toml .
+fly ssh console --app "$AUTOLAUNCH_FLY_APP" -C "/app/bin/autolaunch eval 'Autolaunch.ReleaseSmoke.run() |> IO.inspect(label: :smoke)'"
+fly secrets set --app "$AUTOLAUNCH_FLY_APP" AUTOLAUNCH_MOCK_DEPLOY=false
+fly deploy --config autolaunch/fly.phoenix.toml .
+```
+
+Do not leave `AUTOLAUNCH_MOCK_DEPLOY=true` on the rehearsal app.
+
+## 15. Point Regents CLI at Fly
+
+```bash
+cd /Users/sean/Documents/regent/regents-cli
+
+export AUTOLAUNCH_BASE_URL=https://<PHX_HOST>
+export AUTOLAUNCH_SESSION_COOKIE=...
+```
+
+or:
+
+```bash
+export AUTOLAUNCH_PRIVY_BEARER_TOKEN=...
+export AUTOLAUNCH_WALLET_ADDRESS=0x...
+```
+
+Check reads:
+
+```bash
+pnpm --filter @regentslabs/cli exec regent autolaunch agents list
+pnpm --filter @regentslabs/cli exec regent autolaunch auctions list
+pnpm --filter @regentslabs/cli exec regent autolaunch contracts admin
+pnpm --filter @regentslabs/cli exec regent regent-staking show
+pnpm --filter @regentslabs/cli exec regent regent-staking account 0xYOUR_WALLET
+```
+
+## 16. Run the First Guided Base Sepolia Launch
+
+Use the guided path:
 
 ```bash
 pnpm --filter @regentslabs/cli exec regent autolaunch safe wizard --backup-signer-address 0x...
@@ -290,58 +614,121 @@ pnpm --filter @regentslabs/cli exec regent autolaunch launch finalize --job <job
 pnpm --filter @regentslabs/cli exec regent autolaunch vesting status --job <job-id>
 ```
 
-Keep these low-level commands as debug-only fallback, not the main worksheet path:
+Keep these as debug-only commands:
 
-- `regent autolaunch launch preview`
-- `regent autolaunch launch create`
-- `regent autolaunch jobs watch`
+```bash
+pnpm --filter @regentslabs/cli exec regent autolaunch launch preview
+pnpm --filter @regentslabs/cli exec regent autolaunch launch create
+pnpm --filter @regentslabs/cli exec regent autolaunch jobs watch
+```
 
-## 9. Verify the real deployed launch
+## 17. Verify the Real Deployed Launch
 
-After the real launch job reaches `ready`, verify the live deployment:
+Local verification:
 
 ```bash
 cd /Users/sean/Documents/regent/autolaunch
 mix autolaunch.verify_deploy --job <job-id>
 ```
 
-This checks the live contract invariants that matter most:
+Fly verification:
+
+```bash
+fly ssh console --app "$AUTOLAUNCH_FLY_APP" -C "/app/bin/autolaunch eval 'Autolaunch.ReleaseDeployVerifier.run(\"<job-id>\") |> IO.inspect(label: :verify)'"
+```
+
+The verifier checks:
 
 - controller resolution from the deploy receipt
-- controller authorization cleanup in the shared factories
-- accepted ownership on the fee contracts
-- fee-vault canonical token wiring
+- controller authorization cleanup in shared factories
+- accepted ownership on fee contracts
+- fee-vault token wiring
 - completed strategy migration
 - recorded pool and position ids
 - hook-enabled state
 - subject and ingress wiring
 
-## 10. Fund Regent emissions after staking deploy
+## 18. Fund Regent Emissions After Staking Deploy
 
-Do this only after the Base Sepolia staking contract exists:
+Do this only after the Base Sepolia staking contract exists and has been checked from the app.
 
 1. approve `$REGENT` to the staking contract
 2. call `fundRegentRewards(amount)`
-3. then call `setEmissionAprBps(2000)`
+3. call `setEmissionAprBps(2000)`
 
 Important notes:
 
-- all Regent revenue deposits are now fully staker-eligible, with the live staked share measured against the fixed denominator
-- `emissionAprBps` is the adjustable reward APR lever controlled by `REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS`
+- all Regent revenue deposits are staker-eligible
+- `emissionAprBps` is controlled by `REGENT_REVENUE_GOVERNANCE_SAFE_ADDRESS`
 - do not turn emissions on before the contract has `$REGENT` reward inventory
 
-## What a good rehearsal produces
+## 19. Good Rehearsal Checklist
 
-Do not call the rehearsal successful until you have all of these:
+A rehearsal is not done until every line is checked:
 
-- saved `REGENT_REVENUE_STAKING_RESULT_JSON` from Base Sepolia
-- saved `AUTOLAUNCH_INFRA_RESULT_JSON` from Base Sepolia
-- local app booted cleanly with `mix autolaunch.doctor` passing
-- successful XMTP bootstrap output
-- successful app and CLI reads against the Base Sepolia staking rail
-- successful guided launch flow through local app and Sepolia
-- successful `mix autolaunch.verify_deploy --job <job-id>`
+- [ ] `forge build` passed
+- [ ] `forge test --offline` passed
+- [ ] Base Sepolia `$REGENT` token exists or was deployed
+- [ ] `REGENT_REVENUE_STAKING_RESULT_JSON` saved
+- [ ] `AUTOLAUNCH_INFRA_RESULT_JSON` saved
+- [ ] local `.env.local` filled with Base Sepolia values
+- [ ] `mix autolaunch.doctor` passed locally
+- [ ] local app reads the staking rail
+- [ ] XMTP bootstrap output saved
+- [ ] Regents CLI reads local app successfully
+- [ ] Fly Dragonfly deployed
+- [ ] Fly Postgres attached
+- [ ] Fly Phoenix secrets set
+- [ ] Fly Phoenix deploy succeeded
+- [ ] release migration succeeded
+- [ ] Fly `/health` passed
+- [ ] Fly app reads the staking rail
+- [ ] optional mock smoke passed and was turned off afterward
+- [ ] Regents CLI reads Fly app successfully
+- [ ] guided launch flow reached a real job
+- [ ] launch monitor reached `ready`
+- [ ] launch finalize completed or clearly reported the next action
+- [ ] `mix autolaunch.verify_deploy --job <job-id>` passed
 
-## Final warning
+## 20. Fast Failure Map
 
-This is a Base Sepolia plus Base Sepolia rehearsal configuration. It should not be confused with the eventual production Regent staking rail on Base mainnet.
+| Symptom | First check |
+| --- | --- |
+| `mix autolaunch.doctor` fails | missing deploy env, RPC, factory, or Foundry path |
+| Fly app starts then exits | `fly logs`, `SECRET_KEY_BASE`, `DATABASE_URL`, SIWA secret |
+| Fly deploy cannot compile path deps | deploy from `/Users/sean/Documents/regent`, not from `autolaunch/` |
+| launch job cannot run `forge` | check `/usr/local/bin/forge` inside Fly machine |
+| launch job times out | raise `AUTOLAUNCH_DEPLOY_TIMEOUT_MS` as a Fly secret |
+| app cannot read staking | check `REGENT_STAKING_RPC_URL` and `REGENT_REVENUE_STAKING_ADDRESS` |
+| AgentBook fails on Base Sepolia | check `BASE_SEPOLIA_RPC_URL`, AgentBook address, relay URL, and World values |
+| Dragonfly reads fail | check `DRAGONFLY_HOST`, private networking, and Dragonfly machine status |
+| CLI auth fails | refresh `AUTOLAUNCH_SESSION_COOKIE` or Privy bearer token and wallet address |
+
+## 21. Addresses to Save
+
+Keep this table in a private operator note:
+
+| Name | Address |
+| --- | --- |
+| Base Sepolia `$REGENT` token | |
+| Base Sepolia USDC | |
+| Regent revenue staking | |
+| Regent revenue treasury | |
+| Regent revenue governance Safe | |
+| Subject registry | |
+| Revenue share factory | |
+| Revenue ingress factory | |
+| LBP strategy factory | |
+| Token factory | |
+| CCA factory | |
+| Uniswap v4 pool manager | |
+| Uniswap v4 position manager | |
+| ERC-8004 identity registry | |
+| Strategy operator | |
+| Fly Phoenix app | |
+| Fly Dragonfly app | |
+| Fly hostname | |
+
+## Final Warning
+
+This is a Base Sepolia rehearsal path. Do not copy these addresses into Base mainnet production settings unless they are intentionally redeployed and verified for Base mainnet.
