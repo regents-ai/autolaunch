@@ -126,7 +126,7 @@ Use `doctor` to confirm the environment.
 
 Use `smoke` to prove the app can carry a synthetic launch through to a readable subject.
 
-Use `verify_deploy` immediately after a real launch is marked ready. It checks the live contracts for the post-deploy invariants that matter most: controller resolution from the deploy receipt, controller authorization cleanup in the shared factories, accepted ownership on the fee contracts, fee-vault canonical tokens, completed migration, recorded pool and position ids, hook-enabled state, and subject plus ingress wiring.
+Use `verify_deploy` immediately after a real launch is marked ready. It checks the live contracts for the post-deploy invariants that matter most: controller resolution from the deploy receipt, controller authorization cleanup in the shared factories, accepted ownership on the fee contracts and revenue splitter, fee-vault canonical tokens, completed migration, recorded pool and position ids, hook-enabled state, and subject plus ingress wiring.
 
 `verify_deploy` now reads the shared addresses for the launch's own Base network from the per-chain verifier address books in the environment. Keep those Base Sepolia and Base mainnet values filled in before you rely on the result.
 
@@ -234,7 +234,7 @@ That result includes the important addresses the app needs to track the launch:
 - default ingress
 - pool id
 
-The fee registry, fee vault, and fee hook now use a two-step ownership handoff. The deployment sets the Agent Safe as the pending owner. Treat those transfers as incomplete until the Safe accepts ownership.
+The fee registry, fee vault, fee hook, and revenue splitter now use a two-step ownership handoff. The deployment sets the Agent Safe as the pending owner. Treat those transfers as incomplete until the Safe accepts ownership.
 
 ### What to verify after launch deploy
 
@@ -246,8 +246,8 @@ Do not treat the launch as complete until you verify:
 4. The subject page is live.
 5. The subject has a default ingress address.
 6. The revenue splitter and subject id exist.
-7. The fee registry, fee vault, and fee hook show the Agent Safe as pending owner.
-8. The Agent Safe has accepted ownership if you need those admin controls immediately.
+7. The fee registry, fee vault, fee hook, and revenue splitter show the Agent Safe as pending owner.
+8. The Agent Safe has accepted ownership before the launch is final.
 
 ## Phase 4: Auction goes live
 

@@ -11,6 +11,12 @@ This runbook is the operator path for rehearsing Autolaunch end to end:
 
 Use Base Sepolia for this rehearsal. Do not mix this with the later Base mainnet production rail.
 
+Use the shared public beta run sheet before opening this app to users:
+
+- `/Users/sean/Documents/regent/docs/public-beta-run-sheet.md`
+
+That sheet is the stop/go record across Platform, Autolaunch, and Regents CLI.
+
 ## Operator Rules
 
 - Never paste private keys into a file committed to git.
@@ -108,8 +114,9 @@ Important notes:
 
 ```bash
 cd /Users/sean/Documents/regent/autolaunch/contracts
+forge fmt --check
 forge build
-forge test --offline
+forge test
 ```
 
 Optional local dry run:
@@ -483,12 +490,18 @@ fly secrets set --app "$AUTOLAUNCH_FLY_APP" \
   AUTOLAUNCH_TOKEN_FACTORY_ADDRESS=... \
   AUTOLAUNCH_ERC8004_SUBGRAPH_URL=... \
   AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS=... \
+  AUTOLAUNCH_BASE_SEPOLIA_UNISWAP_V4_POOL_MANAGER=... \
+  AUTOLAUNCH_BASE_SEPOLIA_REVENUE_SHARE_FACTORY_ADDRESS=... \
+  AUTOLAUNCH_BASE_SEPOLIA_REVENUE_INGRESS_FACTORY_ADDRESS=... \
+  AUTOLAUNCH_BASE_SEPOLIA_ERC8004_SUBGRAPH_URL=... \
+  AUTOLAUNCH_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS=... \
   AUTOLAUNCH_DEPLOY_WORKDIR=/app/contracts \
   AUTOLAUNCH_DEPLOY_BINARY=forge \
   AUTOLAUNCH_DEPLOY_SCRIPT_TARGET=scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript \
   AUTOLAUNCH_DEPLOY_TIMEOUT_MS=180000 \
   AUTOLAUNCH_DEPLOY_PRIVATE_KEY=... \
   AUTOLAUNCH_MOCK_DEPLOY=false \
+  REGENT_MULTISIG_ADDRESS=... \
   REGENT_STAKING_RPC_URL=... \
   REGENT_STAKING_CHAIN_ID=84532 \
   REGENT_STAKING_CHAIN_LABEL="Base Sepolia" \
@@ -641,7 +654,8 @@ The verifier checks:
 
 - controller resolution from the deploy receipt
 - controller authorization cleanup in shared factories
-- accepted ownership on fee contracts
+- accepted ownership on the fee contracts
+- accepted ownership on the revenue splitter
 - fee-vault token wiring
 - completed strategy migration
 - recorded pool and position ids
@@ -667,7 +681,9 @@ Important notes:
 A rehearsal is not done until every line is checked:
 
 - [ ] `forge build` passed
-- [ ] `forge test --offline` passed
+- [ ] `forge fmt --check` passed
+- [ ] `forge test` passed
+- [ ] public beta run sheet updated
 - [ ] Base Sepolia `$REGENT` token exists or was deployed
 - [ ] `REGENT_REVENUE_STAKING_RESULT_JSON` saved
 - [ ] `AUTOLAUNCH_INFRA_RESULT_JSON` saved
@@ -684,6 +700,7 @@ A rehearsal is not done until every line is checked:
 - [ ] Fly `/health` passed
 - [ ] Fly app reads the staking rail
 - [ ] optional mock smoke passed and was turned off afterward
+- [ ] `AUTOLAUNCH_MOCK_DEPLOY=false` confirmed before real launch jobs
 - [ ] Regents CLI reads Fly app successfully
 - [ ] guided launch flow reached a real job
 - [ ] launch monitor reached `ready`
