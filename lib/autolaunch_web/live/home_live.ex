@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.HomeLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Launch
+  alias Autolaunch.PublicChat
   alias AutolaunchWeb.LaunchComponents
   alias AutolaunchWeb.Live.Refreshable
   alias Decimal, as: D
@@ -43,6 +44,9 @@ defmodule AutolaunchWeb.HomeLive do
      |> assign(:page_title, "Autolaunch")
      |> assign(:active_view, "home")
      |> assign(:launch_steps, @launch_steps)
+     |> assign(:public_chat_form, to_form(%{"body" => ""}, as: :public_chat))
+     |> assign_public_chat()
+     |> subscribe_public_chat()
      |> assign_home_market()}
   end
 
@@ -52,6 +56,70 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_info({:autolaunch_live_update, :changed}, socket) do
     {:noreply, reload_home(socket)}
+  end
+
+  def handle_info({:xmtp_public_room, :refresh}, socket) do
+    {:noreply, assign_public_chat(socket)}
+  end
+
+  def handle_event("public_chat_join", _params, socket) do
+    case PublicChat.request_join(socket.assigns.current_human) do
+      {:ok, panel} ->
+        {:noreply, assign(socket, :public_chat, Map.put(panel, :status, nil))}
+
+      {:needs_signature, request} ->
+        {:noreply,
+         socket
+         |> assign(:public_chat, request.panel)
+         |> push_event("xmtp:sign-request", %{
+           request_id: request.request_id,
+           signature_text: request.signature_text,
+           wallet_address: request.wallet_address
+         })}
+
+      {:error, reason} ->
+        {:noreply, put_public_chat_status(socket, PublicChat.reason_message(reason))}
+    end
+  end
+
+  def handle_event(
+        "public_chat_join_signature_signed",
+        %{"request_id" => request_id, "signature" => signature},
+        socket
+      ) do
+    case PublicChat.complete_join_signature(socket.assigns.current_human, request_id, signature) do
+      {:ok, panel} ->
+        {:noreply, assign(socket, :public_chat, Map.put(panel, :status, nil))}
+
+      {:error, reason} ->
+        {:noreply, put_public_chat_status(socket, PublicChat.reason_message(reason))}
+    end
+  end
+
+  def handle_event("public_chat_join_signature_failed", _params, socket) do
+    {:noreply,
+     put_public_chat_status(socket, "Joining was not finished. Try again when you are ready.")}
+  end
+
+  def handle_event("public_chat_send", %{"public_chat" => %{"body" => body}}, socket) do
+    case PublicChat.send_message(socket.assigns.current_human, body) do
+      {:ok, panel} ->
+        {:noreply,
+         socket
+         |> assign(:public_chat, Map.put(panel, :status, nil))
+         |> assign(:public_chat_form, to_form(%{"body" => ""}, as: :public_chat))}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> put_public_chat_status(PublicChat.reason_message(reason))
+         |> assign(:public_chat_form, to_form(%{"body" => body}, as: :public_chat))}
+    end
+  end
+
+  def handle_event("public_chat_heartbeat", _params, socket) do
+    :ok = PublicChat.heartbeat(socket.assigns.current_human)
+    {:noreply, socket}
   end
 
   def render(assigns) do
@@ -169,31 +237,35 @@ defmodule AutolaunchWeb.HomeLive do
           class="al-home-dashboard-bottom"
           phx-hook="MissionMotion"
         >
-          <article class="al-panel al-home-metric-strip">
-            <div :for={item <- @metric_items} class="al-home-metric-item">
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-              <p>{item.note}</p>
-            </div>
-          </article>
+          <div class="al-home-bottom-main">
+            <article class="al-panel al-home-metric-strip">
+              <div :for={item <- @metric_items} class="al-home-metric-item">
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <p>{item.note}</p>
+              </div>
+            </article>
 
-          <article class="al-panel al-home-activity-card">
-            <div class="al-home-card-head">
-              <h3>Latest activity</h3>
-              <.link navigate={~p"/auctions"}>View all →</.link>
-            </div>
+            <article class="al-panel al-home-activity-card">
+              <div class="al-home-card-head">
+                <h3>Latest activity</h3>
+                <.link navigate={~p"/auctions"}>View all →</.link>
+              </div>
 
-            <div class="al-home-activity-list">
-              <article :for={item <- @activity_items} class="al-home-activity-row">
-                <div class="al-home-activity-dot" data-phase={item.phase}></div>
-                <div class="al-home-activity-copy">
-                  <strong>{item.title}</strong>
-                  <p>{item.note}</p>
-                </div>
-                <span>{item.value}</span>
-              </article>
-            </div>
-          </article>
+              <div class="al-home-activity-list">
+                <article :for={item <- @activity_items} class="al-home-activity-row">
+                  <div class="al-home-activity-dot" data-phase={item.phase}></div>
+                  <div class="al-home-activity-copy">
+                    <strong>{item.title}</strong>
+                    <p>{item.note}</p>
+                  </div>
+                  <span>{item.value}</span>
+                </article>
+              </div>
+            </article>
+          </div>
+
+          <.public_chat_panel room={@public_chat} form={@public_chat_form} />
         </section>
       </div>
 
@@ -202,7 +274,100 @@ defmodule AutolaunchWeb.HomeLive do
     """
   end
 
+  attr :room, :map, required: true
+  attr :form, :map, required: true
+
+  defp public_chat_panel(assigns) do
+    ~H"""
+    <aside
+      id="autolaunch-public-room"
+      class="al-panel al-home-chat-panel"
+      phx-hook="AutolaunchXmtpRoom"
+    >
+      <div class="al-home-chat-head">
+        <div>
+          <p class="al-kicker">Community room</p>
+          <h3>Read the launch room.</h3>
+          <p>Watch the room from the homepage. Join when you want to post.</p>
+        </div>
+        <div class="al-home-chat-badges">
+          <span>{room_state_label(@room)}</span>
+          <span>{Integer.to_string(@room.member_count)}/{Integer.to_string(@room.seat_count)} seats</span>
+          <span>{active_member_copy(@room)}</span>
+          <span :if={@room.connected_wallet}>{short_wallet(@room.connected_wallet)}</span>
+        </div>
+      </div>
+
+      <div class="al-home-chat-feed" data-public-chat-feed>
+        <%= if @room.messages == [] do %>
+          <div class="al-home-chat-empty">
+            <strong>No messages yet.</strong>
+            <p>Join the room, then post the first question or update.</p>
+          </div>
+        <% else %>
+          <article
+            :for={message <- @room.messages}
+            id={"public-chat-message-#{message.key}"}
+            class={["al-home-chat-message", message.side == :self && "is-self"]}
+            data-public-chat-entry
+            data-message-key={message.key}
+          >
+            <div class="al-home-chat-message-meta">
+              <span>{sender_label(message.sender_kind)}</span>
+              <span>{message.author}</span>
+              <span>{message.stamp}</span>
+            </div>
+            <p>{message.body}</p>
+          </article>
+        <% end %>
+      </div>
+
+      <div class="al-home-chat-status" data-public-chat-status>
+        {room_status_copy(@room)}
+      </div>
+
+      <button
+        :if={@room.can_join?}
+        type="button"
+        class="al-home-chat-join"
+        phx-click="public_chat_join"
+      >
+        Join room
+      </button>
+
+      <.form for={@form} id="public-chat-form" phx-submit="public_chat_send" class="al-home-chat-form">
+        <label for={@form[:body].id}>Post a message</label>
+        <textarea
+          id={@form[:body].id}
+          name={@form[:body].name}
+          rows="3"
+          placeholder="Ask a question or share an update."
+          disabled={!@room.can_send?}
+        >{Phoenix.HTML.Form.input_value(@form, :body)}</textarea>
+
+        <div class="al-home-chat-composer-row">
+          <p>{composer_copy(@room)}</p>
+          <button type="submit" disabled={!@room.can_send?}>Send</button>
+        </div>
+      </.form>
+    </aside>
+    """
+  end
+
   defp reload_home(socket), do: assign_home_market(socket)
+
+  defp subscribe_public_chat(socket) do
+    if Phoenix.LiveView.connected?(socket), do: :ok = PublicChat.subscribe()
+    socket
+  end
+
+  defp assign_public_chat(socket) do
+    assign(socket, :public_chat, PublicChat.room_panel(socket.assigns[:current_human]))
+  end
+
+  defp put_public_chat_status(socket, message) do
+    assign(socket, :public_chat, Map.put(socket.assigns.public_chat, :status, message))
+  end
 
   defp assign_home_market(socket) do
     directory =
@@ -393,6 +558,79 @@ defmodule AutolaunchWeb.HomeLive do
     |> Enum.chunk_every(3)
     |> Enum.map_join(",", &Enum.join/1)
     |> String.reverse()
+  end
+
+  defp room_status_copy(%{status: message}) when is_binary(message) and message != "",
+    do: message
+
+  defp room_status_copy(%{ready?: false}), do: "This room is unavailable right now."
+  defp room_status_copy(%{membership_state: :joined}), do: "You are in the room."
+
+  defp room_status_copy(%{membership_state: :join_pending}),
+    do: "Your room seat is being prepared."
+
+  defp room_status_copy(%{membership_state: :join_pending_signature}),
+    do: "Check your wallet to finish joining."
+
+  defp room_status_copy(%{membership_state: :leave_pending}),
+    do: "Your room seat is closing."
+
+  defp room_status_copy(%{membership_state: :setup_required}),
+    do: "Sign in with your wallet before you join this room."
+
+  defp room_status_copy(%{membership_state: :watching, seats_remaining: seats_remaining})
+       when seats_remaining > 0,
+       do: "#{seats_remaining} seats are open. Join when you are ready."
+
+  defp room_status_copy(%{seats_remaining: 0}),
+    do: "All seats are filled right now. You can still read along from this page."
+
+  defp room_status_copy(_room), do: "Read along before you join. Post once you are in."
+
+  defp room_state_label(%{ready?: false}), do: "Offline"
+  defp room_state_label(%{membership_state: :joined}), do: "In room"
+  defp room_state_label(%{membership_state: :join_pending}), do: "Joining"
+  defp room_state_label(%{membership_state: :join_pending_signature}), do: "Joining"
+  defp room_state_label(%{membership_state: :leave_pending}), do: "Leaving"
+  defp room_state_label(%{seats_remaining: 0}), do: "Full"
+  defp room_state_label(%{connected_wallet: nil}), do: "Watch only"
+  defp room_state_label(_room), do: "Ready"
+
+  defp active_member_copy(%{active_member_count: 1}), do: "1 active"
+
+  defp active_member_copy(%{active_member_count: count}) when is_integer(count),
+    do: "#{count} active"
+
+  defp active_member_copy(_room), do: "0 active"
+
+  defp sender_label(:agent), do: "Agent"
+  defp sender_label(:system), do: "System"
+  defp sender_label(_kind), do: "Person"
+
+  defp composer_copy(%{can_send?: true}),
+    do: "Keep messages short so the room stays easy to follow."
+
+  defp composer_copy(%{can_join?: true}), do: "Join the room first if you want to post."
+
+  defp composer_copy(%{membership_state: :join_pending}),
+    do: "Wait for your seat to finish opening before posting."
+
+  defp composer_copy(%{membership_state: :join_pending_signature}),
+    do: "Finish joining before posting."
+
+  defp composer_copy(%{seats_remaining: 0}), do: "Posting is closed while the room is full."
+  defp composer_copy(_room), do: "Read along here even if you are not ready to post."
+
+  defp short_wallet(nil), do: nil
+
+  defp short_wallet(wallet) when is_binary(wallet) do
+    trimmed = String.trim(wallet)
+
+    if String.length(trimmed) <= 10 do
+      trimmed
+    else
+      String.slice(trimmed, 0, 6) <> "..." <> String.slice(trimmed, -4, 4)
+    end
   end
 
   defp home_live_css, do: @home_live_css

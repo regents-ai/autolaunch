@@ -306,6 +306,8 @@ defmodule Autolaunch.Prelaunch do
       "agent_safe_address" => plan.agent_safe_address,
       "launch_notes" => plan.launch_notes,
       "wallet_address" => Map.get(attrs, "wallet_address"),
+      "registry_address" => Map.get(attrs, "registry_address"),
+      "token_id" => Map.get(attrs, "token_id"),
       "message" => Map.get(attrs, "message"),
       "signature" => Map.get(attrs, "signature"),
       "nonce" => Map.get(attrs, "nonce"),

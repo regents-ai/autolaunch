@@ -7,6 +7,8 @@ defmodule Autolaunch.Siwa do
     payload = %{
       "wallet_address" => Map.fetch!(params, :wallet_address),
       "chain_id" => Map.fetch!(params, :chain_id),
+      "registry_address" => Map.fetch!(params, :registry_address),
+      "token_id" => Map.fetch!(params, :token_id),
       "audience" => Map.get(params, :audience, "autolaunch")
     }
 
@@ -18,12 +20,12 @@ defmodule Autolaunch.Siwa do
       %{
         "wallet_address" => Map.fetch!(params, :wallet_address),
         "chain_id" => Map.fetch!(params, :chain_id),
+        "registry_address" => Map.fetch!(params, :registry_address),
+        "token_id" => Map.fetch!(params, :token_id),
         "nonce" => Map.fetch!(params, :nonce),
         "message" => Map.fetch!(params, :message),
         "signature" => Map.fetch!(params, :signature)
       }
-      |> maybe_put("registry_address", Map.get(params, :registry_address))
-      |> maybe_put("token_id", Map.get(params, :token_id))
 
     case proxy("/v1/agent/siwa/verify", payload) do
       {:ok, %{"ok" => true} = response} -> {:ok, response}
@@ -52,8 +54,4 @@ defmodule Autolaunch.Siwa do
       {:error, reason} -> {:error, reason}
     end
   end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, _key, ""), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

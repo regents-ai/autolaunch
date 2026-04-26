@@ -18,23 +18,18 @@ defmodule Autolaunch.Xmtp do
   end
 
   def subscribe do
-    ensure_manager_started!()
     Xmtp.subscribe(@manager, default_room_key())
   end
 
   def topic do
-    ensure_manager_started!()
     Xmtp.topic(@manager, default_room_key())
   end
 
   def room_server(room_key \\ default_room_key()) do
-    ensure_manager_started!()
     Xmtp.Manager.via(@manager, room_key)
   end
 
   def public_room_panel(current_human \\ nil, claims \\ %{}) do
-    ensure_manager_started!()
-
     Xmtp.public_room_panel(
       @manager,
       default_room_key(),
@@ -44,13 +39,10 @@ defmodule Autolaunch.Xmtp do
   end
 
   def request_join(current_human, claims \\ %{}) do
-    ensure_manager_started!()
     Xmtp.request_join(@manager, default_room_key(), principal(current_human), claims)
   end
 
   def complete_join_signature(current_human, request_id, signature, claims \\ %{}) do
-    ensure_manager_started!()
-
     Xmtp.complete_join_signature(
       @manager,
       default_room_key(),
@@ -62,8 +54,6 @@ defmodule Autolaunch.Xmtp do
   end
 
   def send_public_message(current_human, body) do
-    ensure_manager_started!()
-
     Xmtp.send_public_message(
       @manager,
       default_room_key(),
@@ -73,8 +63,6 @@ defmodule Autolaunch.Xmtp do
   end
 
   def invite_user(current_human_or_system, target_wallet_or_inbox) do
-    ensure_manager_started!()
-
     Xmtp.invite_user(
       @manager,
       default_room_key(),
@@ -84,8 +72,6 @@ defmodule Autolaunch.Xmtp do
   end
 
   def kick_user(current_human_or_system, target_wallet_or_inbox) do
-    ensure_manager_started!()
-
     Xmtp.kick_user(
       @manager,
       default_room_key(),
@@ -95,8 +81,6 @@ defmodule Autolaunch.Xmtp do
   end
 
   def moderator_delete_message(current_human, message_id) do
-    ensure_manager_started!()
-
     Xmtp.moderator_delete_message(
       @manager,
       default_room_key(),
@@ -110,18 +94,15 @@ defmodule Autolaunch.Xmtp do
   end
 
   def heartbeat(current_human) do
-    ensure_manager_started!()
     Xmtp.heartbeat(@manager, default_room_key(), principal(current_human))
   end
 
   def bootstrap_room!(opts \\ []) do
-    ensure_manager_started!()
     room_key = Keyword.get(opts, :room_key, default_room_key())
     Xmtp.bootstrap_room!(@manager, room_key, opts)
   end
 
   def reset_for_test! do
-    ensure_manager_started!()
     Xmtp.reset_for_test!(@manager, default_room_key())
   end
 
@@ -146,6 +127,7 @@ defmodule Autolaunch.Xmtp do
       id: human.id,
       wallet_address: human.wallet_address,
       wallet_addresses: Map.get(human, :wallet_addresses, []),
+      inbox_id: human.xmtp_inbox_id,
       display_name: human.display_name
     })
   end
@@ -158,6 +140,7 @@ defmodule Autolaunch.Xmtp do
       wallet_addresses:
         Map.get(current_human, :wallet_addresses) ||
           Map.get(current_human, "wallet_addresses", []),
+      inbox_id: Map.get(current_human, :xmtp_inbox_id) || Map.get(current_human, "xmtp_inbox_id"),
       display_name:
         Map.get(current_human, :display_name) || Map.get(current_human, "display_name")
     })
@@ -167,19 +150,4 @@ defmodule Autolaunch.Xmtp do
 
   defp actor(:system), do: :system
   defp actor(value), do: principal(value)
-
-  defp ensure_manager_started! do
-    case Process.whereis(@manager) do
-      nil ->
-        {:ok, _pid} =
-          child_spec([])
-          |> Supervisor.child_spec(id: @manager)
-          |> then(&Supervisor.start_link([&1], strategy: :one_for_one))
-
-        :ok
-
-      _pid ->
-        :ok
-    end
-  end
 end

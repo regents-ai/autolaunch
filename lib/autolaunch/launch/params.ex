@@ -11,7 +11,7 @@ defmodule Autolaunch.Launch.Params do
     launch_notes
   )a
   @create_job_keys @preview_keys ++
-                     ~w(wallet_address message signature nonce issued_at broadcast)a
+                     ~w(wallet_address registry_address token_id message signature nonce issued_at broadcast)a
   @quote_keys ~w(amount max_price estimated_tokens_if_end_now estimated_tokens_if_no_other_bids_change inactive_above_price status_band projected_clearing_price current_clearing_price tx_hash)a
   @position_filter_keys ~w(status)a
   @auction_filter_keys ~w(mode sort)a

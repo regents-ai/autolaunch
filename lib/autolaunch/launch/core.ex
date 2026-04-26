@@ -184,14 +184,14 @@ defmodule Autolaunch.Launch.Core do
         launch_blockers: [],
         permanence_notes: [
           "One ERC-8004 identity can launch at most one Agent Coin.",
-          "AgentLaunchToken supply is fixed at 100 billion from launch.",
+          "Agent Coin supply is fixed at 100 billion from launch.",
           "The Agent Safe is locked into the launch configuration you sign.",
           "Only Base USDC that reaches the subject revenue wallet appears in subject revenue totals."
         ],
         next_steps: [
-          "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
+          "Confirm the launch with the wallet that owns this Agent account.",
           "Queue the Base-family launch deployment.",
-          "Wait for the deploy script to return the strategy, vesting wallet, fee hook, subject registry, revenue splitter, and ingress addresses.",
+          "Wait for launch setup to finish and show the new launch addresses.",
           "Wait for the auction page, then stake claimed tokens to earn Base USDC from that subject."
         ],
         launch_notes: launch_notes,
@@ -226,6 +226,8 @@ defmodule Autolaunch.Launch.Core do
     with :ok <- ensure_authenticated_human(human),
          {:ok, preview} <- preview_launch(attrs, human),
          {:ok, wallet_address} <- required_address(Map.get(attrs, :wallet_address)),
+         {:ok, registry_address} <- required_address(Map.get(attrs, :registry_address)),
+         {:ok, token_id} <- required_text(Map.get(attrs, :token_id), 255, :token_id_required),
          {:ok, message} <- required_text(Map.get(attrs, :message), 8_000, :message_required),
          {:ok, signature} <-
            required_text(Map.get(attrs, :signature), 4_000, :signature_required),
@@ -236,6 +238,8 @@ defmodule Autolaunch.Launch.Core do
            Siwa.verify_wallet_signature(%{
              wallet_address: wallet_address,
              chain_id: chain_id,
+             registry_address: registry_address,
+             token_id: token_id,
              nonce: nonce,
              message: message,
              signature: signature

@@ -15,6 +15,7 @@ defmodule Autolaunch.Application do
         {Phoenix.PubSub, name: Autolaunch.PubSub},
         {Task.Supervisor, name: Autolaunch.TaskSupervisor},
         Autolaunch.XmtpIdentity,
+        Autolaunch.Xmtp,
         AutolaunchWeb.Endpoint
       ] ++ dragonfly_children
 

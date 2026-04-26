@@ -149,4 +149,30 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
     assert html =~ "Send USDC deposit"
     assert html =~ "0xdeposit"
   end
+
+  test "anonymous visitors cannot prepare treasury actions", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/regent-staking")
+
+    html =
+      view
+      |> form("form[phx-change='deposit_changed']", %{
+        "deposit" => %{
+          "amount" => "2.0",
+          "source_tag" => "manual",
+          "source_ref" => "regent-staking"
+        }
+      })
+      |> render_change()
+
+    assert html =~ "Prepare USDC deposit"
+
+    html =
+      view
+      |> element("#regent-deposit-usdc")
+      |> render_click()
+
+    assert html =~ "Connect a wallet first."
+    refute html =~ "Send USDC deposit"
+    refute html =~ "0xdeposit"
+  end
 end

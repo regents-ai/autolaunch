@@ -5,6 +5,8 @@ Autolaunch helps an agent with a real edge turn that edge into runway. It gives 
 If you already have an agent, use [`regents-cli`](../regents-cli) and start with:
 
 ```bash
+regents auth login --audience autolaunch
+regents identity ensure
 regents autolaunch prelaunch wizard
 ```
 
@@ -33,6 +35,8 @@ Autolaunch is built for agents that can earn but need capital before revenue cat
 Use `regents-cli` for launch work:
 
 ```bash
+regents auth login --audience autolaunch
+regents identity ensure
 regents autolaunch safe wizard
 regents autolaunch safe create
 regents autolaunch prelaunch wizard
@@ -123,7 +127,7 @@ The main product routes are:
 - `/subjects/:id` for subject status, staking, claims, revenue routing, ingress, and available actions
 - `/agentbook` for the human proof flow
 - `/health` for readiness checks
-- `/v1/agent/siwa/nonce` and `/v1/agent/siwa/verify` for SIWA
+- `/v1/agent/*` for commands signed by a saved Autolaunch sign-in
 - `/v1/auth/privy/session` for browser session exchange
 - `/v1/auth/privy/xmtp/complete` for finishing wallet-backed XMTP room setup after the browser session opens
 - `/v1/app/prelaunch/*` for saved launch drafts, hosted metadata, and upload-backed launch assets
@@ -156,11 +160,11 @@ The full environment list lives in [.env.example](.env.example). For local work,
 - App runtime: `DATABASE_URL` or `LOCAL_DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`
 - Privy auth: `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`, `AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY`
 - Internal XMTP sync auth: `AUTOLAUNCH_INTERNAL_SHARED_SECRET`
-- SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`, `SIWA_HMAC_SECRET`
+- SIWA sidecar: `SIWA_INTERNAL_URL`, `SIWA_SHARED_SECRET`
 - Launch deployment: `AUTOLAUNCH_RPC_URL`, `AUTOLAUNCH_CCA_FACTORY_ADDRESS`, `AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER`, `AUTOLAUNCH_USDC_ADDRESS`, `AUTOLAUNCH_DEPLOY_WORKDIR`, `AUTOLAUNCH_DEPLOY_BINARY`, `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET`, `AUTOLAUNCH_DEPLOY_ACCOUNT` or `AUTOLAUNCH_DEPLOY_PRIVATE_KEY`
 - Launch contracts: `REVENUE_SHARE_FACTORY_ADDRESS`, `REVENUE_INGRESS_FACTORY_ADDRESS`, `LBP_STRATEGY_FACTORY_ADDRESS`, `TOKEN_FACTORY_ADDRESS`, `AUTOLAUNCH_ERC8004_SUBGRAPH_URL`
 - Base identity lookups: `AUTOLAUNCH_BASE_MAINNET_RPC_URL`, `AUTOLAUNCH_BASE_SEPOLIA_RPC_URL`, `AUTOLAUNCH_BASE_MAINNET_ERC8004_SUBGRAPH_URL`, `AUTOLAUNCH_BASE_SEPOLIA_ERC8004_SUBGRAPH_URL`, `AUTOLAUNCH_BASE_MAINNET_IDENTITY_REGISTRY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS`
-- Base verifier address books: `AUTOLAUNCH_BASE_MAINNET_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_BASE_SEPOLIA_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_BASE_MAINNET_USDC_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_USDC_ADDRESS`, `AUTOLAUNCH_BASE_MAINNET_REVENUE_SHARE_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_REVENUE_SHARE_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_MAINNET_REVENUE_INGRESS_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_REVENUE_INGRESS_FACTORY_ADDRESS`
+- Base verifier address books: `AUTOLAUNCH_BASE_MAINNET_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_BASE_SEPOLIA_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_BASE_MAINNET_REVENUE_SHARE_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_REVENUE_SHARE_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_MAINNET_REVENUE_INGRESS_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_REVENUE_INGRESS_FACTORY_ADDRESS`
 - Launch-script ambient env: `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, `CCA_FLOOR_PRICE_Q96`, `CCA_TICK_SPACING_Q96`, `CCA_REQUIRED_CURRENCY_RAISED`, optional `CCA_VALIDATION_HOOK`, optional `CCA_CLAIM_BLOCK_OFFSET`
 - Regent staking rail: `REGENT_STAKING_RPC_URL`, `REGENT_STAKING_CHAIN_ID`, `REGENT_STAKING_CHAIN_LABEL`, `REGENT_REVENUE_STAKING_ADDRESS`
 - AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`

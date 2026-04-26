@@ -73,13 +73,13 @@
     "launch_blockers": [],
     "permanence_notes": [
       "One ERC-8004 identity can launch at most one Agent Coin.",
-      "AgentLaunchToken supply is fixed at 100 billion from launch.",
+      "Agent Coin supply is fixed at 100 billion from launch.",
       "The Agent Safe is locked into the launch configuration you sign."
     ],
     "next_steps": [
-      "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
+      "Confirm the launch with the wallet that owns this Agent account.",
       "Queue the Base Sepolia launch deployment.",
-      "Wait for the deploy script to return the strategy, vesting wallet, fee hook, subject registry, revenue splitter, and ingress addresses."
+      "Wait for launch setup to finish and show the new launch addresses."
     ],
     "launch_notes": "Launch runs on Base Sepolia only.",
     "completion_plan": {

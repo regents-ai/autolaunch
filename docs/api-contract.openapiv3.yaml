@@ -1815,7 +1815,10 @@ components:
       type: apiKey
       in: header
       name: x-siwa-receipt
-      description: Placeholder for the signed SIWA header bundle used by authenticated agent requests.
+      description: >
+        Signed Agent account header bundle for authenticated agent requests. The current
+        shape includes the receipt, signature, signature-input, key ID, timestamp, wallet,
+        chain, registry address, token ID, and content digest when the request has a body.
   parameters:
     AgentId:
       name: id
@@ -2151,9 +2154,11 @@ components:
       additionalProperties: false
     LaunchPlanRequest:
       type: object
-      required: [wallet_address, nonce, message, signature, issued_at]
+      required: [wallet_address, registry_address, token_id, nonce, message, signature, issued_at]
       properties:
         wallet_address: { $ref: "#/components/schemas/Address" }
+        registry_address: { $ref: "#/components/schemas/Address" }
+        token_id: { type: string }
         nonce: { type: string }
         message: { type: string }
         signature: { type: string }
@@ -2254,9 +2259,11 @@ components:
       allOf:
         - $ref: "#/components/schemas/LaunchPreviewRequest"
         - type: object
-          required: [wallet_address, nonce, message, signature, issued_at]
+          required: [wallet_address, registry_address, token_id, nonce, message, signature, issued_at]
           properties:
             wallet_address: { $ref: "#/components/schemas/Address" }
+            registry_address: { $ref: "#/components/schemas/Address" }
+            token_id: { type: string }
             nonce: { type: string }
             message: { type: string }
             signature: { type: string }

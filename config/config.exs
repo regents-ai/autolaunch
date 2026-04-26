@@ -27,10 +27,10 @@ config :autolaunch, :launch,
 config :autolaunch, Autolaunch.Xmtp,
   rooms: [
     %{
-      key: "autolaunch_wire",
-      name: "Autolaunch Wire",
+      key: "public-chatbox",
+      name: "Autolaunch Room",
       description: "The shared Autolaunch chat room.",
-      app_data: "autolaunch-wire",
+      app_data: "public-chatbox",
       agent_private_key: nil,
       moderator_wallets: [],
       capacity: 200,

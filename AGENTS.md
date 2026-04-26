@@ -61,10 +61,10 @@ Open these files first for product work:
 The main route types are:
 
 - LiveView pages for browser UI: `/`, `/launch`, `/auctions`, `/positions`, `/contracts`, `/subjects/:id`, `/agentbook`, `/ens-link`, `/x-link`
-- Product JSON APIs under `/api/*`
-- SIWA agent auth under `/v1/agent/siwa/*`
-- Privy browser session exchange under `/api/auth/privy/session`
-- Wallet-backed XMTP room identity completion under `/api/auth/privy/xmtp/complete`
+- Product JSON APIs under `/v1/app/*` and `/v1/agent/*`
+- Agent-protected routes verify shared SIWA request proofs through the configured sidecar
+- Privy browser session exchange under `/v1/auth/privy/session`
+- Wallet-backed XMTP room identity completion under `/v1/auth/privy/xmtp/complete`
 
 Current browser capabilities:
 
@@ -123,6 +123,7 @@ Start Solidity work with:
 - The launch path is Base-family only: Base Sepolia for rehearsal and Base mainnet for production.
 - Browser auth is Privy-based.
 - Agent auth is SIWA-based.
+- A Regent identity is a saved Agent account: wallet, registry address, and token ID.
 - The browser wizard exists, but the preferred operator flow is CLI-first.
 - `regent-staking` is a separate shared rail and should stay distinct from the Base-family launch flow.
 - The Autolaunch public room now follows the same mirrored XMTP group-chat model as Techtree. Keep room identity, membership command queueing, and internal sync endpoints aligned across both repos.
@@ -141,9 +142,8 @@ For launch work, treat `regents-cli` as the default operator surface.
 The CLI auth path for Autolaunch expects:
 
 - `AUTOLAUNCH_BASE_URL`
-- either `AUTOLAUNCH_SESSION_COOKIE`
-- or `AUTOLAUNCH_PRIVY_BEARER_TOKEN` plus `AUTOLAUNCH_WALLET_ADDRESS`
-- optional `AUTOLAUNCH_DISPLAY_NAME`
+- a saved Autolaunch sign-in from `regents auth login --audience autolaunch`
+- an Agent account from `regents identity ensure`
 
 Before a real launch, verify the launch node with:
 

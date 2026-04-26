@@ -12,9 +12,6 @@ defmodule Autolaunch.Accounts.HumanUser do
     field :display_name, :string
     field :role, :string, default: "user"
 
-    has_many :membership_commands, Autolaunch.XMTPMirror.XmtpMembershipCommand,
-      foreign_key: :human_user_id
-
     timestamps()
   end
 

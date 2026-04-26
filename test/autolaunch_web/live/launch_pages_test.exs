@@ -60,7 +60,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
            agent_safe_address: "0x1111111111111111111111111111111111111111"
          },
          next_steps: [
-           "Sign the SIWA message with a linked wallet that controls this ERC-8004 identity.",
+           "Confirm the launch with the wallet that owns this Agent account.",
            "Queue deploy job.",
            "Wait for the auction page to go live."
          ],

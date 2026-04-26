@@ -22,6 +22,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
      })
      |> assign(:treasury_form, %{"amount" => "", "recipient" => ""})
      |> assign(:pending_actions, %{})
+     |> assign(:action_error, nil)
      |> load_staking()}
   end
 
@@ -71,6 +72,12 @@ defmodule AutolaunchWeb.RegentStakingLive do
       <.regent_staking_styles />
 
       <section id="regent-staking-page" class="al-regent-staking">
+        <.flash_group flash={@flash} />
+
+        <%= if @action_error do %>
+          <p class="al-regent-inline-error" role="alert">{@action_error}</p>
+        <% end %>
+
         <header id="regent-staking-hero" class="al-regent-hero" phx-hook="MissionMotion">
           <div>
             <p class="al-kicker">$REGENT staking</p>
@@ -401,19 +408,19 @@ defmodule AutolaunchWeb.RegentStakingLive do
   end
 
   defp prepare_action(socket, "deposit_usdc") do
-    prepare(socket, :deposit_usdc, fn _human ->
+    prepare_operator_action(socket, :deposit_usdc, fn ->
       context_module().prepare_deposit_usdc(socket.assigns.deposit_form)
     end)
   end
 
   defp prepare_action(socket, "withdraw_treasury") do
-    prepare(socket, :withdraw_treasury, fn _human ->
+    prepare_operator_action(socket, :withdraw_treasury, fn ->
       context_module().prepare_withdraw_treasury(socket.assigns.treasury_form)
     end)
   end
 
   defp prepare_action(socket, _unknown) do
-    put_flash(socket, :error, "That staking action is not available.")
+    put_action_error(socket, "That staking action is not available.")
   end
 
   defp prepare(socket, key, fun) do
@@ -425,12 +432,37 @@ defmodule AutolaunchWeb.RegentStakingLive do
         put_pending(socket, key, %{tx_request: tx_request, prepared: prepared})
 
       {:error, reason} ->
-        put_flash(socket, :error, action_error(reason))
+        put_action_error(socket, action_error(reason))
+    end
+  end
+
+  defp prepare_operator_action(%{assigns: %{current_human: nil}} = socket, _key, _fun) do
+    put_action_error(socket, action_error(:unauthorized))
+  end
+
+  defp prepare_operator_action(socket, key, fun) do
+    case fun.() do
+      {:ok, %{tx_request: tx_request}} ->
+        put_pending(socket, key, %{tx_request: tx_request})
+
+      {:ok, %{prepared: %{tx_request: tx_request}} = prepared} ->
+        put_pending(socket, key, %{tx_request: tx_request, prepared: prepared})
+
+      {:error, reason} ->
+        put_action_error(socket, action_error(reason))
     end
   end
 
   defp put_pending(socket, key, prepared) do
-    assign(socket, :pending_actions, Map.put(socket.assigns.pending_actions, key, prepared))
+    socket
+    |> assign(:action_error, nil)
+    |> assign(:pending_actions, Map.put(socket.assigns.pending_actions, key, prepared))
+  end
+
+  defp put_action_error(socket, message) do
+    socket
+    |> assign(:action_error, message)
+    |> put_flash(:error, message)
   end
 
   defp load_staking(socket) do
@@ -512,6 +544,14 @@ defmodule AutolaunchWeb.RegentStakingLive do
         max-width: 62ch;
         margin: 0.7rem 0 0;
         color: color-mix(in oklab, currentColor 68%, transparent);
+      }
+
+      .al-regent-inline-error {
+        margin: 0;
+        padding: 0.78rem 0.95rem;
+        border: 1px solid color-mix(in oklab, #af4b25 30%, transparent);
+        background: color-mix(in oklab, #af4b25 10%, transparent);
+        border-radius: 6px;
       }
 
       .al-regent-status {

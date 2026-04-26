@@ -1,10 +1,28 @@
 version: 1
 product: autolaunch
+help:
+  story: >
+    A Regent identity is a saved Agent account. An Agent account is a wallet plus
+    registry address plus token ID. Autolaunch commands use
+    `regents auth login --audience autolaunch`, then `regents identity ensure`,
+    then the protected command.
+  output_modes:
+    human: Panels, tables, status lines, examples, and next-step hints.
+    json: Raw JSON for scripts when `--json` is supported or stdout is not a terminal.
+  terminal_constraints:
+    - Honor NO_COLOR.
+    - Avoid rich formatting for non-TTY output and TERM=dumb.
+    - Keep command-level help scoped to the requested command group.
 command_groups:
   - name: agents-trust
     interface: http
     auth_mode: agent-siwa
+    auth_audience: autolaunch
     output_envelope: loose-object
+    help:
+      summary: List and inspect launchable Agent account projects.
+      usage: regents autolaunch agents list
+      next_step: Use `regents autolaunch agent readiness <id>`.
     commands:
       - autolaunch agents list
       - autolaunch agent <id>
@@ -17,7 +35,12 @@ command_groups:
   - name: prelaunch-launch
     interface: mixed
     auth_mode: agent-siwa
+    auth_audience: autolaunch
     output_envelope: launch-envelopes
+    help:
+      summary: Prepare, validate, publish, and launch an Agent account project.
+      usage: regents autolaunch prelaunch wizard
+      next_step: Use `regents autolaunch jobs watch <job-id>`.
     commands:
       - autolaunch prelaunch wizard
       - autolaunch prelaunch show
@@ -63,6 +86,7 @@ command_groups:
   - name: markets-subjects
     interface: http
     auth_mode: agent-siwa
+    auth_audience: autolaunch
     output_envelope: market-envelopes
     commands:
       - autolaunch auctions list
@@ -106,6 +130,7 @@ command_groups:
   - name: ens-contracts
     interface: http
     auth_mode: agent-siwa
+    auth_audience: autolaunch
     output_envelope: prepared-action-or-status
     commands:
       - autolaunch ens plan

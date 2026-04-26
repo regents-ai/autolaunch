@@ -121,6 +121,81 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     assert Enum.any?(items, &(&1["agent_id"] == "84532:42"))
   end
 
+  test "agent SIWA verification receives the exact signed query path", %{conn: conn} do
+    original_siwa_cfg = Application.get_env(:autolaunch, :siwa, [])
+    port = available_port()
+    :persistent_term.put({Autolaunch.TestSupport.SiwaBrokerStub, :observer}, self())
+
+    start_supervised!(
+      {Bandit, plug: Autolaunch.TestSupport.SiwaBrokerStub, ip: {127, 0, 0, 1}, port: port}
+    )
+
+    Application.put_env(:autolaunch, :siwa,
+      internal_url: "http://127.0.0.1:#{port}",
+      shared_secret: @receipt_secret,
+      http_connect_timeout_ms: 2_000,
+      http_receive_timeout_ms: 5_000
+    )
+
+    on_exit(fn ->
+      :persistent_term.erase({Autolaunch.TestSupport.SiwaBrokerStub, :observer})
+      Application.put_env(:autolaunch, :siwa, original_siwa_cfg)
+    end)
+
+    conn
+    |> put_req_header("accept", "application/json")
+    |> put_req_header("x-agent-wallet-address", @wallet)
+    |> put_req_header("x-agent-chain-id", "84532")
+    |> put_req_header("x-agent-registry-address", @registry)
+    |> put_req_header("x-agent-token-id", @token_id)
+    |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
+    |> get("/v1/agent/agents?launchable=true")
+
+    assert_receive {:siwa_http_verify,
+                    %{"method" => "GET", "path" => "/v1/agent/agents?launchable=true"}}
+  end
+
+  test "agent SIWA verification receives the signed request body", %{conn: conn} do
+    original_siwa_cfg = Application.get_env(:autolaunch, :siwa, [])
+    port = available_port()
+    :persistent_term.put({Autolaunch.TestSupport.SiwaBrokerStub, :observer}, self())
+
+    start_supervised!(
+      {Bandit, plug: Autolaunch.TestSupport.SiwaBrokerStub, ip: {127, 0, 0, 1}, port: port}
+    )
+
+    Application.put_env(:autolaunch, :siwa,
+      internal_url: "http://127.0.0.1:#{port}",
+      shared_secret: @receipt_secret,
+      http_connect_timeout_ms: 2_000,
+      http_receive_timeout_ms: 5_000
+    )
+
+    on_exit(fn ->
+      :persistent_term.erase({Autolaunch.TestSupport.SiwaBrokerStub, :observer})
+      Application.put_env(:autolaunch, :siwa, original_siwa_cfg)
+    end)
+
+    conn
+    |> put_req_header("accept", "application/json")
+    |> put_req_header("content-type", "application/json")
+    |> put_req_header("x-agent-wallet-address", @wallet)
+    |> put_req_header("x-agent-chain-id", "84532")
+    |> put_req_header("x-agent-registry-address", @registry)
+    |> put_req_header("x-agent-token-id", @token_id)
+    |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
+    |> post("/v1/agent/launch/preview", Jason.encode!(%{"agent_id" => "84532:42"}))
+
+    assert_receive {:siwa_http_verify,
+                    %{
+                      "method" => "POST",
+                      "path" => "/v1/agent/launch/preview",
+                      "body" => body
+                    }}
+
+    assert Jason.decode!(body) == %{"agent_id" => "84532:42"}
+  end
+
   defp available_port do
     {:ok, socket} =
       :gen_tcp.listen(0, [:binary, packet: :raw, active: false, ip: {127, 0, 0, 1}])

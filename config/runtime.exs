@@ -74,10 +74,10 @@ if config_env() != :test do
   config :autolaunch, Autolaunch.Xmtp,
     rooms: [
       %{
-        key: "autolaunch_wire",
-        name: "Autolaunch Wire",
+        key: "public-chatbox",
+        name: "Autolaunch Room",
         description: "The shared Autolaunch chat room.",
-        app_data: "autolaunch-wire",
+        app_data: "public-chatbox",
         agent_private_key: env.("AUTOLAUNCH_XMTP_AGENT_PRIVATE_KEY", ""),
         moderator_wallets: [],
         capacity: 200,

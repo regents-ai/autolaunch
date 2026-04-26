@@ -6,7 +6,8 @@
 #autolaunch-home-dashboard .al-home-dashboard-hero,
 #autolaunch-home-dashboard .al-home-dashboard-card,
 #autolaunch-home-dashboard .al-home-metric-strip,
-#autolaunch-home-dashboard .al-home-activity-card {
+#autolaunch-home-dashboard .al-home-activity-card,
+#autolaunch-home-dashboard .al-home-chat-panel {
   border-radius: 1.75rem;
   background:
     linear-gradient(180deg, color-mix(in oklab, var(--al-panel-strong) 96%, white 4%), var(--al-panel)),
@@ -291,7 +292,13 @@
 
 #autolaunch-home-dashboard .al-home-dashboard-bottom {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.95fr);
+  grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+#autolaunch-home-dashboard .al-home-bottom-main {
+  display: grid;
   gap: 1rem;
 }
 
@@ -339,10 +346,173 @@
   background: #2563eb;
 }
 
+#autolaunch-home-dashboard .al-home-chat-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+  position: sticky;
+  top: 1rem;
+  overflow: hidden;
+  border-color: color-mix(in oklab, var(--al-accent) 15%, var(--al-border));
+}
+
+#autolaunch-home-dashboard .al-home-chat-head {
+  display: grid;
+  gap: 1rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-head h3 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+}
+
+#autolaunch-home-dashboard .al-home-chat-head p {
+  margin: 0.35rem 0 0;
+  color: var(--al-muted);
+  line-height: 1.5;
+}
+
+#autolaunch-home-dashboard .al-home-chat-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-badges span {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--al-border) 75%, white 25%);
+  background: color-mix(in oklab, var(--al-panel-strong) 88%, white 12%);
+  color: color-mix(in oklab, var(--al-text) 72%, var(--al-muted) 28%);
+  font-size: 0.75rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  max-height: 27rem;
+  min-height: 16rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-empty {
+  min-height: 14rem;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1rem;
+  border-radius: 1.15rem;
+  border: 1px dashed color-mix(in oklab, var(--al-border) 75%, white 25%);
+  color: var(--al-muted);
+}
+
+#autolaunch-home-dashboard .al-home-chat-empty strong {
+  display: block;
+  color: var(--al-text);
+  font-family: var(--al-font-display);
+  font-size: 1.08rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-empty p {
+  margin: 0.35rem 0 0;
+  line-height: 1.5;
+}
+
+#autolaunch-home-dashboard .al-home-chat-message {
+  padding: 0.9rem;
+  border-radius: 1.05rem;
+  border: 1px solid color-mix(in oklab, var(--al-border) 72%, white 28%);
+  background: color-mix(in oklab, var(--al-panel-strong) 84%, white 16%);
+}
+
+#autolaunch-home-dashboard .al-home-chat-message.is-self {
+  border-color: color-mix(in oklab, var(--al-accent) 25%, var(--al-border));
+  background: color-mix(in oklab, var(--al-accent) 8%, var(--al-panel-strong));
+}
+
+#autolaunch-home-dashboard .al-home-chat-message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  color: var(--al-muted);
+  font-size: 0.72rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-message p {
+  margin: 0.45rem 0 0;
+  line-height: 1.55;
+}
+
+#autolaunch-home-dashboard .al-home-chat-status {
+  padding: 0.85rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--al-border) 72%, white 28%);
+  background: color-mix(in oklab, var(--al-panel-strong) 86%, white 14%);
+  color: color-mix(in oklab, var(--al-text) 82%, var(--al-muted) 18%);
+  line-height: 1.5;
+}
+
+#autolaunch-home-dashboard .al-home-chat-join,
+#autolaunch-home-dashboard .al-home-chat-form button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--al-text);
+  color: var(--al-panel-strong);
+  padding: 0.72rem 1rem;
+  cursor: pointer;
+}
+
+#autolaunch-home-dashboard .al-home-chat-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-form label {
+  color: var(--al-muted);
+  font-size: 0.8rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-form textarea {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--al-border) 72%, white 28%);
+  background: color-mix(in oklab, var(--al-panel-strong) 92%, white 8%);
+  color: var(--al-text);
+  padding: 0.85rem;
+  line-height: 1.5;
+}
+
+#autolaunch-home-dashboard .al-home-chat-form textarea:disabled,
+#autolaunch-home-dashboard .al-home-chat-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+#autolaunch-home-dashboard .al-home-chat-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+#autolaunch-home-dashboard .al-home-chat-composer-row p {
+  margin: 0;
+  color: var(--al-muted);
+  line-height: 1.45;
+}
+
 @media (max-width: 1100px) {
   #autolaunch-home-dashboard .al-home-dashboard-grid,
   #autolaunch-home-dashboard .al-home-dashboard-bottom {
     grid-template-columns: 1fr;
+  }
+
+  #autolaunch-home-dashboard .al-home-chat-panel {
+    position: static;
   }
 
   #autolaunch-home-dashboard .al-home-metric-strip {

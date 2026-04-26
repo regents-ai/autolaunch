@@ -6,7 +6,6 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.Siwa.Config
-  alias Autolaunch.SiwaReceipt
 
   @http_verify_path "/v1/agent/siwa/http-verify"
   @audience "autolaunch"
@@ -22,8 +21,7 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
         Map.put(acc, String.downcase(key), value)
       end)
 
-    with :ok <- verify_receipt(headers),
-         {:ok, claims} <- verify_with_broker(conn, headers) do
+    with {:ok, claims} <- verify_with_broker(conn, headers) do
       conn
       |> assign(:current_agent_claims, claims)
       |> maybe_assign_current_human(claims)
@@ -99,7 +97,7 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
   defp build_http_verify_payload(conn, headers) do
     base_payload = %{
       "method" => conn.method,
-      "path" => conn.request_path,
+      "path" => signed_path(conn),
       "headers" => headers
     }
 
@@ -109,21 +107,8 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
     end
   end
 
-  defp verify_receipt(headers) do
-    with {:ok, secret} <- fetch_shared_secret() do
-      case SiwaReceipt.verify_request_headers(headers, audience: @audience, secret: secret) do
-        {:ok, _claims} -> :ok
-        {:error, _reason} -> {:error, :siwa_auth_denied}
-      end
-    end
-  end
-
-  defp fetch_shared_secret do
-    case Application.get_env(:autolaunch, :siwa, []) |> Keyword.get(:shared_secret) do
-      secret when is_binary(secret) and secret != "" -> {:ok, secret}
-      _ -> {:error, :invalid_siwa_config}
-    end
-  end
+  defp signed_path(%{request_path: path, query_string: ""}), do: path
+  defp signed_path(%{request_path: path, query_string: query}), do: path <> "?" <> query
 
   defp ensure_hex_address(value) when is_binary(value) do
     if value =~ @hex_address_regex, do: :ok, else: {:error, :invalid_agent_header}

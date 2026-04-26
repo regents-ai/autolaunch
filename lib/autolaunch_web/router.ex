@@ -36,11 +36,6 @@ defmodule AutolaunchWeb.Router do
     plug AutolaunchWeb.Plugs.RequireAgentSiwa
   end
 
-  pipeline :api_internal do
-    plug :accepts, ["json"]
-    plug AutolaunchWeb.Plugs.RequireInternalSharedSecret
-  end
-
   scope "/", AutolaunchWeb do
     pipe_through :browser
 
@@ -81,16 +76,6 @@ defmodule AutolaunchWeb.Router do
     post "/privy/xmtp/complete", PrivySessionController, :complete_xmtp
     get "/privy/profile", PrivySessionController, :show
     delete "/privy/session", PrivySessionController, :delete
-  end
-
-  scope "/v1/internal", AutolaunchWeb do
-    pipe_through :api_internal
-
-    get "/xmtp/shards", InternalXmtpController, :list_shards
-    post "/xmtp/rooms/ensure", InternalXmtpController, :ensure_room
-    post "/xmtp/messages/ingest", InternalXmtpController, :ingest_message
-    post "/xmtp/commands/lease", InternalXmtpController, :lease_command
-    post "/xmtp/commands/:id/resolve", InternalXmtpController, :resolve_command
   end
 
   scope "/v1/auth/agent", AutolaunchWeb do
