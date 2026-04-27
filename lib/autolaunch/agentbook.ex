@@ -4,6 +4,7 @@ defmodule Autolaunch.Agentbook do
   import Ecto.Query, warn: false
 
   alias AgentWorld.Error
+  alias Autolaunch.Agentbook.ReadModel
   alias Autolaunch.Agentbook.Session
   alias Autolaunch.Launch
   alias Autolaunch.Repo
@@ -12,14 +13,14 @@ defmodule Autolaunch.Agentbook do
     with {:ok, created} <- registration_module().create_session(attrs),
          {:ok, created} <- normalize_created_session(created, attrs),
          {:ok, session} <- persist_created_session(created) do
-      {:ok, serialize_session(session)}
+      {:ok, ReadModel.session(session)}
     end
   end
 
   def get_session(session_id) when is_binary(session_id) do
     case Repo.get(Session, session_id) do
       nil -> nil
-      session -> serialize_session(session)
+      session -> ReadModel.session(session)
     end
   end
 
@@ -27,7 +28,7 @@ defmodule Autolaunch.Agentbook do
     with %Session{} = session <- Repo.get(Session, session_id),
          {:ok, updated} <- submit_session_payload(session, attrs),
          {:ok, persisted} <- persist_updated_session(session, updated) do
-      {:ok, serialize_session(persisted)}
+      {:ok, ReadModel.session(persisted)}
     else
       nil -> {:error, :session_not_found}
       {:error, _} = error -> error
@@ -44,7 +45,7 @@ defmodule Autolaunch.Agentbook do
              deep_link_uri: connector_uri
            })
            |> Repo.update() do
-      {:ok, serialize_session(updated)}
+      {:ok, ReadModel.session(updated)}
     else
       nil -> {:error, :session_not_found}
       {:error, changeset} -> {:error, changeset}
@@ -57,7 +58,7 @@ defmodule Autolaunch.Agentbook do
            session
            |> Session.update_changeset(%{status: "failed", error_text: to_string(message)})
            |> Repo.update() do
-      {:ok, serialize_session(updated)}
+      {:ok, ReadModel.session(updated)}
     else
       nil -> {:error, :session_not_found}
       {:error, changeset} -> {:error, changeset}
@@ -101,7 +102,7 @@ defmodule Autolaunch.Agentbook do
 
   def list_recent_sessions(limit \\ 8) do
     Repo.all(from session in Session, order_by: [desc: session.inserted_at], limit: ^limit)
-    |> Enum.map(&serialize_session/1)
+    |> Enum.map(&ReadModel.session/1)
   end
 
   defp persist_created_session(created) do
@@ -123,7 +124,7 @@ defmodule Autolaunch.Agentbook do
       connector_uri: created.connector_uri,
       deep_link_uri: created.deep_link_uri,
       proof_payload: created.proof_payload,
-      tx_request: serialize_tx_request(created.tx_request),
+      tx_request: ReadModel.tx_request(created.tx_request),
       status: status_string(created.status),
       tx_hash: created.tx_hash,
       human_id: created.human_id,
@@ -169,7 +170,7 @@ defmodule Autolaunch.Agentbook do
     |> Session.update_changeset(%{
       status: status_string(updated.status),
       proof_payload: updated.proof_payload || session.proof_payload,
-      tx_request: serialize_tx_request(updated.tx_request) || session.tx_request,
+      tx_request: ReadModel.tx_request(updated.tx_request) || session.tx_request,
       tx_hash: updated.tx_hash || session.tx_hash,
       human_id: updated.human_id || session.human_id,
       error_text: updated.error_text,
@@ -178,34 +179,6 @@ defmodule Autolaunch.Agentbook do
     })
     |> Repo.update()
     |> maybe_attach_human_identity()
-  end
-
-  defp serialize_session(%Session{} = session) do
-    %{
-      session_id: session.session_id,
-      launch_job_id: session.launch_job_id,
-      status: session.status,
-      agent_address: session.agent_address,
-      network: session.network,
-      chain_id: session.chain_id,
-      contract_address: session.contract_address,
-      nonce: session.nonce,
-      relay_url: session.relay_url,
-      connector_uri: session.connector_uri,
-      deep_link_uri: session.deep_link_uri,
-      tx_hash: session.tx_hash,
-      human_id: session.human_id,
-      error_text: session.error_text,
-      expires_at: session.expires_at && DateTime.to_iso8601(session.expires_at),
-      proof_payload: session.proof_payload,
-      tx_request: session.tx_request,
-      frontend_request: %{
-        app_id: session.app_id,
-        action: session.action,
-        rp_context: session.rp_context,
-        signal: session.signal
-      }
-    }
   end
 
   defp to_world_session(%Session{} = session) do
@@ -234,20 +207,6 @@ defmodule Autolaunch.Agentbook do
       error_text: session.error_text
     }
   end
-
-  defp serialize_tx_request(nil), do: nil
-
-  defp serialize_tx_request(%AgentWorld.TxRequest{} = request) do
-    %{
-      to: request.to,
-      data: request.data,
-      value: request.value,
-      chain_id: request.chain_id,
-      description: request.description
-    }
-  end
-
-  defp serialize_tx_request(value) when is_map(value), do: value
 
   defp status_string(value) when is_atom(value), do: Atom.to_string(value)
   defp status_string(value) when is_binary(value), do: value

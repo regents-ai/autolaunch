@@ -255,16 +255,14 @@ defmodule Autolaunch.Launch.Deployment do
           ["script", script_target, "--rpc-url", rpc_url] ++
             credentials_args() ++ broadcast_args(job)
 
-        task =
-          Task.async(fn ->
-            command_runner().cmd(binary, args,
-              cd: workdir,
-              env: command_env(job),
-              stderr_to_stdout: true
-            )
-          end)
-
-        case Task.yield(task, deploy_timeout_ms()) do
+        run_command_with_timeout(fn ->
+          command_runner().cmd(binary, args,
+            cd: workdir,
+            env: command_env(job),
+            stderr_to_stdout: true
+          )
+        end)
+        |> case do
           {:ok, {output, 0}} ->
             parse_launch_output(job, output)
 
@@ -272,9 +270,7 @@ defmodule Autolaunch.Launch.Deployment do
             {:error, "Forge exited with status #{exit_code}.",
              %{stdout_tail: trim_tail(output), stderr_tail: ""}}
 
-          nil ->
-            Task.shutdown(task, :brutal_kill)
-
+          :timeout ->
             {:error, "Forge timed out while waiting for deployment.",
              %{stdout_tail: "", stderr_tail: ""}}
         end
@@ -284,51 +280,78 @@ defmodule Autolaunch.Launch.Deployment do
       {:error, Exception.message(error), %{stdout_tail: "", stderr_tail: ""}}
   end
 
+  defp run_command_with_timeout(fun) do
+    task =
+      Task.Supervisor.async_nolink(Autolaunch.TaskSupervisor, fn ->
+        fun.()
+      end)
+
+    case Task.yield(task, deploy_timeout_ms()) do
+      {:ok, result} ->
+        {:ok, result}
+
+      nil ->
+        Task.shutdown(task, :brutal_kill)
+        :timeout
+    end
+  end
+
   defp parse_launch_output(job, output) do
     marker = deploy_output_marker()
 
     with {:ok, parsed} <- parse_launch_output_payload(output, marker),
-         {:ok, auction_address} <- required_launch_output_address(parsed, "auctionAddress"),
-         {:ok, token_address} <- required_launch_output_address(parsed, "tokenAddress"),
-         {:ok, strategy_address} <- required_launch_output_address(parsed, "strategyAddress"),
-         {:ok, vesting_wallet_address} <-
-           required_launch_output_address(parsed, "vestingWalletAddress"),
-         {:ok, hook_address} <- required_launch_output_address(parsed, "hookAddress"),
-         {:ok, launch_fee_registry_address} <-
-           required_launch_output_address(parsed, "launchFeeRegistryAddress"),
-         {:ok, launch_fee_vault_address} <-
-           required_launch_output_address(parsed, "feeVaultAddress"),
-         {:ok, subject_registry_address} <-
-           required_launch_output_address(parsed, "subjectRegistryAddress"),
-         {:ok, subject_id} <- required_launch_output_hex(parsed, "subjectId", 64),
-         {:ok, revenue_share_splitter_address} <-
-           required_launch_output_address(parsed, "revenueShareSplitterAddress"),
-         {:ok, default_ingress_address} <-
-           required_launch_output_address(parsed, "defaultIngressAddress"),
-         {:ok, pool_id} <- required_launch_output_hex(parsed, "poolId", 64) do
-      {:ok,
-       %{
-         auction_address: auction_address,
-         token_address: token_address,
-         strategy_address: strategy_address,
-         vesting_wallet_address: vesting_wallet_address,
-         hook_address: hook_address,
-         launch_fee_registry_address: launch_fee_registry_address,
-         launch_fee_vault_address: launch_fee_vault_address,
-         subject_registry_address: subject_registry_address,
-         subject_id: subject_id,
-         revenue_share_splitter_address: revenue_share_splitter_address,
-         default_ingress_address: default_ingress_address,
-         pool_id: pool_id,
-         tx_hash: Map.get(parsed, "txHash"),
-         uniswap_url: to_uniswap_url(job.chain_id, token_address),
-         stdout_tail: trim_tail(output),
-         stderr_tail: ""
-       }}
+         {:ok, addresses} <- required_launch_output_addresses(parsed),
+         {:ok, identifiers} <- required_launch_output_identifiers(parsed) do
+      {:ok, launch_result(job, output, parsed, addresses, identifiers)}
     else
       {:error, message} ->
         {:error, message, %{stdout_tail: trim_tail(output), stderr_tail: ""}}
     end
+  end
+
+  defp required_launch_output_addresses(parsed) do
+    [
+      auction_address: "auctionAddress",
+      token_address: "tokenAddress",
+      strategy_address: "strategyAddress",
+      vesting_wallet_address: "vestingWalletAddress",
+      hook_address: "hookAddress",
+      launch_fee_registry_address: "launchFeeRegistryAddress",
+      launch_fee_vault_address: "feeVaultAddress",
+      subject_registry_address: "subjectRegistryAddress",
+      revenue_share_splitter_address: "revenueShareSplitterAddress",
+      default_ingress_address: "defaultIngressAddress"
+    ]
+    |> Enum.reduce_while({:ok, %{}}, fn {key, output_key}, {:ok, acc} ->
+      case required_launch_output_address(parsed, output_key) do
+        {:ok, value} -> {:cont, {:ok, Map.put(acc, key, value)}}
+        {:error, _message} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp required_launch_output_identifiers(parsed) do
+    [
+      subject_id: {"subjectId", 64},
+      pool_id: {"poolId", 64}
+    ]
+    |> Enum.reduce_while({:ok, %{}}, fn {key, {output_key, hex_size}}, {:ok, acc} ->
+      case required_launch_output_hex(parsed, output_key, hex_size) do
+        {:ok, value} -> {:cont, {:ok, Map.put(acc, key, value)}}
+        {:error, _message} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp launch_result(job, output, parsed, addresses, identifiers) do
+    addresses
+    |> Map.merge(identifiers)
+    |> Map.merge(%{
+      tx_hash: Map.get(parsed, "txHash"),
+      uniswap_url: to_uniswap_url(job.chain_id, Map.fetch!(addresses, :token_address)),
+      stdout_tail: trim_tail(output),
+      stderr_tail: ""
+    })
   end
 
   defp parse_launch_output_payload(output, marker) do

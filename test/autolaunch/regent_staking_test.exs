@@ -11,6 +11,7 @@ defmodule Autolaunch.RegentStakingTest do
   @owner "0xdddddddddddddddddddddddddddddddddddddddd"
   @wallet "0x1111111111111111111111111111111111111111"
   @base_sepolia_chain_id 84_532
+  @base_chain_id 8_453
 
   setup do
     previous_adapter = Application.get_env(:autolaunch, :cca_rpc_adapter)
@@ -114,6 +115,25 @@ defmodule Autolaunch.RegentStakingTest do
     assert prepared.chain_id == @base_sepolia_chain_id
     assert prepared.target == @contract
     assert String.starts_with?(prepared.calldata, "0x7dc6bb98")
+  end
+
+  test "prepared actions use Base as the canonical staking rail when chain config is omitted" do
+    Application.put_env(
+      :autolaunch,
+      :regent_staking,
+      rpc_url: "https://base.example",
+      contract_address: @contract
+    )
+
+    assert {:ok, %{prepared: prepared}} =
+             RegentStaking.prepare_deposit_usdc(%{
+               "amount" => "1",
+               "source_tag" => "manual",
+               "source_ref" => "default"
+             })
+
+    assert prepared.chain_id == @base_chain_id
+    assert prepared.tx_request.chain_id == @base_chain_id
   end
 
   test "prepare_withdraw_treasury defaults recipient to the configured treasury" do

@@ -3,10 +3,13 @@ defmodule Autolaunch.RegentStaking do
 
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.CCA.Rpc
+  alias Autolaunch.Evm
   alias Autolaunch.RegentStaking.Abi
 
   @usdc_decimals 6
   @token_decimals 18
+  @base_chain_id 8_453
+  @base_chain_label "Base"
 
   def overview(current_human \\ nil) do
     with {:ok, cfg} <- config(),
@@ -381,8 +384,8 @@ defmodule Autolaunch.RegentStaking do
     else
       {:ok,
        %{
-         chain_id: Keyword.get(cfg, :chain_id, 84_532),
-         chain_label: Keyword.get(cfg, :chain_label, "Base Sepolia"),
+         chain_id: Keyword.get(cfg, :chain_id, @base_chain_id),
+         chain_label: Keyword.get(cfg, :chain_label, @base_chain_label),
          contract_address: contract_address
        }}
     end
@@ -469,41 +472,18 @@ defmodule Autolaunch.RegentStaking do
   defp bytes32_param(_value, missing_error), do: {:error, missing_error}
 
   defp normalize_required_address(value) do
-    case normalize_address(value) do
-      nil -> {:error, :invalid_address}
-      address -> {:ok, address}
-    end
+    Evm.normalize_required_address(value)
   end
 
   defp normalize_address_list(values) when is_list(values) do
-    values
-    |> Enum.map(&normalize_address/1)
-    |> Enum.reduce_while([], fn
-      nil, _acc -> {:halt, {:error, :invalid_address}}
-      address, acc -> {:cont, [address | acc]}
-    end)
-    |> case do
-      {:error, _} = error -> error
-      addresses -> {:ok, addresses |> Enum.reverse() |> Enum.uniq()}
-    end
+    Evm.normalize_address_list(values)
   end
 
   defp normalize_address_list(_values), do: {:error, :invalid_address}
 
-  defp normalize_address(value) when is_binary(value) do
-    trimmed = String.downcase(String.trim(value))
+  defp normalize_address(value), do: Evm.normalize_address(value)
 
-    if Regex.match?(~r/^0x[0-9a-f]{40}$/, trimmed), do: trimmed, else: nil
-  end
-
-  defp normalize_address(_value), do: nil
-
-  defp normalize_string(value) when is_binary(value) do
-    trimmed = String.trim(value)
-    if trimmed == "", do: nil, else: trimmed
-  end
-
-  defp normalize_string(_value), do: nil
+  defp normalize_string(value), do: Evm.normalize_string(value)
 
   defp format_units(value, decimals) when is_integer(value) do
     value

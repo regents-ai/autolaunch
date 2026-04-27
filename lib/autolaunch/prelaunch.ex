@@ -4,6 +4,7 @@ defmodule Autolaunch.Prelaunch do
   import Ecto.Query, warn: false
 
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.Evm
   alias Autolaunch.Launch
   alias Autolaunch.Prelaunch.Asset
   alias Autolaunch.Prelaunch.Plan
@@ -540,26 +541,9 @@ defmodule Autolaunch.Prelaunch do
   defp normalize_usdc_amount(value) when is_number(value),
     do: normalize_usdc_amount(to_string(value))
 
-  defp trim(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      trimmed -> trimmed
-    end
-  end
+  defp trim(value), do: Evm.normalize_string(value)
 
-  defp trim(_value), do: nil
-
-  defp normalize_address(value) when is_binary(value) do
-    trimmed = String.trim(value)
-
-    if String.match?(trimmed, ~r/^0x[0-9a-fA-F]{40}$/) do
-      String.downcase(trimmed)
-    else
-      nil
-    end
-  end
-
-  defp normalize_address(_value), do: nil
+  defp normalize_address(value), do: Evm.normalize_address(value)
 
   defp blank?(value), do: is_nil(value) or value == ""
 

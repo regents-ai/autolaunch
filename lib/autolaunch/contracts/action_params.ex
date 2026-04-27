@@ -1,6 +1,8 @@
 defmodule Autolaunch.Contracts.ActionParams do
   @moduledoc false
 
+  alias Autolaunch.Evm
+
   @zero_address "0x0000000000000000000000000000000000000000"
 
   def prepare_tx(chain_id, to, data, resource, action, params \\ %{}) do
@@ -22,10 +24,7 @@ defmodule Autolaunch.Contracts.ActionParams do
   end
 
   def address_param(attrs, key) do
-    case normalize_address(Map.get(attrs, key)) do
-      <<"0x", hex::binary>> = address when byte_size(hex) == 40 -> {:ok, address}
-      _ -> {:error, :invalid_address}
-    end
+    Evm.normalize_required_address(Map.get(attrs, key))
   end
 
   def string_param(attrs, key) do
@@ -79,7 +78,4 @@ defmodule Autolaunch.Contracts.ActionParams do
   end
 
   def blank?(value), do: value in [nil, "", @zero_address]
-
-  defp normalize_address(value) when is_binary(value), do: String.downcase(String.trim(value))
-  defp normalize_address(_value), do: nil
 end

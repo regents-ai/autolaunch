@@ -3,6 +3,7 @@ defmodule Autolaunch.Accounts do
 
   import Ecto.Query
 
+  alias Autolaunch.Evm
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.Repo
 
@@ -91,18 +92,11 @@ defmodule Autolaunch.Accounts do
     |> maybe_put_normalized("xmtp_inbox_id", normalize_text(Map.get(attrs, "xmtp_inbox_id")))
   end
 
-  defp normalize_address(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      trimmed -> String.downcase(trimmed)
-    end
-  end
-
-  defp normalize_address(_value), do: nil
+  defp normalize_address(value), do: Evm.normalize_address(value)
 
   defp normalize_addresses(values) when is_list(values) do
     values
-    |> Enum.map(&normalize_address/1)
+    |> Enum.map(&Evm.normalize_address/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
   end
@@ -112,12 +106,5 @@ defmodule Autolaunch.Accounts do
   defp maybe_put_normalized(attrs, _key, nil), do: attrs
   defp maybe_put_normalized(attrs, key, value), do: Map.put(attrs, key, value)
 
-  defp normalize_text(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      trimmed -> trimmed
-    end
-  end
-
-  defp normalize_text(_value), do: nil
+  defp normalize_text(value), do: Evm.normalize_string(value)
 end

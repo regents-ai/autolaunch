@@ -5,6 +5,7 @@ defmodule Autolaunch.Portfolio do
 
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.Launch
+  alias Autolaunch.Portfolio.RefreshJobs
   alias Autolaunch.Portfolio.Snapshot
   alias Autolaunch.Repo
   alias Autolaunch.Revenue
@@ -256,10 +257,7 @@ defmodule Autolaunch.Portfolio do
       })
       |> Repo.insert_or_update!()
 
-    _ =
-      Task.Supervisor.start_child(Autolaunch.TaskSupervisor, fn ->
-        refresh_snapshot(human)
-      end)
+    _ = RefreshJobs.start(human)
 
     {:ok, snapshot}
   end
