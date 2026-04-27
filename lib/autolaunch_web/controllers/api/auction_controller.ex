@@ -4,6 +4,8 @@ defmodule AutolaunchWeb.Api.AuctionController do
   alias Autolaunch.Launch
   alias AutolaunchWeb.ApiErrorTranslator
 
+  import AutolaunchWeb.Api.ControllerHelpers
+
   def index(conn, params) do
     current_human = conn.assigns[:current_human]
 
@@ -60,8 +62,6 @@ defmodule AutolaunchWeb.Api.AuctionController do
   end
 
   defp launch_module do
-    :autolaunch
-    |> Application.get_env(:auction_controller, [])
-    |> Keyword.get(:launch_module, Launch)
+    configured_module(:auction_controller, :launch_module, Launch)
   end
 end

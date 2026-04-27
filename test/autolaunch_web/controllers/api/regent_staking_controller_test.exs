@@ -88,8 +88,22 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
 
   setup do
     original = Application.get_env(:autolaunch, :regent_staking_api, [])
+    original_staking = Application.get_env(:autolaunch, :regent_staking, [])
+
     Application.put_env(:autolaunch, :regent_staking_api, context_module: RegentStakingStub)
-    on_exit(fn -> Application.put_env(:autolaunch, :regent_staking_api, original) end)
+
+    Application.put_env(
+      :autolaunch,
+      :regent_staking,
+      Keyword.put(original_staking, :operator_wallets, [
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ])
+    )
+
+    on_exit(fn ->
+      Application.put_env(:autolaunch, :regent_staking_api, original)
+      Application.put_env(:autolaunch, :regent_staking, original_staking)
+    end)
 
     {:ok, human} =
       Accounts.upsert_human_by_privy_id("did:privy:regent-staking-api", %{
@@ -162,5 +176,26 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
                "tx_request" => %{"data" => "0x7dc6bb98"}
              }
            } = json_response(conn, 200)
+  end
+
+  test "deposit prepare requires an allowed operator wallet", %{conn: conn} do
+    {:ok, human} =
+      Accounts.upsert_human_by_privy_id("did:privy:regent-staking-non-operator", %{
+        "wallet_address" => "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "wallet_addresses" => ["0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+        "display_name" => "Reader"
+      })
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+
+    conn =
+      post(conn, "/v1/app/regent/staking/deposit-usdc/prepare", %{
+        "amount" => "250.5",
+        "source_tag" => "base_manual",
+        "source_ref" => "2026-03"
+      })
+
+    assert %{"ok" => false, "error" => %{"code" => "operator_required"}} =
+             json_response(conn, 403)
   end
 end

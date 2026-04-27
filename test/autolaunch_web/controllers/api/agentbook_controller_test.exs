@@ -32,6 +32,8 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
        }}
     end
 
+    def create_session(_attrs), do: {:error, :invalid_agent_address}
+
     def submit_proof(session, _proof, _options) do
       {:ok,
        session
@@ -140,6 +142,30 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
                "network" => "world"
              }
            } = json_response(conn, 200)
+  end
+
+  test "invalid public agentbook requests keep the stable error envelope", %{conn: conn} do
+    conn = post(conn, "/v1/app/agentbook/sessions", %{"network" => "world"})
+
+    assert %{
+             "ok" => false,
+             "error" => %{
+               "code" => "invalid_agent_address",
+               "message" => "Agent wallet address is invalid"
+             }
+           } = json_response(conn, 422)
+  end
+
+  test "missing public agentbook sessions keep the stable not-found envelope", %{conn: conn} do
+    conn = get(conn, "/v1/app/agentbook/sessions/missing-session")
+
+    assert %{
+             "ok" => false,
+             "error" => %{
+               "code" => "session_not_found",
+               "message" => "AgentBook session was not found"
+             }
+           } = json_response(conn, 404)
   end
 
   test "wallet registration writes back the human id", %{conn: conn} do

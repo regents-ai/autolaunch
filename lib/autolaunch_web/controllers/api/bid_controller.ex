@@ -5,6 +5,8 @@ defmodule AutolaunchWeb.Api.BidController do
   alias AutolaunchWeb.ApiErrorTranslator
   alias AutolaunchWeb.LiveUpdates
 
+  import AutolaunchWeb.Api.ControllerHelpers
+
   def exit(conn, %{"id" => id} = params) do
     case launch_module().exit_bid(id, params, conn.assigns[:current_human]) do
       {:ok, position} ->
@@ -39,8 +41,6 @@ defmodule AutolaunchWeb.Api.BidController do
   end
 
   defp launch_module do
-    :autolaunch
-    |> Application.get_env(:bid_controller, [])
-    |> Keyword.get(:launch_module, Launch)
+    configured_module(:bid_controller, :launch_module, Launch)
   end
 end

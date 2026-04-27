@@ -6,6 +6,8 @@ defmodule AutolaunchWeb.Api.LaunchController do
   alias AutolaunchWeb.ApiErrorTranslator
   alias AutolaunchWeb.ClientIp
 
+  import AutolaunchWeb.Api.ControllerHelpers
+
   def preview(conn, params) do
     case launch_module().preview_launch(params, conn.assigns[:current_human]) do
       {:ok, preview} ->
@@ -44,9 +46,7 @@ defmodule AutolaunchWeb.Api.LaunchController do
   end
 
   defp launch_module do
-    :autolaunch
-    |> Application.get_env(:launch_controller, [])
-    |> Keyword.get(:launch_module, Launch)
+    configured_module(:launch_controller, :launch_module, Launch)
   end
 
   defp session_owner_addresses(nil), do: {:error, :unauthorized}

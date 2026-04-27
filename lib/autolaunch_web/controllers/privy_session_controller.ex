@@ -3,12 +3,12 @@ defmodule AutolaunchWeb.PrivySessionController do
 
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.Evm
   alias Autolaunch.Portfolio
   alias Autolaunch.Privy
   alias Autolaunch.XmtpIdentity
   alias AutolaunchWeb.ApiError
 
-  @wallet_address_regex ~r/^0x[0-9a-fA-F]{40}$/
   @pending_wallet_session_key :privy_pending_wallet_address
   @pending_wallets_session_key :privy_pending_wallet_addresses
 
@@ -208,17 +208,7 @@ defmodule AutolaunchWeb.PrivySessionController do
     end
   end
 
-  defp normalize_wallet_address(value) when is_binary(value) do
-    trimmed = String.trim(value)
-
-    if Regex.match?(@wallet_address_regex, trimmed) do
-      String.downcase(trimmed)
-    else
-      nil
-    end
-  end
-
-  defp normalize_wallet_address(_value), do: nil
+  defp normalize_wallet_address(value), do: Evm.normalize_address(value)
 
   defp normalize_display_name(value) when is_binary(value) do
     case String.trim(value) do

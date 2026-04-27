@@ -1,13 +1,6 @@
 defmodule AutolaunchWeb.Api.ContractsError do
   @moduledoc false
 
-  alias AutolaunchWeb.ApiError
-
-  def render(conn, {:error, reason}) do
-    {status, code, message} = translate(reason)
-    ApiError.render(conn, status, code, message)
-  end
-
   def translate(:not_found),
     do: {:not_found, "contract_scope_not_found", "Contract scope was not found"}
 

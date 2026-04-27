@@ -14,12 +14,14 @@ defmodule AutolaunchWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug AutolaunchWeb.Plugs.RateLimit
   end
 
   pipeline :session_api do
     plug :accepts, ["json"]
     plug :fetch_session
     plug :put_secure_browser_headers
+    plug AutolaunchWeb.Plugs.RateLimit
     plug AutolaunchWeb.Plugs.LoadCurrentHuman
   end
 
@@ -28,11 +30,13 @@ defmodule AutolaunchWeb.Router do
     plug :fetch_session
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug AutolaunchWeb.Plugs.RateLimit
     plug AutolaunchWeb.Plugs.LoadCurrentHuman
   end
 
   pipeline :agent_api do
     plug :accepts, ["json"]
+    plug AutolaunchWeb.Plugs.RateLimit
     plug AutolaunchWeb.Plugs.RequireAgentSiwa
   end
 

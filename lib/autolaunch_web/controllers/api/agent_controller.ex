@@ -4,6 +4,8 @@ defmodule AutolaunchWeb.Api.AgentController do
   alias Autolaunch.Launch
   alias AutolaunchWeb.ApiError
 
+  import AutolaunchWeb.Api.ControllerHelpers
+
   def index(conn, params) do
     current_human = conn.assigns[:current_human]
 
@@ -58,8 +60,6 @@ defmodule AutolaunchWeb.Api.AgentController do
   end
 
   defp launch_module do
-    :autolaunch
-    |> Application.get_env(:agent_controller, [])
-    |> Keyword.get(:launch_module, Launch)
+    configured_module(:agent_controller, :launch_module, Launch)
   end
 end

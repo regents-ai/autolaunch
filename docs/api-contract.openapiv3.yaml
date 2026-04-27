@@ -5,8 +5,9 @@ info:
   description: >
     Source-of-truth HTTP contract for the live Autolaunch backend. This file owns
     Autolaunch launch, prelaunch, lifecycle, market, ENS, contracts, AgentBook,
-    and browser auth routes. Shared SIWA auth and shared Regent staking live in the
-    shared Regent services contract instead.
+    browser auth routes, and browser-owned Regent staking routes. Shared SIWA auth
+    and agent-signed Regent staking route shapes live in the shared Regent services
+    contract instead.
 tags:
   - name: health
   - name: auth
@@ -19,6 +20,30 @@ tags:
   - name: subjects
   - name: ens
   - name: contracts
+  - name: regent-staking
+x-autolaunch-rate-limits:
+  error:
+    status: 429
+    schema: "#/components/schemas/RateLimitedError"
+    header: retry-after
+  public_writes:
+    applies_to: ["/v1/app/*", "/v1/agent/*", "/v1/auth/*"]
+    default: "60 requests per minute per client IP and route"
+  expensive_reads:
+    applies_to:
+      - "/v1/app/me/*"
+      - "/v1/app/agentbook/lookup"
+      - "/v1/app/regent/staking/account/*"
+      - "/v1/app/contracts/*"
+      - "/v1/app/subjects/*"
+      - "/v1/app/launch/jobs/*"
+      - "/v1/app/prelaunch/plans/*"
+      - "/v1/agent/regent/staking/account/*"
+      - "/v1/agent/contracts/*"
+      - "/v1/agent/subjects/*"
+      - "/v1/agent/launch/jobs/*"
+      - "/v1/agent/prelaunch/plans/*"
+    default: "120 requests per minute per client IP and route"
 paths:
   /health:
     get:
@@ -29,7 +54,7 @@ paths:
           description: Health
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/HealthResponse" }
   /v1/auth/privy/csrf:
     get:
       operationId: autolaunchPrivySessionCsrf
@@ -149,6 +174,188 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OkEnvelope" }
+
+  /v1/app/regent/staking:
+    get:
+      operationId: getAppRegentStakingOverview
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      responses:
+        "200":
+          description: Regent staking overview for the connected browser session, when present
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/app/regent/staking/account/{address}:
+    get:
+      operationId: getAppRegentStakingAccount
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/Address" }
+      responses:
+        "200":
+          description: Regent staking account state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+  /v1/app/regent/staking/stake:
+    post:
+      operationId: stakeAppRegent
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AmountRequest" }
+      responses:
+        "200":
+          description: Stake transaction prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/regent/staking/unstake:
+    post:
+      operationId: unstakeAppRegent
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AmountRequest" }
+      responses:
+        "200":
+          description: Unstake transaction prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/regent/staking/claim-usdc:
+    post:
+      operationId: claimAppRegentStakingUsdc
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: USDC claim transaction prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/regent/staking/claim-regent:
+    post:
+      operationId: claimAppRegentStakingRegent
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Regent reward claim transaction prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/regent/staking/claim-and-restake-regent:
+    post:
+      operationId: claimAndRestakeAppRegentStakingRegent
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "200":
+          description: Regent reward claim and restake transaction prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/regent/staking/deposit-usdc/prepare:
+    post:
+      operationId: prepareAppRegentStakingUsdcDeposit
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegentStakingDepositPrepareRequest" }
+      responses:
+        "200":
+          description: Operator USDC deposit transaction prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "403":
+          description: Signed-in wallet is not an allowed Regent staking operator
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/regent/staking/withdraw-treasury/prepare:
+    post:
+      operationId: prepareAppRegentStakingTreasuryWithdrawal
+      tags: [regent-staking]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegentStakingTreasuryWithdrawPrepareRequest" }
+      responses:
+        "200":
+          description: Operator treasury withdrawal transaction prepared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LooseObject" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "403":
+          description: Signed-in wallet is not an allowed Regent staking operator
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
   /v1/app/agentbook/sessions:
     post:
@@ -1890,6 +2097,39 @@ components:
     LooseObject:
       type: object
       additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      required: [ok, error]
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+          additionalProperties: true
+      additionalProperties: false
+    RateLimitedError:
+      allOf:
+        - { $ref: "#/components/schemas/ErrorEnvelope" }
+        - type: object
+          properties:
+            error:
+              type: object
+              required: [code, message, retry_after_ms]
+              properties:
+                code: { type: string, enum: [rate_limited] }
+                message: { type: string }
+                retry_after_ms: { type: integer, minimum: 1 }
+              additionalProperties: false
+    HealthResponse:
+      type: object
+      required: [ok, service]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        service: { type: string, enum: [autolaunch] }
+      additionalProperties: false
     PrivySessionCsrf:
       type: object
       required: [ok, csrf_token]
@@ -1976,6 +2216,24 @@ components:
       required: [amount]
       properties:
         amount: { $ref: "#/components/schemas/DecimalString" }
+      additionalProperties: false
+    RegentStakingDepositPrepareRequest:
+      type: object
+      required: [amount, source_tag, source_ref]
+      properties:
+        amount: { $ref: "#/components/schemas/DecimalString" }
+        source_tag: { type: string }
+        source_ref: { type: string }
+      additionalProperties: false
+    RegentStakingTreasuryWithdrawPrepareRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount: { $ref: "#/components/schemas/DecimalString" }
+        recipient:
+          anyOf:
+            - { $ref: "#/components/schemas/Address" }
+            - { type: "null" }
       additionalProperties: false
     OkEnvelope:
       type: object

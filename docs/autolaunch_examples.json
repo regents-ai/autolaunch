@@ -328,8 +328,8 @@
   },
   "regent_staking_overview": {
     "ok": true,
-    "chain_id": 84532,
-    "chain_label": "Base Sepolia",
+    "chain_id": 8453,
+    "chain_label": "Base",
     "contract_address": "0x1111111111111111111111111111111111111111",
     "owner_address": "0x2222222222222222222222222222222222222222",
     "stake_token_address": "0x3333333333333333333333333333333333333333",
@@ -358,7 +358,7 @@
     "prepared": {
       "resource": "regent_staking",
       "action": "deposit_usdc",
-      "chain_id": 84532,
+      "chain_id": 8453,
       "target": "0x1111111111111111111111111111111111111111",
       "calldata": "0x7dc6bb98",
       "params": {
@@ -367,7 +367,7 @@
         "source_ref": "0x323032362d303300000000000000000000000000000000000000000000000000"
       },
       "tx_request": {
-        "chain_id": 84532,
+        "chain_id": 8453,
         "to": "0x1111111111111111111111111111111111111111",
         "value": "0x0",
         "data": "0x7dc6bb98"

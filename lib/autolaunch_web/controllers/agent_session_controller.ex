@@ -39,10 +39,11 @@ defmodule AutolaunchWeb.AgentSessionController do
   end
 
   defp build_session(claims) do
-    issued_at = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+    now = DateTime.utc_now()
+    issued_at = now |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 
     expires_at =
-      DateTime.utc_now()
+      now
       |> DateTime.add(@session_ttl_seconds, :second)
       |> DateTime.truncate(:second)
       |> DateTime.to_iso8601()
@@ -67,7 +68,7 @@ defmodule AutolaunchWeb.AgentSessionController do
              true <- audience == @audience,
              {:ok, parsed_expires_at, _offset} <- DateTime.from_iso8601(expires_at),
              :lt <- DateTime.compare(DateTime.utc_now(), parsed_expires_at) do
-          {:ok, stringify_session(session)}
+          {:ok, session}
         else
           _ -> :expired
         end
@@ -75,21 +76,12 @@ defmodule AutolaunchWeb.AgentSessionController do
       _ ->
         :missing
     end
-  rescue
-    _ -> :expired
   end
 
   defp fetch_session_value(session, key) do
-    case Map.get(session, key) || Map.get(session, String.to_atom(key)) do
+    case Map.get(session, key) do
       value when is_binary(value) and value != "" -> {:ok, value}
       _ -> {:error, :invalid_session}
     end
-  end
-
-  defp stringify_session(session) do
-    Map.new(session, fn
-      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
-      {key, value} -> {key, value}
-    end)
   end
 end

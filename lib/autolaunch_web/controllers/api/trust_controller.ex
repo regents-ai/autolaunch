@@ -4,6 +4,8 @@ defmodule AutolaunchWeb.Api.TrustController do
   alias Autolaunch.Trust
   alias AutolaunchWeb.ApiError
 
+  import AutolaunchWeb.Api.ControllerHelpers
+
   def show_agent(conn, %{"id" => agent_id}) do
     case context_module().summary_for_agent(agent_id) do
       %{} = trust ->
@@ -18,84 +20,71 @@ defmodule AutolaunchWeb.Api.TrustController do
   end
 
   def start_x(conn, %{"agent_id" => agent_id}) do
-    case conn.assigns[:current_human] do
-      nil ->
-        ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+    with_current_human(conn, fn human ->
+      case context_module().prepare_x_link(human, agent_id) do
+        {:ok, %{identity: identity, provider: provider, trust_provider: trust_provider}} ->
+          json(conn, %{
+            ok: true,
+            provider: provider,
+            trust_provider: trust_provider,
+            agent_id: identity.agent_id,
+            redirect_path: ~p"/x-link?identity_id=#{identity.agent_id}"
+          })
 
-      human ->
-        case context_module().prepare_x_link(human, agent_id) do
-          {:ok, %{identity: identity, provider: provider, trust_provider: trust_provider}} ->
-            json(conn, %{
-              ok: true,
-              provider: provider,
-              trust_provider: trust_provider,
-              agent_id: identity.agent_id,
-              redirect_path: ~p"/x-link?identity_id=#{identity.agent_id}"
-            })
-
-          {:error, :agent_not_found} ->
-            ApiError.render(
-              conn,
-              :not_found,
-              "agent_not_found",
-              "Agent not found for this session"
-            )
-
-          {:error, :unauthorized} ->
-            ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
-
-          _ ->
-            ApiError.render(
-              conn,
-              :unprocessable_entity,
-              "x_link_invalid",
-              "Unable to start X link"
-            )
-        end
-    end
+        {:error, reason} ->
+          render_x_start_error(conn, reason)
+      end
+    end)
   end
 
   def complete_x(conn, params) do
-    case conn.assigns[:current_human] do
-      nil ->
-        ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+    with_current_human(conn, fn human ->
+      case context_module().upsert_x_account(human, params) do
+        {:ok, account} ->
+          trust = context_module().summary_for_agent(account.agent_id)
+          json(conn, %{ok: true, agent_id: account.agent_id, trust: trust})
 
-      human ->
-        case context_module().upsert_x_account(human, params) do
-          {:ok, account} ->
-            trust = context_module().summary_for_agent(account.agent_id)
-            json(conn, %{ok: true, agent_id: account.agent_id, trust: trust})
+        {:error, reason} ->
+          render_x_complete_error(conn, reason)
+      end
+    end)
+  end
 
-          {:error, :agent_not_found} ->
-            ApiError.render(
-              conn,
-              :not_found,
-              "agent_not_found",
-              "Agent not found for this session"
-            )
+  defp render_x_start_error(conn, :agent_not_found) do
+    ApiError.render(conn, :not_found, "agent_not_found", "Agent not found for this session")
+  end
 
-          {:error, :invalid_x_account} ->
-            ApiError.render(
-              conn,
-              :unprocessable_entity,
-              "invalid_x_account",
-              "X account details were incomplete"
-            )
+  defp render_x_start_error(conn, :unauthorized) do
+    ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+  end
 
-          _ ->
-            ApiError.render(
-              conn,
-              :unprocessable_entity,
-              "x_link_persist_failed",
-              "The X connection could not be saved"
-            )
-        end
-    end
+  defp render_x_start_error(conn, _reason) do
+    ApiError.render(conn, :unprocessable_entity, "x_link_invalid", "Unable to start X link")
+  end
+
+  defp render_x_complete_error(conn, :agent_not_found) do
+    ApiError.render(conn, :not_found, "agent_not_found", "Agent not found for this session")
+  end
+
+  defp render_x_complete_error(conn, :invalid_x_account) do
+    ApiError.render(
+      conn,
+      :unprocessable_entity,
+      "invalid_x_account",
+      "X account details were incomplete"
+    )
+  end
+
+  defp render_x_complete_error(conn, _reason) do
+    ApiError.render(
+      conn,
+      :unprocessable_entity,
+      "x_link_persist_failed",
+      "The X connection could not be saved"
+    )
   end
 
   defp context_module do
-    :autolaunch
-    |> Application.get_env(:trust_controller, [])
-    |> Keyword.get(:trust_module, Trust)
+    configured_module(:trust_controller, :trust_module, Trust)
   end
 end

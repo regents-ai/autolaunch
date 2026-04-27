@@ -5,94 +5,80 @@ defmodule AutolaunchWeb.Api.MeController do
   alias Autolaunch.Portfolio
   alias AutolaunchWeb.ApiError
 
+  import AutolaunchWeb.Api.ControllerHelpers
+
   def bids(conn, params) do
-    case conn.assigns[:current_human] do
-      nil ->
-        ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+    with_current_human(conn, fn current_human ->
+      filters =
+        %{}
+        |> maybe_put("status", Map.get(params, "status"))
 
-      current_human ->
-        filters =
-          %{}
-          |> maybe_put("status", Map.get(params, "status"))
+      positions =
+        current_human
+        |> launch_module().list_positions(filters)
+        |> maybe_filter_auction(Map.get(params, "auction"))
 
-        positions =
-          current_human
-          |> launch_module().list_positions(filters)
-          |> maybe_filter_auction(Map.get(params, "auction"))
-
-        json(conn, %{ok: true, items: positions})
-    end
+      json(conn, %{ok: true, items: positions})
+    end)
   end
 
   def profile(conn, _params) do
-    case conn.assigns[:current_human] do
-      nil ->
-        ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+    with_current_human(conn, fn current_human ->
+      case portfolio_module().get_snapshot(current_human) do
+        {:ok, snapshot} ->
+          json(conn, %{ok: true, profile: snapshot})
 
-      current_human ->
-        case portfolio_module().get_snapshot(current_human) do
-          {:ok, snapshot} ->
-            json(conn, %{ok: true, profile: snapshot})
-
-          {:error, _} ->
-            ApiError.render(
-              conn,
-              :unprocessable_entity,
-              "profile_unavailable",
-              "Profile unavailable"
-            )
-        end
-    end
+        {:error, _} ->
+          ApiError.render(
+            conn,
+            :unprocessable_entity,
+            "profile_unavailable",
+            "Profile unavailable"
+          )
+      end
+    end)
   end
 
   def refresh_profile(conn, _params) do
-    case conn.assigns[:current_human] do
-      nil ->
-        ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+    with_current_human(conn, fn current_human ->
+      case portfolio_module().request_manual_refresh(current_human) do
+        {:ok, snapshot} ->
+          json(conn, %{ok: true, profile: snapshot})
 
-      current_human ->
-        case portfolio_module().request_manual_refresh(current_human) do
-          {:ok, snapshot} ->
-            json(conn, %{ok: true, profile: snapshot})
+        {:error, {:cooldown, seconds}} ->
+          ApiError.render(
+            conn,
+            :too_many_requests,
+            "profile_refresh_cooldown",
+            "Profile refresh is cooling down for #{seconds} more seconds"
+          )
 
-          {:error, {:cooldown, seconds}} ->
-            ApiError.render(
-              conn,
-              :too_many_requests,
-              "profile_refresh_cooldown",
-              "Profile refresh is cooling down for #{seconds} more seconds"
-            )
-
-          {:error, _} ->
-            ApiError.render(
-              conn,
-              :unprocessable_entity,
-              "profile_refresh_failed",
-              "Profile refresh failed"
-            )
-        end
-    end
+        {:error, _} ->
+          ApiError.render(
+            conn,
+            :unprocessable_entity,
+            "profile_refresh_failed",
+            "Profile refresh failed"
+          )
+      end
+    end)
   end
 
   def holdings(conn, _params) do
-    case conn.assigns[:current_human] do
-      nil ->
-        ApiError.render(conn, :unauthorized, "auth_required", "Privy session required")
+    with_current_human(conn, fn current_human ->
+      case portfolio_module().get_holdings(current_human) do
+        {:ok, holdings} ->
+          json(conn, %{ok: true, holdings: holdings})
 
-      current_human ->
-        case portfolio_module().get_holdings(current_human) do
-          {:ok, holdings} ->
-            json(conn, %{ok: true, holdings: holdings})
-
-          {:error, _} ->
-            ApiError.render(
-              conn,
-              :unprocessable_entity,
-              "holdings_unavailable",
-              "Holdings unavailable"
-            )
-        end
-    end
+        {:error, _} ->
+          ApiError.render(
+            conn,
+            :unprocessable_entity,
+            "holdings_unavailable",
+            "Holdings unavailable"
+          )
+      end
+    end)
   end
 
   defp maybe_filter_auction(positions, nil), do: positions
@@ -106,14 +92,10 @@ defmodule AutolaunchWeb.Api.MeController do
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp launch_module do
-    :autolaunch
-    |> Application.get_env(:me_controller, [])
-    |> Keyword.get(:launch_module, Launch)
+    configured_module(:me_controller, :launch_module, Launch)
   end
 
   defp portfolio_module do
-    :autolaunch
-    |> Application.get_env(:me_controller, [])
-    |> Keyword.get(:portfolio_module, Portfolio)
+    configured_module(:me_controller, :portfolio_module, Portfolio)
   end
 end

@@ -110,6 +110,59 @@ defmodule AutolaunchWeb.ApiRoutesTest do
     end
   end
 
+  test "Phoenix API routes match the Autolaunch OpenAPI contract" do
+    documented_routes =
+      "docs/api-contract.openapiv3.yaml"
+      |> openapi_routes()
+      |> Enum.reject(&shared_regent_staking_route?/1)
+      |> Enum.sort()
+
+    phoenix_routes =
+      AutolaunchWeb.Router.__routes__()
+      |> Enum.map(&{&1.verb, &1.path})
+      |> Enum.filter(fn {_verb, path} ->
+        String.starts_with?(path, "/v1/app/") or String.starts_with?(path, "/v1/agent/")
+      end)
+      |> Enum.reject(&shared_regent_staking_route?/1)
+      |> Enum.sort()
+
+    assert phoenix_routes == documented_routes
+  end
+
+  test "Autolaunch mirrors the shared Regent staking agent contract" do
+    documented_routes =
+      "../regents-cli/docs/regent-services-contract.openapiv3.yaml"
+      |> openapi_routes()
+      |> Enum.filter(&shared_regent_staking_route?/1)
+      |> Enum.sort()
+
+    phoenix_routes =
+      AutolaunchWeb.Router.__routes__()
+      |> Enum.map(&{&1.verb, &1.path})
+      |> Enum.filter(&shared_regent_staking_route?/1)
+      |> Enum.filter(fn {_verb, path} -> String.starts_with?(path, "/v1/agent/") end)
+      |> Enum.sort()
+
+    assert phoenix_routes == documented_routes
+  end
+
+  test "CLI path templates point at live Phoenix routes" do
+    phoenix_paths =
+      AutolaunchWeb.Router.__routes__()
+      |> Enum.map(& &1.path)
+      |> MapSet.new()
+
+    cli_paths =
+      "docs/cli-contract.yaml"
+      |> yaml_path_templates()
+      |> Enum.map(&openapi_path_to_phoenix/1)
+
+    for path <- cli_paths do
+      assert MapSet.member?(phoenix_paths, path),
+             "#{path} is listed in cli-contract.yaml but is not routed"
+    end
+  end
+
   defp product_route_specs(prefix) do
     AutolaunchWeb.Router.__routes__()
     |> Enum.filter(&String.starts_with?(&1.path, prefix))
@@ -145,5 +198,54 @@ defmodule AutolaunchWeb.ApiRoutesTest do
 
   defp human_browser_product_route?({verb, path, _plug, _plug_opts}) do
     {verb, String.replace_prefix(path, "/v1/app", "")} in @human_browser_product_routes
+  end
+
+  defp openapi_routes(path) do
+    path
+    |> File.read!()
+    |> String.split("\n")
+    |> Enum.reduce({MapSet.new(), nil}, fn line, {routes, current_path} ->
+      cond do
+        Regex.match?(~r/^  \/v1\/(app|agent)\//, line) ->
+          [_, path] = Regex.run(~r/^  ([^:]+):/, line)
+          {routes, openapi_path_to_phoenix(path)}
+
+        current_path && Regex.match?(~r/^    (get|post|patch|delete):/, line) ->
+          [_, method] = Regex.run(~r/^    (get|post|patch|delete):/, line)
+          {MapSet.put(routes, {String.to_atom(method), current_path}), current_path}
+
+        Regex.match?(~r/^  \//, line) ->
+          {routes, nil}
+
+        true ->
+          {routes, current_path}
+      end
+    end)
+    |> elem(0)
+    |> MapSet.to_list()
+  end
+
+  defp yaml_path_templates(path) do
+    path
+    |> File.read!()
+    |> String.split("\n")
+    |> Enum.reduce([], fn line, acc ->
+      case Regex.run(~r/^\s+- (\/v1\/agent\/.+)$/, line) do
+        [_, path] -> [path | acc]
+        _ -> acc
+      end
+    end)
+    |> Enum.uniq()
+  end
+
+  defp openapi_path_to_phoenix(path) do
+    String.replace(path, ~r/\{([^}]+)\}/, ":\\1")
+  end
+
+  defp shared_regent_staking_route?({_verb, path}), do: shared_regent_staking_path?(path)
+  defp shared_regent_staking_route?(path), do: shared_regent_staking_path?(path)
+
+  defp shared_regent_staking_path?(path) do
+    String.starts_with?(path, "/v1/agent/regent/staking")
   end
 end

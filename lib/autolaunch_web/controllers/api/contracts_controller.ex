@@ -4,6 +4,8 @@ defmodule AutolaunchWeb.Api.ContractsController do
   alias Autolaunch.Contracts
   alias AutolaunchWeb.Api.ContractsError
 
+  import AutolaunchWeb.Api.ControllerHelpers
+
   def admin(conn, _params) do
     render_authed(conn, fn _human -> context_module().admin_overview() end)
   end
@@ -37,18 +39,16 @@ defmodule AutolaunchWeb.Api.ContractsController do
     end)
   end
 
-  defp render_result(conn, {:ok, payload}), do: json(conn, Map.put(payload, :ok, true))
-  defp render_result(conn, {:error, _reason} = error), do: ContractsError.render(conn, error)
+  defp render_result(conn, result),
+    do: render_api_result(conn, result, &ContractsError.translate/1)
 
   defp render_authed(conn, fun) do
-    case conn.assigns[:current_human] do
-      nil -> render_result(conn, {:error, :unauthorized})
-      human -> render_result(conn, fun.(human))
-    end
+    with_current_human(conn, fn human -> render_result(conn, fun.(human)) end, fn conn ->
+      render_result(conn, {:error, :unauthorized})
+    end)
   end
 
   defp context_module do
-    Application.get_env(:autolaunch, :contracts_api, [])
-    |> Keyword.get(:context_module, Contracts)
+    configured_module(:contracts_api, :context_module, Contracts)
   end
 end

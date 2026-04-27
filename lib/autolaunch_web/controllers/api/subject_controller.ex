@@ -2,27 +2,16 @@ defmodule AutolaunchWeb.Api.SubjectController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch.Revenue
-  alias AutolaunchWeb.ApiError
   alias AutolaunchWeb.LiveUpdates
 
-  def show(conn, %{"id" => subject_id}) do
-    case Revenue.subject_state(subject_id, conn.assigns[:current_human]) do
-      {:ok, subject_state} ->
-        json(conn, Map.put(subject_state, :ok, true))
+  import AutolaunchWeb.Api.ControllerHelpers
 
-      {:error, reason} ->
-        render_error(conn, reason)
-    end
+  def show(conn, %{"id" => subject_id}) do
+    render_result(conn, Revenue.subject_state(subject_id, conn.assigns[:current_human]))
   end
 
   def ingress(conn, %{"id" => subject_id}) do
-    case Revenue.ingress_state(subject_id, conn.assigns[:current_human]) do
-      {:ok, ingress_state} ->
-        json(conn, Map.put(ingress_state, :ok, true))
-
-      {:error, reason} ->
-        render_error(conn, reason)
-    end
+    render_result(conn, Revenue.ingress_state(subject_id, conn.assigns[:current_human]))
   end
 
   def stake(conn, %{"id" => subject_id} = params) do
@@ -57,129 +46,66 @@ defmodule AutolaunchWeb.Api.SubjectController do
 
   defp render_write(conn, {:ok, payload}) do
     LiveUpdates.broadcast([:subjects, :positions, :regent])
-    json(conn, Map.put(payload, :ok, true))
+    render_result(conn, {:ok, payload})
   end
 
-  defp render_write(conn, {:error, reason}), do: render_error(conn, reason)
+  defp render_write(conn, {:error, _reason} = error), do: render_result(conn, error)
 
-  defp render_error(conn, :unauthorized),
-    do: ApiError.render(conn, :unauthorized, "auth_required", "Connect a wallet first")
+  defp render_result(conn, result), do: render_api_result(conn, result, &translate_error/1)
 
-  defp render_error(conn, :not_found),
-    do: ApiError.render(conn, :not_found, "subject_not_found", "Token page not found")
+  defp translate_error(:unauthorized),
+    do: {:unauthorized, "auth_required", "Connect a wallet first"}
 
-  defp render_error(conn, :subject_lookup_failed),
+  defp translate_error(:not_found),
+    do: {:not_found, "subject_not_found", "Token page not found"}
+
+  defp translate_error(:subject_lookup_failed),
+    do: {:internal_server_error, "subject_lookup_failed", "Token details could not be loaded"}
+
+  defp translate_error(:forbidden),
+    do: {:forbidden, "subject_forbidden", "Use the connected wallet"}
+
+  defp translate_error(:transaction_pending),
+    do: {:accepted, "transaction_pending", "Transaction is still pending confirmation"}
+
+  defp translate_error(:transaction_failed),
+    do: {:unprocessable_entity, "transaction_failed", "The wallet action failed"}
+
+  defp translate_error(:transaction_target_mismatch),
+    do: {:forbidden, "transaction_target_mismatch", "This wallet action is for a different token"}
+
+  defp translate_error(:transaction_hash_reused),
+    do: {:conflict, "transaction_hash_reused", "Transaction hash has already been registered"}
+
+  defp translate_error(:transaction_data_mismatch),
     do:
-      ApiError.render(
-        conn,
-        :internal_server_error,
-        "subject_lookup_failed",
-        "Token details could not be loaded"
-      )
+      {:unprocessable_entity, "transaction_data_mismatch",
+       "This wallet action does not match the selected action"}
 
-  defp render_error(conn, :forbidden),
-    do: ApiError.render(conn, :forbidden, "subject_forbidden", "Use the connected wallet")
+  defp translate_error(:invalid_transaction_hash),
+    do: {:unprocessable_entity, "invalid_transaction_hash", "Transaction hash is invalid"}
 
-  defp render_error(conn, :transaction_pending),
-    do:
-      ApiError.render(
-        conn,
-        :accepted,
-        "transaction_pending",
-        "Transaction is still pending confirmation"
-      )
+  defp translate_error(:invalid_subject_id),
+    do: {:unprocessable_entity, "invalid_subject_id", "Token page is invalid"}
 
-  defp render_error(conn, :transaction_failed),
-    do:
-      ApiError.render(
-        conn,
-        :unprocessable_entity,
-        "transaction_failed",
-        "The wallet action failed"
-      )
+  defp translate_error(:invalid_amount),
+    do: {:unprocessable_entity, "invalid_amount", "Amount is invalid"}
 
-  defp render_error(conn, :transaction_target_mismatch),
-    do:
-      ApiError.render(
-        conn,
-        :forbidden,
-        "transaction_target_mismatch",
-        "This wallet action is for a different token"
-      )
+  defp translate_error(:invalid_amount_precision),
+    do: {:unprocessable_entity, "invalid_amount_precision", "Amount precision is too high"}
 
-  defp render_error(conn, :transaction_hash_reused),
-    do:
-      ApiError.render(
-        conn,
-        :conflict,
-        "transaction_hash_reused",
-        "Transaction hash has already been registered"
-      )
+  defp translate_error(:amount_required),
+    do: {:unprocessable_entity, "amount_required", "Amount is required"}
 
-  defp render_error(conn, :transaction_data_mismatch),
-    do:
-      ApiError.render(
-        conn,
-        :unprocessable_entity,
-        "transaction_data_mismatch",
-        "This wallet action does not match the selected action"
-      )
+  defp translate_error(:invalid_ingress_address),
+    do: {:unprocessable_entity, "invalid_ingress_address", "USDC intake address is invalid"}
 
-  defp render_error(conn, :invalid_transaction_hash),
-    do:
-      ApiError.render(
-        conn,
-        :unprocessable_entity,
-        "invalid_transaction_hash",
-        "Transaction hash is invalid"
-      )
+  defp translate_error(:ingress_not_found),
+    do: {:not_found, "ingress_not_found", "USDC intake address does not belong to this token"}
 
-  defp render_error(conn, :invalid_subject_id),
-    do:
-      ApiError.render(conn, :unprocessable_entity, "invalid_subject_id", "Token page is invalid")
+  defp translate_error(:invalid_source_ref),
+    do: {:unprocessable_entity, "invalid_source_ref", "Source reference is invalid"}
 
-  defp render_error(conn, :invalid_amount),
-    do: ApiError.render(conn, :unprocessable_entity, "invalid_amount", "Amount is invalid")
-
-  defp render_error(conn, :invalid_amount_precision),
-    do:
-      ApiError.render(
-        conn,
-        :unprocessable_entity,
-        "invalid_amount_precision",
-        "Amount precision is too high"
-      )
-
-  defp render_error(conn, :amount_required),
-    do: ApiError.render(conn, :unprocessable_entity, "amount_required", "Amount is required")
-
-  defp render_error(conn, :invalid_ingress_address),
-    do:
-      ApiError.render(
-        conn,
-        :unprocessable_entity,
-        "invalid_ingress_address",
-        "USDC intake address is invalid"
-      )
-
-  defp render_error(conn, :ingress_not_found),
-    do:
-      ApiError.render(
-        conn,
-        :not_found,
-        "ingress_not_found",
-        "USDC intake address does not belong to this token"
-      )
-
-  defp render_error(conn, :invalid_source_ref),
-    do:
-      ApiError.render(
-        conn,
-        :unprocessable_entity,
-        "invalid_source_ref",
-        "Source reference is invalid"
-      )
-
-  defp render_error(conn, reason),
-    do: ApiError.render(conn, :unprocessable_entity, "subject_invalid", inspect(reason))
+  defp translate_error(reason),
+    do: {:unprocessable_entity, "subject_invalid", inspect(reason)}
 end

@@ -3,13 +3,15 @@ defmodule Autolaunch.Siwa do
 
   alias Autolaunch.Siwa.Config
 
+  @audience "autolaunch"
+
   def issue_nonce(params) do
     payload = %{
       "wallet_address" => Map.fetch!(params, :wallet_address),
       "chain_id" => Map.fetch!(params, :chain_id),
       "registry_address" => Map.fetch!(params, :registry_address),
       "token_id" => Map.fetch!(params, :token_id),
-      "audience" => Map.get(params, :audience, "autolaunch")
+      "audience" => @audience
     }
 
     proxy("/v1/agent/siwa/nonce", payload)
@@ -22,6 +24,7 @@ defmodule Autolaunch.Siwa do
         "chain_id" => Map.fetch!(params, :chain_id),
         "registry_address" => Map.fetch!(params, :registry_address),
         "token_id" => Map.fetch!(params, :token_id),
+        "audience" => @audience,
         "nonce" => Map.fetch!(params, :nonce),
         "message" => Map.fetch!(params, :message),
         "signature" => Map.fetch!(params, :signature)
