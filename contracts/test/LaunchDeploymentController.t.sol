@@ -17,6 +17,7 @@ import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2} from "src/revenue/RevenueShareSplitterV2.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {HookMiner} from "src/libraries/HookMiner.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
@@ -60,6 +61,7 @@ contract LaunchDeploymentControllerTest is Test {
     LaunchFeeInfraDeployer internal feeInfraDeployer;
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal revenueShareFactory;
+    RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueIngressFactory internal revenueIngressFactory;
     RegentLBPStrategyFactory internal strategyFactory;
     MintableERC20Mock internal usdc;
@@ -76,8 +78,13 @@ contract LaunchDeploymentControllerTest is Test {
         usdc = _installCanonicalUsdcMock();
         subjectRegistry = new SubjectRegistry(address(this));
         feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
-            address(this), address(usdc), subjectRegistry, address(feeRouter)
+            address(this),
+            address(usdc),
+            subjectRegistry,
+            address(feeRouter),
+            address(splitterDeployer)
         );
         revenueIngressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
@@ -128,7 +135,11 @@ contract LaunchDeploymentControllerTest is Test {
     function testRejectsDeployWhenSubjectRegistryOwnershipNotAccepted() external {
         SubjectRegistry localSubjectRegistry = new SubjectRegistry(address(this));
         RevenueShareFactory localRevenueShareFactory = new RevenueShareFactory(
-            address(this), address(usdc), localSubjectRegistry, address(feeRouter)
+            address(this),
+            address(usdc),
+            localSubjectRegistry,
+            address(feeRouter),
+            address(splitterDeployer)
         );
         RevenueIngressFactory localRevenueIngressFactory =
             new RevenueIngressFactory(address(usdc), address(localSubjectRegistry), address(this));
@@ -149,7 +160,11 @@ contract LaunchDeploymentControllerTest is Test {
         MockRegentRevenueFeeRouter otherRouter =
             new MockRegentRevenueFeeRouter(address(otherUsdc), address(0x8888));
         RevenueShareFactory mismatchedRevenueShareFactory = new RevenueShareFactory(
-            address(this), address(otherUsdc), subjectRegistry, address(otherRouter)
+            address(this),
+            address(otherUsdc),
+            subjectRegistry,
+            address(otherRouter),
+            address(splitterDeployer)
         );
 
         LaunchDeploymentController.DeploymentConfig memory cfg = defaultConfig();

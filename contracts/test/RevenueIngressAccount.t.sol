@@ -7,6 +7,7 @@ import {RevenueIngressAccount} from "src/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2} from "src/revenue/RevenueShareSplitterV2.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
@@ -21,6 +22,7 @@ contract RevenueIngressAccountTest is Test {
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal revenueShareFactory;
     RevenueIngressFactory internal ingressFactory;
+    RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueShareSplitterV2 internal splitter;
     RevenueIngressAccount internal ingress;
     MockRegentRevenueFeeRouter internal feeRouter;
@@ -31,8 +33,13 @@ contract RevenueIngressAccountTest is Test {
         stakeToken.mint(address(this), 1000e18);
         subjectRegistry = new SubjectRegistry(address(this));
         feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
-            address(this), address(usdc), subjectRegistry, address(feeRouter)
+            address(this),
+            address(usdc),
+            subjectRegistry,
+            address(feeRouter),
+            address(splitterDeployer)
         );
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));

@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {RevenueIngressAccount} from "src/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
@@ -19,6 +20,7 @@ contract RevenueIngressFactoryTest is Test {
     MintableERC20Mock internal usdc;
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal revenueShareFactory;
+    RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueIngressFactory internal ingressFactory;
     MockRegentRevenueFeeRouter internal feeRouter;
 
@@ -26,8 +28,13 @@ contract RevenueIngressFactoryTest is Test {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         subjectRegistry = new SubjectRegistry(address(this));
         feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
-            address(this), address(usdc), subjectRegistry, address(feeRouter)
+            address(this),
+            address(usdc),
+            subjectRegistry,
+            address(feeRouter),
+            address(splitterDeployer)
         );
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));

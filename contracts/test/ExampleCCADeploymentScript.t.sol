@@ -11,6 +11,7 @@ import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2} from "src/revenue/RevenueShareSplitterV2.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {ExampleCCADeploymentScript} from "scripts/ExampleCCADeploymentScript.s.sol";
 import {
@@ -45,6 +46,7 @@ contract ExampleCCADeploymentScriptTest is Test {
     MockHookPoolManager internal poolManager;
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal revenueShareFactory;
+    RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueIngressFactory internal revenueIngressFactory;
     RegentLBPStrategyFactory internal strategyFactory;
     UERC20Factory internal tokenFactory;
@@ -57,8 +59,10 @@ contract ExampleCCADeploymentScriptTest is Test {
         poolManager = new MockHookPoolManager();
         subjectRegistry = new SubjectRegistry(address(this));
         feeRouter = new MockRegentRevenueFeeRouter(USDC, address(0x8888));
-        revenueShareFactory =
-            new RevenueShareFactory(address(script), USDC, subjectRegistry, address(feeRouter));
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
+        revenueShareFactory = new RevenueShareFactory(
+            address(script), USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)
+        );
         revenueIngressFactory =
             new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
         strategyFactory = new RegentLBPStrategyFactory(address(script));

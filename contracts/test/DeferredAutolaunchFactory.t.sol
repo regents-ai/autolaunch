@@ -9,6 +9,7 @@ import {DeferredAutolaunchFactory} from "src/revenue/DeferredAutolaunchFactory.s
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2} from "src/revenue/RevenueShareSplitterV2.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
@@ -25,6 +26,7 @@ contract DeferredAutolaunchFactoryTest is Test {
     MintableERC20Mock internal usdc;
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal revenueShareFactory;
+    RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueIngressFactory internal revenueIngressFactory;
     MockRegentRevenueFeeRouter internal feeRouter;
     DeferredAutolaunchFactory internal factory;
@@ -34,8 +36,10 @@ contract DeferredAutolaunchFactoryTest is Test {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         subjectRegistry = new SubjectRegistry(OWNER);
         feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
-        revenueShareFactory =
-            new RevenueShareFactory(OWNER, address(usdc), subjectRegistry, address(feeRouter));
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
+        revenueShareFactory = new RevenueShareFactory(
+            OWNER, address(usdc), subjectRegistry, address(feeRouter), address(splitterDeployer)
+        );
         revenueIngressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), OWNER);
         factory = new DeferredAutolaunchFactory(

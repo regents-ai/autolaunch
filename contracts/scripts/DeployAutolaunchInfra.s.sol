@@ -6,6 +6,7 @@ import {console2} from "forge-std/console2.sol";
 
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {
     PermissionlessExistingTokenRevenueFactory
@@ -26,6 +27,7 @@ contract DeployAutolaunchInfraScript is Script {
         external
         returns (
             SubjectRegistry subjectRegistry,
+            RevenueShareSplitterV2Deployer revenueShareSplitterDeployer,
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
@@ -42,6 +44,7 @@ contract DeployAutolaunchInfraScript is Script {
         public
         returns (
             SubjectRegistry subjectRegistry,
+            RevenueShareSplitterV2Deployer revenueShareSplitterDeployer,
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
@@ -53,8 +56,14 @@ contract DeployAutolaunchInfraScript is Script {
 
         vm.startBroadcast(cfg.owner);
         subjectRegistry = new SubjectRegistry(cfg.owner);
-        revenueShareFactory =
-            new RevenueShareFactory(cfg.owner, cfg.usdc, subjectRegistry, cfg.protocolFeeRouter);
+        revenueShareSplitterDeployer = new RevenueShareSplitterV2Deployer();
+        revenueShareFactory = new RevenueShareFactory(
+            cfg.owner,
+            cfg.usdc,
+            subjectRegistry,
+            cfg.protocolFeeRouter,
+            address(revenueShareSplitterDeployer)
+        );
         revenueIngressFactory =
             new RevenueIngressFactory(cfg.usdc, address(subjectRegistry), cfg.owner);
         existingTokenRevenueFactory = new PermissionlessExistingTokenRevenueFactory(
@@ -99,6 +108,7 @@ contract DeployAutolaunchInfraScript is Script {
 
         (
             SubjectRegistry subjectRegistry,
+            RevenueShareSplitterV2Deployer revenueShareSplitterDeployer,
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
@@ -110,6 +120,8 @@ contract DeployAutolaunchInfraScript is Script {
             string.concat(
                 "AUTOLAUNCH_INFRA_RESULT_JSON:{\"subjectRegistryAddress\":\"",
                 vm.toString(address(subjectRegistry)),
+                "\",\"revenueShareSplitterDeployerAddress\":\"",
+                vm.toString(address(revenueShareSplitterDeployer)),
                 "\",\"revenueShareFactoryAddress\":\"",
                 vm.toString(address(revenueShareFactory)),
                 "\",\"revenueIngressFactoryAddress\":\"",

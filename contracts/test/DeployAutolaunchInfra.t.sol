@@ -7,6 +7,7 @@ import {DeployAutolaunchInfraScript} from "scripts/DeployAutolaunchInfra.s.sol";
 import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {
     PermissionlessExistingTokenRevenueFactory
@@ -36,6 +37,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
 
         (
             SubjectRegistry subjectRegistry,
+            RevenueShareSplitterV2Deployer revenueShareSplitterDeployer,
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
@@ -44,6 +46,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         ) = script.deploy(cfg);
 
         assertEq(subjectRegistry.owner(), OWNER);
+        assertTrue(address(revenueShareSplitterDeployer) != address(0));
         assertTrue(subjectRegistry.canRegisterSubject(address(revenueShareFactory)));
         assertTrue(subjectRegistry.canRegisterSubject(address(existingTokenRevenueFactory)));
         assertEq(revenueShareFactory.owner(), OWNER);
@@ -74,7 +77,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
             });
 
         (
-            ,
+            ,,
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
@@ -109,6 +112,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
 
         (
             SubjectRegistry subjectRegistry,
+            RevenueShareSplitterV2Deployer revenueShareSplitterDeployer,
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
@@ -117,6 +121,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         ) = script.deployFromEnv();
 
         assertEq(subjectRegistry.owner(), OWNER);
+        assertTrue(address(revenueShareSplitterDeployer) != address(0));
         assertTrue(subjectRegistry.canRegisterSubject(address(revenueShareFactory)));
         assertTrue(subjectRegistry.canRegisterSubject(address(existingTokenRevenueFactory)));
         assertEq(revenueShareFactory.owner(), OWNER);

@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
+import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableBurnableERC20Mock} from "test/mocks/MintableBurnableERC20Mock.sol";
 import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
@@ -19,13 +20,17 @@ contract RevenueShareFactoryTest is Test {
 
     SubjectRegistry internal subjectRegistry;
     RevenueShareFactory internal factory;
+    RevenueShareSplitterV2Deployer internal splitterDeployer;
     MintableBurnableERC20Mock internal stakeToken;
     MockRegentRevenueFeeRouter internal feeRouter;
 
     function setUp() external {
         subjectRegistry = new SubjectRegistry(OWNER);
         feeRouter = new MockRegentRevenueFeeRouter(USDC, address(0x8888));
-        factory = new RevenueShareFactory(OWNER, USDC, subjectRegistry, address(feeRouter));
+        splitterDeployer = new RevenueShareSplitterV2Deployer();
+        factory = new RevenueShareFactory(
+            OWNER, USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)
+        );
         stakeToken = new MintableBurnableERC20Mock("Agent", "AGENT", 18);
         stakeToken.mint(address(this), 1000 ether);
 
@@ -35,7 +40,7 @@ contract RevenueShareFactoryTest is Test {
 
     function testRejectsUnauthorizedSplitterCreation() external {
         vm.prank(ATTACKER);
-        vm.expectRevert("ONLY_AUTHORIZED_CREATOR");
+        vm.expectRevert(RevenueShareFactory.OnlyAuthorizedCreator.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
             address(stakeToken),
@@ -79,7 +84,7 @@ contract RevenueShareFactoryTest is Test {
         factory.setAuthorizedCreator(CREATOR, true);
 
         vm.prank(CREATOR);
-        vm.expectRevert("IDENTITY_REGISTRY_ZERO");
+        vm.expectRevert(RevenueShareFactory.IdentityRegistryZero.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
             address(stakeToken),
@@ -99,7 +104,7 @@ contract RevenueShareFactoryTest is Test {
         factory.setAuthorizedCreator(CREATOR, true);
 
         vm.prank(CREATOR);
-        vm.expectRevert("AGENT_SAFE_ZERO");
+        vm.expectRevert(RevenueShareFactory.AgentSafeZero.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
             address(stakeToken),
@@ -114,7 +119,7 @@ contract RevenueShareFactoryTest is Test {
         );
 
         vm.prank(CREATOR);
-        vm.expectRevert("FEE_ROUTER_MISMATCH");
+        vm.expectRevert(RevenueShareFactory.FeeRouterMismatch.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
             address(stakeToken),
