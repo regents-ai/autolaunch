@@ -285,6 +285,12 @@ if config_env() == :prod do
   secret_key_base = env_required.("SECRET_KEY_BASE")
 
   host = env.("PHX_HOST", "autolaunch.sh")
+  url_scheme = env.("PHX_URL_SCHEME", "https")
+
+  url_port =
+    env_int.("PHX_URL_PORT", if(url_scheme == "https", do: 443, else: env_int.("PORT", 4002)))
+
+  check_origin = env_list.("PHX_CHECK_ORIGIN", "#{url_scheme}://#{host}:#{url_port}")
 
   config :autolaunch, Autolaunch.Repo,
     url: database_url,
@@ -298,7 +304,8 @@ if config_env() == :prod do
   config :autolaunch, :dns_cluster_query, env.("DNS_CLUSTER_QUERY", "")
 
   config :autolaunch, AutolaunchWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: host, port: url_port, scheme: url_scheme],
     http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: env_int.("PORT", 4002)],
+    check_origin: check_origin,
     secret_key_base: secret_key_base
 end
