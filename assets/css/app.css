@@ -79,33 +79,33 @@
   --al-bg:
     radial-gradient(
       circle at 14% 12%,
-      color-mix(in srgb, var(--brand-primary) 20%, transparent),
+      color-mix(in srgb, var(--color-fg-primary) 16%, transparent),
       transparent 32%
     ),
     radial-gradient(
       circle at 84% 10%,
-      color-mix(in srgb, var(--brand-accent) 16%, transparent),
+      color-mix(in srgb, var(--brand-accent) 10%, transparent),
       transparent 28%
     ),
-    linear-gradient(180deg, #0e1411 0%, var(--color-bg) 48%, var(--color-bg-alt) 100%);
-  --al-panel: color-mix(in srgb, var(--color-bg-alt) 80%, black 20%);
-  --al-panel-strong: color-mix(in srgb, var(--color-bg-secondary) 84%, black 16%);
-  --al-component-border: color-mix(in srgb, #56e8d4 24%, var(--al-border) 76%);
+    linear-gradient(180deg, #0b1210 0%, #101815 52%, #15221d 100%);
+  --al-panel: #13211c;
+  --al-panel-strong: #1a2a24;
+  --al-component-border: color-mix(in srgb, var(--color-fg-primary) 26%, var(--al-border) 74%);
   --al-component-background:
-    radial-gradient(120% 86% at 10% 0%, rgba(139, 255, 218, 0.2) 0%, rgba(139, 255, 218, 0.08) 36%, transparent 62%),
-    radial-gradient(104% 80% at 98% 100%, rgba(0, 188, 176, 0.3) 0%, rgba(0, 188, 176, 0.1) 46%, transparent 70%),
-    linear-gradient(128deg, rgba(4, 22, 27, 0.98) 0%, rgba(5, 69, 82, 0.96) 34%, rgba(9, 142, 126, 0.78) 68%, rgba(7, 50, 58, 0.96) 100%);
+    radial-gradient(120% 86% at 10% 0%, rgba(79, 196, 135, 0.16) 0%, rgba(79, 196, 135, 0.06) 36%, transparent 62%),
+    radial-gradient(104% 80% at 98% 100%, rgba(207, 162, 79, 0.12) 0%, rgba(207, 162, 79, 0.04) 46%, transparent 70%),
+    linear-gradient(128deg, rgba(18, 33, 28, 0.98) 0%, rgba(20, 48, 39, 0.96) 48%, rgba(23, 73, 56, 0.88) 100%);
   --al-component-background-strong:
-    radial-gradient(112% 88% at 8% 0%, rgba(119, 255, 220, 0.14) 0%, rgba(119, 255, 220, 0.05) 44%, transparent 66%),
-    linear-gradient(136deg, rgba(8, 64, 74, 0.88) 0%, rgba(6, 34, 40, 0.88) 54%, rgba(10, 103, 92, 0.58) 100%);
-  --al-border: color-mix(in srgb, white 12%, transparent);
-  --al-text: var(--color-fg);
-  --al-muted: color-mix(in srgb, var(--color-fg) 70%, transparent);
-  --al-accent: var(--brand-primary);
-  --al-accent-soft: color-mix(in srgb, var(--brand-primary) 22%, transparent);
-  --al-accent-strong: color-mix(in srgb, var(--brand-primary) 84%, white 16%);
+    radial-gradient(112% 88% at 8% 0%, rgba(79, 196, 135, 0.12) 0%, rgba(79, 196, 135, 0.04) 44%, transparent 66%),
+    linear-gradient(136deg, rgba(28, 49, 41, 0.92) 0%, rgba(17, 30, 26, 0.94) 56%, rgba(24, 76, 57, 0.66) 100%);
+  --al-border: rgba(247, 241, 222, 0.16);
+  --al-text: #f7f1de;
+  --al-muted: rgba(226, 216, 190, 0.72);
+  --al-accent: var(--color-fg-primary);
+  --al-accent-soft: color-mix(in srgb, var(--color-fg-primary) 18%, transparent);
+  --al-accent-strong: color-mix(in srgb, var(--color-fg-primary) 88%, white 12%);
   --al-brass: var(--brand-accent);
-  --al-alert: color-mix(in srgb, var(--brand-accent) 82%, black 18%);
+  --al-alert: color-mix(in srgb, var(--brand-accent) 90%, white 10%);
   --al-danger: var(--color-danger);
   --al-ready: var(--color-success);
   --al-shadow: 0 28px 70px -42px rgba(0, 0, 0, 0.72);
@@ -204,14 +204,16 @@ textarea {
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-frame {
-  background: color-mix(in srgb, #111827 72%, var(--color-bg) 28%);
+  border-color: color-mix(in srgb, var(--brand-paper) 12%, transparent);
+  background: color-mix(in srgb, var(--color-bg) 88%, black 12%);
   box-shadow: 0 32px 88px -46px rgba(0, 0, 0, 0.74);
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-sidebar {
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.94)),
-    color-mix(in srgb, var(--color-bg-alt) 90%, white 10%);
+    linear-gradient(180deg, rgba(18, 35, 29, 0.92), rgba(12, 22, 19, 0.98)),
+    var(--color-bg-alt);
+  border-color: color-mix(in srgb, var(--brand-paper) 10%, transparent);
 }
 
 .al-shell-brand-block {
@@ -225,11 +227,27 @@ textarea {
   text-decoration: none;
 }
 
-.al-shell-brand img,
 .al-shell-footer-logo img {
   width: 2.1rem;
   height: 2.1rem;
   object-fit: contain;
+}
+
+.al-shell-brand-logo {
+  display: grid;
+  place-items: center;
+  width: 3.45rem;
+  height: 3.45rem;
+  overflow: hidden;
+  border-radius: 1.05rem;
+  background: color-mix(in srgb, var(--brand-ink) 94%, black 6%);
+  box-shadow: 0 16px 30px -25px color-mix(in srgb, var(--brand-ink) 70%, transparent);
+}
+
+.al-shell-brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .al-shell-brand-copy,
@@ -254,7 +272,6 @@ textarea {
 }
 
 .al-shell-brand-note,
-.al-shell-network-kicker,
 .al-shell-regent-pill p,
 .al-shell-footer-brand p {
   color: var(--al-muted);
@@ -290,6 +307,12 @@ textarea {
   outline: none;
 }
 
+.al-shell-nav-link:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--brand-primary) 16%, transparent),
+    0 0 0 0.18rem color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
 .al-shell-nav-link.is-active {
   background: color-mix(in srgb, var(--brand-primary) 11%, white 89%);
   color: var(--brand-primary);
@@ -299,7 +322,9 @@ textarea {
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-nav-link:hover,
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-nav-link:focus-visible,
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-nav-link.is-active {
-  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--al-accent) 16%, transparent);
+  color: var(--brand-paper);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--al-accent) 22%, transparent);
 }
 
 .al-shell-nav-icon,
@@ -311,55 +336,18 @@ textarea {
   flex: none;
 }
 
-.al-shell-sidebar-foot {
-  margin-top: auto;
-}
-
-.al-shell-network-card {
-  padding: 1rem;
-  border-radius: 1.1rem;
-  border: 1px solid color-mix(in srgb, var(--al-border) 92%, white 8%);
-  background: color-mix(in srgb, white 84%, var(--brand-primary) 16%);
-}
-
-.al-shell-network-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.al-shell-network-caret {
-  width: 0.92rem;
-  height: 0.92rem;
-  color: var(--al-muted);
-}
-
-.al-shell-network-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-top: 0.55rem;
-}
-
-.al-shell-network-row strong {
-  display: block;
-  margin-bottom: 0.14rem;
-}
-
-.al-shell-network-row p {
-  margin: 0;
-  color: var(--al-muted);
-  font-size: 0.78rem;
-}
-
-.al-shell-network-dot {
-  width: 0.72rem;
-  height: 0.72rem;
-  border-radius: 999px;
-  margin-top: 0.2rem;
-  background: color-mix(in srgb, var(--color-success) 85%, white 15%);
-  box-shadow: 0 0 0 0.24rem color-mix(in srgb, var(--color-success) 14%, transparent);
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search-shortcut .kbd,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-regent-pill,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-icon-button,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-wallet-trigger,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-connect-button,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-command-dialog,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-auth-chip {
+  border-color: color-mix(in srgb, var(--brand-paper) 14%, transparent);
+  background: color-mix(in srgb, var(--al-panel-strong) 88%, black 12%);
+  color: var(--al-text);
+  box-shadow: none;
 }
 
 .al-shell-main {
@@ -379,7 +367,10 @@ textarea {
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-header {
-  background: color-mix(in srgb, var(--color-bg-alt) 86%, white 14%);
+  border-color: color-mix(in srgb, var(--brand-paper) 10%, transparent);
+  background:
+    linear-gradient(180deg, rgba(23, 39, 33, 0.96), rgba(18, 31, 26, 0.96)),
+    var(--color-bg-alt);
 }
 
 .al-shell-search {
@@ -405,6 +396,24 @@ textarea {
 
 .al-shell-search input::placeholder {
   color: color-mix(in srgb, var(--al-muted) 92%, white 8%);
+}
+
+.al-shell-search:focus-within {
+  border-color: color-mix(in srgb, var(--brand-primary) 34%, var(--al-border) 66%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 0 0 0.2rem color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search input::placeholder {
+  color: color-mix(in srgb, var(--al-muted) 74%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search:focus-within {
+  border-color: color-mix(in srgb, var(--al-accent) 38%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 241, 222, 0.07),
+    0 0 0 0.2rem color-mix(in srgb, var(--al-accent) 15%, transparent);
 }
 
 .al-shell-search-shortcut {
@@ -552,6 +561,12 @@ textarea {
   background: color-mix(in srgb, var(--brand-primary) 10%, transparent 90%);
 }
 
+:root[data-brand="autolaunch"][data-theme="dark"] .al-command-item:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-command-item:focus-visible,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-command-item.is-active {
+  background: color-mix(in srgb, var(--al-accent) 14%, transparent);
+}
+
 .al-command-mark {
   display: grid;
   place-items: center;
@@ -562,6 +577,11 @@ textarea {
   color: color-mix(in srgb, var(--brand-primary) 70%, var(--al-text) 30%);
   font-family: var(--al-font-display);
   font-size: 0.78rem;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-command-mark {
+  background: color-mix(in srgb, var(--al-accent) 18%, transparent);
+  color: var(--brand-paper);
 }
 
 .al-command-item strong,
@@ -804,7 +824,12 @@ textarea {
   height: 1.75rem;
   border-radius: 999px;
   background:
-    linear-gradient(135deg, rgba(112, 194, 255, 0.95), rgba(64, 105, 255, 0.9));
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.72), transparent 34%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brand-primary) 86%, white 14%),
+      color-mix(in srgb, var(--brand-accent) 66%, var(--brand-primary) 34%)
+    );
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.36);
 }
 
@@ -886,7 +911,10 @@ textarea {
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-footer {
-  background: color-mix(in srgb, var(--color-bg-alt) 88%, white 12%);
+  border-color: color-mix(in srgb, var(--brand-paper) 10%, transparent);
+  background:
+    linear-gradient(180deg, rgba(18, 31, 26, 0.96), rgba(12, 22, 19, 0.98)),
+    var(--color-bg-alt);
 }
 
 .al-shell-footer-brand p {
@@ -902,8 +930,7 @@ textarea {
   flex-wrap: wrap;
 }
 
-.al-shell-footer-links a,
-.al-shell-footer-social a {
+.al-shell-footer-links a {
   color: color-mix(in srgb, var(--al-text) 88%, transparent);
   text-decoration: none;
 }
@@ -924,11 +951,66 @@ textarea {
 }
 
 .al-shell-footer-links a:hover,
-.al-shell-footer-links a:focus-visible,
-.al-shell-footer-social a:hover,
-.al-shell-footer-social a:focus-visible {
+.al-shell-footer-links a:focus-visible {
   color: var(--brand-primary);
   outline: none;
+}
+
+.al-shell-footer-social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid color-mix(in srgb, var(--al-border) 88%, white 12%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--al-panel-strong) 86%, white 14%);
+  color: var(--al-muted);
+  text-decoration: none;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms var(--al-ease-out);
+}
+
+.al-shell-footer-social-link:hover,
+.al-shell-footer-social-link:focus-visible {
+  color: var(--al-text);
+  border-color: color-mix(in srgb, var(--al-accent) 42%, var(--al-border) 58%);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.al-shell-footer-social-link:active {
+  transform: scale(0.98);
+}
+
+.al-shell-social-mark {
+  display: block;
+  width: 1.18rem;
+  height: 1.18rem;
+  flex: none;
+}
+
+.al-shell-footer-icon-image {
+  display: block;
+  width: 1.08rem;
+  height: 1.08rem;
+  object-fit: contain;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-footer-social-link {
+  border-color: color-mix(in srgb, var(--brand-paper) 14%, transparent);
+  background: color-mix(in srgb, var(--al-panel-strong) 84%, black 16%);
+  color: var(--al-muted);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-footer-social-link:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-footer-social-link:focus-visible {
+  color: var(--brand-paper);
+  border-color: color-mix(in srgb, var(--al-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--al-accent) 12%, transparent);
 }
 
 .al-shell-route-host #autolaunch-shell .al-topbar,
@@ -949,10 +1031,6 @@ textarea {
 
   .al-shell-nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .al-shell-sidebar-foot {
-    margin-top: 0;
   }
 
   .al-shell-header,
@@ -1005,13 +1083,118 @@ textarea {
     display: none;
   }
 
-  .al-shell-sidebar-foot,
   .al-shell-footer-social {
     display: none;
   }
 
   .al-shell-wallet-trigger strong {
     max-width: 8rem;
+  }
+}
+
+/* Restrained dark-mode polish for compact controls and small text surfaces. */
+:root[data-brand="autolaunch"][data-theme="dark"] :is(
+  .al-shell-search,
+  .al-shell-search-shortcut .kbd,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button,
+  .al-auth-chip,
+  .al-shell-popover
+) {
+  border-color: rgba(247, 241, 222, 0.16);
+  background:
+    radial-gradient(circle at 95% 0%, rgba(67, 196, 132, 0.09), transparent 34%),
+    linear-gradient(180deg, rgba(30, 48, 41, 0.96), rgba(18, 31, 26, 0.98));
+  color: var(--al-text);
+  box-shadow: inset 0 1px 0 rgba(247, 241, 222, 0.05);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(
+  .al-shell-search input,
+  .al-shell-regent-pill strong,
+  .al-shell-wallet-trigger strong,
+  .al-shell-connect-button
+) {
+  color: var(--al-text);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(
+  .al-shell-search input::placeholder,
+  .al-shell-regent-pill p,
+  .al-shell-popover-note p,
+  .al-shell-wallet-summary p
+) {
+  color: var(--al-muted);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-metric,
+  .al-regent-action-card,
+  .al-regent-addresses,
+  .al-regent-empty,
+  .al-stat-card,
+  .al-review-card,
+  .al-note-card,
+  .al-muted-box,
+  .al-empty-state,
+  .al-check-item,
+  .al-action-desk-stat
+) {
+  border-color: rgba(247, 241, 222, 0.14);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(67, 196, 132, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(28, 46, 39, 0.98), rgba(16, 28, 24, 0.98));
+  color: var(--al-text);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 241, 222, 0.05),
+    0 22px 48px -40px rgba(0, 0, 0, 0.82);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-metric,
+  .al-regent-action-card,
+  .al-regent-addresses,
+  .al-regent-empty,
+  .al-stat-card,
+  .al-review-card,
+  .al-note-card,
+  .al-muted-box,
+  .al-empty-state,
+  .al-check-item,
+  .al-action-desk-stat
+) :is(p, span, small, label, .al-kicker) {
+  color: var(--al-muted);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-metric,
+  .al-regent-action-card,
+  .al-regent-addresses,
+  .al-regent-empty,
+  .al-stat-card,
+  .al-review-card,
+  .al-note-card,
+  .al-muted-box,
+  .al-empty-state,
+  .al-check-item,
+  .al-action-desk-stat
+) :is(h2, h3, strong) {
+  color: var(--al-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-brand="autolaunch"][data-theme="dark"] :is(
+    .al-shell-icon-button,
+    .al-shell-wallet-trigger,
+    .al-shell-connect-button,
+    .al-shell-footer-social-link
+  ):hover {
+    border-color: rgba(67, 196, 132, 0.34);
+    background:
+      radial-gradient(circle at 95% 0%, rgba(67, 196, 132, 0.14), transparent 34%),
+      linear-gradient(180deg, rgba(35, 58, 48, 0.98), rgba(20, 36, 30, 0.98));
   }
 }
 
@@ -1038,6 +1221,10 @@ textarea {
   background: var(--al-component-background);
   backdrop-filter: blur(16px);
   box-shadow: var(--al-shadow);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-panel {
+  color: var(--al-text);
 }
 
 .al-welcome-modal {
@@ -1300,6 +1487,23 @@ textarea {
   transform: translateY(-1px);
 }
 
+.al-nav-link:active,
+.al-utility-link:active,
+.al-auth-chip button:active,
+.al-theme:active,
+.al-submit:active,
+.al-filter:active,
+.al-ghost:active,
+.al-cta-link:active,
+.al-shell-nav-link:active,
+.al-shell-icon-button:active,
+.al-shell-wallet-trigger:active,
+.al-shell-connect-button:active,
+.al-account-tab:active,
+.al-account-pill:active {
+  transform: scale(0.98);
+}
+
 .al-nav-link.is-active,
 .al-theme {
   border-color: color-mix(in srgb, var(--al-accent) 24%, var(--al-border));
@@ -1336,6 +1540,46 @@ textarea {
 
 .al-ghost {
   background: transparent;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-nav-link,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-utility-link,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-auth-chip button,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-theme,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-filter,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-ghost {
+  border-color: color-mix(in srgb, var(--brand-paper) 16%, transparent);
+  background: color-mix(in srgb, var(--brand-paper) 4%, transparent);
+  color: color-mix(in srgb, var(--al-text) 92%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-nav-link:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-utility-link:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-auth-chip button:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-theme:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-filter:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-ghost:hover {
+  border-color: color-mix(in srgb, var(--al-accent) 34%, transparent);
+  background: color-mix(in srgb, var(--al-accent) 12%, transparent);
+  color: var(--brand-paper);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-submit,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-cta-link {
+  border-color: color-mix(in srgb, var(--al-accent) 54%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--al-accent) 92%, white 8%),
+    color-mix(in srgb, var(--al-accent) 72%, black 28%)
+  );
+  color: var(--color-fg-on-primary);
+  box-shadow: 0 18px 36px -24px color-mix(in srgb, var(--al-accent) 42%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-submit--secondary {
+  border-color: color-mix(in srgb, var(--al-brass) 34%, transparent);
+  background: color-mix(in srgb, var(--al-brass) 12%, var(--al-panel-strong) 88%);
+  color: var(--brand-paper);
 }
 
 .al-submit--secondary {
@@ -5473,6 +5717,380 @@ textarea {
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-positions-header,
+  .al-positions-summary-card,
+  .al-positions-priority-card,
+  .al-positions-table-card,
+  .al-positions-activity-card,
+  .al-profile-header,
+  .al-profile-card,
+  .al-identity-header,
+  .al-regent-hero,
+  .al-regent-status,
+  .al-regent-metric,
+  .al-regent-action-card,
+  .al-regent-addresses,
+  .al-regent-empty,
+  .al-subject-header,
+  .al-subject-hero-panel,
+  .al-subject-metric-card,
+  .al-routing-policy-panel,
+  .al-routing-history-panel,
+  .al-routing-ledger-card,
+  .al-subject-action-card,
+  .al-subject-secondary-card,
+  .al-subject-side-panel,
+  .al-subject-review-panel,
+  .al-subject-state-card,
+  .al-contract-card,
+  .al-auction-returns-hero,
+  .al-auction-returns-board,
+  .al-auction-detail-estimator,
+  .al-auction-detail-info-card,
+  .al-auction-detail-curve-card,
+  .al-auction-detail-position-card,
+  .al-status-hero,
+  .al-status-check,
+  .al-hero.al-panel,
+  .al-main-panel,
+  .al-side-panel,
+  .al-stat-card,
+  .al-review-card,
+  .al-note-card,
+  .al-inline-banner,
+  .al-muted-box,
+  .al-check-item,
+  .al-agent-card,
+  .al-agentbook-session,
+  .al-agentbook-qr-frame,
+  .al-guide-hero,
+  .al-guide-summary,
+  .al-choice-card,
+  .al-disclosure,
+  .al-guide-step,
+  .al-guide-step-callout,
+  .al-guide-finish,
+  .al-guide-outcome,
+  .al-guide-invariant,
+  .al-guide-surface,
+  .al-guide-surface-card,
+  .al-guide-cta-strip,
+  .al-guide-cta-card,
+  .al-terrain-surface,
+  .al-terrain-strip,
+  .al-action-desk,
+  .al-action-desk-stat,
+  .al-action-desk-card,
+  .al-agent-meta div
+) {
+  border-color: color-mix(in srgb, var(--brand-paper) 13%, transparent);
+  background:
+    radial-gradient(circle at 96% 4%, color-mix(in srgb, var(--al-accent) 9%, transparent), transparent 26%),
+    linear-gradient(180deg, color-mix(in srgb, var(--al-panel-strong) 94%, black 6%), color-mix(in srgb, var(--al-panel) 92%, black 8%));
+  box-shadow: 0 24px 58px -42px rgba(0, 0, 0, 0.78);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-profile-header-copy h1,
+  .al-positions-header-copy h1,
+  .al-identity-header-copy h1,
+  .al-regent-hero h1,
+  .al-subject-heading-line h1,
+  .al-subject-hero-copy h2,
+  .al-auctions-page-head h1,
+  .al-auction-detail-page-head h1,
+  #al-launch-page .al-route-hero h1,
+  #al-docs-page .al-docs-masthead h1,
+  .al-status-hero h1,
+  .al-status-check h2,
+  .al-hero h2,
+  .al-guide-hero h2,
+  .al-choice-card h3,
+  .al-guide-step-copy h3,
+  .al-guide-outcome strong,
+  .al-section-head h3,
+  .al-agent-card-head strong,
+  .al-note-card strong,
+  .al-review-card strong,
+  .al-stat-card strong,
+  .al-profile-card h2,
+  .al-profile-card h3,
+  .al-positions-table-topline h3,
+  .al-positions-activity-head h3,
+  .al-positions-priority-copy h2,
+  .al-regent-action-card h2,
+  .al-subject-action-card h3,
+  .al-subject-secondary-card h3,
+  .al-contract-card h3,
+  .al-auction-detail-card-head h3,
+  .al-auction-returns-board-head h3
+) {
+  color: var(--brand-paper);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-status,
+  .al-subject-flow-box,
+  .al-subject-flow-box.is-featured,
+  .al-status-badge,
+  .al-network-badge,
+  .al-profile-chip,
+  .al-profile-status-pill,
+  .al-subject-chip,
+  .al-subject-badge,
+  .al-launch-pill,
+  .al-auctions-trust-pill,
+  .al-auctions-feature-chip,
+  .al-launch-tag,
+  .al-guide-pill,
+  .al-step-chip,
+  .al-action-desk-status,
+  .al-access-badge,
+  .al-account-chip,
+  .al-account-wallet
+) {
+  border-color: color-mix(in srgb, var(--al-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--al-accent) 10%, transparent);
+  color: color-mix(in srgb, var(--brand-paper) 90%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-status.is-paused,
+  .al-status-badge.is-warn,
+  .al-network-badge.is-warn
+) {
+  border-color: color-mix(in srgb, var(--al-brass) 30%, transparent);
+  background: color-mix(in srgb, var(--al-brass) 13%, transparent);
+  color: color-mix(in srgb, var(--al-brass) 88%, white 12%);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-primary-button,
+  .al-subject-primary-button,
+  .al-subject-action-button
+) {
+  border-color: color-mix(in srgb, var(--al-accent) 54%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--al-accent) 92%, white 8%),
+    color-mix(in srgb, var(--al-accent) 72%, black 28%)
+  );
+  color: var(--color-fg-on-primary);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-secondary-button,
+  .al-subject-secondary-button,
+  .al-subject-ghost-button,
+  .al-subject-side-tab,
+  .al-auction-detail-preset,
+  .al-auctions-bid-presets button,
+  .al-profile-next-step,
+  .al-field-grid input,
+  .al-field-grid select,
+  .al-field-grid textarea,
+  .al-filter-form select,
+  .al-check-item input,
+  .al-form input,
+  .al-form select,
+  .al-form textarea,
+  .al-inline-form input,
+  .al-inline-form select,
+  .al-contract-form-grid input,
+  .al-contract-form-grid select,
+  .al-account-search input,
+  .al-account-search select,
+  .al-regent-form input,
+  .al-subject-form input,
+  .al-auction-detail-input-shell,
+  .al-auctions-search input,
+  .al-auctions-filter-field select
+) {
+  border-color: color-mix(in srgb, var(--brand-paper) 14%, transparent);
+  background: color-mix(in srgb, var(--al-panel-strong) 86%, black 14%);
+  color: var(--al-text);
+  box-shadow: none;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-empty-state,
+  .al-home-card-empty,
+  .al-auctions-empty-state,
+  .al-auction-returns-loading,
+  .al-regent-empty
+) {
+  border-color: color-mix(in srgb, var(--brand-paper) 16%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--al-panel-strong) 88%, black 12%), color-mix(in srgb, var(--al-panel) 84%, black 16%));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host .al-segmented {
+  border-color: color-mix(in srgb, var(--brand-paper) 14%, transparent);
+  background: color-mix(in srgb, var(--al-panel-strong) 84%, black 16%);
+  box-shadow: none;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host .al-segmented-option.is-active {
+  background: color-mix(in srgb, var(--al-accent) 15%, transparent);
+  color: var(--brand-paper);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--al-accent) 22%, transparent);
+}
+
+/* Compact surface polish: crisper cards, restrained feedback, stronger dark-mode reads. */
+.al-shell-route-host :is(
+  .al-shell-search,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button,
+  .al-submit,
+  .al-ghost,
+  .al-cta-link,
+  .al-regent-primary-button,
+  .al-regent-secondary-button,
+  .al-subject-primary-button,
+  .al-subject-secondary-button,
+  .al-subject-action-button,
+  .al-subject-ghost-button
+) {
+  transition:
+    transform 140ms var(--al-ease-out),
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.al-shell-route-host :is(
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button
+) {
+  border-color: color-mix(in srgb, var(--brand-ink) 12%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 97%, var(--color-bg) 3%), color-mix(in srgb, white 92%, var(--brand-primary) 8%));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 14px 28px -24px rgba(24, 73, 55, 0.22);
+}
+
+.al-shell-route-host :is(
+  .al-shell-search,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button
+):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 68%, white 32%);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .al-shell-route-host :is(
+    .al-shell-search,
+    .al-shell-icon-button,
+    .al-shell-wallet-trigger,
+    .al-shell-connect-button
+  ):hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 28%, transparent);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, white 98%, var(--color-bg) 2%), color-mix(in srgb, white 90%, var(--brand-primary) 10%));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 18px 34px -28px rgba(24, 73, 55, 0.28);
+  }
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button,
+  .al-regent-wallet-strip,
+  .al-regent-addresses,
+  .al-regent-status,
+  .al-regent-metric,
+  .al-regent-action-card,
+  .al-regent-empty,
+  .al-empty-state
+) {
+  border-color: rgba(247, 241, 222, 0.18);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(67, 196, 132, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(31, 51, 43, 0.98), rgba(17, 30, 25, 0.98));
+  color: var(--al-text);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 241, 222, 0.06),
+    0 22px 48px -42px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-status.is-paused,
+  .al-submit--secondary
+) {
+  border-color: color-mix(in srgb, var(--al-brass) 30%, transparent);
+  background:
+    radial-gradient(circle at 96% 4%, color-mix(in srgb, var(--al-brass) 12%, transparent), transparent 28%),
+    linear-gradient(180deg, rgba(43, 42, 31, 0.98), rgba(24, 29, 24, 0.98));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-regent-wallet-strip p,
+  .al-regent-addresses p,
+  .al-regent-status p,
+  .al-regent-metric p,
+  .al-regent-action-card p,
+  .al-regent-empty p,
+  .al-empty-state p
+) {
+  color: color-mix(in srgb, var(--brand-paper) 74%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-form input,
+  .al-form select,
+  .al-form textarea,
+  .al-inline-form input,
+  .al-inline-form select,
+  .al-contract-form-grid input,
+  .al-contract-form-grid select,
+  .al-account-search input,
+  .al-account-search select,
+  .al-regent-form input,
+  .al-subject-form input,
+  .al-auctions-search input,
+  .al-auctions-filter-field select
+) {
+  border-color: rgba(247, 241, 222, 0.16);
+  background: color-mix(in srgb, var(--al-panel-strong) 78%, black 22%);
+  color: var(--brand-paper);
+  box-shadow: inset 0 1px 0 rgba(247, 241, 222, 0.05);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
+  .al-form input,
+  .al-form select,
+  .al-form textarea,
+  .al-inline-form input,
+  .al-inline-form select,
+  .al-contract-form-grid input,
+  .al-contract-form-grid select,
+  .al-account-search input,
+  .al-account-search select,
+  .al-regent-form input,
+  .al-subject-form input,
+  .al-auctions-search input,
+  .al-auctions-filter-field select
+):focus-visible {
+  border-color: color-mix(in srgb, var(--al-accent) 44%, transparent);
+  box-shadow:
+    0 0 0 0.2rem color-mix(in srgb, var(--al-accent) 18%, transparent),
+    inset 0 1px 0 rgba(247, 241, 222, 0.08);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .al-shell-route-host :is(
     .al-status-check,
@@ -5519,5 +6137,68 @@ textarea {
   ) {
     width: 100%;
     justify-content: center;
+  }
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-header {
+  border-color: rgba(219, 255, 239, 0.14);
+  background:
+    radial-gradient(120% 90% at 5% 0%, rgba(190, 255, 230, 0.1), transparent 42%),
+    radial-gradient(86% 78% at 100% 0%, rgba(67, 196, 132, 0.14), transparent 50%),
+    linear-gradient(135deg, #17382f 0%, #102a23 48%, #084550 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 247, 223, 0.06);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(
+  .al-shell-search,
+  .al-shell-search-shortcut .kbd,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button,
+  .al-command-dialog,
+  .al-auth-chip
+) {
+  border-color: rgba(219, 255, 239, 0.16);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(201, 255, 234, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(28, 58, 49, 0.98), rgba(12, 35, 30, 0.98));
+  color: #fff7df;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 247, 223, 0.07),
+    0 18px 42px -34px rgba(0, 0, 0, 0.92);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search input {
+  color: #fff7df;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search input::placeholder,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-regent-pill p {
+  color: rgba(255, 247, 223, 0.7);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search-icon,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-icon-button,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-connect-button,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-regent-pill strong {
+  color: #c9ffea;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-brand="autolaunch"][data-theme="dark"] :is(
+    .al-shell-search,
+    .al-shell-regent-pill,
+    .al-shell-icon-button,
+    .al-shell-wallet-trigger,
+    .al-shell-connect-button
+  ):hover {
+    border-color: rgba(201, 255, 234, 0.3);
+    background:
+      radial-gradient(circle at 96% 4%, rgba(201, 255, 234, 0.16), transparent 32%),
+      linear-gradient(180deg, rgba(32, 70, 58, 0.98), rgba(13, 42, 35, 0.98));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 247, 223, 0.08),
+      0 22px 48px -36px rgba(0, 0, 0, 0.95);
   }
 }

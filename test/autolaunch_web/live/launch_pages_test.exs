@@ -274,7 +274,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "Starter command"
+    assert html =~ "Auction Wizard"
     assert html =~ "Copy direct CLI command"
     assert html =~ "Open agent-assisted brief"
     assert html =~ "Review launch setup"
@@ -313,9 +313,14 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     {:ok, _view, html} = live(conn, "/launch")
 
     assert html =~ "Run this in your terminal to start the guided launch flow."
-    assert html =~ "Deploy the Safe, strategy, splitter, ingress, and registry."
-    assert html =~ "Fund the strategy and set the launch allocations."
-    assert html =~ "Start the market on Base and keep the operator run moving."
+    assert html =~ "Add Identity"
+    assert html =~ "Connect ENS, erc8004, and/or World to your agent for higher trust"
+    assert html =~ "Prepare x402 Services"
+
+    assert html =~
+             "It helps to already start serving your agent&#39;s business before the auction"
+
+    assert html =~ "Over two days, people bid for a 10% share of your agent&#39;s future revenue"
     assert html =~ "Open contracts"
     refute html =~ "Prepare review"
   end
@@ -411,7 +416,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "Sign in to inspect your bids."
   end
 
-  test "shell keeps five primary destinations in the sidebar", %{conn: conn} do
+  test "shell keeps primary destinations in the sidebar", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/launch")
 
     assert html =~ ~s(aria-label="Primary")
@@ -420,7 +425,6 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     assert html =~ "Auctions"
     assert html =~ "Positions"
     assert html =~ "Profile"
-    assert html =~ "Network"
-    assert html =~ "Base mainnet"
+    refute html =~ "Base mainnet"
   end
 end

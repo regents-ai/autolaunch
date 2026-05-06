@@ -37,13 +37,9 @@ defmodule AutolaunchWeb.Layouts do
         <aside class="al-shell-sidebar">
           <div class="al-shell-brand-block">
             <.link navigate={~p"/"} class="al-shell-brand">
-              <img
-                src={~p"/regent/sigils/seal.svg"}
-                alt=""
-                aria-hidden="true"
-                width="44"
-                height="44"
-              />
+              <span class="al-shell-brand-logo" aria-hidden="true">
+                <img src={~p"/images/autolaunchgreen.png"} alt="" width="58" height="58" />
+              </span>
               <div class="al-shell-brand-copy">
                 <span class="al-shell-brand-name">Autolaunch</span>
                 <span class="al-shell-brand-note">Agent markets</span>
@@ -61,22 +57,6 @@ defmodule AutolaunchWeb.Layouts do
               <span>{item.label}</span>
             </.link>
           </nav>
-
-          <div class="al-shell-sidebar-foot">
-            <div class="al-shell-network-card">
-              <div class="al-shell-network-head">
-                <span class="al-shell-network-kicker">Network</span>
-                <.shell_icon name="chevron-down" class="al-shell-network-caret" />
-              </div>
-              <div class="al-shell-network-row">
-                <span class="al-shell-network-dot"></span>
-                <div>
-                  <strong>Base mainnet</strong>
-                  <p>All launch actions stay on Base.</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </aside>
 
         <div class="al-shell-main">
@@ -256,11 +236,7 @@ defmodule AutolaunchWeb.Layouts do
             </nav>
 
             <nav class="al-shell-footer-social" aria-label="Social">
-              <a href="https://x.com/regents_sh" target="_blank" rel="noreferrer">X</a>
-              <a href="https://discord.gg/regents" target="_blank" rel="noreferrer">Discord</a>
-              <a href="https://github.com/regents-ai/autolaunch" target="_blank" rel="noreferrer">
-                GitHub
-              </a>
+              <.footer_social_links />
             </nav>
           </footer>
         </div>
@@ -451,7 +427,7 @@ defmodule AutolaunchWeb.Layouts do
       },
       %{
         label: "$REGENT staking",
-        note: "Stake, claim, and review the company rewards rail",
+        note: "Stake, claim, and review protocol stables",
         href: ~p"/regent-staking",
         mark: "RG",
         search: "regent staking rewards usdc claim emissions"
@@ -563,5 +539,90 @@ defmodule AutolaunchWeb.Layouts do
   defp privy_app_id do
     Application.get_env(:autolaunch, :privy, [])
     |> Keyword.get(:app_id, "")
+  end
+
+  defp footer_social_links(assigns) do
+    ~H"""
+    <a
+      href="https://x.com/autolaunch_sh"
+      target="_blank"
+      rel="noreferrer"
+      class="al-shell-footer-social-link"
+      aria-label="Autolaunch on X"
+      title="Autolaunch on X"
+    >
+      <.x_mark class="al-shell-social-mark" />
+    </a>
+    <a
+      href="https://farcaster.xyz/regent"
+      target="_blank"
+      rel="noreferrer"
+      class="al-shell-footer-social-link"
+      aria-label="Regent on Farcaster"
+      title="Regent on Farcaster"
+    >
+      <img src={~p"/images/farcastericon.png"} alt="" class="al-shell-footer-icon-image" />
+    </a>
+    <a
+      href="https://discord.gg/regents"
+      target="_blank"
+      rel="noreferrer"
+      class="al-shell-footer-social-link"
+      aria-label="Regents on Discord"
+      title="Regents on Discord"
+    >
+      <.discord_mark class="al-shell-social-mark" />
+    </a>
+    <a
+      href="https://github.com/orgs/regents-ai/repositories"
+      target="_blank"
+      rel="noreferrer"
+      class="al-shell-footer-social-link"
+      aria-label="Regents Labs GitHub"
+      title="Regents Labs GitHub"
+    >
+      <.github_mark class="al-shell-social-mark" />
+    </a>
+    <a
+      href="https://www.geckoterminal.com/base/pools/0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
+      target="_blank"
+      rel="noreferrer"
+      class="al-shell-footer-social-link"
+      aria-label="View $REGENT on GeckoTerminal"
+      title="View $REGENT on GeckoTerminal"
+    >
+      <img src={~p"/images/geckoterminallogo.png"} alt="" class="al-shell-footer-icon-image" />
+    </a>
+    """
+  end
+
+  attr :class, :string, default: nil
+
+  defp x_mark(assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class={@class}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26L23 21.75h-6.828l-5.347-6.79l-5.94 6.79H1.577l7.73-8.835L1 2.25h7.002l4.833 6.133zM17.083 19.77h1.833L7.084 4.126H5.117z" />
+    </svg>
+    """
+  end
+
+  attr :class, :string, default: nil
+
+  defp discord_mark(assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class={@class}>
+      <path d="M20.317 4.37A19.79 19.79 0 0 0 15.43 2.855a13.79 13.79 0 0 0-.66 1.357a18.27 18.27 0 0 0-5.538 0a13.68 13.68 0 0 0-.67-1.357A19.74 19.74 0 0 0 3.678 4.37C.534 9.09-.32 13.693.099 18.23a19.9 19.9 0 0 0 6.06 3.078a14.9 14.9 0 0 0 1.298-2.11a12.92 12.92 0 0 1-2.04-.98c.172-.128.341-.262.505-.4a14.1 14.1 0 0 0 12.163 0c.165.138.334.272.505.4a12.9 12.9 0 0 1-2.042.981a14.2 14.2 0 0 0 1.299 2.109a19.86 19.86 0 0 0 6.061-3.078c.492-5.261-.84-9.821-3.59-13.86ZM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419s.948-2.419 2.157-2.419c1.219 0 2.175 1.095 2.157 2.419c0 1.334-.948 2.419-2.157 2.419Zm7.974 0c-1.183 0-2.157-1.085-2.157-2.419s.948-2.419 2.157-2.419c1.219 0 2.175 1.095 2.157 2.419c0 1.334-.938 2.419-2.157 2.419Z" />
+    </svg>
+    """
+  end
+
+  attr :class, :string, default: nil
+
+  defp github_mark(assigns) do
+    ~H"""
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class={@class}>
+      <path d="M12 2C6.48 2 2 6.58 2 12.22c0 4.5 2.87 8.31 6.84 9.66c.5.1.68-.22.68-.49c0-.24-.01-1.05-.01-1.91c-2.78.62-3.37-1.21-3.37-1.21c-.45-1.19-1.11-1.5-1.11-1.5c-.91-.64.07-.63.07-.63c1 .08 1.53 1.06 1.53 1.06c.9 1.56 2.35 1.11 2.92.85c.09-.67.35-1.11.63-1.37c-2.22-.26-4.56-1.14-4.56-5.08c0-1.12.39-2.04 1.03-2.76c-.1-.26-.45-1.31.1-2.73c0 0 .84-.28 2.75 1.05A9.35 9.35 0 0 1 12 6.84c.85 0 1.71.12 2.51.35c1.91-1.33 2.75-1.05 2.75-1.05c.55 1.42.2 2.47.1 2.73c.64.72 1.03 1.64 1.03 2.76c0 3.95-2.34 4.81-4.58 5.07c.36.32.68.95.68 1.91c0 1.38-.01 2.49-.01 2.83c0 .27.18.59.69.49A10.24 10.24 0 0 0 22 12.22C22 6.58 17.52 2 12 2Z" />
+    </svg>
+    """
   end
 end

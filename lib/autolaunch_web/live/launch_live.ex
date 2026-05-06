@@ -101,13 +101,13 @@ defmodule AutolaunchWeb.LaunchLive do
 
               <div>
                 <p class="al-kicker">Launch console</p>
-                <h3>Starter command</h3>
+                <h3>Auction Wizard</h3>
               </div>
             </div>
 
             <div class="al-launch-command-bar">
               <code>{@cli_command} --chain base-sepolia</code>
-              <button type="button" class="al-submit" data-copy-value={@cli_command}>
+              <button type="button" class="al-submit" data-copy-value={"#{@cli_command} --chain base-sepolia"}>
                 Copy command
               </button>
             </div>

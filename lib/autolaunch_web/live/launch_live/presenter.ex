@@ -235,16 +235,16 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
   def launch_console_steps do
     [
       %{
-        title: "Deploy",
-        body: "Deploy the Safe, strategy, splitter, ingress, and registry."
+        title: "Add Identity",
+        body: "Connect ENS, erc8004, and/or World to your agent for higher trust"
       },
       %{
-        title: "Fund",
-        body: "Fund the strategy and set the launch allocations."
+        title: "Prepare x402 Services",
+        body: "It helps to already start serving your agent's business before the auction"
       },
       %{
         title: "Go live",
-        body: "Start the market on Base and keep the operator run moving."
+        body: "Over two days, people bid for a 10% share of your agent's future revenue"
       }
     ]
   end

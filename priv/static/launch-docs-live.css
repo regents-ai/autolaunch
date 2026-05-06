@@ -848,3 +848,218 @@
     justify-content: center;
   }
 }
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page,
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page {
+  --al-dark-cream: #fff7df;
+  --al-dark-muted: rgba(255, 247, 223, 0.72);
+  --al-dark-soft: rgba(219, 255, 239, 0.14);
+  --al-dark-mint: #c9ffea;
+  --al-dark-card:
+    radial-gradient(112% 86% at 9% 0%, rgba(190, 255, 230, 0.13), transparent 40%),
+    radial-gradient(94% 82% at 100% 4%, rgba(54, 190, 128, 0.16), transparent 48%),
+    linear-gradient(135deg, #17382f 0%, #102a23 43%, #084550 100%);
+  --al-dark-card-strong:
+    radial-gradient(112% 86% at 9% 0%, rgba(190, 255, 230, 0.16), transparent 40%),
+    radial-gradient(100% 80% at 100% 0%, rgba(67, 196, 132, 0.22), transparent 52%),
+    linear-gradient(135deg, #183e33 0%, #0f3329 42%, #074a55 100%);
+  --al-dark-control:
+    radial-gradient(circle at 96% 0%, rgba(201, 255, 234, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(26, 55, 46, 0.98), rgba(12, 35, 30, 0.98));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page :is(
+  .al-route-hero,
+  .al-launch-console-strip,
+  .al-launch-checklist-card,
+  .al-launch-path-card,
+  .al-launch-metadata-card,
+  .al-launch-preview-card,
+  .al-launch-companion-empty,
+  .al-launch-footnote-strip
+),
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page :is(
+  .al-docs-masthead,
+  .al-legal-hero,
+  .al-guide-hero,
+  .al-guide-summary,
+  .al-choice-card,
+  .al-disclosure,
+  .al-guide-step,
+  .al-guide-step-callout,
+  .al-guide-finish,
+  .al-guide-outcome,
+  .al-note-card,
+  .al-inline-banner,
+  .al-terrain-surface,
+  .al-terrain-strip,
+  .al-contract-card,
+  .al-contract-kv div,
+  .al-contract-list-item,
+  .al-contract-json,
+  .al-legal-card,
+  .al-legal-footer,
+  .al-empty-state
+) {
+  border-color: var(--al-dark-soft);
+  background: var(--al-dark-card);
+  color: var(--al-dark-cream);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 247, 223, 0.07),
+    0 26px 64px -44px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-path-card.is-agent,
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-console-strip {
+  border-color: rgba(201, 255, 234, 0.22);
+  background: var(--al-dark-card-strong);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page :is(
+  h1,
+  h2,
+  h3,
+  strong,
+  code,
+  .al-route-hero-step strong,
+  .al-launch-path-list strong,
+  .al-launch-checklist-copy strong,
+  .al-launch-agent-guide strong,
+  .al-launch-next-action strong
+),
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page :is(
+  h1,
+  h2,
+  h3,
+  strong,
+  code,
+  .al-contract-kv strong,
+  .al-contract-list-item strong,
+  .al-docs-feature-copy strong
+) {
+  color: var(--al-dark-cream);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page :is(
+  p,
+  .al-route-kicker,
+  .al-route-subcopy,
+  .al-route-hero-visual-kicker,
+  .al-launch-metadata-form label span,
+  .al-launch-preview-copy p,
+  .al-launch-checklist-copy p,
+  .al-launch-next-action p,
+  .al-launch-agent-guide p,
+  .al-launch-path-list p,
+  .al-launch-console-steps p,
+  .al-launch-footnote-copy
+),
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page :is(
+  p,
+  .al-docs-feature-copy p,
+  .al-legal-card p,
+  .al-legal-footer p
+) {
+  color: var(--al-dark-muted);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page :is(
+  .al-route-hero-visual,
+  .al-route-hero-step,
+  .al-launch-checklist-item,
+  .al-launch-agent-guide,
+  .al-launch-preview-art,
+  .al-launch-metadata-form input,
+  .al-launch-metadata-form textarea
+),
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page :is(
+  .al-docs-feature-card,
+  .al-launch-tag,
+  .al-network-badge,
+  .al-guide-pill
+) {
+  border-color: rgba(255, 247, 223, 0.16);
+  background: var(--al-dark-control);
+  color: var(--al-dark-cream);
+  box-shadow: inset 0 1px 0 rgba(255, 247, 223, 0.06);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page :is(
+  .al-route-hero-step span,
+  .al-launch-console-badge,
+  .al-launch-path-icon,
+  .al-launch-checklist-mark
+),
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page .al-docs-feature-icon {
+  background: linear-gradient(180deg, #dbfff3, #b9f7df);
+  color: #08724f;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 16px 34px -26px rgba(201, 255, 234, 0.72);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-command-bar {
+  border-color: rgba(201, 255, 234, 0.2);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(201, 255, 234, 0.13), transparent 32%),
+    linear-gradient(135deg, #173f34 0%, #102d25 47%, #08444d 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 247, 223, 0.08),
+    0 20px 44px -34px rgba(0, 0, 0, 0.88);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-command-bar code {
+  color: var(--al-dark-cream);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page :is(
+  .al-launch-pill,
+  .al-launch-pill.connected,
+  .al-launch-pill.ready,
+  .al-launch-pill.optional,
+  .al-launch-pill.pending,
+  .al-launch-pill.recommended,
+  .al-route-hero-visual-pill
+),
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page :is(
+  .al-launch-tag,
+  .al-network-badge,
+  .al-guide-pill
+) {
+  border: 1px solid rgba(201, 255, 234, 0.16);
+  background: rgba(201, 255, 234, 0.1);
+  color: var(--al-dark-mint);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-preview-copy a,
+:root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page a {
+  color: var(--al-dark-mint);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-metadata-form input:focus,
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-metadata-form textarea:focus {
+  border-color: rgba(201, 255, 234, 0.42);
+  box-shadow:
+    0 0 0 3px rgba(201, 255, 234, 0.12),
+    inset 0 1px 0 rgba(255, 247, 223, 0.08);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page :is(
+    .al-launch-path-card,
+    .al-launch-checklist-item,
+    .al-launch-agent-guide
+  ):hover,
+  :root[data-brand="autolaunch"][data-theme="dark"] #al-docs-page :is(
+    .al-choice-card,
+    .al-guide-step,
+    .al-guide-outcome,
+    .al-note-card,
+    .al-contract-card
+  ):hover {
+    border-color: rgba(201, 255, 234, 0.28);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 247, 223, 0.08),
+      0 30px 70px -48px rgba(0, 0, 0, 0.95);
+  }
+}

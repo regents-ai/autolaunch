@@ -23,6 +23,12 @@
   box-shadow: 0 18px 38px -30px rgba(31, 66, 132, 0.22);
 }
 
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-tabs {
+  border-color: color-mix(in srgb, var(--brand-paper) 14%, transparent);
+  background: color-mix(in srgb, var(--al-panel-strong) 84%, black 16%);
+  box-shadow: none;
+}
+
 .al-account-tab {
   min-width: 6.25rem;
   padding: 0.68rem 1.1rem;
@@ -43,6 +49,12 @@
   background: color-mix(in srgb, var(--al-accent-soft) 44%, white 56%);
 }
 
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-tab:hover,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-tab:focus-visible {
+  background: color-mix(in srgb, var(--al-accent) 14%, transparent);
+  color: var(--brand-paper);
+}
+
 .al-account-tab.is-active {
   background: linear-gradient(
     135deg,
@@ -51,6 +63,15 @@
   );
   color: white;
   box-shadow: 0 18px 36px -26px color-mix(in srgb, var(--al-accent) 52%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-tab.is-active {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--al-accent) 90%, white 10%),
+    color-mix(in srgb, var(--al-accent) 68%, black 32%)
+  );
+  color: var(--color-fg-on-primary);
 }
 
 .al-account-utility {
@@ -142,6 +163,17 @@
   font-size: 0.86rem;
 }
 
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-wallet,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-chip,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-metric-card,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-pill,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-search input,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-search select {
+  border-color: color-mix(in srgb, var(--brand-paper) 14%, transparent);
+  background: color-mix(in srgb, var(--al-panel-strong) 84%, black 16%);
+  color: var(--al-text);
+}
+
 .al-account-subcopy {
   margin: 0;
   color: var(--al-muted);
@@ -166,6 +198,13 @@
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(245, 249, 255, 0.9)),
     var(--al-panel-strong);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-summary-card {
+  border-color: color-mix(in srgb, var(--brand-paper) 13%, transparent);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--al-accent) 10%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--al-panel-strong) 92%, black 8%), color-mix(in srgb, var(--al-panel) 88%, black 12%));
 }
 
 .al-account-summary-card strong {
@@ -243,6 +282,14 @@
   opacity: 1;
 }
 
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-summary-trace span::before {
+  background: color-mix(in srgb, currentColor 24%, transparent);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-summary-trace span::after {
+  background: var(--color-bg);
+}
+
 .al-account-banner {
   position: relative;
   overflow: hidden;
@@ -257,6 +304,14 @@
     radial-gradient(circle at 78% 18%, rgba(136, 191, 255, 0.38), transparent 18%),
     radial-gradient(circle at 82% 0%, rgba(255, 255, 255, 0.62), transparent 22%),
     linear-gradient(130deg, rgba(230, 241, 255, 0.92), rgba(243, 248, 255, 0.98) 58%, rgba(228, 238, 255, 0.92));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-banner {
+  border-color: color-mix(in srgb, var(--al-brass) 22%, var(--al-border) 78%);
+  background:
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--al-brass) 16%, transparent), transparent 18%),
+    radial-gradient(circle at 82% 0%, color-mix(in srgb, var(--al-accent) 12%, transparent), transparent 22%),
+    linear-gradient(130deg, rgba(29, 52, 43, 0.94), rgba(17, 31, 26, 0.98) 58%, rgba(31, 57, 46, 0.92));
 }
 
 .al-account-banner::after {
@@ -288,6 +343,10 @@
   margin: 0;
   color: color-mix(in srgb, var(--al-text) 72%, white 28%);
   max-width: 38rem;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-banner-copy p {
+  color: var(--al-muted);
 }
 
 .al-account-banner-actions {
@@ -444,10 +503,10 @@
 }
 
 .al-account-pill.is-active {
-  background: linear-gradient(135deg, #2b69ff, #1e56e2);
+  background: linear-gradient(135deg, var(--al-accent), color-mix(in srgb, var(--al-accent) 72%, black 28%));
   border-color: transparent;
-  color: white;
-  box-shadow: 0 16px 34px -24px rgba(39, 97, 255, 0.72);
+  color: var(--color-fg-on-primary);
+  box-shadow: 0 16px 34px -24px color-mix(in srgb, var(--al-accent) 56%, transparent);
 }
 
 .al-account-search {
@@ -583,4 +642,106 @@
   .al-account-tab {
     flex: 1;
   }
+}
+
+.al-account-page :is(
+  .al-account-tab,
+  .al-account-summary-card,
+  .al-account-banner,
+  .al-account-section,
+  .al-account-metric-card,
+  .al-account-pill,
+  .al-account-token-row
+) {
+  transition:
+    transform 140ms var(--al-ease-out),
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
+}
+
+.al-account-summary-card,
+.al-account-metric-card,
+.al-account-wallet,
+.al-account-chip,
+.al-account-pill,
+.al-account-search input,
+.al-account-search select {
+  border-color: color-mix(in srgb, var(--brand-ink) 11%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+.al-account-avatar,
+.al-account-summary-card.is-blue .al-account-summary-trace span,
+.al-account-summary-trace span {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-primary) 74%, white 26%),
+    color-mix(in srgb, var(--brand-primary) 86%, black 14%)
+  );
+}
+
+.al-account-pill:focus-visible,
+.al-account-tab:focus-visible,
+.al-account-link:focus-visible,
+.al-account-search input:focus-visible,
+.al-account-search select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 66%, white 34%);
+  outline-offset: 3px;
+}
+
+.al-account-tab:active,
+.al-account-pill:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .al-account-page :is(
+    .al-account-summary-card,
+    .al-account-metric-card,
+    .al-account-token-row
+  ):hover {
+    border-color: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 20px 44px -38px rgba(24, 73, 55, 0.28);
+  }
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-page :is(
+  .al-account-summary-card,
+  .al-account-banner,
+  .al-account-section,
+  .al-account-metric-card,
+  .al-account-wallet,
+  .al-account-chip,
+  .al-account-pill,
+  .al-account-search input,
+  .al-account-search select
+) {
+  border-color: rgba(247, 241, 222, 0.16);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(67, 196, 132, 0.09), transparent 28%),
+    linear-gradient(180deg, rgba(31, 51, 43, 0.98), rgba(17, 30, 25, 0.98));
+  color: var(--al-text);
+  box-shadow: inset 0 1px 0 rgba(247, 241, 222, 0.06);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-summary-card.is-amber .al-account-summary-trace span {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--al-brass) 62%, black 38%), var(--al-brass));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-summary-card.is-slate .al-account-summary-trace span,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-summary-card.is-blue .al-account-summary-trace span,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-summary-trace span {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--al-accent) 62%, black 38%), var(--al-accent));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-pill:focus-visible,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-tab:focus-visible,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-link:focus-visible,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-search input:focus-visible,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-account-search select:focus-visible {
+  outline-color: color-mix(in srgb, var(--al-accent) 72%, white 28%);
 }

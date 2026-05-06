@@ -222,57 +222,6 @@ defmodule AutolaunchWeb.HomeLive do
                   <.link navigate={~p"/how-auctions-work"}>View full guide →</.link>
                 </div>
               </article>
-
-              <article class="al-panel al-home-dashboard-card">
-                <div class="al-home-card-head">
-                  <h3>Revenue lanes</h3>
-                  <.link navigate={~p"/regent-staking"}>View all</.link>
-                </div>
-
-                <div class="al-home-lane-list">
-                  <article :for={item <- @revenue_lane_items} class="al-home-lane-row">
-                    <span class="al-home-lane-mark" aria-hidden="true">{item.mark}</span>
-                    <strong>{item.label}</strong>
-                    <span>{item.value}</span>
-                  </article>
-                </div>
-              </article>
-
-              <article class="al-panel al-home-dashboard-card">
-                <div class="al-home-card-head">
-                  <h3>Trust status</h3>
-                </div>
-
-                <div class="al-home-trust-score">
-                  <span>Average trust score</span>
-                  <strong>{@trust_score}</strong>
-                </div>
-
-                <div class="al-home-market-mini-grid">
-                  <article :for={item <- @trust_items}>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </article>
-                </div>
-              </article>
-
-              <article class="al-panel al-home-dashboard-card">
-                <div class="al-home-card-head">
-                  <h3>Latest activity</h3>
-                  <.link navigate={~p"/auctions"}>View all</.link>
-                </div>
-
-                <div class="al-home-activity-list">
-                  <article :for={item <- @activity_items} class="al-home-activity-row">
-                    <div class="al-home-activity-dot" data-phase={item.phase}></div>
-                    <div class="al-home-activity-copy">
-                      <strong>{item.title}</strong>
-                      <p>{item.note}</p>
-                    </div>
-                    <span>{item.value}</span>
-                  </article>
-                </div>
-              </article>
             </section>
           </main>
 
@@ -315,14 +264,6 @@ defmodule AutolaunchWeb.HomeLive do
                 </span>
                 <span aria-hidden="true">›</span>
               </.link>
-            </article>
-
-            <article class="al-panel al-home-network-panel">
-              <div class="al-home-card-head">
-                <p class="al-kicker">Network</p>
-                <span>⌄</span>
-              </div>
-              <strong>Base Sepolia</strong>
             </article>
           </aside>
         </div>
@@ -380,7 +321,6 @@ defmodule AutolaunchWeb.HomeLive do
     listed_agents = directory |> Enum.uniq_by(& &1.agent_id) |> Enum.count()
     tracked_market_cap = tracked_market_cap(directory)
     spotlight_token = spotlight_token(directory)
-    trust_items = trust_items(directory)
 
     socket
     |> assign(:directory, directory)
@@ -391,16 +331,13 @@ defmodule AutolaunchWeb.HomeLive do
     |> assign(:tracked_market_cap, tracked_market_cap)
     |> assign(:spotlight_token, spotlight_token)
     |> assign(:snapshot_items, snapshot_items(biddable_count, live_count, listed_agents))
-    |> assign(:revenue_lane_count, length(revenue_lane_items()))
-    |> assign(:revenue_lane_items, revenue_lane_items())
+    |> assign(:revenue_lane_count, 0)
     |> assign(:trust_score, trust_score(directory))
-    |> assign(:trust_items, trust_items)
     |> assign(:quick_actions, quick_actions())
     |> assign(
       :metric_items,
       metric_items(tracked_market_cap, biddable_count, live_count, listed_agents)
     )
-    |> assign(:activity_items, activity_items(featured_tokens))
   end
 
   defp featured_tokens(directory) do
@@ -431,14 +368,6 @@ defmodule AutolaunchWeb.HomeLive do
     ]
   end
 
-  defp revenue_lane_items do
-    [
-      %{mark: "↗", label: "Staking rewards", value: "0 lanes"},
-      %{mark: "▣", label: "Protocol fees", value: "0 lanes"},
-      %{mark: "▤", label: "Service revenue", value: "0 lanes"}
-    ]
-  end
-
   defp quick_actions do
     [
       %{
@@ -453,14 +382,6 @@ defmodule AutolaunchWeb.HomeLive do
     ]
   end
 
-  defp trust_items(directory) do
-    [
-      %{label: "Verified launches", value: Enum.count(directory, &verified_launch?/1)},
-      %{label: "Challenges", value: 0},
-      %{label: "Disputes", value: 0}
-    ]
-  end
-
   defp trust_score([]), do: "98.7%"
 
   defp trust_score(directory) do
@@ -471,34 +392,6 @@ defmodule AutolaunchWeb.HomeLive do
 
   defp verified_launch?(%{trust: %{ens: %{connected: true}, world: %{connected: true}}}), do: true
   defp verified_launch?(_token), do: false
-
-  defp activity_items([]) do
-    [
-      %{
-        title: "No market activity yet",
-        note: "Open the launch path to prepare the first market.",
-        value: "Waiting",
-        phase: "idle"
-      }
-    ]
-  end
-
-  defp activity_items(tokens) do
-    Enum.map(tokens, fn token ->
-      %{
-        title: activity_title(token),
-        note: activity_note(token),
-        value: AutolaunchWeb.Format.format_currency(token.current_price_usdc, 4),
-        phase: token.phase
-      }
-    end)
-  end
-
-  defp activity_title(%{phase: "biddable", agent_name: name}), do: "Open auction for #{name}"
-  defp activity_title(%{phase: "live", agent_name: name}), do: "#{name} is live"
-  defp activity_title(%{agent_name: name}), do: "Watch #{name}"
-
-  defp activity_note(token), do: market_timing_label(token)
 
   defp market_snapshot_copy(nil),
     do: "Open auctions to watch the next market as soon as it appears."
@@ -525,12 +418,6 @@ defmodule AutolaunchWeb.HomeLive do
   defp featured_status_class(%{phase: "biddable"}), do: "is-live"
   defp featured_status_class(%{phase: "live"}), do: "is-finished"
   defp featured_status_class(_token), do: "is-muted"
-
-  defp market_timing_label(%{phase: "biddable", ends_at: ends_at}),
-    do: LaunchComponents.time_left_label(ends_at)
-
-  defp market_timing_label(%{phase: "live"}), do: "Auction closed"
-  defp market_timing_label(_token), do: "Check token page"
 
   defp tracked_market_cap(directory) do
     directory

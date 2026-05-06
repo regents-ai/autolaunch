@@ -59,11 +59,16 @@
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.95), rgba(219, 233, 255, 0.68) 58%, transparent 60%),
-    radial-gradient(circle at 50% 60%, rgba(38, 105, 255, 0.18), transparent 72%);
+    radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, white 92%, var(--brand-paper) 8%),
+      color-mix(in srgb, var(--brand-primary) 12%, white 88%) 58%,
+      transparent 60%
+    ),
+    radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--brand-accent) 16%, transparent), transparent 72%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 28px 70px -40px rgba(29, 89, 230, 0.35);
+    0 28px 70px -40px color-mix(in srgb, var(--brand-primary) 32%, transparent);
 }
 
 #autolaunch-home-dashboard .al-home-dashboard-orbit::before,
@@ -72,7 +77,7 @@
   position: absolute;
   inset: 8%;
   border-radius: 999px;
-  border: 1px solid rgba(117, 151, 225, 0.38);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, var(--al-border) 78%);
 }
 
 #autolaunch-home-dashboard .al-home-dashboard-orbit::after {
@@ -81,18 +86,18 @@
 
 #autolaunch-home-dashboard .al-home-dashboard-orbit img {
   width: 36%;
-  filter: drop-shadow(0 14px 24px rgba(42, 83, 191, 0.22));
+  filter: drop-shadow(0 14px 24px color-mix(in srgb, var(--brand-primary) 24%, transparent));
 }
 
 #autolaunch-home-dashboard .al-home-dashboard-chip {
   position: absolute;
   padding: 0.55rem 0.8rem;
   border-radius: 999px;
-  border: 1px solid rgba(150, 174, 226, 0.5);
-  background: rgba(255, 255, 255, 0.84);
-  color: color-mix(in oklab, var(--al-text) 80%, #325ab0 20%);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 20%, var(--al-border) 80%);
+  background: color-mix(in srgb, white 88%, var(--brand-paper) 12%);
+  color: color-mix(in srgb, var(--brand-ink) 82%, var(--brand-primary) 18%);
   font-size: 0.84rem;
-  box-shadow: 0 16px 36px -28px rgba(42, 83, 191, 0.28);
+  box-shadow: 0 16px 36px -28px color-mix(in srgb, var(--brand-primary) 28%, transparent);
 }
 
 #autolaunch-home-dashboard .al-home-dashboard-chip.is-top {
@@ -153,7 +158,7 @@
 
 #autolaunch-home-dashboard .al-home-card-head a,
 #autolaunch-home-dashboard .al-home-card-footer a {
-  color: color-mix(in oklab, var(--al-accent) 78%, #1c4ed8 22%);
+  color: color-mix(in srgb, var(--brand-primary) 78%, var(--brand-ink) 22%);
   text-decoration: none;
 }
 
@@ -222,8 +227,14 @@
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #edf3ff, #d7e6ff);
-  color: color-mix(in oklab, var(--al-accent) 80%, #1c4ed8 20%);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, white 88%, var(--brand-paper) 12%),
+      color-mix(in srgb, var(--brand-primary) 13%, white 87%)
+    );
+  color: color-mix(in srgb, var(--brand-ink) 82%, var(--brand-primary) 18%);
   font-family: var(--al-font-display);
 }
 
@@ -261,8 +272,8 @@
 }
 
 #autolaunch-home-dashboard .al-home-status-pill.is-finished {
-  background: rgba(39, 116, 255, 0.12);
-  color: #2756c8;
+  background: color-mix(in srgb, var(--brand-accent) 18%, white 82%);
+  color: color-mix(in srgb, var(--brand-accent) 72%, var(--brand-ink) 28%);
 }
 
 #autolaunch-home-dashboard .al-home-status-pill.is-muted {
@@ -280,8 +291,12 @@
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #2c75ff, #1b59e6);
-  color: #f8fbff;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-primary) 82%, white 18%),
+    color-mix(in srgb, var(--brand-primary) 92%, black 8%)
+  );
+  color: var(--color-fg-on-primary);
 }
 
 #autolaunch-home-dashboard .al-home-card-footer {
@@ -343,7 +358,7 @@
 }
 
 #autolaunch-home-dashboard .al-home-activity-dot[data-phase="live"] {
-  background: #2563eb;
+  background: color-mix(in srgb, var(--brand-primary) 82%, var(--brand-accent) 18%);
 }
 
 #autolaunch-home-dashboard .al-home-chat-panel {
@@ -567,7 +582,6 @@
 #autolaunch-home-dashboard .al-home-metric-strip,
 #autolaunch-home-dashboard .al-home-launch-panel,
 #autolaunch-home-dashboard .al-home-quick-actions,
-#autolaunch-home-dashboard .al-home-network-panel,
 #autolaunch-home-dashboard .al-home-chat-panel {
   border-radius: 0.9rem;
   border-color: color-mix(in srgb, var(--brand-ink) 10%, transparent);
@@ -591,8 +605,13 @@
 
 #autolaunch-home-dashboard .al-home-dashboard-orbit {
   background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.9), rgba(221, 235, 255, 0.66) 58%, transparent 61%),
-    radial-gradient(circle at 50% 50%, rgba(39, 103, 255, 0.14), transparent 74%);
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0.9),
+      color-mix(in srgb, var(--brand-primary) 12%, white 88%) 58%,
+      transparent 61%
+    ),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--brand-accent) 13%, transparent), transparent 74%);
 }
 
 #autolaunch-home-dashboard .al-home-dashboard-chip {
@@ -715,8 +734,7 @@
 }
 
 #autolaunch-home-dashboard .al-home-launch-panel,
-#autolaunch-home-dashboard .al-home-quick-actions,
-#autolaunch-home-dashboard .al-home-network-panel {
+#autolaunch-home-dashboard .al-home-quick-actions {
   display: grid;
   gap: 1rem;
   padding: 1rem;
@@ -796,11 +814,6 @@
   margin-top: 0.12rem;
 }
 
-#autolaunch-home-dashboard .al-home-network-panel strong {
-  display: block;
-  margin-top: -0.5rem;
-}
-
 #autolaunch-home-dashboard .al-home-chat-dock {
   display: grid;
 }
@@ -834,7 +847,7 @@
 
   #autolaunch-home-dashboard .al-home-action-rail {
     position: static;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
   }
 }
@@ -943,4 +956,328 @@
     justify-items: start;
     justify-self: start;
   }
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-hero,
+  .al-home-dashboard-card,
+  .al-home-metric-strip,
+  .al-home-launch-panel,
+  .al-home-quick-actions,
+  .al-home-chat-panel
+) {
+  border-color: rgba(247, 241, 222, 0.14);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(67, 196, 132, 0.08), transparent 26%),
+    linear-gradient(180deg, rgba(28, 46, 39, 0.98), rgba(16, 28, 24, 0.98));
+  color: var(--al-text);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 241, 222, 0.05),
+    0 24px 58px -44px rgba(0, 0, 0, 0.86);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-dashboard-card:nth-child(3) {
+  border-color: rgba(67, 196, 132, 0.22);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(67, 196, 132, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(34, 58, 47, 0.98), rgba(18, 35, 28, 0.98));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy h1,
+  .al-home-card-head h3,
+  .al-home-rail-head h2,
+  .al-home-market-primary strong,
+  .al-home-market-mini-grid strong,
+  .al-home-metric-item strong,
+  .al-home-trust-score strong,
+  .al-home-quick-action strong,
+  .al-home-lane-row strong
+) {
+  color: var(--al-text);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy p,
+  .al-home-market-primary p,
+  .al-home-market-primary span,
+  .al-home-market-mini-grid span,
+  .al-home-metric-item span,
+  .al-home-metric-item p,
+  .al-home-card-empty,
+  .al-home-selected-setup p,
+  .al-home-pay-select span,
+  .al-home-cost-row span,
+  .al-home-quick-action,
+  .al-home-quick-action small,
+  .al-home-lane-row > span:last-child,
+  .al-home-trust-score span
+) {
+  color: var(--al-muted);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-chip,
+  .al-home-selected-setup,
+  .al-home-pay-select,
+  .al-home-cost-row,
+  .al-home-quick-action,
+  .al-home-lane-mark,
+  .al-home-quick-mark
+) {
+  border-color: rgba(247, 241, 222, 0.13);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(67, 196, 132, 0.07), transparent 34%),
+    linear-gradient(180deg, rgba(31, 49, 42, 0.98), rgba(20, 34, 29, 0.98));
+  color: var(--al-text);
+  box-shadow: inset 0 1px 0 rgba(247, 241, 222, 0.05);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-chip strong,
+  .al-home-lane-mark,
+  .al-home-quick-mark,
+  .al-home-card-head a,
+  .al-home-card-footer a,
+  .al-home-rail-head a
+) {
+  color: color-mix(in srgb, var(--al-accent) 84%, var(--al-text) 16%);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-metric-item {
+  border-color: rgba(247, 241, 222, 0.1);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-dashboard-orbit {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(31, 54, 45, 0.96), rgba(24, 39, 35, 0.78) 58%, transparent 61%),
+    radial-gradient(circle at 50% 50%, rgba(67, 196, 132, 0.14), transparent 74%);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 241, 222, 0.07),
+    0 28px 70px -46px rgba(0, 0, 0, 0.72);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-dashboard-orbit::before,
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-dashboard-orbit::after {
+  border-color: rgba(67, 196, 132, 0.24);
+}
+
+#autolaunch-home-dashboard :is(
+  .al-home-dashboard-card,
+  .al-home-metric-item,
+  .al-home-selected-setup,
+  .al-home-pay-select,
+  .al-home-cost-row,
+  .al-home-quick-action,
+  .al-home-chat-message,
+  .al-home-chat-status
+) {
+  border-color: color-mix(in srgb, var(--brand-ink) 11%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+#autolaunch-home-dashboard .al-home-dashboard-orbit {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.92), color-mix(in srgb, var(--brand-primary) 14%, white 86%) 58%, transparent 61%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--brand-accent) 13%, transparent), transparent 74%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 28px 70px -42px color-mix(in srgb, var(--brand-primary) 26%, transparent);
+}
+
+#autolaunch-home-dashboard .al-home-activity-dot[data-phase="live"] {
+  background: color-mix(in srgb, var(--brand-primary) 82%, var(--brand-accent) 18%);
+}
+
+#autolaunch-home-dashboard .al-home-status-pill.is-finished {
+  background: color-mix(in srgb, var(--brand-accent) 18%, white 82%);
+  color: color-mix(in srgb, var(--brand-accent) 72%, var(--brand-ink) 28%);
+}
+
+#autolaunch-home-dashboard .al-home-launch-step span {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-primary) 82%, white 18%),
+    color-mix(in srgb, var(--brand-primary) 92%, black 8%)
+  );
+}
+
+#autolaunch-home-dashboard :is(
+  .al-home-card-head a,
+  .al-home-card-footer a,
+  .al-home-rail-head a,
+  .al-home-quick-action
+) {
+  transition:
+    transform 140ms var(--al-ease-out),
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
+}
+
+#autolaunch-home-dashboard :is(
+  .al-home-card-head a,
+  .al-home-card-footer a,
+  .al-home-rail-head a
+):hover,
+#autolaunch-home-dashboard :is(
+  .al-home-card-head a,
+  .al-home-card-footer a,
+  .al-home-rail-head a
+):focus-visible {
+  color: color-mix(in srgb, var(--brand-primary) 78%, var(--brand-ink) 22%);
+}
+
+#autolaunch-home-dashboard :is(
+  .al-home-card-head a,
+  .al-home-card-footer a,
+  .al-home-rail-head a
+):focus-visible {
+  outline: none;
+  border-radius: 0.35rem;
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--brand-primary) 14%, transparent);
+}
+
+#autolaunch-home-dashboard .al-home-quick-action:active {
+  transform: scale(0.985);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-card,
+  .al-home-metric-item,
+  .al-home-selected-setup,
+  .al-home-pay-select,
+  .al-home-cost-row,
+  .al-home-quick-action,
+  .al-home-chat-message,
+  .al-home-chat-status
+) {
+  border-color: rgba(247, 241, 222, 0.16);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(67, 196, 132, 0.09), transparent 28%),
+    linear-gradient(180deg, rgba(31, 51, 43, 0.98), rgba(17, 30, 25, 0.98));
+  box-shadow: inset 0 1px 0 rgba(247, 241, 222, 0.06);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-status-pill.is-finished,
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-activity-dot[data-phase="live"] {
+  background: color-mix(in srgb, var(--al-accent) 16%, transparent);
+  color: color-mix(in srgb, var(--al-accent) 84%, white 16%);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-status-pill.is-finished {
+  background: color-mix(in srgb, var(--al-brass) 16%, transparent);
+  color: color-mix(in srgb, var(--al-brass) 86%, white 14%);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+    .al-home-dashboard-card,
+    .al-home-quick-action,
+    .al-home-selected-setup
+  ):hover {
+    border-color: rgba(67, 196, 132, 0.26);
+    box-shadow: 0 26px 58px -44px rgba(0, 0, 0, 0.88);
+  }
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard {
+  --al-home-dark-cream: #fff7df;
+  --al-home-dark-muted: rgba(255, 247, 223, 0.72);
+  --al-home-dark-mint: #c9ffea;
+  --al-home-dark-surface:
+    radial-gradient(112% 86% at 9% 0%, rgba(190, 255, 230, 0.13), transparent 40%),
+    radial-gradient(94% 82% at 100% 4%, rgba(54, 190, 128, 0.16), transparent 48%),
+    linear-gradient(135deg, #17382f 0%, #102a23 43%, #084550 100%);
+  --al-home-dark-control:
+    radial-gradient(circle at 96% 0%, rgba(201, 255, 234, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(26, 55, 46, 0.98), rgba(12, 35, 30, 0.98));
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-hero,
+  .al-home-dashboard-card,
+  .al-home-metric-strip,
+  .al-home-launch-panel,
+  .al-home-quick-actions,
+  .al-home-chat-panel
+) {
+  border-color: rgba(219, 255, 239, 0.14);
+  background: var(--al-home-dark-surface);
+  color: var(--al-home-dark-cream);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 247, 223, 0.07),
+    0 26px 64px -44px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy h1,
+  .al-home-card-head h3,
+  .al-home-rail-head h2,
+  .al-home-market-primary strong,
+  .al-home-market-mini-grid strong,
+  .al-home-metric-item strong,
+  .al-home-trust-score strong,
+  .al-home-quick-action strong,
+  .al-home-lane-row strong,
+  .al-home-chat-panel strong
+) {
+  color: var(--al-home-dark-cream);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy p,
+  .al-home-market-primary p,
+  .al-home-market-primary span,
+  .al-home-market-mini-grid span,
+  .al-home-metric-item span,
+  .al-home-metric-item p,
+  .al-home-card-empty,
+  .al-home-selected-setup p,
+  .al-home-pay-select span,
+  .al-home-cost-row span,
+  .al-home-quick-action,
+  .al-home-quick-action small,
+  .al-home-lane-row > span:last-child,
+  .al-home-trust-score span,
+  .al-home-chat-panel p
+) {
+  color: var(--al-home-dark-muted);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-chip,
+  .al-home-selected-setup,
+  .al-home-pay-select,
+  .al-home-cost-row,
+  .al-home-quick-action,
+  .al-home-chat-message,
+  .al-home-chat-status
+) {
+  border-color: rgba(255, 247, 223, 0.16);
+  background: var(--al-home-dark-control);
+  color: var(--al-home-dark-cream);
+  box-shadow: inset 0 1px 0 rgba(255, 247, 223, 0.06);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-lane-mark,
+  .al-home-quick-mark,
+  .al-home-launch-step span
+) {
+  background: linear-gradient(180deg, #dbfff3, #b9f7df);
+  color: #08724f;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 16px 34px -26px rgba(201, 255, 234, 0.72);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-chip strong,
+  .al-home-card-head a,
+  .al-home-card-footer a,
+  .al-home-rail-head a
+) {
+  color: var(--al-home-dark-mint);
 }

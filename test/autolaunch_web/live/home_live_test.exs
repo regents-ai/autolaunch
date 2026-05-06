@@ -57,7 +57,11 @@ defmodule AutolaunchWeb.HomeLiveTest do
     assert html =~ "Market snapshot"
     assert html =~ "Featured auctions"
     assert html =~ "Launch path"
-    assert html =~ "Latest activity"
+    refute html =~ "Revenue lanes"
+    refute html =~ "Trust status"
+    refute html =~ "Latest activity"
+    refute html =~ "al-home-network-panel"
+    refute html =~ "al-shell-network-card"
     assert html =~ "Community room"
     assert html =~ "Read the launch room."
     assert html =~ "0/200 seats"
@@ -73,7 +77,7 @@ defmodule AutolaunchWeb.HomeLiveTest do
   } do
     {:ok, view, _html} = live(conn, "/")
 
-    assert has_element?(view, "article", "Open auction for Atlas")
+    assert has_element?(view, ".al-home-auction-row", "Atlas")
     assert has_element?(view, "article", "Atlas is the clearest next stop")
   end
 end
