@@ -42,7 +42,7 @@ defmodule AutolaunchWeb.Router do
 
   pipeline :api_internal do
     plug :accepts, ["json"]
-    plug AutolaunchWeb.Plugs.RequireInternalSharedSecret
+    plug AutolaunchWeb.Plugs.RequireInternalSignature
   end
 
   pipeline :agent_session_api do
