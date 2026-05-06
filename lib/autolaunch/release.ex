@@ -48,7 +48,7 @@ defmodule Autolaunch.Release do
       config =
         repo.config()
         |> Keyword.put(:url, direct_url)
-        |> Keyword.put(:ssl, true)
+        |> Keyword.put(:ssl, database_ssl?())
         |> Keyword.put(:prepare, :unnamed)
         |> Keyword.put(:after_connect, {Postgrex, :query!, [@schema_search_path, []]})
         |> Keyword.put(:pool_size, String.to_integer(System.get_env("ECTO_POOL_SIZE") || "5"))
@@ -61,5 +61,9 @@ defmodule Autolaunch.Release do
 
   defp create_schema!(repo) do
     Ecto.Adapters.SQL.query!(repo, ~s(CREATE SCHEMA IF NOT EXISTS "#{@schema}"), [])
+  end
+
+  defp database_ssl? do
+    System.get_env("DATABASE_SSL", "true") in ["1", "true", "TRUE"]
   end
 end

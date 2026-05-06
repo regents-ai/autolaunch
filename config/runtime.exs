@@ -1,13 +1,72 @@
 import Config
 
-Code.require_file("env_local.exs", __DIR__)
-
 if System.get_env("PHX_SERVER") do
   config :autolaunch, AutolaunchWeb.Endpoint, server: true
 end
 
+env_local_path = Path.expand("../.env.local", __DIR__)
+
+env_local_values = fn ->
+  case File.read(env_local_path) do
+    {:ok, contents} ->
+      contents
+      |> String.split("\n")
+      |> Enum.reduce(%{}, fn line, acc ->
+        trimmed = String.trim(line)
+
+        cond do
+          trimmed == "" or String.starts_with?(trimmed, "#") ->
+            acc
+
+          true ->
+            normalized =
+              if String.starts_with?(trimmed, "export ") do
+                trimmed |> String.replace_prefix("export ", "") |> String.trim()
+              else
+                trimmed
+              end
+
+            case String.split(normalized, "=", parts: 2) do
+              [key, value] ->
+                Map.put(
+                  acc,
+                  String.trim(key),
+                  value
+                  |> String.trim()
+                  |> String.trim_leading("\"")
+                  |> String.trim_trailing("\"")
+                  |> String.trim_leading("'")
+                  |> String.trim_trailing("'")
+                )
+
+              _ ->
+                acc
+            end
+        end
+      end)
+
+    _ ->
+      %{}
+  end
+end
+
 env = fn key, default ->
-  Autolaunch.ConfigEnvLocal.fetch(key, default)
+  System.get_env(key) || Map.get(env_local_values.(), key, default)
+end
+
+env_required = fn key ->
+  case env.(key, "") do
+    value when is_binary(value) ->
+      value
+      |> String.trim()
+      |> case do
+        "" -> raise "environment variable #{key} is missing or blank."
+        trimmed -> trimmed
+      end
+
+    _ ->
+      raise "environment variable #{key} is missing or blank."
+  end
 end
 
 env_int = fn key, default ->
@@ -47,6 +106,8 @@ if config_env() != :test do
         url: database_url,
         stacktrace: true,
         show_sensitive_data_on_connection_error: true,
+        after_connect: {Postgrex, :query!, [~s(SET search_path TO "autolaunch",public), []]},
+        migration_default_prefix: "autolaunch",
         pool_size: 10
     else
       config :autolaunch, Autolaunch.Repo,
@@ -57,6 +118,8 @@ if config_env() != :test do
         database: env.("DB_NAME", "autolaunch_dev"),
         stacktrace: true,
         show_sensitive_data_on_connection_error: true,
+        after_connect: {Postgrex, :query!, [~s(SET search_path TO "autolaunch",public), []]},
+        migration_default_prefix: "autolaunch",
         pool_size: 10
     end
 
@@ -217,17 +280,15 @@ if config_env() != :test do
 end
 
 if config_env() == :prod do
-  database_url =
-    Autolaunch.ConfigEnvLocal.fetch_required("DATABASE_URL")
+  database_url = env_required.("DATABASE_URL")
 
-  secret_key_base =
-    Autolaunch.ConfigEnvLocal.fetch_required("SECRET_KEY_BASE")
+  secret_key_base = env_required.("SECRET_KEY_BASE")
 
   host = env.("PHX_HOST", "autolaunch.sh")
 
   config :autolaunch, Autolaunch.Repo,
     url: database_url,
-    ssl: true,
+    ssl: env_bool.("DATABASE_SSL", true),
     prepare: :unnamed,
     after_connect: {Postgrex, :query!, [~s(SET search_path TO "autolaunch",public), []]},
     pool_size: String.to_integer(env.("ECTO_POOL_SIZE", "5")),

@@ -37,10 +37,6 @@ defmodule Autolaunch.Launch.Directory do
     else
       _ -> []
     end
-  rescue
-    DBConnection.ConnectionError -> []
-    Postgrex.Error -> []
-    Ecto.QueryError -> []
   end
 
   def list_auction_returns(filters \\ %{}, current_human \\ nil) do

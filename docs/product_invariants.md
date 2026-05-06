@@ -64,3 +64,5 @@ Post-auction sweeps are downstream cleanup actions. They are not a substitute fo
 Ownership handoffs should be two-step unless a contract must own another contract immediately as part of deployment wiring.
 
 When a two-step handoff is pending, operational docs and checks should treat the transfer as incomplete until the new owner has accepted it.
+
+Launch readiness must not treat another Regent product's database tables as its source of truth. Autolaunch owns saved launch plans and Autolaunch launch records; cross-product agent policy signals should come from a shared read contract before they are used to approve a launch.

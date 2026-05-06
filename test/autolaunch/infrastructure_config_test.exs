@@ -69,10 +69,10 @@ defmodule Autolaunch.InfrastructureConfigTest do
   test "production runtime uses pooled database URL settings" do
     runtime = File.read!(Path.join(@root, "config/runtime.exs"))
 
-    assert runtime =~ ~s|Autolaunch.ConfigEnvLocal.fetch_required("DATABASE_URL")|
-    assert runtime =~ ~s|Autolaunch.ConfigEnvLocal.fetch_required("SECRET_KEY_BASE")|
+    assert runtime =~ ~s|database_url = env_required.("DATABASE_URL")|
+    assert runtime =~ ~s|secret_key_base = env_required.("SECRET_KEY_BASE")|
     refute runtime =~ "DATABASE_DIRECT_URL"
-    assert runtime =~ "ssl: true"
+    assert runtime =~ ~s|ssl: env_bool.("DATABASE_SSL", true)|
     assert runtime =~ "prepare: :unnamed"
     assert runtime =~ ~s(SET search_path TO "autolaunch",public)
     assert runtime =~ ~s|env.("ECTO_POOL_SIZE", "5")|
