@@ -34,45 +34,20 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
        }}
     end
 
-    def stake(%{"amount" => "1.5"}, _human), do: tx("0xstake")
+    def stake(%{"amount" => "1.5", "receiver" => ""}, _human), do: tx("0xstake")
+
+    def stake(
+          %{"amount" => "1.5", "receiver" => "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+          _human
+        ),
+        do: tx("0xstakeforreceiver")
+
     def unstake(%{"amount" => "1.0"}, _human), do: tx("0xunstake")
     def claim_usdc(_attrs, _human), do: tx("0xclaimusdc")
     def claim_regent(_attrs, _human), do: tx("0xclaimregent")
     def claim_and_restake_regent(_attrs, _human), do: tx("0xrestake")
 
-    def prepare_deposit_usdc(
-          %{
-            "amount" => "2.0",
-            "source_tag" => "manual",
-            "source_ref" => "regent-staking"
-          },
-          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        ) do
-      prepared_tx("0xdeposit")
-    end
-
-    def prepare_withdraw_treasury(
-          %{"amount" => "1.0", "recipient" => ""},
-          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        ) do
-      prepared_tx("0xwithdraw")
-    end
-
     defp tx(data) do
-      {:ok,
-       %{
-         prepared: %{
-           wallet_action: %{
-             chain_id: 8453,
-             to: "0x9999999999999999999999999999999999999999",
-             value: "0x0",
-             data: data
-           }
-         }
-       }}
-    end
-
-    defp prepared_tx(data) do
       {:ok,
        %{
          prepared: %{
@@ -89,18 +64,10 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
 
   setup do
     original = Application.get_env(:autolaunch, :regent_staking_live, [])
-    original_staking = Application.get_env(:autolaunch, :regent_staking, [])
     Application.put_env(:autolaunch, :regent_staking_live, context_module: StakingStub)
-
-    Application.put_env(:autolaunch, :regent_staking,
-      operator_wallets: [
-        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      ]
-    )
 
     on_exit(fn ->
       Application.put_env(:autolaunch, :regent_staking_live, original)
-      Application.put_env(:autolaunch, :regent_staking, original_staking)
     end)
 
     {:ok, human} =
@@ -118,15 +85,18 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
     {:ok, _view, html} = live(conn, "/regent-staking")
 
     assert html =~ "$REGENT staking"
-    assert html =~ "Company rewards rail"
+    assert html =~ "Stake for split of protocol stables"
+    assert html =~ "earn 20% bonus $REGENT in the first year"
     assert html =~ "Total REGENT staked"
-    assert html =~ "Funded $REGENT rewards"
+    assert html =~ "Bonus $REGENT available"
     assert html =~ "It does not guarantee yield."
     assert html =~ "Prepare stake"
     assert html =~ "Prepare USDC claim"
     assert html =~ "Prepare REGENT claim"
-    assert html =~ "Prepare USDC deposit"
-    assert html =~ "Prepare treasury withdrawal"
+    assert html =~ "Prepare unstake"
+    refute html =~ "Prepare USDC deposit"
+    refute html =~ "Prepare treasury withdrawal"
+    refute html =~ "USDC deposit amount"
   end
 
   test "prepares wallet actions", %{conn: conn, human: human} do
@@ -150,121 +120,73 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
 
     html =
       view
-      |> form("form[phx-change='deposit_changed']", %{
-        "deposit" => %{
-          "amount" => "2.0",
-          "source_tag" => "manual",
-          "source_ref" => "regent-staking"
-        }
-      })
-      |> render_change()
-
-    assert html =~ "Prepare USDC deposit"
-
-    html =
-      view
-      |> element("#regent-deposit-usdc")
+      |> element("#regent-claim-usdc")
       |> render_click()
 
-    assert html =~ "Send USDC deposit"
-    assert html =~ "0xdeposit"
-  end
-
-  test "operator access uses the connected session wallet before it is saved", %{conn: conn} do
-    {:ok, human} =
-      Accounts.upsert_human_by_privy_id("did:privy:regent-staking-pending-operator", %{
-        "display_name" => "Operator"
-      })
-
-    conn =
-      init_test_session(conn,
-        privy_user_id: human.privy_user_id,
-        privy_pending_wallet_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        privy_pending_wallet_addresses: ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
-      )
-
-    {:ok, view, _html} = live(conn, "/regent-staking")
+    assert html =~ "Send USDC claim"
+    assert html =~ "0xclaimusdc"
 
     html =
       view
-      |> form("form[phx-change='deposit_changed']", %{
-        "deposit" => %{
-          "amount" => "2.0",
-          "source_tag" => "manual",
-          "source_ref" => "regent-staking"
-        }
-      })
+      |> form("form[phx-change='unstake_changed']", %{"unstake" => %{"amount" => "1.0"}})
       |> render_change()
 
-    assert html =~ "Prepare USDC deposit"
+    assert html =~ "Prepare unstake"
 
     html =
       view
-      |> element("#regent-deposit-usdc")
+      |> element("#regent-unstake")
       |> render_click()
 
-    assert html =~ "Send USDC deposit"
-    assert html =~ "0xdeposit"
-    refute html =~ "Use an authorized operator wallet."
+    assert html =~ "Send unstake transaction"
+    assert html =~ "0xunstake"
   end
 
-  test "anonymous visitors cannot prepare treasury actions", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/regent-staking")
-
-    html =
-      view
-      |> form("form[phx-change='deposit_changed']", %{
-        "deposit" => %{
-          "amount" => "2.0",
-          "source_tag" => "manual",
-          "source_ref" => "regent-staking"
-        }
-      })
-      |> render_change()
-
-    assert html =~ "Prepare USDC deposit"
-
-    html =
-      view
-      |> element("#regent-deposit-usdc")
-      |> render_click()
-
-    assert html =~ "Connect a wallet first."
-    refute html =~ "Send USDC deposit"
-    refute html =~ "0xdeposit"
-  end
-
-  test "signed-in non-operators cannot prepare treasury actions", %{conn: conn} do
-    {:ok, human} =
-      Accounts.upsert_human_by_privy_id("did:privy:regent-staking-reader", %{
-        "wallet_address" => "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "wallet_addresses" => ["0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
-        "display_name" => "Reader"
-      })
-
+  test "prepares stake for another wallet", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, view, _html} = live(conn, "/regent-staking")
 
     html =
       view
-      |> form("form[phx-change='deposit_changed']", %{
-        "deposit" => %{
-          "amount" => "2.0",
-          "source_tag" => "manual",
-          "source_ref" => "regent-staking"
+      |> form("form[phx-change='stake_changed']", %{
+        "stake" => %{
+          "amount" => "1.5",
+          "stake_for_different_address" => "true"
         }
       })
       |> render_change()
 
-    assert html =~ "Prepare USDC deposit"
+    assert html =~ "Receiving wallet"
 
     html =
       view
-      |> element("#regent-deposit-usdc")
+      |> form("form[phx-change='stake_changed']", %{
+        "stake" => %{
+          "amount" => "1.5",
+          "stake_for_different_address" => "true",
+          "receiver" => "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      })
+      |> render_change()
+
+    assert html =~ "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+    html =
+      view
+      |> element("#regent-stake")
       |> render_click()
 
-    assert html =~ "Use an authorized operator wallet."
-    refute html =~ "Send USDC deposit"
-    refute html =~ "0xdeposit"
+    assert html =~ "Send stake transaction"
+    assert html =~ "0xstakeforreceiver"
+  end
+
+  test "anonymous visitors are sent to wallet connection", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/regent-staking")
+
+    assert has_element?(view, "#regent-stake-connect", "Connect wallet")
+    assert has_element?(view, "#regent-claim-usdc-connect", "Connect wallet")
+    assert has_element?(view, "#regent-unstake-connect", "Connect wallet")
+    refute has_element?(view, "#regent-deposit-usdc")
+    refute has_element?(view, "#regent-withdraw-treasury")
   end
 end

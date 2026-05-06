@@ -2,7 +2,6 @@ defmodule AutolaunchWeb.RegentStakingLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.RegentStaking
-  alias AutolaunchWeb.RegentStakingAccess
   alias AutolaunchWeb.Live.Refreshable
   alias AutolaunchWeb.RegentStakingLive.Presenter
 
@@ -15,33 +14,25 @@ defmodule AutolaunchWeb.RegentStakingLive do
      |> Refreshable.subscribe([:regent, :system])
      |> assign(:page_title, "$REGENT Staking")
      |> assign(:active_view, "regent-staking")
-     |> assign(:stake_form, %{"amount" => "", "receiver" => ""})
+     |> assign(:stake_form, default_stake_form())
+     |> assign(:resolved_receiver_address, nil)
      |> assign(:unstake_form, %{"amount" => ""})
-     |> assign(:deposit_form, %{
-       "amount" => "",
-       "source_tag" => "manual",
-       "source_ref" => "regent-staking"
-     })
-     |> assign(:treasury_form, %{"amount" => "", "recipient" => ""})
      |> assign(:pending_actions, %{})
      |> assign(:action_error, nil)
      |> load_staking()}
   end
 
   def handle_event("stake_changed", %{"stake" => attrs}, socket) do
-    {:noreply, assign(socket, :stake_form, Map.merge(socket.assigns.stake_form, attrs))}
+    form =
+      socket.assigns.stake_form
+      |> Map.merge(attrs)
+      |> stake_form_params()
+
+    {:noreply, assign_stake_form(socket, form)}
   end
 
   def handle_event("unstake_changed", %{"unstake" => attrs}, socket) do
     {:noreply, assign(socket, :unstake_form, Map.merge(socket.assigns.unstake_form, attrs))}
-  end
-
-  def handle_event("deposit_changed", %{"deposit" => attrs}, socket) do
-    {:noreply, assign(socket, :deposit_form, Map.merge(socket.assigns.deposit_form, attrs))}
-  end
-
-  def handle_event("treasury_changed", %{"treasury" => attrs}, socket) do
-    {:noreply, assign(socket, :treasury_form, Map.merge(socket.assigns.treasury_form, attrs))}
   end
 
   def handle_event("prepare_action", %{"action" => action}, socket) do
@@ -83,9 +74,9 @@ defmodule AutolaunchWeb.RegentStakingLive do
         <header id="regent-staking-hero" class="al-regent-hero" phx-hook="MissionMotion">
           <div>
             <p class="al-kicker">$REGENT staking</p>
-            <h1>Company rewards rail</h1>
+            <h1>Stake for split of protocol stables</h1>
             <p>
-              Stake $REGENT, claim USDC from the separate Regent rewards pool, and claim funded $REGENT rewards when inventory is available.
+              Stake $REGENT, claim USDC from the Regent rewards pool, and earn 20% bonus $REGENT in the first year.
             </p>
           </div>
 
@@ -102,15 +93,15 @@ defmodule AutolaunchWeb.RegentStakingLive do
             <.metric title="Total USDC received" value={AutolaunchWeb.Format.display(@state.total_usdc_received)} />
             <.metric title="Direct deposits" value={AutolaunchWeb.Format.display(@state.direct_deposit_usdc)} />
             <.metric title="Treasury USDC" value={AutolaunchWeb.Format.display(@state.treasury_residual_usdc)} />
-            <.metric title="Funded $REGENT rewards" value={AutolaunchWeb.Format.display(@state.available_reward_inventory)} />
-            <.metric title="Outstanding $REGENT rewards" value={AutolaunchWeb.Format.display(@state.materialized_outstanding)} />
+            <.metric title="Bonus $REGENT available" value={AutolaunchWeb.Format.display(@state.available_reward_inventory)} />
+            <.metric title="Outstanding bonus $REGENT" value={AutolaunchWeb.Format.display(@state.materialized_outstanding)} />
           </section>
 
           <.action_desk
             id="regent-staking-action-desk"
             kicker="Wallet actions"
             title="Stake and claim from one place"
-            body="This page prepares transactions for the separate $REGENT staking contract. Your wallet signs each action."
+            body="Stake, claim, and restake from the same wallet screen. Your wallet confirms each action."
             status_label={if @state.paused, do: "Paused", else: "Ready"}
             class="al-regent-action-desk"
           >
@@ -126,14 +117,20 @@ defmodule AutolaunchWeb.RegentStakingLive do
                   Send stake transaction
                 </.wallet_tx_button>
               <% else %>
-                <button
-                  type="button"
-                  class="al-regent-primary-button"
-                  phx-click="prepare_action"
-                  phx-value-action="stake"
-                >
-                  Prepare stake
-                </button>
+                <%= if @current_human do %>
+                  <button
+                    type="button"
+                    class="al-regent-primary-button"
+                    phx-click="prepare_action"
+                    phx-value-action="stake"
+                  >
+                    Prepare stake
+                  </button>
+                <% else %>
+                  <.connect_wallet_button id="regent-stake-primary-connect" class="al-regent-primary-button">
+                    Connect wallet
+                  </.connect_wallet_button>
+                <% end %>
               <% end %>
             </:primary>
 
@@ -149,14 +146,20 @@ defmodule AutolaunchWeb.RegentStakingLive do
                   Send USDC claim
                 </.wallet_tx_button>
               <% else %>
-                <button
-                  type="button"
-                  class="al-regent-secondary-button"
-                  phx-click="prepare_action"
-                  phx-value-action="claim_usdc"
-                >
-                  Prepare USDC claim
-                </button>
+                <%= if @current_human do %>
+                  <button
+                    type="button"
+                    class="al-regent-secondary-button"
+                    phx-click="prepare_action"
+                    phx-value-action="claim_usdc"
+                  >
+                    Prepare USDC claim
+                  </button>
+                <% else %>
+                  <.connect_wallet_button id="regent-claim-usdc-primary-connect" class="al-regent-secondary-button">
+                    Connect wallet
+                  </.connect_wallet_button>
+                <% end %>
               <% end %>
             </:secondary>
 
@@ -175,7 +178,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
                   <strong>{AutolaunchWeb.Format.display(@state.wallet_claimable_usdc)}</strong>
                 </div>
                 <div>
-                  <span>Funded $REGENT rewards</span>
+                  <span>Bonus $REGENT ready</span>
                   <strong>{AutolaunchWeb.Format.display(@state.wallet_funded_claimable_regent)}</strong>
                 </div>
               </div>
@@ -192,13 +195,47 @@ defmodule AutolaunchWeb.RegentStakingLive do
               <form phx-change="stake_changed" class="al-regent-form">
                 <label for="regent-stake-amount">Amount</label>
                 <input id="regent-stake-amount" name="stake[amount]" type="text" inputmode="decimal" value={@stake_form["amount"]} placeholder="0.0" />
-                <label for="regent-stake-receiver">Stake for wallet</label>
-                <input id="regent-stake-receiver" name="stake[receiver]" type="text" value={@stake_form["receiver"]} placeholder="Connected wallet" />
+                <div class="al-regent-receiver-option">
+                  <input type="hidden" name="stake[stake_for_different_address]" value="false" />
+                  <label for="regent-stake-different-address">
+                    <input
+                      id="regent-stake-different-address"
+                      type="checkbox"
+                      name="stake[stake_for_different_address]"
+                      value="true"
+                      checked={stake_for_different_address?(@stake_form)}
+                    />
+                    <span>Stake for another wallet</span>
+                  </label>
+
+                  <%= if stake_for_different_address?(@stake_form) do %>
+                    <div class="al-regent-receiver-field">
+                      <label for="regent-stake-receiver">Receiving wallet</label>
+                      <%= if @resolved_receiver_address do %>
+                        <p id="regent-stake-resolved-receiver" class="al-regent-resolved-address">
+                          {@resolved_receiver_address}
+                        </p>
+                      <% end %>
+                      <input
+                        id="regent-stake-receiver"
+                        name="stake[receiver]"
+                        type="text"
+                        value={@stake_form["receiver"]}
+                        placeholder="0x... or name.eth"
+                        phx-debounce="500"
+                        autocomplete="off"
+                      />
+                    </div>
+                  <% else %>
+                    <p class="al-regent-receiver-note">Staking to connected wallet</p>
+                  <% end %>
+                </div>
               </form>
               <.prepared_button
                 id="regent-stake"
                 action={:stake}
                 pending={@pending_actions[:stake]}
+                current_human={@current_human}
                 class="al-regent-primary-button"
                 prepare_label="Prepare stake"
                 send_label="Send stake transaction"
@@ -209,37 +246,16 @@ defmodule AutolaunchWeb.RegentStakingLive do
 
             <article class="al-regent-action-card">
               <div>
-                <p class="al-kicker">Unstake</p>
-                <h2>Move $REGENT back to your wallet.</h2>
-                <p>Unstaking does not claim USDC or funded rewards for you. Claim those separately when needed.</p>
-              </div>
-              <form phx-change="unstake_changed" class="al-regent-form">
-                <label for="regent-unstake-amount">Amount</label>
-                <input id="regent-unstake-amount" name="unstake[amount]" type="text" inputmode="decimal" value={@unstake_form["amount"]} placeholder="0.0" />
-              </form>
-              <.prepared_button
-                id="regent-unstake"
-                action={:unstake}
-                pending={@pending_actions[:unstake]}
-                class="al-regent-secondary-button"
-                prepare_label="Prepare unstake"
-                send_label="Send unstake transaction"
-                pending_message="Unstake transaction sent. Waiting for confirmation."
-                success_message="Unstake confirmed."
-              />
-            </article>
-
-            <article class="al-regent-action-card">
-              <div>
                 <p class="al-kicker">Claims</p>
-                <h2>Claim USDC or funded $REGENT rewards.</h2>
-                <p>USDC rewards and funded $REGENT rewards are shown separately so available inventory is clear.</p>
+                <h2>Claim USDC or bonus $REGENT.</h2>
+                <p>USDC and bonus $REGENT are shown separately so your available rewards are clear.</p>
               </div>
               <div class="al-regent-split-actions">
                 <.prepared_button
                   id="regent-claim-usdc"
                   action={:claim_usdc}
                   pending={@pending_actions[:claim_usdc]}
+                  current_human={@current_human}
                   class="al-regent-primary-button"
                   prepare_label="Prepare USDC claim"
                   send_label="Send USDC claim"
@@ -250,6 +266,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
                   id="regent-claim-regent"
                   action={:claim_regent}
                   pending={@pending_actions[:claim_regent]}
+                  current_human={@current_human}
                   class="al-regent-secondary-button"
                   prepare_label="Prepare REGENT claim"
                   send_label="Send REGENT claim"
@@ -260,6 +277,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
                   id="regent-claim-restake"
                   action={:claim_and_restake_regent}
                   pending={@pending_actions[:claim_and_restake_regent]}
+                  current_human={@current_human}
                   class="al-regent-secondary-button"
                   prepare_label="Prepare claim and restake"
                   send_label="Send claim and restake"
@@ -269,48 +287,27 @@ defmodule AutolaunchWeb.RegentStakingLive do
               </div>
             </article>
 
-            <article class="al-regent-action-card is-operator">
+            <article class="al-regent-action-card">
               <div>
-                <p class="al-kicker">Treasury</p>
-                <h2>Prepare operator funding and withdrawal.</h2>
-                <p>These actions are for funding the company rail and moving treasury USDC to the configured recipient.</p>
+                <p class="al-kicker">Unstake</p>
+                <h2>Move $REGENT back to your wallet.</h2>
+                <p>Unstaking does not claim USDC or bonus $REGENT for you. Claim those separately when needed.</p>
               </div>
-              <form phx-change="deposit_changed" class="al-regent-form">
-                <label for="regent-deposit-amount">USDC deposit amount</label>
-                <input id="regent-deposit-amount" name="deposit[amount]" type="text" inputmode="decimal" value={@deposit_form["amount"]} placeholder="0.0" />
-                <label for="regent-deposit-source-tag">Source label</label>
-                <input id="regent-deposit-source-tag" name="deposit[source_tag]" type="text" value={@deposit_form["source_tag"]} />
-                <label for="regent-deposit-source-ref">Source reference</label>
-                <input id="regent-deposit-source-ref" name="deposit[source_ref]" type="text" value={@deposit_form["source_ref"]} />
+              <form phx-change="unstake_changed" class="al-regent-form">
+                <label for="regent-unstake-amount">Amount</label>
+                <input id="regent-unstake-amount" name="unstake[amount]" type="text" inputmode="decimal" value={@unstake_form["amount"]} placeholder="0.0" />
               </form>
-              <form phx-change="treasury_changed" class="al-regent-form">
-                <label for="regent-treasury-amount">Treasury withdrawal amount</label>
-                <input id="regent-treasury-amount" name="treasury[amount]" type="text" inputmode="decimal" value={@treasury_form["amount"]} placeholder="0.0" />
-                <label for="regent-treasury-recipient">Recipient</label>
-                <input id="regent-treasury-recipient" name="treasury[recipient]" type="text" value={@treasury_form["recipient"]} placeholder={@state.treasury_recipient} />
-              </form>
-              <div class="al-regent-split-actions">
-                <.prepared_button
-                  id="regent-deposit-usdc"
-                  action={:deposit_usdc}
-                  pending={@pending_actions[:deposit_usdc]}
-                  class="al-regent-primary-button"
-                  prepare_label="Prepare USDC deposit"
-                  send_label="Send USDC deposit"
-                  pending_message="USDC deposit sent. Waiting for confirmation."
-                  success_message="USDC deposit confirmed."
-                />
-                <.prepared_button
-                  id="regent-withdraw-treasury"
-                  action={:withdraw_treasury}
-                  pending={@pending_actions[:withdraw_treasury]}
-                  class="al-regent-secondary-button"
-                  prepare_label="Prepare treasury withdrawal"
-                  send_label="Send treasury withdrawal"
-                  pending_message="Treasury withdrawal sent. Waiting for confirmation."
-                  success_message="Treasury withdrawal confirmed."
-                />
-              </div>
+              <.prepared_button
+                id="regent-unstake"
+                action={:unstake}
+                pending={@pending_actions[:unstake]}
+                current_human={@current_human}
+                class="al-regent-secondary-button"
+                prepare_label="Prepare unstake"
+                send_label="Send unstake transaction"
+                pending_message="Unstake transaction sent. Waiting for confirmation."
+                success_message="Unstake confirmed."
+              />
             </article>
           </section>
 
@@ -359,6 +356,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
   attr :id, :string, required: true
   attr :action, :atom, required: true
   attr :pending, :map, default: nil
+  attr :current_human, :map, default: nil
   attr :class, :string, required: true
   attr :prepare_label, :string, required: true
   attr :send_label, :string, required: true
@@ -378,16 +376,39 @@ defmodule AutolaunchWeb.RegentStakingLive do
         {@send_label}
       </.wallet_tx_button>
     <% else %>
-      <button id={@id} type="button" class={@class} phx-click="prepare_action" phx-value-action={@action}>
-        {@prepare_label}
-      </button>
+      <%= if @current_human do %>
+        <button id={@id} type="button" class={@class} phx-click="prepare_action" phx-value-action={@action}>
+          {@prepare_label}
+        </button>
+      <% else %>
+        <.connect_wallet_button id={"#{@id}-connect"} class={@class}>
+          Connect wallet
+        </.connect_wallet_button>
+      <% end %>
     <% end %>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :class, :string, required: true
+  slot :inner_block, required: true
+
+  defp connect_wallet_button(assigns) do
+    ~H"""
+    <button
+      id={@id}
+      type="button"
+      class={@class}
+      phx-click={JS.dispatch("click", to: "#privy-auth [data-privy-action='toggle']")}
+    >
+      {render_slot(@inner_block)}
+    </button>
     """
   end
 
   defp prepare_action(socket, "stake") do
     prepare(socket, :stake, fn human ->
-      context_module().stake(socket.assigns.stake_form, human)
+      context_module().stake(stake_action_params(socket.assigns.stake_form), human)
     end)
   end
 
@@ -411,21 +432,6 @@ defmodule AutolaunchWeb.RegentStakingLive do
     end)
   end
 
-  defp prepare_action(socket, "deposit_usdc") do
-    prepare_operator_action(socket, :deposit_usdc, fn operator_wallet_address ->
-      context_module().prepare_deposit_usdc(socket.assigns.deposit_form, operator_wallet_address)
-    end)
-  end
-
-  defp prepare_action(socket, "withdraw_treasury") do
-    prepare_operator_action(socket, :withdraw_treasury, fn operator_wallet_address ->
-      context_module().prepare_withdraw_treasury(
-        socket.assigns.treasury_form,
-        operator_wallet_address
-      )
-    end)
-  end
-
   defp prepare_action(socket, _unknown) do
     put_action_error(socket, "That staking action is not available.")
   end
@@ -437,26 +443,6 @@ defmodule AutolaunchWeb.RegentStakingLive do
 
       {:error, reason} ->
         put_action_error(socket, Presenter.action_error(reason))
-    end
-  end
-
-  defp prepare_operator_action(%{assigns: %{current_human: nil}} = socket, _key, _fun) do
-    put_action_error(socket, Presenter.action_error(:unauthorized))
-  end
-
-  defp prepare_operator_action(socket, key, fun) do
-    case RegentStakingAccess.authorized_operator_wallet(socket.assigns.current_human) do
-      {:ok, operator_wallet_address} ->
-        case fun.(operator_wallet_address) do
-          {:ok, %{prepared: %{wallet_action: tx_request}} = prepared} ->
-            put_pending(socket, key, %{wallet_action: tx_request, prepared: prepared})
-
-          {:error, reason} ->
-            put_action_error(socket, Presenter.action_error(reason))
-        end
-
-      {:error, :operator_required} ->
-        put_action_error(socket, Presenter.action_error(:operator_required))
     end
   end
 
@@ -490,6 +476,64 @@ defmodule AutolaunchWeb.RegentStakingLive do
     :autolaunch
     |> Application.get_env(:regent_staking_live, [])
     |> Keyword.get(:context_module, RegentStaking)
+  end
+
+  defp default_stake_form do
+    %{
+      "amount" => "",
+      "stake_for_different_address" => "false",
+      "receiver" => ""
+    }
+  end
+
+  defp assign_stake_form(socket, form) do
+    socket
+    |> assign(:stake_form, form)
+    |> assign(:resolved_receiver_address, resolved_receiver_address(form))
+  end
+
+  defp stake_form_params(attrs) when is_map(attrs) do
+    stake_for_different_address? = stake_for_different_address?(attrs)
+
+    %{
+      "amount" => Map.get(attrs, "amount", ""),
+      "stake_for_different_address" =>
+        if(stake_for_different_address?, do: "true", else: "false"),
+      "receiver" => if(stake_for_different_address?, do: Map.get(attrs, "receiver", ""), else: "")
+    }
+  end
+
+  defp stake_for_different_address?(params) when is_map(params) do
+    Map.get(params, "stake_for_different_address") in [true, "true", "on", "1", 1]
+  end
+
+  defp stake_for_different_address?(_params), do: false
+
+  defp resolved_receiver_address(params) when is_map(params) do
+    if stake_for_different_address?(params) do
+      params
+      |> Map.get("receiver", "")
+      |> resolve_receiver_address()
+    end
+  end
+
+  defp resolved_receiver_address(_params), do: nil
+
+  defp resolve_receiver_address(receiver) when is_binary(receiver) do
+    case RegentStaking.resolve_receiver(receiver) do
+      {:ok, address} -> address
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp resolve_receiver_address(_receiver), do: nil
+
+  defp stake_action_params(params) do
+    %{
+      "amount" => Map.get(params, "amount", ""),
+      "receiver" =>
+        if(stake_for_different_address?(params), do: Map.get(params, "receiver", ""), else: "")
+    }
   end
 
   defp regent_staking_styles(assigns) do
@@ -639,6 +683,44 @@ defmodule AutolaunchWeb.RegentStakingLive do
         background: color-mix(in oklab, var(--fallback-b1, #f8f4ec) 86%, #ffffff);
         border-radius: 6px;
         padding: 0.7rem 0.8rem;
+      }
+
+      .al-regent-receiver-option {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 0.35rem;
+        padding: 0.82rem;
+        border: 1px solid color-mix(in srgb, var(--brand-ink) 9%, transparent);
+        background: color-mix(in srgb, white 94%, var(--color-bg) 6%);
+        border-radius: 0.85rem;
+      }
+
+      .al-regent-receiver-option > label {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        color: color-mix(in srgb, var(--brand-ink) 82%, transparent);
+      }
+
+      .al-regent-receiver-option input[type="checkbox"] {
+        min-height: 1.05rem;
+        width: 1.05rem;
+        padding: 0;
+        border-radius: 0.3rem;
+        accent-color: var(--brand-primary);
+      }
+
+      .al-regent-receiver-field {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .al-regent-receiver-note,
+      .al-regent-resolved-address {
+        margin: 0;
+        overflow-wrap: anywhere;
+        color: color-mix(in srgb, var(--brand-ink) 58%, transparent);
+        font-size: 0.92rem;
       }
 
       .al-regent-primary-button,

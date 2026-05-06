@@ -237,7 +237,7 @@ command_groups:
         - name: --receiver
           type: string
           required: false
-          description: Optional wallet address that receives the stake position.
+          description: Optional wallet address or ENS name that receives the stake position.
       autolaunch subjects stake:
         - name: --amount
           type: string
@@ -246,7 +246,7 @@ command_groups:
         - name: --receiver
           type: string
           required: false
-          description: Optional wallet address that receives the stake position.
+          description: Optional wallet address or ENS name that receives the stake position.
     path_templates:
       - /v1/agent/auctions
       - /v1/agent/auction-returns

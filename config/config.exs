@@ -30,6 +30,7 @@ config :autolaunch, :regent_staking,
   chain_id: 8_453,
   chain_label: "Base",
   rpc_url: "",
+  ethereum_rpc_url: "",
   contract_address: ""
 
 config :autolaunch, :contract_admin,

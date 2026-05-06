@@ -173,6 +173,7 @@ if config_env() != :test do
     chain_id: env_int.("REGENT_STAKING_CHAIN_ID", 8_453),
     chain_label: env.("REGENT_STAKING_CHAIN_LABEL", "Base"),
     rpc_url: env.("REGENT_STAKING_RPC_URL", ""),
+    ethereum_rpc_url: env.("ETHEREUM_RPC_URL", ""),
     contract_address: env.("REGENT_REVENUE_STAKING_ADDRESS", ""),
     operator_wallets: env_list.("REGENT_STAKING_OPERATOR_WALLETS", "")
 

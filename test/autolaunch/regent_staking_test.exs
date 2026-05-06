@@ -25,6 +25,8 @@ defmodule Autolaunch.RegentStakingTest do
       chain_id: @base_sepolia_chain_id,
       chain_label: "Base Sepolia",
       rpc_url: "https://base-sepolia.example",
+      ethereum_rpc_url: "https://ethereum.example",
+      ens_module: __MODULE__.FakeEns,
       contract_address: @contract
     )
 
@@ -105,6 +107,34 @@ defmodule Autolaunch.RegentStakingTest do
 
     assert prepared.expected_signer == @wallet
     assert String.ends_with?(prepared.wallet_action.data, encoded_receiver)
+  end
+
+  test "stake can prepare for a receiving ENS name", %{human: human} do
+    assert {:ok, %{prepared: prepared}} =
+             RegentStaking.stake(%{"amount" => "1.5", "receiver" => "agent.eth"}, human)
+
+    encoded_receiver =
+      "0x2222222222222222222222222222222222222222"
+      |> String.replace_prefix("0x", "")
+      |> String.pad_leading(64, "0")
+
+    assert prepared.expected_signer == @wallet
+    assert String.ends_with?(prepared.wallet_action.data, encoded_receiver)
+  end
+
+  test "resolve_receiver reports ENS names without wallet records" do
+    assert {:error, :ens_address_missing} = RegentStaking.resolve_receiver("missing.eth")
+  end
+
+  test "stake rejects zero address receivers", %{human: human} do
+    assert {:error, :invalid_address} =
+             RegentStaking.stake(
+               %{
+                 "amount" => "1.5",
+                 "receiver" => "0x0000000000000000000000000000000000000000"
+               },
+               human
+             )
   end
 
   test "stake uses the configured staking chain id", %{human: human} do
@@ -279,6 +309,16 @@ defmodule Autolaunch.RegentStakingTest do
         "2222222222222222222222222222222222222222" -> 3 * 1_000_000_000_000_000_000
         _ -> 0
       end
+    end
+  end
+
+  defmodule FakeEns do
+    def read_name(%{ens_name: "agent.eth", chain_id: 1, rpc_url: "https://ethereum.example"}) do
+      {:ok, %{eth_address: "0x2222222222222222222222222222222222222222"}}
+    end
+
+    def read_name(%{ens_name: "missing.eth", chain_id: 1, rpc_url: "https://ethereum.example"}) do
+      {:ok, %{eth_address: nil}}
     end
   end
 end

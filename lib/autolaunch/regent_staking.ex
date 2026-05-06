@@ -12,6 +12,8 @@ defmodule Autolaunch.RegentStaking do
   @token_decimals 18
   @base_chain_id 8_453
   @base_chain_label "Base"
+  @ethereum_mainnet_chain_id 1
+  @zero_address "0x0000000000000000000000000000000000000000"
 
   def overview(current_human \\ nil) do
     with {:ok, cfg} <- config(),
@@ -25,6 +27,13 @@ defmodule Autolaunch.RegentStaking do
          {:ok, wallet_address} <- normalize_required_address(address),
          {:ok, state} <- load_state(cfg, wallet_address) do
       {:ok, Map.put(state, :connected_wallet_address, primary_wallet_address(current_human))}
+    end
+  end
+
+  def resolve_receiver(receiver) do
+    case optional_text(receiver) do
+      nil -> {:error, :empty_receiver}
+      receiver -> normalize_receiver(receiver)
     end
   end
 
@@ -523,7 +532,20 @@ defmodule Autolaunch.RegentStaking do
   defp optional_receiver(attrs, default_receiver) do
     case optional_text(Map.get(attrs, "receiver")) do
       nil -> {:ok, default_receiver}
-      receiver -> normalize_required_address(receiver)
+      receiver -> resolve_receiver(receiver)
+    end
+  end
+
+  defp normalize_receiver(receiver) do
+    cond do
+      String.starts_with?(String.downcase(receiver), "0x") ->
+        normalize_required_address(receiver)
+
+      String.contains?(receiver, ".") ->
+        resolve_ens_receiver(receiver)
+
+      true ->
+        {:error, :invalid_address}
     end
   end
 
@@ -539,7 +561,63 @@ defmodule Autolaunch.RegentStaking do
   defp optional_text(_value), do: nil
 
   defp normalize_required_address(value) do
-    Evm.normalize_required_address(value)
+    case Evm.normalize_address(value) do
+      nil -> {:error, :invalid_address}
+      @zero_address -> {:error, :invalid_address}
+      address -> {:ok, address}
+    end
+  end
+
+  defp resolve_ens_receiver(receiver) do
+    case AgentEns.Normalize.normalize(receiver) do
+      {:ok, normalized_name} ->
+        resolve_normalized_ens_receiver(normalized_name)
+
+      {:error, _reason} ->
+        {:error, :invalid_ens_name}
+    end
+  end
+
+  defp resolve_normalized_ens_receiver(normalized_name) do
+    with {:ok, rpc_url} <- ethereum_rpc_url(),
+         {:ok, details} <-
+           ens_module().read_name(%{
+             ens_name: normalized_name,
+             chain_id: @ethereum_mainnet_chain_id,
+             rpc_url: rpc_url,
+             include_address?: true,
+             include_contenthash?: false
+           }),
+         {:ok, eth_address} <- ens_eth_address(details),
+         {:ok, receiver} <- normalize_required_address(eth_address) do
+      {:ok, receiver}
+    else
+      {:error, :ens_unconfigured} -> {:error, :ens_unconfigured}
+      {:error, :ens_address_missing} -> {:error, :ens_address_missing}
+      {:error, :invalid_address} -> {:error, :ens_address_missing}
+      {:error, _reason} -> {:error, :ens_unavailable}
+    end
+  end
+
+  defp ens_eth_address(%{eth_address: eth_address}) when is_binary(eth_address),
+    do: {:ok, eth_address}
+
+  defp ens_eth_address(%{"eth_address" => eth_address}) when is_binary(eth_address),
+    do: {:ok, eth_address}
+
+  defp ens_eth_address(_details), do: {:error, :ens_address_missing}
+
+  defp ethereum_rpc_url do
+    case InfrastructureConfig.regent_staking_text(:ethereum_rpc_url) do
+      nil -> {:error, :ens_unconfigured}
+      rpc_url -> {:ok, rpc_url}
+    end
+  end
+
+  defp ens_module do
+    :autolaunch
+    |> Application.get_env(:regent_staking, [])
+    |> Keyword.get(:ens_module, AgentEns)
   end
 
   defp normalize_address_list(values) when is_list(values) do

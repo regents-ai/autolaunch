@@ -2515,6 +2515,9 @@ components:
     Address:
       type: string
       pattern: "^0x[a-fA-F0-9]{40}$"
+    AddressOrEnsName:
+      type: string
+      description: Wallet address or ENS name that resolves to a wallet address.
     AutolaunchChainId:
       type: integer
       enum: [84532, 8453]
@@ -2758,7 +2761,7 @@ components:
       required: [amount]
       properties:
         amount: { $ref: "#/components/schemas/DecimalString" }
-        receiver: { $ref: "#/components/schemas/Address" }
+        receiver: { $ref: "#/components/schemas/AddressOrEnsName" }
       additionalProperties: false
     ExistingTokenRevenueSubjectRequest:
       type: object

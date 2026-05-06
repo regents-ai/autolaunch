@@ -65,6 +65,18 @@ defmodule AutolaunchWeb.Api.RegentStakingController do
   defp translate_error(:invalid_address),
     do: {:unprocessable_entity, "invalid_address", "Address is invalid"}
 
+  defp translate_error(:invalid_ens_name),
+    do: {:unprocessable_entity, "invalid_ens_name", "ENS name is invalid"}
+
+  defp translate_error(:ens_address_missing),
+    do: {:unprocessable_entity, "ens_address_missing", "ENS name does not point to a wallet"}
+
+  defp translate_error(:ens_unconfigured),
+    do: {:service_unavailable, "ens_unavailable", "ENS lookup is unavailable right now"}
+
+  defp translate_error(:ens_unavailable),
+    do: {:service_unavailable, "ens_unavailable", "ENS lookup is unavailable right now"}
+
   defp translate_error(:amount_required),
     do: {:unprocessable_entity, "amount_required", "Amount is required"}
 
