@@ -50,6 +50,7 @@ defmodule Autolaunch.PublicChat do
 
   @spec request_join(HumanUser.t() | nil) :: join_result()
   def request_join(nil), do: {:error, :wallet_required}
+  def request_join(%HumanUser{role: "banned"}), do: {:error, :human_banned}
 
   def request_join(%HumanUser{} = current_human) do
     if membership_for(current_human).state in ["joined", "join_pending", "leave_pending"] do

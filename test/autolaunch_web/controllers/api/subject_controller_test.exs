@@ -405,6 +405,34 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     assert String.starts_with?(data, "0x4ddd061f")
   end
 
+  test "prepare-existing-token uses a linked wallet when primary wallet is blank", %{conn: conn} do
+    {:ok, linked_human} =
+      Accounts.upsert_human_by_privy_id("did:privy:subject-linked-wallet", %{
+        "wallet_address" => " ",
+        "wallet_addresses" => [@wallet],
+        "display_name" => "Linked wallet"
+      })
+
+    conn = init_test_session(conn, privy_user_id: linked_human.privy_user_id)
+
+    conn =
+      post(conn, "/v1/app/subjects/existing-token/prepare", %{
+        "stake_token" => @token,
+        "treasury" => @treasury,
+        "staker_pool_bps" => 1000,
+        "label" => "Atlas revenue",
+        "salt" => "0x" <> String.duplicate("45", 32)
+      })
+
+    assert %{
+             "ok" => true,
+             "prepared" => %{
+               "expected_signer" => @wallet,
+               "wallet_action" => %{"expected_signer" => @wallet}
+             }
+           } = json_response(conn, 200)
+  end
+
   test "confirm-existing-token persists the onchain subject event", %{conn: conn} do
     tx_hash = "0x" <> String.duplicate("e", 64)
 

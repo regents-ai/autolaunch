@@ -3,6 +3,7 @@ defmodule Autolaunch.Revenue.Subjects do
 
   import Ecto.Query
 
+  alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.CCA.Rpc
   alias Autolaunch.Contracts.{Abi, ActionParams}
   alias Autolaunch.Evm
@@ -423,13 +424,33 @@ defmodule Autolaunch.Revenue.Subjects do
 
   defp signer_for(nil), do: {:error, :unauthorized}
 
-  defp signer_for(%{wallet_address: wallet_address}),
-    do: Evm.normalize_required_address(wallet_address)
+  defp signer_for(%HumanUser{} = human) do
+    signer_from_wallets([human.wallet_address | List.wrap(human.wallet_addresses)])
+  end
 
-  defp signer_for(%{"wallet_address" => wallet_address}),
-    do: Evm.normalize_required_address(wallet_address)
+  defp signer_for(%{"wallet_address" => wallet_address} = actor) do
+    signer_from_wallets([wallet_address | List.wrap(Map.get(actor, "wallet_addresses"))])
+  end
+
+  defp signer_for(%{"wallet_addresses" => wallet_addresses}) do
+    signer_from_wallets(List.wrap(wallet_addresses))
+  end
+
+  defp signer_for(%{wallet_address: wallet_address} = actor) do
+    signer_from_wallets([wallet_address | List.wrap(Map.get(actor, :wallet_addresses))])
+  end
+
+  defp signer_for(%{wallet_addresses: wallet_addresses}) do
+    signer_from_wallets(List.wrap(wallet_addresses))
+  end
 
   defp signer_for(_current_actor), do: {:error, :unauthorized}
+
+  defp signer_from_wallets(wallets) do
+    wallets
+    |> Enum.find_value(&Evm.normalize_address/1)
+    |> Evm.normalize_required_address()
+  end
 
   defp address_param(attrs, key), do: ActionParams.address_param(attrs, key)
 

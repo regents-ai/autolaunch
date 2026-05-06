@@ -160,6 +160,8 @@ defmodule Autolaunch.PublicChatTest do
     assert panel.can_join == false
     assert panel.can_send == false
     assert panel.user_copy.primary == "This wallet cannot join this room."
+    assert {:error, :human_banned} = PublicChat.request_join(banned)
+    assert {:error, :human_banned} = PublicChat.send_message(banned, "hello")
   end
 
   test "heartbeat records presence through the mirror room", %{room: room} do
