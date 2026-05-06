@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.HomeLive do
   alias AutolaunchWeb.LaunchComponents
   alias AutolaunchWeb.Live.Refreshable
   alias Decimal, as: D
+  alias Xmtp.RoomPanel
   import AutolaunchWeb.PublicChatComponents
 
   @home_live_css_path Path.expand("../../../priv/static/home-live.css", __DIR__)
@@ -348,12 +349,17 @@ defmodule AutolaunchWeb.HomeLive do
   end
 
   defp assign_public_chat_panel(socket, panel) do
-    assign(socket, :public_chat, Map.put(panel, :status, nil))
+    assign(socket, :public_chat, panel)
   end
 
   defp put_public_chat_status(socket, message) do
-    assign(socket, :public_chat, Map.put(socket.assigns.public_chat, :status, message))
+    assign(socket, :public_chat, put_public_chat_copy(socket.assigns.public_chat, message))
   end
+
+  defp put_public_chat_copy(%RoomPanel{} = panel, message) when is_binary(message),
+    do: %{panel | user_copy: RoomPanel.copy(message)}
+
+  defp put_public_chat_copy(panel, _message), do: panel
 
   defp reset_public_chat_form(socket), do: assign_public_chat_form(socket, "")
 

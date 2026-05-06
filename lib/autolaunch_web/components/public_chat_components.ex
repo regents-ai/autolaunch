@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.PublicChatComponents do
         </div>
         <div class="al-home-chat-badges">
           <span>{room_state_label(@room)}</span>
-          <span>{Integer.to_string(@room.member_count)}/{Integer.to_string(@room.seat_count)} seats</span>
+          <span>{Integer.to_string(@room.member_count)}/{Integer.to_string(@room.capacity)} seats</span>
           <span>{active_member_copy(@room)}</span>
           <span :if={@room.connected_wallet}>{Format.short_wallet(@room.connected_wallet)}</span>
         </div>
@@ -58,7 +58,7 @@ defmodule AutolaunchWeb.PublicChatComponents do
       </div>
 
       <button
-        :if={@room.can_join?}
+        :if={@room.can_join}
         type="button"
         class="al-home-chat-join"
         phx-click="public_chat_join"
@@ -73,33 +73,31 @@ defmodule AutolaunchWeb.PublicChatComponents do
           name={@form[:body].name}
           rows="3"
           placeholder="Ask a question or share an update."
-          disabled={!@room.can_send?}
+          disabled={!@room.can_send}
         >{Phoenix.HTML.Form.input_value(@form, :body)}</textarea>
 
         <div class="al-home-chat-composer-row">
           <p>{composer_copy(@room)}</p>
-          <button type="submit" disabled={!@room.can_send?}>Send</button>
+          <button type="submit" disabled={!@room.can_send}>Send</button>
         </div>
       </.form>
     </aside>
     """
   end
 
-  defp room_status_copy(%{status: message}) when is_binary(message) and message != "",
-    do: message
+  defp room_status_copy(%{user_copy: %{primary: message}}) when is_binary(message), do: message
 
-  defp room_status_copy(%{ready?: false}), do: "This room is unavailable right now."
-  defp room_status_copy(%{membership_state: :joined}), do: "You are in the room."
+  defp room_status_copy(%{status: :disabled}), do: "This room is unavailable right now."
+  defp room_status_copy(%{membership: :joined}), do: "You are in the room."
 
-  defp room_status_copy(%{membership_state: :join_pending}),
+  defp room_status_copy(%{membership: :pending_signature}),
     do: "Your room seat is being prepared."
 
-  defp room_status_copy(%{membership_state: :leave_pending}), do: "Your room seat is closing."
+  defp room_status_copy(%{membership: :not_joined, can_join: false, connected_wallet: wallet})
+       when is_binary(wallet),
+       do: "Sign in with your wallet before you join this room."
 
-  defp room_status_copy(%{membership_state: :setup_required}),
-    do: "Sign in with your wallet before you join this room."
-
-  defp room_status_copy(%{membership_state: :watching, seats_remaining: seats_remaining})
+  defp room_status_copy(%{membership: :not_joined, seats_remaining: seats_remaining})
        when seats_remaining > 0,
        do: "#{seats_remaining} seats are open. Join when you are ready."
 
@@ -108,11 +106,11 @@ defmodule AutolaunchWeb.PublicChatComponents do
 
   defp room_status_copy(_room), do: "Read along before you join. Post once you are in."
 
-  defp room_state_label(%{ready?: false}), do: "Offline"
-  defp room_state_label(%{membership_state: :joined}), do: "In room"
-  defp room_state_label(%{membership_state: :join_pending}), do: "Joining"
-  defp room_state_label(%{membership_state: :leave_pending}), do: "Leaving"
-  defp room_state_label(%{seats_remaining: 0}), do: "Full"
+  defp room_state_label(%{status: :disabled}), do: "Offline"
+  defp room_state_label(%{membership: :joined}), do: "In room"
+  defp room_state_label(%{membership: :pending_signature}), do: "Joining"
+  defp room_state_label(%{membership: :blocked}), do: "Full"
+  defp room_state_label(%{membership: :removed}), do: "Removed"
   defp room_state_label(%{connected_wallet: nil}), do: "Watch only"
   defp room_state_label(_room), do: "Ready"
 
@@ -127,13 +125,16 @@ defmodule AutolaunchWeb.PublicChatComponents do
   defp sender_label(:system), do: "System"
   defp sender_label(_kind), do: "Person"
 
-  defp composer_copy(%{can_send?: true}),
+  defp composer_copy(%{can_send: true}),
     do: "Keep messages short so the room stays easy to follow."
 
-  defp composer_copy(%{can_join?: true}), do: "Join the room first if you want to post."
+  defp composer_copy(%{can_join: true}), do: "Join the room first if you want to post."
 
-  defp composer_copy(%{membership_state: :join_pending}),
+  defp composer_copy(%{membership: :pending_signature}),
     do: "Wait for your seat to finish opening before posting."
+
+  defp composer_copy(%{membership: :removed}),
+    do: "Posting is paused for this wallet."
 
   defp composer_copy(%{seats_remaining: 0}), do: "Posting is closed while the room is full."
   defp composer_copy(_room), do: "Read along here even if you are not ready to post."

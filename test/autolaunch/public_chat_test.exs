@@ -7,6 +7,7 @@ defmodule Autolaunch.PublicChatTest do
   alias Autolaunch.XMTPMirror
   alias Autolaunch.XMTPMirror.XmtpMembershipCommand
   alias Autolaunch.XMTPMirror.XmtpPresence
+  alias Xmtp.RoomPanel
 
   import Autolaunch.TestSupport.XmtpSupport, only: [deterministic_inbox_id: 1, unique_suffix: 0]
 
@@ -37,11 +38,12 @@ defmodule Autolaunch.PublicChatTest do
 
     panel = PublicChat.room_panel(nil)
 
+    assert %RoomPanel{} = panel
     assert panel.room_key == "public-chatbox"
-    assert panel.room_name == "Autolaunch Room"
-    assert panel.ready? == true
-    assert panel.can_join? == false
-    assert panel.can_send? == false
+    assert panel.name == "Autolaunch Room"
+    assert panel.status == :ready
+    assert panel.can_join == false
+    assert panel.can_send == false
     assert [%{body: "The room is open for launch updates.", sender_type: :agent}] = panel.messages
   end
 
@@ -54,8 +56,8 @@ defmodule Autolaunch.PublicChatTest do
     human = create_human!("Pending")
 
     assert {:ok, panel} = PublicChat.request_join(human)
-    assert panel.membership_state == :join_pending
-    assert panel.can_send? == false
+    assert panel.membership == :pending_signature
+    assert panel.can_send == false
 
     command = Repo.get_by!(XmtpMembershipCommand, room_id: room.id, human_user_id: human.id)
     assert command.op == "add_member"
@@ -79,7 +81,7 @@ defmodule Autolaunch.PublicChatTest do
                       room_key: "public-chatbox"
                     }}
 
-    assert PublicChat.room_panel(human).membership_state == :joined
+    assert PublicChat.room_panel(human).membership == :joined
   end
 
   test "one human cannot join two public rooms at the same time", %{room: room} do
@@ -118,8 +120,8 @@ defmodule Autolaunch.PublicChatTest do
     :ok = PublicEvents.subscribe()
 
     assert {:ok, panel} = PublicChat.send_message(human, "hello from the homepage")
-    assert panel.joined? == true
-    assert panel.can_send? == true
+    assert panel.membership == :joined
+    assert panel.can_send == true
     assert [%{body: "hello from the homepage", sender_type: :human}] = panel.messages
 
     assert_receive {:public_site_event,
@@ -146,6 +148,18 @@ defmodule Autolaunch.PublicChatTest do
              })
 
     assert PublicChat.room_panel(nil).messages == []
+  end
+
+  test "banned humans cannot use public room actions", %{room: room} do
+    banned = create_human!("Banned Actions", role: "banned")
+    join_human!(banned, room)
+
+    panel = PublicChat.room_panel(banned)
+
+    assert panel.membership == :removed
+    assert panel.can_join == false
+    assert panel.can_send == false
+    assert panel.user_copy.primary == "This wallet cannot join this room."
   end
 
   test "heartbeat records presence through the mirror room", %{room: room} do

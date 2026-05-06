@@ -5,6 +5,7 @@ defmodule Autolaunch.PublicChat do
   alias Autolaunch.PublicEvents
   alias Autolaunch.XMTPMirror
   alias Autolaunch.XMTPMirror.Rooms
+  alias Xmtp.RoomPanel
 
   @room_key "public-chatbox"
 
@@ -16,34 +17,35 @@ defmodule Autolaunch.PublicChat do
   @spec topic() :: String.t()
   def topic, do: PublicEvents.topic()
 
-  @spec room_panel(HumanUser.t() | nil) :: map()
+  @spec room_panel(HumanUser.t() | nil) :: RoomPanel.t()
   def room_panel(current_human \\ nil) do
     membership = membership_for(current_human)
     room_key = panel_room_key(membership)
     room = XMTPMirror.get_room_by_key(room_key)
     messages = XMTPMirror.list_public_messages(%{"room_key" => room_key, "limit" => "50"})
     member_count = member_count(room_key)
-    seat_count = Rooms.room_capacity(room)
+    capacity = Rooms.room_capacity(room)
+    panel_membership = panel_membership(current_human, membership, room, member_count, capacity)
 
-    %{
+    RoomPanel.new!(%{
       room_key: room_key,
-      room_name: room_name(room),
-      room_id: room && room.id,
+      xmtp_group_id: room && room.xmtp_group_id,
+      name: room_name(room),
+      status: panel_status(room),
+      membership: panel_membership,
       connected_wallet: connected_wallet(current_human),
-      ready?: not is_nil(room),
-      joined?: membership.state == "joined",
-      can_join?: can_join?(current_human, room, membership, member_count, seat_count),
-      can_send?: membership.state == "joined",
-      moderator?: false,
-      membership_state: membership_state(membership, room, member_count, seat_count),
-      status: panel_status(current_human, room, membership, member_count, seat_count),
+      can_join: can_join?(current_human, room, membership, member_count, capacity),
+      can_send: can_send?(current_human, membership),
+      can_moderate: false,
       member_count: member_count,
       active_member_count: member_count,
-      seat_count: seat_count,
-      seats_remaining: max(seat_count - member_count, 0),
-      rooms: Rooms.list_shards(),
-      messages: messages
-    }
+      capacity: capacity,
+      seats_remaining: max(capacity - member_count, 0),
+      presence_ttl_seconds: room_presence_ttl(room),
+      messages: messages,
+      user_copy:
+        RoomPanel.copy(panel_copy(current_human, room, membership, member_count, capacity))
+    })
   end
 
   @spec request_join(HumanUser.t() | nil) :: join_result()
@@ -130,13 +132,21 @@ defmodule Autolaunch.PublicChat do
     }
   end
 
-  defp can_join?(nil, _room, _membership, _member_count, _seat_count), do: false
-  defp can_join?(_human, nil, _membership, _member_count, _seat_count), do: false
-  defp can_join?(_human, _room, %{state: "joined"}, _member_count, _seat_count), do: false
-  defp can_join?(_human, _room, %{state: "setup_required"}, _member_count, _seat_count), do: false
+  defp can_join?(nil, _room, _membership, _member_count, _capacity), do: false
 
-  defp can_join?(_human, _room, _membership, member_count, seat_count),
-    do: member_count < seat_count
+  defp can_join?(%HumanUser{role: "banned"}, _room, _membership, _member_count, _capacity),
+    do: false
+
+  defp can_join?(_human, nil, _membership, _member_count, _capacity), do: false
+  defp can_join?(_human, _room, %{state: "joined"}, _member_count, _capacity), do: false
+  defp can_join?(_human, _room, %{state: "setup_required"}, _member_count, _capacity), do: false
+
+  defp can_join?(_human, _room, _membership, member_count, capacity),
+    do: member_count < capacity
+
+  defp can_send?(%HumanUser{role: "banned"}, _membership), do: false
+  defp can_send?(_human, %{state: "joined"}), do: true
+  defp can_send?(_human, _membership), do: false
 
   defp member_count(room_key) do
     room_key
@@ -147,44 +157,57 @@ defmodule Autolaunch.PublicChat do
     end
   end
 
-  defp membership_state(_membership, nil, _member_count, _seat_count), do: :room_unavailable
-  defp membership_state(%{state: "joined"}, _room, _member_count, _seat_count), do: :joined
+  defp panel_membership(%HumanUser{role: "banned"}, _membership, _room, _member_count, _capacity),
+    do: :removed
 
-  defp membership_state(%{state: "join_pending"}, _room, _member_count, _seat_count),
-    do: :join_pending
+  defp panel_membership(_human, _membership, nil, _member_count, _capacity), do: :not_connected
+  defp panel_membership(_human, %{state: "joined"}, _room, _member_count, _capacity), do: :joined
 
-  defp membership_state(%{state: "leave_pending"}, _room, _member_count, _seat_count),
-    do: :leave_pending
+  defp panel_membership(_human, %{state: state}, _room, _member_count, _capacity)
+       when state in ["join_pending", "leave_pending"],
+       do: :pending_signature
 
-  defp membership_state(%{state: "setup_required"}, _room, _member_count, _seat_count),
-    do: :setup_required
+  defp panel_membership(_human, _membership, _room, member_count, capacity)
+       when member_count >= capacity,
+       do: :blocked
 
-  defp membership_state(_membership, _room, member_count, seat_count)
-       when member_count >= seat_count,
-       do: :full
+  defp panel_membership(_human, _membership, _room, _member_count, _capacity), do: :not_joined
 
-  defp membership_state(_membership, _room, _member_count, _seat_count), do: :view_only
+  defp panel_status(nil), do: :disabled
+  defp panel_status(%{status: "active"}), do: :ready
+  defp panel_status(_room), do: :disabled
 
-  defp panel_status(nil, _room, _membership, _member_count, _seat_count),
+  defp room_presence_ttl(%{presence_ttl_seconds: ttl}) when is_integer(ttl) and ttl > 0,
+    do: ttl
+
+  defp room_presence_ttl(_room), do: Rooms.default_presence_ttl_seconds()
+
+  defp panel_copy(nil, _room, _membership, _member_count, _capacity),
     do: "Read along now. Sign in before you post."
 
-  defp panel_status(_human, nil, _membership, _member_count, _seat_count),
+  defp panel_copy(_human, nil, _membership, _member_count, _capacity),
     do: reason_message(:room_unavailable)
 
-  defp panel_status(_human, _room, %{state: "joined"}, _member_count, _seat_count),
+  defp panel_copy(%HumanUser{role: "banned"}, _room, _membership, _member_count, _capacity),
+    do: reason_message(:human_banned)
+
+  defp panel_copy(_human, _room, %{state: "joined"}, _member_count, _capacity),
     do: "You can post in the public room."
 
-  defp panel_status(_human, _room, %{state: "setup_required"}, _member_count, _seat_count),
+  defp panel_copy(_human, _room, %{state: "setup_required"}, _member_count, _capacity),
     do: reason_message(:xmtp_identity_required)
 
-  defp panel_status(_human, _room, %{state: "join_pending"}, _member_count, _seat_count),
+  defp panel_copy(_human, _room, %{state: "join_pending"}, _member_count, _capacity),
     do: "Your room seat is being prepared."
 
-  defp panel_status(_human, _room, _membership, member_count, seat_count)
-       when member_count >= seat_count,
+  defp panel_copy(_human, _room, %{state: "leave_pending"}, _member_count, _capacity),
+    do: "Your room seat is closing."
+
+  defp panel_copy(_human, _room, _membership, member_count, capacity)
+       when member_count >= capacity,
        do: reason_message(:room_full)
 
-  defp panel_status(_human, _room, _membership, _member_count, _seat_count),
+  defp panel_copy(_human, _room, _membership, _member_count, _capacity),
     do: "Sign in, then join when you want to post."
 
   defp message_error(%Ecto.Changeset{} = changeset) do
