@@ -236,6 +236,7 @@ defmodule Autolaunch.Contracts.GeneratedSelectors do
       "MAX_INGRESS_ACCOUNTS_PER_SUBJECT()" => "0x52f7567d",
       "acceptOwnership()" => "0x79ba5097",
       "authorizedCreators(address)" => "0xc695502a",
+      "createDefaultIngressAccount(bytes32,string)" => "0x4d5ff147",
       "createIngressAccount(bytes32,string,bool)" => "0x8a3dc13f",
       "defaultIngressOfSubject(bytes32)" => "0xb396721d",
       "ingressAccountAt(bytes32,uint256)" => "0xb87d9995",
@@ -254,12 +255,12 @@ defmodule Autolaunch.Contracts.GeneratedSelectors do
     },
     "RevenueShareFactory" => %{
       "acceptOwnership()" => "0x79ba5097",
-      "acceptSubjectRegistryOwnership()" => "0x708cd500",
       "authorizedCreators(address)" => "0xc695502a",
       "createSubjectSplitter(bytes32,address,address,address,address,uint256,string,uint256,address,uint256)" =>
         "0x67a9c682",
       "owner()" => "0x8da5cb5b",
       "pendingOwner()" => "0xe30c3978",
+      "protocolFeeRouter()" => "0xb6512968",
       "rescueNative(address)" => "0xc8df4230",
       "rescueUnsupportedToken(address,uint256,address)" => "0x032876d3",
       "setAuthorizedCreator(address,bool)" => "0xe1434f4e",
@@ -268,7 +269,6 @@ defmodule Autolaunch.Contracts.GeneratedSelectors do
       "splitterOfSubject(bytes32)" => "0xf673654d",
       "subjectRegistry()" => "0xf66b8774",
       "transferOwnership(address)" => "0xf2fde38b",
-      "transferSubjectRegistryOwnership(address)" => "0xcde74fe9",
       "usdc()" => "0x3e413bee"
     },
     "RevenueShareSplitter" => %{
@@ -316,7 +316,7 @@ defmodule Autolaunch.Contracts.GeneratedSelectors do
       "protocolSkimBps()" => "0xaf385b72",
       "pullTreasuryShareFromLaunchVault(address,bytes32,uint256,bytes32)" => "0x94af8446",
       "reassignUndistributedDustToTreasury(uint256)" => "0xbe2a401c",
-      "recordIngressSweep(uint256)" => "0x9627e6be",
+      "recordIngressSweep(uint256,bytes32)" => "0x3880557f",
       "redepositSurplusUSDC(uint256,bytes32,bytes32)" => "0x0bd58323",
       "refundStakeTokenRewardPool(uint256,address)" => "0x55287884",
       "regentSkimUsdc()" => "0x1aa91287",
@@ -377,7 +377,11 @@ defmodule Autolaunch.Contracts.GeneratedSelectors do
     },
     "SubjectRegistry" => %{
       "acceptOwnership()" => "0x79ba5097",
+      "authorizedRegistrars(address)" => "0xa9c6b3fa",
       "canManageSubject(bytes32,address)" => "0x41c2ab07",
+      "canRegisterSubject(address)" => "0x376f9ab3",
+      "createPermissionlessSubject(bytes32,address,address,address,address,bool,string)" =>
+        "0xa45545de",
       "createSubject(bytes32,address,address,address,bool,string)" => "0x6053d93d",
       "getSubject(bytes32)" => "0xc67716c7",
       "identityLinkAt(bytes32,uint256)" => "0xc22085b7",
@@ -387,13 +391,17 @@ defmodule Autolaunch.Contracts.GeneratedSelectors do
       "pendingOwner()" => "0xe30c3978",
       "rescueNative(address)" => "0xc8df4230",
       "rescueUnsupportedToken(address,uint256,address)" => "0x032876d3",
+      "setAuthorizedRegistrar(address,bool)" => "0xfdfcadeb",
       "setSubjectLabel(bytes32,string)" => "0xabc21c83",
       "setSubjectManager(bytes32,address,bool)" => "0x459ae32e",
       "splitterOfSubject(bytes32)" => "0xf673654d",
+      "subjectCountForStakeToken(address)" => "0xce90a499",
       "subjectForIdentity(uint256,address,uint256)" => "0x2dcff4f1",
+      "subjectForStakeTokenAt(address,uint256)" => "0x4a17d83b",
       "subjectManagers(bytes32,address)" => "0xc015cc5e",
       "subjectOfIdentityHash(bytes32)" => "0xf5e233f6",
       "subjectOfStakeToken(address)" => "0xb4ed0e71",
+      "subjectsForStakeToken(address)" => "0x80c3a36c",
       "transferOwnership(address)" => "0xf2fde38b",
       "unlinkIdentity(bytes32,uint256,address,uint256)" => "0x1b3665c5",
       "updateSubject(bytes32,address,address,bool,string)" => "0xdbf6fd39"
