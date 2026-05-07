@@ -13,6 +13,8 @@ defmodule AutolaunchWeb.LaunchLive do
      |> assign(:page_title, "Launch")
      |> assign(:active_view, "launch")
      |> assign(:cli_command, Presenter.launch_command())
+     |> assign(:cli_command_bundle, Presenter.launch_command_bundle())
+     |> assign(:cli_command_lines, Presenter.launch_command_lines())
      |> assign(:launch_transcript, Presenter.launch_cli_transcript())
      |> assign(:launch_console_steps, Presenter.launch_console_steps())
      |> assign(:launch_flow, Presenter.launch_flow())
@@ -64,28 +66,6 @@ defmodule AutolaunchWeb.LaunchLive do
               {launch_intro(@path_focus)}
             </p>
           </div>
-
-          <div class="al-route-hero-visual" aria-hidden="true">
-            <div class="al-route-hero-visual-head">
-              <span class="al-route-hero-visual-kicker">Launch path</span>
-              <span class="al-route-hero-visual-pill">Base</span>
-            </div>
-
-            <div class="al-route-hero-track">
-              <div class="al-route-hero-step is-active">
-                <span>1</span>
-                <strong>Plan</strong>
-              </div>
-              <div class="al-route-hero-step">
-                <span>2</span>
-                <strong>Deploy</strong>
-              </div>
-              <div class="al-route-hero-step">
-                <span>3</span>
-                <strong>Launch</strong>
-              </div>
-            </div>
-          </div>
         </section>
 
         <section
@@ -105,19 +85,26 @@ defmodule AutolaunchWeb.LaunchLive do
               </div>
             </div>
 
-            <div class="al-launch-command-bar">
-              <code>{@cli_command} --chain base-sepolia</code>
-              <button type="button" class="al-submit" data-copy-value={"#{@cli_command} --chain base-sepolia"}>
+            <div class="al-launch-command-bar" aria-label="Auction wizard command">
+              <pre class="al-launch-command-code"><code><span
+                    :for={line <- @cli_command_lines}
+                    class="al-launch-command-line"
+                    aria-label={line.label}
+                  ><span
+                      :for={token <- line.tokens}
+                      class={["al-launch-command-token", token.style]}
+                    >{token.text}</span></span></code></pre>
+              <button type="button" class="al-submit" data-copy-value={@cli_command_bundle}>
                 Copy command
               </button>
             </div>
 
             <p class="al-inline-note">
-              Run this in your terminal to start the guided launch flow.
+              Run both commands in your terminal to install Regent and start the guided launch flow.
             </p>
           </div>
 
-          <ol class="al-launch-console-steps" aria-label="Launch path overview">
+          <ol class="al-launch-console-steps" aria-label="Launch overview">
             <li :for={step <- @launch_console_steps}>
               <span class="al-launch-console-step-mark" aria-hidden="true"></span>
               <div>
@@ -370,7 +357,7 @@ defmodule AutolaunchWeb.LaunchLive do
 
           <div class="al-action-row">
             <.link navigate={~p"/auctions"} class="al-ghost">Open auctions</.link>
-            <.link navigate={~p"/how-auctions-work"} class="al-ghost">How auctions work</.link>
+            <.link navigate={~p"/docs"} class="al-ghost">How auctions work</.link>
             <.link navigate={~p"/contracts"} class="al-ghost">Open contracts</.link>
           </div>
         </section>
@@ -435,14 +422,14 @@ defmodule AutolaunchWeb.LaunchLive do
   defp status_token(_status), do: "pending"
 
   defp launch_heading("agent"), do: "Launch with an operator agent."
-  defp launch_heading(_focus), do: "Launch your agent on Base."
+  defp launch_heading(_focus), do: "Agent Ownership Token Launch"
 
   defp launch_intro("agent") do
     "Use the agent-assisted path when you want an operator agent to carry the checklist while you approve each important step."
   end
 
   defp launch_intro(_focus) do
-    "Start with one saved plan, review the path once, then choose the direct command path or the agent-assisted path."
+    "Raise capital based on an agent's or API's predictable stablecoin revenue. Attach your identities for reputation, set a name and image, and launch a 2-day auction using Uniswap's fair CCA protocol."
   end
 
   defp route_css, do: @route_css

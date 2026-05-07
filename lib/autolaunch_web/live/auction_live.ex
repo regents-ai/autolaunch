@@ -27,7 +27,16 @@ defmodule AutolaunchWeb.AuctionLive do
      |> assign(:auction, auction)
      |> assign(:bid_form, form)
      |> assign(:quote, quote)
-     |> assign(:positions, positions)}
+     |> assign(:positions, positions)
+     |> assign(:show_auction_help_modal, false)}
+  end
+
+  def handle_event("open_auction_help", _params, socket) do
+    {:noreply, assign(socket, :show_auction_help_modal, true)}
+  end
+
+  def handle_event("close_auction_help", _params, socket) do
+    {:noreply, assign(socket, :show_auction_help_modal, false)}
   end
 
   def handle_event("quote_changed", %{"bid" => attrs}, socket) do
@@ -197,7 +206,16 @@ defmodule AutolaunchWeb.AuctionLive do
                   <p class="al-kicker">Bid composer</p>
                   <h3>Plan your spend before you sign.</h3>
                 </div>
-                <span class="badge badge-outline">Bid planner</span>
+                <div class="al-auction-detail-head-actions">
+                  <span class="badge badge-outline">Bid planner</span>
+                  <button
+                    type="button"
+                    class="al-auction-detail-learn-button"
+                    phx-click="open_auction_help"
+                  >
+                    Learn More
+                  </button>
+                </div>
               </div>
 
               <p class="al-auction-detail-dark-copy">
@@ -610,6 +628,70 @@ defmodule AutolaunchWeb.AuctionLive do
           action_label="Back to auctions"
           action_href={~p"/auctions"}
         />
+      <% end %>
+
+      <%= if @show_auction_help_modal do %>
+        <div
+          id="auction-help-modal"
+          class="al-auction-help-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auction-help-title"
+        >
+          <button
+            type="button"
+            class="al-auction-help-scrim"
+            phx-click="close_auction_help"
+            aria-label="Close auction explainer"
+          >
+          </button>
+
+          <section class="al-auction-help-dialog">
+            <div class="al-auction-help-head">
+              <p class="al-kicker">⋰ CCA auction</p>
+              <button
+                type="button"
+                class="al-auction-help-close"
+                phx-click="close_auction_help"
+                aria-label="Close auction explainer"
+              >
+                ×
+              </button>
+            </div>
+
+            <h2 id="auction-help-title">What you are buying</h2>
+            <p class="al-auction-help-lede">
+              You are bidding with USDC for the public launch share of this agent token. After the
+              sale, claimed and staked tokens can earn from up to 10% of an agent or API's future
+              stablecoin revenue.
+            </p>
+
+            <div class="al-auction-help-grid">
+              <article>
+                <span>1</span>
+                <strong>Choose two numbers.</strong>
+                <p>Set the most USDC you want to spend and the highest token price you accept.</p>
+              </article>
+              <article>
+                <span>2</span>
+                <strong>The auction respects your limit.</strong>
+                <p>If the sale price rises above your max, the unspent part stops instead of chasing.</p>
+              </article>
+              <article>
+                <span>3</span>
+                <strong>Claim, then stake.</strong>
+                <p>Revenue exposure begins after the auction closes, tokens are claimed, and tokens are staked.</p>
+              </article>
+            </div>
+
+            <div class="al-auction-help-actions">
+              <button type="button" class="al-submit" phx-click="close_auction_help">
+                Continue
+              </button>
+              <.link navigate={~p"/docs"} class="al-ghost">Go to Docs</.link>
+            </div>
+          </section>
+        </div>
       <% end %>
 
       <.flash_group flash={@flash} />

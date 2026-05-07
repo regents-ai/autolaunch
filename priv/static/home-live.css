@@ -759,39 +759,6 @@
   text-decoration: none;
 }
 
-#autolaunch-home-dashboard .al-home-selected-setup,
-#autolaunch-home-dashboard .al-home-pay-select,
-#autolaunch-home-dashboard .al-home-cost-row {
-  border: 1px solid color-mix(in srgb, var(--brand-ink) 9%, transparent);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, white 96%, var(--color-bg) 4%);
-  padding: 0.85rem;
-}
-
-#autolaunch-home-dashboard .al-home-selected-setup {
-  display: grid;
-  gap: 0.55rem;
-}
-
-#autolaunch-home-dashboard .al-home-selected-setup p {
-  margin: 0;
-  color: var(--al-muted);
-  line-height: 1.5;
-}
-
-#autolaunch-home-dashboard .al-home-pay-select,
-#autolaunch-home-dashboard .al-home-cost-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.8rem;
-  align-items: center;
-}
-
-#autolaunch-home-dashboard .al-home-pay-select span,
-#autolaunch-home-dashboard .al-home-cost-row span {
-  color: var(--al-muted);
-}
-
 #autolaunch-home-dashboard .al-home-review-action {
   justify-content: center;
 }
@@ -824,8 +791,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   #autolaunch-home-dashboard .al-home-dashboard-card,
-  #autolaunch-home-dashboard .al-home-quick-action,
-  #autolaunch-home-dashboard .al-home-selected-setup {
+  #autolaunch-home-dashboard .al-home-quick-action {
     transition:
       transform 180ms cubic-bezier(0.23, 1, 0.32, 1),
       border-color 180ms ease,
@@ -943,8 +909,6 @@
   #autolaunch-home-dashboard .al-home-activity-row,
   #autolaunch-home-dashboard .al-home-lane-row,
   #autolaunch-home-dashboard .al-home-quick-action,
-  #autolaunch-home-dashboard .al-home-pay-select,
-  #autolaunch-home-dashboard .al-home-cost-row,
   #autolaunch-home-dashboard .al-home-chat-composer-row {
     grid-template-columns: 1fr;
     flex-direction: column;
@@ -1005,9 +969,6 @@
   .al-home-metric-item span,
   .al-home-metric-item p,
   .al-home-card-empty,
-  .al-home-selected-setup p,
-  .al-home-pay-select span,
-  .al-home-cost-row span,
   .al-home-quick-action,
   .al-home-quick-action small,
   .al-home-lane-row > span:last-child,
@@ -1018,9 +979,6 @@
 
 :root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
   .al-home-dashboard-chip,
-  .al-home-selected-setup,
-  .al-home-pay-select,
-  .al-home-cost-row,
   .al-home-quick-action,
   .al-home-lane-mark,
   .al-home-quick-mark
@@ -1065,9 +1023,6 @@
 #autolaunch-home-dashboard :is(
   .al-home-dashboard-card,
   .al-home-metric-item,
-  .al-home-selected-setup,
-  .al-home-pay-select,
-  .al-home-cost-row,
   .al-home-quick-action,
   .al-home-chat-message,
   .al-home-chat-status
@@ -1146,9 +1101,6 @@
 :root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
   .al-home-dashboard-card,
   .al-home-metric-item,
-  .al-home-selected-setup,
-  .al-home-pay-select,
-  .al-home-cost-row,
   .al-home-quick-action,
   .al-home-chat-message,
   .al-home-chat-status
@@ -1174,8 +1126,7 @@
 @media (hover: hover) and (pointer: fine) {
   :root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
     .al-home-dashboard-card,
-    .al-home-quick-action,
-    .al-home-selected-setup
+    .al-home-quick-action
   ):hover {
     border-color: rgba(67, 196, 132, 0.26);
     box-shadow: 0 26px 58px -44px rgba(0, 0, 0, 0.88);
@@ -1234,9 +1185,6 @@
   .al-home-metric-item span,
   .al-home-metric-item p,
   .al-home-card-empty,
-  .al-home-selected-setup p,
-  .al-home-pay-select span,
-  .al-home-cost-row span,
   .al-home-quick-action,
   .al-home-quick-action small,
   .al-home-lane-row > span:last-child,
@@ -1248,9 +1196,6 @@
 
 :root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
   .al-home-dashboard-chip,
-  .al-home-selected-setup,
-  .al-home-pay-select,
-  .al-home-cost-row,
   .al-home-quick-action,
   .al-home-chat-message,
   .al-home-chat-status
@@ -1280,4 +1225,125 @@
   .al-home-rail-head a
 ) {
   color: var(--al-home-dark-mint);
+}
+
+#autolaunch-home-dashboard .al-home-dashboard-hero {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: clamp(16rem, 30vw, 23rem);
+}
+
+#autolaunch-home-dashboard .al-home-dashboard-copy {
+  max-width: 54rem;
+}
+
+#autolaunch-home-dashboard .al-home-dashboard-copy h1 {
+  max-width: 13ch;
+}
+
+#autolaunch-home-dashboard .al-home-dashboard-visual {
+  display: none;
+}
+
+/* Public beta readability pass for the homepage surface. */
+:root[data-brand="autolaunch"][data-theme="light"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-hero,
+  .al-home-dashboard-card,
+  .al-home-metric-strip,
+  .al-home-metric-item,
+  .al-home-launch-panel,
+  .al-home-quick-actions,
+  .al-home-quick-action,
+  .al-home-chat-panel,
+  .al-home-chat-empty,
+  .al-home-chat-message,
+  .al-home-chat-status,
+  .al-home-chat-form textarea
+) {
+  border-color: rgba(10, 54, 42, 0.16);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(46, 159, 97, 0.1), transparent 30%),
+    linear-gradient(180deg, #f4eedf 0%, #eadfc4 100%);
+  color: #14372f;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy h1,
+  .al-home-card-head h3,
+  .al-home-market-primary strong,
+  .al-home-market-mini-grid strong,
+  .al-home-metric-item strong,
+  .al-home-quick-action strong,
+  .al-home-chat-empty strong,
+  .al-home-chat-panel strong
+) {
+  color: #14372f;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy p,
+  .al-home-market-primary p,
+  .al-home-market-primary span,
+  .al-home-market-mini-grid span,
+  .al-home-metric-item span,
+  .al-home-metric-item p,
+  .al-home-card-empty,
+  .al-home-quick-action small,
+  .al-home-chat-panel p,
+  .al-home-chat-form label,
+  .al-home-chat-composer-row p
+) {
+  color: #45685b;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-hero,
+  .al-home-dashboard-card,
+  .al-home-metric-strip,
+  .al-home-metric-item,
+  .al-home-launch-panel,
+  .al-home-quick-actions,
+  .al-home-quick-action,
+  .al-home-chat-panel,
+  .al-home-chat-empty,
+  .al-home-chat-message,
+  .al-home-chat-status,
+  .al-home-chat-form textarea
+) {
+  border-color: rgba(244, 236, 210, 0.15);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(46, 159, 97, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(12, 30, 22, 0.98), rgba(4, 12, 8, 0.98));
+  color: #fff8e6;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 230, 0.06),
+    0 28px 70px -48px rgba(0, 0, 0, 0.95);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy h1,
+  .al-home-card-head h3,
+  .al-home-market-primary strong,
+  .al-home-market-mini-grid strong,
+  .al-home-metric-item strong,
+  .al-home-quick-action strong,
+  .al-home-chat-empty strong,
+  .al-home-chat-panel strong
+) {
+  color: #fff8e6;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-copy p,
+  .al-home-market-primary p,
+  .al-home-market-primary span,
+  .al-home-market-mini-grid span,
+  .al-home-metric-item span,
+  .al-home-metric-item p,
+  .al-home-card-empty,
+  .al-home-quick-action small,
+  .al-home-chat-panel p,
+  .al-home-chat-form label,
+  .al-home-chat-composer-row p
+) {
+  color: rgba(255, 248, 230, 0.78);
 }

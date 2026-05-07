@@ -240,12 +240,18 @@ defmodule AutolaunchWeb.LaunchPagesTest do
   test "launch page renders the CLI-first review page", %{conn: conn} do
     {:ok, view, html} = live(conn, "/launch")
 
-    assert html =~ "Launch your agent on Base."
-    assert has_element?(view, "h1", "Launch your agent on Base.")
-    assert html =~ "regent autolaunch prelaunch wizard"
+    assert html =~ "Agent Ownership Token Launch"
+    assert has_element?(view, "h1", "Agent Ownership Token Launch")
+
+    assert html =~
+             "Raise capital based on an agent&#39;s or API&#39;s predictable stablecoin revenue."
+
+    refute has_element?(view, ".al-route-hero-visual")
+    assert html =~ "regents autolaunch prelaunch wizard"
     assert html =~ "Launch console"
     assert html =~ "Direct operator path"
     assert html =~ "Agent-assisted path"
+    assert html =~ ~r/Hermes.*Recommended.*OpenClaw/s
     assert html =~ "Review launch setup"
   end
 
@@ -254,7 +260,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
 
     assert html =~ "Launch with an operator agent."
     assert has_element?(view, "h1", "Launch with an operator agent.")
-    assert html =~ "regent autolaunch prelaunch wizard"
+    assert html =~ "regents autolaunch prelaunch wizard"
     assert html =~ "Agent-assisted path"
     assert html =~ "OpenClaw"
     assert html =~ "Hermes"
@@ -312,7 +318,12 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
     {:ok, _view, html} = live(conn, "/launch")
 
-    assert html =~ "Run this in your terminal to start the guided launch flow."
+    assert html =~ "npm install -g @regentslabs/cli"
+    assert html =~ "regents autolaunch prelaunch wizard --chain base-sepolia"
+
+    assert html =~
+             "Run both commands in your terminal to install Regent and start the guided launch flow."
+
     assert html =~ "Add Identity"
     assert html =~ "Connect ENS, erc8004, and/or World to your agent for higher trust"
     assert html =~ "Prepare x402 Services"

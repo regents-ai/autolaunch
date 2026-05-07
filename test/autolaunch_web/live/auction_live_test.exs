@@ -146,6 +146,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     assert html =~ "Auction information"
     assert html =~ "Submit bid from wallet"
     assert html =~ "Claim tokens"
+    assert html =~ "Learn More"
     assert html =~ "Identity and trust status"
     assert html =~ "Why the market behaves this way"
     assert html =~ "Continuous clearing auction"
@@ -154,6 +155,27 @@ defmodule AutolaunchWeb.AuctionLiveTest do
              "Each block uses one shared clearing price. Your bid participates while that price is at or below your max price."
 
     refute html =~ "Dutch auction"
+  end
+
+  test "learn more opens and closes the auction explainer", %{conn: conn, human: human} do
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, view, _html} = live(conn, "/auctions/auc_1")
+
+    html =
+      view
+      |> element("button", "Learn More")
+      |> render_click()
+
+    assert html =~ "What you are buying"
+    assert html =~ "Go to Docs"
+    assert html =~ "up to 10% of an agent"
+
+    html =
+      view
+      |> element("button", "Continue")
+      |> render_click()
+
+    refute html =~ "What you are buying"
   end
 
   test "aggressive preset updates the form and keeps the submit path visible", %{

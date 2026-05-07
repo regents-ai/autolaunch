@@ -12,23 +12,21 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       order: 0,
       index: "01",
       eyebrow: "Why this model exists",
-      title:
-        "The auction is built for quality teams to bootstrap liquidity with real price discovery.",
+      title: "A CCA gives buyers a calmer way to discover price.",
       body:
-        "We put a lot of thought into an auction model that avoids launch-day timing games and gives buyers one clear way to express conviction. The goal is healthier market behavior, not a race to exploit mechanics.",
-      note: "The design is about fair access and honest bidding, not speed tricks.",
-      stat: "Healthy market behavior"
+        "Instead of turning launch day into a race, the sale gives everyone a simple bidding rule and a shared price for each clearing moment. The goal is a market that reflects real conviction.",
+      note: "You are competing on price and budget, not on speed.",
+      stat: "Calmer price discovery"
     },
     %{
       order: 1,
       index: "02",
       eyebrow: "What is being sold",
-      title: "Each auction sells 10% of a fixed 100 billion token supply.",
+      title: "You are bidding for the public launch share of the agent token.",
       body:
-        "The agent keeps the other 90% from the start, so the auction is only discovering the market price for the public 10% slice. Every bid is still placed in USDC on Base Sepolia or Base mainnet.",
-      note:
-        "The sale discovers the public launch price, not the value of the whole supply at once.",
-      stat: "10% sold, 100B total"
+        "The auction sells the public launch slice. After buyers claim and stake the token, that token can earn from the agent or API's stablecoin revenue share.",
+      note: "The bid is for ownership exposure, not a one-time product purchase.",
+      stat: "Public launch share"
     },
     %{
       order: 2,
@@ -36,40 +34,38 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       eyebrow: "How you enter",
       title: "You set a total budget and a max price.",
       body:
-        "That is the whole mental model for a buyer. You say how much you want to spend in total and the highest price you are willing to pay for a token, then the system handles the block-by-block execution.",
-      note: "One bid expresses both your size and your discipline.",
+        "Tell the auction how much USDC you are willing to spend and the highest token price you are comfortable with. If the market stays within your limit, your bid can keep filling.",
+      note: "Your budget sets size. Your max price sets discipline.",
       stat: "Budget + ceiling"
     },
     %{
       order: 3,
       index: "04",
       eyebrow: "How your order runs",
-      title: "Your order is spread across the remaining blocks like a TWAP.",
+      title: "Earlier bids get more chances to fill.",
       body:
-        "Instead of landing all at once, your budget is distributed over the remaining auction duration. Bidding earlier means you participate in more blocks, while waiting shortens your TWAP and usually worsens your average entry.",
-      note: "The model rewards showing up honestly early, not trying to time one perfect block.",
-      stat: "TWAP across blocks"
+        "Your budget is paced across the remaining sale. Joining earlier lets more of your budget participate while the auction is still open.",
+      note: "Waiting usually gives you fewer chances, not a special advantage.",
+      stat: "Earlier participation"
     },
     %{
       order: 4,
       index: "05",
       eyebrow: "How the market clears",
-      title:
-        "The auction starts at a floor price and clears higher only when demand requires it.",
+      title: "The auction starts from a floor and moves only when demand requires it.",
       body:
-        "Each block clears at the highest price where that block's demand exceeds that block's supply. Everyone who clears the same block gets the same clearing price, and nobody pays their own max price if the market clears lower.",
-      note: "The clearing price moves with real demand instead of rewarding sniping.",
+        "Everyone who fills at the same clearing moment gets the same price. Your max price is a limit, not an automatic price you pay.",
+      note: "The market price moves with demand, not with last-second tricks.",
       stat: "Floor to clearing"
     },
     %{
       order: 5,
       index: "06",
-      eyebrow: "What the game theory says",
+      eyebrow: "Simple bidding rule",
       title: "Bid early with your real budget and your real max price.",
       body:
-        "Each block where the clearing price stays below your max price buys tokens for a slice of your budget. Once the clearing price moves above your cap, the remaining portion of your TWAP stops instead of forcing you to overpay.",
-      note:
-        "Your max price protects you, and waiting only gives you fewer blocks at usually worse prices.",
+        "If the price stays at or below your max, your bid can buy. If the market rises above your max, the unspent part stops instead of chasing a price you did not choose.",
+      note: "You can be honest about what you want and where you stop.",
       stat: "Honest early bidding"
     },
     %{
@@ -79,7 +75,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       title:
         "When the auction ends, you claim the filled tokens, then stake if you want revenue exposure.",
       body:
-        "The page should make the outcome obvious: what filled, what was refunded, and what still needs to be claimed. After claim, tokens must be staked before they participate in Base USDC revenue for that subject.",
+        "After the sale, the position page shows what filled, what can be claimed, and whether any USDC can come back. Claimed tokens must be staked before they can earn revenue.",
       note: "The sale ends at claim. Earning starts only after staking.",
       stat: "Claim, then stake"
     }
@@ -88,7 +84,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, "How auctions work")
+     |> assign(:page_title, "Docs")
      |> assign(:active_view, "guide")
      |> assign(:timeline_steps, @timeline_steps)
      |> assign(:selected_step_index, 0)
@@ -133,8 +129,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       <div id="al-docs-page" data-docs-page="guide">
         <AutolaunchWeb.DocsFamilyComponents.header
           active="guide"
-          title="Everything you need to understand and operate on Autolaunch."
-          body="Guides, contract references, and legal pages stay close so operators can move from reading to action without guessing."
+          title="Learn the Autolaunch market before you bid or launch."
+          body="Use these guides to understand the sale, review the contracts, and know what happens after an auction closes."
         />
 
         <section class="al-regent-shell al-docs-surface-shell">
@@ -152,10 +148,10 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 <div class="al-terrain-strip-copy">
                   <p class="al-kicker">Guide strip</p>
                   <div>
-                    <h2>Understand the sale before touching the controls.</h2>
-                    <p class="al-subcopy">
-                      The symbolic path stays short on purpose. The plain-English guide below explains
-                      why the auction exists, how it clears, and what honest bidding looks like.
+                  <h2>Understand the sale before you bid.</h2>
+                  <p class="al-subcopy">
+                      The guide below explains what buyers are bidding for, how CCA pricing works,
+                      and what happens after tokens are claimed.
                     </p>
                   </div>
                 </div>
@@ -194,7 +190,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <:ledger>
               <.ledger
                 id="auction-guide-ledger"
-                title="Operator summary"
+                title="Quick summary"
                 subtitle="Keep the sale model close while you decide whether to bid or launch."
               >
                 <table class="rg-table">
@@ -222,11 +218,11 @@ defmodule AutolaunchWeb.AuctionGuideLive do
         <section id="auction-guide-hero" class="al-panel al-guide-hero">
           <div class="al-guide-hero-copy">
             <p class="al-kicker">Guide</p>
-            <h2>Pick the job you came here for, then leave this page quickly.</h2>
+            <h2>Start with the choice in front of you.</h2>
             <p class="al-subcopy">
-              This page should orient you quickly. If you want to back an agent, open the active
-              auctions. If you want to launch one, start in the CLI and use the site for review,
-              bidding, and token-holder actions after the sale is live.
+              If you want to back an agent, begin with the active auctions. If you want to launch
+              one, start with the CLI command and return here to review the market and token-holder
+              actions.
             </p>
 
             <div class="al-choice-grid">
@@ -234,8 +230,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 <p class="al-kicker">Bid path</p>
                 <h3>Back an active auction with USDC.</h3>
                 <p>
-                  Open the live bid view, choose your budget and max price, and update later only if
-                  the market moves out of range.
+                  Open the live bid view, choose how much USDC you want to spend, and set the highest
+                  token price you are comfortable paying.
                 </p>
 
                 <div class="al-launch-tags" aria-label="Bid path facts">
@@ -245,7 +241,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 </div>
 
                 <p class="al-inline-note">
-                  Recommended first move: start with your real budget at the current displayed price.
+                  Recommended first move: use the real budget you are comfortable putting at risk.
                 </p>
 
                 <div class="al-choice-actions">
@@ -258,8 +254,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                 <p class="al-kicker">Launch path</p>
                 <h3>Launch through the CLI, then return here for the live market.</h3>
                 <p>
-                  Save the plan, validate it, publish it, run the launch, monitor the auction, then
-                  finalize from the same CLI path.
+                  Install the Regent CLI, create your launch plan, review the details, then return to
+                  Autolaunch when the market is live.
                 </p>
 
                 <pre class="al-choice-command"><code>regent autolaunch prelaunch wizard</code></pre>
@@ -282,33 +278,33 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <div class="al-section-head">
               <div>
                 <p class="al-kicker">Quick mental model</p>
-                <h3>What matters before you click</h3>
+                <h3>What to know before you bid</h3>
               </div>
             </div>
 
             <div class="al-note-grid">
               <article class="al-note-card">
-                <span>How to bid</span>
+                <span>How bidding works</span>
                 <strong>Budget plus max price</strong>
-                <p>Your bid keeps buying only while the market stays below your cap.</p>
+                <p>Your bid can fill only while the sale price stays at or below your limit.</p>
               </article>
               <article class="al-note-card">
-                <span>How it settles</span>
+                <span>After the sale</span>
                 <strong>Claim first, stake after</strong>
                 <p>Revenue exposure starts only after claimed tokens are staked.</p>
               </article>
               <article class="al-note-card">
-                <span>Why it feels fair</span>
+                <span>Why CCA helps</span>
                 <strong>Same block, same price</strong>
-                <p>The auction is built to reduce timing edge and reward honest early bidding.</p>
+                <p>Buyers who clear together receive the same sale price.</p>
               </article>
             </div>
 
             <div class="al-inline-banner al-guide-banner">
-              <strong>Simple bidding rule.</strong>
+              <strong>A simple rule.</strong>
               <p>
-                If you are new to this, think in two numbers only: how much USDC you want to spend
-                and the highest token price you are willing to accept.
+                Choose two numbers: how much USDC you want to spend and the highest token price you
+                are willing to accept.
               </p>
             </div>
           </aside>
@@ -379,13 +375,13 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <article class="al-guide-outcome">
               <span>1</span>
               <strong>Everyone gets the same block price.</strong>
-              <p>There is less room for sniping, bundling, or sandwiching your way into a better fill.</p>
+              <p>Buyers who clear together receive the same price instead of racing for special treatment.</p>
             </article>
 
             <article class="al-guide-outcome">
               <span>2</span>
-              <strong>Advanced users do not get a special timing edge.</strong>
-              <p>With sane auction parameters, buyers are competing on price conviction, not on who can play block games better.</p>
+              <strong>The sale rewards conviction more than timing.</strong>
+              <p>Your budget and max price matter more than trying to arrive at the perfect second.</p>
             </article>
 
             <article class="al-guide-outcome">

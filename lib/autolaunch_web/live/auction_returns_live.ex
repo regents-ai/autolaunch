@@ -72,7 +72,7 @@ defmodule AutolaunchWeb.AuctionReturnsLive do
               </p>
             </div>
 
-            <.link navigate={~p"/how-auctions-work"} class="btn btn-outline btn-sm">
+            <.link navigate={~p"/docs"} class="btn btn-outline btn-sm">
               Learn how returns work
             </.link>
           </div>

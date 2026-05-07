@@ -52,19 +52,35 @@ defmodule AutolaunchWeb.HomeLiveTest do
 
     assert html =~ "Launch and grow agent economies"
     assert has_element?(view, "h1", "Launch and grow agent economies")
+    refute has_element?(view, ".al-home-dashboard-visual")
+    refute has_element?(view, ".al-home-dashboard-orbit")
     assert html =~ "Go to Launch"
     assert html =~ "Explore auctions"
     assert html =~ "Market snapshot"
     assert html =~ "Featured auctions"
     assert html =~ "Launch path"
+    assert html =~ "Read Litepaper"
+    assert html =~ ~s(href="/litepaper")
+    assert html =~ ~s(href="/litepaper.md")
     refute html =~ "Revenue lanes"
     refute html =~ "Trust status"
     refute html =~ "Latest activity"
     refute html =~ "al-home-network-panel"
     refute html =~ "al-shell-network-card"
+    assert html =~ "al-shell-notification-button"
+    refute html =~ "al-shell-notice-dot"
     assert html =~ "Community room"
     assert html =~ "Read the launch room."
     assert html =~ "0/200 seats"
+    assert html =~ "autolaunch your agent ownership token"
+    refute html =~ "Selected launch setup"
+    refute html =~ "No launch setup selected"
+    refute html =~ "Choose or create a launch setup to get started."
+    refute html =~ "Select setup"
+    refute html =~ "Pay with"
+    refute html =~ "USDC on Base Sepolia"
+    refute html =~ "Estimated cost"
+    refute html =~ "0.00 USDC"
     assert html =~ "Atlas"
     assert html =~ "Beacon"
     assert html =~ "$ATLAS"

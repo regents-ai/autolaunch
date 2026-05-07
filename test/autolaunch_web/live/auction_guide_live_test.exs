@@ -4,22 +4,24 @@ defmodule AutolaunchWeb.AuctionGuideLiveTest do
   import Phoenix.LiveViewTest
 
   test "guide page renders the auction timeline and summary", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/how-auctions-work")
+    {:ok, view, html} = live(conn, "/docs")
 
-    assert html =~ "Everything you need to understand and operate on Autolaunch."
+    assert html =~ "Learn the Autolaunch market before you bid or launch."
 
     assert has_element?(
              view,
              "h1",
-             "Everything you need to understand and operate on Autolaunch."
+             "Learn the Autolaunch market before you bid or launch."
            )
 
     assert html =~ "Guide strip"
-    assert html =~ "Understand the sale before touching the controls."
+    assert html =~ "Understand the sale before you bid."
     assert html =~ "Back an active auction with USDC."
     assert html =~ "Launch through the CLI, then return here for the live market."
     assert html =~ "USDC on Base Sepolia or Base mainnet"
     assert html =~ "USDC on Base"
+    refute html =~ "al-docs-masthead-illustration"
+    refute html =~ "al-docs-masthead-book"
 
     assert html =~ "The sale in plain English"
     assert html =~ "The live token split"
@@ -27,15 +29,15 @@ defmodule AutolaunchWeb.AuctionGuideLiveTest do
     assert html =~ "Less timing game, more honest price discovery."
   end
 
-  test "alias route serves the same guide", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/how-auctions-work")
+  test "docs route serves the auction guide", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/docs")
 
-    assert html =~ "Everything you need to understand and operate on Autolaunch."
-    assert html =~ "Everyone who clears the same block gets the same clearing price"
+    assert html =~ "Learn the Autolaunch market before you bid or launch."
+    assert html =~ "Buyers who clear together receive the same sale price"
   end
 
   test "guide back returns to the overview step", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/how-auctions-work")
+    {:ok, view, _html} = live(conn, "/docs")
 
     html =
       view

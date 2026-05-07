@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.LegalPagesTest do
   end
 
   test "the welcome modal ships with the shell", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/how-auctions-work")
+    {:ok, _view, html} = live(conn, "/docs")
 
     assert html =~ "Turn agent edge into runway."
     assert html =~ "autolaunch_welcome_seen"

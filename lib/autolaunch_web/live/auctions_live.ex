@@ -383,7 +383,7 @@ defmodule AutolaunchWeb.AuctionsLive do
                   Check back after the next launch opens, or use the guide to review how the market works.
                 </p>
                 <div class="al-hero-actions">
-                  <.link navigate={~p"/how-auctions-work"} class="al-cta-link">
+                  <.link navigate={~p"/docs"} class="al-cta-link">
                     How auctions work
                   </.link>
                   <.link navigate={~p"/auction-returns"} class="al-ghost">
@@ -607,7 +607,7 @@ defmodule AutolaunchWeb.AuctionsLive do
           <article class="al-panel al-auctions-bid-panel">
             <div class="al-auctions-bid-head">
               <h2>Place a bid</h2>
-              <.link navigate={~p"/how-auctions-work"}>How it works</.link>
+              <.link navigate={~p"/docs"}>How it works</.link>
             </div>
 
             <div class="al-auctions-selected-card">
@@ -681,7 +681,7 @@ defmodule AutolaunchWeb.AuctionsLive do
               <strong>Auction returns</strong>
               <small>Track historical performance</small>
             </.link>
-            <.link navigate={~p"/how-auctions-work"} class="al-auctions-quick-row">
+            <.link navigate={~p"/docs"} class="al-auctions-quick-row">
               <span>?</span>
               <strong>Help center</strong>
               <small>Learn how auctions work</small>

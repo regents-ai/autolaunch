@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.DocsFamilyComponents do
       title: "How auctions work",
       body:
         "Learn the auction lifecycle, bids, settlement, and what happens after a successful sale.",
-      href: "/how-auctions-work",
+      href: "/docs",
       link_label: "Read guide"
     },
     %{
@@ -57,10 +57,6 @@ defmodule AutolaunchWeb.DocsFamilyComponents do
         <p class="al-kicker">{@eyebrow}</p>
         <h1>{@title}</h1>
         <p class="al-subcopy">{@body}</p>
-      </div>
-
-      <div class="al-docs-masthead-illustration" aria-hidden="true">
-        <div class="al-docs-masthead-book"></div>
       </div>
     </section>
 

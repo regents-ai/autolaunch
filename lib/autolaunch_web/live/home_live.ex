@@ -122,14 +122,6 @@ defmodule AutolaunchWeb.HomeLive do
                 </div>
               </div>
 
-              <div class="al-home-dashboard-visual" aria-hidden="true">
-                <div class="al-home-dashboard-orbit">
-                  <img src={~p"/images/autolaunch-logo-large.png"} alt="" />
-                </div>
-                <span class="al-home-dashboard-chip is-top">Auctions <strong>{@biddable_count}</strong></span>
-                <span class="al-home-dashboard-chip is-right">Growth <strong>{@revenue_lane_count} lanes</strong></span>
-                <span class="al-home-dashboard-chip is-bottom">Trust <strong>{@trust_score}</strong></span>
-              </div>
             </section>
 
             <article
@@ -219,7 +211,23 @@ defmodule AutolaunchWeb.HomeLive do
                 </div>
 
                 <div class="al-home-card-footer">
-                  <.link navigate={~p"/how-auctions-work"}>View full guide →</.link>
+                  <.link navigate={~p"/docs"}>View full guide →</.link>
+                </div>
+              </article>
+
+              <article id="home-litepaper-card" class="al-panel al-home-dashboard-card">
+                <div class="al-home-card-head">
+                  <h3>Read Litepaper</h3>
+                </div>
+
+                <div class="al-home-card-empty">
+                  <strong>Autolaunch paper</strong>
+                  <p>Read the launch and market paper as a PDF or markdown.</p>
+                </div>
+
+                <div class="al-home-dashboard-actions">
+                  <.link href={~p"/litepaper"} class="al-submit">PDF</.link>
+                  <.link href={~p"/litepaper.md"} class="al-ghost">Markdown</.link>
                 </div>
               </article>
             </section>
@@ -228,25 +236,8 @@ defmodule AutolaunchWeb.HomeLive do
           <aside id="home-action-rail" class="al-home-action-rail" phx-hook="MissionMotion">
             <article class="al-panel al-home-launch-panel">
               <div class="al-home-rail-head">
-                <h2>Launch agent</h2>
-                <.link navigate={~p"/how-auctions-work"}>How it works</.link>
-              </div>
-
-              <div class="al-home-selected-setup">
-                <p class="al-kicker">Selected launch setup</p>
-                <strong>{selected_launch_title(@spotlight_token)}</strong>
-                <p>{selected_launch_copy(@spotlight_token)}</p>
-                <.link navigate={~p"/launch"} class="al-ghost">Select setup</.link>
-              </div>
-
-              <label class="al-home-pay-select">
-                <span>Pay with</span>
-                <strong>USDC on Base Sepolia</strong>
-              </label>
-
-              <div class="al-home-cost-row">
-                <span>Estimated cost</span>
-                <strong>0.00 USDC</strong>
+                <h2>autolaunch your agent ownership token</h2>
+                <.link navigate={~p"/docs"}>How it works</.link>
               </div>
 
               <.link navigate={~p"/launch"} class="al-submit al-home-review-action">
@@ -398,15 +389,6 @@ defmodule AutolaunchWeb.HomeLive do
 
   defp market_snapshot_copy(token) do
     "#{token.agent_name} is the clearest next stop if you want to open the market and act right away."
-  end
-
-  defp selected_launch_title(nil), do: "No launch setup selected"
-  defp selected_launch_title(token), do: token.agent_name
-
-  defp selected_launch_copy(nil), do: "Choose or create a launch setup to get started."
-
-  defp selected_launch_copy(token) do
-    "#{token.symbol} is the current featured market setup."
   end
 
   defp featured_status_label(%{phase: "biddable", ends_at: ends_at}),

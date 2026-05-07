@@ -66,7 +66,44 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
   def reputation_action_status("pending"), do: "Available after launch"
   def reputation_action_status(_status), do: "Optional"
 
-  def launch_command, do: "regent autolaunch prelaunch wizard"
+  def install_command, do: "npm install -g @regentslabs/cli"
+
+  def launch_command, do: "regents autolaunch prelaunch wizard"
+
+  def launch_command_with_chain, do: launch_command() <> " --chain base-sepolia"
+
+  def launch_command_lines do
+    [
+      %{
+        label: install_command(),
+        copy_label: "Copy install",
+        tokens: [
+          %{style: "is-bin", text: "npm"},
+          %{style: "is-action", text: "install"},
+          %{style: "is-flag", text: "-g"},
+          %{style: "is-scope", text: "@regentslabs/cli"}
+        ]
+      },
+      %{
+        label: launch_command_with_chain(),
+        copy_label: "Copy wizard",
+        tokens: [
+          %{style: "is-bin", text: "regents"},
+          %{style: "is-scope", text: "autolaunch"},
+          %{style: "is-action", text: "prelaunch"},
+          %{style: "is-action", text: "wizard"},
+          %{style: "is-flag", text: "--chain"},
+          %{style: "is-value", text: "base-sepolia"}
+        ]
+      }
+    ]
+  end
+
+  def launch_command_bundle do
+    launch_command_lines()
+    |> Enum.map(& &1.label)
+    |> Enum.join("\n")
+  end
 
   def launch_readiness(current_human, launch_module, prelaunch_module) do
     wallet_address = current_human && current_human.wallet_address
@@ -180,11 +217,11 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
 
   def launch_cli_transcript do
     """
-    > regent autolaunch prelaunch validate --plan plan_alpha
-    > regent autolaunch prelaunch publish --plan plan_alpha
-    > regent autolaunch launch run --plan plan_alpha --watch
-    > regent autolaunch launch monitor --job job_alpha --watch
-    > regent autolaunch launch finalize --job job_alpha --submit
+    > regents autolaunch prelaunch validate --plan plan_alpha
+    > regents autolaunch prelaunch publish --plan plan_alpha
+    > regents autolaunch launch run --plan plan_alpha --watch
+    > regents autolaunch launch monitor --job job_alpha --watch
+    > regents autolaunch launch finalize --job job_alpha --submit
     """
     |> String.trim()
   end
@@ -269,31 +306,31 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
   def operator_guides do
     [
       %{
-        eyebrow: "OpenClaw",
-        title: "Autonomous launch operator",
-        status: "Recommended",
-        copy_label: "Copy OpenClaw brief",
-        prompt: """
-        Use Autolaunch to prepare and run a token launch for me.
-
-        Start with `regent autolaunch prelaunch wizard`.
-        Ask me for any missing launch details before you continue.
-        Save the plan, validate it, publish it, run the launch, and monitor the auction.
-        Stop for confirmation before every signing step and explain what happens next in plain English.
-        """
-      },
-      %{
         eyebrow: "Hermes",
         title: "Guided agent assistant",
-        status: nil,
+        status: "Recommended",
         copy_label: "Copy Hermes brief",
         prompt: """
         Help me launch through Autolaunch as an operator.
 
-        Begin with `regent autolaunch prelaunch wizard`.
+        Begin with `regents autolaunch prelaunch wizard`.
         Keep the saved plan as the source of truth.
         Walk me through validate, publish, launch, and monitor in order.
         Before each signing step, tell me what it will do and what to check after it lands.
+        """
+      },
+      %{
+        eyebrow: "OpenClaw",
+        title: "Autonomous launch operator",
+        status: nil,
+        copy_label: "Copy OpenClaw brief",
+        prompt: """
+        Use Autolaunch to prepare and run a token launch for me.
+
+        Start with `regents autolaunch prelaunch wizard`.
+        Ask me for any missing launch details before you continue.
+        Save the plan, validate it, publish it, run the launch, and monitor the auction.
+        Stop for confirmation before every signing step and explain what happens next in plain English.
         """
       }
     ]
@@ -346,12 +383,12 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
 
   def launch_agent_transcript do
     """
-    > regent autolaunch prelaunch validate
-    > regent autolaunch prelaunch publish
-    > regent autolaunch launch run --plan plan_alpha
-    > regent autolaunch launch monitor --job job_alpha
-    > regent autolaunch launch finalize --job job_alpha
-    > regent autolaunch vesting status --job job_alpha
+    > regents autolaunch prelaunch validate
+    > regents autolaunch prelaunch publish
+    > regents autolaunch launch run --plan plan_alpha
+    > regents autolaunch launch monitor --job job_alpha
+    > regents autolaunch launch finalize --job job_alpha
+    > regents autolaunch vesting status --job job_alpha
     """
     |> String.trim()
   end
