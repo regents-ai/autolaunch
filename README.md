@@ -114,8 +114,8 @@ The current fixed fee rules are:
 
 - the launch-pool fee is fixed at 2% on swaps in the official pool
 - that 2% split is fixed at 1% to Regent and 1% to the agent treasury
-- subject USDC received first sends a fixed 1% skim to Regent
-- the remaining 99% stays in the subject lane, where stakers earn their formula share and the remainder accrues to the agent treasury
+- subject USDC received first sends a fixed 10% skim into the shared `$REGENT` staking contract
+- the remaining 90% stays in the subject lane, where stakers earn their formula share and the remainder accrues to the agent treasury
 
 ### What Runs Where
 
@@ -195,6 +195,7 @@ This rail is separate from agent subject splitters:
 
 - agent subject splitters are per-agent revenue-rights contracts on the active Base launch network
 - REGENT staking is one singleton company-token rewards rail on the configured Base network
+- subject splitters send the protocol skim to REGENT staking as USDC; they do not buy REGENT or emit REGENT to the subject treasury
 
 ### Launch Flow
 

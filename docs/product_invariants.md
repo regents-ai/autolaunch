@@ -43,6 +43,7 @@ Autolaunch has one launch stack and one revenue-recognition stack.
    - the launch-side fee hook captures pool fees
    - the Regent-side fee lane is a plain treasury payout
    - subject rewards only come from Base USDC that reaches the splitter
+   - the subject protocol skim is sent as USDC into the shared `$REGENT` staking rail
 7. Rescue is not revenue accounting:
    - wrong tokens or stray ETH can be recovered by the contract owner or treasury controller
    - rescued assets do not count as subject revenue

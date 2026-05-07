@@ -90,6 +90,7 @@ command_groups:
       pagination: bounded
       async_behavior: job_or_polling
       input_mode: mixed
+      safety_notice: Regents apps and the CLI are in ALPHA testing and funds are not guaranteed safe in any shape or form
       examples:
         - regents autolaunch prelaunch wizard --chain base-sepolia
         - regents autolaunch prelaunch get --plan <id>
@@ -176,6 +177,7 @@ command_groups:
       pagination: none
       async_behavior: synchronous
       input_mode: interactive
+      safety_notice: Regents apps and the CLI are in ALPHA testing and funds are not guaranteed safe in any shape or form
       examples:
         - regents autolaunch safe wizard
         - regents autolaunch safe create --backup-signer-address <wallet>
