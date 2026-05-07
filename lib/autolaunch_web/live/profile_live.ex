@@ -1,6 +1,8 @@
 defmodule AutolaunchWeb.ProfileLive do
   use AutolaunchWeb, :live_view
 
+  alias Autolaunch.AgentPairings
+  alias Autolaunch.Launch.Agents
   alias Autolaunch.Portfolio
   alias AutolaunchWeb.Format
   alias AutolaunchWeb.Live.Refreshable
@@ -13,7 +15,9 @@ defmodule AutolaunchWeb.ProfileLive do
      |> Refreshable.schedule(@poll_ms)
      |> assign(:page_title, "Profile")
      |> assign(:active_view, "profile")
-     |> assign(:snapshot, load_snapshot(socket.assigns[:current_human]))}
+     |> assign(:snapshot, load_snapshot(socket.assigns[:current_human]))
+     |> assign(:connected_agents, load_connected_agents(socket.assigns[:current_human]))
+     |> assign(:pairing_session, load_pairing_session(socket.assigns[:current_human]))}
   end
 
   def handle_event("refresh_profile", _params, socket) do
@@ -24,7 +28,11 @@ defmodule AutolaunchWeb.ProfileLive do
              portfolio_module().request_manual_refresh(socket.assigns.current_human) do
         {:ok, snapshot} ->
           {:noreply,
-           socket |> assign(:snapshot, snapshot) |> put_flash(:info, "Profile refresh started.")}
+           socket
+           |> assign(:snapshot, snapshot)
+           |> assign(:connected_agents, load_connected_agents(socket.assigns.current_human))
+           |> assign(:pairing_session, load_pairing_session(socket.assigns.current_human))
+           |> put_flash(:info, "Profile refresh started.")}
 
         {:error, {:cooldown, seconds}} ->
           {:noreply,
@@ -36,8 +44,19 @@ defmodule AutolaunchWeb.ProfileLive do
     end
   end
 
+  def handle_event("create_agent_pairing", _params, socket) do
+    case socket.assigns.current_human &&
+           pairings_module().create_session(socket.assigns.current_human) do
+      {:ok, pairing_session} ->
+        {:noreply, assign(socket, :pairing_session, pairing_session)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Pairing code could not be created.")}
+    end
+  end
+
   def handle_info(:refresh, socket) do
-    {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_snapshot/1)}
+    {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_profile/1)}
   end
 
   def render(assigns) do
@@ -130,6 +149,83 @@ defmodule AutolaunchWeb.ProfileLive do
                   </article>
                 </div>
               </article>
+
+              <section class="al-panel al-profile-card al-profile-agent-card">
+                <div class="al-profile-card-head">
+                  <div>
+                    <p class="al-kicker">Connected agents</p>
+                    <h3>Complete agent trust before launch.</h3>
+                    <p class="al-profile-muted">
+                      These agents are connected to your wallet. Finish the identity links before an auction so bidders can recognize the agent and the person standing behind it.
+                    </p>
+                  </div>
+                  <.link navigate={~p"/launch"} class="al-ghost">Open launch</.link>
+                </div>
+
+                <div class="al-profile-pairing-card">
+                  <div>
+                    <strong>Connect a local agent</strong>
+                    <p>
+                      Pairing connects this Autolaunch profile to a local agent identity.
+                      The agent will sign a short challenge to prove it controls its wallet.
+                      This does not share private keys, move funds, or give the agent control of your wallet.
+                      It only lets Autolaunch show and use this agent as connected to your profile.
+                    </p>
+                  </div>
+
+                  <button type="button" class="al-submit" phx-click="create_agent_pairing">
+                    Generate pairing code
+                  </button>
+
+                  <div :if={pairing_code_visible?(@pairing_session)} class="al-profile-pairing-code">
+                    <span>Pairing code</span>
+                    <code>{@pairing_session.pairing_code}</code>
+                    <small>{pairing_expiry_label(@pairing_session)}</small>
+                  </div>
+
+                  <div :if={pairing_code_visible?(@pairing_session)} class="al-profile-cli-command">
+                    <span>Regents CLI command</span>
+                    <code>regents autolaunch pair --code {@pairing_session.pairing_code}</code>
+                  </div>
+                </div>
+
+                <%= if @connected_agents == [] do %>
+                  <div class="al-profile-empty-card">
+                    <strong>No wallet-connected agents found yet.</strong>
+                    <p>
+                      Connect an agent identity to this wallet, then refresh this page before starting the auction.
+                    </p>
+                  </div>
+                <% else %>
+                  <div class="al-profile-agent-list">
+                    <article :for={agent <- @connected_agents} class="al-profile-agent-row">
+                      <div class="al-profile-agent-summary">
+                        <div class="al-profile-agent-mark" aria-hidden="true">
+                          {profile_agent_initial(agent)}
+                        </div>
+                        <div>
+                          <strong>{profile_agent_name(agent)}</strong>
+                          <p>{profile_agent_detail(agent)}</p>
+                        </div>
+                        <span class="al-profile-chip">{profile_agent_state(agent)}</span>
+                      </div>
+
+                      <div class="al-profile-agent-connectors">
+                        <.link
+                          :for={connector <- profile_agent_connectors(agent)}
+                          navigate={connector.href}
+                          class="al-profile-connector-card"
+                        >
+                          <span class="al-profile-connector-title">{connector.title}</span>
+                          <strong>{connector.status}</strong>
+                          <p>{connector.body}</p>
+                          <small>{connector.action}</small>
+                        </.link>
+                      </div>
+                    </article>
+                  </div>
+                <% end %>
+              </section>
 
               <section class="al-profile-verification-grid">
                 <article class="al-panel al-profile-card al-profile-verification-card">
@@ -305,6 +401,40 @@ defmodule AutolaunchWeb.ProfileLive do
     assign(socket, :snapshot, load_snapshot(socket.assigns.current_human))
   end
 
+  defp reload_profile(socket) do
+    socket
+    |> reload_snapshot()
+    |> assign(:connected_agents, load_connected_agents(socket.assigns.current_human))
+    |> assign(:pairing_session, load_pairing_session(socket.assigns.current_human))
+  end
+
+  defp load_connected_agents(nil), do: []
+
+  defp load_connected_agents(current_human) do
+    agents_module().list_agents(current_human)
+  end
+
+  defp load_pairing_session(nil), do: nil
+
+  defp load_pairing_session(current_human) do
+    pairings_module().latest_pending_session(current_human)
+  end
+
+  defp pairing_code_visible?(%{status: "pending", pairing_code: pairing_code})
+       when is_binary(pairing_code) and pairing_code != "",
+       do: true
+
+  defp pairing_code_visible?(_pairing_session), do: false
+
+  defp pairing_expiry_label(%{expires_at: value}) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> "Expires #{Calendar.strftime(datetime, "%b %-d at %H:%M UTC")}"
+      _ -> "Expires soon"
+    end
+  end
+
+  defp pairing_expiry_label(_pairing_session), do: "Expires soon"
+
   defp refresh_disabled?(nil), do: false
 
   defp refresh_disabled?(value) do
@@ -340,6 +470,92 @@ defmodule AutolaunchWeb.ProfileLive do
   defp snapshot_status_label("ready"), do: "Active"
   defp snapshot_status_label("error"), do: "Needs retry"
   defp snapshot_status_label(_), do: "Pending"
+
+  defp profile_agent_connectors(agent) do
+    [
+      %{
+        title: "ENS name",
+        status: if(present?(Map.get(agent, :ens)), do: "Connected", else: "Recommended"),
+        body: "Add a readable name that can travel with the agent across launch pages.",
+        action: if(present?(Map.get(agent, :ens)), do: "Review ENS", else: "Link ENS"),
+        href: profile_ens_href(agent)
+      },
+      %{
+        title: "ERC-8004 + ENSIP-25",
+        status: if(present?(Map.get(agent, :ens)), do: "Review", else: "Recommended"),
+        body:
+          "Point the ENS name and agent identity at each other so the public record is easier to verify.",
+        action: "Prepare link",
+        href: profile_ens_href(agent)
+      },
+      %{
+        title: "World AgentBook",
+        status: "Strongly recommended",
+        body:
+          "Add human-backed reputation before the auction so bidders know who stands behind the agent.",
+        action: "Open AgentBook",
+        href: profile_agentbook_href(agent)
+      }
+    ]
+  end
+
+  defp profile_agent_name(%{name: name}) when is_binary(name) and name != "", do: name
+  defp profile_agent_name(%{ens: ens}) when is_binary(ens) and ens != "", do: ens
+  defp profile_agent_name(%{agent_id: agent_id}) when is_binary(agent_id), do: "Agent #{agent_id}"
+  defp profile_agent_name(_agent), do: "Connected agent"
+
+  defp profile_agent_initial(agent) do
+    agent
+    |> profile_agent_name()
+    |> String.first()
+    |> case do
+      nil -> "A"
+      value -> String.upcase(value)
+    end
+  end
+
+  defp profile_agent_detail(%{ens: ens, agent_id: agent_id}) when is_binary(ens) and ens != "",
+    do: "#{ens} · #{agent_id}"
+
+  defp profile_agent_detail(%{agent_id: agent_id}) when is_binary(agent_id), do: agent_id
+  defp profile_agent_detail(_agent), do: "Agent identity"
+
+  defp profile_agent_state(%{state: "eligible"}), do: "Ready to launch"
+  defp profile_agent_state(%{state: "already_launched"}), do: "Already launched"
+  defp profile_agent_state(%{access_mode: "paired"}), do: "Connected"
+  defp profile_agent_state(%{access_mode: "operator"}), do: "Operator"
+  defp profile_agent_state(%{access_mode: "owner"}), do: "Owner"
+  defp profile_agent_state(_agent), do: "Review"
+
+  defp profile_ens_href(agent) do
+    query_path("/ens-link", %{
+      "identity_id" => Map.get(agent, :agent_id) || Map.get(agent, :id),
+      "ens_name" => Map.get(agent, :ens)
+    })
+  end
+
+  defp profile_agentbook_href(agent) do
+    case profile_agentbook_address(agent) do
+      nil ->
+        "/agentbook"
+
+      agent_address ->
+        query_path("/agentbook", %{"agent_address" => agent_address, "network" => "world"})
+    end
+  end
+
+  defp profile_agentbook_address(agent) do
+    Map.get(agent, :agent_wallet) || Map.get(agent, :owner_address)
+  end
+
+  defp query_path(path, query) do
+    query =
+      query
+      |> Enum.reject(fn {_key, value} -> !present?(value) end)
+      |> Map.new()
+
+    if map_size(query) == 0, do: path, else: path <> "?" <> URI.encode_query(query)
+  end
 
   defp profile_trust_cards do
     [
@@ -484,6 +700,8 @@ defmodule AutolaunchWeb.ProfileLive do
 
   defp add_decimal(total, _value), do: total
 
+  defp present?(value), do: is_binary(value) and String.trim(value) != ""
+
   defp present_amount?(value) when is_binary(value) do
     case Decimal.parse(value) do
       {decimal, ""} -> Decimal.compare(decimal, Decimal.new(0)) == :gt
@@ -546,7 +764,9 @@ defmodule AutolaunchWeb.ProfileLive do
       .al-profile-rail,
       .al-profile-card,
       .al-profile-next-step-list,
-      .al-profile-identity-grid {
+      .al-profile-identity-grid,
+      .al-profile-agent-list,
+      .al-profile-agent-connectors {
         display: grid;
         gap: 0.9rem;
       }
@@ -565,6 +785,9 @@ defmodule AutolaunchWeb.ProfileLive do
       .al-profile-header-copy p:not(.al-kicker),
       .al-profile-muted,
       .al-profile-identity-card p,
+      .al-profile-empty-card p,
+      .al-profile-agent-summary p,
+      .al-profile-connector-card p,
       .al-profile-next-step p {
         margin: 0;
         color: var(--al-muted);
@@ -652,6 +875,101 @@ defmodule AutolaunchWeb.ProfileLive do
         display: grid;
         gap: 1rem;
         grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      }
+
+      .al-profile-agent-card {
+        gap: 1rem;
+      }
+
+      .al-profile-empty-card,
+      .al-profile-pairing-card,
+      .al-profile-agent-row {
+        display: grid;
+        gap: 0.9rem;
+        padding: 1rem;
+        border-radius: 1.1rem;
+        border: 1px solid color-mix(in srgb, var(--al-border) 84%, white 16%);
+        background: color-mix(in srgb, white 84%, var(--al-panel) 16%);
+      }
+
+      .al-profile-pairing-card {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+      }
+
+      .al-profile-pairing-card p {
+        margin: 0.25rem 0 0;
+        color: var(--al-muted);
+      }
+
+      .al-profile-pairing-code,
+      .al-profile-cli-command {
+        display: grid;
+        gap: 0.35rem;
+        grid-column: 1 / -1;
+        min-width: 0;
+      }
+
+      .al-profile-pairing-code span,
+      .al-profile-cli-command span,
+      .al-profile-pairing-code small {
+        color: var(--al-muted);
+        font-size: 0.82rem;
+      }
+
+      .al-profile-pairing-code code,
+      .al-profile-cli-command code {
+        display: block;
+        width: 100%;
+        padding: 0.75rem 0.8rem;
+        border: 1px solid color-mix(in srgb, var(--brand-ink) 11%, transparent);
+        border-radius: 0.7rem;
+        background: color-mix(in srgb, white 78%, var(--al-panel) 22%);
+        overflow-wrap: anywhere;
+        color: color-mix(in srgb, var(--brand-ink) 88%, black 12%);
+      }
+
+      .al-profile-agent-summary {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.8rem;
+      }
+
+      .al-profile-agent-mark {
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 0.9rem;
+        display: grid;
+        place-items: center;
+        color: #063d2b;
+        background: linear-gradient(180deg, #d9fff1, #a8edce);
+        font-family: var(--al-font-display);
+      }
+
+      .al-profile-agent-connectors {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .al-profile-connector-card {
+        display: grid;
+        gap: 0.45rem;
+        padding: 0.9rem;
+        border-radius: 1rem;
+        border: 1px solid color-mix(in srgb, var(--al-border) 84%, white 16%);
+        background: color-mix(in srgb, white 88%, var(--al-panel) 12%);
+        color: var(--al-text);
+        text-decoration: none;
+      }
+
+      .al-profile-connector-title,
+      .al-profile-connector-card small {
+        color: var(--al-muted);
+        font-size: 0.82rem;
+      }
+
+      .al-profile-connector-card small {
+        color: color-mix(in srgb, var(--brand-primary) 78%, var(--brand-ink) 22%);
       }
 
       .al-profile-inline-banner {
@@ -774,6 +1092,10 @@ defmodule AutolaunchWeb.ProfileLive do
       .al-profile-card,
       .al-profile-wallet-metrics article,
       .al-profile-identity-card,
+      .al-profile-empty-card,
+      .al-profile-pairing-card,
+      .al-profile-agent-row,
+      .al-profile-connector-card,
       .al-profile-inline-banner,
       .al-profile-next-step {
         border-color: color-mix(in srgb, var(--brand-ink) 10%, transparent);
@@ -788,7 +1110,9 @@ defmodule AutolaunchWeb.ProfileLive do
       .al-profile-card h2,
       .al-profile-card h3,
       .al-profile-wallet-metrics strong,
-      .al-profile-identity-card strong {
+      .al-profile-identity-card strong,
+      .al-profile-agent-summary strong,
+      .al-profile-connector-card strong {
         color: color-mix(in srgb, var(--brand-ink) 90%, black 10%);
         letter-spacing: 0;
         overflow-wrap: anywhere;
@@ -797,6 +1121,8 @@ defmodule AutolaunchWeb.ProfileLive do
 
       .al-profile-card-head,
       .al-profile-identity-head,
+      .al-profile-agent-summary,
+      .al-profile-connector-card,
       .al-profile-table-token,
       .al-profile-activity-list div,
       .al-profile-next-step,
@@ -808,6 +1134,10 @@ defmodule AutolaunchWeb.ProfileLive do
       .al-profile-table-token span,
       .al-profile-activity-list dd,
       .al-profile-next-step strong,
+      .al-profile-agent-summary strong,
+      .al-profile-agent-summary p,
+      .al-profile-connector-card strong,
+      .al-profile-connector-card p,
       .al-profile-next-step p {
         overflow-wrap: anywhere;
       }
@@ -837,9 +1167,52 @@ defmodule AutolaunchWeb.ProfileLive do
         transform: scale(0.975);
       }
 
+      :root[data-brand="autolaunch"][data-theme="dark"] .al-profile-page :is(
+        .al-profile-header,
+        .al-profile-card,
+        .al-profile-empty-card,
+        .al-profile-pairing-card,
+        .al-profile-agent-row,
+        .al-profile-connector-card,
+        .al-profile-identity-card,
+        .al-profile-next-step
+      ) {
+        border-color: rgba(255, 247, 223, 0.16);
+        background:
+          radial-gradient(circle at 96% 4%, rgba(201, 255, 234, 0.11), transparent 30%),
+          linear-gradient(180deg, rgba(28, 55, 46, 0.98), rgba(12, 35, 30, 0.98));
+        color: var(--al-text);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 247, 223, 0.07),
+          0 24px 58px -44px rgba(0, 0, 0, 0.9);
+      }
+
+      :root[data-brand="autolaunch"][data-theme="dark"] .al-profile-page :is(
+        .al-profile-header-copy h1,
+        .al-profile-card h2,
+        .al-profile-card h3,
+        .al-profile-agent-summary strong,
+        .al-profile-connector-card strong,
+        .al-profile-identity-card strong
+      ) {
+        color: var(--al-text);
+      }
+
+      :root[data-brand="autolaunch"][data-theme="dark"] .al-profile-page :is(
+        .al-profile-muted,
+        .al-profile-empty-card p,
+        .al-profile-pairing-card p,
+        .al-profile-agent-summary p,
+        .al-profile-connector-card p,
+        .al-profile-connector-title
+      ) {
+        color: rgba(255, 247, 223, 0.72);
+      }
+
       @media (hover: hover) and (pointer: fine) {
         .al-profile-card,
         .al-profile-identity-card,
+        .al-profile-connector-card,
         .al-profile-next-step {
           transition:
             transform 180ms cubic-bezier(0.23, 1, 0.32, 1),
@@ -849,6 +1222,7 @@ defmodule AutolaunchWeb.ProfileLive do
         }
 
         .al-profile-identity-card:hover,
+        .al-profile-connector-card:hover,
         .al-profile-next-step:hover {
           transform: translateY(-2px);
           border-color: color-mix(in srgb, var(--brand-primary) 18%, transparent);
@@ -858,7 +1232,8 @@ defmodule AutolaunchWeb.ProfileLive do
 
       @media (max-width: 1100px) {
         .al-profile-grid,
-        .al-profile-verification-grid {
+        .al-profile-verification-grid,
+        .al-profile-agent-connectors {
           grid-template-columns: 1fr;
         }
 
@@ -873,14 +1248,17 @@ defmodule AutolaunchWeb.ProfileLive do
 
       @media (max-width: 760px) {
         .al-profile-wallet-metrics,
-        .al-profile-identity-grid {
+        .al-profile-identity-grid,
+        .al-profile-agent-connectors {
           grid-template-columns: 1fr;
         }
 
         .al-profile-card-head,
         .al-profile-identity-head,
+        .al-profile-agent-summary,
         .al-profile-activity-list div,
-        .al-profile-next-step {
+        .al-profile-next-step,
+        .al-profile-pairing-card {
           display: grid;
           grid-template-columns: 1fr;
           justify-items: stretch;
@@ -917,5 +1295,17 @@ defmodule AutolaunchWeb.ProfileLive do
     :autolaunch
     |> Application.get_env(:profile_live, [])
     |> Keyword.get(:portfolio_module, Portfolio)
+  end
+
+  defp agents_module do
+    :autolaunch
+    |> Application.get_env(:profile_live, [])
+    |> Keyword.get(:agents_module, Agents)
+  end
+
+  defp pairings_module do
+    :autolaunch
+    |> Application.get_env(:profile_live, [])
+    |> Keyword.get(:pairings_module, AgentPairings)
   end
 end

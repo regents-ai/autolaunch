@@ -73,10 +73,31 @@ defmodule AutolaunchWeb.ProfileLiveTest do
     end
   end
 
+  defmodule AgentsStub do
+    def list_agents(_human) do
+      [
+        %{
+          id: "84532:42",
+          agent_id: "84532:42",
+          name: "Atlas Agent",
+          ens: nil,
+          state: "eligible",
+          access_mode: "owner",
+          owner_address: "0x1111111111111111111111111111111111111111",
+          agent_wallet: "0x1111111111111111111111111111111111111111"
+        }
+      ]
+    end
+  end
+
   setup do
     original = Application.get_env(:autolaunch, :profile_live, [])
     original_test_pid = Application.get_env(:autolaunch, :profile_live_test_pid)
-    Application.put_env(:autolaunch, :profile_live, portfolio_module: PortfolioStub)
+
+    Application.put_env(:autolaunch, :profile_live,
+      portfolio_module: PortfolioStub,
+      agents_module: AgentsStub
+    )
 
     on_exit(fn ->
       Application.put_env(:autolaunch, :profile_live, original)
@@ -105,6 +126,13 @@ defmodule AutolaunchWeb.ProfileLiveTest do
     assert html =~ "Identity and trust"
     assert html =~ "Wallet overview"
     assert html =~ "Profile trust lives here now."
+    assert html =~ "Connected agents"
+    assert html =~ "Complete agent trust before launch."
+    assert html =~ "Atlas Agent"
+    assert html =~ "ENS name"
+    assert html =~ "ERC-8004 + ENSIP-25"
+    assert html =~ "World AgentBook"
+    assert html =~ "Strongly recommended"
     assert html =~ "Linked identities"
     assert html =~ "Launch history"
     assert html =~ "Atlas"

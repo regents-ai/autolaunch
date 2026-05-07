@@ -4,6 +4,7 @@ defmodule Autolaunch.Launch.Core do
   import Ecto.Query, warn: false
 
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.AgentPairings
   alias Autolaunch.BaseChain
   alias Autolaunch.CCA.Contract, as: CCAContract
   alias Autolaunch.CCA.Market, as: CCAMarket
@@ -111,13 +112,19 @@ defmodule Autolaunch.Launch.Core do
 
   def list_agents(%HumanUser{} = human) do
     wallet_addresses = linked_wallet_addresses(human)
+    paired_agents = AgentPairings.list_connected_agent_cards(human)
 
     if wallet_addresses == [] do
-      []
+      paired_agents
     else
-      wallet_addresses
-      |> ERC8004.list_accessible_identities(@supported_chain_ids)
-      |> Enum.map(&agent_card_from_identity(&1, wallet_addresses))
+      erc8004_agents =
+        wallet_addresses
+        |> ERC8004.list_accessible_identities(@supported_chain_ids)
+        |> Enum.map(&agent_card_from_identity(&1, wallet_addresses))
+
+      erc8004_agents
+      |> Kernel.++(paired_agents)
+      |> Enum.uniq_by(& &1.agent_id)
     end
   rescue
     Req.TransportError -> []

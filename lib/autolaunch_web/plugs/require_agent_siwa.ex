@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
 
   alias Autolaunch.Accounts
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.AgentPairings
   alias Autolaunch.Siwa.Config
   alias AutolaunchWeb.ApiError
 
@@ -84,8 +85,9 @@ defmodule AutolaunchWeb.Plugs.RequireAgentSiwa do
 
   defp normalize_claims(_claims), do: {:error, :missing_agent_headers}
 
-  defp load_current_human(%{"wallet_address" => wallet_address}) do
-    Accounts.get_human_by_wallet_address(wallet_address)
+  defp load_current_human(claims) when is_map(claims) do
+    Accounts.get_human_by_wallet_address(claims["wallet_address"]) ||
+      AgentPairings.get_human_by_agent_claims(claims)
   end
 
   defp maybe_assign_current_human(conn, claims) do

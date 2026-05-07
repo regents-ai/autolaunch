@@ -3,6 +3,7 @@ defmodule Autolaunch.EnsLink do
 
   alias AgentEns.Link
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.AgentPairings
   alias Autolaunch.ERC8004
   alias Autolaunch.InfrastructureConfig
   alias Autolaunch.Launch
@@ -113,7 +114,12 @@ defmodule Autolaunch.EnsLink do
 
   defp resolve_signer_address(%HumanUser{} = human, attrs) do
     requested = Map.get(attrs, "signer_address")
-    linked_addresses = linked_wallet_addresses(human)
+
+    linked_addresses =
+      human
+      |> linked_wallet_addresses()
+      |> Kernel.++(AgentPairings.connected_agent_wallet_addresses(human))
+      |> Enum.uniq()
 
     signer =
       case normalize_address(requested) do
