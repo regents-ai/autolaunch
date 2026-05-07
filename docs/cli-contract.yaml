@@ -43,6 +43,39 @@ command_groups:
       - /v1/agent/agents
       - /v1/agent/agents/{id}
       - /v1/agent/agents/{id}/readiness
+  - name: agent-pairings
+    interface: http
+    auth_mode: local-agent-signature
+    output_envelope: agent-pairing-session
+    agent_metadata:
+      category: identity
+      prompt_behavior: never_prompt
+      json_support: supported
+      mutation_class: pairing-write
+      retry_behavior: use_new_pairing_code
+      pagination: none
+      async_behavior: synchronous
+      input_mode: flags
+      examples:
+        - regents autolaunch pair --code AL-ABC234-DEF56789
+    help:
+      summary: Connect this local Agent account to an Autolaunch Profile.
+      usage: regents autolaunch pair --code <pairing-code>
+      next_step: Open Profile in Autolaunch to review the connected agent.
+    commands:
+      - autolaunch pair
+    command_flags:
+      autolaunch pair:
+        - name: --code
+          type: pairing-code
+          required: true
+          description: Pairing code shown in Autolaunch Profile.
+        - name: --label
+          type: string
+          required: false
+          description: Optional local label for this Agent account.
+    path_templates:
+      - /v1/app/agent-pairings/complete
   - name: prelaunch-launch
     interface: mixed
     auth_mode: agent-siwa
@@ -58,12 +91,13 @@ command_groups:
       async_behavior: job_or_polling
       input_mode: mixed
       examples:
+        - regents autolaunch prelaunch wizard --chain base-sepolia
         - regents autolaunch prelaunch get --plan <id>
         - regents autolaunch prelaunch validate --plan <id>
         - regents autolaunch jobs watch <job_id>
     help:
       summary: Prepare, validate, publish, and launch an Agent account project.
-      usage: regents autolaunch prelaunch wizard
+      usage: regents autolaunch prelaunch <command>
       next_step: Use `regents autolaunch jobs watch <job-id>`.
     commands:
       - autolaunch prelaunch wizard
@@ -81,6 +115,18 @@ command_groups:
       - autolaunch vesting propose-beneficiary-rotation
       - autolaunch vesting cancel-beneficiary-rotation
       - autolaunch vesting execute-beneficiary-rotation
+    command_flags:
+      autolaunch prelaunch wizard:
+        - name: --chain
+          type: enum
+          required: false
+          enum: [base-sepolia]
+          default: base-sepolia
+          description: Chain for the prelaunch wizard. Base Sepolia is the only enabled wizard chain for now.
+        - name: --agent-safe-address
+          type: evm-address
+          required: true
+          description: Agent Safe address. This is the shared control wallet for the launch; use a well-protected 2-of-3 Safe.
     path_templates:
       - /v1/agent/prelaunch/plans
       - /v1/agent/prelaunch/plans/{id}
@@ -132,9 +178,41 @@ command_groups:
       input_mode: interactive
       examples:
         - regents autolaunch safe wizard
+        - regents autolaunch safe create --backup-signer-address <wallet>
+    help:
+      summary: Prepare the Agent Safe used to protect an Autolaunch launch.
+      usage: regents autolaunch safe <wizard|create>
+      next_step: Use the Safe address in `regents autolaunch prelaunch wizard`.
     commands:
       - autolaunch safe wizard
       - autolaunch safe create
+    command_flags:
+      autolaunch safe wizard:
+        - name: --agent-safe-address
+          type: evm-address
+          required: false
+          description: Existing Agent Safe address. The Agent Safe is the shared control wallet for launch ownership actions.
+        - name: --backup-signer-address
+          type: evm-address
+          required: true
+          description: Backup signer wallet for the 2-of-3 Agent Safe.
+        - name: --website-wallet-address
+          type: evm-address
+          required: false
+          description: Website wallet for the 2-of-3 Agent Safe.
+        - name: --wait-for-website-wallet
+          type: boolean
+          required: false
+          description: Mark the website wallet as not ready yet.
+      autolaunch safe create:
+        - name: --backup-signer-address
+          type: evm-address
+          required: true
+          description: Backup signer wallet for the 2-of-3 Agent Safe.
+        - name: --website-wallet-address
+          type: evm-address
+          required: false
+          description: Website wallet for the 2-of-3 Agent Safe.
   - name: markets-subjects
     interface: http
     auth_mode: agent-siwa

@@ -11,6 +11,8 @@ defmodule AutolaunchWeb.ApiRoutesTest do
   ]
 
   @human_browser_product_routes [
+    {:post, "/agent-pairings"},
+    {:get, "/agent-pairings/:id"},
     {:post, "/trust/x/start"},
     {:post, "/trust/x/callback"},
     {:get, "/me/profile"},
@@ -24,6 +26,7 @@ defmodule AutolaunchWeb.ApiRoutesTest do
   ]
 
   @public_app_routes [
+    {:post, "/agent-pairings/complete"},
     {:post, "/agentbook/sessions"},
     {:get, "/agentbook/sessions/:id"},
     {:post, "/agentbook/sessions/:id/submit"},
@@ -259,7 +262,7 @@ defmodule AutolaunchWeb.ApiRoutesTest do
     |> File.read!()
     |> String.split("\n")
     |> Enum.reduce([], fn line, acc ->
-      case Regex.run(~r/^\s+- (\/v1\/agent\/.+)$/, line) do
+      case Regex.run(~r/^\s+- (\/v1\/(?:agent|app)\/.+)$/, line) do
         [_, path] -> [path | acc]
         _ -> acc
       end

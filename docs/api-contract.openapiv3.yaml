@@ -17,6 +17,7 @@ x-regent-capability:
 tags:
   - name: health
   - name: auth
+  - name: agent-pairings
   - name: agentbook
   - name: launch
   - name: prelaunch
@@ -682,6 +683,81 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+
+  /v1/app/agent-pairings:
+    post:
+      operationId: createAgentPairingSession
+      tags: [agent-pairings]
+      security: [{ PrivySessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+      responses:
+        "201":
+          description: Pairing session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentPairingSessionEnvelope" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/agent-pairings/complete:
+    post:
+      operationId: completeAgentPairingSession
+      tags: [agent-pairings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentPairingCompleteRequest" }
+      responses:
+        "200":
+          description: Pairing completed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentPairingSessionEnvelope" }
+        "404":
+          description: Pairing code not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: Pairing cannot be completed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Pairing evidence invalid
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /v1/app/agent-pairings/{id}:
+    get:
+      operationId: getAgentPairingSession
+      tags: [agent-pairings]
+      security: [{ PrivySessionCookie: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AgentPairingSessionId"
+      responses:
+        "200":
+          description: Pairing session status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentPairingSessionEnvelope" }
+        "401":
+          description: Missing signed-in browser session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404":
+          description: Pairing session not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
   /v1/app/prelaunch/plans:
     get:
@@ -2493,6 +2569,11 @@ components:
       in: path
       required: true
       schema: { type: string }
+    AgentPairingSessionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
     Resource:
       name: resource
       in: path
@@ -2515,6 +2596,9 @@ components:
     Address:
       type: string
       pattern: "^0x[a-fA-F0-9]{40}$"
+    PairingCode:
+      type: string
+      pattern: "^AL-[A-Z2-9]{6}-[A-Z2-9]{8}$"
     AddressOrEnsName:
       type: string
       description: Wallet address or ENS name that resolves to a wallet address.
@@ -2567,6 +2651,84 @@ components:
     LooseObject:
       type: object
       additionalProperties: true
+    AgentPairingStatus:
+      type: string
+      enum: [pending, completed, expired]
+    AgentPairingAgent:
+      type: object
+      required: [agent_id, agent_wallet_address, agent_chain_id, agent_registry_address, agent_token_id, connected_at]
+      properties:
+        agent_id: { type: string }
+        agent_wallet_address: { $ref: "#/components/schemas/Address" }
+        agent_chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
+        agent_registry_address: { $ref: "#/components/schemas/Address" }
+        agent_token_id: { type: string }
+        agent_label:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        connected_at: { $ref: "#/components/schemas/DateTime" }
+      additionalProperties: false
+    AgentPairingSession:
+      type: object
+      required: [session_id, status, challenge_nonce, challenge_message, expires_at, inserted_at, updated_at, agent]
+      properties:
+        session_id: { type: string }
+        status: { $ref: "#/components/schemas/AgentPairingStatus" }
+        pairing_code:
+          anyOf:
+            - { $ref: "#/components/schemas/PairingCode" }
+            - { type: "null" }
+        challenge_nonce: { type: string }
+        challenge_message: { type: string }
+        expires_at: { $ref: "#/components/schemas/DateTime" }
+        completed_at:
+          anyOf:
+            - { $ref: "#/components/schemas/DateTime" }
+            - { type: "null" }
+        inserted_at: { $ref: "#/components/schemas/DateTime" }
+        updated_at: { $ref: "#/components/schemas/DateTime" }
+        agent:
+          anyOf:
+            - { $ref: "#/components/schemas/AgentPairingAgent" }
+            - { type: "null" }
+      additionalProperties: false
+    AgentPairingSessionEnvelope:
+      type: object
+      required: [ok, session]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        session: { $ref: "#/components/schemas/AgentPairingSession" }
+      additionalProperties: false
+    AgentPairingCompleteRequest:
+      type: object
+      required:
+        - pairing_code
+        - challenge_message
+        - agent_wallet_address
+        - agent_chain_id
+        - agent_registry_address
+        - agent_token_id
+        - signature_type
+        - signature
+        - signed_at
+      properties:
+        pairing_code: { $ref: "#/components/schemas/PairingCode" }
+        challenge_message: { type: string }
+        agent_wallet_address: { $ref: "#/components/schemas/Address" }
+        agent_chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
+        agent_registry_address: { $ref: "#/components/schemas/Address" }
+        agent_token_id: { type: string }
+        agent_label:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        signature_type:
+          type: string
+          enum: [evm_personal_sign]
+        signature: { $ref: "#/components/schemas/HexData" }
+        signed_at: { $ref: "#/components/schemas/DateTime" }
+      additionalProperties: false
     ErrorEnvelope:
       type: object
       required: [ok, error]

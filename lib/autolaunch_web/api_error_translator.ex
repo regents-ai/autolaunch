@@ -153,6 +153,48 @@ defmodule AutolaunchWeb.ApiErrorTranslator do
   def translate(:agentbook, reason),
     do: {:unprocessable_entity, "agentbook_invalid", describe(reason)}
 
+  def translate(:agent_pairings, :unauthorized),
+    do: {:unauthorized, "auth_required", "Privy session required"}
+
+  def translate(:agent_pairings, :pairing_not_found),
+    do: {:not_found, "pairing_not_found", "Pairing was not found"}
+
+  def translate(:agent_pairings, :pairing_expired),
+    do: {:conflict, "pairing_expired", "Pairing code has expired"}
+
+  def translate(:agent_pairings, :pairing_completed),
+    do: {:conflict, "pairing_completed", "Pairing code was already used"}
+
+  def translate(:agent_pairings, :agent_already_connected),
+    do: {:conflict, "agent_already_connected", "Agent is already connected"}
+
+  def translate(:agent_pairings, :challenge_mismatch),
+    do: {:unprocessable_entity, "challenge_mismatch", "Pairing proof does not match this code"}
+
+  def translate(:agent_pairings, :invalid_signature),
+    do: {:unprocessable_entity, "invalid_signature", "Agent proof could not be verified"}
+
+  def translate(:agent_pairings, :invalid_pairing_code),
+    do: {:unprocessable_entity, "invalid_pairing_code", "Pairing code is invalid"}
+
+  def translate(:agent_pairings, :invalid_address),
+    do: {:unprocessable_entity, "invalid_agent_address", "Agent wallet address is invalid"}
+
+  def translate(:agent_pairings, :invalid_chain_id),
+    do: {:unprocessable_entity, "invalid_chain_id", "Chain ID must be Base Sepolia or Base"}
+
+  def translate(:agent_pairings, :invalid_agent_token_id),
+    do: {:unprocessable_entity, "invalid_agent_token_id", "Agent token ID is invalid"}
+
+  def translate(:agent_pairings, :invalid_signature_type),
+    do: {:unprocessable_entity, "invalid_signature_type", "Agent proof type is invalid"}
+
+  def translate(:agent_pairings, :invalid_signed_at),
+    do: {:unprocessable_entity, "invalid_signed_at", "Agent proof time is invalid"}
+
+  def translate(:agent_pairings, _reason),
+    do: {:unprocessable_entity, "pairing_invalid", "Pairing request is invalid"}
+
   def translate(:ens_link, :unauthorized),
     do: {:unauthorized, "auth_required", "Privy session required"}
 

@@ -63,7 +63,7 @@ defmodule AutolaunchWeb.Router do
     live_session :autolaunch,
       on_mount: [{AutolaunchWeb.LiveAuth, :current_human}] do
       live "/", HomeLive, :index
-      live "/how-auctions-work", AuctionGuideLive, :index
+      live "/docs", AuctionGuideLive, :index
       live "/launch", LaunchLive, :index
       live "/launch-via-agent", LaunchLive, :agent
       live "/agentbook", AgentbookLive, :index
@@ -102,6 +102,8 @@ defmodule AutolaunchWeb.Router do
   scope "/", AutolaunchWeb do
     pipe_through :public_asset
 
+    get "/litepaper", LitepaperController, :pdf
+    get "/litepaper.md", LitepaperController, :markdown
     get "/prelaunch-assets/:file", PrelaunchAssetController, :show
   end
 
@@ -131,6 +133,7 @@ defmodule AutolaunchWeb.Router do
   scope "/v1/app", AutolaunchWeb.Api do
     pipe_through :api
 
+    post "/agent-pairings/complete", AgentPairingController, :complete
     post "/agentbook/sessions", AgentbookController, :create
     get "/agentbook/sessions/:id", AgentbookController, :show
     post "/agentbook/sessions/:id/submit", AgentbookController, :submit
@@ -140,6 +143,9 @@ defmodule AutolaunchWeb.Router do
 
   scope "/v1/app", AutolaunchWeb.Api do
     pipe_through :session_api
+
+    post "/agent-pairings", AgentPairingController, :create
+    get "/agent-pairings/:id", AgentPairingController, :show
 
     AutolaunchWeb.ApiRoutes.product_api_routes(
       include_app_staking_prepare?: true,
