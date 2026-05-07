@@ -146,17 +146,23 @@ defmodule AutolaunchWeb.RegentStakingLive do
               <div class="al-regent-console-read">
                 <div class="al-regent-copy-block">
                   <p class="al-kicker">
-                    <span class="al-regent-mark" aria-hidden="true">⋰</span> Staking console
+                    <span class="al-regent-mark" aria-hidden="true">⋰</span> Staking Console
                   </p>
-                  <h1>Stake and earn your slice of all Regents revenue</h1>
-                  <p class="al-regent-subtitle">The remainder goes to buy back the token.</p>
+                  <h1>
+                    Stake to earn your pro-rata split of all Regents revenue across all apps
+                  </h1>
                   <p>
-                    Stake $REGENT and withdraw anytime. Earn a pro-rata share of USDC the Regents Protocol makes across all apps. Earn 20% bonus $REGENT on your stake in the first year.
+                    Platform and Autolaunch show the same staking pool, the same reward claims,
+                    and the same wallet actions. Use either one.
                   </p>
                 </div>
 
                 <div class="al-regent-metrics" aria-label="$REGENT staking balances">
-                  <.staking_metric label="Network" value={@state.chain_label || "Base"} />
+                  <.staking_metric
+                    label="Network"
+                    value={@state.chain_label || "Base"}
+                    href={basescan_contract_url(@state)}
+                  />
                   <.staking_metric
                     label="Total staked"
                     value={regent_value(@state.total_staked)}
@@ -188,7 +194,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
                   <article class="al-regent-support-card">
                     <p class="al-regent-small-title">What to expect</p>
                     <ul>
-                      <li>Stake and unstake use the amount you enter.</li>
+                      <li>Choose the amount to stake and unstake.</li>
                       <li>Claim actions use your live staking balances automatically.</li>
                       <li>After a confirmed wallet action, this page refreshes your staking snapshot.</li>
                     </ul>
@@ -309,7 +315,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
                   <.staking_action_button
                     id="regent-stake-button"
                     action="stake"
-                    label="Stake on Autolaunch"
+                    label="Stake"
                     tone={:primary}
                     disabled={action_disabled?(@current_human, @state, :stake, @staking_params)}
                   />
@@ -360,11 +366,25 @@ defmodule AutolaunchWeb.RegentStakingLive do
   attr :label, :string, required: true
   attr :value, :string, required: true
   attr :tooltip, :string, default: nil
+  attr :href, :string, default: nil
 
   defp staking_metric(assigns) do
     ~H"""
     <article class="al-regent-metric">
-      <p>{@label}</p>
+      <div class="al-regent-metric-header">
+        <p>{@label}</p>
+        <a
+          :if={@href}
+          href={@href}
+          target="_blank"
+          rel="noreferrer"
+          class="al-regent-metric-link"
+          aria-label={"Open #{@label} on BaseScan"}
+          title={"Open #{@label} on BaseScan"}
+        >
+          <Layouts.shell_icon name="arrow-up-right" class="al-regent-metric-link-icon" />
+        </a>
+      </div>
       <strong
         class="al-regent-tooltip-value"
         data-tooltip={@tooltip}
@@ -376,6 +396,12 @@ defmodule AutolaunchWeb.RegentStakingLive do
     </article>
     """
   end
+
+  defp basescan_contract_url(%{contract_address: address}) when is_binary(address) do
+    "https://basescan.org/address/#{address}"
+  end
+
+  defp basescan_contract_url(_state), do: nil
 
   attr :id, :string, required: true
   attr :action, :string, required: true
@@ -903,6 +929,41 @@ defmodule AutolaunchWeb.RegentStakingLive do
         flex-direction: column;
         justify-content: center;
         padding: 1rem;
+      }
+
+      .al-regent-metric-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .al-regent-metric-link {
+        display: inline-flex;
+        width: 2rem;
+        height: 2rem;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid color-mix(in srgb, var(--brand-ink) 10%, transparent);
+        border-radius: 999px;
+        color: color-mix(in srgb, var(--brand-ink) 58%, transparent);
+        transition:
+          border-color 160ms ease,
+          background-color 160ms ease,
+          color 160ms ease;
+      }
+
+      .al-regent-metric-link:hover,
+      .al-regent-metric-link:focus-visible {
+        border-color: color-mix(in srgb, var(--brand-primary) 62%, transparent);
+        background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+        color: color-mix(in srgb, var(--brand-ink) 92%, black 8%);
+      }
+
+      .al-regent-metric-link-icon {
+        width: 1rem;
+        height: 1rem;
       }
 
       .al-regent-metric p,

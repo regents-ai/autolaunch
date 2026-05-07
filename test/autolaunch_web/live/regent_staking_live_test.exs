@@ -135,22 +135,28 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
 
   test "renders the Regent staking page", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, _view, html} = live(conn, "/regent-staking")
+    {:ok, view, html} = live(conn, "/regent-staking")
 
     assert html =~ "$REGENT staking"
-    assert html =~ "Stake and earn your slice of all Regents revenue"
-    assert html =~ "The remainder goes to buy back the token."
-    assert html =~ "Stake $REGENT and withdraw anytime."
-    assert html =~ "Earn a pro-rata share of USDC the Regents Protocol makes across all apps."
-    assert html =~ "Earn 20% bonus $REGENT on your stake in the first year."
+    assert html =~ "Stake to earn your pro-rata split of all Regents revenue across all apps"
+    assert html =~ "Platform and Autolaunch show the same staking pool"
+    assert html =~ "Choose the amount to stake and unstake."
     assert html =~ "Total staked"
     assert html =~ "Wallet balance"
-    assert html =~ "Stake on Autolaunch"
+    assert html =~ "Stake"
     assert html =~ "Claim USDC"
     assert html =~ "Claim REGENT"
     assert html =~ "Unstake"
     assert html =~ "data-tooltip=\"12345 REGENT\""
     assert html =~ "data-tooltip=\"5 USDC\""
+
+    assert has_element?(
+             view,
+             "a[href='https://basescan.org/address/0x9999999999999999999999999999999999999999']"
+           )
+
+    refute html =~ "The remainder goes to buy back the token."
+    refute html =~ "Stake $REGENT and withdraw anytime."
     refute html =~ "Direct deposits"
     refute html =~ "Stake $REGENT, claim USDC from the Regent rewards pool"
     refute html =~ "Prepare USDC deposit"
@@ -167,7 +173,7 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
       |> form("#regent-staking-form", %{"staking" => %{"amount" => "1.5"}})
       |> render_change()
 
-    assert html =~ "Stake on Autolaunch"
+    assert html =~ "Stake"
 
     html =
       view
