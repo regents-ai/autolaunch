@@ -83,12 +83,29 @@ defmodule AutolaunchWeb.RegentStatus do
   defp detail(%{chain_label: chain_label}), do: "Live on #{chain_label || "Base"}."
 
   defp compact_decimal(value) do
-    value
-    |> Decimal.new()
-    |> Decimal.round(2)
-    |> Decimal.to_string(:normal)
+    decimal = Decimal.new(value)
+
+    cond do
+      Decimal.compare(decimal, Decimal.new("1000000000")) != :lt ->
+        decimal |> Decimal.div(Decimal.new("1000000000")) |> compact_suffix("B")
+
+      Decimal.compare(decimal, Decimal.new("1000000")) != :lt ->
+        decimal |> Decimal.div(Decimal.new("1000000")) |> compact_suffix("M")
+
+      true ->
+        decimal
+        |> Decimal.round(2)
+        |> Decimal.to_string(:normal)
+    end
   rescue
     _ -> to_string(value)
+  end
+
+  defp compact_suffix(decimal, suffix) do
+    decimal
+    |> Decimal.round(1)
+    |> Decimal.to_string(:normal)
+    |> Kernel.<>(suffix)
   end
 
   defp cache_key(current_human) do

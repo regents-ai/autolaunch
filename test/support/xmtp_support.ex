@@ -8,6 +8,7 @@ defmodule Autolaunch.TestSupport.XmtpSupport do
   @spec setup_privy_config!() :: %{
           app_id: String.t(),
           private_pem: String.t(),
+          public_pem: String.t(),
           restore: (-> any())
         }
   def setup_privy_config! do
@@ -23,6 +24,7 @@ defmodule Autolaunch.TestSupport.XmtpSupport do
     %{
       app_id: app_id,
       private_pem: private_pem,
+      public_pem: public_pem,
       restore: fn -> Application.put_env(:autolaunch, :privy, original_privy_cfg) end
     }
   end

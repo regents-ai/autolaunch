@@ -45,7 +45,7 @@ defmodule AutolaunchWeb.PublicChatComponents do
           >
             <div class="al-home-chat-message-meta">
               <span>{sender_label(message_sender_type(message))}</span>
-              <span>{message_author(message)}</span>
+              <span class={message_author_class(message)}>{message_author(message)}</span>
               <span>{message_stamp(message)}</span>
             </div>
             <p>{message_body(message)}</p>
@@ -152,15 +152,20 @@ defmodule AutolaunchWeb.PublicChatComponents do
   defp message_sender_type(message), do: Map.get(message, :sender_type) || :human
 
   defp message_author(message) do
+    author = message |> Map.get(:author) |> present_string()
     sender_label = message |> Map.get(:sender_label) |> present_string()
     sender_wallet = message |> Map.get(:sender_wallet_address) |> present_string()
 
     cond do
+      not is_nil(author) -> author
       not is_nil(sender_label) -> sender_label
       not is_nil(sender_wallet) -> Format.short_wallet(sender_wallet)
       true -> "Room member"
     end
   end
+
+  defp message_author_class(%{author_tone: :animata_holder}), do: "al-home-chat-author-holder"
+  defp message_author_class(_message), do: nil
 
   defp message_stamp(message) do
     case Map.get(message, :sent_at) do

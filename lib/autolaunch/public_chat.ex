@@ -2,12 +2,18 @@ defmodule Autolaunch.PublicChat do
   @moduledoc false
 
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.AnimataHoldings
+  alias Autolaunch.EnsPrimaryName
+  alias Autolaunch.Evm
+  alias Autolaunch.LocalCache
   alias Autolaunch.PublicEvents
   alias Autolaunch.XMTPMirror
   alias Autolaunch.XMTPMirror.Rooms
   alias Xmtp.RoomPanel
 
   @room_key "public-chatbox"
+  @ens_primary_name_cache_ttl_seconds 300
+  @animata_holder_cache_ttl_seconds 300
 
   @type join_result :: {:ok, map()} | {:error, atom()}
 
@@ -22,7 +28,12 @@ defmodule Autolaunch.PublicChat do
     membership = membership_for(current_human)
     room_key = panel_room_key(membership)
     room = XMTPMirror.get_room_by_key(room_key)
-    messages = XMTPMirror.list_public_messages(%{"room_key" => room_key, "limit" => "50"})
+
+    messages =
+      %{"room_key" => room_key, "limit" => "50"}
+      |> XMTPMirror.list_public_messages()
+      |> enrich_messages()
+
     member_count = member_count(room_key)
     capacity = Rooms.room_capacity(room)
     panel_membership = panel_membership(current_human, membership, room, member_count, capacity)
@@ -232,6 +243,60 @@ defmodule Autolaunch.PublicChat do
 
   defp connected_wallet(%HumanUser{wallet_address: wallet}) when is_binary(wallet), do: wallet
   defp connected_wallet(_current_human), do: nil
+
+  defp enrich_messages(messages) when is_list(messages) do
+    profiles = sender_profiles(messages)
+
+    Enum.map(messages, fn message ->
+      sender_wallet = Evm.normalize_address(Map.get(message, :sender_wallet_address))
+      profile = Map.get(profiles, sender_wallet, %{})
+
+      message
+      |> Map.put(
+        :author,
+        Map.get(profile, :primary_name) || Map.get(message, :sender_label) ||
+          short_wallet(sender_wallet) || "Room member"
+      )
+      |> Map.put(:author_tone, Map.get(profile, :author_tone, :normal))
+    end)
+  end
+
+  defp sender_profiles(messages) do
+    messages
+    |> Enum.map(&Evm.normalize_address(Map.get(&1, :sender_wallet_address)))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Map.new(fn wallet ->
+      {wallet, %{primary_name: primary_name(wallet), author_tone: author_tone(wallet)}}
+    end)
+  end
+
+  defp primary_name(wallet) when is_binary(wallet) do
+    case LocalCache.fetch(
+           "autolaunch:xmtp-room:v1:#{wallet}:ens-primary-name",
+           @ens_primary_name_cache_ttl_seconds,
+           fn -> EnsPrimaryName.verified_primary_name(wallet) end
+         ) do
+      {:ok, name} when is_binary(name) and name != "" -> name
+      _other -> nil
+    end
+  end
+
+  defp author_tone(wallet) when is_binary(wallet) do
+    case LocalCache.fetch(
+           "autolaunch:xmtp-room:v1:#{wallet}:animata-holder",
+           @animata_holder_cache_ttl_seconds,
+           fn -> {:ok, AnimataHoldings.holder?(wallet)} end
+         ) do
+      {:ok, true} -> :animata_holder
+      _other -> :normal
+    end
+  end
+
+  defp short_wallet("0x" <> address) when byte_size(address) == 40,
+    do: "0x#{String.slice(address, 0, 6)}...#{String.slice(address, -4, 4)}"
+
+  defp short_wallet(_wallet), do: nil
 
   defp panel_room_key(%{room_key: room_key}) when is_binary(room_key) and room_key != "",
     do: room_key
