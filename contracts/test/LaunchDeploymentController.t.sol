@@ -25,7 +25,7 @@ import {
     MockContinuousClearingAuctionFactory
 } from "test/mocks/MockContinuousClearingAuctionFactory.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
-import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
+import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
 import {UERC20Metadata} from "@uniswap/uerc20-factory/src/libraries/UERC20MetadataLibrary.sol";
 
@@ -65,7 +65,7 @@ contract LaunchDeploymentControllerTest is Test {
     RevenueIngressFactory internal revenueIngressFactory;
     RegentLBPStrategyFactory internal strategyFactory;
     MintableERC20Mock internal usdc;
-    MockRegentRevenueFeeRouter internal feeRouter;
+    MockRegentStakingRevenueRouter internal feeRouter;
 
     function setUp() external {
         vm.chainId(84_532);
@@ -77,7 +77,7 @@ contract LaunchDeploymentControllerTest is Test {
         strategyFactory = new RegentLBPStrategyFactory(address(this));
         usdc = _installCanonicalUsdcMock();
         subjectRegistry = new SubjectRegistry(address(this));
-        feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
+        feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
             address(this),
@@ -157,8 +157,8 @@ contract LaunchDeploymentControllerTest is Test {
 
     function testRejectsRevenueShareUsdcMismatch() external {
         MintableERC20Mock otherUsdc = new MintableERC20Mock("Other USD", "oUSD");
-        MockRegentRevenueFeeRouter otherRouter =
-            new MockRegentRevenueFeeRouter(address(otherUsdc), address(0x8888));
+        MockRegentStakingRevenueRouter otherRouter =
+            new MockRegentStakingRevenueRouter(address(otherUsdc), address(0x8888));
         RevenueShareFactory mismatchedRevenueShareFactory = new RevenueShareFactory(
             address(this),
             address(otherUsdc),

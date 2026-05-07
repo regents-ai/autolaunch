@@ -17,7 +17,7 @@ import {ExampleCCADeploymentScript} from "scripts/ExampleCCADeploymentScript.s.s
 import {
     MockContinuousClearingAuctionFactory
 } from "test/mocks/MockContinuousClearingAuctionFactory.sol";
-import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
+import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
 import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
 
@@ -50,7 +50,7 @@ contract ExampleCCADeploymentScriptTest is Test {
     RevenueIngressFactory internal revenueIngressFactory;
     RegentLBPStrategyFactory internal strategyFactory;
     UERC20Factory internal tokenFactory;
-    MockRegentRevenueFeeRouter internal feeRouter;
+    MockRegentStakingRevenueRouter internal feeRouter;
 
     function setUp() external {
         script = new ExampleCCADeploymentScript();
@@ -58,7 +58,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new MockHookPoolManager();
         subjectRegistry = new SubjectRegistry(address(this));
-        feeRouter = new MockRegentRevenueFeeRouter(USDC, address(0x8888));
+        feeRouter = new MockRegentStakingRevenueRouter(USDC, address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
             address(script), USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)

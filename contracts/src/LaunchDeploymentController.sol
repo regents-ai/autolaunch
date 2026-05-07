@@ -492,7 +492,7 @@ contract LaunchDeploymentController is Owned {
                 token,
                 cfg.revenueIngressFactory,
                 cfg.agentSafe,
-                RevenueShareFactory(cfg.revenueShareFactory).protocolFeeRouter(),
+                RevenueShareFactory(cfg.revenueShareFactory).stakingRevenueRouter(),
                 cfg.totalSupply,
                 cfg.subjectLabel,
                 identityChainId,

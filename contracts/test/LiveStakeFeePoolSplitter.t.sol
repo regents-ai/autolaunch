@@ -4,11 +4,13 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 
 import {LiveStakeFeePoolSplitter} from "src/revenue/LiveStakeFeePoolSplitter.sol";
+import {RegentRevenueStaking} from "src/revenue/RegentRevenueStaking.sol";
+import {RegentStakingRevenueRouter} from "src/revenue/RegentStakingRevenueRouter.sol";
 import {RevenueIngressAccount} from "src/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
-import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
+import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {TransferFeeERC20Mock} from "test/mocks/TransferFeeERC20Mock.sol";
 
 contract LiveStakeFeePoolSplitterTest is Test {
@@ -22,7 +24,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
     MintableERC20Mock internal stakeToken;
     SubjectRegistry internal subjectRegistry;
     RevenueIngressFactory internal ingressFactory;
-    MockRegentRevenueFeeRouter internal feeRouter;
+    MockRegentStakingRevenueRouter internal feeRouter;
     LiveStakeFeePoolSplitter internal splitter;
     RevenueIngressAccount internal ingress;
 
@@ -32,7 +34,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
         subjectRegistry = new SubjectRegistry(address(this));
         ingressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), address(this));
-        feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
+        feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         splitter = new LiveStakeFeePoolSplitter(
             address(stakeToken),
             address(usdc),
@@ -74,7 +76,60 @@ contract LiveStakeFeePoolSplitterTest is Test {
         assertEq(splitter.previewClaimableUSDC(STAKER_ONE), 9e18);
         assertEq(usdc.balanceOf(address(feeRouter)), 10e18);
         assertEq(feeRouter.totalUsdcProcessed(), 10e18);
-        assertEq(feeRouter.totalRegentOwed(), 10e30);
+        assertEq(feeRouter.totalUsdcDepositedToRegentStaking(), 10e18);
+    }
+
+    function testHundredUsdcDepositsProtocolSkimIntoRegentStaking() external {
+        bytes32 liveSubjectId = keccak256("live-subject-real-router");
+        MintableERC20Mock regent = new MintableERC20Mock("REGENT", "REGENT");
+        RegentRevenueStaking staking = new RegentRevenueStaking(
+            address(regent), address(usdc), TREASURY, 1_000_000e18, address(this)
+        );
+        RegentStakingRevenueRouter router = new RegentStakingRevenueRouter(
+            address(this), address(usdc), address(subjectRegistry), address(staking)
+        );
+        router.setMaxUsdcPerSettlement(1000e18);
+        LiveStakeFeePoolSplitter realRouterSplitter = new LiveStakeFeePoolSplitter(
+            address(stakeToken),
+            address(usdc),
+            address(ingressFactory),
+            address(subjectRegistry),
+            liveSubjectId,
+            TREASURY,
+            address(router),
+            1000,
+            "Live subject",
+            TREASURY
+        );
+        subjectRegistry.createPermissionlessSubject(
+            liveSubjectId,
+            address(stakeToken),
+            address(realRouterSplitter),
+            TREASURY,
+            CREATOR,
+            true,
+            "Live subject"
+        );
+
+        stakeToken.mint(STAKER_ONE, 1000e18);
+        vm.prank(STAKER_ONE);
+        stakeToken.approve(address(realRouterSplitter), 10e18);
+        vm.prank(STAKER_ONE);
+        realRouterSplitter.stake(10e18, STAKER_ONE);
+
+        usdc.mint(address(this), 100e18);
+        usdc.approve(address(realRouterSplitter), 100e18);
+        realRouterSplitter.depositUSDC(100e18, bytes32("direct"), bytes32("source"));
+
+        assertEq(realRouterSplitter.protocolFeeUsdc(), 10e18);
+        assertEq(realRouterSplitter.netAgentLaneUsdc(), 90e18);
+        assertEq(realRouterSplitter.stakerPoolInflowUsdc(), 9e18);
+        assertEq(realRouterSplitter.treasuryReservedUsdc(), 81e18);
+        assertEq(realRouterSplitter.previewClaimableUSDC(STAKER_ONE), 9e18);
+        assertEq(usdc.balanceOf(address(staking)), 10e18);
+        assertEq(staking.totalUsdcReceived(), 10e18);
+        assertEq(router.totalUsdcDepositedToRegentStaking(), 10e18);
+        assertEq(regent.balanceOf(TREASURY), 0);
     }
 
     function testTwoLiveStakersSplitPoolByCurrentStakeOnly() external {

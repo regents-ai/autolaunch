@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Owned} from "src/auth/Owned.sol";
-import {IRegentRevenueFeeRouter} from "src/revenue/interfaces/IRegentRevenueFeeRouter.sol";
+import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 
 interface IRevenueShareSplitterV2Deployer {
@@ -13,7 +13,7 @@ interface IRevenueShareSplitterV2Deployer {
         address subjectRegistry,
         bytes32 subjectId,
         address treasuryRecipient,
-        address feeRouter,
+        address stakingRevenueRouter,
         uint256 revenueShareSupplyDenominator,
         string calldata label,
         address owner
@@ -27,16 +27,16 @@ interface IOwnedTransfer {
 contract RevenueShareFactory is Owned {
     error UsdcZero();
     error RegistryZero();
-    error FeeRouterZero();
+    error StakingRevenueRouterZero();
     error SplitterDeployerZero();
-    error FeeRouterUsdcMismatch();
+    error StakingRevenueRouterUsdcMismatch();
     error OnlyAuthorizedCreator();
     error AccountZero();
     error SubjectZero();
     error StakeTokenZero();
     error IngressFactoryZero();
     error AgentSafeZero();
-    error FeeRouterMismatch();
+    error StakingRevenueRouterMismatch();
     error SplitterExistsForToken();
     error SplitterExistsForSubject();
     error SupplyDenominatorZero();
@@ -48,7 +48,7 @@ contract RevenueShareFactory is Owned {
     error Reentrant();
 
     address public immutable usdc;
-    address public immutable protocolFeeRouter;
+    address public immutable stakingRevenueRouter;
     address public immutable splitterDeployer;
     SubjectRegistry public immutable subjectRegistry;
 
@@ -63,7 +63,7 @@ contract RevenueShareFactory is Owned {
         address indexed splitter,
         address splitterOwner,
         address treasuryRecipient,
-        address protocolFeeRouter,
+        address stakingRevenueRouter,
         string label
     );
     event AuthorizedCreatorSet(address indexed account, bool enabled);
@@ -72,18 +72,18 @@ contract RevenueShareFactory is Owned {
         address owner_,
         address usdc_,
         SubjectRegistry subjectRegistry_,
-        address protocolFeeRouter_,
+        address stakingRevenueRouter_,
         address splitterDeployer_
     ) Owned(owner_) {
         if (usdc_ == address(0)) revert UsdcZero();
         if (address(subjectRegistry_) == address(0)) revert RegistryZero();
-        if (protocolFeeRouter_ == address(0)) revert FeeRouterZero();
+        if (stakingRevenueRouter_ == address(0)) revert StakingRevenueRouterZero();
         if (splitterDeployer_ == address(0)) revert SplitterDeployerZero();
-        if (IRegentRevenueFeeRouter(protocolFeeRouter_).usdc() != usdc_) {
-            revert FeeRouterUsdcMismatch();
+        if (IRegentStakingRevenueRouter(stakingRevenueRouter_).usdc() != usdc_) {
+            revert StakingRevenueRouterUsdcMismatch();
         }
         usdc = usdc_;
-        protocolFeeRouter = protocolFeeRouter_;
+        stakingRevenueRouter = stakingRevenueRouter_;
         splitterDeployer = splitterDeployer_;
         subjectRegistry = subjectRegistry_;
     }
@@ -113,7 +113,7 @@ contract RevenueShareFactory is Owned {
         address stakeToken,
         address ingressFactory,
         address agentSafe,
-        address feeRouter,
+        address configuredStakingRevenueRouter,
         uint256 revenueShareSupplyDenominator,
         string calldata label,
         uint256 identityChainId,
@@ -124,7 +124,9 @@ contract RevenueShareFactory is Owned {
         if (stakeToken == address(0)) revert StakeTokenZero();
         if (ingressFactory == address(0)) revert IngressFactoryZero();
         if (agentSafe == address(0)) revert AgentSafeZero();
-        if (feeRouter != protocolFeeRouter) revert FeeRouterMismatch();
+        if (configuredStakingRevenueRouter != stakingRevenueRouter) {
+            revert StakingRevenueRouterMismatch();
+        }
         if (splitterOfStakeToken[stakeToken] != address(0)) revert SplitterExistsForToken();
         if (splitterOfSubject[subjectId] != address(0)) revert SplitterExistsForSubject();
         if (revenueShareSupplyDenominator == 0) revert SupplyDenominatorZero();
@@ -145,7 +147,7 @@ contract RevenueShareFactory is Owned {
                 address(subjectRegistry),
                 subjectId,
                 agentSafe,
-                protocolFeeRouter,
+                stakingRevenueRouter,
                 revenueShareSupplyDenominator,
                 label,
                 address(this)
@@ -155,7 +157,7 @@ contract RevenueShareFactory is Owned {
         splitterOfSubject[subjectId] = splitter;
 
         emit SplitterDeployed(
-            subjectId, stakeToken, splitter, agentSafe, agentSafe, protocolFeeRouter, label
+            subjectId, stakeToken, splitter, agentSafe, agentSafe, stakingRevenueRouter, label
         );
 
         subjectRegistry.createSubject(subjectId, stakeToken, splitter, agentSafe, true, label);

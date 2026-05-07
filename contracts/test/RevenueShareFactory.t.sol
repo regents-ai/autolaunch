@@ -7,7 +7,7 @@ import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableBurnableERC20Mock} from "test/mocks/MintableBurnableERC20Mock.sol";
-import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
+import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
 contract RevenueShareFactoryTest is Test {
     address internal constant OWNER = address(0xA11CE);
@@ -22,11 +22,11 @@ contract RevenueShareFactoryTest is Test {
     RevenueShareFactory internal factory;
     RevenueShareSplitterV2Deployer internal splitterDeployer;
     MintableBurnableERC20Mock internal stakeToken;
-    MockRegentRevenueFeeRouter internal feeRouter;
+    MockRegentStakingRevenueRouter internal feeRouter;
 
     function setUp() external {
         subjectRegistry = new SubjectRegistry(OWNER);
-        feeRouter = new MockRegentRevenueFeeRouter(USDC, address(0x8888));
+        feeRouter = new MockRegentStakingRevenueRouter(USDC, address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         factory = new RevenueShareFactory(
             OWNER, USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)
@@ -119,7 +119,7 @@ contract RevenueShareFactoryTest is Test {
         );
 
         vm.prank(CREATOR);
-        vm.expectRevert(RevenueShareFactory.FeeRouterMismatch.selector);
+        vm.expectRevert(RevenueShareFactory.StakingRevenueRouterMismatch.selector);
         factory.createSubjectSplitter(
             SUBJECT_ID,
             address(stakeToken),

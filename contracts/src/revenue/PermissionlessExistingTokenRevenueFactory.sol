@@ -6,7 +6,7 @@ import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.so
 import {
     IPermissionlessExistingTokenRevenueFactory
 } from "src/revenue/interfaces/IPermissionlessExistingTokenRevenueFactory.sol";
-import {IRegentRevenueFeeRouter} from "src/revenue/interfaces/IRegentRevenueFeeRouter.sol";
+import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {LiveStakeFeePoolSplitter} from "src/revenue/LiveStakeFeePoolSplitter.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
@@ -18,7 +18,7 @@ contract PermissionlessExistingTokenRevenueFactory is
     address public immutable usdc;
     address public immutable ingressFactory;
     SubjectRegistry public immutable subjectRegistry;
-    IRegentRevenueFeeRouter public immutable feeRouter;
+    IRegentStakingRevenueRouter public immutable stakingRevenueRouter;
 
     mapping(bytes32 => address) public splitterOfSubject;
     mapping(address => bytes32[]) private subjectsByCreator;
@@ -40,18 +40,18 @@ contract PermissionlessExistingTokenRevenueFactory is
         address usdc_,
         address ingressFactory_,
         SubjectRegistry subjectRegistry_,
-        IRegentRevenueFeeRouter feeRouter_
+        IRegentStakingRevenueRouter stakingRevenueRouter_
     ) Owned(owner_) {
         require(usdc_ != address(0), "USDC_ZERO");
         require(ingressFactory_ != address(0), "INGRESS_FACTORY_ZERO");
         require(address(subjectRegistry_) != address(0), "SUBJECT_REGISTRY_ZERO");
-        require(address(feeRouter_) != address(0), "FEE_ROUTER_ZERO");
-        require(feeRouter_.usdc() == usdc_, "FEE_ROUTER_USDC_MISMATCH");
+        require(address(stakingRevenueRouter_) != address(0), "STAKING_ROUTER_ZERO");
+        require(stakingRevenueRouter_.usdc() == usdc_, "STAKING_ROUTER_USDC_MISMATCH");
 
         usdc = usdc_;
         ingressFactory = ingressFactory_;
         subjectRegistry = subjectRegistry_;
-        feeRouter = feeRouter_;
+        stakingRevenueRouter = stakingRevenueRouter_;
     }
 
     function createExistingTokenRevenueSubject(ExistingTokenRevenueConfig calldata cfg)
@@ -82,7 +82,7 @@ contract PermissionlessExistingTokenRevenueFactory is
             address(subjectRegistry),
             subjectId,
             cfg.treasury,
-            address(feeRouter),
+            address(stakingRevenueRouter),
             cfg.stakerPoolBps,
             cfg.label,
             cfg.treasury

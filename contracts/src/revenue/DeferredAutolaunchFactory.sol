@@ -6,14 +6,14 @@ import {DeferredAutolaunchVestingWallet} from "src/DeferredAutolaunchVestingWall
 import {IERC20Minimal} from "src/interfaces/IERC20Minimal.sol";
 import {ITokenFactory} from "src/interfaces/ITokenFactory.sol";
 import {IDeferredAutolaunchFactory} from "src/revenue/interfaces/IDeferredAutolaunchFactory.sol";
-import {IRegentRevenueFeeRouter} from "src/revenue/interfaces/IRegentRevenueFeeRouter.sol";
+import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 
 contract DeferredAutolaunchFactory is Owned, IDeferredAutolaunchFactory {
     RevenueShareFactory public immutable revenueShareFactory;
     RevenueIngressFactory public immutable revenueIngressFactory;
-    IRegentRevenueFeeRouter public immutable feeRouter;
+    IRegentStakingRevenueRouter public immutable stakingRevenueRouter;
 
     event DeferredAutolaunchCreated(
         address indexed creator,
@@ -29,20 +29,24 @@ contract DeferredAutolaunchFactory is Owned, IDeferredAutolaunchFactory {
         address owner_,
         RevenueShareFactory revenueShareFactory_,
         RevenueIngressFactory revenueIngressFactory_,
-        IRegentRevenueFeeRouter feeRouter_
+        IRegentStakingRevenueRouter stakingRevenueRouter_
     ) Owned(owner_) {
         require(address(revenueShareFactory_) != address(0), "REVENUE_SHARE_FACTORY_ZERO");
         require(address(revenueIngressFactory_) != address(0), "REVENUE_INGRESS_FACTORY_ZERO");
-        require(address(feeRouter_) != address(0), "FEE_ROUTER_ZERO");
+        require(address(stakingRevenueRouter_) != address(0), "STAKING_ROUTER_ZERO");
         require(revenueShareFactory_.usdc() == revenueIngressFactory_.usdc(), "USDC_MISMATCH");
         require(
-            revenueShareFactory_.protocolFeeRouter() == address(feeRouter_), "FEE_ROUTER_MISMATCH"
+            revenueShareFactory_.stakingRevenueRouter() == address(stakingRevenueRouter_),
+            "STAKING_ROUTER_MISMATCH"
         );
-        require(feeRouter_.usdc() == revenueShareFactory_.usdc(), "FEE_ROUTER_USDC_MISMATCH");
+        require(
+            stakingRevenueRouter_.usdc() == revenueShareFactory_.usdc(),
+            "STAKING_ROUTER_USDC_MISMATCH"
+        );
 
         revenueShareFactory = revenueShareFactory_;
         revenueIngressFactory = revenueIngressFactory_;
-        feeRouter = feeRouter_;
+        stakingRevenueRouter = stakingRevenueRouter_;
     }
 
     function createDeferredAutolaunch(DeferredAutolaunchConfig calldata cfg)
@@ -78,7 +82,7 @@ contract DeferredAutolaunchFactory is Owned, IDeferredAutolaunchFactory {
             token,
             address(revenueIngressFactory),
             cfg.treasury,
-            address(feeRouter),
+            address(stakingRevenueRouter),
             cfg.totalSupply,
             cfg.subjectLabel,
             cfg.identityChainId,

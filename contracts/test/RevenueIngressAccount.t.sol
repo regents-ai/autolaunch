@@ -10,7 +10,7 @@ import {RevenueShareSplitterV2} from "src/revenue/RevenueShareSplitterV2.sol";
 import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
-import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
+import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
 contract RevenueIngressAccountTest is Test {
     bytes32 internal constant SUBJECT_ID = keccak256("subject");
@@ -25,14 +25,14 @@ contract RevenueIngressAccountTest is Test {
     RevenueShareSplitterV2Deployer internal splitterDeployer;
     RevenueShareSplitterV2 internal splitter;
     RevenueIngressAccount internal ingress;
-    MockRegentRevenueFeeRouter internal feeRouter;
+    MockRegentStakingRevenueRouter internal feeRouter;
 
     function setUp() external {
         usdc = new MintableERC20Mock("USD Coin", "USDC");
         stakeToken = new MintableERC20Mock("Agent", "AGENT");
         stakeToken.mint(address(this), 1000e18);
         subjectRegistry = new SubjectRegistry(address(this));
-        feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
+        feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
             address(this),

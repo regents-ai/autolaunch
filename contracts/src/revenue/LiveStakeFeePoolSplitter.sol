@@ -12,7 +12,7 @@ import {
     IRevenueIngressFactoryMinimal
 } from "src/revenue/interfaces/IRevenueIngressFactoryMinimal.sol";
 import {IRevenueShareSplitter} from "src/revenue/interfaces/IRevenueShareSplitter.sol";
-import {IRegentRevenueFeeRouter} from "src/revenue/interfaces/IRegentRevenueFeeRouter.sol";
+import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {ISubjectLifecycleSync} from "src/revenue/interfaces/ISubjectLifecycleSync.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
 
@@ -32,7 +32,7 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     address public immutable ingressFactory;
     address public immutable subjectRegistry;
     bytes32 public immutable override subjectId;
-    IRegentRevenueFeeRouter public immutable feeRouter;
+    IRegentStakingRevenueRouter public immutable stakingRevenueRouter;
 
     address public override treasuryRecipient;
     uint16 public immutable stakerPoolBps;
@@ -88,7 +88,7 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         address subjectRegistry_,
         bytes32 subjectId_,
         address treasuryRecipient_,
-        address feeRouter_,
+        address stakingRevenueRouter_,
         uint16 stakerPoolBps_,
         string memory label_,
         address owner_
@@ -101,10 +101,13 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         require(subjectId_ != bytes32(0), "SUBJECT_ZERO");
         require(treasuryRecipient_ != address(0), "TREASURY_ZERO");
         require(treasuryRecipient_ != address(this), "TREASURY_IS_SELF");
-        require(feeRouter_ != address(0), "FEE_ROUTER_ZERO");
+        require(stakingRevenueRouter_ != address(0), "STAKING_ROUTER_ZERO");
         require(stakerPoolBps_ <= BPS_DENOMINATOR, "STAKER_POOL_TOO_HIGH");
         require(owner_ != address(0), "OWNER_ZERO");
-        require(IRegentRevenueFeeRouter(feeRouter_).usdc() == usdc_, "FEE_ROUTER_USDC_MISMATCH");
+        require(
+            IRegentStakingRevenueRouter(stakingRevenueRouter_).usdc() == usdc_,
+            "STAKING_ROUTER_USDC_MISMATCH"
+        );
 
         stakeToken = stakeToken_;
         usdc = usdc_;
@@ -112,7 +115,7 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         subjectRegistry = subjectRegistry_;
         subjectId = subjectId_;
         treasuryRecipient = treasuryRecipient_;
-        feeRouter = IRegentRevenueFeeRouter(feeRouter_);
+        stakingRevenueRouter = IRegentStakingRevenueRouter(stakingRevenueRouter_);
         stakerPoolBps = stakerPoolBps_;
         label = label_;
     }
@@ -140,7 +143,7 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     }
 
     function protocolRecipient() external view override returns (address) {
-        return address(feeRouter);
+        return address(stakingRevenueRouter);
     }
 
     function setPaused(bool paused_) external onlyOwner {
@@ -309,7 +312,7 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     ) internal {
         require(received > 0, "NOTHING_RECEIVED");
 
-        uint16 skimBps = feeRouter.protocolSkimBps();
+        uint16 skimBps = stakingRevenueRouter.protocolSkimBps();
         uint256 protocolAmount = FullMath.mulDiv(received, skimBps, BPS_DENOMINATOR);
         uint256 net = received - protocolAmount;
         uint256 stakerPool = FullMath.mulDiv(net, stakerPoolBps, BPS_DENOMINATOR);
@@ -348,8 +351,10 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
         totalUsdcCreditedToStakers += creditedByAccumulator;
 
         if (protocolAmount > 0) {
-            usdc.safeTransfer(address(feeRouter), protocolAmount);
-            feeRouter.processProtocolFee(subjectId, treasuryRecipient, protocolAmount, sourceRef);
+            usdc.safeTransfer(address(stakingRevenueRouter), protocolAmount);
+            stakingRevenueRouter.processProtocolFee(
+                subjectId, treasuryRecipient, protocolAmount, sourceRef
+            );
         }
 
         emit USDCRevenueDeposited(

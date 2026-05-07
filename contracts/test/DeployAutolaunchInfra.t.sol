@@ -13,7 +13,9 @@ import {
     PermissionlessExistingTokenRevenueFactory
 } from "src/revenue/PermissionlessExistingTokenRevenueFactory.sol";
 import {DeferredAutolaunchFactory} from "src/revenue/DeferredAutolaunchFactory.sol";
-import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
+import {RegentStakingRevenueRouter} from "src/revenue/RegentStakingRevenueRouter.sol";
+import {RegentRevenueStaking} from "src/revenue/RegentRevenueStaking.sol";
+import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 
 contract DeployAutolaunchInfraScriptTest is Test {
     address internal constant OWNER = address(0xA11CE);
@@ -21,18 +23,20 @@ contract DeployAutolaunchInfraScriptTest is Test {
     address internal constant USDC = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
 
     DeployAutolaunchInfraScript internal script;
-    MockRegentRevenueFeeRouter internal feeRouter;
+    MintableERC20Mock internal regent;
+    RegentRevenueStaking internal staking;
 
     function setUp() external {
         script = new DeployAutolaunchInfraScript();
         vm.chainId(84_532);
-        feeRouter = new MockRegentRevenueFeeRouter(USDC, address(0x8888));
+        regent = new MintableERC20Mock("REGENT", "REGENT");
+        staking = new RegentRevenueStaking(address(regent), USDC, address(0xCAFE), 1e29, OWNER);
     }
 
     function testDeployCreatesInfraAndAuthorizesSubjectFactories() external {
         DeployAutolaunchInfraScript.ScriptConfig memory cfg =
             DeployAutolaunchInfraScript.ScriptConfig({
-                owner: OWNER, usdc: USDC, protocolFeeRouter: address(feeRouter)
+                owner: OWNER, usdc: USDC, regentRevenueStaking: address(staking)
             });
 
         (
@@ -42,6 +46,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
             DeferredAutolaunchFactory deferredAutolaunchFactory,
+            RegentStakingRevenueRouter stakingRevenueRouter,
             RegentLBPStrategyFactory strategyFactory
         ) = script.deploy(cfg);
 
@@ -60,9 +65,15 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(existingTokenRevenueFactory.usdc(), USDC);
         assertEq(address(revenueShareFactory.subjectRegistry()), address(subjectRegistry));
         assertEq(revenueIngressFactory.subjectRegistry(), address(subjectRegistry));
-        assertEq(revenueShareFactory.protocolFeeRouter(), address(feeRouter));
-        assertEq(address(existingTokenRevenueFactory.feeRouter()), address(feeRouter));
-        assertEq(address(deferredAutolaunchFactory.feeRouter()), address(feeRouter));
+        assertEq(revenueShareFactory.stakingRevenueRouter(), address(stakingRevenueRouter));
+        assertEq(
+            address(existingTokenRevenueFactory.stakingRevenueRouter()),
+            address(stakingRevenueRouter)
+        );
+        assertEq(
+            address(deferredAutolaunchFactory.stakingRevenueRouter()), address(stakingRevenueRouter)
+        );
+        assertEq(stakingRevenueRouter.regentRevenueStaking(), address(staking));
         assertTrue(revenueShareFactory.authorizedCreators(address(deferredAutolaunchFactory)));
         assertTrue(revenueIngressFactory.authorizedCreators(address(revenueShareFactory)));
         assertTrue(revenueIngressFactory.authorizedCreators(address(existingTokenRevenueFactory)));
@@ -73,7 +84,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
     function testDeploySupportsAnyConfiguredOwner() external {
         DeployAutolaunchInfraScript.ScriptConfig memory cfg =
             DeployAutolaunchInfraScript.ScriptConfig({
-                owner: DEPLOYER, usdc: USDC, protocolFeeRouter: address(feeRouter)
+                owner: DEPLOYER, usdc: USDC, regentRevenueStaking: address(staking)
             });
 
         (
@@ -81,7 +92,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
-            DeferredAutolaunchFactory deferredAutolaunchFactory,
+            DeferredAutolaunchFactory deferredAutolaunchFactory,,
             RegentLBPStrategyFactory strategyFactory
         ) = script.deploy(cfg);
 
@@ -96,19 +107,19 @@ contract DeployAutolaunchInfraScriptTest is Test {
     function testLoadConfigFromEnvReadsExplicitOwnerAndUsdc() external {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
-        vm.setEnv("REGENT_REVENUE_FEE_ROUTER_ADDRESS", vm.toString(address(feeRouter)));
+        vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
 
         DeployAutolaunchInfraScript.ScriptConfig memory cfg = script.loadConfigFromEnv();
 
         assertEq(cfg.owner, OWNER);
         assertEq(cfg.usdc, USDC);
-        assertEq(cfg.protocolFeeRouter, address(feeRouter));
+        assertEq(cfg.regentRevenueStaking, address(staking));
     }
 
     function testDeployFromEnvUsesLoadedConfig() external {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
-        vm.setEnv("REGENT_REVENUE_FEE_ROUTER_ADDRESS", vm.toString(address(feeRouter)));
+        vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
 
         (
             SubjectRegistry subjectRegistry,
@@ -116,7 +127,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
             RevenueShareFactory revenueShareFactory,
             RevenueIngressFactory revenueIngressFactory,
             PermissionlessExistingTokenRevenueFactory existingTokenRevenueFactory,
-            DeferredAutolaunchFactory deferredAutolaunchFactory,
+            DeferredAutolaunchFactory deferredAutolaunchFactory,,
             RegentLBPStrategyFactory strategyFactory
         ) = script.deployFromEnv();
 
@@ -137,7 +148,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
     function testRunUsesSingleBroadcastPath() external {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
-        vm.setEnv("REGENT_REVENUE_FEE_ROUTER_ADDRESS", vm.toString(address(feeRouter)));
+        vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
 
         script.run();
     }
@@ -145,7 +156,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
     function testValidateConfigRejectsWrongBaseSepoliaUsdc() external {
         DeployAutolaunchInfraScript.ScriptConfig memory cfg =
             DeployAutolaunchInfraScript.ScriptConfig({
-                owner: OWNER, usdc: address(0xC0FFEE), protocolFeeRouter: address(feeRouter)
+                owner: OWNER, usdc: address(0xC0FFEE), regentRevenueStaking: address(staking)
             });
 
         vm.expectRevert("USDC_NOT_CANONICAL");
@@ -156,7 +167,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.chainId(1);
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
-        vm.setEnv("REGENT_REVENUE_FEE_ROUTER_ADDRESS", vm.toString(address(feeRouter)));
+        vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
 
         vm.expectRevert("BASE_CHAIN_ONLY");
         script.loadConfigFromEnv();

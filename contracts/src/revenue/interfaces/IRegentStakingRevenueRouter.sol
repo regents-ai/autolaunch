@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-interface IRegentRevenueFeeRouter {
+interface IRegentStakingRevenueRouter {
     function usdc() external view returns (address);
-    function regent() external view returns (address);
+    function regentRevenueStaking() external view returns (address);
     function protocolSkimBps() external view returns (uint16);
 
     function processProtocolFee(
@@ -11,5 +11,5 @@ interface IRegentRevenueFeeRouter {
         address subjectTreasury,
         uint256 usdcAmount,
         bytes32 sourceRef
-    ) external returns (uint256 regentOwed, uint256 regentBought);
+    ) external returns (uint256 depositedUsdc);
 }

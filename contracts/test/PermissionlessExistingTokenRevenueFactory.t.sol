@@ -14,7 +14,7 @@ import {
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
-import {MockRegentRevenueFeeRouter} from "test/mocks/MockRegentRevenueFeeRouter.sol";
+import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 
 contract NoTotalSupplyToken {}
 
@@ -29,7 +29,7 @@ contract PermissionlessExistingTokenRevenueFactoryTest is Test {
     MintableERC20Mock internal stakeToken;
     SubjectRegistry internal subjectRegistry;
     RevenueIngressFactory internal ingressFactory;
-    MockRegentRevenueFeeRouter internal feeRouter;
+    MockRegentStakingRevenueRouter internal feeRouter;
     PermissionlessExistingTokenRevenueFactory internal factory;
 
     function setUp() external {
@@ -38,7 +38,7 @@ contract PermissionlessExistingTokenRevenueFactoryTest is Test {
         stakeToken.mint(address(0x9999), 1000e18);
         subjectRegistry = new SubjectRegistry(OWNER);
         ingressFactory = new RevenueIngressFactory(address(usdc), address(subjectRegistry), OWNER);
-        feeRouter = new MockRegentRevenueFeeRouter(address(usdc), address(0x8888));
+        feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         factory = new PermissionlessExistingTokenRevenueFactory(
             OWNER, address(usdc), address(ingressFactory), subjectRegistry, feeRouter
         );

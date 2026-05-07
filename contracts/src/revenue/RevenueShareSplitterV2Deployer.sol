@@ -11,7 +11,7 @@ contract RevenueShareSplitterV2Deployer {
         address subjectRegistry,
         bytes32 subjectId,
         address treasuryRecipient,
-        address feeRouter,
+        address stakingRevenueRouter,
         uint256 revenueShareSupplyDenominator,
         string calldata label,
         address owner
@@ -24,7 +24,7 @@ contract RevenueShareSplitterV2Deployer {
                 subjectRegistry,
                 subjectId,
                 treasuryRecipient,
-                feeRouter,
+                stakingRevenueRouter,
                 revenueShareSupplyDenominator,
                 label,
                 owner

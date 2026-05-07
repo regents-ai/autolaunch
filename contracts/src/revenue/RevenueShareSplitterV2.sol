@@ -13,7 +13,7 @@ import {
     IRevenueIngressFactoryMinimal
 } from "src/revenue/interfaces/IRevenueIngressFactoryMinimal.sol";
 import {IRevenueShareSplitter} from "src/revenue/interfaces/IRevenueShareSplitter.sol";
-import {IRegentRevenueFeeRouter} from "src/revenue/interfaces/IRegentRevenueFeeRouter.sol";
+import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {ISubjectLifecycleSync} from "src/revenue/interfaces/ISubjectLifecycleSync.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
 
@@ -41,7 +41,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     address public immutable subjectRegistry;
     bytes32 public immutable override subjectId;
     uint256 public immutable revenueShareSupplyDenominator;
-    IRegentRevenueFeeRouter public immutable feeRouter;
+    IRegentStakingRevenueRouter public immutable stakingRevenueRouter;
 
     string public label;
     address public override treasuryRecipient;
@@ -60,8 +60,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     uint256 public treasuryResidualUsdc;
     uint256 public treasuryReservedUsdc;
     uint256 public protocolFeeUsdc;
-    uint256 public totalRegentEmissionOwed;
-    uint256 public totalRegentBought;
+    uint256 public totalProtocolUsdcDepositedToRegentStaking;
     uint256 public undistributedDustUsdc;
     uint256 public totalUsdcReceived;
     uint256 public directDepositUsdc;
@@ -136,7 +135,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
         address subjectRegistry_,
         bytes32 subjectId_,
         address treasuryRecipient_,
-        address feeRouter_,
+        address stakingRevenueRouter_,
         uint256 revenueShareSupplyDenominator_,
         string memory label_,
         address owner_
@@ -149,10 +148,13 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
         require(subjectId_ != bytes32(0), "SUBJECT_ZERO");
         require(treasuryRecipient_ != address(0), "TREASURY_ZERO");
         require(treasuryRecipient_ != address(this), "TREASURY_IS_SELF");
-        require(feeRouter_ != address(0), "FEE_ROUTER_ZERO");
+        require(stakingRevenueRouter_ != address(0), "STAKING_ROUTER_ZERO");
         require(owner_ != address(0), "OWNER_ZERO");
         require(revenueShareSupplyDenominator_ != 0, "SUPPLY_DENOMINATOR_ZERO");
-        require(IRegentRevenueFeeRouter(feeRouter_).usdc() == usdc_, "FEE_ROUTER_USDC_MISMATCH");
+        require(
+            IRegentStakingRevenueRouter(stakingRevenueRouter_).usdc() == usdc_,
+            "STAKING_ROUTER_USDC_MISMATCH"
+        );
 
         stakeToken = stakeToken_;
         usdc = usdc_;
@@ -162,7 +164,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
         revenueShareSupplyDenominator = revenueShareSupplyDenominator_;
         treasuryRecipient = treasuryRecipient_;
         treasuryRotationDelay = DEFAULT_TREASURY_ROTATION_DELAY;
-        feeRouter = IRegentRevenueFeeRouter(feeRouter_);
+        stakingRevenueRouter = IRegentStakingRevenueRouter(stakingRevenueRouter_);
         label = label_;
         eligibleRevenueShareBps = DEFAULT_ELIGIBLE_REVENUE_SHARE_BPS;
     }
@@ -195,7 +197,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     }
 
     function protocolRecipient() external view override returns (address) {
-        return address(feeRouter);
+        return address(stakingRevenueRouter);
     }
 
     function setPaused(bool paused_) external onlyOwner {
@@ -514,7 +516,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     ) internal {
         require(received > 0, "NOTHING_RECEIVED");
         uint256 protocolAmount =
-            FullMath.mulDiv(received, feeRouter.protocolSkimBps(), BPS_DENOMINATOR);
+            FullMath.mulDiv(received, stakingRevenueRouter.protocolSkimBps(), BPS_DENOMINATOR);
         uint256 net = received - protocolAmount;
         uint256 treasuryReservedAmount =
             FullMath.mulDiv(net, BPS_DENOMINATOR - shareBps, BPS_DENOMINATOR);
@@ -556,12 +558,11 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
         }
 
         if (protocolAmount > 0) {
-            usdc.safeTransfer(address(feeRouter), protocolAmount);
-            (uint256 owed, uint256 bought) = feeRouter.processProtocolFee(
+            usdc.safeTransfer(address(stakingRevenueRouter), protocolAmount);
+            uint256 depositedUsdc = stakingRevenueRouter.processProtocolFee(
                 subjectId, treasuryRecipient, protocolAmount, sourceRef
             );
-            totalRegentEmissionOwed += owed;
-            totalRegentBought += bought;
+            totalProtocolUsdcDepositedToRegentStaking += depositedUsdc;
         }
 
         emit USDCRevenueDeposited(
