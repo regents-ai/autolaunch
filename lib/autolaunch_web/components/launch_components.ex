@@ -237,7 +237,14 @@ defmodule AutolaunchWeb.LaunchComponents do
   slot :inner_block, required: true
 
   def wallet_tx_button(assigns) do
-    assigns = assign(assigns, :encoded_register_body, Jason.encode!(assigns.register_body))
+    approval = Map.get(assigns.wallet_action, :approval)
+    expected_signer = Map.get(assigns.wallet_action, :expected_signer)
+
+    assigns =
+      assigns
+      |> assign(:encoded_register_body, Jason.encode!(assigns.register_body))
+      |> assign(:encoded_approval, Jason.encode!(approval || %{}))
+      |> assign(:expected_signer, expected_signer)
 
     ~H"""
     <button
@@ -249,6 +256,8 @@ defmodule AutolaunchWeb.LaunchComponents do
       data-to={@wallet_action.to}
       data-data={@wallet_action.data}
       data-value={@wallet_action.value}
+      data-expected-signer={@expected_signer}
+      data-approval={@encoded_approval}
       data-register-endpoint={@register_endpoint}
       data-register-body={@encoded_register_body}
       data-pending-message={@pending_message}

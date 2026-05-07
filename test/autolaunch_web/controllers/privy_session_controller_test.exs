@@ -87,6 +87,34 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
            } = Accounts.get_human_by_privy_id("privy-autolaunch-user")
   end
 
+  test "POST /v1/auth/privy/session accepts escaped Privy verification keys",
+       %{conn: conn, privy: privy} do
+    Application.put_env(:autolaunch, :privy,
+      app_id: privy.app_id,
+      verification_key: String.replace(privy.public_pem, "\n", "\\n")
+    )
+
+    wallet_address = cast_wallet_address!(@test_wallet_private_key) |> String.downcase()
+
+    conn =
+      conn
+      |> csrf_json_conn()
+      |> with_privy_bearer("privy-autolaunch-escaped-key", privy.app_id, privy.private_pem)
+      |> post("/v1/auth/privy/session", %{
+        "display_name" => "Escaped Key User",
+        "wallet_address" => wallet_address,
+        "wallet_addresses" => [wallet_address]
+      })
+
+    assert %{
+             "ok" => true,
+             "human" => %{
+               "privy_user_id" => "privy-autolaunch-escaped-key",
+               "wallet_address" => ^wallet_address
+             }
+           } = json_response(conn, 200)
+  end
+
   test "POST /v1/auth/privy/xmtp/complete stores the room identity and returns a ready session",
        %{conn: conn, privy: privy} do
     wallet_address = cast_wallet_address!(@test_wallet_private_key) |> String.downcase()

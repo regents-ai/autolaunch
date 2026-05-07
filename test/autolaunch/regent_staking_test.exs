@@ -92,6 +92,11 @@ defmodule Autolaunch.RegentStakingTest do
     assert prepared.wallet_action.chain_id == @base_sepolia_chain_id
     assert prepared.wallet_action.to == @contract
     assert String.starts_with?(prepared.wallet_action.data, "0x7acb7757")
+    assert prepared.approval.token == @stake_token
+    assert prepared.approval.spender == @contract
+    assert prepared.approval.amount == "1500000000000000000"
+    assert String.starts_with?(prepared.approval.data, "0x095ea7b3")
+    assert prepared.wallet_action.approval == prepared.approval
   end
 
   test "stake can prepare for a different receiving wallet", %{human: human} do

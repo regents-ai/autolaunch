@@ -22,14 +22,24 @@ defmodule AutolaunchWeb.Layouts do
       |> assign(:wallet_label, wallet_label(assigns.current_human))
       |> assign(:wallet_address, wallet_address(assigns.current_human))
       |> assign(:wallet_explorer_href, wallet_explorer_href(assigns.current_human))
+      |> assign(:wallet_bridge_config, wallet_bridge_config())
       |> assign(:regent_status, RegentStatus.snapshot(assigns.current_human))
+      |> assign(:notification_count, 0)
       |> assign(:command_entries, command_entries())
-      |> assign(:docs_href, ~p"/how-auctions-work")
+      |> assign(:docs_href, ~p"/docs")
       |> assign(:terms_href, ~p"/terms")
       |> assign(:privacy_href, ~p"/privacy")
 
     ~H"""
     <div id="autolaunch-root-shell" class="al-shell-root rg-regent-theme-autolaunch" phx-hook="ShellChrome">
+      <div
+        id="autolaunch-privy-bridge"
+        phx-hook="AutolaunchPrivyBridge"
+        phx-update="ignore"
+        data-autolaunch-config={@wallet_bridge_config}
+      >
+      </div>
+
       <LaunchComponents.welcome_modal />
       <LaunchComponents.wallet_switch_modal wallet_switch={@wallet_switch} />
 
@@ -52,6 +62,8 @@ defmodule AutolaunchWeb.Layouts do
               :for={item <- @nav_items}
               navigate={item.href}
               class={["al-shell-nav-link", @active_section == item.id && "is-active"]}
+              data-nav-section={item.id}
+              aria-current={@active_section == item.id && "page"}
             >
               <.shell_icon name={item.icon} class="al-shell-nav-icon" />
               <span>{item.label}</span>
@@ -105,13 +117,17 @@ defmodule AutolaunchWeb.Layouts do
                 <button
                   type="button"
                   tabindex="0"
-                  class="btn btn-ghost btn-circle al-shell-icon-button"
+                  class="btn btn-ghost btn-circle al-shell-icon-button al-shell-notification-button"
                   aria-label="Notifications"
                   title="Notifications"
                 >
                   <span class="indicator">
                     <.shell_icon name="bell" />
-                    <span class="indicator-item badge badge-primary badge-xs al-shell-notice-dot"></span>
+                    <span
+                      :if={@notification_count > 0}
+                      class="indicator-item badge badge-primary badge-xs al-shell-notice-dot"
+                    >
+                    </span>
                   </span>
                 </button>
                 <div
@@ -127,11 +143,12 @@ defmodule AutolaunchWeb.Layouts do
               </div>
 
               <div
-                id="privy-auth"
+                id="autolaunch-wallet"
                 class="al-shell-wallet"
-                phx-hook="PrivyAuth"
-                data-privy-app-id={privy_app_id()}
-                data-session-state={if @current_human, do: "present", else: "missing"}
+                phx-hook="AutolaunchWallet"
+                data-autolaunch-config={@wallet_bridge_config}
+                data-wallet-signed-in={if @current_human, do: "true", else: "false"}
+                data-wallet-address={@wallet_address}
               >
                 <%= if @current_human do %>
                   <div class="dropdown dropdown-end">
@@ -142,7 +159,7 @@ defmodule AutolaunchWeb.Layouts do
                       aria-label="Wallet menu"
                     >
                       <span class="al-shell-wallet-avatar"></span>
-                      <strong data-privy-state>{@wallet_label}</strong>
+                      <strong data-wallet-label>{@wallet_label}</strong>
                       <.shell_icon name="chevron-down" class="al-shell-wallet-caret" />
                     </button>
 
@@ -153,10 +170,17 @@ defmodule AutolaunchWeb.Layouts do
                       <div class="al-shell-wallet-summary">
                         <span class="al-shell-wallet-avatar is-large"></span>
                         <div>
-                          <strong>{@wallet_label}</strong>
+                          <strong data-wallet-label>{@wallet_label}</strong>
                           <p>{@wallet_address}</p>
                         </div>
                       </div>
+
+                      <p
+                        class="al-shell-wallet-notice"
+                        data-wallet-notice
+                        hidden
+                      >
+                      </p>
 
                       <ul class="menu menu-sm gap-1 px-0">
                         <li :if={@wallet_explorer_href}>
@@ -188,7 +212,7 @@ defmodule AutolaunchWeb.Layouts do
                           </.link>
                         </li>
                         <li class="mt-2 border-t border-base-300 pt-2">
-                          <button type="button" class="text-error" data-privy-action="toggle">
+                          <button type="button" class="text-error" data-wallet-disconnect>
                             <.shell_icon name="logout" class="al-shell-menu-icon" />
                             Disconnect
                           </button>
@@ -198,10 +222,11 @@ defmodule AutolaunchWeb.Layouts do
                   </div>
                 <% else %>
                   <div class="al-shell-wallet-connect">
-                    <span class="sr-only" data-privy-state>guest</span>
-                    <button type="button" class="btn al-shell-connect-button" data-privy-action="toggle">
+                    <span class="sr-only" data-wallet-label>Wallet</span>
+                    <button type="button" class="btn al-shell-connect-button" data-wallet-connect>
                       Connect wallet
                     </button>
+                    <p class="al-shell-wallet-notice" data-wallet-notice hidden></p>
                   </div>
                 <% end %>
               </div>
@@ -218,7 +243,7 @@ defmodule AutolaunchWeb.Layouts do
             <div class="al-shell-footer-brand">
               <.link navigate={~p"/"} class="al-shell-footer-logo">
                 <img
-                  src={~p"/regent/sigils/seal.svg"}
+                  src={~p"/images/autolaunchgreen.png"}
                   alt=""
                   aria-hidden="true"
                   width="38"
@@ -405,7 +430,7 @@ defmodule AutolaunchWeb.Layouts do
       %{id: "regent-staking", label: "$REGENT", href: ~p"/regent-staking", icon: "staking"},
       %{id: "profile", label: "Profile", href: ~p"/profile", icon: "profile"},
       %{id: "launch", label: "Launch", href: ~p"/launch", icon: "launch"},
-      %{id: "docs", label: "Docs", href: ~p"/how-auctions-work", icon: "docs"}
+      %{id: "docs", label: "Docs", href: ~p"/docs", icon: "docs"}
     ]
   end
 
@@ -440,9 +465,9 @@ defmodule AutolaunchWeb.Layouts do
         search: "launch agent regent cli prelaunch"
       },
       %{
-        label: "How auctions work",
+        label: "Docs",
         note: "Continuous clearing mechanics and follow-up",
-        href: ~p"/how-auctions-work",
+        href: ~p"/docs",
         mark: "DO",
         search: "docs guide auction continuous clearing mechanics"
       },
@@ -503,7 +528,7 @@ defmodule AutolaunchWeb.Layouts do
       "$REGENT Staking" -> "regent-staking"
       "Profile" -> "profile"
       "Launch" -> "launch"
-      "How auctions work" -> "docs"
+      "Docs" -> "docs"
       "Contracts" -> "docs"
       "Terms & Conditions" -> "docs"
       "Privacy Policy" -> "docs"
@@ -539,6 +564,13 @@ defmodule AutolaunchWeb.Layouts do
   defp privy_app_id do
     Application.get_env(:autolaunch, :privy, [])
     |> Keyword.get(:app_id, "")
+  end
+
+  defp wallet_bridge_config do
+    Jason.encode!(%{
+      privyAppId: privy_app_id(),
+      privySession: ~p"/v1/auth/privy/session"
+    })
   end
 
   defp footer_social_links(assigns) do

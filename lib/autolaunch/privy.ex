@@ -23,7 +23,11 @@ defmodule Autolaunch.Privy do
   def fetch_config do
     privy_config = Application.get_env(:autolaunch, :privy, [])
     app_id = Keyword.get(privy_config, :app_id)
-    verification_key = Keyword.get(privy_config, :verification_key)
+
+    verification_key =
+      privy_config
+      |> Keyword.get(:verification_key)
+      |> decode_pem_newlines()
 
     if is_binary(app_id) and app_id != "" and is_binary(verification_key) and
          verification_key != "" do
@@ -31,6 +35,14 @@ defmodule Autolaunch.Privy do
     else
       {:error, :missing_privy_config}
     end
+  end
+
+  defp decode_pem_newlines(nil), do: nil
+
+  defp decode_pem_newlines(value) when is_binary(value) do
+    value
+    |> String.replace("\\r\\n", "\n")
+    |> String.replace("\\n", "\n")
   end
 
   defp validate_issuer(%{"iss" => "privy.io"}), do: :ok

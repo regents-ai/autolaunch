@@ -6,12 +6,16 @@
     "strict": true,
     "isolatedModules": true,
     "esModuleInterop": true,
+    "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "allowJs": true,
-    "noEmit": true
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node", "react", "react-dom"]
   },
   "include": [
     "js/**/*.ts",
+    "js/**/*.tsx",
     "js/**/*.d.ts",
     "vendor/**/*.d.ts"
   ]

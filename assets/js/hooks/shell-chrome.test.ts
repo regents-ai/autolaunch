@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { afterEach, beforeEach, describe, it } from "node:test"
 
-import { ShellChrome } from "./shell-chrome.ts"
+import { activeSectionForPath, ShellChrome, syncActiveShellRoute } from "./shell-chrome.ts"
 
 class FakeClassList {
   private values = new Set<string>()
@@ -25,6 +25,7 @@ class FakeElement {
   classList = new FakeClassList()
   parent: FakeElement | null = null
   style = {} as CSSStyleDeclaration
+  attributes: Record<string, string> = {}
 
   constructor(dataset: Record<string, string> = {}, textContent = "") {
     this.dataset = dataset
@@ -51,10 +52,19 @@ class FakeElement {
 
     return null
   }
+
+  setAttribute(name: string, value: string) {
+    this.attributes[name] = value
+  }
+
+  removeAttribute(name: string) {
+    delete this.attributes[name]
+  }
 }
 
 class FakeRoot extends FakeElement {
   private clickHandlers = new Set<(event: Event) => void>()
+  navLinks: FakeElement[] = []
 
   addEventListener(eventName: string, handler: (event: Event) => void) {
     if (eventName === "click") this.clickHandlers.add(handler)
@@ -73,6 +83,11 @@ class FakeRoot extends FakeElement {
     }
 
     return false
+  }
+
+  querySelectorAll<T extends FakeElement>(selector: string): T[] {
+    if (selector === "[data-nav-section]") return this.navLinks as T[]
+    return []
   }
 
   click(target: FakeElement) {
@@ -148,6 +163,7 @@ describe("shell-chrome hook", () => {
       },
       setTimeout,
       clearTimeout,
+      location: { pathname: "/" },
     } as unknown as Window & typeof globalThis
     Object.defineProperty(globalThis.navigator, "clipboard", {
       configurable: true,
@@ -210,5 +226,28 @@ describe("shell-chrome hook", () => {
     root.click(button)
 
     assert.deepEqual(copiedValues, [])
+  })
+
+  it("maps routes to the active sidebar section", () => {
+    assert.equal(activeSectionForPath("/"), "home")
+    assert.equal(activeSectionForPath("/docs"), "docs")
+    assert.equal(activeSectionForPath("/auctions/auc_1"), "auctions")
+    assert.equal(activeSectionForPath("/launch-via-agent"), "launch")
+    assert.equal(activeSectionForPath("/ens-link"), "profile")
+  })
+
+  it("updates sidebar active state from the browser path", () => {
+    const root = new FakeRoot()
+    const launch = new FakeElement({ navSection: "launch" }, "Launch")
+    const docs = new FakeElement({ navSection: "docs" }, "Docs")
+    launch.classList.add("is-active")
+    root.navLinks = [launch, docs]
+
+    syncActiveShellRoute(root as unknown as HTMLElement, "/docs")
+
+    assert.equal(launch.classList.contains("is-active"), false)
+    assert.equal(docs.classList.contains("is-active"), true)
+    assert.equal(docs.attributes["aria-current"], "page")
+    assert.equal(launch.attributes["aria-current"], undefined)
   })
 })

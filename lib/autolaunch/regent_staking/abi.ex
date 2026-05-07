@@ -20,6 +20,7 @@ defmodule Autolaunch.RegentStaking.Abi do
     total_claimed_regent: "0x4cbf5721",
     revenue_share_supply_denominator: "0xe3961f2a",
     balance_of: "0x70a08231",
+    approve: "0x095ea7b3",
     stake: "0x7acb7757",
     unstake: "0x8381e182",
     claim_usdc: "0x42852610",
@@ -40,6 +41,9 @@ defmodule Autolaunch.RegentStaking.Abi do
 
   def encode_unstake(amount, recipient),
     do: encode_call(:unstake, [{:uint256, amount}, {:address, recipient}])
+
+  def encode_approve(spender, amount),
+    do: encode_call(:approve, [{:address, spender}, {:uint256, amount}])
 
   def encode_claim_usdc(recipient), do: encode_call(:claim_usdc, [{:address, recipient}])
   def encode_claim_regent(recipient), do: encode_call(:claim_regent, [{:address, recipient}])

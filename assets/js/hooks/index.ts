@@ -4,9 +4,11 @@ import { hooks as regentHooks } from "../regent"
 import { AgentBookFlow } from "./agentbook-flow"
 import { AutolaunchXmtpRoom } from "./autolaunch-xmtp-room"
 import { AuctionsMarketMotion } from "./auctions-market-motion"
+import { AutolaunchPrivyBridge } from "./wallet-bridge-privy-root"
+import { AutolaunchWallet } from "./autolaunch-wallet"
 import { HomeHeroMotion } from "./home-hero-motion"
 import { MissionMotion } from "./mission-motion"
-import { PrivyAuth } from "./privy-auth"
+import { RegentStakingHook } from "./regent-staking"
 import { ShellChrome } from "./shell-chrome"
 import { WalletSwitchModal } from "./wallet-switch-modal"
 import { WelcomeModal } from "./welcome-modal"
@@ -17,10 +19,12 @@ export const hooks: HooksOptions = {
   ...regentHooks,
   AgentBookFlow,
   AutolaunchXmtpRoom,
+  AutolaunchPrivyBridge,
+  AutolaunchWallet,
   AuctionsMarketMotion,
   HomeHeroMotion,
   MissionMotion,
-  PrivyAuth,
+  RegentStaking: RegentStakingHook,
   ShellChrome,
   WalletSwitchModal,
   WelcomeModal,

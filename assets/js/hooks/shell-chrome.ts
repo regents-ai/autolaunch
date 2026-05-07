@@ -12,6 +12,7 @@ interface ShellRoot extends HTMLElement {
   _shellChromeKeydown?: (event: KeyboardEvent) => void
   _shellChromeInput?: (event: Event) => void
   _shellChromeSubmit?: (event: Event) => void
+  _shellChromeRoute?: () => void
 }
 
 interface CopyButton extends HTMLElement {
@@ -81,6 +82,54 @@ function commandItems(root: HTMLElement): HTMLElement[] {
 
 function queryActions(root: HTMLElement): HTMLAnchorElement[] {
   return Array.from(root.querySelectorAll<HTMLAnchorElement>("[data-command-query-action]"))
+}
+
+export function activeSectionForPath(pathname: string): string | null {
+  const normalized = pathname === "" ? "/" : pathname
+
+  if (normalized === "/") return "home"
+  if (normalized === "/auctions" || normalized.startsWith("/auctions/")) return "auctions"
+  if (normalized === "/auction-returns" || normalized.startsWith("/subjects/")) return "auctions"
+  if (normalized === "/positions") return "positions"
+  if (normalized === "/regent-staking") return "regent-staking"
+  if (
+    normalized === "/profile" ||
+    normalized === "/agentbook" ||
+    normalized === "/ens-link" ||
+    normalized === "/x-link"
+  ) {
+    return "profile"
+  }
+  if (normalized === "/launch" || normalized === "/launch-via-agent") return "launch"
+  if (
+    normalized === "/docs" ||
+    normalized === "/contracts" ||
+    normalized === "/terms" ||
+    normalized === "/privacy" ||
+    normalized === "/status"
+  ) {
+    return "docs"
+  }
+
+  return null
+}
+
+export function syncActiveShellRoute(root: HTMLElement, pathname = window.location.pathname): void {
+  const activeSection = activeSectionForPath(pathname)
+  const navLinks = Array.from(root.querySelectorAll<HTMLElement>("[data-nav-section]"))
+
+  navLinks.forEach((link) => {
+    const isActive = activeSection !== null && link.dataset.navSection === activeSection
+
+    if (isActive) {
+      link.classList.add("is-active")
+      link.setAttribute("aria-current", "page")
+      return
+    }
+
+    link.classList.remove("is-active")
+    link.removeAttribute("aria-current")
+  })
 }
 
 function openCommandPalette(root: HTMLElement): void {
@@ -165,6 +214,8 @@ export const ShellChrome: Hook = {
   mounted() {
     const root = this.el as ShellRoot
     root.dataset.shellChromeRoot = "true"
+    root._shellChromeRoute = () => syncActiveShellRoute(root)
+    root._shellChromeRoute()
 
     root._shellChromeClick = (event: Event) => {
       const target = event.target as HTMLElement | null
@@ -231,6 +282,8 @@ export const ShellChrome: Hook = {
 
     if (typeof window.addEventListener === "function") {
       window.addEventListener("keydown", root._shellChromeKeydown)
+      window.addEventListener("phx:page-loading-stop", root._shellChromeRoute)
+      window.addEventListener("popstate", root._shellChromeRoute)
     }
   },
 
@@ -251,6 +304,11 @@ export const ShellChrome: Hook = {
 
     if (root._shellChromeKeydown && typeof window.removeEventListener === "function") {
       window.removeEventListener("keydown", root._shellChromeKeydown)
+    }
+
+    if (root._shellChromeRoute && typeof window.removeEventListener === "function") {
+      window.removeEventListener("phx:page-loading-stop", root._shellChromeRoute)
+      window.removeEventListener("popstate", root._shellChromeRoute)
     }
 
     delete root.dataset.shellChromeRoot

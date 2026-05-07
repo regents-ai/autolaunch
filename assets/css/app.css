@@ -32,31 +32,34 @@
   --al-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --al-bg:
     radial-gradient(
-      circle at 14% 10%,
-      color-mix(in srgb, var(--brand-primary) 12%, transparent),
-      transparent 32%
+      circle at 12% 8%,
+      color-mix(in srgb, var(--brand-primary) 16%, transparent),
+      transparent 34%
     ),
     radial-gradient(
-      circle at 86% 8%,
-      color-mix(in srgb, var(--brand-accent) 14%, transparent),
-      transparent 28%
+      circle at 90% 10%,
+      color-mix(in srgb, #d7f6df 56%, transparent),
+      transparent 30%
     ),
+    radial-gradient(circle at 52% 112%, rgba(238, 246, 218, 0.72), transparent 42%),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-bg) 90%, white) 0%,
-      var(--color-bg) 48%,
-      var(--color-bg-alt) 100%
+      #fbf7ea 0%,
+      #f6f1e3 48%,
+      #edf8ed 100%
     );
-  --al-panel: color-mix(in srgb, white 84%, var(--color-bg) 16%);
-  --al-panel-strong: color-mix(in srgb, white 92%, var(--color-bg) 8%);
+  --al-panel: color-mix(in srgb, #fffaf0 86%, var(--brand-primary) 14%);
+  --al-panel-strong: color-mix(in srgb, #fffdf6 90%, var(--brand-primary) 10%);
   --al-component-border: color-mix(in srgb, #087f78 24%, var(--al-border) 76%);
   --al-component-background:
-    radial-gradient(120% 88% at 8% 0%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.42) 36%, transparent 62%),
-    radial-gradient(96% 78% at 98% 100%, rgba(25, 181, 165, 0.22) 0%, rgba(25, 181, 165, 0.1) 42%, transparent 68%),
-    linear-gradient(128deg, rgba(247, 255, 251, 0.98) 0%, rgba(218, 253, 244, 0.96) 35%, rgba(177, 241, 230, 0.9) 66%, rgba(235, 255, 247, 0.98) 100%);
+    radial-gradient(116% 88% at 8% 0%, rgba(255, 252, 244, 0.96) 0%, rgba(255, 252, 244, 0.5) 38%, transparent 64%),
+    radial-gradient(86% 72% at 96% 6%, rgba(186, 239, 207, 0.34) 0%, rgba(186, 239, 207, 0.13) 42%, transparent 72%),
+    radial-gradient(90% 78% at 100% 100%, rgba(25, 181, 165, 0.16) 0%, rgba(25, 181, 165, 0.06) 44%, transparent 72%),
+    linear-gradient(128deg, rgba(255, 252, 244, 0.98) 0%, rgba(247, 242, 226, 0.96) 44%, rgba(232, 249, 235, 0.94) 100%);
   --al-component-background-strong:
-    radial-gradient(112% 92% at 6% 0%, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.3) 48%, transparent 68%),
-    linear-gradient(136deg, rgba(255, 255, 255, 0.78) 0%, rgba(216, 253, 244, 0.84) 48%, rgba(170, 238, 228, 0.74) 100%);
+    radial-gradient(112% 92% at 6% 0%, rgba(255, 253, 247, 0.88) 0%, rgba(255, 253, 247, 0.38) 48%, transparent 68%),
+    radial-gradient(90% 72% at 96% 8%, rgba(166, 232, 197, 0.22) 0%, transparent 62%),
+    linear-gradient(136deg, rgba(255, 252, 243, 0.86) 0%, rgba(244, 238, 220, 0.84) 44%, rgba(224, 247, 230, 0.8) 100%);
   --al-border: color-mix(in srgb, var(--brand-ink) 14%, transparent);
   --al-text: var(--color-fg);
   --al-muted: color-mix(in srgb, var(--color-fg) 68%, var(--color-bg) 32%);
@@ -187,8 +190,10 @@ textarea {
   grid-template-columns: minmax(15rem, 17.5rem) minmax(0, 1fr);
   border: 1px solid color-mix(in srgb, var(--al-border) 90%, white 10%);
   border-radius: 2rem;
-  background: color-mix(in srgb, white 78%, var(--color-bg) 22%);
-  box-shadow: 0 26px 80px -42px rgba(39, 67, 122, 0.24);
+  background:
+    radial-gradient(circle at 88% 6%, rgba(193, 237, 206, 0.38), transparent 28%),
+    linear-gradient(180deg, #fbf6e7 0%, #f4eedc 52%, #eef8ed 100%);
+  box-shadow: 0 28px 82px -42px rgba(47, 72, 48, 0.3);
   overflow: clip;
 }
 
@@ -198,8 +203,9 @@ textarea {
   gap: 1.5rem;
   padding: 1.1rem 1rem 1rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 249, 255, 0.92)),
-    color-mix(in srgb, white 86%, var(--brand-primary) 14%);
+    radial-gradient(circle at 18% 2%, rgba(188, 237, 207, 0.34), transparent 30%),
+    linear-gradient(180deg, rgba(255, 251, 242, 0.86), rgba(244, 238, 222, 0.92)),
+    color-mix(in srgb, #fff6e4 82%, var(--brand-primary) 18%);
   border-right: 1px solid color-mix(in srgb, var(--brand-primary) 10%, transparent);
 }
 
@@ -290,11 +296,14 @@ textarea {
   gap: 0.85rem;
   min-height: 3rem;
   padding: 0.78rem 0.95rem;
+  border: 1px solid transparent;
   border-radius: 1rem;
+  background: transparent;
   color: color-mix(in srgb, var(--al-text) 88%, transparent);
   text-decoration: none;
   transition:
     background-color 160ms ease,
+    border-color 160ms ease,
     color 160ms ease,
     transform 160ms ease;
 }
@@ -327,6 +336,13 @@ textarea {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--al-accent) 22%, transparent);
 }
 
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-nav-link:not(.is-active):not(:hover):not(:focus-visible) {
+  background: transparent;
+  border-color: transparent;
+  color: color-mix(in srgb, var(--brand-paper) 76%, transparent);
+  box-shadow: none;
+}
+
 .al-shell-nav-icon,
 .al-shell-search-icon svg,
 .al-shell-icon-button svg,
@@ -334,6 +350,17 @@ textarea {
   width: 1.05rem;
   height: 1.05rem;
   flex: none;
+}
+
+.al-shell-notification-button .indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.al-shell-notification-button svg {
+  width: 1.3125rem;
+  height: 1.3125rem;
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-search,
@@ -868,6 +895,26 @@ textarea {
   margin-bottom: 0.4rem;
 }
 
+.al-shell-wallet-notice {
+  margin: 0.45rem 0;
+  border: 1px solid color-mix(in srgb, var(--al-border) 78%, transparent);
+  border-radius: 0.85rem;
+  padding: 0.6rem 0.72rem;
+  color: var(--al-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.al-shell-wallet-notice[data-tone="error"] {
+  border-color: color-mix(in srgb, #b94b39 35%, transparent);
+  background: color-mix(in srgb, #b94b39 10%, transparent);
+  color: color-mix(in srgb, #b94b39 84%, var(--al-text) 16%);
+}
+
+.al-shell-wallet-notice[data-tone="info"] {
+  background: color-mix(in srgb, var(--brand-primary) 9%, transparent);
+}
+
 .al-shell-popover .menu li > a,
 .al-shell-popover .menu li > button {
   display: flex;
@@ -885,6 +932,9 @@ textarea {
 .al-shell-content {
   min-width: 0;
   padding: 1.1rem;
+  background:
+    radial-gradient(circle at 88% 6%, rgba(182, 236, 205, 0.24), transparent 30%),
+    radial-gradient(circle at 18% 96%, rgba(252, 243, 211, 0.5), transparent 34%);
 }
 
 .al-shell-route-host {
@@ -1406,6 +1456,102 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.22em;
   color: var(--al-muted);
+}
+
+.al-shell-route-host :is(
+  #home-dashboard-hero .al-kicker,
+  #home-action-rail .al-home-quick-actions > .al-kicker,
+  #launch-route-hero .al-kicker,
+  #launch-console-strip .al-launch-console-head .al-kicker,
+  #launch-split-layout .al-launch-path-card.is-agent .al-kicker,
+  #auctions-market .al-auctions-market-topline .al-kicker,
+  #auctions-list .al-auctions-list-head .al-kicker,
+  #auction-returns-hero .al-kicker,
+  .al-auction-returns-list .al-kicker,
+  #auction-detail-page-head .al-kicker,
+  .al-auction-detail-composer .al-kicker,
+  .al-auction-detail-position-card .al-auction-detail-card-head .al-kicker,
+  .al-positions-header-copy > .al-kicker,
+  .al-positions-table-topline .al-kicker,
+  .al-positions-activity-head .al-kicker,
+  .al-profile-header-copy > .al-kicker,
+  .al-profile-agent-card .al-kicker,
+  .al-profile-side-card:first-of-type .al-kicker,
+  #regent-staking-hero .al-kicker,
+  #regent-staking-page .al-regent-action-card:first-of-type .al-kicker,
+  .al-identity-header-copy > .al-kicker,
+  .al-identity-route > .al-hero .al-kicker,
+  .al-identity-route .al-main-panel .al-section-head:first-of-type .al-kicker,
+  #al-docs-page .al-docs-masthead .al-kicker,
+  #al-docs-page .al-legal-hero .al-kicker,
+  #al-docs-page #contracts-hero .al-kicker,
+  #al-docs-page .al-terrain-strip .al-kicker,
+  #al-docs-page .al-guide-hero .al-kicker,
+  #al-docs-page .al-section-head:first-of-type .al-kicker,
+  .al-status-hero .al-kicker
+) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46rem;
+}
+
+.al-shell-route-host :is(
+  #home-dashboard-hero .al-kicker,
+  #home-action-rail .al-home-quick-actions > .al-kicker,
+  #launch-route-hero .al-kicker,
+  #launch-console-strip .al-launch-console-head .al-kicker,
+  #launch-split-layout .al-launch-path-card.is-agent .al-kicker,
+  #auctions-market .al-auctions-market-topline .al-kicker,
+  #auctions-list .al-auctions-list-head .al-kicker,
+  #auction-returns-hero .al-kicker,
+  .al-auction-returns-list .al-kicker,
+  #auction-detail-page-head .al-kicker,
+  .al-auction-detail-composer .al-kicker,
+  .al-auction-detail-position-card .al-auction-detail-card-head .al-kicker,
+  .al-positions-header-copy > .al-kicker,
+  .al-positions-table-topline .al-kicker,
+  .al-positions-activity-head .al-kicker,
+  .al-profile-header-copy > .al-kicker,
+  .al-profile-agent-card .al-kicker,
+  .al-profile-side-card:first-of-type .al-kicker,
+  #regent-staking-hero .al-kicker,
+  #regent-staking-page .al-regent-action-card:first-of-type .al-kicker,
+  .al-identity-header-copy > .al-kicker,
+  .al-identity-route > .al-hero .al-kicker,
+  .al-identity-route .al-main-panel .al-section-head:first-of-type .al-kicker,
+  #al-docs-page .al-docs-masthead .al-kicker,
+  #al-docs-page .al-legal-hero .al-kicker,
+  #al-docs-page #contracts-hero .al-kicker,
+  #al-docs-page .al-terrain-strip .al-kicker,
+  #al-docs-page .al-guide-hero .al-kicker,
+  #al-docs-page .al-section-head:first-of-type .al-kicker,
+  .al-status-hero .al-kicker
+)::before {
+  content: "⋰";
+  display: inline-grid;
+  place-items: center;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--brand-primary) 82%, var(--brand-ink) 18%);
+  font-family: var(--al-font-display);
+  font-size: 1.05em;
+  line-height: 1;
+  letter-spacing: 0;
+  transform: translateY(-0.02em);
+}
+
+.al-shell-route-host :is(
+  .al-auctions-page-head h1,
+  .al-subject-heading-line h1
+)::before {
+  content: "⋰";
+  display: inline-block;
+  margin-right: 0.45rem;
+  color: color-mix(in srgb, var(--brand-primary) 76%, var(--brand-ink) 24%);
+  font-size: 0.72em;
+  line-height: 1;
+  transform: translateY(-0.04em);
 }
 
 .al-topnav,
@@ -5082,9 +5228,10 @@ textarea {
   border-color: color-mix(in srgb, var(--brand-ink) 10%, transparent);
   border-radius: 0.95rem;
   background:
-    radial-gradient(circle at 96% 4%, color-mix(in srgb, var(--brand-primary) 7%, transparent), transparent 26%),
-    linear-gradient(180deg, color-mix(in srgb, white 98%, var(--color-bg) 2%), color-mix(in srgb, white 93%, var(--color-bg) 7%));
-  box-shadow: 0 20px 48px -38px rgba(28, 51, 77, 0.22);
+    radial-gradient(circle at 96% 4%, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 28%),
+    radial-gradient(circle at 4% 100%, rgba(250, 235, 194, 0.42), transparent 34%),
+    linear-gradient(180deg, #fffaf0 0%, color-mix(in srgb, #f5efde 86%, var(--brand-primary) 14%) 100%);
+  box-shadow: 0 22px 52px -38px rgba(47, 72, 48, 0.26);
 }
 
 .al-shell-route-host :is(
@@ -5282,6 +5429,10 @@ textarea {
   .al-home-chat-form button
 ):active {
   transform: scale(0.975);
+}
+
+.al-home-chat-author-holder {
+  color: var(--brand-ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -6201,4 +6352,193 @@ textarea {
       inset 0 1px 0 rgba(255, 247, 223, 0.08),
       0 22px 48px -36px rgba(0, 0, 0, 0.95);
   }
+}
+
+/* Public beta readability pass: warmer light surfaces, Coinbase-like dark depth. */
+:root[data-brand="autolaunch"][data-theme="light"] {
+  --al-bg:
+    radial-gradient(circle at 12% 8%, rgba(40, 148, 96, 0.12), transparent 32%),
+    radial-gradient(circle at 90% 8%, rgba(199, 241, 213, 0.52), transparent 30%),
+    linear-gradient(180deg, #f5ecd7 0%, #efe6cf 48%, #e7f4e4 100%);
+  --al-panel: #efe8d4;
+  --al-panel-strong: #f4eedf;
+  --al-component-background:
+    radial-gradient(circle at 96% 4%, rgba(52, 168, 108, 0.11), transparent 30%),
+    linear-gradient(180deg, #f4eedf 0%, #eee4cc 100%);
+  --al-component-background-strong:
+    radial-gradient(circle at 96% 4%, rgba(52, 168, 108, 0.13), transparent 30%),
+    linear-gradient(180deg, #f6f0e1 0%, #eadfc4 100%);
+  --al-border: rgba(10, 54, 42, 0.17);
+  --al-text: #14372f;
+  --al-muted: #45685b;
+  --al-accent: #168a55;
+  --al-accent-strong: #0b6c43;
+  --al-accent-soft: rgba(22, 138, 85, 0.14);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] {
+  --al-bg:
+    radial-gradient(circle at 78% 0%, rgba(22, 138, 85, 0.16), transparent 28%),
+    radial-gradient(circle at 16% 96%, rgba(54, 96, 62, 0.18), transparent 34%),
+    linear-gradient(180deg, #020705 0%, #06100c 48%, #081811 100%);
+  --al-panel: #07140f;
+  --al-panel-strong: #0b1b14;
+  --al-component-background:
+    radial-gradient(circle at 96% 4%, rgba(65, 184, 117, 0.11), transparent 32%),
+    linear-gradient(180deg, rgba(12, 30, 22, 0.98), rgba(5, 14, 10, 0.98));
+  --al-component-background-strong:
+    radial-gradient(circle at 96% 4%, rgba(65, 184, 117, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(14, 36, 26, 0.98), rgba(6, 17, 12, 0.98));
+  --al-border: rgba(244, 236, 210, 0.17);
+  --al-text: #fff8e6;
+  --al-muted: rgba(255, 248, 230, 0.78);
+  --al-accent: #2e9f61;
+  --al-accent-strong: #bdf7d2;
+  --al-accent-soft: rgba(46, 159, 97, 0.2);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] .al-shell-frame {
+  background:
+    radial-gradient(circle at 88% 6%, rgba(186, 232, 196, 0.34), transparent 30%),
+    linear-gradient(180deg, #f1e8d2 0%, #eadfc6 52%, #e4f1df 100%);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] .al-shell-sidebar,
+:root[data-brand="autolaunch"][data-theme="light"] .al-shell-header,
+:root[data-brand="autolaunch"][data-theme="light"] .al-shell-footer {
+  background:
+    radial-gradient(circle at 92% 0%, rgba(64, 170, 105, 0.12), transparent 30%),
+    linear-gradient(180deg, #efe7d0 0%, #e8dec4 100%);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-frame {
+  border-color: rgba(244, 236, 210, 0.13);
+  background:
+    radial-gradient(circle at 86% 4%, rgba(46, 159, 97, 0.12), transparent 28%),
+    linear-gradient(180deg, #020705 0%, #06100c 100%);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-sidebar,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-header,
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-footer {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(46, 159, 97, 0.13), transparent 34%),
+    linear-gradient(180deg, #07140f 0%, #030a07 100%);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] .al-shell-content {
+  background:
+    radial-gradient(circle at 88% 4%, rgba(46, 159, 97, 0.1), transparent 28%),
+    radial-gradient(circle at 14% 96%, rgba(244, 236, 210, 0.05), transparent 32%),
+    #020705;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] :is(
+  .al-panel,
+  .al-action-desk,
+  .al-status-hero,
+  .al-status-check,
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button,
+  .al-command-dialog,
+  .al-shell-route-host :is(.al-regent-metric, .al-regent-action-card, .al-regent-addresses, .al-regent-empty, .al-stat-card, .al-review-card, .al-note-card, .al-muted-box, .al-empty-state, .al-check-item, .al-action-desk-stat)
+) {
+  border-color: rgba(10, 54, 42, 0.16);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(46, 159, 97, 0.1), transparent 30%),
+    linear-gradient(180deg, #f4eedf 0%, #eadfc4 100%);
+  color: #14372f;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] :is(
+  p,
+  span,
+  small,
+  label,
+  .al-kicker,
+  .al-subcopy,
+  .al-inline-note,
+  .al-muted-box,
+  .al-empty-state p,
+  .al-stat-card p,
+  .al-check-item p,
+  .al-review-card p,
+  .al-note-card p
+) {
+  color: #45685b;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] :is(h1, h2, h3, h4, strong, .al-shell-brand-name) {
+  color: #14372f;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(
+  .al-panel,
+  .al-action-desk,
+  .al-status-hero,
+  .al-status-check,
+  .al-command-dialog,
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-wallet-trigger,
+  .al-shell-connect-button,
+  .al-shell-route-host :is(.al-regent-metric, .al-regent-action-card, .al-regent-addresses, .al-regent-empty, .al-stat-card, .al-review-card, .al-note-card, .al-muted-box, .al-empty-state, .al-check-item, .al-action-desk-stat)
+) {
+  border-color: rgba(244, 236, 210, 0.15);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(46, 159, 97, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(12, 30, 22, 0.98), rgba(4, 12, 8, 0.98));
+  color: #fff8e6;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 230, 0.06),
+    0 28px 70px -48px rgba(0, 0, 0, 0.95);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(
+  p,
+  span,
+  small,
+  label,
+  .al-kicker,
+  .al-subcopy,
+  .al-inline-note,
+  .al-muted-box,
+  .al-empty-state p,
+  .al-stat-card p,
+  .al-check-item p,
+  .al-review-card p,
+  .al-note-card p
+) {
+  color: rgba(255, 248, 230, 0.78);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  strong,
+  .al-shell-brand-name,
+  .al-shell-nav-link,
+  .al-shell-footer-links a
+) {
+  color: #fff8e6;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(a, .al-inline-link) {
+  color: #bdf7d2;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(input, textarea, select) {
+  border-color: rgba(244, 236, 210, 0.16);
+  background: #06120d;
+  color: #fff8e6;
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(input::placeholder, textarea::placeholder) {
+  color: rgba(255, 248, 230, 0.62);
 }

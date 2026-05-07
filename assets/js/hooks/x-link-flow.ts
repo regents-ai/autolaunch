@@ -85,7 +85,7 @@ export const XLinkFlow: Hook = {
     const csrfToken =
       document.querySelector<HTMLMetaElement>("meta[name='csrf-token']")?.content?.trim() || ""
 
-    const privy = new Privy({ appId, clientId: appId, storage: new LocalStorage() })
+    const privy = new Privy({ appId, storage: new LocalStorage() })
 
     const startConnect = async () => {
       this.pushEvent("x_link_started", {})

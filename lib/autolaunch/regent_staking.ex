@@ -102,6 +102,9 @@ defmodule Autolaunch.RegentStaking do
          {:ok, wallet_address} <- required_wallet(current_human),
          {:ok, receiver} <- optional_receiver(attrs, wallet_address),
          {:ok, amount} <- parse_amount(Map.get(attrs, "amount"), @token_decimals) do
+      stake_token =
+        call_address(cfg.chain_id, cfg.contract_address, Abi.encode_call(:stake_token))
+
       {:ok,
        %{
          staking: compact_state(cfg, wallet_address),
@@ -114,7 +117,13 @@ defmodule Autolaunch.RegentStaking do
              to: cfg.contract_address,
              value_hex: "0x0",
              data: Abi.encode_stake(amount, receiver),
-             params: %{amount: Integer.to_string(amount), receiver: receiver}
+             params: %{amount: Integer.to_string(amount), receiver: receiver},
+             approval: %{
+               token: stake_token,
+               spender: cfg.contract_address,
+               amount: Integer.to_string(amount),
+               data: Abi.encode_approve(cfg.contract_address, amount)
+             }
            )
        }}
     end
@@ -482,7 +491,15 @@ defmodule Autolaunch.RegentStaking do
         expected_signer: wallet_address
       )
 
+    put_optional_approval(prepared, Map.get(request, :approval))
+  end
+
+  defp put_optional_approval(prepared, nil), do: prepared
+
+  defp put_optional_approval(prepared, approval) do
     prepared
+    |> Map.put(:approval, approval)
+    |> put_in([:wallet_action, :approval], approval)
   end
 
   defp parse_amount(value, decimals) when is_binary(value) do
