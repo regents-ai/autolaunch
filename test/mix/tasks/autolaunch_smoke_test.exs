@@ -29,6 +29,8 @@ defmodule Mix.Tasks.Autolaunch.SmokeTest do
         cca_tick_spacing_q96: "79228162514264337593543950336",
         cca_floor_price_q96: "79228162514264337593543950336",
         auction_duration_blocks: "9258",
+        cca_prebid_blocks: "0",
+        cca_final_block_bps: "3000",
         cca_start_block_offset: "300",
         cca_claim_block_offset: "64",
         lbp_migration_block_offset: "128",

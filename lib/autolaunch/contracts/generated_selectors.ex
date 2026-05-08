@@ -271,25 +271,6 @@ defmodule Autolaunch.Contracts.GeneratedSelectors do
       "transferOwnership(address)" => "0xf2fde38b",
       "usdc()" => "0x3e413bee"
     },
-    "RegentStakingRevenueRouter" => %{
-      "MAX_PROTOCOL_SKIM_BPS()" => "0x89dc6b12",
-      "acceptOwnership()" => "0x79ba5097",
-      "maxUsdcPerSettlement()" => "0x1c174ded",
-      "owner()" => "0x8da5cb5b",
-      "pendingOwner()" => "0xe30c3978",
-      "processProtocolFee(bytes32,address,uint256,bytes32)" => "0xa6486203",
-      "protocolSkimBps()" => "0xaf385b72",
-      "regentRevenueStaking()" => "0xf46cc260",
-      "rescueNative(address)" => "0xc8df4230",
-      "rescueUnsupportedToken(address,uint256,address)" => "0x032876d3",
-      "setMaxUsdcPerSettlement(uint256)" => "0x91a30f22",
-      "setProtocolSkimBps(uint16)" => "0x43c1cc0a",
-      "subjectRegistry()" => "0xf66b8774",
-      "totalUsdcDepositedToRegentStaking()" => "0xebdf247c",
-      "totalUsdcSettled()" => "0x04cb55ea",
-      "transferOwnership(address)" => "0xf2fde38b",
-      "usdc()" => "0x3e413bee"
-    },
     "RevenueShareSplitter" => %{
       "ACC_PRECISION()" => "0x32fcd966",
       "BPS_DENOMINATOR()" => "0xe1a45218",

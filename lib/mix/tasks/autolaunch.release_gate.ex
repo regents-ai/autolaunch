@@ -214,7 +214,7 @@ defmodule Mix.Tasks.Autolaunch.ReleaseGate do
     |> File.read!()
     |> String.split("\n")
     |> Enum.reduce([], fn line, acc ->
-      case Regex.run(~r/^\s+- (\/v1\/agent\/.+)$/, line) do
+      case Regex.run(~r/^\s+- (\/v1\/(?:agent|app)\/.+)$/, line) do
         [_, path] -> [path | acc]
         _ -> acc
       end

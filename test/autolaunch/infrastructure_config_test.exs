@@ -66,6 +66,22 @@ defmodule Autolaunch.InfrastructureConfigTest do
              "0x1111111111111111111111111111111111111111"
   end
 
+  test "validates launch script integer ranges" do
+    Application.put_env(:autolaunch, :launch, cca_final_block_bps: "4000")
+
+    assert InfrastructureConfig.valid_script_input?(
+             :cca_final_block_bps,
+             {:integer, min: 2_000, max: 4_000}
+           )
+
+    Application.put_env(:autolaunch, :launch, cca_final_block_bps: "4001")
+
+    refute InfrastructureConfig.valid_script_input?(
+             :cca_final_block_bps,
+             {:integer, min: 2_000, max: 4_000}
+           )
+  end
+
   test "production runtime uses pooled database URL settings" do
     runtime = File.read!(Path.join(@root, "config/runtime.exs"))
 

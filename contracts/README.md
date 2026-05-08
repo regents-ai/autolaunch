@@ -39,7 +39,7 @@ The canonical product rules live in `/Users/sean/Documents/regent/autolaunch/doc
 - `scripts/ExampleCCADeploymentScript.s.sol`
 - `scripts/DeployRegentRevenueStaking.s.sol`
 
-The launch script expects the active Base inputs, including `AUTOLAUNCH_TOKEN_FACTORY_ADDRESS`, `AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER`, `OFFICIAL_POOL_FEE`, and `OFFICIAL_POOL_TICK_SPACING`. `AUTOLAUNCH_TOKEN_FACTORY_ADDRESS` must point to a UERC20-compatible factory. Base Sepolia needs a deployed UERC20 factory for rehearsal because the documented upstream factory address does not currently have code there. The script builds the CCA token release schedule from `AUCTION_DURATION_BLOCKS`; `86400` Base Sepolia blocks is a 48-hour auction. `CCA_START_BLOCK_OFFSET=300` leaves about ten minutes for the staged broadcast to finish before bidding opens.
+The launch script expects the active Base inputs, including `AUTOLAUNCH_TOKEN_FACTORY_ADDRESS`, `AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER`, `OFFICIAL_POOL_FEE`, and `OFFICIAL_POOL_TICK_SPACING`. `AUTOLAUNCH_TOKEN_FACTORY_ADDRESS` must point to a UERC20-compatible factory. Base Sepolia needs a deployed UERC20 factory for rehearsal because the documented upstream factory address does not currently have code there. The script builds a normalized convex CCA token release schedule from `AUCTION_DURATION_BLOCKS`; `86400` Base Sepolia blocks is a 48-hour convex sale window, followed by the final one-block residual release. `CCA_PREBID_BLOCKS=0` and `CCA_FINAL_BLOCK_BPS=3000` are the defaults. `CCA_START_BLOCK_OFFSET=300` leaves about ten minutes for the staged broadcast to finish before bidding opens.
 
 Important script output markers stay unchanged:
 

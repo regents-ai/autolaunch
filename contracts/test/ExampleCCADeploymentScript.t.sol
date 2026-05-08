@@ -30,6 +30,16 @@ interface IUERC20LaunchToken {
     function tokenURI() external view returns (string memory);
 }
 
+contract ExampleCCADeploymentScriptHarness is ExampleCCADeploymentScript {
+    function convexAuctionStepsForTest(
+        uint256 durationBlocks,
+        uint256 prebidBlocks,
+        uint256 finalBlockBps
+    ) external pure returns (bytes memory) {
+        return _convexAuctionSteps(durationBlocks, prebidBlocks, finalBlockBps);
+    }
+}
+
 contract ExampleCCADeploymentScriptTest is Test {
     address internal constant AGENT_SAFE = address(0x4321);
     address internal constant REGENT_MULTISIG = address(0x9FA1);
@@ -42,6 +52,7 @@ contract ExampleCCADeploymentScriptTest is Test {
     uint256 internal constant CCA_FLOOR_PRICE_Q96 = 79_228_162_514_264_334_008_300;
 
     ExampleCCADeploymentScript internal script;
+    ExampleCCADeploymentScriptHarness internal scheduleHarness;
     MockContinuousClearingAuctionFactory internal auctionFactory;
     MockHookPoolManager internal poolManager;
     SubjectRegistry internal subjectRegistry;
@@ -54,6 +65,7 @@ contract ExampleCCADeploymentScriptTest is Test {
 
     function setUp() external {
         script = new ExampleCCADeploymentScript();
+        scheduleHarness = new ExampleCCADeploymentScriptHarness();
         vm.chainId(84_532);
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new MockHookPoolManager();
@@ -96,6 +108,9 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.setEnv("CCA_TICK_SPACING_Q96", vm.toString(CCA_TICK_SPACING_Q96));
         vm.setEnv("CCA_FLOOR_PRICE_Q96", vm.toString(CCA_FLOOR_PRICE_Q96));
         vm.setEnv("CCA_REQUIRED_CURRENCY_RAISED", "1000000000000000000");
+        vm.setEnv("AUCTION_DURATION_BLOCKS", "86400");
+        vm.setEnv("CCA_PREBID_BLOCKS", "0");
+        vm.setEnv("CCA_FINAL_BLOCK_BPS", "3000");
         vm.setEnv("CCA_CLAIM_BLOCK_OFFSET", "64");
         vm.setEnv("LBP_MIGRATION_BLOCK_OFFSET", "128");
         vm.setEnv("LBP_SWEEP_BLOCK_OFFSET", "256");
@@ -166,11 +181,9 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(parameters.requiredCurrencyRaised, 1 ether);
         assertEq(parameters.claimBlock, parameters.endBlock + 64);
         assertEq(parameters.validationHook, address(0));
-        assertEq(parameters.endBlock - parameters.startBlock, 86_400);
-        assertEq(
-            parameters.auctionStepsData,
-            abi.encodePacked(uint24(115), uint40(22_400), uint24(116), uint40(64_000))
-        );
+        assertEq(parameters.endBlock - parameters.startBlock, 86_401);
+        assertEq(parameters.auctionStepsData, _defaultConvexAuctionSteps());
+        _assertScheduleTotals(parameters.auctionStepsData, 86_401);
 
         assertEq(
             revenueIngressFactory.defaultIngressOfSubject(result.subjectId),
@@ -184,8 +197,86 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertFalse(strategyFactory.authorizedCreators(controller));
     }
 
+    function testDeployFromEnvPrependsPrebidBlocks() external view {
+        bytes memory steps = scheduleHarness.convexAuctionStepsForTest(86_400, 100, 3000);
+        assertEq(steps, abi.encodePacked(uint24(0), uint40(100), _defaultConvexAuctionSteps()));
+        _assertScheduleTotals(steps, 86_501);
+    }
+
+    function testDeployFromEnvAcceptsFinalBlockBpsBounds() external view {
+        _assertFinalBlockBpsAccepted(2000);
+        _assertFinalBlockBpsAccepted(3000);
+        _assertFinalBlockBpsAccepted(4000);
+    }
+
+    function testDeployFromEnvRejectsFinalBlockBpsBelowRange() external {
+        vm.expectRevert("CCA_FINAL_BLOCK_BPS_INVALID");
+        scheduleHarness.convexAuctionStepsForTest(86_400, 0, 1999);
+    }
+
+    function testDeployFromEnvRejectsFinalBlockBpsAboveRange() external {
+        vm.expectRevert("CCA_FINAL_BLOCK_BPS_INVALID");
+        scheduleHarness.convexAuctionStepsForTest(86_400, 0, 4001);
+    }
+
     function _setEnvAddress(string memory key, address value) internal {
         vm.setEnv(key, vm.toString(value));
+    }
+
+    function _assertFinalBlockBpsAccepted(uint256 finalBlockBps) internal view {
+        bytes memory steps = scheduleHarness.convexAuctionStepsForTest(86_400, 0, finalBlockBps);
+        _assertScheduleTotals(steps, 86_401);
+    }
+
+    function _defaultConvexAuctionSteps() internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint24(54),
+            uint40(10_894),
+            uint24(68),
+            uint40(8517),
+            uint24(75),
+            uint40(7803),
+            uint24(79),
+            uint40(7373),
+            uint24(83),
+            uint40(7068),
+            uint24(85),
+            uint40(6835),
+            uint24(88),
+            uint40(6647),
+            uint24(90),
+            uint40(6490),
+            uint24(92),
+            uint40(6356),
+            uint24(94),
+            uint40(6238),
+            uint24(95),
+            uint40(6136),
+            uint24(97),
+            uint40(6043),
+            uint24(2_988_006),
+            uint40(1)
+        );
+    }
+
+    function _assertScheduleTotals(bytes memory steps, uint256 expectedBlocks) internal pure {
+        uint256 totalMps;
+        uint256 totalBlocks;
+
+        for (uint256 offset; offset < steps.length; offset += 8) {
+            uint256 packed;
+            assembly {
+                packed := shr(192, mload(add(add(steps, 0x20), offset)))
+            }
+
+            uint256 stepMps = packed >> 40;
+            uint256 blockDelta = packed & type(uint40).max;
+            totalMps += stepMps * blockDelta;
+            totalBlocks += blockDelta;
+        }
+
+        assertEq(totalMps, 10_000_000);
+        assertEq(totalBlocks, expectedBlocks);
     }
 
     function _assertCoreAddressesWereCreated(

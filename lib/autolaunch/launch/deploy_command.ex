@@ -85,6 +85,8 @@ defmodule Autolaunch.Launch.DeployCommand do
       {"CCA_TICK_SPACING_Q96", config_text(config, :cca_tick_spacing_q96)},
       {"CCA_FLOOR_PRICE_Q96", config_text(config, :cca_floor_price_q96)},
       {"AUCTION_DURATION_BLOCKS", config_text(config, :auction_duration_blocks)},
+      {"CCA_PREBID_BLOCKS", config_text(config, :cca_prebid_blocks)},
+      {"CCA_FINAL_BLOCK_BPS", config_text(config, :cca_final_block_bps)},
       {"CCA_START_BLOCK_OFFSET", config_text(config, :cca_start_block_offset)},
       {"CCA_CLAIM_BLOCK_OFFSET", config_text(config, :cca_claim_block_offset)},
       {"LBP_MIGRATION_BLOCK_OFFSET", config_text(config, :lbp_migration_block_offset)},
@@ -157,6 +159,12 @@ defmodule Autolaunch.Launch.DeployCommand do
 
       not valid_integer?(Keyword.get(config, :auction_duration_blocks, ""), 1) ->
         "Missing auction duration."
+
+      not valid_integer?(Keyword.get(config, :cca_prebid_blocks, ""), 0) ->
+        "Missing CCA prebid blocks."
+
+      not valid_integer?(Keyword.get(config, :cca_final_block_bps, ""), 2_000, 4_000) ->
+        "Missing CCA final block basis points."
 
       not valid_integer?(Keyword.get(config, :cca_start_block_offset, ""), 0) ->
         "Missing CCA start block offset."
@@ -244,6 +252,17 @@ defmodule Autolaunch.Launch.DeployCommand do
   end
 
   defp valid_integer?(_value, _min), do: false
+
+  defp valid_integer?(value, min, max) when is_integer(value), do: value >= min and value <= max
+
+  defp valid_integer?(value, min, max) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {integer, ""} -> integer >= min and integer <= max
+      _ -> false
+    end
+  end
+
+  defp valid_integer?(_value, _min, _max), do: false
 
   defp empty_logs, do: %{stdout_tail: "", stderr_tail: ""}
   defp blank?(value), do: value in [nil, ""]

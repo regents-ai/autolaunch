@@ -394,6 +394,23 @@ contract LaunchDeploymentControllerTest is Test {
         controller.deploy(cfg);
     }
 
+    function testAcceptsConvexAuctionScheduleFixture() external {
+        LaunchDeploymentController.DeploymentConfig memory cfg = defaultConfig();
+        cfg.endBlock = 86_402;
+        cfg.claimBlock = 86_402;
+        cfg.migrationBlock = 86_530;
+        cfg.sweepBlock = 86_786;
+        cfg.auctionStepsData = _convexAuctionStepsFixture();
+
+        LaunchDeploymentController.DeploymentResult memory result = controller.deploy(cfg);
+        _assertCoreAddressesWereCreated(result);
+
+        AuctionParameters memory parameters =
+            abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
+        assertEq(parameters.endBlock - parameters.startBlock, 86_401);
+        assertEq(parameters.auctionStepsData, cfg.auctionStepsData);
+    }
+
     function testEmitsLaunchStackDeployedEvent() external {
         vm.recordLogs();
         LaunchDeploymentController.DeploymentResult memory result =
@@ -523,6 +540,37 @@ contract LaunchDeploymentControllerTest is Test {
         returns (bytes memory)
     {
         return abi.encodePacked(mps, blockDelta);
+    }
+
+    function _convexAuctionStepsFixture() internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            uint24(54),
+            uint40(10_894),
+            uint24(68),
+            uint40(8517),
+            uint24(75),
+            uint40(7803),
+            uint24(79),
+            uint40(7373),
+            uint24(83),
+            uint40(7068),
+            uint24(85),
+            uint40(6835),
+            uint24(88),
+            uint40(6647),
+            uint24(90),
+            uint40(6490),
+            uint24(92),
+            uint40(6356),
+            uint24(94),
+            uint40(6238),
+            uint24(95),
+            uint40(6136),
+            uint24(97),
+            uint40(6043),
+            uint24(2_988_006),
+            uint40(1)
+        );
     }
 
     function _installCanonicalUsdcMock() internal returns (MintableERC20Mock mock) {

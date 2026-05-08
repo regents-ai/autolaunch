@@ -24,6 +24,8 @@ defmodule Autolaunch.LaunchDeployCommandTest do
     assert env["CCA_FLOOR_PRICE_Q96"] == "79228162514264337593543950336"
     assert env["CCA_REQUIRED_CURRENCY_RAISED"] == "1000000"
     assert env["AUCTION_DURATION_BLOCKS"] == "86400"
+    assert env["CCA_PREBID_BLOCKS"] == "0"
+    assert env["CCA_FINAL_BLOCK_BPS"] == "3000"
     assert env["CCA_START_BLOCK_OFFSET"] == "300"
     assert env["CCA_CLAIM_BLOCK_OFFSET"] == "64"
     assert env["LBP_MIGRATION_BLOCK_OFFSET"] == "128"
@@ -45,6 +47,13 @@ defmodule Autolaunch.LaunchDeployCommandTest do
     config = Keyword.put(launch_config(), :factory_owner_address, "")
 
     assert {:error, "Missing factory owner address.", %{stdout_tail: "", stderr_tail: ""}} =
+             DeployCommand.build(job(), config)
+  end
+
+  test "build validates convex CCA schedule inputs before running forge" do
+    config = Keyword.put(launch_config(), :cca_final_block_bps, "4001")
+
+    assert {:error, "Missing CCA final block basis points.", %{stdout_tail: "", stderr_tail: ""}} =
              DeployCommand.build(job(), config)
   end
 
@@ -101,6 +110,8 @@ defmodule Autolaunch.LaunchDeployCommandTest do
       cca_tick_spacing_q96: "79228162514264337593543950336",
       cca_floor_price_q96: "79228162514264337593543950336",
       auction_duration_blocks: "86400",
+      cca_prebid_blocks: "0",
+      cca_final_block_bps: "3000",
       cca_start_block_offset: "300",
       cca_claim_block_offset: "64",
       lbp_migration_block_offset: "128",

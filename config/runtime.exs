@@ -209,6 +209,8 @@ if config_env() != :test do
     cca_floor_price_q96: env.("CCA_FLOOR_PRICE_Q96", ""),
     cca_validation_hook: env.("CCA_VALIDATION_HOOK", ""),
     auction_duration_blocks: env.("AUCTION_DURATION_BLOCKS", "86400"),
+    cca_prebid_blocks: env.("CCA_PREBID_BLOCKS", "0"),
+    cca_final_block_bps: env.("CCA_FINAL_BLOCK_BPS", "3000"),
     cca_start_block_offset: env.("CCA_START_BLOCK_OFFSET", "300"),
     cca_claim_block_offset: env.("CCA_CLAIM_BLOCK_OFFSET", "64"),
     lbp_migration_block_offset: env.("LBP_MIGRATION_BLOCK_OFFSET", "128"),

@@ -81,6 +81,13 @@ contract ExampleCCADeploymentScript is Script {
     uint64 internal constant DEFAULT_SWEEP_BLOCK_OFFSET = 256;
     uint64 internal constant DEFAULT_VESTING_DURATION_SECONDS = 365 days;
     uint256 internal constant MPS_TOTAL = 10_000_000;
+    uint256 internal constant BPS_DENOMINATOR = 10_000;
+    uint256 internal constant DEFAULT_CCA_PREBID_BLOCKS = 0;
+    uint256 internal constant DEFAULT_CCA_FINAL_BLOCK_BPS = 3000;
+    uint256 internal constant MIN_CCA_FINAL_BLOCK_BPS = 2000;
+    uint256 internal constant MAX_CCA_FINAL_BLOCK_BPS = 4000;
+    uint256 internal constant CONVEX_STEP_COUNT = 12;
+    uint256 internal constant CONVEX_CURVE_SCALE = 1_000_000_000_000;
     uint160 internal constant REQUIRED_HOOK_FLAGS = Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
         | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG;
 
@@ -109,13 +116,22 @@ contract ExampleCCADeploymentScript is Script {
         uint256 auctionDurationBlocks =
             vm.envOr("AUCTION_DURATION_BLOCKS", DEFAULT_AUCTION_DURATION_BLOCKS);
         require(auctionDurationBlocks > 0, "AUCTION_DURATION_ZERO");
-        require(auctionDurationBlocks <= type(uint64).max, "AUCTION_DURATION_TOO_LARGE");
+        require(auctionDurationBlocks <= type(uint40).max, "AUCTION_DURATION_TOO_LARGE");
+        uint256 prebidBlocks = vm.envOr("CCA_PREBID_BLOCKS", DEFAULT_CCA_PREBID_BLOCKS);
+        require(prebidBlocks <= type(uint40).max, "PREBID_BLOCKS_TOO_LARGE");
+        uint256 finalBlockBps = vm.envOr("CCA_FINAL_BLOCK_BPS", DEFAULT_CCA_FINAL_BLOCK_BPS);
+        require(
+            finalBlockBps >= MIN_CCA_FINAL_BLOCK_BPS && finalBlockBps <= MAX_CCA_FINAL_BLOCK_BPS,
+            "CCA_FINAL_BLOCK_BPS_INVALID"
+        );
+        uint256 auctionScheduleBlocks = prebidBlocks + auctionDurationBlocks + 1;
+        require(auctionScheduleBlocks <= type(uint64).max, "AUCTION_STEPS_TOO_LARGE");
         uint256 auctionStartBlockOffset =
             vm.envOr("CCA_START_BLOCK_OFFSET", DEFAULT_AUCTION_START_BLOCK_OFFSET);
         require(auctionStartBlockOffset <= type(uint64).max, "AUCTION_START_OFFSET_TOO_LARGE");
         require(block.number <= type(uint64).max, "BLOCK_TOO_LARGE");
         require(
-            block.number + auctionStartBlockOffset + auctionDurationBlocks <= type(uint64).max,
+            block.number + auctionStartBlockOffset + auctionScheduleBlocks <= type(uint64).max,
             "AUCTION_END_BLOCK_TOO_LARGE"
         );
 
@@ -180,7 +196,7 @@ contract ExampleCCADeploymentScript is Script {
 
         cfg.positionRecipient = cfg.agentSafe;
         uint256 startBlockRaw = block.number + auctionStartBlockOffset;
-        uint256 endBlockRaw = startBlockRaw + auctionDurationBlocks;
+        uint256 endBlockRaw = startBlockRaw + auctionScheduleBlocks;
         uint256 claimBlockRaw = endBlockRaw + claimBlockOffset;
         cfg.startBlock = _toUint64(startBlockRaw);
         cfg.endBlock = _toUint64(endBlockRaw);
@@ -190,14 +206,15 @@ contract ExampleCCADeploymentScript is Script {
         cfg.vestingStartTimestamp = vestingStartTimestamp;
         cfg.vestingDurationSeconds = vestingDurationSeconds;
         cfg.requiredCurrencyRaised = _toUint128(requiredCurrencyRaisedRaw);
-        cfg.auctionStepsData = _evenAuctionSteps(auctionDurationBlocks);
+        cfg.auctionStepsData =
+            _convexAuctionSteps(auctionDurationBlocks, prebidBlocks, finalBlockBps);
         cfg.tokenName = vm.envOr("AUTOLAUNCH_TOKEN_NAME", string("Regent Agent Token"));
         cfg.tokenSymbol = vm.envOr("AUTOLAUNCH_TOKEN_SYMBOL", string("RAGENT"));
         cfg.tokenDescription = vm.envOr("AUTOLAUNCH_TOKEN_METADATA_DESCRIPTION", string(""));
         cfg.tokenWebsite = vm.envOr("AUTOLAUNCH_TOKEN_METADATA_WEBSITE", string(""));
         cfg.tokenImage = vm.envOr("AUTOLAUNCH_TOKEN_METADATA_IMAGE", string(""));
         cfg.subjectLabel = vm.envOr("AUTOLAUNCH_SUBJECT_LABEL", cfg.tokenName);
-        _validateCcaConfig(cfg, auctionDurationBlocks);
+        _validateCcaConfig(cfg, auctionScheduleBlocks);
         _requireUerc20FactoryShape(cfg);
     }
 
@@ -453,24 +470,72 @@ contract ExampleCCADeploymentScript is Script {
         return uint40(value);
     }
 
-    function _evenAuctionSteps(uint256 durationBlocks) internal pure returns (bytes memory steps) {
+    function _convexAuctionSteps(
+        uint256 durationBlocks,
+        uint256 prebidBlocks,
+        uint256 finalBlockBps
+    ) internal pure returns (bytes memory steps) {
         require(durationBlocks > 0, "AUCTION_DURATION_ZERO");
+        require(durationBlocks <= type(uint40).max, "AUCTION_DURATION_TOO_LARGE");
+        require(prebidBlocks <= type(uint40).max, "PREBID_BLOCKS_TOO_LARGE");
+        require(
+            finalBlockBps >= MIN_CCA_FINAL_BLOCK_BPS && finalBlockBps <= MAX_CCA_FINAL_BLOCK_BPS,
+            "CCA_FINAL_BLOCK_BPS_INVALID"
+        );
 
-        uint256 baseMps = MPS_TOTAL / durationBlocks;
-        require(baseMps != 0, "AUCTION_DURATION_TOO_LONG");
-
-        uint256 remainderBlocks = MPS_TOTAL % durationBlocks;
-        uint256 baseBlocks = durationBlocks - remainderBlocks;
+        uint256 targetFinalMps = (MPS_TOTAL * finalBlockBps) / BPS_DENOMINATOR;
+        uint256 gradualMps = MPS_TOTAL - targetFinalMps;
+        uint256 scheduledMps;
+        uint256 previousBoundaryBlocks;
 
         steps = AuctionStepsBuilder.init();
 
-        if (baseBlocks != 0) {
-            steps = steps.addStep(_toUint24(baseMps), _toUint40(baseBlocks));
+        if (prebidBlocks != 0) {
+            steps = steps.addStep(0, _toUint40(prebidBlocks));
         }
 
-        if (remainderBlocks != 0) {
-            steps = steps.addStep(_toUint24(baseMps + 1), _toUint40(remainderBlocks));
+        for (uint256 step = 1; step <= CONVEX_STEP_COUNT; ++step) {
+            uint256 boundaryBlocks =
+                _roundDiv(durationBlocks * _convexBoundaryAt(step), CONVEX_CURVE_SCALE);
+            require(boundaryBlocks > previousBoundaryBlocks, "AUCTION_STEP_BLOCKS_ZERO");
+
+            uint256 blockDelta = boundaryBlocks - previousBoundaryBlocks;
+            uint256 stepMps = _roundDiv(gradualMps, CONVEX_STEP_COUNT * blockDelta);
+            require(stepMps != 0, "AUCTION_DURATION_TOO_LONG");
+
+            scheduledMps += stepMps * blockDelta;
+            require(scheduledMps < MPS_TOTAL, "AUCTION_STEPS_MPS_OVERFLOW");
+
+            steps = steps.addStep(_toUint24(stepMps), _toUint40(blockDelta));
+            previousBoundaryBlocks = boundaryBlocks;
         }
+
+        require(previousBoundaryBlocks == durationBlocks, "AUCTION_STEPS_BLOCKS");
+
+        uint256 finalMps = MPS_TOTAL - scheduledMps;
+        require(finalMps != 0, "FINAL_BLOCK_MPS_ZERO");
+        steps = steps.addStep(_toUint24(finalMps), 1);
+    }
+
+    function _convexBoundaryAt(uint256 step) internal pure returns (uint256) {
+        if (step == 1) return 126_090_479_119;
+        if (step == 2) return 224_667_692_433;
+        if (step == 3) return 314_980_262_474;
+        if (step == 4) return 400_312_318_392;
+        if (step == 5) return 482_122_387_529;
+        if (step == 6) return 561_231_024_155;
+        if (step == 7) return 638_161_590_787;
+        if (step == 8) return 713_275_462_622;
+        if (step == 9) return 786_836_297_566;
+        if (step == 10) return 859_044_434_072;
+        if (step == 11) return 930_056_928_912;
+        if (step == 12) return CONVEX_CURVE_SCALE;
+        revert("CONVEX_STEP_INVALID");
+    }
+
+    function _roundDiv(uint256 numerator, uint256 denominator) internal pure returns (uint256) {
+        require(denominator != 0, "DIV_ZERO");
+        return (numerator + denominator / 2) / denominator;
     }
 
     function _validateAuctionStepsData(bytes memory steps, uint256 durationBlocks) internal pure {

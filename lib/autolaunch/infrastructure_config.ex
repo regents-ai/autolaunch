@@ -32,6 +32,8 @@ defmodule Autolaunch.InfrastructureConfig do
     {:cca_tick_spacing_q96, "CCA_TICK_SPACING_Q96", {:integer, min: 1}},
     {:cca_floor_price_q96, "CCA_FLOOR_PRICE_Q96", {:integer, min: 1}},
     {:auction_duration_blocks, "AUCTION_DURATION_BLOCKS", {:integer, min: 1}},
+    {:cca_prebid_blocks, "CCA_PREBID_BLOCKS", {:integer, min: 0}},
+    {:cca_final_block_bps, "CCA_FINAL_BLOCK_BPS", {:integer, min: 2_000, max: 4_000}},
     {:cca_start_block_offset, "CCA_START_BLOCK_OFFSET", {:integer, min: 0}},
     {:cca_claim_block_offset, "CCA_CLAIM_BLOCK_OFFSET", {:integer, min: 0}},
     {:lbp_migration_block_offset, "LBP_MIGRATION_BLOCK_OFFSET", {:integer, min: 0}},
@@ -132,9 +134,10 @@ defmodule Autolaunch.InfrastructureConfig do
 
   def valid_script_input?(key, {:integer, opts}) do
     min = Keyword.fetch!(opts, :min)
+    max = Keyword.get(opts, :max)
 
     case normalize_integer(launch_value(key)) do
-      value when is_integer(value) -> value >= min
+      value when is_integer(value) -> value >= min and (is_nil(max) or value <= max)
       nil -> false
     end
   end
