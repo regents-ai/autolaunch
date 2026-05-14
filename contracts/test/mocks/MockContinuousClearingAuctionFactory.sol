@@ -19,6 +19,7 @@ contract MockDistributionContract is IDistributionContract {
     uint128 public immutable requiredCurrencyRaised;
     bool public received;
     bool public currencySwept;
+    uint256 private _currencyRaised;
 
     constructor(
         address token_,
@@ -41,7 +42,12 @@ contract MockDistributionContract is IDistributionContract {
     }
 
     function isGraduated() external view returns (bool) {
-        return currencySwept || _balanceOf(currency, address(this)) >= requiredCurrencyRaised;
+        return currencySwept || currencyRaised() >= requiredCurrencyRaised;
+    }
+
+    function currencyRaised() public view returns (uint256) {
+        uint256 balance = _balanceOf(currency, address(this));
+        return balance > _currencyRaised ? balance : _currencyRaised;
     }
 
     function sweepUnsoldTokens() external {
@@ -52,8 +58,12 @@ contract MockDistributionContract is IDistributionContract {
     function sweepCurrency() external {
         require(block.number > endBlock, "AUCTION_NOT_ENDED");
         require(this.isGraduated(), "AUCTION_NOT_GRADUATED");
+        uint256 balance = _balanceOf(currency, address(this));
+        if (balance > _currencyRaised) {
+            _currencyRaised = balance;
+        }
         currencySwept = true;
-        currency.safeTransfer(fundsRecipient, _balanceOf(currency, address(this)));
+        currency.safeTransfer(fundsRecipient, balance);
     }
 
     function _balanceOf(address token_, address account) internal view returns (uint256 balance) {

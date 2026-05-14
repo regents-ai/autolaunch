@@ -189,12 +189,11 @@ defmodule Autolaunch.Launch.Core do
          agent when is_map(agent) <- get_agent(current_actor, Map.get(attrs, "agent_id")),
          :ok <- ensure_agent_eligible(agent),
          {:ok, token_name} <-
-           required_text(Map.get(attrs, "token_name"), 80, :token_name_required),
+           required_text(Map.get(attrs, "token_name"), 3, 15, :token_name_required),
          {:ok, token_symbol} <-
-           required_text(Map.get(attrs, "token_symbol"), 16, :token_symbol_required),
+           required_text(Map.get(attrs, "token_symbol"), 2, 10, :token_symbol_required),
          {:ok, minimum_raise_decimal} <-
-           required_decimal(Map.get(attrs, "minimum_raise_usdc"), :minimum_raise_required),
-         :ok <- ensure_positive_decimal(minimum_raise_decimal, :minimum_raise_required),
+           required_usdc_integer(Map.get(attrs, "minimum_raise_usdc"), :minimum_raise_required),
          {:ok, minimum_raise_raw} <- decimal_to_wei(minimum_raise_decimal),
          {:ok, agent_safe_address} <-
            required_address(Map.get(attrs, "agent_safe_address")),
@@ -407,10 +406,11 @@ defmodule Autolaunch.Launch.Core do
   defp agent_card_from_identity(identity, wallet_addresses) do
     existing_launch =
       Repo.one(
-        from launch in TokenLaunch,
+        from(launch in TokenLaunch,
           where: launch.agent_id == ^identity.agent_id,
           order_by: [desc: launch.inserted_at],
           limit: 1
+        )
       )
 
     active_launch? =
@@ -839,17 +839,19 @@ defmodule Autolaunch.Launch.Core do
 
     bid =
       Repo.one(
-        from bid in Bid,
+        from(bid in Bid,
           where: bid.owner_address == ^wallet_address and bid.auction_id == ^auction_id,
           order_by: [desc: bid.inserted_at],
           limit: 1
+        )
       )
 
     auction =
       Repo.one(
-        from auction in Auction,
+        from(auction in Auction,
           where: fragment("coalesce(?, '')", auction.source_job_id) == ^auction_id,
           limit: 1
+        )
       )
 
     case {bid, auction} do
@@ -933,8 +935,9 @@ defmodule Autolaunch.Launch.Core do
       |> Enum.uniq()
 
     Repo.all(
-      from job in Job,
+      from(job in Job,
         where: job.job_id in ^job_ids
+      )
     )
     |> Map.new(&{&1.job_id, &1})
   rescue
@@ -943,9 +946,6 @@ defmodule Autolaunch.Launch.Core do
 
   defp auction_phase(%Auction{} = auction, live_snapshot) do
     cond do
-      auction.chain_state == "open" ->
-        "biddable"
-
       auction.chain_state in ["graduated", "failed_minimum"] ->
         "live"
 
@@ -959,6 +959,9 @@ defmodule Autolaunch.Launch.Core do
         if DateTime.compare(auction.ends_at, DateTime.utc_now()) == :gt,
           do: "biddable",
           else: "live"
+
+      auction.chain_state == "open" ->
+        "biddable"
 
       true ->
         "live"
@@ -1387,12 +1390,13 @@ defmodule Autolaunch.Launch.Core do
 
   def world_launch_counts do
     Repo.all(
-      from auction in Auction,
+      from(auction in Auction,
         where:
           auction.world_registered == true and not is_nil(auction.world_human_id) and
             auction.world_human_id != "",
         group_by: auction.world_human_id,
         select: {auction.world_human_id, count(auction.id)}
+      )
     )
     |> Map.new()
   rescue
@@ -1404,9 +1408,10 @@ defmodule Autolaunch.Launch.Core do
 
   defp world_launch_count(human_id) do
     Repo.one(
-      from auction in Auction,
+      from(auction in Auction,
         where: auction.world_registered == true and auction.world_human_id == ^human_id,
         select: count(auction.id)
+      )
     ) || 0
   rescue
     _ -> 0
@@ -1578,6 +1583,26 @@ defmodule Autolaunch.Launch.Core do
 
   defp required_text(_value, _max_length, error_atom), do: {:error, error_atom}
 
+  defp required_text(value, min_length, max_length, error_atom) when is_binary(value) do
+    value
+    |> String.trim()
+    |> case do
+      "" ->
+        {:error, error_atom}
+
+      trimmed ->
+        length = String.length(trimmed)
+
+        if length >= min_length and length <= max_length do
+          {:ok, trimmed}
+        else
+          {:error, error_atom}
+        end
+    end
+  end
+
+  defp required_text(_value, _min_length, _max_length, error_atom), do: {:error, error_atom}
+
   def required_address(value) do
     case normalize_address(value) do
       address when is_binary(address) ->
@@ -1602,9 +1627,20 @@ defmodule Autolaunch.Launch.Core do
   def required_decimal(value, _error_atom) when is_number(value), do: {:ok, decimal(value)}
   def required_decimal(_value, error_atom), do: {:error, error_atom}
 
-  defp ensure_positive_decimal(%Decimal{} = value, error_atom) do
-    if Decimal.compare(value, Decimal.new(0)) == :gt, do: :ok, else: {:error, error_atom}
+  defp required_usdc_integer(value, error_atom) when is_binary(value) do
+    value = String.trim(value)
+
+    if Regex.match?(~r/^[0-9]+$/, value) do
+      {:ok, Decimal.new(value)}
+    else
+      {:error, error_atom}
+    end
   end
+
+  defp required_usdc_integer(value, _error_atom) when is_integer(value) and value >= 0,
+    do: {:ok, Decimal.new(value)}
+
+  defp required_usdc_integer(_value, error_atom), do: {:error, error_atom}
 
   def required_tx_hash(value) when is_binary(value) do
     tx_hash = String.downcase(String.trim(value))

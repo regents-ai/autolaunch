@@ -54,6 +54,65 @@ defmodule Autolaunch.LaunchTest do
              })
   end
 
+  test "launch preview accepts zero minimum raise" do
+    assert {:ok, preview} =
+             Launch.preview_launch(
+               %{
+                 "agent_id" => "8453:44",
+                 "token_name" => "Atlas Coin",
+                 "token_symbol" => "ATLAS",
+                 "minimum_raise_usdc" => "0",
+                 "agent_safe_address" => "0x1111111111111111111111111111111111111111"
+               },
+               %{
+                 "wallet_address" => "0x1111111111111111111111111111111111111111",
+                 "chain_id" => "8453",
+                 "registry_address" => "0x2222222222222222222222222222222222222222",
+                 "token_id" => "44",
+                 "label" => "Atlas"
+               }
+             )
+
+    assert preview.token.minimum_raise_usdc == "0.000000"
+    assert preview.token.minimum_raise_usdc_raw == "0"
+  end
+
+  test "launch preview rejects unsafe token fields and minimum raise input" do
+    actor = %{
+      "wallet_address" => "0x1111111111111111111111111111111111111111",
+      "chain_id" => "8453",
+      "registry_address" => "0x2222222222222222222222222222222222222222",
+      "token_id" => "44",
+      "label" => "Atlas"
+    }
+
+    base = %{
+      "agent_id" => "8453:44",
+      "token_name" => "Atlas Coin",
+      "token_symbol" => "ATLAS",
+      "minimum_raise_usdc" => "0",
+      "agent_safe_address" => "0x1111111111111111111111111111111111111111"
+    }
+
+    assert {:error, :token_name_required} =
+             Launch.preview_launch(%{base | "token_name" => "AT"}, actor)
+
+    assert {:error, :token_name_required} =
+             Launch.preview_launch(%{base | "token_name" => "Atlas Token Name"}, actor)
+
+    assert {:error, :token_symbol_required} =
+             Launch.preview_launch(%{base | "token_symbol" => "A"}, actor)
+
+    assert {:error, :token_symbol_required} =
+             Launch.preview_launch(%{base | "token_symbol" => "ATLASCOINXX"}, actor)
+
+    assert {:error, :minimum_raise_required} =
+             Launch.preview_launch(%{base | "minimum_raise_usdc" => "-1"}, actor)
+
+    assert {:error, :minimum_raise_required} =
+             Launch.preview_launch(%{base | "minimum_raise_usdc" => "1.5"}, actor)
+  end
+
   test "auction listings expose ENS and world completion state" do
     now = DateTime.utc_now()
     previous_launch = Application.get_env(:autolaunch, :launch, [])
@@ -234,6 +293,33 @@ defmodule Autolaunch.LaunchTest do
     assert live_row.id == "auc_old"
     assert live_row.current_price_usdc == "0.011"
     assert live_row.implied_market_cap_usdc == "1100000000"
+  end
+
+  test "ended unsynced auctions are not listed as biddable" do
+    now = DateTime.utc_now()
+
+    Repo.insert!(
+      Auction.changeset(%Auction{}, %{
+        source_job_id: "auc_elapsed",
+        agent_id: "8453:12",
+        agent_name: "Elapsed",
+        owner_address: "0x1111111111111111111111111111111111111111",
+        auction_address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        token_address: "0xffffffffffffffffffffffffffffffffffffffff",
+        network: "base-mainnet",
+        chain_id: 8_453,
+        status: "active",
+        started_at: DateTime.add(now, -7_200, :second),
+        ends_at: DateTime.add(now, -3_600, :second),
+        minimum_raise_usdc: "2",
+        minimum_raise_usdc_raw: "2000000"
+      })
+    )
+
+    assert Launch.list_auctions() == []
+
+    assert [%{id: "auc_elapsed", phase: "live", auction_outcome: "failed_minimum"}] =
+             Launch.list_auctions(%{"mode" => "all"}, nil)
   end
 
   test "record_world_agentbook_completion updates the launch job and auction" do

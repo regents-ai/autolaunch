@@ -22,6 +22,8 @@ interface ISubjectRegistry {
     function subjectsForStakeToken(address stakeToken) external view returns (bytes32[] memory);
     function canManageSubject(bytes32 subjectId, address account) external view returns (bool);
 
+    function setCanonicalSubjectForStakeToken(address stakeToken, bytes32 subjectId) external;
+
     function createSubject(
         bytes32 subjectId,
         address stakeToken,

@@ -30,7 +30,6 @@ config :autolaunch, :auction_sync,
   enabled: false,
   interval_ms: 30_000,
   batch_size: 20,
-  recent_hours: 168,
   snapshot_ttl_seconds: 45
 
 config :autolaunch, :regent_staking,

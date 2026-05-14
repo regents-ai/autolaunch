@@ -127,4 +127,50 @@ contract SubjectRegistryTest is Test {
         assertTrue(registry.canManageSubject(firstPermissionlessId, NEXT_SAFE));
         assertTrue(registry.canManageSubject(firstPermissionlessId, CREATOR));
     }
+
+    function testPermissionlessSubjectDoesNotClaimCanonicalEmptyStakeTokenSlot() external {
+        bytes32 permissionlessId = keccak256("permissionless-only");
+        address otherStakeToken = address(0xAAAA);
+
+        vm.prank(OWNER);
+        registry.setAuthorizedRegistrar(REGISTRAR, true);
+
+        vm.prank(REGISTRAR);
+        registry.createPermissionlessSubject(
+            permissionlessId,
+            otherStakeToken,
+            address(0xF003),
+            NEXT_SAFE,
+            CREATOR,
+            true,
+            "Shared only"
+        );
+
+        assertEq(registry.subjectOfStakeToken(otherStakeToken), bytes32(0));
+        assertEq(registry.subjectForStakeTokenAt(otherStakeToken, 0), permissionlessId);
+    }
+
+    function testOwnerCanSetCanonicalSubjectForStakeToken() external {
+        bytes32 permissionlessId = keccak256("permissionless-canonical");
+        address otherStakeToken = address(0xBBBB);
+
+        vm.prank(OWNER);
+        registry.setAuthorizedRegistrar(REGISTRAR, true);
+
+        vm.prank(REGISTRAR);
+        registry.createPermissionlessSubject(
+            permissionlessId,
+            otherStakeToken,
+            address(0xF004),
+            NEXT_SAFE,
+            CREATOR,
+            true,
+            "Shared canonical"
+        );
+
+        vm.prank(OWNER);
+        registry.setCanonicalSubjectForStakeToken(otherStakeToken, permissionlessId);
+
+        assertEq(registry.subjectOfStakeToken(otherStakeToken), permissionlessId);
+    }
 }

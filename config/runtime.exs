@@ -88,6 +88,15 @@ env_list = fn key, default ->
   |> Enum.reject(&(&1 == ""))
 end
 
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN"),
+  environment_name: System.get_env("SENTRY_ENVIRONMENT", "production"),
+  release: System.get_env("SENTRY_RELEASE"),
+  json_library: Jason,
+  enable_source_code_context: true,
+  root_source_code_paths: [File.cwd!()],
+  in_app_otp_apps: [:autolaunch]
+
 if config_env() != :test do
   base_mainnet_rpc_url = "https://base-mainnet.g.alchemy.com/v2/mh8bSk613dgCNswQaicqncntni1gOg3o"
   launch_chain_id_default = 8_453
@@ -153,7 +162,6 @@ if config_env() != :test do
     enabled: env_bool.("AUTOLAUNCH_AUCTION_SYNC_ENABLED", config_env() == :prod),
     interval_ms: env_int.("AUTOLAUNCH_AUCTION_SYNC_INTERVAL_MS", 30_000),
     batch_size: env_int.("AUTOLAUNCH_AUCTION_SYNC_BATCH_SIZE", 20),
-    recent_hours: env_int.("AUTOLAUNCH_AUCTION_SYNC_RECENT_HOURS", 168),
     snapshot_ttl_seconds: env_int.("AUTOLAUNCH_AUCTION_SYNC_SNAPSHOT_TTL_SECONDS", 45)
 
   config :autolaunch, :prelaunch_uploads,

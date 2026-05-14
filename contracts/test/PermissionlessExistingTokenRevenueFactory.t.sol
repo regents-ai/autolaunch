@@ -69,6 +69,7 @@ contract PermissionlessExistingTokenRevenueFactoryTest is Test {
         assertEq(factory.splitterOfSubject(subjectId), splitter);
         assertEq(ingressFactory.defaultIngressOfSubject(subjectId), ingress);
         assertEq(subjectRegistry.getSubject(subjectId).splitter, splitter);
+        assertEq(subjectRegistry.subjectOfStakeToken(address(stakeToken)), bytes32(0));
         assertTrue(subjectRegistry.canManageSubject(subjectId, TREASURY));
         assertTrue(subjectRegistry.canManageSubject(subjectId, CREATOR));
         assertEq(LiveStakeFeePoolSplitter(splitter).stakerPoolBps(), 2500);
@@ -116,6 +117,7 @@ contract PermissionlessExistingTokenRevenueFactoryTest is Test {
         assertEq(factory.subjectCountForStakeToken(address(stakeToken)), 2);
         assertEq(subjectRegistry.subjectForStakeTokenAt(address(stakeToken), 0), firstSubjectId);
         assertEq(subjectRegistry.subjectForStakeTokenAt(address(stakeToken), 1), secondSubjectId);
+        assertEq(subjectRegistry.subjectOfStakeToken(address(stakeToken)), bytes32(0));
     }
 
     function testRejectsBadTokenAndTreasuryInputs() external {

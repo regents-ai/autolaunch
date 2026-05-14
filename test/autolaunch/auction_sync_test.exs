@@ -177,6 +177,45 @@ defmodule Autolaunch.AuctionSyncTest do
     assert Repo.aggregate(RevsplitToken, :count) == 0
   end
 
+  test "sync candidates keep open auctions and skip already synced terminal auctions" do
+    open =
+      insert_auction("open_candidate",
+        token_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      )
+
+    completed =
+      insert_auction("completed_candidate",
+        token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      )
+
+    unsynced_terminal =
+      insert_auction("unsynced_terminal_candidate",
+        token_address: "0xcccccccccccccccccccccccccccccccccccccccc"
+      )
+
+    now = DateTime.utc_now()
+
+    completed
+    |> Auction.changeset(%{
+      chain_state: "graduated",
+      onchain_synced_at: now,
+      onchain_graduated: true
+    })
+    |> Repo.update!()
+
+    unsynced_terminal
+    |> Auction.changeset(%{chain_state: "failed_minimum"})
+    |> Repo.update!()
+
+    source_ids =
+      AuctionSync.sync_candidates(chain_id: 8_453, limit: 10)
+      |> Enum.map(& &1.source_job_id)
+
+    assert open.source_job_id in source_ids
+    assert unsynced_terminal.source_job_id in source_ids
+    refute completed.source_job_id in source_ids
+  end
+
   defp insert_auction(suffix, attrs) do
     now = DateTime.utc_now()
     job_id = "auc_" <> suffix
@@ -187,7 +226,7 @@ defmodule Autolaunch.AuctionSyncTest do
         agent_id: "8453:#{suffix}",
         agent_name: "Agent #{suffix}",
         owner_address: "0x1111111111111111111111111111111111111111",
-        auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        auction_address: address_for_suffix(suffix),
         token_address: Keyword.fetch!(attrs, :token_address),
         network: "base-mainnet",
         chain_id: 8_453,
@@ -233,5 +272,9 @@ defmodule Autolaunch.AuctionSyncTest do
       pool_id: "0x" <> String.duplicate("2", 64)
     })
     |> Repo.update!()
+  end
+
+  defp address_for_suffix(suffix) do
+    "0x" <> (:crypto.hash(:sha256, suffix) |> Base.encode16(case: :lower) |> String.slice(0, 40))
   end
 end

@@ -8,7 +8,9 @@ import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
-import {PermissionlessExistingTokenRevenueFactory} from "src/revenue/PermissionlessExistingTokenRevenueFactory.sol";
+import {
+    PermissionlessExistingTokenRevenueFactory
+} from "src/revenue/PermissionlessExistingTokenRevenueFactory.sol";
 import {DeferredAutolaunchFactory} from "src/revenue/DeferredAutolaunchFactory.sol";
 import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {RegentStakingRevenueRouter} from "src/revenue/RegentStakingRevenueRouter.sol";
@@ -22,6 +24,7 @@ contract DeployAutolaunchInfraScript is Script {
         address owner;
         address usdc;
         address regentRevenueStaking;
+        address tokenFactory;
     }
 
     function deployFromEnv()
@@ -59,13 +62,19 @@ contract DeployAutolaunchInfraScript is Script {
 
         vm.startBroadcast(cfg.owner);
         subjectRegistry = new SubjectRegistry(cfg.owner);
-        stakingRevenueRouter =
-            new RegentStakingRevenueRouter(cfg.owner, cfg.usdc, address(subjectRegistry), cfg.regentRevenueStaking);
+        stakingRevenueRouter = new RegentStakingRevenueRouter(
+            cfg.owner, cfg.usdc, address(subjectRegistry), cfg.regentRevenueStaking
+        );
         revenueShareSplitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
-            cfg.owner, cfg.usdc, subjectRegistry, address(stakingRevenueRouter), address(revenueShareSplitterDeployer)
+            cfg.owner,
+            cfg.usdc,
+            subjectRegistry,
+            address(stakingRevenueRouter),
+            address(revenueShareSplitterDeployer)
         );
-        revenueIngressFactory = new RevenueIngressFactory(cfg.usdc, address(subjectRegistry), cfg.owner);
+        revenueIngressFactory =
+            new RevenueIngressFactory(cfg.usdc, address(subjectRegistry), cfg.owner);
         existingTokenRevenueFactory = new PermissionlessExistingTokenRevenueFactory(
             cfg.owner,
             cfg.usdc,
@@ -77,7 +86,8 @@ contract DeployAutolaunchInfraScript is Script {
             cfg.owner,
             revenueShareFactory,
             revenueIngressFactory,
-            IRegentStakingRevenueRouter(address(stakingRevenueRouter))
+            IRegentStakingRevenueRouter(address(stakingRevenueRouter)),
+            cfg.tokenFactory
         );
         strategyFactory = new RegentLBPStrategyFactory(cfg.owner);
         subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
@@ -93,6 +103,8 @@ contract DeployAutolaunchInfraScript is Script {
         require(cfg.owner != address(0), "OWNER_ZERO");
         require(cfg.usdc != address(0), "USDC_ZERO");
         require(cfg.regentRevenueStaking != address(0), "REGENT_STAKING_ZERO");
+        require(cfg.tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
+        require(cfg.tokenFactory.code.length != 0, "TOKEN_FACTORY_NOT_DEPLOYED");
         require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
         BaseUsdc.requireCanonical(cfg.usdc);
     }
@@ -101,6 +113,7 @@ contract DeployAutolaunchInfraScript is Script {
         cfg.owner = vm.envAddress("AUTOLAUNCH_INFRA_OWNER");
         cfg.usdc = vm.envAddress("AUTOLAUNCH_USDC_ADDRESS");
         cfg.regentRevenueStaking = vm.envAddress("REGENT_REVENUE_STAKING_ADDRESS");
+        cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
         validateConfig(cfg);
     }
 
@@ -140,6 +153,8 @@ contract DeployAutolaunchInfraScript is Script {
                 vm.toString(cfg.usdc),
                 "\",\"regentRevenueStakingAddress\":\"",
                 vm.toString(cfg.regentRevenueStaking),
+                "\",\"trustedTokenFactoryAddress\":\"",
+                vm.toString(cfg.tokenFactory),
                 "\",\"revenueShareFactoryOwner\":\"",
                 vm.toString(revenueShareFactory.owner()),
                 "\",\"revenueShareFactoryPendingOwner\":\"",

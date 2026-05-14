@@ -9,11 +9,14 @@ import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
-import {PermissionlessExistingTokenRevenueFactory} from "src/revenue/PermissionlessExistingTokenRevenueFactory.sol";
+import {
+    PermissionlessExistingTokenRevenueFactory
+} from "src/revenue/PermissionlessExistingTokenRevenueFactory.sol";
 import {DeferredAutolaunchFactory} from "src/revenue/DeferredAutolaunchFactory.sol";
 import {RegentStakingRevenueRouter} from "src/revenue/RegentStakingRevenueRouter.sol";
 import {RegentRevenueStaking} from "src/revenue/RegentRevenueStaking.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
+import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
 
 contract DeployAutolaunchInfraScriptTest is Test {
     address internal constant OWNER = address(0xA11CE);
@@ -24,18 +27,24 @@ contract DeployAutolaunchInfraScriptTest is Test {
     DeployAutolaunchInfraScript internal script;
     MintableERC20Mock internal regent;
     RegentRevenueStaking internal staking;
+    UERC20Factory internal tokenFactory;
 
     function setUp() external {
         script = new DeployAutolaunchInfraScript();
         vm.chainId(8453);
         regent = new MintableERC20Mock("REGENT", "REGENT");
         staking = new RegentRevenueStaking(address(regent), USDC, address(0xCAFE), 1e29, OWNER);
+        tokenFactory = new UERC20Factory();
     }
 
     function testDeployCreatesInfraAndAuthorizesSubjectFactories() external {
-        DeployAutolaunchInfraScript.ScriptConfig memory cfg = DeployAutolaunchInfraScript.ScriptConfig({
-            owner: OWNER, usdc: USDC, regentRevenueStaking: address(staking)
-        });
+        DeployAutolaunchInfraScript.ScriptConfig memory cfg =
+            DeployAutolaunchInfraScript.ScriptConfig({
+                owner: OWNER,
+                usdc: USDC,
+                regentRevenueStaking: address(staking),
+                tokenFactory: address(tokenFactory)
+            });
 
         (
             SubjectRegistry subjectRegistry,
@@ -64,8 +73,14 @@ contract DeployAutolaunchInfraScriptTest is Test {
         assertEq(address(revenueShareFactory.subjectRegistry()), address(subjectRegistry));
         assertEq(revenueIngressFactory.subjectRegistry(), address(subjectRegistry));
         assertEq(revenueShareFactory.stakingRevenueRouter(), address(stakingRevenueRouter));
-        assertEq(address(existingTokenRevenueFactory.stakingRevenueRouter()), address(stakingRevenueRouter));
-        assertEq(address(deferredAutolaunchFactory.stakingRevenueRouter()), address(stakingRevenueRouter));
+        assertEq(
+            address(existingTokenRevenueFactory.stakingRevenueRouter()),
+            address(stakingRevenueRouter)
+        );
+        assertEq(
+            address(deferredAutolaunchFactory.stakingRevenueRouter()), address(stakingRevenueRouter)
+        );
+        assertEq(deferredAutolaunchFactory.trustedTokenFactory(), address(tokenFactory));
         assertEq(stakingRevenueRouter.regentRevenueStaking(), address(staking));
         assertTrue(revenueShareFactory.authorizedCreators(address(deferredAutolaunchFactory)));
         assertTrue(revenueIngressFactory.authorizedCreators(address(revenueShareFactory)));
@@ -75,9 +90,13 @@ contract DeployAutolaunchInfraScriptTest is Test {
     }
 
     function testDeploySupportsAnyConfiguredOwner() external {
-        DeployAutolaunchInfraScript.ScriptConfig memory cfg = DeployAutolaunchInfraScript.ScriptConfig({
-            owner: DEPLOYER, usdc: USDC, regentRevenueStaking: address(staking)
-        });
+        DeployAutolaunchInfraScript.ScriptConfig memory cfg =
+            DeployAutolaunchInfraScript.ScriptConfig({
+                owner: DEPLOYER,
+                usdc: USDC,
+                regentRevenueStaking: address(staking),
+                tokenFactory: address(tokenFactory)
+            });
 
         (
             ,,
@@ -100,18 +119,21 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
 
         DeployAutolaunchInfraScript.ScriptConfig memory cfg = script.loadConfigFromEnv();
 
         assertEq(cfg.owner, OWNER);
         assertEq(cfg.usdc, USDC);
         assertEq(cfg.regentRevenueStaking, address(staking));
+        assertEq(cfg.tokenFactory, address(tokenFactory));
     }
 
     function testDeployFromEnvUsesLoadedConfig() external {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
 
         (
             SubjectRegistry subjectRegistry,
@@ -141,14 +163,19 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
 
         script.run();
     }
 
     function testValidateConfigRejectsWrongBaseMainnetUsdc() external {
-        DeployAutolaunchInfraScript.ScriptConfig memory cfg = DeployAutolaunchInfraScript.ScriptConfig({
-            owner: OWNER, usdc: BASE_SEPOLIA_USDC, regentRevenueStaking: address(staking)
-        });
+        DeployAutolaunchInfraScript.ScriptConfig memory cfg =
+            DeployAutolaunchInfraScript.ScriptConfig({
+                owner: OWNER,
+                usdc: BASE_SEPOLIA_USDC,
+                regentRevenueStaking: address(staking),
+                tokenFactory: address(tokenFactory)
+            });
 
         vm.expectRevert("USDC_NOT_CANONICAL");
         script.validateConfig(cfg);
@@ -159,6 +186,7 @@ contract DeployAutolaunchInfraScriptTest is Test {
         vm.setEnv("AUTOLAUNCH_INFRA_OWNER", "0x00000000000000000000000000000000000A11CE");
         vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
         vm.setEnv("REGENT_REVENUE_STAKING_ADDRESS", vm.toString(address(staking)));
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
 
         vm.expectRevert("BASE_MAINNET_ONLY");
         script.loadConfigFromEnv();

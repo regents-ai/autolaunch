@@ -190,7 +190,7 @@ contract RegentLBPStrategyTest is Test {
 
     function testMigrateCreatesRealV4PositionAndSweepsRemainders() external {
         strategy.onTokensReceived();
-        usdc.mint(address(strategy), 201e18);
+        usdc.mint(strategy.auctionAddress(), 201e18);
 
         uint256 expectedPositionId = positionManager.nextTokenId();
         PoolKey memory expectedPoolKey = _expectedPoolKey();
@@ -267,7 +267,7 @@ contract RegentLBPStrategyTest is Test {
         token.mint(address(failingStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
 
         failingStrategy.onTokensReceived();
-        usdc.mint(address(failingStrategy), 200e18);
+        usdc.mint(failingStrategy.auctionAddress(), 200e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);
@@ -373,6 +373,40 @@ contract RegentLBPStrategyTest is Test {
         assertEq(usdc.balanceOf(AGENT_TREASURY), treasuryBefore + remainder);
     }
 
+    function testMigrateIgnoresUnsolicitedUsdcDonation() external {
+        strategy.onTokensReceived();
+        usdc.mint(strategy.auctionAddress(), 200e18);
+        usdc.mint(address(strategy), 10_000e18);
+
+        vm.roll(202);
+        vm.prank(OPERATOR);
+        strategy.migrate();
+
+        assertEq(strategy.accountedAuctionCurrency(), 200e18);
+        assertEq(strategy.migratedCurrencyForLP(), 100e18);
+        assertApproxEqAbs(usdc.balanceOf(address(strategy)), 10_100e18, 1);
+    }
+
+    function testSweepCurrencyCanSendResidualDonationAfterMigration() external {
+        strategy.onTokensReceived();
+        usdc.mint(strategy.auctionAddress(), 200e18);
+        usdc.mint(address(strategy), 10_000e18);
+
+        vm.roll(202);
+        vm.prank(OPERATOR);
+        strategy.migrate();
+
+        uint256 treasuryBefore = usdc.balanceOf(AGENT_TREASURY);
+        uint256 residual = usdc.balanceOf(address(strategy));
+
+        vm.roll(303);
+        vm.prank(OPERATOR);
+        strategy.sweepCurrency();
+
+        assertEq(usdc.balanceOf(address(strategy)), 0);
+        assertEq(usdc.balanceOf(AGENT_TREASURY), treasuryBefore + residual);
+    }
+
     function testRecoverFailedAuctionRevertsForGraduatedAuction() external {
         strategy.onTokensReceived();
 
@@ -384,7 +418,7 @@ contract RegentLBPStrategyTest is Test {
 
     function testRecoverFailedAuctionRevertsAfterMigration() external {
         strategy.onTokensReceived();
-        usdc.mint(address(strategy), 200e18);
+        usdc.mint(strategy.auctionAddress(), 200e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);

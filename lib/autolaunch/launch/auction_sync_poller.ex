@@ -32,8 +32,7 @@ defmodule Autolaunch.Launch.AuctionSyncPoller do
   def init(opts) do
     state = %{
       interval_ms: Keyword.get(opts, :interval_ms, @default_interval_ms),
-      batch_size: Keyword.get(opts, :batch_size, 20),
-      recent_hours: Keyword.get(opts, :recent_hours, 168)
+      batch_size: Keyword.get(opts, :batch_size, 20)
     }
 
     send(self(), :poll)
@@ -54,7 +53,7 @@ defmodule Autolaunch.Launch.AuctionSyncPoller do
   end
 
   defp sync(state) do
-    case AuctionSync.sync_once(limit: state.batch_size, recent_hours: state.recent_hours) do
+    case AuctionSync.sync_once(limit: state.batch_size) do
       {:ok, %{changed: changed, graduated: graduated, failed: failed}}
       when changed + graduated + failed > 0 ->
         LiveUpdates.broadcast([:market, :tokens, :system])

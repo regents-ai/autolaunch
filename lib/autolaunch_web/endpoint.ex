@@ -51,6 +51,8 @@ defmodule AutolaunchWeb.Endpoint do
     json_decoder: Phoenix.json_library(),
     body_reader: {AutolaunchWeb.RawBodyReader, :read_body, []}
 
+  plug Sentry.PlugContext
+
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options

@@ -336,10 +336,13 @@ defmodule Autolaunch.Prelaunch do
     minimum_raise =
       normalize_usdc_amount(Map.get(attrs, "minimum_raise_usdc"))
 
+    token_name = trim(Map.get(attrs, "token_name"))
+    token_symbol = trim(Map.get(attrs, "token_symbol"))
+
     fields = %{
       "agent_name" => agent.name,
-      "token_name" => trim(Map.get(attrs, "token_name")),
-      "token_symbol" => trim(Map.get(attrs, "token_symbol")),
+      "token_name" => valid_length_text(token_name, 3, 15),
+      "token_symbol" => valid_length_text(token_symbol, 2, 10),
       "minimum_raise_usdc" => minimum_raise && minimum_raise.display,
       "minimum_raise_usdc_raw" => minimum_raise && minimum_raise.raw,
       "agent_safe_address" => normalize_address(Map.get(attrs, "agent_safe_address")),
@@ -573,6 +576,16 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
+  defp valid_length_text(value, min, max) when is_binary(value) do
+    length = String.length(value)
+
+    if length >= min and length <= max do
+      value
+    end
+  end
+
+  defp valid_length_text(_value, _min, _max), do: nil
+
   defp maybe_block(list, true, message), do: list ++ [message]
   defp maybe_block(list, _condition, _message), do: list
 
@@ -586,32 +599,19 @@ defmodule Autolaunch.Prelaunch do
         nil
 
       trimmed ->
-        case Decimal.parse(trimmed) do
-          {%Decimal{} = decimal, ""} ->
-            scaled = Decimal.mult(decimal, Decimal.new("1000000"))
-
-            cond do
-              Decimal.compare(decimal, Decimal.new(0)) != :gt ->
-                nil
-
-              Decimal.equal?(scaled, Decimal.round(scaled, 0)) ->
-                %{
-                  display: decimal |> Decimal.normalize() |> Decimal.to_string(:normal),
-                  raw: scaled |> Decimal.round(0) |> Decimal.to_integer() |> Integer.to_string()
-                }
-
-              true ->
-                nil
-            end
-
-          _ ->
-            nil
+        if Regex.match?(~r/^[0-9]+$/, trimmed) do
+          %{
+            display: trimmed,
+            raw: trimmed <> "000000"
+          }
         end
     end
   end
 
-  defp normalize_usdc_amount(value) when is_number(value),
+  defp normalize_usdc_amount(value) when is_integer(value) and value >= 0,
     do: normalize_usdc_amount(to_string(value))
+
+  defp normalize_usdc_amount(_value), do: nil
 
   defp trim(value), do: Evm.normalize_string(value)
 

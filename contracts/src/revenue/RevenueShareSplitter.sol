@@ -15,6 +15,7 @@ import {
 import {IRevenueShareSplitter} from "src/revenue/interfaces/IRevenueShareSplitter.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
 import {ISubjectLifecycleSync} from "src/revenue/interfaces/ISubjectLifecycleSync.sol";
+import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
 contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycleSync {
     using SafeTransferLib for address;
@@ -174,6 +175,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
         require(protocolRecipient_ != address(0), "PROTOCOL_ZERO");
         require(owner_ != address(0), "OWNER_ZERO");
         require(revenueShareSupplyDenominator_ != 0, "SUPPLY_DENOMINATOR_ZERO");
+        InputBounds.requireStringMax(label_, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
         stakeToken = stakeToken_;
         usdc = usdc_;
@@ -324,6 +326,7 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
     }
 
     function setLabel(string calldata label_) external onlyOwner {
+        InputBounds.requireStringMax(label_, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
         label = label_;
         emit LabelSet(label_);
     }

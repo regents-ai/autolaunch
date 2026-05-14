@@ -16,6 +16,7 @@ import {IRevenueShareSplitter} from "src/revenue/interfaces/IRevenueShareSplitte
 import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {ISubjectLifecycleSync} from "src/revenue/interfaces/ISubjectLifecycleSync.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
+import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
 contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecycleSync {
     using SafeTransferLib for address;
@@ -155,6 +156,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
             IRegentStakingRevenueRouter(stakingRevenueRouter_).usdc() == usdc_,
             "STAKING_ROUTER_USDC_MISMATCH"
         );
+        InputBounds.requireStringMax(label_, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
         stakeToken = stakeToken_;
         usdc = usdc_;
@@ -276,6 +278,7 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     }
 
     function setLabel(string calldata label_) external onlyOwner {
+        InputBounds.requireStringMax(label_, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
         label = label_;
         emit LabelSet(label_);
     }

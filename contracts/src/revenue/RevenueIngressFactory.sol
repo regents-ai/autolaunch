@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Owned} from "src/auth/Owned.sol";
 import {RevenueIngressAccount} from "src/revenue/RevenueIngressAccount.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
+import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
 contract RevenueIngressFactory is Owned {
     uint256 public constant MAX_INGRESS_ACCOUNTS_PER_SUBJECT = 64;
@@ -87,6 +88,7 @@ contract RevenueIngressFactory is Owned {
             ingressAccountsBySubject[subjectId].length < MAX_INGRESS_ACCOUNTS_PER_SUBJECT,
             "INGRESS_ACCOUNT_LIMIT"
         );
+        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
         RevenueIngressAccount account =
             new RevenueIngressAccount(usdc, cfg.splitter, subjectId, label, cfg.treasurySafe);

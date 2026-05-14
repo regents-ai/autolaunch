@@ -14,7 +14,22 @@ import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
-import {MockTokenFactory} from "test/mocks/MockTokenFactory.sol";
+import {ITokenFactory} from "src/interfaces/ITokenFactory.sol";
+import {MockLaunchToken, MockTokenFactory} from "test/mocks/MockTokenFactory.sol";
+
+contract BadDeferredTokenFactory is ITokenFactory {
+    function createToken(
+        string calldata name,
+        string calldata symbol,
+        uint8 decimals,
+        uint256,
+        address,
+        bytes calldata,
+        bytes32
+    ) external returns (address token) {
+        token = address(new MockLaunchToken(name, symbol, decimals, 0, address(this)));
+    }
+}
 
 contract DeferredAutolaunchFactoryTest is Test {
     address internal constant OWNER = address(0xA11CE);
@@ -42,10 +57,10 @@ contract DeferredAutolaunchFactoryTest is Test {
         );
         revenueIngressFactory =
             new RevenueIngressFactory(address(usdc), address(subjectRegistry), OWNER);
-        factory = new DeferredAutolaunchFactory(
-            OWNER, revenueShareFactory, revenueIngressFactory, feeRouter
-        );
         tokenFactory = new MockTokenFactory();
+        factory = new DeferredAutolaunchFactory(
+            OWNER, revenueShareFactory, revenueIngressFactory, feeRouter, address(tokenFactory)
+        );
 
         vm.startPrank(OWNER);
         subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
@@ -84,6 +99,7 @@ contract DeferredAutolaunchFactoryTest is Test {
         RevenueShareSplitterV2 splitter = RevenueShareSplitterV2(result.revenueShareSplitter);
         assertEq(splitter.revenueShareSupplyDenominator(), TOTAL_SUPPLY);
         assertEq(splitter.protocolRecipient(), address(feeRouter));
+        assertEq(factory.trustedTokenFactory(), address(tokenFactory));
     }
 
     function testIdentityLinkIsOptionalAndFullTupleCanBeLinked() external {
@@ -111,6 +127,28 @@ contract DeferredAutolaunchFactoryTest is Test {
         factory.createDeferredAutolaunch(cfg);
     }
 
+    function testConstructorRequiresTrustedTokenFactoryContract() external {
+        vm.expectRevert("TOKEN_FACTORY_NOT_CONTRACT");
+        new DeferredAutolaunchFactory(
+            OWNER, revenueShareFactory, revenueIngressFactory, feeRouter, address(0xCAFE)
+        );
+    }
+
+    function testRejectsTrustedFactoryThatDoesNotMintExpectedSupply() external {
+        BadDeferredTokenFactory badFactory = new BadDeferredTokenFactory();
+        DeferredAutolaunchFactory badDeferredFactory = new DeferredAutolaunchFactory(
+            OWNER, revenueShareFactory, revenueIngressFactory, feeRouter, address(badFactory)
+        );
+
+        vm.startPrank(OWNER);
+        revenueShareFactory.setAuthorizedCreator(address(badDeferredFactory), true);
+        revenueIngressFactory.setAuthorizedCreator(address(badDeferredFactory), true);
+        vm.stopPrank();
+
+        vm.expectRevert("TOKEN_BALANCE_BAD");
+        badDeferredFactory.createDeferredAutolaunch(_config(0, address(0), 0));
+    }
+
     function _config(uint256 identityChainId, address identityRegistry, uint256 identityAgentId)
         internal
         view
@@ -121,7 +159,6 @@ contract DeferredAutolaunchFactoryTest is Test {
             tokenSymbol: "DAGENT",
             totalSupply: TOTAL_SUPPLY,
             treasury: TREASURY,
-            tokenFactory: address(tokenFactory),
             tokenFactoryData: abi.encode("config"),
             tokenFactorySalt: keccak256(
                 abi.encode(TOKEN_SALT, identityChainId, identityRegistry, identityAgentId)

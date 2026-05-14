@@ -59,6 +59,7 @@ contract RegentLBPStrategy is IDistributionContract {
     uint128 public migratedLiquidity;
     uint128 public migratedCurrencyForLP;
     uint128 public migratedTokenForLP;
+    uint256 public accountedAuctionCurrency;
     bool public migrated;
     uint256 private _reentrancyGuard = 1;
     int24 internal constant POOL_INIT_FAILED = type(int24).max;
@@ -98,6 +99,9 @@ contract RegentLBPStrategy is IDistributionContract {
     );
     event TokensSweptToVesting(address indexed vestingWallet, uint256 amount);
     event CurrencySweptToTreasury(address indexed treasury, uint256 amount);
+    event AuctionCurrencyAccounted(
+        address indexed auction, uint256 currencyRaised, uint256 strategyCurrencyBalance
+    );
     event FailedAuctionRecovered(
         address indexed auction, address indexed vestingWallet, uint256 amount
     );
@@ -212,8 +216,7 @@ contract RegentLBPStrategy is IDistributionContract {
         IContinuousClearingAuction auction = IContinuousClearingAuction(auctionAddress);
         require(auction.isGraduated(), "AUCTION_NOT_GRADUATED");
 
-        uint256 currencyBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
-        require(currencyBalance != 0, "NO_CURRENCY_RAISED");
+        uint256 currencyBalance = _accountAuctionCurrency(auction);
 
         uint256 currencyForLP = (currencyBalance * lpCurrencyBps) / BPS_DENOMINATOR;
         require(currencyForLP != 0, "LP_CURRENCY_ZERO");
@@ -234,12 +237,6 @@ contract RegentLBPStrategy is IDistributionContract {
         require(liquidity != 0, "LP_LIQUIDITY_ZERO");
 
         uint256 positionId = IPositionManager(positionManager).nextTokenId();
-        migrated = true;
-        migratedPoolId = poolId;
-        migratedPositionId = positionId;
-        migratedLiquidity = liquidity;
-        migratedCurrencyForLP = currencyForLPUint128;
-        migratedTokenForLP = tokenForLPUint128;
 
         token.safeTransfer(positionManager, tokenForLP);
         usdc.safeTransfer(positionManager, currencyForLP);
@@ -263,6 +260,14 @@ contract RegentLBPStrategy is IDistributionContract {
                 ),
                 block.timestamp
             );
+
+        accountedAuctionCurrency = currencyBalance;
+        migrated = true;
+        migratedPoolId = poolId;
+        migratedPositionId = positionId;
+        migratedLiquidity = liquidity;
+        migratedCurrencyForLP = currencyForLPUint128;
+        migratedTokenForLP = tokenForLPUint128;
 
         emit Migrated(
             poolId,
@@ -340,6 +345,21 @@ contract RegentLBPStrategy is IDistributionContract {
 
         token_.safeTransfer(recipient, amount);
         emit UnsupportedTokenRescued(token_, amount, recipient);
+    }
+
+    function _accountAuctionCurrency(IContinuousClearingAuction auction)
+        internal
+        returns (uint256 currencyRaised)
+    {
+        currencyRaised = auction.currencyRaised();
+        require(currencyRaised != 0, "NO_CURRENCY_RAISED");
+
+        auction.sweepCurrency();
+
+        uint256 strategyCurrencyBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
+        require(strategyCurrencyBalance >= currencyRaised, "AUCTION_CURRENCY_LOW");
+
+        emit AuctionCurrencyAccounted(auctionAddress, currencyRaised, strategyCurrencyBalance);
     }
 
     function _poolKey() internal view returns (PoolKey memory poolKey) {

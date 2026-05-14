@@ -52,6 +52,7 @@ defmodule Autolaunch.MixProject do
        compile: false,
        depth: 1},
       {:req, "~> 0.5"},
+      {:sentry, "~> 13.0"},
       {:regent_cache, path: "../elixir-utils/cache"},
       {:xmtp_elixir_sdk, path: "../elixir-utils/xmtp"},
       {:ens_elixir, path: "../elixir-utils/ens"},

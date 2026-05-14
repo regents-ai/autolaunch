@@ -3237,21 +3237,23 @@ components:
         stake_token: { $ref: "#/components/schemas/Address" }
         treasury: { $ref: "#/components/schemas/Address" }
         staker_pool_bps: { type: integer, minimum: 0, maximum: 10000 }
-        label: { type: string, minLength: 1 }
+        label: { type: string, minLength: 1, maxLength: 96 }
         salt: { $ref: "#/components/schemas/HexData" }
       additionalProperties: false
     DeferredAutolaunchRequest:
       type: object
-      required: [token_name, token_symbol, total_supply, treasury, token_factory, subject_label]
+      required: [token_name, token_symbol, total_supply, treasury, subject_label]
       properties:
-        token_name: { type: string, minLength: 1 }
-        token_symbol: { type: string, minLength: 1 }
+        token_name: { type: string, minLength: 1, maxLength: 64 }
+        token_symbol: { type: string, minLength: 1, maxLength: 16 }
         total_supply: { type: string, minLength: 1 }
         treasury: { $ref: "#/components/schemas/Address" }
-        token_factory: { $ref: "#/components/schemas/Address" }
-        token_factory_data: { $ref: "#/components/schemas/HexData" }
+        token_factory_data:
+          allOf:
+            - { $ref: "#/components/schemas/HexData" }
+          maxLength: 2050
         token_factory_salt: { $ref: "#/components/schemas/HexData" }
-        subject_label: { type: string, minLength: 1 }
+        subject_label: { type: string, minLength: 1, maxLength: 96 }
         identity_chain_id:
           anyOf:
             - { type: integer, minimum: 1 }
@@ -3486,8 +3488,8 @@ components:
       properties:
         plan_id: { type: string }
         agent_id: { type: string }
-        token_name: { type: string }
-        token_symbol: { type: string }
+        token_name: { type: string, minLength: 3, maxLength: 15 }
+        token_symbol: { type: string, minLength: 2, maxLength: 10 }
         agent_safe_address: { $ref: "#/components/schemas/Address" }
         launch_notes:
           anyOf:
@@ -3501,7 +3503,9 @@ components:
           anyOf:
             - { type: string }
             - { type: "null" }
-        minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
+        minimum_raise_usdc:
+          type: string
+          pattern: "^[0-9]+$"
         minimum_raise_usdc_raw: { type: string }
         status:
           anyOf:

@@ -15,6 +15,12 @@ defmodule Mix.Tasks.Autolaunch.GenerateSelectors do
     {"LaunchFeeRegistry", "contracts/out/LaunchFeeRegistry.sol/LaunchFeeRegistry.json"},
     {"LaunchFeeVault", "contracts/out/LaunchFeeVault.sol/LaunchFeeVault.json"},
     {"LaunchPoolFeeHook", "contracts/out/LaunchPoolFeeHook.sol/LaunchPoolFeeHook.json"},
+    {"DeferredAutolaunchFactory",
+     "contracts/out/DeferredAutolaunchFactory.sol/DeferredAutolaunchFactory.json"},
+    {"PaymentLinkFactory", "contracts/out/PaymentLinkFactory.sol/PaymentLinkFactory.json"},
+    {"PaymentLinkReceiver", "contracts/out/PaymentLinkReceiver.sol/PaymentLinkReceiver.json"},
+    {"PermissionlessExistingTokenRevenueFactory",
+     "contracts/out/PermissionlessExistingTokenRevenueFactory.sol/PermissionlessExistingTokenRevenueFactory.json"},
     {"RegentLBPStrategy", "contracts/out/RegentLBPStrategy.sol/RegentLBPStrategy.json"},
     {"RegentRevenueStaking", "contracts/out/RegentRevenueStaking.sol/RegentRevenueStaking.json"},
     {"RevenueIngressAccount",
@@ -23,6 +29,8 @@ defmodule Mix.Tasks.Autolaunch.GenerateSelectors do
      "contracts/out/RevenueIngressFactory.sol/RevenueIngressFactory.json"},
     {"RevenueShareFactory", "contracts/out/RevenueShareFactory.sol/RevenueShareFactory.json"},
     {"RevenueShareSplitter", "contracts/out/RevenueShareSplitter.sol/RevenueShareSplitter.json"},
+    {"RevenueShareSplitterV2",
+     "contracts/out/RevenueShareSplitterV2.sol/RevenueShareSplitterV2.json"},
     {"SubjectRegistry", "contracts/out/SubjectRegistry.sol/SubjectRegistry.json"}
   ]
 

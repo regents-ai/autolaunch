@@ -17,6 +17,7 @@ import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 import {ITokenFactory} from "src/interfaces/ITokenFactory.sol";
 import {IDistributionStrategy} from "src/interfaces/IDistributionStrategy.sol";
 import {BaseUsdc} from "src/libraries/BaseUsdc.sol";
+import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
 contract LaunchDeploymentController is Owned {
     uint256 internal constant BPS_DENOMINATOR = 10_000;
@@ -389,8 +390,23 @@ contract LaunchDeploymentController is Owned {
         require(cfg.floorPrice % cfg.auctionTickSpacing == 0, "FLOOR_PRICE_TICK_MISALIGNED");
         require(cfg.auctionTickSpacing >= cfg.floorPrice / 10_000, "AUCTION_TICK_SPACING_TOO_SMALL");
         _validateAuctionStepsData(cfg.auctionStepsData, cfg.endBlock - cfg.startBlock);
-        require(bytes(cfg.tokenName).length != 0, "NAME_EMPTY");
-        require(bytes(cfg.tokenSymbol).length != 0, "SYMBOL_EMPTY");
+        InputBounds.requireNonEmptyString(
+            cfg.tokenName, InputBounds.MAX_TOKEN_NAME_BYTES, "NAME_EMPTY", "NAME_TOO_LONG"
+        );
+        InputBounds.requireNonEmptyString(
+            cfg.tokenSymbol, InputBounds.MAX_TOKEN_SYMBOL_BYTES, "SYMBOL_EMPTY", "SYMBOL_TOO_LONG"
+        );
+        InputBounds.requireNonEmptyString(
+            cfg.subjectLabel,
+            InputBounds.MAX_LABEL_BYTES,
+            "SUBJECT_LABEL_EMPTY",
+            "SUBJECT_LABEL_TOO_LONG"
+        );
+        InputBounds.requireBytesMax(
+            cfg.tokenFactoryData,
+            InputBounds.MAX_TOKEN_FACTORY_DATA_BYTES,
+            "TOKEN_FACTORY_DATA_TOO_LONG"
+        );
         require(
             RevenueShareFactory(cfg.revenueShareFactory).usdc() == cfg.usdcToken,
             "REVENUE_SHARE_USDC_MISMATCH"

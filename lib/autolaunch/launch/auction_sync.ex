@@ -14,7 +14,6 @@ defmodule Autolaunch.Launch.AuctionSync do
   alias Autolaunch.Tokens.RevsplitToken
 
   @default_batch_size 20
-  @default_recent_hours 168
 
   def sync_once(opts \\ []) do
     candidates = sync_candidates(opts)
@@ -52,18 +51,13 @@ defmodule Autolaunch.Launch.AuctionSync do
   def sync_candidates(opts \\ []) do
     limit = Keyword.get(opts, :limit, config_value(:batch_size, @default_batch_size))
 
-    recent_hours =
-      Keyword.get(opts, :recent_hours, config_value(:recent_hours, @default_recent_hours))
-
-    recent_after = DateTime.add(DateTime.utc_now(), -recent_hours * 60 * 60, :second)
     active_chain_id = Keyword.get(opts, :chain_id, active_chain_id())
 
     Auction
     |> where([auction], auction.chain_id == ^active_chain_id)
     |> where(
       [auction],
-      auction.chain_state == "open" or is_nil(auction.onchain_synced_at) or
-        auction.updated_at >= ^recent_after
+      auction.chain_state == "open" or is_nil(auction.onchain_synced_at)
     )
     |> order_by([auction], asc_nulls_first: auction.onchain_synced_at, desc: auction.updated_at)
     |> limit(^limit)
@@ -227,8 +221,9 @@ defmodule Autolaunch.Launch.AuctionSync do
   defp revsplit_token_exists?(%{chain_id: chain_id, token_address: token_address})
        when is_integer(chain_id) and is_binary(token_address) do
     Repo.exists?(
-      from token in RevsplitToken,
+      from(token in RevsplitToken,
         where: token.chain_id == ^chain_id and token.token_address == ^token_address
+      )
     )
   end
 

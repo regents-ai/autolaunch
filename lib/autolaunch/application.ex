@@ -8,6 +8,7 @@ defmodule Autolaunch.Application do
   @impl true
   def start(_type, _args) do
     :ok = enforce_siwa_runtime_guard!()
+    :ok = add_sentry_logger_handler()
 
     children =
       [
@@ -65,6 +66,15 @@ defmodule Autolaunch.Application do
 
     if Keyword.get(opts, :enabled, false) do
       {Autolaunch.Launch.AuctionSyncPoller, opts}
+    end
+  end
+
+  defp add_sentry_logger_handler do
+    case :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, %{
+           config: %{metadata: [:file, :line, :request_id]}
+         }) do
+      :ok -> :ok
+      {:error, {:already_exists, :sentry_handler}} -> :ok
     end
   end
 end

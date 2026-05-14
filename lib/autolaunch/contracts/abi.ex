@@ -96,7 +96,7 @@ defmodule Autolaunch.Contracts.Abi do
     sweep_unsold_tokens: "0x5dd13ca7",
     release_launch_token: "0xa99b3481",
     create_existing_token_revenue_subject: "0x4ddd061f",
-    create_deferred_autolaunch: "0x08f8cdcd"
+    create_deferred_autolaunch: "0x3b14ba32"
   }
 
   @type encode_arg ::

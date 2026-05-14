@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Owned} from "src/auth/Owned.sol";
 import {ISubjectRegistry} from "src/revenue/interfaces/ISubjectRegistry.sol";
 import {ISubjectLifecycleSync} from "src/revenue/interfaces/ISubjectLifecycleSync.sol";
+import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
 contract SubjectRegistry is Owned, ISubjectRegistry {
     struct IdentityLink {
@@ -28,6 +29,7 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         string label
     );
     event AuthorizedRegistrarSet(address indexed registrar, bool enabled);
+    event CanonicalSubjectForStakeTokenSet(address indexed stakeToken, bytes32 indexed subjectId);
     event PermissionlessSubjectCreated(
         bytes32 indexed subjectId,
         address indexed stakeToken,
@@ -90,6 +92,7 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
         require(subjects[subjectId].stakeToken == address(0), "SUBJECT_EXISTS");
         require(subjectOfStakeToken[stakeToken] == bytes32(0), "STAKE_TOKEN_ALREADY_LINKED");
+        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
         subjects[subjectId] = SubjectConfig({
             stakeToken: stakeToken,
@@ -123,6 +126,7 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
         require(creator != address(0), "CREATOR_ZERO");
         require(subjects[subjectId].stakeToken == address(0), "SUBJECT_EXISTS");
+        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
         subjects[subjectId] = SubjectConfig({
             stakeToken: stakeToken,
@@ -133,10 +137,6 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         });
 
         subjectsByStakeToken[stakeToken].push(subjectId);
-
-        if (subjectOfStakeToken[stakeToken] == bytes32(0)) {
-            subjectOfStakeToken[stakeToken] = subjectId;
-        }
 
         subjectManagers[subjectId][treasurySafe] = true;
         subjectManagers[subjectId][creator] = true;
@@ -154,6 +154,19 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         emit AuthorizedRegistrarSet(registrar, enabled);
     }
 
+    function setCanonicalSubjectForStakeToken(address stakeToken, bytes32 subjectId)
+        external
+        override
+        onlyOwner
+    {
+        require(stakeToken != address(0), "STAKE_TOKEN_ZERO");
+        SubjectConfig storage cfg = _subjectStorage(subjectId);
+        require(cfg.stakeToken == stakeToken, "STAKE_TOKEN_MISMATCH");
+
+        subjectOfStakeToken[stakeToken] = subjectId;
+        emit CanonicalSubjectForStakeTokenSet(stakeToken, subjectId);
+    }
+
     function updateSubject(
         bytes32 subjectId,
         address splitter,
@@ -165,6 +178,7 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         address previousSplitter = cfg.splitter;
         require(splitter != address(0), "SPLITTER_ZERO");
         require(treasurySafe != address(0), "TREASURY_SAFE_ZERO");
+        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
         bool splitterChanged = previousSplitter != splitter;
         bool activeChanged = cfg.active != active;
 
@@ -204,6 +218,7 @@ contract SubjectRegistry is Owned, ISubjectRegistry {
         onlySubjectManager(subjectId)
     {
         SubjectConfig storage cfg = _subjectStorage(subjectId);
+        InputBounds.requireStringMax(label, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
         cfg.label = label;
         emit SubjectUpdated(subjectId, cfg.splitter, cfg.treasurySafe, cfg.active, label);
     }

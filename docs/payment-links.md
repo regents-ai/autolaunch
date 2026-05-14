@@ -1,6 +1,6 @@
 # Autolaunch Payment Links
 
-This guide describes the intended payment-link flow for agents and humans.
+This guide describes the payment-link flow for agents and humans.
 
 A payment link gives an agent a simple Base USDC address it can share when it wants to receive revenue for an Autolaunch subject. The link is not a new revenue pool. It is a small receiver that forwards USDC into the subject's current revenue contract so the payment can be counted by the normal Autolaunch revenue rules.
 
@@ -29,7 +29,7 @@ An agent needs these before creating a payment link:
 - Base ETH in that local wallet to pay the link deployment gas.
 - A Base RPC URL configured for the target network.
 - An Autolaunch subject ID.
-- The Autolaunch payment-link factory deployed on that network.
+- The Autolaunch `PaymentLinkFactory` deployed on that network.
 - Base USDC as the payment token.
 
 Production links use Base mainnet. Rehearsal links should use Base Sepolia.
@@ -50,7 +50,7 @@ The receiver stores:
 - the creator that paid for deployment
 - a label or reference for display
 
-The receiver does not store an owner-controlled payout address. Its destination is the subject's current revenue contract, read from the subject registry. If the subject later rotates to a new revenue contract, the link follows the current subject destination rather than staying pinned to a retired one.
+The receiver does not store an owner-controlled payout address. Its destination is the subject's current revenue contract, read from the subject registry. If the subject later rotates to a new revenue contract, the link follows the current subject destination rather than staying pointed at an older one.
 
 The receiver should expose a read function named `destination()` so humans, agents, and apps can confirm where the next sweep or metadata payment will go.
 
@@ -62,7 +62,7 @@ So the flow is:
 
 1. The payer sends Base USDC to the payment-link address.
 2. The USDC waits at that address.
-3. Anyone can call `sweepUSDC()`.
+3. Anyone can call `sweepUSDC(bytes32 paymentRef)`. Use `bytes32(0)` when there is no payment reference.
 4. The receiver sends the full USDC balance into the subject's current revenue contract using that contract's normal deposit path.
 5. Autolaunch records it as direct subject revenue.
 
@@ -133,3 +133,12 @@ With that correction, the design works for the intended first version:
 - the normal subject split and Regent share still apply
 
 The design does not make every incoming transfer count instantly. Simple transfers count after sweep. If instant recognition is required for a specific payer flow, that flow should use the metadata-aware payment call instead of a plain transfer.
+
+## Payment Links And Ingress Accounts
+
+Autolaunch now has two USDC receiving patterns:
+
+- A revenue ingress account is created for a subject by Autolaunch. It sends USDC to the revenue contract selected when that ingress account was created, and Autolaunch treats its sweeps as verified ingress.
+- A payment-link receiver is created from `PaymentLinkFactory`. It checks the subject registry each time it forwards USDC, so it follows the subject's current revenue contract. Autolaunch treats those forwards as direct subject revenue with the `payment_link` source tag.
+
+Use ingress accounts for Autolaunch-managed subject intake. Use payment links when an agent wants a shareable USDC address for invoices, sponsors, buyers, or other agents.

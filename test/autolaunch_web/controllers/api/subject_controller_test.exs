@@ -433,6 +433,39 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
            } = json_response(conn, 200)
   end
 
+  test "prepare-deferred-autolaunch returns the trusted-factory wallet action", %{conn: conn} do
+    conn =
+      post(conn, "/v1/app/subjects/deferred-autolaunch/prepare", %{
+        "token_name" => "Deferred Agent",
+        "token_symbol" => "DAGENT",
+        "total_supply" => "1000000000000000000000000",
+        "treasury" => @treasury,
+        "token_factory_data" => "0x1234",
+        "token_factory_salt" => "0x" <> String.duplicate("46", 32),
+        "subject_label" => "Deferred agent",
+        "identity_chain_id" => 8_453,
+        "identity_registry" => @agent_registry,
+        "identity_agent_id" => @agent_token_id
+      })
+
+    assert %{
+             "ok" => true,
+             "prepared" => %{
+               "expected_signer" => @wallet,
+               "wallet_action" => %{
+                 "chain_id" => 8_453,
+                 "to" => @deferred_factory,
+                 "data" => data
+               },
+               "params" => params
+             }
+           } = json_response(conn, 200)
+
+    assert String.starts_with?(data, "0x3b14ba32")
+    refute Map.has_key?(params, "token_factory")
+    assert params["token_factory_data"] == "0x1234"
+  end
+
   test "confirm-existing-token persists the onchain subject event", %{conn: conn} do
     tx_hash = "0x" <> String.duplicate("e", 64)
 

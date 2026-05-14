@@ -5,6 +5,7 @@ import {Owned} from "src/auth/Owned.sol";
 import {SafeTransferLib} from "src/libraries/SafeTransferLib.sol";
 import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.sol";
 import {IRevenueShareSplitter} from "src/revenue/interfaces/IRevenueShareSplitter.sol";
+import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
 contract RevenueIngressAccount is Owned {
     using SafeTransferLib for address;
@@ -60,6 +61,7 @@ contract RevenueIngressAccount is Owned {
         require(splitter_ != address(0), "SPLITTER_ZERO");
         require(subjectId_ != bytes32(0), "SUBJECT_ZERO");
         require(IRevenueShareSplitter(splitter_).usdc() == usdc_, "SPLITTER_USDC_MISMATCH");
+        InputBounds.requireStringMax(label_, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
 
         usdc = usdc_;
         splitter = splitter_;
@@ -69,6 +71,7 @@ contract RevenueIngressAccount is Owned {
     }
 
     function setLabel(string calldata label_) external onlyOwner {
+        InputBounds.requireStringMax(label_, InputBounds.MAX_LABEL_BYTES, "LABEL_TOO_LONG");
         label = label_;
         emit LabelSet(label_);
     }

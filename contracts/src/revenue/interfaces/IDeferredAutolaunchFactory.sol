@@ -7,7 +7,6 @@ interface IDeferredAutolaunchFactory {
         string tokenSymbol;
         uint256 totalSupply;
         address treasury;
-        address tokenFactory;
         bytes tokenFactoryData;
         bytes32 tokenFactorySalt;
         string subjectLabel;

@@ -10,6 +10,7 @@ import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStaking
 import {LiveStakeFeePoolSplitter} from "src/revenue/LiveStakeFeePoolSplitter.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
+import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
 contract PermissionlessExistingTokenRevenueFactory is
     Owned,
@@ -65,6 +66,9 @@ contract PermissionlessExistingTokenRevenueFactory is
         require(cfg.treasury != address(0), "TREASURY_ZERO");
         require(cfg.treasury != address(this), "TREASURY_IS_SELF");
         require(cfg.stakerPoolBps <= 10_000, "STAKER_POOL_TOO_HIGH");
+        InputBounds.requireNonEmptyString(
+            cfg.label, InputBounds.MAX_LABEL_BYTES, "LABEL_EMPTY", "LABEL_TOO_LONG"
+        );
 
         IERC20SupplyMinimal(cfg.stakeToken).totalSupply();
 

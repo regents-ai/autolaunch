@@ -44,6 +44,7 @@ COPY autolaunch/rel rel
 RUN npm --prefix assets ci
 RUN mix assets.deploy
 RUN mix compile
+RUN mix sentry.package_source_code
 RUN mix release
 
 FROM ${RUNNER_IMAGE} AS runner

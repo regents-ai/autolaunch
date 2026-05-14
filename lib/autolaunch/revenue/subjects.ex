@@ -17,6 +17,10 @@ defmodule Autolaunch.Revenue.Subjects do
   @existing_token_created_topic0 "0x03b5cbf19327bec5313dcb772dc0ecb35f8f7fcfafe897639b0a54eebcdd9b1c"
   @deferred_autolaunch_created_topic0 "0x36f06b6cb88844b276b8212d9b26f9948c1fff57ac44de768a170596122491f1"
   @zero_address "0x0000000000000000000000000000000000000000"
+  @max_token_name_bytes 64
+  @max_token_symbol_bytes 16
+  @max_label_bytes 96
+  @max_token_factory_data_bytes 1024
 
   defdelegate get_subject(subject_id, current_human \\ nil), to: Core
   defdelegate subject_scope(subject_id, current_human \\ nil), to: Core
@@ -75,12 +79,12 @@ defmodule Autolaunch.Revenue.Subjects do
     with {:ok, signer} <- signer_for(current_actor),
          {:ok, chain_id} <- InfrastructureConfig.launch_chain_id(),
          {:ok, factory} <- configured_factory(:deferred_autolaunch_factory_address),
-         {:ok, token_name} <- label_param(attrs, "token_name"),
-         {:ok, token_symbol} <- label_param(attrs, "token_symbol"),
+         {:ok, token_name} <- label_param(attrs, "token_name", @max_token_name_bytes),
+         {:ok, token_symbol} <- label_param(attrs, "token_symbol", @max_token_symbol_bytes),
          {:ok, total_supply} <- uint_param(attrs, "total_supply"),
          {:ok, treasury} <- address_param(attrs, "treasury"),
-         {:ok, token_factory} <- address_param(attrs, "token_factory"),
-         {:ok, token_factory_data} <- bytes_param(attrs, "token_factory_data"),
+         {:ok, token_factory_data} <-
+           bytes_param(attrs, "token_factory_data", @max_token_factory_data_bytes),
          {:ok, token_factory_salt} <- bytes32_param(attrs, "token_factory_salt", random: true),
          {:ok, subject_label} <- label_param(attrs, "subject_label"),
          {:ok, identity_chain_id, identity_registry, identity_agent_id} <- identity_tuple(attrs) do
@@ -91,7 +95,6 @@ defmodule Autolaunch.Revenue.Subjects do
         token_symbol: token_symbol,
         total_supply: Integer.to_string(total_supply),
         treasury: treasury,
-        token_factory: token_factory,
         token_factory_data: token_factory_data,
         token_factory_salt: token_factory_salt,
         subject_label: subject_label,
@@ -108,7 +111,6 @@ defmodule Autolaunch.Revenue.Subjects do
              {:string, token_symbol},
              {:uint256, total_supply},
              {:address, treasury},
-             {:address, token_factory},
              {:bytes, token_factory_data},
              {:bytes32, token_factory_salt},
              {:string, subject_label},
@@ -524,10 +526,17 @@ defmodule Autolaunch.Revenue.Subjects do
     end
   end
 
-  defp label_param(attrs, key) do
+  defp label_param(attrs, key, max_bytes \\ @max_label_bytes) do
     case ActionParams.string_param(attrs, key) do
-      {:ok, value} -> {:ok, value}
-      {:error, _reason} -> {:error, :invalid_label}
+      {:ok, value} ->
+        if byte_size(value) <= max_bytes do
+          {:ok, value}
+        else
+          {:error, :invalid_label}
+        end
+
+      {:error, _reason} ->
+        {:error, :invalid_label}
     end
   end
 
@@ -540,14 +549,14 @@ defmodule Autolaunch.Revenue.Subjects do
     end
   end
 
-  defp bytes_param(attrs, key) do
+  defp bytes_param(attrs, key, max_bytes) do
     value = Map.get(attrs, key)
 
     cond do
       is_nil(value) or value == "" ->
         {:ok, "0x"}
 
-      hex_data?(value) ->
+      hex_data?(value) and within_hex_byte_limit?(value, max_bytes) ->
         {:ok, String.downcase(value)}
 
       true ->
@@ -737,6 +746,11 @@ defmodule Autolaunch.Revenue.Subjects do
     do: rem(byte_size(hex), 2) == 0 and Regex.match?(~r/^[0-9a-fA-F]*$/, hex)
 
   defp hex_data?(_value), do: false
+
+  defp within_hex_byte_limit?(_value, nil), do: true
+
+  defp within_hex_byte_limit?("0x" <> hex, max_bytes),
+    do: div(byte_size(hex), 2) <= max_bytes
 
   defp blank?(value), do: value in [nil, ""]
 end

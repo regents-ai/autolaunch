@@ -106,7 +106,6 @@ command_groups:
       - autolaunch prelaunch validate
       - autolaunch prelaunch publish
       - autolaunch launch preview
-      - autolaunch launch create
       - autolaunch launch run
       - autolaunch launch monitor
       - autolaunch launch finalize
@@ -118,6 +117,22 @@ command_groups:
       - autolaunch vesting execute-beneficiary-rotation
     command_flags:
       autolaunch prelaunch wizard:
+        - name: --agent
+          type: string
+          required: true
+          description: Agent identity to launch. Create or refresh it with `regents identity ensure`.
+        - name: --name
+          type: string
+          required: true
+          description: Token name, 3 to 15 characters.
+        - name: --symbol
+          type: string
+          required: true
+          description: Token symbol, 2 to 10 characters.
+        - name: --minimum-raise-usdc
+          type: integer
+          required: false
+          description: Minimum USDC raise. Use a whole number; 0 is allowed.
         - name: --agent-safe-address
           type: evm-address
           required: true
@@ -235,10 +250,6 @@ command_groups:
       - autolaunch bids place
       - autolaunch bids exit
       - autolaunch bids claim
-      - autolaunch holdings stake
-      - autolaunch holdings unstake
-      - autolaunch holdings claim-usdc
-      - autolaunch holdings sweep-ingress
       - autolaunch subjects create-existing-token
       - autolaunch subjects create-deferred-autolaunch
       - autolaunch subjects by-token
@@ -290,10 +301,6 @@ command_groups:
           type: address
           required: true
           description: Treasury that receives vested tokens and revenue.
-        - name: --token-factory
-          type: address
-          required: true
-          description: Token factory address.
         - name: --token-factory-data
           type: bytes
           required: false
@@ -323,15 +330,6 @@ command_groups:
           type: address
           required: true
           description: Token address.
-      autolaunch holdings stake:
-        - name: --amount
-          type: string
-          required: true
-          description: Amount of subject tokens to stake.
-        - name: --receiver
-          type: string
-          required: false
-          description: Optional wallet address or ENS name that receives the stake position.
       autolaunch subjects stake:
         - name: --amount
           type: string

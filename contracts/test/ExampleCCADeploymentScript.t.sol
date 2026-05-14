@@ -14,7 +14,9 @@ import {RevenueShareSplitterV2} from "src/revenue/RevenueShareSplitterV2.sol";
 import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {ExampleCCADeploymentScript} from "scripts/ExampleCCADeploymentScript.s.sol";
-import {MockContinuousClearingAuctionFactory} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
+import {
+    MockContinuousClearingAuctionFactory
+} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
 import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
@@ -29,11 +31,11 @@ interface IUERC20LaunchToken {
 }
 
 contract ExampleCCADeploymentScriptHarness is ExampleCCADeploymentScript {
-    function convexAuctionStepsForTest(uint256 durationBlocks, uint256 prebidBlocks, uint256 finalBlockBps)
-        external
-        pure
-        returns (bytes memory)
-    {
+    function convexAuctionStepsForTest(
+        uint256 durationBlocks,
+        uint256 prebidBlocks,
+        uint256 finalBlockBps
+    ) external pure returns (bytes memory) {
         return _convexAuctionSteps(durationBlocks, prebidBlocks, finalBlockBps);
     }
 
@@ -78,15 +80,21 @@ contract ExampleCCADeploymentScriptTest is Test {
         revenueShareFactory = new RevenueShareFactory(
             address(script), USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)
         );
-        revenueIngressFactory = new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
+        revenueIngressFactory =
+            new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
         strategyFactory = new RegentLBPStrategyFactory(address(script));
         tokenFactory = new UERC20Factory();
         subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
 
         _setEnvAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS", AGENT_SAFE);
         _setEnvAddress("REGENT_MULTISIG_ADDRESS", REGENT_MULTISIG);
-        vm.setEnv("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", vm.toString(address(revenueShareFactory)));
-        vm.setEnv("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS", vm.toString(address(revenueIngressFactory)));
+        vm.setEnv(
+            "AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", vm.toString(address(revenueShareFactory))
+        );
+        vm.setEnv(
+            "AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS",
+            vm.toString(address(revenueIngressFactory))
+        );
         vm.setEnv("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", vm.toString(address(strategyFactory)));
         vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
         vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(address(auctionFactory)));
@@ -165,9 +173,11 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(strategyFactory.owner(), address(script));
 
         assertEq(
-            subjectRegistry.subjectForIdentity(block.chainid, IDENTITY_REGISTRY, IDENTITY_AGENT_ID), result.subjectId
+            subjectRegistry.subjectForIdentity(block.chainid, IDENTITY_REGISTRY, IDENTITY_AGENT_ID),
+            result.subjectId
         );
-        AuctionParameters memory parameters = abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
+        AuctionParameters memory parameters =
+            abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
         assertEq(parameters.currency, USDC);
         assertEq(parameters.tokensRecipient, result.strategyAddress);
         assertEq(parameters.fundsRecipient, result.strategyAddress);
@@ -180,7 +190,10 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(parameters.auctionStepsData, _defaultConvexAuctionSteps());
         _assertScheduleTotals(parameters.auctionStepsData, 86_401);
 
-        assertEq(revenueIngressFactory.defaultIngressOfSubject(result.subjectId), result.defaultIngressAddress);
+        assertEq(
+            revenueIngressFactory.defaultIngressOfSubject(result.subjectId),
+            result.defaultIngressAddress
+        );
         address controller = strategy.auctionCreator();
         assertEq(token.creator(), controller);
         assertEq(token.graffiti(), keccak256(abi.encode(AGENT_SAFE)));
@@ -281,7 +294,9 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(totalBlocks, expectedBlocks);
     }
 
-    function _assertCoreAddressesWereCreated(LaunchDeploymentController.DeploymentResult memory result) internal pure {
+    function _assertCoreAddressesWereCreated(
+        LaunchDeploymentController.DeploymentResult memory result
+    ) internal pure {
         assertTrue(result.tokenAddress != address(0));
         assertTrue(result.auctionAddress != address(0));
         assertTrue(result.strategyAddress != address(0));
