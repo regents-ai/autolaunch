@@ -152,6 +152,144 @@
   font-size: 0.85rem;
 }
 
+.al-auctions-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.al-auctions-gallery-card {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--al-border) 82%, transparent);
+  border-radius: 0.8rem;
+  background:
+    radial-gradient(circle at 92% 12%, color-mix(in srgb, var(--al-accent) 14%, transparent), transparent 30%),
+    color-mix(in srgb, var(--al-panel-strong) 90%, black 10%);
+  box-shadow: 0 26px 66px -48px rgba(0, 0, 0, 0.72);
+}
+
+.al-auctions-gallery-preview {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 12.5rem;
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  color: inherit;
+  background:
+    linear-gradient(130deg, rgba(17, 52, 45, 0.96), rgba(6, 18, 17, 0.98)),
+    var(--al-panel);
+  cursor: pointer;
+}
+
+.al-auctions-gallery-preview::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 72% 36%, rgba(37, 226, 203, 0.24), transparent 24%),
+    linear-gradient(118deg, transparent 0 34%, rgba(238, 213, 143, 0.12) 45%, transparent 58%);
+  pointer-events: none;
+}
+
+.al-auctions-gallery-preview img {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.85rem;
+  width: 5.8rem;
+  height: 5.8rem;
+  opacity: 0.38;
+  filter: saturate(1.2);
+}
+
+.al-auctions-gallery-rank {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.85rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0 0.58rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(5, 18, 17, 0.56);
+  font-size: 0.75rem;
+}
+
+.al-auctions-gallery-mark {
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.2rem;
+  height: 5.2rem;
+  border: 1px solid color-mix(in srgb, var(--al-accent) 40%, transparent);
+  border-radius: 999px;
+  color: #06120f;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.88), transparent 27%),
+    linear-gradient(135deg, var(--al-accent), color-mix(in srgb, var(--al-brass) 58%, var(--al-accent) 42%));
+  font-family: var(--al-font-display);
+  font-size: 1.8rem;
+  box-shadow: 0 0 0 0.6rem rgba(255, 255, 255, 0.04);
+}
+
+.al-auctions-gallery-card-body {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.al-auctions-gallery-title,
+.al-auctions-gallery-stats {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.al-auctions-gallery-title {
+  align-items: start;
+  justify-content: space-between;
+}
+
+.al-auctions-gallery-title h4 {
+  margin: 0;
+  color: var(--al-text);
+  font-family: var(--al-font-display);
+  font-size: 1.35rem;
+  line-height: 1.05;
+}
+
+.al-auctions-gallery-title p,
+.al-auctions-gallery-copy,
+.al-auctions-gallery-stats span {
+  margin: 0;
+  color: var(--al-muted);
+}
+
+.al-auctions-gallery-copy {
+  min-height: 2.4rem;
+  font-size: 0.9rem;
+}
+
+.al-auctions-gallery-stats {
+  justify-content: space-between;
+  border-top: 1px solid color-mix(in srgb, var(--al-border) 70%, transparent);
+  padding-top: 0.8rem;
+}
+
+.al-auctions-gallery-stats div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.al-auctions-gallery-stats strong {
+  color: var(--al-text);
+  font-size: 0.94rem;
+}
+
 .al-auctions-market-grid {
   display: grid;
   gap: 1rem;
@@ -973,6 +1111,10 @@
 }
 
 @media (max-width: 1180px) {
+  .al-auctions-gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .al-auctions-market-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1018,6 +1160,10 @@
 }
 
 @media (max-width: 640px) {
+  .al-auctions-gallery-grid {
+    grid-template-columns: 1fr;
+  }
+
   .al-auctions-market-strip,
   .al-auctions-feature-stats {
     grid-template-columns: 1fr;
@@ -2837,5 +2983,355 @@
   ):hover {
     border-color: rgba(67, 196, 132, 0.26);
     box-shadow: 0 26px 58px -44px rgba(0, 0, 0, 0.88);
+  }
+}
+
+body:has(.al-auctions-route) {
+  --al-panel: var(--glass-surface);
+  --al-panel-strong: var(--glass-surface-strong);
+  --al-border: var(--glass-border-subtle);
+  --al-text: var(--glass-text-primary);
+  --al-muted: var(--glass-text-secondary);
+  --al-accent: var(--glass-text-accent);
+  --al-accent-strong: color-mix(in srgb, var(--glass-text-accent) 86%, white 14%);
+  --al-brass: var(--glass-warm-500, #e6c77d);
+  background: var(--glass-page-bg);
+}
+
+body:has(.al-auctions-route) :is(.al-shell-frame, .al-shell-sidebar, .al-shell-header, .al-shell-footer) {
+  border-color: rgba(198, 255, 239, 0.12);
+  background:
+    radial-gradient(ellipse 86% 58% at 92% 0%, rgba(120, 224, 207, 0.1), transparent 50%),
+    linear-gradient(180deg, rgba(9, 22, 24, 0.98), rgba(3, 10, 12, 0.98));
+  color: var(--al-text);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) :is(.al-shell-frame, .al-shell-sidebar, .al-shell-header, .al-shell-footer) {
+  border-color: rgba(198, 255, 239, 0.12);
+  background:
+    radial-gradient(ellipse 86% 58% at 92% 0%, rgba(120, 224, 207, 0.1), transparent 50%),
+    linear-gradient(180deg, rgba(9, 22, 24, 0.98), rgba(3, 10, 12, 0.98));
+  color: var(--al-text);
+}
+
+body:has(.al-auctions-route) .al-shell-content {
+  background:
+    radial-gradient(ellipse 76% 48% at 88% 0%, rgba(120, 224, 207, 0.12), transparent 52%),
+    radial-gradient(ellipse 64% 46% at 98% 100%, rgba(230, 199, 125, 0.07), transparent 58%),
+    #03090b;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-shell-content {
+  background:
+    radial-gradient(ellipse 76% 48% at 88% 0%, rgba(120, 224, 207, 0.12), transparent 52%),
+    radial-gradient(ellipse 64% 46% at 98% 100%, rgba(230, 199, 125, 0.07), transparent 58%),
+    #03090b;
+}
+
+body:has(.al-auctions-route) :is(
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-connect-button,
+  .al-shell-wallet-trigger
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background: rgba(14, 32, 35, 0.88);
+  color: var(--al-text);
+  box-shadow: none;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) :is(
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-connect-button,
+  .al-shell-wallet-trigger
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background: rgba(14, 32, 35, 0.88);
+  color: var(--al-text);
+  box-shadow: none;
+}
+
+body:has(.al-auctions-route) .al-shell-nav-link {
+  color: rgba(240, 251, 247, 0.76);
+}
+
+body:has(.al-auctions-route) .al-shell-nav-link:is(:hover, :focus-visible, .is-active) {
+  background:
+    linear-gradient(115deg, rgba(120, 224, 207, 0.18), rgba(230, 199, 125, 0.08));
+  border-color: rgba(120, 224, 207, 0.22);
+  color: var(--al-text);
+  box-shadow: inset 0 1px 0 rgba(240, 251, 247, 0.05);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-shell-nav-link:is(:hover, :focus-visible, .is-active) {
+  background:
+    linear-gradient(115deg, rgba(120, 224, 207, 0.18), rgba(230, 199, 125, 0.08));
+  border-color: rgba(120, 224, 207, 0.22);
+  color: var(--al-text);
+  box-shadow: inset 0 1px 0 rgba(240, 251, 247, 0.05);
+}
+
+body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-market-shell,
+  .al-directory-controls,
+  .al-auctions-list-shell,
+  .al-auctions-market-stat,
+  .al-auctions-attention-band,
+  .al-auctions-attention-card,
+  .al-auctions-feature,
+  .al-auctions-leaderboard,
+  .al-auctions-chart-card,
+  .al-auctions-bid-panel,
+  .al-auctions-quick-actions,
+  .al-auctions-selected-card,
+  .al-auctions-bid-input,
+  .al-auctions-pay-card,
+  .al-auctions-quick-row,
+  .al-auctions-empty-state
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(120, 224, 207, 0.09), transparent 30%),
+    linear-gradient(180deg, rgba(11, 29, 32, 0.98), rgba(5, 13, 15, 0.98));
+  color: var(--al-text);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 251, 247, 0.05),
+    0 24px 70px -50px rgba(0, 0, 0, 0.9);
+}
+
+body:has(.al-auctions-route) .al-auctions-feature {
+  background:
+    radial-gradient(circle at 82% 28%, rgba(230, 199, 125, 0.2), transparent 18%),
+    radial-gradient(circle at 92% 14%, rgba(120, 224, 207, 0.18), transparent 20%),
+    linear-gradient(135deg, rgba(12, 42, 38, 0.99), rgba(4, 14, 16, 0.99));
+}
+
+body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-head h1,
+  .al-auctions-attention-copy h2,
+  .al-auctions-market-stat strong,
+  .al-auctions-feature-name h2,
+  .al-auctions-feature-endcap strong,
+  .al-auctions-feature-stats article strong,
+  .al-auctions-leaderboard-head h3,
+  .al-auctions-list-head h3,
+  .al-auctions-chart-head,
+  .al-auctions-chart-head h2,
+  .al-auctions-chart-metrics,
+  .al-auctions-bid-head h2,
+  .al-auctions-selected-card > strong,
+  .al-auctions-selected-metrics strong,
+  .al-auctions-pay-card strong,
+  .al-auctions-quick-row strong,
+  .al-auctions-empty-state h3
+) {
+  color: var(--al-text);
+}
+
+body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-head p,
+  .al-auctions-market-stat-head,
+  .al-auctions-market-stat-head span:not(.al-auctions-market-dot),
+  .al-auctions-market-stat p,
+  .al-auctions-control-label,
+  .al-auctions-gallery-title p,
+  .al-auctions-gallery-copy,
+  .al-auctions-gallery-stats span,
+  .al-auctions-feature .al-kicker,
+  .al-auctions-feature .al-subcopy,
+  .al-auctions-feature-endcap,
+  .al-auctions-feature-chip,
+  .al-auctions-chart-metrics span,
+  .al-auctions-bid-head a,
+  .al-auctions-selected-card > p,
+  .al-auctions-selected-row p,
+  .al-auctions-selected-metrics span,
+  .al-auctions-pay-card span,
+  .al-auctions-pay-card p,
+  .al-auctions-quick-row small,
+  .al-auctions-empty-state p
+) {
+  color: var(--al-muted);
+}
+
+body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-tabs,
+  .al-auctions-time-tabs,
+  .al-segmented
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background: rgba(240, 251, 247, 0.07);
+  box-shadow: inset 0 1px 0 rgba(240, 251, 247, 0.04);
+}
+
+body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-tabs .tab-active,
+  .al-auctions-page-tabs .tab:hover,
+  .al-auctions-time-tabs span.is-active,
+  .al-auctions-time-tabs span:hover,
+  .al-segmented-option.is-active
+) {
+  background: rgba(120, 224, 207, 0.16);
+  color: var(--al-text);
+}
+
+body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-search input,
+  .al-auctions-filter-field select,
+  .al-auctions-feature .al-ghost,
+  .al-auctions-feature-chip,
+  .al-auctions-quick-row > span
+) {
+  border-color: rgba(198, 255, 239, 0.13);
+  background: rgba(240, 251, 247, 0.07);
+  color: var(--al-text);
+  box-shadow: none;
+}
+
+body:has(.al-auctions-route) .al-auctions-route :is(.al-auctions-row-action, .al-submit) {
+  border-color: rgba(120, 224, 207, 0.32);
+  background: linear-gradient(180deg, rgba(45, 162, 116, 0.95), rgba(19, 135, 93, 0.95));
+  color: #f3fff9;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-market-shell,
+  .al-directory-controls,
+  .al-auctions-list-shell,
+  .al-auctions-market-stat,
+  .al-auctions-attention-band,
+  .al-auctions-attention-card,
+  .al-auctions-feature,
+  .al-auctions-leaderboard,
+  .al-auctions-chart-card,
+  .al-auctions-bid-panel,
+  .al-auctions-quick-actions,
+  .al-auctions-selected-card,
+  .al-auctions-bid-input,
+  .al-auctions-pay-card,
+  .al-auctions-quick-row,
+  .al-auctions-empty-state
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background:
+    radial-gradient(circle at 96% 4%, rgba(120, 224, 207, 0.09), transparent 30%),
+    linear-gradient(180deg, rgba(11, 29, 32, 0.98), rgba(5, 13, 15, 0.98));
+  color: var(--al-text);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 251, 247, 0.05),
+    0 24px 70px -50px rgba(0, 0, 0, 0.9);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-feature {
+  background:
+    radial-gradient(circle at 82% 28%, rgba(230, 199, 125, 0.2), transparent 18%),
+    radial-gradient(circle at 92% 14%, rgba(120, 224, 207, 0.18), transparent 20%),
+    linear-gradient(135deg, rgba(12, 42, 38, 0.99), rgba(4, 14, 16, 0.99));
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-head h1,
+  .al-auctions-attention-copy h2,
+  .al-auctions-market-stat strong,
+  .al-auctions-feature-name h2,
+  .al-auctions-feature-endcap strong,
+  .al-auctions-feature-stats article strong,
+  .al-auctions-leaderboard-head h3,
+  .al-auctions-list-head h3,
+  .al-auctions-chart-head,
+  .al-auctions-chart-head h2,
+  .al-auctions-chart-metrics,
+  .al-auctions-bid-head h2,
+  .al-auctions-selected-card > strong,
+  .al-auctions-selected-metrics strong,
+  .al-auctions-pay-card strong,
+  .al-auctions-quick-row strong,
+  .al-auctions-empty-state h3
+) {
+  color: var(--al-text);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-head p,
+  .al-auctions-market-stat-head,
+  .al-auctions-market-stat-head span:not(.al-auctions-market-dot),
+  .al-auctions-market-stat p,
+  .al-auctions-control-label,
+  .al-auctions-gallery-title p,
+  .al-auctions-gallery-copy,
+  .al-auctions-gallery-stats span,
+  .al-auctions-feature .al-kicker,
+  .al-auctions-feature .al-subcopy,
+  .al-auctions-feature-endcap,
+  .al-auctions-feature-chip,
+  .al-auctions-chart-metrics span,
+  .al-auctions-bid-head a,
+  .al-auctions-selected-card > p,
+  .al-auctions-selected-row p,
+  .al-auctions-selected-metrics span,
+  .al-auctions-pay-card span,
+  .al-auctions-pay-card p,
+  .al-auctions-quick-row small,
+  .al-auctions-empty-state p
+) {
+  color: var(--al-muted);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-tabs,
+  .al-auctions-time-tabs,
+  .al-segmented
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background: rgba(240, 251, 247, 0.07);
+  box-shadow: inset 0 1px 0 rgba(240, 251, 247, 0.04);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-page-tabs .tab-active,
+  .al-auctions-page-tabs .tab:hover,
+  .al-auctions-time-tabs span.is-active,
+  .al-auctions-time-tabs span:hover,
+  .al-segmented-option.is-active
+) {
+  background: rgba(120, 224, 207, 0.16);
+  color: var(--al-text);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-route :is(
+  .al-auctions-search input,
+  .al-auctions-filter-field select,
+  .al-auctions-feature .al-ghost,
+  .al-auctions-feature-chip,
+  .al-auctions-quick-row > span
+) {
+  border-color: rgba(198, 255, 239, 0.13);
+  background: rgba(240, 251, 247, 0.07);
+  color: var(--al-text);
+  box-shadow: none;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-auctions-route) .al-auctions-route :is(.al-auctions-row-action, .al-submit) {
+  border-color: rgba(120, 224, 207, 0.32);
+  background: linear-gradient(180deg, rgba(45, 162, 116, 0.95), rgba(19, 135, 93, 0.95));
+  color: #f3fff9;
+}
+
+@media (max-width: 1180px) {
+  .al-auctions-route .al-auctions-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .al-auctions-route :is(.al-auctions-control-field, .al-auctions-search, .al-auctions-filter-field) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .al-auctions-route :is(.al-auctions-search input, .al-auctions-filter-field select) {
+    width: 100%;
   }
 }

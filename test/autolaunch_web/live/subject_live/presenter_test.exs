@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.SubjectLive.PresenterTest do
       Presenter.public_revenue_proof_rows(%{
         recognized_revenue_proof: %{
           source: "onchain_splitter",
-          chain_id: 84_532,
+          chain_id: 8_453,
           ingress: "0x7777777777777777777777777777777777777777",
           revsplit: "0x9999999999999999999999999999999999999999",
           block_number: 123_456,

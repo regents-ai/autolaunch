@@ -19,9 +19,9 @@ defmodule AutolaunchWeb.AuctionLiveTest do
         trust: %{
           erc8004: %{
             connected: true,
-            agent_id: "84532:42",
+            agent_id: "8453:42",
             token_id: "42",
-            chain_id: 84_532,
+            chain_id: 8_453,
             registry_address: nil,
             web_endpoint: nil,
             image_url: nil
@@ -35,7 +35,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
           },
           x: %{connected: false, handle: nil, profile_url: nil, verified_at: nil}
         },
-        chain: "Base Sepolia"
+        chain: "Base"
       }
     end
 
@@ -60,9 +60,9 @@ defmodule AutolaunchWeb.AuctionLiveTest do
            if(human,
              do: %{
                expected_signer: "0x1111111111111111111111111111111111111111",
-               chain_id: 84_532,
+               chain_id: 8_453,
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                  data: "0x1234",
                  value: "0x0"
@@ -95,7 +95,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
             claim: %{
               prepared: %{
                 wallet_action: %{
-                  chain_id: 84_532,
+                  chain_id: 8_453,
                   to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                   data: "0xclaim",
                   value: "0x0"

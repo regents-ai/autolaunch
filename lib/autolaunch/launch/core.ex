@@ -94,7 +94,8 @@ defmodule Autolaunch.Launch.Core do
   end
 
   def chain_options do
-    Enum.map(@supported_chain_ids, fn chain_id ->
+    [InfrastructureConfig.launch_chain_id!()]
+    |> Enum.map(fn chain_id ->
       config = BaseChain.config!(chain_id)
 
       %{
@@ -695,7 +696,8 @@ defmodule Autolaunch.Launch.Core do
       end
 
     minimum_raise_progress_percent =
-      minimum_raise_progress_percent(currency_raised_wei, required_currency_raised_raw)
+      minimum_raise_progress_percent(currency_raised_wei, required_currency_raised_raw) ||
+        auction.progress_percent
 
     minimum_raise_met =
       minimum_raise_met?(currency_raised_wei, required_currency_raised_raw, live_snapshot)
@@ -941,9 +943,15 @@ defmodule Autolaunch.Launch.Core do
 
   defp auction_phase(%Auction{} = auction, live_snapshot) do
     cond do
+      auction.chain_state == "open" ->
+        "biddable"
+
+      auction.chain_state in ["graduated", "failed_minimum"] ->
+        "live"
+
       is_map(live_snapshot) and live_snapshot != %{} ->
         if live_snapshot[:is_graduated] or
-             live_snapshot[:block_number] >= live_snapshot[:end_block],
+             ended_by_block?(live_snapshot),
            do: "live",
            else: "biddable"
 
@@ -1111,6 +1119,8 @@ defmodule Autolaunch.Launch.Core do
 
     cond do
       auction.status == "settled" -> "settled"
+      auction.chain_state == "graduated" -> "graduated"
+      auction.chain_state == "failed_minimum" -> "failed_minimum"
       truthy?(live_snapshot[:is_graduated]) -> "graduated"
       ended? and minimum_raise_met == false -> "failed_minimum"
       true -> "active"
@@ -1646,28 +1656,39 @@ defmodule Autolaunch.Launch.Core do
   defp elem_or_nil({:ok, value}), do: value
   defp elem_or_nil({:error, _reason}), do: nil
 
-  defp load_live_snapshot(%Auction{auction_address: auction_address, chain_id: chain_id})
-       when is_binary(auction_address) and is_integer(chain_id) do
-    case CCAContract.snapshot(chain_id, auction_address) do
-      {:ok, snapshot} ->
-        %{
-          block_number: snapshot.block_number,
-          start_block: snapshot.start_block,
-          end_block: snapshot.end_block,
-          claim_block: snapshot.claim_block,
-          clearing_price_q96: snapshot.checkpoint.clearing_price_q96,
-          required_currency_raised_wei: snapshot.required_currency_raised_wei,
-          currency_raised_wei: snapshot.currency_raised_wei,
-          total_cleared_units: snapshot.total_cleared_units,
-          is_graduated: snapshot.is_graduated
-        }
-
-      _ ->
-        %{}
-    end
+  defp load_live_snapshot(%Auction{onchain_synced_at: %DateTime{}} = auction) do
+    %{
+      block_number: auction.onchain_block_number,
+      start_block: auction.onchain_start_block,
+      end_block: auction.onchain_end_block,
+      claim_block: auction.onchain_claim_block,
+      clearing_price_q96: parse_optional_integer(auction.onchain_clearing_price_q96),
+      required_currency_raised_wei:
+        parse_optional_integer(auction.onchain_required_currency_raised_raw),
+      currency_raised_wei: parse_optional_integer(auction.onchain_currency_raised_raw),
+      total_cleared_units: nil,
+      is_graduated: auction.onchain_graduated
+    }
   end
 
   defp load_live_snapshot(_auction), do: %{}
+
+  defp ended_by_block?(%{block_number: block_number, end_block: end_block})
+       when is_integer(block_number) and is_integer(end_block),
+       do: block_number >= end_block
+
+  defp ended_by_block?(_snapshot), do: false
+
+  defp parse_optional_integer(value) when is_integer(value), do: value
+
+  defp parse_optional_integer(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {parsed, ""} -> parsed
+      _ -> nil
+    end
+  end
+
+  defp parse_optional_integer(_value), do: nil
 
   defp parse_float(value) when is_binary(value) do
     value

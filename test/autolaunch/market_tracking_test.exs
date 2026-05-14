@@ -36,13 +36,13 @@ defmodule Autolaunch.MarketTrackingTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_live",
-        agent_id: "84532:1337",
+        agent_id: "8453:1337",
         agent_name: "Regent Researcher",
         owner_address: @owner_address,
         auction_address: @auction_address,
         token_address: "0x0000000000000000000000000000000000000022",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "active",
         started_at: DateTime.utc_now(),
         ends_at: DateTime.add(DateTime.utc_now(), 86_400, :second),
@@ -184,11 +184,11 @@ defmodule Autolaunch.MarketTrackingTest do
     @auction_address "0x0000000000000000000000000000000000000011"
     @owner_address "0x00000000000000000000000000000000000000aa"
 
-    def block_number(84_532, _opts) do
+    def block_number(8_453, _opts) do
       {:ok, scenario() |> scenario_data() |> Map.fetch!(:block_number)}
     end
 
-    def eth_call(84_532, @auction_address, data, _opts) do
+    def eth_call(8_453, @auction_address, data, _opts) do
       selector = String.slice(data, 0, 10)
       config = scenario() |> scenario_data()
 
@@ -263,7 +263,7 @@ defmodule Autolaunch.MarketTrackingTest do
       end
     end
 
-    def tx_receipt(84_532, tx_hash, _opts) do
+    def tx_receipt(8_453, tx_hash, _opts) do
       {:ok,
        scenario()
        |> scenario_data()
@@ -271,7 +271,7 @@ defmodule Autolaunch.MarketTrackingTest do
        |> Map.get(String.downcase(tx_hash))}
     end
 
-    def get_logs(84_532, _filter, _opts) do
+    def get_logs(8_453, _filter, _opts) do
       {:ok, scenario() |> scenario_data() |> Map.get(:checkpoint_logs, [])}
     end
 

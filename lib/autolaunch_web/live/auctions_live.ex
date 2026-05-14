@@ -11,8 +11,8 @@ defmodule AutolaunchWeb.AuctionsLive do
   @auctions_css_path Path.expand("../../../assets/css/auctions-live.css", __DIR__)
   @external_resource @auctions_css_path
   @auctions_css File.read!(@auctions_css_path)
-  @default_filters %{"mode" => "biddable", "network" => "all", "search" => "", "sort" => "newest"}
-  @allowed_modes ~w(biddable live)
+  @default_filters %{"mode" => "all", "network" => "all", "search" => "", "sort" => "newest"}
+  @allowed_modes ~w(all biddable live failed_minimum)
   @allowed_sorts ~w(newest oldest market_cap_desc market_cap_asc)
 
   def mount(_params, _session, socket) do
@@ -34,6 +34,14 @@ defmodule AutolaunchWeb.AuctionsLive do
     {:noreply, push_patch(socket, to: ~p"/auctions?#{filter_query(merged)}")}
   end
 
+  def handle_event("select_auction", %{"id" => auction_id}, socket) do
+    selected =
+      Enum.find(socket.assigns.visible_rows, &(&1.id == auction_id)) ||
+        socket.assigns.selected_auction
+
+    {:noreply, assign(socket, :selected_auction, selected)}
+  end
+
   def handle_info(:refresh, socket) do
     {:noreply, Refreshable.refresh(socket, @poll_ms, &reload_directory/1)}
   end
@@ -53,8 +61,8 @@ defmodule AutolaunchWeb.AuctionsLive do
         <main class="al-auctions-main-column">
           <section id="auctions-page-head" class="al-auctions-page-head" phx-hook="MissionMotion">
             <div>
-              <h1>Auctions</h1>
-              <p class="al-subcopy">Compare live agent markets and place bids.</p>
+              <h1>Autolaunch Auction Gallery</h1>
+              <p class="al-subcopy">Browse open launches and recently finished markets.</p>
             </div>
 
             <nav class="tabs tabs-boxed al-auctions-page-tabs" aria-label="Auction pages">
@@ -445,13 +453,21 @@ defmodule AutolaunchWeb.AuctionsLive do
               <div class="al-auctions-control-field">
                 <span class="al-auctions-control-label">View</span>
             <div class="al-segmented" role="group" aria-label="Auction phase">
+              <label class={["al-segmented-option", @filters["mode"] == "all" && "is-active"]}>
+                <input type="radio" name="filters[mode]" value="all" checked={@filters["mode"] == "all"} />
+                <span>All</span>
+              </label>
               <label class={["al-segmented-option", @filters["mode"] == "biddable" && "is-active"]}>
                 <input type="radio" name="filters[mode]" value="biddable" checked={@filters["mode"] == "biddable"} />
-                <span>Biddable</span>
+                <span>Open</span>
               </label>
               <label class={["al-segmented-option", @filters["mode"] == "live" && "is-active"]}>
                 <input type="radio" name="filters[mode]" value="live" checked={@filters["mode"] == "live"} />
-                <span>Live</span>
+                <span>Graduated</span>
+              </label>
+              <label class={["al-segmented-option", @filters["mode"] == "failed_minimum" && "is-active"]}>
+                <input type="radio" name="filters[mode]" value="failed_minimum" checked={@filters["mode"] == "failed_minimum"} />
+                <span>Returns</span>
               </label>
             </div>
               </div>
@@ -511,8 +527,8 @@ defmodule AutolaunchWeb.AuctionsLive do
         >
           <div class="al-auctions-list-head">
             <div>
-              <p class="al-kicker">Market list</p>
-              <h3>Compare price, size, trust, and timing at a glance.</h3>
+              <p class="al-kicker">Auction gallery</p>
+              <h3>Open markets first, recent outcomes after.</h3>
             </div>
             <p class="al-subcopy">
               Showing {@market_totals.shown_count} of {length(@directory)} auctions in this view.
@@ -523,81 +539,65 @@ defmodule AutolaunchWeb.AuctionsLive do
             <div class="al-auctions-empty-state">
               <h3>No auctions match this view yet.</h3>
               <p>
-                Try a different search, switch between Biddable and Live, or clear the network
-                filter.
+                Try a different search, switch views, or clear the network filter.
               </p>
             </div>
           <% else %>
-            <div class="al-table-shell al-auctions-table-shell">
-              <table class="al-table al-auctions-table">
-                <thead>
-                  <tr>
-                    <th>Auction</th>
-                    <th>Network</th>
-                    <th>Status</th>
-                    <th>Price</th>
-                    <th>Market cap</th>
-                    <th>Bid volume</th>
-                    <th>Time left</th>
-                    <th>Progress</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr :for={token <- @visible_rows} id={"auction-row-#{token.id}"}>
-                    <td>
-                      <div class="al-auctions-token-cell">
-                        <div class="al-auctions-token-mark">{agent_monogram(token.agent_name)}</div>
-                        <div class="al-auctions-token-meta">
-                          <div class="al-auctions-token-line">
-                            <strong class="al-auctions-token-name">{token.agent_name}</strong>
-                            <span class="al-auctions-token-symbol">{token.symbol}</span>
-                          </div>
-                          <p class="al-auctions-table-meta">
-                            {token.agent_id} • {trust_compact(token.trust)}
-                          </p>
-                        </div>
+            <div class="al-auctions-gallery-grid">
+              <article :for={token <- @visible_rows} id={"auction-row-#{token.id}"} class="al-auctions-gallery-card">
+                <button
+                  type="button"
+                  class="al-auctions-gallery-preview"
+                  phx-click="select_auction"
+                  phx-value-id={token.id}
+                  aria-label={"Show #{token.agent_name} details"}
+                >
+                  <span class="al-auctions-gallery-rank">{row_status_label(token)}</span>
+                  <span class="al-auctions-gallery-mark">{agent_monogram(token.agent_name)}</span>
+                  <img src={~p"/images/autolaunchgreen.png"} alt="" />
+                </button>
+                <div class="al-auctions-gallery-card-body">
+                  <div class="al-auctions-gallery-title">
+                    <div>
+                      <h4>{token.agent_name}</h4>
+                      <p>{token.symbol} • {network_label(token)}</p>
+                    </div>
+                    <span class={["al-status-badge", status_badge_class(token)]}>
+                      {row_status_label(token)}
+                    </span>
+                  </div>
+                  <p class="al-auctions-gallery-copy">
+                    {trust_compact(token.trust)} market with {format_volume(token.total_bid_volume)} raised.
+                  </p>
+                  <div class="al-auctions-gallery-stats">
+                    <div>
+                      <span>Price</span>
+                      <strong>{format_price(token.current_price_usdc)}</strong>
+                    </div>
+                    <div>
+                      <span>Cap</span>
+                      <strong>{format_large_currency(token.implied_market_cap_usdc)}</strong>
+                    </div>
+                    <div>
+                      <span>{time_label(token)}</span>
+                      <strong>{time_cell_copy(token)}</strong>
+                    </div>
+                  </div>
+                  <div class="al-auctions-progress-cell">
+                    <span>{progress_label(token.minimum_raise_progress_percent)}</span>
+                    <div class="al-auctions-progress-track">
+                      <div
+                        class="al-auctions-progress-fill"
+                        style={"width: #{progress_value(token.minimum_raise_progress_percent)}%"}
+                      >
                       </div>
-                    </td>
-                    <td>
-                      {network_label(token)}
-                    </td>
-                    <td>
-                      <span class={["al-status-badge", status_badge_class(token)]}>
-                        {row_status_label(token)}
-                      </span>
-                    </td>
-                    <td>
-                      <div class="al-auctions-value-cell">
-                        <strong>{format_price(token.current_price_usdc)}</strong>
-                        <p class="al-auctions-table-note">
-                          {humanize_price_source(token.price_source)}
-                        </p>
-                      </div>
-                    </td>
-                    <td>{format_large_currency(token.implied_market_cap_usdc)}</td>
-                    <td>{format_volume(token.total_bid_volume)}</td>
-                    <td class="al-auctions-time">{time_cell_copy(token)}</td>
-                    <td>
-                      <div class="al-auctions-progress-cell">
-                        <span>{progress_label(token.minimum_raise_progress_percent)}</span>
-                        <div class="al-auctions-progress-track">
-                          <div
-                            class="al-auctions-progress-fill"
-                            style={"width: #{progress_value(token.minimum_raise_progress_percent)}%"}
-                          >
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <.link navigate={primary_action_href(token)} class="al-auctions-row-action">
-                        {primary_action_label(token)}
-                      </.link>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    </div>
+                  </div>
+                  <.link navigate={primary_action_href(token)} class="al-auctions-row-action">
+                    {primary_action_label(token)}
+                  </.link>
+                </div>
+              </article>
             </div>
           <% end %>
         </section>
@@ -606,34 +606,34 @@ defmodule AutolaunchWeb.AuctionsLive do
         <aside id="auctions-bid-rail" class="al-auctions-bid-rail" phx-hook="MissionMotion">
           <article class="al-panel al-auctions-bid-panel">
             <div class="al-auctions-bid-head">
-              <h2>Place a bid</h2>
+              <h2>Auction details</h2>
               <.link navigate={~p"/docs"}>How it works</.link>
             </div>
 
             <div class="al-auctions-selected-card">
               <p class="al-kicker">Selected auction</p>
-              <%= if @featured_auction do %>
+              <%= if @selected_auction do %>
                 <div class="al-auctions-selected-row">
-                  <div class="al-auctions-token-mark">{agent_monogram(@featured_auction.agent_name)}</div>
+                  <div class="al-auctions-token-mark">{agent_monogram(@selected_auction.agent_name)}</div>
                   <div>
-                    <strong>{@featured_auction.agent_name}</strong>
-                    <p>{@featured_auction.symbol}</p>
+                    <strong>{@selected_auction.agent_name}</strong>
+                    <p>{@selected_auction.symbol}</p>
                   </div>
-                  <.link navigate={@featured_auction.detail_url}>View market ›</.link>
+                  <.link navigate={@selected_auction.detail_url}>View market ›</.link>
                 </div>
 
                 <div class="al-auctions-selected-metrics">
                   <article>
                     <span>Raised</span>
-                    <strong>{format_volume(@featured_auction.total_bid_volume)}</strong>
+                    <strong>{format_volume(@selected_auction.total_bid_volume)}</strong>
                   </article>
                   <article>
                     <span>Goal</span>
-                    <strong>{minimum_raise_label(@featured_auction)}</strong>
+                    <strong>{minimum_raise_label(@selected_auction)}</strong>
                   </article>
                   <article>
-                    <span>Ends in</span>
-                    <strong>{LaunchComponents.time_left_label(@featured_auction.ends_at)}</strong>
+                    <span>{time_label(@selected_auction)}</span>
+                    <strong>{time_cell_copy(@selected_auction)}</strong>
                   </article>
                 </div>
               <% else %>
@@ -642,30 +642,15 @@ defmodule AutolaunchWeb.AuctionsLive do
               <% end %>
             </div>
 
-            <div class="al-auctions-bid-input">
-              <p class="al-kicker">Bid amount</p>
-              <div>
-                <span>USDC</span>
-                <strong>0.00</strong>
-              </div>
-              <small>Available: 0.00 USDC</small>
-              <div class="al-auctions-bid-presets">
-                <button type="button">+ $100</button>
-                <button type="button">+ $250</button>
-                <button type="button">+ $500</button>
-                <button type="button">Max</button>
-              </div>
-            </div>
-
             <div class="al-auctions-pay-card">
-              <span>Pay with</span>
-              <strong>USDC on Base Sepolia</strong>
-              <p>Network fee <span>~0.02 USDC</span></p>
-              <p>Total <span>0.00 USDC</span></p>
+              <span>Market read</span>
+              <strong>{if @selected_auction, do: row_status_label(@selected_auction), else: "Waiting for a market"}</strong>
+              <p>Price <span>{if @selected_auction, do: format_price(@selected_auction.current_price_usdc), else: "Not available"}</span></p>
+              <p>Source <span>{if @selected_auction, do: humanize_price_source(@selected_auction.price_source), else: "Not available"}</span></p>
             </div>
 
-            <.link navigate={bid_review_href(@featured_auction)} class="al-submit al-auctions-review-bid">
-              Review bid
+            <.link navigate={bid_review_href(@selected_auction)} class="al-submit al-auctions-review-bid">
+              {if @selected_auction, do: primary_action_label(@selected_auction), else: "Browse auctions"}
             </.link>
           </article>
 
@@ -708,6 +693,7 @@ defmodule AutolaunchWeb.AuctionsLive do
     network_options = network_options(directory)
     sanitized_filters = sanitize_filters(filters, network_options)
     visible_rows = visible_rows(directory, sanitized_filters)
+    selected_auction = selected_auction(visible_rows, socket.assigns[:selected_auction])
 
     socket
     |> assign(:filters, sanitized_filters)
@@ -715,6 +701,7 @@ defmodule AutolaunchWeb.AuctionsLive do
     |> assign(:visible_rows, visible_rows)
     |> assign(:tokens, visible_rows)
     |> assign(:featured_auction, featured_auction(directory, visible_rows, sanitized_filters))
+    |> assign(:selected_auction, selected_auction)
     |> assign(:leaderboard_items, leaderboard_items(visible_rows))
     |> assign(:network_options, network_options)
     |> assign(:show_network_filter, length(network_options) > 1)
@@ -755,9 +742,31 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp visible_rows(directory, filters) do
     directory
-    |> Enum.filter(&(&1.phase == filters["mode"]))
+    |> maybe_filter_mode(filters["mode"])
     |> maybe_filter_search(filters["search"])
     |> maybe_filter_network(filters["network"])
+    |> gallery_order()
+  end
+
+  defp maybe_filter_mode(rows, "all"), do: rows
+  defp maybe_filter_mode(rows, "biddable"), do: Enum.filter(rows, &(&1.phase == "biddable"))
+
+  defp maybe_filter_mode(rows, "live"),
+    do:
+      Enum.filter(
+        rows,
+        &(Map.get(&1, :auction_outcome) == "graduated" or
+            (Map.get(&1, :phase) == "live" and Map.get(&1, :auction_outcome) != "failed_minimum"))
+      )
+
+  defp maybe_filter_mode(rows, "failed_minimum"),
+    do: Enum.filter(rows, &(Map.get(&1, :auction_outcome) == "failed_minimum"))
+
+  defp maybe_filter_mode(rows, _mode), do: rows
+
+  defp gallery_order(rows) do
+    {open, recent} = Enum.split_with(rows, &(&1.phase == "biddable"))
+    open ++ recent
   end
 
   defp maybe_filter_search(rows, ""), do: rows
@@ -806,6 +815,12 @@ defmodule AutolaunchWeb.AuctionsLive do
   defp featured_row(rows) do
     Enum.find(rows, &(&1.phase == "biddable")) || Enum.find(rows, &(&1.phase == "live"))
   end
+
+  defp selected_auction(rows, %{id: selected_id}) do
+    Enum.find(rows, &(&1.id == selected_id)) || featured_row(rows)
+  end
+
+  defp selected_auction(rows, _selected), do: featured_row(rows)
 
   defp leaderboard_items(rows) do
     rows
@@ -962,6 +977,8 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp row_status_label(row) do
     cond do
+      Map.get(row, :auction_outcome) == "graduated" -> "Graduated"
+      Map.get(row, :auction_outcome) == "failed_minimum" -> "Returns ready"
       truthy?(Map.get(row, :returns_enabled)) -> "Returns ready"
       row.phase == "biddable" and ending_soon?(row) -> "Ending soon"
       row.phase == "biddable" -> "Live"
@@ -972,6 +989,8 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp status_badge_class(row) do
     cond do
+      Map.get(row, :auction_outcome) == "graduated" -> "is-muted"
+      Map.get(row, :auction_outcome) == "failed_minimum" -> "is-muted"
       truthy?(Map.get(row, :returns_enabled)) -> "is-muted"
       row.phase == "biddable" and ending_soon?(row) -> "is-warn"
       row.phase == "biddable" -> "is-live"
@@ -982,6 +1001,8 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp time_cell_copy(row) do
     cond do
+      Map.get(row, :auction_outcome) == "graduated" -> "Graduated"
+      Map.get(row, :auction_outcome) == "failed_minimum" -> "Returns ready"
       truthy?(Map.get(row, :returns_enabled)) -> "Returns ready"
       row.phase == "live" -> "Ended"
       true -> LaunchComponents.time_left_label(row.ends_at)

@@ -12,11 +12,11 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
       rows = [
         %{
           id: "auc_active",
-          agent_id: "84532:42",
+          agent_id: "8453:42",
           agent_name: "Atlas",
           symbol: "ATLAS",
-          network: "base-sepolia",
-          chain: "Base Sepolia",
+          network: "base-mainnet",
+          chain: "Base",
           phase: "biddable",
           price_source: "auction_clearing",
           current_price_usdc: "0.0050",
@@ -58,7 +58,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
         },
         %{
           id: "auc_live",
-          agent_id: "84532:99",
+          agent_id: "8453:99",
           agent_name: "Nova",
           symbol: "NOVA",
           network: "base",
@@ -130,7 +130,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
       [
         %{
           id: "auc_live",
-          agent_id: "84532:99",
+          agent_id: "8453:99",
           agent_name: "Nova",
           symbol: "NOVA",
           network: "base",
@@ -177,7 +177,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     %{human: human}
   end
 
-  test "market page defaults to biddable tokens with dashboard layout", %{
+  test "market page defaults to open and recent auctions with gallery layout", %{
     conn: conn,
     human: human
   } do
@@ -185,6 +185,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     {:ok, view, html} = live(conn, "/auctions")
 
     assert html =~ "Open markets"
+    assert html =~ "Autolaunch Auction Gallery"
     assert html =~ "Whole market cap"
     assert html =~ "This view cap"
     assert html =~ "This view bids"
@@ -192,16 +193,34 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     assert html =~ "Needs attention"
     assert html =~ "Featured market"
     assert html =~ "Top markets"
+    assert html =~ "Auction gallery"
     assert html =~ "Atlas"
     assert html =~ "Cinder"
-    refute html =~ "Nova"
+    assert html =~ "Nova"
     assert html =~ "Auction clearing"
     assert html =~ "Active auctions"
     assert html =~ "Search by name, symbol, agent ID, or ENS"
     assert html =~ "Open bid page"
+    assert html =~ "Open token page"
+    assert html =~ "Auction details"
     assert html =~ "Cinder"
     assert html =~ "$1,000"
     assert has_element?(view, "a[href='/positions?status=active'] strong", "1")
+    assert has_element?(view, "#auction-row-auc_active")
+    assert has_element?(view, "#auction-row-auc_beta")
+    assert has_element?(view, "#auction-row-auc_live")
+    assert appears_before?(html, ~s(id="auction-row-auc_active"), ~s(id="auction-row-auc_live"))
+  end
+
+  test "gallery selection updates the auction detail panel", %{conn: conn, human: human} do
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, view, _html} = live(conn, "/auctions")
+
+    view
+    |> element("button[phx-value-id='auc_beta']")
+    |> render_click()
+
+    assert has_element?(view, "#auctions-bid-rail .al-auctions-selected-row", "Cinder")
   end
 
   test "mode toggle switches from biddable to live tokens", %{conn: conn, human: human} do
@@ -231,7 +250,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
       |> form("form[phx-change='filters_changed']", %{
         "filters" => %{
           "mode" => "biddable",
-          "network" => "base-sepolia",
+          "network" => "base-mainnet",
           "search" => "atlas.eth",
           "sort" => "market_cap_desc"
         }
@@ -241,7 +260,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     assert has_element?(view, "#auction-row-auc_active")
     refute has_element?(view, "#auction-row-auc_beta")
     refute has_element?(view, "#auction-row-auc_live")
-    assert render(view) =~ "Base Sepolia"
+    assert render(view) =~ "Base"
     assert render(view) =~ "Atlas"
     refute render(view) =~ "Cinder</h2>"
   end
@@ -250,7 +269,7 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
 
     {:ok, view, html} =
-      live(conn, "/auctions?search=atlas.eth&network=base-sepolia&sort=market_cap_desc")
+      live(conn, "/auctions?search=atlas.eth&network=base-mainnet&sort=market_cap_desc")
 
     assert html =~ "Atlas"
     assert has_element?(view, "#auction-row-auc_active")
@@ -299,5 +318,14 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
 
     assert render(view) =~ "No auctions match this view yet."
     refute render(view) =~ "Atlas</h2>"
+  end
+
+  defp appears_before?(html, left, right) do
+    with {left_index, _} <- :binary.match(html, left),
+         {right_index, _} <- :binary.match(html, right) do
+      left_index < right_index
+    else
+      :nomatch -> false
+    end
   end
 end

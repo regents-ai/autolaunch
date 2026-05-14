@@ -1,0 +1,323 @@
+.al-tokens-route {
+  display: grid;
+  gap: 1rem;
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  min-height: calc(100dvh - 8rem);
+  color: var(--al-text);
+}
+
+.al-tokens-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--al-border) 80%, transparent);
+}
+
+.al-tokens-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.al-tokens-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 2.55rem;
+  padding: 0 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--al-border) 82%, transparent);
+  border-radius: 0.45rem;
+  color: var(--al-muted);
+  background: color-mix(in srgb, var(--al-panel-strong) 72%, black 28%);
+  text-decoration: none;
+  transition:
+    border-color 180ms var(--al-ease-out),
+    color 180ms var(--al-ease-out),
+    background 180ms var(--al-ease-out);
+}
+
+.al-tokens-tab:hover,
+.al-tokens-tab.is-active {
+  color: var(--al-text);
+  border-color: color-mix(in srgb, var(--al-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--al-accent) 12%, var(--al-panel-strong) 88%);
+}
+
+.al-tokens-tab svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.al-tokens-search {
+  min-width: min(22rem, 100%);
+}
+
+.al-tokens-search input {
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--al-border) 82%, transparent);
+  border-radius: 0.45rem;
+  color: var(--al-text);
+  background: color-mix(in srgb, var(--al-panel-strong) 80%, black 20%);
+  outline: none;
+}
+
+.al-tokens-search input:focus {
+  border-color: color-mix(in srgb, var(--al-accent) 52%, transparent);
+}
+
+.al-tokens-table-shell {
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--al-border) 84%, transparent);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--al-panel) 82%, black 18%);
+}
+
+.al-tokens-table {
+  width: 100%;
+  min-width: 70rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.al-tokens-table th,
+.al-tokens-table td {
+  height: 4.05rem;
+  padding: 0.72rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--al-border) 74%, transparent);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.al-tokens-table th {
+  height: 2.9rem;
+  color: var(--al-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.al-tokens-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.al-tokens-table tbody tr:hover {
+  background: color-mix(in srgb, var(--al-accent) 6%, transparent);
+}
+
+.al-tokens-table td[colspan] {
+  position: sticky;
+  left: 0;
+  white-space: normal;
+}
+
+.al-tokens-favorite {
+  width: 2.4rem;
+  color: color-mix(in srgb, var(--al-text) 86%, transparent);
+  font-size: 1.1rem;
+}
+
+.al-tokens-token-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.78rem;
+  min-width: 18rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.al-tokens-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid color-mix(in srgb, var(--al-accent) 34%, transparent);
+  border-radius: 999px;
+  color: #06120f;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.92), transparent 28%),
+    linear-gradient(135deg, var(--al-accent), color-mix(in srgb, var(--al-brass) 58%, var(--al-accent) 42%));
+  font-family: var(--al-font-display);
+  font-size: 0.82rem;
+}
+
+.al-tokens-token-cell strong {
+  display: block;
+  color: var(--al-text);
+  font-weight: 600;
+}
+
+.al-tokens-token-cell small {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--al-muted);
+  font-size: 0.82rem;
+}
+
+.al-tokens-number {
+  font-family: var(--al-font-body);
+  color: color-mix(in srgb, var(--al-text) 92%, transparent);
+}
+
+.al-tokens-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.8rem;
+  padding: 0 0.62rem;
+  border: 1px solid color-mix(in srgb, var(--al-accent) 28%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--al-accent) 82%, white 18%);
+  background: color-mix(in srgb, var(--al-accent) 10%, transparent);
+}
+
+.al-tokens-empty {
+  display: grid;
+  gap: 0.3rem;
+  width: min(34rem, calc(100vw - 3rem));
+  margin-inline: 0;
+  padding: 2rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.al-tokens-empty strong {
+  color: var(--al-text);
+  font-family: var(--al-font-display);
+  font-size: 1.2rem;
+}
+
+.al-tokens-empty p {
+  margin: 0;
+  color: var(--al-muted);
+}
+
+@media (max-width: 760px) {
+  .al-tokens-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .al-tokens-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .al-tokens-tab {
+    justify-content: center;
+    padding-inline: 0.5rem;
+  }
+}
+
+body:has(.al-tokens-route) {
+  --al-panel: var(--glass-surface);
+  --al-panel-strong: var(--glass-surface-strong);
+  --al-border: var(--glass-border-subtle);
+  --al-text: var(--glass-text-primary);
+  --al-muted: var(--glass-text-secondary);
+  --al-accent: var(--glass-text-accent);
+  --al-accent-strong: color-mix(in srgb, var(--glass-text-accent) 86%, white 14%);
+  --al-brass: var(--glass-warm-500, #e6c77d);
+  background: var(--glass-page-bg);
+}
+
+body:has(.al-tokens-route) :is(.al-shell-frame, .al-shell-sidebar, .al-shell-header, .al-shell-footer) {
+  border-color: rgba(198, 255, 239, 0.12);
+  background:
+    radial-gradient(ellipse 86% 58% at 92% 0%, rgba(120, 224, 207, 0.1), transparent 50%),
+    linear-gradient(180deg, rgba(9, 22, 24, 0.98), rgba(3, 10, 12, 0.98));
+  color: var(--al-text);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-tokens-route) :is(.al-shell-frame, .al-shell-sidebar, .al-shell-header, .al-shell-footer) {
+  border-color: rgba(198, 255, 239, 0.12);
+  background:
+    radial-gradient(ellipse 86% 58% at 92% 0%, rgba(120, 224, 207, 0.1), transparent 50%),
+    linear-gradient(180deg, rgba(9, 22, 24, 0.98), rgba(3, 10, 12, 0.98));
+  color: var(--al-text);
+}
+
+body:has(.al-tokens-route) .al-shell-content {
+  background:
+    radial-gradient(ellipse 76% 48% at 88% 0%, rgba(120, 224, 207, 0.12), transparent 52%),
+    radial-gradient(ellipse 64% 46% at 98% 100%, rgba(230, 199, 125, 0.07), transparent 58%),
+    #03090b;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-tokens-route) .al-shell-content {
+  background:
+    radial-gradient(ellipse 76% 48% at 88% 0%, rgba(120, 224, 207, 0.12), transparent 52%),
+    radial-gradient(ellipse 64% 46% at 98% 100%, rgba(230, 199, 125, 0.07), transparent 58%),
+    #03090b;
+}
+
+body:has(.al-tokens-route) :is(
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-connect-button,
+  .al-shell-wallet-trigger
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background: rgba(14, 32, 35, 0.88);
+  color: var(--al-text);
+  box-shadow: none;
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-tokens-route) :is(
+  .al-shell-search,
+  .al-shell-regent-pill,
+  .al-shell-icon-button,
+  .al-shell-connect-button,
+  .al-shell-wallet-trigger
+) {
+  border-color: rgba(198, 255, 239, 0.14);
+  background: rgba(14, 32, 35, 0.88);
+  color: var(--al-text);
+  box-shadow: none;
+}
+
+body:has(.al-tokens-route) .al-shell-nav-link {
+  color: rgba(240, 251, 247, 0.76);
+}
+
+body:has(.al-tokens-route) .al-shell-nav-link:is(:hover, :focus-visible, .is-active) {
+  background:
+    linear-gradient(115deg, rgba(120, 224, 207, 0.18), rgba(230, 199, 125, 0.08));
+  border-color: rgba(120, 224, 207, 0.22);
+  color: var(--al-text);
+  box-shadow: inset 0 1px 0 rgba(240, 251, 247, 0.05);
+}
+
+:root[data-brand="autolaunch"][data-theme="light"] body:has(.al-tokens-route) .al-shell-nav-link:is(:hover, :focus-visible, .is-active) {
+  background:
+    linear-gradient(115deg, rgba(120, 224, 207, 0.18), rgba(230, 199, 125, 0.08));
+  border-color: rgba(120, 224, 207, 0.22);
+  color: var(--al-text);
+  box-shadow: inset 0 1px 0 rgba(240, 251, 247, 0.05);
+}
+
+body:has(.al-tokens-route) .al-tokens-table-shell {
+  border-color: rgba(198, 255, 239, 0.14);
+  background:
+    radial-gradient(ellipse 56% 40% at 94% 0%, rgba(120, 224, 207, 0.08), transparent 58%),
+    linear-gradient(180deg, rgba(9, 22, 24, 0.96), rgba(5, 13, 15, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(240, 251, 247, 0.05),
+    0 24px 70px -50px rgba(0, 0, 0, 0.9);
+}
+
+body:has(.al-tokens-route) .al-tokens-table th,
+body:has(.al-tokens-route) .al-tokens-table td {
+  border-color: rgba(198, 255, 239, 0.1);
+}
+
+body:has(.al-tokens-route) .al-tokens-table th {
+  background: rgba(240, 251, 247, 0.035);
+}

@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @agent_wallet "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-  @agent_chain_id "84532"
+  @agent_chain_id "8453"
   @agent_registry "0x2222222222222222222222222222222222222222"
   @agent_token_id "44"
   @receipt_secret "autolaunch-test-receipt-secret"
@@ -82,7 +82,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                resource: "strategy",
                action: "migrate",
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                  value: "0x0",
                  data: "0x8fd3ab80"
@@ -115,7 +115,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                action: "propose_beneficiary_rotation",
                params: %{"beneficiary" => beneficiary},
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0xdddddddddddddddddddddddddddddddddddddddd",
                  value: "0x0",
                  data: "0xc178cb2d"
@@ -148,7 +148,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                action: "pull_treasury_share",
                params: %{"amount" => amount},
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0x9999999999999999999999999999999999999999",
                  value: "0x0",
                  data: "0x94af8446"
@@ -199,7 +199,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                resource: "splitter",
                action: "set_paused",
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0x9999999999999999999999999999999999999999",
                  value: "0x0",
                  data: "0x16c38b3c"
@@ -231,7 +231,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                resource: "splitter",
                action: "sweep_treasury_residual",
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0x9999999999999999999999999999999999999999",
                  value: "0x0",
                  data: "0xe37459b1"
@@ -264,7 +264,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
                action: "rotate_safe",
                params: %{"new_safe" => new_safe},
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0x2222222222222222222222222222222222222222",
                  value: "0x0",
                  data: "0xdbf6fd39"
@@ -302,7 +302,7 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
            action: "set_authorized_creator",
            expected_signer: expected_signer,
            wallet_action: %{
-             chain_id: 84_532,
+             chain_id: 8_453,
              to: "0x1111111111111111111111111111111111111111",
              value: "0x0",
              data: "0xe1434f4e",

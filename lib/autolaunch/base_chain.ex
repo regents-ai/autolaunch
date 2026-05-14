@@ -9,7 +9,7 @@ defmodule Autolaunch.BaseChain do
 
   def base_mainnet_chain_id, do: @base_mainnet_chain_id
   def base_sepolia_chain_id, do: @base_sepolia_chain_id
-  def supported_chain_ids, do: [@base_sepolia_chain_id, @base_mainnet_chain_id]
+  def supported_chain_ids, do: [@base_mainnet_chain_id, @base_sepolia_chain_id]
 
   def chains do
     Enum.map(supported_chain_ids(), &config!/1)

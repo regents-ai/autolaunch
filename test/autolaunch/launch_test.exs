@@ -30,8 +30,8 @@ defmodule Autolaunch.LaunchTest do
     refute Launch.terminal_status?("queued")
   end
 
-  test "chain options expose only Base networks" do
-    assert Enum.map(Launch.chain_options(), & &1.id) == [84_532, 8_453]
+  test "chain options expose the active Base launch network" do
+    assert Enum.map(Launch.chain_options(), & &1.id) == [8_453]
   end
 
   test "signed agent claims expose an eligible agent card without a browser profile" do
@@ -39,7 +39,7 @@ defmodule Autolaunch.LaunchTest do
 
     assert [
              %{
-               agent_id: "84532:44",
+               agent_id: "8453:44",
                access_mode: "agent_signed",
                state: "eligible",
                linked_wallet_addresses: [^wallet]
@@ -47,7 +47,7 @@ defmodule Autolaunch.LaunchTest do
            ] =
              Launch.list_agents(%{
                "wallet_address" => wallet,
-               "chain_id" => "84532",
+               "chain_id" => "8453",
                "registry_address" => "0x2222222222222222222222222222222222222222",
                "token_id" => "44",
                "label" => "Atlas"
@@ -72,14 +72,14 @@ defmodule Autolaunch.LaunchTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_first",
-        agent_id: "84532:42",
+        agent_id: "8453:42",
         agent_name: "Atlas",
         ens_name: "atlas.eth",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "active",
         started_at: now,
         world_registered: true,
@@ -91,14 +91,14 @@ defmodule Autolaunch.LaunchTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_second",
-        agent_id: "84532:99",
+        agent_id: "8453:99",
         agent_name: "Nova",
         ens_name: nil,
         owner_address: "0x2222222222222222222222222222222222222222",
         auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
         token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "settled",
         started_at: DateTime.add(now, -9 * 86_400, :second),
         ends_at: DateTime.add(now, -2 * 86_400, :second),
@@ -112,12 +112,12 @@ defmodule Autolaunch.LaunchTest do
       |> Job.create_changeset(%{
         job_id: "job_second",
         owner_address: "0x2222222222222222222222222222222222222222",
-        agent_id: "84532:99",
+        agent_id: "8453:99",
         token_name: "Nova Coin",
         token_symbol: "NOVA",
         agent_safe_address: "0x2222222222222222222222222222222222222222",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -166,13 +166,13 @@ defmodule Autolaunch.LaunchTest do
     Repo.insert!(
       Auction.changeset(%Auction{}, %{
         source_job_id: "auc_new",
-        agent_id: "84532:10",
+        agent_id: "8453:10",
         agent_name: "Fresh",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "active",
         started_at: newer,
         ends_at: DateTime.add(newer, 3_600, :second)
@@ -182,14 +182,15 @@ defmodule Autolaunch.LaunchTest do
     Repo.insert!(
       Auction.changeset(%Auction{}, %{
         source_job_id: "auc_old",
-        agent_id: "84532:11",
+        agent_id: "8453:11",
         agent_name: "Mature",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
         token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "settled",
+        chain_state: "graduated",
         started_at: older,
         ends_at: DateTime.add(older, 86_400, :second)
       })
@@ -200,12 +201,12 @@ defmodule Autolaunch.LaunchTest do
       |> Job.create_changeset(%{
         job_id: "job_old",
         owner_address: "0x1111111111111111111111111111111111111111",
-        agent_id: "84532:11",
+        agent_id: "8453:11",
         token_name: "Mature Coin",
         token_symbol: "MAT",
         agent_safe_address: "0x1111111111111111111111111111111111111111",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -244,11 +245,11 @@ defmodule Autolaunch.LaunchTest do
         %{
           job_id: "job_completion",
           owner_address: "0x1111111111111111111111111111111111111111",
-          agent_id: "84532:42",
+          agent_id: "8453:42",
           token_name: "Atlas Coin",
           token_symbol: "ATLAS",
-          network: "base-sepolia",
-          chain_id: 84_532,
+          network: "base-mainnet",
+          chain_id: 8_453,
           status: "ready",
           step: "ready",
           total_supply: "1000",
@@ -265,13 +266,13 @@ defmodule Autolaunch.LaunchTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_completion",
-        agent_id: "84532:42",
+        agent_id: "8453:42",
         agent_name: "Atlas",
         owner_address: "0x1111111111111111111111111111111111111111",
         auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "active",
         started_at: now
       })
@@ -301,12 +302,12 @@ defmodule Autolaunch.LaunchTest do
         %{
           job_id: "job_prompt",
           owner_address: "0x1111111111111111111111111111111111111111",
-          agent_id: "84532:42",
+          agent_id: "8453:42",
           ens_name: "atlas.eth",
           token_name: "Atlas Coin",
           token_symbol: "ATLAS",
-          network: "base-sepolia",
-          chain_id: 84_532,
+          network: "base-mainnet",
+          chain_id: 8_453,
           status: "queued",
           step: "queued",
           total_supply: "1000",
@@ -434,12 +435,12 @@ defmodule Autolaunch.LaunchTest do
         %{
           job_id: job_id,
           owner_address: "0x1111111111111111111111111111111111111111",
-          agent_id: "84532:42",
+          agent_id: "8453:42",
           agent_name: "Atlas",
           token_name: "Atlas Coin",
           token_symbol: "ATLAS",
-          network: "base-sepolia",
-          chain_id: 84_532,
+          network: "base-mainnet",
+          chain_id: 8_453,
           status: "queued",
           step: "queued",
           total_supply: "1000",

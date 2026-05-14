@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.PositionsLiveTest do
           bid_id: "bid_exit",
           auction_id: "auc_1",
           agent_name: "Atlas",
-          chain: "Base Sepolia",
+          chain: "Base",
           status: "inactive",
           amount: "250.0",
           max_price: "0.0060",
@@ -27,7 +27,7 @@ defmodule AutolaunchWeb.PositionsLiveTest do
             exit: %{
               prepared: %{
                 wallet_action: %{
-                  chain_id: 84_532,
+                  chain_id: 8_453,
                   to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                   data: "0xexit",
                   value: "0x0"
@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.PositionsLiveTest do
           bid_id: "bid_claim",
           auction_id: "auc_2",
           agent_name: "Nova",
-          chain: "Base Sepolia",
+          chain: "Base",
           status: "claimable",
           amount: "100.0",
           max_price: "0.0045",
@@ -53,7 +53,7 @@ defmodule AutolaunchWeb.PositionsLiveTest do
             claim: %{
               prepared: %{
                 wallet_action: %{
-                  chain_id: 84_532,
+                  chain_id: 8_453,
                   to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                   data: "0xclaim",
                   value: "0x0"
@@ -66,7 +66,7 @@ defmodule AutolaunchWeb.PositionsLiveTest do
           bid_id: "bid_soon",
           auction_id: "auc_3",
           agent_name: "Ember",
-          chain: "Base Sepolia",
+          chain: "Base",
           status: "active",
           amount: "50.0",
           max_price: "0.0070",

@@ -17,6 +17,7 @@ defmodule Autolaunch.Application do
         {Phoenix.PubSub, name: Autolaunch.PubSub},
         {Task.Supervisor, name: Autolaunch.TaskSupervisor},
         launch_job_poller_child(),
+        auction_sync_poller_child(),
         AutolaunchWeb.RateLimiter,
         Autolaunch.XmtpIdentity,
         AutolaunchWeb.Endpoint
@@ -56,6 +57,14 @@ defmodule Autolaunch.Application do
 
     if Keyword.get(opts, :enabled, false) do
       {Autolaunch.Launch.JobPoller, opts}
+    end
+  end
+
+  defp auction_sync_poller_child do
+    opts = Application.get_env(:autolaunch, :auction_sync, [])
+
+    if Keyword.get(opts, :enabled, false) do
+      {Autolaunch.Launch.AuctionSyncPoller, opts}
     end
   end
 end

@@ -70,8 +70,6 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
 
   def launch_command, do: "regents autolaunch prelaunch wizard"
 
-  def launch_command_with_chain, do: launch_command() <> " --chain base-sepolia"
-
   def launch_command_lines do
     [
       %{
@@ -85,15 +83,13 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
         ]
       },
       %{
-        label: launch_command_with_chain(),
+        label: launch_command(),
         copy_label: "Copy wizard",
         tokens: [
           %{style: "is-bin", text: "regents"},
           %{style: "is-scope", text: "autolaunch"},
           %{style: "is-action", text: "prelaunch"},
-          %{style: "is-action", text: "wizard"},
-          %{style: "is-flag", text: "--chain"},
-          %{style: "is-value", text: "base-sepolia"}
+          %{style: "is-action", text: "wizard"}
         ]
       }
     ]
@@ -281,7 +277,8 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
       },
       %{
         title: "Bring Techtree evidence",
-        body: "Attempts, notebooks, receipts, and verifier checks help people judge the agent; they do not approve a launch by themselves."
+        body:
+          "Attempts, notebooks, receipts, and verifier checks help people judge the agent; they do not approve a launch by themselves."
       },
       %{
         title: "Go live",

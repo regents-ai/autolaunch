@@ -26,7 +26,7 @@ defmodule Autolaunch.RevenueTest do
       :autolaunch,
       :launch,
       previous_launch
-      |> Keyword.put(:chain_id, 84_532)
+      |> Keyword.put(:chain_id, 8_453)
       |> Keyword.put(
         :revenue_ingress_factory_address,
         "0x2222222222222222222222222222222222222222"
@@ -63,12 +63,12 @@ defmodule Autolaunch.RevenueTest do
       |> Job.create_changeset(%{
         job_id: "job_subject",
         owner_address: @wallet,
-        agent_id: "84532:42",
+        agent_id: "8453:42",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: @wallet,
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -165,19 +165,19 @@ defmodule Autolaunch.RevenueTest do
 
     %Job{}
     |> Job.create_changeset(%{
-      job_id: "job_subject_mainnet",
+      job_id: "job_subject_sepolia",
       owner_address: @wallet,
-      agent_id: "8453:42",
+      agent_id: "84532:42",
       token_name: "Atlas Coin",
       token_symbol: "ATLAS",
       agent_safe_address: @wallet,
-      network: "base-mainnet",
-      chain_id: 8_453,
+      network: "base-sepolia",
+      chain_id: 84_532,
       status: "ready",
       step: "ready",
       total_supply: "1000",
       message: "signed",
-      siwa_nonce: "nonce-mainnet",
+      siwa_nonce: "nonce-sepolia",
       siwa_signature: "sig",
       issued_at: DateTime.utc_now()
     })
@@ -246,7 +246,7 @@ defmodule Autolaunch.RevenueTest do
     assert {:ok, %{prepared: prepared}} =
              Revenue.stake(@subject_id, %{"amount" => "1.5"}, human)
 
-    assert prepared.chain_id == 84_532
+    assert prepared.chain_id == 8_453
     assert prepared.expected_signer == @wallet
     assert prepared.idempotency_key == prepared.action_id
     assert prepared.params.subject_id == @subject_id
@@ -539,7 +539,7 @@ defmodule Autolaunch.RevenueTest do
 
     def block_number(_chain_id, _opts), do: {:ok, 1}
 
-    def eth_call(84_532, @splitter, data, _opts) do
+    def eth_call(8_453, @splitter, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -571,13 +571,13 @@ defmodule Autolaunch.RevenueTest do
       end
     end
 
-    def eth_call(84_532, @token, "0x70a08231" <> _rest, _opts),
+    def eth_call(8_453, @token, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(84_532, @usdc, "0x70a08231" <> _rest, _opts),
+    def eth_call(8_453, @usdc, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(84_532, @ingress_factory, data, _opts) do
+    def eth_call(8_453, @ingress_factory, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -588,7 +588,7 @@ defmodule Autolaunch.RevenueTest do
       end
     end
 
-    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest, _opts),
+    def eth_call(8_453, @subject_registry, "0x41c2ab07" <> _rest, _opts),
       do: {:ok, encode_bool(true)}
 
     def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}

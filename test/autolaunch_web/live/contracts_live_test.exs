@@ -155,7 +155,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
            },
            identity_links: [
              %{
-               chain_id: 84_532,
+               chain_id: 8_453,
                registry: "0x4444444444444444444444444444444444444444",
                agent_id: 42
              }
@@ -266,7 +266,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
         resource: resource,
         resource_id: to,
         action: action,
-        chain_id: 84_532,
+        chain_id: 8_453,
         expected_signer: @expected_signer,
         expires_at: @expires_at,
         idempotency_key: action_id,
@@ -277,7 +277,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
           resource: resource,
           resource_id: to,
           action: action,
-          chain_id: 84_532,
+          chain_id: 8_453,
           to: to,
           value: "0",
           data: data,

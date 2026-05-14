@@ -16,8 +16,8 @@ config :autolaunch, AutolaunchWeb.Endpoint,
   live_view: [signing_salt: "DRIHbY4r"]
 
 config :autolaunch, :launch,
-  chain_id: 84_532,
-  network: "base-sepolia",
+  chain_id: 8_453,
+  network: "base-mainnet",
   allow_unverified_owner: false,
   deploy_script_target: ""
 
@@ -25,6 +25,13 @@ config :autolaunch, :launch_job_poller,
   enabled: false,
   interval_ms: 2_000,
   lease_timeout_ms: :timer.minutes(10)
+
+config :autolaunch, :auction_sync,
+  enabled: false,
+  interval_ms: 30_000,
+  batch_size: 20,
+  recent_hours: 168,
+  snapshot_ttl_seconds: 45
 
 config :autolaunch, :regent_staking,
   chain_id: 8_453,

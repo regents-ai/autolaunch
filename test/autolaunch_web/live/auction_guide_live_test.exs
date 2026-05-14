@@ -18,7 +18,7 @@ defmodule AutolaunchWeb.AuctionGuideLiveTest do
     assert html =~ "Understand the sale before you bid."
     assert html =~ "Back an active auction with USDC."
     assert html =~ "Launch through the CLI, then return here for the live market."
-    assert html =~ "USDC on Base Sepolia or Base mainnet"
+    assert html =~ "USDC on Base"
     assert html =~ "USDC on Base"
     refute html =~ "al-docs-masthead-illustration"
     refute html =~ "al-docs-masthead-book"

@@ -11,7 +11,7 @@ defmodule Autolaunch.Prelaunch.Plan do
     field :state, :string, default: "draft"
     field :agent_id, :string
     field :agent_name, :string
-    field :chain_id, :integer, default: 84_532
+    field :chain_id, :integer, default: 8_453
     field :token_name, :string
     field :token_symbol, :string
     field :minimum_raise_usdc, :string

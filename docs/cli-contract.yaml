@@ -92,7 +92,7 @@ command_groups:
       input_mode: mixed
       safety_notice: Regents apps and the CLI are in ALPHA testing and funds are not guaranteed safe in any shape or form
       examples:
-        - regents autolaunch prelaunch wizard --chain base-sepolia
+        - regents autolaunch prelaunch wizard
         - regents autolaunch prelaunch get --plan <id>
         - regents autolaunch prelaunch validate --plan <id>
         - regents autolaunch jobs watch <job_id>
@@ -118,12 +118,6 @@ command_groups:
       - autolaunch vesting execute-beneficiary-rotation
     command_flags:
       autolaunch prelaunch wizard:
-        - name: --chain
-          type: enum
-          required: false
-          enum: [base-sepolia]
-          default: base-sepolia
-          description: Chain for the prelaunch wizard. Base is the only enabled wizard chain for now.
         - name: --agent-safe-address
           type: evm-address
           required: true
@@ -159,8 +153,8 @@ command_groups:
       async_behavior: synchronous
       input_mode: args-and-flags
       examples:
-        - regents autolaunch identities list --chain base-sepolia
-        - regents autolaunch identities mint --chain base-sepolia
+        - regents autolaunch identities list --chain base-mainnet
+        - regents autolaunch identities mint --chain base-mainnet
     commands:
       - autolaunch identities list
       - autolaunch identities mint

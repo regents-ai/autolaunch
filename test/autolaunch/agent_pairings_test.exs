@@ -32,7 +32,7 @@ defmodule Autolaunch.AgentPairingsTest do
                "pairing_code" => session.pairing_code,
                "challenge_message" => session.challenge_message,
                "agent_wallet_address" => evidence.address,
-               "agent_chain_id" => 84_532,
+               "agent_chain_id" => 8_453,
                "agent_registry_address" => @registry_address,
                "agent_token_id" => "42",
                "agent_label" => "Atlas Agent",
@@ -43,7 +43,7 @@ defmodule Autolaunch.AgentPairingsTest do
 
     assert completed.status == "completed"
     assert completed.agent.agent_wallet_address == evidence.address
-    assert completed.agent.agent_chain_id == 84_532
+    assert completed.agent.agent_chain_id == 8_453
     assert completed.agent.agent_registry_address == @registry_address
     assert completed.agent.agent_token_id == "42"
     assert completed.agent.agent_label == "Atlas Agent"
@@ -55,7 +55,7 @@ defmodule Autolaunch.AgentPairingsTest do
     assert %Autolaunch.Accounts.HumanUser{id: human_id} =
              AgentPairings.get_human_by_agent_claims(%{
                "wallet_address" => evidence.address,
-               "chain_id" => "84532",
+               "chain_id" => "8453",
                "registry_address" => @registry_address,
                "token_id" => "42"
              })
@@ -67,7 +67,7 @@ defmodule Autolaunch.AgentPairingsTest do
                "pairing_code" => session.pairing_code,
                "challenge_message" => session.challenge_message,
                "agent_wallet_address" => evidence.address,
-               "agent_chain_id" => 84_532,
+               "agent_chain_id" => 8_453,
                "agent_registry_address" => @registry_address,
                "agent_token_id" => "42",
                "signature_type" => "evm_personal_sign",
@@ -90,7 +90,7 @@ defmodule Autolaunch.AgentPairingsTest do
                "pairing_code" => session.pairing_code,
                "challenge_message" => session.challenge_message,
                "agent_wallet_address" => evidence.address,
-               "agent_chain_id" => 84_532,
+               "agent_chain_id" => 8_453,
                "agent_registry_address" => @registry_address,
                "agent_token_id" => "43",
                "signature_type" => "evm_personal_sign",
@@ -111,7 +111,7 @@ defmodule Autolaunch.AgentPairingsTest do
                "pairing_code" => session.pairing_code,
                "challenge_message" => session.challenge_message,
                "agent_wallet_address" => "0x2222222222222222222222222222222222222222",
-               "agent_chain_id" => 84_532,
+               "agent_chain_id" => 8_453,
                "agent_registry_address" => @registry_address,
                "agent_token_id" => "44",
                "signature_type" => "evm_personal_sign",

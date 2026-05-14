@@ -245,11 +245,11 @@ The preferred path is:
 
 The CLI commands named in the README reflect this:
 
-- `regent autolaunch prelaunch wizard`
-- `regent autolaunch launch run`
-- `regent autolaunch launch monitor`
-- `regent autolaunch launch finalize`
-- `regent autolaunch vesting status`
+- `regents autolaunch prelaunch wizard`
+- `regents autolaunch launch run`
+- `regents autolaunch launch monitor`
+- `regents autolaunch launch finalize`
+- `regents autolaunch vesting status`
 
 This matters because launches are not single-click events. They require stored plans, deploy binaries, workdirs, contract outputs, chain reads, identity proof, and post-launch verification. The CLI is a better place for that operational path than a purely browser-first flow.
 

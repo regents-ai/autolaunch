@@ -50,8 +50,7 @@ defmodule AutolaunchWeb.ApiErrorTranslator do
   end
 
   def translate(:launch_create_job, :invalid_chain_id) do
-    {:unprocessable_entity, "invalid_chain_id",
-     "Chain ID must be Base Sepolia (84532) or Base mainnet (8453)"}
+    {:unprocessable_entity, "invalid_chain_id", "Chain ID must be Base mainnet (8453)"}
   end
 
   def translate(:launch_create_job, :invalid_wallet_address) do

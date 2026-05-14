@@ -19,8 +19,8 @@ defmodule Autolaunch.PrelaunchTest do
       plan_id: "plan_metadata",
       privy_user_id: human.privy_user_id,
       state: "draft",
-      agent_id: "84532:42",
-      chain_id: 84_532,
+      agent_id: "8453:42",
+      chain_id: 8_453,
       token_name: "Atlas Coin",
       token_symbol: "ATLAS",
       agent_safe_address: "0x1111111111111111111111111111111111111111",
@@ -29,6 +29,10 @@ defmodule Autolaunch.PrelaunchTest do
     |> Repo.insert!()
 
     %{human: human}
+  end
+
+  test "new prelaunch plan structs default to Base mainnet" do
+    assert %Plan{}.chain_id == 8_453
   end
 
   test "metadata updates require the canonical metadata wrapper", %{human: human} do
@@ -53,8 +57,8 @@ defmodule Autolaunch.PrelaunchTest do
       plan_id: "plan_techtree_evidence",
       privy_user_id: human.privy_user_id,
       state: "draft",
-      agent_id: "84532:42",
-      chain_id: 84_532,
+      agent_id: "8453:42",
+      chain_id: 8_453,
       token_name: "Atlas Coin",
       token_symbol: "ATLAS",
       agent_safe_address: "0x1111111111111111111111111111111111111111",
@@ -71,6 +75,6 @@ defmodule Autolaunch.PrelaunchTest do
                 ref: "techtree:fold:evidence:agent:42",
                 source: "techtree"
               }
-            ]} = Prelaunch.supporting_evidence_for_agent("84532:42", human)
+            ]} = Prelaunch.supporting_evidence_for_agent("8453:42", human)
   end
 end

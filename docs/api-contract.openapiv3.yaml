@@ -2907,6 +2907,9 @@ components:
     AutolaunchChainId:
       type: integer
       enum: [84532, 8453]
+    ActiveAutolaunchLaunchChainId:
+      type: integer
+      enum: [8453]
     DecimalString:
       type: string
     DateTime:
@@ -3341,7 +3344,7 @@ components:
         resource: { type: string }
         resource_id: { type: string }
         action: { type: string }
-        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
+        chain_id: { $ref: "#/components/schemas/ActiveAutolaunchLaunchChainId" }
         expected_signer: { $ref: "#/components/schemas/Address" }
         expires_at: { $ref: "#/components/schemas/DateTime" }
         idempotency_key: { type: string }
@@ -3423,7 +3426,7 @@ components:
             - { type: "null" }
         supported_chains:
           type: array
-          items: { type: string }
+          items: { $ref: "#/components/schemas/AutolaunchSupportedChain" }
         readiness:
           type: object
           additionalProperties: true
@@ -3431,6 +3434,17 @@ components:
           type: array
           items: { $ref: "#/components/schemas/SupportingEvidence" }
       additionalProperties: true
+    AutolaunchSupportedChain:
+      type: object
+      required: [id, key, family, label, short_label, "testnet?"]
+      properties:
+        id: { $ref: "#/components/schemas/AutolaunchChainId" }
+        key: { type: string, enum: [base-sepolia, base-mainnet] }
+        family: { type: string, enum: [base] }
+        label: { type: string }
+        short_label: { type: string }
+        "testnet?": { type: boolean }
+      additionalProperties: false
     PrelaunchMetadataDraft:
       type: object
       properties:
@@ -3636,7 +3650,7 @@ components:
         - minimum_raise_usdc
       properties:
         agent_id: { type: string }
-        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
+        chain_id: { $ref: "#/components/schemas/ActiveAutolaunchLaunchChainId" }
         token_name: { type: string }
         token_symbol: { type: string }
         agent_safe_address: { $ref: "#/components/schemas/Address" }

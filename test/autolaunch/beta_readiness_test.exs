@@ -21,8 +21,8 @@ defmodule Autolaunch.BetaReadinessTest do
       :autolaunch,
       :launch,
       Keyword.merge(previous_launch,
-        chain_id: 84_532,
-        rpc_url: "https://base-sepolia.example",
+        chain_id: 8_453,
+        rpc_url: "https://base.example",
         cca_factory_address: "0x1111111111111111111111111111111111111111",
         pool_manager_address: "0x2222222222222222222222222222222222222222",
         position_manager_address: "0x3333333333333333333333333333333333333333",
@@ -49,8 +49,8 @@ defmodule Autolaunch.BetaReadinessTest do
     )
 
     Application.put_env(:autolaunch, :regent_staking,
-      chain_id: 84_532,
-      rpc_url: "https://base-sepolia-staking.example",
+      chain_id: 8_453,
+      rpc_url: "https://base-staking.example",
       contract_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     )
 

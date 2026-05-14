@@ -2,14 +2,14 @@
   "prelaunch_plan": {
     "plan_id": "plan_alpha",
     "state": "draft",
-    "agent_id": "84532:42",
+    "agent_id": "8453:42",
     "agent_name": "Atlas",
-    "chain_id": 84532,
+    "chain_id": 8453,
     "token_name": "Atlas Coin",
     "token_symbol": "ATLAS",
     "agent_safe_address": "0x1111111111111111111111111111111111111111",
     "identity_snapshot": {
-      "agent_id": "84532:42",
+      "agent_id": "8453:42",
       "name": "Atlas",
       "image_url": "https://cdn.example/atlas-agent.png",
       "web_endpoint": "https://atlas.example",
@@ -36,7 +36,7 @@
       "blockers": [],
       "warnings": [],
       "identity_status": {
-        "agent_id": "84532:42",
+        "agent_id": "8453:42",
         "agent_name": "Atlas",
         "current_image_url": "https://cdn.example/atlas-agent.png",
         "current_web_endpoint": "https://atlas.example",
@@ -50,16 +50,16 @@
   },
   "launch_preview": {
     "agent": {
-      "agent_id": "84532:42",
+      "agent_id": "8453:42",
       "name": "Atlas"
     },
     "token": {
       "name": "Atlas Coin",
       "symbol": "ATLAS",
-      "chain": "base-sepolia",
-      "chain_id": 84532,
+      "chain": "base-mainnet",
+      "chain_id": 8453,
       "chain_family": "base",
-      "chain_label": "Base Sepolia",
+      "chain_label": "Base",
       "agent_safe_address": "0x1111111111111111111111111111111111111111",
       "total_supply": "100000000000000000000000000000"
     },
@@ -78,15 +78,15 @@
     ],
     "next_steps": [
       "Confirm the launch with the wallet that owns this Agent account.",
-      "Queue the Base Sepolia launch deployment.",
+      "Queue the Base launch deployment.",
       "Wait for launch setup to finish and show the new launch addresses."
     ],
-    "launch_notes": "Launch runs on Base Sepolia only.",
+    "launch_notes": "Launch runs on Base only.",
     "completion_plan": {
       "ens": {
         "attached": false,
         "ens_name": "atlas.eth",
-        "action_url": "/ens-link?identity_id=84532%3A42&ens_name=atlas.eth",
+        "action_url": "/ens-link?identity_id=8453%3A42&ens_name=atlas.eth",
         "note": "Finish the ENS link so the creator identity advertises a public name."
       },
       "agentbook": {
@@ -114,7 +114,7 @@
           "label": "Link ENS name",
           "status": "available",
           "completed": false,
-          "action_url": "/ens-link?identity_id=84532%3A42&ens_name=atlas.eth",
+          "action_url": "/ens-link?identity_id=8453%3A42&ens_name=atlas.eth",
           "note": "Finish the ENS link so the creator identity advertises a public name."
         },
         {
@@ -134,8 +134,8 @@
       "job_id": "job_queued",
       "status": "ready",
       "step": "ready",
-      "network": "base-sepolia",
-      "chain_label": "Base Sepolia",
+      "network": "base-mainnet",
+      "chain_label": "Base",
       "strategy_address": "0x9999999999999999999999999999999999999999",
       "vesting_wallet_address": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "launch_fee_vault_address": "0xcccccccccccccccccccccccccccccccccccccccc",
@@ -158,7 +158,7 @@
             "label": "Review ENS link",
             "status": "complete",
             "completed": true,
-            "action_url": "/ens-link?identity_id=84532%3A42&ens_name=atlas.eth",
+            "action_url": "/ens-link?identity_id=8453%3A42&ens_name=atlas.eth",
             "note": "ENS link already present on the creator identity."
           },
           {
@@ -183,7 +183,7 @@
     "auction": {
       "id": "auc_queued",
       "status": "settled",
-      "chain_id": 84532,
+      "chain_id": 8453,
       "address": "0xcccccccccccccccccccccccccccccccccccccccc",
       "graduated": true,
       "token_balance": 0,
@@ -307,7 +307,7 @@
       "resource": "strategy",
       "resource_id": "job_queued",
       "action": "migrate",
-      "chain_id": 84532,
+      "chain_id": 8453,
       "expected_signer": "0x1111111111111111111111111111111111111111",
       "expires_at": "2026-03-27T12:10:00Z",
       "idempotency_key": "strategy_migrate",
@@ -318,7 +318,7 @@
         "resource": "strategy",
         "resource_id": "job_queued",
         "action": "migrate",
-        "chain_id": 84532,
+        "chain_id": 8453,
         "to": "0x9999999999999999999999999999999999999999",
         "value": "0",
         "data": "0x8fd3ab80",
@@ -434,7 +434,7 @@
       "resource": "auction",
       "resource_id": "auc_queued",
       "action": "submit_bid",
-      "chain_id": 84532,
+      "chain_id": 8453,
       "expected_signer": "0x1111111111111111111111111111111111111111",
       "expires_at": "2026-03-27T12:10:00Z",
       "idempotency_key": "auction_bid_quote",
@@ -445,7 +445,7 @@
         "resource": "auction",
         "resource_id": "auc_queued",
         "action": "submit_bid",
-        "chain_id": 84532,
+        "chain_id": 8453,
         "to": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "value": "0",
         "data": "0x1234",
@@ -465,9 +465,9 @@
     "bid_id": "auc_queued:7",
     "onchain_bid_id": 7,
     "auction_id": "auc_queued",
-    "agent_id": "84532:42",
+    "agent_id": "8453:42",
     "agent_name": "Atlas",
-    "chain": "base-sepolia",
+    "chain": "base-mainnet",
     "status": "claimable",
     "amount": "250.0",
     "max_price": "0.0010",
@@ -486,7 +486,7 @@
           "resource": "auction",
           "resource_id": "bid_7",
           "action": "claim_bid",
-          "chain_id": 84532,
+          "chain_id": 8453,
           "expected_signer": "0x1111111111111111111111111111111111111111",
           "expires_at": "2026-03-27T12:10:00Z",
           "idempotency_key": "auction_claim_bid",
@@ -497,7 +497,7 @@
             "resource": "auction",
             "resource_id": "bid_7",
             "action": "claim_bid",
-            "chain_id": 84532,
+            "chain_id": 8453,
             "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "value": "0",
             "data": "0x5678",
@@ -517,7 +517,7 @@
     "auction": {
       "id": "auc_queued",
       "status": "settled",
-      "chain_id": 84532
+      "chain_id": 8453
     },
     "inserted_at": "2026-03-27T12:00:00Z"
   },
@@ -537,7 +537,7 @@
         "label": "Link ENS name",
         "status": "available",
         "completed": false,
-        "action_url": "/ens-link?identity_id=84532%3A42&ens_name=atlas.eth",
+        "action_url": "/ens-link?identity_id=8453%3A42&ens_name=atlas.eth",
         "note": "Finish the ENS link so the creator identity advertises a public name."
       },
       {

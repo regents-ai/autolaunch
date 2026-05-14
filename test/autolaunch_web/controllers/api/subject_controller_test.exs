@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
 
     def block_number(_chain_id, _opts), do: {:ok, 1}
 
-    def eth_call(84_532, @splitter, data, _opts) do
+    def eth_call(8_453, @splitter, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -65,13 +65,13 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       end
     end
 
-    def eth_call(84_532, @token, "0x70a08231" <> _rest, _opts),
+    def eth_call(8_453, @token, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(84_532, @usdc, "0x70a08231" <> _rest, _opts),
+    def eth_call(8_453, @usdc, "0x70a08231" <> _rest, _opts),
       do: {:ok, encode_uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(84_532, @ingress_factory, data, _opts) do
+    def eth_call(8_453, @ingress_factory, data, _opts) do
       selector = String.slice(data, 0, 10)
 
       case selector do
@@ -82,7 +82,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       end
     end
 
-    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> _rest, _opts),
+    def eth_call(8_453, @subject_registry, "0x41c2ab07" <> _rest, _opts),
       do: {:ok, encode_bool(true)}
 
     def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}
@@ -187,12 +187,12 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
       |> Job.create_changeset(%{
         job_id: "job_subject_controller",
         owner_address: @wallet,
-        agent_id: "84532:42",
+        agent_id: "8453:42",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: @wallet,
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -236,7 +236,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
                "treasury_reserved_usdc_raw" => 12_000_000,
                "recognized_revenue_proof" => %{
                  "source" => "onchain_splitter",
-                 "chain_id" => 84_532,
+                 "chain_id" => 8_453,
                  "ingress" => "0x7777777777777777777777777777777777777777",
                  "revsplit" => @splitter,
                  "block_number" => 1,
@@ -339,7 +339,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     assert %{
              "ok" => true,
              "subject_id" => @subject_id,
-             "chain_id" => 84_532,
+             "chain_id" => 8_453,
              "from_block" => 12,
              "cursor" => 0,
              "limit" => 3,
@@ -394,7 +394,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
              "prepared" => %{
                "expected_signer" => @wallet,
                "wallet_action" => %{
-                 "chain_id" => 84_532,
+                 "chain_id" => 8_453,
                  "to" => @existing_factory,
                  "data" => data
                },
@@ -701,7 +701,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
                "idempotency_key" => idempotency_key,
                "risk_copy" => risk_copy,
                "wallet_action" => %{
-                 "chain_id" => 84_532,
+                 "chain_id" => 8_453,
                  "to" => @splitter,
                  "data" => data
                }
@@ -880,7 +880,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
     conn
     |> put_req_header("accept", "application/json")
     |> put_req_header("x-agent-wallet-address", @wallet)
-    |> put_req_header("x-agent-chain-id", "84532")
+    |> put_req_header("x-agent-chain-id", "8453")
     |> put_req_header("x-agent-registry-address", @agent_registry)
     |> put_req_header("x-agent-token-id", @agent_token_id)
     |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
@@ -898,7 +898,7 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
         "verified" => "onchain",
         "iat" => now_ms,
         "exp" => now_ms + 600_000,
-        "chain_id" => 84_532,
+        "chain_id" => 8_453,
         "nonce" => "nonce-#{System.unique_integer([:positive])}",
         "key_id" => @wallet,
         "registry_address" => @agent_registry,

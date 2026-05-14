@@ -369,6 +369,10 @@ defmodule AutolaunchWeb.Layouts do
           <path d="M5 4v16" />
           <path d="M5 12h14" />
           <path d="M12 12a7 7 0 0 1 7-7" />
+        <% "tokens" -> %>
+          <ellipse cx="12" cy="6.5" rx="6.5" ry="3" />
+          <path d="M5.5 6.5v5c0 1.7 2.9 3 6.5 3s6.5-1.3 6.5-3v-5" />
+          <path d="M5.5 11.5v5c0 1.7 2.9 3 6.5 3s6.5-1.3 6.5-3v-5" />
         <% "staking" -> %>
           <path d="M5 7h14" />
           <path d="M7 7v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V7" />
@@ -426,6 +430,7 @@ defmodule AutolaunchWeb.Layouts do
     [
       %{id: "home", label: "Home", href: ~p"/", icon: "home"},
       %{id: "auctions", label: "Auctions", href: ~p"/auctions", icon: "auctions"},
+      %{id: "tokens", label: "Revsplit Tokens", href: ~p"/tokens", icon: "tokens"},
       %{id: "positions", label: "Positions", href: ~p"/positions", icon: "positions"},
       %{id: "regent-staking", label: "$REGENT", href: ~p"/regent-staking", icon: "staking"},
       %{id: "profile", label: "Profile", href: ~p"/profile", icon: "profile"},
@@ -442,6 +447,13 @@ defmodule AutolaunchWeb.Layouts do
         href: ~p"/auctions",
         mark: "AU",
         search: "auctions markets bids tokens agent symbol ens"
+      },
+      %{
+        label: "Revsplit Tokens",
+        note: "Review graduated auction tokens",
+        href: ~p"/tokens",
+        mark: "RT",
+        search: "revsplit tokens graduated auction agents price revenue"
       },
       %{
         label: "Open positions",
@@ -499,6 +511,7 @@ defmodule AutolaunchWeb.Layouts do
        when active_view in [
               "home",
               "auctions",
+              "tokens",
               "positions",
               "regent-staking",
               "profile",
@@ -525,6 +538,7 @@ defmodule AutolaunchWeb.Layouts do
       "Autolaunch" -> "home"
       "Auctions" -> "auctions"
       "Positions" -> "positions"
+      "Revsplit Tokens" -> "tokens"
       "$REGENT Staking" -> "regent-staking"
       "Profile" -> "profile"
       "Launch" -> "launch"

@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.AgentSessionControllerTest do
   use AutolaunchWeb.ConnCase, async: false
 
   @wallet_address "0x1111111111111111111111111111111111111111"
-  @chain_id "84532"
+  @chain_id "8453"
   @registry_address "0x2222222222222222222222222222222222222222"
   @token_id "44"
   @receipt_secret "autolaunch-test-receipt-secret"

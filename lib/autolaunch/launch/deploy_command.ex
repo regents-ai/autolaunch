@@ -110,7 +110,7 @@ defmodule Autolaunch.Launch.DeployCommand do
   end
 
   def config_value_for_chain(chain_id, key, config) do
-    active_chain_id = BaseChain.normalize_chain_id(Keyword.get(config, :chain_id, 84_532))
+    active_chain_id = BaseChain.normalize_chain_id(Keyword.get(config, :chain_id, 8_453))
 
     if chain_id == active_chain_id and BaseChain.supported_chain_id?(chain_id) do
       Keyword.get(config, key, "")

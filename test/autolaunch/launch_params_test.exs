@@ -5,14 +5,14 @@ defmodule Autolaunch.Launch.ParamsTest do
 
   test "preview attrs keep canonical string-keyed params" do
     assert Params.preview_attrs(%{
-             "agent_id" => "84532:42",
+             "agent_id" => "8453:42",
              "token_name" => "Atlas Coin",
              "token_symbol" => "ATLAS",
              "minimum_raise_usdc" => "250.0",
              "launch_notes" => "ready",
              "ignored" => "skip"
            }) == %{
-             "agent_id" => "84532:42",
+             "agent_id" => "8453:42",
              "token_name" => "Atlas Coin",
              "token_symbol" => "ATLAS",
              "minimum_raise_usdc" => "250.0",

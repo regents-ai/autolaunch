@@ -9,13 +9,13 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     def list_agents(_human) do
       [
         %{
-          agent_id: "84532:42",
-          id: "84532:42",
+          agent_id: "8453:42",
+          id: "8453:42",
           name: "Atlas",
           state: "eligible",
           access_mode: "owner",
           owner_address: "0x1111111111111111111111111111111111111111",
-          supported_chains: [%{id: 84_532, label: "Base Sepolia", short_label: "Base Sepolia"}],
+          supported_chains: [%{id: 8_453, label: "Base", short_label: "Base"}],
           operator_addresses: [],
           blocker_texts: [],
           description: "Launch-ready identity",
@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
       }
     end
 
-    def launch_readiness_for_agent(_human, "84532:42") do
+    def launch_readiness_for_agent(_human, "8453:42") do
       %{
         checks: [
           %{
@@ -51,12 +51,12 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     def preview_launch(_attrs, _human) do
       {:ok,
        %{
-         agent: %{agent_id: "84532:42", name: "Atlas"},
+         agent: %{agent_id: "8453:42", name: "Atlas"},
          token: %{
            name: "Atlas Coin",
            symbol: "ATLAS",
-           chain_id: 84_532,
-           chain_label: "Base Sepolia",
+           chain_id: 8_453,
+           chain_label: "Base",
            agent_safe_address: "0x1111111111111111111111111111111111111111"
          },
          next_steps: [
@@ -82,7 +82,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
                key: "ens",
                label: "Link ENS name",
                status: "available",
-               action_url: "/ens-link?identity_id=84532%3A42&ens_name=atlas.eth",
+               action_url: "/ens-link?identity_id=8453%3A42&ens_name=atlas.eth",
                note: "Finish the ENS link so the creator identity advertises a public name."
              },
              %{
@@ -103,8 +103,8 @@ defmodule AutolaunchWeb.LaunchPagesTest do
           job_id: "job_queued",
           status: "queued",
           step: "queued",
-          network: "base-sepolia",
-          chain_label: "Base Sepolia",
+          network: "base-mainnet",
+          chain_label: "Base",
           reputation_prompt: %{
             prompt:
               "To improve agent token reputation, you can optionally link an ENS name and/or connect to a human's World ID.",
@@ -120,7 +120,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
                 key: "ens",
                 label: "Review ENS link",
                 status: "complete",
-                action_url: "/ens-link?identity_id=84532%3A42&ens_name=atlas.eth",
+                action_url: "/ens-link?identity_id=8453%3A42&ens_name=atlas.eth",
                 note: "ENS link already present on the creator identity."
               },
               %{
@@ -176,7 +176,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
          %{
            plan_id: "plan_alpha",
            state: "launchable",
-           agent_id: "84532:42",
+           agent_id: "8453:42",
            agent_name: "Atlas",
            token_name: "Atlas Coin",
            token_symbol: "ATLAS",
@@ -199,7 +199,7 @@ defmodule AutolaunchWeb.LaunchPagesTest do
          %{
            plan_id: "plan_live",
            state: "launched",
-           agent_id: "84532:42",
+           agent_id: "8453:42",
            agent_name: "Atlas",
            token_name: "Atlas Coin",
            token_symbol: "ATLAS",
@@ -319,7 +319,8 @@ defmodule AutolaunchWeb.LaunchPagesTest do
     {:ok, _view, html} = live(conn, "/launch")
 
     assert html =~ "npm install -g @regentslabs/cli"
-    assert html =~ "regents autolaunch prelaunch wizard --chain base-sepolia"
+    assert html =~ "regents autolaunch prelaunch wizard"
+    refute html =~ "regents autolaunch prelaunch wizard --chain"
 
     assert html =~
              "Run both commands in your terminal to install Regent and start the guided launch flow."

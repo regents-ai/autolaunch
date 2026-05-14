@@ -139,8 +139,8 @@ defmodule Autolaunch.ReleaseDoctorTest do
     launch =
       Application.get_env(:autolaunch, :launch, [])
       |> Keyword.put(:usdc_addresses, %{
-        84_532 => "",
-        8_453 => "0x1313131313131313131313131313131313131313"
+        84_532 => "0x4444444444444444444444444444444444444444",
+        8_453 => ""
       })
 
     Application.put_env(:autolaunch, :launch, launch)
@@ -149,58 +149,11 @@ defmodule Autolaunch.ReleaseDoctorTest do
 
     assert Enum.any?(
              checks,
-             &(&1.key == "launch_usdc_addresses_84532" and &1.severity == :error and not &1.ok)
+             &(&1.key == "launch_usdc_addresses_8453" and &1.severity == :error and not &1.ok)
            )
   end
 
   test "doctor fails when an active-chain RPC entry is missing" do
-    launch =
-      Application.get_env(:autolaunch, :launch, [])
-      |> Keyword.put(:chain_rpc_urls, %{
-        84_532 => "",
-        8_453 => "https://base-launch.example"
-      })
-      |> Keyword.put(:erc8004_subgraph_urls, %{
-        84_532 => "",
-        8_453 => "https://base-subgraph.example"
-      })
-
-    Application.put_env(:autolaunch, :launch, launch)
-
-    assert %{ok: false, checks: checks} = ReleaseDoctor.run()
-
-    assert Enum.any?(
-             checks,
-             &(&1.key == "launch_chain_rpc_urls_84532" and &1.severity == :error and not &1.ok)
-           )
-
-    assert Enum.any?(
-             checks,
-             &(&1.key == "launch_erc8004_subgraph_urls_84532" and
-                 &1.severity == :warning and not &1.ok)
-           )
-  end
-
-  test "doctor warns when an active-chain ERC-8004 subgraph entry is missing" do
-    launch =
-      Application.get_env(:autolaunch, :launch, [])
-      |> Keyword.put(:erc8004_subgraph_urls, %{
-        84_532 => "",
-        8_453 => "https://base-subgraph.example"
-      })
-
-    Application.put_env(:autolaunch, :launch, launch)
-
-    assert %{ok: true, checks: checks} = ReleaseDoctor.run()
-
-    assert Enum.any?(
-             checks,
-             &(&1.key == "launch_erc8004_subgraph_urls_84532" and &1.severity == :warning and
-                 not &1.ok)
-           )
-  end
-
-  test "doctor warns when an inactive-chain verifier entry is missing" do
     launch =
       Application.get_env(:autolaunch, :launch, [])
       |> Keyword.put(:chain_rpc_urls, %{
@@ -214,16 +167,63 @@ defmodule Autolaunch.ReleaseDoctorTest do
 
     Application.put_env(:autolaunch, :launch, launch)
 
-    assert %{ok: true, checks: checks} = ReleaseDoctor.run()
+    assert %{ok: false, checks: checks} = ReleaseDoctor.run()
 
     assert Enum.any?(
              checks,
-             &(&1.key == "launch_chain_rpc_urls_8453" and &1.severity == :warning and not &1.ok)
+             &(&1.key == "launch_chain_rpc_urls_8453" and &1.severity == :error and not &1.ok)
            )
 
     assert Enum.any?(
              checks,
+             &(&1.key == "launch_erc8004_subgraph_urls_8453" and
+                 &1.severity == :warning and not &1.ok)
+           )
+  end
+
+  test "doctor warns when an active-chain ERC-8004 subgraph entry is missing" do
+    launch =
+      Application.get_env(:autolaunch, :launch, [])
+      |> Keyword.put(:erc8004_subgraph_urls, %{
+        84_532 => "https://base-sepolia-subgraph.example",
+        8_453 => ""
+      })
+
+    Application.put_env(:autolaunch, :launch, launch)
+
+    assert %{ok: true, checks: checks} = ReleaseDoctor.run()
+
+    assert Enum.any?(
+             checks,
              &(&1.key == "launch_erc8004_subgraph_urls_8453" and &1.severity == :warning and
+                 not &1.ok)
+           )
+  end
+
+  test "doctor warns when an inactive-chain verifier entry is missing" do
+    launch =
+      Application.get_env(:autolaunch, :launch, [])
+      |> Keyword.put(:chain_rpc_urls, %{
+        84_532 => "",
+        8_453 => "https://base-launch.example"
+      })
+      |> Keyword.put(:erc8004_subgraph_urls, %{
+        84_532 => "",
+        8_453 => "https://base-subgraph.example"
+      })
+
+    Application.put_env(:autolaunch, :launch, launch)
+
+    assert %{ok: true, checks: checks} = ReleaseDoctor.run()
+
+    assert Enum.any?(
+             checks,
+             &(&1.key == "launch_chain_rpc_urls_84532" and &1.severity == :warning and not &1.ok)
+           )
+
+    assert Enum.any?(
+             checks,
+             &(&1.key == "launch_erc8004_subgraph_urls_84532" and &1.severity == :warning and
                  not &1.ok)
            )
   end
@@ -249,7 +249,7 @@ defmodule Autolaunch.ReleaseDoctorTest do
 
     assert Enum.any?(
              checks,
-             &(&1.key == "launch_identity_registry_addresses_84532" and
+             &(&1.key == "launch_identity_registry_addresses_8453" and
                  &1.severity == :warning and not &1.ok)
            )
   end
@@ -281,7 +281,9 @@ defmodule Autolaunch.ReleaseDoctorTest do
   end
 
   defmodule DoctorRpc do
+    def block_number(8_453, _opts), do: {:ok, 123}
     def block_number(84_532, _opts), do: {:ok, 123}
+    def code_at(8_453, _address, _opts), do: {:ok, "0x6000"}
     def code_at(84_532, _address, _opts), do: {:ok, "0x6000"}
     def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported}
     def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}

@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.HomeLiveTest do
       [
         %{
           id: "auction-1",
-          agent_id: "84532:42",
+          agent_id: "8453:42",
           agent_name: "Atlas",
           symbol: "ATLAS",
           phase: "biddable",
@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.HomeLiveTest do
         },
         %{
           id: "auction-2",
-          agent_id: "84532:77",
+          agent_id: "8453:77",
           agent_name: "Beacon",
           symbol: "BECN",
           phase: "live",
@@ -78,7 +78,6 @@ defmodule AutolaunchWeb.HomeLiveTest do
     refute html =~ "Choose or create a launch setup to get started."
     refute html =~ "Select setup"
     refute html =~ "Pay with"
-    refute html =~ "USDC on Base Sepolia"
     refute html =~ "Estimated cost"
     refute html =~ "0.00 USDC"
     assert html =~ "Atlas"

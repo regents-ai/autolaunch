@@ -15,8 +15,8 @@ defmodule Autolaunch.Launch.Auction do
     field :token_address, :string
     field :minimum_raise_usdc, :string
     field :minimum_raise_usdc_raw, :string
-    field :network, :string, default: "base-sepolia"
-    field :chain_id, :integer, default: 84_532
+    field :network, :string, default: "base-mainnet"
+    field :chain_id, :integer, default: 8_453
     field :status, :string, default: "active"
     field :started_at, :utc_datetime_usec
     field :ends_at, :utc_datetime_usec
@@ -26,6 +26,16 @@ defmodule Autolaunch.Launch.Auction do
     field :target_currency, :string, default: "Not published"
     field :progress_percent, :integer, default: 0
     field :metrics_updated_at, :utc_datetime_usec
+    field :chain_state, :string, default: "open"
+    field :onchain_currency_raised_raw, :string
+    field :onchain_required_currency_raised_raw, :string
+    field :onchain_clearing_price_q96, :string
+    field :onchain_start_block, :integer
+    field :onchain_end_block, :integer
+    field :onchain_claim_block, :integer
+    field :onchain_graduated, :boolean, default: false
+    field :onchain_block_number, :integer
+    field :onchain_synced_at, :utc_datetime_usec
     field :notes, :string
     field :uniswap_url, :string
     field :world_network, :string, default: "world"
@@ -58,6 +68,16 @@ defmodule Autolaunch.Launch.Auction do
       :target_currency,
       :progress_percent,
       :metrics_updated_at,
+      :chain_state,
+      :onchain_currency_raised_raw,
+      :onchain_required_currency_raised_raw,
+      :onchain_clearing_price_q96,
+      :onchain_start_block,
+      :onchain_end_block,
+      :onchain_claim_block,
+      :onchain_graduated,
+      :onchain_block_number,
+      :onchain_synced_at,
       :notes,
       :uniswap_url,
       :world_network,
@@ -76,5 +96,6 @@ defmodule Autolaunch.Launch.Auction do
     ])
     |> validate_inclusion(:network, @supported_networks)
     |> validate_inclusion(:chain_id, @supported_chain_ids)
+    |> validate_inclusion(:chain_state, ~w(open graduated failed_minimum))
   end
 end

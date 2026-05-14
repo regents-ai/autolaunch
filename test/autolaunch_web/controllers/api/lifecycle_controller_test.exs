@@ -121,7 +121,7 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
                resource: "strategy",
                action: "migrate",
                wallet_action: %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                  value: "0x0",
                  data: "0x8fd3ab80"

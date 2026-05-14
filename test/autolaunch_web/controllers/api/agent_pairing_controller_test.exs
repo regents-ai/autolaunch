@@ -64,7 +64,7 @@ defmodule AutolaunchWeb.Api.AgentPairingControllerTest do
         "pairing_code" => session["pairing_code"],
         "challenge_message" => session["challenge_message"],
         "agent_wallet_address" => evidence.address,
-        "agent_chain_id" => 84_532,
+        "agent_chain_id" => 8_453,
         "agent_registry_address" => @registry_address,
         "agent_token_id" => "42",
         "agent_label" => "Atlas Agent",
@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.Api.AgentPairingControllerTest do
                "pairing_code" => nil,
                "agent" => %{
                  "agent_wallet_address" => address,
-                 "agent_chain_id" => 84_532,
+                 "agent_chain_id" => 8_453,
                  "agent_registry_address" => @registry_address,
                  "agent_token_id" => "42",
                  "agent_label" => "Atlas Agent"

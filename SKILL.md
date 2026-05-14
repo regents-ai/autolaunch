@@ -77,22 +77,22 @@ That means the sale gives the agent upfront runway, the launch pool gives the ag
 
 Treat the CLI as the main operator entrypoint:
 
-1. `regent autolaunch safe wizard`
-2. `regent autolaunch safe create`
-3. `regent autolaunch prelaunch wizard`
-4. `regent autolaunch prelaunch validate`
-5. `regent autolaunch prelaunch publish`
-6. `regent autolaunch launch run`
-7. `regent autolaunch launch monitor`
-8. `regent autolaunch launch finalize`
-9. `regent autolaunch vesting status`
-10. `regent autolaunch vesting release`
+1. `regents autolaunch safe wizard`
+2. `regents autolaunch safe create`
+3. `regents autolaunch prelaunch wizard`
+4. `regents autolaunch prelaunch validate`
+5. `regents autolaunch prelaunch publish`
+6. `regents autolaunch launch run`
+7. `regents autolaunch launch monitor`
+8. `regents autolaunch launch finalize`
+9. `regents autolaunch vesting status`
+10. `regents autolaunch vesting release`
 
 Skip the Safe steps only when the agent Safe already exists and the plan already points to it.
 
 If you are working from the `regents-cli` source checkout instead of an installed package, run the same flow through:
 
-`pnpm --filter @regentslabs/cli exec regent autolaunch ...`
+`pnpm --filter @regentslabs/cli exec regents autolaunch ...`
 
 ## Local plan and auth rules
 
@@ -184,11 +184,11 @@ The advanced contract and subject flows still exist, but they are not the primar
 - `/contracts`
 - `/subjects/:id`
 - `/api/contracts/...`
-- `regent autolaunch strategy ...`
-- `regent autolaunch fee-registry ...`
-- `regent autolaunch fee-vault ...`
-- `regent autolaunch splitter ...`
-- `regent autolaunch ingress ...`
+- `regents autolaunch strategy ...`
+- `regents autolaunch fee-registry ...`
+- `regents autolaunch fee-vault ...`
+- `regents autolaunch splitter ...`
+- `regents autolaunch ingress ...`
 
 Use those only for debugging, incident response, or explicit advanced ops.
 

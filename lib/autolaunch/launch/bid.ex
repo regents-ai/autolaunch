@@ -11,10 +11,10 @@ defmodule Autolaunch.Launch.Bid do
     field :owner_address, :string
     field :auction_id, :string
     field :auction_address, :string
-    field :chain_id, :integer, default: 84_532
+    field :chain_id, :integer, default: 8_453
     field :agent_id, :string
     field :agent_name, :string
-    field :network, :string, default: "base-sepolia"
+    field :network, :string, default: "base-mainnet"
     field :onchain_bid_id, :string
     field :submit_tx_hash, :string
     field :submit_block_number, :integer

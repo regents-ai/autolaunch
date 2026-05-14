@@ -1350,6 +1350,12 @@
 
 :root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-panel,
 :root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard :is(
+  .al-home-dashboard-hero.al-panel,
+  .al-home-dashboard-card.al-panel,
+  .al-home-metric-strip.al-panel,
+  .al-home-launch-panel.al-panel,
+  .al-home-quick-actions.al-panel,
+  .al-home-chat-panel.al-panel,
   .al-home-card-empty,
   .al-home-auction-row,
   .al-home-activity-row,
@@ -1379,7 +1385,7 @@
     0 20px 52px rgba(0, 0, 0, 0.45);
 }
 
-:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-dashboard-hero {
+:root[data-brand="autolaunch"][data-theme="dark"] #autolaunch-home-dashboard .al-home-dashboard-hero.al-panel {
   border-color: rgba(123, 232, 216, 0.16);
   background:
     radial-gradient(

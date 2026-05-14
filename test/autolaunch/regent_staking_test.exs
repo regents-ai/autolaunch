@@ -10,7 +10,6 @@ defmodule Autolaunch.RegentStakingTest do
   @treasury "0xcccccccccccccccccccccccccccccccccccccccc"
   @owner "0xdddddddddddddddddddddddddddddddddddddddd"
   @wallet "0x1111111111111111111111111111111111111111"
-  @base_sepolia_chain_id 84_532
   @base_chain_id 8_453
 
   setup do
@@ -22,9 +21,9 @@ defmodule Autolaunch.RegentStakingTest do
     Application.put_env(
       :autolaunch,
       :regent_staking,
-      chain_id: @base_sepolia_chain_id,
-      chain_label: "Base Sepolia",
-      rpc_url: "https://base-sepolia.example",
+      chain_id: @base_chain_id,
+      chain_label: "Base",
+      rpc_url: "https://base-mainnet.example",
       ethereum_rpc_url: "https://ethereum.example",
       ens_module: __MODULE__.FakeEns,
       contract_address: @contract
@@ -46,7 +45,7 @@ defmodule Autolaunch.RegentStakingTest do
   test "overview returns live contract and wallet state", %{human: human} do
     assert {:ok, state} = RegentStaking.overview(human)
 
-    assert state.chain_id == @base_sepolia_chain_id
+    assert state.chain_id == @base_chain_id
     assert state.contract_address == @contract
     assert state.stake_token_address == @stake_token
     assert state.usdc_address == @usdc
@@ -85,11 +84,11 @@ defmodule Autolaunch.RegentStakingTest do
   test "stake returns a prepared wallet action", %{human: human} do
     assert {:ok, %{prepared: prepared}} = RegentStaking.stake(%{"amount" => "1.5"}, human)
 
-    assert prepared.chain_id == @base_sepolia_chain_id
+    assert prepared.chain_id == @base_chain_id
     assert prepared.expected_signer == @wallet
     assert prepared.idempotency_key == prepared.action_id
     assert is_binary(prepared.risk_copy)
-    assert prepared.wallet_action.chain_id == @base_sepolia_chain_id
+    assert prepared.wallet_action.chain_id == @base_chain_id
     assert prepared.wallet_action.to == @contract
     assert String.starts_with?(prepared.wallet_action.data, "0x7acb7757")
     assert prepared.approval.token == @stake_token
@@ -182,7 +181,7 @@ defmodule Autolaunch.RegentStakingTest do
 
     assert prepared.resource == "regent_staking"
     assert prepared.action == "deposit_usdc"
-    assert prepared.chain_id == @base_sepolia_chain_id
+    assert prepared.chain_id == @base_chain_id
     assert prepared.owner_product == "autolaunch"
     assert prepared.resource_id == @contract
     assert prepared.wallet_action.to == @contract
@@ -229,8 +228,8 @@ defmodule Autolaunch.RegentStakingTest do
     Application.put_env(
       :autolaunch,
       :regent_staking,
-      chain_id: @base_sepolia_chain_id,
-      chain_label: "Base Sepolia"
+      chain_id: @base_chain_id,
+      chain_label: "Base"
     )
 
     assert {:error, :unconfigured} = RegentStaking.overview(nil)

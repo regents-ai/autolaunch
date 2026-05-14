@@ -21,15 +21,15 @@ defmodule Autolaunch.DocsExamplesTest do
     assert Map.has_key?(bundle, "reputation_prompt")
 
     prelaunch_plan = bundle["prelaunch_plan"]
-    assert prelaunch_plan["chain_id"] == 84_532
+    assert prelaunch_plan["chain_id"] == 8_453
     assert prelaunch_plan["metadata_draft"]["image_asset_id"] == "asset_alpha"
 
     prelaunch_validation = bundle["prelaunch_validation"]
     assert prelaunch_validation["validation"]["launchable"] == true
-    assert prelaunch_validation["validation"]["identity_status"]["agent_id"] == "84532:42"
+    assert prelaunch_validation["validation"]["identity_status"]["agent_id"] == "8453:42"
 
     launch_preview = bundle["launch_preview"]
-    assert launch_preview["token"]["chain_id"] == 84_532
+    assert launch_preview["token"]["chain_id"] == 8_453
     assert launch_preview["completion_plan"]["ens"]["action_url"] =~ "/ens-link?"
     assert launch_preview["reputation_prompt"]["skip_label"] == "Skip for now"
 
@@ -48,7 +48,7 @@ defmodule Autolaunch.DocsExamplesTest do
     finalize_response = bundle["finalize_response"]
     assert finalize_response["settlement_state"] == "awaiting_migration"
     assert finalize_response["prepared"]["action"] == "migrate"
-    assert finalize_response["prepared"]["wallet_action"]["chain_id"] == 84_532
+    assert finalize_response["prepared"]["wallet_action"]["chain_id"] == 8_453
 
     vesting_status = bundle["vesting_status"]
     assert vesting_status["release_ready"] == true
@@ -65,7 +65,7 @@ defmodule Autolaunch.DocsExamplesTest do
     assert regent_staking_prepare["prepared"]["wallet_action"]["chain_id"] == 8_453
 
     bid_quote = bundle["bid_quote"]
-    assert bid_quote["prepared"]["wallet_action"]["chain_id"] == 84_532
+    assert bid_quote["prepared"]["wallet_action"]["chain_id"] == 8_453
 
     assert bid_quote["prepared"]["expected_signer"] ==
              "0x1111111111111111111111111111111111111111"
@@ -74,7 +74,7 @@ defmodule Autolaunch.DocsExamplesTest do
 
     position = bundle["position"]
     assert position["status"] == "claimable"
-    assert position["tx_actions"]["claim"]["prepared"]["wallet_action"]["chain_id"] == 84_532
+    assert position["tx_actions"]["claim"]["prepared"]["wallet_action"]["chain_id"] == 8_453
     assert position["next_action_label"] == "Claim purchased tokens now."
 
     reputation_prompt = bundle["reputation_prompt"]

@@ -55,8 +55,8 @@ defmodule Autolaunch.InfrastructureConfig do
 
   def launch_chain_id do
     launch()
-    |> Keyword.get(:chain_id, BaseChain.base_sepolia_chain_id())
-    |> normalize_base_chain_id()
+    |> Keyword.get(:chain_id, BaseChain.base_mainnet_chain_id())
+    |> normalize_base_mainnet_chain_id()
   end
 
   def launch_chain_id! do
@@ -69,7 +69,7 @@ defmodule Autolaunch.InfrastructureConfig do
   def regent_staking_chain_id do
     regent_staking()
     |> Keyword.get(:chain_id, BaseChain.base_mainnet_chain_id())
-    |> normalize_base_chain_id()
+    |> normalize_base_mainnet_chain_id()
   end
 
   def base_chain?(chain_id), do: BaseChain.supported_chain_id?(chain_id)
@@ -160,10 +160,10 @@ defmodule Autolaunch.InfrastructureConfig do
     end
   end
 
-  defp normalize_base_chain_id(value) do
+  defp normalize_base_mainnet_chain_id(value) do
     chain_id = BaseChain.normalize_chain_id(value)
 
-    if BaseChain.supported_chain_id?(chain_id),
+    if chain_id == BaseChain.base_mainnet_chain_id(),
       do: {:ok, chain_id},
       else: {:error, :invalid_chain_id}
   end

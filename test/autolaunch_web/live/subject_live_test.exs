@@ -35,7 +35,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
          protocol_reserve_usdc: "10",
          recognized_revenue_proof: %{
            source: "onchain_splitter",
-           chain_id: 84_532,
+           chain_id: 8_453,
            ingress: "0x7777777777777777777777777777777777777777",
            revsplit: "0x9999999999999999999999999999999999999999",
            block_number: 123_456,
@@ -76,7 +76,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
          subject: get_subject(@subject_id, nil) |> elem(1),
          prepared: %{
            wallet_action: %{
-             chain_id: 84_532,
+             chain_id: 8_453,
              to: "0x9999999999999999999999999999999999999999",
              value: "0x0",
              data: "0x7acb7757"
@@ -91,7 +91,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
          subject: get_subject(@subject_id, nil) |> elem(1),
          prepared: %{
            wallet_action: %{
-             chain_id: 84_532,
+             chain_id: 8_453,
              to: "0x9999999999999999999999999999999999999999",
              value: "0x0",
              data: "0x8381e182"
@@ -106,7 +106,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
          subject: get_subject(@subject_id, nil) |> elem(1),
          prepared: %{
            wallet_action: %{
-             chain_id: 84_532,
+             chain_id: 8_453,
              to: "0x9999999999999999999999999999999999999999",
              value: "0x0",
              data: "0x42852610"
@@ -121,7 +121,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
          subject: get_subject(@subject_id, nil) |> elem(1),
          prepared: %{
            wallet_action: %{
-             chain_id: 84_532,
+             chain_id: 8_453,
              to: "0x7777777777777777777777777777777777777777",
              value: "0x0",
              data: "0xbe25fb30"

@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.RegentStakingLive.PresenterTest do
   end
 
   test "chooses the configured chain label" do
-    assert Presenter.chain_label(%{chain_label: "Base Sepolia"}) == "Base Sepolia"
+    assert Presenter.chain_label(%{chain_label: "Base"}) == "Base"
     assert Presenter.chain_label(nil) == "Not configured"
     assert Presenter.chain_label(%{}) == "Base"
   end

@@ -349,5 +349,5 @@ defmodule Autolaunch.ReleaseSmoke do
 
   defp chain_label(84_532), do: "base-sepolia"
   defp chain_label(8_453), do: "base-mainnet"
-  defp chain_label(_chain_id), do: "base-sepolia"
+  defp chain_label(_chain_id), do: "base-mainnet"
 end

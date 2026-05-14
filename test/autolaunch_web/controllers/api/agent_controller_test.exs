@@ -12,10 +12,10 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     def list_agents(nil) do
       [
         %{
-          agent_id: "84532:42",
+          agent_id: "8453:42",
           name: "Atlas",
           state: "eligible",
-          supported_chains: [%{id: 84_532}]
+          supported_chains: [%{id: 8_453}]
         }
       ]
     end
@@ -23,16 +23,16 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     def list_agents(_human) do
       [
         %{
-          agent_id: "84532:42",
+          agent_id: "8453:42",
           name: "Atlas",
           state: "eligible",
-          supported_chains: [%{id: 84_532}]
+          supported_chains: [%{id: 8_453}]
         },
         %{
-          agent_id: "84532:99",
+          agent_id: "8453:99",
           name: "Nova",
           state: "already_launched",
-          supported_chains: [%{id: 84_532}]
+          supported_chains: [%{id: 8_453}]
         }
       ]
     end
@@ -54,7 +54,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
   end
 
   defmodule PrelaunchStub do
-    def supporting_evidence_for_agent("84532:42", _actor) do
+    def supporting_evidence_for_agent("8453:42", _actor) do
       {:ok,
        [
          %{
@@ -96,12 +96,12 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     conn = get(conn, "/v1/app/agents?launchable=true")
 
     assert %{"ok" => true, "items" => items} = json_response(conn, 200)
-    assert Enum.any?(items, &(&1["agent_id"] == "84532:42"))
+    assert Enum.any?(items, &(&1["agent_id"] == "8453:42"))
   end
 
   test "readiness maps failed checks into launch blockers", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    conn = get(conn, "/v1/app/agents/84532:42/readiness")
+    conn = get(conn, "/v1/app/agents/8453:42/readiness")
 
     assert %{
              "ok" => true,
@@ -112,7 +112,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
 
   test "readiness includes Techtree evidence as supporting evidence", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    conn = get(conn, "/v1/app/agents/84532:42/readiness")
+    conn = get(conn, "/v1/app/agents/8453:42/readiness")
 
     assert %{
              "ok" => true,
@@ -146,14 +146,14 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
       conn
       |> put_req_header("accept", "application/json")
       |> put_req_header("x-agent-wallet-address", @wallet)
-      |> put_req_header("x-agent-chain-id", "84532")
+      |> put_req_header("x-agent-chain-id", "8453")
       |> put_req_header("x-agent-registry-address", @registry)
       |> put_req_header("x-agent-token-id", @token_id)
       |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
       |> get("/v1/agent/agents")
 
     assert %{"ok" => true, "items" => items} = json_response(conn, 200)
-    assert Enum.any?(items, &(&1["agent_id"] == "84532:42"))
+    assert Enum.any?(items, &(&1["agent_id"] == "8453:42"))
   end
 
   test "agent SIWA verification receives the exact signed query path", %{conn: conn} do
@@ -179,7 +179,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     conn
     |> put_req_header("accept", "application/json")
     |> put_req_header("x-agent-wallet-address", @wallet)
-    |> put_req_header("x-agent-chain-id", "84532")
+    |> put_req_header("x-agent-chain-id", "8453")
     |> put_req_header("x-agent-registry-address", @registry)
     |> put_req_header("x-agent-token-id", @token_id)
     |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
@@ -213,11 +213,11 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     |> put_req_header("accept", "application/json")
     |> put_req_header("content-type", "application/json")
     |> put_req_header("x-agent-wallet-address", @wallet)
-    |> put_req_header("x-agent-chain-id", "84532")
+    |> put_req_header("x-agent-chain-id", "8453")
     |> put_req_header("x-agent-registry-address", @registry)
     |> put_req_header("x-agent-token-id", @token_id)
     |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
-    |> post("/v1/agent/launch/preview", Jason.encode!(%{"agent_id" => "84532:42"}))
+    |> post("/v1/agent/launch/preview", Jason.encode!(%{"agent_id" => "8453:42"}))
 
     assert_receive {:siwa_http_verify,
                     %{
@@ -226,7 +226,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
                       "body" => body
                     }}
 
-    assert Jason.decode!(body) == %{"agent_id" => "84532:42"}
+    assert Jason.decode!(body) == %{"agent_id" => "8453:42"}
   end
 
   defp available_port do
@@ -250,7 +250,7 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
         "verified" => "onchain",
         "iat" => now_ms,
         "exp" => now_ms + 600_000,
-        "chain_id" => 84_532,
+        "chain_id" => 8_453,
         "nonce" => "nonce-#{System.unique_integer([:positive])}",
         "key_id" => @wallet,
         "registry_address" => @registry,

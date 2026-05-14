@@ -77,8 +77,8 @@ defmodule AutolaunchWeb.ProfileLiveTest do
     def list_agents(_human) do
       [
         %{
-          id: "84532:42",
-          agent_id: "84532:42",
+          id: "8453:42",
+          agent_id: "8453:42",
           name: "Atlas Agent",
           ens: nil,
           state: "eligible",

@@ -19,7 +19,7 @@ In plain English, autolaunch wants a launch where buyers compete on how much the
 
 - Every autolaunch sale is a Continuous Clearing Auction.
 - Every auction sells **10%** of a fixed **100 billion** Agent Coin supply.
-- Every bid is placed in **USDC on Base Sepolia**.
+- Every bid is placed in **USDC on Base**.
 - The agent keeps the other **90%** of supply.
 - Claiming is not the end state. The token is meant to be **staked** after settlement.
 - Staking is what makes the token earn routed agent revenue once Base USDC reaches the revsplit, including the share of token fee revenue.
@@ -165,4 +165,4 @@ Autolaunch is currently split into these public surfaces:
 
 Autolaunch sells 10% of a fixed 100 billion Agent Coin supply through an onchain Continuous Clearing Auction.
 
-Bidders bring USDC on Base Sepolia, choose a total budget and a max price, and let the order run over the remaining blocks like a TWAP. The auction clears block by block at real market prices, avoids most timing games, and is meant to produce cleaner price discovery before the winning tokens are claimed and staked.
+Bidders bring USDC on Base, choose a total budget and a max price, and let the order run over the remaining blocks like a TWAP. The auction clears block by block at real market prices, avoids most timing games, and is meant to produce cleaner price discovery before the winning tokens are claimed and staked.

@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.AuctionReturnsLiveTest do
         items: [
           %{
             id: "ret_1",
-            agent_id: "84532:42",
+            agent_id: "8453:42",
             agent_name: "Atlas",
             symbol: "ATLAS",
             detail_url: "/auctions/ret_1",

@@ -43,6 +43,8 @@ Start contract work here, in this order:
 
 Do not define HTTP behavior from Phoenix route files first and “fix the CLI later.” Change the contract files first, then make app code and CLI code match.
 
+When Autolaunch CLI commands or Platform's public Autolaunch command copy change, run `cd /Users/sean/Documents/regent/regents-cli && pnpm check:platform-public-cli-copy`. Run the full `pnpm check:cli-contract` when command contracts or generated CLI metadata changed.
+
 Hard cutover applies:
 
 - Do not add fallback behavior, compatibility branches, shims, aliases, dual-shape support, or old-shape rejection tests.

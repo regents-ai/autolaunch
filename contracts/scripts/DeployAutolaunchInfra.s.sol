@@ -8,9 +8,7 @@ import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {RevenueShareFactory} from "src/revenue/RevenueShareFactory.sol";
 import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
-import {
-    PermissionlessExistingTokenRevenueFactory
-} from "src/revenue/PermissionlessExistingTokenRevenueFactory.sol";
+import {PermissionlessExistingTokenRevenueFactory} from "src/revenue/PermissionlessExistingTokenRevenueFactory.sol";
 import {DeferredAutolaunchFactory} from "src/revenue/DeferredAutolaunchFactory.sol";
 import {IRegentStakingRevenueRouter} from "src/revenue/interfaces/IRegentStakingRevenueRouter.sol";
 import {RegentStakingRevenueRouter} from "src/revenue/RegentStakingRevenueRouter.sol";
@@ -18,6 +16,8 @@ import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 import {BaseUsdc} from "src/libraries/BaseUsdc.sol";
 
 contract DeployAutolaunchInfraScript is Script {
+    uint256 internal constant BASE_MAINNET_CHAIN_ID = 8453;
+
     struct ScriptConfig {
         address owner;
         address usdc;
@@ -59,19 +59,13 @@ contract DeployAutolaunchInfraScript is Script {
 
         vm.startBroadcast(cfg.owner);
         subjectRegistry = new SubjectRegistry(cfg.owner);
-        stakingRevenueRouter = new RegentStakingRevenueRouter(
-            cfg.owner, cfg.usdc, address(subjectRegistry), cfg.regentRevenueStaking
-        );
+        stakingRevenueRouter =
+            new RegentStakingRevenueRouter(cfg.owner, cfg.usdc, address(subjectRegistry), cfg.regentRevenueStaking);
         revenueShareSplitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
-            cfg.owner,
-            cfg.usdc,
-            subjectRegistry,
-            address(stakingRevenueRouter),
-            address(revenueShareSplitterDeployer)
+            cfg.owner, cfg.usdc, subjectRegistry, address(stakingRevenueRouter), address(revenueShareSplitterDeployer)
         );
-        revenueIngressFactory =
-            new RevenueIngressFactory(cfg.usdc, address(subjectRegistry), cfg.owner);
+        revenueIngressFactory = new RevenueIngressFactory(cfg.usdc, address(subjectRegistry), cfg.owner);
         existingTokenRevenueFactory = new PermissionlessExistingTokenRevenueFactory(
             cfg.owner,
             cfg.usdc,
@@ -99,6 +93,7 @@ contract DeployAutolaunchInfraScript is Script {
         require(cfg.owner != address(0), "OWNER_ZERO");
         require(cfg.usdc != address(0), "USDC_ZERO");
         require(cfg.regentRevenueStaking != address(0), "REGENT_STAKING_ZERO");
+        require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
         BaseUsdc.requireCanonical(cfg.usdc);
     }
 

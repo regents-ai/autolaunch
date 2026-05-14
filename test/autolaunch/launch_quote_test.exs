@@ -28,12 +28,12 @@ defmodule Autolaunch.LaunchQuoteTest do
       %Auction{}
       |> Auction.changeset(%{
         source_job_id: "auc_live_quote",
-        agent_id: "84532:133",
+        agent_id: "8453:133",
         agent_name: "Regent Researcher",
         owner_address: "0x0000000000000000000000000000000000000001",
         auction_address: "0x0000000000000000000000000000000000000011",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "active",
         started_at: DateTime.utc_now(),
         ends_at: DateTime.add(DateTime.utc_now(), 86_400, :second),

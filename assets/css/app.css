@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @import "../../../design-system/design_system_tokens.css";
+@import "../../../design-system/design_system_glass.css";
 @import "../../../design-system/regent_ui/assets/css/regent.css";
 @source "../css";
 @source "../js";
@@ -79,36 +80,20 @@
   --al-font-prose: "GeistPixel Square", var(--font-family-paragraph);
   --al-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --al-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --al-bg:
-    radial-gradient(
-      circle at 14% 12%,
-      color-mix(in srgb, var(--color-fg-primary) 16%, transparent),
-      transparent 32%
-    ),
-    radial-gradient(
-      circle at 84% 10%,
-      color-mix(in srgb, var(--brand-accent) 10%, transparent),
-      transparent 28%
-    ),
-    linear-gradient(180deg, #0b1210 0%, #101815 52%, #15221d 100%);
-  --al-panel: #13211c;
-  --al-panel-strong: #1a2a24;
-  --al-component-border: color-mix(in srgb, var(--color-fg-primary) 26%, var(--al-border) 74%);
-  --al-component-background:
-    radial-gradient(120% 86% at 10% 0%, rgba(79, 196, 135, 0.16) 0%, rgba(79, 196, 135, 0.06) 36%, transparent 62%),
-    radial-gradient(104% 80% at 98% 100%, rgba(207, 162, 79, 0.12) 0%, rgba(207, 162, 79, 0.04) 46%, transparent 70%),
-    linear-gradient(128deg, rgba(18, 33, 28, 0.98) 0%, rgba(20, 48, 39, 0.96) 48%, rgba(23, 73, 56, 0.88) 100%);
-  --al-component-background-strong:
-    radial-gradient(112% 88% at 8% 0%, rgba(79, 196, 135, 0.12) 0%, rgba(79, 196, 135, 0.04) 44%, transparent 66%),
-    linear-gradient(136deg, rgba(28, 49, 41, 0.92) 0%, rgba(17, 30, 26, 0.94) 56%, rgba(24, 76, 57, 0.66) 100%);
-  --al-border: rgba(247, 241, 222, 0.16);
-  --al-text: #f7f1de;
-  --al-muted: rgba(226, 216, 190, 0.72);
-  --al-accent: var(--color-fg-primary);
-  --al-accent-soft: color-mix(in srgb, var(--color-fg-primary) 18%, transparent);
-  --al-accent-strong: color-mix(in srgb, var(--color-fg-primary) 88%, white 12%);
-  --al-brass: var(--brand-accent);
-  --al-alert: color-mix(in srgb, var(--brand-accent) 90%, white 10%);
+  --al-bg: var(--glass-page-bg);
+  --al-panel: var(--glass-surface);
+  --al-panel-strong: var(--glass-surface-strong);
+  --al-component-border: var(--glass-panel-border);
+  --al-component-background: var(--glass-panel-bg);
+  --al-component-background-strong: var(--glass-panel-bg);
+  --al-border: var(--glass-border-subtle);
+  --al-text: var(--glass-text-primary);
+  --al-muted: var(--glass-text-secondary);
+  --al-accent: var(--glass-text-accent);
+  --al-accent-soft: color-mix(in srgb, var(--glass-text-accent) 18%, transparent);
+  --al-accent-strong: color-mix(in srgb, var(--glass-text-accent) 88%, white 12%);
+  --al-brass: var(--glass-warm-500, var(--brand-accent));
+  --al-alert: var(--glass-warm-500, var(--brand-accent));
   --al-danger: var(--color-danger);
   --al-ready: var(--color-success);
   --al-shadow: 0 28px 70px -42px rgba(0, 0, 0, 0.72);
@@ -6377,50 +6362,41 @@ textarea {
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] {
-  --bg-black: #02070a;
-  --bg-deep: #030b0f;
-  --bg-panel: #061114;
-  --bg-panel-2: #08171a;
-  --bg-panel-3: #0b1e21;
-  --border-subtle: rgba(123, 232, 216, 0.12);
-  --border-soft: rgba(123, 232, 216, 0.22);
-  --border-bright: rgba(151, 255, 226, 0.42);
+  --bg-black: var(--glass-bg-page);
+  --bg-deep: var(--glass-bg-page-2);
+  --bg-panel: var(--glass-surface);
+  --bg-panel-2: var(--glass-surface-strong);
+  --bg-panel-3: var(--glass-surface-soft);
+  --border-subtle: var(--glass-border-subtle);
+  --border-soft: var(--glass-border-soft);
+  --border-bright: var(--glass-border-bright);
   --border-dark: rgba(255, 255, 255, 0.06);
-  --water-teal-dark: #123636;
-  --water-teal: #1f5e58;
-  --water-mint: #68dcc8;
-  --water-aqua: #8df5de;
-  --water-pale: #d8fff1;
-  --caustic-gold: #e7b67c;
-  --caustic-peach: #f4c29b;
-  --caustic-amber: #b7784e;
-  --text-primary: #f3fbf8;
-  --text-secondary: #b8ccc7;
-  --text-muted: #78918c;
-  --text-aqua: #a9efe0;
-  --positive: #37e693;
+  --water-teal-dark: color-mix(in srgb, var(--glass-text-accent) 24%, var(--glass-bg-page));
+  --water-teal: color-mix(in srgb, var(--glass-text-accent) 42%, var(--glass-bg-page));
+  --water-mint: var(--glass-text-accent);
+  --water-aqua: color-mix(in srgb, var(--glass-text-accent) 86%, white 14%);
+  --water-pale: color-mix(in srgb, var(--glass-text-accent) 26%, white 74%);
+  --caustic-gold: var(--glass-warm-500, #e7b67c);
+  --caustic-peach: var(--glass-warm-400, #f4c29b);
+  --caustic-amber: color-mix(in srgb, var(--glass-warm-500, #e7b67c) 68%, var(--glass-bg-page));
+  --text-primary: var(--glass-text-primary);
+  --text-secondary: var(--glass-text-secondary);
+  --text-muted: var(--glass-text-muted);
+  --text-aqua: var(--glass-text-accent);
+  --positive: var(--color-success, #37e693);
   --positive-soft: rgba(55, 230, 147, 0.18);
-  --al-bg:
-    radial-gradient(ellipse 82% 58% at 86% 4%, rgba(141, 245, 222, 0.15) 0%, transparent 48%),
-    radial-gradient(ellipse 64% 48% at 82% 86%, rgba(244, 194, 155, 0.09) 0%, transparent 58%),
-    radial-gradient(ellipse 70% 62% at 12% 94%, rgba(31, 94, 88, 0.2) 0%, transparent 56%),
-    linear-gradient(180deg, var(--bg-black) 0%, var(--bg-deep) 48%, #041116 100%);
+  --al-bg: var(--glass-page-bg);
   --al-panel: var(--bg-panel);
   --al-panel-strong: var(--bg-panel-2);
-  --al-component-background:
-    radial-gradient(ellipse 110% 70% at 68% 0%, rgba(104, 220, 200, 0.18) 0%, transparent 56%),
-    linear-gradient(180deg, rgba(8, 27, 30, 0.9) 0%, rgba(3, 11, 15, 0.96) 100%);
-  --al-component-background-strong:
-    radial-gradient(ellipse 105% 72% at 82% 4%, rgba(216, 255, 241, 0.12) 0%, transparent 52%),
-    radial-gradient(ellipse 85% 68% at 88% 92%, rgba(244, 194, 155, 0.08) 0%, transparent 58%),
-    linear-gradient(180deg, rgba(9, 24, 27, 0.9) 0%, rgba(3, 12, 15, 0.96) 100%);
+  --al-component-background: var(--glass-panel-bg);
+  --al-component-background-strong: var(--glass-panel-bg);
   --al-component-border: var(--border-subtle);
   --al-border: var(--border-subtle);
   --al-text: var(--text-primary);
   --al-muted: var(--text-secondary);
   --al-accent: var(--water-mint);
   --al-accent-strong: var(--water-aqua);
-  --al-accent-soft: rgba(104, 220, 200, 0.16);
+  --al-accent-soft: color-mix(in srgb, var(--glass-text-accent) 16%, transparent);
   --al-brass: var(--caustic-gold);
   --al-alert: var(--caustic-gold);
   --al-ready: var(--positive);
@@ -6446,30 +6422,22 @@ textarea {
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-frame {
-  border-color: var(--border-subtle);
-  background:
-    radial-gradient(ellipse 80% 54% at 92% 4%, rgba(141, 245, 222, 0.14) 0%, transparent 50%),
-    radial-gradient(ellipse 72% 52% at 86% 92%, rgba(231, 182, 124, 0.08) 0%, transparent 58%),
-    linear-gradient(180deg, var(--bg-black) 0%, var(--bg-deep) 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 32px 88px -46px rgba(0, 0, 0, 0.82);
+  border-color: var(--glass-shell-border);
+  background: var(--glass-shell-bg);
+  box-shadow: var(--glass-shell-shadow);
+  backdrop-filter: blur(18px) saturate(130%);
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-sidebar,
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-header,
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-footer {
-  background:
-    radial-gradient(ellipse 96% 62% at 100% 0%, rgba(104, 220, 200, 0.12) 0%, transparent 48%),
-    linear-gradient(180deg, rgba(6, 17, 20, 0.96) 0%, rgba(3, 11, 15, 0.98) 100%);
-  border-color: var(--border-subtle);
+  background: linear-gradient(180deg, var(--glass-surface) 0%, var(--glass-surface-strong) 100%);
+  border-color: var(--glass-border-subtle);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-content {
-  background:
-    radial-gradient(ellipse 92% 62% at 88% 4%, rgba(104, 220, 200, 0.1) 0%, transparent 48%),
-    radial-gradient(ellipse 76% 52% at 96% 92%, rgba(244, 194, 155, 0.06) 0%, transparent 58%),
-    var(--bg-black);
+  background: var(--glass-page-bg);
 }
 
 :root[data-brand="autolaunch"][data-theme="light"] :is(
@@ -6527,15 +6495,10 @@ textarea {
   .al-shell-connect-button,
   .al-shell-route-host :is(.al-regent-metric, .al-regent-action-card, .al-regent-addresses, .al-regent-empty, .al-stat-card, .al-review-card, .al-note-card, .al-muted-box, .al-empty-state, .al-check-item, .al-action-desk-stat)
 ) {
-  border-color: var(--border-subtle);
-  background:
-    radial-gradient(ellipse 110% 70% at 68% 0%, rgba(104, 220, 200, 0.18) 0%, transparent 56%),
-    linear-gradient(180deg, rgba(8, 27, 30, 0.9) 0%, rgba(3, 11, 15, 0.96) 100%);
-  color: var(--text-primary);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-    0 20px 52px rgba(0, 0, 0, 0.45);
+  border-color: var(--glass-panel-border);
+  background: var(--glass-panel-bg);
+  color: var(--glass-text-primary);
+  box-shadow: var(--glass-panel-shadow);
   backdrop-filter: blur(14px) saturate(130%);
 }
 
@@ -6584,43 +6547,6 @@ textarea {
   color: var(--text-muted);
 }
 
-.water-surface,
-.aqua-button,
-.aqua-nav-active {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border: 1px solid rgba(151, 255, 226, 0.34);
-  background:
-    radial-gradient(
-      ellipse 120% 90% at 92% 52%,
-      rgba(216, 255, 241, 0.52) 0%,
-      rgba(141, 245, 222, 0.34) 16%,
-      rgba(31, 94, 88, 0.22) 34%,
-      transparent 62%
-    ),
-    radial-gradient(
-      ellipse 95% 80% at 72% 78%,
-      rgba(244, 194, 155, 0.34) 0%,
-      rgba(183, 120, 78, 0.14) 28%,
-      transparent 58%
-    ),
-    linear-gradient(
-      105deg,
-      rgba(20, 76, 72, 0.92) 0%,
-      rgba(9, 35, 38, 0.92) 42%,
-      rgba(16, 55, 52, 0.88) 100%
-    );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.32),
-    0 0 24px rgba(104, 220, 200, 0.18),
-    0 10px 28px rgba(0, 0, 0, 0.38);
-}
-
-.water-surface::before,
-.aqua-button::before,
-.aqua-nav-active::before,
 :root[data-brand="autolaunch"][data-theme="dark"] :is(
   .al-submit,
   .al-cta-link,
@@ -6640,15 +6566,15 @@ textarea {
       168deg,
       transparent 0,
       transparent 18px,
-      rgba(216, 255, 241, 0.13) 20px,
-      rgba(216, 255, 241, 0.035) 24px,
+      var(--glass-caustic-streak) 20px,
+      color-mix(in srgb, var(--glass-caustic-streak) 28%, transparent) 24px,
       transparent 32px
     ),
     repeating-linear-gradient(
       8deg,
       transparent 0,
       transparent 28px,
-      rgba(104, 220, 200, 0.08) 31px,
+      var(--glass-caustic-streak-soft) 31px,
       transparent 40px
     );
   filter: blur(6px);
@@ -6656,9 +6582,6 @@ textarea {
   transform: rotate(-4deg) skewX(-11deg);
 }
 
-.water-surface::after,
-.aqua-button::after,
-.aqua-nav-active::after,
 :root[data-brand="autolaunch"][data-theme="dark"] :is(
   .al-submit,
   .al-cta-link,
@@ -6673,21 +6596,11 @@ textarea {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(216, 255, 241, 0.1) 48%,
-      rgba(244, 194, 155, 0.14) 74%,
-      transparent 100%
-    );
+  background: var(--glass-reflection);
   opacity: 0.8;
-  mix-blend-mode: screen;
+  mix-blend-mode: var(--glass-reflection-blend);
 }
 
-.water-surface > *,
-.aqua-button > *,
-.aqua-nav-active > *,
 :root[data-brand="autolaunch"][data-theme="dark"] :is(
   .al-submit,
   .al-cta-link,
@@ -6699,86 +6612,6 @@ textarea {
 ) > * {
   position: relative;
   z-index: 1;
-}
-
-.btn-water-primary,
-.aqua-button {
-  min-height: 56px;
-  width: 100%;
-  border-radius: 14px;
-  padding: 0 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: #f3fbf8;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0;
-  cursor: pointer;
-  user-select: none;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
-}
-
-.btn-water-secondary,
-.dark-secondary-button {
-  min-height: 50px;
-  width: 100%;
-  border-radius: 12px;
-  padding: 0 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: 1px solid rgba(123, 232, 216, 0.13);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(10, 25, 28, 0.96) 0%,
-      rgba(4, 13, 17, 0.98) 100%
-    );
-  color: #a9efe0;
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-    0 8px 20px rgba(0, 0, 0, 0.3);
-}
-
-.glass-panel,
-.glass-panel-water {
-  position: relative;
-  overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid rgba(123, 232, 216, 0.13);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(9, 24, 27, 0.88) 0%,
-      rgba(3, 12, 15, 0.94) 100%
-    );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.055),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-    0 18px 50px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(14px) saturate(130%);
-}
-
-.glass-panel-water {
-  border-color: rgba(123, 232, 216, 0.16);
-  background:
-    radial-gradient(
-      ellipse 110% 70% at 68% 0%,
-      rgba(104, 220, 200, 0.18) 0%,
-      transparent 56%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(8, 27, 30, 0.9) 0%,
-      rgba(3, 11, 15, 0.96) 100%
-    );
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-nav-link {
@@ -6800,31 +6633,13 @@ textarea {
   min-height: 56px;
   padding: 0 18px;
   border-radius: 16px;
-  border-color: rgba(151, 255, 226, 0.3);
-  background:
-    radial-gradient(
-      ellipse 105% 110% at 92% 50%,
-      rgba(216, 255, 241, 0.58) 0%,
-      rgba(141, 245, 222, 0.34) 19%,
-      rgba(31, 94, 88, 0.26) 43%,
-      transparent 68%
-    ),
-    radial-gradient(
-      ellipse 80% 70% at 74% 76%,
-      rgba(231, 182, 124, 0.25) 0%,
-      transparent 55%
-    ),
-    linear-gradient(
-      105deg,
-      rgba(14, 67, 65, 0.96) 0%,
-      rgba(10, 40, 43, 0.95) 48%,
-      rgba(42, 96, 87, 0.88) 100%
-    );
-  color: var(--text-primary);
+  border-color: var(--glass-primary-border);
+  background: var(--glass-primary-bg);
+  color: var(--glass-primary-text);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 0 rgba(0, 0, 0, 0.34),
-    0 0 22px rgba(104, 220, 200, 0.2),
+    0 0 22px color-mix(in srgb, var(--glass-text-accent) 20%, transparent),
     0 8px 24px rgba(0, 0, 0, 0.36);
 }
 
@@ -6858,31 +6673,13 @@ textarea {
   gap: 0.625rem;
   min-height: 56px;
   border-radius: 14px;
-  border-color: rgba(183, 255, 235, 0.46);
-  background:
-    radial-gradient(
-      ellipse 115% 110% at 88% 48%,
-      rgba(216, 255, 241, 0.62) 0%,
-      rgba(141, 245, 222, 0.38) 22%,
-      rgba(31, 94, 88, 0.26) 48%,
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 90% 80% at 78% 76%,
-      rgba(244, 194, 155, 0.3) 0%,
-      transparent 58%
-    ),
-    linear-gradient(
-      100deg,
-      rgba(16, 72, 68, 0.96) 0%,
-      rgba(26, 91, 84, 0.94) 48%,
-      rgba(77, 145, 128, 0.88) 100%
-    );
-  color: var(--text-primary);
+  border-color: var(--glass-primary-border);
+  background: var(--glass-primary-bg);
+  color: var(--glass-primary-text);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
     inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-    0 0 28px rgba(104, 220, 200, 0.22),
+    0 0 28px color-mix(in srgb, var(--glass-text-accent) 22%, transparent),
     0 10px 24px rgba(0, 0, 0, 0.42);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
   letter-spacing: 0;
@@ -6908,14 +6705,9 @@ textarea {
   .al-utility-link,
   .al-nav-link:not(.is-active)
 ) {
-  border-color: rgba(123, 232, 216, 0.13);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(10, 25, 28, 0.96) 0%,
-      rgba(4, 13, 17, 0.98) 100%
-    );
-  color: var(--text-aqua);
+  border-color: var(--glass-secondary-border);
+  background: var(--glass-secondary-bg);
+  color: var(--glass-secondary-text);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     inset 0 -1px 0 rgba(0, 0, 0, 0.4),
@@ -6931,13 +6723,8 @@ textarea {
   .al-auth-chip,
   .al-account-tabs
 ) {
-  border-color: rgba(123, 232, 216, 0.13);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(9, 24, 27, 0.88) 0%,
-      rgba(3, 12, 15, 0.94) 100%
-    );
+  border-color: var(--glass-panel-border);
+  background: var(--glass-panel-bg);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.055),
     inset 0 -1px 0 rgba(0, 0, 0, 0.4),
@@ -6956,18 +6743,8 @@ textarea {
   .al-account-overview,
   .al-auctions-market-shell
 ) {
-  border-color: rgba(123, 232, 216, 0.16);
-  background:
-    radial-gradient(
-      ellipse 110% 70% at 68% 0%,
-      rgba(104, 220, 200, 0.18) 0%,
-      transparent 56%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(8, 27, 30, 0.9) 0%,
-      rgba(3, 11, 15, 0.96) 100%
-    );
+  border-color: var(--glass-panel-border);
+  background: var(--glass-panel-bg);
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] :is(
@@ -6982,9 +6759,9 @@ textarea {
   .al-account-search input,
   .al-account-search select
 ) {
-  border-color: rgba(123, 232, 216, 0.13);
+  border-color: var(--glass-secondary-border);
   background: var(--bg-panel);
-  color: var(--text-primary);
+  color: var(--glass-text-primary);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -6997,11 +6774,11 @@ textarea {
     .al-filter.is-active,
     .al-segmented-option.is-active
   ):hover {
-    border-color: rgba(216, 255, 241, 0.68);
+    border-color: var(--glass-border-bright);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.3),
       inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-      0 0 34px rgba(104, 220, 200, 0.32),
+      0 0 34px color-mix(in srgb, var(--glass-text-accent) 32%, transparent),
       0 12px 30px rgba(0, 0, 0, 0.46);
   }
 
@@ -7018,14 +6795,9 @@ textarea {
     .al-nav-link:not(.is-active),
     .al-shell-nav-link:not(.is-active)
   ):hover {
-    border-color: rgba(123, 232, 216, 0.28);
-    background:
-      linear-gradient(
-        180deg,
-        rgba(13, 34, 37, 0.96) 0%,
-        rgba(5, 17, 20, 0.98) 100%
-      );
-    color: var(--water-pale);
+    border-color: var(--glass-border-soft);
+    background: var(--glass-secondary-bg);
+    color: var(--glass-text-primary);
   }
 }
 
@@ -7158,23 +6930,10 @@ textarea {
   .al-terrain-surface,
   .al-terrain-strip
 ) {
-  border-color: rgba(123, 232, 216, 0.13);
-  background:
-    radial-gradient(
-      ellipse 110% 70% at 68% 0%,
-      rgba(104, 220, 200, 0.18) 0%,
-      transparent 56%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(8, 27, 30, 0.9) 0%,
-      rgba(3, 11, 15, 0.96) 100%
-    );
-  color: var(--text-primary);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
-    0 20px 52px rgba(0, 0, 0, 0.45);
+  border-color: var(--glass-panel-border);
+  background: var(--glass-panel-bg);
+  color: var(--glass-text-primary);
+  box-shadow: var(--glass-panel-shadow);
   backdrop-filter: blur(14px) saturate(130%);
 }
 
@@ -7188,23 +6947,8 @@ textarea {
   .al-account-overview,
   .al-auctions-market-shell
 ) {
-  border-color: rgba(123, 232, 216, 0.16);
-  background:
-    radial-gradient(
-      ellipse 118% 76% at 74% 0%,
-      rgba(104, 220, 200, 0.2) 0%,
-      transparent 58%
-    ),
-    radial-gradient(
-      ellipse 92% 70% at 88% 96%,
-      rgba(244, 194, 155, 0.08) 0%,
-      transparent 58%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(8, 27, 30, 0.92) 0%,
-      rgba(3, 11, 15, 0.97) 100%
-    );
+  border-color: var(--glass-panel-border);
+  background: var(--glass-panel-bg);
 }
 
 :root[data-brand="autolaunch"][data-theme="dark"] .al-shell-route-host :is(
@@ -7223,31 +6967,13 @@ textarea {
   justify-content: center;
   min-height: 56px;
   border-radius: 14px;
-  border-color: rgba(183, 255, 235, 0.46);
-  background:
-    radial-gradient(
-      ellipse 115% 110% at 88% 48%,
-      rgba(216, 255, 241, 0.62) 0%,
-      rgba(141, 245, 222, 0.38) 22%,
-      rgba(31, 94, 88, 0.26) 48%,
-      transparent 70%
-    ),
-    radial-gradient(
-      ellipse 90% 80% at 78% 76%,
-      rgba(244, 194, 155, 0.3) 0%,
-      transparent 58%
-    ),
-    linear-gradient(
-      100deg,
-      rgba(16, 72, 68, 0.96) 0%,
-      rgba(26, 91, 84, 0.94) 48%,
-      rgba(77, 145, 128, 0.88) 100%
-    );
-  color: var(--text-primary);
+  border-color: var(--glass-primary-border);
+  background: var(--glass-primary-bg);
+  color: var(--glass-primary-text);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
     inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-    0 0 28px rgba(104, 220, 200, 0.22),
+    0 0 28px color-mix(in srgb, var(--glass-text-accent) 22%, transparent),
     0 10px 24px rgba(0, 0, 0, 0.42);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
 }
@@ -7269,14 +6995,9 @@ textarea {
   .al-identity-back,
   .al-docs-feature-link
 ) {
-  border-color: rgba(123, 232, 216, 0.13);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(10, 25, 28, 0.96) 0%,
-      rgba(4, 13, 17, 0.98) 100%
-    );
-  color: var(--text-aqua);
+  border-color: var(--glass-secondary-border);
+  background: var(--glass-secondary-bg);
+  color: var(--glass-secondary-text);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     inset 0 -1px 0 rgba(0, 0, 0, 0.4),
@@ -7306,9 +7027,9 @@ textarea {
   .al-filter-form select,
   .al-check-item input
 ) {
-  border-color: rgba(123, 232, 216, 0.13);
+  border-color: var(--glass-secondary-border);
   background: var(--bg-panel);
-  color: var(--text-primary);
+  color: var(--glass-text-primary);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 

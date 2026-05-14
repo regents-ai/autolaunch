@@ -137,7 +137,9 @@ defmodule Mix.Tasks.Autolaunch.DoctorTest do
   end
 
   defmodule DoctorRpc do
+    def block_number(8_453, _opts), do: {:ok, 321}
     def block_number(84_532, _opts), do: {:ok, 321}
+    def code_at(8_453, _address, _opts), do: {:ok, "0x6000"}
     def code_at(84_532, _address, _opts), do: {:ok, "0x6000"}
     def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported}
     def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}

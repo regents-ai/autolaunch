@@ -190,13 +190,13 @@ describe("shell-chrome hook", () => {
 
   it("copies command text and restores the original label", async () => {
     const root = new FakeRoot()
-    const button = new FakeElement({ copyValue: "regent autolaunch prelaunch wizard" }, "Copy command")
+    const button = new FakeElement({ copyValue: "regents autolaunch prelaunch wizard" }, "Copy command")
     button.parent = root
 
     mountShellChrome(root)
     root.click(button)
 
-    assert.deepEqual(copiedValues, ["regent autolaunch prelaunch wizard"])
+    assert.deepEqual(copiedValues, ["regents autolaunch prelaunch wizard"])
     assert.equal(button.textContent, "Copied")
 
     await new Promise((resolve) => setTimeout(resolve, 1450))

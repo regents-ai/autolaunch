@@ -17,8 +17,8 @@ defmodule Autolaunch.Launch.Job do
     field :minimum_raise_usdc, :string
     field :minimum_raise_usdc_raw, :string
     field :agent_safe_address, :string
-    field :network, :string, default: "base-sepolia"
-    field :chain_id, :integer, default: 84_532
+    field :network, :string, default: "base-mainnet"
+    field :chain_id, :integer, default: 8_453
     field :broadcast, :boolean, default: true
     field :status, :string, default: "queued"
     field :step, :string, default: "queued"

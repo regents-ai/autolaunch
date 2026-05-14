@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
                resource: "auction",
                resource_id: id,
                action: "submit_bid",
-               chain_id: 84_532,
+               chain_id: 8_453,
                expected_signer: "0x1111111111111111111111111111111111111111",
                expires_at: "2999-01-01T00:00:00Z",
                idempotency_key: "bid_quote",
@@ -78,7 +78,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
                  resource: "auction",
                  resource_id: id,
                  action: "submit_bid",
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                  value: "0",
                  data: "0x1234",
@@ -151,7 +151,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
              "status_band" => "active",
              "prepared" => %{
                "expected_signer" => @wallet,
-               "wallet_action" => %{"chain_id" => 84_532}
+               "wallet_action" => %{"chain_id" => 8_453}
              }
            } = json_response(conn, 200)
   end

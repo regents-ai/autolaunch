@@ -89,7 +89,8 @@ env_list = fn key, default ->
 end
 
 if config_env() != :test do
-  launch_chain_id_default = if config_env() == :prod, do: 8_453, else: 84_532
+  base_mainnet_rpc_url = "https://base-mainnet.g.alchemy.com/v2/mh8bSk613dgCNswQaicqncntni1gOg3o"
+  launch_chain_id_default = 8_453
   launch_chain_id = env_int.("AUTOLAUNCH_CHAIN_ID", launch_chain_id_default)
 
   canonical_usdc_addresses = %{
@@ -148,6 +149,13 @@ if config_env() != :test do
     interval_ms: env_int.("AUTOLAUNCH_LAUNCH_JOB_POLLER_INTERVAL_MS", 2_000),
     lease_timeout_ms: env_int.("AUTOLAUNCH_LAUNCH_JOB_LEASE_TIMEOUT_MS", :timer.minutes(10))
 
+  config :autolaunch, :auction_sync,
+    enabled: env_bool.("AUTOLAUNCH_AUCTION_SYNC_ENABLED", config_env() == :prod),
+    interval_ms: env_int.("AUTOLAUNCH_AUCTION_SYNC_INTERVAL_MS", 30_000),
+    batch_size: env_int.("AUTOLAUNCH_AUCTION_SYNC_BATCH_SIZE", 20),
+    recent_hours: env_int.("AUTOLAUNCH_AUCTION_SYNC_RECENT_HOURS", 168),
+    snapshot_ttl_seconds: env_int.("AUTOLAUNCH_AUCTION_SYNC_SNAPSHOT_TTL_SECONDS", 45)
+
   config :autolaunch, :prelaunch_uploads,
     root_dir:
       env.(
@@ -163,7 +171,7 @@ if config_env() != :test do
     deploy_script_target: env.("AUTOLAUNCH_DEPLOY_SCRIPT_TARGET", ""),
     deploy_timeout_ms: env_int.("AUTOLAUNCH_DEPLOY_TIMEOUT_MS", 180_000),
     deploy_output_marker: env.("AUTOLAUNCH_DEPLOY_OUTPUT_MARKER", "CCA_RESULT_JSON:"),
-    rpc_url: env.("AUTOLAUNCH_RPC_URL", ""),
+    rpc_url: env.("AUTOLAUNCH_RPC_URL", base_mainnet_rpc_url),
     cca_factory_address: env.("AUTOLAUNCH_CCA_FACTORY_ADDRESS", ""),
     pool_manager_address: env.("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", ""),
     position_manager_address: env.("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", ""),
@@ -216,7 +224,7 @@ if config_env() != :test do
     lbp_migration_block_offset: env.("LBP_MIGRATION_BLOCK_OFFSET", "128"),
     lbp_sweep_block_offset: env.("LBP_SWEEP_BLOCK_OFFSET", "256"),
     chain_rpc_urls: %{
-      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_RPC_URL", ""),
+      8_453 => env.("AUTOLAUNCH_BASE_MAINNET_RPC_URL", base_mainnet_rpc_url),
       84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_RPC_URL", "")
     },
     erc8004_subgraph_urls: %{
@@ -237,7 +245,7 @@ if config_env() != :test do
   config :autolaunch, :regent_staking,
     chain_id: env_int.("REGENT_STAKING_CHAIN_ID", 8_453),
     chain_label: env.("REGENT_STAKING_CHAIN_LABEL", "Base"),
-    rpc_url: env.("REGENT_STAKING_RPC_URL", ""),
+    rpc_url: env.("REGENT_STAKING_RPC_URL", base_mainnet_rpc_url),
     ethereum_rpc_url: env.("ETHEREUM_RPC_URL", ""),
     contract_address: env.("REGENT_REVENUE_STAKING_ADDRESS", ""),
     operator_wallets: env_list.("REGENT_STAKING_OPERATOR_WALLETS", "")
@@ -264,7 +272,7 @@ if config_env() != :test do
       relay_url: env.("WORLDCHAIN_AGENTBOOK_RELAY_URL", "")
     },
     "base" => %{
-      rpc_url: env.("BASE_MAINNET_RPC_URL", ""),
+      rpc_url: env.("BASE_MAINNET_RPC_URL", base_mainnet_rpc_url),
       contract_address:
         env.("BASE_AGENTBOOK_ADDRESS", "0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4"),
       relay_url: env.("BASE_AGENTBOOK_RELAY_URL", "")

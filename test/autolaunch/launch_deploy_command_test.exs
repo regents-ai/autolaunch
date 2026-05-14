@@ -12,7 +12,7 @@ defmodule Autolaunch.LaunchDeployCommandTest do
     assert env["AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS"] ==
              "0x9999999999999999999999999999999999999999"
 
-    assert env["AUTOLAUNCH_AGENT_ID"] == "84532:42"
+    assert env["AUTOLAUNCH_AGENT_ID"] == "8453:42"
     assert env["AUTOLAUNCH_TOKEN_METADATA_DESCRIPTION"] == "Atlas launch"
     assert env["AUTOLAUNCH_TOKEN_METADATA_WEBSITE"] == "https://atlas.example"
     assert env["AUTOLAUNCH_TOKEN_METADATA_IMAGE"] == "ipfs://atlas"
@@ -81,7 +81,7 @@ defmodule Autolaunch.LaunchDeployCommandTest do
     %Job{
       job_id: "job_deploy_command",
       owner_address: "0x1111111111111111111111111111111111111111",
-      agent_id: "84532:42",
+      agent_id: "8453:42",
       agent_name: "Atlas",
       token_name: "Atlas Coin",
       token_symbol: "ATLAS",
@@ -90,19 +90,19 @@ defmodule Autolaunch.LaunchDeployCommandTest do
       agent_safe_address: "0x2222222222222222222222222222222222222222",
       lifecycle_run_id: "life_1",
       launch_notes: "Launch",
-      network: "base-sepolia",
-      chain_id: 84_532,
+      network: "base-mainnet",
+      chain_id: 8_453,
       broadcast: false
     }
   end
 
   defp launch_config do
     [
-      chain_id: 84_532,
+      chain_id: 8_453,
       deploy_binary: "forge",
       deploy_workdir: "contracts",
       deploy_script_target: "scripts/ExampleCCADeploymentScript.s.sol:ExampleCCADeploymentScript",
-      rpc_url: "https://base-sepolia.example",
+      rpc_url: "https://base-mainnet.example",
       revenue_share_factory_address: "0x3333333333333333333333333333333333333333",
       revenue_ingress_factory_address: "0x4444444444444444444444444444444444444444",
       lbp_strategy_factory_address: "0x5555555555555555555555555555555555555555",

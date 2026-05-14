@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.LiveUpdates do
     market: "autolaunch:updates:market",
     positions: "autolaunch:updates:positions",
     subjects: "autolaunch:updates:subjects",
+    tokens: "autolaunch:updates:tokens",
     regent: "autolaunch:updates:regent",
     system: "autolaunch:updates:system"
   }

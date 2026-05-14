@@ -7,7 +7,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
     def overview(_human) do
       {:ok,
        %{
-         chain_id: 84_532,
+         chain_id: 8_453,
          contract_address: "0x9999999999999999999999999999999999999999",
          treasury_residual_usdc: "150"
        }}
@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
            resource: "regent_staking",
            resource_id: "0x9999999999999999999999999999999999999999",
            action: "deposit_usdc",
-           chain_id: 84_532,
+           chain_id: 8_453,
            expected_signer: operator_wallet_address,
            expires_at: "2999-01-01T00:00:00Z",
            idempotency_key: "prepared_deposit_usdc",
@@ -78,7 +78,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
              resource: "regent_staking",
              resource_id: "0x9999999999999999999999999999999999999999",
              action: "deposit_usdc",
-             chain_id: 84_532,
+             chain_id: 8_453,
              to: "0x9999999999999999999999999999999999999999",
              value: "0",
              data: "0x7dc6bb98",
@@ -101,7 +101,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
            resource: "regent_staking",
            resource_id: "0x9999999999999999999999999999999999999999",
            action: "withdraw_treasury",
-           chain_id: 84_532,
+           chain_id: 8_453,
            expected_signer: operator_wallet_address,
            expires_at: "2999-01-01T00:00:00Z",
            idempotency_key: "prepared_withdraw_treasury",
@@ -113,7 +113,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
              resource: "regent_staking",
              resource_id: "0x9999999999999999999999999999999999999999",
              action: "withdraw_treasury",
-             chain_id: 84_532,
+             chain_id: 8_453,
              to: "0x9999999999999999999999999999999999999999",
              value: "0",
              data: "0xe13b5822",
@@ -135,7 +135,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
         resource: "regent_staking",
         resource_id: "0x9999999999999999999999999999999999999999",
         action: action,
-        chain_id: 84_532,
+        chain_id: 8_453,
         expected_signer: expected_signer,
         expires_at: "2999-01-01T00:00:00Z",
         idempotency_key: "prepared_#{action}",
@@ -146,7 +146,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
           resource: "regent_staking",
           resource_id: "0x9999999999999999999999999999999999999999",
           action: action,
-          chain_id: 84_532,
+          chain_id: 8_453,
           to: "0x9999999999999999999999999999999999999999",
           value: "0",
           data: data,
@@ -213,7 +213,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
 
     assert %{
              "ok" => true,
-             "chain_id" => 84_532,
+             "chain_id" => 8_453,
              "treasury_residual_usdc" => "150"
            } = json_response(conn, 200)
   end
@@ -236,7 +236,7 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
              "prepared" => %{
                "expected_signer" => "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                "idempotency_key" => "prepared_stake",
-               "wallet_action" => %{"chain_id" => 84_532, "data" => "0x7acb7757"}
+               "wallet_action" => %{"chain_id" => 8_453, "data" => "0x7acb7757"}
              }
            } = json_response(conn, 200)
   end

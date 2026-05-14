@@ -11,7 +11,7 @@ defmodule Autolaunch.ContractsDispatchTest do
     assert {:ok, prepared} =
              Dispatch.build_job_action(
                %{
-                 chain_id: 84_532,
+                 chain_id: 8_453,
                  strategy_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
                },
                "strategy",
@@ -26,7 +26,7 @@ defmodule Autolaunch.ContractsDispatchTest do
 
   test "job dispatch prepares the new settlement transactions" do
     job = %{
-      chain_id: 84_532,
+      chain_id: 8_453,
       strategy_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
       revenue_share_splitter_address: "0x4444444444444444444444444444444444444444",
@@ -112,7 +112,7 @@ defmodule Autolaunch.ContractsDispatchTest do
       :autolaunch,
       :launch,
       Keyword.merge(previous_launch,
-        chain_id: 84_532,
+        chain_id: 8_453,
         revenue_share_factory_address: "0x2222222222222222222222222222222222222222",
         revenue_ingress_factory_address: "0x3333333333333333333333333333333333333333"
       )
@@ -143,7 +143,7 @@ defmodule Autolaunch.ContractsDispatchTest do
 
     assert {:ok, first} =
              ActionParams.prepare_tx(
-               84_532,
+               8_453,
                "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                "0x1234",
                "subject",
@@ -154,7 +154,7 @@ defmodule Autolaunch.ContractsDispatchTest do
 
     assert {:ok, second} =
              ActionParams.prepare_tx(
-               84_532,
+               8_453,
                "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
                "0x1234",
                "subject",
@@ -198,7 +198,7 @@ defmodule Autolaunch.ContractsDispatchTest do
 
   test "subject dispatch returns stable invalid address and ingress errors" do
     subject = %{
-      chain_id: 84_532,
+      chain_id: 8_453,
       subject_id: "0x" <> String.duplicate("a", 64),
       ingress_accounts: [%{address: "0x1111111111111111111111111111111111111111"}]
     }
@@ -226,14 +226,14 @@ defmodule Autolaunch.ContractsDispatchTest do
 
   test "removed fee mutation actions stay unsupported in dispatch" do
     job = %{
-      chain_id: 84_532,
+      chain_id: 8_453,
       launch_fee_registry_address: "0x1111111111111111111111111111111111111111",
       launch_fee_vault_address: "0x2222222222222222222222222222222222222222",
       pool_id: "0x" <> String.duplicate("a", 64)
     }
 
     subject = %{
-      chain_id: 84_532,
+      chain_id: 8_453,
       splitter_address: "0x3333333333333333333333333333333333333333"
     }
 

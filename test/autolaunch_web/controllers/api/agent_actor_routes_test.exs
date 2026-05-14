@@ -59,13 +59,13 @@ defmodule AutolaunchWeb.Api.AgentActorRoutesTest do
   end
 
   test "agent prelaunch routes use the signed agent identity", %{conn: conn} do
-    conn = post(conn, "/v1/agent/prelaunch/plans", %{"agent_id" => "84532:44"})
+    conn = post(conn, "/v1/agent/prelaunch/plans", %{"agent_id" => "8453:44"})
 
     assert %{"ok" => true, "plan" => %{"actor_wallet" => @wallet}} = json_response(conn, 201)
   end
 
   test "agent launch routes use the signed agent identity", %{conn: conn} do
-    conn = post(conn, "/v1/agent/launch/preview", %{"agent_id" => "84532:44"})
+    conn = post(conn, "/v1/agent/launch/preview", %{"agent_id" => "8453:44"})
 
     assert %{"ok" => true, "preview" => %{"actor_wallet" => @wallet}} =
              json_response(conn, 200)
@@ -87,7 +87,7 @@ defmodule AutolaunchWeb.Api.AgentActorRoutesTest do
     conn
     |> put_req_header("accept", "application/json")
     |> put_req_header("x-agent-wallet-address", @wallet)
-    |> put_req_header("x-agent-chain-id", "84532")
+    |> put_req_header("x-agent-chain-id", "8453")
     |> put_req_header("x-agent-registry-address", @registry)
     |> put_req_header("x-agent-token-id", @token_id)
     |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
@@ -105,7 +105,7 @@ defmodule AutolaunchWeb.Api.AgentActorRoutesTest do
         "verified" => "onchain",
         "iat" => now_ms,
         "exp" => now_ms + 600_000,
-        "chain_id" => 84_532,
+        "chain_id" => 8_453,
         "nonce" => "nonce-#{System.unique_integer([:positive])}",
         "key_id" => @wallet,
         "registry_address" => @registry,

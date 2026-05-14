@@ -8,7 +8,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
 
   @launch_stack_deployed_topic0 "0x0f4620e4f0d6524b6aca672f72348ff2535a365b816545538f83084e8d073077"
 
-  def chain_id, do: 84_532
+  def chain_id, do: 8_453
   def job_id, do: "job_verify_deploy"
   def tx_hash, do: "0x" <> String.duplicate("a", 64)
   def pool_id, do: "0x" <> String.duplicate("b", 64)
@@ -39,7 +39,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
   def address(:mainnet_strategy_factory), do: "0x1818181818181818181818181818181818181818"
   def address(:strategy_factory), do: "0x1919191919191919191919191919191919191919"
   def address(:currency0), do: address(:launch_token)
-  def address(:currency1), do: address(:usdc)
+  def address(:currency1), do: address(:mainnet_usdc)
 
   def launch_config(previous \\ []) do
     Keyword.merge(previous,
@@ -82,11 +82,11 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
       |> Job.create_changeset(%{
         job_id: job_id(),
         owner_address: address(:owner),
-        agent_id: "84532:4242",
+        agent_id: "8453:4242",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: address(:agent_safe),
-        network: "base-sepolia",
+        network: "base-mainnet",
         chain_id: chain_id(),
         status: "ready",
         step: "ready",
@@ -125,7 +125,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     alias Autolaunch.Contracts.Abi
     alias Autolaunch.ReleaseDeployVerifierTestSupport, as: Support
 
-    def eth_call(chain_id, to, data, _opts) when chain_id == 84_532 do
+    def eth_call(chain_id, to, data, _opts) when chain_id == 8_453 do
       address = normalize(to)
       selector = String.slice(data, 0, 10)
 
@@ -136,14 +136,20 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
         address in [
           Support.address(:revenue_share_factory),
           Support.address(:revenue_ingress_factory),
-          Support.address(:strategy_factory)
+          Support.address(:strategy_factory),
+          Support.address(:mainnet_revenue_share_factory),
+          Support.address(:mainnet_revenue_ingress_factory),
+          Support.address(:mainnet_strategy_factory)
         ] and selector == Abi.selector(:owner) ->
           {:ok, encode_address_result(factory_owner_for_mode())}
 
         address in [
           Support.address(:revenue_share_factory),
           Support.address(:revenue_ingress_factory),
-          Support.address(:strategy_factory)
+          Support.address(:strategy_factory),
+          Support.address(:mainnet_revenue_share_factory),
+          Support.address(:mainnet_revenue_ingress_factory),
+          Support.address(:mainnet_strategy_factory)
         ] and selector == Abi.selector(:pending_owner) ->
           {:ok, encode_address_result(factory_pending_owner_for_mode())}
 
@@ -169,7 +175,10 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
         address in [
           Support.address(:revenue_share_factory),
           Support.address(:revenue_ingress_factory),
-          Support.address(:strategy_factory)
+          Support.address(:strategy_factory),
+          Support.address(:mainnet_revenue_share_factory),
+          Support.address(:mainnet_revenue_ingress_factory),
+          Support.address(:mainnet_strategy_factory)
         ] and
             selector == Abi.selector(:authorized_creators) ->
           {:ok, encode_bool_result(authorized_creator_for_mode(address))}
@@ -203,7 +212,10 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
         address == Support.address(:subject_registry) and selector == Abi.selector(:get_subject) ->
           {:ok, encode_subject_config_result()}
 
-        address == Support.address(:revenue_ingress_factory) and
+        address in [
+          Support.address(:revenue_ingress_factory),
+          Support.address(:mainnet_revenue_ingress_factory)
+        ] and
             selector == Abi.selector(:default_ingress_of_subject) ->
           {:ok, encode_address_result(Support.address(:default_ingress))}
 
@@ -215,7 +227,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     def eth_call(chain_id, _to, _data, _opts), do: {:error, {:unexpected_chain_id, chain_id}}
 
     def tx_receipt(chain_id, tx_hash, _opts) do
-      if chain_id == 84_532 and tx_hash == Support.tx_hash() do
+      if chain_id == 8_453 and tx_hash == Support.tx_hash() do
         {:ok,
          %{
            logs: [
@@ -251,7 +263,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     defp quote_token_for_mode do
       case Application.get_env(:autolaunch, :release_deploy_verifier_rpc_mode, :healthy) do
         :wrong_usdc -> Support.address(:wrong_usdc)
-        _ -> Support.address(:usdc)
+        _ -> Support.address(:mainnet_usdc)
       end
     end
 
@@ -271,8 +283,14 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
 
     defp authorized_creator_for_mode(address) do
       case Application.get_env(:autolaunch, :release_deploy_verifier_rpc_mode, :healthy) do
-        :strategy_factory_authorized -> address == Support.address(:strategy_factory)
-        _ -> false
+        :strategy_factory_authorized ->
+          address in [
+            Support.address(:strategy_factory),
+            Support.address(:mainnet_strategy_factory)
+          ]
+
+        _ ->
+          false
       end
     end
 
@@ -286,7 +304,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
         encode_address_word(Support.address(:currency1)),
         encode_uint_word(10_000),
         encode_uint_word(60),
-        encode_address_word(Support.address(:pool_manager)),
+        encode_address_word(Support.address(:mainnet_pool_manager)),
         encode_address_word(Support.address(:hook)),
         encode_uint_word(1)
       ]

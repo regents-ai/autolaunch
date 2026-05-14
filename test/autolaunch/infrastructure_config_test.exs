@@ -25,22 +25,31 @@ defmodule Autolaunch.InfrastructureConfigTest do
   end
 
   test "owns the supported Base chain list" do
-    assert InfrastructureConfig.base_chain_ids() == [84_532, 8_453]
+    assert InfrastructureConfig.base_chain_ids() == [8_453, 84_532]
   end
 
   test "normalizes launch chain and per-chain RPC settings" do
     Application.put_env(:autolaunch, :launch,
-      chain_id: "84532",
-      rpc_url: "https://shared-base-sepolia.example",
+      chain_id: "8453",
+      rpc_url: "https://shared-base.example",
       chain_rpc_urls: %{
         84_532 => " https://base-sepolia.example ",
         8_453 => "https://base.example"
       }
     )
 
-    assert InfrastructureConfig.launch_chain_id() == {:ok, 84_532}
+    assert InfrastructureConfig.launch_chain_id() == {:ok, 8_453}
     assert InfrastructureConfig.rpc_url(84_532) == {:ok, "https://base-sepolia.example"}
     assert InfrastructureConfig.rpc_url(8_453) == {:ok, "https://base.example"}
+  end
+
+  test "rejects Base Sepolia as the active launch chain" do
+    Application.put_env(:autolaunch, :launch,
+      chain_id: "84532",
+      rpc_url: "https://base-sepolia.example"
+    )
+
+    assert InfrastructureConfig.launch_chain_id() == {:error, :invalid_chain_id}
   end
 
   test "rejects unsupported launch chains" do
@@ -54,12 +63,12 @@ defmodule Autolaunch.InfrastructureConfigTest do
     Application.put_env(:autolaunch, :launch, chain_id: 8_453, rpc_url: "https://base.example")
 
     Application.put_env(:autolaunch, :regent_staking,
-      chain_id: 84_532,
+      chain_id: 8_453,
       rpc_url: "https://staking.example",
       contract_address: "0x1111111111111111111111111111111111111111"
     )
 
-    assert InfrastructureConfig.rpc_url(84_532, source: :regent_staking) ==
+    assert InfrastructureConfig.rpc_url(8_453, source: :regent_staking) ==
              {:ok, "https://staking.example"}
 
     assert InfrastructureConfig.regent_staking_address(:contract_address) ==

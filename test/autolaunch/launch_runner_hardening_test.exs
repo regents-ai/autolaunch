@@ -99,8 +99,8 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
       token_symbol: "ATLAS",
       minimum_raise_usdc: "1",
       minimum_raise_usdc_raw: "1000000",
-      network: "base-sepolia",
-      chain_id: 84_532
+      network: "base-mainnet",
+      chain_id: 8_453
     }
 
     assert {:error, {:auction, changeset}} =
@@ -117,12 +117,12 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
       |> Job.create_changeset(%{
         job_id: job_id,
         owner_address: "0x1111111111111111111111111111111111111111",
-        agent_id: "84532:42",
+        agent_id: "8453:42",
         agent_name: "Atlas",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "queued",
         step: "queued",
         total_supply: "1000",

@@ -50,12 +50,12 @@ defmodule Autolaunch.ContractsTest do
       |> Job.create_changeset(%{
         job_id: "job_contracts_helper",
         owner_address: @wallet,
-        agent_id: "84532:42",
+        agent_id: "8453:42",
         token_name: "Atlas Coin",
         token_symbol: "ATLAS",
         agent_safe_address: @wallet,
-        network: "base-sepolia",
-        chain_id: 84_532,
+        network: "base-mainnet",
+        chain_id: 8_453,
         status: "ready",
         step: "ready",
         total_supply: "1000",
@@ -252,7 +252,7 @@ defmodule Autolaunch.ContractsTest do
 
     def block_number(_chain_id, _opts), do: {:ok, 1}
 
-    def eth_call(84_532, @splitter, data, _opts) do
+    def eth_call(8_453, @splitter, data, _opts) do
       case String.slice(data, 0, 10) do
         "0x817b1cd2" -> {:ok, uint(250 * Integer.pow(10, 18))}
         "0x549b5d48" -> {:ok, uint(10_000)}
@@ -283,13 +283,13 @@ defmodule Autolaunch.ContractsTest do
       end
     end
 
-    def eth_call(84_532, @token, "0x70a08231" <> _rest, _opts),
+    def eth_call(8_453, @token, "0x70a08231" <> _rest, _opts),
       do: {:ok, uint(90 * Integer.pow(10, 18))}
 
-    def eth_call(84_532, @usdc, "0x70a08231" <> _rest, _opts),
+    def eth_call(8_453, @usdc, "0x70a08231" <> _rest, _opts),
       do: {:ok, uint(7 * Integer.pow(10, 6))}
 
-    def eth_call(84_532, @subject_registry, "0x41c2ab07" <> data, _opts) do
+    def eth_call(8_453, @subject_registry, "0x41c2ab07" <> data, _opts) do
       wallet =
         data
         |> String.slice(-40, 40)
@@ -298,8 +298,8 @@ defmodule Autolaunch.ContractsTest do
       {:ok, bool(wallet == @wallet)}
     end
 
-    def eth_call(84_532, @subject_registry, "0x8da5cb5b", _opts), do: {:ok, address(@wallet)}
-    def eth_call(84_532, @subject_registry, "0x0f3f0a8f" <> _rest, _opts), do: {:ok, uint(0)}
+    def eth_call(8_453, @subject_registry, "0x8da5cb5b", _opts), do: {:ok, address(@wallet)}
+    def eth_call(8_453, @subject_registry, "0x0f3f0a8f" <> _rest, _opts), do: {:ok, uint(0)}
 
     def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}
 

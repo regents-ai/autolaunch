@@ -201,7 +201,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                     </tr>
                     <tr>
                       <th scope="row">Currency</th>
-                      <td>USDC on Base Sepolia or Base mainnet</td>
+                      <td>USDC on Base</td>
                     </tr>
                     <tr>
                       <th scope="row">Revenue</th>
@@ -258,13 +258,13 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                   Autolaunch when the market is live.
                 </p>
 
-                <pre class="al-choice-command"><code>regent autolaunch prelaunch wizard</code></pre>
+                <pre class="al-choice-command"><code>regents autolaunch prelaunch wizard</code></pre>
 
                 <div class="al-choice-actions">
                   <button
                     type="button"
                     class="al-submit"
-                    data-copy-value="regent autolaunch prelaunch wizard"
+                    data-copy-value="regents autolaunch prelaunch wizard"
                   >
                     Copy CLI command
                   </button>

@@ -14,7 +14,6 @@ defmodule Autolaunch.CCARpcTest do
         chain_id: 8_453,
         rpc_url: "https://base.example",
         chain_rpc_urls: %{
-          84_532 => "https://base-sepolia-launch.example",
           8_453 => "https://base-mainnet-launch.example"
         }
       )
@@ -23,9 +22,9 @@ defmodule Autolaunch.CCARpcTest do
     Application.put_env(
       :autolaunch,
       :regent_staking,
-      chain_id: 84_532,
-      chain_label: "Base Sepolia",
-      rpc_url: "https://base-sepolia.example",
+      chain_id: 8_453,
+      chain_label: "Base",
+      rpc_url: "https://base-mainnet.example",
       contract_address: "0x9999999999999999999999999999999999999999"
     )
 
@@ -38,7 +37,6 @@ defmodule Autolaunch.CCARpcTest do
   end
 
   test "rpc_url resolves chain-specific launch RPC urls before shared launch routing" do
-    assert {:ok, "https://base-sepolia-launch.example"} = Rpc.rpc_url(84_532)
     assert {:ok, "https://base-mainnet-launch.example"} = Rpc.rpc_url(8_453)
   end
 
@@ -63,14 +61,14 @@ defmodule Autolaunch.CCARpcTest do
     Application.put_env(
       :autolaunch,
       :launch,
-      Keyword.merge(previous_launch, chain_id: 84_532, rpc_url: "https://launch-shared.example")
+      Keyword.merge(previous_launch, chain_id: 8_453, rpc_url: "https://launch-shared.example")
     )
 
     Application.put_env(
       :autolaunch,
       :regent_staking,
       Keyword.merge(previous_regent_staking,
-        chain_id: 84_532,
+        chain_id: 8_453,
         rpc_url: "https://staking-shared.example"
       )
     )
@@ -80,9 +78,9 @@ defmodule Autolaunch.CCARpcTest do
       Application.put_env(:autolaunch, :regent_staking, previous_regent_staking)
     end)
 
-    assert {:ok, "https://base-sepolia-launch.example"} = Rpc.rpc_url(84_532)
+    assert {:ok, "https://base-mainnet-launch.example"} = Rpc.rpc_url(8_453)
 
     assert {:ok, "https://staking-shared.example"} =
-             Rpc.rpc_url(84_532, source: :regent_staking)
+             Rpc.rpc_url(8_453, source: :regent_staking)
   end
 end

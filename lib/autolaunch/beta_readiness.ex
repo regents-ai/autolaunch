@@ -21,6 +21,7 @@ defmodule Autolaunch.BetaReadiness do
     {:get, "/"},
     {:get, "/health"},
     {:get, "/regent-staking"},
+    {:get, "/tokens"},
     {:get, "/contracts"},
     {:get, "/v1/app/regent/staking"},
     {:post, "/v1/app/launch/preview"},
@@ -78,7 +79,7 @@ defmodule Autolaunch.BetaReadiness do
         ok("launch_chain", "Launch chain is Base: #{chain_id}.")
 
       {:error, _reason} ->
-        fail("launch_chain", "Launch chain must be Base mainnet or Base Sepolia.")
+        fail("launch_chain", "Launch chain must be Base mainnet.")
     end
   end
 
@@ -129,7 +130,7 @@ defmodule Autolaunch.BetaReadiness do
       {:error, :invalid_chain_id} ->
         fail(
           "regent_staking_config",
-          "REGENT_STAKING_CHAIN_ID must be Base mainnet or Base Sepolia."
+          "REGENT_STAKING_CHAIN_ID must be Base mainnet."
         )
 
       {:error, :missing_rpc_url} ->

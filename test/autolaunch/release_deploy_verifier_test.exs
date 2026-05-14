@@ -140,7 +140,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTest do
            )
   end
 
-  test "verifier fails when launch contracts do not use canonical Base Sepolia USDC", %{job: job} do
+  test "verifier fails when launch contracts do not use canonical Base USDC", %{job: job} do
     Support.set_rpc_mode(:wrong_usdc)
 
     assert %{ok: false, checks: checks} = ReleaseDeployVerifier.run(job.job_id)
@@ -148,7 +148,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTest do
     assert Enum.any?(
              checks,
              &(&1.key == "fee_vault_canonical_tokens" and not &1.ok and
-                 String.contains?(&1.detail, "expected #{Support.address(:usdc)}"))
+                 String.contains?(&1.detail, "expected #{Support.address(:mainnet_usdc)}"))
            )
 
     assert Enum.any?(
