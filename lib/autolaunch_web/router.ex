@@ -36,8 +36,8 @@ defmodule AutolaunchWeb.Router do
 
   pipeline :agent_api do
     plug :accepts, ["json"]
-    plug AutolaunchWeb.Plugs.RateLimit
     plug AutolaunchWeb.Plugs.RequireAgentSiwa
+    plug AutolaunchWeb.Plugs.RateLimit
   end
 
   pipeline :api_internal do
@@ -49,8 +49,8 @@ defmodule AutolaunchWeb.Router do
     plug :accepts, ["json"]
     plug :fetch_session
     plug :put_secure_browser_headers
-    plug AutolaunchWeb.Plugs.RateLimit
     plug AutolaunchWeb.Plugs.RequireAgentSiwa
+    plug AutolaunchWeb.Plugs.RateLimit
   end
 
   pipeline :public_asset do

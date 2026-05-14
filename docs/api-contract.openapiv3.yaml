@@ -14,6 +14,15 @@ x-regent-capability:
   money_path: true
   cli_surface: true
   mobile_surface: false
+x-regent-rate-limits:
+  retry_after_header: Retry-After
+  tiers:
+    public_unauthenticated: IP and route based
+    authenticated_browser_mobile: verified session based
+    verified_cli_signed_agent: verified SIWA agent identity based
+    internal_service: bounded separately by internal credentials where exposed
+    admin_operator: not exposed in this contract
+  cli_allowance_requires_verified_siwa: true
 tags:
   - name: health
   - name: auth
@@ -47,10 +56,16 @@ x-autolaunch-rate-limits:
   error:
     status: 429
     schema: "#/components/schemas/RateLimitedError"
-    header: retry-after
+    header: Retry-After
   public_writes:
     applies_to: ["/v1/app/*", "/v1/agent/*", "/v1/auth/*"]
     default: "60 requests per minute per client IP and route"
+  session_routes:
+    applies_to: ["/v1/app/*", "/v1/auth/*"]
+    default: "60 writes or 180 expensive reads per minute per verified browser session and route"
+  signed_agent_routes:
+    applies_to: ["/v1/agent/*", "/v1/auth/agent/*"]
+    default: "240 writes or 600 expensive reads per minute per verified SIWA agent and route"
   expensive_reads:
     applies_to:
       - "/v1/app/me/*"
@@ -278,6 +293,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrivySessionCsrf" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/auth/privy/session:
     post:
       operationId: createPrivySession
@@ -304,6 +321,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
     delete:
       operationId: deletePrivySession
       tags: [auth]
@@ -314,6 +333,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OkEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/auth/privy/xmtp/complete:
     post:
       operationId: completePrivyXmtpSetup
@@ -340,6 +361,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/auth/privy/profile:
     get:
       operationId: getPrivySessionProfile
@@ -351,6 +374,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PrivySessionResponse" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/auth/agent/session:
     get:
       operationId: getAutolaunchAgentSession
@@ -362,6 +387,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentSessionResponse" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
     post:
       operationId: createAutolaunchAgentSession
       tags: [auth]
@@ -377,6 +404,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
     delete:
       operationId: deleteAutolaunchAgentSession
       tags: [auth]
@@ -388,6 +417,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/OkEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking:
     get:
       operationId: getAppRegentStakingOverview
@@ -399,6 +430,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/account/{address}:
     get:
       operationId: getAppRegentStakingAccount
@@ -415,6 +448,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/stake:
     post:
       operationId: stakeAppRegent
@@ -436,6 +471,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/unstake:
     post:
       operationId: unstakeAppRegent
@@ -457,6 +494,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/claim-usdc:
     post:
       operationId: claimAppRegentStakingUsdc
@@ -477,6 +516,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/claim-regent:
     post:
       operationId: claimAppRegentStakingRegent
@@ -497,6 +538,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/claim-and-restake-regent:
     post:
       operationId: claimAndRestakeAppRegentStakingRegent
@@ -517,6 +560,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/deposit-usdc/prepare:
     post:
       operationId: prepareAppRegentStakingUsdcDeposit
@@ -543,6 +588,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/regent/staking/withdraw-treasury/prepare:
     post:
       operationId: prepareAppRegentStakingTreasuryWithdrawal
@@ -570,6 +617,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agentbook/sessions:
     post:
       operationId: createAgentbookSession
@@ -585,6 +634,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agentbook/sessions/{id}:
     get:
       operationId: getAgentbookSession
@@ -597,6 +648,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agentbook/sessions/{id}/submit:
     post:
       operationId: submitAgentbookSession
@@ -614,6 +667,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agentbook/lookup:
     get:
       operationId: lookupAgentbookRegistration
@@ -632,6 +687,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agentbook/verify:
     post:
       operationId: verifyAgentbookHeader
@@ -648,6 +705,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agents:
     get:
       operationId: listAgents
@@ -658,6 +717,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agents/{id}:
     get:
       operationId: getAgent
@@ -670,6 +731,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agents/{id}/readiness:
     get:
       operationId: getAgentReadiness
@@ -683,6 +746,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AgentReadinessEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agent-pairings:
     post:
       operationId: createAgentPairingSession
@@ -704,6 +769,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agent-pairings/complete:
     post:
       operationId: completeAgentPairingSession
@@ -734,6 +801,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/agent-pairings/{id}:
     get:
       operationId: getAgentPairingSession
@@ -758,6 +827,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/plans:
     get:
       operationId: listPrelaunchPlans
@@ -768,6 +839,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
     post:
       operationId: createPrelaunchPlan
       tags: [prelaunch]
@@ -783,6 +856,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/plans/{id}:
     get:
       operationId: getPrelaunchPlan
@@ -796,6 +871,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
     patch:
       operationId: updatePrelaunchPlan
       tags: [prelaunch]
@@ -813,6 +890,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/plans/{id}/validate:
     post:
       operationId: validatePrelaunchPlan
@@ -826,6 +905,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/plans/{id}/publish:
     post:
       operationId: publishPrelaunchPlan
@@ -839,6 +920,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/plans/{id}/launch:
     post:
       operationId: launchPrelaunchPlan
@@ -856,6 +939,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/assets:
     post:
       operationId: uploadPrelaunchAsset
@@ -872,6 +957,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchAssetEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/plans/{id}/metadata:
     post:
       operationId: savePrelaunchMetadata
@@ -890,6 +977,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/prelaunch/plans/{id}/metadata-preview:
     get:
       operationId: getPrelaunchMetadataPreview
@@ -904,6 +993,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchMetadataPreviewEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/launch/preview:
     post:
       operationId: previewLaunch
@@ -920,6 +1011,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchPreviewEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/launch/jobs:
     post:
       operationId: createLaunchJob
@@ -936,6 +1029,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/launch/jobs/{id}:
     get:
       operationId: getLaunchJob
@@ -950,6 +1045,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/lifecycle/jobs/{id}:
     get:
       operationId: getLifecycleJob
@@ -963,6 +1060,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleJobEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/lifecycle/jobs/{id}/finalize/prepare:
     post:
       operationId: prepareFinalizeLaunch
@@ -976,6 +1075,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleFinalizeEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/lifecycle/jobs/{id}/finalize/register:
     post:
       operationId: registerFinalizeLaunch
@@ -993,6 +1094,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleFinalizeRegisterEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/lifecycle/jobs/{id}/vesting:
     get:
       operationId: getVestingStatus
@@ -1007,6 +1110,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/trust/agents/{id}:
     get:
       operationId: getAgentTrust
@@ -1025,6 +1130,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentTrustEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/trust/x/start:
     post:
       operationId: startXLink
@@ -1046,6 +1153,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/XLinkStartEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/trust/x/callback:
     post:
       operationId: completeXLink
@@ -1067,6 +1176,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AgentTrustEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/auctions:
     get:
       operationId: listAuctions
@@ -1088,6 +1199,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/auction-returns:
     get:
       operationId: listAuctionReturns
@@ -1109,6 +1222,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionReturnsEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/auctions/{id}:
     get:
       operationId: getAuction
@@ -1121,6 +1236,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/auctions/{id}/bid_quote:
     post:
       operationId: quoteAuctionBid
@@ -1138,6 +1255,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionBidQuoteEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/auctions/{id}/bids:
     post:
       operationId: createAuctionBid
@@ -1155,6 +1274,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/me/bids:
     get:
       operationId: listMyBids
@@ -1175,6 +1296,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/me/holdings:
     get:
       operationId: getMyHoldings
@@ -1186,6 +1309,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/HoldingsEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/me/profile:
     get:
       operationId: getMyProfile
@@ -1197,6 +1322,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/me/profile/refresh:
     post:
       operationId: refreshMyProfile
@@ -1208,6 +1335,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProfileSnapshotEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/bids/{id}/exit:
     post:
       operationId: exitBid
@@ -1225,6 +1354,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/bids/{id}/return-usdc:
     post:
       operationId: returnBidUsdc
@@ -1242,6 +1373,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/bids/{id}/claim:
     post:
       operationId: claimBid
@@ -1260,6 +1393,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}:
     get:
       operationId: getSubject
@@ -1273,6 +1408,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/existing-token/prepare:
     post:
       operationId: prepareExistingTokenRevenueSubject
@@ -1289,6 +1426,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedRevenueSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/existing-token/confirm:
     post:
       operationId: confirmExistingTokenRevenueSubject
@@ -1305,6 +1444,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RevenueSubjectEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/deferred-autolaunch/prepare:
     post:
       operationId: prepareDeferredAutolaunch
@@ -1321,6 +1462,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedRevenueSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/deferred-autolaunch/confirm:
     post:
       operationId: confirmDeferredAutolaunch
@@ -1337,6 +1480,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RevenueSubjectEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/by-token/{token}:
     get:
       operationId: listSubjectsByToken
@@ -1350,6 +1495,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RevenueSubjectListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/ingress:
     get:
       operationId: getSubjectIngress
@@ -1363,6 +1510,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectIngressEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/staking:
     get:
       operationId: getSubjectStaking
@@ -1376,6 +1525,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectStakingEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/protocol-fee-settlements:
     get:
       operationId: listSubjectProtocolFeeSettlements
@@ -1389,6 +1540,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProtocolFeeSettlementListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/regent-emissions:
     get:
       operationId: listSubjectRegentEmissions
@@ -1402,6 +1555,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegentEmissionListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/stake:
     post:
       operationId: stakeSubject
@@ -1420,6 +1575,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/unstake:
     post:
       operationId: unstakeSubject
@@ -1438,6 +1595,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/claim-usdc:
     post:
       operationId: claimSubjectUsdc
@@ -1455,6 +1614,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/subjects/{id}/ingress/{address}/sweep:
     post:
       operationId: sweepSubjectIngress
@@ -1477,6 +1638,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/ens/link/plan:
     post:
       operationId: planEnsLink
@@ -1492,6 +1655,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/ens/link/prepare-ensip25:
     post:
       operationId: prepareEnsip25Link
@@ -1507,6 +1672,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/ens/link/prepare-erc8004:
     post:
       operationId: prepareErc8004Link
@@ -1522,6 +1689,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/ens/link/prepare-bidirectional:
     post:
       operationId: prepareBidirectionalEnsLink
@@ -1538,6 +1707,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/contracts/admin:
     get:
       operationId: getContractsAdminOverview
@@ -1549,6 +1720,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/contracts/jobs/{id}:
     get:
       operationId: getContractsJobOverview
@@ -1562,6 +1735,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/contracts/subjects/{id}:
     get:
       operationId: getContractsSubjectOverview
@@ -1575,6 +1750,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/contracts/jobs/{id}/{resource}/{action}/prepare:
     post:
       operationId: prepareJobContractAction
@@ -1594,6 +1771,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/contracts/subjects/{id}/{resource}/{action}/prepare:
     post:
       operationId: prepareSubjectContractAction
@@ -1613,6 +1792,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/app/contracts/admin/{resource}/{action}/prepare:
     post:
       operationId: prepareAdminContractAction
@@ -1636,6 +1817,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/agents:
     get:
       operationId: agentListAgents
@@ -1647,6 +1830,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/agents/{id}:
     get:
       operationId: agentGetAgent
@@ -1660,6 +1845,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/agents/{id}/readiness:
     get:
       operationId: agentGetAgentReadiness
@@ -1674,6 +1861,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AgentReadinessEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/trust/agents/{id}:
     get:
       operationId: agentGetAgentTrust
@@ -1692,6 +1881,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentTrustEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}:
     get:
       operationId: agentGetSubject
@@ -1705,6 +1896,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/existing-token/prepare:
     post:
       operationId: agentPrepareExistingTokenRevenueSubject
@@ -1721,6 +1914,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedRevenueSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/existing-token/confirm:
     post:
       operationId: agentConfirmExistingTokenRevenueSubject
@@ -1737,6 +1932,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RevenueSubjectEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/deferred-autolaunch/prepare:
     post:
       operationId: agentPrepareDeferredAutolaunch
@@ -1753,6 +1950,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedRevenueSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/deferred-autolaunch/confirm:
     post:
       operationId: agentConfirmDeferredAutolaunch
@@ -1769,6 +1968,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RevenueSubjectEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/by-token/{token}:
     get:
       operationId: agentListSubjectsByToken
@@ -1782,6 +1983,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RevenueSubjectListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/ingress:
     get:
       operationId: agentGetSubjectIngress
@@ -1795,6 +1998,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectIngressEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/staking:
     get:
       operationId: agentGetSubjectStaking
@@ -1808,6 +2013,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectStakingEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/protocol-fee-settlements:
     get:
       operationId: agentListSubjectProtocolFeeSettlements
@@ -1821,6 +2028,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProtocolFeeSettlementListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/regent-emissions:
     get:
       operationId: agentListSubjectRegentEmissions
@@ -1834,6 +2043,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RegentEmissionListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/accounting-tags:
     get:
       operationId: agentGetSubjectAccountingTags
@@ -1859,6 +2070,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubjectAccountingTagsEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/stake:
     post:
       operationId: agentStakeSubject
@@ -1877,6 +2090,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/unstake:
     post:
       operationId: agentUnstakeSubject
@@ -1895,6 +2110,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/claim-usdc:
     post:
       operationId: agentClaimSubjectUsdc
@@ -1912,6 +2129,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/subjects/{id}/ingress/{address}/sweep:
     post:
       operationId: agentSweepSubjectIngress
@@ -1934,6 +2153,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/plans:
     get:
       operationId: agentListPrelaunchPlans
@@ -1945,6 +2166,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
     post:
       operationId: agentCreatePrelaunchPlan
       tags: [prelaunch]
@@ -1960,6 +2183,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/plans/{id}:
     get:
       operationId: agentGetPrelaunchPlan
@@ -1973,6 +2198,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
     patch:
       operationId: agentUpdatePrelaunchPlan
       tags: [prelaunch]
@@ -1990,6 +2217,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/plans/{id}/validate:
     post:
       operationId: agentValidatePrelaunchPlan
@@ -2003,6 +2232,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/plans/{id}/publish:
     post:
       operationId: agentPublishPrelaunchPlan
@@ -2016,6 +2247,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanValidationEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/plans/{id}/launch:
     post:
       operationId: agentLaunchPrelaunchPlan
@@ -2033,6 +2266,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/assets:
     post:
       operationId: agentUploadPrelaunchAsset
@@ -2049,6 +2284,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchAssetEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/plans/{id}/metadata:
     post:
       operationId: agentSavePrelaunchMetadata
@@ -2067,6 +2304,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchPlanEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/prelaunch/plans/{id}/metadata-preview:
     get:
       operationId: agentGetPrelaunchMetadataPreview
@@ -2081,6 +2320,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PrelaunchMetadataPreviewEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/lifecycle/jobs/{id}:
     get:
       operationId: agentGetLifecycleJob
@@ -2094,6 +2335,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleJobEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/lifecycle/jobs/{id}/finalize/prepare:
     post:
       operationId: agentPrepareFinalizeLaunch
@@ -2107,6 +2350,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleFinalizeEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/lifecycle/jobs/{id}/finalize/register:
     post:
       operationId: agentRegisterFinalizeLaunch
@@ -2124,6 +2369,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LifecycleFinalizeRegisterEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/lifecycle/jobs/{id}/vesting:
     get:
       operationId: agentGetVestingStatus
@@ -2138,6 +2385,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/contracts/admin:
     get:
       operationId: agentGetContractsAdminOverview
@@ -2149,6 +2398,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/contracts/jobs/{id}:
     get:
       operationId: agentGetContractsJobOverview
@@ -2162,6 +2413,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/contracts/subjects/{id}:
     get:
       operationId: agentGetContractsSubjectOverview
@@ -2175,6 +2428,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/contracts/jobs/{id}/{resource}/{action}/prepare:
     post:
       operationId: agentPrepareJobContractAction
@@ -2194,6 +2449,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/contracts/subjects/{id}/{resource}/{action}/prepare:
     post:
       operationId: agentPrepareSubjectContractAction
@@ -2213,6 +2470,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedActionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/contracts/admin/{resource}/{action}/prepare:
     post:
       operationId: agentPrepareAdminContractAction
@@ -2236,6 +2495,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/launch/preview:
     post:
       operationId: agentPreviewLaunch
@@ -2252,6 +2513,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchPreviewEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/launch/jobs:
     post:
       operationId: agentCreateLaunchJob
@@ -2268,6 +2531,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/launch/jobs/{id}:
     get:
       operationId: agentGetLaunchJob
@@ -2282,6 +2547,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LaunchJobEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/auctions:
     get:
       operationId: agentListAuctions
@@ -2304,6 +2571,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionListEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/auction-returns:
     get:
       operationId: agentListAuctionReturns
@@ -2325,6 +2594,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionReturnsEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/auctions/{id}:
     get:
       operationId: agentGetAuction
@@ -2338,6 +2609,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/auctions/{id}/bid_quote:
     post:
       operationId: agentQuoteAuctionBid
@@ -2356,6 +2629,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuctionBidQuoteEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/auctions/{id}/bids:
     post:
       operationId: agentCreateAuctionBid
@@ -2374,6 +2649,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/bids/{id}/return-usdc:
     post:
       operationId: agentReturnBidUsdc
@@ -2391,6 +2668,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/bids/{id}/exit:
     post:
       operationId: agentExitBid
@@ -2408,6 +2687,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/bids/{id}/claim:
     post:
       operationId: agentClaimBid
@@ -2426,6 +2707,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/ens/link/plan:
     post:
       operationId: agentPlanEnsLink
@@ -2442,6 +2725,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/ens/link/prepare-ensip25:
     post:
       operationId: agentPrepareEnsip25Link
@@ -2458,6 +2743,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/ens/link/prepare-erc8004:
     post:
       operationId: agentPrepareErc8004Link
@@ -2474,6 +2761,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
   /v1/agent/ens/link/prepare-bidirectional:
     post:
       operationId: agentPrepareBidirectionalEnsLink
@@ -2491,6 +2780,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LooseObject" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
 components:
   securitySchemes:
     PrivyBearerToken:
@@ -2591,6 +2882,18 @@ components:
         Canonical contract action. Settlement actions include `migrate`,
         `recover_failed_auction`, `sweep_currency`, `sweep_unsold_tokens`,
         `accept_ownership`, `sweep_token`, `release`, and `pull_treasury_share`.
+  responses:
+    RateLimitError:
+      description: Too many requests
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/RateLimitedError" }
   schemas:
     Address:
       type: string

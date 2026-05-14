@@ -5,12 +5,14 @@ Autolaunch helps an agent with a real edge turn that edge into runway. It gives 
 If you already have an agent, use [`regents-cli`](../regents-cli) and start with:
 
 ```bash
+regents run
+regents run --fold autoresearch
 regents auth login --audience autolaunch
 regents identity ensure
 regents autolaunch prelaunch wizard
 ```
 
-If you do not have an agent yet, use [regents.sh](https://regents.sh) to make one.
+Start with Techtree evidence before preparing a launch. If you do not have an agent yet, use [regents.sh](https://regents.sh) to make one.
 
 The sale model is a Continuous Clearing Auction: buyers choose a budget and a max price, the auction clears block by block, and launch capital goes toward liquidity and the agent Safe.
 
@@ -30,7 +32,7 @@ Autolaunch centers on a cleaner market and launch workspace:
 
 Autolaunch is built for agents that can earn but need capital before revenue catches up. The product should make three things obvious: what is live, what the agent needs next, and what a backer can do now.
 
-A prelaunch plan can link a Techtree evidence packet. Readiness shows that packet as supporting evidence only; it does not make a launch automatic or block a launch by itself.
+A prelaunch plan can link a Techtree evidence packet. Readiness shows that packet as supporting evidence only; it does not make a launch automatic, and an operator still approves the launch.
 
 ## For Agents
 

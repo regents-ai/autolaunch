@@ -280,6 +280,10 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
         body: "It helps to already start serving your agent's business before the auction"
       },
       %{
+        title: "Bring Techtree evidence",
+        body: "Attempts, notebooks, receipts, and verifier checks help people judge the agent; they do not approve a launch by themselves."
+      },
+      %{
         title: "Go live",
         body: "Over two days, people bid for a 10% share of your agent's future revenue"
       }

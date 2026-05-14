@@ -1397,3 +1397,178 @@
 #al-launch-page .al-launch-command-token.is-scope {
   color: #bdf7d2;
 }
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(#al-launch-page, #al-docs-page) :is(
+  .al-route-hero,
+  .al-docs-masthead,
+  .al-legal-hero,
+  .al-launch-console-strip,
+  .al-launch-checklist-card,
+  .al-launch-path-card,
+  .al-launch-metadata-card,
+  .al-launch-preview-card,
+  .al-launch-companion-empty,
+  .al-launch-footnote-strip,
+  .al-launch-checklist-item,
+  .al-launch-agent-guide,
+  .al-guide-hero,
+  .al-guide-summary,
+  .al-legal-card,
+  .al-legal-footer,
+  .al-contract-card,
+  .al-docs-feature-card,
+  .al-empty-state,
+  .al-disclosure-summary,
+  .al-guide-step,
+  .al-guide-step-callout
+) {
+  border-color: rgba(123, 232, 216, 0.13);
+  background:
+    radial-gradient(
+      ellipse 110% 70% at 68% 0%,
+      rgba(104, 220, 200, 0.18) 0%,
+      transparent 56%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(8, 27, 30, 0.9) 0%,
+      rgba(3, 11, 15, 0.96) 100%
+    );
+  color: var(--text-primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 20px 52px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(#al-launch-page, #al-docs-page) :is(
+  .al-route-hero,
+  .al-docs-masthead,
+  .al-legal-hero,
+  .al-launch-console-strip,
+  .al-launch-footnote-strip
+) {
+  border-color: rgba(123, 232, 216, 0.16);
+  background:
+    radial-gradient(
+      ellipse 118% 76% at 74% 0%,
+      rgba(104, 220, 200, 0.2) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 92% 70% at 88% 96%,
+      rgba(244, 194, 155, 0.08) 0%,
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(8, 27, 30, 0.92) 0%,
+      rgba(3, 11, 15, 0.97) 100%
+    );
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(#al-launch-page, #al-docs-page) :is(
+  .al-submit,
+  .al-cta-link
+) {
+  min-height: 56px;
+  border-radius: 14px;
+  border-color: rgba(183, 255, 235, 0.46);
+  background:
+    radial-gradient(
+      ellipse 115% 110% at 88% 48%,
+      rgba(216, 255, 241, 0.62) 0%,
+      rgba(141, 245, 222, 0.38) 22%,
+      rgba(31, 94, 88, 0.26) 48%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 90% 80% at 78% 76%,
+      rgba(244, 194, 155, 0.3) 0%,
+      transparent 58%
+    ),
+    linear-gradient(
+      100deg,
+      rgba(16, 72, 68, 0.96) 0%,
+      rgba(26, 91, 84, 0.94) 48%,
+      rgba(77, 145, 128, 0.88) 100%
+    );
+  color: var(--text-primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 0 28px rgba(104, 220, 200, 0.22),
+    0 10px 24px rgba(0, 0, 0, 0.42);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(#al-launch-page, #al-docs-page) .al-ghost {
+  min-height: 50px;
+  border-radius: 12px;
+  border-color: rgba(123, 232, 216, 0.13);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10, 25, 28, 0.96) 0%,
+      rgba(4, 13, 17, 0.98) 100%
+    );
+  color: var(--text-aqua);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] #al-launch-page .al-launch-command-bar {
+  border-color: rgba(123, 232, 216, 0.16);
+  background:
+    radial-gradient(
+      ellipse 100% 90% at 92% 18%,
+      rgba(216, 255, 241, 0.18) 0%,
+      transparent 50%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(6, 17, 20, 0.98) 0%,
+      rgba(2, 7, 10, 0.98) 100%
+    );
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(#al-launch-page, #al-docs-page) :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  strong,
+  .al-route-hero h1,
+  .al-docs-masthead h1,
+  .al-legal-hero h2
+) {
+  color: var(--text-primary);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(#al-launch-page, #al-docs-page) :is(
+  p,
+  span,
+  small,
+  label,
+  .al-kicker,
+  .al-launch-checklist-copy p,
+  .al-launch-next-action p,
+  .al-launch-agent-guide p,
+  .al-launch-path-list p,
+  .al-launch-console-steps p,
+  .al-docs-feature-copy p,
+  .al-legal-card p,
+  .al-legal-footer p
+) {
+  color: var(--text-secondary);
+}
+
+:root[data-brand="autolaunch"][data-theme="dark"] :is(#al-launch-page, #al-docs-page) :is(
+  .al-docs-feature-link,
+  .al-launch-preview-copy a,
+  a
+) {
+  color: var(--text-aqua);
+}
