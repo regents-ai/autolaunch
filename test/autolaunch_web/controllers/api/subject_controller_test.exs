@@ -436,6 +436,15 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
   test "confirm-existing-token persists the onchain subject event", %{conn: conn} do
     tx_hash = "0x" <> String.duplicate("e", 64)
 
+    Process.put(:fake_rpc_transaction, %{
+      transaction_hash: tx_hash,
+      from: @wallet,
+      to: @existing_factory,
+      input: "0x",
+      value: "0x0",
+      block_number: 99
+    })
+
     Process.put(:fake_rpc_receipt, %{
       transaction_hash: tx_hash,
       status: 1,
@@ -497,8 +506,130 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
            } = json_response(conn, 200)
   end
 
+  test "confirm-existing-token rejects a creation from another wallet", %{conn: conn} do
+    tx_hash = "0x" <> String.duplicate("1", 64)
+    other_wallet = "0x2222222222222222222222222222222222222222"
+
+    Process.put(:fake_rpc_transaction, %{
+      transaction_hash: tx_hash,
+      from: other_wallet,
+      to: @existing_factory,
+      input: "0x",
+      value: "0x0",
+      block_number: 99
+    })
+
+    Process.put(:fake_rpc_receipt, %{
+      transaction_hash: tx_hash,
+      status: 1,
+      from: other_wallet,
+      to: @existing_factory,
+      logs: [
+        %{
+          address: @existing_factory,
+          topics: [
+            @existing_token_created_topic0,
+            @existing_subject_id,
+            encode_topic_address(@token),
+            encode_topic_address(@splitter)
+          ],
+          data:
+            encode_existing_subject_created_data(other_wallet, @treasury, 1000, "Atlas revenue"),
+          block_number: 99,
+          transaction_hash: tx_hash,
+          log_index: 2
+        }
+      ]
+    })
+
+    conn = post(conn, "/v1/app/subjects/existing-token/confirm", %{"tx_hash" => tx_hash})
+
+    assert %{"ok" => false, "error" => %{"code" => "subject_forbidden"}} =
+             json_response(conn, 403)
+  end
+
+  test "confirm-existing-token rejects a transaction sent to another target", %{conn: conn} do
+    tx_hash = "0x" <> String.duplicate("2", 64)
+    other_target = "0x2323232323232323232323232323232323232323"
+
+    Process.put(:fake_rpc_transaction, %{
+      transaction_hash: tx_hash,
+      from: @wallet,
+      to: other_target,
+      input: "0x",
+      value: "0x0",
+      block_number: 99
+    })
+
+    Process.put(:fake_rpc_receipt, %{
+      transaction_hash: tx_hash,
+      status: 1,
+      from: @wallet,
+      to: other_target,
+      logs: []
+    })
+
+    conn = post(conn, "/v1/app/subjects/existing-token/confirm", %{"tx_hash" => tx_hash})
+
+    assert %{"ok" => false, "error" => %{"code" => "transaction_target_mismatch"}} =
+             json_response(conn, 403)
+  end
+
+  test "confirm-existing-token rejects a creator that differs from the signed wallet", %{
+    conn: conn
+  } do
+    tx_hash = "0x" <> String.duplicate("3", 64)
+    other_wallet = "0x2424242424242424242424242424242424242424"
+
+    Process.put(:fake_rpc_transaction, %{
+      transaction_hash: tx_hash,
+      from: @wallet,
+      to: @existing_factory,
+      input: "0x",
+      value: "0x0",
+      block_number: 99
+    })
+
+    Process.put(:fake_rpc_receipt, %{
+      transaction_hash: tx_hash,
+      status: 1,
+      from: @wallet,
+      to: @existing_factory,
+      logs: [
+        %{
+          address: @existing_factory,
+          topics: [
+            @existing_token_created_topic0,
+            @existing_subject_id,
+            encode_topic_address(@token),
+            encode_topic_address(@splitter)
+          ],
+          data:
+            encode_existing_subject_created_data(other_wallet, @treasury, 1000, "Atlas revenue"),
+          block_number: 99,
+          transaction_hash: tx_hash,
+          log_index: 2
+        }
+      ]
+    })
+
+    conn = post(conn, "/v1/app/subjects/existing-token/confirm", %{"tx_hash" => tx_hash})
+
+    assert %{"ok" => false, "error" => %{"code" => "subject_forbidden"}} =
+             json_response(conn, 403)
+  end
+
   test "confirm-deferred-autolaunch persists the created token and vesting wallet", %{conn: conn} do
     tx_hash = "0x" <> String.duplicate("f", 64)
+
+    Process.put(:fake_rpc_transaction, %{
+      transaction_hash: tx_hash,
+      from: @wallet,
+      to: @deferred_factory,
+      input: "0x",
+      value: "0x0",
+      block_number: 101
+    })
 
     Process.put(:fake_rpc_receipt, %{
       transaction_hash: tx_hash,
@@ -551,7 +682,10 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
 
     assert %{
              "ok" => false,
-             "error" => %{"code" => "auth_required", "message" => "Connect a wallet first"}
+             "error" => %{
+               "code" => "auth_required",
+               "message" => "Signed agent or connected wallet required"
+             }
            } = json_response(conn, 401)
   end
 

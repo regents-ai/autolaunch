@@ -148,6 +148,7 @@ defmodule AutolaunchWeb.Router do
     get "/agent-pairings/:id", AgentPairingController, :show
 
     AutolaunchWeb.ApiRoutes.product_api_routes(
+      include_regent_staking_routes?: true,
       include_app_staking_prepare?: true,
       include_human_browser_routes?: true
     )

@@ -55,6 +55,16 @@ defmodule Autolaunch.LaunchDeployCommandTest do
 
     assert {:error, "Missing CCA final block basis points.", %{stdout_tail: "", stderr_tail: ""}} =
              DeployCommand.build(job(), config)
+
+    config = Keyword.put(launch_config(), :auction_duration_blocks, "12")
+
+    assert {:error, "Invalid auction duration.", %{stdout_tail: "", stderr_tail: ""}} =
+             DeployCommand.build(job(), config)
+
+    config = Keyword.put(launch_config(), :cca_prebid_blocks, "1099511627776")
+
+    assert {:error, "Invalid CCA prebid blocks.", %{stdout_tail: "", stderr_tail: ""}} =
+             DeployCommand.build(job(), config)
   end
 
   test "build leaves identity env blank when the registry is not configured" do

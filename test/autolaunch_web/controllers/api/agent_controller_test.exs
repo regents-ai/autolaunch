@@ -53,9 +53,29 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
     end
   end
 
+  defmodule PrelaunchStub do
+    def supporting_evidence_for_agent("84532:42", _actor) do
+      {:ok,
+       [
+         %{
+           kind: "techtree_evidence_packet",
+           label: "Techtree evidence",
+           ref: "techtree:fold:evidence:agent:42",
+           source: "techtree"
+         }
+       ]}
+    end
+
+    def supporting_evidence_for_agent(_agent_id, _actor), do: {:ok, []}
+  end
+
   setup %{conn: conn} do
     original = Application.get_env(:autolaunch, :agent_controller, [])
-    Application.put_env(:autolaunch, :agent_controller, launch_module: LaunchStub)
+
+    Application.put_env(:autolaunch, :agent_controller,
+      launch_module: LaunchStub,
+      prelaunch_module: PrelaunchStub
+    )
 
     on_exit(fn ->
       Application.put_env(:autolaunch, :agent_controller, original)
@@ -87,6 +107,22 @@ defmodule AutolaunchWeb.Api.AgentControllerTest do
              "ok" => true,
              "launch_eligible" => false,
              "launch_blockers" => ["Launch is already in progress."]
+           } = json_response(conn, 200)
+  end
+
+  test "readiness includes Techtree evidence as supporting evidence", %{conn: conn, human: human} do
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    conn = get(conn, "/v1/app/agents/84532:42/readiness")
+
+    assert %{
+             "ok" => true,
+             "supporting_evidence" => [
+               %{
+                 "kind" => "techtree_evidence_packet",
+                 "ref" => "techtree:fold:evidence:agent:42",
+                 "source" => "techtree"
+               }
+             ]
            } = json_response(conn, 200)
   end
 

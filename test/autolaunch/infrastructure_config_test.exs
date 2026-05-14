@@ -67,14 +67,44 @@ defmodule Autolaunch.InfrastructureConfigTest do
   end
 
   test "validates launch script integer ranges" do
-    Application.put_env(:autolaunch, :launch, cca_final_block_bps: "4000")
+    uint40_max = 1_099_511_627_775
+
+    Application.put_env(:autolaunch, :launch,
+      auction_duration_blocks: "13",
+      cca_prebid_blocks: Integer.to_string(uint40_max),
+      cca_final_block_bps: "4000"
+    )
+
+    assert InfrastructureConfig.valid_script_input?(
+             :auction_duration_blocks,
+             {:integer, min: 13, max: uint40_max}
+           )
+
+    assert InfrastructureConfig.valid_script_input?(
+             :cca_prebid_blocks,
+             {:integer, min: 0, max: uint40_max}
+           )
 
     assert InfrastructureConfig.valid_script_input?(
              :cca_final_block_bps,
              {:integer, min: 2_000, max: 4_000}
            )
 
-    Application.put_env(:autolaunch, :launch, cca_final_block_bps: "4001")
+    Application.put_env(:autolaunch, :launch,
+      auction_duration_blocks: "12",
+      cca_prebid_blocks: Integer.to_string(uint40_max + 1),
+      cca_final_block_bps: "4001"
+    )
+
+    refute InfrastructureConfig.valid_script_input?(
+             :auction_duration_blocks,
+             {:integer, min: 13, max: uint40_max}
+           )
+
+    refute InfrastructureConfig.valid_script_input?(
+             :cca_prebid_blocks,
+             {:integer, min: 0, max: uint40_max}
+           )
 
     refute InfrastructureConfig.valid_script_input?(
              :cca_final_block_bps,

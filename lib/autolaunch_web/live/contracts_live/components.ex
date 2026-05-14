@@ -96,8 +96,8 @@ defmodule AutolaunchWeb.ContractsLive.Components do
         <div><span>Expires</span><strong>{@prepared.wallet_action.expires_at}</strong></div>
       </div>
       <div class="al-action-row">
-        <button type="button" class="al-submit" data-copy-value={Jason.encode!(@prepared.wallet_action)}>Copy tx JSON</button>
-        <button type="button" class="al-ghost" data-copy-value={@prepared.wallet_action.data}>Copy calldata</button>
+        <button type="button" class="al-submit" data-copy-value={Jason.encode!(@prepared.wallet_action)}>Copy signing request</button>
+        <button type="button" class="al-ghost" data-copy-value={@prepared.wallet_action.data}>Copy transaction data</button>
       </div>
       <pre class="al-contract-json"><code>{Jason.encode!(@prepared, pretty: true)}</code></pre>
     </article>

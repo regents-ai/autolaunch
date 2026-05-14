@@ -134,12 +134,19 @@ defmodule Autolaunch.Revenue.Subjects do
   end
 
   def confirm_existing_token_subject(attrs, current_actor) do
-    with {:ok, _signer} <- signer_for(current_actor),
+    with {:ok, signer} <- signer_for(current_actor),
          {:ok, chain_id} <- InfrastructureConfig.launch_chain_id(),
          {:ok, factory} <- configured_factory(:existing_token_revenue_factory_address),
          {:ok, tx_hash} <- transaction_hash(attrs),
+         {:ok, tx} <- confirmed_transaction(chain_id, tx_hash),
+         :ok <- validate_transaction_sender(tx, signer),
+         :ok <- validate_transaction_target(tx, factory),
          {:ok, receipt} <- confirmed_receipt(chain_id, tx_hash),
+         :ok <- validate_transaction_hash(receipt, tx_hash),
+         :ok <- validate_transaction_sender(receipt, signer),
+         :ok <- validate_transaction_target(receipt, factory),
          {:ok, decoded} <- decode_existing_token_created(receipt, factory),
+         :ok <- validate_event_creator(decoded.creator, signer),
          {:ok, subject} <-
            upsert_revenue_subject(%{
              subject_id: decoded.subject_id,
@@ -167,12 +174,19 @@ defmodule Autolaunch.Revenue.Subjects do
   end
 
   def confirm_deferred_autolaunch(attrs, current_actor) do
-    with {:ok, _signer} <- signer_for(current_actor),
+    with {:ok, signer} <- signer_for(current_actor),
          {:ok, chain_id} <- InfrastructureConfig.launch_chain_id(),
          {:ok, factory} <- configured_factory(:deferred_autolaunch_factory_address),
          {:ok, tx_hash} <- transaction_hash(attrs),
+         {:ok, tx} <- confirmed_transaction(chain_id, tx_hash),
+         :ok <- validate_transaction_sender(tx, signer),
+         :ok <- validate_transaction_target(tx, factory),
          {:ok, receipt} <- confirmed_receipt(chain_id, tx_hash),
+         :ok <- validate_transaction_hash(receipt, tx_hash),
+         :ok <- validate_transaction_sender(receipt, signer),
+         :ok <- validate_transaction_target(receipt, factory),
          {:ok, decoded} <- decode_deferred_autolaunch_created(receipt, factory),
+         :ok <- validate_event_creator(decoded.creator, signer),
          {:ok, subject} <-
            upsert_revenue_subject(%{
              subject_id: decoded.subject_id,
@@ -303,6 +317,55 @@ defmodule Autolaunch.Revenue.Subjects do
       {:ok, %{status: 1} = receipt} -> {:ok, receipt}
       {:ok, _receipt} -> {:error, :transaction_receipt_unavailable}
       {:error, _reason} -> {:error, :transaction_receipt_unavailable}
+    end
+  end
+
+  defp confirmed_transaction(chain_id, tx_hash) do
+    case Rpc.tx_by_hash(chain_id, tx_hash) do
+      {:ok, %{block_number: block_number} = tx} when not is_nil(block_number) -> {:ok, tx}
+      {:ok, nil} -> {:error, :transaction_receipt_unavailable}
+      {:ok, _tx} -> {:error, :transaction_pending}
+      {:error, _reason} -> {:error, :transaction_receipt_unavailable}
+    end
+  end
+
+  defp validate_transaction_hash(record, tx_hash) do
+    case normalized_hash_field(record, :transaction_hash) do
+      nil -> :ok
+      ^tx_hash -> :ok
+      _other -> {:error, :transaction_receipt_unavailable}
+    end
+  end
+
+  defp validate_transaction_sender(record, signer) do
+    if normalized_address_field(record, :from) == Evm.normalize_address(signer),
+      do: :ok,
+      else: {:error, :forbidden}
+  end
+
+  defp validate_transaction_target(record, target) do
+    if normalized_address_field(record, :to) == Evm.normalize_address(target),
+      do: :ok,
+      else: {:error, :transaction_target_mismatch}
+  end
+
+  defp validate_event_creator(creator, signer) do
+    if Evm.normalize_address(creator) == Evm.normalize_address(signer),
+      do: :ok,
+      else: {:error, :forbidden}
+  end
+
+  defp normalized_hash_field(record, field) do
+    case Map.get(record, field) || Map.get(record, Atom.to_string(field)) do
+      value when is_binary(value) -> String.downcase(value)
+      _ -> nil
+    end
+  end
+
+  defp normalized_address_field(record, field) do
+    case Map.get(record, field) || Map.get(record, Atom.to_string(field)) do
+      value when is_binary(value) -> Evm.normalize_address(value)
+      _ -> nil
     end
   end
 

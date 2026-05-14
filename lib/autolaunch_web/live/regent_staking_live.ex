@@ -149,7 +149,7 @@ defmodule AutolaunchWeb.RegentStakingLive do
                     <span class="al-regent-mark" aria-hidden="true">⋰</span> Staking Console
                   </p>
                   <h1>
-                    Stake to earn your pro-rata split of all Regents revenue across all apps
+                    Stake $REGENT and review available rewards across Regents apps
                   </h1>
                   <p>
                     Platform and Autolaunch show the same staking pool, the same reward claims,

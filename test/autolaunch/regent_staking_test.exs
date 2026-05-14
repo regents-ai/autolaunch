@@ -142,7 +142,7 @@ defmodule Autolaunch.RegentStakingTest do
              )
   end
 
-  test "stake uses the configured staking chain id", %{human: human} do
+  test "stake rejects unsupported staking chain ids", %{human: human} do
     Application.put_env(
       :autolaunch,
       :regent_staking,
@@ -152,8 +152,21 @@ defmodule Autolaunch.RegentStakingTest do
       contract_address: @contract
     )
 
+    assert {:error, :invalid_chain_id} = RegentStaking.stake(%{"amount" => "1.5"}, human)
+  end
+
+  test "stake accepts Base mainnet as a supported staking chain id", %{human: human} do
+    Application.put_env(
+      :autolaunch,
+      :regent_staking,
+      chain_id: @base_chain_id,
+      rpc_url: "https://base.example",
+      contract_address: @contract
+    )
+
     assert {:ok, %{prepared: prepared}} = RegentStaking.stake(%{"amount" => "1.5"}, human)
-    assert prepared.wallet_action.chain_id == 12_345
+    assert prepared.chain_id == @base_chain_id
+    assert prepared.wallet_action.chain_id == @base_chain_id
   end
 
   test "prepare_deposit_usdc encodes ascii source tags and refs" do

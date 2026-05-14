@@ -46,4 +46,31 @@ defmodule Autolaunch.PrelaunchTest do
                human
              )
   end
+
+  test "supporting evidence lists Techtree evidence references for the agent", %{human: human} do
+    %Plan{}
+    |> Plan.create_changeset(%{
+      plan_id: "plan_techtree_evidence",
+      privy_user_id: human.privy_user_id,
+      state: "draft",
+      agent_id: "84532:42",
+      chain_id: 84_532,
+      token_name: "Atlas Coin",
+      token_symbol: "ATLAS",
+      agent_safe_address: "0x1111111111111111111111111111111111111111",
+      techtree_evidence_packet_ref: "techtree:fold:evidence:agent:42",
+      metadata_draft: %{}
+    })
+    |> Repo.insert!()
+
+    assert {:ok,
+            [
+              %{
+                kind: "techtree_evidence_packet",
+                label: "Techtree evidence",
+                ref: "techtree:fold:evidence:agent:42",
+                source: "techtree"
+              }
+            ]} = Prelaunch.supporting_evidence_for_agent("84532:42", human)
+  end
 end

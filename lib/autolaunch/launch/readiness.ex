@@ -1,16 +1,8 @@
 defmodule Autolaunch.Launch.Readiness do
   @moduledoc false
 
-  import Ecto.Query, warn: false
-
   alias Autolaunch.InfrastructureConfig
-  alias Autolaunch.Launch.External.IronspriteAgent
-  alias Autolaunch.Launch.External.LifecycleRun
-  alias Autolaunch.Launch.External.RegentbotAgent
-  alias Autolaunch.Launch.External.SocialAccount
-  alias Autolaunch.Launch.External.TokenLaunch
-  alias Autolaunch.Launch.External.TokenLaunchStake
-  alias Autolaunch.Repo
+  alias Autolaunch.Launch.Readiness.Policy
 
   @blocking_check_keys ~w(
     ownerAuthorized
@@ -38,143 +30,87 @@ defmodule Autolaunch.Launch.Readiness do
     vesting_beneficiary = normalize_address(Map.get(args, :vesting_beneficiary))
     beneficiary_confirmed = Map.get(args, :beneficiary_confirmed) == true
 
-    try do
-      now = DateTime.utc_now()
-      health_cutoff = DateTime.add(now, -(24 * 60 * 60), :second)
+    policy_args = %{
+      owner_address: owner_address,
+      agent_id: agent_id,
+      lifecycle_run_id: lifecycle_run_id
+    }
 
-      regentbot_match =
-        Repo.exists?(
-          from agent in RegentbotAgent,
-            where: agent.owner_address == ^owner_address and agent.agent_id == ^agent_id
-        )
+    case Policy.fetch(policy_args) do
+      {:ok, policy} ->
+        owner_authorized =
+          InfrastructureConfig.launch_value(:allow_unverified_owner) or
+            Map.get(policy, :owner_authorized, false)
 
-      ironsprite_match =
-        Repo.exists?(
-          from agent in IronspriteAgent,
-            where: agent.owner_address == ^owner_address and agent.agent_id == ^agent_id
-        )
+        prior_success = Map.get(policy, :prior_successful_launch, false)
+        lifecycle_completed = Map.get(policy, :lifecycle_completed, false)
+        healthy_agent = Map.get(policy, :healthy_agent_within_24h, false)
+        x_verified = Map.get(policy, :x_verified, false)
+        stake_lock_id = Map.get(policy, :active_stake_lock_id)
 
-      prior_success =
-        Repo.exists?(
-          from launch in TokenLaunch,
-            where: launch.owner_address == ^owner_address and launch.launch_status == "succeeded"
-        )
+        resolved_lifecycle_run_id =
+          Map.get(policy, :resolved_lifecycle_run_id) || lifecycle_run_id
 
-      lifecycle_run_query =
-        from run in LifecycleRun,
-          where:
-            run.owner_address == ^owner_address and run.agent_id == ^agent_id and
-              run.state == "completed",
-          order_by: [desc: run.updated_at],
-          limit: 1
+        checks = [
+          %{
+            key: "ownerAuthorized",
+            passed: owner_authorized,
+            message: "Owner must control this agent in Regentbot or Ironsprite."
+          },
+          %{
+            key: "noPriorSuccessfulLaunch",
+            passed: not prior_success,
+            message: "Only one successful CCA launch is allowed per owner."
+          },
+          %{
+            key: "lifecycleCompleted",
+            passed: lifecycle_completed,
+            message: "A completed lifecycle run is required for this agent."
+          },
+          %{
+            key: "healthyAgentWithin24h",
+            passed: healthy_agent,
+            message: "Agent health must be green within the last 24 hours."
+          },
+          %{
+            key: "xVerified",
+            passed: x_verified,
+            message: "An X account can be attached later as an optional public trust signal."
+          },
+          %{
+            key: "stakeLockActive",
+            passed: not is_nil(stake_lock_id),
+            message: "An active REGENT stake lock is required before launch."
+          },
+          %{
+            key: "beneficiaryAddressValid",
+            passed: valid_hex_address?(vesting_beneficiary),
+            message: "Provide a valid vesting beneficiary address."
+          },
+          %{
+            key: "beneficiaryConfirmed",
+            passed: beneficiary_confirmed,
+            message: "Explicitly confirm the beneficiary before queueing launch."
+          }
+        ]
 
-      lifecycle_run_query =
-        if lifecycle_run_id do
-          from run in lifecycle_run_query, where: run.run_id == ^lifecycle_run_id
-        else
-          lifecycle_run_query
-        end
+        ready_to_launch =
+          Enum.all?(checks, fn check ->
+            check.passed or check.key not in @blocking_check_keys
+          end)
 
-      lifecycle_run = Repo.one(lifecycle_run_query)
+        blocking = blocking_error(checks)
 
-      healthy_agent =
-        Repo.exists?(
-          from agent in IronspriteAgent,
-            where:
-              agent.owner_address == ^owner_address and agent.agent_id == ^agent_id and
-                agent.status == "active" and not is_nil(agent.last_health_check_at) and
-                agent.last_health_check_at >= ^health_cutoff
-        )
-
-      x_verified =
-        Repo.exists?(
-          from account in SocialAccount,
-            where:
-              account.owner_address == ^owner_address and account.agent_id == ^agent_id and
-                account.provider == "x" and account.status == "verified" and
-                not is_nil(account.verified_at)
-        )
-
-      active_stake =
-        Repo.one(
-          from stake in TokenLaunchStake,
-            where:
-              stake.owner_address == ^owner_address and stake.status == "active" and
-                stake.unlock_at >= ^now,
-            order_by: [desc: stake.unlock_at],
-            limit: 1
-        )
-
-      owner_authorized =
-        InfrastructureConfig.launch_value(:allow_unverified_owner) or regentbot_match or
-          ironsprite_match
-
-      checks = [
         %{
-          key: "ownerAuthorized",
-          passed: owner_authorized,
-          message: "Owner must control this agent in Regentbot or Ironsprite."
-        },
-        %{
-          key: "noPriorSuccessfulLaunch",
-          passed: not prior_success,
-          message: "Only one successful CCA launch is allowed per owner."
-        },
-        %{
-          key: "lifecycleCompleted",
-          passed: not is_nil(lifecycle_run),
-          message: "A completed lifecycle run is required for this agent."
-        },
-        %{
-          key: "healthyAgentWithin24h",
-          passed: healthy_agent,
-          message: "Agent health must be green within the last 24 hours."
-        },
-        %{
-          key: "xVerified",
-          passed: x_verified,
-          message: "An X account can be attached later as an optional public trust signal."
-        },
-        %{
-          key: "stakeLockActive",
-          passed: not is_nil(active_stake),
-          message: "An active REGENT stake lock is required before launch."
-        },
-        %{
-          key: "beneficiaryAddressValid",
-          passed: valid_hex_address?(vesting_beneficiary),
-          message: "Provide a valid vesting beneficiary address."
-        },
-        %{
-          key: "beneficiaryConfirmed",
-          passed: beneficiary_confirmed,
-          message: "Explicitly confirm the beneficiary before queueing launch."
+          ready_to_launch: ready_to_launch,
+          resolved_lifecycle_run_id: resolved_lifecycle_run_id,
+          stake_lock_id: stake_lock_id,
+          blocking_status_code: if(ready_to_launch, do: nil, else: blocking.status_code),
+          blocking_status_message: if(ready_to_launch, do: nil, else: blocking.status_message),
+          checks: checks
         }
-      ]
 
-      ready_to_launch =
-        Enum.all?(checks, fn check ->
-          check.passed or check.key not in @blocking_check_keys
-        end)
-
-      blocking = blocking_error(checks)
-
-      %{
-        ready_to_launch: ready_to_launch,
-        resolved_lifecycle_run_id: lifecycle_run && lifecycle_run.run_id,
-        stake_lock_id: active_stake && active_stake.lock_id,
-        blocking_status_code: if(ready_to_launch, do: nil, else: blocking.status_code),
-        blocking_status_message: if(ready_to_launch, do: nil, else: blocking.status_message),
-        checks: checks
-      }
-    rescue
-      Ecto.QueryError ->
-        degraded_result(agent_id, lifecycle_run_id, vesting_beneficiary, beneficiary_confirmed)
-
-      Postgrex.Error ->
-        degraded_result(agent_id, lifecycle_run_id, vesting_beneficiary, beneficiary_confirmed)
-
-      DBConnection.ConnectionError ->
+      {:error, _reason} ->
         degraded_result(agent_id, lifecycle_run_id, vesting_beneficiary, beneficiary_confirmed)
     end
   end

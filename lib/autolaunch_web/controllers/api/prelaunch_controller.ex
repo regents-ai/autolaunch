@@ -7,23 +7,23 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
   import AutolaunchWeb.Api.ControllerHelpers
 
   def index(conn, _params) do
-    render_result(conn, context_module().list_plans(conn.assigns[:current_human]), :plans)
+    render_result(conn, context_module().list_plans(current_actor(conn)), :plans)
   end
 
   def create(conn, params) do
-    render_result(conn, context_module().create_plan(params, conn.assigns[:current_human]), :plan,
+    render_result(conn, context_module().create_plan(params, current_actor(conn)), :plan,
       status: :created
     )
   end
 
   def show(conn, %{"id" => plan_id}) do
-    render_result(conn, context_module().get_plan(plan_id, conn.assigns[:current_human]), :plan)
+    render_result(conn, context_module().get_plan(plan_id, current_actor(conn)), :plan)
   end
 
   def update(conn, %{"id" => plan_id} = params) do
     render_result(
       conn,
-      context_module().update_plan(plan_id, params, conn.assigns[:current_human]),
+      context_module().update_plan(plan_id, params, current_actor(conn)),
       :plan
     )
   end
@@ -31,7 +31,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
   def validate(conn, %{"id" => plan_id}) do
     render_result(
       conn,
-      context_module().validate_plan(plan_id, conn.assigns[:current_human]),
+      context_module().validate_plan(plan_id, current_actor(conn)),
       nil
     )
   end
@@ -39,7 +39,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
   def publish(conn, %{"id" => plan_id}) do
     render_result(
       conn,
-      context_module().publish_plan(plan_id, conn.assigns[:current_human]),
+      context_module().publish_plan(plan_id, current_actor(conn)),
       nil
     )
   end
@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
       context_module().launch_plan(
         plan_id,
         params,
-        conn.assigns[:current_human],
+        current_actor(conn),
         ClientIp.from_conn(conn)
       ),
       nil
@@ -60,7 +60,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
   def upload_asset(conn, params) do
     render_result(
       conn,
-      context_module().upload_asset(params, conn.assigns[:current_human]),
+      context_module().upload_asset(params, current_actor(conn)),
       :asset
     )
   end
@@ -68,7 +68,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
   def metadata(conn, %{"id" => plan_id} = params) do
     render_result(
       conn,
-      context_module().update_metadata(plan_id, params, conn.assigns[:current_human]),
+      context_module().update_metadata(plan_id, params, current_actor(conn)),
       nil
     )
   end
@@ -76,7 +76,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
   def metadata_preview(conn, %{"id" => plan_id}) do
     render_result(
       conn,
-      context_module().metadata_preview(plan_id, conn.assigns[:current_human]),
+      context_module().metadata_preview(plan_id, current_actor(conn)),
       :metadata_preview
     )
   end
@@ -91,7 +91,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
       )
 
   defp translate_error(:unauthorized),
-    do: {:unauthorized, "auth_required", "Privy session required"}
+    do: {:unauthorized, "auth_required", "Signed agent or connected wallet required"}
 
   defp translate_error(:not_found),
     do: {:not_found, "prelaunch_plan_not_found", "Prelaunch plan not found"}
@@ -115,4 +115,7 @@ defmodule AutolaunchWeb.Api.PrelaunchController do
   defp context_module do
     configured_module(:prelaunch_api, :context_module, Prelaunch)
   end
+
+  defp current_actor(conn),
+    do: conn.assigns[:current_agent_claims] || conn.assigns[:current_human]
 end

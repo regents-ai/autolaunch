@@ -133,8 +133,31 @@ defmodule Autolaunch.Launch.Core do
     Ecto.QueryError -> []
   end
 
+  def list_agents(%{} = actor) do
+    wallet_addresses = linked_wallet_addresses(actor)
+
+    if wallet_addresses == [] do
+      []
+    else
+      wallet_addresses
+      |> ERC8004.list_accessible_identities(actor_chain_ids(actor))
+      |> Enum.map(&agent_card_from_identity(&1, wallet_addresses))
+      |> maybe_prepend_agent_claim_card(actor, wallet_addresses)
+      |> Enum.uniq_by(& &1.agent_id)
+    end
+  rescue
+    Req.TransportError -> []
+    DBConnection.ConnectionError -> []
+    Postgrex.Error -> []
+    Ecto.QueryError -> []
+  end
+
   def get_agent(%HumanUser{} = human, agent_id) when is_binary(agent_id) do
     Enum.find(list_agents(human), &(&1.agent_id == agent_id or &1.id == agent_id))
+  end
+
+  def get_agent(%{} = actor, agent_id) when is_binary(agent_id) do
+    Enum.find(list_agents(actor), &(&1.agent_id == agent_id or &1.id == agent_id))
   end
 
   def get_agent(_human, _agent_id), do: nil
@@ -143,12 +166,16 @@ defmodule Autolaunch.Launch.Core do
     not is_nil(get_agent(human, agent_id))
   end
 
+  def controls_agent?(%{} = actor, agent_id) when is_binary(agent_id) do
+    not is_nil(get_agent(actor, agent_id))
+  end
+
   def controls_agent?(_human, _agent_id), do: false
 
   def launch_readiness_for_agent(nil, _agent_id), do: nil
 
-  def launch_readiness_for_agent(%HumanUser{} = human, agent_id) do
-    if blank?(agent_id), do: nil, else: human |> get_agent(agent_id) |> agent_readiness()
+  def launch_readiness_for_agent(current_actor, agent_id) do
+    if blank?(agent_id), do: nil, else: current_actor |> get_agent(agent_id) |> agent_readiness()
   rescue
     Req.TransportError -> nil
     DBConnection.ConnectionError -> nil
@@ -156,9 +183,9 @@ defmodule Autolaunch.Launch.Core do
     Ecto.QueryError -> nil
   end
 
-  def preview_launch(attrs, %HumanUser{} = human) do
-    with :ok <- ensure_authenticated_human(human),
-         agent when is_map(agent) <- get_agent(human, Map.get(attrs, "agent_id")),
+  def preview_launch(attrs, current_actor) do
+    with :ok <- ensure_authenticated_actor(current_actor),
+         agent when is_map(agent) <- get_agent(current_actor, Map.get(attrs, "agent_id")),
          :ok <- ensure_agent_eligible(agent),
          {:ok, token_name} <-
            required_text(Map.get(attrs, "token_name"), 80, :token_name_required),
@@ -227,14 +254,12 @@ defmodule Autolaunch.Launch.Core do
     end
   end
 
-  def preview_launch(_attrs, _human), do: {:error, :unauthorized}
-
   def create_launch_job(attrs, human, request_ip),
     do: create_launch_job(attrs, human, request_ip, [])
 
-  def create_launch_job(attrs, %HumanUser{} = human, request_ip, opts) do
-    with :ok <- ensure_authenticated_human(human),
-         {:ok, preview} <- preview_launch(attrs, human),
+  def create_launch_job(attrs, current_actor, request_ip, opts) do
+    with :ok <- ensure_authenticated_actor(current_actor),
+         {:ok, preview} <- preview_launch(attrs, current_actor),
          {:ok, wallet_address} <- required_address(Map.get(attrs, "wallet_address")),
          {:ok, registry_address} <- required_address(Map.get(attrs, "registry_address")),
          {:ok, token_id} <- required_text(Map.get(attrs, "token_id"), 255, :token_id_required),
@@ -242,7 +267,7 @@ defmodule Autolaunch.Launch.Core do
          {:ok, signature} <-
            required_text(Map.get(attrs, "signature"), 4_000, :signature_required),
          {:ok, nonce} <- required_text(Map.get(attrs, "nonce"), 255, :nonce_required),
-         :ok <- ensure_wallet_matches_human(human, wallet_address),
+         :ok <- ensure_wallet_matches_actor(current_actor, wallet_address),
          {:ok, chain_id} <- launch_chain_id(),
          {:ok, _verification} <-
            Siwa.verify_wallet_signature(%{
@@ -262,7 +287,7 @@ defmodule Autolaunch.Launch.Core do
 
       job_attrs = %{
         job_id: job_id,
-        privy_user_id: human.privy_user_id,
+        privy_user_id: owner_id_for(current_actor),
         owner_address: wallet_address,
         agent_id: agent.agent_id,
         agent_name: agent.name,
@@ -305,8 +330,6 @@ defmodule Autolaunch.Launch.Core do
       {:error, _} = error -> error
     end
   end
-
-  def create_launch_job(_attrs, _human, _request_ip, _opts), do: {:error, :unauthorized}
 
   defp maybe_queue_launch_job(job, opts) do
     if Keyword.get(opts, :queue?, true) do
@@ -395,7 +418,7 @@ defmodule Autolaunch.Launch.Core do
     state =
       cond do
         active_launch? -> "already_launched"
-        identity.access_mode in ["owner", "operator"] -> "eligible"
+        identity.access_mode in ["owner", "operator", "agent_signed"] -> "eligible"
         true -> "wallet_bound"
       end
 
@@ -437,6 +460,44 @@ defmodule Autolaunch.Launch.Core do
     }
   end
 
+  defp maybe_prepend_agent_claim_card(agents, actor, wallet_addresses) do
+    case agent_claim_identity(actor) do
+      nil -> agents
+      identity -> [agent_card_from_identity(identity, wallet_addresses) | agents]
+    end
+  end
+
+  defp agent_claim_identity(actor) do
+    with {:ok, wallet_address} <- actor_claim_value(actor, "wallet_address"),
+         {:ok, chain_id} <- actor_chain_id(actor),
+         {:ok, registry_address} <- actor_claim_value(actor, "registry_address"),
+         {:ok, token_id} <- actor_claim_value(actor, "token_id") do
+      agent_id = "#{chain_id}:#{token_id}"
+
+      %{
+        id: agent_id,
+        agent_id: agent_id,
+        chain_id: chain_id,
+        token_id: token_id,
+        registry_address: registry_address,
+        owner_address: wallet_address,
+        operator_addresses: [],
+        agent_wallet: wallet_address,
+        access_mode: "agent_signed",
+        name: actor_label(actor) || "ERC-8004 Agent ##{token_id}",
+        description: nil,
+        image_url: nil,
+        ens: nil,
+        agent_uri: nil,
+        web_endpoint: nil,
+        active: true,
+        source: "siwa"
+      }
+    else
+      _ -> nil
+    end
+  end
+
   defp agent_readiness(nil), do: nil
 
   defp agent_readiness(agent) when is_map(agent) do
@@ -444,19 +505,14 @@ defmodule Autolaunch.Launch.Core do
   end
 
   defp agent_readiness(identity, existing_launch) do
-    owner_or_operator? = identity.access_mode in ["owner", "operator"]
+    owner_or_operator? = identity.access_mode in ["owner", "operator", "agent_signed"]
     existing_launch? = active_launch_record?(existing_launch)
 
     checks = [
       %{
         key: "ownerOrOperatorAuthorized",
         passed: owner_or_operator?,
-        message:
-          if(owner_or_operator?,
-            do: "This linked wallet controls the ERC-8004 identity as owner or operator.",
-            else:
-              "This identity is only wallet-bound. Launching requires ERC-8004 owner or operator access."
-          )
+        message: authorized_agent_message(identity.access_mode, owner_or_operator?)
       },
       %{
         key: "noPriorSuccessfulLaunch",
@@ -482,6 +538,16 @@ defmodule Autolaunch.Launch.Core do
       checks: checks
     }
   end
+
+  defp authorized_agent_message("agent_signed", true),
+    do: "This signed Agent account can launch this identity."
+
+  defp authorized_agent_message(_access_mode, true),
+    do: "This linked wallet controls the ERC-8004 identity as owner or operator."
+
+  defp authorized_agent_message(_access_mode, false),
+    do:
+      "This identity is only wallet-bound. Launching requires ERC-8004 owner or operator access."
 
   defp launch_blockers(%{checks: checks}) do
     checks
@@ -1347,10 +1413,21 @@ defmodule Autolaunch.Launch.Core do
 
   def ensure_authenticated_human(_human), do: {:error, :unauthorized}
 
-  defp ensure_wallet_matches_human(%HumanUser{} = human, wallet) do
+  defp ensure_authenticated_actor(%HumanUser{} = human), do: ensure_authenticated_human(human)
+
+  defp ensure_authenticated_actor(%{} = actor) do
+    case owner_id_for(actor) do
+      owner_id when is_binary(owner_id) -> :ok
+      _ -> {:error, :unauthorized}
+    end
+  end
+
+  defp ensure_authenticated_actor(_actor), do: {:error, :unauthorized}
+
+  defp ensure_wallet_matches_actor(current_actor, wallet) do
     normalized_wallet = normalize_address(wallet)
 
-    if normalized_wallet in linked_wallet_addresses(human),
+    if normalized_wallet in linked_wallet_addresses(current_actor),
       do: :ok,
       else: {:error, :wallet_mismatch}
   end
@@ -1385,10 +1462,98 @@ defmodule Autolaunch.Launch.Core do
     |> Enum.uniq()
   end
 
+  def linked_wallet_addresses(%{} = actor) do
+    [
+      Map.get(actor, :wallet_address) || Map.get(actor, "wallet_address")
+      | List.wrap(Map.get(actor, :wallet_addresses) || Map.get(actor, "wallet_addresses"))
+    ]
+    |> Enum.map(&normalize_address/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
   def linked_wallet_addresses(_human), do: []
 
   def primary_wallet_address(%HumanUser{} = human),
     do: human |> linked_wallet_addresses() |> List.first()
+
+  def primary_wallet_address(%{} = actor), do: actor |> linked_wallet_addresses() |> List.first()
+
+  defp owner_id_for(%HumanUser{privy_user_id: privy_user_id})
+       when is_binary(privy_user_id) and privy_user_id != "",
+       do: privy_user_id
+
+  defp owner_id_for(%{} = actor) do
+    with {:ok, chain_id} <- actor_chain_id(actor),
+         {:ok, registry_address} <- actor_claim_value(actor, "registry_address"),
+         {:ok, token_id} <- actor_claim_value(actor, "token_id") do
+      "agent:#{chain_id}:#{registry_address}:#{token_id}"
+    else
+      _ -> nil
+    end
+  end
+
+  defp owner_id_for(_actor), do: nil
+
+  defp actor_chain_ids(actor) do
+    case actor_chain_id(actor) do
+      {:ok, chain_id} -> [chain_id]
+      _ -> []
+    end
+  end
+
+  defp actor_chain_id(actor) do
+    value = Map.get(actor, :chain_id) || Map.get(actor, "chain_id")
+    chain_id = BaseChain.normalize_chain_id(value)
+
+    if BaseChain.supported_chain_id?(chain_id),
+      do: {:ok, chain_id},
+      else: {:error, :invalid_chain_id}
+  end
+
+  defp actor_claim_value(actor, key) do
+    atom_key =
+      case key do
+        "wallet_address" -> :wallet_address
+        "registry_address" -> :registry_address
+        "token_id" -> :token_id
+      end
+
+    case Map.get(actor, atom_key) || Map.get(actor, key) do
+      value when is_integer(value) ->
+        {:ok, Integer.to_string(value)}
+
+      value when is_binary(value) ->
+        case String.trim(value) do
+          "" ->
+            {:error, :missing_agent_claim}
+
+          trimmed ->
+            normalized =
+              if key in ["wallet_address", "registry_address"],
+                do: normalize_address(trimmed),
+                else: trimmed
+
+            {:ok, normalized}
+        end
+
+      _ ->
+        {:error, :missing_agent_claim}
+    end
+  end
+
+  defp actor_label(actor) do
+    case Map.get(actor, :label) || Map.get(actor, "label") do
+      value when is_binary(value) ->
+        case String.trim(value) do
+          "" -> nil
+          trimmed -> trimmed
+        end
+
+      _ ->
+        nil
+    end
+  end
 
   defp normalize_total_supply(_value), do: @agent_launch_total_supply
 

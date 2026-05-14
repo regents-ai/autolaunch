@@ -18,6 +18,7 @@ defmodule Autolaunch.Prelaunch.Plan do
     field :minimum_raise_usdc_raw, :string
     field :agent_safe_address, :string
     field :launch_notes, :string
+    field :techtree_evidence_packet_ref, :string
     field :identity_snapshot, :map, default: %{}
     field :metadata_draft, :map, default: %{}
     field :validation_summary, :map, default: %{}
@@ -42,6 +43,7 @@ defmodule Autolaunch.Prelaunch.Plan do
       :minimum_raise_usdc_raw,
       :agent_safe_address,
       :launch_notes,
+      :techtree_evidence_packet_ref,
       :identity_snapshot,
       :metadata_draft,
       :validation_summary,
@@ -62,6 +64,7 @@ defmodule Autolaunch.Prelaunch.Plan do
     |> validate_length(:token_name, min: 1, max: 80)
     |> validate_length(:token_symbol, min: 1, max: 16)
     |> validate_length(:launch_notes, max: 1_000)
+    |> validate_length(:techtree_evidence_packet_ref, max: 255)
     |> unique_constraint(:plan_id)
   end
 
@@ -76,6 +79,7 @@ defmodule Autolaunch.Prelaunch.Plan do
       :minimum_raise_usdc_raw,
       :agent_safe_address,
       :launch_notes,
+      :techtree_evidence_packet_ref,
       :identity_snapshot,
       :metadata_draft,
       :validation_summary,
@@ -86,5 +90,6 @@ defmodule Autolaunch.Prelaunch.Plan do
     |> validate_length(:token_name, min: 1, max: 80)
     |> validate_length(:token_symbol, min: 1, max: 16)
     |> validate_length(:launch_notes, max: 1_000)
+    |> validate_length(:techtree_evidence_packet_ref, max: 255)
   end
 end

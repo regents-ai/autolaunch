@@ -34,6 +34,26 @@ defmodule Autolaunch.LaunchTest do
     assert Enum.map(Launch.chain_options(), & &1.id) == [84_532, 8_453]
   end
 
+  test "signed agent claims expose an eligible agent card without a browser profile" do
+    wallet = "0x1111111111111111111111111111111111111111"
+
+    assert [
+             %{
+               agent_id: "84532:44",
+               access_mode: "agent_signed",
+               state: "eligible",
+               linked_wallet_addresses: [^wallet]
+             }
+           ] =
+             Launch.list_agents(%{
+               "wallet_address" => wallet,
+               "chain_id" => "84532",
+               "registry_address" => "0x2222222222222222222222222222222222222222",
+               "token_id" => "44",
+               "label" => "Atlas"
+             })
+  end
+
   test "auction listings expose ENS and world completion state" do
     now = DateTime.utc_now()
     previous_launch = Application.get_env(:autolaunch, :launch, [])

@@ -7,7 +7,7 @@ Autolaunch launch and testing work now uses the canonical Regent local and Fly g
 Use that guide for:
 
 - Base mainnet `$REGENT` staking checks
-- Base Sepolia Autolaunch rehearsal checks
+- Base Autolaunch rehearsal checks
 - Foundry, app, Fly, and CLI gates
 - address recording and final run status
 

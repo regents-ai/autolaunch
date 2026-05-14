@@ -53,6 +53,10 @@ Autolaunch has one launch stack and one revenue-recognition stack.
    - each staked `$REGENT` earns against that fixed denominator
    - unstaked denominator space leaves the matching USDC with the Regent treasury
    - live stake cannot exceed the denominator
+9. Techtree evidence can support launch readiness, but it does not decide launch eligibility by itself in V1:
+   - prelaunch plans may include a Techtree evidence packet reference
+   - readiness may display that evidence as supporting context
+   - launch gating stays with Autolaunch-owned plan and launch rules
 
 ## Migration rule
 

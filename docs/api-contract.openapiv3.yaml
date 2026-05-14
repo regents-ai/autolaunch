@@ -60,7 +60,6 @@ x-autolaunch-rate-limits:
       - "/v1/app/subjects/*"
       - "/v1/app/launch/jobs/*"
       - "/v1/app/prelaunch/plans/*"
-      - "/v1/agent/regent/staking/account/*"
       - "/v1/agent/contracts/*"
       - "/v1/agent/subjects/*"
       - "/v1/agent/launch/jobs/*"
@@ -682,7 +681,7 @@ paths:
           description: Agent readiness
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/AgentReadinessEnvelope" }
 
   /v1/app/agent-pairings:
     post:
@@ -1673,7 +1672,7 @@ paths:
           description: Agent readiness
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/LooseObject" }
+              schema: { $ref: "#/components/schemas/AgentReadinessEnvelope" }
 
   /v1/agent/trust/agents/{id}:
     get:
@@ -3082,6 +3081,53 @@ components:
         prepared:
           $ref: "#/components/schemas/PreparedAction"
       additionalProperties: false
+    SupportingEvidence:
+      type: object
+      required: [kind, label, ref, source]
+      properties:
+        kind: { type: string, enum: [techtree_evidence_packet] }
+        label: { type: string }
+        ref: { type: string }
+        source: { type: string, enum: [techtree] }
+      additionalProperties: false
+    AgentReadinessEnvelope:
+      type: object
+      required:
+        [
+          ok,
+          agent_id,
+          launch_eligible,
+          launch_blockers,
+          supported_chains,
+          readiness,
+          supporting_evidence,
+        ]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        agent_id: { type: string }
+        agent_name:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        launch_eligible: { type: boolean }
+        launch_blockers:
+          type: array
+          items: { type: string }
+        existing_token:
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - { type: "null" }
+        supported_chains:
+          type: array
+          items: { type: string }
+        readiness:
+          type: object
+          additionalProperties: true
+        supporting_evidence:
+          type: array
+          items: { $ref: "#/components/schemas/SupportingEvidence" }
+      additionalProperties: true
     PrelaunchMetadataDraft:
       type: object
       properties:
@@ -3134,6 +3180,10 @@ components:
           anyOf:
             - { $ref: "#/components/schemas/PrelaunchMetadataDraft" }
             - { type: "null" }
+        techtree_evidence_packet_ref:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
         minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
         minimum_raise_usdc_raw: { type: string }
         status:
@@ -3161,6 +3211,10 @@ components:
         metadata_draft:
           anyOf:
             - { $ref: "#/components/schemas/PrelaunchMetadataDraft" }
+            - { type: "null" }
+        techtree_evidence_packet_ref:
+          anyOf:
+            - { type: string }
             - { type: "null" }
         minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
       additionalProperties: false

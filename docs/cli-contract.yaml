@@ -123,7 +123,7 @@ command_groups:
           required: false
           enum: [base-sepolia]
           default: base-sepolia
-          description: Chain for the prelaunch wizard. Base Sepolia is the only enabled wizard chain for now.
+          description: Chain for the prelaunch wizard. Base is the only enabled wizard chain for now.
         - name: --agent-safe-address
           type: evm-address
           required: true
@@ -300,10 +300,30 @@ command_groups:
           type: address
           required: true
           description: Token factory address.
+        - name: --token-factory-data
+          type: bytes
+          required: false
+          description: Optional token factory call data.
+        - name: --token-factory-salt
+          type: bytes32
+          required: false
+          description: Optional deterministic token factory salt.
         - name: --subject-label
           type: string
           required: true
           description: Subject label.
+        - name: --identity-chain-id
+          type: integer
+          required: false
+          description: Optional ERC-8004 identity chain ID.
+        - name: --identity-registry
+          type: address
+          required: false
+          description: Optional ERC-8004 registry address.
+        - name: --identity-agent-id
+          type: integer
+          required: false
+          description: Optional ERC-8004 agent token ID.
       autolaunch subjects by-token:
         - name: --token
           type: address

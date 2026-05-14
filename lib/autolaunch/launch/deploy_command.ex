@@ -4,6 +4,9 @@ defmodule Autolaunch.Launch.DeployCommand do
   alias Autolaunch.BaseChain
   alias Autolaunch.Launch.Job
 
+  @uint40_max 1_099_511_627_775
+  @convex_min_auction_duration_blocks 13
+
   def build(%Job{} = job, config) when is_list(config) do
     rpc_url = config_value_for_chain(job.chain_id, :rpc_url, config)
 
@@ -157,11 +160,15 @@ defmodule Autolaunch.Launch.DeployCommand do
       not valid_integer?(Keyword.get(config, :cca_floor_price_q96, ""), 1) ->
         "Missing CCA floor price."
 
-      not valid_integer?(Keyword.get(config, :auction_duration_blocks, ""), 1) ->
-        "Missing auction duration."
+      not valid_integer?(
+        Keyword.get(config, :auction_duration_blocks, ""),
+        @convex_min_auction_duration_blocks,
+        @uint40_max
+      ) ->
+        "Invalid auction duration."
 
-      not valid_integer?(Keyword.get(config, :cca_prebid_blocks, ""), 0) ->
-        "Missing CCA prebid blocks."
+      not valid_integer?(Keyword.get(config, :cca_prebid_blocks, ""), 0, @uint40_max) ->
+        "Invalid CCA prebid blocks."
 
       not valid_integer?(Keyword.get(config, :cca_final_block_bps, ""), 2_000, 4_000) ->
         "Missing CCA final block basis points."

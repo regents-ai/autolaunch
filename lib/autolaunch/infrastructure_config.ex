@@ -3,6 +3,9 @@ defmodule Autolaunch.InfrastructureConfig do
 
   alias Autolaunch.BaseChain
 
+  @uint40_max 1_099_511_627_775
+  @convex_min_auction_duration_blocks 13
+
   @launch_address_keys [
     :cca_factory_address,
     :pool_manager_address,
@@ -31,8 +34,9 @@ defmodule Autolaunch.InfrastructureConfig do
     {:official_pool_tick_spacing, "OFFICIAL_POOL_TICK_SPACING", {:integer, min: 1}},
     {:cca_tick_spacing_q96, "CCA_TICK_SPACING_Q96", {:integer, min: 1}},
     {:cca_floor_price_q96, "CCA_FLOOR_PRICE_Q96", {:integer, min: 1}},
-    {:auction_duration_blocks, "AUCTION_DURATION_BLOCKS", {:integer, min: 1}},
-    {:cca_prebid_blocks, "CCA_PREBID_BLOCKS", {:integer, min: 0}},
+    {:auction_duration_blocks, "AUCTION_DURATION_BLOCKS",
+     {:integer, min: @convex_min_auction_duration_blocks, max: @uint40_max}},
+    {:cca_prebid_blocks, "CCA_PREBID_BLOCKS", {:integer, min: 0, max: @uint40_max}},
     {:cca_final_block_bps, "CCA_FINAL_BLOCK_BPS", {:integer, min: 2_000, max: 4_000}},
     {:cca_start_block_offset, "CCA_START_BLOCK_OFFSET", {:integer, min: 0}},
     {:cca_claim_block_offset, "CCA_CLAIM_BLOCK_OFFSET", {:integer, min: 0}},
@@ -64,7 +68,7 @@ defmodule Autolaunch.InfrastructureConfig do
 
   def regent_staking_chain_id do
     regent_staking()
-    |> Keyword.get(:chain_id)
+    |> Keyword.get(:chain_id, BaseChain.base_mainnet_chain_id())
     |> normalize_base_chain_id()
   end
 

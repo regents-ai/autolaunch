@@ -5,6 +5,14 @@ defmodule AutolaunchWeb.ApiRoutesTest do
   alias AutolaunchWeb.Api.SubjectController
 
   @app_only_product_routes [
+    {:get, "/regent/staking", RegentStakingController, :show},
+    {:get, "/regent/staking/account/:address", RegentStakingController, :account},
+    {:post, "/regent/staking/stake", RegentStakingController, :stake},
+    {:post, "/regent/staking/unstake", RegentStakingController, :unstake},
+    {:post, "/regent/staking/claim-usdc", RegentStakingController, :claim_usdc},
+    {:post, "/regent/staking/claim-regent", RegentStakingController, :claim_regent},
+    {:post, "/regent/staking/claim-and-restake-regent", RegentStakingController,
+     :claim_and_restake_regent},
     {:post, "/regent/staking/deposit-usdc/prepare", RegentStakingController, :prepare_deposit},
     {:post, "/regent/staking/withdraw-treasury/prepare", RegentStakingController,
      :prepare_withdraw_treasury}
@@ -109,7 +117,7 @@ defmodule AutolaunchWeb.ApiRoutesTest do
     end
   end
 
-  test "app-only staking preparation routes stay out of the agent API" do
+  test "app-only Regent staking routes stay out of the agent API" do
     app_routes = product_route_specs("/v1/app")
     agent_routes = product_route_specs("/v1/agent")
 
@@ -146,28 +154,13 @@ defmodule AutolaunchWeb.ApiRoutesTest do
     assert phoenix_routes == documented_routes
   end
 
-  test "Autolaunch mirrors the Platform Regent staking agent contract" do
-    documented_routes =
-      "../platform/api-contract.openapiv3.yaml"
-      |> openapi_routes()
-      |> Enum.filter(&platform_regent_staking_route?/1)
-      |> Enum.sort()
-
+  test "Autolaunch does not mount Platform-owned Regent staking agent routes" do
     phoenix_routes =
       AutolaunchWeb.Router.__routes__()
       |> Enum.map(&{&1.verb, &1.path})
       |> Enum.filter(&platform_regent_staking_route?/1)
-      |> Enum.filter(fn {_verb, path} -> String.starts_with?(path, "/v1/agent/") end)
-      |> Enum.sort()
 
-    assert documented_routes != [],
-           """
-           Regent staking agent routes are mirrored by Autolaunch, but the Platform contract
-           at ../platform/api-contract.openapiv3.yaml does not list them. Add the
-           /v1/agent/regent/staking routes to the Platform contract first.
-           """
-
-    assert phoenix_routes == documented_routes
+    assert phoenix_routes == []
   end
 
   test "CLI path templates point at live Phoenix routes" do

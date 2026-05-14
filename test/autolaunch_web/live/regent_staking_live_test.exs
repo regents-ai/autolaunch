@@ -138,7 +138,7 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
     {:ok, view, html} = live(conn, "/regent-staking")
 
     assert html =~ "$REGENT staking"
-    assert html =~ "Stake to earn your pro-rata split of all Regents revenue across all apps"
+    assert html =~ "Stake $REGENT and review available rewards across Regents apps"
     assert html =~ "Platform and Autolaunch show the same staking pool"
     assert html =~ "Choose the amount to stake and unstake."
     assert html =~ "Total staked"
@@ -156,6 +156,8 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
            )
 
     refute html =~ "The remainder goes to buy back the token."
+    refute html =~ "earn your pro-rata split"
+    refute html =~ "all Regents revenue"
     refute html =~ "Stake $REGENT and withdraw anytime."
     refute html =~ "Direct deposits"
     refute html =~ "Stake $REGENT, claim USDC from the Regent rewards pool"
@@ -305,9 +307,9 @@ defmodule AutolaunchWeb.RegentStakingLiveTest do
     assert html =~ "Stake sent. Refreshing your staking snapshot."
     assert has_element?(view, ".al-regent-refresh-button.is-refreshing")
 
-    Process.sleep(2_350)
-
+    send(view.pid, {:refresh_token_balances, :post_tx})
     html = render(view)
+
     assert html =~ "Balances refreshed."
     refute has_element?(view, ".al-regent-refresh-button.is-refreshing")
   end

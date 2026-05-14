@@ -143,6 +143,7 @@ Start Solidity work with:
 - The browser wizard exists, but the preferred operator flow is CLI-first.
 - `regent-staking` is Platform-owned. Autolaunch hosts a near-identical web UI for users, and the staking rail stays distinct from the Base launch flow.
 - The Autolaunch public room now follows the same mirrored XMTP group-chat model as Techtree. Keep room identity, membership command queueing, and internal sync endpoints aligned across both repos.
+- Autolaunch can display `techtree_evidence_packet_ref` on prelaunch and readiness surfaces as supporting evidence. Do not make it a launch blocker unless a later contract explicitly says so.
 - Main public CTA: if the reader already has an agent, use `regents-cli`; if they do not have an agent yet, send them to `regents.sh`.
 - Public copy should describe what a person can do, what happens next, and why it matters. Do not expose framework names, internal route wiring, cache mechanics, signing internals, legacy behavior, or compatibility plans in public UI text.
 
@@ -153,6 +154,7 @@ For launch work, treat `regents-cli` as the default operator surface.
 - Use `/Users/sean/Documents/regent/docs/regent-local-and-fly-launch-testing.md` for the full contract, local, Fly, and CLI release checklist.
 - Read `/Users/sean/Documents/regent/regents-cli/docs/autolaunch-cli.md` before changing or operating the guided flow.
 - Use `regents autolaunch prelaunch wizard`, `validate`, `publish`, `launch run`, `launch monitor`, `launch finalize`, and `vesting status` as the main path.
+- Techtree evidence packet references belong on prelaunch plans and readiness output as supporting context only.
 - Use `regents autolaunch safe wizard` and `safe create` before launch planning if the agent Safe does not exist yet.
 - Keep raw `launch create`, strategy, splitter, ingress, and registry commands for debugging or incident recovery only.
 

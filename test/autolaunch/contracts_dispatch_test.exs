@@ -3,6 +3,7 @@ defmodule Autolaunch.ContractsDispatchTest do
 
   alias Autolaunch.Accounts.HumanUser
   alias Autolaunch.Contracts
+  alias Autolaunch.Contracts.ActionParams
   alias Autolaunch.Contracts.Abi
   alias Autolaunch.Contracts.Dispatch
 
@@ -135,6 +136,37 @@ defmodule Autolaunch.ContractsDispatchTest do
 
     assert prepared.expected_signer == String.downcase(operator_wallet)
     assert prepared.wallet_action.expected_signer == prepared.expected_signer
+  end
+
+  test "prepared transaction identity includes expected signer" do
+    params = %{"resource_id" => "subject:alpha"}
+
+    assert {:ok, first} =
+             ActionParams.prepare_tx(
+               84_532,
+               "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+               "0x1234",
+               "subject",
+               "stake",
+               params,
+               expected_signer: "0x1111111111111111111111111111111111111111"
+             )
+
+    assert {:ok, second} =
+             ActionParams.prepare_tx(
+               84_532,
+               "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+               "0x1234",
+               "subject",
+               "stake",
+               params,
+               expected_signer: "0x2222222222222222222222222222222222222222"
+             )
+
+    refute first.action_id == second.action_id
+    refute first.idempotency_key == second.idempotency_key
+    assert first.wallet_action.expected_signer == "0x1111111111111111111111111111111111111111"
+    assert second.wallet_action.expected_signer == "0x2222222222222222222222222222222222222222"
   end
 
   test "admin prepare rejects a wallet outside the contract operator list" do

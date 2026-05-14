@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
          state: "draft",
          agent_id: "84532:42",
          token_name: params["token_name"],
+         techtree_evidence_packet_ref: params["techtree_evidence_packet_ref"],
          metadata_draft: params["metadata_draft"] || %{}
        }}
     end
@@ -37,6 +38,7 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
          plan_id: "plan_alpha",
          state: "draft",
          token_name: params["token_name"] || "Atlas Coin",
+         techtree_evidence_packet_ref: params["techtree_evidence_packet_ref"],
          metadata_draft: %{"title" => "Atlas Launch"}
        }}
     end
@@ -150,10 +152,17 @@ defmodule AutolaunchWeb.Api.PrelaunchControllerTest do
         "token_name" => "Atlas Coin",
         "token_symbol" => "ATLAS",
         "agent_safe_address" => "0x1111111111111111111111111111111111111111",
+        "techtree_evidence_packet_ref" => "techtree:fold:evidence:agent:42",
         "metadata_draft" => %{"title" => "Atlas Launch"}
       })
 
-    assert %{"ok" => true, "plan" => %{"plan_id" => "plan_alpha"}} =
+    assert %{
+             "ok" => true,
+             "plan" => %{
+               "plan_id" => "plan_alpha",
+               "techtree_evidence_packet_ref" => "techtree:fold:evidence:agent:42"
+             }
+           } =
              json_response(create_conn, 201)
 
     show_conn = get(conn, "/v1/app/prelaunch/plans/plan_alpha")

@@ -7,65 +7,71 @@ defmodule AutolaunchWeb.Api.SubjectController do
   import AutolaunchWeb.Api.ControllerHelpers
 
   def show(conn, %{"id" => subject_id}) do
-    render_result(conn, Revenue.subject_state(subject_id, conn.assigns[:current_human]))
+    render_result(conn, context_module().subject_state(subject_id, current_actor(conn)))
   end
 
   def ingress(conn, %{"id" => subject_id}) do
-    render_result(conn, Revenue.ingress_state(subject_id, conn.assigns[:current_human]))
+    render_result(conn, context_module().ingress_state(subject_id, current_actor(conn)))
   end
 
   def accounting_tags(conn, %{"id" => subject_id} = params) do
-    render_result(conn, Revenue.accounting_tags(subject_id, params, conn.assigns[:current_human]))
+    render_result(conn, context_module().accounting_tags(subject_id, params, current_actor(conn)))
   end
 
   def prepare_existing_token(conn, params) do
-    render_write(conn, Revenue.prepare_existing_token_subject(params, current_actor(conn)))
+    render_write(
+      conn,
+      context_module().prepare_existing_token_subject(params, current_actor(conn))
+    )
   end
 
   def confirm_existing_token(conn, params) do
-    render_write(conn, Revenue.confirm_existing_token_subject(params, current_actor(conn)))
+    render_write(
+      conn,
+      context_module().confirm_existing_token_subject(params, current_actor(conn))
+    )
   end
 
   def prepare_deferred_autolaunch(conn, params) do
-    render_write(conn, Revenue.prepare_deferred_autolaunch(params, current_actor(conn)))
+    render_write(conn, context_module().prepare_deferred_autolaunch(params, current_actor(conn)))
   end
 
   def confirm_deferred_autolaunch(conn, params) do
-    render_write(conn, Revenue.confirm_deferred_autolaunch(params, current_actor(conn)))
+    render_write(conn, context_module().confirm_deferred_autolaunch(params, current_actor(conn)))
   end
 
   def by_token(conn, %{"token" => token}) do
-    render_result(conn, Revenue.subjects_by_token(token))
+    render_result(conn, context_module().subjects_by_token(token))
   end
 
   def staking(conn, %{"id" => subject_id}) do
-    render_result(conn, Revenue.subject_staking(subject_id))
+    render_result(conn, context_module().subject_staking(subject_id))
   end
 
   def protocol_fee_settlements(conn, %{"id" => subject_id}) do
-    render_result(conn, Revenue.subject_protocol_fee_settlements(subject_id))
+    render_result(conn, context_module().subject_protocol_fee_settlements(subject_id))
   end
 
   def regent_emissions(conn, %{"id" => subject_id}) do
-    render_result(conn, Revenue.subject_regent_emissions(subject_id))
+    render_result(conn, context_module().subject_regent_emissions(subject_id))
   end
 
   def stake(conn, %{"id" => subject_id} = params) do
-    render_write(conn, Revenue.stake(subject_id, params, conn.assigns[:current_human]))
+    render_write(conn, context_module().stake(subject_id, params, current_actor(conn)))
   end
 
   def unstake(conn, %{"id" => subject_id} = params) do
-    render_write(conn, Revenue.unstake(subject_id, params, conn.assigns[:current_human]))
+    render_write(conn, context_module().unstake(subject_id, params, current_actor(conn)))
   end
 
   def claim_usdc(conn, %{"id" => subject_id} = params) do
-    render_write(conn, Revenue.claim_usdc(subject_id, params, conn.assigns[:current_human]))
+    render_write(conn, context_module().claim_usdc(subject_id, params, current_actor(conn)))
   end
 
   def sweep_ingress(conn, %{"id" => subject_id, "address" => ingress_address} = params) do
     render_write(
       conn,
-      Revenue.sweep_ingress(subject_id, ingress_address, params, conn.assigns[:current_human])
+      context_module().sweep_ingress(subject_id, ingress_address, params, current_actor(conn))
     )
   end
 
@@ -83,10 +89,14 @@ defmodule AutolaunchWeb.Api.SubjectController do
   defp render_result(conn, result), do: render_api_result(conn, result, &translate_error/1)
 
   defp current_actor(conn),
-    do: conn.assigns[:current_human] || conn.assigns[:current_agent_claims]
+    do: conn.assigns[:current_agent_claims] || conn.assigns[:current_human]
+
+  defp context_module do
+    configured_module(:subject_api, :context_module, Revenue)
+  end
 
   defp translate_error(:unauthorized),
-    do: {:unauthorized, "auth_required", "Connect a wallet first"}
+    do: {:unauthorized, "auth_required", "Signed agent or connected wallet required"}
 
   defp translate_error(:not_found),
     do: {:not_found, "subject_not_found", "Token page not found"}

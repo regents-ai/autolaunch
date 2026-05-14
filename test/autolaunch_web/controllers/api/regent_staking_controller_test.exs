@@ -3,12 +3,6 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
 
   alias Autolaunch.Accounts
 
-  @agent_wallet "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-  @agent_chain_id "84532"
-  @agent_registry "0x2222222222222222222222222222222222222222"
-  @agent_token_id "44"
-  @receipt_secret "autolaunch-test-receipt-secret"
-
   defmodule RegentStakingStub do
     def overview(_human) do
       {:ok,
@@ -262,22 +256,6 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
            } = json_response(conn, 200)
   end
 
-  test "agent stake route uses the signed agent wallet without a browser session", %{conn: conn} do
-    conn =
-      conn
-      |> with_agent_headers()
-      |> post("/v1/agent/regent/staking/stake", %{"amount" => "1.5"})
-
-    assert %{
-             "ok" => true,
-             "prepared" => %{
-               "expected_signer" => @agent_wallet,
-               "idempotency_key" => "prepared_stake",
-               "wallet_action" => %{"chain_id" => 84_532, "data" => "0x7acb7757"}
-             }
-           } = json_response(conn, 200)
-  end
-
   test "unknown API errors use stable public wording", %{conn: conn} do
     conn = post(conn, "/v1/app/regent/staking/claim-regent", %{})
 
@@ -344,44 +322,6 @@ defmodule AutolaunchWeb.Api.RegentStakingControllerTest do
 
     assert %{"ok" => false, "error" => %{"code" => "operator_required"}} =
              json_response(conn, 403)
-  end
-
-  defp with_agent_headers(conn) do
-    conn
-    |> put_req_header("accept", "application/json")
-    |> put_req_header("x-agent-wallet-address", @agent_wallet)
-    |> put_req_header("x-agent-chain-id", @agent_chain_id)
-    |> put_req_header("x-agent-registry-address", @agent_registry)
-    |> put_req_header("x-agent-token-id", @agent_token_id)
-    |> put_req_header("x-siwa-receipt", receipt_token("autolaunch"))
-  end
-
-  defp receipt_token(audience) do
-    now_ms = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
-
-    payload =
-      %{
-        "typ" => "siwa_receipt",
-        "jti" => Ecto.UUID.generate(),
-        "sub" => @agent_wallet,
-        "aud" => audience,
-        "verified" => "onchain",
-        "iat" => now_ms,
-        "exp" => now_ms + 600_000,
-        "chain_id" => String.to_integer(@agent_chain_id),
-        "nonce" => "nonce-#{System.unique_integer([:positive])}",
-        "key_id" => @agent_wallet,
-        "registry_address" => @agent_registry,
-        "token_id" => @agent_token_id
-      }
-      |> Jason.encode!()
-      |> Base.url_encode64(padding: false)
-
-    signature =
-      :crypto.mac(:hmac, :sha256, @receipt_secret, payload)
-      |> Base.url_encode64(padding: false)
-
-    "#{payload}.#{signature}"
   end
 
   defp available_port do

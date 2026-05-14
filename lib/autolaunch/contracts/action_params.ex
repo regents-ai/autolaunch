@@ -11,9 +11,9 @@ defmodule Autolaunch.Contracts.ActionParams do
     else
       value = Keyword.get(opts, :value, "0")
       value = decimal_value(value)
-      action_id = action_id(chain_id, to, value, data, resource, action)
       resource_id = resource_id(resource, params, to)
       expected_signer = expected_signer(params, opts)
+      action_id = action_id(chain_id, to, value, data, resource, action, expected_signer)
 
       expires_at =
         DateTime.utc_now()
@@ -132,14 +132,15 @@ defmodule Autolaunch.Contracts.ActionParams do
 
   def blank?(value), do: value in [nil, "", @zero_address]
 
-  defp action_id(chain_id, to, value, data, resource, action) do
+  defp action_id(chain_id, to, value, data, resource, action, expected_signer) do
     [
       chain_id,
       resource,
       action,
       String.downcase(to),
       String.downcase(value),
-      String.downcase(data)
+      String.downcase(data),
+      signer_hash_part(expected_signer)
     ]
     |> Enum.join(":")
     |> then(&:crypto.hash(:sha256, &1))
@@ -152,6 +153,9 @@ defmodule Autolaunch.Contracts.ActionParams do
       Map.get(params, :expected_signer) ||
       Map.get(params, "expected_signer")
   end
+
+  defp signer_hash_part(nil), do: ""
+  defp signer_hash_part(value), do: value |> to_string() |> String.downcase()
 
   defp resource_id(_resource, params, to) do
     Map.get(params, :resource_id) ||

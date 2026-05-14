@@ -203,6 +203,16 @@ contract ExampleCCADeploymentScriptTest is Test {
         _assertScheduleTotals(steps, 86_501);
     }
 
+    function testDeployFromEnvAcceptsMinimumConvexDuration() external view {
+        bytes memory steps = scheduleHarness.convexAuctionStepsForTest(13, 0, 3000);
+        _assertScheduleTotals(steps, 14);
+    }
+
+    function testDeployFromEnvRejectsTooShortConvexDuration() external {
+        vm.expectRevert("AUCTION_STEP_BLOCKS_ZERO");
+        scheduleHarness.convexAuctionStepsForTest(12, 0, 3000);
+    }
+
     function testDeployFromEnvAcceptsFinalBlockBpsBounds() external view {
         _assertFinalBlockBpsAccepted(2000);
         _assertFinalBlockBpsAccepted(3000);

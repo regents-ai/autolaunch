@@ -112,10 +112,11 @@ defmodule AutolaunchWeb.Api.RegentStakingController do
     configured_module(:regent_staking_api, :context_module, RegentStaking)
   end
 
+  defp staking_actor(%{assigns: %{current_agent_claims: claims}}) when is_map(claims), do: claims
+
   defp staking_actor(%{assigns: %{current_human: current_human}})
        when not is_nil(current_human),
        do: current_human
 
-  defp staking_actor(%{assigns: %{current_agent_claims: claims}}) when is_map(claims), do: claims
   defp staking_actor(_conn), do: nil
 end

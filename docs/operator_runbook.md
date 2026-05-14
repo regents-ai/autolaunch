@@ -20,5 +20,6 @@ Keep these Autolaunch-specific references close:
 - Operator status wording: `/Users/sean/Documents/regent/autolaunch/docs/operator-status.md`
 - Contract overview: `/Users/sean/Documents/regent/autolaunch/contracts/README.md`
 - Contract architecture: `/Users/sean/Documents/regent/autolaunch/contracts/docs/ARCHITECTURE_GUIDE.md`
+- Techtree evidence packet: optional supporting evidence on prelaunch plans; verify it in Techtree and do not treat it as a launch gate.
 
-For this beta, `$REGENT` staking is Base mainnet and Autolaunch launch rehearsal is Base Sepolia.
+For this beta, `$REGENT` staking is Base mainnet and Autolaunch launch rehearsal is Base.

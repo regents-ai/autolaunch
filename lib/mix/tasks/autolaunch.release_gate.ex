@@ -24,16 +24,16 @@ defmodule Mix.Tasks.Autolaunch.ReleaseGate do
     check_contract_file!(@platform_contract)
     Enum.each(@path_dependencies, &check_path_dependency!/1)
     Mix.Task.run("autolaunch.release_packaging_check")
-    run!("npm", ["ci"], cd: "assets")
     run!("forge", ["build"], cd: "contracts")
     Mix.Task.run("autolaunch.generate_selectors", ["--check"])
     run!("mix", ["compile", "--warnings-as-errors"], cd: ".")
     check_api_contract_routes!()
-    check_platform_regent_staking_routes!()
+    check_no_platform_regent_staking_agent_routes!()
     check_cli_contract_routes!()
     check_lifecycle_settlement_contract!()
     run!("mix", ["test"], cd: ".")
     run!("forge", ["test"], cd: "contracts")
+    run!("npm", ["ci", "--include=dev"], cd: "assets")
     run!("npm", ["run", "typecheck"], cd: "assets")
     run!("npm", ["test"], cd: "assets")
   end
@@ -140,25 +140,18 @@ defmodule Mix.Tasks.Autolaunch.ReleaseGate do
     end
   end
 
-  defp check_platform_regent_staking_routes! do
-    documented_routes =
-      @platform_contract
-      |> openapi_routes()
-      |> Enum.filter(&platform_regent_staking_route?/1)
-      |> Enum.sort()
-
+  defp check_no_platform_regent_staking_agent_routes! do
     phoenix_routes =
       AutolaunchWeb.Router.__routes__()
       |> Enum.map(&{&1.verb, &1.path})
       |> Enum.filter(&platform_regent_staking_route?/1)
-      |> Enum.sort()
 
-    if phoenix_routes == documented_routes do
-      Mix.shell().info("Platform Regent staking routes match Platform contract")
+    if phoenix_routes == [] do
+      Mix.shell().info("Autolaunch does not mount Platform-owned Regent staking agent routes")
     else
       Mix.raise("""
-      Platform Regent staking routes do not match #{@platform_contract}.
-      Update the Platform YAML contract first, then update Autolaunch routes and CLI bindings.
+      Autolaunch mounts Platform-owned Regent staking agent routes:
+      #{Enum.map_join(phoenix_routes, "\n", fn {verb, path} -> "  - #{verb} #{path}" end)}
       """)
     end
   end

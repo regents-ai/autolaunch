@@ -2,6 +2,7 @@ defmodule Autolaunch.RegentStaking do
   @moduledoc false
 
   alias Autolaunch.Accounts.HumanUser
+  alias Autolaunch.BaseChain
   alias Autolaunch.CCA.Rpc
   alias Autolaunch.Contracts.ActionParams
   alias Autolaunch.Evm
@@ -10,8 +11,6 @@ defmodule Autolaunch.RegentStaking do
 
   @usdc_decimals 6
   @token_decimals 18
-  @base_chain_id 8_453
-  @base_chain_label "Base"
   @ethereum_mainnet_chain_id 1
   @zero_address "0x0000000000000000000000000000000000000000"
 
@@ -420,16 +419,19 @@ defmodule Autolaunch.RegentStaking do
   defp config do
     with contract_address when is_binary(contract_address) <-
            InfrastructureConfig.regent_staking_address(:contract_address),
+         {:ok, chain_id} <- InfrastructureConfig.regent_staking_chain_id(),
          {:ok, _rpc_url} <- InfrastructureConfig.regent_staking_rpc_url() do
       cfg = InfrastructureConfig.regent_staking()
+      chain = BaseChain.config!(chain_id)
 
       {:ok,
        %{
-         chain_id: Keyword.get(cfg, :chain_id, @base_chain_id),
-         chain_label: Keyword.get(cfg, :chain_label, @base_chain_label),
+         chain_id: chain_id,
+         chain_label: Keyword.get(cfg, :chain_label, chain.label),
          contract_address: contract_address
        }}
     else
+      {:error, reason} -> {:error, reason}
       _ -> {:error, :unconfigured}
     end
   end

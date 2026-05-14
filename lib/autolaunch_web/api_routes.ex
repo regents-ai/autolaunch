@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.ApiRoutes do
   @moduledoc false
 
   defmacro product_api_routes(opts \\ []) do
+    include_regent_staking_routes? = Keyword.get(opts, :include_regent_staking_routes?, false)
     include_app_staking_prepare? = Keyword.get(opts, :include_app_staking_prepare?, false)
     include_human_browser_routes? = Keyword.get(opts, :include_human_browser_routes?, false)
     include_agent_accounting_tags? = Keyword.get(opts, :include_agent_accounting_tags?, false)
@@ -46,23 +47,25 @@ defmodule AutolaunchWeb.ApiRoutes do
 
       post "/subjects/:id/ingress/:address/sweep", SubjectController, :sweep_ingress
 
-      get "/regent/staking", RegentStakingController, :show
-      get "/regent/staking/account/:address", RegentStakingController, :account
-      post "/regent/staking/stake", RegentStakingController, :stake
-      post "/regent/staking/unstake", RegentStakingController, :unstake
-      post "/regent/staking/claim-usdc", RegentStakingController, :claim_usdc
-      post "/regent/staking/claim-regent", RegentStakingController, :claim_regent
+      if unquote(include_regent_staking_routes?) do
+        get "/regent/staking", RegentStakingController, :show
+        get "/regent/staking/account/:address", RegentStakingController, :account
+        post "/regent/staking/stake", RegentStakingController, :stake
+        post "/regent/staking/unstake", RegentStakingController, :unstake
+        post "/regent/staking/claim-usdc", RegentStakingController, :claim_usdc
+        post "/regent/staking/claim-regent", RegentStakingController, :claim_regent
 
-      post "/regent/staking/claim-and-restake-regent",
-           RegentStakingController,
-           :claim_and_restake_regent
-
-      if unquote(include_app_staking_prepare?) do
-        post "/regent/staking/deposit-usdc/prepare", RegentStakingController, :prepare_deposit
-
-        post "/regent/staking/withdraw-treasury/prepare",
+        post "/regent/staking/claim-and-restake-regent",
              RegentStakingController,
-             :prepare_withdraw_treasury
+             :claim_and_restake_regent
+
+        if unquote(include_app_staking_prepare?) do
+          post "/regent/staking/deposit-usdc/prepare", RegentStakingController, :prepare_deposit
+
+          post "/regent/staking/withdraw-treasury/prepare",
+               RegentStakingController,
+               :prepare_withdraw_treasury
+        end
       end
 
       get "/prelaunch/plans", PrelaunchController, :index

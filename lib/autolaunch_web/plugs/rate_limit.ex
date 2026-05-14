@@ -92,7 +92,6 @@ defmodule AutolaunchWeb.Plugs.RateLimit do
         "/v1/app/subjects",
         "/v1/app/launch/jobs",
         "/v1/app/prelaunch/plans",
-        "/v1/agent/regent/staking/account",
         "/v1/agent/contracts",
         "/v1/agent/subjects",
         "/v1/agent/launch/jobs",

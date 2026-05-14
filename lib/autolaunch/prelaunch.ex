@@ -15,22 +15,24 @@ defmodule Autolaunch.Prelaunch do
   @draft_states ~w(draft validated launchable)
   @allowed_media_types ~w(image/png image/jpeg image/webp image/gif)
 
-  def list_plans(%HumanUser{} = human) do
-    {:ok,
-     Plan
-     |> where([plan], plan.privy_user_id == ^human.privy_user_id)
-     |> order_by([plan], desc: plan.updated_at)
-     |> Repo.all()
-     |> Enum.map(&serialize_plan/1)}
+  def list_plans(current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor) do
+      {:ok,
+       Plan
+       |> where([plan], plan.privy_user_id == ^owner_id)
+       |> order_by([plan], desc: plan.updated_at)
+       |> Repo.all()
+       |> Enum.map(&serialize_plan/1)}
+    end
   end
 
-  def list_plans(_human), do: {:error, :unauthorized}
-
-  def create_plan(attrs, %HumanUser{} = human) do
+  def create_plan(attrs, current_actor) do
     with {:ok, agent_id} <- required_text(Map.get(attrs, "agent_id"), 255),
-         %{} = agent <- Launch.get_agent(human, agent_id),
+         {:ok, owner_id} <- owner_id_for(current_actor),
+         %{} = agent <- Launch.get_agent(current_actor, agent_id),
          attrs <- normalize_plan_attrs(attrs, agent),
-         {:ok, plan} <- insert_plan_with_archived_drafts(agent_id, attrs, agent, human) do
+         {:ok, plan} <-
+           insert_plan_with_archived_drafts(agent_id, attrs, agent, owner_id) do
       {:ok, serialize_plan(plan)}
     else
       nil -> {:error, :agent_not_found}
@@ -38,9 +40,7 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def create_plan(_attrs, _human), do: {:error, :unauthorized}
-
-  defp insert_plan_with_archived_drafts(agent_id, attrs, agent, %HumanUser{} = human) do
+  defp insert_plan_with_archived_drafts(agent_id, attrs, agent, owner_id) do
     now = DateTime.utc_now()
 
     plan_changeset =
@@ -48,7 +48,7 @@ defmodule Autolaunch.Prelaunch do
       |> Plan.create_changeset(
         Map.merge(attrs, %{
           plan_id: "plan_" <> Ecto.UUID.generate(),
-          privy_user_id: human.privy_user_id,
+          privy_user_id: owner_id,
           chain_id: launch_chain_id(),
           identity_snapshot: identity_snapshot(agent),
           metadata_draft: metadata_draft(Map.get(attrs, "metadata_draft"))
@@ -60,7 +60,7 @@ defmodule Autolaunch.Prelaunch do
       :archive_drafts,
       from(plan in Plan,
         where:
-          plan.agent_id == ^agent_id and plan.privy_user_id == ^human.privy_user_id and
+          plan.agent_id == ^agent_id and plan.privy_user_id == ^owner_id and
             plan.state in ^@draft_states
       ),
       set: [state: "archived", updated_at: now]
@@ -74,18 +74,19 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def get_plan(plan_id, %HumanUser{} = human) do
-    case load_plan(plan_id, human.privy_user_id) do
-      nil -> {:error, :not_found}
-      %Plan{} = plan -> {:ok, serialize_plan(plan)}
+  def get_plan(plan_id, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor) do
+      case load_plan(plan_id, owner_id) do
+        nil -> {:error, :not_found}
+        %Plan{} = plan -> {:ok, serialize_plan(plan)}
+      end
     end
   end
 
-  def get_plan(_plan_id, _human), do: {:error, :unauthorized}
-
-  def update_plan(plan_id, attrs, %HumanUser{} = human) do
-    with %Plan{} = plan <- load_plan(plan_id, human.privy_user_id),
-         %{} = agent <- Launch.get_agent(human, plan.agent_id),
+  def update_plan(plan_id, attrs, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor),
+         %Plan{} = plan <- load_plan(plan_id, owner_id),
+         %{} = agent <- Launch.get_agent(current_actor, plan.agent_id),
          update_attrs <- normalize_plan_attrs(attrs, agent, false),
          {:ok, plan} <-
            plan
@@ -105,10 +106,9 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def update_plan(_plan_id, _attrs, _human), do: {:error, :unauthorized}
-
-  def upload_asset(attrs, %HumanUser{} = human) do
-    with {:ok, asset_attrs} <- normalize_asset_attrs(attrs, human),
+  def upload_asset(attrs, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor),
+         {:ok, asset_attrs} <- normalize_asset_attrs(attrs, owner_id),
          {:ok, asset} <-
            %Asset{}
            |> Asset.changeset(asset_attrs)
@@ -117,10 +117,9 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def upload_asset(_attrs, _human), do: {:error, :unauthorized}
-
-  def update_metadata(plan_id, attrs, %HumanUser{} = human) do
-    with %Plan{} = plan <- load_plan(plan_id, human.privy_user_id),
+  def update_metadata(plan_id, attrs, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor),
+         %Plan{} = plan <- load_plan(plan_id, owner_id),
          {:ok, metadata} <- required_metadata(attrs),
          {:ok, plan} <-
            plan
@@ -137,20 +136,36 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def update_metadata(_plan_id, _attrs, _human), do: {:error, :unauthorized}
+  def supporting_evidence_for_agent(agent_id, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor) do
+      evidence =
+        Plan
+        |> where([plan], plan.agent_id == ^agent_id)
+        |> where([plan], plan.privy_user_id == ^owner_id)
+        |> where([plan], plan.state != "archived")
+        |> where([plan], not is_nil(plan.techtree_evidence_packet_ref))
+        |> order_by([plan], desc: plan.updated_at)
+        |> limit(5)
+        |> Repo.all()
+        |> Enum.flat_map(&supporting_evidence/1)
 
-  def metadata_preview(plan_id, %HumanUser{} = human) do
-    case load_plan(plan_id, human.privy_user_id) do
-      nil -> {:error, :not_found}
-      %Plan{} = plan -> {:ok, metadata_preview_payload(plan)}
+      {:ok, evidence}
     end
   end
 
-  def metadata_preview(_plan_id, _human), do: {:error, :unauthorized}
+  def metadata_preview(plan_id, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor) do
+      case load_plan(plan_id, owner_id) do
+        nil -> {:error, :not_found}
+        %Plan{} = plan -> {:ok, metadata_preview_payload(plan)}
+      end
+    end
+  end
 
-  def validate_plan(plan_id, %HumanUser{} = human) do
-    with %Plan{} = plan <- load_plan(plan_id, human.privy_user_id),
-         {:ok, validation} <- build_validation(plan, human),
+  def validate_plan(plan_id, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor),
+         %Plan{} = plan <- load_plan(plan_id, owner_id),
+         {:ok, validation} <- build_validation(plan, current_actor),
          {:ok, updated} <-
            plan
            |> Plan.update_changeset(%{
@@ -169,12 +184,11 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def validate_plan(_plan_id, _human), do: {:error, :unauthorized}
-
-  def publish_plan(plan_id, %HumanUser{} = human) do
-    with {:ok, %{validation: validation}} <- validate_plan(plan_id, human),
+  def publish_plan(plan_id, current_actor) do
+    with {:ok, owner_id} <- owner_id_for(current_actor),
+         {:ok, %{validation: validation}} <- validate_plan(plan_id, current_actor),
          true <- validation["launchable"] || {:error, :not_launchable},
-         %Plan{} = stored <- load_plan(plan_id, human.privy_user_id),
+         %Plan{} = stored <- load_plan(plan_id, owner_id),
          {:ok, updated} <-
            stored
            |> Plan.update_changeset(%{
@@ -194,15 +208,14 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def publish_plan(_plan_id, _human), do: {:error, :unauthorized}
-
-  def launch_plan(plan_id, attrs, %HumanUser{} = human, request_ip) do
-    with %Plan{} = plan <- load_plan(plan_id, human.privy_user_id),
-         {:ok, %{validation: validation}} <- validate_plan(plan_id, human),
+  def launch_plan(plan_id, attrs, current_actor, request_ip) do
+    with {:ok, owner_id} <- owner_id_for(current_actor),
+         %Plan{} = plan <- load_plan(plan_id, owner_id),
+         {:ok, %{validation: validation}} <- validate_plan(plan_id, current_actor),
          true <- validation["launchable"] || {:error, :not_launchable},
          launch_attrs <- build_launch_attrs(plan, attrs),
          {:ok, %{plan: updated, launch: job}} <-
-           create_launch_and_mark_plan_launched(plan, launch_attrs, human, request_ip),
+           create_launch_and_mark_plan_launched(plan, launch_attrs, current_actor, request_ip),
          :ok <- Launch.queue_processing(job.job_id) do
       {:ok, %{plan: serialize_plan(updated), launch: job}}
     else
@@ -212,12 +225,10 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  def launch_plan(_plan_id, _attrs, _human, _request_ip), do: {:error, :unauthorized}
-
-  defp create_launch_and_mark_plan_launched(plan, launch_attrs, human, request_ip) do
+  defp create_launch_and_mark_plan_launched(plan, launch_attrs, current_actor, request_ip) do
     Ecto.Multi.new()
     |> Ecto.Multi.run(:launch, fn _repo, _changes ->
-      Launch.create_launch_job(launch_attrs, human, request_ip, queue?: false)
+      Launch.create_launch_job(launch_attrs, current_actor, request_ip, queue?: false)
     end)
     |> Ecto.Multi.update(:plan, fn %{launch: job} ->
       Plan.update_changeset(plan, %{
@@ -233,7 +244,7 @@ defmodule Autolaunch.Prelaunch do
     end
   end
 
-  defp build_validation(plan, %HumanUser{} = human) do
+  defp build_validation(plan, current_actor) do
     preview_attrs = %{
       "agent_id" => plan.agent_id,
       "token_name" => plan.token_name,
@@ -243,7 +254,7 @@ defmodule Autolaunch.Prelaunch do
       "launch_notes" => plan.launch_notes
     }
 
-    case Launch.preview_launch(preview_attrs, human) do
+    case Launch.preview_launch(preview_attrs, current_actor) do
       {:ok, preview} ->
         metadata = metadata_draft(plan.metadata_draft)
         image_url = metadata["image_url"] || Map.get(plan.identity_snapshot || %{}, "image_url")
@@ -258,6 +269,7 @@ defmodule Autolaunch.Prelaunch do
           |> maybe_block(blank?(image_url), "Add an image for the launch page.")
 
         warnings = []
+        supporting_evidence = supporting_evidence(plan)
 
         state = if blockers == [], do: "launchable", else: "validated"
 
@@ -269,6 +281,7 @@ defmodule Autolaunch.Prelaunch do
              "state" => state,
              "blockers" => blockers,
              "warnings" => warnings,
+             "supporting_evidence" => supporting_evidence,
              "identity_status" => %{
                "agent_id" => plan.agent_id,
                "agent_name" => plan.agent_name,
@@ -291,6 +304,7 @@ defmodule Autolaunch.Prelaunch do
              "state" => "validated",
              "blockers" => ["Selected agent is not eligible for launch."],
              "warnings" => [],
+             "supporting_evidence" => supporting_evidence(plan),
              "agent" => agent
            }
          }}
@@ -330,6 +344,7 @@ defmodule Autolaunch.Prelaunch do
       "minimum_raise_usdc_raw" => minimum_raise && minimum_raise.raw,
       "agent_safe_address" => normalize_address(Map.get(attrs, "agent_safe_address")),
       "launch_notes" => trim(Map.get(attrs, "launch_notes")),
+      "techtree_evidence_packet_ref" => trim(Map.get(attrs, "techtree_evidence_packet_ref")),
       "metadata_draft" => metadata_draft(Map.get(attrs, "metadata_draft"))
     }
 
@@ -383,12 +398,12 @@ defmodule Autolaunch.Prelaunch do
     }
   end
 
-  defp normalize_asset_attrs(%{"source_url" => source_url}, %HumanUser{} = human)
+  defp normalize_asset_attrs(%{"source_url" => source_url}, owner_id)
        when is_binary(source_url) and source_url != "" do
     {:ok,
      %{
        asset_id: "asset_" <> Ecto.UUID.generate(),
-       privy_user_id: human.privy_user_id,
+       privy_user_id: owner_id,
        file_name: filename_from_url(source_url),
        media_type: "text/uri-list",
        source_url: source_url,
@@ -396,7 +411,7 @@ defmodule Autolaunch.Prelaunch do
      }}
   end
 
-  defp normalize_asset_attrs(attrs, %HumanUser{} = human) do
+  defp normalize_asset_attrs(attrs, owner_id) do
     with {:ok, file_name} <- required_text(Map.get(attrs, "file_name"), 255),
          {:ok, media_type} <- required_text(Map.get(attrs, "media_type"), 255),
          true <- media_type in @allowed_media_types || {:error, :invalid_media_type},
@@ -406,7 +421,7 @@ defmodule Autolaunch.Prelaunch do
       {:ok,
        %{
          asset_id: stored.asset_id,
-         privy_user_id: human.privy_user_id,
+         privy_user_id: owner_id,
          file_name: file_name,
          media_type: media_type,
          storage_path: stored.storage_path,
@@ -434,6 +449,7 @@ defmodule Autolaunch.Prelaunch do
       minimum_raise_usdc_raw: plan.minimum_raise_usdc_raw,
       agent_safe_address: plan.agent_safe_address,
       launch_notes: plan.launch_notes,
+      techtree_evidence_packet_ref: plan.techtree_evidence_packet_ref,
       identity_snapshot: plan.identity_snapshot || %{},
       metadata_draft: plan.metadata_draft || %{},
       validation_summary: plan.validation_summary || %{},
@@ -476,12 +492,76 @@ defmodule Autolaunch.Prelaunch do
     }
   end
 
+  defp supporting_evidence(%Plan{techtree_evidence_packet_ref: ref}) when is_binary(ref) do
+    case trim(ref) do
+      nil ->
+        []
+
+      "" ->
+        []
+
+      value ->
+        [
+          %{
+            kind: "techtree_evidence_packet",
+            label: "Techtree evidence",
+            ref: value,
+            source: "techtree"
+          }
+        ]
+    end
+  end
+
+  defp supporting_evidence(%Plan{}), do: []
+
   defp load_plan(plan_id, privy_user_id) do
     Repo.one(
       from plan in Plan,
         where: plan.plan_id == ^plan_id and plan.privy_user_id == ^privy_user_id
     )
   end
+
+  defp owner_id_for(%HumanUser{privy_user_id: privy_user_id})
+       when is_binary(privy_user_id) and privy_user_id != "",
+       do: {:ok, privy_user_id}
+
+  defp owner_id_for(%{
+         "chain_id" => chain_id,
+         "registry_address" => registry_address,
+         "token_id" => token_id
+       }) do
+    with {:ok, chain_id} <- normalize_agent_owner_part(chain_id),
+         {:ok, registry_address} <- normalize_agent_owner_part(registry_address),
+         {:ok, token_id} <- normalize_agent_owner_part(token_id) do
+      {:ok, "agent:#{chain_id}:#{registry_address}:#{token_id}"}
+    end
+  end
+
+  defp owner_id_for(%{
+         chain_id: chain_id,
+         registry_address: registry_address,
+         token_id: token_id
+       }) do
+    owner_id_for(%{
+      "chain_id" => chain_id,
+      "registry_address" => registry_address,
+      "token_id" => token_id
+    })
+  end
+
+  defp owner_id_for(_actor), do: {:error, :unauthorized}
+
+  defp normalize_agent_owner_part(value) when is_integer(value),
+    do: {:ok, Integer.to_string(value)}
+
+  defp normalize_agent_owner_part(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> {:error, :unauthorized}
+      trimmed -> {:ok, String.downcase(trimmed)}
+    end
+  end
+
+  defp normalize_agent_owner_part(_value), do: {:error, :unauthorized}
 
   defp required_text(value, max) when is_integer(max) do
     value = trim(value)

@@ -379,7 +379,8 @@ defmodule AutolaunchWeb.ContractsLiveTest do
 
     assert html =~ "migrate"
     assert html =~ "0x8fd3ab80"
-    assert html =~ "Copy tx JSON"
+    assert html =~ "Copy signing request"
+    assert html =~ "Copy transaction data"
   end
 
   test "contracts page prepares treasury fee collection through the splitter", %{conn: conn} do
