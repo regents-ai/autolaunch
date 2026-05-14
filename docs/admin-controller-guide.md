@@ -84,16 +84,16 @@ Then create and publish the launch plan:
 
 ```bash
 regents autolaunch prelaunch wizard
-regents autolaunch prelaunch validate <plan-id>
-regents autolaunch prelaunch publish <plan-id>
+regents autolaunch prelaunch validate --plan <plan-id>
+regents autolaunch prelaunch publish --plan <plan-id>
 ```
 
 Run the launch:
 
 ```bash
-regents autolaunch launch preview <plan-id>
-regents autolaunch launch run <plan-id>
-regents autolaunch launch monitor <job-id>
+regents autolaunch launch run --plan <plan-id>
+regents autolaunch jobs watch <job-id> --watch
+regents autolaunch launch monitor --job <job-id> --watch
 ```
 
 After the launch is ready, verify the deployment:
@@ -128,14 +128,14 @@ Use the settlement summary and the prepared actions it recommends. Do not treat 
 For the normal CLI path:
 
 ```bash
-regents autolaunch launch finalize <job-id>
-regents autolaunch launch monitor <job-id>
+regents autolaunch launch finalize --job <job-id>
+regents autolaunch launch monitor --job <job-id>
 ```
 
 For direct recovery and admin work, use the contracts surface:
 
 ```bash
-regents autolaunch contracts job <job-id>
+regents autolaunch contracts job --job <job-id>
 regents autolaunch strategy migrate --job <job-id>
 regents autolaunch strategy sweep-currency --job <job-id>
 regents autolaunch strategy sweep-token --job <job-id>
@@ -172,11 +172,11 @@ The admin-only contract actions are available through the CLI and `/contracts`.
 Common examples:
 
 ```bash
-regents autolaunch factory set-revenue-factory-authorized --factory <address> --authorized true
-regents autolaunch factory set-ingress-factory-authorized --factory <address> --authorized true
+regents autolaunch factory revenue-share set-authorized-creator --account <address> --enabled true
+regents autolaunch factory revenue-ingress set-authorized-creator --account <address> --enabled true
 regents autolaunch registry link-identity --subject <subject-id> --identity-chain-id <id> --identity-registry <address> --identity-agent-id <id>
-regents autolaunch registry set-splitter --subject <subject-id> --splitter <address>
-regents autolaunch splitter set-treasury --subject <subject-id> --treasury <address>
+regents autolaunch registry set-subject-manager --subject <subject-id> --account <address> --enabled true
+regents autolaunch splitter propose-treasury-recipient-rotation --subject <subject-id> --recipient <address>
 ```
 
 Use these only when the signer is the expected owner or operator. If a Safe owns the contract, prepare the action and submit it through the Safe.
@@ -225,7 +225,7 @@ Use the web app for human-owned connectors:
 
 ## Payment Links
 
-Payment links are contracts plus documentation in this repo. There is no public CLI command or web creation flow for them in this patch.
+Payment links are contracts plus documentation in this repo. There is no public CLI command or web creation flow for them today.
 
 Use `/Users/sean/Documents/regent/autolaunch/docs/payment-links.md` for direct contract usage. Payment link receivers forward Base USDC into the subject's current revenue destination. They are different from ingress accounts, which are factory-created and pinned to one known revenue path.
 

@@ -57,8 +57,8 @@ Use:
 
 ```bash
 regents autolaunch prelaunch wizard
-regents autolaunch prelaunch publish <plan-id>
-regents autolaunch launch run <plan-id>
+regents autolaunch prelaunch publish --plan <plan-id>
+regents autolaunch launch run --plan <plan-id>
 ```
 
 The web app remains useful during launch for public review, auction monitoring, profile pairing, and final wallet actions.
@@ -152,6 +152,6 @@ For repeatable operator work, use the CLI.
 
 ## Payment Links
 
-Payment links are not a web creation flow in this patch.
+Payment links are not a web creation flow today.
 
 Direct contract usage is documented in `/Users/sean/Documents/regent/autolaunch/docs/payment-links.md`.

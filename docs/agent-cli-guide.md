@@ -98,25 +98,25 @@ The guided launch path is:
 
 ```bash
 regents autolaunch prelaunch wizard
-regents autolaunch prelaunch validate <plan-id>
-regents autolaunch prelaunch publish <plan-id>
-regents autolaunch launch preview <plan-id>
-regents autolaunch launch run <plan-id>
-regents autolaunch launch monitor <job-id>
+regents autolaunch prelaunch validate --plan <plan-id>
+regents autolaunch prelaunch publish --plan <plan-id>
+regents autolaunch launch run --plan <plan-id>
+regents autolaunch jobs watch <job-id> --watch
+regents autolaunch launch monitor --job <job-id> --watch
 ```
 
 After the auction ends:
 
 ```bash
-regents autolaunch launch finalize <job-id>
-regents autolaunch launch monitor <job-id>
+regents autolaunch launch finalize --job <job-id>
+regents autolaunch launch monitor --job <job-id>
 ```
 
 Use vesting commands after launch:
 
 ```bash
-regents autolaunch vesting status <job-id>
-regents autolaunch vesting release <job-id>
+regents autolaunch vesting status --job <job-id>
+regents autolaunch vesting release --job <job-id>
 ```
 
 For direct subject creation outside the guided launch:
@@ -125,6 +125,7 @@ For direct subject creation outside the guided launch:
 regents autolaunch subjects create-existing-token \
   --stake-token <token-address> \
   --treasury <wallet> \
+  --staker-pool-bps <bps> \
   --label <subject-label>
 
 regents autolaunch subjects create-deferred-autolaunch \
@@ -132,11 +133,10 @@ regents autolaunch subjects create-deferred-autolaunch \
   --token-symbol <symbol> \
   --subject-label <label> \
   --treasury <wallet> \
-  --vesting-beneficiary <wallet> \
   --total-supply <amount>
 ```
 
-The deferred path uses the trusted token factory configured by Autolaunch. Keep `--token-factory-data` and `--token-factory-salt` only for the token metadata the current contract accepts.
+The deferred path uses the trusted token factory configured by Autolaunch. Keep `--token-factory-data` and `--token-factory-salt` only for the token metadata the current Autolaunch deployment accepts.
 
 ## Buy And Sell Agent Tokens
 
@@ -184,7 +184,7 @@ regents autolaunch subjects protocol-fee-settlements <subject-id>
 regents autolaunch subjects regent-emissions <subject-id>
 ```
 
-Sweeping ingress moves USDC from a known ingress account into the subject revenue path. Payment links are different: they are direct receiver contracts and do not have a CLI creation command in this patch.
+Sweeping ingress moves USDC from a known ingress account into the subject revenue path. Payment links are different: they are direct receiver contracts and do not have a CLI creation command today.
 
 ## Stake `$REGENT`
 
@@ -246,10 +246,10 @@ Use the web app for the human profile and browser-only connectors:
 Most agents should not use these unless they are operating their own launch or Safe:
 
 ```bash
-regents autolaunch contracts job <job-id>
+regents autolaunch contracts job --job <job-id>
 regents autolaunch strategy migrate --job <job-id>
 regents autolaunch strategy sweep-currency --job <job-id>
-regents autolaunch splitter set-treasury --subject <subject-id> --treasury <wallet>
+regents autolaunch splitter propose-treasury-recipient-rotation --subject <subject-id> --recipient <wallet>
 regents autolaunch registry link-identity --subject <subject-id> --identity-chain-id <id> --identity-registry <address> --identity-agent-id <id>
 ```
 

@@ -57,7 +57,7 @@ Use the web app for human-owned work:
 | AgentBook trust | Yes | Yes | CLI can register, watch, and look up. Web is smoother for the human approval step. |
 | X linking | No | Yes | Use `/x-link`. |
 | Contract operator actions | Yes | Yes | CLI is repeatable. `/contracts` is better for visual review. |
-| Payment link creation | Direct contract only | Direct contract only | No public CLI or web creation command in this patch. |
+| Payment link creation | Direct contract only | Direct contract only | No public CLI or web creation command today. |
 
 ## CLI-Only Or CLI-Better
 
@@ -105,6 +105,6 @@ The Autolaunch-native purchase path is the live auction bid. After graduation, u
 
 ## Payment Links
 
-Payment links are contract-level tools in this patch. They are documented for direct contract use, but there is no public CLI command or web creation button yet.
+Payment links are contract-level tools today. They are documented for direct contract use, but there is no public CLI command or web creation button yet.
 
 Read `/Users/sean/Documents/regent/autolaunch/docs/payment-links.md` before using them.
