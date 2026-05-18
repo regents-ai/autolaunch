@@ -19,8 +19,8 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
           chain: "Base",
           phase: "biddable",
           price_source: "auction_clearing",
-          current_price_usdc: "0.0050",
-          implied_market_cap_usdc: "9.5E+2",
+          current_price_quote: "0.0050",
+          implied_market_cap_quote: "9.5E+2",
           total_bid_volume: "18240.75",
           minimum_raise_progress_percent: 72,
           detail_url: "/auctions/auc_active",
@@ -42,8 +42,8 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
           chain: "Base",
           phase: "biddable",
           price_source: "auction_clearing",
-          current_price_usdc: "0.0085",
-          implied_market_cap_usdc: "1000",
+          current_price_quote: "0.0085",
+          implied_market_cap_quote: "1000",
           total_bid_volume: "9250.00",
           minimum_raise_progress_percent: 41,
           detail_url: "/auctions/auc_beta",
@@ -65,8 +65,8 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
           chain: "Base",
           phase: "live",
           price_source: "uniswap_spot",
-          current_price_usdc: "0.0110",
-          implied_market_cap_usdc: "1100000000",
+          current_price_quote: "0.0110",
+          implied_market_cap_quote: "1100000000",
           total_bid_volume: "26000.50",
           minimum_raise_progress_percent: 100,
           detail_url: "/auctions/auc_live",
@@ -117,10 +117,10 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     defp maybe_sort(items, "oldest"), do: Enum.reverse(items)
 
     defp maybe_sort(items, "market_cap_desc"),
-      do: Enum.sort_by(items, &Decimal.new(&1.implied_market_cap_usdc), :desc)
+      do: Enum.sort_by(items, &Decimal.new(&1.implied_market_cap_quote), :desc)
 
     defp maybe_sort(items, "market_cap_asc"),
-      do: Enum.sort_by(items, &Decimal.new(&1.implied_market_cap_usdc), :asc)
+      do: Enum.sort_by(items, &Decimal.new(&1.implied_market_cap_quote), :asc)
 
     defp maybe_sort(items, _sort), do: items
   end
@@ -137,8 +137,8 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
           chain: "Base",
           phase: "live",
           price_source: "uniswap_spot",
-          current_price_usdc: "0.0110",
-          implied_market_cap_usdc: "1100000000",
+          current_price_quote: "0.0110",
+          implied_market_cap_quote: "1100000000",
           total_bid_volume: "26000.50",
           minimum_raise_progress_percent: 100,
           detail_url: "/auctions/auc_live",

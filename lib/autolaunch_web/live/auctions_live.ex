@@ -282,7 +282,7 @@ defmodule AutolaunchWeb.AuctionsLive do
                     </div>
                   </div>
                   <div class="al-auctions-leaderboard-value">
-                    <strong>{format_large_currency(auction.implied_market_cap_usdc)}</strong>
+                    <strong>{format_large_currency(auction.implied_market_cap_quote)}</strong>
                     <span class={["al-status-badge", status_badge_class(auction)]}>
                       {row_status_label(auction)}
                     </span>
@@ -321,11 +321,11 @@ defmodule AutolaunchWeb.AuctionsLive do
               <div class="al-auctions-feature-stats">
                 <article>
                   <span>Current price</span>
-                  <strong>{format_price(@featured_auction.current_price_usdc)}</strong>
+                  <strong>{format_price(@featured_auction.current_price_quote)}</strong>
                 </article>
                 <article>
                   <span>Market cap</span>
-                  <strong>{format_large_currency(@featured_auction.implied_market_cap_usdc)}</strong>
+                  <strong>{format_large_currency(@featured_auction.implied_market_cap_quote)}</strong>
                 </article>
                 <article>
                   <span>Total bids</span>
@@ -429,7 +429,7 @@ defmodule AutolaunchWeb.AuctionsLive do
                     </div>
                   </div>
                   <div class="al-auctions-leaderboard-value">
-                    <strong>{format_large_currency(auction.implied_market_cap_usdc)}</strong>
+                    <strong>{format_large_currency(auction.implied_market_cap_quote)}</strong>
                     <span class={["al-status-badge", status_badge_class(auction)]}>
                       {row_status_label(auction)}
                     </span>
@@ -572,11 +572,11 @@ defmodule AutolaunchWeb.AuctionsLive do
                   <div class="al-auctions-gallery-stats">
                     <div>
                       <span>Price</span>
-                      <strong>{format_price(token.current_price_usdc)}</strong>
+                      <strong>{format_price(token.current_price_quote)}</strong>
                     </div>
                     <div>
                       <span>Cap</span>
-                      <strong>{format_large_currency(token.implied_market_cap_usdc)}</strong>
+                      <strong>{format_large_currency(token.implied_market_cap_quote)}</strong>
                     </div>
                     <div>
                       <span>{time_label(token)}</span>
@@ -645,7 +645,7 @@ defmodule AutolaunchWeb.AuctionsLive do
             <div class="al-auctions-pay-card">
               <span>Market read</span>
               <strong>{if @selected_auction, do: row_status_label(@selected_auction), else: "Waiting for a market"}</strong>
-              <p>Price <span>{if @selected_auction, do: format_price(@selected_auction.current_price_usdc), else: "Not available"}</span></p>
+              <p>Price <span>{if @selected_auction, do: format_price(@selected_auction.current_price_quote), else: "Not available"}</span></p>
               <p>Source <span>{if @selected_auction, do: humanize_price_source(@selected_auction.price_source), else: "Not available"}</span></p>
             </div>
 
@@ -838,8 +838,8 @@ defmodule AutolaunchWeb.AuctionsLive do
   end
 
   defp market_totals(directory, visible_rows) do
-    whole_market_cap_raw = decimal_sum(directory, :implied_market_cap_usdc)
-    filtered_market_cap_raw = decimal_sum(visible_rows, :implied_market_cap_usdc)
+    whole_market_cap_raw = decimal_sum(directory, :implied_market_cap_quote)
+    filtered_market_cap_raw = decimal_sum(visible_rows, :implied_market_cap_quote)
     filtered_bid_volume_raw = decimal_sum(visible_rows, :total_bid_volume)
     median_raise_raw = median_decimal(visible_rows, :total_bid_volume)
 
@@ -968,7 +968,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   defp minimum_raise_label(row) do
     row
-    |> Map.get(:minimum_raise_usdc)
+    |> Map.get(:minimum_raise_quote)
     |> case do
       nil -> "Set by launch"
       value -> format_large_currency(value)
@@ -1087,7 +1087,10 @@ defmodule AutolaunchWeb.AuctionsLive do
   defp truthy?(value), do: value in [true, "true", 1, "1"]
 
   defp market_cap_desc?(left, right) do
-    compare_market_caps(left.implied_market_cap_usdc, right.implied_market_cap_usdc) in [:gt, :eq]
+    compare_market_caps(left.implied_market_cap_quote, right.implied_market_cap_quote) in [
+      :gt,
+      :eq
+    ]
   end
 
   defp compare_market_caps(left, right) do

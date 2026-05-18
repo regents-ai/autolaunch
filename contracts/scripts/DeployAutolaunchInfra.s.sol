@@ -22,7 +22,7 @@ contract DeployAutolaunchInfraScript is Script {
 
     struct ScriptConfig {
         address owner;
-        address usdc;
+        address revenueUsdcToken;
         address regentRevenueStaking;
         address tokenFactory;
     }
@@ -63,21 +63,21 @@ contract DeployAutolaunchInfraScript is Script {
         vm.startBroadcast(cfg.owner);
         subjectRegistry = new SubjectRegistry(cfg.owner);
         stakingRevenueRouter = new RegentStakingRevenueRouter(
-            cfg.owner, cfg.usdc, address(subjectRegistry), cfg.regentRevenueStaking
+            cfg.owner, cfg.revenueUsdcToken, address(subjectRegistry), cfg.regentRevenueStaking
         );
         revenueShareSplitterDeployer = new RevenueShareSplitterV2Deployer();
         revenueShareFactory = new RevenueShareFactory(
             cfg.owner,
-            cfg.usdc,
+            cfg.revenueUsdcToken,
             subjectRegistry,
             address(stakingRevenueRouter),
             address(revenueShareSplitterDeployer)
         );
         revenueIngressFactory =
-            new RevenueIngressFactory(cfg.usdc, address(subjectRegistry), cfg.owner);
+            new RevenueIngressFactory(cfg.revenueUsdcToken, address(subjectRegistry), cfg.owner);
         existingTokenRevenueFactory = new PermissionlessExistingTokenRevenueFactory(
             cfg.owner,
-            cfg.usdc,
+            cfg.revenueUsdcToken,
             address(revenueIngressFactory),
             subjectRegistry,
             IRegentStakingRevenueRouter(address(stakingRevenueRouter))
@@ -101,17 +101,17 @@ contract DeployAutolaunchInfraScript is Script {
 
     function validateConfig(ScriptConfig memory cfg) public view {
         require(cfg.owner != address(0), "OWNER_ZERO");
-        require(cfg.usdc != address(0), "USDC_ZERO");
+        require(cfg.revenueUsdcToken != address(0), "REVENUE_USDC_ZERO");
         require(cfg.regentRevenueStaking != address(0), "REGENT_STAKING_ZERO");
         require(cfg.tokenFactory != address(0), "TOKEN_FACTORY_ZERO");
         require(cfg.tokenFactory.code.length != 0, "TOKEN_FACTORY_NOT_DEPLOYED");
         require(block.chainid == BASE_MAINNET_CHAIN_ID, "BASE_MAINNET_ONLY");
-        BaseUsdc.requireCanonical(cfg.usdc);
+        BaseUsdc.requireCanonical(cfg.revenueUsdcToken);
     }
 
     function loadConfigFromEnv() public view returns (ScriptConfig memory cfg) {
         cfg.owner = vm.envAddress("AUTOLAUNCH_INFRA_OWNER");
-        cfg.usdc = vm.envAddress("AUTOLAUNCH_USDC_ADDRESS");
+        cfg.revenueUsdcToken = vm.envAddress("AUTOLAUNCH_REVENUE_USDC_ADDRESS");
         cfg.regentRevenueStaking = vm.envAddress("REGENT_REVENUE_STAKING_ADDRESS");
         cfg.tokenFactory = vm.envAddress("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS");
         validateConfig(cfg);
@@ -149,9 +149,10 @@ contract DeployAutolaunchInfraScript is Script {
                 vm.toString(address(stakingRevenueRouter)),
                 "\",\"strategyFactoryAddress\":\"",
                 vm.toString(address(strategyFactory)),
-                "\",\"usdcAddress\":\"",
-                vm.toString(cfg.usdc),
-                "\",\"regentRevenueStakingAddress\":\"",
+                "\",\"revenueUsdcTokenAddress\":\"",
+                vm.toString(cfg.revenueUsdcToken),
+                "\",\"revenueTokenSymbol\":\"USDC\",\"revenueTokenDecimals\":6",
+                ",\"regentRevenueStakingAddress\":\"",
                 vm.toString(cfg.regentRevenueStaking),
                 "\",\"trustedTokenFactoryAddress\":\"",
                 vm.toString(cfg.tokenFactory),

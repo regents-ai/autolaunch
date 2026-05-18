@@ -54,6 +54,10 @@ defmodule Autolaunch.ReleaseDeployVerifierTest do
              "fee_registry_ownership",
              "fee_vault_ownership",
              "hook_ownership",
+             "auction_quote_token",
+             "revenue_usdc_token",
+             "auction_currency",
+             "strategy_quote_token",
              "fee_vault_canonical_tokens",
              "strategy_migrated",
              "strategy_pool_and_position",
@@ -140,15 +144,21 @@ defmodule Autolaunch.ReleaseDeployVerifierTest do
            )
   end
 
-  test "verifier fails when launch contracts do not use canonical Base USDC", %{job: job} do
-    Support.set_rpc_mode(:wrong_usdc)
+  test "verifier fails when launch contracts do not use canonical REGENT", %{job: job} do
+    Support.set_rpc_mode(:wrong_quote_token)
 
     assert %{ok: false, checks: checks} = ReleaseDeployVerifier.run(job.job_id)
 
     assert Enum.any?(
              checks,
+             &(&1.key == "auction_currency" and not &1.ok and
+                 String.contains?(&1.detail, "expected #{Support.address(:mainnet_regent)}"))
+           )
+
+    assert Enum.any?(
+             checks,
              &(&1.key == "fee_vault_canonical_tokens" and not &1.ok and
-                 String.contains?(&1.detail, "expected #{Support.address(:mainnet_usdc)}"))
+                 String.contains?(&1.detail, "expected #{Support.address(:mainnet_regent)}"))
            )
 
     assert Enum.any?(

@@ -47,11 +47,13 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     uint256 public directDepositUsdc;
     uint256 public verifiedIngressUsdc;
     uint256 public protocolFeeUsdc;
+    uint256 public treasuryBuybackUsdc;
     uint256 public netAgentLaneUsdc;
     uint256 public stakerPoolInflowUsdc;
     uint256 public treasuryReservedUsdc;
     uint256 public noStakerPoolRoutedToTreasuryUsdc;
     uint256 public undistributedDustUsdc;
+    uint256 public totalRegentBoughtForTreasury;
     uint256 public totalUsdcCreditedToStakers;
     uint256 public totalClaimedUsdc;
 
@@ -81,6 +83,9 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
     event USDCTreasuryWithdrawn(uint256 amount, address indexed recipient);
     event AccountSynced(address indexed account);
     event SubjectLifecycleSynced(bool active, bool retiring, bool retired);
+    event TreasuryRegentBuybackProcessed(
+        uint256 usdcAmount, uint256 regentOut, address indexed recipient, bytes32 indexed sourceRef
+    );
 
     constructor(
         address stakeToken_,
@@ -317,7 +322,11 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
 
         uint16 skimBps = stakingRevenueRouter.protocolSkimBps();
         uint256 protocolAmount = FullMath.mulDiv(received, skimBps, BPS_DENOMINATOR);
-        uint256 net = received - protocolAmount;
+        uint256 netAfterProtocol = received - protocolAmount;
+        uint256 buybackAmount = FullMath.mulDiv(
+            netAfterProtocol, stakingRevenueRouter.treasuryBuybackBps(), BPS_DENOMINATOR
+        );
+        uint256 net = netAfterProtocol - buybackAmount;
         uint256 stakerPool = FullMath.mulDiv(net, stakerPoolBps, BPS_DENOMINATOR);
         uint256 treasuryAmount = net - stakerPool;
         uint256 stakerEntitlement;
@@ -347,6 +356,7 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
             verifiedIngressUsdc += received;
         }
         protocolFeeUsdc += protocolAmount;
+        treasuryBuybackUsdc += buybackAmount;
         netAgentLaneUsdc += net;
         stakerPoolInflowUsdc += stakerPool;
         treasuryReservedUsdc += treasuryAmount;
@@ -357,6 +367,16 @@ contract LiveStakeFeePoolSplitter is Owned, IRevenueShareSplitter, ISubjectLifec
             usdc.safeTransfer(address(stakingRevenueRouter), protocolAmount);
             stakingRevenueRouter.processProtocolFee(
                 subjectId, treasuryRecipient, protocolAmount, sourceRef
+            );
+        }
+        if (buybackAmount > 0) {
+            usdc.safeTransfer(address(stakingRevenueRouter), buybackAmount);
+            uint256 regentOut = stakingRevenueRouter.processTreasuryBuyback(
+                subjectId, treasuryRecipient, buybackAmount, sourceRef
+            );
+            totalRegentBoughtForTreasury += regentOut;
+            emit TreasuryRegentBuybackProcessed(
+                buybackAmount, regentOut, treasuryRecipient, sourceRef
             );
         }
 

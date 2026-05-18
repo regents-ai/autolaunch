@@ -131,39 +131,6 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
       end
     end
 
-    def prepare_job_action(
-          "job_contracts",
-          "revenue_splitter",
-          "pull_treasury_share",
-          %{"amount" => amount},
-          human
-        ) do
-      case access_status(human) do
-        :authorized ->
-          {:ok,
-           %{
-             job_id: "job_contracts",
-             prepared: %{
-               resource: "revenue_splitter",
-               action: "pull_treasury_share",
-               params: %{"amount" => amount},
-               wallet_action: %{
-                 chain_id: 8_453,
-                 to: "0x9999999999999999999999999999999999999999",
-                 value: "0x0",
-                 data: "0x94af8446"
-               }
-             }
-           }}
-
-        :unauthorized ->
-          {:error, :unauthorized}
-
-        :forbidden ->
-          {:error, :forbidden}
-      end
-    end
-
     def prepare_job_action("job_invalid_address", _resource, _action, _attrs, human) do
       case access_status(human) do
         :authorized -> {:error, :invalid_address}
@@ -672,29 +639,6 @@ defmodule AutolaunchWeb.Api.ContractsControllerTest do
              "prepared" => %{
                "action" => "propose_beneficiary_rotation",
                "wallet_action" => %{"data" => "0xc178cb2d"}
-             }
-           } = json_response(conn, 200)
-  end
-
-  test "job prepare route returns prepared payload for treasury fee collection", %{
-    conn: conn,
-    human: human
-  } do
-    conn = signed_in_conn(conn, human)
-
-    conn =
-      post(
-        conn,
-        contracts_job_prepare_path("job_contracts", "revenue_splitter", "pull_treasury_share"),
-        %{"amount" => "7"}
-      )
-
-    assert %{
-             "ok" => true,
-             "prepared" => %{
-               "resource" => "revenue_splitter",
-               "action" => "pull_treasury_share",
-               "wallet_action" => %{"data" => "0x94af8446"}
              }
            } = json_response(conn, 200)
   end

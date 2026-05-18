@@ -181,7 +181,7 @@ defmodule AutolaunchWeb.HomeLive do
                         <p>${token.symbol}</p>
                       </div>
                       <div class="al-home-auction-meta">
-                        <strong>{AutolaunchWeb.Format.format_currency(token.implied_market_cap_usdc, 0)}</strong>
+                        <strong>{AutolaunchWeb.Format.format_currency(token.implied_market_cap_quote, 0)}</strong>
                         <span class={["al-home-status-pill", featured_status_class(token)]}>
                           {featured_status_label(token)}
                         </span>
@@ -403,7 +403,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   defp tracked_market_cap(directory) do
     directory
-    |> Enum.map(&AutolaunchWeb.Format.parse_decimal(&1.implied_market_cap_usdc))
+    |> Enum.map(&AutolaunchWeb.Format.parse_decimal(&1.implied_market_cap_quote))
     |> Enum.reject(&is_nil/1)
     |> sum_decimals()
     |> case do

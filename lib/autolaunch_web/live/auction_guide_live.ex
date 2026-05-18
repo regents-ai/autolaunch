@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       eyebrow: "How you enter",
       title: "You set a total budget and a max price.",
       body:
-        "Tell the auction how much USDC you are willing to spend and the highest token price you are comfortable with. If the market stays within your limit, your bid can keep filling.",
+        "Tell the auction how much $REGENT you are willing to spend and the highest token price you are comfortable with. If the market stays within your limit, your bid can keep filling.",
       note: "Your budget sets size. Your max price sets discipline.",
       stat: "Budget + ceiling"
     },
@@ -75,7 +75,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
       title:
         "When the auction ends, you claim the filled tokens, then stake if you want revenue exposure.",
       body:
-        "After the sale, the position page shows what filled, what can be claimed, and whether any USDC can come back. Claimed tokens must be staked before they can earn revenue.",
+        "After the sale, the position page shows what filled, what can be claimed, and whether any $REGENT can come back. Claimed tokens must be staked before they can earn revenue.",
       note: "The sale ends at claim. Earning starts only after staking.",
       stat: "Claim, then stake"
     }
@@ -201,7 +201,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
                     </tr>
                     <tr>
                       <th scope="row">Currency</th>
-                      <td>USDC on Base</td>
+                      <td>$REGENT on Base</td>
                     </tr>
                     <tr>
                       <th scope="row">Revenue</th>
@@ -228,15 +228,15 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <div class="al-choice-grid">
               <article class="al-choice-card" data-guide-choice>
                 <p class="al-kicker">Bid path</p>
-                <h3>Back an active auction with USDC.</h3>
+                <h3>Back an active auction with $REGENT.</h3>
                 <p>
-                  Open the live bid view, choose how much USDC you want to spend, and set the highest
+                  Open the live bid view, choose how much $REGENT you want to spend, and set the highest
                   token price you are comfortable paying.
                 </p>
 
                 <div class="al-launch-tags" aria-label="Bid path facts">
                   <span class="al-launch-tag">3-day sale window</span>
-                  <span class="al-launch-tag">USDC on Base</span>
+                  <span class="al-launch-tag">$REGENT on Base</span>
                   <span class="al-launch-tag">Stake after claim to earn revenue</span>
                 </div>
 
@@ -303,7 +303,7 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <div class="al-inline-banner al-guide-banner">
               <strong>A simple rule.</strong>
               <p>
-                Choose two numbers: how much USDC you want to spend and the highest token price you
+                Choose two numbers: how much $REGENT you want to spend and the highest token price you
                 are willing to accept.
               </p>
             </div>
@@ -355,8 +355,8 @@ defmodule AutolaunchWeb.AuctionGuideLive do
             <div class="al-guide-summary-grid al-guide-facts-grid">
               <.stat_card title="Auction sale" value="10%" hint="10 billion of the 100 billion token supply are sold in the auction." />
               <.stat_card title="LP reserve" value="5%" hint="5 billion tokens are held back for the Uniswap v4 pool." />
-              <.stat_card title="USDC to LP" value="50%" hint="Half of the auction USDC pairs with the 5 billion LP tokens." />
-              <.stat_card title="USDC to agent Safe" value="50%" hint="The other half is swept to the agent Safe for business operations." />
+              <.stat_card title="$REGENT to LP" value="50%" hint="Half of the auction $REGENT pairs with the 5 billion LP tokens." />
+              <.stat_card title="$REGENT to Agent Safe" value="50%" hint="The other half is swept to the Agent Safe." />
               <.stat_card title="Vesting" value="85%" hint="The remaining 85 billion tokens vest to the agent treasury over 1 year." />
               <.stat_card title="Auction style" value="Simple + fair" hint="Budget plus max price, same block price for everyone, less timing edge." />
             </div>

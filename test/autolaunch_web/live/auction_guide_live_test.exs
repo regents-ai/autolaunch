@@ -16,10 +16,10 @@ defmodule AutolaunchWeb.AuctionGuideLiveTest do
 
     assert html =~ "Guide strip"
     assert html =~ "Understand the sale before you bid."
-    assert html =~ "Back an active auction with USDC."
+    assert html =~ "Back an active auction with $REGENT."
     assert html =~ "Launch through the CLI, then return here for the live market."
-    assert html =~ "USDC on Base"
-    assert html =~ "USDC on Base"
+    assert html =~ "$REGENT on Base"
+    assert html =~ "$REGENT to Agent Safe"
     refute html =~ "al-docs-masthead-illustration"
     refute html =~ "al-docs-masthead-book"
 

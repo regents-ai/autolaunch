@@ -32,6 +32,7 @@ defmodule Autolaunch.ReleaseSmoke do
       set_smoke_state(job_payload)
       Application.put_env(:autolaunch, :cca_rpc_adapter, __MODULE__.SmokeRpc)
 
+      bid_quote = verify_regent_bid(job_payload, human)
       {:ok, subject} = Revenue.get_subject(@subject_id, human)
       {:ok, ingress} = Revenue.get_ingress(@subject_id, human)
 
@@ -56,6 +57,12 @@ defmodule Autolaunch.ReleaseSmoke do
             key: "trust_urls",
             ok: true,
             detail: "Launch result includes ENS and AgentBook follow-up URLs."
+          },
+          %{
+            key: "regent_bid_quote",
+            ok: true,
+            detail:
+              "Synthetic bid is prepared with #{bid_quote.amount} $REGENT and a $REGENT approval."
           },
           %{
             key: "subject_read",
@@ -200,9 +207,45 @@ defmodule Autolaunch.ReleaseSmoke do
       do: raise("Synthetic ingress read returned no ingress accounts.")
   end
 
+  defp verify_regent_bid(%{job: job}, human) do
+    auction_id = "auc_" <> String.replace_prefix(job.job_id, "job_", "")
+
+    with {:ok, quote} <-
+           Launch.quote_bid(
+             auction_id,
+             %{
+               "amount" => "1.5",
+               "max_price" => "0.100999999999999999999999999572"
+             },
+             human
+           ) do
+      currency = quote.auction_currency || %{}
+      prepared = quote.prepared || %{}
+
+      approval =
+        get_in(prepared, [:wallet_action, :approval]) ||
+          get_in(prepared, ["wallet_action", "approval"])
+
+      cond do
+        currency.symbol != "REGENT" or currency.decimals != 18 ->
+          raise("Synthetic bid did not use the $REGENT auction currency.")
+
+        is_nil(approval) ->
+          raise("Synthetic bid did not include the $REGENT approval.")
+
+        true ->
+          quote
+      end
+    else
+      {:error, reason} -> raise("Synthetic $REGENT bid quote failed: #{inspect(reason)}")
+      other -> raise("Synthetic $REGENT bid quote returned #{inspect(other)}")
+    end
+  end
+
   defp set_smoke_state(%{job: job}) do
     Application.put_env(:autolaunch, :release_smoke_state, %{
       token_address: job.token_address,
+      auction_address: String.downcase(job.auction_address),
       subject_registry_address: job.subject_registry_address
     })
   end
@@ -225,9 +268,15 @@ defmodule Autolaunch.ReleaseSmoke do
   defmodule SmokeRpc do
     @moduledoc false
 
+    alias Autolaunch.CCA.Abi
+
     @splitter "0x6666666666666666666666666666666666666666"
     @ingress "0x7777777777777777777777777777777777777777"
     @usdc "0x5555555555555555555555555555555555555555"
+    @auction_tick_spacing_q96 79_228_162_514_264_337_593_543_950
+    @auction_floor_price_q96 @auction_tick_spacing_q96 * 100
+    @auction_max_target_price_q96 @auction_tick_spacing_q96 * 10_000_000
+    @agent_token_supply 100_000_000_000 * 1_000_000_000_000_000_000
 
     def block_number(chain_id, _opts) do
       if chain_id == smoke_chain_id(), do: {:ok, 1}, else: {:error, :unsupported_chain_id}
@@ -314,7 +363,64 @@ defmodule Autolaunch.ReleaseSmoke do
       end
     end
 
-    def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported_call}
+    def eth_call(chain_id, auction_address, data, _opts) do
+      state = smoke_state()
+
+      if chain_id == smoke_chain_id() and
+           String.downcase(auction_address) == state.auction_address do
+        case String.slice(data, 0, 10) do
+          "0xc2c4c5c1" ->
+            {:ok, words([@auction_floor_price_q96, 0, 0, 0, 0, 0])}
+
+          "0x9363c812" ->
+            {:ok, uint(@auction_floor_price_q96)}
+
+          "0xd0c93a7c" ->
+            {:ok, uint(@auction_tick_spacing_q96)}
+
+          "0x60d3ded7" ->
+            {:ok, uint(Abi.max_u256())}
+
+          "0xa9176e45" ->
+            {:ok, uint(0)}
+
+          "0x18160ddd" ->
+            {:ok, uint(@agent_token_supply)}
+
+          "0x465a8928" ->
+            {:ok, uint(1_000_000_000_000_000_000)}
+
+          "0x998ba4fc" ->
+            {:ok, uint(0)}
+
+          "0x3e9d9174" ->
+            {:ok, uint(0)}
+
+          "0x48cd4cb1" ->
+            {:ok, uint(0)}
+
+          "0x083c6323" ->
+            {:ok, uint(100)}
+
+          "0x37dfbc4b" ->
+            {:ok, uint(101)}
+
+          "0xae91fa33" ->
+            {:ok, uint(@auction_max_target_price_q96)}
+
+          "0x9e5f2602" ->
+            {:ok, bool(false)}
+
+          "0x534cb30d" <> _rest ->
+            {:ok, words([Abi.max_u256(), 0])}
+
+          _ ->
+            {:error, :unsupported_call}
+        end
+      else
+        {:error, :unsupported_call}
+      end
+    end
 
     def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}
     def tx_by_hash(_chain_id, _tx_hash, _opts), do: {:ok, nil}
@@ -329,6 +435,15 @@ defmodule Autolaunch.ReleaseSmoke do
     end
 
     defp bool(true), do: "0x" <> String.pad_leading("1", 64, "0")
+    defp bool(false), do: "0x" <> String.duplicate("0", 64)
+
+    defp words(values), do: "0x" <> Enum.map_join(values, "", &uint_word/1)
+
+    defp uint_word(value) do
+      value
+      |> Integer.to_string(16)
+      |> String.pad_leading(64, "0")
+    end
 
     defp smoke_state do
       Application.get_env(:autolaunch, :release_smoke_state, %{})

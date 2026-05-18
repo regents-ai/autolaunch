@@ -18,6 +18,10 @@ contract MintableERC20Mock {
         symbol = symbol_;
     }
 
+    function decimals() external pure returns (uint8) {
+        return DECIMALS;
+    }
+
     function mint(address to, uint256 amount) external {
         require(to != address(0), "TO_ZERO");
         totalSupply += amount;

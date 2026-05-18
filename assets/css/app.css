@@ -7061,3 +7061,151 @@ textarea {
 ) {
   color: var(--text-primary);
 }
+
+.al-swap-modal[hidden] {
+  display: none;
+}
+
+.al-swap-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.al-swap-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--brand-ink) 26%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.al-swap-dialog {
+  position: relative;
+  width: min(100%, 31rem);
+  border: 1px solid color-mix(in srgb, var(--brand-ink) 12%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, white 96%, var(--color-bg) 4%);
+  box-shadow: 0 34px 90px -48px rgba(17, 35, 64, 0.42);
+  padding: 1rem;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 220ms cubic-bezier(0.23, 1, 0.32, 1), transform 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@starting-style {
+  .al-swap-dialog {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.al-swap-head,
+.al-swap-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.al-swap-head h2,
+.al-swap-head p {
+  margin: 0;
+}
+
+.al-swap-head p:not(.al-kicker) {
+  color: var(--al-muted);
+}
+
+.al-swap-close {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid color-mix(in srgb, var(--brand-ink) 12%, transparent);
+  border-radius: 999px;
+  background: white;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.al-swap-close:active {
+  transform: scale(0.94);
+}
+
+.al-swap-form {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 0.35fr);
+  margin-top: 1rem;
+}
+
+.al-swap-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.al-swap-form span,
+.al-swap-quote span {
+  color: var(--al-muted);
+  font-size: 0.84rem;
+}
+
+.al-swap-form input {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--brand-ink) 12%, transparent);
+  border-radius: 0.55rem;
+  background: white;
+  padding: 0.72rem 0.8rem;
+}
+
+.al-swap-quote {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--brand-primary) 7%, white 93%);
+  padding: 0.8rem;
+}
+
+.al-swap-quote div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.al-swap-quote strong {
+  overflow-wrap: anywhere;
+}
+
+.al-swap-notice {
+  margin: 0.85rem 0 0;
+  border-radius: 0.65rem;
+  padding: 0.7rem 0.8rem;
+  background: color-mix(in srgb, var(--brand-primary) 7%, white 93%);
+  color: color-mix(in srgb, var(--brand-ink) 84%, black 16%);
+}
+
+.al-swap-notice[data-tone="error"] {
+  background: color-mix(in srgb, #ef4444 10%, white 90%);
+  color: #7f1d1d;
+}
+
+.al-swap-notice[data-tone="success"] {
+  background: color-mix(in srgb, #22c55e 12%, white 88%);
+  color: #14532d;
+}
+
+.al-swap-actions {
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .al-swap-form,
+  .al-swap-quote {
+    grid-template-columns: 1fr;
+  }
+}

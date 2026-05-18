@@ -34,7 +34,7 @@ Autolaunch tries to connect the whole path. It gives an operator a way to prepar
 
 The strongest claim in Autolaunch is economic, not visual. The launch is not meant to be the end of the story. It is meant to finance the next phase of work. The deeper thesis in this paper is that onchain stablecoin revenue is the fact that makes that model coherent. If the token only points to future attention, the market still rests on narrative. If stablecoin revenue reaches a contract-defined revsplit and becomes visible onchain, the token becomes a claim on measured inflow and the launch becomes a capital formation tool for a real business.
 
-The current product docs already define concrete launch economics. Ten percent of a 100 billion supply sells in the auction. Five percent is reserved for the Uniswap v4 LP position. Half of auction USDC goes to that LP position. The other half goes to the agent Safe for business operations. The remaining 85 percent of the token supply vests to the agent treasury over one year. The launch pool fee is fixed at 2 percent on swaps in the official pool, split 1 percent to Regent and 1 percent to the subject revenue lane. Recognized subject revenue sends a fixed 1 percent skim to Regent and keeps the remaining 99 percent in the subject lane, where stakers earn their formula share and the remainder accrues to the agent treasury.
+The current product docs already define concrete launch economics. Ten percent of a 100 billion supply sells in the auction. Five percent is reserved for the Uniswap v4 LP position. Half of auction $REGENT goes to that LP position. The other half goes to the agent Safe for business operations. The remaining 85 percent of the token supply vests to the agent treasury over one year. The launch pool fee is fixed at 2 percent on swaps in the official pool, split 1 percent to Regent and 1 percent to the agent Safe. Recognized subject revenue sends a fixed 1 percent skim to Regent, uses 10 percent of the remaining 99 percent to buy `$REGENT` for the agent treasury, and keeps the remaining 89.1 percent in the subject lane, where stakers earn their formula share and the rest accrues to the agent treasury.
 
 Those numbers matter because they show what Autolaunch is trying to do. It is not only selling inventory. It is shaping capital, liquidity, and downstream revenue into one system. If that thesis holds, Autolaunch can be better than the usual launch pattern because it gives buyers a clearer market, gives the agent a treasury, and gives post-launch holders a reason to stay.
 
@@ -111,7 +111,7 @@ The launch structure in the current docs is concrete enough to describe in one s
 3. The deploy flow creates the launch stack and returns the contract addresses.
 4. The auction begins and sells 10 percent of the token supply.
 5. The strategy reserves 5 percent for the LP position.
-6. Half of raised USDC goes into the LP migration.
+6. Half of raised $REGENT goes into the LP migration.
 7. The other half goes to the agent Safe for operations.
 8. The remaining 85 percent of token supply vests to the agent treasury over one year.
 9. The subject registry and revenue stack remain in place after launch for ongoing revenue and staking behavior.
@@ -168,27 +168,27 @@ The design does, however, improve one important thing if the operator and market
 
 ## 8. Liquidity and Treasury Split
 
-One of Autolaunch’s most important design decisions is how it splits the raised USDC and the token supply.
+One of Autolaunch’s most important design decisions is how it splits the raised $REGENT and the token supply.
 
 The current docs define the structure exactly:
 
 - 10 percent of supply sells in the auction
 - 5 percent of supply is reserved for the LP position
-- half of auction USDC goes to that LP position
-- half of auction USDC goes to the agent Safe
+- half of auction $REGENT goes to that LP position
+- half of auction $REGENT goes to the agent Safe
 - 85 percent of supply vests to the agent treasury over one year
 
 This split does three jobs at once.
 
 The LP allocation gives the launched token a structured path into secondary liquidity. The intention is not to leave the market without a meaningful pool after the auction ends.
 
-The treasury allocation gives the agent business operating capital in USDC, which is the unit it can use for compute, tooling, distribution, and payroll-like costs. This is a crucial point. The business does not only receive more of its own token. It receives stable units it can spend.
+The treasury allocation gives the agent business $REGENT-denominated capital. If the agent needs stable operating funds for compute, tooling, distribution, or payroll-like costs, conversion into stablecoins has to happen through a separate approved path.
 
 The vesting allocation keeps the long-term supply aligned with the agent treasury rather than distributing everything at once. That preserves future flexibility and reduces the pressure to treat launch day as the only meaningful capital event.
 
-The docs also show why this split connects to the larger thesis. If the treasury only received more volatile token inventory, the business would still face a mismatch between operating needs and treasury assets. By routing half of raised USDC directly to the Safe, Autolaunch gives the agent business immediate stablecoin runway.
+The docs also show why this split connects to the larger thesis. If the treasury only received more of its own launched token, the business would still face a mismatch between operating needs and treasury assets. By routing half of raised $REGENT directly to the Safe, Autolaunch gives the agent business a separate treasury asset from its own token.
 
-That split comes with tradeoffs. More treasury means less USDC goes into the initial LP. More LP means less treasury runway. The current structure chooses balance: enough liquidity support to seed the market, enough stablecoin treasury to keep the business alive.
+That split comes with tradeoffs. More treasury means less $REGENT goes into the initial LP. More LP means less treasury runway. The current structure chooses balance: enough liquidity support to seed the market, enough quote-token treasury for the agent Safe.
 
 ## 9. Subject Revenue and Revsplit Mechanics
 
@@ -206,7 +206,7 @@ The contract overview shows the pieces:
 - `RevenueIngressAccount` accepts that raw USDC and sweeps it into splitter accounting.
 - `RevenueShareSplitter` becomes the canonical contract for revenue rights and staking on the launched token.
 
-The fee rules then sit on top of this path. The launch-pool fee charges 2 percent on swaps in the official pool. One percent goes to Regent. One percent goes to the subject revenue lane. Recognized subject revenue sends a fixed 1 percent skim to Regent. The remaining 99 percent stays in the subject lane, where stakers earn their formula share and the remainder accrues to the agent treasury.
+The fee rules then sit on top of this path. The launch-pool fee charges 2 percent on swaps in the official pool. One percent goes to Regent. One percent goes to the subject revenue lane. Recognized subject revenue sends a fixed 1 percent skim to Regent, uses 10 percent of the remaining 99 percent to buy `$REGENT` for the agent treasury, and leaves 89.1 percent in the subject lane, where stakers earn their formula share and the rest accrues to the agent treasury.
 
 This means the post-launch token relationship is not only “hold and hope.” It is “stake if you want to participate in recognized revenue once it reaches the lane.” That is a stronger holder story than many launch systems offer.
 
@@ -218,7 +218,7 @@ Autolaunch has its own per-subject economics, but it also sits inside the larger
 
 The subject splitter is per agent. It is part of the launch stack on the active Base launch network. It routes recognized revenue tied to that launched subject.
 
-`$REGENT` staking is a singleton company-token rail. It is configured separately, has its own contract, and is meant for the existing Regent token rather than the launched subject token. The contract overview says `RegentRevenueStaking` is the singleton Base-mainnet staking and Base USDC rewards rail for `$REGENT`, fed manually after Treasury A bridges non-Base income into Base USDC.
+`$REGENT` staking is a singleton company-token rail. It is configured separately, has its own contract, and is meant for the existing Regent token rather than the launched subject token. The contract overview says `RegentRevenueStaking` is the singleton Base-mainnet staking and Base USDC rewards rail for `$REGENT`, fed by the fixed subject-revenue skim and by any separate manual Base USDC funding.
 
 This distinction matters because it prevents category collapse.
 
@@ -347,7 +347,7 @@ Autolaunch makes several deliberate tradeoffs.
 
 It chooses a more structured launch over a simpler instant pool. That raises operator complexity but aims to improve price discovery and post-launch economics.
 
-It routes half of raised USDC to liquidity and half to treasury. That sacrifices maximum immediate liquidity depth in exchange for giving the business spendable runway.
+It routes half of raised $REGENT to liquidity and half to treasury. That sacrifices maximum immediate liquidity depth in exchange for giving the business quote-token runway.
 
 It preserves a large vested treasury allocation. That creates long-term alignment, but it also means a lot of supply remains outside immediate circulation.
 

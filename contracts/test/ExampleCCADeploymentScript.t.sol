@@ -14,11 +14,10 @@ import {RevenueShareSplitterV2} from "src/revenue/RevenueShareSplitterV2.sol";
 import {RevenueShareSplitterV2Deployer} from "src/revenue/RevenueShareSplitterV2Deployer.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
 import {ExampleCCADeploymentScript} from "scripts/ExampleCCADeploymentScript.s.sol";
-import {
-    MockContinuousClearingAuctionFactory
-} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
+import {MockContinuousClearingAuctionFactory} from "test/mocks/MockContinuousClearingAuctionFactory.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {MockHookPoolManager} from "test/mocks/MockHookPoolManager.sol";
+import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {UERC20Factory} from "@uniswap/uerc20-factory/src/factories/UERC20Factory.sol";
 
 interface IUERC20LaunchToken {
@@ -31,16 +30,28 @@ interface IUERC20LaunchToken {
 }
 
 contract ExampleCCADeploymentScriptHarness is ExampleCCADeploymentScript {
-    function convexAuctionStepsForTest(
-        uint256 durationBlocks,
-        uint256 prebidBlocks,
-        uint256 finalBlockBps
-    ) external pure returns (bytes memory) {
+    function convexAuctionStepsForTest(uint256 durationBlocks, uint256 prebidBlocks, uint256 finalBlockBps)
+        external
+        pure
+        returns (bytes memory)
+    {
         return _convexAuctionSteps(durationBlocks, prebidBlocks, finalBlockBps);
     }
 
     function requireBaseMainnetUsdcForTest(address usdc) external view {
         _requireBaseMainnetUsdc(usdc);
+    }
+
+    function requireBaseMainnetRegentForTest(address token) external view {
+        _requireBaseMainnetRegent(token);
+    }
+
+    function resultJsonForTest(
+        address factoryAddress,
+        LaunchDeploymentController.DeploymentResult memory result,
+        ScriptConfig memory cfg
+    ) external pure returns (string memory) {
+        return _resultJson(factoryAddress, result, cfg);
     }
 }
 
@@ -49,12 +60,15 @@ contract ExampleCCADeploymentScriptTest is Test {
     address internal constant REGENT_MULTISIG = address(0x9FA1);
     address internal constant IDENTITY_REGISTRY = address(0x8004);
     address internal constant STRATEGY_OPERATOR = address(0xBEEF);
+    address internal constant TEST_TOKEN_FACTORY = address(uint160(0xFACA0));
+    address internal constant REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     address internal constant BASE_SEPOLIA_USDC = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
     uint256 internal constant IDENTITY_AGENT_ID = 42;
     uint256 internal constant TOTAL_SUPPLY = 1_000_000_000_000_000_000_000;
-    uint256 internal constant CCA_TICK_SPACING_Q96 = 792_281_625_142_643_340_083;
-    uint256 internal constant CCA_FLOOR_PRICE_Q96 = 79_228_162_514_264_334_008_300;
+    uint256 internal constant CCA_TICK_SPACING_Q96 = 79_228_162_514_264_337_593_543_950;
+    uint256 internal constant CCA_FLOOR_PRICE_Q96 = 7_922_816_251_426_433_759_354_395_000;
+    uint256 internal constant CCA_MAX_TARGET_PRICE_Q96 = CCA_TICK_SPACING_Q96 * 10_000_000;
 
     ExampleCCADeploymentScript internal script;
     ExampleCCADeploymentScriptHarness internal scheduleHarness;
@@ -72,6 +86,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         script = new ExampleCCADeploymentScript();
         scheduleHarness = new ExampleCCADeploymentScriptHarness();
         vm.chainId(8453);
+        _installCanonicalRegentMock();
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new MockHookPoolManager();
         subjectRegistry = new SubjectRegistry(address(this));
@@ -80,27 +95,24 @@ contract ExampleCCADeploymentScriptTest is Test {
         revenueShareFactory = new RevenueShareFactory(
             address(script), USDC, subjectRegistry, address(feeRouter), address(splitterDeployer)
         );
-        revenueIngressFactory =
-            new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
+        revenueIngressFactory = new RevenueIngressFactory(USDC, address(subjectRegistry), address(script));
         strategyFactory = new RegentLBPStrategyFactory(address(script));
-        tokenFactory = new UERC20Factory();
+        tokenFactory = UERC20Factory(TEST_TOKEN_FACTORY);
+        vm.etch(address(tokenFactory), type(UERC20Factory).runtimeCode);
         subjectRegistry.setAuthorizedRegistrar(address(revenueShareFactory), true);
 
         _setEnvAddress("AUTOLAUNCH_AGENT_SAFE_ADDRESS", AGENT_SAFE);
         _setEnvAddress("REGENT_MULTISIG_ADDRESS", REGENT_MULTISIG);
-        vm.setEnv(
-            "AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", vm.toString(address(revenueShareFactory))
-        );
-        vm.setEnv(
-            "AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS",
-            vm.toString(address(revenueIngressFactory))
-        );
+        vm.setEnv("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", vm.toString(address(revenueShareFactory)));
+        vm.setEnv("AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS", vm.toString(address(revenueIngressFactory)));
         vm.setEnv("AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS", vm.toString(address(strategyFactory)));
         vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
         vm.setEnv("AUTOLAUNCH_CCA_FACTORY_ADDRESS", vm.toString(address(auctionFactory)));
         vm.setEnv("AUTOLAUNCH_FACTORY_OWNER_ADDRESS", vm.toString(address(script)));
         vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", vm.toString(address(poolManager)));
         vm.setEnv("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", vm.toString(address(0xDEAD)));
+        vm.setEnv("AUTOLAUNCH_AUCTION_QUOTE_TOKEN_ADDRESS", vm.toString(REGENT));
+        vm.setEnv("AUTOLAUNCH_REVENUE_USDC_ADDRESS", vm.toString(USDC));
         _setEnvAddress("AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS", IDENTITY_REGISTRY);
         _setEnvAddress("STRATEGY_OPERATOR", STRATEGY_OPERATOR);
         vm.setEnv("AUTOLAUNCH_TOKEN_NAME", "Launch Agent");
@@ -123,10 +135,16 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.setEnv("VESTING_DURATION_SECONDS", "31536000");
     }
 
+    function testDefaultRegentPriceGridCoversTargetUsdRange() external pure {
+        assertEq(CCA_FLOOR_PRICE_Q96 % CCA_TICK_SPACING_Q96, 0);
+        assertEq(CCA_FLOOR_PRICE_Q96 / CCA_TICK_SPACING_Q96, 100);
+        assertEq(CCA_MAX_TARGET_PRICE_Q96 / CCA_TICK_SPACING_Q96, 10_000_000);
+        assertGe(CCA_TICK_SPACING_Q96, CCA_FLOOR_PRICE_Q96 / 10_000);
+    }
+
     function testDeployFromEnvCreatesModelBLaunchStack() external {
         vm.chainId(8453);
-        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
-
+        vm.setEnv("AUTOLAUNCH_TOKEN_FACTORY_ADDRESS", vm.toString(address(tokenFactory)));
         LaunchDeploymentController.DeploymentResult memory result = script.deployFromEnv();
 
         _assertCoreAddressesWereCreated(result);
@@ -161,8 +179,8 @@ contract ExampleCCADeploymentScriptTest is Test {
         LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
         LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
         assertEq(poolConfig.launchToken, result.tokenAddress);
-        assertEq(poolConfig.quoteToken, USDC);
-        assertEq(poolConfig.treasury, result.revenueShareSplitterAddress);
+        assertEq(poolConfig.quoteToken, REGENT);
+        assertEq(poolConfig.treasury, AGENT_SAFE);
         assertEq(poolConfig.regentRecipient, REGENT_MULTISIG);
 
         RevenueShareSplitterV2 splitter = RevenueShareSplitterV2(result.revenueShareSplitterAddress);
@@ -173,12 +191,10 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(strategyFactory.owner(), address(script));
 
         assertEq(
-            subjectRegistry.subjectForIdentity(block.chainid, IDENTITY_REGISTRY, IDENTITY_AGENT_ID),
-            result.subjectId
+            subjectRegistry.subjectForIdentity(block.chainid, IDENTITY_REGISTRY, IDENTITY_AGENT_ID), result.subjectId
         );
-        AuctionParameters memory parameters =
-            abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
-        assertEq(parameters.currency, USDC);
+        AuctionParameters memory parameters = abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
+        assertEq(parameters.currency, REGENT);
         assertEq(parameters.tokensRecipient, result.strategyAddress);
         assertEq(parameters.fundsRecipient, result.strategyAddress);
         assertEq(parameters.tickSpacing, CCA_TICK_SPACING_Q96);
@@ -190,10 +206,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(parameters.auctionStepsData, _defaultConvexAuctionSteps());
         _assertScheduleTotals(parameters.auctionStepsData, 86_401);
 
-        assertEq(
-            revenueIngressFactory.defaultIngressOfSubject(result.subjectId),
-            result.defaultIngressAddress
-        );
+        assertEq(revenueIngressFactory.defaultIngressOfSubject(result.subjectId), result.defaultIngressAddress);
         address controller = strategy.auctionCreator();
         assertEq(token.creator(), controller);
         assertEq(token.graffiti(), keccak256(abi.encode(AGENT_SAFE)));
@@ -238,6 +251,11 @@ contract ExampleCCADeploymentScriptTest is Test {
         vm.setEnv(key, vm.toString(value));
     }
 
+    function _installCanonicalRegentMock() internal {
+        MintableERC20Mock implementation = new MintableERC20Mock("REGENT", "REGENT");
+        vm.etch(REGENT, address(implementation).code);
+    }
+
     function _assertFinalBlockBpsAccepted(uint256 finalBlockBps) internal view {
         bytes memory steps = scheduleHarness.convexAuctionStepsForTest(86_400, 0, finalBlockBps);
         _assertScheduleTotals(steps, 86_401);
@@ -280,7 +298,7 @@ contract ExampleCCADeploymentScriptTest is Test {
 
         for (uint256 offset; offset < steps.length; offset += 8) {
             uint256 packed;
-            assembly {
+            assembly ("memory-safe") {
                 packed := shr(192, mload(add(add(steps, 0x20), offset)))
             }
 
@@ -294,9 +312,7 @@ contract ExampleCCADeploymentScriptTest is Test {
         assertEq(totalBlocks, expectedBlocks);
     }
 
-    function _assertCoreAddressesWereCreated(
-        LaunchDeploymentController.DeploymentResult memory result
-    ) internal pure {
+    function _assertCoreAddressesWereCreated(LaunchDeploymentController.DeploymentResult memory result) internal pure {
         assertTrue(result.tokenAddress != address(0));
         assertTrue(result.auctionAddress != address(0));
         assertTrue(result.strategyAddress != address(0));
@@ -311,7 +327,6 @@ contract ExampleCCADeploymentScriptTest is Test {
 
     function testDeployFromEnvRejectsNonMainnetChain() external {
         vm.chainId(84_532);
-        vm.setEnv("AUTOLAUNCH_USDC_ADDRESS", vm.toString(USDC));
 
         vm.expectRevert("BASE_MAINNET_ONLY");
         script.deployFromEnv();
@@ -322,5 +337,61 @@ contract ExampleCCADeploymentScriptTest is Test {
 
         vm.expectRevert("USDC_NOT_CANONICAL");
         scheduleHarness.requireBaseMainnetUsdcForTest(BASE_SEPOLIA_USDC);
+    }
+
+    function testDeployFromEnvRejectsWrongBaseMainnetRegent() external {
+        vm.chainId(8453);
+
+        vm.expectRevert("REGENT_NOT_CANONICAL");
+        scheduleHarness.requireBaseMainnetRegentForTest(USDC);
+    }
+
+    function testResultJsonKeepsPoolIdAfterNumericDecimals() external view {
+        ExampleCCADeploymentScript.ScriptConfig memory cfg;
+        cfg.auctionQuoteToken = REGENT;
+        cfg.revenueUsdcToken = USDC;
+
+        LaunchDeploymentController.DeploymentResult memory result = LaunchDeploymentController.DeploymentResult({
+            tokenAddress: address(0x1001),
+            auctionAddress: address(0x1002),
+            strategyAddress: address(0x1003),
+            vestingWalletAddress: address(0x1004),
+            hookAddress: address(0x1005),
+            feeVaultAddress: address(0x1006),
+            launchFeeRegistryAddress: address(0x1007),
+            subjectRegistryAddress: address(0x1008),
+            revenueShareSplitterAddress: address(0x1009),
+            defaultIngressAddress: address(0x1010),
+            subjectId: bytes32(uint256(0x42)),
+            poolId: bytes32(uint256(0x99))
+        });
+
+        string memory resultJson = scheduleHarness.resultJsonForTest(address(0xCAFE), result, cfg);
+
+        assertTrue(_contains(resultJson, "\"revenueDecimals\":6,\"poolId\":\""));
+        assertFalse(_contains(resultJson, "\"revenueDecimals\":6\",\"poolId\":\""));
+    }
+
+    function _contains(string memory haystack, string memory needle) internal pure returns (bool) {
+        bytes memory haystackBytes = bytes(haystack);
+        bytes memory needleBytes = bytes(needle);
+
+        if (needleBytes.length == 0) return true;
+        if (needleBytes.length > haystackBytes.length) return false;
+
+        for (uint256 i; i <= haystackBytes.length - needleBytes.length; i++) {
+            bool matches = true;
+
+            for (uint256 j; j < needleBytes.length; j++) {
+                if (haystackBytes[i + j] != needleBytes[j]) {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if (matches) return true;
+        }
+
+        return false;
     }
 }

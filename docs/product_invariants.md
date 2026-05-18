@@ -8,7 +8,7 @@ If another document, script note, page, or CLI help text disagrees with this fil
 
 Autolaunch has one launch stack and one revenue-recognition stack.
 
-- The launch stack creates the token, auction, fee plumbing, subject wiring, and official Uniswap v4 migration path.
+- The launch stack creates the token, $REGENT auction, fee plumbing, subject wiring, and official Uniswap v4 migration path.
 - The revenue stack starts only when Base USDC reaches the subject revenue splitter.
 - Ingress is a routing wrapper for receiving and sweeping USDC. It is not a second accounting system.
 
@@ -18,7 +18,7 @@ Autolaunch has one launch stack and one revenue-recognition stack.
 2. Subject revenue counts only when that Base USDC reaches the subject revenue splitter.
    - USDC waiting in an ingress account has not counted yet.
    - USDC swept after a share change goes live uses the new live share.
-   - Direct manual deposits are tracked separately from verified ingress and launch-fee revenue.
+   - Direct manual deposits are tracked separately from verified ingress.
 3. The launch token allocation story is fixed:
    - 10% public sale
    - 5% LP reserve
@@ -40,10 +40,13 @@ Autolaunch has one launch stack and one revenue-recognition stack.
    - unstake
    - claim rewards
 6. The launch-side fee lane and the subject revenue splitter are different things:
-   - the launch-side fee hook captures pool fees
+   - the launch-side fee hook captures $REGENT pool fees
    - the Regent-side fee lane is a plain treasury payout
+   - the subject-side launch-pool fee goes to the Agent Safe
    - subject rewards only come from Base USDC that reaches the splitter
-   - the subject protocol skim is sent as USDC into the shared `$REGENT` staking rail
+   - recognized subject USDC sends 1% into the shared `$REGENT` staking rail
+   - 10% of the remaining 99% buys `$REGENT` for the agent treasury
+   - the remaining 89.1% stays in the subject revenue lane
 7. Rescue is not revenue accounting:
    - wrong tokens or stray ETH can be recovered by the contract owner or treasury controller
    - rescued assets do not count as subject revenue

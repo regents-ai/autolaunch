@@ -73,11 +73,13 @@ contract RevenueIngressAccountTest is Test {
         assertEq(recognized, 1000e18);
         assertTrue(sourceRef != bytes32(0));
         assertEq(usdc.balanceOf(address(ingress)), 0);
-        assertEq(usdc.balanceOf(address(splitter)), 900e18);
-        assertEq(usdc.balanceOf(address(feeRouter)), 100e18);
-        assertEq(feeRouter.totalUsdcProcessed(), 100e18);
-        assertEq(splitter.treasuryResidualUsdc(), 900e18);
-        assertEq(splitter.protocolFeeUsdc(), 100e18);
+        assertEq(usdc.balanceOf(address(splitter)), 891e18);
+        assertEq(usdc.balanceOf(address(feeRouter)), 109e18);
+        assertEq(feeRouter.totalUsdcProcessed(), 10e18);
+        assertEq(feeRouter.totalUsdcUsedForTreasuryBuyback(), 99e18);
+        assertEq(splitter.treasuryResidualUsdc(), 891e18);
+        assertEq(splitter.protocolFeeUsdc(), 10e18);
+        assertEq(splitter.treasuryBuybackUsdc(), 99e18);
     }
 
     function testDepositUSDCRecordsAccountingTag() external {

@@ -137,7 +137,7 @@ For direct recovery and admin work, use the contracts surface:
 ```bash
 regents autolaunch contracts job --job <job-id>
 regents autolaunch strategy migrate --job <job-id>
-regents autolaunch strategy sweep-currency --job <job-id>
+regents autolaunch strategy sweep-quote-token --job <job-id>
 regents autolaunch strategy sweep-token --job <job-id>
 ```
 
@@ -149,7 +149,7 @@ Use subject commands to inspect and operate one subject:
 
 ```bash
 regents autolaunch subjects get <subject-id>
-regents autolaunch subjects by-token <token-address>
+regents autolaunch subjects by-token --token <token-address>
 regents autolaunch subjects ingress <subject-id>
 regents autolaunch subjects staking <subject-id>
 ```
@@ -235,6 +235,6 @@ Use `/Users/sean/Documents/regent/autolaunch/docs/payment-links.md` for direct c
 - Use Foundry for contract work.
 - Keep launch settlement and deployment progress separate.
 - Treat subject USDC as counted only when it reaches the subject revenue contract.
-- Treat launch fees, ingress sweeps, direct deposits, and payment links as separate revenue sources.
+- Treat launch-pool fees as quote-token balances, separate from USDC ingress sweeps, direct deposits, and payment links.
 - Do not expose payment links as a product flow until the deployed factory address is configured and documented.
 - Do not read or commit local secret files.

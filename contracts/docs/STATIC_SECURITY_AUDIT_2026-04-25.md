@@ -202,17 +202,17 @@ Recommendation:
 
 ### Launch fee routing
 
-The launch fee path is now consistent with the canonical-USDC rule:
+The launch fee path is now separated from subject USDC accounting:
 
 - `LaunchFeeRegistry` stores an immutable canonical quote token.
 - Pool registration rejects non-canonical quote tokens.
 - `LaunchPoolFeeHook` only accrues quote-token fees.
 - `LaunchFeeVault.recordAccrual()` rejects any accrual currency that does not match the registered quote token.
-- `RevenueShareSplitter.pullTreasuryShareFromLaunchVault()` remains USDC-only.
+- Subject revenue splitters no longer pull launch-pool fees into USDC accounting.
 
 Release implication:
 
-- The earlier stranded launch-token fee concern appears addressed in the current contracts.
+- Launch-pool fee balances remain in the quote-token lane and are withdrawn by the configured fee recipients.
 
 ### Revenue source separation
 

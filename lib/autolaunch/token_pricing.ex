@@ -9,21 +9,21 @@ defmodule Autolaunch.TokenPricing do
   @pools_slot 6
   @pool_slot_selector "0x1e2eaeaf"
   @q192 Decimal.new("6277101735386680763835789423207666416102355444464034512896")
-  @token_decimals_delta Decimal.new("1000000000000")
+  @same_decimals_delta Decimal.new("1")
 
-  def current_token_price_usdc(chain_id, pool_id, token_address) do
+  def current_token_price_quote(chain_id, pool_id, token_address) do
     with {:ok, pool_manager} <- pool_manager_address(chain_id),
-         {:ok, usdc_address} <- usdc_address(chain_id),
+         {:ok, quote_token_address} <- quote_token_address(chain_id),
          {:ok, normalized_pool_id} <- normalize_bytes32(pool_id),
          {:ok, normalized_token} <- normalize_address(token_address),
-         {:ok, normalized_usdc} <- normalize_address(usdc_address),
+         {:ok, normalized_quote_token} <- normalize_address(quote_token_address),
          {:ok, sqrt_price_x96} <- load_sqrt_price_x96(chain_id, pool_manager, normalized_pool_id),
          true <- sqrt_price_x96 > 0 do
       {:ok,
        sqrt_price_x96
        |> Decimal.new()
        |> Decimal.mult(Decimal.new(sqrt_price_x96))
-       |> price_from_ratio(normalized_token, normalized_usdc)
+       |> price_from_ratio(normalized_token, normalized_quote_token)
        |> Decimal.normalize()
        |> Decimal.to_string(:normal)}
     else
@@ -33,15 +33,13 @@ defmodule Autolaunch.TokenPricing do
     end
   end
 
-  defp price_from_ratio(ratio_numerator, token_address, usdc_address) do
+  defp price_from_ratio(ratio_numerator, token_address, quote_token_address) do
     raw_ratio = Decimal.div(ratio_numerator, @q192)
 
-    if token_address < usdc_address do
-      raw_ratio
-      |> Decimal.mult(@token_decimals_delta)
+    if token_address < quote_token_address do
+      Decimal.mult(raw_ratio, @same_decimals_delta)
     else
-      @token_decimals_delta
-      |> Decimal.div(raw_ratio)
+      Decimal.div(@same_decimals_delta, raw_ratio)
     end
   end
 
@@ -73,10 +71,13 @@ defmodule Autolaunch.TokenPricing do
     end
   end
 
-  defp usdc_address(chain_id) do
+  defp quote_token_address(chain_id) do
     case InfrastructureConfig.launch_chain_id() do
-      {:ok, ^chain_id} -> normalize_address(InfrastructureConfig.launch_value(:usdc_address))
-      _ -> {:error, :missing_usdc}
+      {:ok, ^chain_id} ->
+        normalize_address(InfrastructureConfig.launch_value(:auction_quote_token_address))
+
+      _ ->
+        {:error, :missing_quote_token}
     end
   end
 

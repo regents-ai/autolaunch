@@ -8,6 +8,7 @@ defmodule Autolaunch.CCA.Abi do
   @selectors %{
     checkpoint: "0xc2c4c5c1",
     currency_raised: "0x998ba4fc",
+    currency: "0xe5a6b10f",
     total_cleared: "0x3e9d9174",
     floor_price: "0x9363c812",
     tick_spacing: "0xd0c93a7c",
@@ -28,7 +29,8 @@ defmodule Autolaunch.CCA.Abi do
     submit_bid_with_prev_tick: "0xa52c8728",
     exit_bid: "0x8e4deb17",
     exit_partially_filled_bid: "0x36dec5f2",
-    claim_tokens: "0x46e04a2f"
+    claim_tokens: "0x46e04a2f",
+    approve: "0x095ea7b3"
   }
   @event_topics %{
     bid_submitted: "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540",
@@ -67,6 +69,9 @@ defmodule Autolaunch.CCA.Abi do
       encode_uint256(@submit_bid_data_offset) <>
       @empty_bytes_word
   end
+
+  def encode_approve(spender, amount),
+    do: selector(:approve) <> encode_address_word(spender) <> encode_uint256(amount)
 
   def encode_exit_bid(bid_id), do: selector(:exit_bid) <> encode_uint256(bid_id)
 

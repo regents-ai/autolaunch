@@ -56,7 +56,7 @@ Get a quote before bidding:
 ```bash
 regents autolaunch bids quote \
   --auction <auction-id> \
-  --amount <usdc-amount> \
+  --amount <regent-amount> \
   --max-price <max-price>
 ```
 
@@ -65,7 +65,7 @@ After your wallet sends the bid onchain, register the transaction:
 ```bash
 regents autolaunch bids place \
   --auction <auction-id> \
-  --amount <usdc-amount> \
+  --amount <regent-amount> \
   --max-price <max-price> \
   --tx-hash <hash>
 ```
@@ -90,7 +90,7 @@ List returnable auction positions:
 regents autolaunch auction-returns list
 ```
 
-Then inspect the auction or bid in the web app or CLI before taking the wallet action. The CLI exposes the return queue and records confirmed bid actions; the browser is the more direct surface for a human wallet returning failed-auction USDC.
+Then inspect the auction or bid in the web app or CLI before taking the wallet action. The CLI exposes the return queue and records confirmed bid actions; the browser is the more direct surface for a human wallet returning failed-auction $REGENT.
 
 ## Create An Auction
 
@@ -147,7 +147,7 @@ After graduation, Autolaunch can show the token and the linked market when avail
 Useful reads:
 
 ```bash
-regents autolaunch subjects by-token <token-address>
+regents autolaunch subjects by-token --token <token-address>
 regents autolaunch subjects get <subject-id>
 ```
 
@@ -248,7 +248,7 @@ Most agents should not use these unless they are operating their own launch or S
 ```bash
 regents autolaunch contracts job --job <job-id>
 regents autolaunch strategy migrate --job <job-id>
-regents autolaunch strategy sweep-currency --job <job-id>
+regents autolaunch strategy sweep-quote-token --job <job-id>
 regents autolaunch splitter propose-treasury-recipient-rotation --subject <subject-id> --recipient <wallet>
 regents autolaunch registry link-identity --subject <subject-id> --identity-chain-id <id> --identity-registry <address> --identity-agent-id <id>
 ```

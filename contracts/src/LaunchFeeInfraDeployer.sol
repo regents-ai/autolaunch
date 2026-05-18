@@ -11,7 +11,7 @@ contract LaunchFeeInfraDeployer {
     uint160 internal constant REQUIRED_HOOK_FLAGS = Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
         | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG;
 
-    function deploy(address owner, address poolManager, address usdc, bytes32 hookSalt)
+    function deploy(address owner, address poolManager, address quoteToken, bytes32 hookSalt)
         external
         returns (
             LaunchFeeRegistry launchFeeRegistry,
@@ -21,9 +21,9 @@ contract LaunchFeeInfraDeployer {
     {
         require(owner != address(0), "OWNER_ZERO");
         require(poolManager != address(0), "POOL_MANAGER_ZERO");
-        require(usdc != address(0), "USDC_ZERO");
+        require(quoteToken != address(0), "QUOTE_TOKEN_ZERO");
 
-        launchFeeRegistry = new LaunchFeeRegistry(address(this), usdc);
+        launchFeeRegistry = new LaunchFeeRegistry(address(this), quoteToken);
         feeVault = new LaunchFeeVault(address(this), address(launchFeeRegistry));
 
         bytes memory hookConstructorArgs =

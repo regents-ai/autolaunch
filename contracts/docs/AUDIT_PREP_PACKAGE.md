@@ -77,7 +77,6 @@ The following high-risk suites were also checked directly:
 - `test/LaunchDeploymentController.t.sol`
 - `test/RegentLBPStrategy.t.sol`
 - `test/LaunchPoolFeeHook.t.sol`
-- `test/LaunchRevenueFlow.t.sol`
 - `test/RevenueShareSplitter.t.sol`
 - `test/RegentRevenueStaking.t.sol`
 

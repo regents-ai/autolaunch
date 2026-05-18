@@ -205,7 +205,7 @@ defmodule AutolaunchWeb.SubjectLive.Components do
         <article class="al-routing-ledger-card">
           <span>Verified revenue</span>
           <strong>{@routing_snapshot.verified_revenue}</strong>
-          <p>USDC from intake wallets and launch fees.</p>
+          <p>USDC from intake wallets.</p>
         </article>
         <article class="al-routing-ledger-card">
           <span>Regent skim</span>

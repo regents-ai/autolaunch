@@ -187,7 +187,7 @@
       "address": "0xcccccccccccccccccccccccccccccccccccccccc",
       "graduated": true,
       "token_balance": 0,
-      "currency_balance": 0
+      "quote_token_balance": 0
     },
     "strategy": {
       "address": "0x9999999999999999999999999999999999999999"
@@ -204,11 +204,11 @@
     "balance_snapshot": {
       "strategy": {
         "token_balance": 50000000000000000000,
-        "usdc_balance": 120000000
+        "quote_token_balance": 120000000
       },
       "auction": {
         "token_balance": 0,
-        "usdc_balance": 0
+        "quote_token_balance": 0
       }
     },
     "ownership_status": {
@@ -266,11 +266,11 @@
     "balance_snapshot": {
       "strategy": {
         "token_balance": 50000000000000000000,
-        "usdc_balance": 120000000
+        "quote_token_balance": 120000000
       },
       "auction": {
         "token_balance": 0,
-        "usdc_balance": 0
+        "quote_token_balance": 0
       }
     },
     "ownership_status": {
@@ -320,7 +320,7 @@
         "action": "migrate",
         "chain_id": 8453,
         "to": "0x9999999999999999999999999999999999999999",
-        "value": "0",
+        "value": "0x0",
         "data": "0x8fd3ab80",
         "expected_signer": "0x1111111111111111111111111111111111111111",
         "expires_at": "2026-03-27T12:10:00Z",
@@ -399,7 +399,7 @@
         "action": "deposit_usdc",
         "chain_id": 8453,
         "to": "0x1111111111111111111111111111111111111111",
-        "value": "0",
+        "value": "0x0",
         "data": "0x7dc6bb98",
         "expected_signer": "0x1111111111111111111111111111111111111111",
         "expires_at": "2026-03-27T12:10:00Z",
@@ -438,7 +438,7 @@
       "expected_signer": "0x1111111111111111111111111111111111111111",
       "expires_at": "2026-03-27T12:10:00Z",
       "idempotency_key": "auction_bid_quote",
-      "risk_copy": "Submits a Base USDC bid for this auction.",
+      "risk_copy": "Submits a Base $REGENT bid for this auction.",
       "wallet_action": {
         "action_id": "auction_bid_quote",
         "owner_product": "autolaunch",
@@ -447,7 +447,7 @@
         "action": "submit_bid",
         "chain_id": 8453,
         "to": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "value": "0",
+        "value": "0x0",
         "data": "0x1234",
         "expected_signer": "0x1111111111111111111111111111111111111111",
         "expires_at": "2026-03-27T12:10:00Z",
@@ -457,7 +457,7 @@
           "status": "not_required",
           "block_number": null
         },
-        "risk_copy": "Submits a Base USDC bid for this auction."
+        "risk_copy": "Submits a Base $REGENT bid for this auction."
       }
     }
   },
@@ -499,7 +499,7 @@
             "action": "claim_bid",
             "chain_id": 8453,
             "to": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            "value": "0",
+            "value": "0x0",
             "data": "0x5678",
             "expected_signer": "0x1111111111111111111111111111111111111111",
             "expires_at": "2026-03-27T12:10:00Z",

@@ -165,8 +165,8 @@ defmodule Autolaunch.Portfolio do
       agent_name: row.agent_name,
       symbol: row.symbol,
       phase: row.phase,
-      current_price_usdc: row.current_price_usdc,
-      implied_market_cap_usdc: row.implied_market_cap_usdc,
+      current_price_quote: row.current_price_quote,
+      implied_market_cap_quote: row.implied_market_cap_quote,
       detail_url: row.subject_url || row.detail_url
     }
   end
@@ -179,12 +179,12 @@ defmodule Autolaunch.Portfolio do
       agent_name: row.agent_name,
       symbol: row.symbol,
       phase: row.phase,
-      current_price_usdc: row.current_price_usdc,
-      implied_market_cap_usdc: row.implied_market_cap_usdc,
+      current_price_quote: row.current_price_quote,
+      implied_market_cap_quote: row.implied_market_cap_quote,
       staked_token_amount: position.wallet_stake_balance,
       staked_token_amount_raw: position.wallet_stake_balance_raw,
-      staked_usdc_value:
-        multiply_decimal_strings(position.wallet_stake_balance, row.current_price_usdc),
+      staked_quote_value:
+        multiply_decimal_strings(position.wallet_stake_balance, row.current_price_quote),
       claimable_usdc: position.claimable_usdc,
       claimable_usdc_raw: position.claimable_usdc_raw,
       claimable_emissions: position_value(position, :claimable_stake_token),

@@ -9,71 +9,80 @@ defmodule Autolaunch.Contracts.ActionParams do
     if blank?(to) or blank?(data) do
       {:error, :unsupported_action}
     else
-      value = Keyword.get(opts, :value, "0")
-      value = decimal_value(value)
-      resource_id = resource_id(resource, params, to)
-      expected_signer = expected_signer(params, opts)
-      action_id = action_id(chain_id, to, value, data, resource, action, expected_signer)
+      with {:ok, value} <- hex_value(Keyword.get(opts, :value, "0x0")) do
+        resource_id = resource_id(resource, params, to)
+        expected_signer = expected_signer(params, opts)
+        action_id = action_id(chain_id, to, value, data, resource, action, expected_signer)
 
-      expires_at =
-        DateTime.utc_now()
-        |> DateTime.add(600, :second)
-        |> DateTime.truncate(:second)
-        |> DateTime.to_iso8601()
+        expires_at =
+          DateTime.utc_now()
+          |> DateTime.add(600, :second)
+          |> DateTime.truncate(:second)
+          |> DateTime.to_iso8601()
 
-      wallet_action = %{
-        action_id: action_id,
-        owner_product: "autolaunch",
-        resource: resource,
-        resource_id: resource_id,
-        action: action,
-        chain_id: chain_id,
-        to: to,
-        value: value,
-        data: data,
-        expected_signer: expected_signer,
-        expires_at: expires_at,
-        idempotency_key: action_id,
-        simulation: %{required: false, status: "not_required", block_number: nil},
-        risk_copy: risk_copy(resource, action)
-      }
+        wallet_action = %{
+          action_id: action_id,
+          owner_product: "autolaunch",
+          resource: resource,
+          resource_id: resource_id,
+          action: action,
+          chain_id: chain_id,
+          to: to,
+          value: value,
+          data: data,
+          expected_signer: expected_signer,
+          expires_at: expires_at,
+          idempotency_key: action_id,
+          simulation: %{required: false, status: "not_required", block_number: nil},
+          risk_copy: risk_copy(resource, action)
+        }
 
-      {:ok,
-       %{
-         action_id: action_id,
-         owner_product: "autolaunch",
-         resource: resource,
-         resource_id: resource_id,
-         action: action,
-         chain_id: chain_id,
-         expected_signer: expected_signer,
-         expires_at: expires_at,
-         idempotency_key: action_id,
-         risk_copy: risk_copy(resource, action),
-         wallet_action: wallet_action,
-         params: params
-       }}
+        {:ok,
+         %{
+           action_id: action_id,
+           owner_product: "autolaunch",
+           resource: resource,
+           resource_id: resource_id,
+           action: action,
+           chain_id: chain_id,
+           expected_signer: expected_signer,
+           expires_at: expires_at,
+           idempotency_key: action_id,
+           risk_copy: risk_copy(resource, action),
+           wallet_action: wallet_action,
+           params: params
+         }}
+      end
     end
   end
 
   def prepare_tx_request(
-        %{chain_id: chain_id, to: to, value: value, data: data},
+        %{chain_id: chain_id, to: to, value_hex: value, data: data} = request,
         resource,
         action,
         params,
         opts
       ) do
-    prepare_tx(chain_id, to, data, resource, action, params, Keyword.put(opts, :value, value))
+    with {:ok, prepared} <-
+           prepare_tx(
+             chain_id,
+             to,
+             data,
+             resource,
+             action,
+             params,
+             Keyword.put(opts, :value, value)
+           ) do
+      {:ok, put_optional_approval(prepared, Map.get(request, :approval))}
+    end
   end
 
-  def prepare_tx_request(
-        %{chain_id: chain_id, to: to, value_hex: value, data: data},
-        resource,
-        action,
-        params,
-        opts
-      ) do
-    prepare_tx(chain_id, to, data, resource, action, params, Keyword.put(opts, :value, value))
+  defp put_optional_approval(prepared, nil), do: prepared
+
+  defp put_optional_approval(prepared, approval) do
+    prepared
+    |> Map.put(:approval, approval)
+    |> put_in([:wallet_action, :approval], approval)
   end
 
   def address_param(attrs, key) do
@@ -169,30 +178,32 @@ defmodule Autolaunch.Contracts.ActionParams do
       to
   end
 
-  defp decimal_value(value) when is_integer(value), do: Integer.to_string(value)
-
-  defp decimal_value(value) when is_binary(value) do
+  defp hex_value(value) when is_binary(value) do
     trimmed = String.trim(value)
 
     case trimmed do
-      "0x" <> hex ->
-        case Integer.parse(hex, 16) do
-          {parsed, ""} -> Integer.to_string(parsed)
-          _ -> "0"
+      "0x" <> hex when hex != "" ->
+        if Regex.match?(~r/\A[0-9a-fA-F]+\z/, hex) do
+          {:ok, "0x" <> (hex |> String.to_integer(16) |> Integer.to_string(16))}
+        else
+          {:error, :invalid_value}
         end
 
       _ ->
-        trimmed
+        {:error, :invalid_value}
     end
   end
 
-  defp decimal_value(_value), do: "0"
-
-  defp risk_copy("revenue_splitter", "pull_treasury_share"),
-    do: "Collects the subject treasury share from launch fees into the subject revenue split."
+  defp hex_value(_value), do: {:error, :invalid_value}
 
   defp risk_copy("fee_vault", "withdraw_regent_share"),
-    do: "Collects the Regent share from launch fees for the Regent recipient."
+    do: "Collects the $REGENT launch-fee share for the Regent recipient."
+
+  defp risk_copy("strategy", "sweep_quote_token"),
+    do: "Moves remaining $REGENT from the launch strategy to the Agent Safe."
+
+  defp risk_copy("auction", "sweep_quote_token"),
+    do: "Moves returnable $REGENT from the auction contract."
 
   defp risk_copy("subject", "stake"),
     do: "Stakes this subject token from the connected wallet."
@@ -228,7 +239,7 @@ defmodule Autolaunch.Contracts.ActionParams do
     do: "Withdraws available Regent staking treasury USDC to the selected recipient."
 
   defp risk_copy("auction", "submit_bid"),
-    do: "Submits a Base USDC bid for this auction."
+    do: "Submits a Base $REGENT bid for this auction."
 
   defp risk_copy("auction", "exit_bid"),
     do: "Exits this auction bid and settles the available return."

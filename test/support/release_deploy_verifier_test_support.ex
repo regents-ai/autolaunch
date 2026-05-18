@@ -6,7 +6,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
   alias Autolaunch.Launch.Job
   alias Autolaunch.Repo
 
-  @launch_stack_deployed_topic0 "0x0f4620e4f0d6524b6aca672f72348ff2535a365b816545538f83084e8d073077"
+  @launch_stack_deployed_topic0 "0x8cac7a5a0617d535c5b35296e7851b993af32b507a6b9200a26c1db75d57213b"
 
   def chain_id, do: 8_453
   def job_id, do: "job_verify_deploy"
@@ -23,32 +23,39 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
   def address(:fee_vault), do: "0x7777777777777777777777777777777777777777"
   def address(:hook), do: "0x8888888888888888888888888888888888888888"
   def address(:strategy), do: "0x9999999999999999999999999999999999999999"
+  def address(:auction), do: "0xabababababababababababababababababababab"
   def address(:subject_registry), do: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   def address(:splitter), do: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   def address(:default_ingress), do: "0xcccccccccccccccccccccccccccccccccccccccc"
   def address(:launch_token), do: "0xdddddddddddddddddddddddddddddddddddddddd"
   def address(:usdc), do: "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
-  def address(:wrong_usdc), do: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  def address(:wrong_quote_token), do: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   def address(:regent_recipient), do: "0xffffffffffffffffffffffffffffffffffffffff"
   def address(:pool_manager), do: "0x1212121212121212121212121212121212121212"
   def address(:pending_owner), do: "0x1313131313131313131313131313131313131313"
   def address(:mainnet_usdc), do: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+  def address(:mainnet_regent), do: "0x6f89bca4ea5931edfcb09786267b251dee752b07"
   def address(:mainnet_pool_manager), do: "0x1515151515151515151515151515151515151515"
   def address(:mainnet_revenue_share_factory), do: "0x1616161616161616161616161616161616161616"
   def address(:mainnet_revenue_ingress_factory), do: "0x1717171717171717171717171717171717171717"
   def address(:mainnet_strategy_factory), do: "0x1818181818181818181818181818181818181818"
   def address(:strategy_factory), do: "0x1919191919191919191919191919191919191919"
   def address(:currency0), do: address(:launch_token)
-  def address(:currency1), do: address(:mainnet_usdc)
+  def address(:currency1), do: address(:mainnet_regent)
 
   def launch_config(previous \\ []) do
     Keyword.merge(previous,
       chain_id: 8_453,
-      usdc_address: address(:mainnet_usdc),
+      auction_quote_token_address: address(:mainnet_regent),
+      revenue_usdc_address: address(:mainnet_usdc),
       pool_manager_address: address(:mainnet_pool_manager),
       revenue_share_factory_address: address(:mainnet_revenue_share_factory),
       revenue_ingress_factory_address: address(:mainnet_revenue_ingress_factory),
-      usdc_addresses: %{
+      auction_quote_token_addresses: %{
+        84_532 => address(:usdc),
+        8_453 => address(:mainnet_regent)
+      },
+      revenue_usdc_addresses: %{
         84_532 => address(:usdc),
         8_453 => address(:mainnet_usdc)
       },
@@ -101,6 +108,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     job
     |> Job.update_changeset(%{
       token_address: address(:launch_token),
+      auction_address: address(:auction),
       strategy_address: address(:strategy),
       hook_address: address(:hook),
       launch_fee_registry_address: address(:fee_registry),
@@ -125,11 +133,25 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
     alias Autolaunch.Contracts.Abi
     alias Autolaunch.ReleaseDeployVerifierTestSupport, as: Support
 
+    def code_at(8_453, _address, _opts), do: {:ok, "0x6000"}
+
     def eth_call(chain_id, to, data, _opts) when chain_id == 8_453 do
       address = normalize(to)
       selector = String.slice(data, 0, 10)
 
       cond do
+        address == Support.address(:mainnet_regent) and selector == Abi.selector(:decimals) ->
+          {:ok, encode_uint_result(18)}
+
+        address == Support.address(:mainnet_usdc) and selector == Abi.selector(:decimals) ->
+          {:ok, encode_uint_result(6)}
+
+        address == Support.address(:strategy) and selector == Abi.selector(:quote_token) ->
+          {:ok, encode_address_result(Support.address(:mainnet_regent))}
+
+        address == Support.address(:auction) and selector == Abi.selector(:auction_currency) ->
+          {:ok, encode_address_result(quote_token_for_mode())}
+
         address == Support.address(:controller) and selector == Abi.selector(:owner) ->
           {:ok, encode_address_result(Support.address(:owner))}
 
@@ -262,8 +284,8 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
 
     defp quote_token_for_mode do
       case Application.get_env(:autolaunch, :release_deploy_verifier_rpc_mode, :healthy) do
-        :wrong_usdc -> Support.address(:wrong_usdc)
-        _ -> Support.address(:mainnet_usdc)
+        :wrong_quote_token -> Support.address(:wrong_quote_token)
+        _ -> Support.address(:mainnet_regent)
       end
     end
 
@@ -298,7 +320,7 @@ defmodule Autolaunch.ReleaseDeployVerifierTestSupport do
       words = [
         encode_address_word(Support.address(:launch_token)),
         encode_address_word(quote_token_for_mode()),
-        encode_address_word(Support.address(:splitter)),
+        encode_address_word(Support.address(:agent_safe)),
         encode_address_word(Support.address(:regent_recipient)),
         encode_address_word(Support.address(:currency0)),
         encode_address_word(Support.address(:currency1)),

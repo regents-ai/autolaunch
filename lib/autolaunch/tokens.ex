@@ -19,6 +19,24 @@ defmodule Autolaunch.Tokens do
     |> Enum.map(&serialize_revsplit_token/1)
   end
 
+  def get_graduated_token(chain_id, token_address) do
+    with chain_id when is_integer(chain_id) <- Autolaunch.BaseChain.normalize_chain_id(chain_id),
+         token_address when is_binary(token_address) <-
+           Autolaunch.Evm.normalize_address(token_address),
+         %RevsplitToken{} = token <-
+           Repo.one(
+             from token in RevsplitToken,
+               where:
+                 token.chain_id == ^chain_id and token.token_address == ^token_address and
+                   token.revsplit_status == "active",
+               limit: 1
+           ) do
+      {:ok, serialize_revsplit_token(token)}
+    else
+      _ -> {:error, :token_not_found}
+    end
+  end
+
   def upsert_revsplit_token(attrs) when is_map(attrs) do
     now = DateTime.utc_now()
     attrs = Map.put_new(attrs, :last_synced_at, now)
@@ -40,17 +58,20 @@ defmodule Autolaunch.Tokens do
            :splitter_address,
            :pool_id,
            :uniswap_url,
+           :auction_quote_token_address,
+           :auction_quote_token_symbol,
+           :auction_quote_token_decimals,
            :graduated_at,
            :graduation_block,
            :auction_raise_raw,
-           :auction_raise_usdc,
+           :auction_raise_quote,
            :required_raise_raw,
-           :required_raise_usdc,
-           :clearing_price_usdc,
-           :price_usdc,
+           :required_raise_quote,
+           :clearing_price_quote,
+           :price_quote,
            :price_source,
            :price_updated_at,
-           :fdv_usdc,
+           :fdv_quote,
            :revsplit_status,
            :last_synced_at,
            :updated_at
@@ -71,23 +92,23 @@ defmodule Autolaunch.Tokens do
     _ -> nil
   end
 
-  def raw_usdc_to_string(value) when is_integer(value) and value >= 0 do
+  def raw_quote_to_string(value) when is_integer(value) and value >= 0 do
     value
     |> Decimal.new()
-    |> Decimal.div(Decimal.new("1000000"))
-    |> Decimal.round(6)
+    |> Decimal.div(Decimal.new("1000000000000000000"))
+    |> Decimal.round(18)
     |> Decimal.normalize()
     |> Decimal.to_string(:normal)
   end
 
-  def raw_usdc_to_string(value) when is_binary(value) do
+  def raw_quote_to_string(value) when is_binary(value) do
     case Integer.parse(value) do
-      {integer, ""} when integer >= 0 -> raw_usdc_to_string(integer)
+      {integer, ""} when integer >= 0 -> raw_quote_to_string(integer)
       _ -> nil
     end
   end
 
-  def raw_usdc_to_string(_value), do: nil
+  def raw_quote_to_string(_value), do: nil
 
   defp maybe_filter_search(query, ""), do: query
 
@@ -108,7 +129,7 @@ defmodule Autolaunch.Tokens do
   defp apply_sort(query, "top_raise"),
     do:
       order_by(query, [token],
-        desc: fragment("NULLIF(?, '')::numeric", token.auction_raise_usdc),
+        desc: fragment("NULLIF(?, '')::numeric", token.auction_raise_quote),
         desc: token.graduated_at
       )
 
@@ -130,17 +151,20 @@ defmodule Autolaunch.Tokens do
       splitter_address: token.splitter_address,
       pool_id: token.pool_id,
       uniswap_url: token.uniswap_url,
+      auction_quote_token_address: token.auction_quote_token_address,
+      auction_quote_token_symbol: token.auction_quote_token_symbol,
+      auction_quote_token_decimals: token.auction_quote_token_decimals,
       graduated_at: iso(token.graduated_at),
       graduation_block: token.graduation_block,
       auction_raise_raw: token.auction_raise_raw,
-      auction_raise_usdc: token.auction_raise_usdc,
+      auction_raise_quote: token.auction_raise_quote,
       required_raise_raw: token.required_raise_raw,
-      required_raise_usdc: token.required_raise_usdc,
-      clearing_price_usdc: token.clearing_price_usdc,
-      price_usdc: token.price_usdc,
+      required_raise_quote: token.required_raise_quote,
+      clearing_price_quote: token.clearing_price_quote,
+      price_quote: token.price_quote,
       price_source: token.price_source,
       price_updated_at: iso(token.price_updated_at),
-      fdv_usdc: token.fdv_usdc,
+      fdv_quote: token.fdv_quote,
       revsplit_status: token.revsplit_status,
       last_synced_at: iso(token.last_synced_at),
       detail_url: subject_url(token) || auction_url(token),

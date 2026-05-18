@@ -26,7 +26,9 @@ defmodule AutolaunchWeb.ApiRoutesTest do
     {:get, "/me/profile"},
     {:post, "/me/profile/refresh"},
     {:get, "/me/holdings"},
-    {:get, "/me/bids"}
+    {:get, "/me/bids"},
+    {:post, "/swaps/quote"},
+    {:post, "/swaps/prepare"}
   ]
 
   @agent_only_product_routes [

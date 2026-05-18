@@ -63,7 +63,7 @@ defmodule AutolaunchWeb.ProfileLive do
     launched_tokens = assigns.snapshot.launched_tokens || []
     staked_tokens = assigns.snapshot.staked_tokens || []
     positions_count = profile_positions_count(launched_tokens, staked_tokens)
-    total_value = profile_total_value(assigns.snapshot)
+    total_value = profile_total_quote_value(assigns.snapshot)
     trust_cards = profile_trust_cards()
     next_steps = profile_next_steps(assigns.snapshot)
     activity_rows = profile_activity_rows(assigns.snapshot)
@@ -136,8 +136,8 @@ defmodule AutolaunchWeb.ProfileLive do
                     <span>Linked wallets</span>
                   </article>
                   <article>
-                    <strong>{display_money(@total_value)}</strong>
-                    <span>Tracked value</span>
+                    <strong>{display_quote(@total_value)}</strong>
+                    <span>Tracked REGENT value</span>
                   </article>
                   <article>
                     <strong>{@positions_count}</strong>
@@ -308,8 +308,8 @@ defmodule AutolaunchWeb.ProfileLive do
                             </div>
                           </td>
                           <td><.status_badge status={token.phase} /></td>
-                          <td>{display_money(token.implied_market_cap_usdc)}</td>
-                          <td>{display_money(profile_price_value(token))}</td>
+                          <td>{display_quote(token.implied_market_cap_quote)}</td>
+                          <td>{display_quote(profile_price_value(token))}</td>
                           <td>
                             <.link navigate={token.detail_url} class={token.primary_button && "al-submit" || "al-ghost"}>
                               {token.action_label}
@@ -640,7 +640,7 @@ defmodule AutolaunchWeb.ProfileLive do
         value: Integer.to_string(profile_positions_count(launched_tokens, staked_tokens))
       },
       %{label: "Tokens held", value: Integer.to_string(length(staked_tokens))},
-      %{label: "Total value", value: display_money(profile_total_value(snapshot))}
+      %{label: "REGENT value", value: display_quote(profile_total_quote_value(snapshot))}
     ]
   end
 
@@ -658,29 +658,27 @@ defmodule AutolaunchWeb.ProfileLive do
     launched ++ staked
   end
 
-  defp profile_price_value(%{current_price_usdc: value}) when not is_nil(value), do: value
-  defp profile_price_value(%{staked_usdc_value: value}) when not is_nil(value), do: value
+  defp profile_price_value(%{current_price_quote: value}) when not is_nil(value), do: value
+  defp profile_price_value(%{staked_quote_value: value}) when not is_nil(value), do: value
   defp profile_price_value(_token), do: nil
 
   defp profile_positions_count(launched_tokens, staked_tokens) do
     Enum.count(launched_tokens) + Enum.count(staked_tokens)
   end
 
-  defp profile_total_value(snapshot) do
+  defp profile_total_quote_value(snapshot) do
     launched_value =
       snapshot.launched_tokens
       |> List.wrap()
       |> Enum.reduce(Decimal.new(0), fn token, acc ->
-        add_decimal(acc, token.implied_market_cap_usdc)
+        add_decimal(acc, token.implied_market_cap_quote)
       end)
 
     staked_value =
       snapshot.staked_tokens
       |> List.wrap()
       |> Enum.reduce(Decimal.new(0), fn token, acc ->
-        acc
-        |> add_decimal(token.staked_usdc_value)
-        |> add_decimal(token.claimable_usdc)
+        add_decimal(acc, token.staked_quote_value)
       end)
 
     Decimal.add(launched_value, staked_value)
@@ -1284,12 +1282,12 @@ defmodule AutolaunchWeb.ProfileLive do
 
   defp profile_title(_), do: "Autolaunch operator"
 
-  defp display_money(nil), do: "Unavailable"
+  defp display_quote(nil), do: "Unavailable"
 
-  defp display_money(%Decimal{} = value),
-    do: "#{Decimal.round(value, 2) |> Decimal.to_string(:normal)} USDC"
+  defp display_quote(%Decimal{} = value),
+    do: "#{Decimal.round(value, 2) |> Decimal.to_string(:normal)} $REGENT"
 
-  defp display_money(value), do: "#{value} USDC"
+  defp display_quote(value), do: "#{value} $REGENT"
 
   defp portfolio_module do
     :autolaunch

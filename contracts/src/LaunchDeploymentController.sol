@@ -16,6 +16,7 @@ import {RegentLBPStrategy} from "src/RegentLBPStrategy.sol";
 import {RegentLBPStrategyFactory} from "src/RegentLBPStrategyFactory.sol";
 import {ITokenFactory} from "src/interfaces/ITokenFactory.sol";
 import {IDistributionStrategy} from "src/interfaces/IDistributionStrategy.sol";
+import {BaseRegent} from "src/libraries/BaseRegent.sol";
 import {BaseUsdc} from "src/libraries/BaseUsdc.sol";
 import {InputBounds} from "src/revenue/libraries/InputBounds.sol";
 
@@ -39,9 +40,9 @@ contract LaunchDeploymentController is Owned {
         address auctionInitializerFactory;
         address poolManager;
         address positionManager;
-        address positionRecipient;
         address strategyOperator;
-        address usdcToken;
+        address auctionQuoteToken;
+        address revenueUsdcToken;
         address regentRecipient;
         address validationHook;
         uint256 identityAgentId;
@@ -127,15 +128,13 @@ contract LaunchDeploymentController is Owned {
         address indexed tokenAddress,
         address auctionAddress,
         address strategyAddress,
-        address vestingWalletAddress,
-        address hookAddress,
-        address feeVaultAddress,
-        address launchFeeRegistryAddress,
-        address subjectRegistryAddress,
-        address revenueShareSplitterAddress,
-        address defaultIngressAddress,
         bytes32 poolId,
         address agentSafe
+    );
+    event LaunchTokenRoles(
+        bytes32 indexed subjectId,
+        address indexed auctionQuoteToken,
+        address indexed revenueUsdcToken
     );
     event StagedLaunchPrepared(
         bytes32 indexed launchId,
@@ -189,8 +188,8 @@ contract LaunchDeploymentController is Owned {
             .registerPool(
                 LaunchFeeRegistry.PoolRegistration({
                     launchToken: token,
-                    quoteToken: cfg.usdcToken,
-                    treasury: revenueSubject.revenueShareSplitter,
+                    quoteToken: cfg.auctionQuoteToken,
+                    treasury: cfg.agentSafe,
                     regentRecipient: cfg.regentRecipient,
                     poolFee: cfg.officialPoolFee,
                     tickSpacing: cfg.officialPoolTickSpacing,
@@ -198,7 +197,7 @@ contract LaunchDeploymentController is Owned {
                     hook: address(feeInfra.hook)
                 })
             );
-        feeInfra.feeVault.setCanonicalTokens(token, cfg.usdcToken);
+        feeInfra.feeVault.setCanonicalTokens(token, cfg.auctionQuoteToken);
 
         feeInfra.launchFeeRegistry.transferOwnership(cfg.agentSafe);
         feeInfra.feeVault.transferOwnership(cfg.agentSafe);
@@ -220,6 +219,7 @@ contract LaunchDeploymentController is Owned {
         });
 
         _emitLaunchStackDeployed(result, cfg.agentSafe);
+        _emitLaunchTokenRoles(result.subjectId, cfg);
     }
 
     function prepareLaunch(DeploymentConfig memory cfg)
@@ -322,8 +322,8 @@ contract LaunchDeploymentController is Owned {
         bytes32 poolId = launchFeeRegistry.registerPool(
             LaunchFeeRegistry.PoolRegistration({
                 launchToken: launch.tokenAddress,
-                quoteToken: cfg.usdcToken,
-                treasury: launch.revenueShareSplitterAddress,
+                quoteToken: cfg.auctionQuoteToken,
+                treasury: cfg.agentSafe,
                 regentRecipient: cfg.regentRecipient,
                 poolFee: cfg.officialPoolFee,
                 tickSpacing: cfg.officialPoolTickSpacing,
@@ -331,7 +331,7 @@ contract LaunchDeploymentController is Owned {
                 hook: address(hook)
             })
         );
-        feeVault.setCanonicalTokens(launch.tokenAddress, cfg.usdcToken);
+        feeVault.setCanonicalTokens(launch.tokenAddress, cfg.auctionQuoteToken);
 
         launchFeeRegistry.transferOwnership(cfg.agentSafe);
         feeVault.transferOwnership(cfg.agentSafe);
@@ -345,6 +345,7 @@ contract LaunchDeploymentController is Owned {
         result = _resultFromStagedLaunch(launchId);
 
         _emitLaunchStackDeployed(result, cfg.agentSafe);
+        _emitLaunchTokenRoles(result.subjectId, cfg);
     }
 
     function stagedLaunchResult(bytes32 launchId)
@@ -366,11 +367,13 @@ contract LaunchDeploymentController is Owned {
         require(cfg.auctionInitializerFactory != address(0), "AUCTION_FACTORY_ZERO");
         require(cfg.poolManager != address(0), "POOL_MANAGER_ZERO");
         require(cfg.positionManager != address(0), "POSITION_MANAGER_ZERO");
-        require(cfg.positionRecipient != address(0), "POSITION_RECIPIENT_ZERO");
-        require(cfg.positionRecipient == cfg.agentSafe, "POSITION_RECIPIENT_MUST_MATCH_AGENT_SAFE");
         require(cfg.strategyOperator != address(0), "STRATEGY_OPERATOR_ZERO");
-        require(cfg.usdcToken != address(0), "USDC_ZERO");
-        BaseUsdc.requireCanonical(cfg.usdcToken);
+        require(cfg.auctionQuoteToken != address(0), "QUOTE_TOKEN_ZERO");
+        require(cfg.revenueUsdcToken != address(0), "REVENUE_USDC_ZERO");
+        BaseRegent.requireCanonical(cfg.auctionQuoteToken);
+        BaseUsdc.requireCanonical(cfg.revenueUsdcToken);
+        require(cfg.auctionQuoteToken.code.length != 0, "QUOTE_TOKEN_NO_CODE");
+        require(IERC20MetadataLike(cfg.auctionQuoteToken).decimals() == 18, "QUOTE_TOKEN_DECIMALS");
         require(cfg.regentRecipient != address(0), "REGENT_RECIPIENT_ZERO");
         bool hasIdentityLink = cfg.identityRegistry != address(0) || cfg.identityAgentId != 0;
         if (hasIdentityLink) {
@@ -408,11 +411,11 @@ contract LaunchDeploymentController is Owned {
             "TOKEN_FACTORY_DATA_TOO_LONG"
         );
         require(
-            RevenueShareFactory(cfg.revenueShareFactory).usdc() == cfg.usdcToken,
+            RevenueShareFactory(cfg.revenueShareFactory).usdc() == cfg.revenueUsdcToken,
             "REVENUE_SHARE_USDC_MISMATCH"
         );
         require(
-            RevenueIngressFactory(cfg.revenueIngressFactory).usdc() == cfg.usdcToken,
+            RevenueIngressFactory(cfg.revenueIngressFactory).usdc() == cfg.revenueUsdcToken,
             "REVENUE_INGRESS_USDC_MISMATCH"
         );
         require(
@@ -488,7 +491,7 @@ contract LaunchDeploymentController is Owned {
     {
         (feeInfra.launchFeeRegistry, feeInfra.feeVault, feeInfra.hook) = LaunchFeeInfraDeployer(
                 cfg.feeInfraDeployer
-            ).deploy(address(this), cfg.poolManager, cfg.usdcToken, cfg.launchFeeHookSalt);
+            ).deploy(address(this), cfg.poolManager, cfg.auctionQuoteToken, cfg.launchFeeHookSalt);
 
         feeInfra.launchFeeRegistry.acceptOwnership();
         feeInfra.feeVault.acceptOwnership();
@@ -543,14 +546,14 @@ contract LaunchDeploymentController is Owned {
         LaunchPoolFeeHook hook,
         AllocationData memory allocation
     ) internal pure returns (RegentLBPStrategyFactory.RegentLBPStrategyConfig memory strategyCfg) {
-        strategyCfg.usdc = cfg.usdcToken;
+        strategyCfg.quoteToken = cfg.auctionQuoteToken;
         strategyCfg.auctionInitializerFactory = cfg.auctionInitializerFactory;
         strategyCfg.auctionParameters = _auctionParameters(cfg);
         strategyCfg.officialPoolHook = address(hook);
         strategyCfg.agentSafe = cfg.agentSafe;
         strategyCfg.vestingWallet = address(vestingWallet);
         strategyCfg.operator = cfg.strategyOperator;
-        strategyCfg.positionRecipient = cfg.positionRecipient;
+        strategyCfg.positionRecipient = cfg.agentSafe;
         strategyCfg.positionManager = cfg.positionManager;
         strategyCfg.poolManager = cfg.poolManager;
         strategyCfg.officialPoolFee = cfg.officialPoolFee;
@@ -569,7 +572,7 @@ contract LaunchDeploymentController is Owned {
         returns (AuctionParameters memory)
     {
         return AuctionParameters({
-            currency: cfg.usdcToken,
+            currency: cfg.auctionQuoteToken,
             tokensRecipient: address(0),
             fundsRecipient: address(0),
             startBlock: cfg.startBlock,
@@ -592,7 +595,7 @@ contract LaunchDeploymentController is Owned {
 
         for (uint256 offset; offset < steps.length; offset += 8) {
             uint256 packed;
-            assembly {
+            assembly ("memory-safe") {
                 packed := shr(192, mload(add(add(steps, 0x20), offset)))
             }
 
@@ -652,16 +655,13 @@ contract LaunchDeploymentController is Owned {
             result.tokenAddress,
             result.auctionAddress,
             result.strategyAddress,
-            result.vestingWalletAddress,
-            result.hookAddress,
-            result.feeVaultAddress,
-            result.launchFeeRegistryAddress,
-            result.subjectRegistryAddress,
-            result.revenueShareSplitterAddress,
-            result.defaultIngressAddress,
             result.poolId,
             agentSafe
         );
+    }
+
+    function _emitLaunchTokenRoles(bytes32 subjectId, DeploymentConfig memory cfg) internal {
+        emit LaunchTokenRoles(subjectId, cfg.auctionQuoteToken, cfg.revenueUsdcToken);
     }
 
     function _toUint24(uint256 value) internal pure returns (uint24) {
@@ -673,4 +673,8 @@ contract LaunchDeploymentController is Owned {
 
 interface IERC20Like {
     function transfer(address to, uint256 amount) external returns (bool);
+}
+
+interface IERC20MetadataLike {
+    function decimals() external view returns (uint8);
 }

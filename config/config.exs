@@ -21,6 +21,15 @@ config :autolaunch, :launch,
   allow_unverified_owner: false,
   deploy_script_target: ""
 
+config :autolaunch, :swaps,
+  enabled: false,
+  uniswap_api_base_url: "https://trade-api.gateway.uniswap.org/v1",
+  uniswap_api_key: "",
+  allowed_transaction_targets: %{},
+  allowed_approval_spenders: %{},
+  max_price_impact_percent: "5",
+  http_client: Req
+
 config :autolaunch, :launch_job_poller,
   enabled: false,
   interval_ms: 2_000,
@@ -41,6 +50,12 @@ config :autolaunch, :regent_staking,
 
 config :autolaunch, :contract_admin,
   operator_wallets: ["0xB26A3609acD791e2eA3f1900619C910B45705adD"]
+
+config :sentry,
+  json_library: Jason,
+  enable_source_code_context: true,
+  root_source_code_paths: [File.cwd!()],
+  in_app_otp_apps: [:autolaunch]
 
 config :esbuild,
   version: "0.25.4",

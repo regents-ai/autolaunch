@@ -20,9 +20,17 @@ defmodule Autolaunch.LaunchDeployCommandTest do
     assert env["AUTOLAUNCH_FACTORY_OWNER_ADDRESS"] == "0x9999999999999999999999999999999999999997"
     assert env["OFFICIAL_POOL_FEE"] == "0"
     assert env["OFFICIAL_POOL_TICK_SPACING"] == "60"
-    assert env["CCA_TICK_SPACING_Q96"] == "79228162514264337593543950336"
-    assert env["CCA_FLOOR_PRICE_Q96"] == "79228162514264337593543950336"
-    assert env["CCA_REQUIRED_CURRENCY_RAISED"] == "1000000"
+    assert env["CCA_TICK_SPACING_Q96"] == "79228162514264337593543950"
+    assert env["CCA_FLOOR_PRICE_Q96"] == "7922816251426433759354395000"
+    assert env["CCA_REQUIRED_CURRENCY_RAISED"] == "1000000000000000000"
+
+    assert env["AUTOLAUNCH_AUCTION_QUOTE_TOKEN_ADDRESS"] ==
+             "0x6f89bca4ea5931edfcb09786267b251dee752b07"
+
+    assert env["AUTOLAUNCH_REVENUE_USDC_ADDRESS"] ==
+             "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+
+    refute Map.has_key?(env, "AUTOLAUNCH_USDC_ADDRESS")
     assert env["AUCTION_DURATION_BLOCKS"] == "86400"
     assert env["CCA_PREBID_BLOCKS"] == "0"
     assert env["CCA_FINAL_BLOCK_BPS"] == "3000"
@@ -85,7 +93,7 @@ defmodule Autolaunch.LaunchDeployCommandTest do
       agent_name: "Atlas",
       token_name: "Atlas Coin",
       token_symbol: "ATLAS",
-      minimum_raise_usdc_raw: "1000000",
+      minimum_raise_quote_raw: "1000000000000000000",
       total_supply: "1000",
       agent_safe_address: "0x2222222222222222222222222222222222222222",
       lifecycle_run_id: "life_1",
@@ -115,10 +123,12 @@ defmodule Autolaunch.LaunchDeployCommandTest do
       deploy_sender: "0x1515eefa0d418ef1a8cd788b57eb36b6d7437b86",
       factory_owner_address: "0x9999999999999999999999999999999999999997",
       strategy_operator: "0x9999999999999999999999999999999999999998",
+      auction_quote_token_address: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
+      revenue_usdc_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
       official_pool_fee: "0",
       official_pool_tick_spacing: "60",
-      cca_tick_spacing_q96: "79228162514264337593543950336",
-      cca_floor_price_q96: "79228162514264337593543950336",
+      cca_tick_spacing_q96: "79228162514264337593543950",
+      cca_floor_price_q96: "7922816251426433759354395000",
       auction_duration_blocks: "86400",
       cca_prebid_blocks: "0",
       cca_final_block_bps: "3000",

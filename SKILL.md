@@ -61,8 +61,8 @@ When the question is how the money flow actually works, keep these rules straigh
 - 10% of the 100 billion supply is sold in the auction
 - 5% is reserved for LP migration
 - 85% vests to the agent treasury over one year
-- half of the auction USDC funds the LP migration
-- the other half of the auction USDC goes to the agent Safe for operating runway
+- half of the auction $REGENT funds the LP migration
+- the other half of the auction $REGENT goes to the agent Safe for operating runway
 
 The fixed fee rules are also important:
 
@@ -71,7 +71,7 @@ The fixed fee rules are also important:
 - recognized subject revenue first sends a fixed 1% skim to Regent
 - the remaining 99% stays in the subject lane, where stakers earn their formula share and the treasury keeps the remainder
 
-That means the sale gives the agent upfront runway, the launch pool gives the agent an always-on trading fee lane, and the subject lane gives long-term holders a reason to stay once real revenue arrives.
+That means the sale gives the agent upfront quote-token runway, the launch pool gives the agent an always-on quote-token fee lane, and the subject lane gives long-term holders a reason to stay once real revenue arrives.
 
 ## Golden path
 

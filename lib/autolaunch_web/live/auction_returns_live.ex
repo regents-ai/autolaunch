@@ -65,7 +65,7 @@ defmodule AutolaunchWeb.AuctionReturnsLive do
           <div class="al-auction-returns-hero-copy">
             <div>
               <p class="al-kicker">Auction returns</p>
-              <h2>Find the auctions where bidders can pull USDC back.</h2>
+              <h2>Find the auctions where bidders can pull $REGENT back.</h2>
               <p class="al-subcopy">
                 These markets ended below the minimum raise. Open the matching auction or your
                 positions page to finish the return action quickly.

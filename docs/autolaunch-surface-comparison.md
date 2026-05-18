@@ -40,7 +40,7 @@ Use the web app for human-owned work:
 | Create a full launch auction | Yes | Limited | The launch creation path is CLI-first. Web explains and monitors it. |
 | Create an existing-token subject | Yes | No dedicated flow | CLI exposes the direct subject creation command. |
 | Create a deferred Autolaunch subject | Yes | No dedicated flow | CLI exposes the direct deferred subject command. |
-| Buy or sell graduated agent tokens | No native swap | No native swap | Autolaunch shows the token and linked market when available. Swaps happen outside Autolaunch. |
+| Buy or sell graduated agent tokens | No direct command | Yes, when available | Web can show a Base USDC trade for wallet review on supported graduated tokens. CLI shows subject and market status. |
 | Stake on another subject | Yes | Yes | CLI is repeatable. Web is clearer for wallet review. |
 | Unstake from a subject | Yes | Yes | Both surfaces prepare the subject action. |
 | Claim subject USDC | Yes | Yes | Both surfaces support subject reward claims. |
@@ -97,11 +97,11 @@ The web app is the only shipped surface for:
 
 The web app is also better when a person needs to compare auctions, check a wallet action, or review subject revenue without command output.
 
-## Neither Surface Provides Native Swaps
+## Graduated Token Swaps
 
-Autolaunch does not currently provide a native CLI swap command or a native web swap form for graduated agent tokens.
+The CLI does not have a direct swap command. It remains best for checking subject and market status.
 
-The Autolaunch-native purchase path is the live auction bid. After graduation, use the linked external market when one is available.
+The web app can show a Base USDC trade for wallet review when a graduated token has a supported market. The live auction bid remains the launch-day purchase path, and the linked external market remains available after graduation.
 
 ## Payment Links
 

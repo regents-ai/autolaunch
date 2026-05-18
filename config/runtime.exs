@@ -91,11 +91,7 @@ end
 config :sentry,
   dsn: System.get_env("SENTRY_DSN"),
   environment_name: System.get_env("SENTRY_ENVIRONMENT", "production"),
-  release: System.get_env("SENTRY_RELEASE"),
-  json_library: Jason,
-  enable_source_code_context: true,
-  root_source_code_paths: [File.cwd!()],
-  in_app_otp_apps: [:autolaunch]
+  release: System.get_env("SENTRY_RELEASE")
 
 if config_env() != :test do
   base_mainnet_rpc_url = "https://base-mainnet.g.alchemy.com/v2/mh8bSk613dgCNswQaicqncntni1gOg3o"
@@ -105,6 +101,10 @@ if config_env() != :test do
   canonical_usdc_addresses = %{
     8_453 => "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
     84_532 => "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+  }
+
+  canonical_regent_addresses = %{
+    8_453 => "0x6f89bca4ea5931edfcb09786267b251dee752b07"
   }
 
   if config_env() == :dev do
@@ -158,6 +158,22 @@ if config_env() != :test do
     interval_ms: env_int.("AUTOLAUNCH_LAUNCH_JOB_POLLER_INTERVAL_MS", 2_000),
     lease_timeout_ms: env_int.("AUTOLAUNCH_LAUNCH_JOB_LEASE_TIMEOUT_MS", :timer.minutes(10))
 
+  config :autolaunch, :swaps,
+    enabled: env_bool.("AUTOLAUNCH_WEB_SWAPS_ENABLED", false),
+    uniswap_api_base_url:
+      env.("AUTOLAUNCH_UNISWAP_API_BASE_URL", "https://trade-api.gateway.uniswap.org/v1"),
+    uniswap_api_key: env.("AUTOLAUNCH_UNISWAP_API_KEY", ""),
+    allowed_transaction_targets: %{
+      8_453 => env_list.("AUTOLAUNCH_BASE_MAINNET_SWAP_TRANSACTION_TARGETS", ""),
+      84_532 => env_list.("AUTOLAUNCH_BASE_SEPOLIA_SWAP_TRANSACTION_TARGETS", "")
+    },
+    allowed_approval_spenders: %{
+      8_453 => env_list.("AUTOLAUNCH_BASE_MAINNET_SWAP_APPROVAL_SPENDERS", ""),
+      84_532 => env_list.("AUTOLAUNCH_BASE_SEPOLIA_SWAP_APPROVAL_SPENDERS", "")
+    },
+    max_price_impact_percent: env.("AUTOLAUNCH_MAX_SWAP_PRICE_IMPACT_PERCENT", "5"),
+    http_client: Req
+
   config :autolaunch, :auction_sync,
     enabled: env_bool.("AUTOLAUNCH_AUCTION_SYNC_ENABLED", config_env() == :prod),
     interval_ms: env_int.("AUTOLAUNCH_AUCTION_SYNC_INTERVAL_MS", 30_000),
@@ -183,7 +199,20 @@ if config_env() != :test do
     cca_factory_address: env.("AUTOLAUNCH_CCA_FACTORY_ADDRESS", ""),
     pool_manager_address: env.("AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER", ""),
     position_manager_address: env.("AUTOLAUNCH_UNISWAP_V4_POSITION_MANAGER", ""),
-    usdc_address: Map.get(canonical_usdc_addresses, launch_chain_id, ""),
+    auction_quote_token_address:
+      env.(
+        "AUTOLAUNCH_AUCTION_QUOTE_TOKEN_ADDRESS",
+        Map.get(canonical_regent_addresses, launch_chain_id, "")
+      ),
+    auction_quote_token_symbol: "REGENT",
+    auction_quote_token_decimals: 18,
+    revenue_usdc_address:
+      env.(
+        "AUTOLAUNCH_REVENUE_USDC_ADDRESS",
+        Map.get(canonical_usdc_addresses, launch_chain_id, "")
+      ),
+    revenue_usdc_symbol: "USDC",
+    revenue_usdc_decimals: 6,
     revenue_share_factory_address: env.("AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS", ""),
     existing_token_revenue_factory_address:
       env.("AUTOLAUNCH_EXISTING_TOKEN_REVENUE_FACTORY_ADDRESS", ""),
@@ -194,7 +223,10 @@ if config_env() != :test do
       8_453 => env.("AUTOLAUNCH_BASE_MAINNET_UNISWAP_V4_POOL_MANAGER", ""),
       84_532 => env.("AUTOLAUNCH_BASE_SEPOLIA_UNISWAP_V4_POOL_MANAGER", "")
     },
-    usdc_addresses: %{
+    auction_quote_token_addresses: %{
+      8_453 => Map.fetch!(canonical_regent_addresses, 8_453)
+    },
+    revenue_usdc_addresses: %{
       8_453 => Map.fetch!(canonical_usdc_addresses, 8_453),
       84_532 => Map.fetch!(canonical_usdc_addresses, 84_532)
     },

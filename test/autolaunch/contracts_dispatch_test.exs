@@ -26,6 +26,7 @@ defmodule Autolaunch.ContractsDispatchTest do
 
   test "job dispatch prepares the new settlement transactions" do
     job = %{
+      job_id: "job_contracts",
       chain_id: 8_453,
       strategy_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
@@ -43,10 +44,22 @@ defmodule Autolaunch.ContractsDispatchTest do
     assert recover.wallet_action.to == job.strategy_address
 
     assert {:ok, auction_currency} =
-             Dispatch.build_job_action(job, "auction", "sweep_currency", %{})
+             Dispatch.build_job_action(job, "auction", "sweep_quote_token", %{})
 
-    assert auction_currency.action == "sweep_currency"
+    assert auction_currency.action == "sweep_quote_token"
     assert auction_currency.wallet_action.to == job.auction_address
+    assert String.starts_with?(auction_currency.wallet_action.data, Abi.selector(:sweep_currency))
+
+    assert {:ok, strategy_currency} =
+             Dispatch.build_job_action(job, "strategy", "sweep_quote_token", %{})
+
+    assert strategy_currency.action == "sweep_quote_token"
+    assert strategy_currency.wallet_action.to == job.strategy_address
+
+    assert String.starts_with?(
+             strategy_currency.wallet_action.data,
+             Abi.selector(:sweep_quote_token)
+           )
 
     assert {:ok, auction_tokens} =
              Dispatch.build_job_action(job, "auction", "sweep_unsold_tokens", %{})
@@ -58,27 +71,6 @@ defmodule Autolaunch.ContractsDispatchTest do
              Dispatch.build_job_action(job, "revenue_splitter", "accept_ownership", %{})
 
     assert splitter_acceptance.wallet_action.to == job.revenue_share_splitter_address
-
-    assert {:ok, treasury_pull} =
-             Dispatch.build_job_action(job, "revenue_splitter", "pull_treasury_share", %{
-               "amount" => "7"
-             })
-
-    assert treasury_pull.resource == "revenue_splitter"
-    assert treasury_pull.action == "pull_treasury_share"
-    assert treasury_pull.wallet_action.to == job.revenue_share_splitter_address
-    refute treasury_pull.wallet_action.to == job.launch_fee_vault_address
-    assert String.starts_with?(treasury_pull.wallet_action.data, "0x94af8446")
-    assert is_binary(treasury_pull.action_id)
-    assert treasury_pull.idempotency_key == treasury_pull.action_id
-    assert treasury_pull.expected_signer == nil
-    assert treasury_pull.risk_copy =~ "subject treasury share"
-    assert {:ok, _expires_at, _offset} = DateTime.from_iso8601(treasury_pull.expires_at)
-
-    assert treasury_pull.params == %{
-             amount: "7",
-             vault: job.launch_fee_vault_address
-           }
 
     assert {:ok, registry_acceptance} =
              Dispatch.build_job_action(job, "fee_registry", "accept_ownership", %{})
@@ -167,6 +159,19 @@ defmodule Autolaunch.ContractsDispatchTest do
     refute first.idempotency_key == second.idempotency_key
     assert first.wallet_action.expected_signer == "0x1111111111111111111111111111111111111111"
     assert second.wallet_action.expected_signer == "0x2222222222222222222222222222222222222222"
+  end
+
+  test "prepared transaction rejects malformed hex value" do
+    assert {:error, :invalid_value} =
+             ActionParams.prepare_tx(
+               8_453,
+               "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+               "0x1234",
+               "subject",
+               "stake",
+               %{"resource_id" => "subject:alpha"},
+               value: "0x-1"
+             )
   end
 
   test "admin prepare rejects a wallet outside the contract operator list" do
@@ -264,12 +269,6 @@ defmodule Autolaunch.ContractsDispatchTest do
   end
 
   test "prepared action selectors match Foundry ABI artifacts" do
-    assert Abi.selector(:pull_treasury_share_from_launch_vault) ==
-             artifact_selector(
-               "contracts/out/RevenueShareSplitter.sol/RevenueShareSplitter.json",
-               "pullTreasuryShareFromLaunchVault"
-             )
-
     assert Abi.selector(:withdraw_regent_share) ==
              artifact_selector(
                "contracts/out/LaunchFeeVault.sol/LaunchFeeVault.json",

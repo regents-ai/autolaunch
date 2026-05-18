@@ -5,7 +5,7 @@ defmodule Autolaunch.Launch.Params do
     agent_id
     token_name
     token_symbol
-    minimum_raise_usdc
+    minimum_raise_quote
     agent_safe_address
     total_supply
     launch_notes

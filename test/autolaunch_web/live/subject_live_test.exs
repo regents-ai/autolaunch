@@ -26,7 +26,6 @@ defmodule AutolaunchWeb.SubjectLiveTest do
          total_usdc_received: "125",
          direct_deposit_usdc: "15",
          verified_ingress_usdc: "90",
-         launch_fee_usdc: "20",
          regent_skim_usdc: "1",
          staker_eligible_inflow_usdc: "99",
          treasury_reserved_inflow_usdc: "25",

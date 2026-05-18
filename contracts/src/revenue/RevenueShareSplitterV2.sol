@@ -5,7 +5,6 @@ import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {Owned} from "src/auth/Owned.sol";
 import {SafeTransferLib} from "src/libraries/SafeTransferLib.sol";
 import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.sol";
-import {ILaunchFeeVaultMinimal} from "src/revenue/interfaces/ILaunchFeeVaultMinimal.sol";
 import {
     IRevenueIngressAccountMinimal
 } from "src/revenue/interfaces/IRevenueIngressAccountMinimal.sol";
@@ -24,7 +23,6 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     enum RevenueSourceKind {
         DirectDeposit,
         AuthorizedIngress,
-        LaunchFee,
         SurplusRedeposit
     }
 
@@ -61,12 +59,13 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     uint256 public treasuryResidualUsdc;
     uint256 public treasuryReservedUsdc;
     uint256 public protocolFeeUsdc;
+    uint256 public treasuryBuybackUsdc;
     uint256 public totalProtocolUsdcDepositedToRegentStaking;
+    uint256 public totalRegentBoughtForTreasury;
     uint256 public undistributedDustUsdc;
     uint256 public totalUsdcReceived;
     uint256 public directDepositUsdc;
     uint256 public verifiedIngressUsdc;
-    uint256 public launchFeeUsdc;
     uint256 public surplusRedepositUsdc;
     uint256 public stakerEligibleInflowUsdc;
     uint256 public treasuryReservedInflowUsdc;
@@ -128,6 +127,9 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
     event USDCDustReassigned(uint256 amount, address indexed recipient);
     event AccountSynced(address indexed account);
     event SubjectLifecycleSynced(bool active, bool retiring, bool retired);
+    event TreasuryRegentBuybackProcessed(
+        uint256 usdcAmount, uint256 regentOut, address indexed recipient, bytes32 indexed sourceRef
+    );
 
     constructor(
         address stakeToken_,
@@ -359,28 +361,6 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
         );
     }
 
-    function pullTreasuryShareFromLaunchVault(
-        address vault,
-        bytes32 poolId,
-        uint256 amount,
-        bytes32 sourceRef
-    ) external whenNotPaused onlyActiveSubject nonReentrant returns (uint256 received) {
-        require(vault != address(0), "VAULT_ZERO");
-        require(amount != 0, "AMOUNT_ZERO");
-        uint256 beforeBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
-        ILaunchFeeVaultMinimal(vault).withdrawTreasury(poolId, usdc, amount, address(this));
-        uint256 afterBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
-        received = afterBalance - beforeBalance;
-        _recordRevenue(
-            received,
-            eligibleRevenueShareBps,
-            RevenueSourceKind.LaunchFee,
-            vault,
-            bytes32("launch_treasury"),
-            sourceRef
-        );
-    }
-
     function sync(address account) external whenNotPaused nonReentrant {
         require(account != address(0), "ACCOUNT_ZERO");
         _sync(account);
@@ -520,10 +500,14 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
         require(received > 0, "NOTHING_RECEIVED");
         uint256 protocolAmount =
             FullMath.mulDiv(received, stakingRevenueRouter.protocolSkimBps(), BPS_DENOMINATOR);
-        uint256 net = received - protocolAmount;
+        uint256 netAfterProtocol = received - protocolAmount;
+        uint256 buybackAmount = FullMath.mulDiv(
+            netAfterProtocol, stakingRevenueRouter.treasuryBuybackBps(), BPS_DENOMINATOR
+        );
+        uint256 subjectLaneAmount = netAfterProtocol - buybackAmount;
         uint256 treasuryReservedAmount =
-            FullMath.mulDiv(net, BPS_DENOMINATOR - shareBps, BPS_DENOMINATOR);
-        uint256 stakerEligibleAmount = net - treasuryReservedAmount;
+            FullMath.mulDiv(subjectLaneAmount, BPS_DENOMINATOR - shareBps, BPS_DENOMINATOR);
+        uint256 stakerEligibleAmount = subjectLaneAmount - treasuryReservedAmount;
 
         uint256 deltaAcc;
         if (stakerEligibleAmount > 0) {
@@ -548,9 +532,9 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
         totalUsdcReceived += received;
         if (sourceKind == RevenueSourceKind.DirectDeposit) directDepositUsdc += received;
         else if (sourceKind == RevenueSourceKind.AuthorizedIngress) verifiedIngressUsdc += received;
-        else if (sourceKind == RevenueSourceKind.LaunchFee) launchFeeUsdc += received;
         else if (sourceKind == RevenueSourceKind.SurplusRedeposit) surplusRedepositUsdc += received;
         protocolFeeUsdc += protocolAmount;
+        treasuryBuybackUsdc += buybackAmount;
         stakerEligibleInflowUsdc += stakerEligibleAmount;
         treasuryReservedInflowUsdc += treasuryReservedAmount;
         treasuryResidualUsdc += treasuryResidualAmount;
@@ -566,6 +550,16 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter, ISubjectLifecyc
                 subjectId, treasuryRecipient, protocolAmount, sourceRef
             );
             totalProtocolUsdcDepositedToRegentStaking += depositedUsdc;
+        }
+        if (buybackAmount > 0) {
+            usdc.safeTransfer(address(stakingRevenueRouter), buybackAmount);
+            uint256 regentOut = stakingRevenueRouter.processTreasuryBuyback(
+                subjectId, treasuryRecipient, buybackAmount, sourceRef
+            );
+            totalRegentBoughtForTreasury += regentOut;
+            emit TreasuryRegentBuybackProcessed(
+                buybackAmount, regentOut, treasuryRecipient, sourceRef
+            );
         }
 
         emit USDCRevenueDeposited(

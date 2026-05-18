@@ -9,6 +9,7 @@ import {RegentStakingRevenueRouter} from "src/revenue/RegentStakingRevenueRouter
 import {RevenueIngressAccount} from "src/revenue/RevenueIngressAccount.sol";
 import {RevenueIngressFactory} from "src/revenue/RevenueIngressFactory.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
+import {MockRegentBuybackAdapter} from "test/mocks/MockRegentBuybackAdapter.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 import {MockRegentStakingRevenueRouter} from "test/mocks/MockRegentStakingRevenueRouter.sol";
 import {TransferFeeERC20Mock} from "test/mocks/TransferFeeERC20Mock.sol";
@@ -19,6 +20,12 @@ contract LiveStakeFeePoolSplitterTest is Test {
     address internal constant CREATOR = address(0x2222);
     address internal constant STAKER_ONE = address(0x3333);
     address internal constant STAKER_TWO = address(0x4444);
+    uint256 internal constant HUNDRED_USDC = 100e18;
+    uint256 internal constant PROTOCOL_SKIM = 1e18;
+    uint256 internal constant TREASURY_BUYBACK = 9900e15;
+    uint256 internal constant SUBJECT_LANE = 89_100e15;
+    uint256 internal constant STAKER_POOL = 8910e15;
+    uint256 internal constant TREASURY_LANE = 80_190e15;
 
     MintableERC20Mock internal usdc;
     MintableERC20Mock internal stakeToken;
@@ -69,14 +76,17 @@ contract LiveStakeFeePoolSplitterTest is Test {
 
         _depositUsdc(address(this), 100e18);
 
-        assertEq(splitter.protocolFeeUsdc(), 10e18);
-        assertEq(splitter.netAgentLaneUsdc(), 90e18);
-        assertEq(splitter.stakerPoolInflowUsdc(), 9e18);
-        assertEq(splitter.treasuryReservedUsdc(), 81e18);
-        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), 9e18);
-        assertEq(usdc.balanceOf(address(feeRouter)), 10e18);
-        assertEq(feeRouter.totalUsdcProcessed(), 10e18);
-        assertEq(feeRouter.totalUsdcDepositedToRegentStaking(), 10e18);
+        assertEq(splitter.protocolFeeUsdc(), PROTOCOL_SKIM);
+        assertEq(splitter.treasuryBuybackUsdc(), TREASURY_BUYBACK);
+        assertEq(splitter.netAgentLaneUsdc(), SUBJECT_LANE);
+        assertEq(splitter.stakerPoolInflowUsdc(), STAKER_POOL);
+        assertEq(splitter.treasuryReservedUsdc(), TREASURY_LANE);
+        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), STAKER_POOL);
+        assertEq(splitter.totalRegentBoughtForTreasury(), TREASURY_BUYBACK);
+        assertEq(usdc.balanceOf(address(feeRouter)), PROTOCOL_SKIM + TREASURY_BUYBACK);
+        assertEq(feeRouter.totalUsdcProcessed(), PROTOCOL_SKIM);
+        assertEq(feeRouter.totalUsdcDepositedToRegentStaking(), PROTOCOL_SKIM);
+        assertEq(feeRouter.totalUsdcUsedForTreasuryBuyback(), TREASURY_BUYBACK);
     }
 
     function testHundredUsdcDepositsProtocolSkimIntoRegentStaking() external {
@@ -88,6 +98,9 @@ contract LiveStakeFeePoolSplitterTest is Test {
         RegentStakingRevenueRouter router = new RegentStakingRevenueRouter(
             address(this), address(usdc), address(subjectRegistry), address(staking)
         );
+        MockRegentBuybackAdapter buybackAdapter =
+            new MockRegentBuybackAdapter(address(usdc), address(regent));
+        router.setTreasuryBuybackAdapter(address(buybackAdapter));
         router.setMaxUsdcPerSettlement(1000e18);
         LiveStakeFeePoolSplitter realRouterSplitter = new LiveStakeFeePoolSplitter(
             address(stakeToken),
@@ -117,19 +130,23 @@ contract LiveStakeFeePoolSplitterTest is Test {
         vm.prank(STAKER_ONE);
         realRouterSplitter.stake(10e18, STAKER_ONE);
 
-        usdc.mint(address(this), 100e18);
-        usdc.approve(address(realRouterSplitter), 100e18);
-        realRouterSplitter.depositUSDC(100e18, bytes32("direct"), bytes32("source"));
+        usdc.mint(address(this), HUNDRED_USDC);
+        usdc.approve(address(realRouterSplitter), HUNDRED_USDC);
+        realRouterSplitter.depositUSDC(HUNDRED_USDC, bytes32("direct"), bytes32("source"));
 
-        assertEq(realRouterSplitter.protocolFeeUsdc(), 10e18);
-        assertEq(realRouterSplitter.netAgentLaneUsdc(), 90e18);
-        assertEq(realRouterSplitter.stakerPoolInflowUsdc(), 9e18);
-        assertEq(realRouterSplitter.treasuryReservedUsdc(), 81e18);
-        assertEq(realRouterSplitter.previewClaimableUSDC(STAKER_ONE), 9e18);
-        assertEq(usdc.balanceOf(address(staking)), 10e18);
-        assertEq(staking.totalUsdcReceived(), 10e18);
-        assertEq(router.totalUsdcDepositedToRegentStaking(), 10e18);
-        assertEq(regent.balanceOf(TREASURY), 0);
+        assertEq(realRouterSplitter.protocolFeeUsdc(), PROTOCOL_SKIM);
+        assertEq(realRouterSplitter.treasuryBuybackUsdc(), TREASURY_BUYBACK);
+        assertEq(realRouterSplitter.netAgentLaneUsdc(), SUBJECT_LANE);
+        assertEq(realRouterSplitter.stakerPoolInflowUsdc(), STAKER_POOL);
+        assertEq(realRouterSplitter.treasuryReservedUsdc(), TREASURY_LANE);
+        assertEq(realRouterSplitter.previewClaimableUSDC(STAKER_ONE), STAKER_POOL);
+        assertEq(realRouterSplitter.totalRegentBoughtForTreasury(), TREASURY_BUYBACK);
+        assertEq(usdc.balanceOf(address(staking)), PROTOCOL_SKIM);
+        assertEq(usdc.balanceOf(address(buybackAdapter)), TREASURY_BUYBACK);
+        assertEq(staking.totalUsdcReceived(), PROTOCOL_SKIM);
+        assertEq(router.totalUsdcDepositedToRegentStaking(), PROTOCOL_SKIM);
+        assertEq(router.totalUsdcUsedForTreasuryBuyback(), TREASURY_BUYBACK);
+        assertEq(regent.balanceOf(TREASURY), TREASURY_BUYBACK);
     }
 
     function testTwoLiveStakersSplitPoolByCurrentStakeOnly() external {
@@ -138,23 +155,23 @@ contract LiveStakeFeePoolSplitterTest is Test {
 
         _depositUsdc(address(this), 100e18);
 
-        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), 6e18);
-        assertEq(splitter.previewClaimableUSDC(STAKER_TWO), 3e18);
+        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), 5940e15);
+        assertEq(splitter.previewClaimableUSDC(STAKER_TWO), 2970e15);
 
         vm.prank(STAKER_ONE);
         splitter.claimUSDC(STAKER_ONE);
         vm.prank(STAKER_TWO);
         splitter.claimUSDC(STAKER_TWO);
 
-        assertEq(usdc.balanceOf(STAKER_ONE), 6e18);
-        assertEq(usdc.balanceOf(STAKER_TWO), 3e18);
+        assertEq(usdc.balanceOf(STAKER_ONE), 5940e15);
+        assertEq(usdc.balanceOf(STAKER_TWO), 2970e15);
     }
 
     function testNoStakersRoutesStakerPoolToTreasuryAndLateStakeGetsNothing() external {
         _depositUsdc(address(this), 100e18);
 
-        assertEq(splitter.treasuryReservedUsdc(), 90e18);
-        assertEq(splitter.noStakerPoolRoutedToTreasuryUsdc(), 9e18);
+        assertEq(splitter.treasuryReservedUsdc(), SUBJECT_LANE);
+        assertEq(splitter.noStakerPoolRoutedToTreasuryUsdc(), STAKER_POOL);
 
         _stake(STAKER_ONE, 10e18);
 
@@ -168,7 +185,7 @@ contract LiveStakeFeePoolSplitterTest is Test {
         vm.prank(STAKER_ONE);
         splitter.unstake(5e18, STAKER_ONE);
 
-        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), 9e18);
+        assertEq(splitter.previewClaimableUSDC(STAKER_ONE), STAKER_POOL);
         assertEq(stakeToken.balanceOf(STAKER_ONE), 995e18);
     }
 
@@ -216,7 +233,8 @@ contract LiveStakeFeePoolSplitterTest is Test {
         usdc.mint(address(ingress), 100e18);
         ingress.sweepUSDC();
 
-        assertEq(feeRouter.totalUsdcProcessed(), 10e18);
+        assertEq(feeRouter.totalUsdcProcessed(), PROTOCOL_SKIM);
+        assertEq(feeRouter.totalUsdcUsedForTreasuryBuyback(), TREASURY_BUYBACK);
         assertEq(splitter.verifiedIngressUsdc(), 100e18);
     }
 
@@ -225,7 +243,8 @@ contract LiveStakeFeePoolSplitterTest is Test {
         usdc.mint(address(ingress), 50e18);
         ingress.sweepUSDC();
 
-        assertEq(feeRouter.totalUsdcProcessed(), 15e18);
+        assertEq(feeRouter.totalUsdcProcessed(), 1500e15);
+        assertEq(feeRouter.totalUsdcUsedForTreasuryBuyback(), 14_850e15);
     }
 
     function testRouterRevertLeavesDirectDepositAndSweepAccountingUnchanged() external {
@@ -247,6 +266,20 @@ contract LiveStakeFeePoolSplitterTest is Test {
 
         assertEq(usdc.balanceOf(address(ingress)), 100e18);
         assertEq(splitter.totalUsdcReceived(), 0);
+    }
+
+    function testBuybackRevertLeavesDepositAccountingUnchanged() external {
+        feeRouter.setShouldRevertBuyback(true);
+
+        usdc.mint(address(this), 100e18);
+        usdc.approve(address(splitter), 100e18);
+
+        vm.expectRevert("MOCK_BUYBACK_REVERT");
+        splitter.depositUSDC(100e18, bytes32("direct"), bytes32("source"));
+
+        assertEq(usdc.balanceOf(address(this)), 100e18);
+        assertEq(splitter.totalUsdcReceived(), 0);
+        assertEq(splitter.treasuryBuybackUsdc(), 0);
     }
 
     function _stake(address account, uint256 amount) internal {

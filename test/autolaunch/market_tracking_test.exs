@@ -48,8 +48,8 @@ defmodule Autolaunch.MarketTrackingTest do
         ends_at: DateTime.add(DateTime.utc_now(), 86_400, :second),
         claim_at: DateTime.add(DateTime.utc_now(), 172_800, :second),
         bidders: 1,
-        raised_currency: "2.0 USDC",
-        target_currency: "10 USDC",
+        raised_currency: "2.0 REGENT",
+        target_currency: "10 REGENT",
         progress_percent: 20
       })
       |> Repo.insert!()
@@ -83,6 +83,34 @@ defmodule Autolaunch.MarketTrackingTest do
     tracked = Repo.get!(Bid, "auc_live:7")
     assert tracked.submit_tx_hash == tx_hash("11")
     assert tracked.onchain_bid_id == "7"
+  end
+
+  test "list_positions keeps stored bids when the auction row is gone", %{human: human} do
+    %Bid{}
+    |> Bid.create_changeset(%{
+      bid_id: "auc_gone:3",
+      privy_user_id: human.privy_user_id,
+      owner_address: @owner_address,
+      auction_id: "auc_gone",
+      auction_address: @auction_address,
+      chain_id: 8_453,
+      agent_id: "8453:missing",
+      agent_name: "Missing auction",
+      network: "base-mainnet",
+      onchain_bid_id: "3",
+      amount: Decimal.new("2.0"),
+      max_price: Decimal.new("3.0"),
+      current_clearing_price: Decimal.new("2.0"),
+      current_status: "active"
+    })
+    |> Repo.insert!()
+
+    [position] = Launch.list_positions(human)
+
+    assert position.auction_id == "auc_gone"
+    assert position.status == "active"
+    assert position.auction_currency.symbol == "REGENT"
+    assert position.tx_actions == %{return_quote_token: nil, exit: nil, claim: nil}
   end
 
   test "place_bid rejects receipts without the exact bid amount and max price", %{
@@ -243,6 +271,9 @@ defmodule Autolaunch.MarketTrackingTest do
         selector == Abi.selector(:is_graduated) ->
           {:ok, encode_words([if(config.is_graduated, do: 1, else: 0)])}
 
+        selector == Abi.selector(:ticks) ->
+          {:ok, encode_words([Abi.max_u256(), 0])}
+
         selector == Abi.selector(:bids) ->
           bid_id = decode_uint_arg(data)
           bid = Map.fetch!(config.bids, bid_id)
@@ -324,7 +355,7 @@ defmodule Autolaunch.MarketTrackingTest do
                   topic_word(7),
                   topic_word(@owner_address)
                 ],
-                data: encode_words([price_q96("3.0"), 2_000_000]),
+                data: encode_words([price_q96("3.0"), 2_000_000_000_000_000_000]),
                 block_number: 150,
                 transaction_hash: tx_hash("11"),
                 log_index: 0
@@ -340,7 +371,7 @@ defmodule Autolaunch.MarketTrackingTest do
       |> scenario_data()
       |> put_in(
         [:receipts, tx_hash("11"), :logs, Access.at(0), :data],
-        encode_words([price_q96("4.0"), 2_000_000])
+        encode_words([price_q96("4.0"), 2_000_000_000_000_000_000])
       )
     end
 

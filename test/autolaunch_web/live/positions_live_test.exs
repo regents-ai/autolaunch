@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.PositionsLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Autolaunch.Accounts
+  alias Autolaunch.{Accounts, Tokens}
 
   @wallet "0x1111111111111111111111111111111111111111"
 
@@ -48,6 +48,12 @@ defmodule AutolaunchWeb.PositionsLiveTest do
           current_clearing_price: "0.0040",
           inactive_above_price: "0.0039",
           next_action_label: "Claim purchased tokens now.",
+          auction: %{
+            auction_outcome: "graduated",
+            chain_id: 8_453,
+            token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            token_symbol: "NOVA"
+          },
           tx_actions: %{
             exit: nil,
             claim: %{
@@ -60,6 +66,50 @@ defmodule AutolaunchWeb.PositionsLiveTest do
                 }
               }
             }
+          }
+        },
+        %{
+          bid_id: "bid_claimed",
+          auction_id: "auc_4",
+          agent_name: "Vega",
+          chain: "Base",
+          status: "claimed",
+          amount: "75.0",
+          max_price: "0.0050",
+          current_clearing_price: "0.0042",
+          inactive_above_price: "0.0041",
+          next_action_label: "Purchased tokens are in your wallet.",
+          auction: %{
+            auction_outcome: "graduated",
+            chain_id: 8_453,
+            token_address: "0xcccccccccccccccccccccccccccccccccccccccc",
+            token_symbol: "VEGA"
+          },
+          tx_actions: %{
+            exit: nil,
+            claim: nil
+          }
+        },
+        %{
+          bid_id: "bid_paused_claimed",
+          auction_id: "auc_5",
+          agent_name: "Paused",
+          chain: "Base",
+          status: "claimed",
+          amount: "60.0",
+          max_price: "0.0050",
+          current_clearing_price: "0.0042",
+          inactive_above_price: "0.0041",
+          next_action_label: "Purchased tokens are in your wallet.",
+          auction: %{
+            auction_outcome: "graduated",
+            chain_id: 8_453,
+            token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
+            token_symbol: "PAUS"
+          },
+          tx_actions: %{
+            exit: nil,
+            claim: nil
           }
         },
         %{
@@ -109,10 +159,18 @@ defmodule AutolaunchWeb.PositionsLiveTest do
 
   setup do
     original = Application.get_env(:autolaunch, :positions_live, [])
+    original_swaps = Application.get_env(:autolaunch, :swaps, [])
     Application.put_env(:autolaunch, :positions_live, launch_module: LaunchStub)
+
+    Application.put_env(
+      :autolaunch,
+      :swaps,
+      Keyword.merge(original_swaps, enabled: false, uniswap_api_key: "")
+    )
 
     on_exit(fn ->
       Application.put_env(:autolaunch, :positions_live, original)
+      Application.put_env(:autolaunch, :swaps, original_swaps)
     end)
 
     {:ok, human} =
@@ -127,7 +185,7 @@ defmodule AutolaunchWeb.PositionsLiveTest do
 
   test "signed-in positions render exit and claim actions", %{conn: conn, human: human} do
     conn = init_test_session(conn, privy_user_id: human.privy_user_id)
-    {:ok, _view, html} = live(conn, "/positions")
+    {:ok, view, html} = live(conn, "/positions")
 
     assert html =~ "Portfolio overview"
     assert html =~ "Returns available"
@@ -137,9 +195,55 @@ defmodule AutolaunchWeb.PositionsLiveTest do
     assert html =~ "Search by token or auction ID"
     assert html =~ "Exit bid"
     assert html =~ "Claim tokens"
+    refute has_element?(view, "[data-swap-open]")
     assert html =~ "Atlas"
     assert html =~ "Nova"
     assert html =~ "Ember"
+  end
+
+  test "swap controls render only when swaps are available", %{conn: conn, human: human} do
+    swaps = Application.get_env(:autolaunch, :swaps, [])
+
+    Application.put_env(
+      :autolaunch,
+      :swaps,
+      Keyword.merge(swaps,
+        enabled: true,
+        uniswap_api_key: "test-key",
+        allowed_transaction_targets: %{8_453 => ["0x3333333333333333333333333333333333333333"]},
+        allowed_approval_spenders: %{8_453 => ["0x2222222222222222222222222222222222222222"]}
+      )
+    )
+
+    insert_revsplit_token(%{
+      token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      source_auction_id: "auc_2",
+      agent_name: "Nova",
+      token_symbol: "NOVA"
+    })
+
+    insert_revsplit_token(%{
+      token_address: "0xcccccccccccccccccccccccccccccccccccccccc",
+      source_auction_id: "auc_4",
+      agent_name: "Vega",
+      token_symbol: "VEGA"
+    })
+
+    insert_revsplit_token(%{
+      token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
+      source_auction_id: "auc_5",
+      agent_name: "Paused",
+      token_symbol: "PAUS",
+      revsplit_status: "paused"
+    })
+
+    conn = init_test_session(conn, privy_user_id: human.privy_user_id)
+    {:ok, view, _html} = live(conn, "/positions")
+
+    assert has_element?(view, "#position-row-bid_claim [data-swap-open][data-swap-side='buy']")
+    refute has_element?(view, "#position-row-bid_claim [data-swap-open][data-swap-side='sell']")
+    assert has_element?(view, "#position-row-bid_claimed [data-swap-open][data-swap-side='sell']")
+    refute has_element?(view, "#position-row-bid_paused_claimed [data-swap-open]")
   end
 
   test "status filters narrow the signed-in positions list", %{conn: conn, human: human} do
@@ -195,5 +299,30 @@ defmodule AutolaunchWeb.PositionsLiveTest do
     assert html =~ "Ember"
     refute has_element?(view, "#position-row-bid_exit")
     refute has_element?(view, "#position-row-bid_claim")
+  end
+
+  defp insert_revsplit_token(attrs) do
+    now = DateTime.utc_now()
+
+    defaults = %{
+      chain_id: 8_453,
+      token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      source_auction_id: "auc_swap",
+      source_job_id: "job_swap",
+      auction_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      agent_id: "8453:1",
+      agent_name: "Swap Agent",
+      token_symbol: "SWAP",
+      subject_id: "0x" <> String.duplicate("1", 64),
+      splitter_address: "0xcccccccccccccccccccccccccccccccccccccccc",
+      pool_id: "0x" <> String.duplicate("2", 64),
+      graduated_at: now,
+      graduation_block: 200,
+      revsplit_status: "active",
+      last_synced_at: now
+    }
+
+    {:ok, token} = Tokens.upsert_revsplit_token(Map.merge(defaults, attrs))
+    token
   end
 end

@@ -11,14 +11,13 @@ defmodule AutolaunchWeb.SubjectLive.PresenterTest do
         pending_eligible_revenue_share_bps: 6_000,
         eligible_revenue_share_bps: 8_000,
         verified_ingress_usdc: "90",
-        launch_fee_usdc: "20",
         total_usdc_received: "125",
         share_change_history: [%{}]
       })
 
     assert snapshot.live_share == "80%"
     assert snapshot.pending_share == "60%"
-    assert snapshot.verified_revenue == "110 USDC"
+    assert snapshot.verified_revenue == "90 USDC"
     assert snapshot.total_received == "125 USDC"
     assert snapshot.history_count == "1 recorded change"
     assert snapshot.change_chart.headline == "This share is scheduled to move from 80% to 60%."

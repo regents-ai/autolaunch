@@ -27,7 +27,8 @@ defmodule Mix.Tasks.Autolaunch.DoctorTest do
         cca_factory_address: "0x1111111111111111111111111111111111111111",
         pool_manager_address: "0x2222222222222222222222222222222222222222",
         position_manager_address: "0x3333333333333333333333333333333333333333",
-        usdc_address: "0x4444444444444444444444444444444444444444",
+        auction_quote_token_address: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
+        revenue_usdc_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
         pool_manager_addresses: %{
           84_532 => "0x2222222222222222222222222222222222222222",
           8_453 => "0x1212121212121212121212121212121212121212"
@@ -36,17 +37,21 @@ defmodule Mix.Tasks.Autolaunch.DoctorTest do
           84_532 => "https://base-sepolia-launch.example",
           8_453 => "https://base-mainnet-launch.example"
         },
-        usdc_addresses: %{
+        auction_quote_token_addresses: %{
           84_532 => "0x4444444444444444444444444444444444444444",
-          8_453 => "0x1313131313131313131313131313131313131313"
+          8_453 => "0x6f89bca4ea5931edfcb09786267b251dee752b07"
+        },
+        revenue_usdc_addresses: %{
+          84_532 => "0x4545454545454545454545454545454545454545",
+          8_453 => "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
         },
         identity_registry_address: "0x9999999999999999999999999999999999999998",
         factory_owner_address: "0x9999999999999999999999999999999999999996",
         strategy_operator: "0x9999999999999999999999999999999999999997",
         official_pool_fee: "0",
         official_pool_tick_spacing: "60",
-        cca_tick_spacing_q96: "79228162514264337593543950336",
-        cca_floor_price_q96: "79228162514264337593543950336",
+        cca_tick_spacing_q96: "79228162514264337593543950",
+        cca_floor_price_q96: "7922816251426433759354395000",
         auction_duration_blocks: "9258",
         cca_prebid_blocks: "0",
         cca_final_block_bps: "3000",
@@ -137,14 +142,38 @@ defmodule Mix.Tasks.Autolaunch.DoctorTest do
   end
 
   defmodule DoctorRpc do
+    alias Autolaunch.Contracts.Abi
+
+    @regent "0x6f89bca4ea5931edfcb09786267b251dee752b07"
+    @usdc "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+
     def block_number(8_453, _opts), do: {:ok, 321}
     def block_number(84_532, _opts), do: {:ok, 321}
     def code_at(8_453, _address, _opts), do: {:ok, "0x6000"}
     def code_at(84_532, _address, _opts), do: {:ok, "0x6000"}
+
+    def eth_call(8_453, to, data, _opts) do
+      selector = String.slice(data, 0, 10)
+
+      cond do
+        String.downcase(to) == @regent and selector == Abi.selector(:decimals) ->
+          {:ok, uint(18)}
+
+        String.downcase(to) == @usdc and selector == Abi.selector(:decimals) ->
+          {:ok, uint(6)}
+
+        true ->
+          {:error, :unsupported}
+      end
+    end
+
     def eth_call(_chain_id, _to, _data, _opts), do: {:error, :unsupported}
     def tx_receipt(_chain_id, _tx_hash, _opts), do: {:ok, nil}
     def tx_by_hash(_chain_id, _tx_hash, _opts), do: {:ok, nil}
     def get_logs(_chain_id, _filter, _opts), do: {:ok, []}
+
+    defp uint(value),
+      do: "0x" <> (value |> Integer.to_string(16) |> String.pad_leading(64, "0"))
   end
 
   defmodule DoctorHttp do

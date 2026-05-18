@@ -16,6 +16,7 @@ type WalletTxRequest = {
 type WalletTxOptions = {
   baseRpcUrl?: string | null
   baseSepoliaRpcUrl?: string | null
+  failureMessage?: string | null
 }
 
 function chainForTransaction(chainId: number) {
@@ -68,7 +69,7 @@ export async function sendWalletBridgeTransaction(
   })
 
   if (receipt.status !== "success") {
-    throw new Error("The staking transaction did not finish successfully.")
+    throw new Error(options.failureMessage ?? "The transaction did not finish successfully.")
   }
 
   return hash

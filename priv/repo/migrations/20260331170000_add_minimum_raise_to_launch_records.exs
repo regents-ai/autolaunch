@@ -4,20 +4,20 @@ defmodule Autolaunch.Repo.Migrations.AddMinimumRaiseToLaunchRecords do
   def up do
     execute("""
     ALTER TABLE autolaunch_prelaunch_plans
-    ADD COLUMN IF NOT EXISTS minimum_raise_usdc varchar,
-    ADD COLUMN IF NOT EXISTS minimum_raise_usdc_raw varchar
+    ADD COLUMN IF NOT EXISTS minimum_raise_quote varchar,
+    ADD COLUMN IF NOT EXISTS minimum_raise_quote_raw varchar
     """)
 
     execute("""
     ALTER TABLE autolaunch_jobs
-    ADD COLUMN IF NOT EXISTS minimum_raise_usdc varchar,
-    ADD COLUMN IF NOT EXISTS minimum_raise_usdc_raw varchar
+    ADD COLUMN IF NOT EXISTS minimum_raise_quote varchar,
+    ADD COLUMN IF NOT EXISTS minimum_raise_quote_raw varchar
     """)
 
     execute("""
     ALTER TABLE autolaunch_auctions
-    ADD COLUMN IF NOT EXISTS minimum_raise_usdc varchar,
-    ADD COLUMN IF NOT EXISTS minimum_raise_usdc_raw varchar
+    ADD COLUMN IF NOT EXISTS minimum_raise_quote varchar,
+    ADD COLUMN IF NOT EXISTS minimum_raise_quote_raw varchar
     """)
   end
 

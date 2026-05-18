@@ -43,7 +43,7 @@ defmodule Autolaunch.DocsExamplesTest do
     assert lifecycle_monitor["recommended_action"] == "migrate"
     assert lifecycle_monitor["settlement_state"] == "awaiting_migration"
     assert lifecycle_monitor["allowed_actions"] == ["migrate"]
-    assert lifecycle_monitor["balance_snapshot"]["strategy"]["usdc_balance"] == 120_000_000
+    assert lifecycle_monitor["balance_snapshot"]["strategy"]["quote_token_balance"] == 120_000_000
 
     finalize_response = bundle["finalize_response"]
     assert finalize_response["settlement_state"] == "awaiting_migration"

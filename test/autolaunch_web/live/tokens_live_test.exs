@@ -23,10 +23,10 @@ defmodule AutolaunchWeb.TokensLiveTest do
       agent_id: "8453:101",
       agent_name: "Atlas Agent",
       token_symbol: "ATLAS",
-      auction_raise_usdc: "2.5",
-      required_raise_usdc: "2",
-      price_usdc: "0.0123",
-      fdv_usdc: "1230000000"
+      auction_raise_quote: "2.5",
+      required_raise_quote: "2",
+      price_quote: "0.0123",
+      fdv_quote: "1230000000"
     })
 
     insert_failed_auction("Failed Agent")
@@ -38,13 +38,58 @@ defmodule AutolaunchWeb.TokensLiveTest do
     assert html =~ "Top raise"
     assert html =~ "Atlas Agent"
     assert html =~ "ATLAS"
-    assert html =~ "$0.012300"
-    assert html =~ "$2.5"
-    assert html =~ "$2.0"
-    assert html =~ "$1,230,000,000.0"
+    assert html =~ "0.012300 $REGENT"
+    assert html =~ "2.5 $REGENT"
+    assert html =~ "2.0 $REGENT"
+    assert html =~ "1,230,000,000.0 $REGENT"
     assert html =~ "Active"
     refute html =~ "Failed Agent"
+    refute has_element?(view, "[data-swap-open]")
     assert has_element?(view, "#token-8453-0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+  end
+
+  test "/tokens shows swap controls only when swaps are available", %{conn: conn} do
+    previous_swaps = Application.get_env(:autolaunch, :swaps, [])
+
+    Application.put_env(
+      :autolaunch,
+      :swaps,
+      Keyword.merge(previous_swaps,
+        enabled: true,
+        uniswap_api_key: "test-key",
+        allowed_transaction_targets: %{8_453 => ["0x3333333333333333333333333333333333333333"]},
+        allowed_approval_spenders: %{8_453 => ["0x2222222222222222222222222222222222222222"]}
+      )
+    )
+
+    on_exit(fn -> Application.put_env(:autolaunch, :swaps, previous_swaps) end)
+
+    insert_revsplit_token(%{
+      token_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      source_auction_id: "auc_atlas",
+      agent_name: "Atlas Agent",
+      token_symbol: "ATLAS"
+    })
+
+    insert_revsplit_token(%{
+      token_address: "0xdddddddddddddddddddddddddddddddddddddddd",
+      source_auction_id: "auc_paused",
+      agent_name: "Paused Agent",
+      token_symbol: "PAUS",
+      revsplit_status: "paused"
+    })
+
+    {:ok, view, _html} = live(conn, "/tokens")
+
+    assert has_element?(
+             view,
+             "#token-8453-0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb [data-swap-open][data-swap-side='buy']"
+           )
+
+    refute has_element?(
+             view,
+             "#token-8453-0xdddddddddddddddddddddddddddddddddddddddd [data-swap-open]"
+           )
   end
 
   test "/tokens search narrows the table", %{conn: conn} do
@@ -99,14 +144,14 @@ defmodule AutolaunchWeb.TokensLiveTest do
             graduated_at: DateTime.add(now, -3_600, :second),
             graduation_block: 200,
             auction_raise_raw: "2500000",
-            auction_raise_usdc: "2.5",
+            auction_raise_quote: "2.5",
             required_raise_raw: "2000000",
-            required_raise_usdc: "2",
-            clearing_price_usdc: "0.01",
-            price_usdc: nil,
+            required_raise_quote: "2",
+            clearing_price_quote: "0.01",
+            price_quote: nil,
             price_source: "uniswap_spot_unavailable",
             price_updated_at: nil,
-            fdv_usdc: nil,
+            fdv_quote: nil,
             revsplit_status: "active",
             last_synced_at: now
           },
@@ -133,8 +178,8 @@ defmodule AutolaunchWeb.TokensLiveTest do
       status: "active",
       started_at: DateTime.add(now, -7_200, :second),
       ends_at: DateTime.add(now, -3_600, :second),
-      minimum_raise_usdc: "2",
-      minimum_raise_usdc_raw: "2000000",
+      minimum_raise_quote: "2",
+      minimum_raise_quote_raw: "2000000000000000000",
       chain_state: "failed_minimum",
       onchain_graduated: false
     })

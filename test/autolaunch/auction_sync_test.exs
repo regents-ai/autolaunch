@@ -8,7 +8,7 @@ defmodule Autolaunch.AuctionSyncTest do
   alias Autolaunch.Tokens.RevsplitToken
 
   defmodule PriceStub do
-    def current_token_price_usdc(_chain_id, _pool_id, _token_address), do: {:ok, "0.0123"}
+    def current_token_price_quote(_chain_id, _pool_id, _token_address), do: {:ok, "0.0123"}
   end
 
   defmodule GraduatedRpc do
@@ -37,10 +37,10 @@ defmodule Autolaunch.AuctionSyncTest do
     def eth_call(_chain_id, _to, @graduated_selector, _opts), do: {:ok, word(1)}
 
     def eth_call(_chain_id, _to, @currency_raised_selector, _opts),
-      do: {:ok, word(2_500_000)}
+      do: {:ok, word(2_500_000_000_000_000_000)}
 
     def eth_call(_chain_id, _to, @required_currency_raised_selector, _opts),
-      do: {:ok, word(2_000_000)}
+      do: {:ok, word(2_000_000_000_000_000_000)}
 
     def eth_call(_chain_id, _to, @start_block_selector, _opts), do: {:ok, word(10)}
     def eth_call(_chain_id, _to, @end_block_selector, _opts), do: {:ok, word(100)}
@@ -133,12 +133,12 @@ defmodule Autolaunch.AuctionSyncTest do
 
     assert synced.chain_state == "graduated"
     assert synced.onchain_graduated
-    assert synced.onchain_currency_raised_raw == "2500000"
+    assert synced.onchain_currency_raised_raw == "2500000000000000000"
 
     assert [token] = Repo.all(RevsplitToken)
     assert token.token_address == "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    assert token.auction_raise_usdc == "2.5"
-    assert token.fdv_usdc == "1230000000"
+    assert token.auction_raise_quote == "2.5"
+    assert token.fdv_quote == "1230000000"
 
     assert {:ok, %{token?: false}} = AuctionSync.sync_auction(Repo.get!(Auction, auction.id))
     assert Repo.aggregate(RevsplitToken, :count) == 1
@@ -233,8 +233,8 @@ defmodule Autolaunch.AuctionSyncTest do
         status: "active",
         started_at: DateTime.add(now, -10_000, :second),
         ends_at: DateTime.add(now, -2_000, :second),
-        minimum_raise_usdc: "2",
-        minimum_raise_usdc_raw: "2000000"
+        minimum_raise_quote: "2",
+        minimum_raise_quote_raw: "2000000000000000000"
       })
     )
   end

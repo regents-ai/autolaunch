@@ -110,22 +110,23 @@ The current live launch economics are:
 
 - 10% of the 100 billion supply is sold in the auction
 - 5% of the supply is reserved for the Uniswap v4 LP position
-- half of auction USDC is used for that LP position
-- the other half of auction USDC is swept to the agent Safe for business operations
+- half of auction $REGENT is used for that LP position
+- the other half of auction $REGENT is swept to the agent Safe for business operations
 - the remaining 85% of tokens vest to the agent treasury over 1 year
 
 The current fixed fee rules are:
 
 - the launch-pool fee is fixed at 2% on swaps in the official pool
 - that 2% split is fixed at 1% to Regent and 1% to the agent treasury
-- subject USDC received first sends a fixed 10% skim into the shared `$REGENT` staking contract
-- the remaining 90% stays in the subject lane, where stakers earn their formula share and the remainder accrues to the agent treasury
+- subject USDC received first sends a fixed 1% skim into the shared `$REGENT` staking contract
+- 10% of the remaining 99% buys `$REGENT` for the agent treasury
+- the remaining 89.1% stays in the subject lane, where stakers earn their formula share and the rest accrues to the agent treasury
 
 ### What Runs Where
 
 The main product routes are:
 
-- `/` and `/how-auctions-work` for the public home and auction explainer
+- `/` and `/docs` for the public home and auction explainer
 - `/launch` for the guided launch flow
 - `/contracts` for the operator contract console
 - `/auctions`, `/auctions/:id`, and `/positions` for auction search, shareable filters, and position views
@@ -173,7 +174,7 @@ Fly environment names live in [.env.example](.env.example). Local development an
 - Launch contracts: `AUTOLAUNCH_REVENUE_SHARE_FACTORY_ADDRESS`, `AUTOLAUNCH_REVENUE_INGRESS_FACTORY_ADDRESS`, `AUTOLAUNCH_LBP_STRATEGY_FACTORY_ADDRESS`, `AUTOLAUNCH_TOKEN_FACTORY_ADDRESS` from `UERC20_FACTORY_RESULT_JSON.factoryAddress`, `AUTOLAUNCH_ERC8004_SUBGRAPH_URL`
 - Base identity lookups: `AUTOLAUNCH_BASE_MAINNET_RPC_URL`, `AUTOLAUNCH_BASE_SEPOLIA_RPC_URL`, `AUTOLAUNCH_BASE_MAINNET_ERC8004_SUBGRAPH_URL`, `AUTOLAUNCH_BASE_SEPOLIA_ERC8004_SUBGRAPH_URL`, `AUTOLAUNCH_BASE_MAINNET_IDENTITY_REGISTRY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_IDENTITY_REGISTRY_ADDRESS`
 - Base verifier address books: `AUTOLAUNCH_BASE_MAINNET_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_BASE_SEPOLIA_UNISWAP_V4_POOL_MANAGER`, `AUTOLAUNCH_BASE_MAINNET_REVENUE_SHARE_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_REVENUE_SHARE_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_MAINNET_REVENUE_INGRESS_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_REVENUE_INGRESS_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_MAINNET_LBP_STRATEGY_FACTORY_ADDRESS`, `AUTOLAUNCH_BASE_SEPOLIA_LBP_STRATEGY_FACTORY_ADDRESS`
-- Launch-script settings: `AUTOLAUNCH_FACTORY_OWNER_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, `CCA_FLOOR_PRICE_Q96`, `CCA_TICK_SPACING_Q96`, `AUCTION_DURATION_BLOCKS`, `CCA_PREBID_BLOCKS`, `CCA_FINAL_BLOCK_BPS`, `CCA_START_BLOCK_OFFSET`, `CCA_CLAIM_BLOCK_OFFSET`, `LBP_MIGRATION_BLOCK_OFFSET`, `LBP_SWEEP_BLOCK_OFFSET`, optional UERC20 metadata fields, optional `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, optional `CCA_VALIDATION_HOOK`. `AUCTION_DURATION_BLOCKS=86400` gives a 48-hour Base convex sale window, then the script appends the final one-block release. `CCA_PREBID_BLOCKS=0` and `CCA_FINAL_BLOCK_BPS=3000` are the default schedule settings. `CCA_START_BLOCK_OFFSET=300` leaves about ten minutes for the staged broadcast to finish before bidding opens. For rehearsals, set CCA tick spacing to 1% of the floor price unless there is a specific reason to use tighter ticks. Autolaunch supplies `CCA_REQUIRED_CURRENCY_RAISED` from the launch job when it runs the deploy script.
+- Launch-script settings: `AUTOLAUNCH_FACTORY_OWNER_ADDRESS`, `STRATEGY_OPERATOR`, `OFFICIAL_POOL_FEE`, `OFFICIAL_POOL_TICK_SPACING`, `CCA_FLOOR_PRICE_Q96`, `CCA_TICK_SPACING_Q96`, `AUCTION_DURATION_BLOCKS`, `CCA_PREBID_BLOCKS`, `CCA_FINAL_BLOCK_BPS`, `CCA_START_BLOCK_OFFSET`, `CCA_CLAIM_BLOCK_OFFSET`, `LBP_MIGRATION_BLOCK_OFFSET`, `LBP_SWEEP_BLOCK_OFFSET`, optional UERC20 metadata fields, optional `AUTOLAUNCH_IDENTITY_REGISTRY_ADDRESS`, optional `CCA_VALIDATION_HOOK`. `AUCTION_DURATION_BLOCKS=86400` gives a 48-hour Base convex sale window, then the script appends the final one-block release. `CCA_PREBID_BLOCKS=0` and `CCA_FINAL_BLOCK_BPS=3000` are the default schedule settings. `CCA_START_BLOCK_OFFSET=300` leaves about ten minutes for the staged broadcast to finish before bidding opens. The default $REGENT auction grid uses a 0.1 REGENT floor with 0.001 REGENT ticks, which maps to about $0.000001 per agent token at a $0.00001 REGENT reference and keeps bids aligned through the $0.10 range. Autolaunch supplies `CCA_REQUIRED_CURRENCY_RAISED` from the launch job when it runs the deploy script.
 - Regent staking rail: `REGENT_STAKING_RPC_URL`, `ETHEREUM_RPC_URL`, `REGENT_STAKING_CHAIN_ID`, `REGENT_STAKING_CHAIN_LABEL`, `REGENT_REVENUE_STAKING_ADDRESS`, `REGENT_STAKING_OPERATOR_WALLETS`
 - Contract admin operators: `AUTOLAUNCH_CONTRACT_ADMIN_OPERATOR_WALLETS`
 - AgentBook and World ID: `WORLD_ID_APP_ID`, `WORLD_ID_ACTION`, `WORLD_ID_RP_ID`, `WORLD_ID_SIGNING_KEY`, `WORLDCHAIN_RPC_URL`, `WORLDCHAIN_AGENTBOOK_ADDRESS`, `WORLDCHAIN_AGENTBOOK_RELAY_URL`, `BASE_MAINNET_RPC_URL`, `BASE_AGENTBOOK_ADDRESS`, `BASE_AGENTBOOK_RELAY_URL`, `BASE_SEPOLIA_RPC_URL`, `BASE_SEPOLIA_AGENTBOOK_ADDRESS`, `BASE_SEPOLIA_AGENTBOOK_RELAY_URL`
@@ -199,7 +200,9 @@ This rail is separate from agent subject splitters:
 
 - agent subject splitters are per-agent revenue-rights contracts on the active Base launch network
 - REGENT staking is one singleton company-token rewards rail on the configured Base network
-- subject splitters send the protocol skim to REGENT staking as USDC; they do not buy REGENT or emit REGENT to the subject treasury
+- subject splitters send 1% of recognized subject USDC into REGENT staking, use 10% of the remaining 99% to buy `$REGENT` for the agent treasury, and leave 89.1% in the subject revenue lane
+
+For a detailed human-readable walkthrough, see [`docs/stake-split-payment-receiver-flow.md`](docs/stake-split-payment-receiver-flow.md).
 
 ### Launch Flow
 
@@ -222,14 +225,14 @@ Important launch rules:
 
 - Each auction sells 10% of a 100 billion supply
 - The launch strategy holds another 5% for LP migration and sends 85% into the vesting wallet
-- Every auction is denominated in USDC on the configured Base launch network
+- Every Base mainnet auction clears in $REGENT
 - Buyers set a total budget and a max price, and the order runs across the remaining blocks like a TWAP
 - Each block clears at the highest price where demand exceeds supply, and no one pays above their stated max price
 - Launch buyers must stake the claimed tokens to earn Base USDC once it reaches the subject revenue contract
 - Mock deploy is opt-in through `AUTOLAUNCH_MOCK_DEPLOY=true`
 - Subject USDC is counted once Base USDC reaches the revsplit
 - Funds waiting in an ingress account have not reached the revsplit yet; they can be swept before a pending share change takes effect, and anything swept later uses the live share at that time
-- The fee hook is the launch-side fee lane, while the revsplit is the ongoing revenue-rights lane
+- The fee hook is the $REGENT launch-side fee lane, while the revsplit is the ongoing Base USDC revenue-rights lane
 - `AUTOLAUNCH_DEPLOY_SCRIPT_TARGET` is required at runtime
 - `config/runtime.exs` is the runtime environment path; `config/dev.exs` stays limited to dev-only browser tooling and reload support
 

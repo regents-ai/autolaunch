@@ -65,7 +65,7 @@ defmodule Autolaunch.Launch.Deployment do
     :timer.sleep(1_200)
 
     suffix =
-      Ecto.UUID.generate()
+      (Ecto.UUID.generate() <> Ecto.UUID.generate())
       |> String.replace("-", "")
       |> String.slice(0, 40)
 
@@ -81,6 +81,8 @@ defmodule Autolaunch.Launch.Deployment do
     revenue_share_splitter_address = "0x" <> String.duplicate("6", 40)
     default_ingress_address = "0x" <> String.duplicate("7", 40)
     pool_id = "0x" <> String.duplicate("f", 64)
+    auction_quote_token = InfrastructureConfig.auction_quote_token(job.chain_id)
+    revenue_usdc_token = InfrastructureConfig.revenue_usdc_token(job.chain_id)
 
     {:ok,
      %{
@@ -96,10 +98,16 @@ defmodule Autolaunch.Launch.Deployment do
        revenue_share_splitter_address: revenue_share_splitter_address,
        default_ingress_address: default_ingress_address,
        pool_id: pool_id,
+       auction_quote_token_address: auction_quote_token.address,
+       auction_quote_token_symbol: auction_quote_token.symbol,
+       auction_quote_token_decimals: auction_quote_token.decimals,
+       revenue_usdc_token_address: revenue_usdc_token.address,
+       revenue_usdc_token_symbol: revenue_usdc_token.symbol,
+       revenue_usdc_token_decimals: revenue_usdc_token.decimals,
        tx_hash: "0x" <> String.duplicate("a", 64),
        uniswap_url: DeployOutput.to_uniswap_url(job.chain_id, token_address),
        stdout_tail:
-         "#{deploy_output_marker()}{\"factoryAddress\":\"#{deploy_factory_address(job.chain_id)}\",\"auctionAddress\":\"#{auction_address}\",\"tokenAddress\":\"#{token_address}\",\"strategyAddress\":\"#{strategy_address}\",\"vestingWalletAddress\":\"#{vesting_wallet_address}\",\"hookAddress\":\"#{hook_address}\",\"launchFeeRegistryAddress\":\"#{launch_fee_registry_address}\",\"feeVaultAddress\":\"#{launch_fee_vault_address}\",\"subjectRegistryAddress\":\"#{subject_registry_address}\",\"subjectId\":\"#{subject_id}\",\"revenueShareSplitterAddress\":\"#{revenue_share_splitter_address}\",\"defaultIngressAddress\":\"#{default_ingress_address}\",\"poolId\":\"#{pool_id}\"}",
+         "#{deploy_output_marker()}{\"factoryAddress\":\"#{deploy_factory_address(job.chain_id)}\",\"auctionAddress\":\"#{auction_address}\",\"tokenAddress\":\"#{token_address}\",\"strategyAddress\":\"#{strategy_address}\",\"vestingWalletAddress\":\"#{vesting_wallet_address}\",\"hookAddress\":\"#{hook_address}\",\"launchFeeRegistryAddress\":\"#{launch_fee_registry_address}\",\"feeVaultAddress\":\"#{launch_fee_vault_address}\",\"subjectRegistryAddress\":\"#{subject_registry_address}\",\"subjectId\":\"#{subject_id}\",\"revenueShareSplitterAddress\":\"#{revenue_share_splitter_address}\",\"defaultIngressAddress\":\"#{default_ingress_address}\",\"poolId\":\"#{pool_id}\",\"auctionQuoteTokenAddress\":\"#{auction_quote_token.address}\",\"auctionQuoteSymbol\":\"#{auction_quote_token.symbol}\",\"auctionQuoteDecimals\":#{auction_quote_token.decimals},\"revenueUsdcTokenAddress\":\"#{revenue_usdc_token.address}\",\"revenueSymbol\":\"#{revenue_usdc_token.symbol}\",\"revenueDecimals\":#{revenue_usdc_token.decimals}}",
        stderr_tail: ""
      }}
   end

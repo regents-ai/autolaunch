@@ -1031,13 +1031,6 @@ defmodule Autolaunch.Revenue.Core do
         Abi.encode_no_args(:verified_ingress_usdc)
       )
 
-    launch_fee_usdc =
-      call_uint(
-        job.chain_id,
-        job.revenue_share_splitter_address,
-        Abi.encode_no_args(:launch_fee_usdc)
-      )
-
     regent_skim_usdc =
       call_uint(
         job.chain_id,
@@ -1161,8 +1154,6 @@ defmodule Autolaunch.Revenue.Core do
        direct_deposit_usdc: format_units(direct_deposit_usdc, @usdc_decimals),
        verified_ingress_usdc_raw: verified_ingress_usdc,
        verified_ingress_usdc: format_units(verified_ingress_usdc, @usdc_decimals),
-       launch_fee_usdc_raw: launch_fee_usdc,
-       launch_fee_usdc: format_units(launch_fee_usdc, @usdc_decimals),
        regent_skim_usdc_raw: regent_skim_usdc,
        regent_skim_usdc: format_units(regent_skim_usdc, @usdc_decimals),
        staker_eligible_inflow_usdc_raw: staker_eligible_inflow_usdc,

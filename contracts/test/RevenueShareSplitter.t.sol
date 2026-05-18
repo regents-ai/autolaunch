@@ -95,7 +95,6 @@ contract RevenueShareSplitterTest is Test {
         assertEq(splitter.totalUsdcReceived(), INITIAL_INGRESS_DEPOSIT);
         assertEq(splitter.directDepositUsdc(), INITIAL_INGRESS_DEPOSIT);
         assertEq(splitter.verifiedIngressUsdc(), 0);
-        assertEq(splitter.launchFeeUsdc(), 0);
         assertEq(splitter.protocolReserveUsdc(), 100 * USDC);
         assertEq(splitter.treasuryResidualUsdc(), 5940 * USDC);
         assertEq(splitter.previewClaimableUSDC(ALICE), 1980 * USDC);
@@ -576,7 +575,6 @@ contract RevenueShareSplitterTest is Test {
         assertEq(ingressSplitter.totalUsdcReceived(), 1000 * USDC);
         assertEq(ingressSplitter.verifiedIngressUsdc(), 1000 * USDC);
         assertEq(ingressSplitter.directDepositUsdc(), 0);
-        assertEq(ingressSplitter.launchFeeUsdc(), 0);
         assertEq(ingressSplitter.protocolReserveUsdc(), 10 * USDC);
         assertEq(ingressSplitter.stakerEligibleInflowUsdc(), 990 * USDC);
         assertEq(ingressSplitter.treasuryReservedInflowUsdc(), 0);

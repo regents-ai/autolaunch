@@ -78,7 +78,7 @@ contract RegentLBPStrategyTest is Test {
     int24 internal constant OFFICIAL_POOL_TICK_SPACING = 60;
 
     MintableERC20Mock internal token;
-    MintableERC20Mock internal usdc;
+    MintableERC20Mock internal quoteToken;
     MockContinuousClearingAuctionFactory internal auctionFactory;
     RegentLBPStrategy internal strategy;
     PoolManager internal poolManager;
@@ -92,7 +92,7 @@ contract RegentLBPStrategyTest is Test {
 
     function setUp() external {
         token = new MintableERC20Mock("Launch Token", "LT");
-        usdc = new MintableERC20Mock("USD Coin", "USDC");
+        quoteToken = new MintableERC20Mock("REGENT", "REGENT");
         auctionFactory = new MockContinuousClearingAuctionFactory();
         poolManager = new PoolManager(address(this));
         weth = new WETH();
@@ -150,7 +150,7 @@ contract RegentLBPStrategyTest is Test {
     }
 
     function testMigrateRequiresAuctionCreation() external {
-        usdc.mint(address(strategy), 200e18);
+        quoteToken.mint(address(strategy), 200e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);
@@ -158,11 +158,11 @@ contract RegentLBPStrategyTest is Test {
         strategy.migrate();
     }
 
-    function testMigrateRequiresGraduatedAuctionEvenWhenStrategyHoldsUsdc() external {
+    function testMigrateRequiresGraduatedAuctionEvenWhenStrategyHoldsQuoteToken() external {
         RegentLBPStrategy failedStrategy = new RegentLBPStrategy(_strategyConfig(100e18));
         token.mint(address(failedStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
         failedStrategy.onTokensReceived();
-        usdc.mint(address(failedStrategy), 200e18);
+        quoteToken.mint(address(failedStrategy), 200e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);
@@ -190,7 +190,7 @@ contract RegentLBPStrategyTest is Test {
 
     function testMigrateCreatesRealV4PositionAndSweepsRemainders() external {
         strategy.onTokensReceived();
-        usdc.mint(strategy.auctionAddress(), 201e18);
+        quoteToken.mint(strategy.auctionAddress(), 201e18);
 
         uint256 expectedPositionId = positionManager.nextTokenId();
         PoolKey memory expectedPoolKey = _expectedPoolKey();
@@ -205,7 +205,7 @@ contract RegentLBPStrategyTest is Test {
         assertTrue(strategy.migrated());
         assertEq(strategy.migratedPoolId(), expectedPoolId);
         assertEq(strategy.migratedPositionId(), expectedPositionId);
-        assertEq(strategy.migratedCurrencyForLP(), 1005e17);
+        assertEq(strategy.migratedQuoteTokenForLP(), 1005e17);
         assertEq(strategy.migratedTokenForLP(), RESERVE_AMOUNT);
         assertTrue(strategy.migratedLiquidity() != 0);
 
@@ -239,24 +239,24 @@ contract RegentLBPStrategyTest is Test {
             strategy.migratedLiquidity()
         );
 
-        uint256 treasuryBefore = usdc.balanceOf(AGENT_TREASURY);
+        uint256 treasuryBefore = quoteToken.balanceOf(AGENT_TREASURY);
         uint256 vestingBefore = token.balanceOf(VESTING_WALLET);
 
         token.mint(address(strategy), 12e18);
-        usdc.mint(address(strategy), 11e18);
+        quoteToken.mint(address(strategy), 11e18);
 
-        uint256 currencyToSweep = usdc.balanceOf(address(strategy));
+        uint256 currencyToSweep = quoteToken.balanceOf(address(strategy));
         uint256 tokenToSweep = token.balanceOf(address(strategy));
 
         vm.roll(303);
         vm.prank(OPERATOR);
-        strategy.sweepCurrency();
+        strategy.sweepQuoteToken();
         vm.prank(OPERATOR);
         strategy.sweepToken();
 
-        assertEq(usdc.balanceOf(address(strategy)), 0);
+        assertEq(quoteToken.balanceOf(address(strategy)), 0);
         assertEq(token.balanceOf(address(strategy)), 0);
-        assertEq(usdc.balanceOf(AGENT_TREASURY), treasuryBefore + currencyToSweep);
+        assertEq(quoteToken.balanceOf(AGENT_TREASURY), treasuryBefore + currencyToSweep);
         assertEq(token.balanceOf(VESTING_WALLET), vestingBefore + tokenToSweep);
     }
 
@@ -267,7 +267,7 @@ contract RegentLBPStrategyTest is Test {
         token.mint(address(failingStrategy), AUCTION_AMOUNT + RESERVE_AMOUNT);
 
         failingStrategy.onTokensReceived();
-        usdc.mint(failingStrategy.auctionAddress(), 200e18);
+        quoteToken.mint(failingStrategy.auctionAddress(), 200e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);
@@ -284,12 +284,12 @@ contract RegentLBPStrategyTest is Test {
     function testSweepsRequireMigrationToFinish() external {
         strategy.onTokensReceived();
         token.mint(address(strategy), 12e18);
-        usdc.mint(address(strategy), 11e18);
+        quoteToken.mint(address(strategy), 11e18);
 
         vm.roll(303);
         vm.prank(OPERATOR);
         vm.expectRevert("MIGRATION_REQUIRED");
-        strategy.sweepCurrency();
+        strategy.sweepQuoteToken();
 
         vm.prank(OPERATOR);
         vm.expectRevert("MIGRATION_REQUIRED");
@@ -320,7 +320,7 @@ contract RegentLBPStrategyTest is Test {
 
         MockDistributionContract auction =
             MockDistributionContract(graduatedStrategy.auctionAddress());
-        usdc.mint(address(auction), 200e18);
+        quoteToken.mint(address(auction), 200e18);
 
         vm.expectRevert("AUCTION_NOT_ENDED");
         auction.sweepCurrency();
@@ -329,7 +329,7 @@ contract RegentLBPStrategyTest is Test {
         auction.sweepCurrency();
         auction.sweepUnsoldTokens();
 
-        assertEq(usdc.balanceOf(address(graduatedStrategy)), 200e18);
+        assertEq(quoteToken.balanceOf(address(graduatedStrategy)), 200e18);
         assertEq(token.balanceOf(address(graduatedStrategy)), AUCTION_AMOUNT + RESERVE_AMOUNT);
 
         vm.roll(202);
@@ -337,7 +337,7 @@ contract RegentLBPStrategyTest is Test {
         graduatedStrategy.migrate();
 
         assertTrue(graduatedStrategy.migrated());
-        assertEq(graduatedStrategy.migratedCurrencyForLP(), 100e18);
+        assertEq(graduatedStrategy.migratedQuoteTokenForLP(), 100e18);
         assertEq(graduatedStrategy.migratedTokenForLP(), RESERVE_AMOUNT);
     }
 
@@ -350,7 +350,7 @@ contract RegentLBPStrategyTest is Test {
 
         MockDistributionContract auction =
             MockDistributionContract(graduatedStrategy.auctionAddress());
-        usdc.mint(address(auction), raised);
+        quoteToken.mint(address(auction), raised);
 
         vm.roll(102);
         auction.sweepCurrency();
@@ -360,51 +360,51 @@ contract RegentLBPStrategyTest is Test {
         vm.prank(OPERATOR);
         graduatedStrategy.migrate();
 
-        assertEq(graduatedStrategy.migratedCurrencyForLP(), raised / 2);
+        assertEq(graduatedStrategy.migratedQuoteTokenForLP(), raised / 2);
 
-        uint256 treasuryBefore = usdc.balanceOf(AGENT_TREASURY);
-        uint256 remainder = usdc.balanceOf(address(graduatedStrategy));
+        uint256 treasuryBefore = quoteToken.balanceOf(AGENT_TREASURY);
+        uint256 remainder = quoteToken.balanceOf(address(graduatedStrategy));
 
         vm.roll(303);
         vm.prank(OPERATOR);
-        graduatedStrategy.sweepCurrency();
+        graduatedStrategy.sweepQuoteToken();
 
-        assertEq(usdc.balanceOf(address(graduatedStrategy)), 0);
-        assertEq(usdc.balanceOf(AGENT_TREASURY), treasuryBefore + remainder);
+        assertEq(quoteToken.balanceOf(address(graduatedStrategy)), 0);
+        assertEq(quoteToken.balanceOf(AGENT_TREASURY), treasuryBefore + remainder);
     }
 
-    function testMigrateIgnoresUnsolicitedUsdcDonation() external {
+    function testMigrateIgnoresUnsolicitedQuoteTokenDonation() external {
         strategy.onTokensReceived();
-        usdc.mint(strategy.auctionAddress(), 200e18);
-        usdc.mint(address(strategy), 10_000e18);
+        quoteToken.mint(strategy.auctionAddress(), 200e18);
+        quoteToken.mint(address(strategy), 10_000e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);
         strategy.migrate();
 
-        assertEq(strategy.accountedAuctionCurrency(), 200e18);
-        assertEq(strategy.migratedCurrencyForLP(), 100e18);
-        assertApproxEqAbs(usdc.balanceOf(address(strategy)), 10_100e18, 1);
+        assertEq(strategy.accountedAuctionQuoteToken(), 200e18);
+        assertEq(strategy.migratedQuoteTokenForLP(), 100e18);
+        assertApproxEqAbs(quoteToken.balanceOf(address(strategy)), 10_100e18, 1);
     }
 
     function testSweepCurrencyCanSendResidualDonationAfterMigration() external {
         strategy.onTokensReceived();
-        usdc.mint(strategy.auctionAddress(), 200e18);
-        usdc.mint(address(strategy), 10_000e18);
+        quoteToken.mint(strategy.auctionAddress(), 200e18);
+        quoteToken.mint(address(strategy), 10_000e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);
         strategy.migrate();
 
-        uint256 treasuryBefore = usdc.balanceOf(AGENT_TREASURY);
-        uint256 residual = usdc.balanceOf(address(strategy));
+        uint256 treasuryBefore = quoteToken.balanceOf(AGENT_TREASURY);
+        uint256 residual = quoteToken.balanceOf(address(strategy));
 
         vm.roll(303);
         vm.prank(OPERATOR);
-        strategy.sweepCurrency();
+        strategy.sweepQuoteToken();
 
-        assertEq(usdc.balanceOf(address(strategy)), 0);
-        assertEq(usdc.balanceOf(AGENT_TREASURY), treasuryBefore + residual);
+        assertEq(quoteToken.balanceOf(address(strategy)), 0);
+        assertEq(quoteToken.balanceOf(AGENT_TREASURY), treasuryBefore + residual);
     }
 
     function testRecoverFailedAuctionRevertsForGraduatedAuction() external {
@@ -418,7 +418,7 @@ contract RegentLBPStrategyTest is Test {
 
     function testRecoverFailedAuctionRevertsAfterMigration() external {
         strategy.onTokensReceived();
-        usdc.mint(strategy.auctionAddress(), 200e18);
+        quoteToken.mint(strategy.auctionAddress(), 200e18);
 
         vm.roll(202);
         vm.prank(OPERATOR);
@@ -446,15 +446,15 @@ contract RegentLBPStrategyTest is Test {
 
         vm.prank(AGENT_TREASURY);
         vm.expectRevert("PROTECTED_TOKEN");
-        strategy.rescueUnsupportedToken(address(usdc), 1, AGENT_TREASURY);
+        strategy.rescueUnsupportedToken(address(quoteToken), 1, AGENT_TREASURY);
     }
 
     function _expectedPoolKey() internal view returns (PoolKey memory poolKey) {
         Currency tokenCurrency = Currency.wrap(address(token));
-        Currency usdcCurrency = Currency.wrap(address(usdc));
-        (Currency currency0, Currency currency1) = tokenCurrency < usdcCurrency
-            ? (tokenCurrency, usdcCurrency)
-            : (usdcCurrency, tokenCurrency);
+        Currency quoteCurrency = Currency.wrap(address(quoteToken));
+        (Currency currency0, Currency currency1) = tokenCurrency < quoteCurrency
+            ? (tokenCurrency, quoteCurrency)
+            : (quoteCurrency, tokenCurrency);
         poolKey = PoolKey({
             currency0: currency0,
             currency1: currency1,
@@ -474,7 +474,7 @@ contract RegentLBPStrategyTest is Test {
         returns (AuctionParameters memory)
     {
         return AuctionParameters({
-            currency: address(usdc),
+            currency: address(quoteToken),
             tokensRecipient: address(0),
             fundsRecipient: address(0),
             startBlock: 1,
@@ -495,7 +495,7 @@ contract RegentLBPStrategyTest is Test {
     {
         return RegentLBPStrategy.StrategyConfig({
             token: address(token),
-            usdc: address(usdc),
+            quoteToken: address(quoteToken),
             auctionInitializerFactory: address(auctionFactory),
             auctionParameters: _auctionParameters(requiredCurrencyRaised),
             officialPoolHook: address(hook),

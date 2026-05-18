@@ -12,7 +12,10 @@ defmodule AutolaunchWeb.ContractsLiveTest do
     def admin_overview do
       {:ok,
        %{
-         dependencies: %{usdc_address: "0x1111111111111111111111111111111111111111"},
+         dependencies: %{
+           auction_quote_token_address: "0x1111111111111111111111111111111111111111",
+           revenue_usdc_address: "0x1212121212121212121212121212121212121212"
+         },
          admin_contracts: %{
            revenue_share_factory: %{address: "0x2222222222222222222222222222222222222222"},
            revenue_ingress_factory: %{address: "0x3333333333333333333333333333333333333333"},
@@ -45,12 +48,12 @@ defmodule AutolaunchWeb.ContractsLiveTest do
            address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
            auction_address: "0xcccccccccccccccccccccccccccccccccccccccc",
            migrated: false,
-           currency_balance: 12,
+           quote_token_balance: 12,
            token_balance: 50,
            migrated_pool_id: "0x" <> String.duplicate("d", 64),
            migrated_position_id: 0,
            migrated_liquidity: 0,
-           migrated_currency_for_lp: 0,
+           migrated_quote_token_for_lp: 0,
            migrated_token_for_lp: 0,
            migration_block: 1_000,
            sweep_block: 2_000
@@ -59,7 +62,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
            address: "0xcccccccccccccccccccccccccccccccccccccccc",
            graduated: true,
            token_balance: 20,
-           currency_balance: 30
+           quote_token_balance: 30
          },
          vesting: %{
            address: "0xdddddddddddddddddddddddddddddddddddddddd",
@@ -95,8 +98,8 @@ defmodule AutolaunchWeb.ContractsLiveTest do
            owner: "0x4444444444444444444444444444444444444444",
            pending_owner: "0x5555555555555555555555555555555555555555",
            ownership_status: "pending_acceptance",
-           treasury_accrued: %{token: 1, usdc: 2},
-           regent_accrued: %{token: 3, usdc: 4}
+           treasury_accrued: %{token: 1, quote_token: 2},
+           regent_accrued: %{token: 3, quote_token: 4}
          },
          hook: %{
            address: "0x3434343434343434343434343434343434343434",
@@ -108,12 +111,12 @@ defmodule AutolaunchWeb.ContractsLiveTest do
          settlement: %{
            settlement_state: "awaiting_auction_asset_return",
            blocked_reason: "Auction balances still need to be returned before migration.",
-           recommended_action: "auction_sweep_currency",
-           allowed_actions: ["auction_sweep_currency", "auction_sweep_unsold_tokens"],
+           recommended_action: "auction_sweep_quote_token",
+           allowed_actions: ["auction_sweep_quote_token", "auction_sweep_unsold_tokens"],
            required_actor: "operator",
            balance_snapshot: %{
-             strategy: %{usdc_balance: 12, token_balance: 50},
-             auction: %{usdc_balance: 30, token_balance: 20}
+             strategy: %{quote_token_balance: 12, token_balance: 50},
+             auction: %{quote_token_balance: 30, token_balance: 20}
            },
            ownership_status: %{
              all_accepted: false
@@ -177,7 +180,6 @@ defmodule AutolaunchWeb.ContractsLiveTest do
            total_usdc_received_raw: 125_000_000,
            direct_deposit_usdc_raw: 15_000_000,
            verified_ingress_usdc_raw: 90_000_000,
-           launch_fee_usdc_raw: 20_000_000,
            regent_skim_usdc_raw: 1_000_000,
            staker_eligible_inflow_usdc_raw: 99_000_000,
            treasury_reserved_inflow_usdc_raw: 25_000_000,
@@ -207,26 +209,6 @@ defmodule AutolaunchWeb.ContractsLiveTest do
              "migrate",
              "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
              "0x8fd3ab80"
-           )
-       }}
-    end
-
-    def prepare_job_action(
-          "job_contracts",
-          "revenue_splitter",
-          "pull_treasury_share",
-          _attrs,
-          _human
-        ) do
-      {:ok,
-       %{
-         job_id: "job_contracts",
-         prepared:
-           prepared_action(
-             "revenue_splitter",
-             "pull_treasury_share",
-             "0x9999999999999999999999999999999999999999",
-             "0x94af8446"
            )
        }}
     end
@@ -279,7 +261,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
           action: action,
           chain_id: 8_453,
           to: to,
-          value: "0",
+          value: "0x0",
           data: data,
           expected_signer: @expected_signer,
           expires_at: @expires_at,
@@ -323,8 +305,7 @@ defmodule AutolaunchWeb.ContractsLiveTest do
     assert html =~ "Revenue splitter"
     assert html =~ "Prepare Safe acceptance"
     assert html =~ "Prepare failed-auction recovery"
-    assert html =~ "Prepare auction currency return"
-    assert html =~ "Prepare treasury fee collection"
+    assert html =~ "Prepare auction $REGENT return"
     assert html =~ "Advanced revenue controls"
     assert html =~ "Prepared action"
     assert html =~ "Eligible share"
@@ -381,19 +362,5 @@ defmodule AutolaunchWeb.ContractsLiveTest do
     assert html =~ "0x8fd3ab80"
     assert html =~ "Copy signing request"
     assert html =~ "Copy transaction data"
-  end
-
-  test "contracts page prepares treasury fee collection through the splitter", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/contracts?job_id=job_contracts")
-
-    html =
-      view
-      |> element(
-        "button[phx-value-resource='revenue_splitter'][phx-value-action='pull_treasury_share']"
-      )
-      |> render_click()
-
-    assert html =~ "pull_treasury_share"
-    assert html =~ "0x94af8446"
   end
 end

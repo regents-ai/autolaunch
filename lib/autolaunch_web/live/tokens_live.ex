@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.TokensLive do
   use AutolaunchWeb, :live_view
 
-  alias Autolaunch.Tokens
+  alias Autolaunch.{Swaps, Tokens}
   alias AutolaunchWeb.Format
   alias AutolaunchWeb.Live.Refreshable
 
@@ -18,7 +18,8 @@ defmodule AutolaunchWeb.TokensLive do
      |> Refreshable.schedule(@poll_ms)
      |> Refreshable.subscribe([:tokens, :system])
      |> assign(:page_title, "Revsplit Tokens")
-     |> assign(:active_view, "tokens")}
+     |> assign(:active_view, "tokens")
+     |> assign(:swaps_available, Swaps.available?())}
   end
 
   def handle_params(params, _uri, socket) do
@@ -89,11 +90,12 @@ defmodule AutolaunchWeb.TokensLive do
                 <th>Revsplit</th>
                 <th>Graduated</th>
                 <th>Updated</th>
+                <th :if={@swaps_available}>Trade</th>
               </tr>
             </thead>
             <tbody>
               <tr :if={@tokens == []}>
-                <td colspan="9">
+                <td colspan={if @swaps_available, do: 10, else: 9}>
                   <div class="al-tokens-empty">
                     <strong>No graduated tokens yet.</strong>
                     <p>Graduated auction tokens will appear here after the market clears.</p>
@@ -111,20 +113,37 @@ defmodule AutolaunchWeb.TokensLive do
                     </span>
                   </.link>
                 </td>
-                <td class="al-tokens-number">{format_price(token.price_usdc)}</td>
-                <td class="al-tokens-number">{format_currency(token.auction_raise_usdc, 1)}</td>
-                <td class="al-tokens-number">{format_currency(token.required_raise_usdc, 1)}</td>
-                <td class="al-tokens-number">{format_currency(token.fdv_usdc, 1)}</td>
+                <td class="al-tokens-number">{format_quote(token.price_quote, 6)}</td>
+                <td class="al-tokens-number">{format_quote(token.auction_raise_quote, 1)}</td>
+                <td class="al-tokens-number">{format_quote(token.required_raise_quote, 1)}</td>
+                <td class="al-tokens-number">{format_quote(token.fdv_quote, 1)}</td>
                 <td>
                   <span class="al-tokens-status">{revsplit_label(token.revsplit_status)}</span>
                 </td>
                 <td>{display_date(token.graduated_at)}</td>
                 <td>{display_date(token.last_synced_at)}</td>
+                <td :if={@swaps_available}>
+                  <button
+                    :if={swap_token_ready?(token)}
+                    type="button"
+                    class="al-token-swap-button"
+                    data-swap-open
+                    data-swap-side="buy"
+                    data-swap-chain-id={token.chain_id}
+                    data-swap-token={token.token_address}
+                    data-swap-symbol={display_symbol(token.token_symbol)}
+                    data-swap-agent={token.agent_name}
+                  >
+                    Buy
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
+
+      <.swap_modal :if={@swaps_available} />
 
       <.flash_group flash={@flash} />
     </.shell>
@@ -204,11 +223,21 @@ defmodule AutolaunchWeb.TokensLive do
   defp display_symbol(""), do: "REV"
   defp display_symbol(symbol), do: symbol
 
-  defp format_price(nil), do: "Not available"
-  defp format_price(value), do: Format.format_currency(value, 6)
+  defp format_quote(nil, _places), do: "Not available"
 
-  defp format_currency(nil, _places), do: "Not available"
-  defp format_currency(value, places), do: Format.format_currency(value, places)
+  defp format_quote(value, places) do
+    case Format.parse_decimal(value) do
+      nil ->
+        "Not available"
+
+      decimal ->
+        decimal
+        |> Decimal.round(places)
+        |> Format.decimal_to_string(places)
+        |> Format.add_delimiters()
+        |> Kernel.<>(" $REGENT")
+    end
+  end
 
   defp display_date(nil), do: "Not available"
   defp display_date(value), do: Format.display_chart_date(value)
@@ -217,6 +246,49 @@ defmodule AutolaunchWeb.TokensLive do
   defp revsplit_label("paused"), do: "Paused"
   defp revsplit_label("retired"), do: "Retired"
   defp revsplit_label(value), do: Format.humanize_key(value)
+
+  defp swap_token_ready?(token) do
+    token.revsplit_status == "active" and Swaps.available?(token.chain_id) and
+      is_binary(token.token_address)
+  end
+
+  defp swap_modal(assigns) do
+    ~H"""
+    <div id="token-swap-modal" class="al-swap-modal" phx-hook="SwapModal" phx-update="ignore" hidden>
+      <div class="al-swap-backdrop" data-swap-close></div>
+      <section class="al-swap-dialog" data-swap-dialog tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="token-swap-title">
+        <div class="al-swap-head">
+          <div>
+            <p class="al-kicker">Base swap</p>
+            <h2 id="token-swap-title" data-swap-title>Trade token</h2>
+            <p data-swap-copy>Choose an amount to quote through Uniswap v4.</p>
+          </div>
+          <button type="button" class="al-swap-close" data-swap-close aria-label="Close">×</button>
+        </div>
+
+        <div class="al-swap-form">
+          <label>
+            <span>Amount</span>
+            <input data-swap-amount inputmode="decimal" autocomplete="off" />
+          </label>
+          <label>
+            <span>Slippage %</span>
+            <input data-swap-slippage inputmode="decimal" autocomplete="off" value="1" />
+          </label>
+        </div>
+
+        <div class="al-swap-quote" data-swap-quote-panel hidden></div>
+        <p class="al-swap-notice" data-swap-notice hidden></p>
+
+        <div class="al-swap-actions">
+          <button type="button" class="al-ghost" data-swap-connect>Connect wallet</button>
+          <button type="button" class="al-ghost" data-swap-quote>Get quote</button>
+          <button type="button" class="al-submit" data-swap-submit>Swap</button>
+        </div>
+      </section>
+    </div>
+    """
+  end
 
   defp tokens_module do
     :autolaunch

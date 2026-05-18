@@ -192,9 +192,8 @@ defmodule Autolaunch.Launch.Core do
            required_text(Map.get(attrs, "token_name"), 3, 15, :token_name_required),
          {:ok, token_symbol} <-
            required_text(Map.get(attrs, "token_symbol"), 2, 10, :token_symbol_required),
-         {:ok, minimum_raise_decimal} <-
-           required_usdc_integer(Map.get(attrs, "minimum_raise_usdc"), :minimum_raise_required),
-         {:ok, minimum_raise_raw} <- decimal_to_wei(minimum_raise_decimal),
+         {:ok, minimum_raise} <-
+           parse_quote_amount(Map.get(attrs, "minimum_raise_quote"), :minimum_raise_required),
          {:ok, agent_safe_address} <-
            required_address(Map.get(attrs, "agent_safe_address")),
          {:ok, chain} <- normalize_launch_chain() do
@@ -207,8 +206,10 @@ defmodule Autolaunch.Launch.Core do
         token: %{
           name: token_name,
           symbol: token_symbol,
-          minimum_raise_usdc: decimal_string(minimum_raise_decimal, 6),
-          minimum_raise_usdc_raw: Integer.to_string(minimum_raise_raw),
+          minimum_raise_quote: minimum_raise.display,
+          minimum_raise_quote_raw: minimum_raise.raw,
+          auction_currency: auction_currency(chain.id),
+          revenue_currency: revenue_currency(chain.id),
           chain: chain.key,
           chain_id: chain.id,
           chain_family: chain.family,
@@ -294,8 +295,14 @@ defmodule Autolaunch.Launch.Core do
         ens_name: agent.ens,
         token_name: preview.token.name,
         token_symbol: preview.token.symbol,
-        minimum_raise_usdc: preview.token.minimum_raise_usdc,
-        minimum_raise_usdc_raw: preview.token.minimum_raise_usdc_raw,
+        minimum_raise_quote: preview.token.minimum_raise_quote,
+        minimum_raise_quote_raw: preview.token.minimum_raise_quote_raw,
+        auction_quote_token_address: preview.token.auction_currency.address,
+        auction_quote_token_symbol: preview.token.auction_currency.symbol,
+        auction_quote_token_decimals: preview.token.auction_currency.decimals,
+        revenue_usdc_token_address: preview.token.revenue_currency.address,
+        revenue_usdc_token_symbol: preview.token.revenue_currency.symbol,
+        revenue_usdc_token_decimals: preview.token.revenue_currency.decimals,
         agent_safe_address: preview.token.agent_safe_address,
         network: preview.token.chain,
         chain_id: chain_id,
@@ -670,11 +677,11 @@ defmodule Autolaunch.Launch.Core do
         is_integer(live_snapshot[:required_currency_raised_wei]) ->
           Integer.to_string(live_snapshot[:required_currency_raised_wei])
 
-        is_binary(auction.minimum_raise_usdc_raw) and auction.minimum_raise_usdc_raw != "" ->
-          auction.minimum_raise_usdc_raw
+        is_binary(auction.minimum_raise_quote_raw) and auction.minimum_raise_quote_raw != "" ->
+          auction.minimum_raise_quote_raw
 
-        job && is_binary(job.minimum_raise_usdc_raw) && job.minimum_raise_usdc_raw != "" ->
-          job.minimum_raise_usdc_raw
+        job && is_binary(job.minimum_raise_quote_raw) && job.minimum_raise_quote_raw != "" ->
+          job.minimum_raise_quote_raw
 
         true ->
           nil
@@ -685,11 +692,11 @@ defmodule Autolaunch.Launch.Core do
         is_integer(live_snapshot[:required_currency_raised_wei]) ->
           wei_to_string(live_snapshot[:required_currency_raised_wei])
 
-        is_binary(auction.minimum_raise_usdc) and auction.minimum_raise_usdc != "" ->
-          auction.minimum_raise_usdc
+        is_binary(auction.minimum_raise_quote) and auction.minimum_raise_quote != "" ->
+          auction.minimum_raise_quote
 
-        job && is_binary(job.minimum_raise_usdc) && job.minimum_raise_usdc != "" ->
-          job.minimum_raise_usdc
+        job && is_binary(job.minimum_raise_quote) && job.minimum_raise_quote != "" ->
+          job.minimum_raise_quote
 
         true ->
           nil
@@ -719,7 +726,7 @@ defmodule Autolaunch.Launch.Core do
 
     phase = auction_phase(auction, live_snapshot)
 
-    {current_price_usdc, price_source} =
+    {current_price_quote, price_source} =
       current_directory_price(
         phase,
         auction,
@@ -727,7 +734,7 @@ defmodule Autolaunch.Launch.Core do
         current_clearing_price
       )
 
-    implied_market_cap_usdc = implied_market_cap(current_price_usdc)
+    implied_market_cap_quote = implied_market_cap(current_price_quote)
     detail_url = "/auctions/#{public_id}"
 
     subject_url =
@@ -757,7 +764,8 @@ defmodule Autolaunch.Launch.Core do
       created_at: iso(auction.inserted_at),
       bidders: auction.bidders,
       raised_currency: auction.raised_currency,
-      target_currency: auction.target_currency,
+      auction_currency: auction_currency(auction.chain_id, auction),
+      revenue_currency: revenue_currency(auction.chain_id, auction),
       progress_percent: auction.progress_percent,
       required_currency_raised_raw: required_currency_raised_raw,
       required_currency_raised: required_currency_raised,
@@ -782,9 +790,9 @@ defmodule Autolaunch.Launch.Core do
         ),
       quote_mode: if(live_snapshot != %{}, do: "onchain_exact_v1", else: "approximate_preview"),
       current_clearing_price: current_clearing_price,
-      current_price_usdc: current_price_usdc,
+      current_price_quote: current_price_quote,
       price_source: price_source,
-      implied_market_cap_usdc: implied_market_cap_usdc,
+      implied_market_cap_quote: implied_market_cap_quote,
       total_bid_volume:
         if(is_integer(currency_raised_wei),
           do: wei_to_string(currency_raised_wei),
@@ -973,7 +981,7 @@ defmodule Autolaunch.Launch.Core do
   end
 
   defp current_directory_price("live", auction, %Job{} = job, _current_clearing_price) do
-    case price_module().current_token_price_usdc(
+    case price_module().current_token_price_quote(
            auction.chain_id,
            job.pool_id,
            auction.token_address
@@ -1149,8 +1157,10 @@ defmodule Autolaunch.Launch.Core do
       agent_name: job.agent_name,
       token_name: job.token_name,
       token_symbol: job.token_symbol,
-      minimum_raise_usdc: job.minimum_raise_usdc,
-      minimum_raise_usdc_raw: job.minimum_raise_usdc_raw,
+      minimum_raise_quote: job.minimum_raise_quote,
+      minimum_raise_quote_raw: job.minimum_raise_quote_raw,
+      auction_currency: auction_currency(job.chain_id, job),
+      revenue_currency: revenue_currency(job.chain_id, job),
       agent_safe_address: job.agent_safe_address,
       network: job.network,
       chain_id: job.chain_id,
@@ -1627,20 +1637,39 @@ defmodule Autolaunch.Launch.Core do
   def required_decimal(value, _error_atom) when is_number(value), do: {:ok, decimal(value)}
   def required_decimal(_value, error_atom), do: {:error, error_atom}
 
-  defp required_usdc_integer(value, error_atom) when is_binary(value) do
-    value = String.trim(value)
-
-    if Regex.match?(~r/^[0-9]+$/, value) do
-      {:ok, Decimal.new(value)}
+  def parse_quote_amount(value, error_atom) do
+    with {:ok, decimal} <- quote_decimal(value, error_atom),
+         true <- Decimal.compare(decimal, Decimal.new(0)) != :lt || {:error, error_atom},
+         {:ok, raw} <- decimal_to_wei(decimal) do
+      {:ok,
+       %{
+         decimal: decimal,
+         display: decimal_string(decimal, 18),
+         raw: Integer.to_string(raw)
+       }}
     else
-      {:error, error_atom}
+      {:error, :invalid_amount_precision} -> {:error, error_atom}
+      {:error, _reason} = error -> error
+      false -> {:error, error_atom}
     end
   end
 
-  defp required_usdc_integer(value, _error_atom) when is_integer(value) and value >= 0,
+  defp quote_decimal(value, error_atom) when is_binary(value) do
+    value = String.trim(value)
+
+    with true <- Regex.match?(~r/^(0|[1-9][0-9]*)(\.[0-9]+)?$/, value),
+         {decimal, ""} <- Decimal.parse(value) do
+      {:ok, decimal}
+    else
+      _ -> {:error, error_atom}
+    end
+  end
+
+  defp quote_decimal(value, _error_atom) when is_integer(value) and value >= 0,
     do: {:ok, Decimal.new(value)}
 
-  defp required_usdc_integer(_value, error_atom), do: {:error, error_atom}
+  defp quote_decimal(%Decimal{} = value, _error_atom), do: {:ok, value}
+  defp quote_decimal(_value, error_atom), do: {:error, error_atom}
 
   def required_tx_hash(value) when is_binary(value) do
     tx_hash = String.downcase(String.trim(value))
@@ -1692,6 +1721,32 @@ defmodule Autolaunch.Launch.Core do
   defp elem_or_nil({:ok, value}), do: value
   defp elem_or_nil({:error, _reason}), do: nil
 
+  def auction_currency(chain_id, source \\ %{}) do
+    configured = InfrastructureConfig.auction_quote_token(chain_id)
+
+    %{
+      address:
+        Map.get(source, :auction_quote_token_address) || configured.address ||
+          BaseChain.canonical_regent_address!(chain_id),
+      symbol: Map.get(source, :auction_quote_token_symbol) || configured.symbol,
+      decimals: Map.get(source, :auction_quote_token_decimals) || configured.decimals,
+      role: "auction_quote"
+    }
+  end
+
+  def revenue_currency(chain_id, source \\ %{}) do
+    configured = InfrastructureConfig.revenue_usdc_token(chain_id)
+
+    %{
+      address:
+        Map.get(source, :revenue_usdc_token_address) || configured.address ||
+          BaseChain.canonical_usdc_address!(chain_id),
+      symbol: Map.get(source, :revenue_usdc_token_symbol) || configured.symbol,
+      decimals: Map.get(source, :revenue_usdc_token_decimals) || configured.decimals,
+      role: "revenue_usdc"
+    }
+  end
+
   defp load_live_snapshot(%Auction{onchain_synced_at: %DateTime{}} = auction) do
     %{
       block_number: auction.onchain_block_number,
@@ -1728,6 +1783,7 @@ defmodule Autolaunch.Launch.Core do
 
   defp parse_float(value) when is_binary(value) do
     value
+    |> String.replace("REGENT", "")
     |> String.replace("USDC", "")
     |> String.replace("ETH", "")
     |> String.replace(",", "")
@@ -1764,7 +1820,7 @@ defmodule Autolaunch.Launch.Core do
   defp decimal(value) when is_integer(value), do: Decimal.new(value)
 
   def decimal_to_wei(%Decimal{} = value) do
-    scaled = Decimal.mult(value, Decimal.new("1000000"))
+    scaled = Decimal.mult(value, Decimal.new("1000000000000000000"))
 
     if Decimal.equal?(scaled, Decimal.round(scaled, 0)) do
       {:ok, scaled |> Decimal.round(0) |> Decimal.to_integer()}
@@ -1812,13 +1868,13 @@ defmodule Autolaunch.Launch.Core do
   defp wei_to_string(value) when is_integer(value) and value >= 0 do
     value
     |> Decimal.new()
-    |> Decimal.div(Decimal.new("1000000"))
-    |> Decimal.round(6)
+    |> Decimal.div(Decimal.new("1000000000000000000"))
+    |> Decimal.round(18)
     |> Decimal.normalize()
     |> Decimal.to_string(:normal)
   end
 
-  defp wei_to_float(value) when is_integer(value), do: value / 1.0e6
+  defp wei_to_float(value) when is_integer(value), do: value / 1.0e18
 
   def decimal_string(value, places \\ 4)
 

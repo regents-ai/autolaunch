@@ -14,8 +14,8 @@ defmodule Autolaunch.Prelaunch.Plan do
     field :chain_id, :integer, default: 8_453
     field :token_name, :string
     field :token_symbol, :string
-    field :minimum_raise_usdc, :string
-    field :minimum_raise_usdc_raw, :string
+    field :minimum_raise_quote, :string
+    field :minimum_raise_quote_raw, :string
     field :agent_safe_address, :string
     field :launch_notes, :string
     field :techtree_evidence_packet_ref, :string
@@ -39,8 +39,8 @@ defmodule Autolaunch.Prelaunch.Plan do
       :chain_id,
       :token_name,
       :token_symbol,
-      :minimum_raise_usdc,
-      :minimum_raise_usdc_raw,
+      :minimum_raise_quote,
+      :minimum_raise_quote_raw,
       :agent_safe_address,
       :launch_notes,
       :techtree_evidence_packet_ref,
@@ -75,8 +75,8 @@ defmodule Autolaunch.Prelaunch.Plan do
       :agent_name,
       :token_name,
       :token_symbol,
-      :minimum_raise_usdc,
-      :minimum_raise_usdc_raw,
+      :minimum_raise_quote,
+      :minimum_raise_quote_raw,
       :agent_safe_address,
       :launch_notes,
       :techtree_evidence_packet_ref,

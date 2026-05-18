@@ -108,7 +108,6 @@ defmodule Autolaunch.RevenueTest do
     assert subject.total_usdc_received == "125"
     assert subject.direct_deposit_usdc == "15"
     assert subject.verified_ingress_usdc == "90"
-    assert subject.launch_fee_usdc == "20"
     assert subject.treasury_reserved_inflow_usdc == "25"
     assert subject.treasury_reserved_usdc == "12"
     assert subject.share_change_history == []

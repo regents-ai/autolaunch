@@ -27,7 +27,6 @@ defmodule Autolaunch.Revenue.Abi do
     total_usdc_received: "0xcf51bfdd",
     direct_deposit_usdc: "0x6a142340",
     verified_ingress_usdc: "0x35816a75",
-    launch_fee_usdc: "0xe8bb5751",
     regent_skim_usdc: "0x1aa91287",
     staker_eligible_inflow_usdc: "0x08c23673",
     treasury_reserved_inflow_usdc: "0xddffd82a",

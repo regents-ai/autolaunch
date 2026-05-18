@@ -190,7 +190,7 @@ contract LaunchPoolFeeHookTest is Test {
         _assertSwapFee(poolKey, false, 80e18, 80e18, -110e18);
     }
 
-    function testRejectsPoolsWithoutUsdcQuoteToken() external {
+    function testRejectsPoolsWithoutQuoteToken() external {
         vm.startPrank(OWNER);
         vm.expectRevert("QUOTE_TOKEN_ZERO");
         _registerPool(address(launchToken), address(0));

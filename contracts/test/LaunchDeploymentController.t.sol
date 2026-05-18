@@ -40,19 +40,19 @@ interface IUERC20LaunchToken {
 
 contract LaunchDeploymentControllerTest is Test {
     address internal constant AGENT_SAFE = address(0xABCD);
-    address internal constant POSITION_RECIPIENT = AGENT_SAFE;
     address internal constant IDENTITY_REGISTRY = address(0x8004);
     address internal constant REGENT_RECIPIENT = address(0x9FA1);
     address internal constant STRATEGY_OPERATOR = address(0xBEEF);
     uint96 internal constant IDENTITY_AGENT_ID = 42;
     uint256 internal constant TOTAL_SUPPLY = 1_000_000_000e18;
-    uint256 internal constant AUCTION_TICK_SPACING = 79_228_162_514_264_334_008_320;
-    address internal constant BASE_SEPOLIA_USDC = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
+    uint256 internal constant AUCTION_TICK_SPACING = 79_228_162_514_264_337_593_543_950;
+    uint256 internal constant AUCTION_FLOOR_PRICE = AUCTION_TICK_SPACING * 100;
+    address internal constant BASE_MAINNET_USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address internal constant BASE_MAINNET_REGENT = 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07;
     uint160 internal constant REQUIRED_HOOK_FLAGS = Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
         | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG;
-    bytes32 internal constant LAUNCH_STACK_DEPLOYED_TOPIC0 = keccak256(
-        "LaunchStackDeployed(address,bytes32,address,address,address,address,address,address,address,address,address,address,bytes32,address)"
-    );
+    bytes32 internal constant LAUNCH_STACK_DEPLOYED_TOPIC0 =
+        keccak256("LaunchStackDeployed(address,bytes32,address,address,address,bytes32,address)");
 
     LaunchDeploymentController internal controller;
     MockContinuousClearingAuctionFactory internal auctionFactory;
@@ -65,10 +65,11 @@ contract LaunchDeploymentControllerTest is Test {
     RevenueIngressFactory internal revenueIngressFactory;
     RegentLBPStrategyFactory internal strategyFactory;
     MintableERC20Mock internal usdc;
+    MintableERC20Mock internal regent;
     MockRegentStakingRevenueRouter internal feeRouter;
 
     function setUp() external {
-        vm.chainId(84_532);
+        vm.chainId(8453);
         controller = new LaunchDeploymentController();
         feeInfraDeployer = new LaunchFeeInfraDeployer();
         auctionFactory = new MockContinuousClearingAuctionFactory();
@@ -76,6 +77,7 @@ contract LaunchDeploymentControllerTest is Test {
         tokenFactory = new UERC20Factory();
         strategyFactory = new RegentLBPStrategyFactory(address(this));
         usdc = _installCanonicalUsdcMock();
+        regent = _installCanonicalRegentMock();
         subjectRegistry = new SubjectRegistry(address(this));
         feeRouter = new MockRegentStakingRevenueRouter(address(usdc), address(0x8888));
         splitterDeployer = new RevenueShareSplitterV2Deployer();
@@ -110,14 +112,6 @@ contract LaunchDeploymentControllerTest is Test {
         controller.deploy(cfg);
     }
 
-    function testRejectsMismatchedPositionRecipient() external {
-        LaunchDeploymentController.DeploymentConfig memory cfg = defaultConfig();
-        cfg.positionRecipient = address(0x1234);
-
-        vm.expectRevert("POSITION_RECIPIENT_MUST_MATCH_AGENT_SAFE");
-        controller.deploy(cfg);
-    }
-
     function testRejectsUnauthorizedDeployCaller() external {
         vm.prank(address(0xBAD));
         vm.expectRevert("ONLY_OWNER");
@@ -126,9 +120,17 @@ contract LaunchDeploymentControllerTest is Test {
 
     function testRejectsNonCanonicalUsdc() external {
         LaunchDeploymentController.DeploymentConfig memory cfg = defaultConfig();
-        cfg.usdcToken = address(0xC0FFEE);
+        cfg.revenueUsdcToken = address(0xC0FFEE);
 
         vm.expectRevert("USDC_NOT_CANONICAL");
+        controller.deploy(cfg);
+    }
+
+    function testRejectsNonCanonicalRegentQuoteToken() external {
+        LaunchDeploymentController.DeploymentConfig memory cfg = defaultConfig();
+        cfg.auctionQuoteToken = address(usdc);
+
+        vm.expectRevert("REGENT_NOT_CANONICAL");
         controller.deploy(cfg);
     }
 
@@ -223,7 +225,7 @@ contract LaunchDeploymentControllerTest is Test {
 
         AuctionParameters memory parameters =
             abi.decode(auctionFactory.lastConfigData(), (AuctionParameters));
-        assertEq(parameters.currency, address(usdc));
+        assertEq(parameters.currency, address(regent));
         assertEq(parameters.tokensRecipient, result.strategyAddress);
         assertEq(parameters.fundsRecipient, result.strategyAddress);
         assertEq(parameters.auctionStepsData, _singleAuctionStep(100_000, 100));
@@ -231,8 +233,8 @@ contract LaunchDeploymentControllerTest is Test {
 
         LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
         LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
-        assertEq(poolConfig.treasury, result.revenueShareSplitterAddress);
-        assertEq(poolConfig.quoteToken, address(usdc));
+        assertEq(poolConfig.treasury, AGENT_SAFE);
+        assertEq(poolConfig.quoteToken, address(regent));
         assertEq(poolConfig.regentRecipient, REGENT_RECIPIENT);
         assertEq(registry.owner(), address(controller));
         assertEq(registry.pendingOwner(), AGENT_SAFE);
@@ -249,7 +251,7 @@ contract LaunchDeploymentControllerTest is Test {
         assertEq(feeVault.owner(), address(controller));
         assertEq(feeVault.pendingOwner(), AGENT_SAFE);
         assertEq(feeVault.canonicalLaunchToken(), result.tokenAddress);
-        assertEq(feeVault.canonicalQuoteToken(), address(usdc));
+        assertEq(feeVault.canonicalQuoteToken(), address(regent));
 
         LaunchPoolFeeHook hook = LaunchPoolFeeHook(result.hookAddress);
         assertEq(hook.owner(), address(controller));
@@ -328,8 +330,8 @@ contract LaunchDeploymentControllerTest is Test {
         LaunchFeeRegistry registry = LaunchFeeRegistry(result.launchFeeRegistryAddress);
         LaunchFeeRegistry.PoolConfig memory poolConfig = registry.getPoolConfig(result.poolId);
         assertEq(poolConfig.launchToken, result.tokenAddress);
-        assertEq(poolConfig.quoteToken, address(usdc));
-        assertEq(poolConfig.treasury, result.revenueShareSplitterAddress);
+        assertEq(poolConfig.quoteToken, address(regent));
+        assertEq(poolConfig.treasury, AGENT_SAFE);
         assertEq(poolConfig.regentRecipient, REGENT_RECIPIENT);
 
         LaunchDeploymentController.DeploymentResult memory stored =
@@ -432,41 +434,12 @@ contract LaunchDeploymentControllerTest is Test {
                 (
                     address auctionAddress,
                     address strategyAddress,
-                    address vestingWalletAddress,
-                    address hookAddress,
-                    address feeVaultAddress,
-                    address launchFeeRegistryAddress,
-                    address subjectRegistryAddress,
-                    address revenueShareSplitterAddress,
-                    address defaultIngressAddress,
                     bytes32 poolId,
                     address agentSafe
-                ) = abi.decode(
-                    entries[i].data,
-                    (
-                        address,
-                        address,
-                        address,
-                        address,
-                        address,
-                        address,
-                        address,
-                        address,
-                        address,
-                        bytes32,
-                        address
-                    )
-                );
+                ) = abi.decode(entries[i].data, (address, address, bytes32, address));
 
                 assertEq(auctionAddress, result.auctionAddress);
                 assertEq(strategyAddress, result.strategyAddress);
-                assertEq(vestingWalletAddress, result.vestingWalletAddress);
-                assertEq(hookAddress, result.hookAddress);
-                assertEq(feeVaultAddress, result.feeVaultAddress);
-                assertEq(launchFeeRegistryAddress, result.launchFeeRegistryAddress);
-                assertEq(subjectRegistryAddress, result.subjectRegistryAddress);
-                assertEq(revenueShareSplitterAddress, result.revenueShareSplitterAddress);
-                assertEq(defaultIngressAddress, result.defaultIngressAddress);
                 assertEq(poolId, result.poolId);
                 assertEq(agentSafe, AGENT_SAFE);
                 break;
@@ -491,9 +464,9 @@ contract LaunchDeploymentControllerTest is Test {
         cfg.auctionInitializerFactory = address(auctionFactory);
         cfg.poolManager = address(poolManager);
         cfg.positionManager = address(0xDEAD);
-        cfg.positionRecipient = POSITION_RECIPIENT;
         cfg.strategyOperator = STRATEGY_OPERATOR;
-        cfg.usdcToken = address(usdc);
+        cfg.auctionQuoteToken = address(regent);
+        cfg.revenueUsdcToken = address(usdc);
         cfg.regentRecipient = REGENT_RECIPIENT;
         cfg.identityAgentId = IDENTITY_AGENT_ID;
         cfg.totalSupply = TOTAL_SUPPLY;
@@ -508,7 +481,7 @@ contract LaunchDeploymentControllerTest is Test {
         cfg.vestingStartTimestamp = 1_700_000_000;
         cfg.vestingDurationSeconds = 365 days;
         cfg.validationHook = address(0);
-        cfg.floorPrice = AUCTION_TICK_SPACING;
+        cfg.floorPrice = AUCTION_FLOOR_PRICE;
         cfg.requiredCurrencyRaised = 0;
         cfg.auctionStepsData = _singleAuctionStep(100_000, 100);
         cfg.tokenName = "Agent Coin";
@@ -575,8 +548,14 @@ contract LaunchDeploymentControllerTest is Test {
 
     function _installCanonicalUsdcMock() internal returns (MintableERC20Mock mock) {
         MintableERC20Mock implementation = new MintableERC20Mock("USD Coin", "USDC");
-        vm.etch(BASE_SEPOLIA_USDC, address(implementation).code);
-        mock = MintableERC20Mock(BASE_SEPOLIA_USDC);
+        vm.etch(BASE_MAINNET_USDC, address(implementation).code);
+        mock = MintableERC20Mock(BASE_MAINNET_USDC);
+    }
+
+    function _installCanonicalRegentMock() internal returns (MintableERC20Mock mock) {
+        MintableERC20Mock implementation = new MintableERC20Mock("REGENT", "REGENT");
+        vm.etch(BASE_MAINNET_REGENT, address(implementation).code);
+        mock = MintableERC20Mock(BASE_MAINNET_REGENT);
     }
 
     function _launchFeeHookSalt(address feeInfraDeployer_, address poolManager_)

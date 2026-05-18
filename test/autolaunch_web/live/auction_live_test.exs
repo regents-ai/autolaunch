@@ -168,7 +168,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
 
     assert html =~ "What you are buying"
     assert html =~ "Go to Docs"
-    assert html =~ "up to 10% of an agent"
+    assert html =~ "This auction clears in $REGENT"
 
     html =
       view

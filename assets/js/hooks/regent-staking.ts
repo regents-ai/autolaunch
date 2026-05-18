@@ -87,11 +87,11 @@ async function approveRegentIfNeeded(
     {
       chain_id: walletAction.chain_id,
       to: token,
-      value: "0",
+      value: "0x0",
       data: approvalData,
       expected_signer: walletAction.expected_signer,
     },
-    options,
+    { ...options, failureMessage: "The staking transaction did not finish successfully." },
   )
 }
 
@@ -148,7 +148,11 @@ export const RegentStakingHook = {
             data: walletAction.data,
             expected_signer: expectedSigner,
           },
-          { baseRpcUrl, baseSepoliaRpcUrl },
+          {
+            baseRpcUrl,
+            baseSepoliaRpcUrl,
+            failureMessage: "The staking transaction did not finish successfully.",
+          },
         )
 
         this.pushEvent("staking_tx_complete", { tx_hash: txHash, action: payload.action })

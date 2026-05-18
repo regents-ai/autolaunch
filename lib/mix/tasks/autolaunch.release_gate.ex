@@ -116,14 +116,14 @@ defmodule Mix.Tasks.Autolaunch.ReleaseGate do
       "settled",
       "wait",
       "migrate",
-      "auction_sweep_currency",
+      "auction_sweep_quote_token",
       "auction_sweep_unsold_tokens",
       "recover_failed_auction",
       "accept_revenue_splitter_ownership",
       "accept_fee_registry_ownership",
       "accept_fee_vault_ownership",
       "accept_hook_ownership",
-      "sweep_currency",
+      "sweep_quote_token",
       "sweep_token",
       "release_vesting"
     ]

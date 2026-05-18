@@ -112,11 +112,12 @@ defmodule Autolaunch.Lifecycle do
       ready_with_strategy? and !migrated? and sweep_block_reached? and
         auction_graduated?(auction) == false and
         !positive_uint?(auction[:token_balance]) and !positive_uint?(strategy[:token_balance]) and
-        (positive_uint?(auction[:currency_balance]) or positive_uint?(strategy[:currency_balance]))
+        (positive_uint?(auction[:quote_token_balance]) or
+           positive_uint?(strategy[:quote_token_balance]))
 
     awaiting_migration? =
       ready_with_strategy? and !migrated? and migration_block_reached? and
-        auction_graduated?(auction) == true and positive_uint?(strategy[:currency_balance]) and
+        auction_graduated?(auction) == true and positive_uint?(strategy[:quote_token_balance]) and
         auction_asset_actions == []
 
     sweep_actions =
@@ -202,7 +203,9 @@ defmodule Autolaunch.Lifecycle do
   end
 
   def prepare_scope_action("migrate"), do: {:ok, {"strategy", "migrate"}}
-  def prepare_scope_action("auction_sweep_currency"), do: {:ok, {"auction", "sweep_currency"}}
+
+  def prepare_scope_action("auction_sweep_quote_token"),
+    do: {:ok, {"auction", "sweep_quote_token"}}
 
   def prepare_scope_action("auction_sweep_unsold_tokens"),
     do: {:ok, {"auction", "sweep_unsold_tokens"}}
@@ -210,7 +213,7 @@ defmodule Autolaunch.Lifecycle do
   def prepare_scope_action("recover_failed_auction"),
     do: {:ok, {"strategy", "recover_failed_auction"}}
 
-  def prepare_scope_action("sweep_currency"), do: {:ok, {"strategy", "sweep_currency"}}
+  def prepare_scope_action("sweep_quote_token"), do: {:ok, {"strategy", "sweep_quote_token"}}
   def prepare_scope_action("sweep_token"), do: {:ok, {"strategy", "sweep_token"}}
 
   def prepare_scope_action("accept_revenue_splitter_ownership"),
@@ -273,8 +276,8 @@ defmodule Autolaunch.Lifecycle do
     else
       []
       |> maybe_add_action(
-        auction_graduated?(auction) == true and positive_uint?(auction[:currency_balance]),
-        "auction_sweep_currency"
+        auction_graduated?(auction) == true and positive_uint?(auction[:quote_token_balance]),
+        "auction_sweep_quote_token"
       )
       |> maybe_add_action(positive_uint?(auction[:token_balance]), "auction_sweep_unsold_tokens")
     end
@@ -283,7 +286,7 @@ defmodule Autolaunch.Lifecycle do
   defp sweep_actions(strategy, migrated?, sweep_block_reached?) do
     if migrated? and sweep_block_reached? do
       []
-      |> maybe_add_action(positive_uint?(strategy[:currency_balance]), "sweep_currency")
+      |> maybe_add_action(positive_uint?(strategy[:quote_token_balance]), "sweep_quote_token")
       |> maybe_add_action(positive_uint?(strategy[:token_balance]), "sweep_token")
     else
       []
@@ -314,11 +317,11 @@ defmodule Autolaunch.Lifecycle do
     %{
       strategy: %{
         token_balance: strategy[:token_balance],
-        usdc_balance: strategy[:currency_balance]
+        quote_token_balance: strategy[:quote_token_balance]
       },
       auction: %{
         token_balance: auction[:token_balance],
-        usdc_balance: auction[:currency_balance]
+        quote_token_balance: auction[:quote_token_balance]
       }
     }
   end
@@ -439,7 +442,7 @@ defmodule Autolaunch.Lifecycle do
       migrated? and !sweep_block_reached? ->
         "Waiting for the sweep block."
 
-      ready_with_strategy? and !migrated? and !positive_uint?(strategy[:currency_balance]) ->
+      ready_with_strategy? and !migrated? and !positive_uint?(strategy[:quote_token_balance]) ->
         "No strategy currency is available for migration yet."
 
       true ->
@@ -461,8 +464,10 @@ defmodule Autolaunch.Lifecycle do
     recovered_without_residuals? =
       ready_with_strategy? and !migrated? and !failed_auction_recoverable? and
         !post_recovery_cleanup? and sweep_block_reached? and auction_graduated?(auction) == false and
-        !positive_uint?(strategy[:token_balance]) and !positive_uint?(strategy[:currency_balance]) and
-        !positive_uint?(auction[:token_balance]) and !positive_uint?(auction[:currency_balance])
+        !positive_uint?(strategy[:token_balance]) and
+        !positive_uint?(strategy[:quote_token_balance]) and
+        !positive_uint?(auction[:token_balance]) and
+        !positive_uint?(auction[:quote_token_balance])
 
     (migrated? and sweep_block_reached? and sweep_actions == [] and auction_asset_actions == []) or
       recovered_without_residuals?

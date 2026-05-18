@@ -35,14 +35,14 @@ defmodule Autolaunch.Repo.Migrations.AddAuctionSyncStateAndRevsplitTokens do
       add :graduated_at, :utc_datetime_usec
       add :graduation_block, :bigint
       add :auction_raise_raw, :text
-      add :auction_raise_usdc, :string
+      add :auction_raise_quote, :string
       add :required_raise_raw, :text
-      add :required_raise_usdc, :string
-      add :clearing_price_usdc, :string
-      add :price_usdc, :string
+      add :required_raise_quote, :string
+      add :clearing_price_quote, :string
+      add :price_quote, :string
       add :price_source, :string
       add :price_updated_at, :utc_datetime_usec
-      add :fdv_usdc, :string
+      add :fdv_quote, :string
       add :revsplit_status, :string, null: false, default: "active"
       add :last_synced_at, :utc_datetime_usec
 

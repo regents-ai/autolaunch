@@ -9,7 +9,7 @@ defmodule Autolaunch.ReleaseDeployVerifier do
   alias Autolaunch.Repo
 
   @zero_address "0x0000000000000000000000000000000000000000"
-  @launch_stack_deployed_topic0 "0x0f4620e4f0d6524b6aca672f72348ff2535a365b816545538f83084e8d073077"
+  @launch_stack_deployed_topic0 "0x8cac7a5a0617d535c5b35296e7851b993af32b507a6b9200a26c1db75d57213b"
 
   def run(job_id, opts \\ []) when is_binary(job_id) do
     case Repo.get(Job, job_id) do
@@ -75,6 +75,22 @@ defmodule Autolaunch.ReleaseDeployVerifier do
                 job.agent_safe_address,
                 "Fee hook ownership is fully accepted by the Agent Safe."
               ),
+              token_contract_check(
+                "auction_quote_token",
+                job.chain_id,
+                quote_token_address(job.chain_id),
+                "$REGENT",
+                18
+              ),
+              token_contract_check(
+                "revenue_usdc_token",
+                job.chain_id,
+                BaseChain.canonical_usdc_address!(job.chain_id),
+                "Base USDC",
+                6
+              ),
+              auction_currency_check(job),
+              strategy_quote_token_check(job),
               fee_vault_canonical_tokens_check(job),
               strategy_migration_check(job),
               pool_and_position_recorded_check(job),
@@ -243,19 +259,38 @@ defmodule Autolaunch.ReleaseDeployVerifier do
 
   defp fee_hook_pool_wiring_check(job) do
     expected_hook = normalize_address(job.hook_address)
-    expected_quote_token = usdc_address(job.chain_id)
+    expected_quote_token = quote_token_address(job.chain_id)
     expected_pool_manager = pool_manager_address(job.chain_id)
 
     if configured_address?(expected_pool_manager) do
       case pool_config(job) do
-        %{hook_enabled: true, hook: hook, quote_token: quote_token, pool_manager: pool_manager} ->
+        %{
+          hook_enabled: true,
+          hook: hook,
+          quote_token: quote_token,
+          launch_token: launch_token,
+          currency0: currency0,
+          currency1: currency1,
+          pool_manager: pool_manager
+        } ->
+          pool_currencies =
+            MapSet.new([normalize_address(currency0), normalize_address(currency1)])
+
+          expected_currencies =
+            MapSet.new([
+              normalize_address(job.token_address),
+              normalize_address(expected_quote_token)
+            ])
+
           if normalize_address(hook) == expected_hook and
+               normalize_address(launch_token) == normalize_address(job.token_address) and
                normalize_address(quote_token) == normalize_address(expected_quote_token) and
+               pool_currencies == expected_currencies and
                normalize_address(pool_manager) == normalize_address(expected_pool_manager) do
             ok_check(
               "fee_hook_pool_wiring",
               :error,
-              "Pool config points at the expected fixed fee hook, pool manager, and quote token."
+              "Pool config points at the expected fixed fee hook, pool manager, launch token, and $REGENT."
             )
           else
             fail_check(
@@ -398,6 +433,74 @@ defmodule Autolaunch.ReleaseDeployVerifier do
     end
   end
 
+  defp token_contract_check(key, chain_id, address, label, expected_decimals) do
+    cond do
+      !configured_address?(address) ->
+        fail_check(key, :error, "#{label} address is not configured for chain #{chain_id}.")
+
+      true ->
+        code = Rpc.code_at(chain_id, address)
+        decimals = safe_uint_call(chain_id, address, :decimals)
+
+        cond do
+          code != {:ok, "0x"} and match?({:ok, <<"0x", _::binary>>}, code) and
+              decimals == expected_decimals ->
+            ok_check(
+              key,
+              :error,
+              "#{label} is deployed and reports #{expected_decimals} decimals."
+            )
+
+          code == {:ok, "0x"} ->
+            fail_check(key, :error, "#{label} address has no contract code.")
+
+          decimals != expected_decimals ->
+            fail_check(
+              key,
+              :error,
+              "#{label} decimals are #{decimals || "unreadable"}, expected #{expected_decimals}."
+            )
+
+          true ->
+            fail_check(key, :error, "#{label} contract code could not be read.")
+        end
+    end
+  end
+
+  defp strategy_quote_token_check(job) do
+    expected_quote_token = quote_token_address(job.chain_id)
+
+    case safe_address_call(job.chain_id, job.strategy_address, :quote_token) do
+      quote_token ->
+        if normalize_address(quote_token) == normalize_address(expected_quote_token) do
+          ok_check("strategy_quote_token", :error, "Strategy quote token is $REGENT.")
+        else
+          fail_check(
+            "strategy_quote_token",
+            :error,
+            "Strategy quote token is #{quote_token || "unreadable"}, expected #{expected_quote_token}."
+          )
+        end
+    end
+  end
+
+  defp auction_currency_check(job) do
+    expected_quote_token = quote_token_address(job.chain_id)
+
+    case safe_address_call(job.chain_id, job.auction_address, :auction_currency) do
+      auction_currency ->
+        if normalize_address(auction_currency) == normalize_address(expected_quote_token) do
+          ok_check("auction_currency", :error, "CCA auction currency is $REGENT.")
+        else
+          fail_check(
+            "auction_currency",
+            :error,
+            "CCA auction currency is #{auction_currency || "unreadable"}, expected #{expected_quote_token}."
+          )
+        end
+    end
+  end
+
   defp fee_vault_canonical_tokens_check(job) do
     launch_token =
       safe_address_call(job.chain_id, job.launch_fee_vault_address, :canonical_launch_token)
@@ -405,7 +508,7 @@ defmodule Autolaunch.ReleaseDeployVerifier do
     quote_token =
       safe_address_call(job.chain_id, job.launch_fee_vault_address, :canonical_quote_token)
 
-    expected_quote_token = usdc_address(job.chain_id)
+    expected_quote_token = quote_token_address(job.chain_id)
 
     cond do
       normalize_address(launch_token) != normalize_address(job.token_address) ->
@@ -511,18 +614,17 @@ defmodule Autolaunch.ReleaseDeployVerifier do
              normalize_address(treasury_safe) == normalize_address(job.agent_safe_address) do
           case pool_config(job) do
             %{treasury: treasury} ->
-              if normalize_address(treasury) ==
-                   normalize_address(job.revenue_share_splitter_address) do
+              if normalize_address(treasury) == normalize_address(job.agent_safe_address) do
                 ok_check(
                   "subject_registry_wiring",
                   :error,
-                  "Subject registry and fee registry both point at the expected splitter."
+                  "Subject registry is active and launch-pool fees point at the Agent Safe."
                 )
               else
                 fail_check(
                   "subject_registry_wiring",
                   :error,
-                  "Fee registry treasury does not point at the expected splitter."
+                  "Fee registry treasury does not point at the expected Agent Safe."
                 )
               end
 
@@ -530,7 +632,7 @@ defmodule Autolaunch.ReleaseDeployVerifier do
               fail_check(
                 "subject_registry_wiring",
                 :error,
-                "Fee registry treasury does not point at the expected splitter."
+                "Fee registry treasury does not point at the expected Agent Safe."
               )
           end
         else
@@ -665,8 +767,8 @@ defmodule Autolaunch.ReleaseDeployVerifier do
   defp pool_manager_address(chain_id),
     do: InfrastructureConfig.chain_address(:pool_manager_addresses, chain_id)
 
-  defp usdc_address(chain_id) do
-    case BaseChain.canonical_usdc_address(chain_id) do
+  defp quote_token_address(chain_id) do
+    case BaseChain.canonical_regent_address(chain_id) do
       {:ok, address} -> address
       {:error, _reason} -> nil
     end

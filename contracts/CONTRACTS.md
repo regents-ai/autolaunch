@@ -42,7 +42,7 @@ This package now covers the full Autolaunch contract system, from launch through
   - receives raw USDC and sweeps it into splitter accounting
 - `RevenueShareSplitter`
   - canonical revsplit and staking contract for the launched token
-  - counts subject USDC when it reaches this contract, with verified ingress, launch fees, and direct deposits tracked separately
+  - counts subject USDC when it reaches this contract, with verified ingress and direct deposits tracked separately
 - `RegentRevenueStaking`
   - singleton Base-mainnet staking and Base USDC rewards rail for the existing `$REGENT` token
   - fed manually after Treasury A bridges non-Base income into Base USDC
@@ -65,7 +65,7 @@ This package now covers the full Autolaunch contract system, from launch through
 
 For a 48-hour Base Sepolia auction, set `AUCTION_DURATION_BLOCKS=86400`. The script builds a normalized convex CCA auction-step schedule from that duration, then appends the final one-block residual release. The default schedule uses `CCA_PREBID_BLOCKS=0` and `CCA_FINAL_BLOCK_BPS=3000`.
 
-For rehearsals, set CCA tick spacing to 1% of the floor price unless there is a specific reason to use tighter ticks. The script rejects zero floor price, zero tick spacing, misaligned floor/tick values, and auction steps that do not exactly cover the configured duration and supply schedule.
+The default $REGENT auction grid uses `CCA_FLOOR_PRICE_Q96=7922816251426433759354395000` and `CCA_TICK_SPACING_Q96=79228162514264337593543950`, a 0.1 REGENT floor with 0.001 REGENT ticks. At REGENT near $0.00001, that maps to about $0.000001 per agent token at the floor and keeps bid prices aligned through the $0.10 range. The script rejects zero floor price, zero tick spacing, misaligned floor/tick values, and auction steps that do not exactly cover the configured duration and supply schedule.
 
 ## What the launch script creates
 

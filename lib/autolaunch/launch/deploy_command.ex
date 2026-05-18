@@ -66,7 +66,7 @@ defmodule Autolaunch.Launch.DeployCommand do
        Keyword.get(config, :token_metadata_description, "")},
       {"AUTOLAUNCH_TOKEN_METADATA_WEBSITE", Keyword.get(config, :token_metadata_website, "")},
       {"AUTOLAUNCH_TOKEN_METADATA_IMAGE", Keyword.get(config, :token_metadata_image, "")},
-      {"CCA_REQUIRED_CURRENCY_RAISED", job.minimum_raise_usdc_raw || "0"},
+      {"CCA_REQUIRED_CURRENCY_RAISED", job.minimum_raise_quote_raw || "0"},
       {"AUTOLAUNCH_TOTAL_SUPPLY", job.total_supply},
       {"AUTOLAUNCH_AGENT_SAFE_ADDRESS", job.agent_safe_address || ""},
       {"AUTOLAUNCH_LIFECYCLE_RUN_ID", job.lifecycle_run_id || ""},
@@ -94,7 +94,8 @@ defmodule Autolaunch.Launch.DeployCommand do
       {"CCA_CLAIM_BLOCK_OFFSET", config_text(config, :cca_claim_block_offset)},
       {"LBP_MIGRATION_BLOCK_OFFSET", config_text(config, :lbp_migration_block_offset)},
       {"LBP_SWEEP_BLOCK_OFFSET", config_text(config, :lbp_sweep_block_offset)},
-      {"AUTOLAUNCH_USDC_ADDRESS", deploy_usdc_address(job.chain_id)},
+      {"AUTOLAUNCH_AUCTION_QUOTE_TOKEN_ADDRESS", deploy_auction_quote_token_address(job, config)},
+      {"AUTOLAUNCH_REVENUE_USDC_ADDRESS", deploy_revenue_usdc_address(job, config)},
       {"AUTOLAUNCH_CCA_FACTORY_ADDRESS",
        config_value_for_chain(job.chain_id, :cca_factory_address, config)},
       {"AUTOLAUNCH_UNISWAP_V4_POOL_MANAGER",
@@ -147,6 +148,12 @@ defmodule Autolaunch.Launch.DeployCommand do
 
       not valid_address?(Keyword.get(config, :strategy_operator, "")) ->
         "Missing strategy operator address."
+
+      not valid_address?(Keyword.get(config, :auction_quote_token_address, "")) ->
+        "Missing auction quote token address."
+
+      not valid_address?(Keyword.get(config, :revenue_usdc_address, "")) ->
+        "Missing revenue USDC address."
 
       not valid_integer?(Keyword.get(config, :official_pool_fee, ""), 0) ->
         "Missing official pool fee."
@@ -208,11 +215,16 @@ defmodule Autolaunch.Launch.DeployCommand do
   defp broadcast_args(%Job{broadcast: true}), do: ["--broadcast"]
   defp broadcast_args(_job), do: []
 
-  defp deploy_usdc_address(chain_id) do
-    case BaseChain.canonical_usdc_address(chain_id) do
-      {:ok, address} -> address
-      {:error, _reason} -> ""
-    end
+  defp deploy_auction_quote_token_address(%Job{} = job, config) do
+    job.auction_quote_token_address ||
+      Keyword.get(config, :auction_quote_token_address) ||
+      BaseChain.canonical_regent_address!(job.chain_id)
+  end
+
+  defp deploy_revenue_usdc_address(%Job{} = job, config) do
+    job.revenue_usdc_token_address ||
+      Keyword.get(config, :revenue_usdc_address) ||
+      BaseChain.canonical_usdc_address!(job.chain_id)
   end
 
   defp regent_multisig_address(config) do

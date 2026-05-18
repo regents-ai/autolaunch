@@ -229,7 +229,6 @@ defmodule AutolaunchWeb.Api.SubjectControllerTest do
                "total_usdc_received_raw" => 125_000_000,
                "direct_deposit_usdc_raw" => 15_000_000,
                "verified_ingress_usdc_raw" => 90_000_000,
-               "launch_fee_usdc_raw" => 20_000_000,
                "regent_skim_usdc_raw" => 10_000_000,
                "staker_eligible_inflow_usdc_raw" => 90_000_000,
                "treasury_reserved_inflow_usdc_raw" => 25_000_000,

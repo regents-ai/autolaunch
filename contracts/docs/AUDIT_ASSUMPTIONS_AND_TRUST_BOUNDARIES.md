@@ -67,7 +67,7 @@ The strategy receives auction proceeds, caps LP currency usage, initializes the 
 Subject USDC is counted when it lands in `RevenueShareSplitter`, either directly or through:
 
 - `RevenueIngressAccount.sweepUSDC`
-- `RevenueShareSplitter.pullTreasuryShareFromLaunchVault`
+- direct USDC deposits to the splitter
 
 This is the accounting boundary auditors should treat as canonical.
 

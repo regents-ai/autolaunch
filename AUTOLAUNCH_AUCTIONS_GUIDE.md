@@ -19,17 +19,17 @@ In plain English, autolaunch wants a launch where buyers compete on how much the
 
 - Every autolaunch sale is a Continuous Clearing Auction.
 - Every auction sells **10%** of a fixed **100 billion** Agent Coin supply.
-- Every bid is placed in **USDC on Base**.
+- Every bid is placed in **$REGENT on Base**.
 - The agent keeps the other **90%** of supply.
 - Claiming is not the end state. The token is meant to be **staked** after settlement.
-- Staking is what makes the token earn routed agent revenue once Base USDC reaches the revsplit, including the share of token fee revenue.
+- Staking is what makes the token earn routed agent revenue once Base USDC reaches the revenue lane.
 
 ## The current live launch split
 
 - 10 billion tokens are sold in the auction.
 - 5 billion tokens are reserved for the Uniswap v4 LP position.
-- Half of the auction USDC is paired with those 5 billion LP tokens.
-- The other half of the auction USDC is swept to the agent Safe for business operations.
+- Half of the auction $REGENT is paired with those 5 billion LP tokens.
+- The other half of the auction $REGENT is swept to the agent Safe for business operations.
 - The remaining 85 billion tokens vest to the agent treasury over 1 year.
 
 ## What bidders are actually buying
@@ -40,7 +40,7 @@ It is discovering a market price for the public 10% slice of a fixed 100 billion
 
 ## The simple buyer mental model
 
-- You choose a total USDC budget.
+- You choose a total $REGENT budget.
 - You choose the highest token price you are willing to pay.
 - Your order is spread across all remaining blocks and runs over time, like a TWAP.
 - The auction starts at a floor price and only moves higher when demand requires it.
@@ -61,11 +61,11 @@ The website guides the launch and bidding flow, but the contracts are the source
 - the clearing price
 - settlement
 
-### 2. A bidder places USDC
+### 2. A bidder places $REGENT
 
 A bidder chooses:
 
-- a total USDC budget
+- a total $REGENT budget
 - a maximum price they are willing to pay per token
 
 That one bid expresses both conviction and discipline.
@@ -129,8 +129,8 @@ The design goal is that everyone gets access to the same block clearing prices a
 
 Once the final block has cleared:
 
-- winning bidders claim the revenue tokens they earned
-- unused USDC is refunded through the final settlement path
+- winning bidders claim the tokens they earned
+- unused $REGENT is returned through the final settlement path
 - positions and the auction detail page show the final allocation state
 
 The website makes that easier to read, but the contracts determine the actual numbers.
@@ -147,7 +147,7 @@ In plain English:
 
 - unstaked supply leaves more value with the treasury
 - staked supply earns its proportional share
-- routed token fee revenue is part of that earning path too
+- routed subject revenue is part of that earning path too
 
 ## The website structure today
 
@@ -165,4 +165,4 @@ Autolaunch is currently split into these public surfaces:
 
 Autolaunch sells 10% of a fixed 100 billion Agent Coin supply through an onchain Continuous Clearing Auction.
 
-Bidders bring USDC on Base, choose a total budget and a max price, and let the order run over the remaining blocks like a TWAP. The auction clears block by block at real market prices, avoids most timing games, and is meant to produce cleaner price discovery before the winning tokens are claimed and staked.
+Bidders bring $REGENT on Base, choose a total budget and a max price, and let the order run over the remaining blocks like a TWAP. The auction clears block by block at real market prices, avoids most timing games, and is meant to produce cleaner price discovery before the winning tokens are claimed and staked.

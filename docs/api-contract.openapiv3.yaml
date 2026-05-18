@@ -32,6 +32,7 @@ tags:
   - name: prelaunch
   - name: lifecycle
   - name: market
+  - name: swaps
   - name: trust
   - name: subjects
   - name: ens
@@ -1356,9 +1357,9 @@ paths:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
         "429":
           $ref: "#/components/responses/RateLimitError"
-  /v1/app/bids/{id}/return-usdc:
+  /v1/app/bids/{id}/return-quote-token:
     post:
-      operationId: returnBidUsdc
+      operationId: returnBidQuoteToken
       tags: [market]
       security: [{ PrivySessionCookie: [] }]
       parameters:
@@ -1638,6 +1639,64 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PreparedSubjectActionEnvelope" }
 
+        "429":
+          $ref: "#/components/responses/RateLimitError"
+  /v1/app/swaps/quote:
+    post:
+      operationId: quoteSwap
+      tags: [swaps]
+      security: [{ PrivySessionCookie: [] }]
+      summary: Quote a Base USDC and graduated agent-token swap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SwapQuoteRequest" }
+      responses:
+        "200":
+          description: Swap quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SwapQuoteEnvelope" }
+        "401":
+          description: Privy session required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Swap quote rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "429":
+          $ref: "#/components/responses/RateLimitError"
+  /v1/app/swaps/prepare:
+    post:
+      operationId: prepareSwap
+      tags: [swaps]
+      security: [{ PrivySessionCookie: [] }]
+      summary: Prepare a Base USDC and graduated agent-token swap transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SwapQuoteRequest" }
+      responses:
+        "200":
+          description: Prepared swap transaction
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SwapPrepareEnvelope" }
+        "401":
+          description: Privy session required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Swap transaction rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "429":
           $ref: "#/components/responses/RateLimitError"
   /v1/app/ens/link/plan:
@@ -2651,9 +2710,9 @@ paths:
               schema: { $ref: "#/components/schemas/BidPositionEnvelope" }
         "429":
           $ref: "#/components/responses/RateLimitError"
-  /v1/agent/bids/{id}/return-usdc:
+  /v1/agent/bids/{id}/return-quote-token:
     post:
-      operationId: agentReturnBidUsdc
+      operationId: agentReturnBidQuoteToken
       tags: [market]
       security: [{ AgentSiwaHeaders: [] }]
       parameters:
@@ -2872,7 +2931,6 @@ components:
       description: >
         Canonical contract scope. Job-scoped settlement actions use `strategy`, `auction`,
         `revenue_splitter`, `fee_registry`, `fee_vault`, `hook`, and `vesting`.
-        Launch treasury fee pulls use `revenue_splitter`, not `fee_vault`.
     Action:
       name: action
       in: path
@@ -2880,8 +2938,8 @@ components:
       schema: { type: string }
       description: >
         Canonical contract action. Settlement actions include `migrate`,
-        `recover_failed_auction`, `sweep_currency`, `sweep_unsold_tokens`,
-        `accept_ownership`, `sweep_token`, `release`, and `pull_treasury_share`.
+        `recover_failed_auction`, `sweep_quote_token`, `sweep_unsold_tokens`,
+        `accept_ownership`, `sweep_token`, and `release`.
   responses:
     RateLimitError:
       description: Too many requests
@@ -2912,6 +2970,17 @@ components:
       enum: [8453]
     DecimalString:
       type: string
+    TokenRole:
+      type: object
+      required: [address, symbol, decimals, role]
+      properties:
+        address: { $ref: "#/components/schemas/Address" }
+        symbol: { type: string }
+        decimals: { type: integer, minimum: 0, maximum: 255 }
+        role:
+          type: string
+          enum: [auction_quote, revenue_usdc]
+      additionalProperties: false
     DateTime:
       type: string
       format: date-time
@@ -2933,8 +3002,7 @@ components:
         chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
         to: { $ref: "#/components/schemas/Address" }
         value:
-          type: string
-          pattern: "^[0-9]+$"
+          $ref: "#/components/schemas/HexData"
         data: { $ref: "#/components/schemas/HexData" }
         expected_signer: { $ref: "#/components/schemas/Address" }
         expires_at: { $ref: "#/components/schemas/DateTime" }
@@ -2953,6 +3021,84 @@ components:
                 - { type: integer, minimum: 0 }
                 - { type: "null" }
         risk_copy: { type: string }
+        approval:
+          anyOf:
+            - { $ref: "#/components/schemas/TokenApprovalPayload" }
+            - { type: "null" }
+    TokenApprovalPayload:
+      type: object
+      additionalProperties: false
+      required: [token, spender, amount, data]
+      properties:
+        token: { $ref: "#/components/schemas/Address" }
+        spender: { $ref: "#/components/schemas/Address" }
+        amount: { type: string, pattern: "^[0-9]+$" }
+        data: { $ref: "#/components/schemas/HexData" }
+    SwapSide:
+      type: string
+      enum: [buy, sell]
+    SwapQuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [side, chain_id, token_address, amount, slippage_bps, swapper]
+      properties:
+        side: { $ref: "#/components/schemas/SwapSide" }
+        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
+        token_address: { $ref: "#/components/schemas/Address" }
+        amount:
+          type: string
+          pattern: "^[0-9]+(\\.[0-9]+)?$"
+        slippage_bps:
+          type: integer
+          minimum: 1
+          maximum: 500
+        swapper: { $ref: "#/components/schemas/Address" }
+    SwapQuote:
+      type: object
+      additionalProperties: false
+      required: [side, chain_id, token_address, token_in, token_out, amount_in_raw, amount_out_raw, minimum_amount_out_raw, route_label, approval, price_impact_percent, gas_fee]
+      properties:
+        side: { $ref: "#/components/schemas/SwapSide" }
+        chain_id: { $ref: "#/components/schemas/AutolaunchChainId" }
+        token_address: { $ref: "#/components/schemas/Address" }
+        token_in: { $ref: "#/components/schemas/Address" }
+        token_out: { $ref: "#/components/schemas/Address" }
+        amount_in_raw: { type: string, pattern: "^[0-9]+$" }
+        amount_out_raw: { type: string, pattern: "^[0-9]+$" }
+        minimum_amount_out_raw: { type: string, pattern: "^[0-9]+$" }
+        route_label: { type: string }
+        approval:
+          anyOf:
+            - { $ref: "#/components/schemas/WalletAction" }
+            - { type: "null" }
+        price_impact_percent:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+        gas_fee:
+          anyOf:
+            - { type: string }
+            - { type: "null" }
+    SwapQuoteEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, quote]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        quote: { $ref: "#/components/schemas/SwapQuote" }
+    SwapPrepareEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, swap]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        swap:
+          type: object
+          additionalProperties: false
+          required: [wallet_action, quote]
+          properties:
+            wallet_action: { $ref: "#/components/schemas/WalletAction" }
+            quote: { $ref: "#/components/schemas/SwapQuote" }
     LooseObject:
       type: object
       additionalProperties: true
@@ -3351,6 +3497,10 @@ components:
         expires_at: { $ref: "#/components/schemas/DateTime" }
         idempotency_key: { type: string }
         risk_copy: { type: string }
+        approval:
+          anyOf:
+            - { $ref: "#/components/schemas/TokenApprovalPayload" }
+            - { type: "null" }
         wallet_action:
           $ref: "#/components/schemas/WalletAction"
       additionalProperties: true
@@ -3483,8 +3633,8 @@ components:
         - token_name
         - token_symbol
         - agent_safe_address
-        - minimum_raise_usdc
-        - minimum_raise_usdc_raw
+        - minimum_raise_quote
+        - minimum_raise_quote_raw
       properties:
         plan_id: { type: string }
         agent_id: { type: string }
@@ -3503,10 +3653,10 @@ components:
           anyOf:
             - { type: string }
             - { type: "null" }
-        minimum_raise_usdc:
+        minimum_raise_quote:
           type: string
           pattern: "^[0-9]+$"
-        minimum_raise_usdc_raw: { type: string }
+        minimum_raise_quote_raw: { type: string }
         status:
           anyOf:
             - { type: string }
@@ -3519,7 +3669,7 @@ components:
         - token_name
         - token_symbol
         - agent_safe_address
-        - minimum_raise_usdc
+        - minimum_raise_quote
       properties:
         agent_id: { type: string }
         token_name: { type: string }
@@ -3537,7 +3687,7 @@ components:
           anyOf:
             - { type: string }
             - { type: "null" }
-        minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
+        minimum_raise_quote: { $ref: "#/components/schemas/DecimalString" }
       additionalProperties: false
     PrelaunchPlanEnvelope:
       type: object
@@ -3651,7 +3801,7 @@ components:
         - token_symbol
         - agent_safe_address
         - total_supply
-        - minimum_raise_usdc
+        - minimum_raise_quote
       properties:
         agent_id: { type: string }
         chain_id: { $ref: "#/components/schemas/ActiveAutolaunchLaunchChainId" }
@@ -3663,7 +3813,7 @@ components:
           anyOf:
             - { type: string }
             - { type: "null" }
-        minimum_raise_usdc: { $ref: "#/components/schemas/DecimalString" }
+        minimum_raise_quote: { $ref: "#/components/schemas/DecimalString" }
       additionalProperties: false
     LaunchPreviewEnvelope:
       type: object
@@ -3693,6 +3843,14 @@ components:
           anyOf:
             - { type: string }
             - { type: "null" }
+        auction_currency:
+          anyOf:
+            - { $ref: "#/components/schemas/TokenRole" }
+            - { type: "null" }
+        revenue_currency:
+          anyOf:
+            - { $ref: "#/components/schemas/TokenRole" }
+            - { type: "null" }
       additionalProperties: true
     LaunchJobEnvelope:
       type: object
@@ -3721,10 +3879,10 @@ components:
       type: string
       enum:
         - migrate
-        - auction_sweep_currency
+        - auction_sweep_quote_token
         - auction_sweep_unsold_tokens
         - recover_failed_auction
-        - sweep_currency
+        - sweep_quote_token
         - sweep_token
         - accept_revenue_splitter_ownership
         - accept_fee_registry_ownership
@@ -3736,7 +3894,7 @@ components:
       type: object
       properties:
         token_balance: { $ref: "#/components/schemas/UintLike" }
-        usdc_balance: { $ref: "#/components/schemas/UintLike" }
+        quote_token_balance: { $ref: "#/components/schemas/UintLike" }
       additionalProperties: false
     LifecycleBalanceSnapshot:
       type: object
@@ -4021,6 +4179,8 @@ components:
         - current_clearing_price
         - total_bid_volume
         - bidders
+        - auction_currency
+        - revenue_currency
         - trust
       properties:
         id: { type: string }
@@ -4072,6 +4232,14 @@ components:
           anyOf:
             - { type: string }
             - { type: "null" }
+        auction_currency:
+          anyOf:
+            - { $ref: "#/components/schemas/TokenRole" }
+            - { type: "null" }
+        revenue_currency:
+          anyOf:
+            - { $ref: "#/components/schemas/TokenRole" }
+            - { type: "null" }
         currency_raised_raw:
           anyOf:
             - { type: string }
@@ -4120,10 +4288,6 @@ components:
           anyOf:
             - { type: boolean }
             - { type: "null" }
-        target_currency:
-          anyOf:
-            - { type: string }
-            - { type: "null" }
         progress_percent:
           anyOf:
             - { type: integer }
@@ -4141,11 +4305,11 @@ components:
             - { type: string }
             - { type: "null" }
         current_clearing_price: { type: string }
-        current_price_usdc:
+        current_price_quote:
           anyOf:
             - { type: string }
             - { type: "null" }
-        implied_market_cap_usdc:
+        implied_market_cap_quote:
           anyOf:
             - { type: string }
             - { type: "null" }
@@ -4229,6 +4393,7 @@ components:
         - auction_id
         - amount
         - max_price
+        - auction_currency
         - current_clearing_price
         - projected_clearing_price
         - quote_mode
@@ -4243,6 +4408,7 @@ components:
         auction_id: { type: string }
         amount: { $ref: "#/components/schemas/DecimalString" }
         max_price: { $ref: "#/components/schemas/DecimalString" }
+        auction_currency: { $ref: "#/components/schemas/TokenRole" }
         current_clearing_price: { $ref: "#/components/schemas/DecimalString" }
         projected_clearing_price: { $ref: "#/components/schemas/DecimalString" }
         quote_mode: { type: string }
@@ -4337,6 +4503,10 @@ components:
           enum: [active, borderline, inactive, claimable, exited, claimed, returnable]
         amount: { $ref: "#/components/schemas/DecimalString" }
         max_price: { $ref: "#/components/schemas/DecimalString" }
+        auction_currency:
+          anyOf:
+            - { $ref: "#/components/schemas/TokenRole" }
+            - { type: "null" }
         current_clearing_price: { $ref: "#/components/schemas/DecimalString" }
         estimated_tokens_if_end_now:
           anyOf:
@@ -4739,14 +4909,6 @@ components:
           anyOf:
             - { $ref: "#/components/schemas/DecimalString" }
             - { type: "null" }
-        launch_fee_usdc_raw:
-          anyOf:
-            - { type: integer }
-            - { type: "null" }
-        launch_fee_usdc:
-          anyOf:
-            - { $ref: "#/components/schemas/DecimalString" }
-            - { type: "null" }
         regent_skim_usdc_raw:
           anyOf:
             - { type: integer }
@@ -5101,11 +5263,11 @@ components:
         agent_name: { type: string }
         symbol: { type: string }
         phase: { type: string, enum: [biddable, live] }
-        current_price_usdc:
+        current_price_quote:
           anyOf:
             - { type: string }
             - { type: "null" }
-        implied_market_cap_usdc:
+        implied_market_cap_quote:
           anyOf:
             - { type: string }
             - { type: "null" }
@@ -5114,7 +5276,7 @@ components:
           anyOf:
             - { type: string }
             - { type: "null" }
-        staked_usdc_value:
+        staked_quote_value:
           anyOf:
             - { type: string }
             - { type: "null" }

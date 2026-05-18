@@ -27,8 +27,8 @@ defmodule Autolaunch.ReleaseSmokeTest do
         strategy_operator: "0x9999999999999999999999999999999999999998",
         official_pool_fee: "0",
         official_pool_tick_spacing: "60",
-        cca_tick_spacing_q96: "79228162514264337593543950336",
-        cca_floor_price_q96: "79228162514264337593543950336",
+        cca_tick_spacing_q96: "79228162514264337593543950",
+        cca_floor_price_q96: "7922816251426433759354395000",
         auction_duration_blocks: "9258",
         cca_prebid_blocks: "0",
         cca_final_block_bps: "3000",
@@ -38,7 +38,8 @@ defmodule Autolaunch.ReleaseSmokeTest do
         lbp_sweep_block_offset: "256",
         pool_manager_address: "0x5555555555555555555555555555555555555555",
         position_manager_address: "0x6666666666666666666666666666666666666666",
-        usdc_address: "0x7777777777777777777777777777777777777777"
+        auction_quote_token_address: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
+        revenue_usdc_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
       )
     )
 
@@ -73,6 +74,7 @@ defmodule Autolaunch.ReleaseSmokeTest do
     assert Enum.map(checks, & &1.key) == [
              "launch_job_ready",
              "trust_urls",
+             "regent_bid_quote",
              "subject_read",
              "ingress_read"
            ]

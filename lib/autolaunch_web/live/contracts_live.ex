@@ -215,19 +215,19 @@ defmodule AutolaunchWeb.ContractsLive do
               <div><span>Strategy</span><strong>{AutolaunchWeb.Format.short_address(@job_scope.strategy.address)}</strong></div>
               <div><span>Auction</span><strong>{AutolaunchWeb.Format.short_address(@job_scope.strategy.auction_address)}</strong></div>
               <div><span>Migrated</span><strong>{AutolaunchWeb.Format.yes_no(@job_scope.strategy.migrated)}</strong></div>
-              <div><span>Strategy USDC</span><strong>{AutolaunchWeb.Format.display_uint(@settlement_summary.balance_snapshot.strategy.usdc_balance)}</strong></div>
+              <div><span>Strategy $REGENT</span><strong>{AutolaunchWeb.Format.display_uint(@settlement_summary.balance_snapshot.strategy.quote_token_balance)}</strong></div>
               <div><span>Strategy token</span><strong>{AutolaunchWeb.Format.display_uint(@settlement_summary.balance_snapshot.strategy.token_balance)}</strong></div>
               <div><span>Pool id</span><strong>{AutolaunchWeb.Format.short_hash(@job_scope.strategy.migrated_pool_id)}</strong></div>
               <div><span>Position id</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.strategy.migrated_position_id)}</strong></div>
               <div><span>Liquidity</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.strategy.migrated_liquidity)}</strong></div>
-              <div><span>Currency for LP</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.strategy.migrated_currency_for_lp)}</strong></div>
+              <div><span>$REGENT for LP</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.strategy.migrated_quote_token_for_lp)}</strong></div>
               <div><span>Token for LP</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.strategy.migrated_token_for_lp)}</strong></div>
             </div>
             <div class="al-contract-action-row">
               <button type="button" class="al-submit" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="strategy" phx-value-action="migrate" phx-value-form_name="strategy_migrate">Prepare migrate</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="strategy" phx-value-action="recover_failed_auction" phx-value-form_name="strategy_recover_failed_auction">Prepare failed-auction recovery</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="strategy" phx-value-action="sweep_token" phx-value-form_name="strategy_sweep_token">Prepare sweep token</button>
-              <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="strategy" phx-value-action="sweep_currency" phx-value-form_name="strategy_sweep_currency">Prepare sweep currency</button>
+              <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="strategy" phx-value-action="sweep_quote_token" phx-value-form_name="strategy_sweep_quote_token">Prepare $REGENT sweep</button>
             </div>
           </article>
 
@@ -237,11 +237,11 @@ defmodule AutolaunchWeb.ContractsLive do
             <div class="al-contract-kv">
               <div><span>Auction</span><strong>{AutolaunchWeb.Format.short_address(@job_scope.auction.address)}</strong></div>
               <div><span>Graduated</span><strong>{AutolaunchWeb.Format.yes_no(@job_scope.auction.graduated)}</strong></div>
-              <div><span>Auction USDC</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.auction.currency_balance)}</strong></div>
+              <div><span>Auction $REGENT</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.auction.quote_token_balance)}</strong></div>
               <div><span>Auction token</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.auction.token_balance)}</strong></div>
             </div>
             <div class="al-contract-action-row">
-              <button type="button" class="al-submit" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="auction" phx-value-action="sweep_currency" phx-value-form_name="auction_sweep_currency">Prepare auction currency return</button>
+              <button type="button" class="al-submit" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="auction" phx-value-action="sweep_quote_token" phx-value-form_name="auction_sweep_quote_token">Prepare auction $REGENT return</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="auction" phx-value-action="sweep_unsold_tokens" phx-value-form_name="auction_sweep_unsold_tokens">Prepare unsold token return</button>
             </div>
           </article>
@@ -313,9 +313,9 @@ defmodule AutolaunchWeb.ContractsLive do
               <div><span>Pending owner</span><strong>{AutolaunchWeb.Format.short_address(@job_scope.fee_vault.pending_owner)}</strong></div>
               <div><span>Ownership status</span><strong>{AutolaunchWeb.Format.humanize_key(@job_scope.fee_vault.ownership_status)}</strong></div>
               <div><span>Treasury token</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.fee_vault.treasury_accrued.token)}</strong></div>
-              <div><span>Treasury USDC</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.fee_vault.treasury_accrued.usdc)}</strong></div>
+              <div><span>Treasury $REGENT</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.fee_vault.treasury_accrued.quote_token)}</strong></div>
               <div><span>Regent token</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.fee_vault.regent_accrued.token)}</strong></div>
-              <div><span>Regent USDC</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.fee_vault.regent_accrued.usdc)}</strong></div>
+              <div><span>Regent $REGENT</span><strong>{AutolaunchWeb.Format.display_uint(@job_scope.fee_vault.regent_accrued.quote_token)}</strong></div>
             </div>
 
             <form phx-change="update_form" class="al-contract-form-grid">
@@ -325,13 +325,7 @@ defmodule AutolaunchWeb.ContractsLive do
               <input type="text" name="form[recipient]" value={Presenter.form_value(@forms, "fee_vault_withdraw_regent", "recipient")} placeholder="Recipient address" />
             </form>
 
-            <form phx-change="update_form" class="al-contract-form-grid">
-              <input type="hidden" name="form_name" value="revenue_splitter_pull_treasury_share" />
-              <input type="text" name="form[amount]" value={Presenter.form_value(@forms, "revenue_splitter_pull_treasury_share", "amount")} placeholder="USDC amount" />
-            </form>
-
             <div class="al-contract-action-row">
-              <button type="button" class="al-submit" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="revenue_splitter" phx-value-action="pull_treasury_share" phx-value-form_name="revenue_splitter_pull_treasury_share">Prepare treasury fee collection</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="fee_vault" phx-value-action="withdraw_regent_share" phx-value-form_name="fee_vault_withdraw_regent">Prepare Regent withdrawal</button>
               <button type="button" class="al-ghost" phx-click="prepare_action" phx-value-scope="job" phx-value-resource="fee_vault" phx-value-action="accept_ownership" phx-value-form_name="fee_vault_accept_ownership">Prepare ownership acceptance</button>
             </div>
@@ -434,7 +428,6 @@ defmodule AutolaunchWeb.ContractsLive do
               <div><span>Total USDC received</span><strong>{AutolaunchWeb.Format.display_uint(@subject_scope.splitter.total_usdc_received_raw)}</strong></div>
               <div><span>Direct deposits</span><strong>{AutolaunchWeb.Format.display_uint(@subject_scope.splitter.direct_deposit_usdc_raw)}</strong></div>
               <div><span>Verified ingress</span><strong>{AutolaunchWeb.Format.display_uint(@subject_scope.splitter.verified_ingress_usdc_raw)}</strong></div>
-              <div><span>Launch fees</span><strong>{AutolaunchWeb.Format.display_uint(@subject_scope.splitter.launch_fee_usdc_raw)}</strong></div>
               <div><span>Regent skim</span><strong>{AutolaunchWeb.Format.display_uint(@subject_scope.splitter.regent_skim_usdc_raw)}</strong></div>
               <div><span>Staker-eligible inflow</span><strong>{AutolaunchWeb.Format.display_uint(@subject_scope.splitter.staker_eligible_inflow_usdc_raw)}</strong></div>
               <div><span>Treasury-reserved inflow</span><strong>{AutolaunchWeb.Format.display_uint(@subject_scope.splitter.treasury_reserved_inflow_usdc_raw)}</strong></div>
@@ -567,7 +560,8 @@ defmodule AutolaunchWeb.ContractsLive do
             <div><span>Revenue share factory</span><strong>{AutolaunchWeb.Format.short_address(@admin_scope && @admin_scope.admin_contracts.revenue_share_factory.address)}</strong></div>
             <div><span>Ingress factory</span><strong>{AutolaunchWeb.Format.short_address(@admin_scope && @admin_scope.admin_contracts.revenue_ingress_factory.address)}</strong></div>
             <div><span>Strategy factory</span><strong>{AutolaunchWeb.Format.short_address(@admin_scope && @admin_scope.admin_contracts.regent_lbp_strategy_factory.address)}</strong></div>
-            <div><span>USDC</span><strong>{AutolaunchWeb.Format.short_address(@admin_scope && @admin_scope.dependencies.usdc_address)}</strong></div>
+            <div><span>Auction quote token</span><strong>{AutolaunchWeb.Format.short_address(@admin_scope && @admin_scope.dependencies.auction_quote_token_address)}</strong></div>
+            <div><span>Revenue token</span><strong>{AutolaunchWeb.Format.short_address(@admin_scope && @admin_scope.dependencies.revenue_usdc_address)}</strong></div>
           </div>
 
           <form phx-change="update_form" class="al-contract-form-grid">

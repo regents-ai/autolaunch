@@ -174,9 +174,8 @@ These paths combine privilege with meaningful asset movement:
 - `RegentLBPStrategy.migrate`
 - `RegentLBPStrategy.recoverFailedAuction`
 - `LaunchFeeVault.withdrawTreasury`
-- `LaunchFeeVault.withdrawRegent`
+- `LaunchFeeVault.withdrawRegentShare`
 - `RevenueShareSplitter.depositUSDC`
-- `RevenueShareSplitter.pullTreasuryShareFromLaunchVault`
 - `RevenueShareSplitter.claimAndRestakeStakeToken`
 - `RevenueShareSplitter.sweepTreasuryResidualUSDC`
 - `RevenueShareSplitter.sweepProtocolReserveUSDC`

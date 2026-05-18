@@ -231,7 +231,7 @@ defmodule AutolaunchWeb.LaunchLive.Presenter do
       },
       %{
         title: "Token basics",
-        value: "Name, symbol, and minimum USDC raise",
+        value: "Name, symbol, and minimum $REGENT raise",
         body:
           "Set the minimum amount you want to raise. If the sale does not reach it, buyers can get their money back."
       },

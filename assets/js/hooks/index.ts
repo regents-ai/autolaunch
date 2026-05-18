@@ -10,6 +10,7 @@ import { HomeHeroMotion } from "./home-hero-motion"
 import { MissionMotion } from "./mission-motion"
 import { RegentStakingHook } from "./regent-staking"
 import { ShellChrome } from "./shell-chrome"
+import { SwapModal } from "./swap-modal"
 import { WalletSwitchModal } from "./wallet-switch-modal"
 import { WelcomeModal } from "./welcome-modal"
 import { WalletTxButton } from "./wallet-tx-button"
@@ -26,6 +27,7 @@ export const hooks: HooksOptions = {
   MissionMotion,
   RegentStaking: RegentStakingHook,
   ShellChrome,
+  SwapModal,
   WalletSwitchModal,
   WelcomeModal,
   WalletTxButton,

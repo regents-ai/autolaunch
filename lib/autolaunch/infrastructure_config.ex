@@ -10,7 +10,8 @@ defmodule Autolaunch.InfrastructureConfig do
     :cca_factory_address,
     :pool_manager_address,
     :position_manager_address,
-    :usdc_address,
+    :auction_quote_token_address,
+    :revenue_usdc_address,
     :revenue_share_factory_address,
     :revenue_ingress_factory_address,
     :lbp_strategy_factory_address,
@@ -19,7 +20,8 @@ defmodule Autolaunch.InfrastructureConfig do
 
   @verifier_address_keys [
     :pool_manager_addresses,
-    :usdc_addresses,
+    :auction_quote_token_addresses,
+    :revenue_usdc_addresses,
     :revenue_share_factory_addresses,
     :revenue_ingress_factory_addresses,
     :lbp_strategy_factory_addresses,
@@ -115,6 +117,27 @@ defmodule Autolaunch.InfrastructureConfig do
 
   def launch_address(key), do: normalize_address(launch_value(key))
   def regent_staking_address(key), do: normalize_address(regent_staking_value(key))
+
+  def auction_quote_token(chain_id \\ launch_chain_id!()) do
+    %{
+      address:
+        chain_text(:auction_quote_token_addresses, chain_id) ||
+          launch_text(:auction_quote_token_address),
+      symbol: launch_text(:auction_quote_token_symbol) || "REGENT",
+      decimals: normalize_integer(launch_value(:auction_quote_token_decimals)) || 18,
+      role: "auction_quote"
+    }
+  end
+
+  def revenue_usdc_token(chain_id \\ launch_chain_id!()) do
+    %{
+      address:
+        chain_text(:revenue_usdc_addresses, chain_id) || launch_text(:revenue_usdc_address),
+      symbol: launch_text(:revenue_usdc_symbol) || "USDC",
+      decimals: normalize_integer(launch_value(:revenue_usdc_decimals)) || 6,
+      role: "revenue_usdc"
+    }
+  end
 
   def chain_text(key, chain_id) do
     case Keyword.get(launch(), key, %{}) do

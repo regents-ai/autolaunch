@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.PositionsLive do
   use AutolaunchWeb, :live_view
 
-  alias Autolaunch.Launch
+  alias Autolaunch.{Launch, Swaps, Tokens}
   alias AutolaunchWeb.Live.Refreshable
 
   @poll_ms 15_000
@@ -16,6 +16,7 @@ defmodule AutolaunchWeb.PositionsLive do
      |> Refreshable.subscribe([:positions, :market, :system])
      |> assign(:page_title, "Positions")
      |> assign(:active_view, "positions")
+     |> assign(:swaps_available, Swaps.available?())
      |> assign(:all_positions, all_positions)
      |> assign(:positions, all_positions)}
   end
@@ -370,16 +371,42 @@ defmodule AutolaunchWeb.PositionsLive do
                             <.link navigate={~p"/auctions/#{position.auction_id}"} class="al-ghost">
                               Inspect auction
                             </.link>
+                            <button
+                              :if={@swaps_available && swap_ready?(position)}
+                              type="button"
+                              class="al-ghost"
+                              data-swap-open
+                              data-swap-side="buy"
+                              data-swap-chain-id={swap_chain_id(position)}
+                              data-swap-token={swap_token_address(position)}
+                              data-swap-symbol={swap_symbol(position)}
+                              data-swap-agent={position.agent_name}
+                            >
+                              Buy
+                            </button>
+                            <button
+                              :if={@swaps_available && sell_swap_ready?(position)}
+                              type="button"
+                              class="al-ghost"
+                              data-swap-open
+                              data-swap-side="sell"
+                              data-swap-chain-id={swap_chain_id(position)}
+                              data-swap-token={swap_token_address(position)}
+                              data-swap-symbol={swap_symbol(position)}
+                              data-swap-agent={position.agent_name}
+                            >
+                              Sell
+                            </button>
                             <.wallet_tx_button
                               :if={return_action(position)}
                               id={"positions-return-#{position.bid_id}"}
                               class="al-submit"
                               wallet_action={return_action(position).prepared.wallet_action}
-                              register_endpoint={~p"/v1/app/bids/#{position.bid_id}/return-usdc"}
+                              register_endpoint={~p"/v1/app/bids/#{position.bid_id}/return-quote-token"}
                               pending_message="Return transaction sent. Waiting for confirmation."
-                              success_message="USDC return registered."
+                              success_message="$REGENT return registered."
                             >
-                              Return USDC
+                              Return $REGENT
                             </.wallet_tx_button>
                             <.wallet_tx_button
                               :if={tx_action(position, :exit) && is_nil(return_action(position))}
@@ -444,6 +471,7 @@ defmodule AutolaunchWeb.PositionsLive do
         <% end %>
       </section>
 
+      <.swap_modal :if={@swaps_available} />
       <.flash_group flash={@flash} />
     </.shell>
     """
@@ -451,8 +479,18 @@ defmodule AutolaunchWeb.PositionsLive do
 
   defp load_positions(nil), do: []
 
-  defp load_positions(current_human),
-    do: launch_module().list_positions(current_human, %{"status" => ""})
+  defp load_positions(current_human) do
+    positions = launch_module().list_positions(current_human, %{"status" => ""})
+    active_swap_tokens = active_swap_token_keys(positions)
+
+    Enum.map(positions, fn position ->
+      Map.put(
+        position,
+        :active_swap_token?,
+        MapSet.member?(active_swap_tokens, swap_token_key(position))
+      )
+    end)
+  end
 
   defp reload_positions(socket) do
     all_positions = load_positions(socket.assigns.current_human)
@@ -641,7 +679,7 @@ defmodule AutolaunchWeb.PositionsLive do
   defp return_priority_copy(0), do: "No failed-auction returns are waiting right now."
 
   defp return_priority_copy(count),
-    do: "#{count} positions can return USDC from failed raises."
+    do: "#{count} positions can return $REGENT from failed raises."
 
   defp positions_action_title(%{claimable_count: count}) when count > 0,
     do: "Claim ready balances first."
@@ -661,7 +699,7 @@ defmodule AutolaunchWeb.PositionsLive do
     do: "#{count} positions can be claimed now. Review them before checking new markets."
 
   defp positions_action_body(%{returnable_count: count}) when count > 0,
-    do: "#{count} positions can return USDC from failed raises."
+    do: "#{count} positions can return $REGENT from failed raises."
 
   defp positions_action_body(%{closing_soon_count: count}) when count > 0,
     do: "#{count} active bids are near the finish. Check them before the market closes."
@@ -693,7 +731,7 @@ defmodule AutolaunchWeb.PositionsLive do
     do: "Inactive — not receiving tokens at the current clearing price."
 
   defp status_copy("returnable"),
-    do: "Returnable — this auction failed its minimum raise and your USDC can be returned."
+    do: "Returnable — this auction failed its minimum raise and your $REGENT can be returned."
 
   defp status_copy("claimable"),
     do: "Claimable — the bid is exited and purchased tokens can be claimed."
@@ -715,11 +753,98 @@ defmodule AutolaunchWeb.PositionsLive do
   end
 
   defp display_money(%Decimal{} = value),
-    do: "#{Decimal.round(value, 2) |> Decimal.to_string(:normal)} USDC"
+    do: "#{Decimal.round(value, 2) |> Decimal.to_string(:normal)} $REGENT"
 
-  defp display_money(value) when is_binary(value), do: "#{value} USDC"
+  defp display_money(value) when is_binary(value), do: "#{value} $REGENT"
 
   defp poll_seconds, do: div(@poll_ms, 1_000)
+
+  defp swap_ready?(position) do
+    chain_id = swap_chain_id(position)
+
+    is_binary(swap_token_address(position)) and is_integer(chain_id) and
+      Map.get(position, :active_swap_token?) == true and
+      Swaps.available?(chain_id) and
+      Map.get(Map.get(position, :auction, %{}), :auction_outcome) == "graduated"
+  end
+
+  defp sell_swap_ready?(position) do
+    swap_ready?(position) and Map.get(position, :status) == "claimed"
+  end
+
+  defp swap_token_address(%{auction: auction}) when is_map(auction),
+    do: Map.get(auction, :token_address)
+
+  defp swap_token_address(_position), do: nil
+
+  defp swap_chain_id(%{auction: auction}) when is_map(auction),
+    do: Map.get(auction, :chain_id)
+
+  defp swap_chain_id(_position), do: nil
+
+  defp active_swap_token_keys(positions) do
+    positions
+    |> Enum.map(&swap_token_key/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.filter(fn {chain_id, token_address} ->
+      match?({:ok, _token}, Tokens.get_graduated_token(chain_id, token_address))
+    end)
+    |> MapSet.new()
+  end
+
+  defp swap_token_key(position) do
+    with chain_id when is_integer(chain_id) <- swap_chain_id(position),
+         token_address when is_binary(token_address) <- swap_token_address(position) do
+      {chain_id, String.downcase(token_address)}
+    else
+      _ -> nil
+    end
+  end
+
+  defp swap_symbol(%{auction: auction}) when is_map(auction) do
+    Map.get(auction, :token_symbol) || Map.get(auction, :symbol) || "TOKEN"
+  end
+
+  defp swap_symbol(_position), do: "TOKEN"
+
+  defp swap_modal(assigns) do
+    ~H"""
+    <div id="positions-swap-modal" class="al-swap-modal" phx-hook="SwapModal" phx-update="ignore" hidden>
+      <div class="al-swap-backdrop" data-swap-close></div>
+      <section class="al-swap-dialog" data-swap-dialog tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="positions-swap-title">
+        <div class="al-swap-head">
+          <div>
+            <p class="al-kicker">Base swap</p>
+            <h2 id="positions-swap-title" data-swap-title>Trade token</h2>
+            <p data-swap-copy>Choose an amount to quote through Uniswap v4.</p>
+          </div>
+          <button type="button" class="al-swap-close" data-swap-close aria-label="Close">×</button>
+        </div>
+
+        <div class="al-swap-form">
+          <label>
+            <span>Amount</span>
+            <input data-swap-amount inputmode="decimal" autocomplete="off" />
+          </label>
+          <label>
+            <span>Slippage %</span>
+            <input data-swap-slippage inputmode="decimal" autocomplete="off" value="1" />
+          </label>
+        </div>
+
+        <div class="al-swap-quote" data-swap-quote-panel hidden></div>
+        <p class="al-swap-notice" data-swap-notice hidden></p>
+
+        <div class="al-swap-actions">
+          <button type="button" class="al-ghost" data-swap-connect>Connect wallet</button>
+          <button type="button" class="al-ghost" data-swap-quote>Get quote</button>
+          <button type="button" class="al-submit" data-swap-submit>Swap</button>
+        </div>
+      </section>
+    </div>
+    """
+  end
 
   defp positions_styles(assigns) do
     ~H"""

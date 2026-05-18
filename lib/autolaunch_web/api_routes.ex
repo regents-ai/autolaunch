@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.ApiRoutes do
     include_app_staking_prepare? = Keyword.get(opts, :include_app_staking_prepare?, false)
     include_human_browser_routes? = Keyword.get(opts, :include_human_browser_routes?, false)
     include_agent_accounting_tags? = Keyword.get(opts, :include_agent_accounting_tags?, false)
+    include_app_swaps? = Keyword.get(opts, :include_app_swaps?, false)
 
     quote do
       get "/agents", AgentController, :index
@@ -46,6 +47,11 @@ defmodule AutolaunchWeb.ApiRoutes do
       post "/subjects/:id/claim-usdc", SubjectController, :claim_usdc
 
       post "/subjects/:id/ingress/:address/sweep", SubjectController, :sweep_ingress
+
+      if unquote(include_app_swaps?) do
+        post "/swaps/quote", SwapController, :quote
+        post "/swaps/prepare", SwapController, :prepare
+      end
 
       if unquote(include_regent_staking_routes?) do
         get "/regent/staking", RegentStakingController, :show
@@ -113,7 +119,7 @@ defmodule AutolaunchWeb.ApiRoutes do
       post "/auctions/:id/bid_quote", AuctionController, :bid_quote
       post "/auctions/:id/bids", AuctionController, :create_bid
 
-      post "/bids/:id/return-usdc", BidController, :return_usdc
+      post "/bids/:id/return-quote-token", BidController, :return_quote_token
       post "/bids/:id/exit", BidController, :exit
       post "/bids/:id/claim", BidController, :claim
 

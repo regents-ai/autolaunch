@@ -48,7 +48,7 @@ defmodule Autolaunch.Agentbook.ReadModel do
       action: "register_agentbook_proof",
       to: request.to,
       data: request.data,
-      value: decimal_value(request.value),
+      value: hex_value!(request.value),
       chain_id: request.chain_id,
       expected_signer: expected_signer,
       expires_at: request.expires_at,
@@ -64,23 +64,18 @@ defmodule Autolaunch.Agentbook.ReadModel do
   def wallet_action(%{owner_product: "autolaunch"} = action, _resource_id, _agent_address),
     do: action
 
-  defp decimal_value(nil), do: "0"
-  defp decimal_value(value) when is_integer(value) and value >= 0, do: Integer.to_string(value)
+  defp hex_value!(nil), do: "0x0"
 
-  defp decimal_value(value) when is_binary(value) do
+  defp hex_value!(value) when is_binary(value) do
     value = String.trim(value)
 
-    if String.starts_with?(value, ["0x", "0X"]) do
-      value
-      |> String.trim_leading("0x")
-      |> String.trim_leading("0X")
-      |> Integer.parse(16)
-      |> case do
-        {parsed, ""} -> Integer.to_string(parsed)
-        _ -> "0"
-      end
+    with "0x" <> hex <- value,
+         true <- Regex.match?(~r/\A[0-9a-fA-F]+\z/, hex) do
+      "0x" <> (hex |> String.to_integer(16) |> Integer.to_string(16))
     else
-      value
+      _ -> raise ArgumentError, "invalid wallet action value"
     end
   end
+
+  defp hex_value!(_value), do: raise(ArgumentError, "invalid wallet action value")
 end

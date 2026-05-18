@@ -18,7 +18,7 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
                id: "auc_alpha",
                status: "settled",
                token_balance: 20,
-               currency_balance: 30
+               quote_token_balance: 30
              },
              strategy: %{address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
              vesting: %{address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
@@ -29,8 +29,8 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
              allowed_actions: ["migrate"],
              required_actor: "operator",
              balance_snapshot: %{
-               strategy: %{usdc_balance: 12, token_balance: 50},
-               auction: %{usdc_balance: 0, token_balance: 0}
+               strategy: %{quote_token_balance: 12, token_balance: 50},
+               auction: %{quote_token_balance: 0, token_balance: 0}
              },
              ownership_status: %{
                revenue_splitter: %{
@@ -90,8 +90,8 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
              allowed_actions: ["migrate"],
              required_actor: "operator",
              balance_snapshot: %{
-               strategy: %{usdc_balance: 12, token_balance: 50},
-               auction: %{usdc_balance: 0, token_balance: 0}
+               strategy: %{quote_token_balance: 12, token_balance: 50},
+               auction: %{quote_token_balance: 0, token_balance: 0}
              },
              ownership_status: %{
                revenue_splitter: %{
@@ -168,8 +168,8 @@ defmodule AutolaunchWeb.Api.LifecycleControllerTest do
                  allowed_actions: [],
                  required_actor: nil,
                  balance_snapshot: %{
-                   strategy: %{usdc_balance: 0, token_balance: 50},
-                   auction: %{usdc_balance: 0, token_balance: 0}
+                   strategy: %{quote_token_balance: 0, token_balance: 50},
+                   auction: %{quote_token_balance: 0, token_balance: 0}
                  },
                  ownership_status: %{
                    revenue_splitter: %{

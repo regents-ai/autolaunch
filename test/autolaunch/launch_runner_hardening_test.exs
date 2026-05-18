@@ -97,8 +97,8 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
       agent_id: nil,
       agent_name: nil,
       token_symbol: "ATLAS",
-      minimum_raise_usdc: "1",
-      minimum_raise_usdc_raw: "1000000",
+      minimum_raise_quote: "1",
+      minimum_raise_quote_raw: "1000000000000000000",
       network: "base-mainnet",
       chain_id: 8_453
     }
@@ -174,8 +174,8 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
         strategy_operator: "0x9999999999999999999999999999999999999998",
         official_pool_fee: "0",
         official_pool_tick_spacing: "60",
-        cca_tick_spacing_q96: "79228162514264337593543950336",
-        cca_floor_price_q96: "79228162514264337593543950336",
+        cca_tick_spacing_q96: "79228162514264337593543950",
+        cca_floor_price_q96: "7922816251426433759354395000",
         auction_duration_blocks: "9258",
         cca_prebid_blocks: "0",
         cca_final_block_bps: "3000",
@@ -185,7 +185,8 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
         lbp_sweep_block_offset: "256",
         pool_manager_address: "0x3333333333333333333333333333333333333333",
         cca_factory_address: "0x4444444444444444444444444444444444444444",
-        usdc_address: "0x5555555555555555555555555555555555555555",
+        auction_quote_token_address: "0x5555555555555555555555555555555555555555",
+        revenue_usdc_address: "0x5656565656565656565656565656565656565656",
         position_manager_address: "0x8888888888888888888888888888888888888888"
       )
       |> Keyword.merge(launch_overrides)
@@ -218,6 +219,12 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
         "subjectId" => "0x" <> String.duplicate("1", 64),
         "revenueShareSplitterAddress" => "0x9999999999999999999999999999999999999999",
         "defaultIngressAddress" => "0x7777777777777777777777777777777777777777",
+        "auctionQuoteTokenAddress" => "0x5555555555555555555555555555555555555555",
+        "auctionQuoteSymbol" => "REGENT",
+        "auctionQuoteDecimals" => 18,
+        "revenueUsdcTokenAddress" => "0x5656565656565656565656565656565656565656",
+        "revenueSymbol" => "USDC",
+        "revenueDecimals" => 6,
         "poolId" => "0x" <> String.duplicate("f", 64),
         "txHash" => "0x" <> String.duplicate("a", 64)
       },
@@ -245,6 +252,12 @@ defmodule Autolaunch.LaunchRunnerHardeningTest do
       subject_id: "0x" <> String.duplicate("1", 64),
       revenue_share_splitter_address: "0x9999999999999999999999999999999999999999",
       default_ingress_address: "0x7777777777777777777777777777777777777777",
+      auction_quote_token_address: "0x5555555555555555555555555555555555555555",
+      auction_quote_token_symbol: "REGENT",
+      auction_quote_token_decimals: 18,
+      revenue_usdc_token_address: "0x5656565656565656565656565656565656565656",
+      revenue_usdc_token_symbol: "USDC",
+      revenue_usdc_token_decimals: 6,
       pool_id: "0x" <> String.duplicate("f", 64),
       tx_hash: "0x" <> String.duplicate("a", 64),
       uniswap_url: "https://app.uniswap.org/explore/tokens/base_sepolia/0xbb",

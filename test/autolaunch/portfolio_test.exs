@@ -18,8 +18,8 @@ defmodule Autolaunch.PortfolioTest do
           agent_name: "Atlas",
           symbol: "ATLAS",
           phase: "biddable",
-          current_price_usdc: "0.005",
-          implied_market_cap_usdc: "500000000",
+          current_price_quote: "0.005",
+          implied_market_cap_quote: "500000000",
           detail_url: "/auctions/auc_1",
           subject_url: "/subjects/0x" <> String.duplicate("1", 64),
           subject_id: "0x" <> String.duplicate("1", 64)
@@ -31,8 +31,8 @@ defmodule Autolaunch.PortfolioTest do
           agent_name: "Nova",
           symbol: "NOVA",
           phase: "live",
-          current_price_usdc: "0.011",
-          implied_market_cap_usdc: "1100000000",
+          current_price_quote: "0.011",
+          implied_market_cap_quote: "1100000000",
           detail_url: "/auctions/auc_2",
           subject_url: "/subjects/0x" <> String.duplicate("2", 64),
           subject_id: "0x" <> String.duplicate("2", 64)
@@ -96,6 +96,6 @@ defmodule Autolaunch.PortfolioTest do
 
     stored = Repo.get_by!(Snapshot, human_id: human.id)
     assert hd(stored.launched_tokens_payload)["agent_name"] == "Atlas"
-    assert hd(stored.staked_tokens_payload)["staked_usdc_value"] == "13.2"
+    assert hd(stored.staked_tokens_payload)["staked_quote_value"] == "13.2"
   end
 end

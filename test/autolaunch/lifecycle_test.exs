@@ -15,10 +15,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: false,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 12,
+            quote_token_balance: 12,
             token_balance: 9
           },
-          %{token_balance: 0, currency_balance: 0, graduated: true},
+          %{token_balance: 0, quote_token_balance: 0, graduated: true},
           %{releasable_launch_token: 0},
           accepted_card(),
           accepted_card(),
@@ -31,7 +31,7 @@ defmodule Autolaunch.LifecycleTest do
       assert summary.recommended_action == "migrate"
       assert summary.allowed_actions == ["migrate"]
       assert summary.required_actor == "operator"
-      assert summary.balance_snapshot.strategy.usdc_balance == 12
+      assert summary.balance_snapshot.strategy.quote_token_balance == 12
     end
 
     test "classifies auction asset return before migration when proceeds remain in the auction" do
@@ -43,10 +43,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: false,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 0,
+            quote_token_balance: 0,
             token_balance: 50
           },
-          %{token_balance: 20, currency_balance: 30, graduated: true},
+          %{token_balance: 20, quote_token_balance: 30, graduated: true},
           %{releasable_launch_token: 0},
           accepted_card(),
           accepted_card(),
@@ -56,8 +56,13 @@ defmodule Autolaunch.LifecycleTest do
         )
 
       assert summary.settlement_state == "awaiting_auction_asset_return"
-      assert summary.recommended_action == "auction_sweep_currency"
-      assert summary.allowed_actions == ["auction_sweep_currency", "auction_sweep_unsold_tokens"]
+      assert summary.recommended_action == "auction_sweep_quote_token"
+
+      assert summary.allowed_actions == [
+               "auction_sweep_quote_token",
+               "auction_sweep_unsold_tokens"
+             ]
+
       assert summary.blocked_reason =~ "returned before migration"
     end
 
@@ -70,10 +75,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: false,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 0,
+            quote_token_balance: 0,
             token_balance: 50
           },
-          %{token_balance: 20, currency_balance: 0, graduated: false},
+          %{token_balance: 20, quote_token_balance: 0, graduated: false},
           %{releasable_launch_token: 0},
           accepted_card(),
           accepted_card(),
@@ -96,10 +101,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: true,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 0,
+            quote_token_balance: 0,
             token_balance: 0
           },
-          %{token_balance: 0, currency_balance: 0, graduated: true},
+          %{token_balance: 0, quote_token_balance: 0, graduated: true},
           %{releasable_launch_token: 0},
           pending_card("accept_revenue_splitter_ownership"),
           pending_card("accept_fee_registry_ownership"),
@@ -129,10 +134,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: true,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 3,
+            quote_token_balance: 3,
             token_balance: 4
           },
-          %{token_balance: 0, currency_balance: 0, graduated: true},
+          %{token_balance: 0, quote_token_balance: 0, graduated: true},
           %{releasable_launch_token: 0},
           accepted_card(),
           accepted_card(),
@@ -142,8 +147,8 @@ defmodule Autolaunch.LifecycleTest do
         )
 
       assert summary.settlement_state == "awaiting_sweeps"
-      assert summary.recommended_action == "sweep_currency"
-      assert summary.allowed_actions == ["sweep_currency", "sweep_token"]
+      assert summary.recommended_action == "sweep_quote_token"
+      assert summary.allowed_actions == ["sweep_quote_token", "sweep_token"]
       assert summary.required_actor == "operator"
     end
 
@@ -156,10 +161,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: false,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 6,
+            quote_token_balance: 6,
             token_balance: 0
           },
-          %{token_balance: 0, currency_balance: 0, graduated: false},
+          %{token_balance: 0, quote_token_balance: 0, graduated: false},
           %{releasable_launch_token: 5},
           accepted_card(),
           accepted_card(),
@@ -183,10 +188,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: true,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 0,
+            quote_token_balance: 0,
             token_balance: 0
           },
-          %{token_balance: 0, currency_balance: 0, graduated: true},
+          %{token_balance: 0, quote_token_balance: 0, graduated: true},
           %{releasable_launch_token: 5},
           accepted_card(),
           accepted_card(),
@@ -210,10 +215,10 @@ defmodule Autolaunch.LifecycleTest do
             migrated: false,
             migration_block: 105,
             sweep_block: 150,
-            currency_balance: 0,
+            quote_token_balance: 0,
             token_balance: 0
           },
-          %{token_balance: 0, currency_balance: 0, graduated: nil},
+          %{token_balance: 0, quote_token_balance: 0, graduated: nil},
           %{releasable_launch_token: 0},
           accepted_card(),
           accepted_card(),
@@ -233,8 +238,8 @@ defmodule Autolaunch.LifecycleTest do
     test "maps settlement actions to the contract surface" do
       assert Lifecycle.prepare_scope_action("migrate") == {:ok, {"strategy", "migrate"}}
 
-      assert Lifecycle.prepare_scope_action("auction_sweep_currency") ==
-               {:ok, {"auction", "sweep_currency"}}
+      assert Lifecycle.prepare_scope_action("auction_sweep_quote_token") ==
+               {:ok, {"auction", "sweep_quote_token"}}
 
       assert Lifecycle.prepare_scope_action("auction_sweep_unsold_tokens") ==
                {:ok, {"auction", "sweep_unsold_tokens"}}
@@ -254,8 +259,8 @@ defmodule Autolaunch.LifecycleTest do
       assert Lifecycle.prepare_scope_action("accept_hook_ownership") ==
                {:ok, {"hook", "accept_ownership"}}
 
-      assert Lifecycle.prepare_scope_action("sweep_currency") ==
-               {:ok, {"strategy", "sweep_currency"}}
+      assert Lifecycle.prepare_scope_action("sweep_quote_token") ==
+               {:ok, {"strategy", "sweep_quote_token"}}
 
       assert Lifecycle.prepare_scope_action("sweep_token") == {:ok, {"strategy", "sweep_token"}}
       assert Lifecycle.prepare_scope_action("release_vesting") == {:ok, {"vesting", "release"}}

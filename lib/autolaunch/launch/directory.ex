@@ -76,10 +76,14 @@ defmodule Autolaunch.Launch.Directory do
         Enum.sort_by(auctions, &Core.sort_timestamp(&1.started_at, &1.created_at), :asc)
 
       "market_cap_desc" ->
-        Enum.sort_by(auctions, &Core.market_cap_sort_key(&1.implied_market_cap_usdc, :desc), :asc)
+        Enum.sort_by(
+          auctions,
+          &Core.market_cap_sort_key(&1.implied_market_cap_quote, :desc),
+          :asc
+        )
 
       "market_cap_asc" ->
-        Enum.sort_by(auctions, &Core.market_cap_sort_key(&1.implied_market_cap_usdc, :asc), :asc)
+        Enum.sort_by(auctions, &Core.market_cap_sort_key(&1.implied_market_cap_quote, :asc), :asc)
 
       "failure_recent" ->
         Enum.sort_by(auctions, &Core.sort_timestamp(&1.ends_at, &1.created_at), :desc)

@@ -129,10 +129,10 @@ command_groups:
           type: string
           required: true
           description: Token symbol, 2 to 10 characters.
-        - name: --minimum-raise-usdc
-          type: integer
+        - name: --minimum-raise-quote
+          type: decimal-regent
           required: false
-          description: Minimum USDC raise. Use a whole number; 0 is allowed.
+          description: Minimum $REGENT raise. Use up to 18 decimals; 0 is allowed.
         - name: --agent-safe-address
           type: evm-address
           required: true
@@ -346,7 +346,7 @@ command_groups:
       - /v1/agent/auctions/{id}/bid_quote
       - /v1/agent/auctions/{id}/bids
       - /v1/agent/bids/{id}/exit
-      - /v1/agent/bids/{id}/return-usdc
+      - /v1/agent/bids/{id}/return-quote-token
       - /v1/agent/bids/{id}/claim
       - /v1/agent/subjects/existing-token/prepare
       - /v1/agent/subjects/existing-token/confirm
@@ -391,13 +391,12 @@ command_groups:
       - autolaunch contracts subject
       - autolaunch strategy migrate
       - autolaunch strategy sweep-token
-      - autolaunch strategy sweep-currency
+      - autolaunch strategy sweep-quote-token
       - autolaunch fee-registry get
       - autolaunch fee-vault get
       - autolaunch fee-vault withdraw-regent
       - autolaunch splitter get
       - autolaunch splitter accept-ownership
-      - autolaunch splitter pull-treasury-share
       - autolaunch splitter set-paused
       - autolaunch splitter set-label
       - autolaunch splitter propose-eligible-revenue-share

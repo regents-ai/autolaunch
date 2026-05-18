@@ -26,7 +26,7 @@ The official Uniswap v4 position manager used by the strategy to mint the canoni
 
 ## Subject USDC received
 
-Base USDC that has actually reached the subject splitter. Verified ingress, launch fees, and direct deposits are tracked separately.
+Base USDC that has actually reached the subject splitter. Verified ingress and direct deposits are tracked separately.
 
 ## Regent lane
 

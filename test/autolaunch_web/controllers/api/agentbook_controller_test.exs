@@ -131,7 +131,7 @@ defmodule AutolaunchWeb.Api.AgentbookControllerTest do
                  "resource" => "agentbook",
                  "resource_id" => ^session_id,
                  "to" => "0xA23aB2712eA7BBa896930544C7d6636a96b944dA",
-                 "value" => "0",
+                 "value" => "0x0",
                  "simulation" => %{"required" => false, "status" => "not_required"}
                }
              }

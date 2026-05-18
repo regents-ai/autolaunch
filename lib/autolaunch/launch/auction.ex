@@ -13,8 +13,14 @@ defmodule Autolaunch.Launch.Auction do
     field :owner_address, :string
     field :auction_address, :string
     field :token_address, :string
-    field :minimum_raise_usdc, :string
-    field :minimum_raise_usdc_raw, :string
+    field :minimum_raise_quote, :string
+    field :minimum_raise_quote_raw, :string
+    field :auction_quote_token_address, :string
+    field :auction_quote_token_symbol, :string, default: "REGENT"
+    field :auction_quote_token_decimals, :integer, default: 18
+    field :revenue_usdc_token_address, :string
+    field :revenue_usdc_token_symbol, :string, default: "USDC"
+    field :revenue_usdc_token_decimals, :integer, default: 6
     field :network, :string, default: "base-mainnet"
     field :chain_id, :integer, default: 8_453
     field :status, :string, default: "active"
@@ -22,7 +28,7 @@ defmodule Autolaunch.Launch.Auction do
     field :ends_at, :utc_datetime_usec
     field :claim_at, :utc_datetime_usec
     field :bidders, :integer, default: 0
-    field :raised_currency, :string, default: "0 USDC"
+    field :raised_currency, :string, default: "0 REGENT"
     field :target_currency, :string, default: "Not published"
     field :progress_percent, :integer, default: 0
     field :metrics_updated_at, :utc_datetime_usec
@@ -55,8 +61,14 @@ defmodule Autolaunch.Launch.Auction do
       :owner_address,
       :auction_address,
       :token_address,
-      :minimum_raise_usdc,
-      :minimum_raise_usdc_raw,
+      :minimum_raise_quote,
+      :minimum_raise_quote_raw,
+      :auction_quote_token_address,
+      :auction_quote_token_symbol,
+      :auction_quote_token_decimals,
+      :revenue_usdc_token_address,
+      :revenue_usdc_token_symbol,
+      :revenue_usdc_token_decimals,
       :network,
       :chain_id,
       :status,

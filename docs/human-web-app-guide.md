@@ -33,13 +33,13 @@ Use the filters to find:
 
 Open an auction to see its status, current price, bid state, and next available action.
 
-To bid, enter the USDC amount and price limit, review the wallet action, and send it from your wallet.
+To bid, enter the $REGENT amount and price limit, review the wallet action, and send it from your wallet.
 
 ## Handle Expired Or Failed Auctions
 
 Go to `/auction-returns` or `/positions`.
 
-Use these pages to find auctions where USDC can be returned or a bid needs attention. Open the position, review the wallet action, and send it from your wallet.
+Use these pages to find auctions where $REGENT can be returned or a bid needs attention. Open the position, review the wallet action, and send it from your wallet.
 
 ## Claim Won Tokens
 
@@ -67,7 +67,7 @@ The web app remains useful during launch for public review, auction monitoring, 
 
 During launch, the web app buy path is bidding in the auction.
 
-After graduation, Autolaunch shows the token and its subject page. When a linked market is available, use that external market for post-graduation buys and sells. Autolaunch does not currently provide a native swap form.
+After graduation, Autolaunch shows the token and its subject page. When a supported Base market is available, the web app can show a Base USDC trade for wallet review. The linked external market remains available for manual buying and selling.
 
 ## Stake On A Subject
 

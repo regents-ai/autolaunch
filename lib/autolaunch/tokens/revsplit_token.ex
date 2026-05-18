@@ -15,17 +15,20 @@ defmodule Autolaunch.Tokens.RevsplitToken do
     field :splitter_address, :string
     field :pool_id, :string
     field :uniswap_url, :string
+    field :auction_quote_token_address, :string
+    field :auction_quote_token_symbol, :string, default: "REGENT"
+    field :auction_quote_token_decimals, :integer, default: 18
     field :graduated_at, :utc_datetime_usec
     field :graduation_block, :integer
     field :auction_raise_raw, :string
-    field :auction_raise_usdc, :string
+    field :auction_raise_quote, :string
     field :required_raise_raw, :string
-    field :required_raise_usdc, :string
-    field :clearing_price_usdc, :string
-    field :price_usdc, :string
+    field :required_raise_quote, :string
+    field :clearing_price_quote, :string
+    field :price_quote, :string
     field :price_source, :string
     field :price_updated_at, :utc_datetime_usec
-    field :fdv_usdc, :string
+    field :fdv_quote, :string
     field :revsplit_status, :string, default: "active"
     field :last_synced_at, :utc_datetime_usec
 
@@ -47,17 +50,20 @@ defmodule Autolaunch.Tokens.RevsplitToken do
       :splitter_address,
       :pool_id,
       :uniswap_url,
+      :auction_quote_token_address,
+      :auction_quote_token_symbol,
+      :auction_quote_token_decimals,
       :graduated_at,
       :graduation_block,
       :auction_raise_raw,
-      :auction_raise_usdc,
+      :auction_raise_quote,
       :required_raise_raw,
-      :required_raise_usdc,
-      :clearing_price_usdc,
-      :price_usdc,
+      :required_raise_quote,
+      :clearing_price_quote,
+      :price_quote,
       :price_source,
       :price_updated_at,
-      :fdv_usdc,
+      :fdv_quote,
       :revsplit_status,
       :last_synced_at
     ])

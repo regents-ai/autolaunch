@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {RegentRevenueStaking} from "src/revenue/RegentRevenueStaking.sol";
 import {RegentStakingRevenueRouter} from "src/revenue/RegentStakingRevenueRouter.sol";
 import {SubjectRegistry} from "src/revenue/SubjectRegistry.sol";
+import {MockRegentBuybackAdapter} from "test/mocks/MockRegentBuybackAdapter.sol";
 import {MintableERC20Mock} from "test/mocks/MintableERC20Mock.sol";
 
 contract RegentStakingRevenueRouterTest is Test {
@@ -58,6 +59,14 @@ contract RegentStakingRevenueRouterTest is Test {
         router.processProtocolFee(SUBJECT_ID, TREASURY, 0, bytes32("source"));
     }
 
+    function testRouterRejectsZeroBuybackAmount() external {
+        MockRegentBuybackAdapter adapter = _setBuybackAdapter();
+        assertEq(router.buybackAdapter(), address(adapter));
+
+        vm.expectRevert("AMOUNT_ZERO");
+        router.processTreasuryBuyback(SUBJECT_ID, TREASURY, 0, bytes32("source"));
+    }
+
     function testRouterRejectsSettlementLargerThanMax() external {
         uint256 tooLarge = router.maxUsdcPerSettlement() + 1;
         usdc.mint(address(router), tooLarge);
@@ -75,6 +84,16 @@ contract RegentStakingRevenueRouterTest is Test {
         );
     }
 
+    function testRouterRejectsBuybackUsdcMismatch() external {
+        MintableERC20Mock otherUsdc = new MintableERC20Mock("Other USD", "oUSD");
+        MockRegentBuybackAdapter adapter =
+            new MockRegentBuybackAdapter(address(otherUsdc), address(regent));
+
+        vm.prank(OWNER);
+        vm.expectRevert("BUYBACK_USDC_MISMATCH");
+        router.setTreasuryBuybackAdapter(address(adapter));
+    }
+
     function testRouterDepositsUsdcIntoRegentRevenueStaking() external {
         usdc.mint(address(router), USDC_FEE);
 
@@ -89,6 +108,39 @@ contract RegentStakingRevenueRouterTest is Test {
         assertEq(router.totalUsdcDepositedToRegentStaking(), USDC_FEE);
     }
 
+    function testRouterBuysRegentForSubjectTreasury() external {
+        MockRegentBuybackAdapter adapter = _setBuybackAdapter();
+        usdc.mint(address(router), USDC_FEE);
+
+        uint256 regentOut =
+            router.processTreasuryBuyback(SUBJECT_ID, TREASURY, USDC_FEE, bytes32("source"));
+
+        assertEq(regentOut, USDC_FEE);
+        assertEq(usdc.balanceOf(address(router)), 0);
+        assertEq(usdc.balanceOf(address(adapter)), USDC_FEE);
+        assertEq(regent.balanceOf(TREASURY), USDC_FEE);
+        assertEq(router.totalUsdcUsedForTreasuryBuyback(), USDC_FEE);
+        assertEq(router.totalRegentBoughtForTreasuries(), USDC_FEE);
+    }
+
+    function testRouterRequiresBuybackAdapterBeforeTreasuryBuyback() external {
+        usdc.mint(address(router), USDC_FEE);
+
+        vm.expectRevert("BUYBACK_ADAPTER_ZERO");
+        router.processTreasuryBuyback(SUBJECT_ID, TREASURY, USDC_FEE, bytes32("source"));
+    }
+
+    function testRouterEnforcesMinimumBuybackOutput() external {
+        MockRegentBuybackAdapter adapter = _setBuybackAdapter();
+        adapter.setOutputAmount(USDC_FEE);
+        vm.prank(OWNER);
+        router.setTreasuryBuybackMinRegentOut(USDC_FEE + 1);
+        usdc.mint(address(router), USDC_FEE);
+
+        vm.expectRevert("REGENT_OUT_LOW");
+        router.processTreasuryBuyback(SUBJECT_ID, TREASURY, USDC_FEE, bytes32("source"));
+    }
+
     function testRouterRevertsIfStakingIsPaused() external {
         vm.prank(OWNER);
         staking.setPaused(true);
@@ -99,15 +151,21 @@ contract RegentStakingRevenueRouterTest is Test {
         router.processProtocolFee(SUBJECT_ID, TREASURY, USDC_FEE, bytes32("source"));
     }
 
-    function testProtocolFeeBpsCannotExceedCapButCanReturnToCap() external {
-        vm.startPrank(OWNER);
-        router.setProtocolSkimBps(500);
-        assertEq(router.protocolSkimBps(), 500);
-        router.setProtocolSkimBps(1000);
-        assertEq(router.protocolSkimBps(), 1000);
+    function testRouterUsesFixedRevenuePercentages() external view {
+        assertEq(router.protocolSkimBps(), 100);
+        assertEq(router.treasuryBuybackBps(), 1000);
+        assertEq(router.treasuryBuybackMinRegentOut(), 1);
+    }
 
-        vm.expectRevert("PROTOCOL_SKIM_TOO_HIGH");
-        router.setProtocolSkimBps(1001);
-        vm.stopPrank();
+    function testRouterRejectsZeroMinimumBuybackOutput() external {
+        vm.prank(OWNER);
+        vm.expectRevert("MIN_REGENT_OUT_ZERO");
+        router.setTreasuryBuybackMinRegentOut(0);
+    }
+
+    function _setBuybackAdapter() internal returns (MockRegentBuybackAdapter adapter) {
+        adapter = new MockRegentBuybackAdapter(address(usdc), address(regent));
+        vm.prank(OWNER);
+        router.setTreasuryBuybackAdapter(address(adapter));
     }
 }

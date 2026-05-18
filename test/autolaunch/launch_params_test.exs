@@ -8,14 +8,14 @@ defmodule Autolaunch.Launch.ParamsTest do
              "agent_id" => "8453:42",
              "token_name" => "Atlas Coin",
              "token_symbol" => "ATLAS",
-             "minimum_raise_usdc" => "250.0",
+             "minimum_raise_quote" => "250.0",
              "launch_notes" => "ready",
              "ignored" => "skip"
            }) == %{
              "agent_id" => "8453:42",
              "token_name" => "Atlas Coin",
              "token_symbol" => "ATLAS",
-             "minimum_raise_usdc" => "250.0",
+             "minimum_raise_quote" => "250.0",
              "launch_notes" => "ready"
            }
   end

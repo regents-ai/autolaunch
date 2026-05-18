@@ -42,6 +42,7 @@ defmodule Autolaunch.Launch.BidFlow do
         auction_id: auction.id,
         amount: Core.decimal_string(amount_decimal),
         max_price: Core.decimal_string(max_price_decimal, 8),
+        auction_currency: Core.auction_currency(auction.chain_id, auction),
         current_clearing_price: Core.q96_price_to_string(raw_quote.current_clearing_price_q96),
         projected_clearing_price:
           Core.q96_price_to_string(raw_quote.projected_clearing_price_q96),
@@ -317,7 +318,7 @@ defmodule Autolaunch.Launch.BidFlow do
   defp next_action_label(nil, "claimed"), do: "Tokens already claimed."
 
   defp next_action_label(nil, "returnable"),
-    do: "Return the remaining USDC from this failed auction."
+    do: "Return the remaining $REGENT from this failed auction."
 
   defp next_action_label(nil, "inactive"), do: "Monitor the auction until an exit becomes valid."
   defp next_action_label(nil, _status), do: "No wallet action available yet."
@@ -332,7 +333,7 @@ defmodule Autolaunch.Launch.BidFlow do
     do: "Exit this bid and settle the refund."
 
   defp next_action_label(_market_position, "returnable"),
-    do: "This auction missed its minimum raise. Return your USDC."
+    do: "This auction missed its minimum raise. Return your $REGENT."
 
   defp next_action_label(_market_position, "inactive"),
     do: "Outbid for now. Exit becomes available only once the contract allows it."
@@ -395,12 +396,12 @@ defmodule Autolaunch.Launch.BidFlow do
     tx_actions =
       if market_position do
         %{
-          return_usdc: return_action,
+          return_quote_token: return_action,
           exit: Core.serialize_action_request(market_position.exit_action),
           claim: Core.serialize_action_request(market_position.claim_action)
         }
       else
-        %{return_usdc: nil, exit: nil, claim: nil}
+        %{return_quote_token: nil, exit: nil, claim: nil}
       end
 
     %{
@@ -413,6 +414,7 @@ defmodule Autolaunch.Launch.BidFlow do
       status: derived_status,
       amount: Core.decimal_string(bid.amount),
       max_price: Core.decimal_string(bid.max_price),
+      auction_currency: Core.auction_currency(bid.chain_id, auction),
       current_clearing_price:
         if(market_position,
           do: Core.q96_price_to_string(market_position.current_clearing_price_q96),

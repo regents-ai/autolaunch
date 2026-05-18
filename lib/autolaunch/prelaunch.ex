@@ -7,6 +7,7 @@ defmodule Autolaunch.Prelaunch do
   alias Autolaunch.Evm
   alias Autolaunch.InfrastructureConfig
   alias Autolaunch.Launch
+  alias Autolaunch.Launch.Core, as: LaunchCore
   alias Autolaunch.Prelaunch.Asset
   alias Autolaunch.Prelaunch.AssetStorage
   alias Autolaunch.Prelaunch.Plan
@@ -47,11 +48,12 @@ defmodule Autolaunch.Prelaunch do
       %Plan{}
       |> Plan.create_changeset(
         Map.merge(attrs, %{
-          plan_id: "plan_" <> Ecto.UUID.generate(),
-          privy_user_id: owner_id,
-          chain_id: launch_chain_id(),
-          identity_snapshot: identity_snapshot(agent),
-          metadata_draft: metadata_draft(Map.get(attrs, "metadata_draft"))
+          "plan_id" => "plan_" <> Ecto.UUID.generate(),
+          "privy_user_id" => owner_id,
+          "agent_id" => agent_id,
+          "chain_id" => launch_chain_id(),
+          "identity_snapshot" => identity_snapshot(agent),
+          "metadata_draft" => metadata_draft(Map.get(attrs, "metadata_draft"))
         })
       )
 
@@ -249,7 +251,7 @@ defmodule Autolaunch.Prelaunch do
       "agent_id" => plan.agent_id,
       "token_name" => plan.token_name,
       "token_symbol" => plan.token_symbol,
-      "minimum_raise_usdc" => plan.minimum_raise_usdc,
+      "minimum_raise_quote" => plan.minimum_raise_quote,
       "agent_safe_address" => plan.agent_safe_address,
       "launch_notes" => plan.launch_notes
     }
@@ -319,7 +321,7 @@ defmodule Autolaunch.Prelaunch do
       "agent_id" => plan.agent_id,
       "token_name" => plan.token_name,
       "token_symbol" => plan.token_symbol,
-      "minimum_raise_usdc" => plan.minimum_raise_usdc,
+      "minimum_raise_quote" => plan.minimum_raise_quote,
       "agent_safe_address" => plan.agent_safe_address,
       "launch_notes" => plan.launch_notes,
       "wallet_address" => Map.get(attrs, "wallet_address"),
@@ -334,7 +336,7 @@ defmodule Autolaunch.Prelaunch do
 
   defp normalize_plan_attrs(attrs, agent, require_all? \\ true) do
     minimum_raise =
-      normalize_usdc_amount(Map.get(attrs, "minimum_raise_usdc"))
+      normalize_quote_amount(Map.get(attrs, "minimum_raise_quote"))
 
     token_name = trim(Map.get(attrs, "token_name"))
     token_symbol = trim(Map.get(attrs, "token_symbol"))
@@ -343,8 +345,8 @@ defmodule Autolaunch.Prelaunch do
       "agent_name" => agent.name,
       "token_name" => valid_length_text(token_name, 3, 15),
       "token_symbol" => valid_length_text(token_symbol, 2, 10),
-      "minimum_raise_usdc" => minimum_raise && minimum_raise.display,
-      "minimum_raise_usdc_raw" => minimum_raise && minimum_raise.raw,
+      "minimum_raise_quote" => minimum_raise && minimum_raise.display,
+      "minimum_raise_quote_raw" => minimum_raise && minimum_raise.raw,
       "agent_safe_address" => normalize_address(Map.get(attrs, "agent_safe_address")),
       "launch_notes" => trim(Map.get(attrs, "launch_notes")),
       "techtree_evidence_packet_ref" => trim(Map.get(attrs, "techtree_evidence_packet_ref")),
@@ -353,7 +355,7 @@ defmodule Autolaunch.Prelaunch do
 
     if require_all? and
          Enum.any?(
-           ~w(token_name token_symbol minimum_raise_usdc agent_safe_address),
+           ~w(token_name token_symbol minimum_raise_quote agent_safe_address),
            &blank?(fields[&1])
          ) do
       {:error, :invalid_plan}
@@ -448,8 +450,8 @@ defmodule Autolaunch.Prelaunch do
       chain_id: plan.chain_id,
       token_name: plan.token_name,
       token_symbol: plan.token_symbol,
-      minimum_raise_usdc: plan.minimum_raise_usdc,
-      minimum_raise_usdc_raw: plan.minimum_raise_usdc_raw,
+      minimum_raise_quote: plan.minimum_raise_quote,
+      minimum_raise_quote_raw: plan.minimum_raise_quote_raw,
       agent_safe_address: plan.agent_safe_address,
       launch_notes: plan.launch_notes,
       techtree_evidence_packet_ref: plan.techtree_evidence_packet_ref,
@@ -589,29 +591,19 @@ defmodule Autolaunch.Prelaunch do
   defp maybe_block(list, true, message), do: list ++ [message]
   defp maybe_block(list, _condition, _message), do: list
 
-  defp normalize_usdc_amount(nil), do: nil
+  defp normalize_quote_amount(nil), do: nil
 
-  defp normalize_usdc_amount(value) when is_binary(value) do
-    value
-    |> String.trim()
-    |> case do
-      "" ->
-        nil
-
-      trimmed ->
-        if Regex.match?(~r/^[0-9]+$/, trimmed) do
-          %{
-            display: trimmed,
-            raw: trimmed <> "000000"
-          }
-        end
+  defp normalize_quote_amount(value) when is_binary(value) do
+    case LaunchCore.parse_quote_amount(value, :invalid_plan) do
+      {:ok, amount} -> %{display: amount.display, raw: amount.raw}
+      {:error, _reason} -> nil
     end
   end
 
-  defp normalize_usdc_amount(value) when is_integer(value) and value >= 0,
-    do: normalize_usdc_amount(to_string(value))
+  defp normalize_quote_amount(value) when is_integer(value) and value >= 0,
+    do: normalize_quote_amount(to_string(value))
 
-  defp normalize_usdc_amount(_value), do: nil
+  defp normalize_quote_amount(_value), do: nil
 
   defp trim(value), do: Evm.normalize_string(value)
 

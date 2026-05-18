@@ -19,8 +19,8 @@ defmodule AutolaunchWeb.ProfileLiveTest do
              agent_name: "Atlas",
              symbol: "ATLAS",
              phase: "biddable",
-             current_price_usdc: "0.0050",
-             implied_market_cap_usdc: "500000000",
+             current_price_quote: "0.0050",
+             implied_market_cap_quote: "500000000",
              detail_url: "/subjects/0x" <> String.duplicate("1", 64)
            }
          ],
@@ -30,9 +30,9 @@ defmodule AutolaunchWeb.ProfileLiveTest do
              symbol: "NOVA",
              phase: "live",
              staked_token_amount: "1200",
-             staked_usdc_value: "13.2",
+             staked_quote_value: "13.2",
              claimable_usdc: "4.5",
-             implied_market_cap_usdc: "1100000000",
+             implied_market_cap_quote: "1100000000",
              detail_url: "/subjects/0x" <> String.duplicate("2", 64)
            }
          ],
@@ -137,7 +137,7 @@ defmodule AutolaunchWeb.ProfileLiveTest do
     assert html =~ "Launch history"
     assert html =~ "Atlas"
     assert html =~ "Nova"
-    assert html =~ "13.2 USDC"
+    assert html =~ "13.2 $REGENT"
     assert html =~ "Open token page"
     assert html =~ "Open positions"
   end

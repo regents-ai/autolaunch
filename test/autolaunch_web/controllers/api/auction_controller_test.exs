@@ -12,8 +12,8 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
           id: "auc_1",
           agent_name: "Atlas",
           phase: "biddable",
-          current_price_usdc: "0.0050",
-          implied_market_cap_usdc: "500000000"
+          current_price_quote: "0.0050",
+          implied_market_cap_quote: "500000000"
         }
       ]
 
@@ -24,8 +24,8 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
               id: "auc_2",
               agent_name: "Nova",
               phase: "live",
-              current_price_usdc: "0.0110",
-              implied_market_cap_usdc: "1100000000"
+              current_price_quote: "0.0110",
+              implied_market_cap_quote: "1100000000"
             }
           ]
 
@@ -71,7 +71,7 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
                expected_signer: "0x1111111111111111111111111111111111111111",
                expires_at: "2999-01-01T00:00:00Z",
                idempotency_key: "bid_quote",
-               risk_copy: "Submits a Base USDC bid for this auction.",
+               risk_copy: "Submits a Base $REGENT bid for this auction.",
                wallet_action: %{
                  action_id: "bid_quote",
                  owner_product: "autolaunch",
@@ -80,13 +80,13 @@ defmodule AutolaunchWeb.Api.AuctionControllerTest do
                  action: "submit_bid",
                  chain_id: 8_453,
                  to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                 value: "0",
+                 value: "0x0",
                  data: "0x1234",
                  expected_signer: "0x1111111111111111111111111111111111111111",
                  expires_at: "2999-01-01T00:00:00Z",
                  idempotency_key: "bid_quote",
                  simulation: %{required: false, status: "not_required", block_number: nil},
-                 risk_copy: "Submits a Base USDC bid for this auction."
+                 risk_copy: "Submits a Base $REGENT bid for this auction."
                }
              },
              else: nil

@@ -70,8 +70,8 @@ defmodule Autolaunch.Launch.AuctionSync do
     currency_raised_raw = integer_string(snapshot.currency_raised_wei)
     required_currency_raised_raw = integer_string(snapshot.required_currency_raised_wei)
     clearing_q96 = integer_string(snapshot.checkpoint.clearing_price_q96)
-    raised_usdc = Tokens.raw_usdc_to_string(currency_raised_raw)
-    required_usdc = Tokens.raw_usdc_to_string(required_currency_raised_raw)
+    raised_quote = Tokens.raw_quote_to_string(currency_raised_raw)
+    required_quote = Tokens.raw_quote_to_string(required_currency_raised_raw)
 
     attrs = %{
       chain_state: chain_state,
@@ -85,9 +85,10 @@ defmodule Autolaunch.Launch.AuctionSync do
       onchain_block_number: snapshot.block_number,
       onchain_synced_at: observed_at,
       metrics_updated_at: observed_at,
-      raised_currency: if(raised_usdc, do: "#{raised_usdc} USDC", else: auction.raised_currency),
+      raised_currency:
+        if(raised_quote, do: "#{raised_quote} REGENT", else: auction.raised_currency),
       target_currency:
-        if(required_usdc, do: "#{required_usdc} USDC", else: auction.target_currency),
+        if(required_quote, do: "#{required_quote} REGENT", else: auction.target_currency),
       progress_percent:
         progress_percent(snapshot.currency_raised_wei, snapshot.required_currency_raised_wei)
     }
@@ -125,17 +126,20 @@ defmodule Autolaunch.Launch.AuctionSync do
       splitter_address: job && job.revenue_share_splitter_address,
       pool_id: job && job.pool_id,
       uniswap_url: auction.uniswap_url,
+      auction_quote_token_address: auction.auction_quote_token_address,
+      auction_quote_token_symbol: auction.auction_quote_token_symbol,
+      auction_quote_token_decimals: auction.auction_quote_token_decimals,
       graduated_at: auction.ends_at,
       graduation_block: snapshot.block_number,
       auction_raise_raw: integer_string(snapshot.currency_raised_wei),
-      auction_raise_usdc: Tokens.raw_usdc_to_string(snapshot.currency_raised_wei),
+      auction_raise_quote: Tokens.raw_quote_to_string(snapshot.currency_raised_wei),
       required_raise_raw: integer_string(snapshot.required_currency_raised_wei),
-      required_raise_usdc: Tokens.raw_usdc_to_string(snapshot.required_currency_raised_wei),
-      clearing_price_usdc: Core.q96_price_to_string(snapshot.checkpoint.clearing_price_q96),
-      price_usdc: price.value,
+      required_raise_quote: Tokens.raw_quote_to_string(snapshot.required_currency_raised_wei),
+      clearing_price_quote: Core.q96_price_to_string(snapshot.checkpoint.clearing_price_q96),
+      price_quote: price.value,
       price_source: price.source,
       price_updated_at: if(price.value, do: now, else: nil),
-      fdv_usdc: Tokens.fdv_from_price(price.value),
+      fdv_quote: Tokens.fdv_from_price(price.value),
       revsplit_status: "active",
       last_synced_at: now
     }
@@ -147,7 +151,7 @@ defmodule Autolaunch.Launch.AuctionSync do
 
   defp current_price(%Auction{} = auction, %Job{} = job)
        when is_binary(job.pool_id) and is_binary(auction.token_address) do
-    case price_module().current_token_price_usdc(
+    case price_module().current_token_price_quote(
            auction.chain_id,
            job.pool_id,
            auction.token_address

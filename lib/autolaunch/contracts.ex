@@ -22,7 +22,8 @@ defmodule Autolaunch.Contracts do
      %{
        chain_id: chain_id,
        dependencies: %{
-         usdc_address: launch_usdc_address(chain_id),
+         auction_quote_token_address: launch_quote_token_address(chain_id),
+         revenue_usdc_address: launch_usdc_address(chain_id),
          pool_manager_address: config_value(launch, :pool_manager_address),
          position_manager_address: config_value(launch, :position_manager_address),
          cca_factory_address: config_value(launch, :cca_factory_address)
@@ -228,13 +229,13 @@ defmodule Autolaunch.Contracts do
           current_block
         ),
       available_actions: %{
-        strategy: ~w(recover_failed_auction migrate sweep_token sweep_currency),
-        auction: ~w(sweep_currency sweep_unsold_tokens),
+        strategy: ~w(recover_failed_auction migrate sweep_token sweep_quote_token),
+        auction: ~w(sweep_quote_token sweep_unsold_tokens),
         vesting:
           ~w(release propose_beneficiary_rotation cancel_beneficiary_rotation execute_beneficiary_rotation),
         fee_registry: ~w(accept_ownership),
         fee_vault: ~w(withdraw_regent_share accept_ownership),
-        revenue_splitter: ~w(accept_ownership pull_treasury_share),
+        revenue_splitter: ~w(accept_ownership),
         hook: ~w(accept_ownership)
       }
     }
@@ -265,12 +266,12 @@ defmodule Autolaunch.Contracts do
   end
 
   defp strategy_card(job) do
-    usdc = launch_usdc_address(job.chain_id)
+    quote_token = launch_quote_token_address(job.chain_id)
 
     %{
       address: job.strategy_address,
       token_address: safe_address_call(job.chain_id, job.strategy_address, :token),
-      usdc_address: safe_address_call(job.chain_id, job.strategy_address, :usdc),
+      quote_token_address: safe_address_call(job.chain_id, job.strategy_address, :quote_token),
       auction_address: safe_address_call(job.chain_id, job.strategy_address, :auction_address),
       migrated: safe_bool_call(job.chain_id, job.strategy_address, :migrated),
       migration_block: safe_uint_call(job.chain_id, job.strategy_address, :migration_block),
@@ -283,17 +284,17 @@ defmodule Autolaunch.Contracts do
       migrated_position_id:
         safe_uint_call(job.chain_id, job.strategy_address, :migrated_position_id),
       migrated_liquidity: safe_uint_call(job.chain_id, job.strategy_address, :migrated_liquidity),
-      migrated_currency_for_lp:
-        safe_uint_call(job.chain_id, job.strategy_address, :migrated_currency_for_lp),
+      migrated_quote_token_for_lp:
+        safe_uint_call(job.chain_id, job.strategy_address, :migrated_quote_token_for_lp),
       migrated_token_for_lp:
         safe_uint_call(job.chain_id, job.strategy_address, :migrated_token_for_lp),
       token_balance: safe_token_balance(job.chain_id, job.token_address, job.strategy_address),
-      currency_balance: safe_token_balance(job.chain_id, usdc, job.strategy_address)
+      quote_token_balance: safe_token_balance(job.chain_id, quote_token, job.strategy_address)
     }
   end
 
   defp auction_card(job, auction_response, strategy) do
-    usdc = launch_usdc_address(job.chain_id)
+    quote_token = launch_quote_token_address(job.chain_id)
 
     address =
       normalize_address(job.auction_address || map_value(auction_response, :auction_address))
@@ -305,7 +306,7 @@ defmodule Autolaunch.Contracts do
       graduated:
         safe_bool_call(job.chain_id, address || strategy[:auction_address], :is_graduated),
       token_balance: safe_token_balance(job.chain_id, job.token_address, address),
-      currency_balance: safe_token_balance(job.chain_id, usdc, address)
+      quote_token_balance: safe_token_balance(job.chain_id, quote_token, address)
     }
   end
 
@@ -360,7 +361,7 @@ defmodule Autolaunch.Contracts do
   end
 
   defp fee_vault_card(job) do
-    usdc = launch_usdc_address(job.chain_id)
+    quote_token = launch_quote_token_address(job.chain_id)
 
     %{
       address: job.launch_fee_vault_address,
@@ -374,13 +375,13 @@ defmodule Autolaunch.Contracts do
             job.pool_id,
             job.token_address
           ),
-        usdc:
+        quote_token:
           safe_mapping_amount(
             job.chain_id,
             job.launch_fee_vault_address,
             :treasury_accrued,
             job.pool_id,
-            usdc
+            quote_token
           )
       },
       regent_accrued: %{
@@ -392,13 +393,13 @@ defmodule Autolaunch.Contracts do
             job.pool_id,
             job.token_address
           ),
-        usdc:
+        quote_token:
           safe_mapping_amount(
             job.chain_id,
             job.launch_fee_vault_address,
             :regent_accrued,
             job.pool_id,
-            usdc
+            quote_token
           )
       }
     }
@@ -514,8 +515,6 @@ defmodule Autolaunch.Contracts do
         safe_uint_call(subject.chain_id, subject.splitter_address, :direct_deposit_usdc),
       verified_ingress_usdc_raw:
         safe_uint_call(subject.chain_id, subject.splitter_address, :verified_ingress_usdc),
-      launch_fee_usdc_raw:
-        safe_uint_call(subject.chain_id, subject.splitter_address, :launch_fee_usdc),
       regent_skim_usdc_raw:
         safe_uint_call(subject.chain_id, subject.splitter_address, :regent_skim_usdc),
       staker_eligible_inflow_usdc_raw:
@@ -732,6 +731,13 @@ defmodule Autolaunch.Contracts do
 
   defp launch_usdc_address(chain_id) do
     case BaseChain.canonical_usdc_address(chain_id) do
+      {:ok, address} -> address
+      {:error, _reason} -> ""
+    end
+  end
+
+  defp launch_quote_token_address(chain_id) do
+    case BaseChain.canonical_regent_address(chain_id) do
       {:ok, address} -> address
       {:error, _reason} -> ""
     end

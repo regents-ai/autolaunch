@@ -6,10 +6,11 @@ import {IDistributionContract} from "src/cca/interfaces/external/IDistributionCo
 import {IDistributionStrategy} from "src/interfaces/IDistributionStrategy.sol";
 import {Owned} from "src/auth/Owned.sol";
 import {RegentLBPStrategy} from "src/RegentLBPStrategy.sol";
+import {BaseRegent} from "src/libraries/BaseRegent.sol";
 
 contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
     struct RegentLBPStrategyConfig {
-        address usdc;
+        address quoteToken;
         address auctionInitializerFactory;
         AuctionParameters auctionParameters;
         address officialPoolHook;
@@ -60,13 +61,14 @@ contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
     ) external onlyAuthorizedCreator returns (IDistributionContract distributionContract) {
         RegentLBPStrategyConfig memory cfg = abi.decode(configData, (RegentLBPStrategyConfig));
         require(amount <= type(uint128).max, "STRATEGY_SUPPLY_TOO_LARGE");
+        _validateQuoteToken(cfg);
 
         distributionContract = IDistributionContract(
             address(
                 new RegentLBPStrategy(
                     RegentLBPStrategy.StrategyConfig({
                         token: token,
-                        usdc: cfg.usdc,
+                        quoteToken: cfg.quoteToken,
                         auctionInitializerFactory: cfg.auctionInitializerFactory,
                         auctionParameters: cfg.auctionParameters,
                         officialPoolHook: cfg.officialPoolHook,
@@ -95,4 +97,15 @@ contract RegentLBPStrategyFactory is Owned, IDistributionStrategy {
         emit DistributionInitialized(address(distributionContract), token, amount);
         emit RegentStrategyCreated(address(distributionContract), token, amount);
     }
+
+    function _validateQuoteToken(RegentLBPStrategyConfig memory cfg) internal view {
+        BaseRegent.requireCanonical(cfg.quoteToken);
+        require(cfg.auctionParameters.currency == cfg.quoteToken, "AUCTION_QUOTE_TOKEN_MISMATCH");
+        require(cfg.quoteToken.code.length != 0, "QUOTE_TOKEN_NO_CODE");
+        require(IERC20MetadataMinimal(cfg.quoteToken).decimals() == 18, "QUOTE_TOKEN_DECIMALS");
+    }
+}
+
+interface IERC20MetadataMinimal {
+    function decimals() external view returns (uint8);
 }

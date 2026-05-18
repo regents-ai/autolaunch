@@ -2,6 +2,8 @@ defmodule Autolaunch.ReleaseDoctor do
   @moduledoc false
   import Bitwise
 
+  alias Autolaunch.BaseChain
+  alias Autolaunch.Contracts.Abi
   alias Autolaunch.InfrastructureConfig
   alias Autolaunch.CCA.Rpc
   alias Autolaunch.Prelaunch.AssetStorage
@@ -11,7 +13,8 @@ defmodule Autolaunch.ReleaseDoctor do
     {:cca_factory_address, "CCA factory address"},
     {:pool_manager_address, "Uniswap v4 pool manager address"},
     {:position_manager_address, "Uniswap v4 position manager address"},
-    {:usdc_address, "USDC address"},
+    {:auction_quote_token_address, "auction quote token address"},
+    {:revenue_usdc_address, "revenue USDC address"},
     {:revenue_share_factory_address, "revenue share factory address"},
     {:revenue_ingress_factory_address, "revenue ingress factory address"},
     {:lbp_strategy_factory_address, "Regent LBP strategy factory address"},
@@ -19,7 +22,8 @@ defmodule Autolaunch.ReleaseDoctor do
   ]
   @verifier_chain_address_checks [
     {:pool_manager_addresses, "Uniswap v4 pool manager address"},
-    {:usdc_addresses, "USDC address"},
+    {:auction_quote_token_addresses, "auction quote token address"},
+    {:revenue_usdc_addresses, "revenue USDC address"},
     {:revenue_share_factory_addresses, "revenue share factory address"},
     {:revenue_ingress_factory_addresses, "revenue ingress factory address"},
     {:chain_rpc_urls, "RPC url"}
@@ -53,6 +57,7 @@ defmodule Autolaunch.ReleaseDoctor do
       ] ++
         launch_address_checks() ++
         launch_contract_code_checks() ++
+        launch_token_checks() ++
         launch_identity_warning_checks() ++
         launch_script_input_checks() ++
         verifier_chain_address_checks() ++ verifier_identity_warning_checks() ++ trust_checks()
@@ -231,6 +236,82 @@ defmodule Autolaunch.ReleaseDoctor do
     end)
   end
 
+  defp launch_token_checks do
+    chain_id = launch_chain_id()
+    auction_quote_token = InfrastructureConfig.launch_text(:auction_quote_token_address)
+    revenue_usdc = InfrastructureConfig.launch_text(:revenue_usdc_address)
+
+    [
+      canonical_token_check(
+        "launch_auction_quote_token_canonical",
+        auction_quote_token,
+        BaseChain.canonical_regent_address!(chain_id),
+        "Auction quote token"
+      ),
+      canonical_token_check(
+        "launch_revenue_usdc_token_canonical",
+        revenue_usdc,
+        BaseChain.canonical_usdc_address!(chain_id),
+        "Revenue token"
+      ),
+      token_contract_check(
+        "launch_auction_quote_token_contract",
+        chain_id,
+        auction_quote_token,
+        "$REGENT auction quote token",
+        18
+      ),
+      token_contract_check(
+        "launch_revenue_usdc_token_contract",
+        chain_id,
+        revenue_usdc,
+        "Base USDC revenue token",
+        6
+      )
+    ]
+  end
+
+  defp canonical_token_check(key, configured, expected, label) do
+    if normalize_address(configured) == normalize_address(expected) do
+      ok_check(key, :error, "#{label} is configured to #{expected}.")
+    else
+      fail_check(key, :error, "#{label} is #{configured || "missing"}, expected #{expected}.")
+    end
+  end
+
+  defp token_contract_check(key, chain_id, address, label, expected_decimals) do
+    cond do
+      not configured_address?(address) ->
+        fail_check(key, :error, "#{label} address is missing or invalid.")
+
+      true ->
+        code = Rpc.code_at(chain_id, address)
+        decimals = safe_uint_call(chain_id, address, :decimals)
+
+        cond do
+          has_contract_code?(code) and decimals == expected_decimals ->
+            ok_check(
+              key,
+              :error,
+              "#{label} has contract code and reports #{expected_decimals} decimals."
+            )
+
+          code == {:ok, "0x"} or code == {:ok, "0X"} ->
+            fail_check(key, :error, "#{label} address has no contract code.")
+
+          decimals != expected_decimals ->
+            fail_check(
+              key,
+              :error,
+              "#{label} reports #{decimals || "unreadable"} decimals, expected #{expected_decimals}."
+            )
+
+          true ->
+            fail_check(key, :error, "#{label} contract code could not be read.")
+        end
+    end
+  end
+
   defp launch_identity_warning_checks do
     chain_id = launch_chain_id()
 
@@ -350,6 +431,19 @@ defmodule Autolaunch.ReleaseDoctor do
   end
 
   defp configured_address?(_value), do: false
+
+  defp normalize_address(value) when is_binary(value), do: String.downcase(String.trim(value))
+  defp normalize_address(_value), do: nil
+
+  defp has_contract_code?({:ok, code}) when is_binary(code), do: code not in ["0x", "0X"]
+  defp has_contract_code?(_result), do: false
+
+  defp safe_uint_call(chain_id, to, selector_name) do
+    case Rpc.eth_call(chain_id, to, Abi.encode_call(selector_name)) do
+      {:ok, data} -> Abi.decode_uint256(data)
+      _ -> nil
+    end
+  end
 
   defp configured_url?(value) when is_binary(value), do: String.trim(value) != ""
   defp configured_url?(_value), do: false

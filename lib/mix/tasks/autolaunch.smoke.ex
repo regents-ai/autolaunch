@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Autolaunch.Smoke do
 
   @impl true
   def run(_args) do
+    Autolaunch.ReleaseTaskConfig.apply!()
     Mix.Task.run("app.start")
 
     result = Autolaunch.ReleaseSmoke.run()

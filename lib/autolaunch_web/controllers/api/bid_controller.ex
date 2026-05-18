@@ -18,7 +18,7 @@ defmodule AutolaunchWeb.Api.BidController do
     end
   end
 
-  def return_usdc(conn, %{"id" => id} = params) do
+  def return_quote_token(conn, %{"id" => id} = params) do
     case launch_module().return_bid(id, params, conn.assigns[:current_human]) do
       {:ok, position} ->
         LiveUpdates.broadcast([:market, :positions])

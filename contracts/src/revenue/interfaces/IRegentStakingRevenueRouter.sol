@@ -4,7 +4,9 @@ pragma solidity ^0.8.26;
 interface IRegentStakingRevenueRouter {
     function usdc() external view returns (address);
     function regentRevenueStaking() external view returns (address);
+    function buybackAdapter() external view returns (address);
     function protocolSkimBps() external view returns (uint16);
+    function treasuryBuybackBps() external view returns (uint16);
 
     function processProtocolFee(
         bytes32 subjectId,
@@ -12,4 +14,11 @@ interface IRegentStakingRevenueRouter {
         uint256 usdcAmount,
         bytes32 sourceRef
     ) external returns (uint256 depositedUsdc);
+
+    function processTreasuryBuyback(
+        bytes32 subjectId,
+        address subjectTreasury,
+        uint256 usdcAmount,
+        bytes32 sourceRef
+    ) external returns (uint256 regentOut);
 }

@@ -35,6 +35,32 @@ defmodule Autolaunch.PrelaunchTest do
     assert %Plan{}.chain_id == 8_453
   end
 
+  test "prelaunch plans save decimal REGENT minimum raises as 18-decimal raw amounts" do
+    actor = %{
+      "wallet_address" => "0x1111111111111111111111111111111111111111",
+      "chain_id" => "8453",
+      "registry_address" => "0x2222222222222222222222222222222222222222",
+      "token_id" => "44",
+      "label" => "Atlas"
+    }
+
+    assert {:ok,
+            %{
+              minimum_raise_quote: "1.500000000000000000",
+              minimum_raise_quote_raw: "1500000000000000000"
+            }} =
+             Prelaunch.create_plan(
+               %{
+                 "agent_id" => "8453:44",
+                 "token_name" => "Atlas Coin",
+                 "token_symbol" => "ATLAS",
+                 "minimum_raise_quote" => "1.5",
+                 "agent_safe_address" => "0x1111111111111111111111111111111111111111"
+               },
+               actor
+             )
+  end
+
   test "metadata updates require the canonical metadata wrapper", %{human: human} do
     assert {:error, :metadata_required} =
              Prelaunch.update_metadata("plan_metadata", %{"title" => "Flat title"}, human)

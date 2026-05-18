@@ -57,7 +57,7 @@ defmodule AutolaunchWeb.AgentbookLiveTest do
            action: "register_agentbook_proof",
            to: "0xA23aB2712eA7BBa896930544C7d6636a96b944dA",
            data: "0xabc",
-           value: "0",
+           value: "0x0",
            chain_id: 480,
            expected_signer: "0x1111111111111111111111111111111111111111",
            expires_at: "2999-01-01T00:00:00Z",

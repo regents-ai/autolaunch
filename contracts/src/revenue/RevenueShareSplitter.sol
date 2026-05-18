@@ -5,7 +5,6 @@ import {Owned} from "src/auth/Owned.sol";
 import {SafeTransferLib} from "src/libraries/SafeTransferLib.sol";
 import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {IERC20SupplyMinimal} from "src/revenue/interfaces/IERC20SupplyMinimal.sol";
-import {ILaunchFeeVaultMinimal} from "src/revenue/interfaces/ILaunchFeeVaultMinimal.sol";
 import {
     IRevenueIngressAccountMinimal
 } from "src/revenue/interfaces/IRevenueIngressAccountMinimal.sol";
@@ -23,7 +22,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
     enum RevenueSourceKind {
         DirectDeposit,
         AuthorizedIngress,
-        LaunchFee,
         SurplusRedeposit
     }
 
@@ -77,7 +75,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
     uint256 public totalUsdcReceived;
     uint256 public directDepositUsdc;
     uint256 public verifiedIngressUsdc;
-    uint256 public launchFeeUsdc;
     uint256 public surplusRedepositUsdc;
     uint256 public regentSkimUsdc;
     uint256 public stakerEligibleInflowUsdc;
@@ -419,33 +416,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
             msg.sender,
             // forge-lint: disable-next-line(unsafe-typecast)
             bytes32("ingress_sweep"),
-            sourceRef
-        );
-    }
-
-    function pullTreasuryShareFromLaunchVault(
-        address vault,
-        bytes32 poolId,
-        uint256 amount,
-        bytes32 sourceRef
-    ) external whenNotPaused onlyActiveSubject nonReentrant returns (uint256 received) {
-        require(vault != address(0), "VAULT_ZERO");
-        require(amount != 0, "AMOUNT_ZERO");
-        _settleStakeTokenEmissions();
-
-        uint256 beforeBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
-        // slither-disable-next-line reentrancy-benign
-        ILaunchFeeVaultMinimal(vault).withdrawTreasury(poolId, usdc, amount, address(this));
-        uint256 afterBalance = IERC20SupplyMinimal(usdc).balanceOf(address(this));
-        received = afterBalance - beforeBalance;
-
-        _recordRevenue(
-            received,
-            eligibleRevenueShareBps,
-            RevenueSourceKind.LaunchFee,
-            vault,
-            // forge-lint: disable-next-line(unsafe-typecast)
-            bytes32("launch_treasury"),
             sourceRef
         );
     }
@@ -853,8 +823,6 @@ contract RevenueShareSplitter is Owned, IRevenueShareSplitter, ISubjectLifecycle
             directDepositUsdc += received;
         } else if (sourceKind == RevenueSourceKind.AuthorizedIngress) {
             verifiedIngressUsdc += received;
-        } else if (sourceKind == RevenueSourceKind.LaunchFee) {
-            launchFeeUsdc += received;
         } else if (sourceKind == RevenueSourceKind.SurplusRedeposit) {
             surplusRedepositUsdc += received;
         }

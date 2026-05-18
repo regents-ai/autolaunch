@@ -39,23 +39,23 @@ defmodule Autolaunch.Contracts.Dispatch do
     )
   end
 
-  def build_job_action(job, "strategy", "sweep_currency", _attrs) do
+  def build_job_action(job, "strategy", "sweep_quote_token", _attrs) do
     ActionParams.prepare_tx(
       job.chain_id,
       job.strategy_address,
-      Abi.encode_call(:sweep_currency),
+      Abi.encode_call(:sweep_quote_token),
       "strategy",
-      "sweep_currency"
+      "sweep_quote_token"
     )
   end
 
-  def build_job_action(job, "auction", "sweep_currency", _attrs) do
+  def build_job_action(job, "auction", "sweep_quote_token", _attrs) do
     ActionParams.prepare_tx(
       job.chain_id,
       job.auction_address,
       Abi.encode_call(:sweep_currency),
       "auction",
-      "sweep_currency"
+      "sweep_quote_token"
     )
   end
 
@@ -110,24 +110,6 @@ defmodule Autolaunch.Contracts.Dispatch do
       "vesting",
       "execute_beneficiary_rotation"
     )
-  end
-
-  def build_job_action(job, "revenue_splitter", "pull_treasury_share", attrs) do
-    with {:ok, amount} <- ActionParams.uint_param(attrs, "amount") do
-      ActionParams.prepare_tx(
-        job.chain_id,
-        job.revenue_share_splitter_address,
-        Abi.encode_call(:pull_treasury_share_from_launch_vault, [
-          {:address, job.launch_fee_vault_address},
-          {:bytes32, job.pool_id},
-          {:uint256, amount},
-          {:bytes32, job.pool_id}
-        ]),
-        "revenue_splitter",
-        "pull_treasury_share",
-        %{vault: job.launch_fee_vault_address, amount: Integer.to_string(amount)}
-      )
-    end
   end
 
   def build_job_action(job, "fee_registry", "accept_ownership", _attrs) do

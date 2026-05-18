@@ -228,7 +228,7 @@ defmodule AutolaunchWeb.AuctionLive do
                   <span>Max spend</span>
                   <div class="al-auction-detail-input-shell">
                     <input type="text" name="bid[amount]" value={@bid_form["amount"]} />
-                    <span>USDC</span>
+                    <span>REGENT</span>
                   </div>
                 </label>
 
@@ -236,7 +236,7 @@ defmodule AutolaunchWeb.AuctionLive do
                   <span>Max price</span>
                   <div class="al-auction-detail-input-shell">
                     <input type="text" name="bid[max_price]" value={@bid_form["max_price"]} />
-                    <span>USD</span>
+                    <span>REGENT</span>
                   </div>
                 </label>
 
@@ -510,7 +510,7 @@ defmodule AutolaunchWeb.AuctionLive do
                 <article :for={position <- @positions} class="al-auction-detail-position-row">
                   <div class="al-auction-detail-position-top">
                     <div>
-                      <strong>{position.amount} USDC</strong>
+                      <strong>{position.amount} $REGENT</strong>
                       <p>{position.max_price} max price</p>
                     </div>
                     <.status_badge status={position.status} />
@@ -539,11 +539,11 @@ defmodule AutolaunchWeb.AuctionLive do
                       id={"auction-return-#{position.bid_id}"}
                       class="al-submit"
                       wallet_action={return_action(position).prepared.wallet_action}
-                      register_endpoint={~p"/v1/app/bids/#{position.bid_id}/return-usdc"}
+                      register_endpoint={~p"/v1/app/bids/#{position.bid_id}/return-quote-token"}
                       pending_message="Return transaction sent. Waiting for confirmation."
-                      success_message="USDC return registered."
+                      success_message="$REGENT return registered."
                     >
-                      Return USDC
+                      Return $REGENT
                     </.wallet_tx_button>
 
                     <.wallet_tx_button
@@ -661,16 +661,15 @@ defmodule AutolaunchWeb.AuctionLive do
 
             <h2 id="auction-help-title">What you are buying</h2>
             <p class="al-auction-help-lede">
-              You are bidding with USDC for the public launch share of this agent token. After the
-              sale, claimed and staked tokens can earn from up to 10% of an agent or API's future
-              stablecoin revenue.
+              This auction clears in $REGENT. Recognized subject revenue remains Base USDC when it
+              enters the revenue lane.
             </p>
 
             <div class="al-auction-help-grid">
               <article>
                 <span>1</span>
                 <strong>Choose two numbers.</strong>
-                <p>Set the most USDC you want to spend and the highest token price you accept.</p>
+                <p>Set the most $REGENT you want to spend and the highest token price you accept.</p>
               </article>
               <article>
                 <span>2</span>
@@ -829,7 +828,8 @@ defmodule AutolaunchWeb.AuctionLive do
 
     %{
       title: "~#{Map.get(quote, :estimated_tokens_if_no_other_bids_change, "0")} tokens",
-      body: "This bid can spend up to #{spend} USDC while the price is at or below #{max_price}.",
+      body:
+        "This bid can spend up to #{spend} $REGENT while the price is at or below #{max_price}.",
       target_title: target_result_title(expected, target),
       target_body: target_result_body(expected, target)
     }
@@ -889,8 +889,8 @@ defmodule AutolaunchWeb.AuctionLive do
       state: "refunded",
       label: "Refunded",
       tone: "is-warn",
-      title: "USDC return is ready.",
-      body: "Return the remaining USDC to finish this position."
+      title: "$REGENT return is ready.",
+      body: "Return the remaining $REGENT to finish this position."
     }
   end
 
@@ -911,7 +911,7 @@ defmodule AutolaunchWeb.AuctionLive do
           state: "refunded",
           label: "Refunded",
           tone: "is-warn",
-          title: "USDC return is available.",
+          title: "$REGENT return is available.",
           body: "This market ended below the minimum raise."
         }
 
@@ -1046,7 +1046,7 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   defp latest_bid_value(nil), do: "No bid yet"
-  defp latest_bid_value(position), do: "#{position.amount} USDC"
+  defp latest_bid_value(position), do: "#{position.amount} $REGENT"
 
   defp latest_bid_copy(nil), do: "Run the estimate first to preview where a new bid would land."
   defp latest_bid_copy(position), do: "#{position.max_price} max price"
@@ -1062,7 +1062,7 @@ defmodule AutolaunchWeb.AuctionLive do
   defp returns_strip_copy(auction, latest_position) do
     cond do
       latest_position && return_action(latest_position) ->
-        "This position can pull USDC back."
+        "This position can pull $REGENT back."
 
       truthy?(auction_value(auction, :returns_enabled)) ->
         "This market ended below the minimum raise."

@@ -8,7 +8,7 @@ defmodule Autolaunch.LaunchTest do
   alias Autolaunch.Repo
 
   defmodule TokenPricingStub do
-    def current_token_price_usdc(_chain_id, _pool_id, token_address) do
+    def current_token_price_quote(_chain_id, _pool_id, token_address) do
       case String.downcase(token_address) do
         "0xdddddddddddddddddddddddddddddddddddddddd" -> {:ok, "0.011"}
         _ -> {:error, :missing_quote}
@@ -61,7 +61,7 @@ defmodule Autolaunch.LaunchTest do
                  "agent_id" => "8453:44",
                  "token_name" => "Atlas Coin",
                  "token_symbol" => "ATLAS",
-                 "minimum_raise_usdc" => "0",
+                 "minimum_raise_quote" => "0",
                  "agent_safe_address" => "0x1111111111111111111111111111111111111111"
                },
                %{
@@ -73,8 +73,8 @@ defmodule Autolaunch.LaunchTest do
                }
              )
 
-    assert preview.token.minimum_raise_usdc == "0.000000"
-    assert preview.token.minimum_raise_usdc_raw == "0"
+    assert preview.token.minimum_raise_quote == "0.000000000000000000"
+    assert preview.token.minimum_raise_quote_raw == "0"
   end
 
   test "launch preview rejects unsafe token fields and minimum raise input" do
@@ -90,7 +90,7 @@ defmodule Autolaunch.LaunchTest do
       "agent_id" => "8453:44",
       "token_name" => "Atlas Coin",
       "token_symbol" => "ATLAS",
-      "minimum_raise_usdc" => "0",
+      "minimum_raise_quote" => "0",
       "agent_safe_address" => "0x1111111111111111111111111111111111111111"
     }
 
@@ -107,10 +107,19 @@ defmodule Autolaunch.LaunchTest do
              Launch.preview_launch(%{base | "token_symbol" => "ATLASCOINXX"}, actor)
 
     assert {:error, :minimum_raise_required} =
-             Launch.preview_launch(%{base | "minimum_raise_usdc" => "-1"}, actor)
+             Launch.preview_launch(%{base | "minimum_raise_quote" => "-1"}, actor)
+
+    assert {:ok, preview} =
+             Launch.preview_launch(%{base | "minimum_raise_quote" => "1.5"}, actor)
+
+    assert preview.token.minimum_raise_quote == "1.500000000000000000"
+    assert preview.token.minimum_raise_quote_raw == "1500000000000000000"
 
     assert {:error, :minimum_raise_required} =
-             Launch.preview_launch(%{base | "minimum_raise_usdc" => "1.5"}, actor)
+             Launch.preview_launch(
+               %{base | "minimum_raise_quote" => "0.0000000000000000001"},
+               actor
+             )
   end
 
   test "auction listings expose ENS and world completion state" do
@@ -291,8 +300,8 @@ defmodule Autolaunch.LaunchTest do
 
     [live_row] = Launch.list_auctions(%{"mode" => "live", "sort" => "market_cap_desc"}, nil)
     assert live_row.id == "auc_old"
-    assert live_row.current_price_usdc == "0.011"
-    assert live_row.implied_market_cap_usdc == "1100000000"
+    assert live_row.current_price_quote == "0.011"
+    assert live_row.implied_market_cap_quote == "1100000000"
   end
 
   test "ended unsynced auctions are not listed as biddable" do
@@ -311,8 +320,8 @@ defmodule Autolaunch.LaunchTest do
         status: "active",
         started_at: DateTime.add(now, -7_200, :second),
         ends_at: DateTime.add(now, -3_600, :second),
-        minimum_raise_usdc: "2",
-        minimum_raise_usdc_raw: "2000000"
+        minimum_raise_quote: "2",
+        minimum_raise_quote_raw: "2000000000000000000"
       })
     )
 
@@ -512,6 +521,23 @@ defmodule Autolaunch.LaunchTest do
     )
   end
 
+  test "process_job requires explicit REGENT quote-token decimals in deploy output" do
+    with_launch_command_output(
+      canonical_launch_output(%{"auctionQuoteDecimals" => 6}),
+      fn ->
+        insert_launch_job("job_wrong_quote_decimals")
+
+        assert :ok = Launch.process_job("job_wrong_quote_decimals")
+
+        job = Repo.get!(Job, "job_wrong_quote_decimals")
+
+        assert job.status == "failed"
+        assert job.step == "failed"
+        assert job.error_message == "Deployment output auctionQuoteDecimals was 6, expected 18."
+      end
+    )
+  end
+
   defp insert_launch_job(job_id) do
     now = DateTime.utc_now()
 
@@ -578,8 +604,8 @@ defmodule Autolaunch.LaunchTest do
         strategy_operator: "0x9999999999999999999999999999999999999998",
         official_pool_fee: "0",
         official_pool_tick_spacing: "60",
-        cca_tick_spacing_q96: "79228162514264337593543950336",
-        cca_floor_price_q96: "79228162514264337593543950336",
+        cca_tick_spacing_q96: "79228162514264337593543950",
+        cca_floor_price_q96: "7922816251426433759354395000",
         auction_duration_blocks: "9258",
         cca_prebid_blocks: "0",
         cca_final_block_bps: "3000",
@@ -589,7 +615,8 @@ defmodule Autolaunch.LaunchTest do
         lbp_sweep_block_offset: "256",
         pool_manager_address: "0x3333333333333333333333333333333333333333",
         cca_factory_address: "0x4444444444444444444444444444444444444444",
-        usdc_address: "0x5555555555555555555555555555555555555555",
+        auction_quote_token_address: "0x5555555555555555555555555555555555555555",
+        revenue_usdc_address: "0x5656565656565656565656565656565656565656",
         position_manager_address: "0x8888888888888888888888888888888888888888"
       )
     )
@@ -621,6 +648,12 @@ defmodule Autolaunch.LaunchTest do
         "subjectId" => "0x" <> String.duplicate("1", 64),
         "revenueShareSplitterAddress" => "0x9999999999999999999999999999999999999999",
         "defaultIngressAddress" => "0x7777777777777777777777777777777777777777",
+        "auctionQuoteTokenAddress" => "0x5555555555555555555555555555555555555555",
+        "auctionQuoteSymbol" => "REGENT",
+        "auctionQuoteDecimals" => 18,
+        "revenueUsdcTokenAddress" => "0x5656565656565656565656565656565656565656",
+        "revenueSymbol" => "USDC",
+        "revenueDecimals" => 6,
         "poolId" => "0x" <> String.duplicate("f", 64),
         "txHash" => "0x" <> String.duplicate("a", 64)
       },

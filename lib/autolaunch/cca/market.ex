@@ -1,6 +1,7 @@
 defmodule Autolaunch.CCA.Market do
   @moduledoc false
 
+  alias Autolaunch.BaseChain
   alias Autolaunch.CCA.Abi
   alias Autolaunch.CCA.Contract
   alias Autolaunch.CCA.Rpc
@@ -11,10 +12,22 @@ defmodule Autolaunch.CCA.Market do
      %{
        chain_id: auction.chain_id,
        to: auction.auction_address,
-       value_hex: to_hex_quantity(amount_wei),
-       data: Abi.encode_submit_bid(max_price_q96, amount_wei, owner_address)
+       value_hex: to_hex_quantity(0),
+       data: Abi.encode_submit_bid(max_price_q96, amount_wei, owner_address),
+       approval: %{
+         token: auction_quote_token(auction),
+         spender: auction.auction_address,
+         amount: Integer.to_string(amount_wei),
+         data: Abi.encode_approve(auction.auction_address, amount_wei)
+       }
      }}
   end
+
+  defp auction_quote_token(%{auction_quote_token_address: address}) when is_binary(address),
+    do: String.downcase(address)
+
+  defp auction_quote_token(%{chain_id: chain_id}),
+    do: BaseChain.canonical_regent_address!(chain_id)
 
   def build_exit_tx_request(auction, onchain_bid_id, action) do
     data =

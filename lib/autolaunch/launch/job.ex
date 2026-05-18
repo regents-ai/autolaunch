@@ -14,8 +14,14 @@ defmodule Autolaunch.Launch.Job do
     field :ens_name, :string
     field :token_name, :string
     field :token_symbol, :string
-    field :minimum_raise_usdc, :string
-    field :minimum_raise_usdc_raw, :string
+    field :minimum_raise_quote, :string
+    field :minimum_raise_quote_raw, :string
+    field :auction_quote_token_address, :string
+    field :auction_quote_token_symbol, :string, default: "REGENT"
+    field :auction_quote_token_decimals, :integer, default: 18
+    field :revenue_usdc_token_address, :string
+    field :revenue_usdc_token_symbol, :string, default: "USDC"
+    field :revenue_usdc_token_decimals, :integer, default: 6
     field :agent_safe_address, :string
     field :network, :string, default: "base-mainnet"
     field :chain_id, :integer, default: 8_453
@@ -75,8 +81,14 @@ defmodule Autolaunch.Launch.Job do
       :ens_name,
       :token_name,
       :token_symbol,
-      :minimum_raise_usdc,
-      :minimum_raise_usdc_raw,
+      :minimum_raise_quote,
+      :minimum_raise_quote_raw,
+      :auction_quote_token_address,
+      :auction_quote_token_symbol,
+      :auction_quote_token_decimals,
+      :revenue_usdc_token_address,
+      :revenue_usdc_token_symbol,
+      :revenue_usdc_token_decimals,
       :agent_safe_address,
       :network,
       :chain_id,
@@ -129,6 +141,12 @@ defmodule Autolaunch.Launch.Job do
       :hook_address,
       :launch_fee_registry_address,
       :launch_fee_vault_address,
+      :auction_quote_token_address,
+      :auction_quote_token_symbol,
+      :auction_quote_token_decimals,
+      :revenue_usdc_token_address,
+      :revenue_usdc_token_symbol,
+      :revenue_usdc_token_decimals,
       :subject_registry_address,
       :subject_id,
       :revenue_share_splitter_address,
