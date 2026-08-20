@@ -6,9 +6,11 @@ failure class is answered by a requirement in [the ledger](../../requirements/le
 
 It describes only frozen specification behavior. It invents no contract behavior, and every
 mitigation it names is a requirement ID whose evidence becomes mandatory when its owning ticket
-activates. At C0 the repository holds immutable bindings and proof scaffolding only, so every
-mitigation below except the dependency, binding, chain, and ABI provenance claims is still
-pending. A pending mitigation is a named obligation, never evidence.
+activates. Through C1 the repository holds the immutable bindings, the proof scaffolding, and the
+three fixed clone targets — `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, and
+`PaymentReceiverV1` — so the dependency, binding, chain, ABI-provenance, escrow, splitter, and
+receiver mitigations carry hermetic evidence and everything else is still pending. A pending
+mitigation is a named obligation, never evidence.
 
 ## 1. Assets
 
@@ -113,6 +115,9 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Foreign auction injection | initializing or migrating an auction the strategy never recorded | `STR-016` |
 | Inventory leakage | unsold, reserve, or residual SUBJECT stranded after either terminal path, or a distribution that does not split exactly 10/5/85 | `STR-017`, `MIG-016`, `FAIL-004`, `ESC-005`, `ESC-006` |
 | Escrow custody diversion | releasing pending custody early, resolving from a foreign caller, holding the wrong pending amount, or redirecting vested SUBJECT away from the fixed treasury | `ESC-009`, `ESC-010`, `ESC-011`, `ESC-012`, `ESC-013` |
+| Auction identity substitution | resolving or sweeping through an auction that sells another launch's token or names another recipient, or reading a graduation flag from a stale pre-checkpoint state | `ESC-004`, `ESC-005`, `ESC-014` |
+| Unsold-inventory loss at graduation | skipping the graduated unsold sweep, running it twice, or opening vesting over an incomplete inventory | `ESC-014`, `ESC-002`, `ESC-007` |
+| Note-editor capture | a caller other than the receiver's fixed note editor relabeling its payments | `RCV-016`, `RCV-006` |
 | Price-ordering asymmetry | a final price that differs depending on which currency is token0 | `STR-014` |
 | Migration partial commit | failure after an external call leaving a half-migrated launch | `MIG-017`, `STR-004` |
 | Repeat or replay | migrating or retiring twice, finalizing an auction twice, re-running an escrow or clone initializer | `MIG-018`, `FAIL-008`, `STR-018`, `ESC-001`, `ABI-008` |
@@ -131,7 +136,22 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Build laundering | editing `foundry.toml` and the frozen fixture together so the two repository copies agree on a setting the specification never granted | the gate parses the governing `SPEC.md` build line and compares it against both copies and against the produced artifacts (`DEP-009`) |
 | Analysis narrowing | a valid detector, severity, or production-source exclusion in `slither.config.json` or on the Slither command line; a duplicate finding hidden under one disposition row; a hidden triage database | the gate pins the configuration and the argv to an exact allowed shape, reconciles the run's detector count against the pinned binary's registered portfolio, and reconciles every result fingerprint one-for-one against a visible row |
 
-## 8. Explicitly out of scope at C0
+## 8. Accepted consequences of the founder-frozen simple design
+
+These are not defects. Each is a behavior the frozen specification chooses, recorded here so a
+reviewer meets it as a decision rather than as a surprise.
+
+| Accepted consequence | What it means in practice | Where it is proved |
+| --- | --- | --- |
+| Immediate stake timing | A stake credits in the same block and earns from the very next recognition. Anyone who owns or can borrow SUBJECT may therefore stake, trigger recognition of a waiting inflow, claim, and unstake with nothing in between, and keep the whole net of that one recognition. The specification makes staking immediate, so no cooldown, activation delay, epoch, queue, previous-block eligibility rule, or total-supply denominator exists to prevent it, and adding one would change the frozen economics. What the round trip cannot reach is anything outside that single recognition: it earns from no recognition before its stake and none after its exit, and it takes nothing from another staker's position — it only dilutes the share of whoever was staked for that one recognition. | `SPL-009`, `SPL-013` |
+| Permissionless surplus-recognition ordering | Anyone may call `recognizeSurplusRevenue`, so the block in which a bare transfer becomes revenue is chosen by an untrusted caller, and therefore so is the stake set that shares it. Combined with immediate staking, that caller may put itself into the stake set first and take the resulting share, which is the same accepted round trip as above. Recognition still pays only current stakers or the treasury, still skims exactly once, and still cannot relabel principal, unclaimed liability, or the carried remainder. | `SPL-011`, `SPL-009`, `SPL-008` |
+| Paused live staking fails closed | While the live REGENT staking contract is paused or reverting, a USDC recognition with a nonzero skim reverts in full. USDC revenue simply cannot be recognized during that window; nothing is queued, retried, or diverted. | `SPL-003` |
+| Permanently stuck force-sent escrow ETH | The escrow has no recovery path of any kind, so ETH force-sent to it can never be moved. The specification gives escrow exactly two resolutions and no rescue authority, and adding one would be new authority over a custody contract. | `ESC-008` |
+| Exact-inventory failure deadlock | Failure resolution requires exactly 100 billion SUBJECT. If a contributor is short or an extra unit is present, the launch stays pending rather than retiring a partial supply. Deadlock is preferred to an unprovable retirement. | `ESC-005` |
+| One global scaled carry per asset | The indivisible part of each distribution is carried forward as a single scaled numerator per asset. It is inside protected liability, is never separately withdrawable, and cannot be surplus-recognized or recovered. | `SPL-007`, `SPL-018` |
+| Per-account sub-unit dust | Flooring each account's share leaves sub-unit dust. It is banked per account against the accumulator, so a stake change neither forfeits it nor credits it a second time, and it stays inside protected liability until a later recognition completes it into a claimable whole unit. It is likewise never separately withdrawable, never surplus-recognizable, and never recoverable. | `SPL-013`, `SPL-007`, `SPL-012` |
+
+## 9. Explicitly out of scope through C1
 
 No RPC or provider access, fork execution, deployment, signature, transaction, wallet action,
 secret access, production data, admission decision, or value movement occurs in this repository.

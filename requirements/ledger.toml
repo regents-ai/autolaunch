@@ -28,7 +28,7 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0"]
+activated_tickets = ["C0", "C1"]
 activated_gates = ["hermetic"]
 groups = [
     "DEP",
@@ -969,27 +969,27 @@ selectors = ["test_STR_018_FinalizationIsOneShot"]
 id = "ESC-001"
 statement = "Escrow initialization is atomic and happens exactly once per launch: it accepts pending launch custody in the same transaction that binds the launch, and a second initialization reverts."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_001_InitializationIsAtomicAndHappensExactlyOnce"]
 
 [[requirement]]
 id = "ESC-002"
 statement = "Escrow resolves a launch exactly once, to graduation or to failure, and never both."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_002_ResolutionHappensExactlyOnceAndIsExclusive"]
 
 [[requirement]]
 id = "ESC-003"
 statement = "On economic failure the strategy sends its isolated 5% reserve to escrow."
-owner = "C1"
-contract = "LaunchEscrow"
+owner = "C3"
+contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
@@ -999,101 +999,111 @@ selectors = ["test_ESC_003_FailureSendsTheIsolatedReserveToEscrow"]
 id = "ESC-004"
 statement = "On economic failure escrow sweeps the failed-auction 10%."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_004_FailureSweepsTheFailedAuctionAllocation"]
 
 [[requirement]]
 id = "ESC-005"
 statement = "On economic failure escrow proves exactly 100 billion SUBJECT and sends it to the dead address."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_005_FailureProvesFullSupplyBeforeRetiring"]
 
 [[requirement]]
 id = "ESC-006"
 statement = "SUBJECT arriving at escrow after a failed retirement is retired to the dead address without reopening the launch."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_006_LateFailedSubjectIsRetiredWithoutReopening"]
 
 [[requirement]]
 id = "ESC-007"
 statement = "On graduation escrow activates 365-day vesting starting at the graduation timestamp."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_007_GraduationActivatesThreeSixtyFiveDayVesting"]
 
 [[requirement]]
 id = "ESC-008"
 statement = "Escrow holds no authority to move custody outside the two specified resolutions."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_008_EscrowHoldsNoCustodyAuthorityOutsideResolution"]
 
 [[requirement]]
 id = "ESC-009"
 statement = "Pending custody is exactly 85% of the 100 billion SUBJECT supply for the launch, to the unit."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_009_PendingCustodyIsExactlyEightyFivePercent"]
 
 [[requirement]]
 id = "ESC-010"
 statement = "No caller can release any pending custody while the launch is pending; release exists only through the two specified resolutions."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_010_PendingCustodyCannotBeReleasedBeforeResolution"]
 
 [[requirement]]
 id = "ESC-011"
 statement = "Only the bound strategy may resolve a launch to graduation or to failure; every other caller is rejected."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_011_OnlyTheStrategyResolvesALaunch"]
 
 [[requirement]]
 id = "ESC-012"
 statement = "Graduation vesting releases the custodied SUBJECT linearly over exactly 365 days, releasing nothing before the start and everything at the end."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_012_VestingReleasesLinearlyOverThreeSixtyFiveDays"]
 
 [[requirement]]
 id = "ESC-013"
 statement = "The vesting beneficiary is the immutable treasury fixed at initialization and can never be changed or redirected."
 owner = "C1"
-contract = "LaunchEscrow"
+contract = "ConditionalVestingEscrowV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ESC_013_VestingBeneficiaryIsTheFixedImmutableTreasury"]
+
+[[requirement]]
+id = "ESC-014"
+statement = "Only the bound strategy can make escrow checkpoint and sweep its canonical graduated auction, exactly once, before vesting activation."
+owner = "C1"
+contract = "ConditionalVestingEscrowV1"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_ESC_014_GraduatedUnsoldSubjectIsSweptBeforeVesting"]
 
 # ---------------------------------------------------------------------------
 # HOK — correct permission bits; only PoolManager callbacks; strategy-only
@@ -1308,97 +1318,100 @@ selectors = ["test_HOK_019_LaneRoundingIsExactAtTheFeeBoundaryInputs"]
 id = "SPL-001"
 statement = "The splitter recognizes exactly USDC, REGENT, and its own SUBJECT token."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_001_RecognizedAssetsAreExactlyUsdcRegentAndSubject"]
 
 [[requirement]]
 id = "SPL-002"
 statement = "Every recognized inflow floors a 2% skim exactly once."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_002_EveryRecognizedInflowIsSkimmedExactlyOnce"]
 
 [[requirement]]
 id = "SPL-003"
 statement = "The USDC skim uses exact approval, live staking depositUSDC, behavior verification, and allowance cleanup."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_003_UsdcSkimApprovesDepositsVerifiesAndClearsAllowance"]
 
 [[requirement]]
 id = "SPL-004"
 statement = "REGENT and SUBJECT skims go to the Regent Safe."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_004_RegentAndSubjectSkimsGoToTheRegentSafe"]
 
 [[requirement]]
 id = "SPL-005"
 statement = "Net 98% goes pro rata to current SUBJECT stakers."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_005_NetGoesProRataToCurrentStakers"]
 
 [[requirement]]
 id = "SPL-006"
 statement = "With no SUBJECT staked, net 98% goes immediately to the immutable treasury."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_006_ZeroStakeSendsNetToTheImmutableTreasury"]
 
 [[requirement]]
 id = "SPL-007"
 statement = "One staker-owned arithmetic remainder per token is protected and carried forward."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_007_PerTokenRemainderIsProtectedAndCarriedForward"]
 
 [[requirement]]
 id = "SPL-008"
 statement = "Staked SUBJECT principal, claims, and remainder are excluded from surplus and recovery."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_008_PrincipalClaimsAndRemainderAreExcludedFromSurplus"]
 
 [[requirement]]
 id = "SPL-009"
 statement = "Staking is immediate."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_SPL_009_StakingTakesEffectImmediately"]
+status = "active"
+selectors = [
+    "test_SPL_009_StakingTakesEffectImmediately",
+    "test_SPL_009_ImmediateStakeCanCaptureARecognitionAroundIt",
+]
 
 [[requirement]]
 id = "SPL-010"
 statement = "Claims and unstaking are independent of the factory launch pause."
-owner = "C1"
-contract = "RevenueSplitter"
+owner = "C4"
+contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
@@ -1408,10 +1421,10 @@ selectors = ["test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause"]
 id = "SPL-011"
 statement = "Supported bare transfers become revenue only through permissionless surplus recognition."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_011_BareTransfersBecomeRevenueOnlyThroughRecognition"]
 
 # SPEC.md section 9 names `testFuzz_SPL_012_RecognizedRevenueRemainsSolvent` as a founder
@@ -1421,110 +1434,116 @@ selectors = ["test_SPL_011_BareTransfersBecomeRevenueOnlyThroughRecognition"]
 id = "SPL-012"
 statement = "Recognized revenue keeps the splitter solvent for every recognized token across arbitrary amounts."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["testFuzz_SPL_012_RecognizedRevenueRemainsSolvent"]
+status = "active"
+selectors = [
+    "testFuzz_SPL_012_RecognizedRevenueRemainsSolvent",
+    "testFuzz_SPL_012_PaidPlusClaimableNeverExceedsRecognizedRevenue",
+]
 
 [[requirement]]
 id = "SPL-013"
 statement = "Across zero stake, a first stake, a full unstake, a restake, interleaved deposits, and claims taken before and after each stake change, every staker is paid exactly the share their staked snapshot earned."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["testFuzz_SPL_013_StakeSnapshotsPayExactlyWhatWasEarned"]
+status = "active"
+selectors = [
+    "testFuzz_SPL_013_StakeSnapshotsPayExactlyWhatWasEarned",
+    "test_SPL_013_StakeChangesNeverOverCreditOrStrandWholeUnits",
+]
 
 [[requirement]]
 id = "SPL-014"
 statement = "stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue act only for the caller."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_014_CallerOnlyFunctionsActOnlyForTheCaller"]
 
 [[requirement]]
 id = "SPL-015"
 statement = "claimAll settles exactly the three recognized tokens and nothing else."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_015_ClaimAllSettlesExactlyTheThreeRecognizedTokens"]
 
 [[requirement]]
 id = "SPL-016"
 statement = "The 2% skim floors exactly at recognized inflow amounts 0, 1, 49, 50, 99, 100, 9,999, and 10,000."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_016_SkimRoundingIsExactAtTheInflowBoundaryInputs"]
 
 [[requirement]]
 id = "SPL-017"
 statement = "Only the immutable recovery admin may recover an unsupported ERC20 or forced ETH from the splitter, and always to the immutable treasury."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_017_OnlyRecoveryAdminRecoversToTheImmutableTreasury"]
 
 [[requirement]]
 id = "SPL-018"
 statement = "USDC, REGENT, SUBJECT, staked principal, unclaimed claims, and the carried remainder are permanently protected from splitter recovery."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_018_RecoveryCanNeverReachProtectedSplitterAssets"]
 
 [[requirement]]
 id = "SPL-019"
 statement = "Ordinary ETH transfers to the splitter revert, so only forced ETH can ever be present."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_019_OrdinaryEthTransfersRevert"]
 
 [[requirement]]
 id = "SPL-020"
 statement = "depositRecognizedRevenue recognizes the exact deposited amount once and records the caller's revenueRef in its event."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_020_DepositRecognizedRevenueRecognizesExactlyOnce"]
 
 [[requirement]]
 id = "SPL-021"
 statement = "Reentrancy attempts through a recognized token cannot change skim, stake, or claim accounting."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_021_ReentrancyCannotChangeSplitterAccounting"]
 
 [[requirement]]
 id = "SPL-022"
 statement = "A recovery token that re-enters the splitter during recoverUnsupportedToken cannot change skim, stake, claim, or remainder accounting and cannot reach USDC, REGENT, SUBJECT, staked principal, unclaimed claims, or the carried remainder."
 owner = "C1"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_022_RecoveryTokenReentrancyCannotReachProtectedSplitterAssets"]
 
 # ---------------------------------------------------------------------------
@@ -1538,8 +1557,8 @@ selectors = ["test_SPL_022_RecoveryTokenReentrancyCannotReachProtectedSplitterAs
 [[requirement]]
 id = "RCV-001"
 statement = "Anyone may pay gas to create a custom receiver, and its creator edits its note."
-owner = "C1"
-contract = "PaymentReceiver"
+owner = "C4"
+contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
@@ -1549,141 +1568,151 @@ selectors = ["test_RCV_001_CustomReceiverCreationIsPermissionless"]
 id = "RCV-002"
 statement = "The referral share is immutable for the life of a receiver."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_002_ReferralShareIsImmutable"]
 
 [[requirement]]
 id = "RCV-003"
 statement = "The referral share is 0 through 2.5% inclusive, and boundary values 0, 1, 249, 250, and 251 bps behave exactly as specified."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_003_ReferralBoundaryValuesBehaveExactly"]
 
 [[requirement]]
 id = "RCV-004"
 statement = "Referral payout runs before splitter processing."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_004_ReferralRunsBeforeSplitterProcessing"]
 
 [[requirement]]
 id = "RCV-005"
 statement = "The canonical receiver has zero referral and a treasury-edited note."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_005_CanonicalReceiverHasZeroReferralAndTreasuryNote"]
 
 [[requirement]]
 id = "RCV-006"
 statement = "The note defaults to the receiver address encoded as bytes32 and appears with paymentRef in events."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_006_NoteDefaultsToTheReceiverAddressAndIsEmitted"]
 
 [[requirement]]
 id = "RCV-007"
 statement = "pay and bare-transfer sweep use the same atomic referral-before-splitter route."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_007_PayAndSweepShareTheSameAtomicRoute"]
 
 [[requirement]]
 id = "RCV-008"
 statement = "Ordinary ETH transfers to a receiver revert."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_008_OrdinaryEthTransfersRevert"]
 
 [[requirement]]
 id = "RCV-009"
 statement = "Only the immutable recovery admin may send forced ETH or unsupported ERC20s from a receiver, and always to the immutable treasury."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_009_OnlyRecoveryAdminRecoversToTheImmutableTreasury"]
 
 [[requirement]]
 id = "RCV-010"
 statement = "USDC, REGENT, and SUBJECT are permanently protected from receiver recovery."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_010_RecoveryCanNeverReachSupportedTokens"]
 
 [[requirement]]
 id = "RCV-011"
 statement = "There is no unsupported-token enumeration, and a malicious token can fail only its own recovery call."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_011_MaliciousTokenFailsOnlyItsOwnRecoveryCall"]
 
 [[requirement]]
 id = "RCV-012"
 statement = "pay and sweep accept only the supported tokens and reject every other token."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_012_PayAndSweepValidateSupportedTokens"]
 
 [[requirement]]
 id = "RCV-013"
 statement = "The beneficiary and the splitter binding are immutable for the life of a receiver."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_013_BeneficiaryAndSplitterBindingsAreImmutable"]
 
 [[requirement]]
 id = "RCV-014"
 statement = "The referral payment is the floored referral share of the payment amount, to the unit, and is paid only to the receiver's immutable beneficiary."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_014_ReferralPaymentIsExactlyFlooredToTheImmutableBeneficiary"]
 
 [[requirement]]
 id = "RCV-015"
 statement = "Reentrancy attempted from the pay, sweep, or recovery paths cannot change receiver referral, skim, or net accounting and cannot move value twice."
 owner = "C1"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_015_PaySweepAndRecoveryReentrancyCannotChangeAccounting"]
+
+[[requirement]]
+id = "RCV-016"
+statement = "A receiver's note editor is fixed at initialization and every other caller is rejected."
+owner = "C1"
+contract = "PaymentReceiverV1"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_RCV_016_NoteEditorIsFixedAtInitialization"]
 
 # ---------------------------------------------------------------------------
 # MIG — graduation ordering; write-once PoolId; exact final price in both
@@ -1990,7 +2019,7 @@ selectors = ["invariant_INV_001_SubjectSupplyIsConserved"]
 id = "INV-002"
 statement = "The splitter remains solvent for every recognized token across every reachable operation sequence."
 owner = "C5"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
 status = "pending"
@@ -2000,7 +2029,7 @@ selectors = ["invariant_INV_002_SplitterRemainsSolvent"]
 id = "INV-003"
 statement = "Staked SUBJECT principal is never spent by revenue, claim, or recovery paths."
 owner = "C5"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
 status = "pending"
@@ -2020,7 +2049,7 @@ selectors = ["invariant_INV_004_HookNeverRetainsAttributableRegent"]
 id = "INV-005"
 statement = "The per-token staker-owned remainder is never lost and never double-paid."
 owner = "C5"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
 status = "pending"
@@ -2050,7 +2079,7 @@ selectors = ["invariant_INV_007_LifecycleStatesAreExclusiveAndTerminal"]
 id = "INV-008"
 statement = "Receiver accounting conserves referral, skim, and net payment amounts for every payment sequence."
 owner = "C5"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
 status = "pending"
@@ -2191,7 +2220,7 @@ selectors = ["test_ABI_003_LaunchParamsFieldsAreExact"]
 id = "ABI-004"
 statement = "The splitter's caller-only surface is exactly stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue."
 owner = "C5"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
@@ -2201,7 +2230,7 @@ selectors = ["test_ABI_004_SplitterCallerOnlySurfaceIsExact"]
 id = "ABI-005"
 statement = "Beyond those six caller-only functions the splitter exposes only its administrative recovery functions, recoverUnsupportedToken and recoverForcedETH, and no other mutating entrypoint."
 owner = "C5"
-contract = "RevenueSplitter"
+contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
@@ -2211,7 +2240,7 @@ selectors = ["test_ABI_005_SplitterAdministrativeRecoverySurfaceIsExact"]
 id = "ABI-006"
 statement = "The receiver's surface is exactly pay, sweep, setReceiverNote, recoverUnsupportedToken, and recoverForcedETH."
 owner = "C5"
-contract = "PaymentReceiver"
+contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"

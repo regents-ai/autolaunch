@@ -1,1 +1,5 @@
 forge-std/=lib/forge-std/src/
+solady/=lib/liquidity-launcher/lib/solady/src/
+continuous-clearing-auction/=lib/continuous-clearing-auction/src/
+liquidity-launcher/=lib/continuous-clearing-auction/lib/liquidity-launcher/
+@openzeppelin/contracts/=lib/continuous-clearing-auction/lib/openzeppelin-contracts/contracts/
