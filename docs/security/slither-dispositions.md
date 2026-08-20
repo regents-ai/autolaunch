@@ -14,20 +14,21 @@ Slither drives the repository's own Foundry build, so the compiler and settings 
 under are the frozen ones the gate already proved. That build is
 `forge build --skip ./test/** ./script/**`, so the analyzed scope is exactly this
 repository's **production** Solidity under `src/`. Tests and scripts are outside the
-analyzed scope because Slither's Foundry integration excludes them; pinned dependency
-sources under `lib/` are excluded by `filter_paths` because this repository does not own
-them.
+analyzed scope because Slither's Foundry integration excludes them. Results whose source
+elements are all pinned dependencies are excluded because this repository does not own
+those sources. A result that touches both production code and a dependency remains visible.
 
 `slither.config.json` disables nothing else. No detector is turned off, no severity is
 excluded, and no triage database is used. Slither can be narrowed two entirely valid ways —
 a well-formed configuration key, or a well-formed command-line flag — so the gate pins both:
 
 - **The configuration.** `slither.config.json` must equal one exact allowed shape:
-  `filter_paths` exactly `^lib/`, all six severity exclusions false, `exclude_dependencies`
-  false, and `compile_force_framework` foundry. An added key, a changed value, a broadened
-  filter, or a detector exclusion list all fail, whether or not the key is spelled
-  correctly. A typo such as `exclude_lowww` fails as an unrecognized key, and a correct
-  `"exclude_low": true` fails as a narrowing.
+  `exclude_dependencies` true, all six severity exclusions false, no path filter, and
+  `compile_force_framework` foundry. Slither excludes a result only when every source
+  element is a dependency; mixed production/dependency findings remain visible. An added
+  key, a changed value, a path filter, or a detector exclusion list all fail, whether or
+  not the key is spelled correctly. A typo such as `exclude_lowww` fails as an
+  unrecognized key, and a correct `"exclude_low": true` fails as a narrowing.
 - **The command line.** `bin/gate.sh` records the exact argv it is about to run and then
   runs that argv, and the gate compares the recording against the one allowed invocation.
   `--detect`, `--exclude`, `--exclude-low`, `--filter-paths`, and `--triage-mode` are all
@@ -63,9 +64,8 @@ deletes the whole generated directory before each run and fails if any piece of 
 evidence is missing, empty, or malformed, so a stale artifact cannot survive into a later
 run.
 
-The checklist carries Slither's standard "not complete" banner whenever any path filter is
-configured. Re-running the same command with `--show-ignored-findings` returns the same
-results, so the `lib/` filter currently hides nothing.
+No path filter is configured. Pinned dependency-only results are omitted; every result that
+touches production code remains subject to the exact disposition rules below.
 
 ## Results
 

@@ -1,6 +1,5 @@
 {
-  "filter_paths": "^lib/",
-  "exclude_dependencies": false,
+  "exclude_dependencies": true,
   "exclude_informational": false,
   "exclude_optimization": false,
   "exclude_low": false,

@@ -1017,8 +1017,10 @@ def check_slither_scope(args: argparse.Namespace, problems: Problems) -> list[st
     shape here, so a *correct* narrowing fails just as a misspelled one does.
     """
     allowed_config = {
-        "filter_paths": "^lib/",
-        "exclude_dependencies": False,
+        # Slither's path filter discards an entire result when any source element matches.
+        # Dependency mode is narrower: it discards only results whose elements are all
+        # dependencies, so a mixed production/dependency finding remains visible.
+        "exclude_dependencies": True,
         "exclude_informational": False,
         "exclude_optimization": False,
         "exclude_low": False,
