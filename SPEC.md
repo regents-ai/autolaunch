@@ -205,6 +205,8 @@ Stop if any contract claim is not deterministic, a requirement lacks coverage, a
 
 ## 11. Product and release
 
+**Founder continuation clarification — 2026-08-20.** Contract-independent Ash product work may proceed before C5 when it is limited to the active-Privy-wallet boundary, durable protected operation state, simple forms and progress states, and interfaces derived from the already pinned external CCA, Permit2, and REGENT sources. It must remain fail-closed in production and may not invent a Regent ABI, deployed address, runtime fact, predecessor-hint source, projector fact, entitlement, or admission result. Final bindings, public controls, and release proof still follow C5. This clarification authorizes local implementation and review only; it authorizes no provider write, wallet request, signature, transaction, deployment, or value movement.
+
 After C5 freezes the ABI: `490.8.2/.3` project events through the existing watcher; `490.5` implements direct connected-wallet fee approval and launch; `839.5/.1` implement mandatory Permit2 bidding, five-argument bids, full/partial exits, claims, and refunds; `490.6` implements token details, SUBJECT stake/unstake/claims, canonical payments, and custom receivers. The token list uses a bounded recent graduated set from the database and connected-wallet balance filtering. Ash workers must use `ash-vibez` and exact repo-pinned Ash/Phoenix/LiveView sources. Global Stake/Redeem remains unchanged.
 
 `490.12` owns Base Sepolia, `4wx` owns pinned/latest Base forks, and `839.7` owns the deployment packet. No provider write, deployment, signature, transaction, or value movement occurs without separate founder authority.
