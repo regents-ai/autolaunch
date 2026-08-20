@@ -5,8 +5,9 @@ out = "out"
 libs = ["lib"]
 
 # Frozen build identity (SPEC.md section 3). bin/gate.sh asserts every value below
-# against requirements/toolchain.lock and against the compiler recorded in the
-# produced artifacts, and fails closed on any drift.
+# against requirements/frozen-identity.json, against the effective `forge config`
+# output, and against the compiler recorded in the produced artifacts. Any drift,
+# including an environment override, fails the gate closed.
 solc = "0.8.26"
 evm_version = "cancun"
 optimizer = true
@@ -20,15 +21,19 @@ cbor_metadata = false
 offline = true
 ffi = false
 
-fs_permissions = [{ access = "read", path = "./test/fixtures" }]
+fs_permissions = [{ access = "read", path = "./requirements" }]
 
+# Deterministic test portfolio. Every seed, run, depth, rejection, revert, and shrink
+# setting the required gate uses is committed here rather than left to a default.
 [profile.default.fuzz]
 runs = 512
 seed = "0x5245474e54"
 max_test_rejects = 65536
+fail_on_revert = true
 
 [profile.default.invariant]
 runs = 256
 depth = 128
 fail_on_revert = true
+max_assume_rejects = 65536
 shrink_run_limit = 5000

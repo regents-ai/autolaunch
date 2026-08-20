@@ -5,43 +5,43 @@ on:
   pull_request:
 
 # The only check this workflow runs is bin/gate.sh. Every step before it materializes pinned
-# material over the network so the gate itself can stay offline and fail closed.
+# material over the network so the gate itself can stay offline and fail closed. Every
+# version comes from requirements/frozen-identity.json, never from a literal repeated here.
 jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read the frozen toolchain lock
-        id: lock
+      - name: Read the frozen identity
+        id: frozen
         run: |
           set -eu
-          lock() { awk -v key="$1" '$1 == key { print $2 }' requirements/toolchain.lock; }
+          read_frozen() {
+            python3 -c "import json;print(json.load(open('requirements/frozen-identity.json'))$1)"
+          }
           {
-            printf 'forge=%s\n' "$(lock forge_version | sed 's/-stable$//')"
-            printf 'slither=%s\n' "$(lock slither_version)"
-            printf 'python=%s\n' "$(lock ledger_python_version)"
-            printf 'solc=%s\n' "$(lock solc_identity | cut -d+ -f1)"
+            printf 'forge=%s\n' "$(read_frozen "['toolchain']['forge_version']" | sed 's/-stable$//')"
+            printf 'slither=%s\n' "$(read_frozen "['toolchain']['slither_version']")"
+            printf 'python=%s\n' "$(read_frozen "['toolchain']['python_version']")"
+            printf 'solc=%s\n' "$(read_frozen "['build']['solc_version']")"
           } >>"$GITHUB_OUTPUT"
 
-      - name: Materialize the pinned dependency closure
+      - name: Materialize the complete recursive dependency closure
         run: |
           set -eu
-          rewrite='url.https://github.com/.insteadOf=git@github.com:'
-          awk '/^[[:space:]]*#/ { next } $1 == "pin" || $1 == "mirror" { print $2 }' \
-            requirements/dependency-closure.txt |
-            xargs git -c "$rewrite" submodule update --init --
-          awk '/^[[:space:]]*#/ { next } $1 == "derived" { print $3, substr($2, length($3) + 2) }' \
-            requirements/dependency-closure.txt |
-            while read -r parent child; do
-              git -C "$parent" -c "$rewrite" submodule update --init -- "$child"
-            done
+          # The rewrite is required: one pinned upstream declares an SSH remote for
+          # OpenZeppelin, which cannot be fetched here. Recursion is required: the frozen
+          # closure includes every nested gitlink, not only the root submodules.
+          git -c url."https://github.com/".insteadOf="git@github.com:" \
+              submodule update --init --recursive
+          git submodule status --recursive | wc -l
 
       - name: Materialize the pinned Foundry
         run: |
           set -eu
           curl -L https://foundry.paradigm.xyz | bash
-          "$HOME/.foundry/bin/foundryup" --install '${{ steps.lock.outputs.forge }}'
+          "$HOME/.foundry/bin/foundryup" --install '${{ steps.frozen.outputs.forge }}'
           printf '%s\n' "$HOME/.foundry/bin" >>"$GITHUB_PATH"
 
       - name: Materialize the pinned Solidity compiler
@@ -49,17 +49,17 @@ jobs:
           set -eu
           scratch="$RUNNER_TEMP/solc-materialize"
           mkdir -p "$scratch/src"
-          printf '[profile.default]\nsolc = "%s"\n' '${{ steps.lock.outputs.solc }}' >"$scratch/foundry.toml"
+          printf '[profile.default]\nsolc = "%s"\n' '${{ steps.frozen.outputs.solc }}' >"$scratch/foundry.toml"
           printf '// SPDX-License-Identifier: UNLICENSED\npragma solidity %s;\ncontract M {}\n' \
-            '${{ steps.lock.outputs.solc }}' >"$scratch/src/M.sol"
+            '${{ steps.frozen.outputs.solc }}' >"$scratch/src/M.sol"
           cd "$scratch" && forge build
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ steps.lock.outputs.python }}
+          python-version: ${{ steps.frozen.outputs.python }}
 
       - name: Materialize the pinned Slither
-        run: pip install "slither-analyzer==${{ steps.lock.outputs.slither }}"
+        run: pip install "slither-analyzer==${{ steps.frozen.outputs.slither }}"
 
       - name: Required gate
         run: bin/gate.sh
