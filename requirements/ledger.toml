@@ -1,0 +1,1827 @@
+# Claim-level requirement ledger (SPEC.md section 9).
+#
+# One entry per frozen normative Solidity claim. `bin/check-requirements.py` reconciles this
+# file against the tests enumerated from the pinned source tree and against the dependency
+# receipt written by `bin/gate.sh`.
+#
+# status = "active"  the owning ticket's gate is due now; the claim must map to an existing
+#                    selector that executed exactly once, or to a verified gate check.
+# status = "pending" the owning ticket's gate has not activated; the claim carries no selector
+#                    and no test may claim its ID. Nothing can mark it complete.
+#
+# A claim becomes active only by adding its owning ticket to `activated_tickets` below, which is
+# the single switch that turns a future ticket's claims into mandatory executed evidence.
+
+[ledger]
+version = 1
+authority = "SPEC.md"
+activated_tickets = ["C0"]
+groups = [
+    "DEP",
+    "FAC",
+    "TOK",
+    "STR",
+    "ESC",
+    "HOK",
+    "SPL",
+    "RCV",
+    "MIG",
+    "FAIL",
+    "INV",
+    "GAS",
+    "ABI",
+]
+
+# ---------------------------------------------------------------------------
+# DEP — pins, chain, external addresses/runtime/proxy/getters, zero CCA
+#       controller, clone hashes
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "DEP-001"
+statement = "The CCA v2.1 dependency is pinned at the founder-frozen commit 7d7602d257733315434570f2a0c2f94f1c7b207a."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-002"
+statement = "The Liquidity Launcher dependency is pinned at the founder-frozen commit 3a3103543f50a13a0ae52a253bb98a925d72146f."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-003"
+statement = "The UERC20 factory dependency is pinned at the founder-frozen commit 09ae130f7a10f7c1b96e0dc7d9724d567080c4ef."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-004"
+statement = "The pinned Liquidity Launcher commit equals the gitlink that the pinned CCA v2.1 commit itself records for its launcher dependency."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-005"
+statement = "Every recursive dependency in the pinned closure is materialized at exactly the commit recorded by its own pinned parent's tree, never at a candidate-supplied expectation."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-006"
+statement = "The repository's own forge-std identity equals the forge-std gitlink recorded by the pinned Liquidity Launcher tree."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-007"
+statement = "The founder-selected UERC20 factory pin and the Liquidity Launcher's nested UERC20 dependency are distinct commits and remain separately bound."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-008"
+statement = "Every required submodule is initialized from real git metadata, is clean, and agrees with the gitlink recorded by its parent; no initialized submodule in the tree disagrees with its parent's gitlink; and .gitmodules declares no root submodule outside the required closure."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-009"
+statement = "The compiled artifacts record Solidity 0.8.26+commit.8a97fa7a, optimizer enabled with 200 runs, via-IR, the cancun EVM version, and disabled bytecode metadata."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-010"
+statement = "The Foundry, Slither, and ledger-check interpreter identities executing the required gate equal the repository-owned toolchain lock."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-011"
+statement = "SPEC.md hashes to the frozen C0 authority digest recorded in requirements/authority.lock."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-012"
+statement = "The chain manifest, the binding fixture, and the compiled binding source carry exactly the SPEC.md binding address set and the SPEC.md CCA runtime code hash, with no additional or missing literal."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-013"
+statement = "The admitted CCA admission signature is defined by the pinned CCA v2.1 implementation source, not by a local or vendored interface file."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-014"
+statement = "The required gate executes with Foundry offline and FFI disabled, as reported by the effective configuration."
+owner = "C0"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = []
+
+[[requirement]]
+id = "DEP-020"
+statement = "The compiled REGENT binding equals the frozen address 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_020_RegentBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-021"
+statement = "The compiled USDC binding equals the frozen address 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_021_UsdcBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-022"
+statement = "The compiled CCA factory binding equals the frozen address 0x000000001F26a0044BaA66024e7b6599c61963F8."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_022_CcaFactoryBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-023"
+statement = "The compiled PoolManager binding equals the frozen address 0x498581fF718922c3f8e6A244956aF099B2652b2b."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_023_PoolManagerBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-024"
+statement = "The compiled PositionManager binding equals the frozen address 0x7C5f5A4bBd8fD63184577525326123B519429bDc."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_024_PositionManagerBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-025"
+statement = "The compiled live staking binding equals the frozen address 0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_025_LiveStakingBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-026"
+statement = "The compiled governance and Regent Safe binding equals the frozen address 0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_026_GovernanceSafeBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-027"
+statement = "The compiled dead address binding equals the frozen address 0x000000000000000000000000000000000000dEaD."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_027_DeadAddressBindingEqualsFrozenAddress"]
+
+[[requirement]]
+id = "DEP-028"
+statement = "The compiled CCA runtime code hash constant equals the frozen value 0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa."
+owner = "C0"
+contract = "BaseBindings"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_028_CcaFactoryRuntimeCodeHashEqualsFrozenValue"]
+
+[[requirement]]
+id = "DEP-030"
+statement = "On Base, the bound CCA factory's deployed runtime code hash equals the frozen value and any mismatch stops admission."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "DEP-031"
+statement = "On Base, the bound CCA factory's protocolFeeController() returns address(0) and any mismatch stops admission."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "DEP-032"
+statement = "On Base, every frozen binding address carries nonempty deployed runtime code."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "DEP-033"
+statement = "On Base, the REGENT, USDC, and live staking bindings answer their admitted getters with the semantics the system relies on."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "DEP-034"
+statement = "On Base, the PoolManager and PositionManager bindings present the proxy and implementation shape the migration path relies on."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "DEP-035"
+statement = "The authorized fork gate executes against Base mainnet at both the pinned block and the latest head."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "DEP-036"
+statement = "The escrow, splitter, and receiver clone implementation code hashes equal the values recorded in the frozen manifest."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# FAC — fee and pause authority and scope, exact allowances, rollback,
+#       metadata, IDs, provenance, start, raise, full launch
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "FAC-001"
+statement = "Launch IDs are sequential."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-002"
+statement = "Internal salts derive only from the launch ID."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-003"
+statement = "Duplicate names and symbols are allowed."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-004"
+statement = "Supply is exactly 100 billion 18-decimal SUBJECT allocated 10% auction, 5% LP reserve, 85% vesting."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-005"
+statement = "The initial launch fee is exactly 1,000,000 REGENT and goes to the Regent Safe."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-006"
+statement = "Governance may change the launch fee, including to zero."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-007"
+statement = "Governance may pause and unpause only new launches, and no other actor holds that authority."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-008"
+statement = "The factory allowance must equal the expected positive fee exactly."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-009"
+statement = "A zero fee requires a zero factory allowance."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-010"
+statement = "A stale expected launch fee reverts everything."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-011"
+statement = "The auction start is always block.number plus 1,800."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-012"
+statement = "There is no user-supplied start, floor, hook, pool setting, Safe, ERC-8004 identity, or salt."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-013"
+statement = "Metadata is nonempty and byte-bounded: name 64, symbol 16, description 512, website 256, image 256."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-014"
+statement = "Maximum-length, one-byte-over, and malformed UTF-8 metadata inputs are handled at their exact boundary."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-015"
+statement = "The treasury is immutable."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-016"
+statement = "The recovery admin is an immutable deployed contract, and zero, self, and non-contract admin addresses are rejected."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-017"
+statement = "Launcher provenance gives no authority."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-018"
+statement = "A later failed auction does not refund the launch fee."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-019"
+statement = "A factory pause never blocks existing auctions, finalization, refunds, staking, claims, swaps, payments, vesting, or recovery."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-020"
+statement = "A complete launch produces the SUBJECT token, the CCA auction, and pending escrow in one transaction."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-021"
+statement = "A failure at any launch stage rolls the whole launch back with no partial state."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-022"
+statement = "Launch fee boundary inputs 0, 1, 49, 50, 99, 100, 9,999, and 10,000 behave exactly as specified."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-023"
+statement = "Simultaneous launches in the same block remain independent and correctly identified."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-024"
+statement = "The required raise is nonzero and mathematically reachable for every admitted launch."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAC-025"
+statement = "createPaymentReceiver is callable by anyone for an existing launch and creates only a custom receiver."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# TOK — supply, decimals, creator, metadata, absence of administrative powers
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "TOK-001"
+statement = "SUBJECT total supply is exactly 100 billion units."
+owner = "C4"
+contract = "SubjectToken"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "TOK-002"
+statement = "SUBJECT has 18 decimals."
+owner = "C4"
+contract = "SubjectToken"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "TOK-003"
+statement = "SUBJECT is created only through the pinned UERC20 factory path bound to the Autolaunch factory."
+owner = "C4"
+contract = "SubjectToken"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "TOK-004"
+statement = "SUBJECT name, symbol, and metadata equal the launch parameters that created it."
+owner = "C4"
+contract = "SubjectToken"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "TOK-005"
+statement = "SUBJECT exposes no mint, burn, pause, blacklist, upgrade, or other administrative token power after creation."
+owner = "C4"
+contract = "SubjectToken"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# STR — canonical initialization, isolation, CCA parameters, migration, price
+#       orderings, finalization, no retry state
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "STR-001"
+statement = "The shared strategy receives one irreversible binding to the factory and the hook."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-002"
+statement = "Only the bound factory initializes distributions."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-003"
+statement = "Anyone may call migrate(auction)."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-004"
+statement = "Technical migration failure is an ordinary EVM revert with no retry counter, retry mode, alternate pool, recovery migration, or committed technical-failure state."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-005"
+statement = "The auction duration is fixed at 86,401 blocks."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-006"
+statement = "The claim delay is fixed at 64 blocks."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-007"
+statement = "Migration eligibility is the auction end plus 128 blocks."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-008"
+statement = "The auction schedule is the frozen 104-byte, 13-step schedule."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-009"
+statement = "The floor price is Q96 79,228,162,514,264,337,593,543,900."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-010"
+statement = "The bid tick is Q96 792,281,625,142,643,375,935,439."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-011"
+statement = "The auction protocol fee is 0%."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-012"
+statement = "The strategy's isolated 5% LP reserve is never commingled with auction inventory."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-013"
+statement = "Canonical initialization admits only the frozen CCA parameter set for a launch."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-014"
+statement = "Both currency orderings produce the same economic price relationships."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "STR-015"
+statement = "Finalization proves graduation from the completed checkpoint state before any migration work commits."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# ESC — one-time pending custody, resolution, vesting, exact failure
+#       retirement, late failed SUBJECT
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "ESC-001"
+statement = "Escrow accepts pending launch custody exactly once per launch."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ESC-002"
+statement = "Escrow resolves a launch exactly once, to graduation or to failure, and never both."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ESC-003"
+statement = "On economic failure the strategy sends its isolated 5% reserve to escrow."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ESC-004"
+statement = "On economic failure escrow sweeps the failed-auction 10%."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ESC-005"
+statement = "On economic failure escrow proves exactly 100 billion SUBJECT and sends it to the dead address."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ESC-006"
+statement = "SUBJECT arriving at escrow after a failed retirement is retired to the dead address without reopening the launch."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ESC-007"
+statement = "On graduation escrow activates 365-day vesting starting at the graduation timestamp."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ESC-008"
+statement = "Escrow holds no authority to move custody outside the two specified resolutions."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# HOK — permissions, caller, registration, key, four swaps, rounding, tiny
+#       swaps, settlement, routers, rollback
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "HOK-001"
+statement = "The hook is immutably bound to the strategy and the PoolManager."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-002"
+statement = "Only the strategy may register a pool, and only with an exact PoolKey."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-003"
+statement = "A PoolKey may be registered once and never replaced."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-004"
+statement = "The hook declares exactly the permissions its specified behavior requires."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-005"
+statement = "Exact-input swaps with REGENT as the specified currency charge both REGENT lanes."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-006"
+statement = "Exact-output swaps with REGENT as the specified currency charge both REGENT lanes."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-007"
+statement = "Exact-input swaps with REGENT as the unspecified currency charge both REGENT lanes."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-008"
+statement = "Exact-output swaps with REGENT as the unspecified currency charge both REGENT lanes."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-009"
+statement = "The hook independently floors two 1% REGENT lanes per swap."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-010"
+statement = "One 1% REGENT lane goes directly to the Regent Safe."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-011"
+statement = "The other 1% REGENT lane goes to the subject splitter, where the normal 2% REGENT skim applies."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-012"
+statement = "Swaps too small to charge a floored lane are handled exactly, without underflow or silent loss."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-013"
+statement = "Settlement finishes inside the swap transaction."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-014"
+statement = "The hook retains no attributable fee inventory after a swap."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-015"
+statement = "The hook has no flush, threshold, keeper, pause, router allowlist, replacement, or fee setter."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-016"
+statement = "Settlement failure reverts the swap."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-017"
+statement = "The PoolManager plus the registered PoolKey is the entire authority boundary; any other caller or key is rejected."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "HOK-018"
+statement = "Arbitrary routers and reentrancy attempts cannot change lane accounting or escape the authority boundary."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# SPL — assets, skims, zero stake, stake snapshots, caller claims,
+#       remainder and principal, deposits, recovery
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "SPL-001"
+statement = "The splitter recognizes exactly USDC, REGENT, and its own SUBJECT token."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-002"
+statement = "Every recognized inflow floors a 2% skim exactly once."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-003"
+statement = "The USDC skim uses exact approval, live staking depositUSDC, behavior verification, and allowance cleanup."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-004"
+statement = "REGENT and SUBJECT skims go to the Regent Safe."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-005"
+statement = "Net 98% goes pro rata to current SUBJECT stakers."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-006"
+statement = "With no SUBJECT staked, net 98% goes immediately to the immutable treasury."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-007"
+statement = "One staker-owned arithmetic remainder per token is protected and carried forward."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-008"
+statement = "Staked SUBJECT principal, claims, and remainder are excluded from surplus and recovery."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-009"
+statement = "Staking is immediate."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-010"
+statement = "Claims and unstaking are independent of the factory launch pause."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-011"
+statement = "Supported bare transfers become revenue only through permissionless surplus recognition."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-012"
+statement = "stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue act only for the caller."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-013"
+statement = "Stake, unstake, deposit, and claim interleavings pay each staker exactly the share their staked snapshot earned."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "SPL-014"
+statement = "Recognized revenue keeps the splitter solvent for every recognized token across arbitrary amounts."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# RCV — creation, referral, ordering, pay and sweep, notes and events,
+#       immutability, recovery destination
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "RCV-001"
+statement = "Anyone may pay gas to create a custom receiver, and its creator edits its note."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-002"
+statement = "The referral share is immutable for the life of a receiver."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-003"
+statement = "The referral share is 0 through 2.5% inclusive, and boundary values 0, 1, 249, 250, and 251 bps behave exactly as specified."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-004"
+statement = "Referral payout runs before splitter processing."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-005"
+statement = "The canonical receiver has zero referral and a treasury-edited note."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-006"
+statement = "The note defaults to the receiver address encoded as bytes32 and appears with paymentRef in events."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-007"
+statement = "pay and bare-transfer sweep use the same atomic referral-before-splitter route."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-008"
+statement = "Ordinary ETH transfers revert."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-009"
+statement = "Only the immutable recovery admin may send forced ETH or unsupported ERC20s, and always to the immutable treasury."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-010"
+statement = "USDC, REGENT, and SUBJECT are permanently protected from recovery."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "RCV-011"
+statement = "There is no unsupported-token enumeration, and a malicious token can fail only its own recovery call."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# MIG — ordering, PoolId, final price, pool settings and NFT, actual use and
+#       residues, receiver, vesting, rollback
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "MIG-001"
+statement = "Graduation checkpoints and proves graduation before any other migration step."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-002"
+statement = "Graduation derives the final-price PoolKey and PoolId."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-003"
+statement = "Graduation deploys the splitter clone."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-004"
+statement = "Graduation registers the PoolId once in the hook."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-005"
+statement = "Graduation sweeps REGENT and initializes the pool at the exact CCA final price."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-006"
+statement = "Graduation mints one full-range LP position and sends its NFT to the dead address."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-007"
+statement = "Graduation sends unused REGENT to the immutable treasury."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-008"
+statement = "Graduation sends the unused SUBJECT reserve to escrow."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-009"
+statement = "Graduation sweeps successful-auction unsold SUBJECT into escrow."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-010"
+statement = "Graduation deploys the canonical zero-referral receiver."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-011"
+statement = "Graduation activates 365-day vesting from the graduation timestamp."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-012"
+statement = "Graduation records the graduation atomically."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-013"
+statement = "The twelve graduation steps execute in exactly the specified order."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-014"
+statement = "The official pool is static 0.30% with tick spacing 60 and one managed full-range position."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-015"
+statement = "Third parties may add independent positions without affecting the managed position."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-016"
+statement = "Actual token use and residues after graduation match the specified destinations exactly, with no stranded launch inventory."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "MIG-017"
+statement = "Failure after every migration external call rolls back to the pre-migration state."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# FAIL — unmet raise, zero and partial bids, inventory, dead delta, refunds,
+#        absent infrastructure, repeats
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "FAIL-001"
+statement = "An auction that does not meet the required raise resolves as economically failed."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAIL-002"
+statement = "An auction with zero bids resolves as economically failed."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAIL-003"
+statement = "An auction with partial bids below the required raise resolves as economically failed."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAIL-004"
+statement = "Failure retirement proves exactly 100 billion SUBJECT before sending it to the dead address."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAIL-005"
+statement = "The dead address balance delta equals the full retired supply."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAIL-006"
+statement = "Bidder REGENT remains refundable from the CCA after failure retirement."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAIL-007"
+statement = "Failure commits no pool, splitter, receiver, hook registration, or vesting."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "FAIL-008"
+statement = "Repeated failure resolution attempts are idempotent and move no additional value."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# INV — supply, solvency, principal, remainder, reserve, lifecycle, receiver,
+#       and hook conservation
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "INV-001"
+statement = "Total SUBJECT supply is conserved across every reachable sequence of launch, auction, migration, and failure operations."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "INV-002"
+statement = "The splitter remains solvent for every recognized token across every reachable operation sequence."
+owner = "C5"
+contract = "RevenueSplitter"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "INV-003"
+statement = "Staked SUBJECT principal is never spent by revenue, claim, or recovery paths."
+owner = "C5"
+contract = "RevenueSplitter"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "INV-004"
+statement = "The hook never retains attributable REGENT after a settled swap."
+owner = "C5"
+contract = "RegentFeeHook"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "INV-005"
+statement = "The per-token staker-owned remainder is never lost and never double-paid."
+owner = "C5"
+contract = "RevenueSplitter"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "INV-006"
+statement = "The isolated 5% LP reserve is conserved until its specified destination consumes it."
+owner = "C5"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "INV-007"
+statement = "Every launch occupies exactly one lifecycle state, and graduation and failure are mutually exclusive and terminal."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "INV-008"
+statement = "Receiver accounting conserves referral, skim, and net payment amounts for every payment sequence."
+owner = "C5"
+contract = "PaymentReceiver"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# GAS — runtime and initcode size, complete outer launch, success, and failure
+#       paths at or below 14M
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "GAS-001"
+statement = "Every deployable contract's runtime size is within the EIP-170 limit with the recorded margin."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "GAS-002"
+statement = "Every deployment's creation bytecode plus encoded constructor arguments is within the EIP-3860 limit."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "GAS-003"
+statement = "The complete outer launch transaction stays at or below 14,000,000 gas."
+owner = "C5"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "GAS-004"
+statement = "The complete graduation transaction stays at or below 14,000,000 gas."
+owner = "C5"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "GAS-005"
+statement = "The complete failure retirement transaction stays at or below 14,000,000 gas."
+owner = "C5"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "GAS-006"
+statement = "Complete gas including intrinsic and calldata cost stays at or below 14,000,000 on the authorized Base fork."
+owner = "C5"
+contract = "system"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = []
+
+# ---------------------------------------------------------------------------
+# ABI — selectors, topics, indexing and widths, initializers, absence of
+#       obsolete interfaces
+# ---------------------------------------------------------------------------
+
+[[requirement]]
+id = "ABI-001"
+statement = "The admitted CCA admission selector is the keccak-derived selector of protocolFeeController(), whose definition comes from the pinned CCA v2.1 implementation source."
+owner = "C0"
+contract = "chain-contracts"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_ABI_001_ProtocolFeeControllerSelectorDerivesFromPinnedSignature"]
+
+[[requirement]]
+id = "ABI-002"
+statement = "The factory's public mutation surface is exactly launch, setLaunchFee, pauseLaunches, unpauseLaunches, and createPaymentReceiver."
+owner = "C5"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ABI-003"
+statement = "LaunchParams contains only name, symbol, description, website, image, treasury, recoveryAdmin, requiredRegentRaised, and expectedLaunchFee."
+owner = "C5"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ABI-004"
+statement = "The splitter's caller-only surface is exactly stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue."
+owner = "C5"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ABI-005"
+statement = "The receiver's surface is exactly pay, sweep, setReceiverNote, recoverUnsupportedToken, and recoverForcedETH."
+owner = "C5"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ABI-006"
+statement = "Event topics, indexed fields, and value widths are frozen exactly as the product watcher consumes them."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ABI-007"
+statement = "Every clone initializer can run exactly once and cannot be re-run by any caller."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []
+
+[[requirement]]
+id = "ABI-008"
+statement = "No obsolete Safe, ERC-8004, or registry interface from the superseded Autolaunch graph remains in the frozen ABI."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = []

@@ -1,0 +1,8 @@
+# Frozen controlling-authority digest.
+#
+# spec_sha256 is the SHA-256 of SPEC.md at the C0 freeze. It was byte-verified equal to the
+# landed Control specification docs/specs/autolaunch-v1-clean-rebuild-2026-08-20.md at the C0
+# baseline. `bin/gate.sh` fails closed if SPEC.md ever stops hashing to this value.
+#
+# key            value
+spec_sha256      550ef04853f0918a502b77628992269fed0290db789cd387b54ab19abb6a6894

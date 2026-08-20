@@ -1,0 +1,54 @@
+version: 1
+repository: autolaunch-contracts
+authority: SPEC.md
+chain: base-mainnet
+release_posture: local implementation and proof only; mainnet remains NO-GO
+runtime_truth: >-
+  Every value below is a frozen source literal reconciled against SPEC.md by bin/gate.sh.
+  Nothing here is evidence about deployed chain state. Deployed code, proxy shape, getter
+  results, and the zero protocol fee controller stay bound to the separately authorized fork
+  gate under DEP-030 through DEP-035.
+
+bindings:
+  - id: regent
+    label: REGENT
+    address: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+  - id: usdc
+    label: USDC
+    address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  - id: cca_factory
+    label: CCA factory
+    address: "0x000000001F26a0044BaA66024e7b6599c61963F8"
+  - id: poolmanager
+    label: PoolManager
+    address: "0x498581fF718922c3f8e6A244956aF099B2652b2b"
+  - id: positionmanager
+    label: PositionManager
+    address: "0x7C5f5A4bBd8fD63184577525326123B519429bDc"
+  - id: live_staking
+    label: Live staking
+    address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+  - id: governance_and_regent_safe
+    label: Governance and Regent Safe
+    address: "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+  - id: dead_address
+    label: Dead address
+    address: "0x000000000000000000000000000000000000dEaD"
+
+admission:
+  cca_factory:
+    stop_rule: any mismatch stops admission
+    runtime_code_hash: "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa"
+    protocol_fee_controller:
+      signature: "protocolFeeController()"
+      selector: "0xf02de3b2"
+      required_result: zero address
+      state_mutability: view
+      provenance:
+        repository: https://github.com/Uniswap/continuous-clearing-auction
+        commit: 7d7602d257733315434570f2a0c2f94f1c7b207a
+        path: src/ContinuousClearingAuctionFactory.sol
+        note: >-
+          Taken from the pinned implementation definition, not from an interface file. The
+          gate re-proves that the definition exists in the pinned implementation source, and
+          test_ABI_001 re-derives the selector from the signature inside the EVM.

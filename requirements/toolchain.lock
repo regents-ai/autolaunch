@@ -1,0 +1,14 @@
+# Frozen toolchain and build identity. `bin/gate.sh` asserts every value here and fails
+# closed on drift. A failure is a stop-report, never a reason to relax a value.
+#
+# key                    value
+forge_version            1.5.1-stable
+forge_commit_sha         b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2
+slither_version          0.11.5
+ledger_python_version    3.14.7
+solc_identity            0.8.26+commit.8a97fa7a
+solc_optimizer_runs      200
+solc_via_ir              true
+solc_evm_version         cancun
+solc_bytecode_hash       none
+solc_append_cbor         false

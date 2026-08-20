@@ -1,0 +1,19 @@
+{
+  "authority": "SPEC.md section 3",
+  "chain": "base-mainnet",
+  "bindings": {
+    "regent": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+    "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "cca_factory": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+    "poolmanager": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+    "positionmanager": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+    "live_staking": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+    "governance_and_regent_safe": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+    "dead_address": "0x000000000000000000000000000000000000dEaD"
+  },
+  "admission": {
+    "cca_factory_runtime_code_hash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa",
+    "cca_factory_protocol_fee_controller_signature": "protocolFeeController()",
+    "cca_factory_protocol_fee_controller_selector": "0xf02de3b2"
+  }
+}

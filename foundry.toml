@@ -1,0 +1,34 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+
+# Frozen build identity (SPEC.md section 3). bin/gate.sh asserts every value below
+# against requirements/toolchain.lock and against the compiler recorded in the
+# produced artifacts, and fails closed on any drift.
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+
+# The required gate is offline: no registry lookup, no compiler download, no git fetch.
+# Dependencies and the compiler are materialized before the gate, never by it.
+offline = true
+ffi = false
+
+fs_permissions = [{ access = "read", path = "./test/fixtures" }]
+
+[profile.default.fuzz]
+runs = 512
+seed = "0x5245474e54"
+max_test_rejects = 65536
+
+[profile.default.invariant]
+runs = 256
+depth = 128
+fail_on_revert = true
+shrink_run_limit = 5000
