@@ -1,0 +1,6 @@
+/broadcast/
+/cache/
+/out/
+/artifacts/
+/reports/generated/
+*.log

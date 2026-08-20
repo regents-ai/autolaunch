@@ -1,0 +1,212 @@
+# Autolaunch V1 Clean Rebuild
+
+**Status:** Founder directive; current Autolaunch V1 contract authority  
+**Frozen:** 2026-08-20  
+**Implementation repository:** `repos/autolaunch-contracts`  
+**Release posture:** local implementation and proof only; mainnet remains NO-GO
+
+This specification supersedes the prior Autolaunch Safe/ERC-8004/registry contract graph for new V1 work. The historical `regent-contracts` implementation and its evidence remain read-only references. The live global REGENT Stake and Redeem contracts and product flow are not replaced.
+
+## 1. Required outcome
+
+```text
+Launch
+→ SUBJECT + CCA auction + pending escrow
+
+Failed auction
+→ 100B SUBJECT to dead address
+→ bidder refunds preserved
+
+Graduated auction
+→ final-price v4 pool + dead full-range LP NFT
+→ vesting + splitter + canonical receiver
+```
+
+Every normative Solidity claim has a stable requirement ID, at least one named Solidity test, a recorded `hermetic`, `invariant`, `fork`, or `deployment` gate, and exact execution evidence before the claim may close.
+
+## 2. Control cutover and ticket sequence
+
+- Register `autolaunch-contracts` in Control with protected Solidity, deployment, manifest, ABI, test, and gate paths.
+- Stop `regent-490.33`, release its stale custody, and preserve its candidate and worktrees read-only.
+- Supersede the old `regent-490` epic without reopening or deleting closed history.
+- Retarget `490.5`, `490.6`, `490.8.2`, `490.8.3`, `490.12`, `490.21`, `839.5`, `839.5.1`, `4wx`, and `839.7` to the new freeze.
+- Preserve completed generic watcher work in `490.8.1` and `490.8.4`.
+- Leave the global Stake/Redeem implementation and certification path unchanged.
+
+Sequential Tier 1 tickets:
+
+| Ticket | Deliverable |
+| --- | --- |
+| C0 | Repository bootstrap, dependency pins, requirement ledger, hermetic gate, threat model, Slither setup |
+| C1 | Fixed escrow, splitter, and receiver clone implementations |
+| C2 | Shared Uniswap v4 fee hook |
+| C3 | Shared factory-bound LBP strategy fork |
+| C4 | Autolaunch factory and complete local integration |
+| C5 | Claim audit, invariants, gas/size proofs, fork tests, ABI/manifest freeze |
+
+Use one writer at a time. Each ticket uses a fresh Claude Opus 5 coding session with the Regent contract-worker rules, `solidity-security`, and `crytic-slither`; C2 also uses the pinned v4 security guidance. Each candidate receives an independent adversarial Opus 5 review and chief review. No confirmed P0 or P1 integrates.
+
+## 3. Frozen dependencies and Base bindings
+
+Pin exact commits and the full recursive gitlink closure:
+
+- CCA v2.1: `7d7602d257733315434570f2a0c2f94f1c7b207a`
+- Liquidity Launcher: `3a3103543f50a13a0ae52a253bb98a925d72146f`
+- UERC20 factory: `09ae130f7a10f7c1b96e0dc7d9724d567080c4ef`
+- Solidity `0.8.26`, optimizer `200`, via-IR, bytecode metadata disabled
+- Exact recursive v4-core, v4-periphery, Permit2, OpenZeppelin, Solady, and Forge gitlinks
+
+| Binding | Address |
+| --- | --- |
+| REGENT | `0x6f89bcA4eA5931EdFCB09786267b251DeE752b07` |
+| USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| CCA factory | `0x000000001F26a0044BaA66024e7b6599c61963F8` |
+| PoolManager | `0x498581fF718922c3f8e6A244956aF099B2652b2b` |
+| PositionManager | `0x7C5f5A4bBd8fD63184577525326123B519429bDc` |
+| Live staking | `0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5` |
+| Governance and Regent Safe | `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e` |
+| Dead address | `0x000000000000000000000000000000000000dEaD` |
+
+The CCA binding requires runtime code hash `0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa` and `protocolFeeController() == address(0)`. Any mismatch stops admission.
+
+## 4. Factory
+
+`LaunchParams` contains only `name`, `symbol`, `description`, `website`, `image`, `treasury`, `recoveryAdmin`, `requiredRegentRaised`, and `expectedLaunchFee`.
+
+Public mutations contain only:
+
+```solidity
+launch(LaunchParams)
+setLaunchFee(uint256)
+pauseLaunches()
+unpauseLaunches()
+createPaymentReceiver(uint256 launchId, address beneficiary, uint16 referralBps)
+```
+
+Rules:
+
+- Supply is exactly 100 billion 18-decimal SUBJECT: 10% auction, 5% LP reserve, 85% vesting.
+- Initial launch fee is exactly 1,000,000 REGENT and goes to the Regent Safe.
+- Governance may change the fee, including to zero, and pause or unpause only new launches.
+- Factory allowance must equal the expected positive fee exactly. Zero fee requires zero factory allowance. A stale expected fee reverts everything.
+- Start is always `block.number + 1,800`.
+- There is no user start, floor, hook, pool setting, Safe, ERC-8004 identity, or salt.
+- IDs are sequential; internal salts derive only from the ID; duplicate names and symbols are allowed.
+- Metadata is nonempty and byte-bounded: name 64, symbol 16, description 512, website 256, image 256.
+- Treasury is immutable. Recovery admin is an immutable deployed contract.
+- Launcher provenance gives no authority. A later failed auction does not refund the fee.
+- Factory pause never blocks existing auctions, finalization, refunds, staking, claims, swaps, payments, vesting, or recovery.
+
+## 5. Auction, strategy, escrow, and migration
+
+Fixed auction configuration: duration 86,401 blocks; claim delay 64 blocks; migration eligibility end plus 128 blocks; frozen 104-byte, 13-step schedule; floor Q96 `79_228_162_514_264_337_593_543_900`; bid tick Q96 `792_281_625_142_643_375_935_439`; nonzero mathematically reachable required raise; auction protocol fee 0%.
+
+The shared strategy receives one irreversible binding to the factory and hook. Only that factory initializes distributions. Anyone may call `migrate(auction)`. Technical failure is an ordinary EVM revert: no retry counter, retry mode, alternate pool, recovery migration, or committed technical-failure state.
+
+Economic failure:
+
+1. Strategy sends its isolated 5% reserve to escrow.
+2. Escrow sweeps the failed-auction 10%.
+3. Escrow proves exactly 100 billion SUBJECT and sends it to the dead address.
+4. Bidder REGENT remains refundable from the CCA.
+5. No pool, splitter, receiver, hook registration, or vesting is committed.
+
+Graduation is atomic:
+
+1. checkpoint and prove graduation;
+2. derive the final-price PoolKey and PoolId;
+3. deploy the splitter clone;
+4. register the PoolId once in the hook;
+5. sweep REGENT and initialize at the exact CCA final price;
+6. mint one full-range LP position to the dead address;
+7. send unused REGENT to immutable treasury;
+8. send unused SUBJECT reserve to escrow;
+9. sweep successful-auction unsold SUBJECT into escrow;
+10. deploy the canonical zero-referral receiver;
+11. activate 365-day vesting from that timestamp;
+12. record graduation atomically.
+
+The official pool is static 0.30%, tick spacing 60, with one managed full-range position whose NFT is sent to the dead address. Third parties may add independent positions.
+
+## 6. Shared hook
+
+The immutable strategy/PoolManager-bound hook lets only the strategy register an exact PoolKey once. It supports REGENT as specified or unspecified currency for exact-input and exact-output swaps. It independently floors two 1% REGENT lanes per swap: 1% goes directly to the Regent Safe and 1% goes to the subject splitter, where the normal 2% REGENT skim applies. Settlement finishes inside the swap transaction and the hook retains no attributable fee inventory afterward. It has no flush, threshold, keeper, pause, router allowlist, replacement, or fee setter. Settlement failure reverts the swap; PoolManager plus registered PoolKey is the authority boundary.
+
+## 7. Splitter
+
+The splitter recognizes exactly USDC, REGENT, and its own SUBJECT token. Every recognized inflow floors a 2% skim exactly once. USDC skim uses exact approval, live staking `depositUSDC`, behavior verification, and allowance cleanup. REGENT and SUBJECT skims go to the Regent Safe. Net 98% goes pro rata to current SUBJECT stakers, or immediately to immutable treasury when no SUBJECT is staked. One staker-owned arithmetic remainder per token is protected and carried forward. Staked SUBJECT principal, claims, and remainder are excluded from surplus and recovery.
+
+Caller-only functions:
+
+```solidity
+stake(uint256)
+unstake(uint256)
+claim(address token)
+claimAll()
+depositRecognizedRevenue(address token, uint256 amount, bytes32 revenueRef)
+recognizeSurplusRevenue(address token, bytes32 revenueRef)
+```
+
+Staking is immediate. Claims and unstaking are independent of the factory launch pause. Supported bare transfers become revenue only through permissionless surplus recognition.
+
+## 8. Payment receivers and recovery
+
+```solidity
+pay(address token, uint256 amount, bytes32 paymentRef)
+sweep(address token, bytes32 paymentRef)
+setReceiverNote(bytes32 note)
+recoverUnsupportedToken(address token, uint256 amount)
+recoverForcedETH(uint256 amount)
+```
+
+- Referral is immutable, runs before splitter processing, and is 0 through 2.5% inclusive.
+- Canonical receiver has zero referral and a treasury-edited note.
+- Anyone may pay gas to create a custom receiver; its creator edits its note.
+- Note defaults to the receiver address encoded as `bytes32` and appears with `paymentRef` in events.
+- `pay` and bare-transfer `sweep` use the same atomic referral-before-splitter route.
+- Ordinary ETH transfers revert.
+- Only immutable recovery admin may send forced ETH or unsupported ERC20s, always to immutable treasury.
+- USDC, REGENT, and SUBJECT are permanently protected from recovery.
+- No unsupported-token enumeration; a malicious token can fail only its recovery call.
+
+## 9. Claim-level requirement ledger
+
+C0 creates a machine-readable ledger. Every entry contains the requirement ID, exact normative statement, owning contract/ticket, test type, exact Foundry selectors, and designated gate. Solidity selectors begin with their ID, for example `test_FAC_001_LaunchUsesSequentialIdentity`, `test_HOK_007_ExactOutputChargesRegentWhenUnspecified`, `testFuzz_SPL_012_RecognizedRevenueRemainsSolvent`, and `invariant_INV_004_HookNeverRetainsAttributableRegent`.
+
+The gate fails when a normative requirement is unmapped, a selector does not exist, a test did not execute exactly once, a test is skipped, or a requirement is complete before its gate passes. Mocks cannot satisfy deployed-runtime claims; those map to fork tests. UI-only claims later receive Ash/TypeScript coverage in addition to underlying Solidity coverage.
+
+Required groups:
+
+| IDs | Claim classes |
+| --- | --- |
+| `DEP-*` | Pins, chain, external addresses/runtime/proxy/getters, zero CCA controller, clone hashes |
+| `FAC-*` | Fee/pause authority and scope, exact allowances, rollback, metadata, IDs, provenance, start, raise, full launch |
+| `TOK-*` | Supply, decimals, creator, metadata, and absence of administrative token powers |
+| `STR-*` | Canonical initialization, isolation, CCA parameters, migration, price orderings, finalization, no retry state |
+| `ESC-*` | One-time pending custody, resolution, vesting, exact failure retirement, late failed SUBJECT |
+| `HOK-*` | Permissions/caller/registration/key, four swaps, rounding, tiny swaps, settlement, routers, rollback |
+| `SPL-*` | Assets, skims, zero stake, stake snapshots, caller claims, remainder/principal, deposits, recovery |
+| `RCV-*` | Creation, referral, ordering, pay/sweep, notes/events, immutability, recovery destination |
+| `MIG-*` | Ordering, PoolId, final price, pool settings/NFT, actual use/residues, receiver, vesting, rollback |
+| `FAIL-*` | Unmet raise, zero/partial bids, inventory, dead delta, refunds, absent infrastructure, repeats |
+| `INV-*` | Supply, solvency, principal/remainder/reserve/lifecycle/receiver/hook conservation |
+| `GAS-*` | Runtime/initcode and complete outer launch/success/failure paths at or below 14M |
+| `ABI-*` | Selectors, topics/indexing/widths, initializers, and absence of obsolete interfaces |
+
+Boundary coverage includes fee inputs `0, 1, 49, 50, 99, 100, 9_999, 10_000`; referral bps `0, 1, 249, 250, 251`; stake lifecycle interleavings; maximum and one-byte-over metadata plus malformed UTF-8; zero/self and contract/non-contract admin addresses; simultaneous launches; both currency orderings; reentrancy attempts; and failure after every migration external call.
+
+## 10. Gates
+
+The hermetic gate performs recursive dependency identity verification, `forge fmt --check`, `forge build --sizes`, source-enumerated unit/fuzz/invariant execution, ledger reconciliation, then `slither . --fail-medium`. Fixed fuzz/invariant settings are committed. Every source-enumerated test runs exactly once with zero failures/skips. Slither runs only after green build, broadly excludes no production source, produces normalized JSON plus Markdown checklist evidence, and records a disposition for every result. Inline suppressions name the detector, rationale, and protecting Solidity test; hidden triage is forbidden.
+
+A separate explicitly authorized fork gate proves exact Base bindings, zero CCA controller, real CCA/Permit2 behavior, live staking `depositUSDC` including paused failure, PoolManager/PositionManager semantics, all terminal paths, complete gas including intrinsic/calldata, and pinned plus latest-head repetitions.
+
+Stop if any contract claim is not deterministic, a requirement lacks coverage, an external runtime differs, accounting fails, hook settlement needs retained balances, a complete required transaction exceeds 14M gas, or upgrade/core-token recovery authority becomes necessary.
+
+## 11. Product and release
+
+After C5 freezes the ABI: `490.8.2/.3` project events through the existing watcher; `490.5` implements direct connected-wallet fee approval and launch; `839.5/.1` implement mandatory Permit2 bidding, five-argument bids, full/partial exits, claims, and refunds; `490.6` implements token details, SUBJECT stake/unstake/claims, canonical payments, and custom receivers. The token list uses a bounded recent graduated set from the database and connected-wallet balance filtering. Ash workers must use `ash-vibez` and exact repo-pinned Ash/Phoenix/LiveView sources. Global Stake/Redeem remains unchanged.
+
+`490.12` owns Base Sepolia, `4wx` owns pinned/latest Base forks, and `839.7` owns the deployment packet. No provider write, deployment, signature, transaction, or value movement occurs without separate founder authority.
+
+When all requirements, Solidity tests, Slither dispositions, authorized fork evidence, gas limits, and independent reviews are green, produce the founder audit packet and stop. Audit corrections use new Tier 1 successors and rerun affected claims plus the full gate. Mainnet remains NO-GO until founder audit and separate deployment instruction.
