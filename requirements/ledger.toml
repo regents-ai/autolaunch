@@ -47,8 +47,9 @@ groups = [
 ]
 
 # ---------------------------------------------------------------------------
-# DEP — pins, chain, external addresses/runtime/proxy/getters, zero CCA
-#       controller, clone hashes
+# DEP — compiler and full recursive gitlink pins; chain ID; every external
+#       address, exact runtime code hash, proxy status, relevant getter, zero
+#       CCA controller, and clone implementation and runtime hashes
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -293,13 +294,13 @@ selectors = ["test_DEP_028_CcaFactoryRuntimeCodeHashEqualsFrozenValue"]
 
 [[requirement]]
 id = "DEP-029"
-statement = "The compiled chain binding is Base mainnet, chain id 8453, and every frozen address binding belongs to that chain."
+statement = "The compiled binding set is designated for Base mainnet, chain id 8453. Whether each address is actually deployed on that chain is deployed-runtime truth and stays fork evidence."
 owner = "C0"
 contract = "BaseBindings"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_DEP_029_ChainBindingEqualsBaseMainnet"]
+selectors = ["test_DEP_029_CompiledBindingSetIsDesignatedForBaseMainnet"]
 
 [[requirement]]
 id = "DEP-040"
@@ -412,18 +413,34 @@ status = "pending"
 selectors = ["test_DEP_050_ForkPinnedBlockAndLatestHeadAgree"]
 
 [[requirement]]
+id = "DEP-051"
+statement = "On Base, every external binding's exact deployed runtime code hash equals the runtime code hash the final chain manifest records for that binding."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = ["test_DEP_051_ForkEveryBindingRuntimeCodeHashMatchesTheManifest"]
+
+# Repository-owned code, so this stays hermetic: the escrow, splitter, and receiver
+# implementations and their clones are deployed by this system's own tests, and their code
+# identity is a compile-time and local-deployment fact rather than external chain truth.
+[[requirement]]
 id = "DEP-060"
-statement = "The escrow, splitter, and receiver clone implementation code hashes equal the values recorded in the frozen chain manifest."
+statement = "The escrow, splitter, and receiver clone implementations present the creation and runtime code hashes the frozen chain manifest records, and every clone deployed from them presents the clone runtime code hash the manifest records."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_DEP_060_CloneImplementationCodeHashesMatchTheManifest"]
+selectors = ["test_DEP_060_CloneImplementationAndCloneRuntimeHashesMatchTheManifest"]
 
 # ---------------------------------------------------------------------------
-# FAC — fee/pause authority and scope, exact allowances, rollback, metadata,
-#       IDs, provenance, start, raise, full launch
+# FAC — governance-only fee and pause; pause scope; fee-update and
+#       fee-collection events; exact positive and zero fee allowances plus
+#       cleanup; stale-fee and complete-launch rollback; metadata bounds;
+#       sequential IDs; duplicate names; no user salts; launcher provenance;
+#       fixed start; reachable raise; and complete launch
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -638,13 +655,13 @@ selectors = ["test_FAC_021_AnyLaunchStageFailureRollsBackCompletely"]
 
 [[requirement]]
 id = "FAC-022"
-statement = "Simultaneous launches in the same block remain independent and correctly identified."
+statement = "Simultaneous launches in the same block share the one shared strategy and the one shared hook while remaining independent, isolated, and correctly identified."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_FAC_022_SimultaneousLaunchesRemainIndependent"]
+selectors = ["test_FAC_022_SimultaneousLaunchesShareOneStrategyAndHookAndStayIsolated"]
 
 [[requirement]]
 id = "FAC-023"
@@ -666,9 +683,40 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_FAC_024_CreatePaymentReceiverIsPermissionlessAndCustomOnly"]
 
+[[requirement]]
+id = "FAC-025"
+statement = "A governance launch-fee change emits the fee-update event carrying the exact previous and new fee."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_FAC_025_FeeUpdateEmitsTheExactPreviousAndNewFee"]
+
+[[requirement]]
+id = "FAC-026"
+statement = "A successful launch that collects a positive fee emits the fee-collection event carrying the exact payer, amount, and Regent Safe destination."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_FAC_026_SuccessfulFeeCollectionEmitsTheExactCollectionEvent"]
+
+[[requirement]]
+id = "FAC-027"
+statement = "A positive-fee launch consumes the whole expected allowance and leaves the factory with zero residual REGENT allowance from the payer."
+owner = "C4"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_FAC_027_PositiveFeeLaunchLeavesNoResidualAllowance"]
+
 # ---------------------------------------------------------------------------
-# TOK — supply, decimals, creator, metadata, and absence of administrative
-#       token powers
+# TOK — exactly 100B supply; 18 decimals; Autolaunch factory creator; immutable
+#       metadata; and no public mint, owner, tax, blacklist, upgrade, or
+#       administrative burn
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -693,37 +741,39 @@ selectors = ["test_TOK_002_DecimalsAreEighteen"]
 
 [[requirement]]
 id = "TOK-003"
-statement = "SUBJECT is created only through the pinned UERC20 factory path bound to the Autolaunch factory."
+statement = "The Autolaunch factory is the only creator of SUBJECT: every SUBJECT token records that factory as its creator, and no other caller can create one through the pinned UERC20 factory path."
 owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_TOK_003_CreatedOnlyThroughThePinnedUerc20FactoryPath"]
+selectors = ["test_TOK_003_AutolaunchFactoryIsTheOnlyRecordedCreator"]
 
 [[requirement]]
 id = "TOK-004"
-statement = "SUBJECT name, symbol, and metadata equal the launch parameters that created it."
+statement = "SUBJECT name, symbol, description, website, and image equal the launch parameters that created it and are immutable for the life of the token."
 owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_TOK_004_MetadataEqualsTheCreatingLaunchParameters"]
+selectors = ["test_TOK_004_LaunchMetadataIsImmutableAndEqualsItsLaunchParameters"]
 
 [[requirement]]
 id = "TOK-005"
-statement = "SUBJECT exposes no mint, burn, pause, blacklist, upgrade, or other administrative token power after creation."
+statement = "SUBJECT exposes no public mint, owner, tax, blacklist, upgrade, or administrative burn power after creation."
 owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_TOK_005_NoAdministrativeTokenPowerRemains"]
+selectors = ["test_TOK_005_NoPublicMintOwnerTaxBlacklistUpgradeOrAdministrativeBurn"]
 
 # ---------------------------------------------------------------------------
-# STR — canonical initialization, isolation, CCA parameters, migration, price
-#       orderings, finalization, no retry state
+# STR — only the canonical factory initializes; unknown auctions are rejected;
+#       exact 10/5/85 transfer; per-auction reserve isolation; permissionless
+#       migration; exact CCA parameters; final-price conversion in both currency
+#       orderings; one-shot finalization; and no committed retry state
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -838,13 +888,13 @@ selectors = ["test_STR_011_AuctionProtocolFeeIsZero"]
 
 [[requirement]]
 id = "STR-012"
-statement = "The strategy's isolated 5% LP reserve is never commingled with auction inventory."
+statement = "Each auction's 5% LP reserve is held in isolation per auction: it is never commingled with that auction's inventory and never reachable by any other auction."
 owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_STR_012_IsolatedReserveIsNeverCommingledWithAuctionInventory"]
+selectors = ["test_STR_012_ReserveIsIsolatedPerAuction"]
 
 [[requirement]]
 id = "STR-013"
@@ -876,20 +926,54 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_STR_015_FinalizationProvesGraduationBeforeCommitting"]
 
+[[requirement]]
+id = "STR-016"
+statement = "The strategy rejects initialization and migration calls naming an auction it did not itself record."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_STR_016_UnknownAuctionIsRejected"]
+
+# Owned by C4 because the transfer it proves spans the factory, the strategy, and escrow;
+# no single earlier contract can close it alone.
+[[requirement]]
+id = "STR-017"
+statement = "Canonical initialization transfers exactly 10% of supply to the auction, 5% to the strategy reserve, and 85% to escrow, with no rounding residue anywhere."
+owner = "C4"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_STR_017_DistributionIsExactlyTenFiveEightyFive"]
+
+[[requirement]]
+id = "STR-018"
+statement = "An auction finalizes exactly once: a second finalization of the same auction reverts and commits no further state."
+owner = "C3"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_STR_018_FinalizationIsOneShot"]
+
 # ---------------------------------------------------------------------------
-# ESC — one-time pending custody, resolution, vesting, exact failure
-#       retirement, late failed SUBJECT
+# ESC — one-time initialization; exact 85% pending custody; no pending release;
+#       strategy-only resolution; success starts 365-day linear vesting to the
+#       fixed treasury beneficiary; failure retires exactly 100B; and late
+#       failed SUBJECT goes only to the dead address
 # ---------------------------------------------------------------------------
 
 [[requirement]]
 id = "ESC-001"
-statement = "Escrow accepts pending launch custody exactly once per launch."
+statement = "Escrow initialization is atomic and happens exactly once per launch: it accepts pending launch custody in the same transaction that binds the launch, and a second initialization reverts."
 owner = "C1"
 contract = "LaunchEscrow"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_ESC_001_PendingCustodyIsAcceptedExactlyOnce"]
+selectors = ["test_ESC_001_InitializationIsAtomicAndHappensExactlyOnce"]
 
 [[requirement]]
 id = "ESC-002"
@@ -961,9 +1045,62 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_ESC_008_EscrowHoldsNoCustodyAuthorityOutsideResolution"]
 
+[[requirement]]
+id = "ESC-009"
+statement = "Pending custody is exactly 85% of the 100 billion SUBJECT supply for the launch, to the unit."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_ESC_009_PendingCustodyIsExactlyEightyFivePercent"]
+
+[[requirement]]
+id = "ESC-010"
+statement = "No caller can release any pending custody while the launch is pending; release exists only through the two specified resolutions."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_ESC_010_PendingCustodyCannotBeReleasedBeforeResolution"]
+
+[[requirement]]
+id = "ESC-011"
+statement = "Only the bound strategy may resolve a launch to graduation or to failure; every other caller is rejected."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_ESC_011_OnlyTheStrategyResolvesALaunch"]
+
+[[requirement]]
+id = "ESC-012"
+statement = "Graduation vesting releases the custodied SUBJECT linearly over exactly 365 days, releasing nothing before the start and everything at the end."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_ESC_012_VestingReleasesLinearlyOverThreeSixtyFiveDays"]
+
+[[requirement]]
+id = "ESC-013"
+statement = "The vesting beneficiary is the immutable treasury fixed at initialization and can never be changed or redirected."
+owner = "C1"
+contract = "LaunchEscrow"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_ESC_013_VestingBeneficiaryIsTheFixedImmutableTreasury"]
+
 # ---------------------------------------------------------------------------
-# HOK — permissions/caller/registration/key, four swaps, rounding, tiny swaps,
-#       settlement, routers, rollback
+# HOK — correct permission bits; only PoolManager callbacks; strategy-only
+#       write-once registration; registered PoolKey validation; all four swap
+#       shapes; independent 1% rounding; zero-fee tiny swaps; synchronous
+#       settlement; zero retained inventory; arbitrary router compatibility;
+#       and settlement-failure rollback
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -1026,25 +1163,28 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_HOK_006_ExactOutputChargesRegentWhenSpecified"]
 
+# SPEC.md section 9 names `test_HOK_007_ExactOutputChargesRegentWhenUnspecified` as a
+# founder exemplar selector, so HOK-007 owns the exact-output/unspecified shape and HOK-008
+# owns exact-input/unspecified. This is the only HOK meaning that moved.
 [[requirement]]
 id = "HOK-007"
-statement = "Exact-input swaps with REGENT as the unspecified currency charge both REGENT lanes."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "pending"
-selectors = ["test_HOK_007_ExactInputChargesRegentWhenUnspecified"]
-
-[[requirement]]
-id = "HOK-008"
 statement = "Exact-output swaps with REGENT as the unspecified currency charge both REGENT lanes."
 owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_HOK_008_ExactOutputChargesRegentWhenUnspecified"]
+selectors = ["test_HOK_007_ExactOutputChargesRegentWhenUnspecified"]
+
+[[requirement]]
+id = "HOK-008"
+statement = "Exact-input swaps with REGENT as the unspecified currency charge both REGENT lanes."
+owner = "C2"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_HOK_008_ExactInputChargesRegentWhenUnspecified"]
 
 [[requirement]]
 id = "HOK-009"
@@ -1157,8 +1297,11 @@ status = "pending"
 selectors = ["test_HOK_019_LaneRoundingIsExactAtTheFeeBoundaryInputs"]
 
 # ---------------------------------------------------------------------------
-# SPL — assets, skims, zero stake, stake snapshots, caller claims,
-#       remainder/principal, deposits, recovery
+# SPL — exactly three supported assets; exact 2% skim and destinations;
+#       zero-stake treasury routing; stake and unstake snapshots; caller-only
+#       claims; fixed three-token claimAll; one protected remainder per token;
+#       principal protection; direct deposits and surplus recognition;
+#       unsupported-token recovery exclusions; and forced-ETH behavior
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -1271,19 +1414,22 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_SPL_011_BareTransfersBecomeRevenueOnlyThroughRecognition"]
 
+# SPEC.md section 9 names `testFuzz_SPL_012_RecognizedRevenueRemainsSolvent` as a founder
+# exemplar selector, so SPL-012 owns solvency and SPL-014 owns the caller-only surface.
+# This is the only SPL meaning that moved.
 [[requirement]]
 id = "SPL-012"
-statement = "stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue act only for the caller."
+statement = "Recognized revenue keeps the splitter solvent for every recognized token across arbitrary amounts."
 owner = "C1"
 contract = "RevenueSplitter"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["test_SPL_012_CallerOnlyFunctionsActOnlyForTheCaller"]
+selectors = ["testFuzz_SPL_012_RecognizedRevenueRemainsSolvent"]
 
 [[requirement]]
 id = "SPL-013"
-statement = "Stake, unstake, deposit, and claim interleavings pay each staker exactly the share their staked snapshot earned."
+statement = "Across zero stake, a first stake, a full unstake, a restake, interleaved deposits, and claims taken before and after each stake change, every staker is paid exactly the share their staked snapshot earned."
 owner = "C1"
 contract = "RevenueSplitter"
 evidence_class = "solidity-hermetic"
@@ -1293,13 +1439,13 @@ selectors = ["testFuzz_SPL_013_StakeSnapshotsPayExactlyWhatWasEarned"]
 
 [[requirement]]
 id = "SPL-014"
-statement = "Recognized revenue keeps the splitter solvent for every recognized token across arbitrary amounts."
+statement = "stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue act only for the caller."
 owner = "C1"
 contract = "RevenueSplitter"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "pending"
-selectors = ["testFuzz_SPL_014_RecognizedRevenueRemainsSolvent"]
+selectors = ["test_SPL_014_CallerOnlyFunctionsActOnlyForTheCaller"]
 
 [[requirement]]
 id = "SPL-015"
@@ -1371,9 +1517,22 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_SPL_021_ReentrancyCannotChangeSplitterAccounting"]
 
+[[requirement]]
+id = "SPL-022"
+statement = "A recovery token that re-enters the splitter during recoverUnsupportedToken cannot change skim, stake, claim, or remainder accounting and cannot reach USDC, REGENT, SUBJECT, staked principal, unclaimed claims, or the carried remainder."
+owner = "C1"
+contract = "RevenueSplitter"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_SPL_022_RecoveryTokenReentrancyCannotReachProtectedSplitterAssets"]
+
 # ---------------------------------------------------------------------------
-# RCV — creation, referral, ordering, pay/sweep, notes/events, immutability,
-#       recovery destination
+# RCV — canonical and custom creation; referral boundaries, flooring,
+#       beneficiary, and referral-before-splitter ordering; atomic pay and
+#       sweep; supported-token validation; note defaults, editor, and event;
+#       immutable beneficiary, splitter, and referral; and recovery fixed to
+#       treasury
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -1506,9 +1665,32 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_RCV_013_BeneficiaryAndSplitterBindingsAreImmutable"]
 
+[[requirement]]
+id = "RCV-014"
+statement = "The referral payment is the floored referral share of the payment amount, to the unit, and is paid only to the receiver's immutable beneficiary."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_RCV_014_ReferralPaymentIsExactlyFlooredToTheImmutableBeneficiary"]
+
+[[requirement]]
+id = "RCV-015"
+statement = "Reentrancy attempted from the pay, sweep, or recovery paths cannot change receiver referral, skim, or net accounting and cannot move value twice."
+owner = "C1"
+contract = "PaymentReceiver"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_RCV_015_PaySweepAndRecoveryReentrancyCannotChangeAccounting"]
+
 # ---------------------------------------------------------------------------
-# MIG — ordering, PoolId, final price, pool settings/NFT, actual use/residues,
-#       receiver, vesting, rollback
+# MIG — graduation ordering; write-once PoolId; exact final price in both
+#       currency orders; static 0.30% and tick 60; one full-range NFT at the
+#       dead address; actual LP consumption; separate residues; canonical
+#       receiver; active vesting; migration-dependency reentrancy rejection;
+#       and complete rollback after every external call
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -1691,9 +1873,20 @@ gate = "hermetic"
 status = "pending"
 selectors = ["test_MIG_018_RepeatedGraduationRevertsAndMovesNoValue"]
 
+[[requirement]]
+id = "MIG-019"
+statement = "A migration dependency that re-enters the migration path is rejected and the whole migration rolls back to the pre-migration state."
+owner = "C4"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "pending"
+selectors = ["test_MIG_019_MigrationDependencyReentrancyIsRejectedWithCompleteRollback"]
+
 # ---------------------------------------------------------------------------
-# FAIL — unmet raise, zero/partial bids, inventory, dead delta, refunds,
-#        absent infrastructure, repeats
+# FAIL — unmet raise, zero bids, partial bidding, full failed inventory return,
+#        exact dead-address delta, bidder refunds, no graduated infrastructure,
+#        and repeated-finalization rejection
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -1777,8 +1970,10 @@ status = "pending"
 selectors = ["test_FAIL_008_RepeatedFailureResolutionMovesNoValue"]
 
 # ---------------------------------------------------------------------------
-# INV — supply, solvency, principal/remainder/reserve/lifecycle/receiver/hook
-#       conservation
+# INV — total-supply conservation; splitter solvency; SUBJECT principal and
+#       protected-remainder conservation; no cross-launch reserve use; no
+#       unexplained factory, strategy, or hook balances; immutable lifecycle;
+#       receiver conservation; and hook conservation
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -1861,9 +2056,36 @@ gate = "invariant"
 status = "pending"
 selectors = ["invariant_INV_008_ReceiverAccountingIsConserved"]
 
+[[requirement]]
+id = "INV-009"
+statement = "No launch's 5% LP reserve is ever consumed by, credited to, or reachable from another launch."
+owner = "C5"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = ["invariant_INV_009_ReservesAreNeverUsedAcrossLaunches"]
+
+[[requirement]]
+id = "INV-010"
+statement = "The factory, the strategy, and the hook never hold a balance of SUBJECT, REGENT, or USDC that the specified flows do not account for."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-invariant"
+gate = "invariant"
+status = "pending"
+selectors = ["invariant_INV_010_NoUnexplainedFactoryStrategyOrHookBalances"]
+
 # ---------------------------------------------------------------------------
-# GAS — runtime/initcode and complete outer launch/success/failure paths at or
-#       below 14M
+# GAS — every runtime and initcode limit plus the complete direct-wallet launch,
+#       successful migration, and failed migration at or below 14M under maximum
+#       metadata, worst valid raise/inventory, cold external state, intrinsic
+#       gas, and calldata gas
+#
+# GAS-001/002 are hermetic because a runtime or initcode size is a compile-time
+# fact. GAS-003 through GAS-006 are fork-only: cold deployed external state,
+# intrinsic transaction cost, and calldata cost are not reachable from a
+# hermetic mock, so no hermetic test may close them.
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -1888,47 +2110,51 @@ selectors = ["test_GAS_002_InitcodeSizesAreWithinEip3860WithMargin"]
 
 [[requirement]]
 id = "GAS-003"
-statement = "The complete outer launch transaction stays at or below 14,000,000 gas under the worst admitted conditions: maximum-length metadata, the worst valid required raise, and cold external state."
+statement = "On the authorized Base fork, the complete direct-wallet launch transaction stays at or below 14,000,000 gas under the worst admitted conditions: maximum-length metadata, the worst valid required raise, and cold deployed external state."
 owner = "C5"
 contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
+evidence_class = "fork-execution"
+gate = "fork"
 status = "pending"
-selectors = ["test_GAS_003_CompleteLaunchStaysUnderFourteenMillion"]
+selectors = ["test_GAS_003_ForkCompleteLaunchStaysUnderFourteenMillion"]
 
 [[requirement]]
 id = "GAS-004"
-statement = "The complete graduation transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold external state and the largest admitted pool and inventory state."
+statement = "On the authorized Base fork, the complete successful migration transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold deployed external state and the largest admitted pool and inventory state."
 owner = "C5"
 contract = "migration"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
+evidence_class = "fork-execution"
+gate = "fork"
 status = "pending"
-selectors = ["test_GAS_004_CompleteGraduationStaysUnderFourteenMillion"]
+selectors = ["test_GAS_004_ForkCompleteGraduationStaysUnderFourteenMillion"]
 
 [[requirement]]
 id = "GAS-005"
-statement = "The complete failure retirement transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold external state."
+statement = "On the authorized Base fork, the complete failed migration transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold deployed external state."
 owner = "C5"
 contract = "migration"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
+evidence_class = "fork-execution"
+gate = "fork"
 status = "pending"
-selectors = ["test_GAS_005_CompleteFailureRetirementStaysUnderFourteenMillion"]
+selectors = ["test_GAS_005_ForkCompleteFailureRetirementStaysUnderFourteenMillion"]
 
+# The shared measurement method behind GAS-003, GAS-004, and GAS-005, proved once. It does
+# not restate their caps: it proves that the number each of them compares against 14,000,000
+# is the full outer transaction, intrinsic gas and calldata gas included.
 [[requirement]]
 id = "GAS-006"
-statement = "On the authorized Base fork, the complete launch, graduation, and failure transactions stay at or below 14,000,000 gas including the full outer wrapper, the intrinsic transaction cost, and the calldata cost."
+statement = "On the authorized Base fork, the gas figure measured for every complete-transaction claim is the full outer transaction, including the intrinsic transaction cost and the calldata cost, and not an inner call's gas."
 owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_GAS_006_ForkCompleteTransactionGasIncludesIntrinsicAndCalldata"]
+selectors = ["test_GAS_006_ForkMeasurementCoversTheFullOuterTransaction"]
 
 # ---------------------------------------------------------------------------
-# ABI — selectors, topics/indexing/widths, initializers, and absence of
-#       obsolete interfaces
+# ABI — exact selectors, event topics, indexed fields, integer widths, clone
+#       initializers, and absence of obsolete Safe, ERC-8004, registry, flush,
+#       and retry interfaces
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -2013,7 +2239,7 @@ selectors = ["test_ABI_008_CloneInitializersRunExactlyOnce"]
 
 [[requirement]]
 id = "ABI-009"
-statement = "No obsolete Safe, ERC-8004, or registry interface from the superseded Autolaunch graph remains in the frozen ABI."
+statement = "No obsolete Safe, ERC-8004, registry, flush, or retry interface from the superseded Autolaunch graph remains in the frozen ABI."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"

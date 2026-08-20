@@ -11,14 +11,17 @@ Subcommands, in the order the gate runs them:
   preflight  Reconcile `requirements/frozen-identity.json` against SPEC.md, the real
              recursive Git metadata, the installed tool identities, the effective Foundry
              configuration, the chain manifest, the compiled binding source, and the pinned
-             CCA implementation source. Validate the ledger's static shape. Write the
-             dependency receipt that the ledger reconciliation later consumes.
+             CCA implementation source. Derive the frozen build from SPEC.md and reconcile
+             both the fixture and the effective configuration against it. Validate the
+             ledger's static shape. Write the dependency receipt that the ledger
+             reconciliation later consumes.
   artifacts  Assert the compiler identity and settings recorded in the produced artifacts.
   ledger     Reconcile Foundry's own compiled test listing against the executed test report
              as multisets, then reconcile both against the ledger.
-  security   Reconcile the Slither run: fresh, well-formed, complete evidence; a visible
-             disposition for every result at every severity; and a complete record for
-             every inline suppression.
+  security   Reconcile the Slither run: an unnarrowed configuration and command line, the
+             pinned binary's whole registered detector portfolio, fresh and well-formed
+             evidence, one visible disposition per exact result fingerprint at every
+             severity, and a complete record for every inline suppression.
 
 Counts printed here are informational gate output, never acceptance literals.
 """
@@ -58,6 +61,16 @@ SPEC_PIN_RE = re.compile(r"^- (?P<label>[^:]+): `(?P<commit>[0-9a-f]{40})`$")
 SPEC_BINDING_RE = re.compile(r"^\| (?P<label>[^|]+?) \| `(?P<address>0x[0-9a-fA-F]{40})` \|$")
 SPEC_GROUP_RE = re.compile(r"^\| `(?P<group>[A-Z]+)-\*` \|")
 SPEC_CODE_HASH_RE = re.compile(r"runtime code hash `(0x[0-9a-f]{64})`")
+
+# The single SPEC.md line that governs the build. Every field the gate reconciles against
+# `foundry.toml`, the frozen fixture, and the produced artifacts is read from here, so a
+# build setting cannot drift without the controlling specification changing with it.
+SPEC_BUILD_RE = re.compile(
+    r"^- Solidity `(?P<solc_version>\d+\.\d+\.\d+)`, "
+    r"(?P<evm_version>\w+) EVM target, "
+    r"optimizer `(?P<optimizer_runs>\d+)`, "
+    r"via-IR, bytecode metadata disabled$"
+)
 
 # --- source vocabulary -------------------------------------------------------
 
@@ -118,7 +131,7 @@ def constant_name(label: str) -> str:
 
 def read_spec(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
-    pins, bindings, groups = {}, [], []
+    pins, bindings, groups, build = {}, [], [], None
     for line in text.splitlines():
         pin = SPEC_PIN_RE.match(line)
         if pin:
@@ -129,12 +142,26 @@ def read_spec(path: Path) -> dict:
         group = SPEC_GROUP_RE.match(line)
         if group:
             groups.append(group.group("group"))
+        frozen_build = SPEC_BUILD_RE.match(line)
+        if frozen_build:
+            # "bytecode metadata disabled" is one specification decision with two Solidity
+            # settings behind it; both are derived here rather than written down twice.
+            build = {
+                "solc_version": frozen_build.group("solc_version"),
+                "evm_version": frozen_build.group("evm_version").lower(),
+                "optimizer": True,
+                "optimizer_runs": int(frozen_build.group("optimizer_runs")),
+                "via_ir": True,
+                "bytecode_hash": "none",
+                "append_cbor": False,
+            }
     code_hash = SPEC_CODE_HASH_RE.search(text)
     return {
         "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "pins": pins,
         "bindings": bindings,
         "groups": groups,
+        "build": build,
         "code_hash": code_hash.group(1) if code_hash else None,
     }
 
@@ -544,6 +571,52 @@ def preflight(args: argparse.Namespace) -> int:
 
     # --- effective Foundry configuration --------------------------------------
     config = load_json(Path(args.forge_config))
+
+    # --- specification-governed build -----------------------------------------
+    # SPEC.md is the authority for the build, not `foundry.toml` and not the frozen fixture.
+    # Each spec-governed field is compared against both, so changing the two repository
+    # copies together still fails while the specification says something else.
+    spec_build = spec["build"]
+    if spec_build is None:
+        problems.add(f"{args.spec} declares no parsable frozen build line")
+    else:
+        frozen_build = frozen["build"]
+        effective = {
+            "solc_version": config.get("solc"),
+            "evm_version": config.get("evm_version"),
+            "optimizer": config.get("optimizer"),
+            "optimizer_runs": config.get("optimizer_runs"),
+            "via_ir": config.get("via_ir"),
+            "bytecode_hash": config.get("bytecode_hash"),
+            "append_cbor": config.get("cbor_metadata"),
+        }
+        ok = True
+        for field, wanted in spec_build.items():
+            # The optimizer is enabled by SPEC.md but is not a separately frozen fixture
+            # field; the fixture records only the settings that reach an artifact.
+            if field in frozen_build:
+                ok &= problems.expect(f"frozen {field} against SPEC.md", wanted, frozen_build[field])
+            ok &= problems.expect(f"effective {field} against SPEC.md", wanted, effective[field])
+
+        # The full compiler build suffix is tool-owned identity, not a specification
+        # literal; SPEC.md governs only the semantic version it must begin with.
+        identity = str(frozen_build["solc_identity"])
+        if not identity.startswith(f"{spec_build['solc_version']}+"):
+            problems.add(
+                f"frozen compiler identity [{identity}] does not begin with the SPEC.md "
+                f"semantic version [{spec_build['solc_version']}]"
+            )
+            ok = False
+        if ok:
+            record(
+                "DEP-009",
+                f"SPEC.md governs Solidity {spec_build['solc_version']}, {spec_build['evm_version']}, "
+                f"optimizer {spec_build['optimizer_runs']}, via-IR {spec_build['via_ir']}, bytecode hash "
+                f"{spec_build['bytecode_hash']}, appendCBOR {spec_build['append_cbor']}, and the frozen "
+                f"and effective build settings equal it",
+            )
+
+    # --- gate posture and test portfolio --------------------------------------
     ok = problems.expect("effective offline setting", frozen["foundry"]["offline"], config.get("offline"))
     ok &= problems.expect("effective ffi setting", frozen["foundry"]["ffi"], config.get("ffi"))
     if ok:
@@ -886,17 +959,93 @@ def ledger_stage(args: argparse.Namespace) -> int:
 # =============================================================================
 
 
-def parse_disposition_rows(text: str) -> list[list[str]]:
-    rows = []
+def parse_disposition_rows(text: str, heading: str) -> list[list[str]]:
+    """Table rows under exactly one `## heading`, and under no other.
+
+    Scoping matters: the dispositions document carries several tables, and a row from the
+    narrative table must never be able to stand in for a Slither result or a suppression.
+    """
+    rows: list[list[str]] = []
+    inside = False
     for line in text.splitlines():
+        if line.startswith("#"):
+            inside = line.strip() == f"## {heading}"
+            continue
         stripped = line.strip()
-        if not stripped.startswith("|") or not stripped.endswith("|"):
+        if not inside or not stripped.startswith("|") or not stripped.endswith("|"):
             continue
         cells = [cell.strip().strip("`") for cell in stripped.strip("|").split("|")]
         if all(set(cell) <= {"-", ":"} for cell in cells if cell):
+            # A separator row; the row above it was this table's column headings.
+            if rows:
+                rows.pop()
             continue
         rows.append(cells)
     return rows
+
+
+def result_location(result: dict) -> str:
+    """The portable, normalized source mapping of one Slither result.
+
+    Built from the repository-relative filenames and exact line numbers Slither reports, so
+    the fingerprint is identical on any machine and two results from the same detector at
+    different places can never share one disposition row.
+    """
+    parts = set()
+    for element in result.get("elements", []):
+        mapping = element.get("source_mapping") or {}
+        filename, lines = mapping.get("filename_relative"), mapping.get("lines") or []
+        if filename and lines:
+            parts.add(f"{filename}#" + ",".join(f"L{number}" for number in sorted(set(lines))))
+    return "; ".join(sorted(parts)) if parts else "(no source mapping)"
+
+
+def result_fingerprint(result: dict) -> tuple[str, str, str, str]:
+    return (
+        str(result.get("check")),
+        str(result.get("impact")),
+        str(result.get("confidence")),
+        result_location(result),
+    )
+
+
+def check_slither_scope(args: argparse.Namespace, problems: Problems) -> list[str]:
+    """Prove nobody narrowed the analysis, in the configuration or on the command line.
+
+    Slither can be shrunk two ways with entirely valid input: a well-formed configuration
+    key, or a well-formed command-line flag. Both are compared against an exact allowed
+    shape here, so a *correct* narrowing fails just as a misspelled one does.
+    """
+    allowed_config = {
+        "filter_paths": "^lib/",
+        "exclude_dependencies": False,
+        "exclude_informational": False,
+        "exclude_optimization": False,
+        "exclude_low": False,
+        "exclude_medium": False,
+        "exclude_high": False,
+        "compile_force_framework": "foundry",
+    }
+    try:
+        configured = load_json(Path(args.slither_config))
+    except json.JSONDecodeError as error:
+        problems.add(f"{args.slither_config} is not well-formed JSON: {error}")
+    else:
+        problems.expect(f"{args.slither_config} contents", allowed_config, configured)
+
+    invocation = [line for line in Path(args.slither_command).read_text(encoding="utf-8").splitlines() if line]
+    allowed_invocation = ["slither", ".", "--fail-medium", "--json", args.slither_json, "--checklist"]
+    problems.expect("effective Slither invocation", allowed_invocation, invocation)
+
+    # The detector portfolio's authority is the pinned binary's own registered detector
+    # classes. `--list-detectors` omits hidden detectors, so it under-reports the set that
+    # actually runs and can never be the expectation.
+    inventory = [line for line in Path(args.detector_inventory).read_text(encoding="utf-8").splitlines() if line]
+    if not inventory:
+        problems.add(f"{args.detector_inventory} enumerates no registered Slither detector")
+    if len(inventory) != len(set(inventory)):
+        problems.add(f"{args.detector_inventory} enumerates a detector more than once")
+    return inventory
 
 
 def security(args: argparse.Namespace) -> int:
@@ -908,6 +1057,8 @@ def security(args: argparse.Namespace) -> int:
             problems.add(f"Slither produced no usable evidence at {path}")
     if problems.messages:
         return problems.report("security")
+
+    inventory = check_slither_scope(args, problems)
 
     try:
         report = load_json(json_path)
@@ -939,10 +1090,16 @@ def security(args: argparse.Namespace) -> int:
                 f"Slither analyzed {analyzed} contracts but {args.analyzed_sources} declare "
                 f"{declared}; the analyzed scope is incomplete"
             )
+        # The run must have carried the pinned binary's whole registered portfolio. A
+        # detector or severity narrowing, from either the configuration or the command
+        # line, shrinks this number and fails here.
+        problems.expect(
+            "detectors the analyzed run carried", len(inventory), int(summary.group("detectors"))
+        )
         problems.expect("Slither result count in JSON and summary", int(summary.group("results")), len(results))
 
     dispositions = Path(args.dispositions).read_text(encoding="utf-8")
-    rows = parse_disposition_rows(dispositions)
+    rows = parse_disposition_rows(dispositions, "Results")
 
     declared = re.search(r"<!-- slither-result-count: (\d+) -->", dispositions)
     if declared is None:
@@ -950,13 +1107,30 @@ def security(args: argparse.Namespace) -> int:
     else:
         problems.expect("dispositioned Slither result count", len(results), int(declared.group(1)))
 
-    for result in results:
-        check = result.get("check")
-        if not any(row and row[0] == check and row[-1] for row in rows):
-            problems.add(
-                f"Slither result '{check}' ({result.get('impact')}/{result.get('confidence')}) "
-                f"has no visible disposition in {args.dispositions}"
-            )
+    # Exact multiset reconciliation. Two results from one detector at two locations are two
+    # fingerprints and therefore need two rows; a row whose location is wrong or missing
+    # matches nothing and fails from both directions.
+    reported = Counter(result_fingerprint(result) for result in results)
+    dispositioned: Counter[tuple[str, str, str, str]] = Counter()
+    for row in rows:
+        if len(row) != 5:
+            problems.add(f"{args.dispositions}: results row {row} does not have the five recorded columns")
+            continue
+        if not row[4]:
+            problems.add(f"{args.dispositions}: results row for '{row[0]}' at [{row[3]}] carries no disposition")
+            continue
+        dispositioned[(row[0], row[1], row[2], row[3])] += 1
+
+    for fingerprint, count in sorted((reported - dispositioned).items()):
+        problems.add(
+            f"Slither result '{fingerprint[0]}' ({fingerprint[1]}/{fingerprint[2]}) at [{fingerprint[3]}] "
+            f"occurs {count} more time(s) than it is dispositioned in {args.dispositions}"
+        )
+    for fingerprint, count in sorted((dispositioned - reported).items()):
+        problems.add(
+            f"{args.dispositions} dispositions '{fingerprint[0]}' ({fingerprint[1]}/{fingerprint[2]}) at "
+            f"[{fingerprint[3]}] {count} more time(s) than Slither reported it"
+        )
 
     # --- inline suppressions ---------------------------------------------------
     listing = read_listing(Path(args.test_list))
@@ -969,6 +1143,7 @@ def security(args: argparse.Namespace) -> int:
                     if detector:
                         suppressions.append((path.as_posix(), detector))
 
+    suppression_rows = parse_disposition_rows(dispositions, "Inline suppressions")
     declared = re.search(r"<!-- slither-suppression-count: (\d+) -->", dispositions)
     if declared is None:
         problems.add(f"{args.dispositions} declares no machine-checked slither-suppression-count")
@@ -976,7 +1151,7 @@ def security(args: argparse.Namespace) -> int:
         problems.expect("recorded inline suppression count", len(suppressions), int(declared.group(1)))
 
     for path, detector in suppressions:
-        row = next((r for r in rows if len(r) >= 4 and r[0] == path and r[1] == detector), None)
+        row = next((r for r in suppression_rows if len(r) == 4 and r[0] == path and r[1] == detector), None)
         if row is None:
             problems.add(
                 f"inline suppression of '{detector}' in {path} has no record naming its detector, "
@@ -992,7 +1167,9 @@ def security(args: argparse.Namespace) -> int:
             )
 
     print(f"Slither analyzed scope: {args.analyzed_sources}")
-    print(f"Slither results: {len(results)} (each with a recorded disposition)")
+    print(f"Slither suppression scope: {args.suppression_sources}")
+    print(f"Slither detector portfolio: {len(inventory)} registered detectors, all of them run")
+    print(f"Slither results: {len(results)} (each with its own dispositioned fingerprint)")
     print(f"inline Slither suppressions: {len(suppressions)}")
     return problems.report("security")
 
@@ -1035,6 +1212,9 @@ def main() -> int:
     stage.add_argument("--slither-json", required=True)
     stage.add_argument("--slither-checklist", required=True)
     stage.add_argument("--slither-stderr", required=True)
+    stage.add_argument("--slither-config", required=True)
+    stage.add_argument("--slither-command", required=True)
+    stage.add_argument("--detector-inventory", required=True)
     stage.add_argument("--dispositions", required=True)
     stage.add_argument("--test-list", required=True)
     stage.add_argument("--analyzed-sources", nargs="+", required=True)

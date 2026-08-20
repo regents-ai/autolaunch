@@ -61,7 +61,10 @@ contract BaseBindingsTest is Test {
         );
     }
 
-    function test_DEP_029_ChainBindingEqualsBaseMainnet() public view {
+    /// @dev The designation only. Whether each address is actually deployed on Base is
+    ///      deployed-runtime truth that no hermetic test can reach; it stays bound to the
+    ///      authorized fork gate (`DEP-042`, `DEP-047`, `DEP-051`).
+    function test_DEP_029_CompiledBindingSetIsDesignatedForBaseMainnet() public view {
         assertEq(BaseBindings.BASE_CHAIN_ID, vm.parseJsonUint(fixture, ".chain.id"));
         assertEq(vm.parseJsonString(fixture, ".chain.name"), "base-mainnet");
     }

@@ -1,7 +1,7 @@
 {
   "authority": "SPEC.md",
   "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs. src/bindings/FrozenIdentity.sol and src/bindings/BaseBindings.sol are the compiled copies; test/bindings/ proves the compiled copies equal this file.",
-  "spec_sha256": "84923fa2bb1d3c81e530ac0f19c24b9080de3a58b51e50ba8b0a77e3e9cb6d4a",
+  "spec_sha256": "c62d75332ffcac80de9c5259f92b571a5b8264be45d90326c0012b3d88f082e3",
   "chain": {
     "name": "base-mainnet",
     "id": 8453

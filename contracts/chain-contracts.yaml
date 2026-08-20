@@ -8,8 +8,12 @@
 # Nothing here is evidence about deployed chain state. Deployed runtime code, code hash,
 # proxy status, implementation identity, getter results, the zero protocol fee controller,
 # and the live chain id stay bound to the separately authorized fork gate under DEP-040
-# through DEP-050. Those runtime values are recorded by C5 when that gate runs; inventing
+# through DEP-051. Those runtime values are recorded by C5 when that gate runs; inventing
 # them now would be a runtime claim this ticket has no evidence for.
+#
+# The clone implementation and clone runtime code hashes this manifest will also carry are
+# a different kind of fact: that code is this repository's own, so C4 proves it
+# hermetically under DEP-060 rather than on a fork.
 version: 1
 repository: autolaunch-contracts
 authority: SPEC.md

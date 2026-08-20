@@ -32,7 +32,10 @@ pending. A pending mitigation is a named obligation, never evidence.
    trusted only at those commits; a moving branch is never an input.
 3. **External deployed contracts.** REGENT, USDC, the CCA factory, PoolManager,
    PositionManager, and live staking are code this repository does not own. Their runtime truth
-   is unproven until the authorized fork gate runs (`DEP-040` through `DEP-050`).
+   — deployed code, code hash, proxy shape, implementation identity, getter results, and cold
+   state — is unproven until the authorized fork gate runs (`DEP-040` through `DEP-051`). No
+   hermetic test can reach any of it. Code this repository *does* own, including the clone
+   implementations and their clones, is proved hermetically instead (`DEP-060`).
 4. **Governance.** The Regent Safe may change the launch fee and pause new launches, and
    nothing else (`FAC-006`, `FAC-007`, `FAC-019`).
 5. **Recovery admin.** An immutable deployed contract may move only forced ETH and unsupported
@@ -51,7 +54,7 @@ pending. A pending mitigation is a named obligation, never evidence.
 | Migration | any caller | `migrate(auction)` | `STR-003`, `MIG-001`, `MIG-013` |
 | Pool registration | the strategy only, once | hook registration | `HOK-002`, `HOK-003` |
 | Swap fee settlement | PoolManager with a registered key | hook callbacks | `HOK-013`, `HOK-016`, `HOK-017` |
-| Staking, claims, revenue | any caller, for itself only | splitter surface | `SPL-012`, `SPL-010` |
+| Staking, claims, revenue | any caller, for itself only | splitter surface | `SPL-014`, `SPL-010` |
 | Recovery | immutable recovery admin | `recoverUnsupportedToken`, `recoverForcedETH` on both receiver and splitter | `RCV-009`, `RCV-010`, `RCV-011`, `SPL-017`, `SPL-018`, `ABI-005` |
 
 No upgrade authority, implementation pointer, kill switch, keeper, or arbitrary-execution
@@ -61,8 +64,8 @@ surface exists anywhere in the frozen design.
 
 | Dependency | Called for | Failure handling |
 | --- | --- | --- |
-| CCA factory and auction | auction creation, finalization, sweeps, refunds | technical failure is an ordinary revert with no retry state (`STR-004`); admission requires the exact runtime code hash and a zero protocol fee controller (`DEP-040`, `DEP-041`) |
-| UERC20 factory | SUBJECT creation | token carries no administrative power afterwards (`TOK-003`, `TOK-005`) |
+| CCA factory and auction | auction creation, finalization, sweeps, refunds | technical failure is an ordinary revert with no retry state (`STR-004`); admission requires the exact runtime code hash and a zero protocol fee controller (`DEP-040`, `DEP-041`); every binding's deployed hash is reconciled against the final manifest (`DEP-051`) |
+| UERC20 factory | SUBJECT creation | only the Autolaunch factory creates SUBJECT and the token carries no administrative power afterwards (`TOK-003`, `TOK-005`) |
 | PoolManager | pool initialization and swap settlement | settlement failure reverts the swap (`HOK-016`) |
 | PositionManager | full-range position mint, NFT to dead address | migration rolls back on failure (`MIG-006`, `MIG-017`) |
 | Live staking `depositUSDC` | USDC skim | exact approval, behavior verification, allowance cleanup (`SPL-003`) |
@@ -88,6 +91,8 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | 5% LP reserve conserved until its destination consumes it | `INV-006` |
 | One lifecycle state per launch | `INV-007` |
 | Receiver referral, skim, and net amounts conserved | `INV-008` |
+| No launch's reserve is ever used by another launch | `INV-009` |
+| Factory, strategy, and hook hold no unexplained balance | `INV-010` |
 
 ## 7. Adversarial failure classes
 
@@ -97,21 +102,34 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Compiler or setting drift | different solc, optimizer runs, re-enabled metadata, or an environment override of the fuzz portfolio | `DEP-009`, `DEP-010`, `DEP-014`, `DEP-015` |
 | Authority forgery in the frozen literals | edited address, code hash, chain, or selector in a manifest, fixture, or binding source; a binding renamed onto another binding's value | `DEP-011`, `DEP-012`, `DEP-029` |
 | Interface-derived ABI | a selector taken from a vendored interface that omits or misstates the implementation | `DEP-013`, `ABI-001` |
-| Fee griefing | stale expected fee, wrong allowance, or fee charged for a failed launch | `FAC-008`–`FAC-010`, `FAC-018` |
+| Deployed-code substitution | an external binding whose deployed runtime, code hash, or implementation behind a proxy differs from what the frozen manifest records | `DEP-040`, `DEP-043`, `DEP-051` |
+| Clone substitution | an escrow, splitter, or receiver clone deployed from an implementation whose code identity is not the recorded one | `DEP-060` |
+| Fee griefing | stale expected fee, wrong allowance, residual allowance left behind, or fee charged for a failed launch | `FAC-008`, `FAC-009`, `FAC-010`, `FAC-018`, `FAC-027` |
+| Unobservable fee action | a fee change or a fee collection the product watcher cannot see | `FAC-025`, `FAC-026` |
 | Authority creep | pause blocking refunds, claims, or vesting; launcher provenance conferring power | `FAC-017`, `FAC-019`, `SPL-010` |
-| Metadata abuse | oversized, empty, or malformed UTF-8 metadata | `FAC-013`, `FAC-014` |
-| Inventory leakage | unsold, reserve, or residual SUBJECT stranded after either terminal path | `MIG-016`, `FAIL-004`, `ESC-005`, `ESC-006` |
+| Metadata abuse | oversized, empty, or malformed UTF-8 metadata; token metadata edited after creation | `FAC-013`, `FAC-014`, `TOK-004` |
+| Admin-address abuse | a zero, self, or non-contract recovery admin admitted at launch | `FAC-016` |
+| Cross-launch interference | simultaneous launches sharing the one strategy and hook reaching each other's reserve or inventory | `FAC-022`, `STR-012`, `INV-009`, `INV-010` |
+| Foreign auction injection | initializing or migrating an auction the strategy never recorded | `STR-016` |
+| Inventory leakage | unsold, reserve, or residual SUBJECT stranded after either terminal path, or a distribution that does not split exactly 10/5/85 | `STR-017`, `MIG-016`, `FAIL-004`, `ESC-005`, `ESC-006` |
+| Escrow custody diversion | releasing pending custody early, resolving from a foreign caller, holding the wrong pending amount, or redirecting vested SUBJECT away from the fixed treasury | `ESC-009`, `ESC-010`, `ESC-011`, `ESC-012`, `ESC-013` |
+| Price-ordering asymmetry | a final price that differs depending on which currency is token0 | `STR-014` |
 | Migration partial commit | failure after an external call leaving a half-migrated launch | `MIG-017`, `STR-004` |
-| Repeat or replay | migrating or retiring twice, re-running an initializer | `MIG-018`, `FAIL-008`, `ABI-008` |
-| Hook boundary escape | unregistered key, foreign caller, hostile router, reentrancy | `HOK-017`, `HOK-018` |
-| Fee lane evasion | tiny swaps, rounding at the exact fee boundaries, exact-output, or unspecified-currency paths avoiding a lane | `HOK-005`–`HOK-009`, `HOK-012`, `HOK-019`, `SPL-016` |
+| Repeat or replay | migrating or retiring twice, finalizing an auction twice, re-running an escrow or clone initializer | `MIG-018`, `FAIL-008`, `STR-018`, `ESC-001`, `ABI-008` |
+| Hook boundary escape | unregistered key, foreign caller, hostile router | `HOK-017`, `HOK-018` |
+| Reentrancy | a recovery token, a hook callback, a receiver path, or a migration dependency re-entering mid-flow | `SPL-021`, `SPL-022`, `HOK-018`, `RCV-015`, `MIG-019` |
+| Fee lane evasion | tiny swaps, rounding at the exact fee boundaries, exact-output, or unspecified-currency paths avoiding a lane | `HOK-005`, `HOK-006`, `HOK-007`, `HOK-008`, `HOK-009`, `HOK-012`, `HOK-019`, `SPL-016` |
 | Fee retention | hook keeping attributable inventory for a later flush | `HOK-014`, `HOK-015`, `INV-004` |
-| Staker dilution or theft | interleaved stake and unstake around a deposit, or claiming another staker's share | `SPL-012`, `SPL-013`, `SPL-015`, `INV-003` |
+| Staker dilution or theft | interleaved stake and unstake around a deposit, or claiming another staker's share | `SPL-013`, `SPL-014`, `SPL-015`, `INV-003` |
 | Remainder skimming | repeatedly recognizing dust to drain the carried remainder | `SPL-007`, `INV-005` |
+| Referral skimming | a referral paid above the floored share, or paid to anyone but the immutable beneficiary | `RCV-002`, `RCV-003`, `RCV-014` |
 | Recovery abuse | recovering a core token, staked principal, an unclaimed claim, or the carried remainder; recovering to a caller-chosen destination; sending ordinary ETH to create recoverable balance | `RCV-008`, `RCV-009`, `RCV-010`, `SPL-017`, `SPL-018`, `SPL-019` |
-| Malicious token | a token that reverts, re-enters, or lies about transfers | `SPL-014`, `SPL-021`, `RCV-011`, `RCV-012` |
-| Gas exhaustion | a terminal transaction that cannot fit in a Base block | `GAS-003`–`GAS-006` |
-| Evidence laundering | a mock closing a deployed-runtime claim; a placeholder test closing a future claim; a product claim borrowing the gate-dependency evidence class; an overloaded or duplicated test identity collapsing two claims into one | ledger evidence classes, gate-aware activation, and compiled-listing multiset reconciliation, all enforced by `bin/check-requirements.py` |
+| Malicious token | a token that reverts, lies about transfers, or breaks solvency accounting | `SPL-012`, `RCV-011`, `RCV-012` |
+| Gas exhaustion | a terminal transaction that cannot fit in a Base block, or a gas figure measured without the intrinsic and calldata cost | `GAS-003`, `GAS-004`, `GAS-005`, `GAS-006` |
+| Obsolete surface survival | a Safe, ERC-8004, registry, flush, or retry interface left in the frozen ABI | `ABI-009` |
+| Evidence laundering | a mock closing a deployed-runtime, proxy, getter, cold-state, intrinsic, calldata, or complete-transaction gas claim; a placeholder test closing a future claim; a product claim borrowing the gate-dependency evidence class; an overloaded or duplicated test identity collapsing two claims into one | ledger evidence classes, gate-aware activation, and compiled-listing multiset reconciliation, all enforced by `bin/check-requirements.py` |
+| Build laundering | editing `foundry.toml` and the frozen fixture together so the two repository copies agree on a setting the specification never granted | the gate parses the governing `SPEC.md` build line and compares it against both copies and against the produced artifacts (`DEP-009`) |
+| Analysis narrowing | a valid detector, severity, or production-source exclusion in `slither.config.json` or on the Slither command line; a duplicate finding hidden under one disposition row; a hidden triage database | the gate pins the configuration and the argv to an exact allowed shape, reconciles the run's detector count against the pinned binary's registered portfolio, and reconciles every result fingerprint one-for-one against a visible row |
 
 ## 8. Explicitly out of scope at C0
 

@@ -36,22 +36,35 @@ every structured comparison to `bin/check-requirements.py`, in this order:
    effective fuzz and invariant seed, run, depth, rejection, revert, and shrink settings
    must equal the committed values. This reads `forge config --json`, not the committed
    file, so an environment override fails the gate instead of silently changing the run.
-5. **Threat-model integrity.** Every requirement the threat model names as a mitigation must
+5. **Specification-governed build.** The Solidity version, EVM target, optimizer runs,
+   via-IR, and disabled bytecode metadata are parsed out of the one `SPEC.md` line that
+   governs them and compared against `foundry.toml`'s effective configuration *and* the
+   frozen fixture. Editing both repository copies together still fails while the
+   specification says something else. The full compiler build suffix is separately frozen
+   tool identity and only has to begin with the `SPEC.md` semantic version.
+6. **Threat-model integrity.** Every requirement the threat model names as a mitigation must
    exist in the ledger.
-6. `forge fmt --check`, then `forge build --sizes`, then the compiler, optimizer, via-IR,
+7. `forge fmt --check`, then `forge build --sizes`, then the compiler, optimizer, via-IR,
    EVM version, and metadata settings actually recorded in every produced artifact.
-7. **Tests.** `forge test --list --json` is the authority for which test identities exist;
+8. **Tests.** `forge test --list --json` is the authority for which test identities exist;
    `forge test --json` is what ran. The two are compared as multisets, so an overloaded,
    inherited, or duplicated identity cannot collapse into one entry. Every due selector must
    be globally unique, must execute exactly once, and must pass; zero failures, zero skips.
-8. **Ledger.** Every due claim maps to an executed selector, every gate-dependency claim
+9. **Ledger.** Every due claim maps to an executed selector, every gate-dependency claim
    additionally requires the gate's own verified receipt, and no test may claim an ID that
    is not due under the gates this entrypoint runs.
-9. `slither . --fail-medium`, then a reconciliation of its evidence: see
-   [docs/security/slither-dispositions.md](docs/security/slither-dispositions.md).
+10. `slither . --fail-medium`, then a reconciliation of its evidence. The configuration and
+    the exact argv are both pinned to one allowed shape, the run must carry the pinned
+    binary's whole registered detector portfolio, and every finding needs its own visible
+    disposition row matched by detector, impact, confidence, and source mapping: see
+    [docs/security/slither-dispositions.md](docs/security/slither-dispositions.md).
 
 Anything missing, drifted, or unproven fails closed. A gate failure is a stop-report: never
 relax a pinned identity, threshold, or configuration value to make it pass.
+
+The repository has no configured Git remote, so `.github/workflows/test.yml` is reviewed
+statically and has not been executed on a hosted runner. No CI-green claim is made anywhere
+in this repository; `bin/gate.sh` run locally is the whole evidence.
 
 ## Setup
 
@@ -125,9 +138,16 @@ the claim must be active.
 
 A pending claim's selectors are reserved names only: they need not exist, they may not be
 executed against that ID, and nothing can mark the claim complete. A placeholder or a mock
-cannot satisfy a future ticket's claim, and claims that need deployed runtime, proxy shape,
-getter, or complete-transaction gas evidence are bound to the fork gate and can never close
-hermetically.
+cannot satisfy a future ticket's claim.
+
+Evidence class follows who owns the code. Claims that need deployed runtime, proxy shape,
+implementation identity, external getter results, cold deployed state, intrinsic gas,
+calldata gas, or complete-transaction gas are bound to the fork gate and can never close
+hermetically — that is why `GAS-003` through `GAS-006` are fork claims while the runtime and
+initcode size limits `GAS-001` and `GAS-002` stay hermetic. Code this repository owns is the
+other case: the clone implementations and their clones are proved hermetically under
+`DEP-060`, because their code identity is a compile-time and local-deployment fact rather
+than external chain truth.
 
 C0 activates only its own dependency, binding, chain, and ABI-provenance claims. C1 through
 C5 add their contracts and activate their own.

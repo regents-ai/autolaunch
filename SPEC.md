@@ -53,7 +53,7 @@ Pin exact commits and the full recursive gitlink closure:
 - CCA v2.1: `7d7602d257733315434570f2a0c2f94f1c7b207a`
 - Liquidity Launcher: `3a3103543f50a13a0ae52a253bb98a925d72146f`
 - UERC20 factory: `09ae130f7a10f7c1b96e0dc7d9724d567080c4ef`
-- Solidity `0.8.26`, optimizer `200`, via-IR, bytecode metadata disabled
+- Solidity `0.8.26`, Cancun EVM target, optimizer `200`, via-IR, bytecode metadata disabled
 - Exact recursive v4-core, v4-periphery, Permit2, OpenZeppelin, Solady, and Forge gitlinks
 
 | Binding | Address |
@@ -179,25 +179,25 @@ Required groups:
 
 | IDs | Claim classes |
 | --- | --- |
-| `DEP-*` | Pins, chain, external addresses/runtime/proxy/getters, zero CCA controller, clone hashes |
-| `FAC-*` | Fee/pause authority and scope, exact allowances, rollback, metadata, IDs, provenance, start, raise, full launch |
-| `TOK-*` | Supply, decimals, creator, metadata, and absence of administrative token powers |
-| `STR-*` | Canonical initialization, isolation, CCA parameters, migration, price orderings, finalization, no retry state |
-| `ESC-*` | One-time pending custody, resolution, vesting, exact failure retirement, late failed SUBJECT |
-| `HOK-*` | Permissions/caller/registration/key, four swaps, rounding, tiny swaps, settlement, routers, rollback |
-| `SPL-*` | Assets, skims, zero stake, stake snapshots, caller claims, remainder/principal, deposits, recovery |
-| `RCV-*` | Creation, referral, ordering, pay/sweep, notes/events, immutability, recovery destination |
-| `MIG-*` | Ordering, PoolId, final price, pool settings/NFT, actual use/residues, receiver, vesting, rollback |
-| `FAIL-*` | Unmet raise, zero/partial bids, inventory, dead delta, refunds, absent infrastructure, repeats |
-| `INV-*` | Supply, solvency, principal/remainder/reserve/lifecycle/receiver/hook conservation |
-| `GAS-*` | Runtime/initcode and complete outer launch/success/failure paths at or below 14M |
-| `ABI-*` | Selectors, topics/indexing/widths, initializers, and absence of obsolete interfaces |
+| `DEP-*` | Compiler and full recursive gitlink pins; chain ID; every external address, exact runtime code hash, proxy status, relevant getter, zero CCA controller, and clone implementation and runtime hashes. |
+| `FAC-*` | Governance-only fee and pause; pause scope; fee-update and fee-collection events; exact positive and zero fee allowances plus cleanup; stale-fee and complete-launch rollback; metadata bounds; sequential IDs; duplicate names; no user salts; launcher provenance; fixed start; reachable raise; and complete launch. |
+| `TOK-*` | Exactly 100B supply; 18 decimals; Autolaunch factory creator; immutable metadata; and no public mint, owner, tax, blacklist, upgrade, or administrative burn. |
+| `STR-*` | Only the canonical factory initializes; unknown auctions are rejected; exact 10/5/85 transfer; per-auction reserve isolation; permissionless migration; exact CCA parameters; final-price conversion in both currency orderings; one-shot finalization; and no committed retry state. |
+| `ESC-*` | One-time initialization; exact 85% pending custody; no pending release; strategy-only resolution; success starts 365-day linear vesting to the fixed treasury beneficiary; failure retires exactly 100B; and late failed SUBJECT goes only to the dead address. |
+| `HOK-*` | Correct permission bits; only PoolManager callbacks; strategy-only write-once registration; registered PoolKey validation; all four swap shapes; independent 1% rounding; zero-fee tiny swaps; synchronous settlement; zero retained inventory; arbitrary router compatibility; and settlement-failure rollback. |
+| `SPL-*` | Exactly three supported assets; exact 2% skim and destinations; zero-stake treasury routing; stake and unstake snapshots; caller-only claims; fixed three-token `claimAll`; one protected remainder per token; principal protection; direct deposits and surplus recognition; unsupported-token recovery exclusions; and forced-ETH behavior. |
+| `RCV-*` | Canonical and custom creation; referral boundaries, flooring, beneficiary, and referral-before-splitter ordering; atomic pay and sweep; supported-token validation; note defaults, editor, and event; immutable beneficiary, splitter, and referral; and recovery fixed to treasury. |
+| `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT at the dead address; actual LP consumption; separate residues; canonical receiver; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
+| `FAIL-*` | Unmet raise, zero bids, partial bidding, full failed inventory return, exact dead-address delta, bidder refunds, no graduated infrastructure, and repeated-finalization rejection. |
+| `INV-*` | Total-supply conservation; splitter solvency; SUBJECT principal and protected-remainder conservation; no cross-launch reserve use; no unexplained factory, strategy, or hook balances; immutable lifecycle; receiver conservation; and hook conservation. |
+| `GAS-*` | Every runtime and initcode limit plus the complete direct-wallet launch, successful migration, and failed migration at or below 14M under maximum metadata, worst valid raise/inventory, cold external state, intrinsic gas, and calldata gas. Complete-transaction claims require the fork gate. |
+| `ABI-*` | Exact selectors, event topics, indexed fields, integer widths, clone initializers, and absence of obsolete Safe, ERC-8004, registry, flush, and retry interfaces. |
 
-Boundary coverage includes fee inputs `0, 1, 49, 50, 99, 100, 9_999, 10_000`; referral bps `0, 1, 249, 250, 251`; stake lifecycle interleavings; maximum and one-byte-over metadata plus malformed UTF-8; zero/self and contract/non-contract admin addresses; simultaneous launches; both currency orderings; reentrancy attempts; and failure after every migration external call.
+Boundary coverage includes fee inputs `0, 1, 49, 50, 99, 100, 9_999, 10_000`; referral bps `0, 1, 249, 250, 251`; zero stake, first stake, full unstake, restake, interleaved deposits, and claims before and after stake changes; maximum and one-byte-over metadata plus malformed UTF-8; zero/self and contract/non-contract recovery-admin addresses; simultaneous launches sharing one strategy and hook; both REGENT currency orderings; reentrancy attempts from recovery tokens, hook callbacks, receiver paths, and migration dependencies; and failure after every migration external call.
 
 ## 10. Gates
 
-The hermetic gate performs recursive dependency identity verification, `forge fmt --check`, `forge build --sizes`, source-enumerated unit/fuzz/invariant execution, ledger reconciliation, then `slither . --fail-medium`. Fixed fuzz/invariant settings are committed. Every source-enumerated test runs exactly once with zero failures/skips. Slither runs only after green build, broadly excludes no production source, produces normalized JSON plus Markdown checklist evidence, and records a disposition for every result. Inline suppressions name the detector, rationale, and protecting Solidity test; hidden triage is forbidden.
+The hermetic gate performs recursive dependency identity verification, `forge fmt --check`, `forge build --sizes`, source-enumerated unit/fuzz/invariant execution, ledger reconciliation, then `slither . --fail-medium`. The gate parses the compiler, EVM, optimizer, via-IR, and metadata literals above and reconciles them against effective build artifacts. Fixed fuzz/invariant settings are committed. Every source-enumerated test runs exactly once with zero failures/skips. Slither runs only after green build, broadly excludes no production source, produces normalized JSON plus Markdown checklist evidence, and records one concrete disposition row per result, including duplicate results from the same detector. Its valid configuration is machine-checked so no detector or severity can be silently excluded and only pinned dependency source under `lib/` may be filtered. Inline suppressions name the detector, rationale, and protecting Solidity test; hidden triage is forbidden.
 
 A separate explicitly authorized fork gate proves exact Base bindings, zero CCA controller, real CCA/Permit2 behavior, live staking `depositUSDC` including paused failure, PoolManager/PositionManager semantics, all terminal paths, complete gas including intrinsic/calldata, and pinned plus latest-head repetitions.
 

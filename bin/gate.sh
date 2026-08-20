@@ -30,6 +30,7 @@ manifest=contracts/chain-contracts.yaml
 bindings=src/bindings/BaseBindings.sol
 dispositions=docs/security/slither-dispositions.md
 threat_model=docs/security/threat-model.md
+slither_config=slither.config.json
 checker=bin/check-requirements.py
 
 generated=reports/generated
@@ -45,6 +46,8 @@ test_stderr="$generated/forge-test.stderr.log"
 slither_json="$generated/slither.json"
 slither_checklist="$generated/slither-checklist.md"
 slither_stderr="$generated/slither.stderr.log"
+slither_command="$generated/slither-command.txt"
+detector_inventory="$generated/slither-detectors.txt"
 
 fail() {
     printf 'GATE FAIL: %s\n' "$*" >&2
@@ -60,8 +63,8 @@ section "Required material and tools"
 # ---------------------------------------------------------------------------
 
 for required_file in "$frozen" "$ledger" "$manifest" "$bindings" "$dispositions" \
-    "$threat_model" "$checker" src/bindings/FrozenIdentity.sol SPEC.md .gitmodules \
-    foundry.toml slither.config.json; do
+    "$threat_model" "$slither_config" "$checker" src/bindings/FrozenIdentity.sol SPEC.md \
+    .gitmodules foundry.toml; do
     [ -f "$required_file" ] || fail "required repository file is missing: $required_file"
 done
 
@@ -151,9 +154,31 @@ section "Static analysis"
 hidden_triage=$(find . -name '*slither.db.json' -not -path './lib/*' -not -path './out/*' || true)
 [ -z "$hidden_triage" ] || fail "hidden Slither triage database present: $hidden_triage"
 
+# The detector portfolio the pinned binary actually registers, read from the binary's own
+# interpreter. `--list-detectors` hides some detectors, so it under-reports the set that
+# runs and cannot be the authority for how many detectors a green run must carry.
+slither_interpreter=$(sed -n '1s|^#! *||p' "$(command -v slither)")
+[ -n "$slither_interpreter" ] && [ -x "$slither_interpreter" ] ||
+    fail "cannot resolve the pinned Slither interpreter from $(command -v slither)"
+
+"$slither_interpreter" -c 'import inspect
+from slither.detectors import all_detectors
+from slither.detectors.abstract_detector import AbstractDetector
+
+print("\n".join(sorted({
+    detector.ARGUMENT
+    for _, detector in inspect.getmembers(all_detectors, inspect.isclass)
+    if issubclass(detector, AbstractDetector) and detector is not AbstractDetector
+})))' >"$detector_inventory" ||
+    fail "the pinned Slither binary did not enumerate its registered detectors"
+
+# Record the exact argv, then run exactly that argv. The recording is the invocation, so
+# the reconciliation below sees the real command line and not a restatement of it.
+set -- slither . --fail-medium --json "$slither_json" --checklist
+printf '%s\n' "$@" >"$slither_command"
+
 slither_status=0
-slither . --fail-medium --json "$slither_json" --checklist \
-    >"$slither_checklist" 2>"$slither_stderr" || slither_status=$?
+"$@" >"$slither_checklist" 2>"$slither_stderr" || slither_status=$?
 cat "$slither_stderr"
 cat "$slither_checklist"
 
@@ -161,10 +186,13 @@ python3 "$checker" security \
     --slither-json "$slither_json" \
     --slither-checklist "$slither_checklist" \
     --slither-stderr "$slither_stderr" \
+    --slither-config "$slither_config" \
+    --slither-command "$slither_command" \
+    --detector-inventory "$detector_inventory" \
     --dispositions "$dispositions" \
     --test-list "$test_list" \
     --analyzed-sources src \
-    --suppression-sources src test
+    --suppression-sources src test script
 
 [ "$slither_status" -eq 0 ] || fail "slither exited $slither_status"
 
