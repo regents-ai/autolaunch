@@ -1,0 +1,90 @@
+{
+  "purpose": "Independent pre-edit capture of every src/** compiled runtime and creation byte string, taken from the pristine C4 build before C5 touched any file. bin/freeze-artifacts.py check mode compares the C5 build against this record and fails on a single differing byte.",
+  "captured_from_commit": "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1",
+  "captured_from_tree": "41c0f1ba29ceade995d1e2a5313995089bdc279a",
+  "captured_before": "the permitted src/bindings/BaseBindings.sol DEP-040..051 comment correction",
+  "digest": "sha256 over the exact compiled byte string, not an EVM keccak codehash",
+  "contract_count": 10,
+  "contracts": {
+    "src/bindings/BaseBindings.sol:BaseBindings": {
+      "source": "src/bindings/BaseBindings.sol",
+      "contract": "BaseBindings",
+      "runtime_bytes": 3,
+      "runtime_sha256": "0668b20e4ee135e7cac4091998933a5123658a8e777994fdb4b4ee2d553e6438",
+      "creation_bytes": 31,
+      "creation_sha256": "2067ac46f280f650f96fa87cb079a94fa3e6b00aea566108a20ca15326dd56df"
+    },
+    "src/bindings/FrozenIdentity.sol:FrozenIdentity": {
+      "source": "src/bindings/FrozenIdentity.sol",
+      "contract": "FrozenIdentity",
+      "runtime_bytes": 3,
+      "runtime_sha256": "0668b20e4ee135e7cac4091998933a5123658a8e777994fdb4b4ee2d553e6438",
+      "creation_bytes": 31,
+      "creation_sha256": "2067ac46f280f650f96fa87cb079a94fa3e6b00aea566108a20ca15326dd56df"
+    },
+    "src/escrow/ConditionalVestingEscrowV1.sol:ConditionalVestingEscrowV1": {
+      "source": "src/escrow/ConditionalVestingEscrowV1.sol",
+      "contract": "ConditionalVestingEscrowV1",
+      "runtime_bytes": 4527,
+      "runtime_sha256": "caee5d4a60db4a7555d32053f005a01ce9bb2b272369cb164aa1c1de5e880d93",
+      "creation_bytes": 4665,
+      "creation_sha256": "599e171d87264f2b3e0e016684bcc2ae401093d8dd4e355a08c8417a527a317e"
+    },
+    "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1": {
+      "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
+      "contract": "RegentsAutolaunchFactoryV1",
+      "runtime_bytes": 7309,
+      "runtime_sha256": "ab6c6f604ad658e41cc924dde5b8b1e671ece7c4a48c41739e830b819ebd566d",
+      "creation_bytes": 34361,
+      "creation_sha256": "fbcf3dc5aa7189051a2ad8566bcf15e98507260fe99f16844629c670345a6b6d"
+    },
+    "src/hook/RegentFeeHook.sol:RegentFeeHook": {
+      "source": "src/hook/RegentFeeHook.sol",
+      "contract": "RegentFeeHook",
+      "runtime_bytes": 5780,
+      "runtime_sha256": "45f5f3d7fdf9d6ba3c859a45da48dd8492b84cba5241c4921f96d3068b3cc29d",
+      "creation_bytes": 6599,
+      "creation_sha256": "07b0802132ed437a0c44ef1b844c1fd6efbbe94d5b0994c53e4d046eafe8f88e"
+    },
+    "src/interfaces/IERC20Minimal.sol:IERC20Minimal": {
+      "source": "src/interfaces/IERC20Minimal.sol",
+      "contract": "IERC20Minimal",
+      "runtime_bytes": 0,
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creation_bytes": 0,
+      "creation_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "src/interfaces/IRegentRevenueStakingMinimal.sol:IRegentRevenueStakingMinimal": {
+      "source": "src/interfaces/IRegentRevenueStakingMinimal.sol",
+      "contract": "IRegentRevenueStakingMinimal",
+      "runtime_bytes": 0,
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creation_bytes": 0,
+      "creation_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1": {
+      "source": "src/revenue/PaymentReceiverV1.sol",
+      "contract": "PaymentReceiverV1",
+      "runtime_bytes": 3520,
+      "runtime_sha256": "8320d43d2888c3b03cb96e33218705e95eaee31feba26a289f4076bd35519ac9",
+      "creation_bytes": 3658,
+      "creation_sha256": "b539f6eb123eff091e4363703f70a968103d6c1633afa6a6385b439aa60f20eb"
+    },
+    "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1": {
+      "source": "src/revenue/SubjectSplitterV1.sol",
+      "contract": "SubjectSplitterV1",
+      "runtime_bytes": 5342,
+      "runtime_sha256": "682f1dfed67169311e6e364c998b237b79069b545ea32b2f55caf7bd09c2a0f8",
+      "creation_bytes": 5480,
+      "creation_sha256": "a2cf33fdaf4ad587650c5c8ca1abc99fef80ff2d8482ab60c22eaffdf0d96640"
+    },
+    "src/strategy/RegentLBPStrategy.sol:RegentLBPStrategy": {
+      "source": "src/strategy/RegentLBPStrategy.sol",
+      "contract": "RegentLBPStrategy",
+      "runtime_bytes": 18987,
+      "runtime_sha256": "c759943b6e0ddf74e5cae0c7c331bc2115e7cfc7676217f1dc15737e7c24bd25",
+      "creation_bytes": 19496,
+      "creation_sha256": "4f0134fb9c08a015477c3b8f0f494e73b472ed89e8be69211dcb4218b5fc6ae5"
+    }
+  }
+}
