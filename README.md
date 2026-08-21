@@ -52,27 +52,33 @@ gates, and only those. It runs the external tools and hands every structured com
    `contracts/autolaunch-release-manifest.json` from those artifacts and compares them byte for
    byte, so a hand-edited ABI or a stale manifest cannot pass. It then compares every `src/**`
    compiled runtime and creation byte string against the independently captured pre-edit C4
-   baseline in `reports/frozen/c4-runtime-baseline.json`. It writes `DEP-016`'s verified receipt,
-   so deleting this step fails the ledger rather than silently stopping the check.
+   baseline in `reports/frozen/c4-runtime-baseline.json`: exactly the contracts the frozen
+   `final_source_delta` record names may differ, each of them must really differ, and every other
+   contract must still match byte for byte. It writes `DEP-016`'s verified receipt, so deleting
+   this step fails the ledger rather than silently stopping the check.
 9. **Tests.** `forge test --list --json` is the authority for which test identities exist;
    `forge test --json -vv` is what ran — `-vv` because Foundry only populates each result's
-   decoded logs at that verbosity, and step 12 reads a measurement out of exactly that field.
+   decoded logs at that verbosity, and step 11 reads a measurement out of exactly that field.
    The two are compared as multisets, so an overloaded, inherited, or duplicated identity
    cannot collapse into one entry. Every due selector must be globally unique, must execute
    exactly once, and must pass; zero failures, zero skips.
 10. **Ledger.** Every due claim maps to an executed selector, every gate-dependency claim
     additionally requires the gate's own verified receipt, and no test may claim an ID that
     is not due under the gates this entrypoint runs.
-11. `slither . --fail-medium`, then a reconciliation of its evidence. The configuration and
+11. **Published-evidence reconciliation.** Every figure the audit packet publishes is compared
+    against what produced it: each deployable-size row against the frozen size record, and each
+    hook-callback figure against the exact value `GAS-007` emitted in this run. A stale published
+    number fails the gate rather than surviving review.
+12. `slither . --fail-medium`, then a reconciliation of its evidence. The configuration and
     the exact argv are both pinned to one allowed shape, the run must carry the pinned
     binary's whole registered detector portfolio, and every finding needs its own visible
     disposition row matched by detector, impact, confidence, and source mapping: see
     [docs/security/slither-dispositions.md](docs/security/slither-dispositions.md).
-12. **Published-evidence reconciliation.** Every figure the audit packet publishes is compared
-    against what produced it: each deployable-size row against the frozen size record, and each
-    hook-callback figure against the exact value `GAS-007` emitted in this run. A stale published
-    number fails the gate rather than surviving review.
-13. **Provider-secret scan.** The configured `base` RPC alias must still be the unresolved
+13. **Provider-output scan tooling.** The fork gate's two failure orders — a run that failed
+    while its output was clean, and output that was dirty whatever the run's status — are shell
+    control flow around a Python scanner, so no Solidity test can reach them. They are proved
+    here instead, deterministically and without a provider, against the real scanner.
+14. **Provider-secret scan.** The configured `base` RPC alias must still be the unresolved
     `${REGENT_BASE_RPC_URL}` in the *effective* configuration, no credential field at any nesting
     depth may carry a value, and no regenerated or committed evidence — the frozen reports, the
     ABI, the manifests, the audit packet, the security docs, or the fork harness — may name a host
@@ -199,6 +205,6 @@ gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
 gate's committed evidence. `fork` is therefore absent today: no read-only provider has been
-available, `reports/frozen/fork-observations.json` is still `discovery_pending`, and all sixteen fork
-claims report `pending`. Their thirty-two selectors live outside the offline test root, so they
+available, `reports/frozen/fork-observations.json` is still `discovery_pending`, and all eighteen fork
+claims report `pending`. Their thirty-six selectors live outside the offline test root, so they
 cannot execute against — or close — anything.

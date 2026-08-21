@@ -84,7 +84,7 @@ contract RegentsAutolaunchFactoryV1 {
 
     /// @notice The runtime code hash the `SubjectSplitterV1` implementation must present.
     bytes32 public constant SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH =
-        0xb7f7f90213690cc06971c5cad60af174f292b62b355d48fbc4e28adbadb5defa;
+        0x456c2ec34270e3bc634d891f6a294c0a7bcc1c5d2e09988220f9d694033e6d30;
 
     /// @notice The runtime code hash the `PaymentReceiverV1` implementation must present.
     bytes32 public constant RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH =

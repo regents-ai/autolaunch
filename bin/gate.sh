@@ -36,6 +36,7 @@ sizes=reports/frozen/deployable-sizes.json
 slither_config=slither.config.json
 checker=bin/check-requirements.py
 freezer=bin/freeze-artifacts.py
+tooling_test=test/tooling/provider_output_scan_test.py
 
 generated=reports/generated
 rm -rf "$generated"
@@ -67,7 +68,8 @@ section "Required material and tools"
 # ---------------------------------------------------------------------------
 
 for required_file in "$frozen" "$ledger" "$manifest" "$bindings" "$dispositions" \
-    "$threat_model" "$gas_doc" "$slither_config" "$checker" "$freezer" src/bindings/FrozenIdentity.sol \
+    "$threat_model" "$gas_doc" "$slither_config" "$checker" "$freezer" "$tooling_test" \
+    src/bindings/FrozenIdentity.sol \
     SPEC.md .gitmodules foundry.toml reports/frozen/c4-runtime-baseline.json; do
     [ -f "$required_file" ] || fail "required repository file is missing: $required_file"
 done
@@ -230,6 +232,16 @@ python3 "$checker" security \
     --suppression-sources src test script
 
 [ "$slither_status" -eq 0 ] || fail "slither exited $slither_status"
+
+# ---------------------------------------------------------------------------
+section "Provider-output scan tooling"
+# ---------------------------------------------------------------------------
+
+# The fork gate's two failure orders — a clean run that failed, and dirty output whatever the
+# run's status — are shell control flow around a Python scanner, so no Solidity test can reach
+# them. They are proved here instead, deterministically and without a provider, against the real
+# `sanitize` implementation. A failure is a gate failure.
+python3 "$tooling_test"
 
 # ---------------------------------------------------------------------------
 section "Provider-secret scan"

@@ -244,6 +244,25 @@ abstract contract FrozenSurface is Test {
         assertTrue(_contains(frozenLines, line), string.concat(what, ": the frozen surface lacks [", line, "]"));
     }
 
+    /// @dev Whether one text document contains an exact substring, used to read a generated `abi/`
+    ///      document as the text it is committed as rather than reparsing it into a second shape.
+    function _containsText(string memory document, string memory needle) internal pure returns (bool) {
+        bytes memory haystack = bytes(document);
+        bytes memory wanted = bytes(needle);
+        if (wanted.length == 0 || haystack.length < wanted.length) return false;
+        for (uint256 i; i + wanted.length <= haystack.length; ++i) {
+            bool same = true;
+            for (uint256 j; j < wanted.length; ++j) {
+                if (haystack[i + j] != wanted[j]) {
+                    same = false;
+                    break;
+                }
+            }
+            if (same) return true;
+        }
+        return false;
+    }
+
     function _contains(string[] memory haystack, string memory needle) internal pure returns (bool) {
         bytes32 wanted = keccak256(bytes(needle));
         for (uint256 i; i < haystack.length; ++i) {

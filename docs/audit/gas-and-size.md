@@ -18,7 +18,7 @@ each constructor takes.
 | `RegentLBPStrategy` | 18,987 | 5,589 | 19,496 | 128 | 19,624 | 29,528 |
 | `RegentFeeHook` | 5,780 | 18,796 | 6,599 | 64 | 6,663 | 42,489 |
 | `ConditionalVestingEscrowV1` | 4,527 | 20,049 | 4,665 | 0 | 4,665 | 44,487 |
-| `SubjectSplitterV1` | 5,342 | 19,234 | 5,480 | 0 | 5,480 | 43,672 |
+| `SubjectSplitterV1` | 5,312 | 19,264 | 5,450 | 0 | 5,450 | 43,702 |
 | `PaymentReceiverV1` | 3,520 | 21,056 | 3,658 | 0 | 3,658 | 45,494 |
 | `UERC20Factory` | 12,682 | 11,894 | 12,708 | n/a | n/a | 36,444 |
 | `UERC20` | 5,550 | 19,026 | 8,126 | n/a | n/a | 41,026 |
@@ -49,11 +49,11 @@ admission identity.
 
 | Contract | Runtime keccak-256 | Is a deployed `EXTCODEHASH` |
 | --- | --- | --- |
-| `RegentsAutolaunchFactoryV1` | `0xf216f1ecc187e35d45b03dbc572a96c74dce89c1c7db8d203e2857c8e29c3250` | no — 3 immutables |
+| `RegentsAutolaunchFactoryV1` | `0xa9e2754d2808af9abcb4a35e70187742eb920f9c58e7e5db9b06b281b3a20d5e` | no — 3 immutables |
 | `RegentLBPStrategy` | `0x68fc92d1648f6aa33538adb451041a958aeb6300f621d357decff48bfa2c4c2e` | no — 5 immutables |
 | `RegentFeeHook` | `0xa9c238ca912ae9123fda5402dc33b534fbcee659acc9d92af0fb5cebc20b4f00` | no — 2 immutables |
 | `ConditionalVestingEscrowV1` | `0x462e3b12b73402b61b3561345880a5b6eeed4f13d2088f156712fe1b293f1545` | yes |
-| `SubjectSplitterV1` | `0xb7f7f90213690cc06971c5cad60af174f292b62b355d48fbc4e28adbadb5defa` | yes |
+| `SubjectSplitterV1` | `0x456c2ec34270e3bc634d891f6a294c0a7bcc1c5d2e09988220f9d694033e6d30` | yes |
 | `PaymentReceiverV1` | `0xe32bf8b68d8ff16c05950630af2c6b78247c7825e2153dba4d54fa86108ce5cf` | yes |
 | `UERC20Factory` | `0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f` | yes |
 | `UERC20` | `0x6ad37cfdb261cfb8dd1d15659b9b37b09b26f93c080a03d89bcbb46e2e68af53` | no — 4 immutables |
@@ -67,6 +67,9 @@ so it exists the moment its implementation address does. The release manifest re
 derivation with a `deployment_pending` value rather than inventing one.
 
 ## Hook callback cost (`GAS-007`)
+
+These figures are measured and recorded. They are not held to a limit, because no pinned dependency
+and no founder requirement states one; the section below the table says so at length.
 
 Measured as a controlled difference, not a swap total, and the control is exact. The hook charges
 when the 1% lane floors above zero and returns immediately when it does not, so the lane boundary is
@@ -84,9 +87,7 @@ it. Their difference is the callback and nothing else.
 | production-lane callback, warm (gas) | 102,898 |
 | pinned-router production swap, cold total (gas) | 246,562 |
 | pinned-router production swap, warm total (gas) | 165,766 |
-| second supported router, warm sync/settle swap total (gas) | 155,371 |
-| pinned v4 target for a callback with external calls (gas) | 100,000 |
-| pinned v4 hard ceiling for a callback with external calls (gas) | 300,000 |
+| second supported router, warm sync/settle swap total (gas) | 155,412 |
 
 ### What each figure is
 
@@ -104,27 +105,38 @@ it. Their difference is the callback and nothing else.
   asserts that the warm production lane is the dearer of the two, which keeps the boundary figure
   from being read as the whole story.
 
-### Disposition against the pinned v4 guidance
+### There is no callback gas limit, and none is invented here
 
-The applicable row is **callbacks with external calls** — this hook takes twice from the PoolManager,
-approves, and calls the launch splitter, which itself moves value and may reach the live staking
-contract. That row's target is 100,000 gas and its hard ceiling is 300,000 gas.
+An earlier draft of this page compared these figures against a 100,000-gas "target" and a
+300,000-gas "hard ceiling" for a callback that makes external calls, and `GAS-007` asserted both.
+Neither number exists. It is not in Uniswap v4, not anywhere in this repository's pinned dependency
+closure, and not in `SPEC.md` or any founder requirement; it came from a general-purpose community
+guidance table. Passing a limit nobody set is not evidence, so the assertions and the two published
+rows were removed and this claim now records what it measured.
 
-- **Cold, first settlement: 204,313 gas.** Above the target, comfortably inside the hard ceiling.
-- **Cold, later launch: 141,397 gas.** Also above the target, also well inside the ceiling.
-- **Warm: 96,913 / 102,898 gas.** Essentially at the target.
+What the measurement does establish, and what `GAS-007` still asserts:
 
-**Accepted.** Every figure is inside the pinned hard ceiling. The cold figures are the ones a real
-user transaction meets, and they are the ones dispositioned; the warm ones are recorded as controls.
-This is a nonblocking observation, not a defect.
+- the charging swap costs more than its one-wei-apart zero-lane control, cold and warm, so the
+  difference really is the callback;
+- warm is cheaper than cold in both pairs, so the cold figures were measured against genuinely cold
+  state;
+- a production-sized lane is dearer than a boundary one, so the boundary figure is never read as
+  the whole story;
+- the hook retains no REGENT and no splitter allowance survives the measurement.
+
+The cold figures are the ones a real user transaction meets on a pool's first swap; the warm ones are
+controls and nothing more. Nothing here is a defect and nothing here is a pass/fail.
 
 For continuity with C4: that ticket observed 166,862 cold and 103,162 warm. The warm figures agree
 with the production-lane warm figure here to within 0.3%. The cold figures differ because C4 measured
 a swap total while this measures a lane-boundary differential that isolates the callback and includes
 the cold Safe and splitter touches.
 
-The second router settles the same swap for 155,371 gas, below the pinned router's 165,766 warm
-total. The hook has no router allowlist and charges both identically.
+The second router settles the same swap for 155,412 gas, beside the pinned router's 165,766 warm
+total. That comparison is **recorded only**: the hook has no router allowlist and charges both
+identically, and there is no admitted relation between two routers' settlement styles to hold either
+of them to. The one absolute gas limit this repository holds anything to is the founder's 14,000,000
+complete-transaction ceiling below.
 
 ## Complete-transaction gas (`GAS-003` through `GAS-006`) — not measured
 

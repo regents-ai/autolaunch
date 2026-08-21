@@ -12,10 +12,12 @@ Two modes:
   check  Regenerate into memory and compare byte for byte with the committed files. Any
          drift — a hand-edited ABI, a stale manifest, a recompiled contract, a renamed
          event, a changed integer width — fails closed. Check mode additionally compares
-         the whole `src/**` compiled byte string against the independently captured
-         pre-edit C4 baseline in `reports/frozen/c4-runtime-baseline.json`, and appends its
-         own verified receipt line so deleting the gate's freezer invocation makes the
-         ledger reconciliation fail for `DEP-016`.
+         every `src/**` compiled byte string against the independently captured pre-edit C4
+         baseline in `reports/frozen/c4-runtime-baseline.json`, allowing exactly the
+         contracts the frozen `final_source_delta` record names — each with a written
+         reason, and each of which must really differ — to have moved, and appends its own
+         verified receipt line so deleting the gate's freezer invocation makes the ledger
+         reconciliation fail for `DEP-016`.
 
 The keccak-256 used for selectors and event topics is implemented here rather than
 imported, so the gate needs no package. It is not trusted on its word: every function
@@ -793,12 +795,27 @@ def check_baseline_provenance(baseline_path: Path, provenance: dict) -> str:
     )
 
 
-def check_runtime_baseline(entries: dict[str, dict], artifacts: dict[str, dict], baseline_path: Path) -> str:
-    """Prove the C5 build's `src/**` bytes are the exact pre-edit C4 bytes.
+def check_runtime_baseline(
+    entries: dict[str, dict], artifacts: dict[str, dict], baseline_path: Path, delta: dict
+) -> str:
+    """Prove exactly which `src/**` production bytes moved away from the pre-edit C4 capture.
 
-    The baseline was captured from the pristine C4 build before this ticket edited any file,
-    so it is an authority this candidate cannot have produced. `check_baseline_provenance`
-    proves that claim against Git rather than against the record's own wording.
+    Through C5 this was an all-or-nothing byte equality, which was the right claim while the only
+    production edit was a comment. It is the wrong claim the moment a successor has to change
+    production behaviour, and quietly relaxing it would have been worse than replacing it. So the
+    claim is now enumerated rather than universal:
+
+      - the historical C4 capture itself is untouched, and `check_baseline_provenance` still proves
+        against Git that it is the blob its capture commit committed directly on integrated C4;
+      - the frozen identity names an exact, closed set of contracts that are allowed to differ,
+        each with a written reason;
+      - every named contract must *actually* differ, so the record cannot quietly authorize more
+        movement than really happened and cannot survive as a standing exemption;
+      - every other `src/**` contract's runtime and creation bytes must still equal C4 exactly.
+
+    What this proves is which bytes moved. It deliberately does not try to prove *why*: the source
+    diff and independent review are what establish that, and a gate that claimed to check intent
+    would be claiming something it cannot see.
     """
     baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
     recorded = baseline["contracts"]
@@ -817,17 +834,41 @@ def check_runtime_baseline(entries: dict[str, dict], artifacts: dict[str, dict],
             "creation_sha256": hashlib.sha256(creation).hexdigest(),
         }
 
+    allowed = {entry["key"]: entry for entry in delta["changed"]}
     problems = []
+
     for key in sorted(set(recorded) - set(found)):
         problems.append(f"the C4 baseline records {key}, which this build does not produce")
     for key in sorted(set(found) - set(recorded)):
         problems.append(f"this build produces {key}, which the C4 baseline does not record")
+    for key in sorted(allowed):
+        if key not in found:
+            problems.append(f"the final-source-delta record names {key}, which this build does not produce")
+        if not str(allowed[key].get("reason", "")).strip():
+            problems.append(f"the final-source-delta record gives no reason for {key}")
+
+    fields = ("runtime_bytes", "runtime_sha256", "creation_bytes", "creation_sha256")
+    moved = []
     for key in sorted(set(found) & set(recorded)):
-        for field in ("runtime_bytes", "runtime_sha256", "creation_bytes", "creation_sha256"):
-            if recorded[key][field] != found[key][field]:
+        differs = [field for field in fields if recorded[key][field] != found[key][field]]
+        if key in allowed:
+            if not differs:
                 problems.append(
-                    f"{key}: {field} is {found[key][field]}, the C4 baseline records {recorded[key][field]}"
+                    f"{key} is named in the final-source-delta record but its bytes are identical to "
+                    "C4's; the record must name only what actually moved"
                 )
+            else:
+                moved.append(
+                    f"{key} runtime {recorded[key]['runtime_sha256'][:12]}->{found[key]['runtime_sha256'][:12]}, "
+                    f"creation {recorded[key]['creation_sha256'][:12]}->{found[key]['creation_sha256'][:12]}"
+                )
+            continue
+        for field in differs:
+            problems.append(
+                f"{key}: {field} is {found[key][field]}, the C4 baseline records {recorded[key][field]}, "
+                "and this contract is not in the final-source-delta record"
+            )
+
     if problems:
         print("FREEZE RECONCILIATION FAILED", file=sys.stderr)
         for problem in problems:
@@ -838,9 +879,12 @@ def check_runtime_baseline(entries: dict[str, dict], artifacts: dict[str, dict],
         if f"{entries[name]['source']}:{name}" not in recorded:
             raise SystemExit(f"freeze: the C4 baseline does not cover the production contract {name}")
 
+    unchanged = len(found) - len(allowed)
     return (
-        f"all {len(found)} src/** contracts compile to the exact runtime and creation byte strings "
-        f"captured from C4 {baseline['captured_from_commit'][:12]} before any C5 edit"
+        f"exactly {len(allowed)} of {len(found)} src/** contracts differ from the C4 "
+        f"{baseline['captured_from_commit'][:12]} capture, each named with a reason in the frozen "
+        f"final-source-delta record ({'; '.join(moved)}), and the other {unchanged} compile to the "
+        "exact runtime and creation byte strings C4 captured"
     )
 
 
@@ -892,7 +936,7 @@ def run(args: argparse.Namespace) -> int:
         return 1
 
     provenance_detail = check_baseline_provenance(Path(args.baseline), frozen["c4_baseline"])
-    baseline_detail = check_runtime_baseline(entries, artifacts, Path(args.baseline))
+    baseline_detail = check_runtime_baseline(entries, artifacts, Path(args.baseline), frozen["final_source_delta"])
 
     with Path(args.receipt).open("a", encoding="utf-8") as handle:
         handle.write(

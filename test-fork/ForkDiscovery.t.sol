@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {BaseBindings} from "../src/bindings/BaseBindings.sol";
+import {ForkHeaders} from "./ForkHeaders.sol";
 
 /// @notice The authorized read-only discovery pass: phase one of the two-phase fork evidence.
 /// @dev This contract observes and records. It never checks. Nothing in it reads
@@ -29,9 +30,10 @@ contract ForkDiscoveryTest is Test {
     string internal constant RPC_ALIAS = "base";
     string internal constant CANDIDATE_PATH = "reports/generated/fork/fork-observations-candidate.json";
 
-    /// @notice How far behind the head the pinned header sits. At Base's two-second block time
-    ///         this is roughly ten minutes, comfortably past reorg depth.
-    uint256 internal constant CONFIRMATION_DEPTH = 300;
+    /// @notice How far behind the head the pinned header sits, from the one shared literal.
+    /// @dev `DEP-052` asserts the two committed records really are exactly this far apart, so the
+    ///      check pass proves the choice discovery made rather than inheriting it on trust.
+    uint256 internal constant CONFIRMATION_DEPTH = ForkHeaders.PINNED_TO_LATER_DISTANCE;
 
     bytes32 internal constant EIP1967_IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
@@ -39,6 +41,14 @@ contract ForkDiscoveryTest is Test {
         0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7;
     bytes32 internal constant ZEPPELINOS_IMPLEMENTATION_SLOT =
         0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3;
+
+    /// @notice The Safe singleton pattern, recognized for exactly the frozen Regent Safe.
+    bytes32 internal constant SAFE_SINGLETON_SLOT = bytes32(uint256(0));
+    bytes4 internal constant SAFE_MASTER_COPY_SELECTOR = 0xa619486e;
+    uint256 internal constant SAFE_PROXY_MAX_RUNTIME_BYTES = 128;
+
+    /// @notice What a binding matching none of the four supported patterns is recorded as.
+    string internal constant NO_SUPPORTED_PROXY_PATTERN = "no_supported_proxy_pattern";
 
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -162,7 +172,11 @@ contract ForkDiscoveryTest is Test {
         record = vm.serializeUint(key, "implementation_runtime_bytes", implementation.code.length);
     }
 
-    /// @dev All three recognized implementation slots, in the order the check pass reads them.
+    /// @dev The four supported patterns, in the order the check pass reads them. The Safe singleton
+    ///      detector applies to exactly one address — the frozen Regent Safe — because slot 0 is
+    ///      ordinary storage rather than a namespaced proxy slot. An account matching none of them
+    ///      is recorded as `no_supported_proxy_pattern`, which says what was actually measured; it
+    ///      is deliberately not a claim that the account is not a proxy at all.
     function _classify(address account) private view returns (string memory family, address implementation) {
         implementation = _slot(account, EIP1967_IMPLEMENTATION_SLOT);
         if (implementation != address(0)) return ("eip1967", implementation);
@@ -170,7 +184,28 @@ contract ForkDiscoveryTest is Test {
         if (implementation != address(0)) return ("eip1822", implementation);
         implementation = _slot(account, ZEPPELINOS_IMPLEMENTATION_SLOT);
         if (implementation != address(0)) return ("zeppelinos", implementation);
-        return ("none", address(0));
+        if (account == BaseBindings.GOVERNANCE_AND_REGENT_SAFE) {
+            implementation = _safeSingleton(account);
+            if (implementation != address(0)) return ("safe_singleton", implementation);
+        }
+        return (NO_SUPPORTED_PROXY_PATTERN, address(0));
+    }
+
+    /// @dev The same four agreeing measurements the check pass makes: slot 0, `masterCopy()`, a
+    ///      delegating-stub runtime shape, and a singleton that carries code.
+    function _safeSingleton(address account) private view returns (address) {
+        address slotValue = _slot(account, SAFE_SINGLETON_SLOT);
+        if (slotValue == address(0) || slotValue.code.length == 0) return address(0);
+
+        (bool ok, bytes memory returned) = account.staticcall(abi.encodePacked(SAFE_MASTER_COPY_SELECTOR));
+        if (!ok || returned.length < 32) return address(0);
+        if (abi.decode(returned, (address)) != slotValue) return address(0);
+
+        uint256 proxyBytes = account.code.length;
+        if (proxyBytes == 0 || proxyBytes > SAFE_PROXY_MAX_RUNTIME_BYTES) return address(0);
+        if (proxyBytes >= slotValue.code.length) return address(0);
+
+        return slotValue;
     }
 
     /// @dev The two protocol-rule values no contract exposes, left for the reviewer to supply.
@@ -203,7 +238,7 @@ contract ForkDiscoveryTest is Test {
         return "1. review every value below against an independent source; 2. fill in "
             "transaction_gas_schedule; 3. set status to observed_and_committed; 4. copy this file to "
             "reports/frozen/fork-observations.json; 5. add \"fork\" to activated_gates in "
-            "requirements/ledger.toml and flip the sixteen fork claims to active; 6. commit both; "
+            "requirements/ledger.toml and flip the eighteen fork claims to active; 6. commit both; "
             "7. run bin/fork-gate.sh check.";
     }
 

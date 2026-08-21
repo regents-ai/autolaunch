@@ -32,7 +32,7 @@ activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5"]
 
 # `fork` is deliberately absent. A gate is activated only in the candidate that already
 # carries that gate's committed evidence; naming it here while no fork receipt exists would
-# make sixteen claims report active against evidence nobody has run. C5's fork selectors are
+# make eighteen claims report active against evidence nobody has run. C5's fork selectors are
 # written, mapped two-per-claim, and live outside the offline test root, so they cannot be
 # executed against their IDs until the separately authorized fork gate runs and its evidence
 # is committed. Until then every fork claim stays pending and C5 cannot close.
@@ -214,9 +214,16 @@ selectors = ["test_DEP_015_DeterministicTestPortfolioIsFrozen"]
 # line. Deleting `bin/freeze-artifacts.py check` from `bin/gate.sh` therefore does not
 # quietly stop checking the freeze — it leaves DEP-016 without its verified receipt and
 # fails the ledger reconciliation.
+#
+# regent-alv1.6.1 correction. The C5 statement asserted that every src/** byte equals the C4
+# capture. That was true while C5's only production edit was a comment, and it is obsolete the
+# moment a successor corrects production behaviour. Relaxing it silently would have been worse
+# than replacing it, so the universal claim becomes an enumerated one: the historical C4 capture
+# stays immutable and byte-identical, exactly the contracts the frozen final-source-delta record
+# names may differ, each of them must really differ, and every other contract must still match.
 [[requirement]]
 id = "DEP-016"
-statement = "The required gate regenerates every frozen ABI, surface, size and manifest document from the compiled artifacts in check mode and fails on any byte of drift, and the rebuilt src/** runtime and creation byte strings equal the independently captured pre-edit C4 baseline exactly."
+statement = "The required gate regenerates every frozen ABI, surface, size and manifest document from the compiled artifacts in check mode and fails on any byte of drift; the historical C4 runtime capture stays byte-identical to the blob its capture commit committed directly on integrated C4; exactly the src/** contracts the frozen final-source-delta record names may differ from that capture and each of them must actually differ; and every other src/** contract's runtime and creation byte strings still equal it exactly. The gate proves which production bytes moved, never why they moved."
 owner = "C5"
 contract = "repository"
 evidence_class = "gate-dependency"
@@ -363,9 +370,12 @@ selectors = [
     "test_DEP_042_ForkLatestEveryBindingHasTheExpectedRuntimeCodePresence",
 ]
 
+# regent-alv1.6.1 correction. "Proxy status" was open enough to be read as universal non-proxy
+# detection. It is not: the gate recognizes four patterns and says so, and the Safe singleton
+# pattern is admitted for exactly one address because slot 0 is ordinary storage.
 [[requirement]]
 id = "DEP-043"
-statement = "On Base, each frozen binding's proxy status and, where it is a proxy, its implementation code identity equal the values the chain manifest records."
+statement = "On Base, each frozen binding is classified live against exactly the supported proxy patterns — the EIP-1967, EIP-1822, and ZeppelinOS implementation slots for every binding, plus a Safe singleton detector applied only to the frozen Regent Safe and only when its slot-0 address, its masterCopy() return, its delegating-stub runtime shape, and a code-bearing implementation all agree — and the family, implementation address, implementation runtime code hash, and implementation runtime length each equal the reviewed record. A binding matching none of those patterns is reported as no_supported_proxy_pattern, which is a statement about what was measured and never a claim that the address is not a proxy. Runtime code hashes stay mandatory for every binding regardless of family, and any mismatch stops the gate."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
@@ -481,6 +491,41 @@ status = "pending"
 selectors = [
     "test_DEP_051_ForkPinnedEveryBindingRuntimeCodeHashMatchesTheManifest",
     "test_DEP_051_ForkLatestEveryBindingRuntimeCodeHashMatchesTheManifest",
+]
+
+# regent-alv1.6.1 addition. Every other fork claim reads chain state at a header; this one binds the
+# header. Fork selection compares the whole recorded header against live state before the calling
+# claim executes, so no claim can prove anything about a block it has not identified, and the two
+# committed records are proved to stand in the fixed relationship discovery constructed.
+[[requirement]]
+id = "DEP-052"
+statement = "Before any fork claim executes, the selected fork's block number, parent block number, parent block hash, timestamp, base fee, and chain id are each compared against the committed observation record for that header; and the two committed headers are exactly the fixed pinned-to-later distance apart, each record's parent number is its own predecessor, and the later header's timestamp is strictly greater than the pinned header's."
+owner = "C5"
+contract = "BaseBindings"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = [
+    "test_DEP_052_ForkPinnedHeaderIsFullyBoundToTheCommittedRecord",
+    "test_DEP_052_ForkLatestHeaderIsFullyBoundToTheCommittedRecord",
+]
+
+# regent-alv1.6.1 addition. The founder-authorized exact-production lifecycle suite: the whole
+# Autolaunch path, deployed from the exact final artifacts and driven through production-reachable
+# callers against the real frozen Base bindings, at both committed headers. The existing focused
+# fork claims and the complete-transaction gas claims stay separate named proofs; this one is the
+# end-to-end path they each cut one slice out of.
+[[requirement]]
+id = "DEP-053"
+statement = "On Base at each committed header independently, one suite deploys the exact final production UERC20 factory, C1 implementations, factory, strategy, and mined hook, reconciles their creation and runtime code identities against the frozen build, and then — through production-reachable callers only, against the real CCA, Permit2, REGENT, USDC, live staking, PoolManager, and PositionManager bindings — drives exact wallet fee approval and launch, five-argument bidding, a failed auction with full bidder refund and exactly 100 billion SUBJECT retired to the dead address, a graduated auction migrating at the CCA final price with bidder exit and SUBJECT claim, SUBJECT stake, canonical receiver payments in USDC, REGENT, and SUBJECT, splitter skims, claimAll, and unstake, and at least one real Uniswap v4 swap that synchronously settles both one-percent REGENT hook lanes and leaves the hook no inventory. It asserts exact final balances and allowances, both lifecycles, dead-address ownership of the LP NFT, the position's actual consumption and both residues, and that no production contract holds an unexplained balance. Test-only funding and routing is itemized and manufactures no protocol authority, code, custody, or otherwise unreachable state."
+owner = "C5"
+contract = "system"
+evidence_class = "fork-execution"
+gate = "fork"
+status = "pending"
+selectors = [
+    "test_DEP_053_ForkPinnedCompleteProductionLifecycleExecutesEndToEnd",
+    "test_DEP_053_ForkLatestCompleteProductionLifecycleExecutesEndToEnd",
 ]
 
 # Repository-owned code, so this stays hermetic: the escrow, splitter, and receiver
@@ -665,9 +710,14 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_FAC_015_TreasuryIsImmutable"]
 
+# regent-alv1.6.1 correction. "Deployed contract" was open enough to be read as a standing
+# property, which is what produced a second, redundant code check on the graduation path. It is a
+# launch-time admission and nothing more: the strategy is the single place the check exists, and
+# the narrower consequence of later code loss is disclosed in docs/security/threat-model.md and
+# proved live by MIG-020.
 [[requirement]]
 id = "FAC-016"
-statement = "The recovery admin is an immutable deployed contract. The shared strategy rejects itself as a recovery admin, and zero and non-contract addresses are rejected because they carry no code."
+statement = "The recovery admin is immutable, and it is admitted as a deployed contract exactly once, at launch, by RegentLBPStrategy.initializeDistribution — the single launch-time contract-code check in the system. The shared strategy rejects itself as a recovery admin, and zero and non-contract addresses are rejected there because they carry no code. No later call re-evaluates whether that immutable address still carries code."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -2068,6 +2118,21 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_MIG_019_MigrationDependencyReentrancyIsRejectedWithCompleteRollback"]
 
+# regent-alv1.6.1 addition. The terminal-path liveness half of FAC-016: launch-time admission is
+# the only code check, so an admin destroyed after admission can never block the one migration
+# path a launched auction has. The state is produced the way production produces it — the earlier
+# Foundry transaction, `setUp`, deploys the admin, launches with it, and destroys it under
+# EIP-6780 — and no cheatcode manufactures it. FAC-016 keeps the rejection half.
+[[requirement]]
+id = "MIG-020"
+statement = "A launch whose immutable recovery admin was created, admitted at launch, and destroyed under EIP-6780 in that same transaction still migrates in a later transaction: graduation completes, the splitter clone is initialized and bound to that immutable admin address, the canonical zero-referral receiver is created, 365-day vesting is activated, and the factory and strategy records both still carry the admin address. The only lost capability is recovery of unsupported ERC20s and forced ETH on that launch's splitter and receivers."
+owner = "C5"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_MIG_020_GraduationSurvivesRecoveryAdminDestroyedAtLaunch"]
+
 # ---------------------------------------------------------------------------
 # FAIL — unmet raise, zero bids, partial bidding, full failed inventory return,
 #        exact dead-address delta, bidder refunds, no graduated infrastructure,
@@ -2312,13 +2377,16 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_GAS_002_InitcodeSizesAreWithinEip3860WithMargin"]
 
-# C5 addition. Plan section 5 requires the supported hook callbacks' cold and warm cost to be
-# recorded separately and dispositioned against the pinned v4 guidance, rather than hidden inside
-# the three complete-transaction totals. This is the hermetic measurement; the fork repetition
-# rides on GAS-003 through GAS-006.
+# C5 addition, corrected by regent-alv1.6.1. The supported hook callbacks' cold and warm cost is
+# recorded separately rather than hidden inside the three complete-transaction totals. The earlier
+# statement also held the measurement to a 100,000-gas target and a 300,000-gas ceiling; neither
+# value exists in Uniswap v4, in any pinned dependency, or in a founder requirement, so both
+# literals and their pass/fail assertions are removed and this claim records its measurements
+# instead of inventing a protocol limit. The 14,000,000 complete-transaction ceiling is the only
+# absolute gas limit this repository asserts, and GAS-003 through GAS-006 own it.
 [[requirement]]
 id = "GAS-007"
-statement = "The supported hook callbacks' cold and warm gas, and the supported router's own sync/settle timing, are measured as a controlled difference against a zero-lane swap of the identical amount on an identically built pool, stay inside the pinned Uniswap v4 hard ceiling for a callback that makes external calls, are recorded with their disposition against that guidance's target, and are reconciled by the gate against the figures the audit packet publishes. The cold figure is the posture a real user transaction meets on a pool's first swap; the warm figure is only the control that proves the cold one was cold."
+statement = "The supported hook callbacks' cold and warm gas, and a second supported router's own sync/settle timing, are measured as a controlled difference against a zero-lane swap one wei apart on an identically built pool, and are reconciled by the gate against the figures the audit packet publishes. The measurement asserts only what it establishes: the charging swap costs more than its zero-lane control cold and warm, warm is cheaper than cold in both pairs, a production-sized lane is dearer than a boundary one, and the hook retains neither REGENT nor a splitter allowance. No absolute callback gas limit is asserted, because no pinned dependency or founder requirement states one; the alternate-router total is recorded only. The cold figure is the posture a real user transaction meets on a pool's first swap; the warm figure is only the control that proves the cold one was cold."
 owner = "C5"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
@@ -2500,3 +2568,23 @@ evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = ["test_ABI_011_ReturnTupleLayoutsAreFrozen"]
+
+# regent-alv1.6.1 addition. Removing the splitter's redundant recovery-admin code check deletes one
+# custom error and therefore one selector from the frozen ABI. A hard-deleted selector is proved by
+# an ABI diff, never by calling it. The two authorities diffed are the frozen error surface and the
+# generated per-contract ABI document the release manifest names. A runtime byte scan is
+# deliberately excluded: it is sound for a deleted function, whose dispatcher must carry the
+# selector literally, and ABI-009 uses it there, but it is unsound for a custom error under this
+# repository's via-IR build, where solc emits this very error's revert prologue as
+# shl(226, 0x298e5ea3) instead of shl(224, 0xa6397a8c), so the live strategy runtime contains the
+# four selector bytes nowhere. Claiming absence from a scan that cannot see presence would be
+# claiming nothing.
+[[requirement]]
+id = "ABI-012"
+statement = "The splitter error selector 0x4f986444, RecoveryAdminHasNoCode(), is deleted: it appears in no production contract's frozen error surface, and no generated per-contract ABI other than the strategy's declares an error of that name at any arity, while the strategy's own distinct RecoveryAdminHasNoCode(address) selector 0xa6397a8c remains on both records, because launch-time admission still rejects a code-less recovery admin."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_ABI_012_DeletedSplitterRecoveryAdminErrorSelectorIsAbsent"]

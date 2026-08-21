@@ -6,14 +6,79 @@ import {
     IContinuousClearingAuctionFactory
 } from "continuous-clearing-auction/interfaces/IContinuousClearingAuctionFactory.sol";
 import {ForkFixture} from "./ForkFixture.sol";
+import {ForkHeaders} from "./ForkHeaders.sol";
 
-/// @notice `DEP-040` through `DEP-044`, `DEP-047`, and `DEP-051` at both committed headers.
+/// @notice `DEP-040` through `DEP-044`, `DEP-047`, `DEP-051`, and `DEP-052` at both committed
+///         headers.
 /// @dev Every claim runs twice in two separately created forks and never shares state between them.
 ///      Each pair compares the live chain against `reports/frozen/fork-observations.json`, which was
 ///      recorded by a separate authorized discovery pass and reviewed before this gate ever ran.
 contract BaseBindingsForkTest is ForkFixture {
     function setUp() public {
         _loadObservations();
+    }
+
+    // -------------------------------------------------------------------------
+    // DEP-052 — the header itself, bound before any claim
+    // -------------------------------------------------------------------------
+
+    function test_DEP_052_ForkPinnedHeaderIsFullyBoundToTheCommittedRecord() public {
+        _checkHeaderBinding(Header.Pinned);
+    }
+
+    function test_DEP_052_ForkLatestHeaderIsFullyBoundToTheCommittedRecord() public {
+        _checkHeaderBinding(Header.Later);
+    }
+
+    /// @dev Two things, and the first one is the reason this claim exists at all.
+    ///
+    ///      `_selectFork` binds every recorded field of the header it opens — number, parent number
+    ///      and parent hash, timestamp, base fee, chain id — and every fork selector in this
+    ///      repository reaches its own work only through that function, so no claim can execute
+    ///      against a header it has not identified. Checking only the height would not be enough:
+    ///      a different chain, or the same chain reorged below the recorded header, can present the
+    ///      same height with a different parent. This test re-asserts that binding in the open so
+    ///      the claim has evidence of its own rather than only a side effect of every other claim.
+    ///
+    ///      Second, the two committed headers must stand in the fixed relationship the discovery
+    ///      pass constructed: the later header is exactly `PINNED_TO_LATER_DISTANCE` blocks ahead of
+    ///      the pinned one, and it is strictly later in time. That is what makes "the same candidate
+    ///      at a later head" a defined comparison rather than two arbitrary blocks.
+    function _checkHeaderBinding(Header header) private {
+        uint256 opened = _selectFork(header);
+
+        string memory prefix = string.concat(".headers.", _headerName(header), ".");
+        assertEq(opened, _observedUint(string.concat(prefix, "block_number")), "the opened header is not the recorded one");
+        assertGt(block.number, 0, "a fork opened at the genesis header");
+        assertGt(block.timestamp, 0, "the recorded header carries no timestamp");
+        assertTrue(
+            blockhash(block.number - 1) != bytes32(0), "the parent hash is unavailable, so the header is unbound"
+        );
+
+        uint256 pinned = _observedUint(".headers.pinned.block_number");
+        uint256 later = _observedUint(".headers.later.block_number");
+        assertEq(
+            later - pinned,
+            ForkHeaders.PINNED_TO_LATER_DISTANCE,
+            "the two committed headers are not the fixed distance apart"
+        );
+        assertEq(
+            _observedUint(".headers.pinned.parent_block_number"),
+            pinned - 1,
+            "the pinned record's parent number is not its own predecessor"
+        );
+        assertEq(
+            _observedUint(".headers.later.parent_block_number"),
+            later - 1,
+            "the later record's parent number is not its own predecessor"
+        );
+        assertGt(
+            _observedUint(".headers.later.timestamp"),
+            _observedUint(".headers.pinned.timestamp"),
+            "the later header is not later in time than the pinned one"
+        );
+
+        _emitVerdict("DEP-052", header, "header-fully-bound-and-fixed-distance");
     }
 
     // -------------------------------------------------------------------------
@@ -111,9 +176,15 @@ contract BaseBindingsForkTest is ForkFixture {
     ///      are all re-derived from live chain state here and compared against what the reviewed
     ///      discovery pass recorded. A proxy of any recognized family must point at an
     ///      implementation that carries code — an EIP-1822 proxy no less than an EIP-1967 one,
-    ///      because a codeless implementation makes every delegated call a silent success — and a
-    ///      binding recorded as a plain contract must expose no implementation at any of the three
-    ///      recognized slots.
+    ///      because a codeless implementation makes every delegated call a silent success.
+    ///
+    ///      A binding that matches none of the supported patterns is reported as
+    ///      `no_supported_proxy_pattern`, and that is the whole claim: this gate reads three
+    ///      implementation slots plus, for exactly the frozen Regent Safe, the Safe singleton
+    ///      pattern, so a fifth pattern would be invisible to it and no universal non-proxy claim
+    ///      is made about any address. Runtime code hashes stay mandatory for every binding
+    ///      regardless of family (`DEP-051`), which is what makes a missed pattern a change this
+    ///      gate still catches.
     function _checkProxyStatus(Header header) private {
         _selectFork(header);
 
@@ -144,9 +215,17 @@ contract BaseBindingsForkTest is ForkFixture {
                 string.concat("binding ", ids[i], " changed its implementation runtime length")
             );
 
-            if (keccak256(bytes(family)) == keccak256("none")) {
-                assertEq(implementation, address(0), string.concat("binding ", ids[i], " is non-proxy with an impl"));
-                assertEq(codeBytes, 0, string.concat("binding ", ids[i], " is non-proxy with implementation code"));
+            if (keccak256(bytes(family)) == keccak256(bytes(NO_SUPPORTED_PROXY_PATTERN))) {
+                assertEq(
+                    implementation,
+                    address(0),
+                    string.concat("binding ", ids[i], " matches no supported pattern yet exposes an implementation")
+                );
+                assertEq(
+                    codeBytes,
+                    0,
+                    string.concat("binding ", ids[i], " matches no supported pattern yet has implementation code")
+                );
             } else {
                 assertGt(
                     codeBytes, 0, string.concat("binding ", ids[i], " delegates to an implementation with no code")
@@ -155,6 +234,37 @@ contract BaseBindingsForkTest is ForkFixture {
                     codeHash,
                     implementation.codehash,
                     string.concat("binding ", ids[i], " implementation identity is not the deployed one")
+                );
+            }
+
+            // The Safe singleton detector applies to exactly one address, and only that address may
+            // ever be classified as one. Its four agreeing measurements are re-asserted here in the
+            // open rather than left inside the classifier.
+            if (keccak256(bytes(family)) == keccak256("safe_singleton")) {
+                assertEq(
+                    addresses[i],
+                    BaseBindings.GOVERNANCE_AND_REGENT_SAFE,
+                    string.concat("binding ", ids[i], " was classified as a Safe singleton proxy")
+                );
+                assertEq(
+                    _slotAsAddress(addresses[i], SAFE_SINGLETON_SLOT),
+                    implementation,
+                    "the Regent Safe's slot 0 is not the classified singleton"
+                );
+                assertEq(
+                    _callAddress(addresses[i], abi.encodePacked(SAFE_MASTER_COPY_SELECTOR)),
+                    implementation,
+                    "the Regent Safe's masterCopy() disagrees with its slot 0"
+                );
+                assertLe(
+                    addresses[i].code.length,
+                    SAFE_PROXY_MAX_RUNTIME_BYTES,
+                    "the Regent Safe's runtime is too large to be a delegating proxy stub"
+                );
+                assertLt(
+                    addresses[i].code.length,
+                    implementation.code.length,
+                    "the Regent Safe's runtime is not smaller than the singleton it forwards to"
                 );
             }
         }

@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {BaseBindings} from "../src/bindings/BaseBindings.sol";
+import {ForkHeaders} from "./ForkHeaders.sol";
 
 /// @notice The read-only Base fork harness. Two isolated forks, one committed observation record,
 ///         and one normalized verdict per claim per header.
@@ -43,6 +44,30 @@ abstract contract ForkFixture is Test {
     bytes32 internal constant ZEPPELINOS_IMPLEMENTATION_SLOT =
         0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3;
 
+    /// @notice The Safe singleton's own storage slot and its own getter, recognized for exactly one
+    ///         address: the frozen Regent Safe.
+    /// @dev A Safe proxy keeps its singleton in slot 0 and exposes it as `masterCopy()`. That slot
+    ///      is not a namespaced proxy slot — plenty of ordinary contracts keep an unrelated address
+    ///      in slot 0 — so this detector is deliberately not applied to anything but the exact
+    ///      frozen governance address, and it admits the family only when all four measurements
+    ///      agree: the slot-0 address, the `masterCopy()` return, a proxy runtime small enough and
+    ///      strictly smaller than the singleton's, and a singleton that carries code.
+    bytes32 internal constant SAFE_SINGLETON_SLOT = bytes32(uint256(0));
+    bytes4 internal constant SAFE_MASTER_COPY_SELECTOR = 0xa619486e;
+
+    /// @notice The largest runtime a delegating Safe proxy stub can have and still be one.
+    /// @dev Every published Safe proxy runtime is well under a hundred bytes; a singleton is
+    ///      thousands. The bound is a shape test, not an identity: identity is the singleton's own
+    ///      code hash, which is recorded and compared separately.
+    uint256 internal constant SAFE_PROXY_MAX_RUNTIME_BYTES = 128;
+
+    /// @notice The family string a binding gets when none of the supported patterns is present.
+    /// @dev Deliberately not "none". This gate reads three implementation slots and, for one
+    ///      address, a Safe singleton; a binding that matches none of them has not been proved to
+    ///      be a plain non-proxy contract, only to carry no pattern this repository supports. The
+    ///      string says exactly that much and no more.
+    string internal constant NO_SUPPORTED_PROXY_PATTERN = "no_supported_proxy_pattern";
+
     /// @notice The canonical Permit2 deployment every bidder allowance goes through.
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -67,19 +92,44 @@ abstract contract ForkFixture is Test {
         }
     }
 
-    /// @notice Create and select one isolated fork at the header this claim is being proved at.
+    /// @notice Create and select one isolated fork at the header this claim is being proved at, and
+    ///         bind every recorded field of that header before the caller's claim executes.
     /// @dev `createSelectFork` makes a fresh fork every call, so no claim inherits another claim's
     ///      warmed access list, cached storage, or staged state.
+    ///
+    ///      Binding is complete rather than partial. A run that only checked the height would still
+    ///      be checking a chain it had not identified: two chains, or one chain reorged below the
+    ///      recorded header, can both present that height. Every field the reviewed record carries
+    ///      — the number, the parent's number and hash, the timestamp, the base fee — is therefore
+    ///      compared against live state here, together with the chain id, and every fork claim in
+    ///      this repository reaches its own work only through this function. `DEP-052`.
     function _selectFork(Header header) internal returns (uint256 blockNumber) {
-        if (header == Header.Pinned) {
-            blockNumber = _observedUint(".headers.pinned.block_number");
-            vm.createSelectFork(RPC_ALIAS, blockNumber);
-        } else {
-            blockNumber = _observedUint(".headers.later.block_number");
-            vm.createSelectFork(RPC_ALIAS, blockNumber);
-        }
-        assertEq(block.number, blockNumber, "the fork did not open at the recorded header");
+        string memory prefix = string.concat(".headers.", _headerName(header), ".");
+        blockNumber = _observedUint(string.concat(prefix, "block_number"));
+        vm.createSelectFork(RPC_ALIAS, blockNumber);
+
         assertEq(block.chainid, BaseBindings.BASE_CHAIN_ID, "the fork is not Base mainnet");
+        assertEq(block.number, blockNumber, "the fork did not open at the recorded header");
+        assertEq(
+            block.number - 1,
+            _observedUint(string.concat(prefix, "parent_block_number")),
+            "the header's parent number is not the recorded one"
+        );
+        assertEq(
+            blockhash(block.number - 1),
+            _observedBytes32(string.concat(prefix, "parent_block_hash")),
+            "the header's parent hash is not the recorded one; this is a different chain or a reorg"
+        );
+        assertEq(
+            block.timestamp,
+            _observedUint(string.concat(prefix, "timestamp")),
+            "the header's timestamp is not the recorded one"
+        );
+        assertEq(
+            block.basefee,
+            _observedUint(string.concat(prefix, "base_fee_per_gas")),
+            "the header's base fee is not the recorded one"
+        );
     }
 
     function _headerName(Header header) internal pure returns (string memory) {
@@ -138,14 +188,19 @@ abstract contract ForkFixture is Test {
     // -------------------------------------------------------------------------
 
     /// @notice Classify one deployed account's proxy family from chain state alone.
-    /// @dev Reads all three recognized implementation slots and returns the family, the
-    ///      implementation it points at, and that implementation's own EVM code identity. It
-    ///      consults no committed value, so the check pass derives the family and the
-    ///      implementation identity independently here and only then compares them against what
-    ///      was reviewed. The discovery pass deliberately keeps its own copy of this classification
-    ///      rather than inheriting this fixture: inheriting it would give discovery the ability to
-    ///      read `reports/frozen/fork-observations.json`, and phase one must not be able to see the
+    /// @dev Reads the three recognized implementation slots — and, for exactly one address, the
+    ///      Safe singleton pattern — and returns the family, the implementation it points at, and
+    ///      that implementation's own EVM code identity. It consults no committed value, so the
+    ///      check pass derives the family and the implementation identity independently here and
+    ///      only then compares them against what was reviewed. The discovery pass deliberately
+    ///      keeps its own copy of this classification rather than inheriting this fixture:
+    ///      inheriting it would give discovery the ability to read
+    ///      `reports/frozen/fork-observations.json`, and phase one must not be able to see the
     ///      record phase two checks against.
+    ///
+    ///      An account that matches nothing is reported as `no_supported_proxy_pattern`, never as
+    ///      "not a proxy". This gate knows four patterns; a fifth would be invisible to it, and a
+    ///      claim of universal non-proxy detection would be a claim it cannot support.
     function _classifyProxy(address account)
         internal
         view
@@ -166,11 +221,43 @@ abstract contract ForkFixture is Test {
             implementation = _slotAsAddress(account, ZEPPELINOS_IMPLEMENTATION_SLOT);
             family = "zeppelinos";
         }
+        if (implementation == address(0) && account == BaseBindings.GOVERNANCE_AND_REGENT_SAFE) {
+            implementation = _safeSingleton(account);
+            family = "safe_singleton";
+        }
         if (implementation == address(0)) {
-            return ("none", address(0), bytes32(0), 0);
+            return (NO_SUPPORTED_PROXY_PATTERN, address(0), bytes32(0), 0);
         }
         implementationCodeHash = implementation.codehash;
         implementationBytes = implementation.code.length;
+    }
+
+    /// @notice The Safe singleton behind the frozen Regent Safe, or zero if this is not one.
+    /// @dev Four independent measurements have to agree before this reports a singleton, because
+    ///      slot 0 is ordinary storage rather than a namespaced proxy slot:
+    ///
+    ///        1. slot 0 decodes to a nonzero address;
+    ///        2. the account's own `masterCopy()` returns exactly that address;
+    ///        3. the account's runtime is a delegating stub — small in absolute terms, and strictly
+    ///           smaller than the singleton it forwards to;
+    ///        4. that singleton carries code, so the delegated calls actually execute something.
+    ///
+    ///      Any disagreement returns zero, which classifies the binding as
+    ///      `no_supported_proxy_pattern` and — because the reviewed record says otherwise — stops
+    ///      the gate rather than quietly reclassifying a governance address.
+    function _safeSingleton(address account) internal view returns (address) {
+        address slotValue = _slotAsAddress(account, SAFE_SINGLETON_SLOT);
+        if (slotValue == address(0) || slotValue.code.length == 0) return address(0);
+
+        (bool ok, bytes memory returned) = account.staticcall(abi.encodePacked(SAFE_MASTER_COPY_SELECTOR));
+        if (!ok || returned.length < 32) return address(0);
+        if (abi.decode(returned, (address)) != slotValue) return address(0);
+
+        uint256 proxyBytes = account.code.length;
+        if (proxyBytes == 0 || proxyBytes > SAFE_PROXY_MAX_RUNTIME_BYTES) return address(0);
+        if (proxyBytes >= slotValue.code.length) return address(0);
+
+        return slotValue;
     }
 
     function _slotAsAddress(address account, bytes32 slot) internal view returns (address) {

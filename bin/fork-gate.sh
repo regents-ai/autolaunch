@@ -11,7 +11,11 @@
 #   - the endpoint is reached only through the `base` alias, whose value stays an unresolved
 #     environment reference in every committed file and every artifact this run produces;
 #   - every mutation, impersonation, block movement, and staged balance happens in Forge's own
-#     local fork state and is inventoried in docs/audit/fork-authority-and-state-inventory.md.
+#     local fork state and is inventoried in docs/audit/fork-authority-and-state-inventory.md;
+#   - nothing a provider produced is displayed before it has been scanned. Every pass writes its
+#     stdout and stderr to files, the scan runs on both outcomes, and only then is anything shown.
+#     A scan failure is the one and only reason scratch is destroyed, and it is destroyed unread;
+#     an ordinary provider or test failure keeps its already-scanned diagnostics for diagnosis.
 #
 # Evidence is two-phase, and the two phases are different programs run under different profiles:
 #
@@ -60,6 +64,28 @@ fail() {
 
 section() {
     printf '\n=== %s ===\n' "$*"
+}
+
+# Nothing a provider produced is displayed before it has been scanned, and the two failure modes
+# are kept apart on purpose.
+#
+#   - Scan failure is the only reason scratch is destroyed. The provider's output has not been
+#     shown, so it cannot be shown now; the checker prints a redacted report naming the local
+#     paths, this deletes them, and the run stops.
+#   - An ordinary provider or test failure is not a secret. Its output has already passed the
+#     scan by the time this returns, so it is displayed and the whole scratch directory is kept
+#     for diagnosis. The caller decides what to do with the exit status afterwards.
+scan_then_display() {
+    if ! python3 "$checker" sanitize --scan "$generated"; then
+        rm -rf "$generated"
+        fail "provider output failed the secret scan; $generated was deleted unread and unlogged"
+    fi
+    for shown in "$@"; do
+        if [ -f "$shown" ]; then
+            cat "$shown"
+        fi
+    done
+    return 0
 }
 
 # The committed state of the two files a check run must not be able to author. Any difference
@@ -262,8 +288,12 @@ if [ "$mode" = discover ]; then
     discovery_status=0
     forge test --json -vv --match-contract "$DISCOVERY_CONTRACT" --fork-url "$RPC_ALIAS" \
         >"$discovery_report" 2>"$discovery_log" || discovery_status=$?
-    cat "$discovery_log"
-    [ "$discovery_status" -eq 0 ] || fail "the discovery pass exited $discovery_status"
+
+    # Scan first, on both outcomes. Only then is anything shown, and the candidate the reviewer
+    # will read is inside the scanned set.
+    scan_then_display "$discovery_log"
+    [ "$discovery_status" -eq 0 ] ||
+        fail "the discovery pass exited $discovery_status; its scanned diagnostics are retained under $generated"
     [ -f "$candidate" ] || fail "the discovery pass wrote no candidate at $candidate"
 
     # Discovery may not have touched the committed record, even indirectly.
@@ -297,7 +327,7 @@ Nothing has been blessed. To turn it into evidence, deliberately:
      leaves them zero and the reviewer supplies the ones active at the recorded headers;
   3. set "status" to "observed_and_committed";
   4. install it as $observations;
-  5. add "fork" to activated_gates in $ledger and flip the sixteen fork claims to active;
+  5. add "fork" to activated_gates in $ledger and flip the eighteen fork claims to active;
   6. commit both files;
   7. run: $0 check
 
@@ -323,8 +353,9 @@ section "Pinned header"
 pinned_status=0
 forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkPinned' --fork-url "$RPC_ALIAS" \
     >"$pinned_report" 2>"$pinned_log" || pinned_status=$?
-cat "$pinned_log"
-[ "$pinned_status" -eq 0 ] || fail "the pinned-header fork run exited $pinned_status"
+scan_then_display "$pinned_log"
+[ "$pinned_status" -eq 0 ] ||
+    fail "the pinned-header fork run exited $pinned_status; its scanned diagnostics are retained under $generated"
 
 # ---------------------------------------------------------------------------
 section "Later header"
@@ -333,15 +364,16 @@ section "Later header"
 later_status=0
 forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkLatest' --fork-url "$RPC_ALIAS" \
     >"$later_report" 2>"$later_log" || later_status=$?
-cat "$later_log"
-[ "$later_status" -eq 0 ] || fail "the later-header fork run exited $later_status"
+scan_then_display "$later_log"
+[ "$later_status" -eq 0 ] ||
+    fail "the later-header fork run exited $later_status; its scanned diagnostics are retained under $generated"
 
 # ---------------------------------------------------------------------------
 section "Ledger reconciliation"
 # ---------------------------------------------------------------------------
 
 # Both runs together are this gate's execution evidence. The compiled listing enumerates all
-# thirty-two mapped selectors — sixteen claims, one selector per committed header — and the two
+# thirty-six mapped selectors — eighteen claims, one selector per committed header — and the two
 # reports are reconciled against it as one merged multiset, so every claim maps to exactly one
 # pinned and one later selector and each of them executes exactly once across the whole gate.
 python3 "$checker" ledger \

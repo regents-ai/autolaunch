@@ -774,7 +774,6 @@
         "0x2007aa4c SelfAddress()",
         "0x33c9778b StakingAllowanceNotCleared(uint256)",
         "0x45be0a26 InsufficientStake(uint256,uint256)",
-        "0x4f986444 RecoveryAdminHasNoCode()",
         "0x8657cb48 ProtectedToken(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
         "0x97e9d21c NotRecoveryAdmin(address)",

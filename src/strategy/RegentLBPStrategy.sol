@@ -304,6 +304,19 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     /// @dev Factory only, impossible before the hook is bound. Every economic input except the launch
     ///      id, the escrow, the recovery admin and the required raise is fixed here; SUBJECT, treasury
     ///      and the start block come from the authenticated escrow and the current block. `C3-I2`.
+    ///
+    ///      The `recoveryAdmin.code.length` test below is the system's *only* launch-time admission
+    ///      of a recovery admin, and it is deliberately the only place that test exists. Carrying
+    ///      code is mutable environmental state: EIP-6780 lets a contract created and destroyed in
+    ///      the same transaction disappear, so an address admitted here can be codeless later.
+    ///      Graduation is a launched auction's only migration path, so `SubjectSplitterV1.initialize`
+    ///      never re-evaluates this fact — a second check there would let a launcher's own admin,
+    ///      destroyed after admission, permanently strand a graduated launch. `MIG-020` proves
+    ///      graduation still completes after that destruction; `FAC-016` proves a code-less address
+    ///      is still refused here. The narrower consequence — that losing this admin's code
+    ///      permanently disables unsupported-token and forced-ETH recovery on the launch splitter
+    ///      and on every receiver created for that launch — is disclosed in
+    ///      `docs/security/threat-model.md`.
     // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
     function initializeDistribution(DistributionParams calldata params)
         external

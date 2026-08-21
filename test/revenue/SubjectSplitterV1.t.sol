@@ -82,8 +82,16 @@ contract SubjectSplitterV1Test is C1Fixture {
         _expectInitRevert(SubjectSplitterV1.DuplicateTokenBinding.selector, 0, address(subject));
         _expectInitRevert(SubjectSplitterV1.DuplicateTokenBinding.selector, 1, address(subject));
 
-        // A recovery admin must be a deployed contract.
-        _expectInitRevert(SubjectSplitterV1.RecoveryAdminHasNoCode.selector, 6, outsider);
+        // The recovery admin is admitted as a deployed contract once, at launch, by
+        // `RegentLBPStrategy.initializeDistribution` (`FAC-016`). This initializer binds whatever
+        // that admission passed and never re-evaluates whether the address still carries code, so
+        // graduation cannot be stranded by an admin destroyed after admission (`MIG-020`).
+        SubjectSplitterV1 codelessAdmin = SubjectSplitterV1(LibClone.clone(address(splitterImplementation)));
+        codelessAdmin.initialize(
+            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury, outsider
+        );
+        assertEq(codelessAdmin.recoveryAdmin(), outsider, "the splitter did not bind the admitted recovery admin");
+        assertEq(outsider.code.length, 0, "this account was supposed to carry no code");
     }
 
     // ------------------------------------------------------------------ SPL-002

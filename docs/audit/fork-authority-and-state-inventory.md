@@ -60,7 +60,7 @@ gate then proves it changed no committed file.
 source, and supplies the one thing the chain does not expose — the transaction gas schedule active
 at those headers, which is a protocol rule rather than a contract getter. The reviewer then sets
 `status` to `observed_and_committed`, installs the file at `reports/frozen/fork-observations.json`,
-adds `fork` to `activated_gates` in `requirements/ledger.toml`, flips the sixteen fork claims to
+adds `fork` to `activated_gates` in `requirements/ledger.toml`, flips the eighteen fork claims to
 active, and commits both.
 
 **Phase two — `bin/fork-gate.sh check`.** Runs under the `fork` profile, which grants **no** write
@@ -69,11 +69,37 @@ the provider it proves the record says `observed_and_committed`, that the ledger
 and every fork claim is active, and that both files are committed and clean. After both header runs
 it proves both files are still byte-identical to what was committed and that no candidate was
 produced. It then reconciles the two runs' reports as one merged multiset against the compiled
-listing, so each of the sixteen claims maps to exactly one pinned and one later selector and each of
-the thirty-two executes exactly once.
+listing, so each of the eighteen claims maps to exactly one pinned and one later selector and each of
+the thirty-six executes exactly once.
 
 The two profiles also use their own build directory, `out-fork`, so fork artifacts can never
 accumulate in `out/` and change the artifact count the required gate reconciles.
+
+### 3.1 Nothing a provider produced is displayed before it is scanned
+
+Both phases write every pass's stdout and stderr to files and scan them before anything is shown.
+The two failure orders are kept apart deliberately:
+
+- **the pass failed and its output is clean.** The output is not a secret; it has already passed the
+  scan, so it is displayed and the whole scratch directory is retained, because it is the only
+  diagnostic material a stop-report has.
+- **the output is dirty, whatever the pass's exit status was.** Nothing is displayed. The scanner
+  reports only redacted findings — the host, every other endpoint component, and every key-shaped
+  token removed, inside a URL or outside one — names the local paths, and the gate then deletes the
+  scratch unread. That is the one and only case in which scratch is destroyed.
+
+The endpoint is read only from `REGENT_BASE_RPC_URL`, never from argv and never from a committed
+file. Both orders are proved deterministically, without a provider, by
+`test/tooling/provider_output_scan_test.py`, which `bin/gate.sh` runs.
+
+### 3.2 The reviewed candidate and the activation commit are different commits
+
+The commit under review is the offline one: `reports/frozen/fork-observations.json` is
+`discovery_pending`, `fork` is absent from `activated_gates`, and every fork claim is `pending`.
+Installing a reviewed observation and activating the gate produces a **different** commit, with a
+different tree and a different set of active claims — and that later commit is the only one
+`bin/fork-gate.sh check` can run against, because check refuses to start until the record and the
+activation are already committed and clean. No figure in this packet came from a provider.
 
 ## 4. Execution status for this candidate
 
@@ -84,11 +110,11 @@ accumulate in `out/` and change the artifact count the required gate reconciles.
   it would have had to invent;
 - `bin/fork-gate.sh check` refuses to run against a pending record, and refuses again if the ledger
   has not activated `fork`;
-- `requirements/ledger.toml` leaves `fork` out of `activated_gates`, so all sixteen fork claims are
-  `pending` and none of their thirty-two selectors can close anything.
+- `requirements/ledger.toml` leaves `fork` out of `activated_gates`, so all eighteen fork claims are
+  `pending` and none of their thirty-six selectors can close anything.
 
 The harness is candidate-complete: both fork profiles reconcile, both format and build clean
-offline, the check-mode listing enumerates exactly the thirty-two mapped selectors, and the
+offline, the check-mode listing enumerates exactly the thirty-six mapped selectors, and the
 discovery-mode listing enumerates exactly the one discovery test. Nothing here has touched a
 network.
 
@@ -111,13 +137,19 @@ of them manufactures an intermediate state that production cannot reach on its o
 | `vm.prank(owner)` on live staking | `ProtocolFork._checkLiveStaking` | Pauses the deployed live staking contract | Its own owner pausing it. The owner address is *read from the deployed contract*, never assumed, and the only call made as that owner is one the owner can really make. The pause is local fork state, is never sent to Base, and lives in a fork created by that one claim, so no other claim ever sees it. A `pause()` that fails is a failed claim, not a passing alternative. |
 | `vm.load(binding, slot)` | `ForkFixture._classifyProxy`, both phases | Reads the three recognized proxy implementation slots | A read. It mutates nothing. The families are EIP-1967, EIP-1822 and the older ZeppelinOS slot; Base's own USDC uses the last of those, so reading only the EIP-1967 slot would misclassify a real proxy as a plain contract. |
 | `vm.writeJson` | `ForkDiscovery` only | Writes the reviewable candidate | Not a production path at all. It is the discovery pass recording what it saw into gitignored scratch, under the only profile that may write anything, and it can reach neither `reports/frozen/` nor any committed file. |
+| `deal(USDC, payer, amount)` and `deal(REGENT, payer, amount)` | `ProductionLifecycleFork` | Gives an ordinary payer a balance to pay a canonical receiver with | A customer paying a launch. Only the acquisition is staged; the approval and the `pay` call are the payer's own, and every skim destination is then asserted on the deployed contracts. |
+| `deal(REGENT, swapper, amount)` then a real swap | `ProductionLifecycleFork` | Gives an ordinary trader REGENT to swap | A trader swapping on the launch's official v4 pool. The approval and the swap are that account's own calls through an ordinary router. |
+| `new PoolSwapTest(PoolManager)` | `ProductionLifecycleFork` | Deploys the pinned v4-core swap router on the fork | A router. The hook has **no** router allowlist by design and charges every router identically, so an arbitrary router is a production-reachable caller rather than a substitute for one. It holds no authority over any Regent contract, and the swap it performs is a real swap against the real deployed PoolManager. |
+| `vm.prank(payer)` / `vm.prank(swapper)` | `ProductionLifecycleFork` | Acts as an ordinary EOA | Those accounts are ordinary EOAs with no privilege, exactly like the launcher and the bidders. |
 
 Explicitly **not** used anywhere in `test-fork/`: `vm.store`, `vm.etch`, `vm.mockCall`,
 `vm.warp` past an auction's own schedule, and any grant of a role a real caller could not obtain.
+Nothing in `test-fork/` manufactures protocol authority, contract code, custody, or a state
+production cannot reach on its own.
 
 ## 6. Isolation and coldness
 
-Each of the thirty-two fork selectors calls `_selectFork` itself, so it opens its own fork and runs
+Each of the thirty-six fork selectors calls `_selectFork` itself, so it opens its own fork and runs
 in state no other selector touched. That is what makes the mandatory live-staking pause safe: it
 happens in a fork one claim created and no other claim can observe. It is also what makes the gas
 claims' cold measurements real: the first external touch inside a freshly created fork is genuinely

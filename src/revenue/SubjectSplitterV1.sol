@@ -17,6 +17,18 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 ///      recovery admin. There is no upgrade path, no reinitializer, no setter, no pause, no token
 ///      registry, no epoch, no queue, and no external lifecycle read.
 ///
+///      The recovery admin is admitted as a deployed contract exactly once, at launch, by
+///      `RegentLBPStrategy.initializeDistribution`. This initializer deliberately does not
+///      re-evaluate that fact: whether an address still carries code is mutable environmental
+///      state — EIP-6780 lets a contract created and destroyed in one transaction disappear — and
+///      graduation is the only migration path a launched auction has. Re-checking it here would
+///      let a launcher's own admin, destroyed after admission, permanently strand a graduated
+///      launch. The recorded consequence is narrower and is disclosed in
+///      `docs/security/threat-model.md`: if that immutable admin loses its code, this splitter's
+///      `recoverUnsupportedToken` and `recoverForcedETH` — and the same two calls on every
+///      receiver created for the launch — can never be called again, while graduation, revenue
+///      recognition, staking, claims and unstaking all remain available.
+///
 ///      Reward accounting is one accumulator per asset at exact scale `SCALE`, one global scaled
 ///      numerator carry per asset, and, per account, an accumulator checkpoint plus stored
 ///      claimable whole units and stored sub-unit dust. An account's entitlement between two
@@ -112,7 +124,6 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     error ZeroAddress();
     error SelfAddress();
     error DuplicateTokenBinding();
-    error RecoveryAdminHasNoCode();
     error ZeroAmount();
     error UnsupportedToken(address token);
     error ProtectedToken(address token);
@@ -154,7 +165,6 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         _requireBindable(recoveryAdmin_);
 
         if (usdc_ == regent_ || usdc_ == subject_ || regent_ == subject_) revert DuplicateTokenBinding();
-        if (recoveryAdmin_.code.length == 0) revert RecoveryAdminHasNoCode();
 
         usdc = usdc_;
         regent = regent_;
@@ -165,6 +175,7 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         regentSafe = regentSafe_;
         // slither-disable-next-line missing-zero-check
         treasury = treasury_;
+        // slither-disable-next-line missing-zero-check
         recoveryAdmin = recoveryAdmin_;
 
         emit SplitterInitialized(usdc_, regent_, subject_, liveStaking_, regentSafe_, treasury_, recoveryAdmin_);

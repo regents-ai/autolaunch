@@ -32,6 +32,12 @@ Subcommands, in the order the gate runs them:
              *effective* configuration, no credential field may carry a value, no nested
              configuration value may carry one either, and no scanned artifact may name a host
              outside the documentation and provenance allowlist.
+  sanitize   Scan provider stdout, stderr, and generated artifacts *before* anything displays
+             them. Clean output exits zero and the caller may then display and keep it, whether
+             or not the run it came from succeeded. Dirty output exits non-zero and reports only
+             redacted findings: the host, every other endpoint component, and every key-shaped
+             token are removed, and what is printed is the local path and the kind of finding.
+             The caller deletes the scratch directory on that failure, and only on that failure.
 
 Counts printed here are informational gate output, never acceptance literals.
 """
@@ -1318,8 +1324,16 @@ ALLOWED_URL_HOSTS = frozenset({
 
 URL_RE = re.compile(r"(?:https?|wss?)://([^\s\"'\\,)\]}/]+)")
 
+# The whole endpoint, not just its host: scheme, host, port, path, query and fragment together.
+# Redaction has to remove all of it, because a project id in a path is as much a credential as a
+# key in a query string.
+URL_FULL_RE = re.compile(r"(?:https?|wss?)://[^\s\"'\\,)\]}]*")
+
 # Provider hosts and key shapes, kept as defence in depth behind the host allowlist above.
 KEY_SHAPE_RE = re.compile(r"(?i)(alchemy|infura|quiknode|quicknode|drpc\.org|ankr\.com|blastapi|x-api-key)")
+
+# What replaces anything that must never be displayed.
+REDACTION = "[redacted]"
 
 # Configuration fields that would carry a provider or explorer credential. Each must be empty.
 CREDENTIAL_FIELD_RE = re.compile(r"(?i)(api_?key|secret|password|token)$")
@@ -1404,6 +1418,78 @@ def secrets(args: argparse.Namespace) -> int:
 
 
 # =============================================================================
+# provider-output sanitation
+# =============================================================================
+
+
+def redact(text: str) -> str:
+    """Everything that must never be displayed, removed.
+
+    Endpoints are removed whole rather than by host, because a project id in a path and a key in
+    a query string are as much a credential as the host is. Key-shaped tokens are then removed
+    from what is left, which is what catches a provider name that appeared outside a URL.
+    """
+    return KEY_SHAPE_RE.sub(REDACTION, URL_FULL_RE.sub(REDACTION, text))
+
+
+def scan_text(text: str) -> list[str]:
+    """Redacted descriptions of every disallowed thing one file's contents carry.
+
+    A finding never quotes what it found. It names the *kind* of finding, which is all a reader
+    needs in order to act, and it is the reason this reporter can be run against provider output
+    that has not been displayed yet.
+    """
+    findings: list[str] = []
+    hosts = {host for host in URL_RE.findall(text) if host.lower() not in ALLOWED_URL_HOSTS}
+    if hosts:
+        findings.append(f"names {len(hosts)} network host(s) outside the allowlist: {REDACTION}")
+    # Only outside URLs: an allowlisted documentation URL that happens to contain a vendor name
+    # is not key material, and reporting it would be noise rather than a finding.
+    outside_urls = URL_FULL_RE.sub(" ", text)
+    shapes = set(KEY_SHAPE_RE.findall(outside_urls))
+    if shapes:
+        findings.append(f"carries {len(shapes)} provider key-shaped token(s) outside a URL: {REDACTION}")
+    return findings
+
+
+def sanitize(args: argparse.Namespace) -> int:
+    """Scan provider output before anybody looks at it.
+
+    The order this enforces is the whole point. A gate that printed a provider's stderr and then
+    scanned it would have already leaked whatever the scan was going to find, and a gate that
+    deleted its scratch on every failure would destroy the diagnostics an ordinary provider or
+    test failure needs. So: scan first, always; exit zero on clean output and let the caller
+    display and keep it whatever the run's own exit status was; exit non-zero on dirty output,
+    with a redacted report naming the local paths, and let the caller delete the scratch.
+    """
+    findings: list[str] = []
+    scanned = 0
+    for root in args.scan:
+        base = Path(root)
+        if not base.exists():
+            findings.append(f"{root}: scan target does not exist")
+            continue
+        for path in sorted(base.rglob("*")) if base.is_dir() else [base]:
+            if not path.is_file():
+                continue
+            scanned += 1
+            for finding in scan_text(path.read_text(encoding="utf-8", errors="replace")):
+                findings.append(f"{path}: {finding}")
+
+    if findings:
+        print("\nPROVIDER OUTPUT SCAN FAILED", file=sys.stderr)
+        print("  nothing below has been displayed, and nothing below is quoted.", file=sys.stderr)
+        for finding in findings:
+            # Belt and braces: the finding text is already redacted, and a local path could in
+            # principle carry an endpoint, so the whole line is redacted once more on the way out.
+            print(f"  - {redact(finding)}", file=sys.stderr)
+        return 1
+
+    print(f"provider-output scan: {scanned} file(s) clean; they may be displayed and retained")
+    return 0
+
+
+# =============================================================================
 
 
 def main() -> int:
@@ -1460,6 +1546,10 @@ def main() -> int:
     stage.add_argument("--forge-config", required=True)
     stage.add_argument("--scan", nargs="+", required=True)
     stage.set_defaults(run=secrets)
+
+    stage = sub.add_parser("sanitize")
+    stage.add_argument("--scan", nargs="+", required=True)
+    stage.set_defaults(run=sanitize)
 
     args = parser.parse_args()
     return args.run(args)

@@ -11,11 +11,18 @@
     "3. fill in transaction_gas_schedule from the protocol rules active at the recorded headers; no contract exposes them, so discovery cannot observe them",
     "4. set status to observed_and_committed",
     "5. install the reviewed candidate here",
-    "6. add \"fork\" to activated_gates in requirements/ledger.toml and flip the sixteen fork claims to active",
+    "6. add \"fork\" to activated_gates in requirements/ledger.toml and flip the eighteen fork claims to active",
     "7. commit both files; bin/fork-gate.sh check proves they are committed and clean before it touches the provider, and unchanged after it finishes",
     "8. run bin/fork-gate.sh check"
   ],
   "authority": "SPEC.md section 3 binding table; contracts/autolaunch-release-manifest.json records the same bindings with their runtime facts still null and fork_pending.",
+  "proxy_family_vocabulary": {
+    "eip1967": "the EIP-1967 implementation slot carries a nonzero address",
+    "eip1822": "the EIP-1822 implementation slot carries a nonzero address",
+    "zeppelinos": "the older ZeppelinOS implementation slot carries a nonzero address; Base's own USDC uses this one",
+    "safe_singleton": "recognized for the frozen Regent Safe only, and only when its slot-0 address, its masterCopy() return, its delegating-stub runtime shape, and a code-bearing singleton all agree",
+    "no_supported_proxy_pattern": "none of the four patterns above is present. This says what was measured and is deliberately NOT a claim that the address is not a proxy: a fifth pattern would be invisible to this gate, which is why every binding's own deployed runtime code hash stays mandatory under DEP-051 regardless of family."
+  },
   "endpoint": "reached only through the configured `base` alias; no endpoint is ever recorded here",
   "headers": {
     "pinned": {
@@ -120,7 +127,7 @@
       "runtime_code_hash": null,
       "runtime_bytes": 0,
       "runtime_bytes_source": "the dead address must carry no code at all; that is the claim, not an observation",
-      "proxy_family": "none",
+      "proxy_family": "no_supported_proxy_pattern",
       "implementation": null,
       "implementation_code_hash": null,
       "implementation_runtime_bytes": 0

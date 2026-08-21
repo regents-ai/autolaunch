@@ -6,9 +6,9 @@ import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
 import {HookFixture} from "../mocks/HookFixture.sol";
 
-/// @notice `GAS-007`: the cold and warm cost of the supported hook callbacks, and the supported
-///         router's own sync/settle timing, measured as a genuinely controlled difference and
-///         dispositioned against the pinned Uniswap v4 guidance rather than assumed.
+/// @notice `GAS-007`: the cold and warm cost of the supported hook callbacks, and a second
+///         supported router's own sync/settle timing, measured as a genuinely controlled difference
+///         and recorded.
 /// @dev The measurement is a difference, and the control is exact. The hook charges when the 1%
 ///      lane floors above zero and returns immediately when it does not, so the lane boundary is a
 ///      single wei: a specified amount of `LANE_DIVISOR` charges a lane, and `LANE_DIVISOR - 1`
@@ -31,14 +31,16 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 ///      destination. Warm is only the control that proves the cold figure really was cold, never a
 ///      figure to quote on its own.
 ///
-///      The applicable pinned-guidance row is "callbacks with external calls" — this hook takes
-///      twice from the PoolManager, approves, and calls the launch splitter, which itself moves
-///      value — whose target is 100,000 gas and whose hard ceiling is 300,000 gas.
+///      This claim records measurements and asserts only relations the measurement itself
+///      establishes. It asserts **no** absolute callback gas limit, because no pinned dependency
+///      and no founder requirement states one: the 100,000/300,000 pair an earlier draft compared
+///      against came from a general-purpose community guidance table, not from Uniswap v4, from
+///      the pinned closure, or from `SPEC.md`. Inventing a protocol limit and then passing it is
+///      not evidence, so the figures below are published and reconciled by the gate and left as
+///      recorded measurements. The only absolute gas ceiling this repository holds anyone to is
+///      the founder's 14,000,000 complete-transaction limit, which `GAS-003` through `GAS-006`
+///      prove on the authorized fork gate.
 contract HookCallbackGasTest is HookFixture {
-    /// @notice The pinned v4 guidance for a callback that makes external calls.
-    uint256 internal constant CALLBACK_TARGET_GAS = 100_000;
-    uint256 internal constant CALLBACK_CEILING_GAS = 300_000;
-
     /// @dev A production-sized charging swap: one REGENT, whose lane is large enough that the
     ///      splitter's own 2% skim is nonzero and every branch of the settlement runs.
     int256 internal constant PRODUCTION_SWAP = -1e18;
@@ -57,10 +59,10 @@ contract HookCallbackGasTest is HookFixture {
     }
 
     /// @notice `GAS-007`: the charging callback's cold and warm cost, measured one wei either side
-    ///         of the lane boundary on identically built pools, sits inside the pinned v4 hard
-    ///         ceiling for a callback with external calls; the production-sized lane does too;
-    ///         warm is measurably cheaper than cold; and the second supported router settles the
-    ///         same swap for a recorded cost.
+    ///         of the lane boundary on identically built pools; the production-sized lane measured
+    ///         the same way; warm measurably cheaper than cold; a production lane dearer than a
+    ///         boundary one; and a second supported router's own sync/settle total recorded beside
+    ///         them.
     function test_GAS_007_HookCallbackAndRouterSettlementGasAreMeasured() public {
         _assertPoolsAreIdenticallyBuilt();
 
@@ -91,15 +93,8 @@ contract HookCallbackGasTest is HookFixture {
         emit log_named_uint("GAS-007 pinned-router production swap, cold total (gas)", coldProduction);
         emit log_named_uint("GAS-007 pinned-router production swap, warm total (gas)", warmProduction);
 
-        // The disposition. Cold is the user-transaction posture; warm is the control beside it.
-        assertLe(coldCallback, CALLBACK_CEILING_GAS, "the cold charging callback exceeds the pinned v4 hard ceiling");
-        assertLe(warmCallback, CALLBACK_CEILING_GAS, "the warm charging callback exceeds the pinned v4 hard ceiling");
-        assertLe(
-            coldProductionLane, CALLBACK_CEILING_GAS, "the cold production-lane callback exceeds the pinned v4 ceiling"
-        );
-        assertLe(
-            warmProductionLane, CALLBACK_CEILING_GAS, "the warm production-lane callback exceeds the pinned v4 ceiling"
-        );
+        // The only assertions are the ones the controlled measurement itself establishes. Cold is
+        // the user-transaction posture; warm is the control beside it.
         assertLt(warmCallback, coldCallback, "the cold/warm control shows no warming at all");
         // A one-wei lane skips the splitter's floored 2% skim, so it really does under-measure a
         // production lane. Recording that the warm production lane is the dearer of the two is what
@@ -107,23 +102,12 @@ contract HookCallbackGasTest is HookFixture {
         assertGt(warmProductionLane, warmCallback, "a production lane is not dearer than a boundary lane");
         assertLt(warmProductionLane, coldProductionLane, "the production-lane pair shows no warming at all");
 
-        // The target is guidance, not a limit. Recording which side of it this hook sits on is the
-        // disposition; `docs/audit/gas-and-size.md` carries the reasoning, and `bin/gate.sh`
-        // reconciles the figures above against the ones that document publishes.
-        emit log_named_uint("GAS-007 pinned v4 target for a callback with external calls (gas)", CALLBACK_TARGET_GAS);
-        emit log_named_uint(
-            "GAS-007 pinned v4 hard ceiling for a callback with external calls (gas)", CALLBACK_CEILING_GAS
-        );
-
         // The hook has no router allowlist, so an unrelated router's own sync/settle sequence is
         // measured too. Both routers settle the same swap; only their settlement style differs.
+        // This figure is recorded only: there is no admitted cost relation between two routers'
+        // settlement styles to assert, and asserting an invented band would prove nothing.
         uint256 altWarm = _measureAlt(production, PRODUCTION_SWAP);
         emit log_named_uint("GAS-007 second supported router, warm sync/settle swap total (gas)", altWarm);
-        assertLe(
-            altWarm,
-            coldProduction + CALLBACK_CEILING_GAS,
-            "the second router's settlement is not within the recorded band"
-        );
 
         // Whatever it cost, the accounting is unchanged: nothing attributable stays at the hook.
         assertEq(regent.balanceOf(address(hook)), 0, "the hook retained REGENT while being measured");

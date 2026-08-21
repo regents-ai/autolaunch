@@ -744,11 +744,6 @@
     },
     {
       "type": "error",
-      "name": "RecoveryAdminHasNoCode",
-      "inputs": []
-    },
-    {
-      "type": "error",
       "name": "Reentrancy",
       "inputs": []
     },

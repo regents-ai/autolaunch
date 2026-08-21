@@ -99,6 +99,20 @@
     "capture_commit": "7b9f787a73543b97617cb8644884dcdb632c0d57",
     "integrated_c4_commit": "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
   },
+  "final_source_delta": {
+    "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. C5 needed no such set because its only production edit was a comment; regent-alv1.6.1 corrects a terminal-path defect and therefore does. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. It proves which production bytes moved; the source diff and independent review prove why.",
+    "ticket": "regent-alv1.6.1",
+    "changed": [
+      {
+        "key": "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
+        "reason": "initialize no longer re-evaluates whether the recovery admin still carries code, and the now-unused splitter-local RecoveryAdminHasNoCode() error is deleted with it. Launch-time admission stays the strategy's single check (FAC-016); the terminal-path liveness this restores is MIG-020 and the deleted selector is ABI-012."
+      },
+      {
+        "key": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",
+        "reason": "SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH is updated to the corrected splitter's runtime hash. That literal is the only factory source change; DEP-060 reconciles it against the compiled artifact and against a real deployed implementation."
+      }
+    ]
+  },
   "root_submodules": [
     "lib/continuous-clearing-auction",
     "lib/forge-std",
