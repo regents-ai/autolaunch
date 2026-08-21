@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
+import {BaseBindings} from "../../src/bindings/BaseBindings.sol";
+import {ConditionalVestingEscrowV1} from "../../src/escrow/ConditionalVestingEscrowV1.sol";
+import {RegentFeeHook} from "../../src/hook/RegentFeeHook.sol";
+import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
+import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
 import {ContinuousClearingAuction} from "continuous-clearing-auction/ContinuousClearingAuction.sol";
+import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import {StrategyFixture} from "./StrategyFixture.sol";
 import {StagedERC20} from "./doubles/StagedERC20.sol";
 
@@ -76,6 +84,75 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
         for (uint256 stage = 1; stage <= subjectStages; ++stage) {
             _assertStageRollsBack(launch, launch.subject, stage, "SUBJECT stage ");
         }
+    }
+
+    /// @notice Rollback is complete after a failure injected directly at each named non-token
+    ///         external boundary graduation crosses.
+    /// @dev The stage enumeration above fails ERC20 movements. These eight injections fail the
+    ///      calls that are not token movements at all, by name and one at a time: the two clone
+    ///      initializations, the hook registration, the CCA currency sweep, the PoolManager and
+    ///      PositionManager calls, and the two escrow calls. Each injection starts from the same
+    ///      pinned, eligible, economically successful auction and must leave every observable fact
+    ///      of that launch — recorded lifecycle and graduation artifacts, the strategy's own clone
+    ///      nonce, hook registration, pool price, minted positions, every REGENT and SUBJECT
+    ///      balance, the auction's own sweep state, and escrow lifecycle, sweep and vesting state —
+    ///      exactly where it was before the call.
+    ///
+    ///      The two clone initializations are failed at the implementation the clone delegates to,
+    ///      which is the code that actually runs the initializer. Failing them at the clone address
+    ///      itself is not available: the clone does not exist when the injection is set up, and
+    ///      giving that address anything at all makes the strategy's `CREATE` collide, which would
+    ///      test a deployment collision instead of an initialization failure. The predicted clone
+    ///      addresses are still derived and asserted, because they are what must stay codeless
+    ///      after every rolled-back attempt and what the eventual clean graduation must occupy.
+    function test_STR_004_RollbackIsCompleteAtEveryNamedExternalBoundary() public {
+        // A raise big enough that both LP residues are non-zero, so every later stage is real.
+        Launch memory launch = _defaultLaunch();
+        _bidToGraduationAt(launch, 20_000_000e18, 500);
+
+        uint64 nonce = vm.getNonce(address(strategy));
+        address splitter = vm.computeCreateAddress(address(strategy), nonce);
+        address receiver = vm.computeCreateAddress(address(strategy), nonce + 1);
+
+        _assertBoundaryRollsBack(
+            launch, address(splitterImplementation), SubjectSplitterV1.initialize.selector, "1 splitter initialization"
+        );
+        _assertBoundaryRollsBack(launch, HOOK_ADDRESS, RegentFeeHook.registerPool.selector, "2 hook registerPool");
+        _assertBoundaryRollsBack(
+            launch, address(launch.auction), IContinuousClearingAuction.sweepCurrency.selector, "3 CCA sweepCurrency"
+        );
+        _assertBoundaryRollsBack(
+            launch, BaseBindings.POOL_MANAGER, IPoolManager.initialize.selector, "4 PoolManager initialize"
+        );
+        _assertBoundaryRollsBack(
+            launch,
+            BaseBindings.POSITION_MANAGER,
+            IPositionManager.modifyLiquidities.selector,
+            "5 PositionManager modifyLiquidities"
+        );
+        _assertBoundaryRollsBack(
+            launch,
+            address(launch.escrow),
+            ConditionalVestingEscrowV1.sweepGraduatedUnsoldSubject.selector,
+            "6 escrow sweep entry"
+        );
+        _assertBoundaryRollsBack(
+            launch, address(receiverImplementation), PaymentReceiverV1.initialize.selector, "7 receiver initialization"
+        );
+        _assertBoundaryRollsBack(
+            launch, address(launch.escrow), ConditionalVestingEscrowV1.activateVesting.selector, "8 vesting activation"
+        );
+
+        assertEq(splitter.code.length, 0, "no injected failure left a splitter clone behind");
+        assertEq(receiver.code.length, 0, "no injected failure left a receiver clone behind");
+
+        // The launch none of those injections touched still graduates, into exactly the clone
+        // addresses the failed attempts were reaching for.
+        strategy.migrate(address(launch.auction));
+        RegentLBPStrategy.Distribution memory d = strategy.distribution(address(launch.auction));
+        assertEq(uint8(d.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Graduated), "the untouched migration works");
+        assertEq(d.splitter, splitter, "at the predicted splitter address");
+        assertEq(d.receiver, receiver, "and the predicted receiver address");
     }
 
     /// @notice No dependency callback can enter a second mutation, in either entry point.
@@ -223,6 +300,23 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
 
         _assertLedgerUnchanged(before, _ledger(launch), string.concat(label, vm.toString(stage)));
         require(vm.revertToState(snap), "revert to stage snapshot failed");
+    }
+
+    /// @dev Fails exactly one named external call of graduation and proves the whole transaction
+    ///      returns the launch to its pre-call snapshot.
+    function _assertBoundaryRollsBack(Launch memory launch, address target, bytes4 selector, string memory boundary)
+        private
+    {
+        uint256 snap = vm.snapshotState();
+        Ledger memory before = _ledger(launch);
+
+        vm.mockCallRevert(target, abi.encodePacked(selector), "");
+        vm.expectRevert();
+        strategy.migrate(address(launch.auction));
+        vm.clearMockedCalls();
+
+        _assertLedgerUnchanged(before, _ledger(launch), boundary);
+        require(vm.revertToState(snap), "revert to boundary snapshot failed");
     }
 
     function _maxTickPointer(Launch memory launch) private view returns (uint256) {

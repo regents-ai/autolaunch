@@ -17,10 +17,14 @@ import {StrategyFixture} from "./StrategyFixture.sol";
 /// @notice `C3-I5`, price side: the complete reachable fixed-supply CCA price interval converts into
 ///         a valid v4 price in both currency orderings, and no graduated distribution can plan a
 ///         zero-liquidity position.
-/// @dev The interval is the auction's own: from the frozen Q96 floor up to
-///      `MaxBidPriceLib.maxBidPrice(10_000_000_000e18)`, which is the highest Q96 price the fixed
-///      ten-billion-SUBJECT auction will accept a bid at and therefore the highest price its final
-///      checkpoint can ever settle on.
+/// @dev The interval is the auction's own: from the frozen Q96 floor up to the highest price the
+///      fixed ten-billion-SUBJECT auction will actually admit a bid at, which is *not*
+///      `MaxBidPriceLib.maxBidPrice(10_000_000_000e18)`. That value is a structural ceiling and is
+///      not a multiple of the frozen bid tick; the pinned `TickStorage` reverts on any price that
+///      is not an exact tick boundary, so every initialized tick, and therefore every settled
+///      clearing price, is at or below the greatest multiple of the tick beneath that ceiling.
+///      `_reachableMaxPrice()` is that greatest multiple, and it is derived here, never
+///      transcribed.
 contract RegentLBPStrategyPricingTest is StrategyFixture {
     using StateLibrary for IPoolManager;
 
@@ -31,27 +35,41 @@ contract RegentLBPStrategyPricingTest is StrategyFixture {
     }
 
     /// @notice The reachable interval and the admitted maximum raise are derived from the pinned
-    ///         library, never transcribed.
+    ///         library, never transcribed, and the two distinct maxima are kept apart.
+    /// @dev `MaxBidPriceLib.maxBidPrice` is a *structural* ceiling on a bid price, and it does not
+    ///      sit on the frozen bid-tick grid. The pinned `TickStorage` reverts on any price that is
+    ///      not an exact multiple of the tick, so no bid and no clearing price ever reaches it; the
+    ///      highest admitted price is the greatest multiple of the tick at or below it, and that is
+    ///      the price the admitted maximum raise is built from.
     function test_STR_014_ReachablePriceBoundariesConvertInBothOrderings() public view {
-        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION));
+        uint256 structuralMax = MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION));
+        assertGt(structuralMax % strategy.BID_TICK_Q96(), 0, "the structural ceiling is not itself an admitted price");
+
+        uint256 reachableMax = _reachableMaxPrice();
         assertEq(
-            strategy.MAX_REACHABLE_RAISE(),
-            FullMath.mulDiv(AUCTION_ALLOCATION, maxBidPrice, Q96),
-            "the admitted maximum raise is the pinned maximum bid price over the fixed supply"
+            uint256(strategy.MAX_REACHABLE_RAISE()),
+            FullMath.mulDiv(AUCTION_ALLOCATION, reachableMax, Q96),
+            "the admitted maximum raise is the fixed supply at the highest admitted price"
         );
-        assertGt(maxBidPrice, strategy.FLOOR_PRICE_Q96(), "the interval is non-degenerate");
+        assertLt(
+            uint256(strategy.MAX_REACHABLE_RAISE()),
+            FullMath.mulDiv(AUCTION_ALLOCATION, structuralMax, Q96),
+            "and is strictly below what the off-grid structural ceiling would imply"
+        );
+        assertGt(reachableMax, strategy.FLOOR_PRICE_Q96(), "the interval is non-degenerate");
         assertGe(
-            maxBidPrice,
+            structuralMax,
             strategy.FLOOR_PRICE_Q96() + strategy.BID_TICK_Q96(),
             "the pinned CCA constructor requires at least one tick above the floor"
         );
 
-        uint256[5] memory boundaries = [
+        uint256[6] memory boundaries = [
             strategy.FLOOR_PRICE_Q96(),
             strategy.FLOOR_PRICE_Q96() + strategy.BID_TICK_Q96(),
             Q96,
-            maxBidPrice - strategy.BID_TICK_Q96(),
-            maxBidPrice
+            reachableMax - strategy.BID_TICK_Q96(),
+            reachableMax,
+            structuralMax
         ];
 
         for (uint256 i; i < boundaries.length; ++i) {
@@ -62,7 +80,7 @@ contract RegentLBPStrategyPricingTest is StrategyFixture {
     /// @notice Every reachable final price converts inside the v4 tick range in both orderings, and
     ///         the two orderings describe the same economics.
     function testFuzz_STR_014_EveryReachableFinalPriceConvertsInsideTheTickRange(uint256 priceQ96) public view {
-        priceQ96 = bound(priceQ96, strategy.FLOOR_PRICE_Q96(), MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION)));
+        priceQ96 = bound(priceQ96, strategy.FLOOR_PRICE_Q96(), _reachableMaxPrice());
         _assertConvertsInBothOrderings(priceQ96);
     }
 
@@ -82,7 +100,7 @@ contract RegentLBPStrategyPricingTest is StrategyFixture {
         public
         view
     {
-        priceQ96 = bound(priceQ96, strategy.FLOOR_PRICE_Q96(), MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION)));
+        priceQ96 = bound(priceQ96, strategy.FLOOR_PRICE_Q96(), _reachableMaxPrice());
         cleared = bound(cleared, 0, AUCTION_ALLOCATION);
 
         uint256 minimumRaise = _minimumRaise(priceQ96, cleared);
@@ -142,6 +160,13 @@ contract RegentLBPStrategyPricingTest is StrategyFixture {
     // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
+
+    /// @dev The highest price the fixed auction can settle on: the greatest multiple of the frozen
+    ///      bid tick at or below the pinned library's structural ceiling.
+    function _reachableMaxPrice() internal view returns (uint256) {
+        uint256 structuralMax = MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION));
+        return structuralMax - (structuralMax % strategy.BID_TICK_Q96());
+    }
 
     function _minimumRaise(uint256 priceQ96, uint256 cleared) internal view returns (uint256) {
         uint256 fromCleared = FullMath.mulDiv(cleared, strategy.FLOOR_PRICE_Q96(), Q96);

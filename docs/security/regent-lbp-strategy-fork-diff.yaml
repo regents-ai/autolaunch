@@ -230,11 +230,17 @@ deliberate_additions:
       raise would silently shrink the pool.
     evidence: [STR-011]
 
-  - behaviour: `requiredRegentRaised` must be non-zero and no greater than
-      `AUCTION_ALLOCATION * MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION) / 2**96`.
+  - behaviour: `requiredRegentRaised` must be non-zero and no greater than `MAX_REACHABLE_RAISE`,
+      which is `AUCTION_ALLOCATION` at the highest price the fixed auction actually admits, not at
+      the raw `MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION)` structural ceiling. That ceiling is
+      not a multiple of `BID_TICK_Q96`, and the pinned `TickStorage` admits a bid only at an exact
+      tick boundary, so the highest reachable clearing price is the greatest multiple of the tick
+      beneath it and the raw ceiling overstates the reachable raise.
     reason: A required raise the fixed auction cannot reach guarantees a failed launch, which the
-      specification calls a mathematically unreachable raise.
-    evidence: [STR-013]
+      specification calls a mathematically unreachable raise. The cap is proved tight rather than
+      assumed: a real pinned auction opened at exactly `MAX_REACHABLE_RAISE` settles on exactly
+      that raise from one on-grid bid and graduates.
+    evidence: [STR-013, STR-014]
 
   - behaviour: `recoveryAdmin` must be a deployed, non-self contract at initialization.
     reason: The recovery admin is only used at graduation, so validating it there would let a bad

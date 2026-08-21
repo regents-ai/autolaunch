@@ -8,6 +8,8 @@ import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
 import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
+import {MaxBidPriceLib} from "continuous-clearing-auction/libraries/MaxBidPriceLib.sol";
+import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
@@ -256,24 +258,43 @@ contract RegentLBPStrategyTest is StrategyFixture {
         );
     }
 
-    /// @notice `C3-I2`: the schedule the strategy hands the CCA is the frozen 104-byte, thirteen-step
-    ///         one, and the auction the CCA builds from it spans the frozen duration and issues the
-    ///         whole supply.
+    /// @notice `C3-I2`: the schedule the strategy hands the CCA is the founder-frozen 104-byte,
+    ///         thirteen-step vector byte for byte, and the auction the CCA builds from it spans the
+    ///         frozen duration and issues the whole supply.
+    /// @dev The vector below is the fixed economics — the manifest's `auction.schedule_bytes` and the
+    ///      archived `AutolaunchFactoryV1._schedule` — restated here so this test fails on any single
+    ///      changed byte, not merely on a schedule that happens to share its length and its sums.
     function test_STR_008_ScheduleIsTheFrozen104ByteThirteenStepSchedule() public {
+        bytes memory frozen = hex"0000360000002a8e" hex"0000440000002145" hex"00004b0000001e7b" hex"00004f0000001ccd"
+            hex"0000530000001b9c" hex"0000550000001ab3" hex"00005800000019f7" hex"00005a000000195a"
+            hex"00005c00000018d4" hex"00005e000000185e" hex"00005f00000017f8" hex"000061000000179b"
+            hex"2d97e60000000001";
+
         bytes memory steps = strategy.AUCTION_STEPS();
+        assertEq(steps, frozen, "the schedule is the frozen vector, byte for byte");
         assertEq(steps.length, 104, "104 bytes");
         assertEq(steps.length / 8, 13, "thirteen eight-byte steps");
 
+        // The same vector read as the pinned `StepLib` reads it, so its shape is proved and not
+        // merely restated: twelve scheduled steps and one terminal single-block step.
         uint256 totalMps;
         uint256 totalBlocks;
         for (uint256 offset; offset < steps.length; offset += 8) {
             (uint24 mps, uint40 blockDelta) = _readStep(steps, offset);
+            assertGt(mps, 0, "no step issues nothing");
             assertGt(blockDelta, 0, "no step has a zero block delta");
             totalMps += uint256(mps) * blockDelta;
             totalBlocks += blockDelta;
         }
         assertEq(totalMps, 1e7, "the schedule issues exactly the whole supply");
         assertEq(totalBlocks, strategy.AUCTION_DURATION_BLOCKS(), "the schedule spans exactly the frozen duration");
+
+        (uint24 firstMps, uint40 firstBlocks) = _readStep(steps, 0);
+        assertEq(firstMps, 54, "the first step's rate");
+        assertEq(firstBlocks, 10_894, "the first step's window");
+        (uint24 lastMps, uint40 lastBlocks) = _readStep(steps, 96);
+        assertEq(lastMps, 2_988_006, "the terminal step's rate");
+        assertEq(lastBlocks, 1, "the terminal step is one block");
 
         // The pinned `StepStorage` constructor validates the same two sums; a real auction exists.
         Launch memory launch = _defaultLaunch();
@@ -478,10 +499,58 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.UnreachableRequiredRaise.selector, tooHigh));
         factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, tooHigh);
 
+        // Both rejections happen before the auction exists at all.
+        assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(0), "no auction was created for a rejected raise");
+        assertEq(subject.balanceOf(address(strategy)), 0, "and no reserve was pulled");
+
         // The exact boundary is admitted.
         address auction =
             factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, strategy.MAX_REACHABLE_RAISE());
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), auction, "the reachable boundary is a valid launch");
+    }
+
+    /// @notice `C3-I2`: the admitted maximum required raise is the raise the fixed auction can
+    ///         actually settle on, not the pinned library's raw structural ceiling.
+    /// @dev The two are different numbers. `MaxBidPriceLib.maxBidPrice` is a structural ceiling on a
+    ///      bid price and is not a multiple of `BID_TICK_Q96`, and the pinned `TickStorage` admits a
+    ///      bid only at an exact tick boundary, so no bid and no clearing price ever reaches it. The
+    ///      highest admitted price is the greatest multiple of the tick at or below it, and the
+    ///      admitted maximum raise is the whole fixed supply at that price.
+    ///
+    ///      The bound is proved tight, not merely safe. A real pinned auction opened at exactly
+    ///      `MAX_REACHABLE_RAISE` and given a single on-grid bid of one wei more than that raise
+    ///      carries exactly the demand the CCA's own integer accounting needs to clear the whole
+    ///      supply at the highest admitted price: `demand * Q96 * remainingMps` then just exceeds
+    ///      `remainingSupplyQ96X7 * price`, the final checkpoint settles there, and the raise it
+    ///      records is the boundary itself with nothing to spare.
+    function test_STR_013_AdmittedMaximumRaiseIsReachedByRealOnGridBidding() public {
+        uint256 structuralMax = MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION));
+        uint256 offGrid = structuralMax % strategy.BID_TICK_Q96();
+        assertGt(offGrid, 0, "the raw structural ceiling is off the frozen bid-tick grid");
+
+        uint256 reachableMax = structuralMax - offGrid;
+        uint128 boundaryRaise = strategy.MAX_REACHABLE_RAISE();
+        assertEq(
+            uint256(boundaryRaise),
+            FullMath.mulDiv(AUCTION_ALLOCATION, reachableMax, 1 << 96),
+            "the admitted maximum is the fixed supply at the highest admitted price"
+        );
+
+        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, boundaryRaise);
+        _rollToStart(launch);
+        _bid(launch, bidder, boundaryRaise + 1, reachableMax);
+        _rollToMigration(launch);
+
+        strategy.migrate(address(launch.auction));
+
+        assertTrue(launch.auction.isGraduated(), "the boundary auction met its required raise");
+        assertEq(launch.auction.clearingPrice(), reachableMax, "settling at the highest admitted price");
+        assertEq(uint256(launch.auction.currencyRaised()), uint256(boundaryRaise), "for exactly the boundary raise");
+        assertEq(
+            uint8(strategy.distribution(address(launch.auction)).lifecycle),
+            uint8(RegentLBPStrategy.Lifecycle.Graduated),
+            "so the launch admitted at the boundary graduates"
+        );
     }
 
     /// @notice `C3-I2`: the recovery admin is validated before the auction begins, not at graduation.

@@ -8,6 +8,7 @@ import {RegentFeeHook} from "../../src/hook/RegentFeeHook.sol";
 import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
+import {ContinuousClearingAuction} from "continuous-clearing-auction/ContinuousClearingAuction.sol";
 import {ContinuousClearingAuctionFactory} from "continuous-clearing-auction/ContinuousClearingAuctionFactory.sol";
 import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
@@ -235,13 +236,22 @@ abstract contract StrategyFixture is Test {
 
     struct Ledger {
         uint8 lifecycle;
+        address recordedSplitter;
+        address recordedReceiver;
+        uint256 recordedLpTokenId;
+        uint160 recordedFinalSqrtPrice;
+        uint64 strategyNonce;
         uint256 strategyRegent;
         uint256 strategySubject;
         uint256 treasuryRegent;
         uint256 escrowSubject;
         uint256 auctionRegent;
         uint256 auctionSubject;
+        uint256 auctionSweepCurrencyBlock;
+        uint256 auctionSweepUnsoldTokensBlock;
         uint256 deadSubject;
+        uint256 poolManagerRegent;
+        uint256 poolManagerSubject;
         uint256 positionManagerRegent;
         uint256 positionManagerSubject;
         uint256 nextTokenId;
@@ -253,14 +263,27 @@ abstract contract StrategyFixture is Test {
     }
 
     function _ledger(Launch memory launch) internal view returns (Ledger memory snapshot) {
-        snapshot.lifecycle = uint8(strategy.distribution(address(launch.auction)).lifecycle);
+        RegentLBPStrategy.Distribution memory d = strategy.distribution(address(launch.auction));
+        snapshot.lifecycle = uint8(d.lifecycle);
+        snapshot.recordedSplitter = d.splitter;
+        snapshot.recordedReceiver = d.receiver;
+        snapshot.recordedLpTokenId = d.lpTokenId;
+        snapshot.recordedFinalSqrtPrice = d.finalSqrtPriceX96;
+        // A clone the strategy created and then rolled back would leave this incremented.
+        snapshot.strategyNonce = vm.getNonce(address(strategy));
         snapshot.strategyRegent = regent.balanceOf(address(strategy));
         snapshot.strategySubject = launch.subject.balanceOf(address(strategy));
         snapshot.treasuryRegent = regent.balanceOf(treasury);
         snapshot.escrowSubject = launch.subject.balanceOf(address(launch.escrow));
         snapshot.auctionRegent = regent.balanceOf(address(launch.auction));
         snapshot.auctionSubject = launch.subject.balanceOf(address(launch.auction));
+        // The sweep records are public state on the pinned auction but not on its interface.
+        ContinuousClearingAuction auction = ContinuousClearingAuction(address(launch.auction));
+        snapshot.auctionSweepCurrencyBlock = auction.sweepCurrencyBlock();
+        snapshot.auctionSweepUnsoldTokensBlock = auction.sweepUnsoldTokensBlock();
         snapshot.deadSubject = launch.subject.balanceOf(BaseBindings.DEAD_ADDRESS);
+        snapshot.poolManagerRegent = regent.balanceOf(BaseBindings.POOL_MANAGER);
+        snapshot.poolManagerSubject = launch.subject.balanceOf(BaseBindings.POOL_MANAGER);
         snapshot.positionManagerRegent = regent.balanceOf(BaseBindings.POSITION_MANAGER);
         snapshot.positionManagerSubject = launch.subject.balanceOf(BaseBindings.POSITION_MANAGER);
         snapshot.nextTokenId = positionManager.nextTokenId();
@@ -277,13 +300,36 @@ abstract contract StrategyFixture is Test {
 
     function _assertLedgerUnchanged(Ledger memory before, Ledger memory found, string memory stage) internal pure {
         assertEq(found.lifecycle, before.lifecycle, string.concat(stage, ": lifecycle moved"));
+        assertEq(found.recordedSplitter, before.recordedSplitter, string.concat(stage, ": a splitter was recorded"));
+        assertEq(found.recordedReceiver, before.recordedReceiver, string.concat(stage, ": a receiver was recorded"));
+        assertEq(found.recordedLpTokenId, before.recordedLpTokenId, string.concat(stage, ": an LP token was recorded"));
+        assertEq(
+            found.recordedFinalSqrtPrice,
+            before.recordedFinalSqrtPrice,
+            string.concat(stage, ": a final price was recorded")
+        );
+        assertEq(found.strategyNonce, before.strategyNonce, string.concat(stage, ": a clone survived"));
         assertEq(found.strategyRegent, before.strategyRegent, string.concat(stage, ": strategy REGENT moved"));
         assertEq(found.strategySubject, before.strategySubject, string.concat(stage, ": strategy SUBJECT moved"));
         assertEq(found.treasuryRegent, before.treasuryRegent, string.concat(stage, ": treasury REGENT moved"));
         assertEq(found.escrowSubject, before.escrowSubject, string.concat(stage, ": escrow SUBJECT moved"));
         assertEq(found.auctionRegent, before.auctionRegent, string.concat(stage, ": auction REGENT moved"));
         assertEq(found.auctionSubject, before.auctionSubject, string.concat(stage, ": auction SUBJECT moved"));
+        assertEq(
+            found.auctionSweepCurrencyBlock,
+            before.auctionSweepCurrencyBlock,
+            string.concat(stage, ": the auction's currency sweep ran")
+        );
+        assertEq(
+            found.auctionSweepUnsoldTokensBlock,
+            before.auctionSweepUnsoldTokensBlock,
+            string.concat(stage, ": the auction's token sweep ran")
+        );
         assertEq(found.deadSubject, before.deadSubject, string.concat(stage, ": dead-address SUBJECT moved"));
+        assertEq(found.poolManagerRegent, before.poolManagerRegent, string.concat(stage, ": PoolManager REGENT moved"));
+        assertEq(
+            found.poolManagerSubject, before.poolManagerSubject, string.concat(stage, ": PoolManager SUBJECT moved")
+        );
         assertEq(
             found.positionManagerRegent,
             before.positionManagerRegent,

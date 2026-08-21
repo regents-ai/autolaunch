@@ -825,6 +825,7 @@ status = "active"
 selectors = [
     "test_STR_004_TechnicalFailureIsAnOrdinaryRevertWithNoRetryState",
     "test_STR_004_RollbackIsCompleteAfterEveryExternalStage",
+    "test_STR_004_RollbackIsCompleteAtEveryNamedExternalBoundary",
     "test_STR_004_ReentrantDependencyCannotEnterASecondMutation",
     "test_STR_004_NoRetryRecoveryOrAlternatePoolSurfaceExists",
     "test_STR_004_CheckpointExhaustionIsResolvedUpstreamNotByRetryState",
@@ -929,6 +930,7 @@ selectors = [
     "test_STR_013_StartIsAlwaysCurrentBlockPlus1800",
     "test_STR_013_InauthenticEscrowIsRejected",
     "test_STR_013_UnreachableRequiredRaiseIsRejected",
+    "test_STR_013_AdmittedMaximumRaiseIsReachedByRealOnGridBidding",
     "test_STR_013_RecoveryAdminMustBeADeployedNonSelfContract",
     "test_STR_013_UnexpectedTokenBehaviourRollsInitializationBack",
 ]

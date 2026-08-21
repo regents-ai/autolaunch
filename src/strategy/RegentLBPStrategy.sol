@@ -89,16 +89,21 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     /// @notice The frozen Q96 bid tick spacing.
     uint256 public constant BID_TICK_Q96 = 792_281_625_142_643_375_935_439;
 
-    /// @notice The frozen issuance schedule: 104 bytes, thirteen `uint24 mps | uint40 blockDelta`
-    ///         steps. One opening block carries the exact residual that uniform integer issuance
-    ///         cannot express, then twelve equal 7,200-block steps (four hours each on Base's
-    ///         two-second blocks, forty-eight hours in total) issue the rest as evenly as integer
-    ///         `mps` allows. The step block deltas sum to `AUCTION_DURATION_BLOCKS` and the
-    ///         `mps * blockDelta` products sum to exactly `1e7`, which is what the pinned
-    ///         `StepStorage` constructor requires.
-    bytes public constant AUCTION_STEPS = hex"0019000000000001" hex"0000740000001c20" hex"0000740000001c20"
-        hex"0000740000001c20" hex"0000740000001c20" hex"0000740000001c20" hex"0000740000001c20" hex"0000740000001c20"
-        hex"0000740000001c20" hex"0000730000001c20" hex"0000730000001c20" hex"0000730000001c20" hex"0000730000001c20";
+    /// @notice The frozen 104-byte, thirteen-step issuance schedule, byte for byte.
+    /// @dev This vector is founder-frozen economics, not a value this ticket may choose. It is the
+    ///      schedule the Autolaunch economics manifest records as `auction.schedule_bytes` and the
+    ///      archived `AutolaunchFactoryV1` test builds in `_schedule`, transcribed unchanged.
+    ///
+    ///      Each step is one `uint24 mps | uint40 blockDelta` word. The twelve scheduled steps run
+    ///      from 10,894 blocks at 54 mps down to 6,043 blocks at 97 mps — shortening windows at
+    ///      rising per-block rates, each releasing about 5.8% of the auction supply — and the
+    ///      thirteenth step is a single terminal block carrying the remaining 2,988,006 mps. The
+    ///      block deltas therefore sum to `AUCTION_DURATION_BLOCKS` and the `mps * blockDelta`
+    ///      products to exactly `1e7`, which is what the pinned `StepStorage` constructor requires
+    ///      and what `test_STR_008_*` asserts against this exact vector.
+    bytes public constant AUCTION_STEPS = hex"0000360000002a8e" hex"0000440000002145" hex"00004b0000001e7b"
+        hex"00004f0000001ccd" hex"0000530000001b9c" hex"0000550000001ab3" hex"00005800000019f7" hex"00005a000000195a"
+        hex"00005c00000018d4" hex"00005e000000185e" hex"00005f00000017f8" hex"000061000000179b" hex"2d97e60000000001";
 
     /// @notice The only static LP fee an official pool carries, 0.30%.
     uint24 public constant POOL_FEE = 3000;
@@ -106,10 +111,25 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     /// @notice The only tick spacing an official pool carries.
     int24 public constant POOL_TICK_SPACING = 60;
 
-    /// @notice The largest REGENT raise the fixed 10-billion-SUBJECT auction can mathematically reach.
-    /// @dev `AUCTION_ALLOCATION * MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION) / 2**96`. A required
-    ///      raise above this can never be met, so the launch could only ever fail.
-    uint128 public constant MAX_REACHABLE_RAISE = 658_201_822_928_482_416_462_351_903_564_741_590;
+    /// @notice The largest REGENT raise the fixed 10-billion-SUBJECT auction can actually reach.
+    /// @dev Two different maxima are in play here and only the second one is reachable.
+    ///
+    ///      `MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION)` is
+    ///      `5_214_812_099_416_284_377_680_980_193_413_284_481`. That is the pinned CCA's
+    ///      *structural* ceiling on a bid price — the point beyond which its own liquidity and
+    ///      `int128` accounting stop holding — and it is not a price this auction can ever settle
+    ///      on, because the pinned `TickStorage` admits a bid only at an exact multiple of
+    ///      `BID_TICK_Q96` and that structural ceiling sits `652_970_487_310_049_530_088_805`
+    ///      above the last such multiple. The highest admitted, and therefore highest clearing,
+    ///      price is `5_214_812_099_415_631_407_193_670_143_883_195_676`.
+    ///
+    ///      A graduated auction sells at most `AUCTION_ALLOCATION` tokens and its clearing price
+    ///      never exceeds that on-grid maximum, so the raise it settles on never exceeds
+    ///      `AUCTION_ALLOCATION * 5_214_812_099_415_631_407_193_670_143_883_195_676 / 2**96`,
+    ///      which is the value below. The bound is tight rather than merely safe: a real pinned
+    ///      auction opened at exactly this required raise, given one on-grid bid of one wei more,
+    ///      settles on exactly this raise and graduates.
+    uint128 public constant MAX_REACHABLE_RAISE = 658_201_822_928_399_999_999_999_581_824_872_526;
 
     /// @notice The only lifecycle a recorded launch can occupy.
     enum Lifecycle {
