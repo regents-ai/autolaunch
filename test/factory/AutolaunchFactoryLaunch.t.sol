@@ -11,6 +11,7 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {AutolaunchFixture} from "../integration/AutolaunchFixture.sol";
+import {MockRecoveryAdmin} from "../mocks/MockRecoveryAdmin.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 /// @notice `C4-I3` and `C4-I4`: one `launch` call produces exactly one canonical SUBJECT, one
@@ -95,6 +96,30 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             bytes4(keccak256("launch((string,string,string,string,string,address,address,uint128,uint256))")),
             "the launch signature is not the admitted nine-field tuple"
         );
+
+        // C5 correction: name and symbol *do* move the created address, because the pinned UERC20
+        // factory hashes its own identity fields — name, symbol, decimals, creator, graffiti — into
+        // its CREATE2 salt. That is upstream identity derivation, not an Autolaunch salt.
+        uint256 nextId = factory.nextLaunchId();
+        address base = uerc20Factory.getUERC20Address(params.name, params.symbol, 18, address(factory), bytes32(nextId));
+        assertTrue(
+            uerc20Factory.getUERC20Address("Another Name", params.symbol, 18, address(factory), bytes32(nextId))
+                != base,
+            "the name does not reach the pinned UERC20 address derivation"
+        );
+        assertTrue(
+            uerc20Factory.getUERC20Address(params.name, "OTHR", 18, address(factory), bytes32(nextId)) != base,
+            "the symbol does not reach the pinned UERC20 address derivation"
+        );
+
+        // And it confers nothing. The creator is always this factory, the graffiti is always the
+        // launch ID, and the resulting token is an admitted SUBJECT only because the factory made it.
+        Launched memory chosen = _launchAs(outsider, params);
+        assertEq(address(chosen.subject), base, "a launcher-chosen name did not land at the derived address");
+        assertEq(chosen.subject.creator(), address(factory), "a launcher became the creator by choosing a name");
+        assertEq(chosen.subject.graffiti(), bytes32(nextId), "a launcher moved the graffiti by choosing a name");
+        assertEq(factory.launches(chosen.launchId).launcher, outsider, "provenance is recorded");
+        assertEq(_distribution(chosen).treasury, params.treasury, "a launcher gained authority by choosing a name");
     }
 
     /// @notice `FAC-003`: two launches may carry byte-identical metadata; the launch ID alone keeps
@@ -314,11 +339,13 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(second.escrow.treasury(), otherTreasury, "the second escrow bound the wrong treasury");
         assertEq(launched.escrow.treasury(), treasury, "the first treasury moved");
 
-        // No treasury setter exists on the escrow or on the factory.
+        // No treasury setter exists on the escrow or on the factory. C5 correction: the scan runs
+        // against the escrow *implementation*, never against a 44-byte clone. A minimal proxy
+        // carries no dispatcher at all, so scanning one proves nothing about the surface it
+        // forwards to; the implementation artifact is the ABI authority.
         string[3] memory forbidden = ["setTreasury(address)", "changeTreasury(address)", "setBeneficiary(address)"];
         for (uint256 i; i < forbidden.length; ++i) {
             bytes4 selector = bytes4(keccak256(bytes(forbidden[i])));
-            assertFalse(_carriesSelector(address(launched.escrow).code, selector), "escrow clone treasury setter");
             assertFalse(_carriesSelector(address(escrowImplementation).code, selector), "escrow treasury setter");
             assertFalse(_carriesSelector(address(factory).code, selector), "factory treasury setter");
         }
@@ -331,6 +358,65 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             treasury,
             "graduation bound another treasury"
         );
+
+        _assertTreasuryBlastRadiusIsOneLaunch();
+    }
+
+    /// @dev `FAC-015`, C5 correction: the treasury is launcher-chosen as well as immutable, so its
+    ///      blast radius is worth naming. A treasury that can never move a token strands its own
+    ///      launch's payouts permanently — and reaches nothing else. A second launch created in the
+    ///      same factory, sharing the same strategy and the same hook, graduates normally, registers
+    ///      its own pool, and gets its own splitter and receiver. No denylist is added: the damage is
+    ///      confined by construction, because every payout destination is per-launch.
+    function _assertTreasuryBlastRadiusIsOneLaunch() private {
+        // A deployed contract with no token-moving surface at all. Anything sent here is stranded.
+        address strandingTreasury = address(new MockRecoveryAdmin());
+
+        RegentsAutolaunchFactoryV1.LaunchParams memory bad = _params();
+        bad.treasury = strandingTreasury;
+        Launched memory stranded = _launchSorted(true, bad);
+
+        RegentsAutolaunchFactoryV1.LaunchParams memory good = _params();
+        Launched memory healthy = _launchSorted(false, good);
+
+        _rollToStart(stranded);
+        _bid(stranded, bidder, 20_000e18, _bidPrice(10));
+        _bid(healthy, bidder, 20_000e18, _bidPrice(10));
+        _rollToMigration(healthy);
+
+        strategy.migrate(address(stranded.auction));
+        strategy.migrate(address(healthy.auction));
+
+        RegentLBPStrategy.Distribution memory bruised = _distribution(stranded);
+        RegentLBPStrategy.Distribution memory intact = _distribution(healthy);
+
+        // The bad launch graduated and then stranded its own value, exactly where it chose to.
+        assertEq(uint8(bruised.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Graduated), "the bad launch stalled");
+        assertGt(strandingTreasury.code.length, 0, "the stranding treasury is not a deployed contract");
+
+        // Time moves forward only. Once part of the schedule has vested, the permissionless release
+        // pays the launch's own immutable treasury, where it stays for good.
+        vm.warp(block.timestamp + 30 days);
+        stranded.escrow.release();
+        assertGt(stranded.subject.balanceOf(strandingTreasury), 0, "the stranding treasury received nothing to strand");
+        assertEq(
+            SubjectSplitterV1(bruised.splitter).treasury(), strandingTreasury, "the bad splitter escaped its treasury"
+        );
+
+        // And the other launch is untouched: its own treasury, its own pool, its own infrastructure.
+        assertEq(uint8(intact.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Graduated), "the healthy launch stalled");
+        assertEq(SubjectSplitterV1(intact.splitter).treasury(), treasury, "the healthy splitter took the bad treasury");
+        assertEq(hook.splitterOf(_poolId(healthy)), intact.splitter, "the healthy pool did not register");
+        assertEq(hook.splitterOf(_poolId(stranded)), bruised.splitter, "the two launches shared a pool registration");
+        assertTrue(intact.splitter != bruised.splitter, "the two launches shared a splitter");
+        assertTrue(intact.receiver != bruised.receiver, "the two launches shared a receiver");
+        healthy.escrow.release();
+        assertGt(healthy.subject.balanceOf(treasury), 0, "the healthy launch could not pay its own treasury");
+        assertEq(healthy.subject.balanceOf(strandingTreasury), 0, "the bad treasury reached the healthy launch");
+        assertEq(stranded.subject.balanceOf(treasury), 0, "the healthy treasury reached the stranded launch");
+
+        // The shared hook retains nothing attributable through either launch.
+        assertEq(regent.balanceOf(address(hook)), 0, "the shared hook retained REGENT");
     }
 
     /// @notice `FAC-016`: the recovery admin must be a deployed contract that is not the shared
@@ -751,7 +837,30 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             uint8(RegentLBPStrategy.Lifecycle.Graduated),
             "the smallest reachable graduated outcome did not resolve"
         );
-        assertGt(_distribution(launched).lpSubjectUsed, 0, "the full-range position consumed no SUBJECT");
+
+        // C5 correction. A bid's maximum price is not the price the auction settles on: a single
+        // one-wei bid meets the required raise immediately, so the whole book clears at the fixed
+        // floor no matter which tick the bidder was willing to pay up to.
+        assertEq(
+            launched.auction.clearingPrice(),
+            strategy.FLOOR_PRICE_Q96(),
+            "a one-wei raise cleared somewhere other than the fixed floor"
+        );
+        assertEq(
+            launched.auction.lbpInitializationParams().initialPriceX96,
+            strategy.FLOOR_PRICE_Q96(),
+            "the final price handed to migration was not the fixed floor"
+        );
+
+        // And the LP consumption at that clearing price is recorded rather than merely bounded: the
+        // position really is funded out of the one wei raised and the isolated 5% reserve.
+        RegentLBPStrategy.Distribution memory d = _distribution(launched);
+        assertGt(d.lpSubjectUsed, 0, "the full-range position consumed no SUBJECT");
+        assertLe(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, "the position consumed more than the isolated reserve");
+        assertLe(uint256(d.lpRegentUsed), 1, "the position consumed more REGENT than the auction raised");
+        assertGt(positionManager.getPositionLiquidity(d.lpTokenId), 0, "the minted position carries no liquidity");
+        emit log_named_uint("FAC-023 one-wei raise: lpRegentUsed", d.lpRegentUsed);
+        emit log_named_uint("FAC-023 one-wei raise: lpSubjectUsed", d.lpSubjectUsed);
         require(vm.revertToState(snap), "revert to snapshot failed");
     }
 

@@ -28,8 +28,15 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2", "C3", "C4"]
-activated_gates = ["hermetic"]
+activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5"]
+
+# `fork` is deliberately absent. A gate is activated only in the candidate that already
+# carries that gate's committed evidence; naming it here while no fork receipt exists would
+# make sixteen claims report active against evidence nobody has run. C5's fork selectors are
+# written, mapped two-per-claim, and live outside the offline test root, so they cannot be
+# executed against their IDs until the separately authorized fork gate runs and its evidence
+# is committed. Until then every fork claim stays pending and C5 cannot close.
+activated_gates = ["hermetic", "invariant"]
 groups = [
     "DEP",
     "FAC",
@@ -202,6 +209,21 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_DEP_015_DeterministicTestPortfolioIsFrozen"]
 
+# C5 adds one gate-dependency claim of its own. The freezer is the only writer of the frozen
+# ABI, surface, size and manifest documents, and the only producer of this claim's receipt
+# line. Deleting `bin/freeze-artifacts.py check` from `bin/gate.sh` therefore does not
+# quietly stop checking the freeze — it leaves DEP-016 without its verified receipt and
+# fails the ledger reconciliation.
+[[requirement]]
+id = "DEP-016"
+statement = "The required gate regenerates every frozen ABI, surface, size and manifest document from the compiled artifacts in check mode and fails on any byte of drift, and the rebuilt src/** runtime and creation byte strings equal the independently captured pre-edit C4 baseline exactly."
+owner = "C5"
+contract = "repository"
+evidence_class = "gate-dependency"
+gate = "hermetic"
+status = "active"
+selectors = ["test_DEP_016_FrozenManifestRecordsTheAdmittedIdentitiesAndNoDeployment"]
+
 [[requirement]]
 id = "DEP-020"
 statement = "The compiled REGENT binding equals the frozen address 0x6f89bcA4eA5931EdFCB09786267b251DeE752b07."
@@ -310,7 +332,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_040_ForkCcaFactoryRuntimeCodeHashMatchesFrozenValue"]
+selectors = [
+    "test_DEP_040_ForkPinnedCcaFactoryRuntimeCodeHashMatchesFrozenValue",
+    "test_DEP_040_ForkLatestCcaFactoryRuntimeCodeHashMatchesFrozenValue",
+]
 
 [[requirement]]
 id = "DEP-041"
@@ -320,7 +345,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_041_ForkCcaFactoryProtocolFeeControllerIsZero"]
+selectors = [
+    "test_DEP_041_ForkPinnedCcaFactoryProtocolFeeControllerIsZero",
+    "test_DEP_041_ForkLatestCcaFactoryProtocolFeeControllerIsZero",
+]
 
 [[requirement]]
 id = "DEP-042"
@@ -330,7 +358,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_042_ForkEveryBindingHasTheExpectedRuntimeCodePresence"]
+selectors = [
+    "test_DEP_042_ForkPinnedEveryBindingHasTheExpectedRuntimeCodePresence",
+    "test_DEP_042_ForkLatestEveryBindingHasTheExpectedRuntimeCodePresence",
+]
 
 [[requirement]]
 id = "DEP-043"
@@ -340,7 +371,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_043_ForkEveryBindingProxyStatusMatchesTheManifest"]
+selectors = [
+    "test_DEP_043_ForkPinnedEveryBindingProxyStatusMatchesTheManifest",
+    "test_DEP_043_ForkLatestEveryBindingProxyStatusMatchesTheManifest",
+]
 
 [[requirement]]
 id = "DEP-044"
@@ -350,7 +384,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_044_ForkRegentAndUsdcGettersMatchAssumedSemantics"]
+selectors = [
+    "test_DEP_044_ForkPinnedRegentAndUsdcGettersMatchAssumedSemantics",
+    "test_DEP_044_ForkLatestRegentAndUsdcGettersMatchAssumedSemantics",
+]
 
 [[requirement]]
 id = "DEP-045"
@@ -360,7 +397,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_045_ForkLiveStakingDepositUsdcMatchesAssumedSemantics"]
+selectors = [
+    "test_DEP_045_ForkPinnedLiveStakingDepositUsdcMatchesAssumedSemantics",
+    "test_DEP_045_ForkLatestLiveStakingDepositUsdcMatchesAssumedSemantics",
+]
 
 [[requirement]]
 id = "DEP-046"
@@ -370,7 +410,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_046_ForkPoolAndPositionManagerGettersMatchAssumedSemantics"]
+selectors = [
+    "test_DEP_046_ForkPinnedPoolAndPositionManagerGettersMatchAssumedSemantics",
+    "test_DEP_046_ForkLatestPoolAndPositionManagerGettersMatchAssumedSemantics",
+]
 
 [[requirement]]
 id = "DEP-047"
@@ -380,7 +423,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_047_ForkChainIdIsBaseMainnet"]
+selectors = [
+    "test_DEP_047_ForkPinnedChainIdIsBaseMainnet",
+    "test_DEP_047_ForkLatestChainIdIsBaseMainnet",
+]
 
 [[requirement]]
 id = "DEP-048"
@@ -390,7 +436,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_048_ForkCcaAndPermit2BehaveAsAssumed"]
+selectors = [
+    "test_DEP_048_ForkPinnedCcaAndPermit2BehaveAsAssumed",
+    "test_DEP_048_ForkLatestCcaAndPermit2BehaveAsAssumed",
+]
 
 [[requirement]]
 id = "DEP-049"
@@ -400,17 +449,26 @@ contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_049_ForkBothTerminalPathsExecuteEndToEnd"]
+selectors = [
+    "test_DEP_049_ForkPinnedBothTerminalPathsExecuteEndToEnd",
+    "test_DEP_049_ForkLatestBothTerminalPathsExecuteEndToEnd",
+]
 
+# C5 narrowing. Verdict agreement is between the header recorded for this candidate and a
+# later head captured for the same candidate. The ceremony-time fresh-head recheck belongs to
+# regent-4wx, not to this claim.
 [[requirement]]
 id = "DEP-050"
-statement = "The authorized fork gate reaches the same verdict for every fork claim at both the pinned block and the latest Base head."
+statement = "The authorized fork gate reaches the same normalized verdict for every fork claim at the pinned block header recorded for this candidate and at the later Base head captured for the same candidate."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_050_ForkPinnedBlockAndLatestHeadAgree"]
+selectors = [
+    "test_DEP_050_ForkPinnedNormalizedVerdictsAreRecorded",
+    "test_DEP_050_ForkLatestNormalizedVerdictsMatchThePinnedHeader",
+]
 
 [[requirement]]
 id = "DEP-051"
@@ -420,7 +478,10 @@ contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_DEP_051_ForkEveryBindingRuntimeCodeHashMatchesTheManifest"]
+selectors = [
+    "test_DEP_051_ForkPinnedEveryBindingRuntimeCodeHashMatchesTheManifest",
+    "test_DEP_051_ForkLatestEveryBindingRuntimeCodeHashMatchesTheManifest",
+]
 
 # Repository-owned code, so this stays hermetic: the escrow, splitter, and receiver
 # implementations and their clones are deployed by this system's own tests, and their code
@@ -457,9 +518,13 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_FAC_001_LaunchUsesSequentialIdentity"]
 
+# C5 correction. The launcher does influence the created SUBJECT's CREATE2 address, because
+# the pinned UERC20 factory hashes name and symbol into its own salt. That is upstream
+# identity derivation, not an Autolaunch salt: it grants no authority, no address selection
+# beyond the fields the token already carries, and no second launch for one SUBJECT.
 [[requirement]]
 id = "FAC-002"
-statement = "Internal salts derive only from the launch ID: the only launch-specific entropy Autolaunch supplies is bytes32(launchId), used as the UERC20 graffiti and as the CCA caller salt, around which each pinned upstream hashes its own documented identity fields. There is no public or creator-selected salt."
+statement = "Internal salts derive only from the launch ID: the only launch-specific entropy Autolaunch supplies is bytes32(launchId), used as the UERC20 graffiti and as the CCA caller salt, around which each pinned upstream hashes its own documented identity fields — so name and symbol do move the pinned UERC20 CREATE2 address, while Autolaunch itself exposes no public or creator-selected salt and that derivation confers no authority."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -587,9 +652,12 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_FAC_014_MetadataBoundaryInputsBehaveExactly"]
 
+# C5 correction. Immutability has a blast radius worth naming: the launcher chooses the
+# treasury, so a hostile or broken treasury can strand or break its own launch's value, and
+# the claim now records that this damage is confined to that launch. No denylist is added.
 [[requirement]]
 id = "FAC-015"
-statement = "The treasury is immutable."
+statement = "The treasury is immutable and launcher-chosen, and its blast radius is exactly one launch: a treasury that can never move what it receives strands only its own launch's payouts, while a second launch sharing the same factory, strategy and hook graduates, registers its own pool, and gets its own splitter, receiver and treasury payouts untouched."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -669,7 +737,11 @@ selectors = ["test_FAC_022_SimultaneousLaunchesShareOneStrategyAndHookAndStayIso
 
 [[requirement]]
 id = "FAC-023"
-statement = "The required raise is nonzero and mathematically reachable for every admitted launch."
+# C5 correction. The C4 statement admitted the interval without saying what a launch at
+# either end actually settles on, which let the maximum *bid* price be read as a clearing
+# price. It is not: a one-wei raise is met by the first admitted bid and clears at the fixed
+# floor, and the recorded LP consumption at that clearing price is the real evidence.
+statement = "The required raise is nonzero and mathematically reachable for every admitted launch: one wei is admitted and, when met, graduates at the fixed floor clearing price rather than at any bid maximum, the exact MAX_REACHABLE_RAISE boundary is admitted, and both extremes record the LP amounts the position actually consumed."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -909,9 +981,12 @@ selectors = [
     "test_STR_011_NonZeroProtocolFeeControllerIsRejected",
 ]
 
+# C5 disambiguation, statement only. STR-012 and STR-018 own single-operation behaviour;
+# sequence-level cross-launch isolation is INV-009's and repeated terminal calls are
+# MIG-018's. No selector and no test moves.
 [[requirement]]
 id = "STR-012"
-statement = "Each auction's 5% LP reserve is held in isolation per auction: it is never commingled with that auction's inventory and never reachable by any other auction."
+statement = "One single operation never commingles or crosses reserves: at the moment of any one initialization or migration, each auction's 5% LP reserve is that auction's alone and no other auction's reserve is credited, consumed, or reachable. Sequence-level cross-launch isolation over reachable operation orders is INV-009."
 owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
@@ -942,7 +1017,12 @@ selectors = [
 
 [[requirement]]
 id = "STR-014"
-statement = "Both currency orderings produce the same economic price relationships."
+# C5 correction. The C3 zero-liquidity fuzz derived its minimum raise from a claim the pinned
+# CCA does not make — that a graduating checkpoint always clears the whole remaining supply.
+# It does not: a graduated auction may leave supply unsold, and that unsold supply returns to
+# escrow. The relationship the pinned CCA does prove is a single uniform clearing price over
+# whatever supply actually sold, so the raise is derived from that instead.
+statement = "Both currency orderings produce the same economic price relationships, and every reachable pair of settled clearing price and actually-sold supply — the only price/raise relationship the pinned CCA proves, bounded below by the price of one indivisible SUBJECT unit — converts inside the v4 tick range and plans one nonzero full-range position in both orderings."
 owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
@@ -994,9 +1074,11 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_STR_017_DistributionIsExactlyTenFiveEightyFive"]
 
+# C5 disambiguation, statement only. STR-018 owns the single repeated-call rejection at the
+# strategy; MIG-018 owns the graduated-launch repeat and its value-movement proof.
 [[requirement]]
 id = "STR-018"
-statement = "An auction finalizes exactly once: a second finalization of the same auction reverts and commits no further state."
+statement = "An auction finalizes exactly once: a second finalization of the same auction, from any caller, reverts at the strategy and commits no further state. Repeated terminal calls across a longer reachable sequence are MIG-018 and INV-007."
 owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
@@ -1222,9 +1304,12 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_HOK_005_ExactInputChargesRegentWhenSpecified"]
 
+# C5 correction. The exact-output specified-REGENT lane is charged from abs(amountSpecified)
+# before the swap resolves, so the boundary that matters is a request the pool cannot fill in
+# full: a partial fill and a zero fill must both still charge from the requested amount.
 [[requirement]]
 id = "HOK-006"
-statement = "Exact-output swaps with REGENT as the specified currency charge both REGENT lanes."
+statement = "Exact-output swaps with REGENT as the specified currency charge both REGENT lanes from the absolute requested output, including the partial-fill and zero-fill boundaries where the pool delivers less than, or none of, the requested amount."
 owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
@@ -1325,9 +1410,12 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_HOK_015_NoFlushThresholdKeeperPauseOrFeeSetterExists"]
 
+# C5 correction. There are two distinct insufficient-settlement branches and the claim now
+# names both: the splitter that reverts outright, and the splitter that returns without
+# consuming the exact approved lane so the hook's own restored-balance check fails.
 [[requirement]]
 id = "HOK-016"
-statement = "Settlement failure reverts the swap."
+statement = "Settlement failure reverts the swap in both insufficient-settlement branches: a splitter that reverts inside depositRecognizedRevenue, and a splitter that returns successfully without consuming exactly the approved lane."
 owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
@@ -1345,9 +1433,13 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_HOK_017_PoolManagerAndRegisteredKeyAreTheOnlyAuthority"]
 
+# C5 correction. The C2 statement was broader than the exercised evidence. HOK-018 now names
+# the exact nested-swap sub-lanes it drives, including the mandatory nested zero-lane case,
+# and records that the nested attacker's own failure mode is an arithmetic panic inside its
+# outer settlement rather than a hook-authored revert.
 [[requirement]]
 id = "HOK-018"
-statement = "Arbitrary routers and reentrancy attempts cannot change lane accounting or escape the authority boundary."
+statement = "Arbitrary routers and nested reentrant swaps cannot change lane accounting or escape the authority boundary: an unrelated router settles identically to the pinned one, a nested swap inside a hook callback charges its own lanes independently of the outer swap and never borrows the outer swap's inventory, and the nested zero-lane sub-case charges nothing and makes no PoolManager, token, splitter, or approval call. The nested attacker's outer settlement fails with an arithmetic panic, not a hook-authored revert."
 owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
@@ -1941,9 +2033,12 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_MIG_016_TokenUseAndResiduesMatchExactly"]
 
+# C5 correction. Rollback is enumerated for both terminal paths, not graduation alone, and the
+# claim records exactly which TAKE_PAIR residue shapes the pinned planner can actually produce
+# rather than asserting a residue shape that may be unreachable.
 [[requirement]]
 id = "MIG-017"
-statement = "Failure after every migration external call rolls back to the pre-migration state."
+statement = "Failure after every external call on either terminal path — graduation and failure retirement alike — rolls back to the exact pre-migration state, and the migration leaves no TAKE_PAIR residue at all: the strategy funds the position with exactly the amounts v4 charges, so the pinned planner's refund has nothing to return and the recorded residue is exactly zero in both currencies."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
@@ -1951,9 +2046,11 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_MIG_017_FailureAtEveryExternalCallRollsBack"]
 
+# C5 disambiguation, statement only. MIG-018 owns repeated terminal calls on a graduated
+# launch and the proof that nothing moved; STR-018 owns the strategy-level one-shot rejection.
 [[requirement]]
 id = "MIG-018"
-statement = "A repeated finalization attempt on a graduated launch reverts and moves no value."
+statement = "A repeated finalization attempt on a graduated launch reverts and moves no value: no balance, clone, registration, pool, position, escrow, or recorded field changes."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
@@ -2071,7 +2168,7 @@ owner = "C5"
 contract = "system"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_001_SubjectSupplyIsConserved"]
 
 [[requirement]]
@@ -2081,17 +2178,20 @@ owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_002_SplitterRemainsSolvent"]
 
+# C5 correction. INV-003 is the principal model and INV-005 is the remainder model; they are
+# deliberately not one accounting statement. INV-003 measures staked SUBJECT principal alone
+# against custody, and says nothing about reward division.
 [[requirement]]
 id = "INV-003"
-statement = "Staked SUBJECT principal is never spent by revenue, claim, or recovery paths."
+statement = "Staked SUBJECT principal is never spent: the splitter always custodies at least totalStaked SUBJECT, the sum of every account's stakedOf equals totalStaked exactly, and no revenue, claim, surplus-recognition, or recovery path can reduce that custody except an unstake by its own owner."
 owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_003_StakedPrincipalIsNeverSpent"]
 
 [[requirement]]
@@ -2101,27 +2201,33 @@ owner = "C5"
 contract = "RegentFeeHook"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_004_HookNeverRetainsAttributableRegent"]
 
+# C5 correction. The remainder model is separate from the principal model. It measures the
+# scaled reward numerator only: the single carried remainder plus every account's banked
+# sub-unit dust, neither dropped nor credited twice.
 [[requirement]]
 id = "INV-005"
-statement = "The per-token staker-owned remainder is never lost and never double-paid."
+statement = "The per-token staker-owned remainder is never lost and never double-paid: the carried scaled remainder stays strictly below totalStaked, every account's banked sub-unit dust stays strictly below SCALE, and total claimable whole units plus every banked fraction never exceeds the recognized unclaimed liability for that token."
 owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_005_RemainderIsNeverLostOrDoublePaid"]
 
+# C5 correction. INV-006 is the per-launch conservation model: this launch's reserve equals
+# exactly what its own specified destinations have consumed plus what the strategy still
+# custodies for it. Cross-launch reachability is INV-009's separate model.
 [[requirement]]
 id = "INV-006"
-statement = "The isolated 5% LP reserve is conserved until its specified destination consumes it."
+statement = "One launch's isolated 5% LP reserve is conserved: while the launch is active the strategy custodies exactly RESERVE_ALLOCATION of that launch's SUBJECT, and after a terminal outcome the reserve equals exactly the amount its own specified destination consumed — the full-range position on graduation, or its own escrow on retirement — with nothing stranded and nothing created."
 owner = "C5"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_006_IsolatedReserveIsConserved"]
 
 [[requirement]]
@@ -2131,7 +2237,7 @@ owner = "C5"
 contract = "system"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_007_LifecycleStatesAreExclusiveAndTerminal"]
 
 [[requirement]]
@@ -2141,27 +2247,34 @@ owner = "C5"
 contract = "PaymentReceiverV1"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_008_ReceiverAccountingIsConserved"]
 
+# C5 correction. INV-009 is the sequence-level model: it replays reachable operation orders
+# across simultaneous launches and proves no launch's reserve is ever credited to, consumed
+# by, or reachable from another. It is a different accounting model from INV-006, which
+# conserves one launch's own reserve against its own specified destinations.
 [[requirement]]
 id = "INV-009"
-statement = "No launch's 5% LP reserve is ever consumed by, credited to, or reachable from another launch."
+statement = "Across every reachable sequence of interleaved launch, bid, migration, and terminal operations, no launch's 5% LP reserve is ever consumed by, credited to, or reachable from another launch, and each launch's SUBJECT held by the shared strategy is attributable to that launch alone."
 owner = "C5"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_009_ReservesAreNeverUsedAcrossLaunches"]
 
+# C5 correction. Absolute balances are the wrong model: a stranger may gift SUBJECT, REGENT,
+# or USDC to the factory, the strategy, or the hook at any time, and neither a gift nor an
+# allowance may be counted as protocol inventory or be able to brick another launch's flow.
 [[requirement]]
 id = "INV-010"
-statement = "The factory, the strategy, and the hook never hold a balance of SUBJECT, REGENT, or USDC that the specified flows do not account for."
+statement = "The factory, the strategy, and the hook hold no attributable balance of SUBJECT, REGENT, or USDC beyond what the specified flows account for, and no named allowance beyond what an in-flight specified flow requires: an explained external gift is never counted as protocol inventory, is never spendable as another launch's budget, and never blocks any other flow."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-invariant"
 gate = "invariant"
-status = "pending"
+status = "active"
 selectors = ["invariant_INV_010_NoUnexplainedFactoryStrategyOrHookBalances"]
 
 # ---------------------------------------------------------------------------
@@ -2183,7 +2296,7 @@ owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_GAS_001_RuntimeSizesAreWithinEip170WithMargin"]
 
 [[requirement]]
@@ -2193,8 +2306,22 @@ owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_GAS_002_InitcodeSizesAreWithinEip3860WithMargin"]
+
+# C5 addition. Plan section 5 requires the supported hook callbacks' cold and warm cost to be
+# recorded separately and dispositioned against the pinned v4 guidance, rather than hidden inside
+# the three complete-transaction totals. This is the hermetic measurement; the fork repetition
+# rides on GAS-003 through GAS-006.
+[[requirement]]
+id = "GAS-007"
+statement = "The supported hook callbacks' cold and warm gas, and the supported router's own sync/settle timing, are measured as a controlled difference against an otherwise identical zero-lane swap, stay inside the pinned Uniswap v4 hard ceiling for a callback that makes external calls, and are recorded with their disposition against that guidance's target."
+owner = "C5"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_GAS_007_HookCallbackAndRouterSettlementGasAreMeasured"]
 
 [[requirement]]
 id = "GAS-003"
@@ -2204,7 +2331,10 @@ contract = "AutolaunchFactory"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_GAS_003_ForkCompleteLaunchStaysUnderFourteenMillion"]
+selectors = [
+    "test_GAS_003_ForkPinnedCompleteLaunchStaysUnderFourteenMillion",
+    "test_GAS_003_ForkLatestCompleteLaunchStaysUnderFourteenMillion",
+]
 
 [[requirement]]
 id = "GAS-004"
@@ -2214,7 +2344,10 @@ contract = "migration"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_GAS_004_ForkCompleteGraduationStaysUnderFourteenMillion"]
+selectors = [
+    "test_GAS_004_ForkPinnedCompleteGraduationStaysUnderFourteenMillion",
+    "test_GAS_004_ForkLatestCompleteGraduationStaysUnderFourteenMillion",
+]
 
 [[requirement]]
 id = "GAS-005"
@@ -2224,7 +2357,10 @@ contract = "migration"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_GAS_005_ForkCompleteFailureRetirementStaysUnderFourteenMillion"]
+selectors = [
+    "test_GAS_005_ForkPinnedCompleteFailureRetirementStaysUnderFourteenMillion",
+    "test_GAS_005_ForkLatestCompleteFailureRetirementStaysUnderFourteenMillion",
+]
 
 # The shared measurement method behind GAS-003, GAS-004, and GAS-005, proved once. It does
 # not restate their caps: it proves that the number each of them compares against 14,000,000
@@ -2237,7 +2373,10 @@ contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "pending"
-selectors = ["test_GAS_006_ForkMeasurementCoversTheFullOuterTransaction"]
+selectors = [
+    "test_GAS_006_ForkPinnedMeasurementCoversTheFullOuterTransaction",
+    "test_GAS_006_ForkLatestMeasurementCoversTheFullOuterTransaction",
+]
 
 # ---------------------------------------------------------------------------
 # ABI — exact selectors, event topics, indexed fields, integer widths, clone
@@ -2262,7 +2401,7 @@ owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_002_FactoryPublicMutationSurfaceIsExact"]
 
 [[requirement]]
@@ -2272,7 +2411,7 @@ owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_003_LaunchParamsFieldsAreExact"]
 
 [[requirement]]
@@ -2282,7 +2421,7 @@ owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_004_SplitterCallerOnlySurfaceIsExact"]
 
 [[requirement]]
@@ -2292,7 +2431,7 @@ owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_005_SplitterAdministrativeRecoverySurfaceIsExact"]
 
 [[requirement]]
@@ -2302,17 +2441,21 @@ owner = "C5"
 contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_006_ReceiverSurfaceIsExact"]
 
+# C5 narrowing. This claim is compiler and frozen-artifact truth only. It proves that every
+# frozen event signature, topic, indexed flag and integer width equals what the compiler
+# actually produced. It makes no claim about any downstream consumer's parity; the Ash
+# watcher's own coverage is separate product work under 490.8.2/.3.
 [[requirement]]
 id = "ABI-007"
-statement = "Event topics, indexed fields, and value widths are frozen exactly as the product watcher consumes them."
+statement = "Every production event's topic0, indexed-field set, and exact integer and value widths equal what the compiler produced and what the frozen ABI surface records, byte for byte, in both directions."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_007_EventTopicsIndexingAndWidthsAreFrozen"]
 
 [[requirement]]
@@ -2322,7 +2465,7 @@ owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_008_CloneInitializersRunExactlyOnce"]
 
 [[requirement]]
@@ -2332,5 +2475,5 @@ owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_ABI_009_NoObsoleteSupersededInterfaceRemains"]

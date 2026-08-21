@@ -755,13 +755,46 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(regent.balanceOf(address(hook)), before.hookRegent, "hook retained under reentrancy");
         assertEq(regent.allowance(address(hook), address(hostile)), 0, "stale allowance under reentrancy");
 
+        // C5: the nested *zero-lane* sub-lane, which the C2 statement claimed and never exercised.
+        // The same splitter issues a nested swap on the same pool from inside the hook's settlement
+        // call, but small enough that neither 1% lane floors above zero. The hook's zero-lane branch
+        // returns before it takes, approves, or calls anything, so it leaves the outer swap's live
+        // approval untouched and the outer swap completes exactly as an uninterrupted one would.
+        regent.transfer(address(nestedAttacker), 1e20);
+        pool.subject.transfer(address(nestedAttacker), 1e20);
+        hostile.setReentry(
+            address(nestedAttacker),
+            abi.encodeCall(NestedSwapAttacker.attack, (pool.key, _swapParams(zeroForOne, -int256(99))))
+        );
+
+        before = _ledger(pool, address(this));
+        // This pool's registered splitter is the hostile stand-in, which the shared ledger helper
+        // does not track, so its balance is captured directly.
+        uint256 hostileBefore = regent.balanceOf(address(hostile));
+        uint256 nestedAttemptsBefore = nestedAttacker.attempts();
+        vm.recordLogs();
+        _swap(pool, zeroForOne, -int256(1e18));
+        Settlement[] memory nestedZeroLane = _recordedSettlements();
+
+        assertEq(nestedAttacker.attempts(), nestedAttemptsBefore + 1, "the nested zero-lane swap never ran");
+        assertEq(nestedZeroLane.length, 1, "the nested zero-lane swap emitted a settlement of its own");
+        assertEq(nestedZeroLane[0].lane, 1e16, "the nested zero-lane swap changed the outer lane");
+        assertEq(
+            regent.balanceOf(REGENT_SAFE), before.safeRegent + nestedZeroLane[0].lane, "direct lane under nested zero"
+        );
+        assertEq(
+            regent.balanceOf(address(hostile)),
+            hostileBefore + nestedZeroLane[0].lane,
+            "splitter lane under nested zero"
+        );
+        assertEq(regent.balanceOf(address(hook)), before.hookRegent, "hook retained under nested zero");
+        assertEq(regent.allowance(address(hook), address(hostile)), 0, "stale allowance under nested zero");
+
         // The strongest nested attack available: the same splitter, still holding the hook's live
         // approval, issues a second swap on the same pool straight at the already-unlocked
         // PoolManager and settles that swap out of its own inventory. The nested swap does reach the
         // hook and does overwrite the outer approval with its own exact lane, which is precisely why
         // the outer pull can no longer complete and the whole transaction fails closed.
-        regent.transfer(address(nestedAttacker), 1e20);
-        pool.subject.transfer(address(nestedAttacker), 1e20);
         hostile.setReentry(
             address(nestedAttacker),
             abi.encodeCall(NestedSwapAttacker.attack, (pool.key, _swapParams(zeroForOne, -int256(1e17))))

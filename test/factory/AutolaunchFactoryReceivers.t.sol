@@ -31,23 +31,30 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
         vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.UnknownLaunch.selector, uint256(99)));
         factory.createPaymentReceiver(99, outsider, 0);
 
-        // A pending launch has no splitter yet.
+        // Two launches created in the same block, then driven along one monotone timeline: block
+        // height only ever moves forward here, exactly as it does on chain. Bidding on the launch
+        // that will graduate happens inside its own open window, before the shared migration block,
+        // rather than by rewinding to it afterwards.
         Launched memory pending = _launchAs(launcher, _params());
+        Launched memory failed = _launchAs(launcher, _params());
+
+        // A pending launch has no splitter yet.
         vm.expectRevert(
             abi.encodeWithSelector(RegentsAutolaunchFactoryV1.LaunchNotGraduated.selector, pending.launchId)
         );
         factory.createPaymentReceiver(pending.launchId, outsider, 0);
 
-        // A failed launch never gets one.
-        Launched memory failed = _launchAs(launcher, _params());
+        _rollToStart(pending);
+        _bid(pending, bidder, 2_000e18, _bidPrice(10));
         _rollToMigration(failed);
+
+        // A failed launch never gets one.
         strategy.migrate(address(failed.auction));
         assertEq(uint8(_distribution(failed).lifecycle), uint8(RegentLBPStrategy.Lifecycle.Failed), "not failed");
         vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.LaunchNotGraduated.selector, failed.launchId));
         factory.createPaymentReceiver(failed.launchId, outsider, 0);
 
-        // The pending launch, once graduated, does.
-        _bidToGraduation(pending, 2_000e18);
+        // The bid-on launch, at the same block, does.
         strategy.migrate(address(pending.auction));
         RegentLBPStrategy.Distribution memory d = _distribution(pending);
         address canonical = d.receiver;

@@ -27,11 +27,13 @@ GATES=hermetic,invariant
 frozen=requirements/frozen-identity.json
 ledger=requirements/ledger.toml
 manifest=contracts/chain-contracts.yaml
+release_manifest=contracts/autolaunch-release-manifest.json
 bindings=src/bindings/BaseBindings.sol
 dispositions=docs/security/slither-dispositions.md
 threat_model=docs/security/threat-model.md
 slither_config=slither.config.json
 checker=bin/check-requirements.py
+freezer=bin/freeze-artifacts.py
 
 generated=reports/generated
 rm -rf "$generated"
@@ -63,8 +65,8 @@ section "Required material and tools"
 # ---------------------------------------------------------------------------
 
 for required_file in "$frozen" "$ledger" "$manifest" "$bindings" "$dispositions" \
-    "$threat_model" "$slither_config" "$checker" src/bindings/FrozenIdentity.sol SPEC.md \
-    .gitmodules foundry.toml; do
+    "$threat_model" "$slither_config" "$checker" "$freezer" src/bindings/FrozenIdentity.sol \
+    SPEC.md .gitmodules foundry.toml reports/frozen/c4-runtime-baseline.json; do
     [ -f "$required_file" ] || fail "required repository file is missing: $required_file"
 done
 
@@ -123,6 +125,22 @@ section "Build and compiled build identity"
 forge build --sizes
 
 python3 "$checker" artifacts --frozen "$frozen" --out out --receipt "$receipt"
+
+# ---------------------------------------------------------------------------
+section "Frozen release surface"
+# ---------------------------------------------------------------------------
+
+# Check mode only. The freezer regenerates every committed ABI, surface, size and manifest
+# document from these artifacts and compares byte for byte, then compares the whole src/**
+# compiled byte string against the pre-edit C4 baseline captured before this ticket touched
+# any file. It writes DEP-016's verified receipt, so deleting this invocation does not
+# quietly stop checking the freeze — it fails the ledger reconciliation below.
+python3 "$freezer" check \
+    --out out \
+    --frozen "$frozen" \
+    --manifest "$release_manifest" \
+    --baseline reports/frozen/c4-runtime-baseline.json \
+    --receipt "$receipt"
 
 # ---------------------------------------------------------------------------
 section "Compiled test listing, execution, and requirement reconciliation"
@@ -195,6 +213,17 @@ python3 "$checker" security \
     --suppression-sources src test script
 
 [ "$slither_status" -eq 0 ] || fail "slither exited $slither_status"
+
+# ---------------------------------------------------------------------------
+section "Provider-secret scan"
+# ---------------------------------------------------------------------------
+
+# Nothing this gate produces, and nothing it commits, may carry a resolved provider endpoint.
+# The scan covers the regenerated evidence — the effective Foundry configuration included, so
+# a resolved RPC alias would show up — and every committed frozen artifact.
+python3 "$checker" secrets \
+    --forge-config "$forge_config" \
+    --scan "$generated" reports/frozen abi contracts requirements
 
 # ---------------------------------------------------------------------------
 section "Gate report"

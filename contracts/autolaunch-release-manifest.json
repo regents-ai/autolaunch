@@ -1,0 +1,307 @@
+{
+  "version": 1,
+  "repository": "autolaunch-contracts",
+  "authority": "SPEC.md",
+  "generated_by": "bin/freeze-artifacts.py",
+  "release_posture": "local implementation and proof only; mainnet remains NO-GO",
+  "chain": {
+    "name": "base-mainnet",
+    "id": 8453
+  },
+  "build": {
+    "solc_identity": "0.8.26+commit.8a97fa7a",
+    "evm_version": "cancun",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "bytecode_hash": "none",
+    "append_cbor": false
+  },
+  "surface_allowlist": [
+    "RegentsAutolaunchFactoryV1",
+    "RegentLBPStrategy",
+    "RegentFeeHook",
+    "ConditionalVestingEscrowV1",
+    "SubjectSplitterV1",
+    "PaymentReceiverV1"
+  ],
+  "contracts": {
+    "RegentsAutolaunchFactoryV1": {
+      "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 7309,
+      "runtime_sha256": "ab6c6f604ad658e41cc924dde5b8b1e671ece7c4a48c41739e830b819ebd566d",
+      "creation_bytes": 34361,
+      "creation_sha256": "fbcf3dc5aa7189051a2ad8566bcf15e98507260fe99f16844629c670345a6b6d",
+      "constructor": [
+        "address uerc20Factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_",
+        "bytes32 hookSalt"
+      ],
+      "abi_file": "abi/RegentsAutolaunchFactoryV1.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
+    "RegentLBPStrategy": {
+      "source": "src/strategy/RegentLBPStrategy.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 18987,
+      "runtime_sha256": "c759943b6e0ddf74e5cae0c7c331bc2115e7cfc7676217f1dc15737e7c24bd25",
+      "creation_bytes": 19496,
+      "creation_sha256": "4f0134fb9c08a015477c3b8f0f494e73b472ed89e8be69211dcb4218b5fc6ae5",
+      "constructor": [
+        "address factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_"
+      ],
+      "abi_file": "abi/RegentLBPStrategy.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
+    "RegentFeeHook": {
+      "source": "src/hook/RegentFeeHook.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 5780,
+      "runtime_sha256": "45f5f3d7fdf9d6ba3c859a45da48dd8492b84cba5241c4921f96d3068b3cc29d",
+      "creation_bytes": 6599,
+      "creation_sha256": "07b0802132ed437a0c44ef1b844c1fd6efbbe94d5b0994c53e4d046eafe8f88e",
+      "constructor": [
+        "address manager_",
+        "address strategy_"
+      ],
+      "abi_file": "abi/RegentFeeHook.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
+    "ConditionalVestingEscrowV1": {
+      "source": "src/escrow/ConditionalVestingEscrowV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 4527,
+      "runtime_sha256": "caee5d4a60db4a7555d32053f005a01ce9bb2b272369cb164aa1c1de5e880d93",
+      "creation_bytes": 4665,
+      "creation_sha256": "599e171d87264f2b3e0e016684bcc2ae401093d8dd4e355a08c8417a527a317e",
+      "constructor": [],
+      "abi_file": "abi/ConditionalVestingEscrowV1.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
+    "SubjectSplitterV1": {
+      "source": "src/revenue/SubjectSplitterV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 5342,
+      "runtime_sha256": "682f1dfed67169311e6e364c998b237b79069b545ea32b2f55caf7bd09c2a0f8",
+      "creation_bytes": 5480,
+      "creation_sha256": "a2cf33fdaf4ad587650c5c8ca1abc99fef80ff2d8482ab60c22eaffdf0d96640",
+      "constructor": [],
+      "abi_file": "abi/SubjectSplitterV1.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
+    "PaymentReceiverV1": {
+      "source": "src/revenue/PaymentReceiverV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 3520,
+      "runtime_sha256": "8320d43d2888c3b03cb96e33218705e95eaee31feba26a289f4076bd35519ac9",
+      "creation_bytes": 3658,
+      "creation_sha256": "b539f6eb123eff091e4363703f70a968103d6c1633afa6a6385b439aa60f20eb",
+      "constructor": [],
+      "abi_file": "abi/PaymentReceiverV1.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    }
+  },
+  "clones": {
+    "ConditionalVestingEscrowV1": {
+      "implementation": {
+        "address": null,
+        "status": "deployment_pending"
+      },
+      "library": "solady/utils/LibClone.sol",
+      "runtime_template": "0x3d3d3d3d363d3d37363d73<20-byte implementation>5af43d3d93803e602a57fd5bf3",
+      "runtime_bytes": 44,
+      "derived_from": "src/strategy/RegentLBPStrategy.sol",
+      "authority": "DEP-060 proves this derivation against a real clone and the frozen artifacts"
+    },
+    "SubjectSplitterV1": {
+      "implementation": {
+        "address": null,
+        "status": "deployment_pending"
+      },
+      "library": "solady/utils/LibClone.sol",
+      "runtime_template": "0x3d3d3d3d363d3d37363d73<20-byte implementation>5af43d3d93803e602a57fd5bf3",
+      "runtime_bytes": 44,
+      "derived_from": "src/strategy/RegentLBPStrategy.sol",
+      "authority": "DEP-060 proves this derivation against a real clone and the frozen artifacts"
+    },
+    "PaymentReceiverV1": {
+      "implementation": {
+        "address": null,
+        "status": "deployment_pending"
+      },
+      "library": "solady/utils/LibClone.sol",
+      "runtime_template": "0x3d3d3d3d363d3d37363d73<20-byte implementation>5af43d3d93803e602a57fd5bf3",
+      "runtime_bytes": 44,
+      "derived_from": "src/strategy/RegentLBPStrategy.sol",
+      "authority": "DEP-060 proves this derivation against a real clone and the frozen artifacts"
+    }
+  },
+  "bindings": {
+    "regent": {
+      "label": "REGENT",
+      "constant": "REGENT",
+      "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+      "runtime_code_hash": null,
+      "proxy": null,
+      "implementation": null,
+      "status": "fork_pending"
+    },
+    "usdc": {
+      "label": "USDC",
+      "constant": "USDC",
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "runtime_code_hash": null,
+      "proxy": null,
+      "implementation": null,
+      "status": "fork_pending"
+    },
+    "cca_factory": {
+      "label": "CCA factory",
+      "constant": "CCA_FACTORY",
+      "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+      "runtime_code_hash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa",
+      "proxy": null,
+      "implementation": null,
+      "status": "frozen_expectation_fork_pending"
+    },
+    "pool_manager": {
+      "label": "PoolManager",
+      "constant": "POOL_MANAGER",
+      "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+      "runtime_code_hash": null,
+      "proxy": null,
+      "implementation": null,
+      "status": "fork_pending"
+    },
+    "position_manager": {
+      "label": "PositionManager",
+      "constant": "POSITION_MANAGER",
+      "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+      "runtime_code_hash": null,
+      "proxy": null,
+      "implementation": null,
+      "status": "fork_pending"
+    },
+    "live_staking": {
+      "label": "Live staking",
+      "constant": "LIVE_STAKING",
+      "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+      "runtime_code_hash": null,
+      "proxy": null,
+      "implementation": null,
+      "status": "fork_pending"
+    },
+    "governance_and_regent_safe": {
+      "label": "Governance and Regent Safe",
+      "constant": "GOVERNANCE_AND_REGENT_SAFE",
+      "address": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "runtime_code_hash": null,
+      "proxy": null,
+      "implementation": null,
+      "status": "fork_pending"
+    },
+    "dead_address": {
+      "label": "Dead address",
+      "constant": "DEAD_ADDRESS",
+      "address": "0x000000000000000000000000000000000000dEaD",
+      "runtime_code_hash": null,
+      "proxy": null,
+      "implementation": null,
+      "status": "fork_pending"
+    }
+  },
+  "consumed": {
+    "ContinuousClearingAuction": {
+      "repository": "https://github.com/Uniswap/continuous-clearing-auction",
+      "functions": [
+        "0x083c6323 endBlock()",
+        "0x18160ddd totalSupply()",
+        "0x32a0f2d7 clearingPrice()",
+        "0x331f2f65 onTokensReceived()",
+        "0x36dec5f2 exitPartiallyFilledBid(uint256,uint64,uint64)",
+        "0x37dfbc4b claimBlock()",
+        "0x3b6fd2cf fundsRecipient()",
+        "0x46e04a2f claimTokens(uint256)",
+        "0x48cd4cb1 startBlock()",
+        "0x5dd13ca7 sweepUnsoldTokens()",
+        "0x7c121574 sweepCurrency()",
+        "0x8134f027 validationHook()",
+        "0x8e4deb17 exitBid(uint256)",
+        "0x9363c812 floorPrice()",
+        "0x998ba4fc currencyRaised()",
+        "0x9e5f2602 isGraduated()",
+        "0xa52c8728 submitBid(uint256,uint128,address,uint256,bytes)",
+        "0xc2c4c5c1 checkpoint()",
+        "0xd0c93a7c tickSpacing()",
+        "0xda0239a6 remainingSupply()",
+        "0xe1d97d1f lbpInitializationParams()",
+        "0xe5a6b10f currency()",
+        "0xfc0c546a token()",
+        "0xfd637557 tokensRecipient()"
+      ],
+      "events": [
+        "0x053dfa7183794b221b03c5109dfb5a07b67d719cb3e98262d48bc66b2a132ad3 CurrencySwept(address,uint256)",
+        "0x054fe6469466a0b4d2a6ae4b100e5f9c494c958f04b4000f44d470088dd97930 BidExited(uint256,address,uint256,uint256)",
+        "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540 BidSubmitted(uint256,address,uint256,uint128)",
+        "0x880f2ef2613b092f1a0a819f294155c98667eb294b7e6bf7a3810278142c1a1c TokensClaimed(uint256,address,uint256)",
+        "0xdd9a81eb1b5197489c3ccfdab7b542e2e6dbdcf4120324e2688fab56fd23f98b TokensSwept(address,uint256)"
+      ]
+    },
+    "ContinuousClearingAuctionFactory": {
+      "repository": "https://github.com/Uniswap/continuous-clearing-auction",
+      "functions": [
+        "0x4aaa5b37 create(address,uint256,bytes,bytes32)",
+        "0xf02de3b2 protocolFeeController()"
+      ],
+      "events": [
+        "0x7ede475fad18ccf0039f2b956c4d43a8b4ed0853de4daaa8ae25299f331ae3b9 AuctionCreated(address,address,uint256,bytes)"
+      ]
+    },
+    "IAllowanceTransfer": {
+      "repository": "https://github.com/Uniswap/permit2",
+      "functions": [
+        "0x2b67b570 permit(address,((address,uint160,uint48,uint48),address,uint256),bytes)",
+        "0x87517c45 approve(address,address,uint160,uint48)",
+        "0x927da105 allowance(address,address,address)"
+      ],
+      "events": []
+    }
+  },
+  "hook_deployment": {
+    "contract": "RegentFeeHook",
+    "create2_deployer": "RegentsAutolaunchFactoryV1",
+    "constructor": [
+      "address manager_",
+      "address strategy_"
+    ],
+    "salt": {
+      "value": null,
+      "status": "deployment_pending"
+    },
+    "permission_authority": "BaseHook.validateHookAddress at construction; HOK-004 proves the mined address carries exactly the declared permission bits"
+  },
+  "deployment_pending_note": "No Regent contract is deployed. Every Regent address in this manifest is null with status deployment_pending, and every external binding's runtime fact is null with status fork_pending until the separately authorized fork gate records it."
+}

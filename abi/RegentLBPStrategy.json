@@ -1,0 +1,1067 @@
+{
+  "contract": "RegentLBPStrategy",
+  "source": "src/strategy/RegentLBPStrategy.sol",
+  "compiler": "0.8.26+commit.8a97fa7a",
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "factory_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "escrowImplementation_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "splitterImplementation_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "receiverImplementation_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "AUCTION_ALLOCATION",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "AUCTION_DURATION_BLOCKS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "AUCTION_STEPS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "BID_TICK_Q96",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "CLAIM_DELAY_BLOCKS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "DISTRIBUTION_PULL",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "FLOOR_PRICE_Q96",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "MAX_REACHABLE_RAISE",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "MIGRATION_DELAY_BLOCKS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "PENDING_ALLOCATION",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "POOL_FEE",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint24",
+          "internalType": "uint24"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "POOL_TICK_SPACING",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "int24",
+          "internalType": "int24"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "RESERVE_ALLOCATION",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "START_DELAY_BLOCKS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "auctionOfSubject",
+      "inputs": [
+        {
+          "name": "subject",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "bindHook",
+      "inputs": [
+        {
+          "name": "hook_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "distribution",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "tuple",
+          "internalType": "struct RegentLBPStrategy.Distribution",
+          "components": [
+            {
+              "name": "lifecycle",
+              "type": "uint8",
+              "internalType": "enum RegentLBPStrategy.Lifecycle"
+            },
+            {
+              "name": "startBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "endBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "claimBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "migrationBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "requiredRegentRaised",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "reserve",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "lpRegentUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "lpSubjectUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "finalSqrtPriceX96",
+              "type": "uint160",
+              "internalType": "uint160"
+            },
+            {
+              "name": "launchId",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "subject",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "escrow",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "treasury",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "recoveryAdmin",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "splitter",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "receiver",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "poolId",
+              "type": "bytes32",
+              "internalType": "PoolId"
+            },
+            {
+              "name": "lpTokenId",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ]
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "escrowCloneCodehash",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "escrowImplementation",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "factory",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "hook",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "initializeDistribution",
+      "inputs": [
+        {
+          "name": "params",
+          "type": "tuple",
+          "internalType": "struct RegentLBPStrategy.DistributionParams",
+          "components": [
+            {
+              "name": "launchId",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "escrow",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "recoveryAdmin",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "requiredRegentRaised",
+              "type": "uint128",
+              "internalType": "uint128"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "migrate",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "poolKeyOf",
+      "inputs": [
+        {
+          "name": "subject",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "key",
+          "type": "tuple",
+          "internalType": "struct PoolKey",
+          "components": [
+            {
+              "name": "currency0",
+              "type": "address",
+              "internalType": "Currency"
+            },
+            {
+              "name": "currency1",
+              "type": "address",
+              "internalType": "Currency"
+            },
+            {
+              "name": "fee",
+              "type": "uint24",
+              "internalType": "uint24"
+            },
+            {
+              "name": "tickSpacing",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "hooks",
+              "type": "address",
+              "internalType": "contract IHooks"
+            }
+          ]
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "receiverImplementation",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "splitterImplementation",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "DistributionCreated",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "auction",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "subject",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "escrow",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "treasury",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "startBlock",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        },
+        {
+          "name": "endBlock",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        },
+        {
+          "name": "requiredRegentRaised",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "reserve",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "HookBound",
+      "inputs": [
+        {
+          "name": "hook",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "LaunchGraduated",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "subject",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "poolId",
+          "type": "bytes32",
+          "indexed": true,
+          "internalType": "PoolId"
+        },
+        {
+          "name": "splitter",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "receiver",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "finalSqrtPriceX96",
+          "type": "uint160",
+          "indexed": false,
+          "internalType": "uint160"
+        },
+        {
+          "name": "lpTokenId",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "lpRegentUsed",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "lpSubjectUsed",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "LaunchRetired",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "subject",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "reserveReturned",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "AuctionBindingMismatch",
+      "inputs": [
+        {
+          "name": "field",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "AuctionHasNoCode",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "CurrencyRaisedMismatch",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "EscrowCustodyMismatch",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "EscrowNotPending",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "EscrowStrategyMismatch",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "HookAlreadyBound",
+      "inputs": [
+        {
+          "name": "bound",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "HookBindingMismatch",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "found",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "HookHasNoCode",
+      "inputs": [
+        {
+          "name": "hook",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "HookNotBound",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ImplementationHasNoCode",
+      "inputs": [
+        {
+          "name": "implementation",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InexactTransfer",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "LaunchNotActive",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "uint8",
+          "internalType": "enum RegentLBPStrategy.Lifecycle"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "MigrationNotYetAllowed",
+      "inputs": [
+        {
+          "name": "migrationBlock",
+          "type": "uint64",
+          "internalType": "uint64"
+        },
+        {
+          "name": "currentBlock",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NoFullRangePosition",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "NotAuthenticEscrow",
+      "inputs": [
+        {
+          "name": "escrow",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NotFactory",
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "PriceIsZero",
+      "inputs": [
+        {
+          "name": "price",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "PriceTooHigh",
+      "inputs": [
+        {
+          "name": "price",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "maxPrice",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "ProtocolFeeControllerNotZero",
+      "inputs": [
+        {
+          "name": "controller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "RecoveryAdminHasNoCode",
+      "inputs": [
+        {
+          "name": "recoveryAdmin",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "Reentrancy",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "SelfAddress",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "SqrtPriceX96OutOfBounds",
+      "inputs": [
+        {
+          "name": "sqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        },
+        {
+          "name": "minSqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        },
+        {
+          "name": "maxSqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "SubjectAlreadyLaunched",
+      "inputs": [
+        {
+          "name": "subject",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnexpectedPositionMintCount",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnknownAuction",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnreachableRequiredRaise",
+      "inputs": [
+        {
+          "name": "requiredRegentRaised",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "ZeroAddress",
+      "inputs": []
+    }
+  ],
+  "method_identifiers": {
+    "AUCTION_ALLOCATION()": "80ff9c38",
+    "AUCTION_DURATION_BLOCKS()": "56586874",
+    "AUCTION_STEPS()": "db46bf59",
+    "BID_TICK_Q96()": "f276cd78",
+    "CLAIM_DELAY_BLOCKS()": "4a9923ac",
+    "DISTRIBUTION_PULL()": "53e916eb",
+    "FLOOR_PRICE_Q96()": "14ec99b0",
+    "MAX_REACHABLE_RAISE()": "8b8e722e",
+    "MIGRATION_DELAY_BLOCKS()": "bfd822e1",
+    "PENDING_ALLOCATION()": "ebd6c243",
+    "POOL_FEE()": "dd1b9c4a",
+    "POOL_TICK_SPACING()": "7381527f",
+    "RESERVE_ALLOCATION()": "7b5c7f03",
+    "START_DELAY_BLOCKS()": "48bd92bb",
+    "auctionOfSubject(address)": "bad6a39e",
+    "bindHook(address)": "10202c54",
+    "distribution(address)": "c2db09c1",
+    "escrowCloneCodehash()": "0e0651f3",
+    "escrowImplementation()": "4ca8ff5a",
+    "factory()": "c45a0155",
+    "hook()": "7f5a7c7b",
+    "initializeDistribution((uint256,address,address,uint128))": "8e9c3c87",
+    "migrate(address)": "ce5494bb",
+    "poolKeyOf(address)": "8652edf9",
+    "receiverImplementation()": "112e335c",
+    "splitterImplementation()": "e63db9b2"
+  }
+}

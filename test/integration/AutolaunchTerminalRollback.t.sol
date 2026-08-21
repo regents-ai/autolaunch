@@ -126,13 +126,75 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
             launched, address(launched.escrow), ConditionalVestingEscrowV1.activateVesting.selector, "11 vesting"
         );
 
+        // C5 correction: the other terminal path is enumerated too. Retirement crosses a shorter
+        // but distinct set of external calls, and a failure at any one of them must leave the launch
+        // exactly as active and exactly as funded as it was.
+        Launched memory retiring = _launchAs(launcher, _params());
+        vm.roll(uint256(retiring.auction.endBlock()) + strategy.MIGRATION_DELAY_BLOCKS());
+
+        _assertBoundaryRollsBack(
+            retiring,
+            address(retiring.subject),
+            abi.encodeWithSignature("transfer(address,uint256)", address(retiring.escrow), RESERVE_ALLOCATION),
+            "retirement stage 1 reserve to escrow"
+        );
+        _assertSelectorRollsBack(
+            retiring,
+            address(retiring.auction),
+            IContinuousClearingAuction.checkpoint.selector,
+            "retirement 2 checkpoint"
+        );
+        _assertSelectorRollsBack(
+            retiring,
+            address(retiring.escrow),
+            ConditionalVestingEscrowV1.resolveFailure.selector,
+            "retirement 3 escrow resolution"
+        );
+        _assertSelectorRollsBack(
+            retiring,
+            address(retiring.auction),
+            IContinuousClearingAuction.sweepUnsoldTokens.selector,
+            "retirement 4 unsold sweep"
+        );
+        _assertBoundaryRollsBack(
+            retiring,
+            address(retiring.subject),
+            abi.encodeWithSignature("transfer(address,uint256)", BaseBindings.DEAD_ADDRESS, TOTAL_SUPPLY),
+            "retirement stage 5 dead-address retirement"
+        );
+
+        // The retirement none of those injections touched still completes.
+        strategy.migrate(address(retiring.auction));
+        assertEq(
+            uint8(_distribution(retiring).lifecycle),
+            uint8(RegentLBPStrategy.Lifecycle.Failed),
+            "the untouched retirement did not work"
+        );
+
         // The launch none of those injections touched still graduates.
+        uint256 positionManagerRegentBefore = regent.balanceOf(BaseBindings.POSITION_MANAGER);
         strategy.migrate(address(launched.auction));
         assertEq(
             uint8(_distribution(launched).lifecycle),
             uint8(RegentLBPStrategy.Lifecycle.Graduated),
             "the untouched migration did not work"
         );
+
+        // C5 correction: the residue this plan actually leaves, recorded rather than assumed. The
+        // strategy funds the PositionManager with exactly `Position.amount0/amount1`, which are the
+        // amounts v4 charges for this liquidity at this price, so the pinned upstream's `TAKE_PAIR`
+        // refund has nothing to return. A nonzero residue shape is therefore *not* reachable through
+        // this plan, and the claim records the exact zero-only proof instead of asserting a shape
+        // that cannot occur.
+        RegentLBPStrategy.Distribution memory graduated = _distribution(launched);
+        uint256 regentResidue = regent.balanceOf(BaseBindings.POSITION_MANAGER) - positionManagerRegentBefore;
+        uint256 subjectResidue = launched.subject.balanceOf(BaseBindings.POSITION_MANAGER);
+        emit log_named_uint("MIG-017 TAKE_PAIR REGENT residue at the PositionManager", regentResidue);
+        emit log_named_uint("MIG-017 TAKE_PAIR SUBJECT residue at the PositionManager", subjectResidue);
+        assertEq(regentResidue, 0, "the plan left an unrefunded REGENT residue at the PositionManager");
+        assertEq(subjectResidue, 0, "the plan left an unrefunded SUBJECT residue at the PositionManager");
+        assertEq(uint256(graduated.lpSubjectUsed), moves.lpSubjectUsed, "the measured LP consumption moved");
+        assertEq(uint256(graduated.lpRegentUsed), moves.lpRegentUsed, "the measured LP consumption moved");
     }
 
     /// @notice `MIG-018`: a graduated launch is terminal. Every further attempt reverts and the whole

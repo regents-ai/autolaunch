@@ -4,3 +4,7 @@
 /artifacts/
 /reports/generated/
 *.log
+
+# CPython leaves this beside bin/check-requirements.py and bin/freeze-artifacts.py whenever the
+# gate imports one of them; it is build output, never evidence.
+__pycache__/

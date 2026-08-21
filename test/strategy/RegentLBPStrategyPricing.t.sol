@@ -84,31 +84,46 @@ contract RegentLBPStrategyPricingTest is StrategyFixture {
         _assertConvertsInBothOrderings(priceQ96);
     }
 
-    /// @notice No graduated distribution can plan a zero-liquidity position.
-    /// @dev The final price and the raise are not independent. At the auction's final checkpoint the
-    ///      whole remaining schedule is consumed in one step, so the clearing price the checkpoint
-    ///      settles on is backed by demand of at least `remainingSupply * price / Q96`, and every
-    ///      unit already cleared was cleared at or above the frozen floor. That gives the raise a
-    ///      floor of
+    /// @notice No graduated distribution the pinned CCA can actually settle plans a zero-liquidity
+    ///         position, in either currency ordering.
+    /// @dev C5 correction. The C3 version derived a minimum raise from a claim the pinned CCA does
+    ///      not make — that a graduating checkpoint clears the whole remaining supply in one step.
+    ///      It does not: a graduated auction may leave supply unsold, and that unsold supply returns
+    ///      to escrow rather than being paid for.
     ///
-    ///          max(cleared * FLOOR / Q96, remaining * price / Q96),   cleared + remaining = 10e9
+    ///      What the pinned CCA does prove is a single uniform clearing price over whatever supply
+    ///      actually sold. The reachable pairs are therefore
     ///
-    ///      whose minimum over the whole interval is about five million REGENT. This fuzz drives the
-    ///      pinned `PositionPlanner` with that minimum raise and the fixed 5% reserve, across the
-    ///      whole reachable price interval and both currency orderings.
-    function testFuzz_STR_014_GraduatedDistributionNeverPlansZeroLiquidity(uint256 priceQ96, uint256 cleared)
+    ///          price in [FLOOR, reachableMax],   sold in [1, AUCTION_ALLOCATION],
+    ///          raise  = sold * price / Q96,      raise >= requiredRegentRaised >= 1,
+    ///
+    ///      so a raise is reachable at a given price exactly when it is between one wei and the
+    ///      whole fixed supply at that price. This fuzz walks that set directly and drives the
+    ///      pinned `PositionPlanner` with it and the fixed 5% reserve.
+    function testFuzz_STR_014_GraduatedDistributionNeverPlansZeroLiquidity(uint256 priceQ96, uint256 raised)
         public
         view
     {
         priceQ96 = bound(priceQ96, strategy.FLOOR_PRICE_Q96(), _reachableMaxPrice());
-        cleared = bound(cleared, 0, AUCTION_ALLOCATION);
 
-        uint256 minimumRaise = _minimumRaise(priceQ96, cleared);
-        assertGt(minimumRaise, 0, "a graduated auction always raised something");
-        assertLe(minimumRaise, strategy.MAX_REACHABLE_RAISE(), "and never more than the reachable maximum");
+        // Supply is indivisible, so the smallest raise this price can produce is the price of one
+        // whole SUBJECT wei, rounded up. Below that, no supply sold at all and the auction did not
+        // graduate; a pair beneath this floor is arithmetic, not a state the pinned CCA can reach.
+        uint256 minimumRaise = FullMath.mulDivRoundingUp(1, priceQ96, Q96);
+        if (minimumRaise == 0) minimumRaise = 1;
 
-        _assertNonZeroFullRangePosition(priceQ96, minimumRaise, true);
-        _assertNonZeroFullRangePosition(priceQ96, minimumRaise, false);
+        // The whole fixed supply at this price is the most this auction could ever have raised, and
+        // the admitted maximum raise caps it from the other side.
+        uint256 wholeSupplyAtPrice = FullMath.mulDiv(AUCTION_ALLOCATION, priceQ96, Q96);
+        uint256 ceiling =
+            wholeSupplyAtPrice < strategy.MAX_REACHABLE_RAISE() ? wholeSupplyAtPrice : strategy.MAX_REACHABLE_RAISE();
+        raised = bound(raised, minimumRaise, ceiling);
+
+        assertGe(raised, minimumRaise, "a reachable raise pays for at least one whole SUBJECT unit");
+        assertLe(raised, strategy.MAX_REACHABLE_RAISE(), "a reachable raise never exceeds the admitted maximum");
+
+        _assertNonZeroFullRangePosition(priceQ96, raised, true);
+        _assertNonZeroFullRangePosition(priceQ96, raised, false);
     }
 
     /// @notice Two real launches whose only difference is which side of REGENT their SUBJECT sorts on
@@ -166,12 +181,6 @@ contract RegentLBPStrategyPricingTest is StrategyFixture {
     function _reachableMaxPrice() internal view returns (uint256) {
         uint256 structuralMax = MaxBidPriceLib.maxBidPrice(uint128(AUCTION_ALLOCATION));
         return structuralMax - (structuralMax % strategy.BID_TICK_Q96());
-    }
-
-    function _minimumRaise(uint256 priceQ96, uint256 cleared) internal view returns (uint256) {
-        uint256 fromCleared = FullMath.mulDiv(cleared, strategy.FLOOR_PRICE_Q96(), Q96);
-        uint256 fromRemaining = FullMath.mulDiv(AUCTION_ALLOCATION - cleared, priceQ96, Q96);
-        return fromCleared > fromRemaining ? fromCleared : fromRemaining;
     }
 
     function _sqrtPrice(uint256 priceQ96, bool regentIsCurrency0) internal pure returns (uint160) {

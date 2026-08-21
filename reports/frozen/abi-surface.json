@@ -1,0 +1,707 @@
+{
+  "purpose": "The frozen external surface of every Regent production contract, derived from the compiler artifacts. Selectors and event topics are keccak over the canonical signature, so a changed integer width, a renamed field, a reordered tuple, or a changed indexed flag all change the recorded line. test/abi/** reads this file as its authority and reconciles every line against compiler truth.",
+  "contracts": {
+    "RegentsAutolaunchFactoryV1": {
+      "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
+      "constructor": [
+        "address uerc20Factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_",
+        "bytes32 hookSalt"
+      ],
+      "functions": [
+        "0x00b5a6b6 ESCROW_IMPLEMENTATION_RUNTIME_CODE_HASH()",
+        "0x0b8c5565 uerc20Factory()",
+        "0x0c5387dd SUBJECT_DECIMALS()",
+        "0x3bc340c2 launchesPaused()",
+        "0x4861cf83 SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
+        "0x4e894821 UERC20_FACTORY_RUNTIME_CODE_HASH()",
+        "0x5313be2c setLaunchFee(uint256)",
+        "0x53e916eb DISTRIBUTION_PULL()",
+        "0x5af02677 unpauseLaunches()",
+        "0x680c60c7 MAX_NAME_BYTES()",
+        "0x737d618f RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
+        "0x783eed53 launch((string,string,string,string,string,address,address,uint128,uint256))",
+        "0x7b443a76 launches(uint256)",
+        "0x7f5a7c7b hook()",
+        "0x8096479a MAX_IMAGE_BYTES()",
+        "0x8a4940f2 MAX_SYMBOL_BYTES()",
+        "0x902d55a5 TOTAL_SUPPLY()",
+        "0x979bd9cc nextLaunchId()",
+        "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
+        "0xa80abe95 INITIAL_LAUNCH_FEE()",
+        "0xa8c62e76 strategy()",
+        "0xc81ea2a0 MAX_DESCRIPTION_BYTES()",
+        "0xca2afc6c launchIdOfSubject(address)",
+        "0xcf3cf573 launchFee()",
+        "0xe79b502e pauseLaunches()",
+        "0xebd6c243 PENDING_ALLOCATION()",
+        "0xf1bf1b45 MAX_WEBSITE_BYTES()"
+      ],
+      "mutating_functions": [
+        "0x5313be2c setLaunchFee(uint256)",
+        "0x5af02677 unpauseLaunches()",
+        "0x783eed53 launch((string,string,string,string,string,address,address,uint128,uint256))",
+        "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
+        "0xe79b502e pauseLaunches()"
+      ],
+      "view_functions": [
+        "0x00b5a6b6 ESCROW_IMPLEMENTATION_RUNTIME_CODE_HASH()",
+        "0x0b8c5565 uerc20Factory()",
+        "0x0c5387dd SUBJECT_DECIMALS()",
+        "0x3bc340c2 launchesPaused()",
+        "0x4861cf83 SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
+        "0x4e894821 UERC20_FACTORY_RUNTIME_CODE_HASH()",
+        "0x53e916eb DISTRIBUTION_PULL()",
+        "0x680c60c7 MAX_NAME_BYTES()",
+        "0x737d618f RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
+        "0x7b443a76 launches(uint256)",
+        "0x7f5a7c7b hook()",
+        "0x8096479a MAX_IMAGE_BYTES()",
+        "0x8a4940f2 MAX_SYMBOL_BYTES()",
+        "0x902d55a5 TOTAL_SUPPLY()",
+        "0x979bd9cc nextLaunchId()",
+        "0xa80abe95 INITIAL_LAUNCH_FEE()",
+        "0xa8c62e76 strategy()",
+        "0xc81ea2a0 MAX_DESCRIPTION_BYTES()",
+        "0xca2afc6c launchIdOfSubject(address)",
+        "0xcf3cf573 launchFee()",
+        "0xebd6c243 PENDING_ALLOCATION()",
+        "0xf1bf1b45 MAX_WEBSITE_BYTES()"
+      ],
+      "events": [
+        "0x07b3e48e8c6545581bdbef8629eb988aa7dcb66c8a7152384af19096cf2b4d1d LaunchesPaused() indexed=0",
+        "0x07ec20fda323d7aad667bc196c6195b67fa0027c76058fe6d9fb0ffa94f1719a LaunchesUnpaused() indexed=0",
+        "0x0fd958ac60db1437ae35514054402c4e597e81881e4b6dd47a6509bd89121428 LaunchFeeUpdated(uint256,uint256) indexed=0",
+        "0x2d6582e82dfaee6ad7ac4835d63119ce985332ceedd38d6187674eabc44fe857 PaymentReceiverCreated(uint256,address,address,address,uint16) indexed=3",
+        "0x9f3b0730114747603d4395bfe87ba93159db303d7898a3a197877eb01a64b9c6 LaunchFeeCollected(uint256,address,address,uint256) indexed=2",
+        "0xca3d1d4b2083435e11137aab340619d30df4b91203fffec8a2073a630d52e492 LaunchCreated(uint256,address,address,address,address,address,address,uint128,uint64,uint64) indexed=3"
+      ],
+      "errors": [
+        "0x0091520e LaunchesAlreadyPaused()",
+        "0x27348c79 LaunchFeeAllowanceNotConsumed(uint256)",
+        "0x2adf950a AllowanceNotConsumed(address,uint256)",
+        "0x2ee9da4b SubjectNotFullyDistributed(uint256)",
+        "0x3a1455a0 LaunchesArePaused()",
+        "0x3edfad0a SubjectHasNoCode(address)",
+        "0x4d1d1ebb LaunchFeeAllowanceMismatch(uint256,uint256)",
+        "0x623befa0 LaunchRecordMismatch(uint256,uint256,uint256)",
+        "0x68e283fe SubjectCreatorMismatch(address)",
+        "0x7eabb3b8 StaleLaunchFee(uint256,uint256)",
+        "0x9366facf InexactTransfer(uint256,uint256)",
+        "0x988d1f03 NotGovernance(address)",
+        "0x9a05a212 LaunchesNotPaused()",
+        "0xa35a872a LaunchNotGraduated(uint256)",
+        "0xa912dc0e EmptyMetadataField(uint256)",
+        "0xaa5d7f81 MetadataFieldTooLong(uint256,uint256,uint256)",
+        "0xb3fa4890 UnexpectedRuntimeCodeHash(address,bytes32,bytes32)",
+        "0xc66f6d36 SubjectGraffitiMismatch(bytes32)",
+        "0xde4ebb3a UnknownLaunch(uint256)"
+      ],
+      "input_structs": {
+        "launch_params": [
+          "string name",
+          "string symbol",
+          "string description",
+          "string website",
+          "string image",
+          "address treasury",
+          "address recoveryAdmin",
+          "uint128 requiredRegentRaised",
+          "uint256 expectedLaunchFee"
+        ]
+      }
+    },
+    "RegentLBPStrategy": {
+      "source": "src/strategy/RegentLBPStrategy.sol",
+      "constructor": [
+        "address factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_"
+      ],
+      "functions": [
+        "0x0e0651f3 escrowCloneCodehash()",
+        "0x10202c54 bindHook(address)",
+        "0x112e335c receiverImplementation()",
+        "0x14ec99b0 FLOOR_PRICE_Q96()",
+        "0x48bd92bb START_DELAY_BLOCKS()",
+        "0x4a9923ac CLAIM_DELAY_BLOCKS()",
+        "0x4ca8ff5a escrowImplementation()",
+        "0x53e916eb DISTRIBUTION_PULL()",
+        "0x56586874 AUCTION_DURATION_BLOCKS()",
+        "0x7381527f POOL_TICK_SPACING()",
+        "0x7b5c7f03 RESERVE_ALLOCATION()",
+        "0x7f5a7c7b hook()",
+        "0x80ff9c38 AUCTION_ALLOCATION()",
+        "0x8652edf9 poolKeyOf(address)",
+        "0x8b8e722e MAX_REACHABLE_RAISE()",
+        "0x8e9c3c87 initializeDistribution((uint256,address,address,uint128))",
+        "0xbad6a39e auctionOfSubject(address)",
+        "0xbfd822e1 MIGRATION_DELAY_BLOCKS()",
+        "0xc2db09c1 distribution(address)",
+        "0xc45a0155 factory()",
+        "0xce5494bb migrate(address)",
+        "0xdb46bf59 AUCTION_STEPS()",
+        "0xdd1b9c4a POOL_FEE()",
+        "0xe63db9b2 splitterImplementation()",
+        "0xebd6c243 PENDING_ALLOCATION()",
+        "0xf276cd78 BID_TICK_Q96()"
+      ],
+      "mutating_functions": [
+        "0x10202c54 bindHook(address)",
+        "0x8e9c3c87 initializeDistribution((uint256,address,address,uint128))",
+        "0xce5494bb migrate(address)"
+      ],
+      "view_functions": [
+        "0x0e0651f3 escrowCloneCodehash()",
+        "0x112e335c receiverImplementation()",
+        "0x14ec99b0 FLOOR_PRICE_Q96()",
+        "0x48bd92bb START_DELAY_BLOCKS()",
+        "0x4a9923ac CLAIM_DELAY_BLOCKS()",
+        "0x4ca8ff5a escrowImplementation()",
+        "0x53e916eb DISTRIBUTION_PULL()",
+        "0x56586874 AUCTION_DURATION_BLOCKS()",
+        "0x7381527f POOL_TICK_SPACING()",
+        "0x7b5c7f03 RESERVE_ALLOCATION()",
+        "0x7f5a7c7b hook()",
+        "0x80ff9c38 AUCTION_ALLOCATION()",
+        "0x8652edf9 poolKeyOf(address)",
+        "0x8b8e722e MAX_REACHABLE_RAISE()",
+        "0xbad6a39e auctionOfSubject(address)",
+        "0xbfd822e1 MIGRATION_DELAY_BLOCKS()",
+        "0xc2db09c1 distribution(address)",
+        "0xc45a0155 factory()",
+        "0xdb46bf59 AUCTION_STEPS()",
+        "0xdd1b9c4a POOL_FEE()",
+        "0xe63db9b2 splitterImplementation()",
+        "0xebd6c243 PENDING_ALLOCATION()",
+        "0xf276cd78 BID_TICK_Q96()"
+      ],
+      "events": [
+        "0x05bde07b44fed03322a53e3b8a39453530a1cefc5cb470dfe66355fbb27a8784 LaunchRetired(address,address,uint128) indexed=2",
+        "0x22a226df6ec984fbff8a5635682b83b8c0c5ef200e674e367f1f60220854426b LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128) indexed=3",
+        "0x3ffca04b410a3e894f1a96e386c5d29bfb1b8d48859f387f78e0297c9bb9fd5e HookBound(address) indexed=1",
+        "0x566466ea7ae73d52bd167b2206711db30050990222dc4524b58c437c86fb7b5f DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128) indexed=3"
+      ],
+      "errors": [
+        "0x0eb9d0e8 UnexpectedPositionMintCount(uint256,uint256)",
+        "0x1bd28bc7 CurrencyRaisedMismatch(uint256,uint256)",
+        "0x1bd658b6 ProtocolFeeControllerNotZero(address)",
+        "0x2007aa4c SelfAddress()",
+        "0x41637616 HookHasNoCode(address)",
+        "0x523b6596 EscrowNotPending()",
+        "0x536acae5 EscrowCustodyMismatch(uint256)",
+        "0x5f5131a3 HookBindingMismatch(address,address)",
+        "0x66738d29 UnknownAuction(address)",
+        "0x6727b942 SqrtPriceX96OutOfBounds(uint160,uint160,uint160)",
+        "0x87ebe85d PriceTooHigh(uint256,uint256)",
+        "0x8d7fc6f2 EscrowStrategyMismatch(address)",
+        "0x9366facf InexactTransfer(uint256,uint256)",
+        "0x962d77b1 UnreachableRequiredRaise(uint128)",
+        "0x98e8cdf6 HookNotBound()",
+        "0x9e172b1d ImplementationHasNoCode(address)",
+        "0xa6397a8c RecoveryAdminHasNoCode(address)",
+        "0xab143c06 Reentrancy()",
+        "0xb550282e NotFactory(address)",
+        "0xc6ab8458 MigrationNotYetAllowed(uint64,uint256)",
+        "0xd020a6e4 LaunchNotActive(uint8)",
+        "0xd0f2fc46 AuctionHasNoCode(address)",
+        "0xd173d09f PriceIsZero(uint256)",
+        "0xd82ffe86 SubjectAlreadyLaunched(address,address)",
+        "0xd92e233d ZeroAddress()",
+        "0xde2d0a30 NoFullRangePosition()",
+        "0xea279344 NotAuthenticEscrow(address)",
+        "0xf76d3855 HookAlreadyBound(address)",
+        "0xfd21a132 AuctionBindingMismatch(uint256,uint256,uint256)"
+      ],
+      "input_structs": {
+        "initializeDistribution_params": [
+          "uint256 launchId",
+          "address escrow",
+          "address recoveryAdmin",
+          "uint128 requiredRegentRaised"
+        ]
+      }
+    },
+    "RegentFeeHook": {
+      "source": "src/hook/RegentFeeHook.sol",
+      "constructor": [
+        "address manager_",
+        "address strategy_"
+      ],
+      "functions": [
+        "0x21d0ee70 beforeRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
+        "0x259982e5 beforeAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
+        "0x575e24b4 beforeSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),bytes)",
+        "0x6c2bbe7e afterRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)",
+        "0x6fe7e6eb afterInitialize(address,(address,address,uint24,int24,address),uint160,int24)",
+        "0x7381527f POOL_TICK_SPACING()",
+        "0x76b46955 LANE_DIVISOR()",
+        "0x9f063efc afterAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)",
+        "0xa8c62e76 strategy()",
+        "0xb47b2fb1 afterSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),int256,bytes)",
+        "0xb6a8b0fa beforeDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
+        "0xc4e833ce getHookPermissions()",
+        "0xdc4c90d3 poolManager()",
+        "0xdc98354e beforeInitialize(address,(address,address,uint24,int24,address),uint160)",
+        "0xdd1b9c4a POOL_FEE()",
+        "0xe1b4af69 afterDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
+        "0xe8323b0b splitterOf(bytes32)",
+        "0xfa02716d registerPool((address,address,uint24,int24,address),address)"
+      ],
+      "mutating_functions": [
+        "0x21d0ee70 beforeRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
+        "0x259982e5 beforeAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),bytes)",
+        "0x575e24b4 beforeSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),bytes)",
+        "0x6c2bbe7e afterRemoveLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)",
+        "0x6fe7e6eb afterInitialize(address,(address,address,uint24,int24,address),uint160,int24)",
+        "0x9f063efc afterAddLiquidity(address,(address,address,uint24,int24,address),(int24,int24,int256,bytes32),int256,int256,bytes)",
+        "0xb47b2fb1 afterSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),int256,bytes)",
+        "0xb6a8b0fa beforeDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
+        "0xdc98354e beforeInitialize(address,(address,address,uint24,int24,address),uint160)",
+        "0xe1b4af69 afterDonate(address,(address,address,uint24,int24,address),uint256,uint256,bytes)",
+        "0xfa02716d registerPool((address,address,uint24,int24,address),address)"
+      ],
+      "view_functions": [
+        "0x7381527f POOL_TICK_SPACING()",
+        "0x76b46955 LANE_DIVISOR()",
+        "0xa8c62e76 strategy()",
+        "0xc4e833ce getHookPermissions()",
+        "0xdc4c90d3 poolManager()",
+        "0xdd1b9c4a POOL_FEE()",
+        "0xe8323b0b splitterOf(bytes32)"
+      ],
+      "events": [
+        "0xed635d6e006eb21c9f43821f70b65b0394fb189e2641973011fc2dd0acb0ab0a SwapFeeSettled(bytes32,address,uint256,uint256,bool,bool) indexed=2",
+        "0xfafdbdd88ac30f0aa936e576be61816ea751908540523fa81b80c4a406ad7bec PoolRegistered(bytes32,address,address) indexed=3"
+      ],
+      "errors": [
+        "0x0a85dc29 HookNotImplemented()",
+        "0x1d192bc6 SplitterHasNoCode(address)",
+        "0x227bc32e SpecifiedAmountOutOfRange()",
+        "0x2607872a PoolAlreadyRegistered(bytes32)",
+        "0x2b64041d AttributableBalanceNotRestored(uint256,uint256)",
+        "0x3c4d173a NotStrategy(address)",
+        "0x3e87ea32 PoolNotRegistered(bytes32)",
+        "0x442aad05 ZeroStrategy()",
+        "0x61422af9 SelfStrategy()",
+        "0x8b680c50 RegentNotInPoolKey()",
+        "0x96ab7c97 NativeCurrency()",
+        "0x99003b54 UnexpectedTickSpacing(int24)",
+        "0x99f34df7 UnexpectedPoolFee(uint24)",
+        "0xa09f1ee2 CurrencyOrderInvalid(address,address)",
+        "0xae18210a NotPoolManager()",
+        "0xb4f9c3f9 SplitterBindingMismatch(address,address)",
+        "0xdfb996b3 ForeignHook(address)"
+      ],
+      "input_structs": {
+        "afterAddLiquidity_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "afterAddLiquidity_params": [
+          "int24 tickLower",
+          "int24 tickUpper",
+          "int256 liquidityDelta",
+          "bytes32 salt"
+        ],
+        "afterDonate_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "afterInitialize_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "afterRemoveLiquidity_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "afterRemoveLiquidity_params": [
+          "int24 tickLower",
+          "int24 tickUpper",
+          "int256 liquidityDelta",
+          "bytes32 salt"
+        ],
+        "afterSwap_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "afterSwap_params": [
+          "bool zeroForOne",
+          "int256 amountSpecified",
+          "uint160 sqrtPriceLimitX96"
+        ],
+        "beforeAddLiquidity_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "beforeAddLiquidity_params": [
+          "int24 tickLower",
+          "int24 tickUpper",
+          "int256 liquidityDelta",
+          "bytes32 salt"
+        ],
+        "beforeDonate_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "beforeInitialize_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "beforeRemoveLiquidity_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "beforeRemoveLiquidity_params": [
+          "int24 tickLower",
+          "int24 tickUpper",
+          "int256 liquidityDelta",
+          "bytes32 salt"
+        ],
+        "beforeSwap_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ],
+        "beforeSwap_params": [
+          "bool zeroForOne",
+          "int256 amountSpecified",
+          "uint160 sqrtPriceLimitX96"
+        ],
+        "registerPool_key": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ]
+      }
+    },
+    "ConditionalVestingEscrowV1": {
+      "source": "src/escrow/ConditionalVestingEscrowV1.sol",
+      "constructor": [],
+      "functions": [
+        "0x0a59a98c subject()",
+        "0x23532ea2 retireLateFailedSubject()",
+        "0x254800d4 vestingStart()",
+        "0x4cfc4d30 VESTING_DURATION()",
+        "0x582753c3 graduatedSweepDone()",
+        "0x61d027b3 treasury()",
+        "0x702ba684 resolveFailure(address)",
+        "0x785da212 activateVesting()",
+        "0x86d1a69f release()",
+        "0x902d55a5 TOTAL_SUPPLY()",
+        "0xa8c62e76 strategy()",
+        "0xac0cc868 lifecycle()",
+        "0xc0c53b8b initialize(address,address,address)",
+        "0xe18a698d sweepGraduatedUnsoldSubject(address)",
+        "0xe33b7de3 totalReleased()",
+        "0xebd6c243 PENDING_ALLOCATION()"
+      ],
+      "mutating_functions": [
+        "0x23532ea2 retireLateFailedSubject()",
+        "0x702ba684 resolveFailure(address)",
+        "0x785da212 activateVesting()",
+        "0x86d1a69f release()",
+        "0xc0c53b8b initialize(address,address,address)",
+        "0xe18a698d sweepGraduatedUnsoldSubject(address)"
+      ],
+      "view_functions": [
+        "0x0a59a98c subject()",
+        "0x254800d4 vestingStart()",
+        "0x4cfc4d30 VESTING_DURATION()",
+        "0x582753c3 graduatedSweepDone()",
+        "0x61d027b3 treasury()",
+        "0x902d55a5 TOTAL_SUPPLY()",
+        "0xa8c62e76 strategy()",
+        "0xac0cc868 lifecycle()",
+        "0xe33b7de3 totalReleased()",
+        "0xebd6c243 PENDING_ALLOCATION()"
+      ],
+      "events": [
+        "0x4d724434bf523a5b29b783ef04e3873eab2e28652871252a85dd37a4bd99377c LateFailedSubjectRetired(uint256) indexed=0",
+        "0x5c77c72f29f8831b2cd1973b76f59b1c26b61b2e43d8d0709ec5f3294eb39488 SubjectReleased(address,uint256) indexed=1",
+        "0x6d2f60e33f534e39a1d7aaf8a6fab4a427d8ed00cbd9aac1870e7603bbf92309 GraduatedUnsoldSubjectSwept(address,uint256) indexed=1",
+        "0x9e5dd017c374ba64d59c30c6e3f9f7595431c4bf98652973751a5bf816172e5b LaunchFailed(address,uint256) indexed=1",
+        "0xb5d2f2423e74edc36de649110f3706618f1c79ea8d887af83723b6651382b5bd VestingActivated(uint64,uint256) indexed=0",
+        "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2 Initialized(uint64) indexed=0",
+        "0xff82f21c110f9610c560ba4b8bc0cd7cc53041be4e3a75a580dbbc2911f1bce3 EscrowInitialized(address,address,address) indexed=3"
+      ],
+      "errors": [
+        "0x0411081b NotPending(uint8)",
+        "0x2007aa4c SelfAddress()",
+        "0x3c4d173a NotStrategy(address)",
+        "0x4027f648 AuctionRecipientMismatch(address)",
+        "0x551a994f InvalidSubjectSupply(uint256)",
+        "0x63149b70 NotFailed(uint8)",
+        "0x70c106f4 GraduatedSweepAlreadyDone()",
+        "0x73cda28d AuctionIsNotGraduated()",
+        "0x9366facf InexactTransfer(uint256,uint256)",
+        "0xa86f3e3f NotGraduated(uint8)",
+        "0xab143c06 Reentrancy()",
+        "0xb9135803 InexactFinalInventory(uint256)",
+        "0xc4d6f54f GraduatedSweepNotDone()",
+        "0xd7e6bcf8 NotInitializing()",
+        "0xd92e233d ZeroAddress()",
+        "0xe78b3359 AuctionTokenMismatch(address)",
+        "0xf54b58b1 AuctionIsGraduated()",
+        "0xf92ee8a9 InvalidInitialization()"
+      ],
+      "input_structs": {}
+    },
+    "SubjectSplitterV1": {
+      "source": "src/revenue/SubjectSplitterV1.sol",
+      "constructor": [],
+      "functions": [
+        "0x0112d431 recoverUnsupportedToken(address,uint256)",
+        "0x0a59a98c subject()",
+        "0x0c46395a recognizeSurplusRevenue(address,bytes32)",
+        "0x1c4aa285 SKIM_BPS()",
+        "0x1c92efb6 claimableDust(address,address)",
+        "0x1e83409a claim(address)",
+        "0x2e17de78 unstake(uint256)",
+        "0x2f4207ea unclaimedLiability(address)",
+        "0x35876476 initialize(address,address,address,address,address,address,address)",
+        "0x35cd696e regent()",
+        "0x3dc1a23b protectedBalance(address)",
+        "0x3e413bee usdc()",
+        "0x515ef0c9 depositRecognizedRevenue(address,uint256,bytes32)",
+        "0x5dcea4d4 accRewardPerShare(address)",
+        "0x5f6529a3 recoveryAdmin()",
+        "0x61d027b3 treasury()",
+        "0x7bea49c4 liveStaking()",
+        "0x817b1cd2 totalStaked()",
+        "0x8b11628d carriedRemainder(address)",
+        "0xa694fc3a stake(uint256)",
+        "0xaf500ba3 stakedOf(address)",
+        "0xc39058c4 regentSafe()",
+        "0xcfbe2877 recoverForcedETH(uint256)",
+        "0xd1058e59 claimAll()",
+        "0xd4570c1c claimable(address,address)",
+        "0xe1a45218 BPS_DENOMINATOR()",
+        "0xeced5526 SCALE()"
+      ],
+      "mutating_functions": [
+        "0x0112d431 recoverUnsupportedToken(address,uint256)",
+        "0x0c46395a recognizeSurplusRevenue(address,bytes32)",
+        "0x1e83409a claim(address)",
+        "0x2e17de78 unstake(uint256)",
+        "0x35876476 initialize(address,address,address,address,address,address,address)",
+        "0x515ef0c9 depositRecognizedRevenue(address,uint256,bytes32)",
+        "0xa694fc3a stake(uint256)",
+        "0xcfbe2877 recoverForcedETH(uint256)",
+        "0xd1058e59 claimAll()"
+      ],
+      "view_functions": [
+        "0x0a59a98c subject()",
+        "0x1c4aa285 SKIM_BPS()",
+        "0x1c92efb6 claimableDust(address,address)",
+        "0x2f4207ea unclaimedLiability(address)",
+        "0x35cd696e regent()",
+        "0x3dc1a23b protectedBalance(address)",
+        "0x3e413bee usdc()",
+        "0x5dcea4d4 accRewardPerShare(address)",
+        "0x5f6529a3 recoveryAdmin()",
+        "0x61d027b3 treasury()",
+        "0x7bea49c4 liveStaking()",
+        "0x817b1cd2 totalStaked()",
+        "0x8b11628d carriedRemainder(address)",
+        "0xaf500ba3 stakedOf(address)",
+        "0xc39058c4 regentSafe()",
+        "0xd4570c1c claimable(address,address)",
+        "0xe1a45218 BPS_DENOMINATOR()",
+        "0xeced5526 SCALE()"
+      ],
+      "events": [
+        "0x0bec8af1e4aaf435321e7041133dfbf5f5b6742217ae28770c66657df0da5453 UnsupportedTokenRecovered(address,address,uint256) indexed=2",
+        "0x0f5bb82176feb1b5e747e28471aa92156a04d9f3ab9f45f28e2d704232b93f75 Unstaked(address,uint256) indexed=1",
+        "0x2df2f9e72ef5347bca3f8ecb2a78285808c96ea4412f65db85d090765480c96b RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,bool) indexed=3",
+        "0x9e71bc8eea02a63969f509818f2dafb9254532904319f9dbda79b67bd34a5f3d Staked(address,uint256) indexed=1",
+        "0xa4fd34581d49ec5ce6fc532ecde6f4aac2520a513d654e1468e6a8e2e5410826 ForcedEthRecovered(address,uint256) indexed=1",
+        "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2 Initialized(uint64) indexed=0",
+        "0xf7a40077ff7a04c7e61f6f26fb13774259ddf1b6bce9ecf26a8276cdd3992683 Claimed(address,address,uint256) indexed=2",
+        "0xf8dee9e13cd7985023b608a594d1dded7026dbee2410e00a6ffff7782f4eabf2 SplitterInitialized(address,address,address,address,address,address,address) indexed=3"
+      ],
+      "errors": [
+        "0x0283e222 DuplicateTokenBinding()",
+        "0x1f2a2005 ZeroAmount()",
+        "0x2007aa4c SelfAddress()",
+        "0x33c9778b StakingAllowanceNotCleared(uint256)",
+        "0x45be0a26 InsufficientStake(uint256,uint256)",
+        "0x4f986444 RecoveryAdminHasNoCode()",
+        "0x8657cb48 ProtectedToken(address)",
+        "0x9366facf InexactTransfer(uint256,uint256)",
+        "0x97e9d21c NotRecoveryAdmin(address)",
+        "0xab143c06 Reentrancy()",
+        "0xbf16aab6 UnsupportedToken(address)",
+        "0xd7e6bcf8 NotInitializing()",
+        "0xd92e233d ZeroAddress()",
+        "0xf365fcf8 StakingDepositMismatch(uint256,uint256)",
+        "0xf92ee8a9 InvalidInitialization()"
+      ],
+      "input_structs": {}
+    },
+    "PaymentReceiverV1": {
+      "source": "src/revenue/PaymentReceiverV1.sol",
+      "constructor": [],
+      "functions": [
+        "0x0112d431 recoverUnsupportedToken(address,uint256)",
+        "0x0a59a98c subject()",
+        "0x1759be85 initialize(address,address,uint16,address,bool)",
+        "0x1fbb6ff0 referralBps()",
+        "0x35cd696e regent()",
+        "0x38af3eed beneficiary()",
+        "0x3cd8045e splitter()",
+        "0x3e413bee usdc()",
+        "0x5e5571ac pay(address,uint256,bytes32)",
+        "0x5f6529a3 recoveryAdmin()",
+        "0x61d027b3 treasury()",
+        "0x62959a6e MAX_REFERRAL_BPS()",
+        "0x8a738683 sweep(address,bytes32)",
+        "0xb1379b2f setReceiverNote(bytes32)",
+        "0xb73598e7 noteEditor()",
+        "0xcfbe2877 recoverForcedETH(uint256)",
+        "0xe1a45218 BPS_DENOMINATOR()",
+        "0xe5738587 receiverNote()"
+      ],
+      "mutating_functions": [
+        "0x0112d431 recoverUnsupportedToken(address,uint256)",
+        "0x1759be85 initialize(address,address,uint16,address,bool)",
+        "0x5e5571ac pay(address,uint256,bytes32)",
+        "0x8a738683 sweep(address,bytes32)",
+        "0xb1379b2f setReceiverNote(bytes32)",
+        "0xcfbe2877 recoverForcedETH(uint256)"
+      ],
+      "view_functions": [
+        "0x0a59a98c subject()",
+        "0x1fbb6ff0 referralBps()",
+        "0x35cd696e regent()",
+        "0x38af3eed beneficiary()",
+        "0x3cd8045e splitter()",
+        "0x3e413bee usdc()",
+        "0x5f6529a3 recoveryAdmin()",
+        "0x61d027b3 treasury()",
+        "0x62959a6e MAX_REFERRAL_BPS()",
+        "0xb73598e7 noteEditor()",
+        "0xe1a45218 BPS_DENOMINATOR()",
+        "0xe5738587 receiverNote()"
+      ],
+      "events": [
+        "0x0bec8af1e4aaf435321e7041133dfbf5f5b6742217ae28770c66657df0da5453 UnsupportedTokenRecovered(address,address,uint256) indexed=2",
+        "0x5f0ce8735b079c7c808fbe22a1dfe2481245f57da458da9cba18c7fd52f612e8 PaymentRouted(bytes32,bytes32,address,uint256,uint256,uint256) indexed=3",
+        "0x798fd5863d0314c66ec272435fb65ccddd4ac83274382b1c6963a65cb5e4ab9e ReceiverNoteUpdated(bytes32,bytes32) indexed=0",
+        "0xa4fd34581d49ec5ce6fc532ecde6f4aac2520a513d654e1468e6a8e2e5410826 ForcedEthRecovered(address,uint256) indexed=1",
+        "0xbc65543ce93786ff4cc8707677a1c51d152970c5f29ee3330c8670dfe4550600 ReceiverInitialized(address,address,uint16,address) indexed=3",
+        "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2 Initialized(uint64) indexed=0"
+      ],
+      "errors": [
+        "0x1f2a2005 ZeroAmount()",
+        "0x2007aa4c SelfAddress()",
+        "0x569674bb CanonicalRequiresTreasuryNoteEditor(address)",
+        "0x5879de52 ReferralTooHigh(uint16)",
+        "0x6e0f0d63 CanonicalRequiresZeroReferral(uint16)",
+        "0x8657cb48 ProtectedToken(address)",
+        "0x9366facf InexactTransfer(uint256,uint256)",
+        "0x97e9d21c NotRecoveryAdmin(address)",
+        "0xab143c06 Reentrancy()",
+        "0xae7419cc CanonicalRequiresTreasuryBeneficiary(address)",
+        "0xb56d04e7 NotNoteEditor(address)",
+        "0xbf16aab6 UnsupportedToken(address)",
+        "0xd7e6bcf8 NotInitializing()",
+        "0xd92e233d ZeroAddress()",
+        "0xf92ee8a9 InvalidInitialization()"
+      ],
+      "input_structs": {}
+    }
+  },
+  "consumed": {
+    "ContinuousClearingAuction": {
+      "repository": "https://github.com/Uniswap/continuous-clearing-auction",
+      "functions": [
+        "0x083c6323 endBlock()",
+        "0x18160ddd totalSupply()",
+        "0x32a0f2d7 clearingPrice()",
+        "0x331f2f65 onTokensReceived()",
+        "0x36dec5f2 exitPartiallyFilledBid(uint256,uint64,uint64)",
+        "0x37dfbc4b claimBlock()",
+        "0x3b6fd2cf fundsRecipient()",
+        "0x46e04a2f claimTokens(uint256)",
+        "0x48cd4cb1 startBlock()",
+        "0x5dd13ca7 sweepUnsoldTokens()",
+        "0x7c121574 sweepCurrency()",
+        "0x8134f027 validationHook()",
+        "0x8e4deb17 exitBid(uint256)",
+        "0x9363c812 floorPrice()",
+        "0x998ba4fc currencyRaised()",
+        "0x9e5f2602 isGraduated()",
+        "0xa52c8728 submitBid(uint256,uint128,address,uint256,bytes)",
+        "0xc2c4c5c1 checkpoint()",
+        "0xd0c93a7c tickSpacing()",
+        "0xda0239a6 remainingSupply()",
+        "0xe1d97d1f lbpInitializationParams()",
+        "0xe5a6b10f currency()",
+        "0xfc0c546a token()",
+        "0xfd637557 tokensRecipient()"
+      ],
+      "events": [
+        "0x053dfa7183794b221b03c5109dfb5a07b67d719cb3e98262d48bc66b2a132ad3 CurrencySwept(address,uint256)",
+        "0x054fe6469466a0b4d2a6ae4b100e5f9c494c958f04b4000f44d470088dd97930 BidExited(uint256,address,uint256,uint256)",
+        "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540 BidSubmitted(uint256,address,uint256,uint128)",
+        "0x880f2ef2613b092f1a0a819f294155c98667eb294b7e6bf7a3810278142c1a1c TokensClaimed(uint256,address,uint256)",
+        "0xdd9a81eb1b5197489c3ccfdab7b542e2e6dbdcf4120324e2688fab56fd23f98b TokensSwept(address,uint256)"
+      ]
+    },
+    "ContinuousClearingAuctionFactory": {
+      "repository": "https://github.com/Uniswap/continuous-clearing-auction",
+      "functions": [
+        "0x4aaa5b37 create(address,uint256,bytes,bytes32)",
+        "0xf02de3b2 protocolFeeController()"
+      ],
+      "events": [
+        "0x7ede475fad18ccf0039f2b956c4d43a8b4ed0853de4daaa8ae25299f331ae3b9 AuctionCreated(address,address,uint256,bytes)"
+      ]
+    },
+    "IAllowanceTransfer": {
+      "repository": "https://github.com/Uniswap/permit2",
+      "functions": [
+        "0x2b67b570 permit(address,((address,uint160,uint48,uint48),address,uint256),bytes)",
+        "0x87517c45 approve(address,address,uint160,uint48)",
+        "0x927da105 allowance(address,address,address)"
+      ],
+      "events": []
+    }
+  }
+}

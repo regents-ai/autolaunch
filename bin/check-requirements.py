@@ -22,6 +22,10 @@ Subcommands, in the order the gate runs them:
              pinned binary's whole registered detector portfolio, fresh and well-formed
              evidence, one visible disposition per exact result fingerprint at every
              severity, and a complete record for every inline suppression.
+  secrets    Prove no provider endpoint or credential reached this run's evidence: the
+             configured RPC alias must still be an unresolved environment reference in the
+             *effective* configuration, no credential field may carry a value, and no scanned
+             artifact may name a host outside the documentation and provenance allowlist.
 
 Counts printed here are informational gate output, never acceptance literals.
 """
@@ -1177,6 +1181,79 @@ def security(args: argparse.Namespace) -> int:
 
 
 # =============================================================================
+# provider-secret scan
+# =============================================================================
+
+# The one RPC alias this repository configures, and the exact unresolved form it must keep in
+# every artifact. `forge config --json` reports the configured value verbatim, so a resolved
+# endpoint — or an endpoint written in by hand — shows up here rather than in a commit.
+RPC_ALIAS = "base"
+RPC_PLACEHOLDER = "${REGENT_BASE_RPC_URL}"
+
+# The only hosts an artifact may name. All three are documentation or provenance, never an
+# endpoint: an RPC provider's host is by definition absent from this list and fails the scan.
+ALLOWED_URL_HOSTS = frozenset({
+    "github.com",
+    "raw.githubusercontent.com",
+    "book.getfoundry.sh",
+    "docs.soliditylang.org",
+})
+
+URL_RE = re.compile(r"(?:https?|wss?)://([^\s\"'\\,)\]}/]+)")
+
+# Provider hosts and key shapes, kept as defence in depth behind the host allowlist above.
+KEY_SHAPE_RE = re.compile(r"(?i)(alchemy|infura|quiknode|quicknode|drpc\.org|ankr\.com|blastapi|x-api-key)")
+
+# Configuration fields that would carry a provider or explorer credential. Each must be empty.
+CREDENTIAL_FIELD_RE = re.compile(r"(?i)(api_?key|secret|password|token)$")
+
+
+def secrets(args: argparse.Namespace) -> int:
+    problems = Problems()
+
+    config = load_json(Path(args.forge_config))
+    endpoints = config.get("rpc_endpoints") or {}
+    if RPC_ALIAS not in endpoints:
+        problems.add(f"the effective configuration declares no '{RPC_ALIAS}' RPC alias")
+    else:
+        problems.expect(
+            f"effective '{RPC_ALIAS}' RPC alias", RPC_PLACEHOLDER, endpoints[RPC_ALIAS]
+        )
+    for alias, value in sorted(endpoints.items()):
+        if alias != RPC_ALIAS:
+            problems.add(f"the effective configuration declares an unexpected RPC alias '{alias}'")
+        if not str(value).startswith("${"):
+            problems.add(f"RPC alias '{alias}' is resolved in the effective configuration")
+
+    # No credential field anywhere in the effective configuration may carry a value.
+    for field, value in sorted(config.items()):
+        if CREDENTIAL_FIELD_RE.search(field) and value not in (None, "", {}, []):
+            problems.add(f"the effective configuration carries a value in the credential field '{field}'")
+
+    scanned = 0
+    for root in args.scan:
+        base = Path(root)
+        if not base.exists():
+            problems.add(f"secret-scan target {root} does not exist")
+            continue
+        for path in sorted(base.rglob("*")) if base.is_dir() else [base]:
+            if not path.is_file():
+                continue
+            scanned += 1
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for host in set(URL_RE.findall(text)):
+                if host.lower() not in ALLOWED_URL_HOSTS:
+                    problems.add(f"{path} names the network host {host}")
+            for match in set(KEY_SHAPE_RE.findall(text)):
+                problems.add(f"{path} carries provider key material shaped like [{match}]")
+
+    print(f"secret-scanned files: {scanned}")
+    print(f"RPC aliases declared: {', '.join(sorted(endpoints)) or '(none)'}")
+    print(f"configured '{RPC_ALIAS}' alias stays unresolved as {RPC_PLACEHOLDER}")
+    return problems.report("secrets")
+
+
+# =============================================================================
 
 
 def main() -> int:
@@ -1222,6 +1299,11 @@ def main() -> int:
     stage.add_argument("--analyzed-sources", nargs="+", required=True)
     stage.add_argument("--suppression-sources", nargs="+", required=True)
     stage.set_defaults(run=security)
+
+    stage = sub.add_parser("secrets")
+    stage.add_argument("--forge-config", required=True)
+    stage.add_argument("--scan", nargs="+", required=True)
+    stage.set_defaults(run=secrets)
 
     args = parser.parse_args()
     return args.run(args)

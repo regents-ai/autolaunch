@@ -7,7 +7,7 @@ pragma solidity 0.8.26;
 ///      It asserts nothing about external runtime truth. Deployed code, code hash,
 ///      proxy shape, getter results, the zero CCA protocol fee controller, and the
 ///      live chain id stay bound to the separately authorized fork gate
-///      (`DEP-040` through `DEP-050`).
+///      (`DEP-040` through `DEP-051`).
 ///
 ///      Each constant name is the mechanical CONSTANT_CASE form of its `SPEC.md`
 ///      binding-table label, so `bin/gate.sh` can match bindings by name and not

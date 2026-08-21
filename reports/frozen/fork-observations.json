@@ -1,0 +1,107 @@
+{
+  "purpose": "The committed record of every Base runtime fact the fork claims check against. It is written once by an authorized discovery pass, reviewed, and committed; the final fork gate is check-only and never writes into it. A gate that observed a value and then compared it to itself would prove nothing, which is why this file exists as a separate, reviewed input.",
+  "status": "discovery_pending",
+  "status_meaning": {
+    "discovery_pending": "No authorized read-only Base provider has been available, so nothing has been observed. test-fork/ForkFixture.sol refuses to run a check pass while this file is in this state, and requirements/ledger.toml keeps every fork claim pending.",
+    "observed_and_committed": "An authorized discovery pass recorded the values below, they were reviewed, and the final fork gate may check against them."
+  },
+  "authority": "SPEC.md section 3 binding table; contracts/autolaunch-release-manifest.json records the same bindings with their runtime facts still null and fork_pending.",
+  "endpoint": "reached only through the configured `base` alias; no endpoint is ever recorded here",
+  "headers": {
+    "pinned": {
+      "block_number": null,
+      "block_hash": null,
+      "timestamp": null,
+      "base_fee_per_gas": null,
+      "note": "the pinned Base header this candidate's fork evidence was taken at"
+    },
+    "later": {
+      "block_number": null,
+      "block_hash": null,
+      "timestamp": null,
+      "base_fee_per_gas": null,
+      "note": "a later Base head captured for this same candidate; regent-4wx owns the ceremony-time fresh-head recheck"
+    }
+  },
+  "transaction_gas_schedule": {
+    "intrinsic_gas": null,
+    "calldata_zero_byte_gas": null,
+    "calldata_nonzero_byte_gas": null,
+    "floor_per_calldata_token": null,
+    "note": "the Base transaction gas rules active at each header, including any intrinsic calldata floor introduced after this repository's Cancun compile target; GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a naive sum"
+  },
+  "bindings": {
+    "regent": {
+      "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+      "runtime_code_hash": null,
+      "runtime_bytes": null,
+      "proxy_family": null,
+      "implementation": null,
+      "decimals": null,
+      "symbol": null
+    },
+    "usdc": {
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "runtime_code_hash": null,
+      "runtime_bytes": null,
+      "proxy_family": null,
+      "implementation": null,
+      "decimals": null,
+      "symbol": null
+    },
+    "cca_factory": {
+      "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+      "runtime_code_hash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa",
+      "runtime_code_hash_source": "SPEC.md section 3; this is the frozen admission expectation, not an observation",
+      "runtime_bytes": null,
+      "proxy_family": null,
+      "implementation": null,
+      "protocol_fee_controller": null
+    },
+    "pool_manager": {
+      "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+      "runtime_code_hash": null,
+      "runtime_bytes": null,
+      "proxy_family": null,
+      "implementation": null
+    },
+    "position_manager": {
+      "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+      "runtime_code_hash": null,
+      "runtime_bytes": null,
+      "proxy_family": null,
+      "implementation": null,
+      "next_token_id": null
+    },
+    "live_staking": {
+      "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+      "runtime_code_hash": null,
+      "runtime_bytes": null,
+      "proxy_family": null,
+      "implementation": null,
+      "owner": null,
+      "paused": null
+    },
+    "governance_and_regent_safe": {
+      "address": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "runtime_code_hash": null,
+      "runtime_bytes": null,
+      "proxy_family": null,
+      "implementation": null
+    },
+    "dead_address": {
+      "address": "0x000000000000000000000000000000000000dEaD",
+      "runtime_code_hash": null,
+      "runtime_bytes": 0,
+      "runtime_bytes_source": "the dead address must carry no code at all; that is the claim, not an observation",
+      "proxy_family": "none",
+      "implementation": null
+    }
+  },
+  "permit2": {
+    "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "runtime_code_hash": null,
+    "runtime_bytes": null,
+    "note": "the canonical Permit2 deployment every bidder allowance goes through; its ABI is frozen from the pinned IAllowanceTransfer interface, its deployed runtime is a fork observation"
+  }
+}

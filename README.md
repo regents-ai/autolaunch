@@ -13,8 +13,9 @@ repository.
 ## The required gate
 
 `bin/gate.sh` is the sole required check. It is offline: it downloads nothing, consults no
-package registry, and never fetches from a remote. It runs the external tools and hands
-every structured comparison to `bin/check-requirements.py`, in this order:
+package registry, and never fetches from a remote. It proves the `hermetic` and `invariant`
+gates, and only those. It runs the external tools and hands every structured comparison to
+`bin/check-requirements.py` and `bin/freeze-artifacts.py`, in this order:
 
 1. **Tool identity.** Foundry, Slither, and the ledger-check interpreter must match the
    frozen identities in `requirements/frozen-identity.json`.
@@ -46,18 +47,30 @@ every structured comparison to `bin/check-requirements.py`, in this order:
    exist in the ledger.
 7. `forge fmt --check`, then `forge build --sizes`, then the compiler, optimizer, via-IR,
    EVM version, and metadata settings actually recorded in every produced artifact.
-8. **Tests.** `forge test --list --json` is the authority for which test identities exist;
+8. **Frozen release surface.** `bin/freeze-artifacts.py check` regenerates every committed file
+   under `abi/`, `reports/frozen/abi-surface.json`, `reports/frozen/deployable-sizes.json`, and
+   `contracts/autolaunch-release-manifest.json` from those artifacts and compares them byte for
+   byte, so a hand-edited ABI or a stale manifest cannot pass. It then compares every `src/**`
+   compiled runtime and creation byte string against the independently captured pre-edit C4
+   baseline in `reports/frozen/c4-runtime-baseline.json`. It writes `DEP-016`'s verified receipt,
+   so deleting this step fails the ledger rather than silently stopping the check.
+9. **Tests.** `forge test --list --json` is the authority for which test identities exist;
    `forge test --json` is what ran. The two are compared as multisets, so an overloaded,
    inherited, or duplicated identity cannot collapse into one entry. Every due selector must
    be globally unique, must execute exactly once, and must pass; zero failures, zero skips.
-9. **Ledger.** Every due claim maps to an executed selector, every gate-dependency claim
-   additionally requires the gate's own verified receipt, and no test may claim an ID that
-   is not due under the gates this entrypoint runs.
-10. `slither . --fail-medium`, then a reconciliation of its evidence. The configuration and
+10. **Ledger.** Every due claim maps to an executed selector, every gate-dependency claim
+    additionally requires the gate's own verified receipt, and no test may claim an ID that
+    is not due under the gates this entrypoint runs.
+11. `slither . --fail-medium`, then a reconciliation of its evidence. The configuration and
     the exact argv are both pinned to one allowed shape, the run must carry the pinned
     binary's whole registered detector portfolio, and every finding needs its own visible
     disposition row matched by detector, impact, confidence, and source mapping: see
     [docs/security/slither-dispositions.md](docs/security/slither-dispositions.md).
+12. **Provider-secret scan.** The configured `base` RPC alias must still be the unresolved
+    `${REGENT_BASE_RPC_URL}` in the *effective* configuration, no credential field may carry a
+    value, and no regenerated or committed artifact may name a host outside a documentation and
+    provenance allowlist. The required gate never reads the alias; it only proves it stayed
+    unresolved.
 
 Anything missing, drifted, or unproven fails closed. A gate failure is a stop-report: never
 relax a pinned identity, threshold, or configuration value to make it pass.
@@ -118,10 +131,16 @@ bin/gate.sh
 | `requirements/ledger.toml` | every frozen normative claim, its owning ticket, evidence class, gate, status, and planned selectors |
 | `requirements/frozen-identity.json` | the frozen dependency closure, toolchain, build, authority, binding, and test-portfolio identity the gate reconciles |
 | `contracts/chain-contracts.yaml` | the Base binding manifest and the CCA admission entry |
+| `contracts/autolaunch-release-manifest.json` | the generated release manifest: surface allowlist, code identity, clone derivation, and deployment-pending discipline |
+| `abi/` | the generated canonical ABI, one committed file per production contract |
 | `src/bindings/` | the compiled copies of the frozen bindings and identity — constants only, no behavior |
 | `test/bindings/` | the proofs that those compiled copies equal the independently verified frozen identity |
+| `test/abi/`, `test/gas/`, `test/invariant/` | the frozen-surface, deployable-size, hook-cost, and stateful accounting proofs |
+| `test-fork/` | the read-only Base fork harness; outside the offline test root, so it can never execute against a hermetic or invariant claim |
 | `docs/security/` | threat model and Slither dispositions |
-| `reports/generated/` | regenerated gate evidence; never committed before the C5 freeze |
+| `docs/audit/` | the founder audit packet: posture, claim corrections, fork authority and staged-state inventory, gas and size |
+| `reports/generated/` | scratch gate evidence. `bin/gate.sh` deletes and rewrites it on every run and `.gitignore` keeps it out of the tree. Never committed, never an authority. |
+| `reports/frozen/` | committed authority. Generated by `bin/freeze-artifacts.py` and re-checked byte for byte on every run, except the pre-edit C4 runtime baseline and the fork observation record, which are captured once by a reviewed pass and thereafter only read. |
 
 ## Requirement ledger
 
@@ -151,3 +170,16 @@ than external chain truth.
 
 C0 activates only its own dependency, binding, chain, and ABI-provenance claims. C1 through
 C5 add their contracts and activate their own.
+
+## The separately authorized fork gate
+
+`bin/fork-gate.sh` is not part of the required check and never runs inside it. It proves the `fork`
+gate alone, under the founder's separate read-only Base authority, against a committed observation
+record that a reviewed discovery pass produced. Its evidence is two-phase on purpose: a gate that
+observed a value and then compared it to itself would prove nothing.
+
+A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
+gate's committed evidence. `fork` is therefore absent today: no read-only provider has been
+available, `reports/frozen/fork-observations.json` is still `discovery_pending`, and all sixteen fork
+claims report `pending`. Their thirty-two selectors live outside the offline test root, so they
+cannot execute against — or close — anything.

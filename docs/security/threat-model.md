@@ -130,6 +130,7 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | --- | --- | --- |
 | Dependency substitution | build against a moving branch, a look-alike commit, a copied `lib/` tree without git metadata, or a closure missing a nested dependency | `DEP-001`–`DEP-008` |
 | Compiler or setting drift | different solc, optimizer runs, re-enabled metadata, or an environment override of the fuzz portfolio | `DEP-009`, `DEP-010`, `DEP-014`, `DEP-015` |
+| Frozen surface drift | a hand-edited ABI, a stale release manifest, or a recompiled runtime that no longer matches the reviewed bytes | `DEP-016` |
 | Authority forgery in the frozen literals | edited address, code hash, chain, or selector in a manifest, fixture, or binding source; a binding renamed onto another binding's value | `DEP-011`, `DEP-012`, `DEP-029` |
 | Interface-derived ABI | a selector taken from a vendored interface that omits or misstates the implementation | `DEP-013`, `ABI-001` |
 | Deployed-code substitution | an external binding whose deployed runtime, code hash, or implementation behind a proxy differs from what the frozen manifest records | `DEP-040`, `DEP-043`, `DEP-051` |
@@ -174,6 +175,7 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Recovery abuse | recovering a core token, staked principal, an unclaimed claim, or the carried remainder; recovering to a caller-chosen destination; sending ordinary ETH to create recoverable balance | `RCV-008`, `RCV-009`, `RCV-010`, `SPL-017`, `SPL-018`, `SPL-019` |
 | Malicious token | a token that reverts, lies about transfers, or breaks solvency accounting | `SPL-012`, `RCV-011`, `RCV-012` |
 | Gas exhaustion | a terminal transaction that cannot fit in a Base block, or a gas figure measured without the intrinsic and calldata cost | `GAS-003`, `GAS-004`, `GAS-005`, `GAS-006` |
+| Hook callback cost | a swap made uneconomic, or reverted outright, by a fee callback that costs more than the pinned v4 guidance allows | `GAS-007` |
 | Obsolete surface survival | a Safe, ERC-8004, registry, flush, or retry interface left in the frozen ABI | `ABI-009` |
 | Evidence laundering | a mock closing a deployed-runtime, proxy, getter, cold-state, intrinsic, calldata, or complete-transaction gas claim; a placeholder test closing a future claim; a product claim borrowing the gate-dependency evidence class; an overloaded or duplicated test identity collapsing two claims into one | ledger evidence classes, gate-aware activation, and compiled-listing multiset reconciliation, all enforced by `bin/check-requirements.py` |
 | Build laundering | editing `foundry.toml` and the frozen fixture together so the two repository copies agree on a setting the specification never granted | the gate parses the governing `SPEC.md` build line and compares it against both copies and against the produced artifacts (`DEP-009`) |

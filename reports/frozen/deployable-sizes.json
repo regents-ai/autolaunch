@@ -1,0 +1,93 @@
+{
+  "purpose": "Deployable byte margins for GAS-001 and GAS-002. Runtime and creation lengths come from the compiler artifacts; the constructor-argument length is the exact ABI head the deployment packet will append, which the compiler's size report excludes. A clone's own deployment initcode is Solady's and is measured directly by GAS-002.",
+  "limits": {
+    "eip170_runtime_bytes": 24576,
+    "eip3860_initcode_bytes": 49152
+  },
+  "contracts": [
+    {
+      "contract": "RegentsAutolaunchFactoryV1",
+      "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
+      "runtime_bytes": 7309,
+      "runtime_margin_bytes": 17267,
+      "creation_bytes": 34361,
+      "constructor_args_bytes": 160,
+      "initcode_bytes": 34521,
+      "initcode_margin_bytes": 14631
+    },
+    {
+      "contract": "RegentLBPStrategy",
+      "source": "src/strategy/RegentLBPStrategy.sol",
+      "runtime_bytes": 18987,
+      "runtime_margin_bytes": 5589,
+      "creation_bytes": 19496,
+      "constructor_args_bytes": 128,
+      "initcode_bytes": 19624,
+      "initcode_margin_bytes": 29528
+    },
+    {
+      "contract": "RegentFeeHook",
+      "source": "src/hook/RegentFeeHook.sol",
+      "runtime_bytes": 5780,
+      "runtime_margin_bytes": 18796,
+      "creation_bytes": 6599,
+      "constructor_args_bytes": 64,
+      "initcode_bytes": 6663,
+      "initcode_margin_bytes": 42489
+    },
+    {
+      "contract": "ConditionalVestingEscrowV1",
+      "source": "src/escrow/ConditionalVestingEscrowV1.sol",
+      "runtime_bytes": 4527,
+      "runtime_margin_bytes": 20049,
+      "creation_bytes": 4665,
+      "constructor_args_bytes": 0,
+      "initcode_bytes": 4665,
+      "initcode_margin_bytes": 44487
+    },
+    {
+      "contract": "SubjectSplitterV1",
+      "source": "src/revenue/SubjectSplitterV1.sol",
+      "runtime_bytes": 5342,
+      "runtime_margin_bytes": 19234,
+      "creation_bytes": 5480,
+      "constructor_args_bytes": 0,
+      "initcode_bytes": 5480,
+      "initcode_margin_bytes": 43672
+    },
+    {
+      "contract": "PaymentReceiverV1",
+      "source": "src/revenue/PaymentReceiverV1.sol",
+      "runtime_bytes": 3520,
+      "runtime_margin_bytes": 21056,
+      "creation_bytes": 3658,
+      "constructor_args_bytes": 0,
+      "initcode_bytes": 3658,
+      "initcode_margin_bytes": 45494
+    }
+  ],
+  "clone_runtime_template": {
+    "prefix": "3d3d3d3d363d3d37363d73",
+    "suffix": "5af43d3d93803e602a57fd5bf3",
+    "runtime_bytes": 44,
+    "template": "0x3d3d3d3d363d3d37363d73<20-byte implementation>5af43d3d93803e602a57fd5bf3",
+    "derived_from": "src/strategy/RegentLBPStrategy.sol"
+  },
+  "clones": [
+    {
+      "clone_of": "ConditionalVestingEscrowV1",
+      "runtime_bytes": 44,
+      "runtime_margin_bytes": 24532
+    },
+    {
+      "clone_of": "SubjectSplitterV1",
+      "runtime_bytes": 44,
+      "runtime_margin_bytes": 24532
+    },
+    {
+      "clone_of": "PaymentReceiverV1",
+      "runtime_bytes": 44,
+      "runtime_margin_bytes": 24532
+    }
+  ]
+}

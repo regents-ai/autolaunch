@@ -31,7 +31,17 @@ cbor_metadata = false
 offline = true
 ffi = false
 
-fs_permissions = [{ access = "read", path = "./requirements" }]
+# Read-only, and only the committed authorities a test actually reads: the frozen identity,
+# the frozen ABI/size surface bin/freeze-artifacts.py generates, the release manifest, and the
+# per-contract ABI files. No write access anywhere, and no access to `out/` — a test proves a
+# frozen record against compiler truth it can reach in Solidity, never against the build
+# directory it would otherwise be restating.
+fs_permissions = [
+    { access = "read", path = "./requirements" },
+    { access = "read", path = "./reports/frozen" },
+    { access = "read", path = "./contracts" },
+    { access = "read", path = "./abi" },
+]
 
 # Deterministic test portfolio. Every seed, run, depth, rejection, revert, and shrink
 # setting the required gate uses is committed here rather than left to a default.
@@ -47,3 +57,21 @@ depth = 128
 fail_on_revert = true
 max_assume_rejects = 65536
 shrink_run_limit = 5000
+
+# The one Base endpoint alias, and the only way this repository ever names a provider. The
+# value stays an unresolved environment reference in every committed file and in every piece of
+# generated evidence: `bin/gate.sh` reads the *effective* configuration and fails if this alias
+# ever resolves there, so a real endpoint cannot reach a report, a log, or a commit. The
+# required offline gate never reads it at all.
+[rpc_endpoints]
+base = "${REGENT_BASE_RPC_URL}"
+
+# The separately authorized read-only Base fork gate. It shares the frozen build, the frozen
+# fuzz portfolio, and the frozen dependency closure with the required gate — only the test root
+# and the network posture differ, and both differences are proved rather than assumed by
+# `bin/fork-gate.sh`. Fork tests live outside the offline test root so they can never execute
+# against a hermetic claim, and FFI stays disabled here exactly as it is above.
+[profile.fork]
+test = "test-fork"
+offline = false
+ffi = false

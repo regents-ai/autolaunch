@@ -57,12 +57,15 @@ well-formed configuration key, or a well-formed command-line flag — so the gat
 
 `reports/generated/slither.json`, `reports/generated/slither-checklist.md`,
 `reports/generated/slither.stderr.log`, `reports/generated/slither-command.txt`, and
-`reports/generated/slither-detectors.txt` are regenerated on every gate run and stay
-uncommitted until the C5 freeze, when the release packet fixes them as recorded artifacts.
-Until then the reproducible command above, not a stored file, is the evidence. The gate
-deletes the whole generated directory before each run and fails if any piece of that
-evidence is missing, empty, or malformed, so a stale artifact cannot survive into a later
-run.
+`reports/generated/slither-detectors.txt` are regenerated on every gate run and are never
+committed. C5 confirmed that choice rather than reversing it: a stored copy of a run's output
+is a second authority that can drift from the run, so the reproducible command above and the
+disposition rows below are the evidence, and `.gitignore` keeps the generated directory out of
+the tree. The gate deletes that directory before each run and fails if any piece of the
+evidence is missing, empty, or malformed, so a stale artifact cannot survive into a later run.
+What C5 *did* freeze is a different kind of thing — generated release surface under
+`reports/frozen/`, regenerated and compared byte for byte on every run by
+`bin/freeze-artifacts.py`.
 
 No path filter is configured. Pinned dependency-only results are omitted; every result that
 touches production code remains subject to the exact disposition rules below.
