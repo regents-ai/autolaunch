@@ -6,14 +6,15 @@ failure class is answered by a requirement in [the ledger](../../requirements/le
 
 It describes only frozen specification behavior. It invents no contract behavior, and every
 mitigation it names is a requirement ID whose evidence becomes mandatory when its owning ticket
-activates. Through C3 the repository holds the immutable bindings, the proof scaffolding, the three
+activates. Through C4 the repository holds the immutable bindings, the proof scaffolding, the three
 fixed clone targets — `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, and `PaymentReceiverV1` —
-the one shared `RegentFeeHook`, and the one shared `RegentLBPStrategy`, so the dependency, binding,
-chain, ABI-provenance, escrow, splitter, receiver, hook, and strategy mitigations carry hermetic
-evidence and everything else is still pending. `STR-017` and the `MIG-*` and `FAIL-*` classes stay
-pending because they span the factory, the strategy, and escrow together and belong to C4. A pending mitigation is a named obligation, never evidence. `INV-004` and `INV-010` remain
-pending: the hook's per-swap conservation is proved here, but its stateful, sequence-dependent form
-belongs to C5's invariant gate.
+the one shared `RegentFeeHook`, the one shared `RegentLBPStrategy`, and the one
+`RegentsAutolaunchFactoryV1` that deploys and binds both of them and creates every launch. The
+dependency, binding, chain, ABI-provenance, factory, token, escrow, splitter, receiver, hook,
+strategy, migration, and failure mitigations therefore carry hermetic evidence. What is still
+pending is C5's: the fork gate's deployed-runtime claims (`DEP-040` through `DEP-051`), the
+stateful invariant class, the complete-transaction gas class, and the ABI freeze. A pending
+mitigation is a named obligation, never evidence.
 
 ## 1. Assets
 
@@ -77,6 +78,29 @@ surface exists anywhere in the frozen design.
 | Live staking `depositUSDC` | USDC skim | exact approval, behavior verification, allowance cleanup (`SPL-003`) |
 | REGENT, USDC, SUBJECT ERC20s | transfers, allowances | exact-allowance and exact-balance assertions (`FAC-008`, `MIG-016`) |
 
+### 4.1 Why the factory carries no reentrancy guard
+
+`launch` and `createPaymentReceiver` are the factory's only value- or deployment-bearing entry
+points, and neither can hand control to an address an attacker chose. Every external call either
+one makes goes to a fixed, code-identity-checked destination: the frozen REGENT binding, the pinned
+UERC20 factory whose runtime hash the constructor admitted, a freshly created `UERC20` at an address
+the pinned factory derived, a clone of an admitted C1 implementation, and this factory's own
+strategy. A launcher supplies a treasury and a recovery admin, but neither is ever *called* — the
+treasury is only ever stored and later paid as an ERC20 recipient, and the recovery admin is only
+ever stored and compared against `msg.sender` in the C1 clones. The four external contract types
+that could plausibly call back are all Regent's own or pinned code, and the shared strategy carries
+its own `nonReentrant` guard on both of its mutating entry points, so a re-entrant `launch` during a
+migration and a re-entrant `migrate` during a launch are both refused there (`MIG-019`).
+
+That leaves one honest residual: if a future REGENT or SUBJECT implementation gained a transfer
+callback, a re-entrant `launch` would allocate the next ID and run a second, complete, independent
+launch before the outer one finished. It would still be a complete launch or a complete revert —
+`nextLaunchId` advances before any external call, the strategy refuses a second concurrent
+initialization outright, and every identity is read back before the record is written — so there is
+no state a nested call could corrupt and no value it could double-spend. A guard would buy nothing
+that ordinary EVM atomicity and the strategy's own guard do not already provide, so none is added
+(`FAC-021`, `MIG-019`).
+
 ## 5. Lifecycle states
 
 `launched → auction open → auction ended → (graduated | economically failed)`.
@@ -110,6 +134,11 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Interface-derived ABI | a selector taken from a vendored interface that omits or misstates the implementation | `DEP-013`, `ABI-001` |
 | Deployed-code substitution | an external binding whose deployed runtime, code hash, or implementation behind a proxy differs from what the frozen manifest records | `DEP-040`, `DEP-043`, `DEP-051` |
 | Clone substitution | an escrow, splitter, or receiver clone deployed from an implementation whose code identity is not the recorded one | `DEP-060` |
+| Constructor substitution | deploying the factory against a look-alike UERC20 factory, a codeless address, or the wrong C1 implementation in any of the four admitted slots, so every later launch inherits foreign code | `DEP-060` |
+| Deployer-supplied strategy or hook | a factory that accepts a strategy or a hook address from whoever deploys it, or that keeps a setter for either afterwards | `STR-001`, `HOK-001`, `FAC-012` |
+| Hook-mining error | a salt that produces a hook address whose permission bits differ from the five the hook declares, so v4 calls the wrong callbacks or none | `HOK-004` |
+| Launch-record forgery | a launch recorded before its returned token, escrow, auction and the strategy's own state all agree, or a token admitted without the creator and graffiti readbacks | `FAC-020`, `FAC-021`, `TOK-003` |
+| Launch partial commit | failure at the fee transfer, the token creation, either readback, the escrow approval, the escrow initialization or its exact pull, the strategy initialization or its exact pull, the auction creation or readback, the delivery, the custody proof, or the final record agreement, leaving a half-created launch | `FAC-021` |
 | Fee griefing | stale expected fee, wrong allowance, residual allowance left behind, or fee charged for a failed launch | `FAC-008`, `FAC-009`, `FAC-010`, `FAC-018`, `FAC-027` |
 | Unobservable fee action | a fee change or a fee collection the product watcher cannot see | `FAC-025`, `FAC-026` |
 | Authority creep | pause blocking refunds, claims, or vesting; launcher provenance conferring power | `FAC-017`, `FAC-019`, `SPL-010` |
@@ -170,9 +199,13 @@ reviewer meets it as a decision rather than as a surprise.
 | PositionManager balance gifts join the launch's residues | The pinned position plan settles PositionManager's whole balance of each currency and takes the surplus back, which is upstream behavior this fork preserves. Anything gifted to PositionManager therefore leaves with the migrating launch rather than staying stuck. The strategy makes no claim over those units: its own accounting isolates the raise its auction produced and the reserve it recorded, and it records the position's actual consumption rather than the offered maxima. | `STR-015` |
 | Checkpoint exhaustion is an upstream liveness condition | If the auction's tick book is large enough that its final checkpoint will not fit in one migration, the migration reverts and remembers nothing. The resolution is upstream and permissionless: anyone calls the auction's own `forceIterateOverTicks` to advance the book, then anyone calls `migrate` again. There is deliberately no attempt counter, progress record, partial migration, or retry mode inside the strategy, because any of those would be exactly the committed technical-failure state the specification forbids. | `STR-004` |
 | One global scaled carry per asset | The indivisible part of each distribution is carried forward as a single scaled numerator per asset. It is inside protected liability, is never separately withdrawable, and cannot be surplus-recognized or recovered. | `SPL-007`, `SPL-018` |
+| Every SUBJECT grants Permit2 an infinite allowance forever | The pinned UERC20 is a Solady ERC20, which reports `type(uint256).max` as every holder's allowance to the canonical Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`) and cannot have it revoked. Every Autolaunch SUBJECT therefore lets Permit2 move any holder's balance on that holder's own signed authority, including the balances held by escrow, the strategy, the splitter, and the receivers. This is upstream token behavior the specification adopts by pinning that factory, not a Regent decision, and no Regent contract ever signs a Permit2 authorization. Allowance-cleanup proofs are therefore scoped to the spenders Regent actually names — the escrow, the strategy, the splitter, and the launch-fee payer — rather than asserting that a SUBJECT allowance is universally zero. | `FAC-027`, `MIG-016` |
+| Regent custody contracts do not implement ERC-1271 | Neither the factory nor the strategy, escrow, splitter, or receivers implements `isValidSignature`, so none of them can ever produce a valid contract signature. In particular none of them can authorize a Permit2 transfer of its own balance, which is what closes the consequence above: the infinite Permit2 allowance is unusable against Regent custody because Regent custody can never sign for it. Nothing in the design needs contract signatures, and adding them would create a new authority surface over custody. | `MIG-016`, `FAIL-005` |
+| The Regent Safe cannot pay a positive launch fee | A collected fee is proved by the Regent Safe's own balance delta, and the Safe paying itself moves nothing, so a launch sent by governance while the fee is positive reverts in full. Governance launching is not a designed path; if it ever needs one, it sets the fee to zero first and launches as an ordinary caller. Proving the fee at the destination rather than trusting a token return value is the deliberate choice here, and this is its one visible cost. | `FAC-005` |
+| A one-wei required raise is admitted because it was measured, not assumed | The smallest admitted required raise is one wei, and the smallest reachable graduated outcome at that raise really does resolve: measured against the real pinned auction and `PositionPlanner`, a one-wei raise migrates in both PoolKey orderings and at both reachable clearing-price endpoints — the floor price and the highest on-grid price — consuming one wei of REGENT and 981 units of SUBJECT in the full-range position. `NoFullRangePosition()` is therefore not reachable inside the admitted range, and no artificial minimum raise is imposed. | `FAC-023`, `STR-014` |
 | Per-account sub-unit dust | Flooring each account's share leaves sub-unit dust. It is banked per account against the accumulator, so a stake change neither forfeits it nor credits it a second time, and it stays inside protected liability until a later recognition completes it into a claimable whole unit. It is likewise never separately withdrawable, never surplus-recognizable, and never recoverable. | `SPL-013`, `SPL-007`, `SPL-012` |
 
-## 9. Explicitly out of scope through C3
+## 9. Explicitly out of scope through C4
 
 No RPC or provider access, fork execution, deployment, signature, transaction, wallet action,
 secret access, production data, admission decision, or value movement occurs in this repository.

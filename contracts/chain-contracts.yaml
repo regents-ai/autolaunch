@@ -11,9 +11,12 @@
 # through DEP-051. Those runtime values are recorded by C5 when that gate runs; inventing
 # them now would be a runtime claim this ticket has no evidence for.
 #
-# The clone implementation and clone runtime code hashes this manifest will also carry are
-# a different kind of fact: that code is this repository's own, so C4 proves it
-# hermetically under DEP-060 rather than on a fork.
+# The clone implementation and clone runtime code hashes are a different kind of fact: that
+# code is this repository's own. C4 therefore proves them hermetically under DEP-060 against
+# the compiled frozen artifacts and the exact Solady 44-byte clone derivation, which is the
+# authority a reader can actually recheck from this build. C5 owns the manifest section that
+# records those hashes alongside the deployment-specific addresses they end up at, because
+# only C5 has the deployment to record.
 version: 1
 repository: autolaunch-contracts
 authority: SPEC.md

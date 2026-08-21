@@ -28,7 +28,7 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2", "C3"]
+activated_tickets = ["C0", "C1", "C2", "C3", "C4"]
 activated_gates = ["hermetic"]
 groups = [
     "DEP",
@@ -427,13 +427,17 @@ selectors = ["test_DEP_051_ForkEveryBindingRuntimeCodeHashMatchesTheManifest"]
 # identity is a compile-time and local-deployment fact rather than external chain truth.
 [[requirement]]
 id = "DEP-060"
-statement = "The escrow, splitter, and receiver clone implementations present the creation and runtime code hashes the frozen chain manifest records, and every clone deployed from them presents the clone runtime code hash the manifest records."
+statement = "The pinned UERC20 factory and the escrow, splitter, and receiver clone implementations present exactly the runtime code hashes the Autolaunch factory admits at construction, those admitted hashes equal the compiled frozen artifacts' own runtime hashes, any other code at any of those four addresses is rejected before anything is deployed, and every clone this graph creates presents the exact Solady 44-byte clone runtime derived from its implementation."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_DEP_060_CloneImplementationAndCloneRuntimeHashesMatchTheManifest"]
+status = "active"
+selectors = [
+    "test_DEP_060_CloneImplementationAndCloneRuntimeHashesMatchTheFrozenArtifacts",
+    "test_DEP_060_Uerc20FactoryRuntimeIdentityIsTheAdmittedOne",
+    "test_DEP_060_ConstructorRejectsAnyUnexpectedRuntimeCodeHash",
+]
 
 # ---------------------------------------------------------------------------
 # FAC — governance-only fee and pause; pause scope; fee-update and
@@ -450,17 +454,17 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_001_LaunchUsesSequentialIdentity"]
 
 [[requirement]]
 id = "FAC-002"
-statement = "Internal salts derive only from the launch ID."
+statement = "Internal salts derive only from the launch ID: the only launch-specific entropy Autolaunch supplies is bytes32(launchId), used as the UERC20 graffiti and as the CCA caller salt, around which each pinned upstream hashes its own documented identity fields. There is no public or creator-selected salt."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_002_SaltDerivesOnlyFromLaunchId"]
 
 [[requirement]]
@@ -470,7 +474,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_003_DuplicateNamesAndSymbolsAreAllowed"]
 
 [[requirement]]
@@ -480,7 +484,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_004_SupplySplitsExactlyTenFiveEightyFive"]
 
 [[requirement]]
@@ -490,7 +494,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_005_InitialLaunchFeeIsOneMillionRegentToTheSafe"]
 
 [[requirement]]
@@ -500,7 +504,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_006_OnlyGovernanceChangesTheLaunchFee"]
 
 [[requirement]]
@@ -510,7 +514,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_007_OnlyGovernancePausesNewLaunches"]
 
 [[requirement]]
@@ -520,7 +524,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_008_AllowanceMustEqualTheExpectedPositiveFee"]
 
 [[requirement]]
@@ -530,7 +534,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_009_ZeroFeeRequiresZeroAllowance"]
 
 [[requirement]]
@@ -540,7 +544,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_010_StaleExpectedFeeRevertsTheWholeLaunch"]
 
 [[requirement]]
@@ -550,7 +554,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_011_AuctionStartIsAlwaysBlockNumberPlus1800"]
 
 [[requirement]]
@@ -560,7 +564,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_012_NoUserSuppliedStartFloorHookPoolSafeIdentityOrSalt"]
 
 [[requirement]]
@@ -570,7 +574,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_013_MetadataIsNonemptyAndByteBounded"]
 
 [[requirement]]
@@ -580,7 +584,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_014_MetadataBoundaryInputsBehaveExactly"]
 
 [[requirement]]
@@ -590,17 +594,17 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_015_TreasuryIsImmutable"]
 
 [[requirement]]
 id = "FAC-016"
-statement = "The recovery admin is an immutable deployed contract, and zero, self, and non-contract admin addresses are rejected."
+statement = "The recovery admin is an immutable deployed contract. The shared strategy rejects itself as a recovery admin, and zero and non-contract addresses are rejected because they carry no code."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_016_RecoveryAdminIsAnImmutableDeployedContract"]
 
 [[requirement]]
@@ -610,7 +614,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_017_LauncherProvenanceGivesNoAuthority"]
 
 [[requirement]]
@@ -620,7 +624,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_018_FailedAuctionDoesNotRefundTheLaunchFee"]
 
 [[requirement]]
@@ -630,7 +634,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_019_PauseNeverBlocksExistingLifecycleOperations"]
 
 [[requirement]]
@@ -640,7 +644,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_020_CompleteLaunchProducesTokenAuctionAndEscrow"]
 
 [[requirement]]
@@ -650,7 +654,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_021_AnyLaunchStageFailureRollsBackCompletely"]
 
 [[requirement]]
@@ -660,7 +664,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_022_SimultaneousLaunchesShareOneStrategyAndHookAndStayIsolated"]
 
 [[requirement]]
@@ -670,17 +674,17 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_023_RequiredRaiseIsNonzeroAndReachable"]
 
 [[requirement]]
 id = "FAC-024"
-statement = "createPaymentReceiver is callable by anyone for an existing launch and creates only a custom receiver."
+statement = "createPaymentReceiver is callable by anyone for a recorded launch that has graduated and therefore exposes a nonzero canonical splitter, and it creates only a custom receiver. A pending or failed launch has no splitter and cannot initialize one."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_024_CreatePaymentReceiverIsPermissionlessAndCustomOnly"]
 
 [[requirement]]
@@ -690,7 +694,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_025_FeeUpdateEmitsTheExactPreviousAndNewFee"]
 
 [[requirement]]
@@ -700,7 +704,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_026_SuccessfulFeeCollectionEmitsTheExactCollectionEvent"]
 
 [[requirement]]
@@ -710,7 +714,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAC_027_PositiveFeeLaunchLeavesNoResidualAllowance"]
 
 # ---------------------------------------------------------------------------
@@ -726,7 +730,7 @@ owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_TOK_001_TotalSupplyIsExactlyOneHundredBillion"]
 
 [[requirement]]
@@ -736,17 +740,17 @@ owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_TOK_002_DecimalsAreEighteen"]
 
 [[requirement]]
 id = "TOK-003"
-statement = "The Autolaunch factory is the only creator of SUBJECT: every SUBJECT token records that factory as its creator, and no other caller can create one through the pinned UERC20 factory path."
+statement = "The Autolaunch factory is the only creator of an admitted SUBJECT: only a token this factory created and recorded in its launch mapping is an admitted SUBJECT, and every admitted SUBJECT records this factory as its creator. The pinned UERC20 factory is permissionless, so an unrelated caller may still create an unrelated UERC20, but it is never admitted or recorded as an Autolaunch SUBJECT."
 owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_TOK_003_AutolaunchFactoryIsTheOnlyRecordedCreator"]
 
 [[requirement]]
@@ -756,7 +760,7 @@ owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_TOK_004_LaunchMetadataIsImmutableAndEqualsItsLaunchParameters"]
 
 [[requirement]]
@@ -766,7 +770,7 @@ owner = "C4"
 contract = "SubjectToken"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_TOK_005_NoPublicMintOwnerTaxBlacklistUpgradeOrAdministrativeBurn"]
 
 # ---------------------------------------------------------------------------
@@ -789,6 +793,7 @@ selectors = [
     "test_STR_001_BindHookRejectsCodelessOrMismatchedHooks",
     "test_STR_001_FactoryBindsWhileStillConstructing",
     "test_STR_001_ImmutableBindingsAreFixedAtConstruction",
+    "test_STR_001_FactoryConstructionBindsStrategyToFactoryAndHook",
 ]
 
 [[requirement]]
@@ -986,7 +991,7 @@ owner = "C4"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_017_DistributionIsExactlyTenFiveEightyFive"]
 
 [[requirement]]
@@ -1169,7 +1174,10 @@ contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_HOK_001_BindingToStrategyAndPoolManagerIsImmutable"]
+selectors = [
+    "test_HOK_001_BindingToStrategyAndPoolManagerIsImmutable",
+    "test_HOK_001_FactoryConstructionBindsHookToStrategyAndPoolManager",
+]
 
 [[requirement]]
 id = "HOK-002"
@@ -1193,13 +1201,16 @@ selectors = ["test_HOK_003_PoolKeyRegistrationIsOnceAndFinal"]
 
 [[requirement]]
 id = "HOK-004"
-statement = "The hook declares exactly the permissions its specified behavior requires."
+statement = "The hook declares exactly the permissions its specified behavior requires, and the address the canonical factory mines and deploys it to carries exactly those permission bits."
 owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_HOK_004_HookPermissionsAreExactlyThoseRequired"]
+selectors = [
+    "test_HOK_004_HookPermissionsAreExactlyThoseRequired",
+    "test_HOK_004_MinedHookAddressCarriesExactlyTheDeclaredPermissionBits",
+]
 
 [[requirement]]
 id = "HOK-005"
@@ -1462,7 +1473,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause"]
 
 [[requirement]]
@@ -1609,7 +1620,7 @@ owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_RCV_001_CustomReceiverCreationIsPermissionless"]
 
 [[requirement]]
@@ -1777,7 +1788,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_001_CheckpointAndProofComeFirst"]
 
 [[requirement]]
@@ -1787,7 +1798,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_002_DerivesFinalPricePoolKeyAndPoolId"]
 
 [[requirement]]
@@ -1797,7 +1808,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_003_DeploysTheSplitterClone"]
 
 [[requirement]]
@@ -1807,7 +1818,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_004_RegistersThePoolIdOnceInTheHook"]
 
 [[requirement]]
@@ -1817,7 +1828,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_005_InitializesThePoolAtTheExactFinalPrice"]
 
 [[requirement]]
@@ -1827,7 +1838,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_006_MintsOneFullRangePositionToTheDeadAddress"]
 
 [[requirement]]
@@ -1837,7 +1848,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_007_UnusedRegentGoesToTheImmutableTreasury"]
 
 [[requirement]]
@@ -1847,7 +1858,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_008_UnusedSubjectReserveGoesToEscrow"]
 
 [[requirement]]
@@ -1857,7 +1868,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_009_UnsoldSubjectIsSweptIntoEscrow"]
 
 [[requirement]]
@@ -1867,7 +1878,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_010_DeploysTheCanonicalZeroReferralReceiver"]
 
 [[requirement]]
@@ -1877,7 +1888,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_011_ActivatesVestingFromTheGraduationTimestamp"]
 
 [[requirement]]
@@ -1887,7 +1898,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_012_RecordsGraduationAtomically"]
 
 [[requirement]]
@@ -1897,7 +1908,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_013_TwelveStepsExecuteInTheSpecifiedOrder"]
 
 [[requirement]]
@@ -1907,7 +1918,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_014_OfficialPoolIsStaticThirtyBipsTickSpacingSixty"]
 
 [[requirement]]
@@ -1917,7 +1928,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_015_ThirdPartyPositionsDoNotAffectTheManagedPosition"]
 
 [[requirement]]
@@ -1927,7 +1938,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_016_TokenUseAndResiduesMatchExactly"]
 
 [[requirement]]
@@ -1937,7 +1948,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_017_FailureAtEveryExternalCallRollsBack"]
 
 [[requirement]]
@@ -1947,7 +1958,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_018_RepeatedGraduationRevertsAndMovesNoValue"]
 
 [[requirement]]
@@ -1957,7 +1968,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_MIG_019_MigrationDependencyReentrancyIsRejectedWithCompleteRollback"]
 
 # ---------------------------------------------------------------------------
@@ -1973,7 +1984,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_001_UnmetRaiseResolvesAsFailed"]
 
 [[requirement]]
@@ -1983,7 +1994,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_002_ZeroBidsResolveAsFailed"]
 
 [[requirement]]
@@ -1993,7 +2004,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_003_PartialBidsBelowTheRaiseResolveAsFailed"]
 
 [[requirement]]
@@ -2003,7 +2014,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_004_RetirementProvesFullInventoryFirst"]
 
 [[requirement]]
@@ -2013,7 +2024,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_005_DeadAddressDeltaEqualsTheRetiredSupply"]
 
 [[requirement]]
@@ -2023,7 +2034,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_006_BidderRefundsSurviveRetirement"]
 
 [[requirement]]
@@ -2033,7 +2044,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_007_FailureCommitsNoDownstreamInfrastructure"]
 
 [[requirement]]
@@ -2043,7 +2054,7 @@ owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_FAIL_008_RepeatedFailureResolutionMovesNoValue"]
 
 # ---------------------------------------------------------------------------
