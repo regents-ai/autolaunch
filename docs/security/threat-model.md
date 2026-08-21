@@ -6,11 +6,13 @@ failure class is answered by a requirement in [the ledger](../../requirements/le
 
 It describes only frozen specification behavior. It invents no contract behavior, and every
 mitigation it names is a requirement ID whose evidence becomes mandatory when its owning ticket
-activates. Through C1 the repository holds the immutable bindings, the proof scaffolding, and the
-three fixed clone targets — `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, and
-`PaymentReceiverV1` — so the dependency, binding, chain, ABI-provenance, escrow, splitter, and
-receiver mitigations carry hermetic evidence and everything else is still pending. A pending
-mitigation is a named obligation, never evidence.
+activates. Through C2 the repository holds the immutable bindings, the proof scaffolding, the three
+fixed clone targets — `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, and `PaymentReceiverV1` —
+and the one shared `RegentFeeHook`, so the dependency, binding, chain, ABI-provenance, escrow,
+splitter, receiver, and hook mitigations carry hermetic evidence and everything else is still
+pending. A pending mitigation is a named obligation, never evidence. `INV-004` and `INV-010` remain
+pending: the hook's per-swap conservation is proved here, but its stateful, sequence-dependent form
+belongs to C5's invariant gate.
 
 ## 1. Assets
 
@@ -68,7 +70,8 @@ surface exists anywhere in the frozen design.
 | --- | --- | --- |
 | CCA factory and auction | auction creation, finalization, sweeps, refunds | technical failure is an ordinary revert with no retry state (`STR-004`); admission requires the exact runtime code hash and a zero protocol fee controller (`DEP-040`, `DEP-041`); every binding's deployed hash is reconciled against the final manifest (`DEP-051`) |
 | UERC20 factory | SUBJECT creation | only the Autolaunch factory creates SUBJECT and the token carries no administrative power afterwards (`TOK-003`, `TOK-005`) |
-| PoolManager | pool initialization and swap settlement | settlement failure reverts the swap (`HOK-016`) |
+| PoolManager | pool initialization and swap settlement | only the bound singleton may invoke a hook callback and only a registered `PoolId` is served (`HOK-017`); settlement failure reverts the swap (`HOK-016`) |
+| `SubjectSplitterV1` (per launch) | the hook's second 1% REGENT lane | the strategy binds only a splitter whose `regent`, `subject`, and `regentSafe` match the launch (`HOK-002`); an exact approval is fully consumed and the hook's REGENT balance must return to its pre-callback level, so a reverting, under-pulling, refunding, or re-entering splitter fails the whole swap (`HOK-011`, `HOK-014`, `HOK-016`, `HOK-018`) |
 | PositionManager | full-range position mint, NFT to dead address | migration rolls back on failure (`MIG-006`, `MIG-017`) |
 | Live staking `depositUSDC` | USDC skim | exact approval, behavior verification, allowance cleanup (`SPL-003`) |
 | REGENT, USDC, SUBJECT ERC20s | transfers, allowances | exact-allowance and exact-balance assertions (`FAC-008`, `MIG-016`) |
@@ -121,7 +124,10 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Price-ordering asymmetry | a final price that differs depending on which currency is token0 | `STR-014` |
 | Migration partial commit | failure after an external call leaving a half-migrated launch | `MIG-017`, `STR-004` |
 | Repeat or replay | migrating or retiring twice, finalizing an auction twice, re-running an escrow or clone initializer | `MIG-018`, `FAIL-008`, `STR-018`, `ESC-001`, `ABI-008` |
-| Hook boundary escape | unregistered key, foreign caller, hostile router | `HOK-017`, `HOK-018` |
+| Hook boundary escape | unregistered key, altered key field, foreign caller, hostile router | `HOK-017`, `HOK-018` |
+| Official-pool pre-initialization | anyone bringing the deterministic official pool into existence at a price the auction never cleared, before or instead of the strategy | `HOK-002`, `HOK-003`, `HOK-017` |
+| Hook permission forgery | a hook address carrying more, fewer, or different permission bits than the declared five, including either return-delta bit | `HOK-004` |
+| Returned-delta manipulation | a delta with the wrong sign, a delta not backed by a matching `take`, an `int256`-minimum specified amount, or a two-lane total too large for the returned `int128` | `HOK-005`, `HOK-006`, `HOK-007`, `HOK-008`, `HOK-014` |
 | Reentrancy | a recovery token, a hook callback, a receiver path, or a migration dependency re-entering mid-flow | `SPL-021`, `SPL-022`, `HOK-018`, `RCV-015`, `MIG-019` |
 | Fee lane evasion | tiny swaps, rounding at the exact fee boundaries, exact-output, or unspecified-currency paths avoiding a lane | `HOK-005`, `HOK-006`, `HOK-007`, `HOK-008`, `HOK-009`, `HOK-012`, `HOK-019`, `SPL-016` |
 | Fee retention | hook keeping attributable inventory for a later flush | `HOK-014`, `HOK-015`, `INV-004` |
@@ -148,10 +154,13 @@ reviewer meets it as a decision rather than as a surprise.
 | Paused live staking fails closed | While the live REGENT staking contract is paused or reverting, a USDC recognition with a nonzero skim reverts in full. USDC revenue simply cannot be recognized during that window; nothing is queued, retried, or diverted. | `SPL-003` |
 | Permanently stuck force-sent escrow ETH | The escrow has no recovery path of any kind, so ETH force-sent to it can never be moved. The specification gives escrow exactly two resolutions and no rescue authority, and adding one would be new authority over a custody contract. | `ESC-008` |
 | Exact-inventory failure deadlock | Failure resolution requires exactly 100 billion SUBJECT. If a contributor is short or an extra unit is present, the launch stays pending rather than retiring a partial supply. Deadlock is preferred to an unprovable retirement. | `ESC-005` |
+| The specified lane charges the requested amount, not the filled amount | When REGENT is the swap's specified currency the two lanes are charged against `abs(amountSpecified)` in `beforeSwap`, before the pool has executed anything. A price limit can therefore stop the fill short — in the extreme, at nothing at all — while the trader still pays both lanes on the full requested amount. The specification freezes the specified-currency charge at the requested amount, and moving it to the realized amount would mean charging after the swap in every shape, which is a different design. | `HOK-006` |
+| The early take is a liveness boundary | Both lanes are taken from the singleton PoolManager before the trader's input is settled. If the singleton's REGENT balance cannot cover a lane the whole swap reverts, even though the swap was otherwise valid. Nothing is half-paid: the Safe lane may be paid first and is rolled back with everything else. The specification requires synchronous settlement with no retained inventory, so there is no deferral, queue, or partial-charge path to fall back to. | `HOK-016` |
+| An unrelated REGENT gift stays stuck at the hook | The hook has no recovery, sweep, receive, or fallback path. REGENT sent to it outside a swap is not attributable fee inventory and is never spent, never distributed, and never recoverable; each swap simply finishes at exactly the pre-swap balance. Adding a rescue path would be new authority over a contract that is meant to have none. | `HOK-014`, `HOK-015` |
 | One global scaled carry per asset | The indivisible part of each distribution is carried forward as a single scaled numerator per asset. It is inside protected liability, is never separately withdrawable, and cannot be surplus-recognized or recovered. | `SPL-007`, `SPL-018` |
 | Per-account sub-unit dust | Flooring each account's share leaves sub-unit dust. It is banked per account against the accumulator, so a stake change neither forfeits it nor credits it a second time, and it stays inside protected liability until a later recognition completes it into a claimable whole unit. It is likewise never separately withdrawable, never surplus-recognizable, and never recoverable. | `SPL-013`, `SPL-007`, `SPL-012` |
 
-## 9. Explicitly out of scope through C1
+## 9. Explicitly out of scope through C2
 
 No RPC or provider access, fork execution, deployment, signature, transaction, wallet action,
 secret access, production data, admission decision, or value movement occurs in this repository.

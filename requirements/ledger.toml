@@ -28,7 +28,7 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1"]
+activated_tickets = ["C0", "C1", "C2"]
 activated_gates = ["hermetic"]
 groups = [
     "DEP",
@@ -1120,7 +1120,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_001_BindingToStrategyAndPoolManagerIsImmutable"]
 
 [[requirement]]
@@ -1130,7 +1130,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_002_OnlyTheStrategyRegistersAnExactPoolKey"]
 
 [[requirement]]
@@ -1140,7 +1140,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_003_PoolKeyRegistrationIsOnceAndFinal"]
 
 [[requirement]]
@@ -1150,7 +1150,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_004_HookPermissionsAreExactlyThoseRequired"]
 
 [[requirement]]
@@ -1160,7 +1160,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_005_ExactInputChargesRegentWhenSpecified"]
 
 [[requirement]]
@@ -1170,7 +1170,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_006_ExactOutputChargesRegentWhenSpecified"]
 
 # SPEC.md section 9 names `test_HOK_007_ExactOutputChargesRegentWhenUnspecified` as a
@@ -1183,7 +1183,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_007_ExactOutputChargesRegentWhenUnspecified"]
 
 [[requirement]]
@@ -1193,7 +1193,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_008_ExactInputChargesRegentWhenUnspecified"]
 
 [[requirement]]
@@ -1203,7 +1203,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_009_TwoOnePercentLanesAreFlooredIndependently"]
 
 [[requirement]]
@@ -1213,7 +1213,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_010_OneLaneGoesDirectlyToTheRegentSafe"]
 
 [[requirement]]
@@ -1223,7 +1223,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_011_OtherLaneGoesToTheSplitterAndIsSkimmed"]
 
 [[requirement]]
@@ -1233,7 +1233,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_012_TinySwapsChargeNothingWithoutLoss"]
 
 [[requirement]]
@@ -1243,7 +1243,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_013_SettlementCompletesInsideTheSwapTransaction"]
 
 [[requirement]]
@@ -1253,7 +1253,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_014_NoAttributableInventoryRemainsAfterASwap"]
 
 [[requirement]]
@@ -1263,7 +1263,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_015_NoFlushThresholdKeeperPauseOrFeeSetterExists"]
 
 [[requirement]]
@@ -1273,7 +1273,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_016_SettlementFailureRevertsTheSwap"]
 
 [[requirement]]
@@ -1283,7 +1283,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_017_PoolManagerAndRegisteredKeyAreTheOnlyAuthority"]
 
 [[requirement]]
@@ -1293,7 +1293,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_018_ArbitraryRoutersAndReentrancyCannotChangeLaneAccounting"]
 
 [[requirement]]
@@ -1303,7 +1303,7 @@ owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_HOK_019_LaneRoundingIsExactAtTheFeeBoundaryInputs"]
 
 # ---------------------------------------------------------------------------
