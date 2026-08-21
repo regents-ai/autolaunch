@@ -28,7 +28,7 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2"]
+activated_tickets = ["C0", "C1", "C2", "C3"]
 activated_gates = ["hermetic"]
 groups = [
     "DEP",
@@ -783,8 +783,13 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_001_FactoryAndHookBindingIsIrreversible"]
+status = "active"
+selectors = [
+    "test_STR_001_FactoryAndHookBindingIsIrreversible",
+    "test_STR_001_BindHookRejectsCodelessOrMismatchedHooks",
+    "test_STR_001_FactoryBindsWhileStillConstructing",
+    "test_STR_001_ImmutableBindingsAreFixedAtConstruction",
+]
 
 [[requirement]]
 id = "STR-002"
@@ -793,8 +798,11 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_002_OnlyTheBoundFactoryInitializesDistributions"]
+status = "active"
+selectors = [
+    "test_STR_002_OnlyTheBoundFactoryInitializesDistributions",
+    "test_STR_002_InitializationIsImpossibleBeforeHookBinding",
+]
 
 [[requirement]]
 id = "STR-003"
@@ -803,7 +811,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_003_MigrateIsPermissionless"]
 
 [[requirement]]
@@ -813,8 +821,14 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_004_TechnicalFailureIsAnOrdinaryRevertWithNoRetryState"]
+status = "active"
+selectors = [
+    "test_STR_004_TechnicalFailureIsAnOrdinaryRevertWithNoRetryState",
+    "test_STR_004_RollbackIsCompleteAfterEveryExternalStage",
+    "test_STR_004_ReentrantDependencyCannotEnterASecondMutation",
+    "test_STR_004_NoRetryRecoveryOrAlternatePoolSurfaceExists",
+    "test_STR_004_CheckpointExhaustionIsResolvedUpstreamNotByRetryState",
+]
 
 [[requirement]]
 id = "STR-005"
@@ -823,7 +837,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_005_AuctionDurationIs86401Blocks"]
 
 [[requirement]]
@@ -833,7 +847,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_006_ClaimDelayIs64Blocks"]
 
 [[requirement]]
@@ -843,7 +857,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_007_MigrationEligibilityIsEndPlus128Blocks"]
 
 [[requirement]]
@@ -853,7 +867,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_008_ScheduleIsTheFrozen104ByteThirteenStepSchedule"]
 
 [[requirement]]
@@ -863,7 +877,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_009_FloorPriceIsTheFrozenQ96Value"]
 
 [[requirement]]
@@ -873,7 +887,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_010_BidTickIsTheFrozenQ96Value"]
 
 [[requirement]]
@@ -883,8 +897,11 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_011_AuctionProtocolFeeIsZero"]
+status = "active"
+selectors = [
+    "test_STR_011_AuctionProtocolFeeIsZero",
+    "test_STR_011_NonZeroProtocolFeeControllerIsRejected",
+]
 
 [[requirement]]
 id = "STR-012"
@@ -893,8 +910,11 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_012_ReserveIsIsolatedPerAuction"]
+status = "active"
+selectors = [
+    "test_STR_012_ReserveIsIsolatedPerAuction",
+    "test_STR_012_SimultaneousLaunchesCannotShareAReserve",
+]
 
 [[requirement]]
 id = "STR-013"
@@ -903,8 +923,15 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_013_CanonicalInitializationAdmitsOnlyTheFrozenParameterSet"]
+status = "active"
+selectors = [
+    "test_STR_013_CanonicalInitializationAdmitsOnlyTheFrozenParameterSet",
+    "test_STR_013_StartIsAlwaysCurrentBlockPlus1800",
+    "test_STR_013_InauthenticEscrowIsRejected",
+    "test_STR_013_UnreachableRequiredRaiseIsRejected",
+    "test_STR_013_RecoveryAdminMustBeADeployedNonSelfContract",
+    "test_STR_013_UnexpectedTokenBehaviourRollsInitializationBack",
+]
 
 [[requirement]]
 id = "STR-014"
@@ -913,8 +940,13 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_014_BothCurrencyOrderingsPreservePriceRelationships"]
+status = "active"
+selectors = [
+    "test_STR_014_BothCurrencyOrderingsPreservePriceRelationships",
+    "test_STR_014_ReachablePriceBoundariesConvertInBothOrderings",
+    "testFuzz_STR_014_EveryReachableFinalPriceConvertsInsideTheTickRange",
+    "testFuzz_STR_014_GraduatedDistributionNeverPlansZeroLiquidity",
+]
 
 [[requirement]]
 id = "STR-015"
@@ -923,8 +955,15 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_015_FinalizationProvesGraduationBeforeCommitting"]
+status = "active"
+selectors = [
+    "test_STR_015_FinalizationProvesGraduationBeforeCommitting",
+    "test_STR_015_GraduationExecutesTheCompleteTerminalOrder",
+    "test_STR_015_ActualLpConsumptionIsRecorded",
+    "test_STR_015_UnrelatedStrategyRegentIsPreserved",
+    "test_STR_015_GiftedSubjectIsRoutedToEscrow",
+    "test_STR_015_MigrationBeforeEligibilityIsRejected",
+]
 
 [[requirement]]
 id = "STR-016"
@@ -933,7 +972,7 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
+status = "active"
 selectors = ["test_STR_016_UnknownAuctionIsRejected"]
 
 # Owned by C4 because the transfer it proves spans the factory, the strategy, and escrow;
@@ -955,8 +994,11 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_STR_018_FinalizationIsOneShot"]
+status = "active"
+selectors = [
+    "test_STR_018_FinalizationIsOneShot",
+    "test_STR_018_RepeatedFailureMigrationIsRejected",
+]
 
 # ---------------------------------------------------------------------------
 # ESC — one-time initialization; exact 85% pending custody; no pending release;
@@ -992,8 +1034,12 @@ owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
-status = "pending"
-selectors = ["test_ESC_003_FailureSendsTheIsolatedReserveToEscrow"]
+status = "active"
+selectors = [
+    "test_ESC_003_FailureSendsTheIsolatedReserveToEscrow",
+    "test_ESC_003_ZeroBidFailureRetiresTheCompleteSupply",
+    "test_ESC_003_FailedLaunchCreatesNoGraduatedArtifacts",
+]
 
 [[requirement]]
 id = "ESC-004"

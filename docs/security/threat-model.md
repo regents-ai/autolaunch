@@ -6,11 +6,12 @@ failure class is answered by a requirement in [the ledger](../../requirements/le
 
 It describes only frozen specification behavior. It invents no contract behavior, and every
 mitigation it names is a requirement ID whose evidence becomes mandatory when its owning ticket
-activates. Through C2 the repository holds the immutable bindings, the proof scaffolding, the three
+activates. Through C3 the repository holds the immutable bindings, the proof scaffolding, the three
 fixed clone targets — `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, and `PaymentReceiverV1` —
-and the one shared `RegentFeeHook`, so the dependency, binding, chain, ABI-provenance, escrow,
-splitter, receiver, and hook mitigations carry hermetic evidence and everything else is still
-pending. A pending mitigation is a named obligation, never evidence. `INV-004` and `INV-010` remain
+the one shared `RegentFeeHook`, and the one shared `RegentLBPStrategy`, so the dependency, binding,
+chain, ABI-provenance, escrow, splitter, receiver, hook, and strategy mitigations carry hermetic
+evidence and everything else is still pending. `STR-017` and the `MIG-*` and `FAIL-*` classes stay
+pending because they span the factory, the strategy, and escrow together and belong to C4. A pending mitigation is a named obligation, never evidence. `INV-004` and `INV-010` remain
 pending: the hook's per-swap conservation is proved here, but its stateful, sequence-dependent form
 belongs to C5's invariant gate.
 
@@ -115,13 +116,20 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Metadata abuse | oversized, empty, or malformed UTF-8 metadata; token metadata edited after creation | `FAC-013`, `FAC-014`, `TOK-004` |
 | Admin-address abuse | a zero, self, or non-contract recovery admin admitted at launch | `FAC-016` |
 | Cross-launch interference | simultaneous launches sharing the one strategy and hook reaching each other's reserve or inventory | `FAC-022`, `STR-012`, `INV-009`, `INV-010` |
-| Foreign auction injection | initializing or migrating an auction the strategy never recorded | `STR-016` |
+| Foreign auction injection | initializing or migrating an auction the strategy never recorded, including a real CCA auction over the same SUBJECT created outside the strategy | `STR-016` |
+| Fake clone substitution | an escrow that answers every getter correctly but is not a clone of the bound implementation, or an authentic clone bound to a foreign strategy, an already-resolved lifecycle, or the wrong custody | `STR-013` |
+| Hook misbinding | binding a codeless hook, a hook bound to another strategy, a hook carrying a foreign PoolManager, a second hook after the first, or binding from anyone but the factory | `STR-001`, `STR-002` |
+| Protocol-fee capture | a CCA factory that reports a non-zero protocol fee controller, so part of the raise never reaches the pool | `STR-011` |
+| Unreachable raise | a required raise of zero, or one above what the fixed ten-billion-SUBJECT auction can mathematically clear, guaranteeing a launch that can only fail | `STR-013` |
+| Checkpoint exhaustion | a tick book large enough that the auction's final checkpoint cannot fit in one migration, used to strand a launch or to force a retry surface into existence | `STR-004` |
+| Balance gifts | SUBJECT or REGENT sent to the shared strategy, or to PositionManager, to make one launch's residue accounting mis-attribute another's value | `STR-012`, `STR-015` |
+| Zero-liquidity graduation | a reachable final price at which the offered raise and reserve plan no position at all, stranding a graduated launch | `STR-014`, `STR-015` |
 | Inventory leakage | unsold, reserve, or residual SUBJECT stranded after either terminal path, or a distribution that does not split exactly 10/5/85 | `STR-017`, `MIG-016`, `FAIL-004`, `ESC-005`, `ESC-006` |
 | Escrow custody diversion | releasing pending custody early, resolving from a foreign caller, holding the wrong pending amount, or redirecting vested SUBJECT away from the fixed treasury | `ESC-009`, `ESC-010`, `ESC-011`, `ESC-012`, `ESC-013` |
 | Auction identity substitution | resolving or sweeping through an auction that sells another launch's token or names another recipient, or reading a graduation flag from a stale pre-checkpoint state | `ESC-004`, `ESC-005`, `ESC-014` |
 | Unsold-inventory loss at graduation | skipping the graduated unsold sweep, running it twice, or opening vesting over an incomplete inventory | `ESC-014`, `ESC-002`, `ESC-007` |
 | Note-editor capture | a caller other than the receiver's fixed note editor relabeling its payments | `RCV-016`, `RCV-006` |
-| Price-ordering asymmetry | a final price that differs depending on which currency is token0 | `STR-014` |
+| Price-ordering asymmetry | a final price that differs depending on which currency is token0, or a reachable price that converts outside the v4 tick range | `STR-014` |
 | Migration partial commit | failure after an external call leaving a half-migrated launch | `MIG-017`, `STR-004` |
 | Repeat or replay | migrating or retiring twice, finalizing an auction twice, re-running an escrow or clone initializer | `MIG-018`, `FAIL-008`, `STR-018`, `ESC-001`, `ABI-008` |
 | Hook boundary escape | unregistered key, altered key field, foreign caller, hostile router | `HOK-017`, `HOK-018` |
@@ -157,10 +165,14 @@ reviewer meets it as a decision rather than as a surprise.
 | The specified lane charges the requested amount, not the filled amount | When REGENT is the swap's specified currency the two lanes are charged against `abs(amountSpecified)` in `beforeSwap`, before the pool has executed anything. A price limit can therefore stop the fill short — in the extreme, at nothing at all — while the trader still pays both lanes on the full requested amount. The specification freezes the specified-currency charge at the requested amount, and moving it to the realized amount would mean charging after the swap in every shape, which is a different design. | `HOK-006` |
 | The early take is a liveness boundary | Both lanes are taken from the singleton PoolManager before the trader's input is settled. If the singleton's REGENT balance cannot cover a lane the whole swap reverts, even though the swap was otherwise valid. Nothing is half-paid: the Safe lane may be paid first and is rolled back with everything else. The specification requires synchronous settlement with no retained inventory, so there is no deferral, queue, or partial-charge path to fall back to. | `HOK-016` |
 | An unrelated REGENT gift stays stuck at the hook | The hook has no recovery, sweep, receive, or fallback path. REGENT sent to it outside a swap is not attributable fee inventory and is never spent, never distributed, and never recoverable; each swap simply finishes at exactly the pre-swap balance. Adding a rescue path would be new authority over a contract that is meant to have none. | `HOK-014`, `HOK-015` |
+| The 5% reserve is an offered maximum, not a guaranteed contribution | The full-range position is quoted from the auction's own final price, so it consumes whichever side runs out first. Whatever the position does not consume — often most of the reserve — goes to that launch's escrow and joins its vesting schedule, and whatever raised REGENT it does not consume goes to the immutable treasury. The specification routes both residues explicitly, so neither is stranded and neither is topped up. | `STR-015`, `ESC-003` |
+| Unrelated REGENT at the shared strategy stays untouched | REGENT sent to the shared strategy outside a launch is never attributed to any launch: graduation forwards only the delta its own auction sweep produced. That gift is therefore not recoverable by anyone, exactly like the hook's. It is named here rather than swept because sweeping it would mean paying one launch's treasury with value it did not raise. | `STR-015`, `INV-010` |
+| PositionManager balance gifts join the launch's residues | The pinned position plan settles PositionManager's whole balance of each currency and takes the surplus back, which is upstream behavior this fork preserves. Anything gifted to PositionManager therefore leaves with the migrating launch rather than staying stuck. The strategy makes no claim over those units: its own accounting isolates the raise its auction produced and the reserve it recorded, and it records the position's actual consumption rather than the offered maxima. | `STR-015` |
+| Checkpoint exhaustion is an upstream liveness condition | If the auction's tick book is large enough that its final checkpoint will not fit in one migration, the migration reverts and remembers nothing. The resolution is upstream and permissionless: anyone calls the auction's own `forceIterateOverTicks` to advance the book, then anyone calls `migrate` again. There is deliberately no attempt counter, progress record, partial migration, or retry mode inside the strategy, because any of those would be exactly the committed technical-failure state the specification forbids. | `STR-004` |
 | One global scaled carry per asset | The indivisible part of each distribution is carried forward as a single scaled numerator per asset. It is inside protected liability, is never separately withdrawable, and cannot be surplus-recognized or recovered. | `SPL-007`, `SPL-018` |
 | Per-account sub-unit dust | Flooring each account's share leaves sub-unit dust. It is banked per account against the accumulator, so a stake change neither forfeits it nor credits it a second time, and it stays inside protected liability until a later recognition completes it into a claimable whole unit. It is likewise never separately withdrawable, never surplus-recognizable, and never recoverable. | `SPL-013`, `SPL-007`, `SPL-012` |
 
-## 9. Explicitly out of scope through C2
+## 9. Explicitly out of scope through C3
 
 No RPC or provider access, fork execution, deployment, signature, transaction, wallet action,
 secret access, production data, admission decision, or value movement occurs in this repository.

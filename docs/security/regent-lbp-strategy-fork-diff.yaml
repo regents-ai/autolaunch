@@ -1,0 +1,248 @@
+# Machine-readable fork diff: RegentLBPStrategy against the pinned Liquidity Launcher LBPStrategy.
+#
+# This file is evidence, never configuration. Nothing reads it at build, test, or gate time; it
+# exists so a reviewer can check every upstream behaviour one by one and see whether this fork
+# preserved it, replaced it, or deleted it, and why.
+
+fork:
+  contract: RegentLBPStrategy
+  source: src/strategy/RegentLBPStrategy.sol
+  ticket: regent-alv1.4 (C3)
+  upstream:
+    repository: liquidity-launcher
+    commit: 3a3103543f50a13a0ae52a253bb98a925d72146f
+    path: src/strategies/lbp/LBPStrategy.sol
+    supporting:
+      - src/libraries/PositionPlanner.sol
+      - src/libraries/TokenPricing.sol
+      - src/libraries/MigratorParams.sol
+      - src/types/PositionPlannerTypes.sol
+  auction_upstream:
+    repository: continuous-clearing-auction
+    commit: 7d7602d257733315434570f2a0c2f94f1c7b207a
+
+preserved:
+  - behaviour: Create the distribution's auction through a `IDistributorFactory.create` call with a
+      salt the strategy derives, then validate the created initializer before any value moves.
+    upstream: LBPStrategy.initializeDistribution
+    fork: RegentLBPStrategy.initializeDistribution, RegentLBPStrategy._verifyAuction
+    note: The fork reads every exposed binding of the created auction back, which is strictly more
+      than upstream's `_validateInitializerParams`, and adds the auction's own code check.
+    evidence: [STR-013, STR-016]
+
+  - behaviour: Exact balance-delta accounting on every token movement; fee-on-transfer tokens are
+      unsupported because the reserve must arrive exactly.
+    upstream: LBPStrategy.initializeDistribution (tokenLBPStrategyAfter - tokenLBPStrategyBefore)
+    fork: RegentLBPStrategy.initializeDistribution (InexactTransfer on both the pull and the delivery)
+    evidence: [STR-013]
+
+  - behaviour: Notify the initializer that its supply arrived.
+    upstream: initializer.onTokensReceived()
+    fork: IContinuousClearingAuction(auction).onTokensReceived()
+    evidence: [STR-013]
+
+  - behaviour: Migration is gated on a stored migration block and rejects an unregistered initializer.
+    upstream: LBPStrategy.migrate (migrationBlock, InitializerNotRegistered)
+    fork: RegentLBPStrategy.migrate (migrationBlock, UnknownAuction)
+    evidence: [STR-007, STR-016]
+
+  - behaviour: Snapshot the strategy's own currency balance before the initializer sweep, then
+      require the swept delta to equal the initializer's reported `currencyRaised`.
+    upstream: LBPStrategy.tryMigrate (CurrencyRaisedMismatch)
+    fork: RegentLBPStrategy._graduate (CurrencyRaisedMismatch)
+    evidence: [STR-015]
+
+  - behaviour: Read the final price and the fee-adjusted raise from the initializer's own
+      `lbpInitializationParams()`, which itself requires the end-block checkpoint and graduation.
+    upstream: LBPStrategy.tryMigrate
+    fork: RegentLBPStrategy._graduate
+    evidence: [STR-015, STR-011]
+
+  - behaviour: Derive the pool price from the auction's final price through `TokenPricing`,
+      accounting for currency ordering.
+    upstream: LBPStrategy._computeSqrtPriceX96
+    fork: RegentLBPStrategy._graduate (TokenPricing.convertToPriceX192 then convertToSqrtPriceX96)
+    evidence: [STR-014]
+
+  - behaviour: Order the pool key's currencies canonically for v4.
+    upstream: LBPStrategy._createPoolKey
+    fork: RegentLBPStrategy.poolKeyOf
+    evidence: [STR-014]
+
+  - behaviour: Initialize the pool at the derived price, reverting if the pool already exists.
+    upstream: LBPStrategy._initializePool
+    fork: RegentLBPStrategy._graduate (IPoolManager.initialize)
+    evidence: [STR-015]
+
+  - behaviour: Resolve positions through `PositionPlanner.resolve` and encode them with
+      `PositionPlanner.toPlan`, transferring only the amounts the plan consumes and letting
+      `TAKE_PAIR` return the dust to the strategy.
+    upstream: LBPStrategy._createPositionPlan, LBPStrategy._transferAssetsAndExecutePlan
+    fork: RegentLBPStrategy._mintFullRangePosition
+    note: The fork passes an empty `PositionDefinition[]`, so only the implicit full-range fallback
+      position is ever created, and it asserts that exactly one position resulted.
+    evidence: [STR-014, STR-015]
+
+  - behaviour: Cap the currency budget at what v4's `int128` delta accounting can carry.
+    upstream: LBPStrategy.tryMigrate (FixedPointMathLib.min against int128.max)
+    fork: RegentLBPStrategy._graduate (SafeCastLib.toUint128 on the swept raise)
+    note: A checked cast replaces the silent clamp because `MaxBidPriceLib` already bounds the
+      reachable raise for the fixed ten-billion-SUBJECT supply well below the cap, so a clamp
+      would be unreachable code rather than a safety net.
+    evidence: [STR-014]
+
+  - behaviour: Forward only the currency delta this migration produced, so unrelated currency
+      already held by the shared strategy is preserved.
+    upstream: LBPStrategy.tryMigrate (currency.balanceOfSelf() - currencyBalanceBefore)
+    fork: RegentLBPStrategy._graduate (unusedRegent computed against regentBefore)
+    evidence: [STR-015]
+
+  - behaviour: The transient reentrancy guard across the public entry points.
+    upstream: LBPStrategy is ReentrancyGuardTransient
+    fork: RegentLBPStrategy is ReentrancyGuardTransient
+    evidence: [STR-004]
+
+replaced:
+  - upstream_behaviour: Arbitrary caller-supplied `MigratorParameters` plus `initializerParams`,
+      ABI-decoded from `configData`.
+    replacement: One typed `DistributionParams` of exactly `launchId`, `escrow`, `recoveryAdmin`
+      and `requiredRegentRaised`. SUBJECT, treasury and the start block are derived from the
+      authenticated escrow and the current block rather than accepted as redundant copies.
+    reason: Every other auction and pool input is frozen by SPEC.md section 5, so accepting them
+      would create configuration the specification does not admit.
+    evidence: [STR-005, STR-006, STR-007, STR-008, STR-009, STR-010, STR-013]
+
+  - upstream_behaviour: Any caller may initialize a distribution.
+    replacement: One immutable factory binding; `initializeDistribution` is factory-only and
+      impossible before the hook is bound.
+    reason: SPEC.md section 5 gives the strategy one irreversible binding to the factory and hook.
+    evidence: [STR-001, STR-002]
+
+  - upstream_behaviour: The pool hook is a caller-supplied address, with `address(this)` reserved
+      for a hookless-pool fallback.
+    replacement: One authentic `RegentFeeHook`, bound once by the factory and validated through the
+      hook's own immutable `strategy()` and `poolManager` bindings.
+    reason: Every official pool carries the one shared fee hook; a hookless pool is not admissible.
+    evidence: [STR-001]
+
+  - upstream_behaviour: `keccak256(abi.encode(salt, migrationParams))` from a caller-supplied salt.
+    replacement: `bytes32(launchId)`, derived only from the sequential launch identity.
+    reason: SPEC.md section 4 forbids user salts and derives internal salts only from the ID.
+    evidence: [STR-013]
+
+  - upstream_behaviour: `registeredPoolIds` reserves the target PoolId at initialization and clears
+      it at migration to make the initializer one-shot.
+    replacement: A `Lifecycle` on the recorded distribution, plus the hook's own write-once pool
+      registration performed during graduation.
+    reason: The PoolId reservation exists upstream to arbitrate between arbitrary pool parameters.
+      Here the SUBJECT is unique per launch and the pool parameters are frozen, so the PoolId is
+      already unique, and the hook is the single write-once registry.
+    evidence: [STR-012, STR-018]
+
+  - upstream_behaviour: A piecewise `LiquidityAllocationBracket[]` schedule decides how much of the
+      raise becomes LP.
+    replacement: The whole raise is offered to the one full-range position; whatever the position
+      does not consume goes to the immutable treasury.
+    reason: SPEC.md section 5 fixes one managed full-range position and one destination for the
+      unused raise; a configurable schedule is caller-selected economics.
+    evidence: [STR-015]
+
+  - upstream_behaviour: `positionRecipient` and per-definition `overridePositionRecipient` choose
+      who owns each minted NFT.
+    replacement: The single position's recipient is always the frozen dead address.
+    reason: SPEC.md section 5 sends the one full-range NFT to the dead address.
+    evidence: [STR-015]
+
+  - upstream_behaviour: The unused reserve and the plan's dust go to a caller-supplied `recipient`.
+    replacement: Every remaining unit of this launch's SUBJECT goes to that launch's escrow, and
+      the unused raised REGENT goes to the escrow-derived immutable treasury.
+    reason: SPEC.md section 5 fixes both destinations; a caller-selected recipient is exactly the
+      value-diversion surface the threat model rules out.
+    evidence: [STR-015, ESC-003]
+
+  - upstream_behaviour: Migration ends once the position is minted and the residues are swept.
+    replacement: Graduation continues through the frozen terminal order: splitter clone, write-once
+      hook registration, pool initialization, position mint, residues, escrow's graduated sweep,
+      canonical zero-referral receiver, and escrow's 365-day vesting activation.
+    reason: SPEC.md section 5 specifies the whole twelve-step atomic graduation.
+    evidence: [STR-015]
+
+deleted:
+  - upstream_behaviour: `tryMigrate` as an external self-call, and `migrate`'s `try/catch` around it.
+    reason: SPEC.md section 5 makes technical failure an ordinary EVM revert. A caught failure is a
+      committed technical-failure state.
+    evidence: [STR-004]
+
+  - upstream_behaviour: The catch branch's reserve recovery — `FundsRecovered`, `MigrationFailed`,
+      and the forced sweep of the initializer's currency to the recipient.
+    reason: The same rule. There is no recovery migration and no alternate destination.
+    evidence: [STR-004]
+
+  - upstream_behaviour: The hookless-pool fallback that re-points the key at `address(this)` when
+      `getSlot0` shows the hookless pool already exists.
+    reason: There is no alternate pool. The one official pool always carries the shared hook, and
+      the hook's own `beforeInitialize` makes the strategy the only account that can create it.
+    evidence: [STR-015]
+
+  - upstream_behaviour: `receive() external payable` and every native-currency path
+      (`forceSafeTransferETH`, `modifyLiquidities{value: ...}`, `currency.isAddressZero()`).
+    reason: The raise currency is always REGENT, so no native path is reachable and a payable
+      surface would only create unattributable balance.
+    evidence: [STR-013]
+
+  - upstream_behaviour: The generic `initializeDistribution(address,uint256,bytes,bytes32)` entry
+      point and the public `initializers(ILBPInitializer)` and `registeredPoolIds(PoolId)` views.
+    reason: Superseded by the typed entry point and the single typed `distribution(auction)` view.
+    evidence: [STR-004]
+
+  - upstream_behaviour: `MigratorParams.validate` and the whole `MigratorParameters` type, including
+      `poolParameters.fee`, `poolParameters.tickSpacing`, `positionDefinitions`,
+      `lpAllocationSchedule`, `reservedTokenAmountForLP`, `recipient`, and `positionRecipient`.
+    reason: Every one of those is frozen here as a constant or derived from the escrow, so the type
+      and its validation have nothing left to validate.
+    evidence: [STR-005, STR-006, STR-007, STR-008, STR-009, STR-010, STR-013, STR-015]
+
+  - upstream_behaviour: `_calculateCurrencyAmountForLp` and the bracket-schedule arithmetic.
+    reason: There is no allocation schedule; the whole raise is offered and the unused part is
+      routed to the treasury.
+    evidence: [STR-015]
+
+  - upstream_behaviour: `SelfInitializerMixin` and the ERC165 initializer-introspection path.
+    reason: The auction is created by the strategy through the one frozen CCA factory and read back
+      binding by binding, so an introspection handshake adds nothing the readback does not prove.
+    evidence: [STR-013]
+
+  - upstream_behaviour: `BlockNumberish` and its chain-dependent block-number source.
+    reason: The frozen deployment target is Base, where `block.number` is the block number. The
+      pinned CCA still uses `BlockNumberish` internally and is unchanged.
+    evidence: [STR-013]
+
+deliberate_additions:
+  - behaviour: The escrow must present the exact runtime code hash of a clone of the bound
+      implementation, be bound to this strategy, still be pending, and hold exactly the 85%.
+    reason: The escrow is the only caller-supplied contract in the whole flow, so fake-clone
+      substitution is the one identity attack the readback discipline cannot otherwise answer.
+    evidence: [STR-013]
+
+  - behaviour: The bound CCA factory must report a zero protocol fee controller before any auction
+      is created.
+    reason: SPEC.md section 3 makes a non-zero controller a stop condition; a fee taken from the
+      raise would silently shrink the pool.
+    evidence: [STR-011]
+
+  - behaviour: `requiredRegentRaised` must be non-zero and no greater than
+      `AUCTION_ALLOCATION * MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION) / 2**96`.
+    reason: A required raise the fixed auction cannot reach guarantees a failed launch, which the
+      specification calls a mathematically unreachable raise.
+    evidence: [STR-013]
+
+  - behaviour: `recoveryAdmin` must be a deployed, non-self contract at initialization.
+    reason: The recovery admin is only used at graduation, so validating it there would let a bad
+      value survive a whole auction before failing the terminal transaction.
+    evidence: [STR-013]
+
+  - behaviour: Exactly one LP NFT must be minted, checked against PositionManager's own
+      `nextTokenId`, and the position's actual consumption is recorded rather than the budgets.
+    reason: The specification records the LP position and its actual use; the offered maxima are
+      not what the pool charged.
+    evidence: [STR-015]

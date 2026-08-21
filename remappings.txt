@@ -5,3 +5,4 @@ liquidity-launcher/=lib/continuous-clearing-auction/lib/liquidity-launcher/
 @openzeppelin/contracts/=lib/continuous-clearing-auction/lib/openzeppelin-contracts/contracts/
 @uniswap/v4-core/=lib/liquidity-launcher/lib/v4-periphery/lib/v4-core/
 @uniswap/v4-periphery/=lib/liquidity-launcher/lib/v4-periphery/
+permit2/=lib/liquidity-launcher/lib/v4-periphery/lib/permit2/
