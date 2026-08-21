@@ -8,6 +8,8 @@ import {RegentFeeHook} from "../../src/hook/RegentFeeHook.sol";
 import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Initializable} from "solady/utils/Initializable.sol";
 import {AutolaunchFixture} from "../integration/AutolaunchFixture.sol";
 import {FrozenSurface} from "./FrozenSurface.sol";
@@ -201,13 +203,19 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     // ABI-007 — events
     // -------------------------------------------------------------------------
 
-    /// @notice `ABI-007`: every production event's topic, indexed-field set, and exact value widths
-    ///         equal what the compiler produced and what the frozen surface records, in both
-    ///         directions.
+    /// @notice `ABI-007`: every production event's topic, exact value widths, and exact indexed-field
+    ///         identity — which field, at which position, under which name — equal what the compiler
+    ///         produced and what the frozen surface records, in both directions.
     /// @dev This claim is compiler and frozen-artifact truth only. It makes no statement about any
     ///      downstream consumer's parity: the Ash watcher's own coverage is separate product work.
-    ///      Width freezing is exact because a topic is the keccak of the canonical signature, so
-    ///      `uint128` becoming `uint256` changes the topic and fails here.
+    ///
+    ///      Two layers. Width freezing is exact because a topic is the keccak of the canonical
+    ///      signature, so `uint128` becoming `uint256` changes the topic and fails the first layer.
+    ///      An indexed *count* cannot do the same job: moving `indexed` from one argument to another
+    ///      leaves the signature, the topic and the count all unchanged while silently re-laying-out
+    ///      every topic a watcher filters on. The second layer therefore pins each argument's exact
+    ///      position, name and indexed flag, and requires the types alone to rebuild the topic that
+    ///      the first layer already proved against the compiler.
     function test_ABI_007_EventTopicsIndexingAndWidthsAreFrozen() public view {
         _assertEvents(FACTORY, _factoryEvents());
         _assertEvents(STRATEGY, _strategyEvents());
@@ -215,6 +223,213 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEvents(ESCROW, _escrowEvents());
         _assertEvents(SPLITTER, _splitterEvents());
         _assertEvents(RECEIVER, _receiverEvents());
+
+        _assertEventFields(
+            FACTORY,
+            "LaunchCreated",
+            "uint256 indexed launchId|address indexed launcher|address indexed subject|address auction|address escrow|address treasury|address recoveryAdmin|uint128 requiredRegentRaised|uint64 startBlock|uint64 endBlock"
+        );
+        _assertEventFields(
+            FACTORY,
+            "LaunchFeeCollected",
+            "uint256 indexed launchId|address indexed payer|address regentSafe|uint256 amount"
+        );
+        _assertEventFields(FACTORY, "LaunchFeeUpdated", "uint256 previousFee|uint256 newFee");
+        _assertEventFields(FACTORY, "LaunchesPaused", "");
+        _assertEventFields(FACTORY, "LaunchesUnpaused", "");
+        _assertEventFields(
+            FACTORY,
+            "PaymentReceiverCreated",
+            "uint256 indexed launchId|address indexed receiver|address indexed creator|address beneficiary|uint16 referralBps"
+        );
+
+        _assertEventFields(
+            STRATEGY,
+            "DistributionCreated",
+            "uint256 indexed launchId|address indexed auction|address indexed subject|address escrow|address treasury|uint64 startBlock|uint64 endBlock|uint128 requiredRegentRaised|uint128 reserve"
+        );
+        _assertEventFields(STRATEGY, "HookBound", "address indexed hook");
+        _assertEventFields(
+            STRATEGY,
+            "LaunchGraduated",
+            "address indexed auction|address indexed subject|bytes32 indexed poolId|address splitter|address receiver|uint160 finalSqrtPriceX96|uint256 lpTokenId|uint128 lpRegentUsed|uint128 lpSubjectUsed"
+        );
+        _assertEventFields(
+            STRATEGY, "LaunchRetired", "address indexed auction|address indexed subject|uint128 reserveReturned"
+        );
+
+        _assertEventFields(
+            HOOK, "PoolRegistered", "bytes32 indexed poolId|address indexed splitter|address indexed subject"
+        );
+        _assertEventFields(
+            HOOK,
+            "SwapFeeSettled",
+            "bytes32 indexed poolId|address indexed sender|uint256 chargedRegent|uint256 lane|bool exactInput|bool regentSpecified"
+        );
+
+        _assertEventFields(
+            ESCROW, "EscrowInitialized", "address indexed subject|address indexed treasury|address indexed strategy"
+        );
+        _assertEventFields(ESCROW, "GraduatedUnsoldSubjectSwept", "address indexed auction|uint256 amount");
+        _assertEventFields(ESCROW, "Initialized", "uint64 version");
+        _assertEventFields(ESCROW, "LateFailedSubjectRetired", "uint256 amount");
+        _assertEventFields(ESCROW, "LaunchFailed", "address indexed auction|uint256 retiredAmount");
+        _assertEventFields(ESCROW, "SubjectReleased", "address indexed treasury|uint256 amount");
+        _assertEventFields(ESCROW, "VestingActivated", "uint64 startTimestamp|uint256 duration");
+
+        _assertEventFields(SPLITTER, "Claimed", "address indexed account|address indexed token|uint256 amount");
+        _assertEventFields(SPLITTER, "ForcedEthRecovered", "address indexed treasury|uint256 amount");
+        _assertEventFields(SPLITTER, "Initialized", "uint64 version");
+        _assertEventFields(
+            SPLITTER,
+            "RevenueRecognized",
+            "address indexed token|address indexed source|bytes32 indexed revenueRef|uint256 gross|uint256 skim|uint256 net|bool paidToStakers"
+        );
+        _assertEventFields(
+            SPLITTER,
+            "SplitterInitialized",
+            "address usdc|address regent|address indexed subject|address liveStaking|address regentSafe|address indexed treasury|address indexed recoveryAdmin"
+        );
+        _assertEventFields(SPLITTER, "Staked", "address indexed account|uint256 amount");
+        _assertEventFields(SPLITTER, "Unstaked", "address indexed account|uint256 amount");
+        _assertEventFields(
+            SPLITTER, "UnsupportedTokenRecovered", "address indexed token|address indexed treasury|uint256 amount"
+        );
+
+        _assertEventFields(RECEIVER, "ForcedEthRecovered", "address indexed treasury|uint256 amount");
+        _assertEventFields(RECEIVER, "Initialized", "uint64 version");
+        _assertEventFields(
+            RECEIVER,
+            "PaymentRouted",
+            "bytes32 indexed paymentRef|bytes32 indexed receiverNote|address indexed token|uint256 gross|uint256 referral|uint256 net"
+        );
+        _assertEventFields(
+            RECEIVER,
+            "ReceiverInitialized",
+            "address indexed splitter|address indexed beneficiary|uint16 referralBps|address indexed noteEditor"
+        );
+        _assertEventFields(RECEIVER, "ReceiverNoteUpdated", "bytes32 previousNote|bytes32 newNote");
+        _assertEventFields(
+            RECEIVER, "UnsupportedTokenRecovered", "address indexed token|address indexed treasury|uint256 amount"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // ABI-010 — the consumed upstream surface
+    // -------------------------------------------------------------------------
+
+    /// @notice `ABI-010`: every pinned upstream event this repository consumes is frozen with its
+    ///         exact topic, indexed-field positions, names and widths, and the consumed Permit2
+    ///         surface is exactly the founder-selected allowance flow and nothing more.
+    /// @dev A watcher decodes a consumed event by topic position, so an upstream that moved
+    ///         `indexed` from one argument to another would break it without changing a single
+    ///         signature. `BidSubmitted(uint256 indexed id, address indexed owner, uint256 priceQ96,
+    ///         uint128 amount)` is the one this product reads most and is pinned field by field.
+    ///
+    ///         The Permit2 half is a *minimality* claim: only `approve` and `allowance` are frozen,
+    ///         because only those two are called. Freezing `permit`, a batched variant, or
+    ///         `permitTransferFrom` would imply a signature-carrying product surface that does not
+    ///         exist, so their absence is asserted rather than assumed.
+    function test_ABI_010_ConsumedUpstreamEventAndPermit2SurfaceIsFrozen() public view {
+        _assertConsumedEventFields(
+            "ContinuousClearingAuction",
+            "BidSubmitted",
+            "uint256 indexed id|address indexed owner|uint256 priceQ96|uint128 amount"
+        );
+        _assertConsumedEventFields(
+            "ContinuousClearingAuction",
+            "BidExited",
+            "uint256 indexed bidId|address indexed owner|uint256 tokensFilled|uint256 currencyRefunded"
+        );
+        _assertConsumedEventFields(
+            "ContinuousClearingAuction",
+            "TokensClaimed",
+            "uint256 indexed bidId|address indexed owner|uint256 tokensFilled"
+        );
+        _assertConsumedEventFields(
+            "ContinuousClearingAuction", "CurrencySwept", "address indexed fundsRecipient|uint256 currencyAmount"
+        );
+        _assertConsumedEventFields(
+            "ContinuousClearingAuction", "TokensSwept", "address indexed tokensRecipient|uint256 tokensAmount"
+        );
+        _assertConsumedEventFields(
+            "ContinuousClearingAuctionFactory",
+            "AuctionCreated",
+            "address indexed auction|address indexed token|uint256 amount|bytes configData"
+        );
+
+        string[] memory permit2 = _consumedStrings("IAllowanceTransfer", "functions");
+        string[] memory expected = new string[](2);
+        expected[0] = _functionLine(
+            bytes4(keccak256("approve(address,address,uint160,uint48)")), "approve(address,address,uint160,uint48)"
+        );
+        expected[1] = _functionLine(
+            bytes4(keccak256("allowance(address,address,address)")), "allowance(address,address,address)"
+        );
+        _assertSameSet(permit2, expected, "consumed Permit2 surface");
+
+        string[3] memory unconsumed = ["permit", "permitTransferFrom", "transferFrom"];
+        for (uint256 i; i < unconsumed.length; ++i) {
+            assertFalse(
+                _declaresFunctionNamed(permit2, unconsumed[i]),
+                string.concat("the frozen Permit2 surface implies ", unconsumed[i], ", which nothing calls")
+            );
+        }
+        assertEq(_consumedStrings("IAllowanceTransfer", "events").length, 0, "no Permit2 event is consumed");
+    }
+
+    // -------------------------------------------------------------------------
+    // ABI-011 — frozen return tuples
+    // -------------------------------------------------------------------------
+
+    /// @notice `ABI-011`: the exact return tuple layout of `launches`, `distribution`, `poolKeyOf`
+    ///         and `getHookPermissions` is frozen field by field, exactly as the input tuples are.
+    /// @dev A consumer decodes a returned struct positionally and nothing in a function selector
+    ///      records its shape, so a reordered, renamed, added or rewidened return field is an
+    ///      invisible break. Each layout below is also reconciled against a real value the live
+    ///      contracts return, so the frozen record and production cannot drift apart.
+    function test_ABI_011_ReturnTupleLayoutsAreFrozen() public {
+        _assertReturnTuple(
+            FACTORY,
+            "launches_return0",
+            "address launcher|address subject|address auction|address escrow|address treasury|address recoveryAdmin"
+        );
+        _assertReturnTuple(
+            STRATEGY,
+            "distribution_return0",
+            "uint8 lifecycle|uint64 startBlock|uint64 endBlock|uint64 claimBlock|uint64 migrationBlock|uint128 requiredRegentRaised|uint128 reserve|uint128 lpRegentUsed|uint128 lpSubjectUsed|uint160 finalSqrtPriceX96|uint256 launchId|address subject|address escrow|address treasury|address recoveryAdmin|address splitter|address receiver|bytes32 poolId|uint256 lpTokenId"
+        );
+        _assertReturnTuple(
+            STRATEGY,
+            "poolKeyOf_return0",
+            "address currency0|address currency1|uint24 fee|int24 tickSpacing|address hooks"
+        );
+        _assertReturnTuple(
+            HOOK,
+            "getHookPermissions_return0",
+            "bool beforeInitialize|bool afterInitialize|bool beforeAddLiquidity|bool afterAddLiquidity|bool beforeRemoveLiquidity|bool afterRemoveLiquidity|bool beforeSwap|bool afterSwap|bool beforeDonate|bool afterDonate|bool beforeSwapReturnDelta|bool afterSwapReturnDelta|bool afterAddLiquidityReturnDelta|bool afterRemoveLiquidityReturnDelta"
+        );
+
+        // The frozen layouts describe what production really returns, decoded positionally.
+        Launched memory launched = _defaultLaunch();
+        RegentsAutolaunchFactoryV1.Launch memory record = factory.launches(launched.launchId);
+        assertEq(record.subject, address(launched.subject), "the launches() tuple no longer carries subject second");
+        assertEq(record.escrow, address(launched.escrow), "the launches() tuple no longer carries escrow fourth");
+
+        RegentLBPStrategy.Distribution memory d = _distribution(launched);
+        assertEq(
+            uint8(d.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Active), "distribution() field 0 is not lifecycle"
+        );
+        assertEq(uint256(d.reserve), RESERVE_ALLOCATION, "distribution() no longer carries the reserve where it did");
+
+        PoolKey memory key = strategy.poolKeyOf(address(launched.subject));
+        assertEq(key.fee, strategy.POOL_FEE(), "poolKeyOf() field 2 is not the static fee");
+        assertEq(key.tickSpacing, strategy.POOL_TICK_SPACING(), "poolKeyOf() field 3 is not the tick spacing");
+
+        Hooks.Permissions memory permissions = hook.getHookPermissions();
+        assertTrue(permissions.beforeInitialize, "getHookPermissions() field 0 is not beforeInitialize");
+        assertTrue(permissions.beforeSwapReturnDelta, "getHookPermissions() field 10 is not beforeSwapReturnDelta");
+        assertFalse(permissions.beforeDonate, "getHookPermissions() field 8 is not beforeDonate");
     }
 
     // -------------------------------------------------------------------------
@@ -430,6 +645,40 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             SubjectSplitterV1.recognizeSurplusRevenue.selector,
             "recognizeSurplusRevenue(address,bytes32)",
             "splitter"
+        );
+    }
+
+    function _assertEventFields(string memory contractName, string memory eventName, string memory expected)
+        private
+        view
+    {
+        _assertFrozenEventFields(
+            _frozenEventFields(contractName, eventName),
+            _frozenStrings(contractName, "events"),
+            eventName,
+            expected,
+            contractName
+        );
+    }
+
+    function _assertConsumedEventFields(string memory upstream, string memory eventName, string memory expected)
+        private
+        view
+    {
+        _assertFrozenEventFields(
+            _consumedEventFields(upstream, eventName),
+            _consumedStrings(upstream, "events"),
+            eventName,
+            expected,
+            upstream
+        );
+    }
+
+    function _assertReturnTuple(string memory contractName, string memory key, string memory expected) private view {
+        _assertFieldsExact(
+            _frozenTuple(contractName, "return_structs", key),
+            _splitPipe(expected),
+            string.concat(contractName, " ", key)
         );
     }
 

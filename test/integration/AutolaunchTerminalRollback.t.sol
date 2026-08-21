@@ -171,8 +171,42 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
             "the untouched retirement did not work"
         );
 
-        // The launch none of those injections touched still graduates.
+        // The launch none of those injections touched still graduates, measured at the plan's real
+        // refund recipient.
+        _assertGraduationLeavesNoTakePairResidue(launched, moves);
+    }
+
+    /// @dev `MIG-017`, C5 correction: the residue this plan actually leaves, measured where the
+    ///      pinned planner actually sends it.
+    ///
+    ///      `PositionPlanner.toPlan` closes with `SETTLE(currency0, CONTRACT_BALANCE)`,
+    ///      `SETTLE(currency1, CONTRACT_BALANCE)`, `TAKE_PAIR(currency0, currency1, recipient)`, and
+    ///      the strategy passes `ActionConstants.MSG_SENDER` as that recipient. The PositionManager
+    ///      resolves that sentinel to its own caller, so the refund goes to **the strategy** — never
+    ///      to the PositionManager. Watching the PositionManager's balance therefore proves nothing
+    ///      about the refund at all: `CONTRACT_BALANCE` drains that contract to zero whether the
+    ///      refund was zero or enormous.
+    ///
+    ///      What is measured instead:
+    ///
+    ///      - the PoolManager's own balance delta, which is exactly what the pool charged. Equal to
+    ///        the funded amounts means the settlement left no credit, so `TAKE_PAIR` returned zero;
+    ///      - the treasury's REGENT delta, which is the strategy's own unused *raise* and nothing
+    ///        else — any REGENT the refund had returned would be added to it;
+    ///      - the escrow's SUBJECT delta net of the auction's own unsold sweep, which is the
+    ///        strategy's unused *reserve* and nothing else, on the same reasoning.
+    ///
+    ///      A nonzero `TAKE_PAIR` residue is therefore not reachable through this plan, and the
+    ///      claim records that exact zero-only proof rather than a shape that cannot occur.
+    function _assertGraduationLeavesNoTakePairResidue(Launched memory launched, Movements memory moves) private {
+        uint256 poolManagerRegentBefore = regent.balanceOf(BaseBindings.POOL_MANAGER);
+        uint256 poolManagerSubjectBefore = launched.subject.balanceOf(BaseBindings.POOL_MANAGER);
         uint256 positionManagerRegentBefore = regent.balanceOf(BaseBindings.POSITION_MANAGER);
+        uint256 treasuryRegentBefore = regent.balanceOf(treasury);
+        uint256 escrowSubjectBefore = launched.subject.balanceOf(address(launched.escrow));
+        uint256 auctionSubjectBefore = launched.subject.balanceOf(address(launched.auction));
+        uint256 auctionRegentBefore = regent.balanceOf(address(launched.auction));
+
         strategy.migrate(address(launched.auction));
         assertEq(
             uint8(_distribution(launched).lifecycle),
@@ -180,21 +214,52 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
             "the untouched migration did not work"
         );
 
-        // C5 correction: the residue this plan actually leaves, recorded rather than assumed. The
-        // strategy funds the PositionManager with exactly `Position.amount0/amount1`, which are the
-        // amounts v4 charges for this liquidity at this price, so the pinned upstream's `TAKE_PAIR`
-        // refund has nothing to return. A nonzero residue shape is therefore *not* reachable through
-        // this plan, and the claim records the exact zero-only proof instead of asserting a shape
-        // that cannot occur.
         RegentLBPStrategy.Distribution memory graduated = _distribution(launched);
-        uint256 regentResidue = regent.balanceOf(BaseBindings.POSITION_MANAGER) - positionManagerRegentBefore;
-        uint256 subjectResidue = launched.subject.balanceOf(BaseBindings.POSITION_MANAGER);
-        emit log_named_uint("MIG-017 TAKE_PAIR REGENT residue at the PositionManager", regentResidue);
-        emit log_named_uint("MIG-017 TAKE_PAIR SUBJECT residue at the PositionManager", subjectResidue);
-        assertEq(regentResidue, 0, "the plan left an unrefunded REGENT residue at the PositionManager");
-        assertEq(subjectResidue, 0, "the plan left an unrefunded SUBJECT residue at the PositionManager");
         assertEq(uint256(graduated.lpSubjectUsed), moves.lpSubjectUsed, "the measured LP consumption moved");
         assertEq(uint256(graduated.lpRegentUsed), moves.lpRegentUsed, "the measured LP consumption moved");
+
+        // The pool charged exactly what the strategy funded, in both currencies, so the two
+        // CONTRACT_BALANCE settlements left no credit for TAKE_PAIR to return.
+        assertEq(
+            regent.balanceOf(BaseBindings.POOL_MANAGER) - poolManagerRegentBefore,
+            uint256(graduated.lpRegentUsed),
+            "the pool charged REGENT other than the amount the strategy funded"
+        );
+        assertEq(
+            launched.subject.balanceOf(BaseBindings.POOL_MANAGER) - poolManagerSubjectBefore,
+            uint256(graduated.lpSubjectUsed),
+            "the pool charged SUBJECT other than the amount the strategy funded"
+        );
+
+        // And the strategy forwarded only its own unused raise and unused reserve. A refund of R
+        // REGENT would land at the treasury on top of the unused raise, and a refund of S SUBJECT
+        // would land at this launch's escrow on top of the unused reserve; both are exactly zero.
+        // What `sweepCurrency` actually delivered to the strategy, read as the auction's own
+        // outflow: losing-bidder REGENT stays at the auction until each bidder exits, so this
+        // delta is the swept raise and nothing else.
+        uint256 swept = auctionRegentBefore - regent.balanceOf(address(launched.auction));
+        uint256 regentResidue = (regent.balanceOf(treasury) - treasuryRegentBefore) - (swept - graduated.lpRegentUsed);
+        uint256 escrowFromStrategy = (launched.subject.balanceOf(address(launched.escrow)) - escrowSubjectBefore)
+            - (auctionSubjectBefore - launched.subject.balanceOf(address(launched.auction)));
+        uint256 subjectResidue = escrowFromStrategy - (RESERVE_ALLOCATION - graduated.lpSubjectUsed);
+
+        emit log_named_uint("MIG-017 TAKE_PAIR REGENT residue at the strategy", regentResidue);
+        emit log_named_uint("MIG-017 TAKE_PAIR SUBJECT residue at the strategy", subjectResidue);
+        assertEq(regentResidue, 0, "the plan refunded REGENT to the strategy through TAKE_PAIR");
+        assertEq(subjectResidue, 0, "the plan refunded SUBJECT to the strategy through TAKE_PAIR");
+
+        // The PositionManager keeps nothing either, which is CONTRACT_BALANCE doing its job rather
+        // than evidence about the refund.
+        assertEq(
+            regent.balanceOf(BaseBindings.POSITION_MANAGER),
+            positionManagerRegentBefore,
+            "CONTRACT_BALANCE left REGENT at the PositionManager"
+        );
+        assertEq(
+            launched.subject.balanceOf(BaseBindings.POSITION_MANAGER),
+            0,
+            "CONTRACT_BALANCE left SUBJECT at the PositionManager"
+        );
     }
 
     /// @notice `MIG-018`: a graduated launch is terminal. Every further attempt reverts and the whole

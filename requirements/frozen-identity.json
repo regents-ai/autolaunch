@@ -93,6 +93,12 @@
     "launcher_recorded_uerc20": "46290a5447844016516b4b4530013da01b6ff801",
     "forge_std": "3b20d60d14b343ee4f908cb8079495c07f5e8981"
   },
+  "c4_baseline": {
+    "note": "Where reports/frozen/c4-runtime-baseline.json came from. bin/freeze-artifacts.py check proves all of it against Git rather than against the record's own wording: the working file must be byte-identical to the blob capture_commit committed, capture_commit must sit directly on integrated_c4_commit, and the two must share one src tree.",
+    "path": "reports/frozen/c4-runtime-baseline.json",
+    "capture_commit": "7b9f787a73543b97617cb8644884dcdb632c0d57",
+    "integrated_c4_commit": "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
+  },
   "root_submodules": [
     "lib/continuous-clearing-auction",
     "lib/forge-std",

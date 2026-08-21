@@ -29,6 +29,23 @@ abstract contract ForkFixture is Test {
     /// @notice The configured Base endpoint alias. Never an endpoint, always an alias.
     string internal constant RPC_ALIAS = "base";
 
+    /// @notice Every proxy implementation slot this repository is prepared to recognize.
+    /// @dev `DEP-043` never assumes a binding is EIP-1967. Base's own USDC, for one, is a
+    ///      FiatTokenProxy that keeps its implementation at the older ZeppelinOS slot, so a gate
+    ///      that only read the EIP-1967 slot would classify a real proxy as a plain contract and
+    ///      then prove nothing about the code actually executing behind it. The discovery pass
+    ///      classifies against all three, records the family it found, and the check pass follows
+    ///      the recorded family.
+    bytes32 internal constant EIP1967_IMPLEMENTATION_SLOT =
+        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+    bytes32 internal constant EIP1822_IMPLEMENTATION_SLOT =
+        0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7;
+    bytes32 internal constant ZEPPELINOS_IMPLEMENTATION_SLOT =
+        0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3;
+
+    /// @notice The canonical Permit2 deployment every bidder allowance goes through.
+    address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
     /// @notice The two headers every fork claim is proved at.
     enum Header {
         Pinned,
@@ -89,6 +106,10 @@ abstract contract ForkFixture is Test {
         return vm.parseJsonString(_observations, path);
     }
 
+    function _observedBool(string memory path) internal view returns (bool) {
+        return vm.parseJsonBool(_observations, path);
+    }
+
     /// @dev One binding's recorded facts, addressed by its manifest id.
     function _bindingPath(string memory id, string memory field) internal pure returns (string memory) {
         return string.concat(".bindings.", id, ".", field);
@@ -110,6 +131,93 @@ abstract contract ForkFixture is Test {
 
     function _bindingAddresses() internal pure returns (address[8] memory) {
         return BaseBindings.all();
+    }
+
+    // -------------------------------------------------------------------------
+    // live proxy classification
+    // -------------------------------------------------------------------------
+
+    /// @notice Classify one deployed account's proxy family from chain state alone.
+    /// @dev Reads all three recognized implementation slots and returns the family, the
+    ///      implementation it points at, and that implementation's own EVM code identity. It
+    ///      consults no committed value, so the check pass derives the family and the
+    ///      implementation identity independently here and only then compares them against what
+    ///      was reviewed. The discovery pass deliberately keeps its own copy of this classification
+    ///      rather than inheriting this fixture: inheriting it would give discovery the ability to
+    ///      read `reports/frozen/fork-observations.json`, and phase one must not be able to see the
+    ///      record phase two checks against.
+    function _classifyProxy(address account)
+        internal
+        view
+        returns (
+            string memory family,
+            address implementation,
+            bytes32 implementationCodeHash,
+            uint256 implementationBytes
+        )
+    {
+        implementation = _slotAsAddress(account, EIP1967_IMPLEMENTATION_SLOT);
+        family = "eip1967";
+        if (implementation == address(0)) {
+            implementation = _slotAsAddress(account, EIP1822_IMPLEMENTATION_SLOT);
+            family = "eip1822";
+        }
+        if (implementation == address(0)) {
+            implementation = _slotAsAddress(account, ZEPPELINOS_IMPLEMENTATION_SLOT);
+            family = "zeppelinos";
+        }
+        if (implementation == address(0)) {
+            return ("none", address(0), bytes32(0), 0);
+        }
+        implementationCodeHash = implementation.codehash;
+        implementationBytes = implementation.code.length;
+    }
+
+    function _slotAsAddress(address account, bytes32 slot) internal view returns (address) {
+        return address(uint160(uint256(vm.load(account, slot))));
+    }
+
+    // -------------------------------------------------------------------------
+    // deployed-contract reads
+    // -------------------------------------------------------------------------
+
+    function _callUint(address target, bytes memory payload) internal view returns (uint256) {
+        (bool ok, bytes memory returned) = target.staticcall(payload);
+        require(ok && returned.length >= 32, "fork read failed");
+        return abi.decode(returned, (uint256));
+    }
+
+    function _callBool(address target, bytes memory payload) internal view returns (bool) {
+        (bool ok, bytes memory returned) = target.staticcall(payload);
+        require(ok && returned.length >= 32, "fork bool read failed");
+        return abi.decode(returned, (bool));
+    }
+
+    function _callAddress(address target, bytes memory payload) internal view returns (address) {
+        (bool ok, bytes memory returned) = target.staticcall(payload);
+        require(ok && returned.length >= 32, "fork address read failed");
+        return abi.decode(returned, (address));
+    }
+
+    function _callString(address target, bytes memory payload) internal view returns (string memory) {
+        (bool ok, bytes memory returned) = target.staticcall(payload);
+        require(ok && returned.length >= 64, "fork string read failed");
+        return abi.decode(returned, (string));
+    }
+
+    function _balanceOf(address token, address account) internal view returns (uint256) {
+        return _callUint(token, abi.encodeWithSignature("balanceOf(address)", account));
+    }
+
+    function _allowance(address token, address owner, address spender) internal view returns (uint256) {
+        return _callUint(token, abi.encodeWithSignature("allowance(address,address)", owner, spender));
+    }
+
+    function _mustCall(address target, bytes memory payload) internal {
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool ok, bytes memory returned) = target.call(payload);
+        require(ok, "fork call reverted");
+        if (returned.length >= 32) require(abi.decode(returned, (bool)), "fork call returned false");
     }
 
     // -------------------------------------------------------------------------

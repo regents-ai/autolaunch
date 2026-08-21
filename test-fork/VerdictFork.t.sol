@@ -77,8 +77,26 @@ contract VerdictForkTest is ForkFixture {
                     ? "codehash=committed"
                     : "codehash=drifted"
             );
+
+            // Derived from live chain state at this header, never echoed back out of the committed
+            // record. A verdict that restated a committed string would be identical at both headers
+            // by construction and would prove nothing about either of them.
+            (string memory family, address implementation, bytes32 implementationCodeHash,) =
+                _classifyProxy(addresses[i]);
+            _emitVerdict(string.concat("DEP-050.proxy.", ids[i]), header, string.concat("family=", family));
             _emitVerdict(
-                string.concat("DEP-050.proxy.", ids[i]), header, _observedString(_bindingPath(ids[i], "proxy_family"))
+                string.concat("DEP-050.implementation.", ids[i]),
+                header,
+                implementation == _observedAddress(_bindingPath(ids[i], "implementation"))
+                    ? "implementation=committed"
+                    : "implementation=drifted"
+            );
+            _emitVerdict(
+                string.concat("DEP-050.implementation-code.", ids[i]),
+                header,
+                implementationCodeHash == _observedBytes32(_bindingPath(ids[i], "implementation_code_hash"))
+                    ? "implementation-codehash=committed"
+                    : "implementation-codehash=drifted"
             );
         }
 

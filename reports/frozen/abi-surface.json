@@ -78,6 +78,39 @@
         "0x9f3b0730114747603d4395bfe87ba93159db303d7898a3a197877eb01a64b9c6 LaunchFeeCollected(uint256,address,address,uint256) indexed=2",
         "0xca3d1d4b2083435e11137aab340619d30df4b91203fffec8a2073a630d52e492 LaunchCreated(uint256,address,address,address,address,address,address,uint128,uint64,uint64) indexed=3"
       ],
+      "event_fields": {
+        "LaunchCreated": [
+          "uint256 indexed launchId",
+          "address indexed launcher",
+          "address indexed subject",
+          "address auction",
+          "address escrow",
+          "address treasury",
+          "address recoveryAdmin",
+          "uint128 requiredRegentRaised",
+          "uint64 startBlock",
+          "uint64 endBlock"
+        ],
+        "LaunchFeeCollected": [
+          "uint256 indexed launchId",
+          "address indexed payer",
+          "address regentSafe",
+          "uint256 amount"
+        ],
+        "LaunchFeeUpdated": [
+          "uint256 previousFee",
+          "uint256 newFee"
+        ],
+        "LaunchesPaused": [],
+        "LaunchesUnpaused": [],
+        "PaymentReceiverCreated": [
+          "uint256 indexed launchId",
+          "address indexed receiver",
+          "address indexed creator",
+          "address beneficiary",
+          "uint16 referralBps"
+        ]
+      },
       "errors": [
         "0x0091520e LaunchesAlreadyPaused()",
         "0x27348c79 LaunchFeeAllowanceNotConsumed(uint256)",
@@ -110,6 +143,16 @@
           "address recoveryAdmin",
           "uint128 requiredRegentRaised",
           "uint256 expectedLaunchFee"
+        ]
+      },
+      "return_structs": {
+        "launches_return0": [
+          "address launcher",
+          "address subject",
+          "address auction",
+          "address escrow",
+          "address treasury",
+          "address recoveryAdmin"
         ]
       }
     },
@@ -185,6 +228,38 @@
         "0x3ffca04b410a3e894f1a96e386c5d29bfb1b8d48859f387f78e0297c9bb9fd5e HookBound(address) indexed=1",
         "0x566466ea7ae73d52bd167b2206711db30050990222dc4524b58c437c86fb7b5f DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128) indexed=3"
       ],
+      "event_fields": {
+        "DistributionCreated": [
+          "uint256 indexed launchId",
+          "address indexed auction",
+          "address indexed subject",
+          "address escrow",
+          "address treasury",
+          "uint64 startBlock",
+          "uint64 endBlock",
+          "uint128 requiredRegentRaised",
+          "uint128 reserve"
+        ],
+        "HookBound": [
+          "address indexed hook"
+        ],
+        "LaunchGraduated": [
+          "address indexed auction",
+          "address indexed subject",
+          "bytes32 indexed poolId",
+          "address splitter",
+          "address receiver",
+          "uint160 finalSqrtPriceX96",
+          "uint256 lpTokenId",
+          "uint128 lpRegentUsed",
+          "uint128 lpSubjectUsed"
+        ],
+        "LaunchRetired": [
+          "address indexed auction",
+          "address indexed subject",
+          "uint128 reserveReturned"
+        ]
+      },
       "errors": [
         "0x0eb9d0e8 UnexpectedPositionMintCount(uint256,uint256)",
         "0x1bd28bc7 CurrencyRaisedMismatch(uint256,uint256)",
@@ -222,6 +297,36 @@
           "address escrow",
           "address recoveryAdmin",
           "uint128 requiredRegentRaised"
+        ]
+      },
+      "return_structs": {
+        "distribution_return0": [
+          "uint8 lifecycle",
+          "uint64 startBlock",
+          "uint64 endBlock",
+          "uint64 claimBlock",
+          "uint64 migrationBlock",
+          "uint128 requiredRegentRaised",
+          "uint128 reserve",
+          "uint128 lpRegentUsed",
+          "uint128 lpSubjectUsed",
+          "uint160 finalSqrtPriceX96",
+          "uint256 launchId",
+          "address subject",
+          "address escrow",
+          "address treasury",
+          "address recoveryAdmin",
+          "address splitter",
+          "address receiver",
+          "bytes32 poolId",
+          "uint256 lpTokenId"
+        ],
+        "poolKeyOf_return0": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
         ]
       }
     },
@@ -277,6 +382,21 @@
         "0xed635d6e006eb21c9f43821f70b65b0394fb189e2641973011fc2dd0acb0ab0a SwapFeeSettled(bytes32,address,uint256,uint256,bool,bool) indexed=2",
         "0xfafdbdd88ac30f0aa936e576be61816ea751908540523fa81b80c4a406ad7bec PoolRegistered(bytes32,address,address) indexed=3"
       ],
+      "event_fields": {
+        "PoolRegistered": [
+          "bytes32 indexed poolId",
+          "address indexed splitter",
+          "address indexed subject"
+        ],
+        "SwapFeeSettled": [
+          "bytes32 indexed poolId",
+          "address indexed sender",
+          "uint256 chargedRegent",
+          "uint256 lane",
+          "bool exactInput",
+          "bool regentSpecified"
+        ]
+      },
       "errors": [
         "0x0a85dc29 HookNotImplemented()",
         "0x1d192bc6 SplitterHasNoCode(address)",
@@ -408,6 +528,24 @@
           "int24 tickSpacing",
           "address hooks"
         ]
+      },
+      "return_structs": {
+        "getHookPermissions_return0": [
+          "bool beforeInitialize",
+          "bool afterInitialize",
+          "bool beforeAddLiquidity",
+          "bool afterAddLiquidity",
+          "bool beforeRemoveLiquidity",
+          "bool afterRemoveLiquidity",
+          "bool beforeSwap",
+          "bool afterSwap",
+          "bool beforeDonate",
+          "bool afterDonate",
+          "bool beforeSwapReturnDelta",
+          "bool afterSwapReturnDelta",
+          "bool afterAddLiquidityReturnDelta",
+          "bool afterRemoveLiquidityReturnDelta"
+        ]
       }
     },
     "ConditionalVestingEscrowV1": {
@@ -460,6 +598,35 @@
         "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2 Initialized(uint64) indexed=0",
         "0xff82f21c110f9610c560ba4b8bc0cd7cc53041be4e3a75a580dbbc2911f1bce3 EscrowInitialized(address,address,address) indexed=3"
       ],
+      "event_fields": {
+        "EscrowInitialized": [
+          "address indexed subject",
+          "address indexed treasury",
+          "address indexed strategy"
+        ],
+        "GraduatedUnsoldSubjectSwept": [
+          "address indexed auction",
+          "uint256 amount"
+        ],
+        "Initialized": [
+          "uint64 version"
+        ],
+        "LateFailedSubjectRetired": [
+          "uint256 amount"
+        ],
+        "LaunchFailed": [
+          "address indexed auction",
+          "uint256 retiredAmount"
+        ],
+        "SubjectReleased": [
+          "address indexed treasury",
+          "uint256 amount"
+        ],
+        "VestingActivated": [
+          "uint64 startTimestamp",
+          "uint256 duration"
+        ]
+      },
       "errors": [
         "0x0411081b NotPending(uint8)",
         "0x2007aa4c SelfAddress()",
@@ -480,7 +647,8 @@
         "0xf54b58b1 AuctionIsGraduated()",
         "0xf92ee8a9 InvalidInitialization()"
       ],
-      "input_structs": {}
+      "input_structs": {},
+      "return_structs": {}
     },
     "SubjectSplitterV1": {
       "source": "src/revenue/SubjectSplitterV1.sol",
@@ -555,6 +723,51 @@
         "0xf7a40077ff7a04c7e61f6f26fb13774259ddf1b6bce9ecf26a8276cdd3992683 Claimed(address,address,uint256) indexed=2",
         "0xf8dee9e13cd7985023b608a594d1dded7026dbee2410e00a6ffff7782f4eabf2 SplitterInitialized(address,address,address,address,address,address,address) indexed=3"
       ],
+      "event_fields": {
+        "Claimed": [
+          "address indexed account",
+          "address indexed token",
+          "uint256 amount"
+        ],
+        "ForcedEthRecovered": [
+          "address indexed treasury",
+          "uint256 amount"
+        ],
+        "Initialized": [
+          "uint64 version"
+        ],
+        "RevenueRecognized": [
+          "address indexed token",
+          "address indexed source",
+          "bytes32 indexed revenueRef",
+          "uint256 gross",
+          "uint256 skim",
+          "uint256 net",
+          "bool paidToStakers"
+        ],
+        "SplitterInitialized": [
+          "address usdc",
+          "address regent",
+          "address indexed subject",
+          "address liveStaking",
+          "address regentSafe",
+          "address indexed treasury",
+          "address indexed recoveryAdmin"
+        ],
+        "Staked": [
+          "address indexed account",
+          "uint256 amount"
+        ],
+        "Unstaked": [
+          "address indexed account",
+          "uint256 amount"
+        ],
+        "UnsupportedTokenRecovered": [
+          "address indexed token",
+          "address indexed treasury",
+          "uint256 amount"
+        ]
+      },
       "errors": [
         "0x0283e222 DuplicateTokenBinding()",
         "0x1f2a2005 ZeroAmount()",
@@ -572,7 +785,8 @@
         "0xf365fcf8 StakingDepositMismatch(uint256,uint256)",
         "0xf92ee8a9 InvalidInitialization()"
       ],
-      "input_structs": {}
+      "input_structs": {},
+      "return_structs": {}
     },
     "PaymentReceiverV1": {
       "source": "src/revenue/PaymentReceiverV1.sol",
@@ -627,6 +841,38 @@
         "0xbc65543ce93786ff4cc8707677a1c51d152970c5f29ee3330c8670dfe4550600 ReceiverInitialized(address,address,uint16,address) indexed=3",
         "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2 Initialized(uint64) indexed=0"
       ],
+      "event_fields": {
+        "ForcedEthRecovered": [
+          "address indexed treasury",
+          "uint256 amount"
+        ],
+        "Initialized": [
+          "uint64 version"
+        ],
+        "PaymentRouted": [
+          "bytes32 indexed paymentRef",
+          "bytes32 indexed receiverNote",
+          "address indexed token",
+          "uint256 gross",
+          "uint256 referral",
+          "uint256 net"
+        ],
+        "ReceiverInitialized": [
+          "address indexed splitter",
+          "address indexed beneficiary",
+          "uint16 referralBps",
+          "address indexed noteEditor"
+        ],
+        "ReceiverNoteUpdated": [
+          "bytes32 previousNote",
+          "bytes32 newNote"
+        ],
+        "UnsupportedTokenRecovered": [
+          "address indexed token",
+          "address indexed treasury",
+          "uint256 amount"
+        ]
+      },
       "errors": [
         "0x1f2a2005 ZeroAmount()",
         "0x2007aa4c SelfAddress()",
@@ -644,7 +890,8 @@
         "0xd92e233d ZeroAddress()",
         "0xf92ee8a9 InvalidInitialization()"
       ],
-      "input_structs": {}
+      "input_structs": {},
+      "return_structs": {}
     }
   },
   "consumed": {
@@ -677,12 +924,39 @@
         "0xfd637557 tokensRecipient()"
       ],
       "events": [
-        "0x053dfa7183794b221b03c5109dfb5a07b67d719cb3e98262d48bc66b2a132ad3 CurrencySwept(address,uint256)",
-        "0x054fe6469466a0b4d2a6ae4b100e5f9c494c958f04b4000f44d470088dd97930 BidExited(uint256,address,uint256,uint256)",
-        "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540 BidSubmitted(uint256,address,uint256,uint128)",
-        "0x880f2ef2613b092f1a0a819f294155c98667eb294b7e6bf7a3810278142c1a1c TokensClaimed(uint256,address,uint256)",
-        "0xdd9a81eb1b5197489c3ccfdab7b542e2e6dbdcf4120324e2688fab56fd23f98b TokensSwept(address,uint256)"
-      ]
+        "0x053dfa7183794b221b03c5109dfb5a07b67d719cb3e98262d48bc66b2a132ad3 CurrencySwept(address,uint256) indexed=1",
+        "0x054fe6469466a0b4d2a6ae4b100e5f9c494c958f04b4000f44d470088dd97930 BidExited(uint256,address,uint256,uint256) indexed=2",
+        "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540 BidSubmitted(uint256,address,uint256,uint128) indexed=2",
+        "0x880f2ef2613b092f1a0a819f294155c98667eb294b7e6bf7a3810278142c1a1c TokensClaimed(uint256,address,uint256) indexed=2",
+        "0xdd9a81eb1b5197489c3ccfdab7b542e2e6dbdcf4120324e2688fab56fd23f98b TokensSwept(address,uint256) indexed=1"
+      ],
+      "event_fields": {
+        "BidExited": [
+          "uint256 indexed bidId",
+          "address indexed owner",
+          "uint256 tokensFilled",
+          "uint256 currencyRefunded"
+        ],
+        "BidSubmitted": [
+          "uint256 indexed id",
+          "address indexed owner",
+          "uint256 priceQ96",
+          "uint128 amount"
+        ],
+        "CurrencySwept": [
+          "address indexed fundsRecipient",
+          "uint256 currencyAmount"
+        ],
+        "TokensClaimed": [
+          "uint256 indexed bidId",
+          "address indexed owner",
+          "uint256 tokensFilled"
+        ],
+        "TokensSwept": [
+          "address indexed tokensRecipient",
+          "uint256 tokensAmount"
+        ]
+      }
     },
     "ContinuousClearingAuctionFactory": {
       "repository": "https://github.com/Uniswap/continuous-clearing-auction",
@@ -691,17 +965,25 @@
         "0xf02de3b2 protocolFeeController()"
       ],
       "events": [
-        "0x7ede475fad18ccf0039f2b956c4d43a8b4ed0853de4daaa8ae25299f331ae3b9 AuctionCreated(address,address,uint256,bytes)"
-      ]
+        "0x7ede475fad18ccf0039f2b956c4d43a8b4ed0853de4daaa8ae25299f331ae3b9 AuctionCreated(address,address,uint256,bytes) indexed=2"
+      ],
+      "event_fields": {
+        "AuctionCreated": [
+          "address indexed auction",
+          "address indexed token",
+          "uint256 amount",
+          "bytes configData"
+        ]
+      }
     },
     "IAllowanceTransfer": {
       "repository": "https://github.com/Uniswap/permit2",
       "functions": [
-        "0x2b67b570 permit(address,((address,uint160,uint48,uint48),address,uint256),bytes)",
         "0x87517c45 approve(address,address,uint160,uint48)",
         "0x927da105 allowance(address,address,address)"
       ],
-      "events": []
+      "events": [],
+      "event_fields": {}
     }
   }
 }

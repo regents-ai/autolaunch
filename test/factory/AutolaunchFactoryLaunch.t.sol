@@ -18,6 +18,14 @@ import {Vm} from "forge-std/Vm.sol";
 ///         pending escrow and one canonical CCA auction, with a fixed supply, a fixed split, a fixed
 ///         schedule, no caller-chosen entropy, and complete isolation between launches.
 contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
+    /// @notice The exact amounts a one-wei required raise funds its full-range position with.
+    /// @dev The audit packet publishes these two numbers, so they are asserted here rather than
+    ///      merely logged: a figure a reader is asked to trust has to be one the gate re-proves.
+    ///      Both follow from the fixed floor clearing price and the 5% reserve, so a change to
+    ///      either is a change to admitted economics and must fail loudly.
+    uint256 internal constant ONE_WEI_RAISE_LP_REGENT = 1;
+    uint256 internal constant ONE_WEI_RAISE_LP_SUBJECT = 981;
+
     event LaunchCreated(
         uint256 indexed launchId,
         address indexed launcher,
@@ -855,9 +863,9 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         // And the LP consumption at that clearing price is recorded rather than merely bounded: the
         // position really is funded out of the one wei raised and the isolated 5% reserve.
         RegentLBPStrategy.Distribution memory d = _distribution(launched);
-        assertGt(d.lpSubjectUsed, 0, "the full-range position consumed no SUBJECT");
+        assertEq(uint256(d.lpRegentUsed), ONE_WEI_RAISE_LP_REGENT, "the one-wei LP REGENT consumption moved");
+        assertEq(uint256(d.lpSubjectUsed), ONE_WEI_RAISE_LP_SUBJECT, "the one-wei LP SUBJECT consumption moved");
         assertLe(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, "the position consumed more than the isolated reserve");
-        assertLe(uint256(d.lpRegentUsed), 1, "the position consumed more REGENT than the auction raised");
         assertGt(positionManager.getPositionLiquidity(d.lpTokenId), 0, "the minted position carries no liquidity");
         emit log_named_uint("FAC-023 one-wei raise: lpRegentUsed", d.lpRegentUsed);
         emit log_named_uint("FAC-023 one-wei raise: lpSubjectUsed", d.lpSubjectUsed);

@@ -1,23 +1,35 @@
 {
-  "purpose": "The committed record of every Base runtime fact the fork claims check against. It is written once by an authorized discovery pass, reviewed, and committed; the final fork gate is check-only and never writes into it. A gate that observed a value and then compared it to itself would prove nothing, which is why this file exists as a separate, reviewed input.",
+  "purpose": "The committed record of every Base runtime fact the fork claims check against. It is produced by an authorized read-only discovery pass as a candidate under reports/generated/fork/, reviewed by a human, and deliberately installed here; the final fork gate is check-only and never writes into it. A gate that observed a value and then compared it to itself would prove nothing, which is why this file exists as a separate, reviewed input.",
   "status": "discovery_pending",
   "status_meaning": {
-    "discovery_pending": "No authorized read-only Base provider has been available, so nothing has been observed. test-fork/ForkFixture.sol refuses to run a check pass while this file is in this state, and requirements/ledger.toml keeps every fork claim pending.",
-    "observed_and_committed": "An authorized discovery pass recorded the values below, they were reviewed, and the final fork gate may check against them."
+    "discovery_pending": "No authorized read-only Base provider has been available, so nothing has been observed. Every value below is null and is a placeholder showing the shape a reviewed record must have. test-fork/ForkFixture.sol refuses to run a check pass while this file is in this state, bin/fork-gate.sh check refuses to start, and requirements/ledger.toml keeps every fork claim pending.",
+    "observed_and_committed": "An authorized discovery pass recorded the values below, a human reviewed them and supplied the transaction gas schedule, and the final fork gate may check against them."
   },
+  "operator_transition": [
+    "1. run bin/fork-gate.sh discover, which writes reports/generated/fork/fork-observations-candidate.json and blesses nothing",
+    "2. review every observed value against an independent source",
+    "3. fill in transaction_gas_schedule from the protocol rules active at the recorded headers; no contract exposes them, so discovery cannot observe them",
+    "4. set status to observed_and_committed",
+    "5. install the reviewed candidate here",
+    "6. add \"fork\" to activated_gates in requirements/ledger.toml and flip the sixteen fork claims to active",
+    "7. commit both files; bin/fork-gate.sh check proves they are committed and clean before it touches the provider, and unchanged after it finishes",
+    "8. run bin/fork-gate.sh check"
+  ],
   "authority": "SPEC.md section 3 binding table; contracts/autolaunch-release-manifest.json records the same bindings with their runtime facts still null and fork_pending.",
   "endpoint": "reached only through the configured `base` alias; no endpoint is ever recorded here",
   "headers": {
     "pinned": {
       "block_number": null,
-      "block_hash": null,
+      "parent_block_number": null,
+      "parent_block_hash": null,
       "timestamp": null,
       "base_fee_per_gas": null,
-      "note": "the pinned Base header this candidate's fork evidence was taken at"
+      "note": "the pinned Base header this candidate's fork evidence was taken at; discovery places it a fixed confirmation depth behind the head so it is settled"
     },
     "later": {
       "block_number": null,
-      "block_hash": null,
+      "parent_block_number": null,
+      "parent_block_hash": null,
       "timestamp": null,
       "base_fee_per_gas": null,
       "note": "a later Base head captured for this same candidate; regent-4wx owns the ceremony-time fresh-head recheck"
@@ -28,7 +40,7 @@
     "calldata_zero_byte_gas": null,
     "calldata_nonzero_byte_gas": null,
     "floor_per_calldata_token": null,
-    "note": "the Base transaction gas rules active at each header, including any intrinsic calldata floor introduced after this repository's Cancun compile target; GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a naive sum"
+    "note": "the Base transaction gas rules active at each header, including any intrinsic calldata floor introduced after this repository's Cancun compile target. No contract exposes these, so the reviewer supplies them rather than discovery observing them. GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a naive sum"
   },
   "bindings": {
     "regent": {
@@ -37,6 +49,8 @@
       "runtime_bytes": null,
       "proxy_family": null,
       "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": null,
       "decimals": null,
       "symbol": null
     },
@@ -46,6 +60,8 @@
       "runtime_bytes": null,
       "proxy_family": null,
       "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": null,
       "decimals": null,
       "symbol": null
     },
@@ -56,6 +72,8 @@
       "runtime_bytes": null,
       "proxy_family": null,
       "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": null,
       "protocol_fee_controller": null
     },
     "pool_manager": {
@@ -63,7 +81,9 @@
       "runtime_code_hash": null,
       "runtime_bytes": null,
       "proxy_family": null,
-      "implementation": null
+      "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": null
     },
     "position_manager": {
       "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
@@ -71,6 +91,8 @@
       "runtime_bytes": null,
       "proxy_family": null,
       "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": null,
       "next_token_id": null
     },
     "live_staking": {
@@ -79,6 +101,8 @@
       "runtime_bytes": null,
       "proxy_family": null,
       "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": null,
       "owner": null,
       "paused": null
     },
@@ -87,7 +111,9 @@
       "runtime_code_hash": null,
       "runtime_bytes": null,
       "proxy_family": null,
-      "implementation": null
+      "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": null
     },
     "dead_address": {
       "address": "0x000000000000000000000000000000000000dEaD",
@@ -95,13 +121,19 @@
       "runtime_bytes": 0,
       "runtime_bytes_source": "the dead address must carry no code at all; that is the claim, not an observation",
       "proxy_family": "none",
-      "implementation": null
+      "implementation": null,
+      "implementation_code_hash": null,
+      "implementation_runtime_bytes": 0
     }
   },
   "permit2": {
     "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "runtime_code_hash": null,
     "runtime_bytes": null,
+    "proxy_family": null,
+    "implementation": null,
+    "implementation_code_hash": null,
+    "implementation_runtime_bytes": null,
     "note": "the canonical Permit2 deployment every bidder allowance goes through; its ABI is frozen from the pinned IAllowanceTransfer interface, its deployed runtime is a fork observation"
   }
 }

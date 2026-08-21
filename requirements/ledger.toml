@@ -741,7 +741,7 @@ id = "FAC-023"
 # either end actually settles on, which let the maximum *bid* price be read as a clearing
 # price. It is not: a one-wei raise is met by the first admitted bid and clears at the fixed
 # floor, and the recorded LP consumption at that clearing price is the real evidence.
-statement = "The required raise is nonzero and mathematically reachable for every admitted launch: one wei is admitted and, when met, graduates at the fixed floor clearing price rather than at any bid maximum, the exact MAX_REACHABLE_RAISE boundary is admitted, and both extremes record the LP amounts the position actually consumed."
+statement = "The required raise is nonzero and mathematically reachable for every admitted launch: one wei is admitted and, when met, graduates at the fixed floor clearing price rather than at any bid maximum, the exact MAX_REACHABLE_RAISE boundary is admitted, and the one-wei extreme asserts the exact LP amounts the position consumed."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -2038,7 +2038,7 @@ selectors = ["test_MIG_016_TokenUseAndResiduesMatchExactly"]
 # rather than asserting a residue shape that may be unreachable.
 [[requirement]]
 id = "MIG-017"
-statement = "Failure after every external call on either terminal path — graduation and failure retirement alike — rolls back to the exact pre-migration state, and the migration leaves no TAKE_PAIR residue at all: the strategy funds the position with exactly the amounts v4 charges, so the pinned planner's refund has nothing to return and the recorded residue is exactly zero in both currencies."
+statement = "Failure after every external call on either terminal path — graduation and failure retirement alike — rolls back to the exact pre-migration state, and the migration leaves no TAKE_PAIR residue at the plan's real refund recipient, which is the strategy as MSG_SENDER and never the PositionManager: the PoolManager charges exactly the amounts the strategy funded, so the pinned planner's refund returns exactly zero in both currencies and the strategy forwards only its own unused raise and unused reserve."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
@@ -2222,7 +2222,7 @@ selectors = ["invariant_INV_005_RemainderIsNeverLostOrDoublePaid"]
 # custodies for it. Cross-launch reachability is INV-009's separate model.
 [[requirement]]
 id = "INV-006"
-statement = "One launch's isolated 5% LP reserve is conserved: while the launch is active the strategy custodies exactly RESERVE_ALLOCATION of that launch's SUBJECT, and after a terminal outcome the reserve equals exactly the amount its own specified destination consumed — the full-range position on graduation, or its own escrow on retirement — with nothing stranded and nothing created."
+statement = "One launch's isolated 5% LP reserve is conserved to the unit: while the launch is active the strategy custodies exactly RESERVE_ALLOCATION of that launch's SUBJECT; on graduation the reserve equals the exact LP SUBJECT the full-range position consumed plus the exact SUBJECT residue returned to that launch's own escrow; on failure it equals the exact amount retired to the dead address through that launch's own escrow. No part of it reaches a treasury, another launch, or any other destination, and nothing is stranded or created."
 owner = "C5"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-invariant"
@@ -2256,13 +2256,16 @@ selectors = ["invariant_INV_008_ReceiverAccountingIsConserved"]
 # conserves one launch's own reserve against its own specified destinations.
 [[requirement]]
 id = "INV-009"
-statement = "Across every reachable sequence of interleaved launch, bid, migration, and terminal operations, no launch's 5% LP reserve is ever consumed by, credited to, or reachable from another launch, and each launch's SUBJECT held by the shared strategy is attributable to that launch alone."
+statement = "Across every reachable interleaving of bid, block progression, migration, vesting release, late retirement, and external-gift operations over three simultaneous launches created in one block, no launch's 5% LP reserve is ever consumed by, credited to, or reachable from another launch, and each launch's SUBJECT held by the shared strategy is attributable to that launch alone. Launch creation itself is not one of the interleaved operations: the three launches are created before the sequence begins, and STR-012 owns single-operation creation isolation."
 owner = "C5"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-invariant"
 gate = "invariant"
 status = "active"
-selectors = ["invariant_INV_009_ReservesAreNeverUsedAcrossLaunches"]
+selectors = [
+    "invariant_INV_009_ReservesAreNeverUsedAcrossLaunches",
+    "test_INV_009_HandlerReleaseAndGiftBranchesAreReachable",
+]
 
 # C5 correction. Absolute balances are the wrong model: a stranger may gift SUBJECT, REGENT,
 # or USDC to the factory, the strategy, or the hook at any time, and neither a gift nor an
@@ -2291,7 +2294,7 @@ selectors = ["invariant_INV_010_NoUnexplainedFactoryStrategyOrHookBalances"]
 
 [[requirement]]
 id = "GAS-001"
-statement = "Every deployable contract's runtime size is within the EIP-170 limit with the recorded margin."
+statement = "Every deployable contract's runtime size is within the EIP-170 limit with the recorded margin, and the frozen record carries its exact compiler build and EVM keccak-256 runtime code identity: the six production contracts, the pinned UERC20 factory the ceremony also deploys, the per-launch UERC20 build the pinned factory deploys, the three clone implementations, and the fixed 44-byte clone runtime."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
@@ -2301,7 +2304,7 @@ selectors = ["test_GAS_001_RuntimeSizesAreWithinEip170WithMargin"]
 
 [[requirement]]
 id = "GAS-002"
-statement = "Every deployment's creation bytecode plus its ABI-encoded constructor arguments is within the EIP-3860 limit with the recorded margin."
+statement = "Every deployment's creation bytecode plus its ABI-encoded constructor arguments is within the EIP-3860 limit with the recorded margin, the frozen record carries its exact constructor shape and creation code identity, and the pinned UERC20 factory and per-launch UERC20 creation builds are recorded with their own margins."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
@@ -2315,7 +2318,7 @@ selectors = ["test_GAS_002_InitcodeSizesAreWithinEip3860WithMargin"]
 # rides on GAS-003 through GAS-006.
 [[requirement]]
 id = "GAS-007"
-statement = "The supported hook callbacks' cold and warm gas, and the supported router's own sync/settle timing, are measured as a controlled difference against an otherwise identical zero-lane swap, stay inside the pinned Uniswap v4 hard ceiling for a callback that makes external calls, and are recorded with their disposition against that guidance's target."
+statement = "The supported hook callbacks' cold and warm gas, and the supported router's own sync/settle timing, are measured as a controlled difference against a zero-lane swap of the identical amount on an identically built pool, stay inside the pinned Uniswap v4 hard ceiling for a callback that makes external calls, are recorded with their disposition against that guidance's target, and are reconciled by the gate against the figures the audit packet publishes. The cold figure is the posture a real user transaction meets on a pool's first swap; the warm figure is only the control that proves the cold one was cold."
 owner = "C5"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
@@ -2450,7 +2453,7 @@ selectors = ["test_ABI_006_ReceiverSurfaceIsExact"]
 # watcher's own coverage is separate product work under 490.8.2/.3.
 [[requirement]]
 id = "ABI-007"
-statement = "Every production event's topic0, indexed-field set, and exact integer and value widths equal what the compiler produced and what the frozen ABI surface records, byte for byte, in both directions."
+statement = "Every production event's topic0, exact integer and value widths, and exact indexed-field identity — which argument is indexed, at which position, under which name — equal what the compiler produced and what the frozen ABI surface records, byte for byte, in both directions."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
@@ -2477,3 +2480,23 @@ evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = ["test_ABI_009_NoObsoleteSupersededInterfaceRemains"]
+
+[[requirement]]
+id = "ABI-010"
+statement = "Every pinned upstream event this repository consumes is frozen with its exact topic0, indexed-field positions, names, and widths — including BidSubmitted(uint256 indexed id, address indexed owner, uint256 priceQ96, uint128 amount) — and the consumed Permit2 surface is exactly the founder-selected allowance flow of approve and allowance, with no permit-signature, batched, or permitTransferFrom entry point implied."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_ABI_010_ConsumedUpstreamEventAndPermit2SurfaceIsFrozen"]
+
+[[requirement]]
+id = "ABI-011"
+statement = "The exact return tuple layout of launches(), distribution(), poolKeyOf(), and getHookPermissions() is frozen field by field alongside the input tuples, and each frozen layout equals what the live contracts actually return."
+owner = "C5"
+contract = "system"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_ABI_011_ReturnTupleLayoutsAreFrozen"]

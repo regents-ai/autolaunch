@@ -12,13 +12,6 @@ import {ForkFixture} from "./ForkFixture.sol";
 ///      Each pair compares the live chain against `reports/frozen/fork-observations.json`, which was
 ///      recorded by a separate authorized discovery pass and reviewed before this gate ever ran.
 contract BaseBindingsForkTest is ForkFixture {
-    /// @dev The proxy families this repository is prepared to recognize. `DEP-043` never assumes a
-    ///      binding is EIP-1967: the family is recorded per binding and the read follows the family.
-    bytes32 internal constant EIP1967_IMPLEMENTATION_SLOT =
-        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-    bytes32 internal constant EIP1822_IMPLEMENTATION_SLOT =
-        0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7;
-
     function setUp() public {
         _loadObservations();
     }
@@ -113,52 +106,59 @@ contract BaseBindingsForkTest is ForkFixture {
         _checkProxyStatus(Header.Later);
     }
 
-    /// @dev No binding is assumed to be EIP-1967. The recorded family selects how the
-    ///      implementation is read, and a binding recorded as `none` must expose no implementation
-    ///      at either standard slot.
+    /// @dev No binding is assumed to be EIP-1967, and none is taken on the record's word. The
+    ///      family, the implementation address, and the implementation's own runtime code identity
+    ///      are all re-derived from live chain state here and compared against what the reviewed
+    ///      discovery pass recorded. A proxy of any recognized family must point at an
+    ///      implementation that carries code — an EIP-1822 proxy no less than an EIP-1967 one,
+    ///      because a codeless implementation makes every delegated call a silent success — and a
+    ///      binding recorded as a plain contract must expose no implementation at any of the three
+    ///      recognized slots.
     function _checkProxyStatus(Header header) private {
         _selectFork(header);
 
         string[8] memory ids = _bindingIds();
         address[8] memory addresses = _bindingAddresses();
         for (uint256 i; i < ids.length; ++i) {
-            string memory family = _observedString(_bindingPath(ids[i], "proxy_family"));
-            bytes32 kind = keccak256(bytes(family));
+            (string memory family, address implementation, bytes32 codeHash, uint256 codeBytes) =
+                _classifyProxy(addresses[i]);
 
-            if (kind == keccak256("eip1967")) {
-                address implementation = _slotAsAddress(addresses[i], EIP1967_IMPLEMENTATION_SLOT);
-                assertEq(
-                    implementation,
-                    _observedAddress(_bindingPath(ids[i], "implementation")),
-                    string.concat("binding ", ids[i], " changed its EIP-1967 implementation")
-                );
-                assertGt(implementation.code.length, 0, "an implementation carries no code");
-            } else if (kind == keccak256("eip1822")) {
-                address implementation = _slotAsAddress(addresses[i], EIP1822_IMPLEMENTATION_SLOT);
-                assertEq(
-                    implementation,
-                    _observedAddress(_bindingPath(ids[i], "implementation")),
-                    string.concat("binding ", ids[i], " changed its EIP-1822 implementation")
-                );
+            assertEq(
+                keccak256(bytes(family)),
+                keccak256(bytes(_observedString(_bindingPath(ids[i], "proxy_family")))),
+                string.concat("binding ", ids[i], " changed its proxy family")
+            );
+            assertEq(
+                implementation,
+                _observedAddress(_bindingPath(ids[i], "implementation")),
+                string.concat("binding ", ids[i], " changed its implementation address")
+            );
+            assertEq(
+                codeHash,
+                _observedBytes32(_bindingPath(ids[i], "implementation_code_hash")),
+                string.concat("binding ", ids[i], " changed its implementation runtime code identity")
+            );
+            assertEq(
+                codeBytes,
+                _observedUint(_bindingPath(ids[i], "implementation_runtime_bytes")),
+                string.concat("binding ", ids[i], " changed its implementation runtime length")
+            );
+
+            if (keccak256(bytes(family)) == keccak256("none")) {
+                assertEq(implementation, address(0), string.concat("binding ", ids[i], " is non-proxy with an impl"));
+                assertEq(codeBytes, 0, string.concat("binding ", ids[i], " is non-proxy with implementation code"));
             } else {
-                assertEq(kind, keccak256("none"), string.concat("binding ", ids[i], " records an unknown proxy family"));
-                assertEq(
-                    _slotAsAddress(addresses[i], EIP1967_IMPLEMENTATION_SLOT),
-                    address(0),
-                    string.concat("binding ", ids[i], " is recorded non-proxy but carries an EIP-1967 implementation")
+                assertGt(
+                    codeBytes, 0, string.concat("binding ", ids[i], " delegates to an implementation with no code")
                 );
                 assertEq(
-                    _slotAsAddress(addresses[i], EIP1822_IMPLEMENTATION_SLOT),
-                    address(0),
-                    string.concat("binding ", ids[i], " is recorded non-proxy but carries an EIP-1822 implementation")
+                    codeHash,
+                    implementation.codehash,
+                    string.concat("binding ", ids[i], " implementation identity is not the deployed one")
                 );
             }
         }
-        _emitVerdict("DEP-043", header, "all-binding-proxy-families-match");
-    }
-
-    function _slotAsAddress(address account, bytes32 slot) private view returns (address) {
-        return address(uint160(uint256(vm.load(account, slot))));
+        _emitVerdict("DEP-043", header, "all-binding-proxy-families-and-implementations-match");
     }
 
     // -------------------------------------------------------------------------
@@ -175,7 +175,9 @@ contract BaseBindingsForkTest is ForkFixture {
 
     /// @dev The accounting paths assume exact-amount transfers with no fee taken in flight, exact
     ///      allowance consumption, and stable decimals and symbol. Each is proved on the deployed
-    ///      token itself, with balances staged by `deal` and the real production call shapes used.
+    ///      token itself — `symbol()` is actually called and compared, not inferred from the
+    ///      claim's wording — with balances staged by `deal` and the real production call shapes
+    ///      used throughout.
     function _checkTokenSemantics(Header header) private {
         _selectFork(header);
 
@@ -190,6 +192,11 @@ contract BaseBindingsForkTest is ForkFixture {
                 _callUint(tokens[i], abi.encodeWithSignature("decimals()")),
                 _observedUint(_bindingPath(ids[i], "decimals")),
                 string.concat(ids[i], " changed its decimals")
+            );
+            assertEq(
+                _callString(tokens[i], abi.encodeWithSignature("symbol()")),
+                _observedString(_bindingPath(ids[i], "symbol")),
+                string.concat(ids[i], " changed its symbol")
             );
 
             uint256 amount = 1_000 * (10 ** _observedUint(_bindingPath(ids[i], "decimals")));
@@ -224,7 +231,7 @@ contract BaseBindingsForkTest is ForkFixture {
             );
             assertEq(_balanceOf(tokens[i], holder), amount, string.concat(ids[i], ": transferFrom was inexact"));
         }
-        _emitVerdict("DEP-044", header, "regent-and-usdc-exact-transfer-and-allowance");
+        _emitVerdict("DEP-044", header, "regent-and-usdc-exact-getters-transfer-and-allowance");
     }
 
     // -------------------------------------------------------------------------
@@ -277,23 +284,5 @@ contract BaseBindingsForkTest is ForkFixture {
             "the recorded CCA hash disagrees with the frozen admission hash"
         );
         _emitVerdict("DEP-051", header, "all-binding-runtime-code-hashes-match");
-    }
-
-    // -------------------------------------------------------------------------
-
-    function _balanceOf(address token, address account) private view returns (uint256) {
-        return _callUint(token, abi.encodeWithSignature("balanceOf(address)", account));
-    }
-
-    function _callUint(address target, bytes memory payload) private view returns (uint256) {
-        (bool ok, bytes memory returned) = target.staticcall(payload);
-        require(ok && returned.length >= 32, "fork read failed");
-        return abi.decode(returned, (uint256));
-    }
-
-    function _mustCall(address target, bytes memory payload) private {
-        (bool ok, bytes memory returned) = target.call(payload);
-        require(ok, "fork call reverted");
-        if (returned.length >= 32) require(abi.decode(returned, (bool)), "fork call returned false");
     }
 }

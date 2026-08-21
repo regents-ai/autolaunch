@@ -39,6 +39,140 @@ abstract contract FrozenSurface is Test {
         return vm.parseJsonStringArray(_surface, string.concat(".consumed.", upstream, ".", field));
     }
 
+    /// @dev One production event's frozen field shape, in declaration order.
+    function _frozenEventFields(string memory contractName, string memory eventName)
+        internal
+        view
+        returns (string[] memory)
+    {
+        return
+            vm.parseJsonStringArray(_surface, string.concat(".contracts.", contractName, ".event_fields.", eventName));
+    }
+
+    /// @dev One consumed upstream event's frozen field shape, in declaration order.
+    function _consumedEventFields(string memory upstream, string memory eventName)
+        internal
+        view
+        returns (string[] memory)
+    {
+        return vm.parseJsonStringArray(_surface, string.concat(".consumed.", upstream, ".event_fields.", eventName));
+    }
+
+    /// @dev One frozen tuple layout — an input struct or a return struct — in declaration order.
+    function _frozenTuple(string memory contractName, string memory group, string memory key)
+        internal
+        view
+        returns (string[] memory)
+    {
+        return vm.parseJsonStringArray(_surface, string.concat(".contracts.", contractName, ".", group, ".", key));
+    }
+
+    /// @dev Compare a frozen field list against the exact expected list, position by position.
+    function _assertFieldsExact(string[] memory frozenFields, string[] memory expected, string memory what)
+        internal
+        pure
+    {
+        assertEq(frozenFields.length, expected.length, string.concat(what, ": field count"));
+        for (uint256 i; i < expected.length; ++i) {
+            assertEq(frozenFields[i], expected[i], string.concat(what, ": field at position ", _decimal(i)));
+        }
+    }
+
+    /// @dev One event's complete frozen identity: every argument's exact type, indexed flag, name
+    ///      and position, plus the topic line those fields have to reproduce.
+    ///
+    ///      `expected` is `<type>[ indexed] <name>` per argument, joined with `|`, so a reviewer
+    ///      reads one line per event. Two things are proved from it. The transcription must equal
+    ///      the frozen record field for field, which pins names and indexed positions; and the
+    ///      types alone, joined in order, must reproduce a canonical signature that keccaks to a
+    ///      topic the frozen `events` list already carries with the same indexed count. That
+    ///      second half is what ties the whole shape back to compiler truth: moving `indexed`
+    ///      from one argument to another leaves the topic unchanged, and fails the first half.
+    function _assertFrozenEventFields(
+        string[] memory frozenFields,
+        string[] memory frozenEventLines,
+        string memory eventName,
+        string memory expected,
+        string memory what
+    ) internal view {
+        string memory label = string.concat(what, " ", eventName);
+        _assertFieldsExact(frozenFields, _splitPipe(expected), label);
+
+        bytes memory types;
+        uint256 indexedCount;
+        for (uint256 i; i < frozenFields.length; ++i) {
+            if (i != 0) types = abi.encodePacked(types, ",");
+            types = abi.encodePacked(types, _fieldType(frozenFields[i]));
+            if (_fieldIsIndexed(frozenFields[i])) indexedCount += 1;
+        }
+
+        string memory canonical = string.concat(eventName, "(", string(types), ")");
+        string memory line = string.concat(
+            vm.toString(keccak256(bytes(canonical))), " ", canonical, " indexed=", _decimal(indexedCount)
+        );
+        assertTrue(
+            _contains(frozenEventLines, line), string.concat(label, ": the frozen topic list carries no [", line, "]")
+        );
+    }
+
+    /// @dev The declared type of one `<type>[ indexed] <name>` field: everything before the space.
+    function _fieldType(string memory field) internal pure returns (string memory) {
+        bytes memory raw = bytes(field);
+        uint256 end;
+        while (end < raw.length && raw[end] != " ") ++end;
+        bytes memory kind = new bytes(end);
+        for (uint256 i; i < end; ++i) {
+            kind[i] = raw[i];
+        }
+        return string(kind);
+    }
+
+    /// @dev Whether one `<type>[ indexed] <name>` field's second token is exactly `indexed`.
+    function _fieldIsIndexed(string memory field) internal pure returns (bool) {
+        bytes memory raw = bytes(field);
+        uint256 start;
+        while (start < raw.length && raw[start] != " ") ++start;
+        ++start;
+        bytes memory marker = bytes("indexed ");
+        if (raw.length < start + marker.length) return false;
+        for (uint256 i; i < marker.length; ++i) {
+            if (raw[start + i] != marker[i]) return false;
+        }
+        return true;
+    }
+
+    function _splitPipe(string memory packed) internal pure returns (string[] memory parts) {
+        bytes memory raw = bytes(packed);
+        if (raw.length == 0) return new string[](0);
+        uint256 count = 1;
+        for (uint256 i; i < raw.length; ++i) {
+            if (raw[i] == "|") count += 1;
+        }
+        parts = new string[](count);
+
+        uint256 slot;
+        uint256 start;
+        for (uint256 i; i <= raw.length; ++i) {
+            if (i != raw.length && raw[i] != "|") continue;
+            bytes memory piece = new bytes(i - start);
+            for (uint256 j; j < piece.length; ++j) {
+                piece[j] = raw[start + j];
+            }
+            parts[slot++] = string(piece);
+            start = i + 1;
+        }
+    }
+
+    function _decimal(uint256 value) internal pure returns (string memory) {
+        if (value == 0) return "0";
+        bytes memory digits;
+        while (value != 0) {
+            digits = abi.encodePacked(bytes1(uint8(48 + (value % 10))), digits);
+            value /= 10;
+        }
+        return string(digits);
+    }
+
     // -------------------------------------------------------------------------
     // line shapes
     // -------------------------------------------------------------------------

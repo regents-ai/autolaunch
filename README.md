@@ -55,9 +55,11 @@ gates, and only those. It runs the external tools and hands every structured com
    baseline in `reports/frozen/c4-runtime-baseline.json`. It writes `DEP-016`'s verified receipt,
    so deleting this step fails the ledger rather than silently stopping the check.
 9. **Tests.** `forge test --list --json` is the authority for which test identities exist;
-   `forge test --json` is what ran. The two are compared as multisets, so an overloaded,
-   inherited, or duplicated identity cannot collapse into one entry. Every due selector must
-   be globally unique, must execute exactly once, and must pass; zero failures, zero skips.
+   `forge test --json -vv` is what ran — `-vv` because Foundry only populates each result's
+   decoded logs at that verbosity, and step 12 reads a measurement out of exactly that field.
+   The two are compared as multisets, so an overloaded, inherited, or duplicated identity
+   cannot collapse into one entry. Every due selector must be globally unique, must execute
+   exactly once, and must pass; zero failures, zero skips.
 10. **Ledger.** Every due claim maps to an executed selector, every gate-dependency claim
     additionally requires the gate's own verified receipt, and no test may claim an ID that
     is not due under the gates this entrypoint runs.
@@ -66,11 +68,16 @@ gates, and only those. It runs the external tools and hands every structured com
     binary's whole registered detector portfolio, and every finding needs its own visible
     disposition row matched by detector, impact, confidence, and source mapping: see
     [docs/security/slither-dispositions.md](docs/security/slither-dispositions.md).
-12. **Provider-secret scan.** The configured `base` RPC alias must still be the unresolved
-    `${REGENT_BASE_RPC_URL}` in the *effective* configuration, no credential field may carry a
-    value, and no regenerated or committed artifact may name a host outside a documentation and
-    provenance allowlist. The required gate never reads the alias; it only proves it stayed
-    unresolved.
+12. **Published-evidence reconciliation.** Every figure the audit packet publishes is compared
+    against what produced it: each deployable-size row against the frozen size record, and each
+    hook-callback figure against the exact value `GAS-007` emitted in this run. A stale published
+    number fails the gate rather than surviving review.
+13. **Provider-secret scan.** The configured `base` RPC alias must still be the unresolved
+    `${REGENT_BASE_RPC_URL}` in the *effective* configuration, no credential field at any nesting
+    depth may carry a value, and no regenerated or committed evidence — the frozen reports, the
+    ABI, the manifests, the audit packet, the security docs, or the fork harness — may name a host
+    outside a documentation and provenance allowlist. The required gate never reads the alias; it
+    only proves it stayed unresolved.
 
 Anything missing, drifted, or unproven fails closed. A gate failure is a stop-report: never
 relax a pinned identity, threshold, or configuration value to make it pass.
@@ -174,9 +181,21 @@ C5 add their contracts and activate their own.
 ## The separately authorized fork gate
 
 `bin/fork-gate.sh` is not part of the required check and never runs inside it. It proves the `fork`
-gate alone, under the founder's separate read-only Base authority, against a committed observation
-record that a reviewed discovery pass produced. Its evidence is two-phase on purpose: a gate that
-observed a value and then compared it to itself would prove nothing.
+gate alone, under the founder's separate read-only Base authority. Its evidence is two-phase on
+purpose: a gate that observed a value and then compared it to itself would prove nothing.
+
+- `bin/fork-gate.sh discover` runs under the one profile in this repository that may write anything,
+  and its only writable path is gitignored scratch. It observes Base, writes a single reviewable
+  candidate, reads no committed observation, and closes no claim.
+- A human reviews that candidate, supplies the transaction gas schedule the chain does not expose,
+  installs it as `reports/frozen/fork-observations.json`, activates the `fork` gate, and commits.
+- `bin/fork-gate.sh check` runs under a profile with no write permission at all. It refuses to start
+  until that record and that activation are committed and clean, runs the mapped selectors once per
+  committed header, reconciles both runs against one compiled listing, and proves both files
+  unchanged afterwards.
+
+Both fork profiles build into `out-fork`, so fork artifacts can never reach the `out/` the required
+gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
 gate's committed evidence. `fork` is therefore absent today: no read-only provider has been

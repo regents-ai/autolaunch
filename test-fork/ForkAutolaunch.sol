@@ -11,6 +11,7 @@ import {RegentLBPStrategy} from "../src/strategy/RegentLBPStrategy.sol";
 import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
+import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {UERC20Factory} from "uerc20-factory/factories/UERC20Factory.sol";
 import {ForkFixture} from "./ForkFixture.sol";
@@ -22,7 +23,7 @@ import {ForkFixture} from "./ForkFixture.sol";
 ///      construct and bind the strategy and the hook from inside its own constructor.
 ///
 ///      Every piece of test state this harness stages, and the real production path that makes it
-///      reachable, is inventoried in `docs/audit/fork-state-inventory.md`. Nothing is impersonated
+///      reachable, is inventoried in `docs/audit/fork-authority-and-state-inventory.md`. Nothing is impersonated
 ///      that a real account could not do: bidders are funded with `deal` because a fork cannot mint
 ///      REGENT, and a launcher is funded and pranked because a launcher is an ordinary EOA.
 abstract contract ForkAutolaunch is ForkFixture {
@@ -52,6 +53,8 @@ abstract contract ForkAutolaunch is ForkFixture {
 
     address internal launcher = makeAddr("fork-launcher");
     address internal bidder = makeAddr("fork-bidder");
+    /// @dev A second bidder, so a bid that gets outbid can be exited on its own account.
+    address internal outbidBidder = makeAddr("fork-outbid-bidder");
     address internal treasury = makeAddr("fork-treasury");
 
     struct ForkLaunch {
@@ -143,8 +146,69 @@ abstract contract ForkAutolaunch is ForkFixture {
     }
 
     function _approveExactly(address token, address spender, uint256 amount) internal {
+        // solhint-disable-next-line avoid-low-level-calls
         (bool ok,) = token.call(abi.encodeWithSignature("approve(address,uint256)", spender, amount));
         require(ok, "fork approve failed");
+    }
+
+    /// @notice One real bid from `bidder`, driven exactly as a connected wallet drives it.
+    function _bid(ForkLaunch memory launched, uint128 amount, uint256 ticksAboveClearing)
+        internal
+        returns (uint256 bidId)
+    {
+        return _bidAs(launched, bidder, amount, ticksAboveClearing);
+    }
+
+    /// @notice One real bid, driven exactly as a connected wallet drives it.
+    /// @dev The complete production sequence and nothing shorter: an ERC20 approval to the
+    ///      canonical Permit2, a Permit2 allowance to this auction with a bounded expiration, and
+    ///      the five-argument `submitBid` overload with the frozen floor as its previous-tick hint.
+    ///      Every step is signed by the account's own key through `prank`; no backend ever holds
+    ///      custody of a bidder's REGENT or of their allowance.
+    ///
+    ///      The price is derived from the auction's own live clearing price rather than from a
+    ///      fixed offset above the frozen floor. The pinned CCA refuses a bid at or below the
+    ///      current clearing price, and against a real released-supply schedule that price is not
+    ///      something a test may assume, so the auction is checkpointed first — the same
+    ///      permissionless call its own accounting uses — and the bid is placed strictly above
+    ///      whatever it reports, on the frozen tick grid.
+    function _bidAs(ForkLaunch memory launched, address account, uint128 amount, uint256 ticksAboveClearing)
+        internal
+        returns (uint256 bidId)
+    {
+        uint256 priceQ96 = _priceAboveClearing(launched, ticksAboveClearing);
+
+        deal(BaseBindings.REGENT, account, amount);
+        vm.startPrank(account);
+        _approveExactly(BaseBindings.REGENT, PERMIT2, amount);
+        IAllowanceTransfer(PERMIT2)
+            .approve(BaseBindings.REGENT, address(launched.auction), uint160(amount), uint48(block.timestamp + 1 days));
+        bidId = launched.auction.submitBid(priceQ96, amount, account, strategy.FLOOR_PRICE_Q96(), "");
+        vm.stopPrank();
+    }
+
+    /// @dev The next on-grid price strictly above this auction's current clearing price.
+    function _priceAboveClearing(ForkLaunch memory launched, uint256 ticks) internal returns (uint256) {
+        // slither-disable-next-line unused-return
+        launched.auction.checkpoint();
+
+        uint256 tick = strategy.BID_TICK_Q96();
+        uint256 base = launched.auction.clearingPrice();
+        if (base < strategy.FLOOR_PRICE_Q96()) base = strategy.FLOOR_PRICE_Q96();
+        uint256 remainder = base % tick;
+        return base - remainder + (ticks + (remainder == 0 ? 0 : 1)) * tick;
+    }
+
+    /// @notice The exit-then-claim sequence a graduated bidder actually performs.
+    /// @dev The pinned CCA refuses `claimTokens` for a bid that has not been exited, so a claim is
+    ///      always two calls, and both are the bid owner's own.
+    function _exitAndClaim(ForkLaunch memory launched, uint256 bidId) internal returns (uint256 claimed) {
+        uint256 before = launched.subject.balanceOf(bidder);
+        vm.prank(bidder);
+        launched.auction.exitBid(bidId);
+        vm.prank(bidder);
+        launched.auction.claimTokens(bidId);
+        claimed = launched.subject.balanceOf(bidder) - before;
     }
 }
 

@@ -34,21 +34,65 @@ and fail if that alias ever resolves there, and both scan every artifact they pr
 outside a documentation and provenance allowlist. No endpoint reaches a log, a report, argv, or a
 commit.
 
-## 3. Execution status for this candidate
+## 3. The two phases, and the human step between them
+
+Discovery and checking are different programs run under different Foundry profiles, and the step
+that turns one into the other is deliberate and human.
+
+**Phase one — `bin/fork-gate.sh discover`.** Runs under the `fork-discovery` profile, whose only
+write permission is `./reports/generated/fork`, which `.gitignore` keeps out of the tree. It runs
+exactly one contract, `test-fork/ForkDiscovery.t.sol`, which reads no committed observation at all —
+so it cannot compare a fact to itself — and writes one candidate:
+
+```text
+reports/generated/fork/fork-observations-candidate.json
+```
+
+It opens a fork at the chain head, takes that height as the later header and a fixed confirmation
+depth behind it as the pinned header, and observes every binding's code length, runtime code hash,
+proxy family, implementation address and implementation code identity at the pinned header, plus
+REGENT's and USDC's decimals and symbol, the CCA factory's protocol fee controller, the
+PositionManager's next token id, and the live staking contract's owner and paused state. It closes
+no claim, carries no requirement id, and is excluded by name from every ledger reconciliation. The
+gate then proves it changed no committed file.
+
+**The human step.** A reviewer reads the candidate, checks every value against an independent
+source, and supplies the one thing the chain does not expose — the transaction gas schedule active
+at those headers, which is a protocol rule rather than a contract getter. The reviewer then sets
+`status` to `observed_and_committed`, installs the file at `reports/frozen/fork-observations.json`,
+adds `fork` to `activated_gates` in `requirements/ledger.toml`, flips the sixteen fork claims to
+active, and commits both.
+
+**Phase two — `bin/fork-gate.sh check`.** Runs under the `fork` profile, which grants **no** write
+permission anywhere, so it is structurally incapable of authoring an observation. Before it touches
+the provider it proves the record says `observed_and_committed`, that the ledger activates `fork`
+and every fork claim is active, and that both files are committed and clean. After both header runs
+it proves both files are still byte-identical to what was committed and that no candidate was
+produced. It then reconciles the two runs' reports as one merged multiset against the compiled
+listing, so each of the sixteen claims maps to exactly one pinned and one later selector and each of
+the thirty-two executes exactly once.
+
+The two profiles also use their own build directory, `out-fork`, so fork artifacts can never
+accumulate in `out/` and change the artifact count the required gate reconciles.
+
+## 4. Execution status for this candidate
 
 **Not executed.** No read-only Base provider is injected in this candidate's environment, so:
 
 - `reports/frozen/fork-observations.json` is `discovery_pending` and carries no observed value;
 - `test-fork/ForkFixture.sol` reverts with `ForkObservationsPending` rather than checking a record
   it would have had to invent;
-- `bin/fork-gate.sh check` refuses to run against a pending record;
+- `bin/fork-gate.sh check` refuses to run against a pending record, and refuses again if the ledger
+  has not activated `fork`;
 - `requirements/ledger.toml` leaves `fork` out of `activated_gates`, so all sixteen fork claims are
   `pending` and none of their thirty-two selectors can close anything.
 
-The harness is candidate-complete and compiles and formats clean under the `fork` profile. It has
-never touched a network.
+The harness is candidate-complete: both fork profiles reconcile, both format and build clean
+offline, the check-mode listing enumerates exactly the thirty-two mapped selectors, and the
+discovery-mode listing enumerates exactly the one discovery test. Nothing here has touched a
+network.
 
-## 4. Staged fork state, and the production path that makes each state reachable
+## 5. Staged fork state, and the production path that makes each state reachable
 
 Every cheatcode below acts on Forge's local fork state. None of them reaches the provider, and none
 of them manufactures an intermediate state that production cannot reach on its own.
@@ -60,23 +104,28 @@ of them manufactures an intermediate state that production cannot reach on its o
 | `deal(REGENT, launcher, fee)` | `ForkAutolaunch._launchAsWallet` | Gives a launcher exactly the current launch fee | A launcher acquires REGENT and approves the factory. A fork cannot mint REGENT, so the balance is staged; the approval and the launch are then the real calls. |
 | `deal(REGENT, bidder, amount)` | `ProtocolFork`, `TransactionGasFork` | Gives a bidder REGENT to bid with | A bidder acquires REGENT. Every subsequent step — the ERC20 approval to Permit2, the Permit2 allowance, the five-argument bid — is the real production sequence. |
 | `deal(USDC, depositor, amount)` | `ProtocolFork._checkLiveStaking` | Gives a depositor USDC to skim | The splitter's USDC skim. The approval and `depositUSDC` call shapes are the splitter's own. |
-| `deal(REGENT, POSITION_MANAGER, amount)` | `ProtocolFork._checkManagers` | Pre-seeds the PositionManager with nonzero inventory | Any other launch, or any third party, leaving a balance at the shared PositionManager. Seeding it is what makes the `CONTRACT_BALANCE`/`TAKE_PAIR` residue record meaningful rather than trivially zero. |
+| `deal(REGENT, stranger, amount)` then a real `transfer` | `ProtocolFork._checkManagers` | Pre-seeds the shared PositionManager with third-party REGENT | An ordinary holder sending REGENT to the shared PositionManager. Only the acquisition is staged; the transfer is a real one. Seeding it is what makes the exact `CONTRACT_BALANCE`/`TAKE_PAIR` disposition provable rather than trivially zero. |
+| a bidder's own `claimTokens` then a real `transfer` | `ProtocolFork._checkManagers` | Pre-seeds the shared PositionManager with this launch's SUBJECT and with another launch's | A bidder who claimed auction tokens sending some of them onward. Nothing is staged at all here: the SUBJECT is really claimed from a really graduated auction. The second launch's SUBJECT is what proves cross-launch inventory stays untouched. |
+| `vm.prank(bidder)` / `vm.prank(outbidBidder)` for `exitBid`, `exitPartiallyFilledBid`, `claimTokens` | `ProtocolFork` | Acts as the bid's own owner | Those calls are the bid owner's own. Every required refund, partial-exit and claim path is driven from that bidder's account, never from a backend. The pinned CCA refuses a claim on an unexited bid, so a claim is always the two calls a real bidder makes. |
 | `vm.prank(launcher)` / `vm.prank(bidder)` | throughout | Acts as an ordinary EOA | Those accounts are ordinary EOAs with no privilege. Pranking one is the same as that person sending the transaction. |
-| `vm.prank(owner)` on live staking | `ProtocolFork._checkLiveStaking` | Pauses the deployed live staking contract | Its own owner pausing it. The owner address is *read from the deployed contract*, never assumed, and the only call made as that owner is one the owner can really make. The pause is local fork state and is never sent to Base. |
-| `vm.load(binding, slot)` | `BaseBindingsFork._checkProxyStatus` | Reads a standard proxy implementation slot | A read. It mutates nothing. |
+| `vm.prank(owner)` on live staking | `ProtocolFork._checkLiveStaking` | Pauses the deployed live staking contract | Its own owner pausing it. The owner address is *read from the deployed contract*, never assumed, and the only call made as that owner is one the owner can really make. The pause is local fork state, is never sent to Base, and lives in a fork created by that one claim, so no other claim ever sees it. A `pause()` that fails is a failed claim, not a passing alternative. |
+| `vm.load(binding, slot)` | `ForkFixture._classifyProxy`, both phases | Reads the three recognized proxy implementation slots | A read. It mutates nothing. The families are EIP-1967, EIP-1822 and the older ZeppelinOS slot; Base's own USDC uses the last of those, so reading only the EIP-1967 slot would misclassify a real proxy as a plain contract. |
+| `vm.writeJson` | `ForkDiscovery` only | Writes the reviewable candidate | Not a production path at all. It is the discovery pass recording what it saw into gitignored scratch, under the only profile that may write anything, and it can reach neither `reports/frozen/` nor any committed file. |
 
 Explicitly **not** used anywhere in `test-fork/`: `vm.store`, `vm.etch`, `vm.mockCall`,
 `vm.warp` past an auction's own schedule, and any grant of a role a real caller could not obtain.
 
-## 5. Isolation and coldness
+## 6. Isolation and coldness
 
 Each of the thirty-two fork selectors calls `_selectFork` itself, so it opens its own fork and runs
-in state no other selector touched. That is what makes the gas claims' cold measurements real: the
-first external touch inside a freshly created fork is genuinely cold, and `GAS-006` proves it by
-running a second identical-shape launch in the same fork as a warm control and requiring it to be
-cheaper. A run whose warm control is not cheaper has not measured cold state and fails.
+in state no other selector touched. That is what makes the mandatory live-staking pause safe: it
+happens in a fork one claim created and no other claim can observe. It is also what makes the gas
+claims' cold measurements real: the first external touch inside a freshly created fork is genuinely
+cold, and `GAS-006` proves it by running a second identical-shape launch in the same fork as a warm
+control and requiring it to be cheaper. A run whose warm control is not cheaper has not measured
+cold state and fails.
 
-## 6. Branches that stay hermetic
+## 7. Branches that stay hermetic
 
 Named here so they are never mistaken for fork evidence:
 

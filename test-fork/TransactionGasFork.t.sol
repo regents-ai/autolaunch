@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {BaseBindings} from "../src/bindings/BaseBindings.sol";
 import {RegentLBPStrategy} from "../src/strategy/RegentLBPStrategy.sol";
-import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {ForkAutolaunch} from "./ForkAutolaunch.sol";
 
 /// @notice `GAS-003` through `GAS-006` at both committed headers: the complete outer transaction
@@ -24,8 +23,6 @@ import {ForkAutolaunch} from "./ForkAutolaunch.sol";
 ///      worst admitted metadata, and the worst valid raise — with a warm repetition as the control
 ///      that proves the cold figure really was cold.
 contract TransactionGasForkTest is ForkAutolaunch {
-    address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
-
     /// @notice The complete-transaction ceiling every envelope must stay at or below.
     uint256 internal constant TRANSACTION_GAS_CEILING = 14_000_000;
 
@@ -229,23 +226,19 @@ contract TransactionGasForkTest is ForkAutolaunch {
         emit log_named_uint("  calldata floor (gas)", envelope.calldataFloor);
         emit log_named_uint("  execution, gross of refund (gas)", envelope.execution);
         emit log_named_uint("  complete transaction total (gas)", envelope.total);
-        emit log_named_uint("  margin to the 14,000,000 ceiling (gas)", TRANSACTION_GAS_CEILING - envelope.total);
+        // Reported in whichever direction the total actually falls. A plain subtraction would
+        // underflow on exactly the envelope this claim exists to catch, turning the stop-report
+        // into an unexplained arithmetic panic instead of the named ceiling assertion below.
+        if (envelope.total <= TRANSACTION_GAS_CEILING) {
+            emit log_named_uint("  margin to the 14,000,000 ceiling (gas)", TRANSACTION_GAS_CEILING - envelope.total);
+        } else {
+            emit log_named_uint("  OVER the 14,000,000 ceiling by (gas)", envelope.total - TRANSACTION_GAS_CEILING);
+        }
     }
 
     function _bidToGraduation(ForkLaunch memory launched, uint128 amount) private {
         vm.roll(launched.auction.startBlock());
         _bid(launched, amount, 10);
         vm.roll(uint256(launched.auction.endBlock()) + strategy.MIGRATION_DELAY_BLOCKS());
-    }
-
-    function _bid(ForkLaunch memory launched, uint128 amount, uint256 ticksAboveFloor) private {
-        deal(BaseBindings.REGENT, bidder, amount);
-        vm.startPrank(bidder);
-        _approveExactly(BaseBindings.REGENT, PERMIT2, amount);
-        IAllowanceTransfer(PERMIT2)
-            .approve(BaseBindings.REGENT, address(launched.auction), uint160(amount), type(uint48).max);
-        launched.auction
-            .submitBid(strategy.FLOOR_PRICE_Q96() + ticksAboveFloor * strategy.BID_TICK_Q96(), amount, bidder, "");
-        vm.stopPrank();
     }
 }

@@ -58,8 +58,11 @@ abstract contract HookFixture is Test {
     /// @dev Chosen so `SUBJECT_LOW < REGENT < SUBJECT_HIGH`, giving both PoolKey orderings.
     address internal constant SUBJECT_LOW = 0x1111111111111111111111111111111111111111;
     address internal constant SUBJECT_HIGH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    /// @dev A second SUBJECT on the same side as `SUBJECT_LOW`, so two pools can be made identical.
+    /// @dev Two more SUBJECTs on the same side as `SUBJECT_LOW`, so several pools can be opened
+    ///      identically: same currency ordering, same fee, same tick spacing, same opening price and
+    ///      same liquidity, differing only in which token they carry.
     address internal constant SUBJECT_ALT = 0x2222222222222222222222222222222222222222;
+    address internal constant SUBJECT_ALT2 = 0x3333333333333333333333333333333333333333;
 
     /// @notice Exactly the five permission bits the hook declares, and no others.
     uint160 internal constant HOOK_FLAGS = uint160(

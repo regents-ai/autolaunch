@@ -67,11 +67,41 @@ shrink_run_limit = 5000
 base = "${REGENT_BASE_RPC_URL}"
 
 # The separately authorized read-only Base fork gate. It shares the frozen build, the frozen
-# fuzz portfolio, and the frozen dependency closure with the required gate — only the test root
-# and the network posture differ, and both differences are proved rather than assumed by
-# `bin/fork-gate.sh`. Fork tests live outside the offline test root so they can never execute
-# against a hermetic claim, and FFI stays disabled here exactly as it is above.
+# fuzz portfolio, and the frozen dependency closure with the required gate — only the test root,
+# the build directory, and the network posture differ, and every one of those differences is
+# proved rather than assumed by `bin/fork-gate.sh`. Fork tests live outside the offline test root
+# so they can never execute against a hermetic claim, and FFI stays disabled here exactly as it
+# is above.
+#
+# `out`/`cache_path` are deliberately separate. A shared build directory would let fork artifacts
+# accumulate in `out/` and change the artifact count the required gate reconciles, so the two
+# gates never write to the same place.
+#
+# `fs_permissions` is read-only here and is not restated: this profile inherits the default list
+# above unchanged, which is what makes `check` structurally incapable of writing an observation.
 [profile.fork]
 test = "test-fork"
+out = "out-fork"
+cache_path = "cache-fork"
 offline = false
 ffi = false
+
+# The discovery pass, and the only profile in this repository that may write anything. It is the
+# first half of the two-phase fork evidence: it observes chain truth and writes one narrowly
+# scoped candidate under `reports/generated/fork/`, which is gitignored scratch. It can reach
+# neither `reports/frozen/` nor any committed file, so a discovery run cannot bless its own
+# observation into the record the `fork` profile later checks against — installing that record is
+# a deliberate, reviewed, human step.
+[profile.fork-discovery]
+test = "test-fork"
+out = "out-fork"
+cache_path = "cache-fork"
+offline = false
+ffi = false
+fs_permissions = [
+    { access = "read", path = "./requirements" },
+    { access = "read", path = "./reports/frozen" },
+    { access = "read", path = "./contracts" },
+    { access = "read", path = "./abi" },
+    { access = "read-write", path = "./reports/generated/fork" },
+]

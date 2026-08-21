@@ -55,6 +55,38 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
         targetContract(address(handler));
     }
 
+    /// @notice `INV-009` reachability: the handler's clock-dependent branches really do fire.
+    /// @dev Vesting is measured in seconds, not in blocks. A handler that advanced only the block
+    ///      height would leave `release` a permanent no-op, the treasury permanently empty, and
+    ///      `giftSubject` — which can only spend SUBJECT the treasury already holds — permanently
+    ///      dead, all while the campaign reported full call counts and zero reverts. This drives
+    ///      one fixed monotone sequence through the handler's own entry points and requires both
+    ///      branches to do work, so a regression to a block-only clock fails here rather than
+    ///      silently hollowing out the interleavings the claim is about.
+    function test_INV_009_HandlerReleaseAndGiftBranchesAreReachable() public {
+        handler.rollForward(strategy.START_DELAY_BLOCKS());
+        handler.bid(1, type(uint256).max, 5);
+        handler.bid(1, type(uint256).max, 6);
+
+        // Past this launch's own migration block, in monotone steps the handler itself bounds.
+        for (uint256 i; i < 4; ++i) {
+            handler.rollForward(30_000);
+        }
+        handler.migrate(1);
+        assertEq(handler.graduations(), 1, "the fixed sequence did not graduate the launch it bid on");
+
+        // Time passes; the permissionless release then pays the launch's own treasury, and the
+        // treasury can send some of its own SUBJECT wherever it likes.
+        handler.rollForward(30_000);
+        handler.releaseVesting(1);
+        assertEq(handler.vestingReleases(), 1, "a graduated launch released nothing after time passed");
+        assertGt(launches[1].subject.balanceOf(treasury), 0, "the treasury holds no released SUBJECT");
+
+        handler.giftSubject(1, 1, type(uint256).max);
+        assertEq(handler.subjectGifts(), 1, "the treasury could not gift its own SUBJECT onward");
+        assertGt(handler.strategySubjectGifts(1), 0, "the gift did not reach the shared strategy");
+    }
+
     // -------------------------------------------------------------------------
     // INV-001 — supply
     // -------------------------------------------------------------------------
@@ -85,8 +117,14 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
     // -------------------------------------------------------------------------
 
     /// @notice `INV-006`: while a launch is active the strategy custodies exactly its 5% reserve,
-    ///         and after a terminal outcome the reserve has been consumed only by that launch's own
-    ///         specified destination, with nothing stranded and nothing created.
+    ///         and after a terminal outcome the reserve equals, to the unit, exactly what its own
+    ///         specified destination consumed — nothing stranded, nothing created, nothing routed
+    ///         to a treasury or to another launch.
+    /// @dev The terminal halves are equations, not bounds. On graduation the whole reserve is
+    ///      accounted for twice over: as `lpSubjectUsed + residue-returned-to-this-launch's-escrow`,
+    ///      and by the absence of any of it anywhere else. A `<=` bound would be satisfied by a
+    ///      graduation that consumed one wei of LP and quietly sent the rest to the treasury, which
+    ///      is exactly the misrouting this invariant exists to reject.
     function invariant_INV_006_IsolatedReserveIsConserved() public view {
         for (uint256 i; i < LAUNCHES; ++i) {
             UERC20 subject = launches[i].subject;
@@ -97,14 +135,47 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
             // Whatever the strategy holds of this SUBJECT, minus explained gifts, is the reserve.
             uint256 attributable = subject.balanceOf(address(strategy)) - handler.strategySubjectGifts(i);
 
+            // The reserve's only admitted destinations are this launch's own. Nothing of it may be
+            // at the launcher-chosen treasury, at the shared factory, at the hook, or anywhere
+            // another launch could reach — which the per-launch checks below then make exact.
+            assertEq(subject.balanceOf(address(factory)), handler.factorySubjectGifts(i), "reserve reached the factory");
+            assertEq(subject.balanceOf(address(hook)), handler.hookSubjectGifts(i), "reserve reached the hook");
+
             if (d.lifecycle == RegentLBPStrategy.Lifecycle.Active) {
                 assertEq(attributable, RESERVE_ALLOCATION, "an active launch's reserve is not in custody");
+                assertEq(uint256(d.lpSubjectUsed), 0, "an active launch already consumed LP SUBJECT");
+                assertEq(subject.balanceOf(treasury), 0, "an active launch already paid its treasury in SUBJECT");
             } else if (d.lifecycle == RegentLBPStrategy.Lifecycle.Graduated) {
                 assertEq(attributable, 0, "a graduated launch left reserve stranded at the strategy");
                 assertGt(uint256(d.lpSubjectUsed), 0, "graduation consumed none of the reserve");
-                assertLe(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, "graduation consumed more than the reserve");
+
+                // The whole equation: every unit of the 5% either funded the full-range position or
+                // went back to this launch's own escrow, and the two sum to the reserve exactly.
+                assertEq(
+                    uint256(handler.graduationLpSubjectUsed(i)) + handler.graduationReserveResidueToEscrow(i),
+                    RESERVE_ALLOCATION,
+                    "the reserve is not exactly LP consumption plus escrow residue"
+                );
+                assertEq(
+                    handler.graduationLpSubjectUsed(i),
+                    uint256(d.lpSubjectUsed),
+                    "the measured LP consumption is not the recorded one"
+                );
+                // And nothing beyond the reserve and the gifts it absorbed ever left the strategy,
+                // so no part of another launch's inventory funded this one.
+                assertEq(
+                    handler.graduationStrategyOutflow(i),
+                    RESERVE_ALLOCATION + handler.graduationGiftsAbsorbed(i),
+                    "graduation released SUBJECT beyond this launch's reserve and its explained gifts"
+                );
             } else {
                 assertEq(attributable, 0, "a failed launch left reserve stranded at the strategy");
+                assertEq(
+                    handler.retirementReserveToEscrow(i),
+                    RESERVE_ALLOCATION,
+                    "retirement moved something other than exactly the reserve to its own escrow"
+                );
+                assertEq(uint256(d.lpSubjectUsed), 0, "a failed launch consumed LP SUBJECT");
                 assertEq(
                     subject.balanceOf(BaseBindings.DEAD_ADDRESS),
                     TOTAL_SUPPLY,
@@ -169,12 +240,17 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
     // INV-009 — isolation across launches
     // -------------------------------------------------------------------------
 
-    /// @notice `INV-009`: over reachable interleavings, no launch's reserve is ever credited to,
-    ///         consumed by, or reachable from another launch.
+    /// @notice `INV-009`: over reachable interleavings of bidding, block and clock progression,
+    ///         migration, vesting release, late retirement and external gifts, no launch's reserve
+    ///         is ever credited to, consumed by, or reachable from another launch.
     /// @dev A different model from `INV-006`. That one conserves one launch against its own
     ///      destinations; this one is about the boundary *between* launches: one SUBJECT maps to one
     ///      auction forever, each SUBJECT's dead-address balance is nonzero only for its own
     ///      failure, and no launch's SUBJECT ever appears in another launch's escrow or auction.
+    ///
+    ///      The three launches are created in one block before the sequence starts, so what is
+    ///      interleaved here is every *operation* on them, not their creation. `STR-012` owns
+    ///      single-operation creation isolation and this claim does not restate it.
     function invariant_INV_009_ReservesAreNeverUsedAcrossLaunches() public view {
         for (uint256 i; i < LAUNCHES; ++i) {
             UERC20 subject = launches[i].subject;

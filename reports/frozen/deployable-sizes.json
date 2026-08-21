@@ -1,5 +1,5 @@
 {
-  "purpose": "Deployable byte margins for GAS-001 and GAS-002. Runtime and creation lengths come from the compiler artifacts; the constructor-argument length is the exact ABI head the deployment packet will append, which the compiler's size report excludes. A clone's own deployment initcode is Solady's and is measured directly by GAS-002.",
+  "purpose": "Deployable byte margins and EVM code identity for GAS-001 and GAS-002. Runtime and creation lengths and hashes come from the compiler artifacts; the constructor-argument length is the exact ABI head the deployment packet will append, which the compiler's size report excludes. A clone's own deployment initcode is Solady's and is measured directly by GAS-002, and a clone's EVM codehash is keccak over the 44-byte runtime its own implementation address completes, so it exists only once that implementation is deployed.",
   "limits": {
     "eip170_runtime_bytes": 24576,
     "eip3860_initcode_bytes": 49152
@@ -8,9 +8,23 @@
     {
       "contract": "RegentsAutolaunchFactoryV1",
       "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 7309,
-      "runtime_margin_bytes": 17267,
+      "runtime_keccak256": "0xf216f1ecc187e35d45b03dbc572a96c74dce89c1c7db8d203e2857c8e29c3250",
+      "runtime_sha256": "ab6c6f604ad658e41cc924dde5b8b1e671ece7c4a48c41739e830b819ebd566d",
+      "runtime_immutable_references": 3,
+      "runtime_keccak256_is_deployed_codehash": false,
       "creation_bytes": 34361,
+      "creation_keccak256": "0xb63d539025ea597185878bb4a0f8cad91727cb34b7a35a71b813a9ecbc0012ec",
+      "creation_sha256": "fbcf3dc5aa7189051a2ad8566bcf15e98507260fe99f16844629c670345a6b6d",
+      "runtime_margin_bytes": 17267,
+      "constructor": [
+        "address uerc20Factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_",
+        "bytes32 hookSalt"
+      ],
       "constructor_args_bytes": 160,
       "initcode_bytes": 34521,
       "initcode_margin_bytes": 14631
@@ -18,9 +32,22 @@
     {
       "contract": "RegentLBPStrategy",
       "source": "src/strategy/RegentLBPStrategy.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 18987,
-      "runtime_margin_bytes": 5589,
+      "runtime_keccak256": "0x68fc92d1648f6aa33538adb451041a958aeb6300f621d357decff48bfa2c4c2e",
+      "runtime_sha256": "c759943b6e0ddf74e5cae0c7c331bc2115e7cfc7676217f1dc15737e7c24bd25",
+      "runtime_immutable_references": 5,
+      "runtime_keccak256_is_deployed_codehash": false,
       "creation_bytes": 19496,
+      "creation_keccak256": "0x61728515d64972c70afd16faa924322687a22e9dc3ce751a2b6b4f934b97024c",
+      "creation_sha256": "4f0134fb9c08a015477c3b8f0f494e73b472ed89e8be69211dcb4218b5fc6ae5",
+      "runtime_margin_bytes": 5589,
+      "constructor": [
+        "address factory_",
+        "address escrowImplementation_",
+        "address splitterImplementation_",
+        "address receiverImplementation_"
+      ],
       "constructor_args_bytes": 128,
       "initcode_bytes": 19624,
       "initcode_margin_bytes": 29528
@@ -28,9 +55,20 @@
     {
       "contract": "RegentFeeHook",
       "source": "src/hook/RegentFeeHook.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 5780,
-      "runtime_margin_bytes": 18796,
+      "runtime_keccak256": "0xa9c238ca912ae9123fda5402dc33b534fbcee659acc9d92af0fb5cebc20b4f00",
+      "runtime_sha256": "45f5f3d7fdf9d6ba3c859a45da48dd8492b84cba5241c4921f96d3068b3cc29d",
+      "runtime_immutable_references": 2,
+      "runtime_keccak256_is_deployed_codehash": false,
       "creation_bytes": 6599,
+      "creation_keccak256": "0xa34969cc32e6741d5a5787f4d43db7e3dab3034da01c3ef60561256313e22ab5",
+      "creation_sha256": "07b0802132ed437a0c44ef1b844c1fd6efbbe94d5b0994c53e4d046eafe8f88e",
+      "runtime_margin_bytes": 18796,
+      "constructor": [
+        "address manager_",
+        "address strategy_"
+      ],
       "constructor_args_bytes": 64,
       "initcode_bytes": 6663,
       "initcode_margin_bytes": 42489
@@ -38,9 +76,17 @@
     {
       "contract": "ConditionalVestingEscrowV1",
       "source": "src/escrow/ConditionalVestingEscrowV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 4527,
-      "runtime_margin_bytes": 20049,
+      "runtime_keccak256": "0x462e3b12b73402b61b3561345880a5b6eeed4f13d2088f156712fe1b293f1545",
+      "runtime_sha256": "caee5d4a60db4a7555d32053f005a01ce9bb2b272369cb164aa1c1de5e880d93",
+      "runtime_immutable_references": 0,
+      "runtime_keccak256_is_deployed_codehash": true,
       "creation_bytes": 4665,
+      "creation_keccak256": "0xee03dd8f187ee1851edf6543cc11ca8e2e758def3936af8a57e796e76f7c9603",
+      "creation_sha256": "599e171d87264f2b3e0e016684bcc2ae401093d8dd4e355a08c8417a527a317e",
+      "runtime_margin_bytes": 20049,
+      "constructor": [],
       "constructor_args_bytes": 0,
       "initcode_bytes": 4665,
       "initcode_margin_bytes": 44487
@@ -48,9 +94,17 @@
     {
       "contract": "SubjectSplitterV1",
       "source": "src/revenue/SubjectSplitterV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 5342,
-      "runtime_margin_bytes": 19234,
+      "runtime_keccak256": "0xb7f7f90213690cc06971c5cad60af174f292b62b355d48fbc4e28adbadb5defa",
+      "runtime_sha256": "682f1dfed67169311e6e364c998b237b79069b545ea32b2f55caf7bd09c2a0f8",
+      "runtime_immutable_references": 0,
+      "runtime_keccak256_is_deployed_codehash": true,
       "creation_bytes": 5480,
+      "creation_keccak256": "0xa61cf607deeeb5dc24e86efb067bcaf8894fc1719e84e04812fe1f33fdc4b0e7",
+      "creation_sha256": "a2cf33fdaf4ad587650c5c8ca1abc99fef80ff2d8482ab60c22eaffdf0d96640",
+      "runtime_margin_bytes": 19234,
+      "constructor": [],
       "constructor_args_bytes": 0,
       "initcode_bytes": 5480,
       "initcode_margin_bytes": 43672
@@ -58,12 +112,58 @@
     {
       "contract": "PaymentReceiverV1",
       "source": "src/revenue/PaymentReceiverV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 3520,
-      "runtime_margin_bytes": 21056,
+      "runtime_keccak256": "0xe32bf8b68d8ff16c05950630af2c6b78247c7825e2153dba4d54fa86108ce5cf",
+      "runtime_sha256": "8320d43d2888c3b03cb96e33218705e95eaee31feba26a289f4076bd35519ac9",
+      "runtime_immutable_references": 0,
+      "runtime_keccak256_is_deployed_codehash": true,
       "creation_bytes": 3658,
+      "creation_keccak256": "0xd2e03110bca212a401af2398fd03d7af423f9abb223a7de2f238c6857643a9b2",
+      "creation_sha256": "b539f6eb123eff091e4363703f70a968103d6c1633afa6a6385b439aa60f20eb",
+      "runtime_margin_bytes": 21056,
+      "constructor": [],
       "constructor_args_bytes": 0,
       "initcode_bytes": 3658,
       "initcode_margin_bytes": 45494
+    }
+  ],
+  "dependency_contracts": [
+    {
+      "contract": "UERC20Factory",
+      "source": "lib/uerc20-factory/src/factories/UERC20Factory.sol",
+      "role": "the pinned token factory the Autolaunch factory constructor admits by exact runtime code hash and every launch creates its SUBJECT through",
+      "deployed_by_ceremony": true,
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 12682,
+      "runtime_keccak256": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f",
+      "runtime_sha256": "5e49a6fc0a10848eef09b3073587eee1085f90901848d3a494938be7c0eb3dd4",
+      "runtime_immutable_references": 0,
+      "runtime_keccak256_is_deployed_codehash": true,
+      "creation_bytes": 12708,
+      "creation_keccak256": "0x54c692571d99db7b3452841d913179cceddbf9c8422b7e33f99c643b7787d93e",
+      "creation_sha256": "c923a2b1514f97b5eee768478b6b7cddada104c926b6e2e1c6c61e6bb0c72bdd",
+      "runtime_margin_bytes": 11894,
+      "initcode_margin_bytes": 36444,
+      "constructor": []
+    },
+    {
+      "contract": "UERC20",
+      "source": "lib/uerc20-factory/src/tokens/UERC20.sol",
+      "role": "the per-launch SUBJECT build the pinned factory CREATE2-deploys inside every launch transaction; it is never deployed by the ceremony itself",
+      "deployed_by_ceremony": false,
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 5550,
+      "runtime_keccak256": "0x6ad37cfdb261cfb8dd1d15659b9b37b09b26f93c080a03d89bcbb46e2e68af53",
+      "runtime_sha256": "0d3dc847070909e905ec42756b956dc1cd69ab0cc9530ec45d225fea4522f21a",
+      "runtime_immutable_references": 4,
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 8126,
+      "creation_keccak256": "0xe776f47577d6dcee461a491ea2561ecec3c1851286d04c5cb16a9bd67a857772",
+      "creation_sha256": "de06ef6819c84c30810357e40a6d24b57c8b1a28bbb9acbb5cfac085f45ed4b9",
+      "runtime_margin_bytes": 19026,
+      "initcode_margin_bytes": 41026,
+      "constructor": []
     }
   ],
   "clone_runtime_template": {
@@ -76,16 +176,19 @@
   "clones": [
     {
       "clone_of": "ConditionalVestingEscrowV1",
+      "implementation_runtime_keccak256": "0x462e3b12b73402b61b3561345880a5b6eeed4f13d2088f156712fe1b293f1545",
       "runtime_bytes": 44,
       "runtime_margin_bytes": 24532
     },
     {
       "clone_of": "SubjectSplitterV1",
+      "implementation_runtime_keccak256": "0xb7f7f90213690cc06971c5cad60af174f292b62b355d48fbc4e28adbadb5defa",
       "runtime_bytes": 44,
       "runtime_margin_bytes": 24532
     },
     {
       "clone_of": "PaymentReceiverV1",
+      "implementation_runtime_keccak256": "0xe32bf8b68d8ff16c05950630af2c6b78247c7825e2153dba4d54fa86108ce5cf",
       "runtime_bytes": 44,
       "runtime_margin_bytes": 24532
     }

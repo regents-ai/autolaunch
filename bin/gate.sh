@@ -31,6 +31,8 @@ release_manifest=contracts/autolaunch-release-manifest.json
 bindings=src/bindings/BaseBindings.sol
 dispositions=docs/security/slither-dispositions.md
 threat_model=docs/security/threat-model.md
+gas_doc=docs/audit/gas-and-size.md
+sizes=reports/frozen/deployable-sizes.json
 slither_config=slither.config.json
 checker=bin/check-requirements.py
 freezer=bin/freeze-artifacts.py
@@ -65,7 +67,7 @@ section "Required material and tools"
 # ---------------------------------------------------------------------------
 
 for required_file in "$frozen" "$ledger" "$manifest" "$bindings" "$dispositions" \
-    "$threat_model" "$slither_config" "$checker" "$freezer" src/bindings/FrozenIdentity.sol \
+    "$threat_model" "$gas_doc" "$slither_config" "$checker" "$freezer" src/bindings/FrozenIdentity.sol \
     SPEC.md .gitmodules foundry.toml reports/frozen/c4-runtime-baseline.json; do
     [ -f "$required_file" ] || fail "required repository file is missing: $required_file"
 done
@@ -152,7 +154,10 @@ section "Compiled test listing, execution, and requirement reconciliation"
 forge test --list --json >"$test_list"
 
 test_status=0
-forge test --json >"$test_report" 2>"$test_stderr" || test_status=$?
+# `-vv` is load-bearing rather than cosmetic: Foundry only populates each result's
+# `decoded_logs` at that verbosity, and the published-evidence reconciliation below reads
+# GAS-007's own emitted measurements out of exactly that field.
+forge test --json -vv >"$test_report" 2>"$test_stderr" || test_status=$?
 cat "$test_stderr"
 
 python3 "$checker" ledger \
@@ -164,6 +169,18 @@ python3 "$checker" ledger \
     --receipt "$receipt"
 
 [ "$test_status" -eq 0 ] || fail "forge test exited $test_status"
+
+# ---------------------------------------------------------------------------
+section "Published-evidence reconciliation"
+# ---------------------------------------------------------------------------
+
+# The audit packet publishes figures a founder is asked to read rather than rerun. Every one of
+# them is compared here against the artifact or the executed measurement it came from, so a stale
+# published number fails the gate instead of surviving review.
+python3 "$checker" evidence \
+    --test-report "$test_report" \
+    --sizes "$sizes" \
+    --gas-doc "$gas_doc"
 
 # ---------------------------------------------------------------------------
 section "Static analysis"
@@ -219,11 +236,14 @@ section "Provider-secret scan"
 # ---------------------------------------------------------------------------
 
 # Nothing this gate produces, and nothing it commits, may carry a resolved provider endpoint.
-# The scan covers the regenerated evidence — the effective Foundry configuration included, so
-# a resolved RPC alias would show up — and every committed frozen artifact.
+# The scan covers every evidence location recursively: the regenerated evidence — the effective
+# Foundry configuration included, so a resolved RPC alias would show up — every committed frozen
+# artifact, the whole audit packet, and the fork harness itself. The effective configuration is
+# additionally walked to every nested leaf, because a credential one level down is still a
+# credential.
 python3 "$checker" secrets \
     --forge-config "$forge_config" \
-    --scan "$generated" reports/frozen abi contracts requirements
+    --scan "$generated" reports/frozen abi contracts requirements docs/audit docs/security test-fork
 
 # ---------------------------------------------------------------------------
 section "Gate report"

@@ -22,10 +22,16 @@ Subcommands, in the order the gate runs them:
              pinned binary's whole registered detector portfolio, fresh and well-formed
              evidence, one visible disposition per exact result fingerprint at every
              severity, and a complete record for every inline suppression.
+  evidence   Reconcile the audit packet's published figures against the run that produced
+             them: every deployable-size row in docs/audit/gas-and-size.md against the frozen
+             size record, and every hook-callback figure it publishes against the exact value
+             GAS-007 emitted in this run's test report. A number a reader is asked to trust
+             has to be a number the gate re-proves.
   secrets    Prove no provider endpoint or credential reached this run's evidence: the
              configured RPC alias must still be an unresolved environment reference in the
-             *effective* configuration, no credential field may carry a value, and no scanned
-             artifact may name a host outside the documentation and provenance allowlist.
+             *effective* configuration, no credential field may carry a value, no nested
+             configuration value may carry one either, and no scanned artifact may name a host
+             outside the documentation and provenance allowlist.
 
 Counts printed here are informational gate output, never acceptance literals.
 """
@@ -852,15 +858,23 @@ def read_listing(path: Path) -> Counter:
     return listing
 
 
-def read_execution(path: Path) -> tuple[Counter, dict[tuple, list[str]]]:
+def read_execution(paths: list[str]) -> tuple[Counter, dict[tuple, list[str]]]:
+    """The executed multiset across every report this gate produced.
+
+    One entrypoint may run its portfolio in several passes — the fork gate runs one pass per
+    committed header — and each pass writes its own report. Merging them here is what lets the
+    compiled listing stay the single authority for which identities exist while still requiring
+    every listed identity to have executed exactly once somewhere across the whole gate.
+    """
     executed: Counter = Counter()
     statuses: dict[tuple, list[str]] = {}
-    for suite, result in load_json(path).items():
-        file_path, _, contract = suite.partition(":")
-        for signature, outcome in result.get("test_results", {}).items():
-            identity = (file_path, contract, signature.split("(", 1)[0])
-            executed[identity] += 1
-            statuses.setdefault(identity, []).append(outcome.get("status", "Unknown"))
+    for path in paths:
+        for suite, result in load_json(Path(path)).items():
+            file_path, _, contract = suite.partition(":")
+            for signature, outcome in result.get("test_results", {}).items():
+                identity = (file_path, contract, signature.split("(", 1)[0])
+                executed[identity] += 1
+                statuses.setdefault(identity, []).append(outcome.get("status", "Unknown"))
     return executed, statuses
 
 
@@ -872,7 +886,7 @@ def ledger_stage(args: argparse.Namespace) -> int:
     running_gates = set(args.gates.split(","))
 
     listing = read_listing(Path(args.test_list))
-    executed, statuses = read_execution(Path(args.test_report))
+    executed, statuses = read_execution(args.test_report)
 
     if not listing:
         problems.add("Foundry's compiled listing enumerates no test identity")
@@ -951,7 +965,7 @@ def ledger_stage(args: argparse.Namespace) -> int:
     )
     print(f"planned selectors: {sum(len(e['selectors']) for e in requirements.values())}")
     print(f"test identities listed by forge: {sum(listing.values())}")
-    print(f"test identities executed: {sum(executed.values())}")
+    print(f"test identities executed: {sum(executed.values())} across {len(args.test_report)} report(s)")
     for group in meta["groups"]:
         ids = [i for i in requirements if i.startswith(f"{group}-")]
         print(f"  {group}: {len(ids)} recorded, {len([i for i in ids if i in due])} due here")
@@ -1181,6 +1195,109 @@ def security(args: argparse.Namespace) -> int:
 
 
 # =============================================================================
+# published-evidence reconciliation
+# =============================================================================
+
+
+def decoded_logs(path: Path) -> list[str]:
+    """Every decoded log line the executed test report carries, in report order."""
+    lines: list[str] = []
+    for result in load_json(path).values():
+        for outcome in result.get("test_results", {}).values():
+            lines.extend(outcome.get("decoded_logs", []) or [])
+    return lines
+
+
+def parse_measure(cell: str) -> int | None:
+    try:
+        return int(cell.replace(",", "").strip())
+    except ValueError:
+        return None
+
+
+def evidence(args: argparse.Namespace) -> int:
+    """Prove the audit packet publishes the figures this run actually produced.
+
+    Two documents describe the same numbers: the generated evidence, and the prose a founder
+    reads. Nothing forces them to agree unless something checks, and a stale published figure
+    is exactly the kind of drift that survives review. Both tables below are therefore
+    reconciled against their generators in both directions.
+    """
+    problems = Problems()
+    doc = Path(args.gas_doc).read_text(encoding="utf-8")
+
+    # --- deployable sizes, against the frozen record ---------------------------
+    sizes = load_json(Path(args.sizes))
+    recorded = {row["contract"]: row for row in sizes["contracts"]}
+    recorded.update({row["contract"]: row for row in sizes["dependency_contracts"]})
+
+    fields = (
+        "runtime_bytes",
+        "runtime_margin_bytes",
+        "creation_bytes",
+        "constructor_args_bytes",
+        "initcode_bytes",
+        "initcode_margin_bytes",
+    )
+    published: set[str] = set()
+    for row in parse_disposition_rows(doc, "Deployable byte margins (`GAS-001`, `GAS-002`)"):
+        if len(row) != len(fields) + 1:
+            problems.add(f"{args.gas_doc}: size row {row} does not carry the {len(fields)} recorded columns")
+            continue
+        name = row[0]
+        published.add(name)
+        entry = recorded.get(name)
+        if entry is None:
+            problems.add(f"{args.gas_doc} publishes sizes for {name}, which the frozen record does not carry")
+            continue
+        for index, field in enumerate(fields, start=1):
+            found = parse_measure(row[index])
+            wanted = entry.get(field)
+            if wanted is None:
+                # A dependency build has no exact ABI head; the document records that as `n/a`.
+                if row[index] not in ("n/a", ""):
+                    problems.add(f"{args.gas_doc}: {name} publishes a {field} the frozen record does not record")
+            elif found != wanted:
+                problems.add(f"{args.gas_doc}: {name} {field} is published as {row[index]}, recorded as {wanted}")
+    for name in sorted(set(recorded) - published):
+        problems.add(f"{args.gas_doc} publishes no size row for the frozen contract {name}")
+
+    # --- hook callback cost, against this run's own GAS-007 output -------------
+    emitted: dict[str, int] = {}
+    for line in decoded_logs(Path(args.test_report)):
+        if not line.startswith("GAS-007 "):
+            continue
+        label, _, value = line[len("GAS-007 ") :].rpartition(": ")
+        measured = parse_measure(value)
+        if not label or measured is None:
+            continue
+        if label in emitted and emitted[label] != measured:
+            problems.add(f"GAS-007 emitted two different values for [{label}]")
+        emitted[label] = measured
+
+    if not emitted:
+        problems.add("the test report carries no GAS-007 measurement to reconcile the audit packet against")
+
+    quoted: set[str] = set()
+    for row in parse_disposition_rows(doc, "Hook callback cost (`GAS-007`)"):
+        if len(row) != 2:
+            problems.add(f"{args.gas_doc}: callback row {row} does not carry a measurement and a value")
+            continue
+        label, found = row[0], parse_measure(row[1])
+        quoted.add(label)
+        if label not in emitted:
+            problems.add(f"{args.gas_doc} publishes [{label}], which GAS-007 does not emit")
+        elif found != emitted[label]:
+            problems.add(f"{args.gas_doc}: [{label}] is published as {row[1]}, GAS-007 measured {emitted[label]}")
+    for label in sorted(set(emitted) - quoted):
+        problems.add(f"GAS-007 emitted [{label}], which {args.gas_doc} does not publish")
+
+    print(f"published size rows reconciled: {len(published)}")
+    print(f"published hook-callback figures reconciled: {len(quoted)}")
+    return problems.report("evidence")
+
+
+# =============================================================================
 # provider-secret scan
 # =============================================================================
 
@@ -1208,6 +1325,26 @@ KEY_SHAPE_RE = re.compile(r"(?i)(alchemy|infura|quiknode|quicknode|drpc\.org|ank
 CREDENTIAL_FIELD_RE = re.compile(r"(?i)(api_?key|secret|password|token)$")
 
 
+def walk_config(node: object, path: str = "") -> list[tuple[str, object]]:
+    """Every leaf in the effective configuration, with its full dotted path.
+
+    Foundry nests: `etherscan.<chain>.key`, `fs_permissions[i].path`, per-profile blocks. A scan
+    that only looked at the top level would miss a credential one level down, so this flattens
+    the whole document and the caller inspects every leaf.
+    """
+    if isinstance(node, dict):
+        found = []
+        for key, value in node.items():
+            found.extend(walk_config(value, f"{path}.{key}" if path else str(key)))
+        return found
+    if isinstance(node, list):
+        found = []
+        for index, value in enumerate(node):
+            found.extend(walk_config(value, f"{path}[{index}]"))
+        return found
+    return [(path, node)]
+
+
 def secrets(args: argparse.Namespace) -> int:
     problems = Problems()
 
@@ -1225,10 +1362,22 @@ def secrets(args: argparse.Namespace) -> int:
         if not str(value).startswith("${"):
             problems.add(f"RPC alias '{alias}' is resolved in the effective configuration")
 
-    # No credential field anywhere in the effective configuration may carry a value.
-    for field, value in sorted(config.items()):
-        if CREDENTIAL_FIELD_RE.search(field) and value not in (None, "", {}, []):
+    # No credential field, and no resolved endpoint, anywhere in the effective configuration —
+    # at any depth. The RPC aliases are handled above; every other leaf is inspected here.
+    leaves = walk_config(config)
+    for field, value in leaves:
+        if value in (None, "", False):
+            continue
+        leaf = field.rsplit(".", 1)[-1].split("[", 1)[0]
+        if CREDENTIAL_FIELD_RE.search(leaf):
             problems.add(f"the effective configuration carries a value in the credential field '{field}'")
+        if field.startswith("rpc_endpoints"):
+            continue
+        for host in set(URL_RE.findall(str(value))):
+            if host.lower() not in ALLOWED_URL_HOSTS:
+                problems.add(f"the effective configuration names the network host {host} at '{field}'")
+        for match in set(KEY_SHAPE_RE.findall(str(value))):
+            problems.add(f"the effective configuration carries provider key material shaped like [{match}] at '{field}'")
 
     scanned = 0
     for root in args.scan:
@@ -1248,6 +1397,7 @@ def secrets(args: argparse.Namespace) -> int:
                 problems.add(f"{path} carries provider key material shaped like [{match}]")
 
     print(f"secret-scanned files: {scanned}")
+    print(f"effective configuration leaves inspected: {len(leaves)}")
     print(f"RPC aliases declared: {', '.join(sorted(endpoints)) or '(none)'}")
     print(f"configured '{RPC_ALIAS}' alias stays unresolved as {RPC_PLACEHOLDER}")
     return problems.report("secrets")
@@ -1283,7 +1433,7 @@ def main() -> int:
     stage.add_argument("--spec", required=True)
     stage.add_argument("--gates", required=True)
     stage.add_argument("--test-list", required=True)
-    stage.add_argument("--test-report", required=True)
+    stage.add_argument("--test-report", nargs="+", required=True)
     stage.add_argument("--receipt", required=True)
     stage.set_defaults(run=ledger_stage)
 
@@ -1299,6 +1449,12 @@ def main() -> int:
     stage.add_argument("--analyzed-sources", nargs="+", required=True)
     stage.add_argument("--suppression-sources", nargs="+", required=True)
     stage.set_defaults(run=security)
+
+    stage = sub.add_parser("evidence")
+    stage.add_argument("--test-report", required=True)
+    stage.add_argument("--sizes", required=True)
+    stage.add_argument("--gas-doc", required=True)
+    stage.set_defaults(run=evidence)
 
     stage = sub.add_parser("secrets")
     stage.add_argument("--forge-config", required=True)

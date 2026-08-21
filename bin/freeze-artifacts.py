@@ -29,6 +29,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -46,6 +47,33 @@ PRODUCTION_CONTRACTS = (
 
 # The three C1 implementations the factory and the strategy clone with Solady's minimal proxy.
 CLONE_TARGETS = ("ConditionalVestingEscrowV1", "SubjectSplitterV1", "PaymentReceiverV1")
+
+# Contracts the deployment ceremony deploys that this repository does not own. They are pinned
+# dependency builds, but the ceremony still has to deploy them, so their exact build, byte
+# lengths, margins and EVM code identity are frozen here beside the production six.
+#
+# `runtime_immutables` records how many immutable references the compiler left in the artifact
+# runtime. A contract with none has an artifact runtime that *is* the deployed runtime, so its
+# keccak-256 is the EVM codehash a deployed instance presents; a contract with immutables does
+# not, and its per-deployment codehash is recorded as such rather than pretended to be frozen.
+DEPENDENCY_CONTRACTS = {
+    "UERC20Factory": {
+        "source": "lib/uerc20-factory/src/factories/UERC20Factory.sol",
+        "role": (
+            "the pinned token factory the Autolaunch factory constructor admits by exact runtime "
+            "code hash and every launch creates its SUBJECT through"
+        ),
+        "deployed_by_ceremony": True,
+    },
+    "UERC20": {
+        "source": "lib/uerc20-factory/src/tokens/UERC20.sol",
+        "role": (
+            "the per-launch SUBJECT build the pinned factory CREATE2-deploys inside every launch "
+            "transaction; it is never deployed by the ceremony itself"
+        ),
+        "deployed_by_ceremony": False,
+    },
+}
 
 # The clone runtime template is read out of the production strategy's own `escrowCloneCodehash`
 # derivation rather than transcribed here, so the frozen record cannot drift from the code that
@@ -107,12 +135,17 @@ CONSUMED_SURFACES = {
     # so its bidder surface is frozen from the pinned `IAllowanceTransfer` interface that
     # v4-periphery compiles. The interface is the ABI authority; the deployed runtime at the
     # canonical Permit2 address stays a fork claim.
+    #
+    # This is the founder-selected allowance flow and nothing else: a bidder grants an ERC20
+    # approval to the canonical Permit2 and then an `approve` allowance to the auction, and the
+    # auction reads it with `allowance`. No signature-carrying `permit`, no batched variant and
+    # no `permitTransferFrom` is consumed anywhere in this repository, so none is frozen here —
+    # recording one would imply a product surface that does not exist.
     "IAllowanceTransfer": {
         "repository": "https://github.com/Uniswap/permit2",
         "functions": (
             "allowance(address,address,address)",
             "approve(address,address,uint160,uint48)",
-            "permit(address,((address,uint160,uint48,uint48),address,uint256),bytes)",
         ),
         "events": (),
     },
@@ -215,6 +248,21 @@ def declared_shape(members: list[dict]) -> list[str]:
     return [f"{canonical_type(item)} {item.get('name', '')}".strip() for item in members]
 
 
+def event_shape(members: list[dict]) -> list[str]:
+    """`<type>[ indexed] <name>` for every event argument, in declaration order.
+
+    An indexed *count* cannot tell `Foo(address indexed a, uint256 b)` from
+    `Foo(address a, uint256 indexed b)`: both carry one indexed field, and both would occupy
+    the same recorded line. This records which field, at which position, under which name and
+    at which exact width, so moving `indexed` from one argument to another changes the frozen
+    record even though the topic and the count are unchanged.
+    """
+    return [
+        f"{canonical_type(item)}{' indexed' if item.get('indexed') else ''} {item.get('name', '')}".strip()
+        for item in members
+    ]
+
+
 # =============================================================================
 # artifacts
 # =============================================================================
@@ -305,12 +353,17 @@ def surface_entry(name: str, record: dict) -> dict:
         functions.append(line)
         (views if entry.get("stateMutability") in ("view", "pure") else mutating).append(line)
 
-    events = []
+    # Keyed by event name, not by signature: a JSON path segment has to be addressable, and an
+    # event name is. A repeated name would make that key ambiguous, so it fails closed instead.
+    events, event_fields = [], {}
     for entry in abi:
         if entry.get("type") != "event":
             continue
         indexed = sum(1 for item in entry["inputs"] if item.get("indexed"))
         events.append(f"{keccak256(signature(entry).encode())} {signature(entry)} indexed={indexed}")
+        if entry["name"] in event_fields:
+            raise SystemExit(f"freeze: {name} declares two events named {entry['name']}")
+        event_fields[entry["name"]] = event_shape(entry["inputs"])
 
     errors = [
         f"{keccak256(signature(entry).encode())[:10]} {signature(entry)}"
@@ -318,7 +371,7 @@ def surface_entry(name: str, record: dict) -> dict:
         if entry.get("type") == "error"
     ]
 
-    structs = {}
+    structs, returns = {}, {}
     for entry in abi:
         if entry.get("type") != "function":
             continue
@@ -327,6 +380,12 @@ def surface_entry(name: str, record: dict) -> dict:
                 # `_`-joined, never `.`-joined: a dot would be a path separator to every
                 # JSON reader that later has to address this key.
                 structs[f"{entry['name']}_{item.get('name', '')}"] = declared_shape(item["components"])
+        # Return tuples are frozen exactly as input tuples are. A consumer decodes a returned
+        # struct positionally, so a reordered, renamed, added or rewidened return field breaks
+        # it just as surely as an input one, and nothing in a function selector records it.
+        for index, item in enumerate(entry.get("outputs", [])):
+            if item.get("type", "").startswith("tuple"):
+                returns[f"{entry['name']}_return{index}"] = declared_shape(item["components"])
 
     constructor = next((entry for entry in abi if entry.get("type") == "constructor"), None)
     return {
@@ -336,8 +395,10 @@ def surface_entry(name: str, record: dict) -> dict:
         "mutating_functions": sorted(mutating),
         "view_functions": sorted(views),
         "events": sorted(events),
+        "event_fields": dict(sorted(event_fields.items())),
         "errors": sorted(errors),
         "input_structs": dict(sorted(structs.items())),
+        "return_structs": dict(sorted(returns.items())),
     }
 
 
@@ -389,43 +450,101 @@ def clone_template() -> dict:
     }
 
 
-def sizes_document(entries: dict[str, dict]) -> dict:
+def code_identity(artifact: dict) -> dict:
+    """Every byte-level identity one artifact has, EVM-native first.
+
+    `runtime_keccak256` is the EVM `EXTCODEHASH` of a deployed instance whenever the artifact
+    carries no immutable references, which is exactly the identity the production constructors
+    admit by. SHA-256 is kept beside it as a second, non-EVM digest for packet diffing; it is
+    never the identity anything is admitted by.
+    """
+    runtime = code(artifact, "deployedBytecode")
+    creation = code(artifact, "bytecode")
+    immutables = len(artifact["deployedBytecode"].get("immutableReferences") or {})
+    return {
+        "compiler": artifact["metadata"]["compiler"]["version"],
+        "runtime_bytes": len(runtime),
+        "runtime_keccak256": keccak256(runtime),
+        "runtime_sha256": hashlib.sha256(runtime).hexdigest(),
+        "runtime_immutable_references": immutables,
+        "runtime_keccak256_is_deployed_codehash": immutables == 0,
+        "creation_bytes": len(creation),
+        "creation_keccak256": keccak256(creation),
+        "creation_sha256": hashlib.sha256(creation).hexdigest(),
+    }
+
+
+def dependency_entries(artifacts: dict[str, dict]) -> dict[str, dict]:
+    """The pinned dependency builds the ceremony needs, keyed by exact source path."""
+    found = {}
+    for name, wanted in DEPENDENCY_CONTRACTS.items():
+        key = f"{wanted['source']}:{name}"
+        artifact = artifacts.get(key)
+        if artifact is None:
+            raise SystemExit(f"freeze: the pinned build produced no artifact at {key}")
+        found[name] = {"source": wanted["source"], "artifact": artifact}
+    return found
+
+
+def dependency_document(dependencies: dict[str, dict]) -> list[dict]:
+    rows = []
+    for name, wanted in DEPENDENCY_CONTRACTS.items():
+        record = dependencies[name]
+        identity = code_identity(record["artifact"])
+        rows.append({
+            "contract": name,
+            "source": record["source"],
+            "role": wanted["role"],
+            "deployed_by_ceremony": wanted["deployed_by_ceremony"],
+            **identity,
+            "runtime_margin_bytes": EIP170_RUNTIME_LIMIT - identity["runtime_bytes"],
+            "initcode_margin_bytes": EIP3860_INITCODE_LIMIT - identity["creation_bytes"],
+            "constructor": surface_entry(name, record)["constructor"],
+        })
+    return rows
+
+
+def sizes_document(entries: dict[str, dict], dependencies: dict[str, dict]) -> dict:
     contracts = []
     for name in PRODUCTION_CONTRACTS:
         record = entries[name]
-        runtime = code(record["artifact"], "deployedBytecode")
-        creation = code(record["artifact"], "bytecode")
+        identity = code_identity(record["artifact"])
         args = constructor_args_bytes(record)
         contracts.append({
             "contract": name,
             "source": record["source"],
-            "runtime_bytes": len(runtime),
-            "runtime_margin_bytes": EIP170_RUNTIME_LIMIT - len(runtime),
-            "creation_bytes": len(creation),
+            **identity,
+            "runtime_margin_bytes": EIP170_RUNTIME_LIMIT - identity["runtime_bytes"],
+            "constructor": surface_entry(name, record)["constructor"],
             "constructor_args_bytes": args,
-            "initcode_bytes": len(creation) + args,
-            "initcode_margin_bytes": EIP3860_INITCODE_LIMIT - len(creation) - args,
+            "initcode_bytes": identity["creation_bytes"] + args,
+            "initcode_margin_bytes": EIP3860_INITCODE_LIMIT - identity["creation_bytes"] - args,
         })
 
     template = clone_template()
     clones = [{
         "clone_of": name,
+        "implementation_runtime_keccak256": keccak256(code(entries[name]["artifact"], "deployedBytecode")),
         "runtime_bytes": template["runtime_bytes"],
         "runtime_margin_bytes": EIP170_RUNTIME_LIMIT - template["runtime_bytes"],
     } for name in CLONE_TARGETS]
 
     return {
         "purpose": (
-            "Deployable byte margins for GAS-001 and GAS-002. Runtime and creation lengths come "
-            "from the compiler artifacts; the constructor-argument length is the exact ABI head "
-            "the deployment packet will append, which the compiler's size report excludes. A "
-            "clone's own deployment initcode is Solady's and is measured directly by GAS-002."
+            "Deployable byte margins and EVM code identity for GAS-001 and GAS-002. Runtime and "
+            "creation lengths and hashes come from the compiler artifacts; the "
+            "constructor-argument length is the exact ABI head the deployment packet will "
+            "append, which the compiler's size report excludes. A clone's own deployment "
+            "initcode is Solady's and is measured directly by GAS-002, and a clone's EVM "
+            "codehash is keccak over the 44-byte runtime its own implementation address "
+            "completes, so it exists only once that implementation is deployed."
         ),
         "limits": {
             "eip170_runtime_bytes": EIP170_RUNTIME_LIMIT,
             "eip3860_initcode_bytes": EIP3860_INITCODE_LIMIT,
         },
         "contracts": contracts,
+        "dependency_contracts": dependency_document(dependencies),
         "clone_runtime_template": template,
         "clones": clones,
     }
@@ -448,12 +567,12 @@ def consumed_document(artifacts: dict[str, dict]) -> dict:
     for name, wanted in sorted(CONSUMED_SURFACES.items()):
         candidates = by_name.get(name) or []
         available_functions: set[str] = set()
-        available_events: set[str] = set()
+        available_events: dict[str, dict] = {}
         for artifact in candidates:
             available_functions |= set((artifact.get("methodIdentifiers") or {}).keys())
-            available_events |= {
-                signature(entry) for entry in artifact.get("abi", []) if entry.get("type") == "event"
-            }
+            for entry in artifact.get("abi", []):
+                if entry.get("type") == "event":
+                    available_events.setdefault(signature(entry), entry)
         if not candidates:
             raise SystemExit(f"freeze: the pinned build produced no artifact named {name}")
 
@@ -462,36 +581,53 @@ def consumed_document(artifacts: dict[str, dict]) -> dict:
             if item not in available_functions:
                 raise SystemExit(f"freeze: pinned {name} no longer declares {item}")
             functions.append(f"{keccak256(item.encode())[:10]} {item}")
-        events = []
+
+        # A consumed event is frozen with the same indexed-field identity a produced one is.
+        # Topic position is what a watcher decodes by, so `BidSubmitted`'s two indexed fields
+        # are pinned by name, position and width here rather than by a count.
+        events, event_fields = [], {}
         for item in wanted["events"]:
-            if item not in available_events:
+            entry = available_events.get(item)
+            if entry is None:
                 raise SystemExit(f"freeze: pinned {name} no longer declares event {item}")
-            events.append(f"{keccak256(item.encode())} {item}")
+            indexed = sum(1 for field in entry["inputs"] if field.get("indexed"))
+            events.append(f"{keccak256(item.encode())} {item} indexed={indexed}")
+            event_fields[entry["name"]] = event_shape(entry["inputs"])
 
         document[name] = {
             "repository": wanted["repository"],
             "functions": sorted(functions),
             "events": sorted(events),
+            "event_fields": dict(sorted(event_fields.items())),
         }
     return document
 
 
-def manifest_document(entries: dict[str, dict], frozen: dict, chain: dict, consumed: dict) -> dict:
+def manifest_document(
+    entries: dict[str, dict], dependencies: dict[str, dict], frozen: dict, chain: dict, consumed: dict
+) -> dict:
     contracts = {}
     for name in PRODUCTION_CONTRACTS:
         record = entries[name]
-        runtime = code(record["artifact"], "deployedBytecode")
-        creation = code(record["artifact"], "bytecode")
         contracts[name] = {
             "source": record["source"],
-            "compiler": record["artifact"]["metadata"]["compiler"]["version"],
-            "runtime_bytes": len(runtime),
-            "runtime_sha256": hashlib.sha256(runtime).hexdigest(),
-            "creation_bytes": len(creation),
-            "creation_sha256": hashlib.sha256(creation).hexdigest(),
+            **code_identity(record["artifact"]),
             "constructor": surface_entry(name, record)["constructor"],
             "abi_file": f"abi/{name}.json",
             "deployment": {"address": None, "status": "deployment_pending"},
+        }
+    for name, wanted in DEPENDENCY_CONTRACTS.items():
+        record = dependencies[name]
+        contracts[name] = {
+            "source": record["source"],
+            **code_identity(record["artifact"]),
+            "constructor": surface_entry(name, record)["constructor"],
+            "abi_file": None,
+            "role": wanted["role"],
+            "deployment": {
+                "address": None,
+                "status": "deployment_pending" if wanted["deployed_by_ceremony"] else "created_per_launch",
+            },
         }
 
     template = clone_template()
@@ -502,6 +638,16 @@ def manifest_document(entries: dict[str, dict], frozen: dict, chain: dict, consu
             "runtime_template": template["template"],
             "runtime_bytes": template["runtime_bytes"],
             "derived_from": template["derived_from"],
+            "implementation_runtime_keccak256": keccak256(code(entries[name]["artifact"], "deployedBytecode")),
+            "clone_runtime_keccak256": {
+                "value": None,
+                "status": "deployment_pending",
+                "derivation": (
+                    f"keccak256(0x{template['prefix']} ++ <20-byte {name} implementation> ++ "
+                    f"0x{template['suffix']}); the implementation address is the only unknown, so this "
+                    "identity exists the moment that address does"
+                ),
+            },
             "authority": "DEP-060 proves this derivation against a real clone and the frozen artifacts",
         }
         for name in CLONE_TARGETS
@@ -516,6 +662,7 @@ def manifest_document(entries: dict[str, dict], frozen: dict, chain: dict, consu
             "runtime_code_hash": None,
             "proxy": None,
             "implementation": None,
+            "implementation_runtime_code_hash": None,
             "status": "fork_pending",
         }
     bindings["cca_factory"]["runtime_code_hash"] = frozen["admission"]["runtime_code_hash"]
@@ -568,11 +715,90 @@ def render(document: object) -> str:
 # =============================================================================
 
 
+def git(*args: str) -> str | None:
+    """Run git and return its stdout, or None if it failed."""
+    result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def check_baseline_provenance(baseline_path: Path, provenance: dict) -> str:
+    """Prove the baseline record really is the independent pre-edit capture it claims to be.
+
+    A `captured_from_commit` field inside the record is a self-declaration: the same hand that
+    could edit the numbers could edit that string. Git is the authority instead, and all five
+    relations below have to hold at once:
+
+      1. the working file is byte-identical to the blob the capture commit committed, so the
+         record has not been touched since it was captured;
+      2. the capture commit sits *directly* on the integrated C4 commit, so nothing landed in
+         between;
+      3. the capture commit's whole `src` tree equals integrated C4's, so the capture was taken
+         before this ticket's one permitted comment edit rather than after it;
+      4. the record's own `captured_from_commit` names that integrated C4 commit; and
+      5. the record's own `captured_from_tree` is that commit's real tree.
+
+    Forging this needs a rewritten history, not an edited file.
+    """
+    capture = provenance["capture_commit"]
+    c4 = provenance["integrated_c4_commit"]
+    path = provenance["path"]
+    problems = []
+
+    committed_blob = git("rev-parse", f"{capture}:{path}")
+    working_blob = git("hash-object", str(baseline_path))
+    if committed_blob is None:
+        problems.append(f"the capture commit {capture[:12]} commits no {path}")
+    elif committed_blob != working_blob:
+        problems.append(
+            f"{path} is {working_blob}, but the capture commit {capture[:12]} committed {committed_blob}"
+        )
+
+    parent = git("rev-parse", f"{capture}^")
+    if parent != c4:
+        problems.append(
+            f"the capture commit {capture[:12]} sits on {parent}, not on integrated C4 {c4[:12]}"
+        )
+
+    capture_src = git("rev-parse", f"{capture}:src")
+    c4_src = git("rev-parse", f"{c4}:src")
+    if capture_src is None or c4_src is None:
+        problems.append("cannot read the src tree of the capture commit or of integrated C4")
+    elif capture_src != c4_src:
+        problems.append(
+            f"the capture commit's src tree {capture_src} is not integrated C4's {c4_src}; "
+            "the baseline was not captured before any src edit"
+        )
+
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    if baseline.get("captured_from_commit") != c4:
+        problems.append(
+            f"{path} declares it was captured from {baseline.get('captured_from_commit')}, "
+            f"not from integrated C4 {c4}"
+        )
+    c4_tree = git("rev-parse", f"{c4}^{{tree}}")
+    if baseline.get("captured_from_tree") != c4_tree:
+        problems.append(
+            f"{path} declares C4 tree {baseline.get('captured_from_tree')}, but {c4[:12]} is {c4_tree}"
+        )
+
+    if problems:
+        print("FREEZE RECONCILIATION FAILED", file=sys.stderr)
+        for problem in problems:
+            print(f"  - {problem}", file=sys.stderr)
+        raise SystemExit(1)
+
+    return (
+        f"{path} is byte-identical to the blob capture commit {capture[:12]} committed directly on "
+        f"integrated C4 {c4[:12]}, whose src tree {c4_src} it shares"
+    )
+
+
 def check_runtime_baseline(entries: dict[str, dict], artifacts: dict[str, dict], baseline_path: Path) -> str:
     """Prove the C5 build's `src/**` bytes are the exact pre-edit C4 bytes.
 
     The baseline was captured from the pristine C4 build before this ticket edited any file,
-    so it is an authority this candidate cannot have produced.
+    so it is an authority this candidate cannot have produced. `check_baseline_provenance`
+    proves that claim against Git rather than against the record's own wording.
     """
     baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
     recorded = baseline["contracts"]
@@ -634,11 +860,14 @@ def run(args: argparse.Namespace) -> int:
 
     frozen = json.loads(Path(args.frozen).read_text(encoding="utf-8"))
     consumed = consumed_document(artifacts)
+    dependencies = dependency_entries(artifacts)
 
     documents: dict[Path, str] = {
         Path("reports/frozen/abi-surface.json"): render(abi_surface_document(entries, consumed)),
-        Path("reports/frozen/deployable-sizes.json"): render(sizes_document(entries)),
-        Path(args.manifest): render(manifest_document(entries, frozen, frozen["chain"], consumed)),
+        Path("reports/frozen/deployable-sizes.json"): render(sizes_document(entries, dependencies)),
+        Path(args.manifest): render(
+            manifest_document(entries, dependencies, frozen, frozen["chain"], consumed)
+        ),
     }
     for name in PRODUCTION_CONTRACTS:
         documents[Path(f"abi/{name}.json")] = render(contract_abi_document(name, entries[name]))
@@ -662,18 +891,20 @@ def run(args: argparse.Namespace) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
+    provenance_detail = check_baseline_provenance(Path(args.baseline), frozen["c4_baseline"])
     baseline_detail = check_runtime_baseline(entries, artifacts, Path(args.baseline))
 
     with Path(args.receipt).open("a", encoding="utf-8") as handle:
         handle.write(
             f"DEP-016 verified: bin/freeze-artifacts.py check regenerated {len(documents)} frozen "
             f"documents byte for byte from {len(artifacts)} compiled artifacts, reconciled "
-            f"{selectors_checked} solc method identifiers against its own keccak, and proved "
-            f"{baseline_detail}\n"
+            f"{selectors_checked} solc method identifiers against its own keccak, proved "
+            f"{provenance_detail}, and proved {baseline_detail}\n"
         )
 
     print(f"frozen documents reconciled: {len(documents)}")
     print(f"solc method identifiers reconciled against derived keccak: {selectors_checked}")
+    print(f"C4 baseline provenance: {provenance_detail}")
     print(f"C4 runtime baseline: {baseline_detail}")
     return 0
 
