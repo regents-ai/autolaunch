@@ -48,7 +48,9 @@ contract BaseBindingsForkTest is ForkFixture {
         uint256 opened = _selectFork(header);
 
         string memory prefix = string.concat(".headers.", _headerName(header), ".");
-        assertEq(opened, _observedUint(string.concat(prefix, "block_number")), "the opened header is not the recorded one");
+        assertEq(
+            opened, _observedUint(string.concat(prefix, "block_number")), "the opened header is not the recorded one"
+        );
         assertGt(block.number, 0, "a fork opened at the genesis header");
         assertGt(block.timestamp, 0, "the recorded header carries no timestamp");
         assertTrue(

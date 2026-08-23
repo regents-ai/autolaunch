@@ -582,7 +582,9 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         splitter.claimAll();
 
         assertEq(_balanceOf(BaseBindings.USDC, bidder) - usdcBefore, usdcClaimable, "the USDC claim was inexact");
-        assertEq(_balanceOf(BaseBindings.REGENT, bidder) - regentBefore, regentClaimable, "the REGENT claim was inexact");
+        assertEq(
+            _balanceOf(BaseBindings.REGENT, bidder) - regentBefore, regentClaimable, "the REGENT claim was inexact"
+        );
         assertEq(
             _balanceOf(address(graduating.subject), bidder) - subjectBefore,
             subjectClaimable,
