@@ -3,7 +3,7 @@
     "cca_factory": {
       "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
       "implementation": "0x0000000000000000000000000000000000000000",
-      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
       "protocol_fee_controller": "0x0000000000000000000000000000000000000000",
       "proxy_family": "no_supported_proxy_pattern",
@@ -13,7 +13,7 @@
     "dead_address": {
       "address": "0x000000000000000000000000000000000000dEaD",
       "implementation": "0x0000000000000000000000000000000000000000",
-      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
       "proxy_family": "no_supported_proxy_pattern",
       "runtime_bytes": 0,
@@ -31,7 +31,7 @@
     "live_staking": {
       "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
       "implementation": "0x0000000000000000000000000000000000000000",
-      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
       "owner": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
       "paused": false,
@@ -42,7 +42,7 @@
     "pool_manager": {
       "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
       "implementation": "0x0000000000000000000000000000000000000000",
-      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
       "proxy_family": "no_supported_proxy_pattern",
       "runtime_bytes": 24009,
@@ -51,9 +51,9 @@
     "position_manager": {
       "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
       "implementation": "0x0000000000000000000000000000000000000000",
-      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
-      "next_token_id": 2955490,
+      "next_token_id": 2955586,
       "proxy_family": "no_supported_proxy_pattern",
       "runtime_bytes": 23877,
       "runtime_code_hash": "0x243f9e091ddf11c7c04e28059fdbbf1bab82b72d414fafb8e096c097aaeb622a"
@@ -62,7 +62,7 @@
       "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
       "decimals": 18,
       "implementation": "0x0000000000000000000000000000000000000000",
-      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
       "proxy_family": "no_supported_proxy_pattern",
       "runtime_bytes": 12791,
@@ -85,31 +85,31 @@
   "headers": {
     "later": {
       "base_fee_per_gas": 5000000,
-      "block_number": 50362268,
-      "parent_block_hash": "0xd90c4ee83f6a65750b299e0944542c61086eb1ad8025b4a7aab25d4a3cd8a87f",
-      "parent_block_number": 50362267,
-      "timestamp": 1787513883
+      "block_number": 50362755,
+      "parent_block_hash": "0x1149a92e780dfc3b9e196de252f8bfe55bfd3e8238ea1d5fc5a8d9af760dccb7",
+      "parent_block_number": 50362754,
+      "timestamp": 1787514857
     },
     "pinned": {
       "base_fee_per_gas": 5000000,
-      "block_number": 50361968,
-      "parent_block_hash": "0xd89c09ecbd647329ed87f4d5f08e0e5b0ab746c1795390fe75567ceeda79f1ec",
-      "parent_block_number": 50361967,
-      "timestamp": 1787513283
+      "block_number": 50362455,
+      "parent_block_hash": "0x6ea67aa7c6ea1704f2222af795694d09cf2246cf825e251bdcb4d17f884776a5",
+      "parent_block_number": 50362454,
+      "timestamp": 1787514257
     }
   },
   "operator_transition": "1. review every value below against an independent source; 2. fill in transaction_gas_schedule; 3. set status to observed_and_committed; 4. copy this file to reports/frozen/fork-observations.json; 5. add \"fork\" to activated_gates in requirements/ledger.toml and flip the eighteen fork claims to active; 6. commit both; 7. run bin/fork-gate.sh check.",
   "permit2": {
     "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "implementation": "0x0000000000000000000000000000000000000000",
-    "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+    "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "implementation_runtime_bytes": 0,
     "proxy_family": "no_supported_proxy_pattern",
     "runtime_bytes": 9152,
     "runtime_code_hash": "0xa67739abc3ede9dbdc0491636c67d6a14ac07fab9030c3f509b1eb7b11dff8ed"
   },
   "purpose": "A reviewable candidate produced by an authorized read-only Base discovery pass. It is not evidence and nothing checks against it. A human reviews it, supplies the transaction gas schedule, and deliberately installs it as reports/frozen/fork-observations.json with status observed_and_committed before any fork claim can close.",
-  "status": "superseded_pending_rediscovery",
+  "status": "observed_and_committed",
   "transaction_gas_schedule": {
     "calldata_nonzero_byte_gas": 16,
     "calldata_zero_byte_gas": 4,
