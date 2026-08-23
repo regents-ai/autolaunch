@@ -98,7 +98,7 @@
       "timestamp": 1787514257
     }
   },
-  "operator_transition": "Completed: every observed value was checked against an independent provider; the active Base transaction gas schedule was supplied from protocol rules; this record was installed and committed with status observed_and_committed; the fork gate was activated; and all eighteen fork claims passed at both committed headers under the compare-only gate.",
+  "operator_transition": "Completed: every observed value was checked against an independent provider; the active Base transaction gas schedule was supplied from protocol rules; and this record was installed and committed with status observed_and_committed before the fork gate was activated.",
   "permit2": {
     "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "implementation": "0x0000000000000000000000000000000000000000",
@@ -115,7 +115,7 @@
     "calldata_zero_byte_gas": 4,
     "floor_per_calldata_token": 10,
     "intrinsic_gas": 21000,
-    "note": "the Base transaction gas rules active at each header. No contract exposes these, so discovery cannot observe them: the reviewer fills them in from the protocol rules active at the recorded headers before installing this record. GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a sum.",
+    "note": "The Base transaction gas rules active at each header. No contract exposes these, so discovery could not observe them; the reviewer supplied them from the protocol rules active at the recorded headers before installation. GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a sum.",
     "reviewer_action": "reviewed against Base Isthmus, Base Azul, EIP-7623, and EIP-7825 rules active at both recorded headers"
   }
 }

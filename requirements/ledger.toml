@@ -10,9 +10,9 @@
 #   activated_gates     the gate that class of evidence must run under is authorized.
 #
 # An activated ticket may therefore still hold claims pending, but only when their
-# designated gate is not activated. That is how C5 can land hermetic and invariant work
-# while its fork claims wait for the separately authorized fork gate. Once a claim's owner
-# and its gate are both activated, the claim MUST be active.
+# designated gate is not activated. That was the earlier offline C5 state; this candidate
+# activates both C5 and the separately authorized fork gate. Once a claim's owner and its
+# gate are both activated, the claim MUST be active.
 #
 # status = "active"   the claim's selectors must exist, must execute exactly once under the
 #                     designated gate, and must pass; a gate-dependency claim additionally

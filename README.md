@@ -163,10 +163,9 @@ now, so a later ticket implements the claim its predecessor named instead of inv
 
 Activation is two-dimensional. A claim is `active` only when its owning ticket appears in
 `activated_tickets` **and** its designated gate appears in `activated_gates`. An activated
-ticket may therefore still hold claims pending, but only when their gate is not yet
-authorized — that is how C5 lands its hermetic and invariant work while its fork claims wait
-for the separately authorized fork gate. Once a claim's owner and gate are both activated,
-the claim must be active.
+ticket may therefore still hold claims pending while its gate is unauthorized; that was the
+state of the earlier offline C5 object. In this evidence-activation candidate, `fork` and C5 are
+both activated, so every fork claim is active.
 
 A pending claim's selectors are reserved names only: they need not exist, they may not be
 executed against that ID, and nothing can mark the claim complete. A placeholder or a mock

@@ -6,7 +6,7 @@ pragma solidity 0.8.26;
 /// @dev Constants only. Both fork phases need this number and neither may learn it from the other:
 ///      the discovery pass uses it to choose the pinned header behind the head it opened, and the
 ///      check pass uses it to prove the two committed records really are that far apart. Discovery
-///      deliberately cannot read `reports/frozen/fork-observations.json` at all, so the value lives
+///      deliberately does not read `reports/frozen/fork-observations.json`, so the value lives
 ///      here rather than in the record or in `ForkFixture`, and one literal serves both sides.
 library ForkHeaders {
     /// @notice How far behind the later header the pinned header sits, in blocks.

@@ -194,9 +194,9 @@ abstract contract ForkFixture is Test {
     ///      check pass derives the family and the implementation identity independently here and
     ///      only then compares them against what was reviewed. The discovery pass deliberately
     ///      keeps its own copy of this classification rather than inheriting this fixture:
-    ///      inheriting it would give discovery the ability to read
-    ///      `reports/frozen/fork-observations.json`, and phase one must not be able to see the
-    ///      record phase two checks against.
+    ///      inheriting it would couple discovery to the fixture that reads
+    ///      `reports/frozen/fork-observations.json`, and phase one must not consult the record
+    ///      phase two checks against.
     ///
     ///      An account that matches nothing is reported as `no_supported_proxy_pattern`, never as
     ///      "not a proxy". This gate knows four patterns; a fifth would be invisible to it, and a

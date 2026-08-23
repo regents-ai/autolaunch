@@ -138,12 +138,20 @@ identically, and there is no admitted relation between two routers' settlement s
 of them to. The one absolute gas limit this repository holds anything to is the founder's 14,000,000
 complete-transaction ceiling below.
 
-## Complete-transaction gas (`GAS-003` through `GAS-006`) — not measured
+## Complete-transaction gas (`GAS-003` through `GAS-006`) — measured at both Base headers
 
-These are fork claims and **no read-only Base provider was available to this candidate**, so no
-complete-transaction figure exists. The measurement is written and mapped but unexecuted.
+All four claims executed against the exact production bytecode at Base blocks `50362455` and
+`50362755`. The totals include the measured gross execution cost plus the intrinsic and calldata
+schedule active at each header. Every envelope is below the founder's 14,000,000-gas ceiling.
 
-The shape it will take, recorded so the eventual figure can be checked rather than trusted:
+| Claim | Envelope | Pinned total | Later total | Pinned margin | Later margin |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `GAS-003` | launch with maximum metadata and worst valid raise | 7,700,622 | 7,700,622 | 6,299,378 | 6,299,378 |
+| `GAS-004` | successful graduation | 1,454,529 | 1,454,529 | 12,545,471 | 12,545,471 |
+| `GAS-005` | failed-auction retirement with bidder inventory | 293,819 | 293,807 | 13,706,181 | 13,706,193 |
+| `GAS-006` | independent full-envelope launch measurement | 7,700,526 | 7,700,526 | 6,299,474 | 6,299,474 |
+
+The executed calculation is deliberately explicit:
 
 - **The total is the applicable maximum, never a naive sum.** Post-Prague chains price calldata as a
   *floor* rather than a per-byte addition, so
@@ -160,5 +168,9 @@ The shape it will take, recorded so the eventual figure can be checked rather th
 - **The gas schedule comes from the header, not from this repository.** Intrinsic cost, per-byte
   calldata cost, and the calldata-token floor are read from `reports/frozen/fork-observations.json`
   for the exact header being measured, and the reviewed discovery pass is what puts them there.
+
+Execution is measured from the Foundry harness around the exact production call. Intrinsic and
+calldata costs are then applied from the committed header schedule; the warm launch is a control,
+not part of the reported user envelope.
 
 Any complete envelope above 14,000,000 gas is a stop.

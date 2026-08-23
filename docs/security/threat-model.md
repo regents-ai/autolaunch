@@ -6,15 +6,14 @@ failure class is answered by a requirement in [the ledger](../../requirements/le
 
 It describes only frozen specification behavior. It invents no contract behavior, and every
 mitigation it names is a requirement ID whose evidence becomes mandatory when its owning ticket
-activates. Through C4 the repository holds the immutable bindings, the proof scaffolding, the three
+activates. Through C5 the repository holds the immutable bindings, the proof scaffolding, the three
 fixed clone targets — `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, and `PaymentReceiverV1` —
 the one shared `RegentFeeHook`, the one shared `RegentLBPStrategy`, and the one
 `RegentsAutolaunchFactoryV1` that deploys and binds both of them and creates every launch. The
 dependency, binding, chain, ABI-provenance, factory, token, escrow, splitter, receiver, hook,
-strategy, migration, and failure mitigations therefore carry hermetic evidence. What is still
-pending is C5's: the fork gate's deployed-runtime claims (`DEP-040` through `DEP-051`), the
-stateful invariant class, the complete-transaction gas class, and the ABI freeze. A pending
-mitigation is a named obligation, never evidence.
+strategy, migration, failure, stateful invariant, ABI, deployed-runtime, and complete-transaction
+gas mitigations carry their designated evidence. The fork claims executed at both committed Base
+headers; deployment and a signed ceremony remain outside this packet.
 
 ## 1. Assets
 
@@ -217,8 +216,9 @@ reviewer meets it as a decision rather than as a surprise.
 | A one-wei required raise is admitted because it was measured, not assumed | The smallest admitted required raise is one wei, and the smallest reachable graduated outcome at that raise really does resolve: measured against the real pinned auction and `PositionPlanner`, a one-wei raise migrates in both PoolKey orderings and at both reachable clearing-price endpoints — the floor price and the highest on-grid price — consuming one wei of REGENT and 981 units of SUBJECT in the full-range position. `NoFullRangePosition()` is therefore not reachable inside the admitted range, and no artificial minimum raise is imposed. | `FAC-023`, `STR-014` |
 | Per-account sub-unit dust | Flooring each account's share leaves sub-unit dust. It is banked per account against the accumulator, so a stake change neither forfeits it nor credits it a second time, and it stays inside protected liability until a later recognition completes it into a claimable whole unit. It is likewise never separately withdrawable, never surplus-recognizable, and never recoverable. | `SPL-013`, `SPL-007`, `SPL-012` |
 
-## 9. Explicitly out of scope through C4
+## 9. Explicitly out of scope for this proof packet
 
-No RPC or provider access, fork execution, deployment, signature, transaction, wallet action,
-secret access, production data, admission decision, or value movement occurs in this repository.
-Live-chain truth remains an unproven assumption recorded as pending fork requirements.
+Read-only Base discovery and fork execution occurred at the two committed headers. No provider
+write, contract deployment, signature, broadcast transaction, wallet action, secret access,
+production-data mutation, admission decision, or value movement occurred. Deployment-time
+latest-head drift remains a separate ceremony check rather than a claim made here.

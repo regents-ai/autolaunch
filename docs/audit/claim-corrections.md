@@ -184,8 +184,6 @@ That no Ash source consumes the deleted selector follows from the controlling sp
 than from a search of the product repository, which is outside this ticket's boundary and was not
 read. `SPEC.md` section 11 permits contract-independent Ash work before C5 only on condition that it
 "may not invent a Regent ABI, deployed address, runtime fact, predecessor-hint source, projector
-fact, entitlement, or admission result", and binds every Regent ABI consumer to the freeze that C5
-produces — a freeze that has not closed, because every fork claim is still pending. There is
-therefore no admitted Ash binding to this or any other Regent selector yet. **Proposed follow-up:**
-have the Ash lane confirm the delta above against its own tree when it takes the frozen ABI, since
-this repository cannot see that tree.
+fact, entitlement, or admission result", and binds every Regent ABI consumer to the freeze C5 now
+carries. **Required downstream confirmation:** have the Ash lane compare the exact delta above
+against its own tree when it consumes the frozen ABI, since this repository cannot see that tree.
