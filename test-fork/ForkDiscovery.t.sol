@@ -170,7 +170,9 @@ contract ForkDiscoveryTest is Test {
         record = vm.serializeBytes32(key, "runtime_code_hash", account.codehash);
         record = vm.serializeString(key, "proxy_family", family);
         record = vm.serializeAddress(key, "implementation", implementation);
-        record = vm.serializeBytes32(key, "implementation_code_hash", implementation.codehash);
+        record = vm.serializeBytes32(
+            key, "implementation_code_hash", implementation == address(0) ? bytes32(0) : implementation.codehash
+        );
         record = vm.serializeUint(key, "implementation_runtime_bytes", implementation.code.length);
     }
 

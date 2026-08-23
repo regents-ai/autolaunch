@@ -4,8 +4,8 @@ pragma solidity 0.8.26;
 import {BaseBindings} from "../src/bindings/BaseBindings.sol";
 import {IRegentRevenueStakingMinimal} from "../src/interfaces/IRegentRevenueStakingMinimal.sol";
 import {RegentLBPStrategy} from "../src/strategy/RegentLBPStrategy.sol";
-import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
-import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
@@ -16,6 +16,8 @@ import {ForkAutolaunch} from "./ForkAutolaunch.sol";
 ///      staking contract, the deployed PoolManager and PositionManager, the deployed CCA and
 ///      Permit2, and both complete Regent terminal paths driven end to end against all of them.
 contract ProtocolForkTest is ForkAutolaunch {
+    using StateLibrary for IPoolManager;
+
     function setUp() public {
         _loadObservations();
     }
@@ -46,7 +48,7 @@ contract ProtocolForkTest is ForkAutolaunch {
     ///
     ///      The paused half is mandatory. The deployed owner is impersonated to pause its own
     ///      contract — a call that owner can really make — and the skim must then fail closed. A
-    ///      `pause()` that reverts or does not take effect is a failed claim, never a passing
+    ///      `setPaused(true)` that reverts or does not take effect is a failed claim, never a passing
     ///      alternative: the whole point is that the splitter cannot silently succeed against a
     ///      paused dependency. Every mutation is local fork state, and this claim runs in its own
     ///      freshly created fork per header, so nothing it pauses is visible to any other claim.
@@ -84,7 +86,7 @@ contract ProtocolForkTest is ForkAutolaunch {
         // Fail-closed, required. The owner pauses its own contract in local fork state and the
         // deposit must then revert.
         vm.prank(owner);
-        _mustCall(staking, abi.encodeWithSignature("pause()"));
+        _mustCall(staking, abi.encodeWithSignature("setPaused(bool)", true));
         assertTrue(_callBool(staking, abi.encodeWithSignature("paused()")), "the owner's pause did not take effect");
 
         deal(BaseBindings.USDC, depositor, amount);
@@ -191,7 +193,7 @@ contract ProtocolForkTest is ForkAutolaunch {
             0,
             "the minted full-range position carries no liquidity"
         );
-        (uint160 sqrtPriceX96,,,) = _slot0(PoolId.unwrap(d.poolId));
+        (uint160 sqrtPriceX96,,,) = IPoolManager(BaseBindings.POOL_MANAGER).getSlot0(d.poolId);
         assertEq(sqrtPriceX96, d.finalSqrtPriceX96, "the pool did not open at the recorded final price");
 
         // The exact CONTRACT_BALANCE disposition: both pool currencies drained to zero.
@@ -263,7 +265,7 @@ contract ProtocolForkTest is ForkAutolaunch {
         // The refunding launch's raise is far beyond anything one bid can meet, so it ends
         // ungraduated and its bidder is entitled to the whole amount back.
         (ForkLaunch memory refunding,,) = _launchAsWallet(_worstCaseParams(50_000_000e18));
-        (ForkLaunch memory partialExit,,) = _launchAsWallet(_worstCaseParams(1_000e18));
+        (ForkLaunch memory partialExit,,) = _launchAsWallet(_worstCaseParams(1e18));
         (ForkLaunch memory claiming,,) = _launchAsWallet(_worstCaseParams(1_000e18));
 
         vm.roll(refunding.auction.startBlock());
@@ -428,9 +430,9 @@ contract ProtocolForkTest is ForkAutolaunch {
     ///      The pinned CCA admits `exitPartiallyFilledBid` only for a bid that was filled for a
     ///      while and then outbid: it needs the last checkpoint whose clearing price was strictly
     ///      below the bid's maximum, and the next checkpoint, whose clearing price is at or above
-    ///      it. Both hints are taken from the blocks the two bids were actually submitted in, never
-    ///      guessed, because the pinned auction checkpoints on every bid above the clearing price
-    ///      and no other checkpoint is created between them here.
+    ///      it. A submitted bid first checkpoints the state before adding its own demand, so the
+    ///      outbid is visible only in the following block's checkpoint. Those two exact checkpoints
+    ///      are supplied as hints rather than guessed.
     ///
     ///      A low bid is placed first, then a much larger one a few blocks later at a far higher
     ///      tick, which raises the clearing price past the low bid's maximum and both graduates the
@@ -441,10 +443,13 @@ contract ProtocolForkTest is ForkAutolaunch {
         uint256 lowPriceQ96 = _priceAboveClearing(launched, 1);
         uint256 lowBidId = _bidAs(launched, outbidBidder, 500e18, 1);
 
-        vm.roll(uint256(lowBlock) + 64);
-        uint64 outbidBlock = uint64(block.number);
-        _bid(launched, 8_000e18, 40);
+        uint64 lastFullyFilledBlock = lowBlock + 64;
+        vm.roll(lastFullyFilledBlock);
+        _bid(launched, 20_000_000e18, 40);
 
+        uint64 outbidBlock = lastFullyFilledBlock + 1;
+        vm.roll(outbidBlock);
+        launched.auction.checkpoint();
         assertTrue(launched.auction.isGraduated(), "the outbidding bid did not graduate the auction");
         assertGt(
             launched.auction.clearingPrice(), lowPriceQ96, "the clearing price never rose above the low bid's maximum"
@@ -452,16 +457,9 @@ contract ProtocolForkTest is ForkAutolaunch {
 
         uint256 before = _balanceOf(BaseBindings.REGENT, outbidBidder);
         vm.prank(outbidBidder);
-        launched.auction.exitPartiallyFilledBid(lowBidId, lowBlock, outbidBlock);
+        launched.auction.exitPartiallyFilledBid(lowBidId, lastFullyFilledBlock, outbidBlock);
         uint256 refunded = _balanceOf(BaseBindings.REGENT, outbidBidder) - before;
         assertGt(refunded, 0, "a partial exit refunded nothing");
         assertLt(refunded, 500e18, "a partial exit refunded the whole bid, so nothing was partially filled");
-    }
-
-    function _slot0(bytes32 poolId) private view returns (uint160, int24, uint24, uint24) {
-        (bool ok, bytes memory returned) =
-            BaseBindings.POOL_MANAGER.staticcall(abi.encodeWithSignature("getSlot0(bytes32)", poolId));
-        require(ok, "getSlot0 failed");
-        return abi.decode(returned, (uint160, int24, uint24, uint24));
     }
 }
