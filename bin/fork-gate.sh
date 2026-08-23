@@ -286,7 +286,9 @@ if [ "$mode" = discover ]; then
     # ---------------------------------------------------------------------------
 
     discovery_status=0
-    forge test --json -vv --match-contract "$DISCOVERY_CONTRACT" --fork-url "$RPC_ALIAS" \
+    # Keep Foundry's tracing diagnostics off the JSON stdout channel. A cold RPC cache can emit
+    # an otherwise harmless WARN before the JSON object, which makes the evidence unparsable.
+    RUST_LOG=error forge test --json -vv --match-contract "$DISCOVERY_CONTRACT" --fork-url "$RPC_ALIAS" \
         >"$discovery_report" 2>"$discovery_log" || discovery_status=$?
 
     # Scan first, on both outcomes. Only then is anything shown, and the candidate the reviewer
@@ -351,7 +353,7 @@ section "Pinned header"
 # ---------------------------------------------------------------------------
 
 pinned_status=0
-forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkPinned' --fork-url "$RPC_ALIAS" \
+RUST_LOG=error forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkPinned' --fork-url "$RPC_ALIAS" \
     >"$pinned_report" 2>"$pinned_log" || pinned_status=$?
 scan_then_display "$pinned_log"
 [ "$pinned_status" -eq 0 ] ||
@@ -362,7 +364,7 @@ section "Later header"
 # ---------------------------------------------------------------------------
 
 later_status=0
-forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkLatest' --fork-url "$RPC_ALIAS" \
+RUST_LOG=error forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkLatest' --fork-url "$RPC_ALIAS" \
     >"$later_report" 2>"$later_log" || later_status=$?
 scan_then_display "$later_log"
 [ "$later_status" -eq 0 ] ||
