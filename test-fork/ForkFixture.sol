@@ -56,10 +56,10 @@ abstract contract ForkFixture is Test {
     bytes4 internal constant SAFE_MASTER_COPY_SELECTOR = 0xa619486e;
 
     /// @notice The largest runtime a delegating Safe proxy stub can have and still be one.
-    /// @dev Every published Safe proxy runtime is well under a hundred bytes; a singleton is
-    ///      thousands. The bound is a shape test, not an identity: identity is the singleton's own
-    ///      code hash, which is recorded and compared separately.
-    uint256 internal constant SAFE_PROXY_MAX_RUNTIME_BYTES = 128;
+    /// @dev Metadata-bearing Safe proxy runtimes can exceed 128 bytes; the frozen Regent Safe is
+    ///      171 bytes. The bound remains far below a Safe singleton's runtime and is only a shape
+    ///      test: identity comes from the agreeing slot-0/getter value and the singleton code hash.
+    uint256 internal constant SAFE_PROXY_MAX_RUNTIME_BYTES = 256;
 
     /// @notice The family string a binding gets when none of the supported patterns is present.
     /// @dev Deliberately not "none". This gate reads three implementation slots and, for one

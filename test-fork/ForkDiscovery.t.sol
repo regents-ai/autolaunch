@@ -45,7 +45,9 @@ contract ForkDiscoveryTest is Test {
     /// @notice The Safe singleton pattern, recognized for exactly the frozen Regent Safe.
     bytes32 internal constant SAFE_SINGLETON_SLOT = bytes32(uint256(0));
     bytes4 internal constant SAFE_MASTER_COPY_SELECTOR = 0xa619486e;
-    uint256 internal constant SAFE_PROXY_MAX_RUNTIME_BYTES = 128;
+    /// @dev Allows metadata-bearing Safe proxy stubs such as the frozen Regent Safe's 171-byte
+    ///      runtime while remaining far below the separately measured singleton runtime.
+    uint256 internal constant SAFE_PROXY_MAX_RUNTIME_BYTES = 256;
 
     /// @notice What a binding matching none of the four supported patterns is recorded as.
     string internal constant NO_SUPPORTED_PROXY_PATTERN = "no_supported_proxy_pattern";
