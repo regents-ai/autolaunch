@@ -204,7 +204,7 @@ Both fork profiles build into `out-fork`, so fork artifacts can never reach the 
 gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
-gate's committed evidence. `fork` is therefore absent today: no read-only provider has been
-available, `reports/frozen/fork-observations.json` is still `discovery_pending`, and all eighteen fork
-claims report `pending`. Their thirty-six selectors live outside the offline test root, so they
-cannot execute against — or close — anything.
+gate's committed evidence. `fork` is now active with the separately reviewed observation record:
+all eighteen fork claims executed once at each committed Base header and passed. Their thirty-six
+selectors remain outside the offline test root, so only the read-only fork gate can execute or close
+them.

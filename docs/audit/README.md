@@ -76,28 +76,27 @@ These are two different things and the distinction is load-bearing:
   run, or — for `c4-runtime-baseline.json` and `fork-observations.json` — captured once by a separate
   reviewed pass and thereafter only read. Neither of those two is taken on its word: the C4 baseline
   is proved against Git to be byte-identical to the blob its capture commit committed directly on
-  integrated C4, and the fork observation record is written by a human from a reviewed discovery
-  candidate under a profile that cannot reach `reports/frozen/` at all.
+  integrated C4. The fork observation record was installed from a separately reviewed discovery
+  candidate; discovery did not read it, and the gate proves the committed record stayed unchanged
+  throughout both compare-only executions.
 
 ## Two different objects: the reviewed offline candidate and the later evidence-activation commit
 
 This distinction is load-bearing and easy to lose, so it is stated once, plainly.
 
-**What is under review here is the offline candidate.** It is a commit whose fork gate has not run:
-`reports/frozen/fork-observations.json` is `discovery_pending`, `fork` is absent from the ledger's
-`activated_gates`, and every fork claim reports `pending`. Everything a reviewer or the Solidity
-Auditor examines — production source, tests, ledger, generated surface, threat model, this packet —
-is that commit's content, and the offline gate's `GATE PASS` is a statement about that commit alone.
+**The earlier review object was the offline C5 candidate.** Its fork record was
+`discovery_pending`, `fork` was absent from the ledger, and the offline gate proved only the
+hermetic and invariant claims in that tree.
 
-**Activating the fork evidence produces a different commit.** After the chief runs
-`bin/fork-gate.sh discover` under the founder's separate authority, a human reviews the candidate
-observation, installs it, flips `fork` on in the ledger, and commits — and that commit is not this
-one. It has a different tree, a different set of active claims, and evidence this candidate does not
-carry. It is also the only commit against which `bin/fork-gate.sh check` can run at all, because
-check refuses to start until that record and that activation are already committed and clean.
+**This candidate is the later evidence-activation object.** Under the founder's separate read-only
+Base authority, discovery produced a candidate observation; its values were checked against an
+independent provider, the Base gas schedule was supplied from the active protocol rules, and the
+reviewed record was committed before check mode could run. The ledger now activates `fork`, and the
+compare-only gate executed all eighteen fork claims once at each of the two committed headers. The
+gate also proved the observation record and ledger stayed byte-identical to their committed state.
 
-Nothing here claims fork evidence, and no figure on these pages was produced by a provider. When the
-fork evidence exists it will belong to that later commit, and it will be read there.
+The two objects remain distinct: the earlier offline pass did not prove a fork claim, while this
+activation candidate carries and checks the separately reviewed fork authority.
 
 ## Evidence map
 
@@ -108,18 +107,12 @@ fork evidence exists it will belong to that later commit, and it will be read th
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | **pending — not executed** |
-| `GAS-003..006` | fork | **pending — not executed** |
+| `DEP-040..053` | fork | active, executed at both committed headers, passing |
+| `GAS-003..006` | fork | active, executed at both committed headers, passing |
 
 ## What is not proved
 
-- **Every fork claim.** No read-only Base provider was available to this candidate. The harness is
-  written, mapped two selectors per claim, compiles and formats clean under both fork profiles, and
-  has never touched a network: the check-mode listing enumerates exactly the thirty-six mapped
-  selectors and the discovery-mode listing exactly the one discovery test. `fork` is deliberately
-  absent from the ledger's `activated_gates`, so all eighteen claims report `pending` and none of
-  their thirty-six selectors can close anything. C5 therefore cannot close. See
-  [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md).
-- **Independent review and the full Solidity Auditor pass.** Both are separate steps that run on
-  this candidate, not inside it.
-- **Anything about a deployment.** There is none.
+- **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
+  signed nothing, and moved no value outside isolated local fork state.
+- **Workflow review and custody state.** Independent review, the Solidity Auditor, integration, and
+  ticket closure are Control evidence rather than Solidity claims proved by this packet.

@@ -166,7 +166,8 @@ router — and the hook has no router allowlist by design, so an arbitrary route
 production-reachable caller rather than a substitute for one.
 
 The existing focused fork claims and the both-header complete-transaction gas proofs remain separate
-named tests. No Base Sepolia path exists, and no provider was contacted by this ticket.
+named tests. No Base Sepolia path exists. The authorized provider access was read-only, and every
+claim ran in isolated local fork state at both committed Base headers.
 
 ### 4.6 The deleted selector and the Ash lane
 

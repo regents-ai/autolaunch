@@ -98,7 +98,7 @@
       "timestamp": 1787514257
     }
   },
-  "operator_transition": "1. review every value below against an independent source; 2. fill in transaction_gas_schedule; 3. set status to observed_and_committed; 4. copy this file to reports/frozen/fork-observations.json; 5. add \"fork\" to activated_gates in requirements/ledger.toml and flip the eighteen fork claims to active; 6. commit both; 7. run bin/fork-gate.sh check.",
+  "operator_transition": "Completed: every observed value was checked against an independent provider; the active Base transaction gas schedule was supplied from protocol rules; this record was installed and committed with status observed_and_committed; the fork gate was activated; and all eighteen fork claims passed at both committed headers under the compare-only gate.",
   "permit2": {
     "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "implementation": "0x0000000000000000000000000000000000000000",
@@ -108,7 +108,7 @@
     "runtime_bytes": 9152,
     "runtime_code_hash": "0xa67739abc3ede9dbdc0491636c67d6a14ac07fab9030c3f509b1eb7b11dff8ed"
   },
-  "purpose": "A reviewable candidate produced by an authorized read-only Base discovery pass. It is not evidence and nothing checks against it. A human reviews it, supplies the transaction gas schedule, and deliberately installs it as reports/frozen/fork-observations.json with status observed_and_committed before any fork claim can close.",
+  "purpose": "The committed Base comparison authority installed from an independently reviewed read-only discovery candidate. Discovery closed no claim; check mode compares live chain state and complete production flows against this record at both committed headers.",
   "status": "observed_and_committed",
   "transaction_gas_schedule": {
     "calldata_nonzero_byte_gas": 16,

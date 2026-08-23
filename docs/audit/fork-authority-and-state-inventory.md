@@ -94,29 +94,25 @@ file. Both orders are proved deterministically, without a provider, by
 
 ### 3.2 The reviewed candidate and the activation commit are different commits
 
-The commit under review is the offline one: `reports/frozen/fork-observations.json` is
-`discovery_pending`, `fork` is absent from `activated_gates`, and every fork claim is `pending`.
-Installing a reviewed observation and activating the gate produces a **different** commit, with a
-different tree and a different set of active claims — and that later commit is the only one
-`bin/fork-gate.sh check` can run against, because check refuses to start until the record and the
-activation are already committed and clean. No figure in this packet came from a provider.
+The earlier C5 review object was offline: its observation was `discovery_pending`, `fork` was absent
+from `activated_gates`, and every fork claim was pending. This candidate is the **different, later
+activation object**. It contains the independently reviewed observation record, activates `fork`,
+and is the only kind of commit `bin/fork-gate.sh check` accepts because the record and activation
+must already be committed and clean before provider access begins.
 
 ## 4. Execution status for this candidate
 
-**Not executed.** No read-only Base provider is injected in this candidate's environment, so:
+**Executed and passing under read-only Base authority.** The reviewed observation binds blocks
+`50362455` and `50362755`. The ledger activates `fork`; the compiled listing contains exactly the
+thirty-six mapped selectors; and the compare-only gate executed each one exactly once, eighteen at
+each header, with zero failures or skips. It reconciled fifty-six normalized cross-header verdicts
+and proved the committed observation and ledger were unchanged after both runs.
 
-- `reports/frozen/fork-observations.json` is `discovery_pending` and carries no observed value;
-- `test-fork/ForkFixture.sol` reverts with `ForkObservationsPending` rather than checking a record
-  it would have had to invent;
-- `bin/fork-gate.sh check` refuses to run against a pending record, and refuses again if the ledger
-  has not activated `fork`;
-- `requirements/ledger.toml` leaves `fork` out of `activated_gates`, so all eighteen fork claims are
-  `pending` and none of their thirty-six selectors can close anything.
-
-The harness is candidate-complete: both fork profiles reconcile, both format and build clean
-offline, the check-mode listing enumerates exactly the thirty-six mapped selectors, and the
-discovery-mode listing enumerates exactly the one discovery test. Nothing here has touched a
-network.
+The discovery pass wrote only gitignored scratch and closed no claim. A separate provider was used
+to confirm both headers, every recorded runtime identity and supported proxy classification, the
+two implementation identities, CCA's zero fee controller, live staking and token getters, and the
+pinned PositionManager counter before the record was installed. No provider write, signature,
+deployment, or value movement occurred.
 
 ## 5. Staged fork state, and the production path that makes each state reachable
 
