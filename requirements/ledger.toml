@@ -30,13 +30,10 @@ version = 1
 authority = "SPEC.md"
 activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5"]
 
-# `fork` is deliberately absent. A gate is activated only in the candidate that already
-# carries that gate's committed evidence; naming it here while no fork receipt exists would
-# make eighteen claims report active against evidence nobody has run. C5's fork selectors are
-# written, mapped two-per-claim, and live outside the offline test root, so they cannot be
-# executed against their IDs until the separately authorized fork gate runs and its evidence
-# is committed. Until then every fork claim stays pending and C5 cannot close.
-activated_gates = ["hermetic", "invariant"]
+# `fork` is activated only with the separately discovered, independently reviewed, and
+# committed Base observation record. The compare-only gate must now execute every mapped fork
+# selector exactly once at each of the two committed headers before C5 can close.
+activated_gates = ["hermetic", "invariant", "fork"]
 groups = [
     "DEP",
     "FAC",
@@ -338,7 +335,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_040_ForkPinnedCcaFactoryRuntimeCodeHashMatchesFrozenValue",
     "test_DEP_040_ForkLatestCcaFactoryRuntimeCodeHashMatchesFrozenValue",
@@ -351,7 +348,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_041_ForkPinnedCcaFactoryProtocolFeeControllerIsZero",
     "test_DEP_041_ForkLatestCcaFactoryProtocolFeeControllerIsZero",
@@ -364,7 +361,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_042_ForkPinnedEveryBindingHasTheExpectedRuntimeCodePresence",
     "test_DEP_042_ForkLatestEveryBindingHasTheExpectedRuntimeCodePresence",
@@ -380,7 +377,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_043_ForkPinnedEveryBindingProxyStatusMatchesTheManifest",
     "test_DEP_043_ForkLatestEveryBindingProxyStatusMatchesTheManifest",
@@ -393,7 +390,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_044_ForkPinnedRegentAndUsdcGettersMatchAssumedSemantics",
     "test_DEP_044_ForkLatestRegentAndUsdcGettersMatchAssumedSemantics",
@@ -406,7 +403,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_045_ForkPinnedLiveStakingDepositUsdcMatchesAssumedSemantics",
     "test_DEP_045_ForkLatestLiveStakingDepositUsdcMatchesAssumedSemantics",
@@ -419,7 +416,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_046_ForkPinnedPoolAndPositionManagerGettersMatchAssumedSemantics",
     "test_DEP_046_ForkLatestPoolAndPositionManagerGettersMatchAssumedSemantics",
@@ -432,7 +429,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_047_ForkPinnedChainIdIsBaseMainnet",
     "test_DEP_047_ForkLatestChainIdIsBaseMainnet",
@@ -445,7 +442,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_048_ForkPinnedCcaAndPermit2BehaveAsAssumed",
     "test_DEP_048_ForkLatestCcaAndPermit2BehaveAsAssumed",
@@ -458,7 +455,7 @@ owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_049_ForkPinnedBothTerminalPathsExecuteEndToEnd",
     "test_DEP_049_ForkLatestBothTerminalPathsExecuteEndToEnd",
@@ -474,7 +471,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_050_ForkPinnedNormalizedVerdictsAreRecorded",
     "test_DEP_050_ForkLatestNormalizedVerdictsMatchThePinnedHeader",
@@ -487,7 +484,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_051_ForkPinnedEveryBindingRuntimeCodeHashMatchesTheManifest",
     "test_DEP_051_ForkLatestEveryBindingRuntimeCodeHashMatchesTheManifest",
@@ -504,7 +501,7 @@ owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_052_ForkPinnedHeaderIsFullyBoundToTheCommittedRecord",
     "test_DEP_052_ForkLatestHeaderIsFullyBoundToTheCommittedRecord",
@@ -522,7 +519,7 @@ owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_DEP_053_ForkPinnedCompleteProductionLifecycleExecutesEndToEnd",
     "test_DEP_053_ForkLatestCompleteProductionLifecycleExecutesEndToEnd",
@@ -2401,7 +2398,7 @@ owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_GAS_003_ForkPinnedCompleteLaunchStaysUnderFourteenMillion",
     "test_GAS_003_ForkLatestCompleteLaunchStaysUnderFourteenMillion",
@@ -2414,7 +2411,7 @@ owner = "C5"
 contract = "migration"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_GAS_004_ForkPinnedCompleteGraduationStaysUnderFourteenMillion",
     "test_GAS_004_ForkLatestCompleteGraduationStaysUnderFourteenMillion",
@@ -2427,7 +2424,7 @@ owner = "C5"
 contract = "migration"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_GAS_005_ForkPinnedCompleteFailureRetirementStaysUnderFourteenMillion",
     "test_GAS_005_ForkLatestCompleteFailureRetirementStaysUnderFourteenMillion",
@@ -2443,7 +2440,7 @@ owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
-status = "pending"
+status = "active"
 selectors = [
     "test_GAS_006_ForkPinnedMeasurementCoversTheFullOuterTransaction",
     "test_GAS_006_ForkLatestMeasurementCoversTheFullOuterTransaction",

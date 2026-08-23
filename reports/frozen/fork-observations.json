@@ -1,146 +1,121 @@
 {
-  "purpose": "The committed record of every Base runtime fact the fork claims check against. It is produced by an authorized read-only discovery pass as a candidate under reports/generated/fork/, reviewed by a human, and deliberately installed here; the final fork gate is check-only and never writes into it. A gate that observed a value and then compared it to itself would prove nothing, which is why this file exists as a separate, reviewed input.",
-  "status": "discovery_pending",
-  "status_meaning": {
-    "discovery_pending": "No authorized read-only Base provider has been available, so nothing has been observed. Every value below is null and is a placeholder showing the shape a reviewed record must have. test-fork/ForkFixture.sol refuses to run a check pass while this file is in this state, bin/fork-gate.sh check refuses to start, and requirements/ledger.toml keeps every fork claim pending.",
-    "observed_and_committed": "An authorized discovery pass recorded the values below, a human reviewed them and supplied the transaction gas schedule, and the final fork gate may check against them."
-  },
-  "operator_transition": [
-    "1. run bin/fork-gate.sh discover, which writes reports/generated/fork/fork-observations-candidate.json and blesses nothing",
-    "2. review every observed value against an independent source",
-    "3. fill in transaction_gas_schedule from the protocol rules active at the recorded headers; no contract exposes them, so discovery cannot observe them",
-    "4. set status to observed_and_committed",
-    "5. install the reviewed candidate here",
-    "6. add \"fork\" to activated_gates in requirements/ledger.toml and flip the eighteen fork claims to active",
-    "7. commit both files; bin/fork-gate.sh check proves they are committed and clean before it touches the provider, and unchanged after it finishes",
-    "8. run bin/fork-gate.sh check"
-  ],
-  "authority": "SPEC.md section 3 binding table; contracts/autolaunch-release-manifest.json records the same bindings with their runtime facts still null and fork_pending.",
-  "proxy_family_vocabulary": {
-    "eip1967": "the EIP-1967 implementation slot carries a nonzero address",
-    "eip1822": "the EIP-1822 implementation slot carries a nonzero address",
-    "zeppelinos": "the older ZeppelinOS implementation slot carries a nonzero address; Base's own USDC uses this one",
-    "safe_singleton": "recognized for the frozen Regent Safe only, and only when its slot-0 address, its masterCopy() return, its delegating-stub runtime shape, and a code-bearing singleton all agree",
-    "no_supported_proxy_pattern": "none of the four patterns above is present. This says what was measured and is deliberately NOT a claim that the address is not a proxy: a fifth pattern would be invisible to this gate, which is why every binding's own deployed runtime code hash stays mandatory under DEP-051 regardless of family."
-  },
-  "endpoint": "reached only through the configured `base` alias; no endpoint is ever recorded here",
-  "headers": {
-    "pinned": {
-      "block_number": null,
-      "parent_block_number": null,
-      "parent_block_hash": null,
-      "timestamp": null,
-      "base_fee_per_gas": null,
-      "note": "the pinned Base header this candidate's fork evidence was taken at; discovery places it a fixed confirmation depth behind the head so it is settled"
-    },
-    "later": {
-      "block_number": null,
-      "parent_block_number": null,
-      "parent_block_hash": null,
-      "timestamp": null,
-      "base_fee_per_gas": null,
-      "note": "a later Base head captured for this same candidate; regent-4wx owns the ceremony-time fresh-head recheck"
-    }
-  },
-  "transaction_gas_schedule": {
-    "intrinsic_gas": null,
-    "calldata_zero_byte_gas": null,
-    "calldata_nonzero_byte_gas": null,
-    "floor_per_calldata_token": null,
-    "note": "the Base transaction gas rules active at each header, including any intrinsic calldata floor introduced after this repository's Cancun compile target. No contract exposes these, so the reviewer supplies them rather than discovery observing them. GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a naive sum"
-  },
   "bindings": {
-    "regent": {
-      "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
-      "runtime_code_hash": null,
-      "runtime_bytes": null,
-      "proxy_family": null,
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": null,
-      "decimals": null,
-      "symbol": null
-    },
-    "usdc": {
-      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "runtime_code_hash": null,
-      "runtime_bytes": null,
-      "proxy_family": null,
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": null,
-      "decimals": null,
-      "symbol": null
-    },
     "cca_factory": {
       "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
-      "runtime_code_hash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa",
-      "runtime_code_hash_source": "SPEC.md section 3; this is the frozen admission expectation, not an observation",
-      "runtime_bytes": null,
-      "proxy_family": null,
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": null,
-      "protocol_fee_controller": null
-    },
-    "pool_manager": {
-      "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
-      "runtime_code_hash": null,
-      "runtime_bytes": null,
-      "proxy_family": null,
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": null
-    },
-    "position_manager": {
-      "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
-      "runtime_code_hash": null,
-      "runtime_bytes": null,
-      "proxy_family": null,
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": null,
-      "next_token_id": null
-    },
-    "live_staking": {
-      "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
-      "runtime_code_hash": null,
-      "runtime_bytes": null,
-      "proxy_family": null,
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": null,
-      "owner": null,
-      "paused": null
-    },
-    "governance_and_regent_safe": {
-      "address": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
-      "runtime_code_hash": null,
-      "runtime_bytes": null,
-      "proxy_family": null,
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": null
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_runtime_bytes": 0,
+      "protocol_fee_controller": "0x0000000000000000000000000000000000000000",
+      "proxy_family": "no_supported_proxy_pattern",
+      "runtime_bytes": 24214,
+      "runtime_code_hash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa"
     },
     "dead_address": {
       "address": "0x000000000000000000000000000000000000dEaD",
-      "runtime_code_hash": null,
-      "runtime_bytes": 0,
-      "runtime_bytes_source": "the dead address must carry no code at all; that is the claim, not an observation",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_runtime_bytes": 0,
       "proxy_family": "no_supported_proxy_pattern",
-      "implementation": null,
-      "implementation_code_hash": null,
-      "implementation_runtime_bytes": 0
+      "runtime_bytes": 0,
+      "runtime_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    },
+    "governance_and_regent_safe": {
+      "address": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "implementation": "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762",
+      "implementation_code_hash": "0xb1f926978a0f44a2c0ec8fe822418ae969bd8c3f18d61e5103100339894f81ff",
+      "implementation_runtime_bytes": 24421,
+      "proxy_family": "safe_singleton",
+      "runtime_bytes": 171,
+      "runtime_code_hash": "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c"
+    },
+    "live_staking": {
+      "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_runtime_bytes": 0,
+      "owner": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "paused": false,
+      "proxy_family": "no_supported_proxy_pattern",
+      "runtime_bytes": 11757,
+      "runtime_code_hash": "0xcaef93094fa27d35f5ff9e619d5ee75528c7c18f19f4f31a0a5eaba62a976497"
+    },
+    "pool_manager": {
+      "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_runtime_bytes": 0,
+      "proxy_family": "no_supported_proxy_pattern",
+      "runtime_bytes": 24009,
+      "runtime_code_hash": "0x83b2af6e9f3158defc2811cbcb0db71ecf8b2ba2abea39c39e370ac5c6f43eb6"
+    },
+    "position_manager": {
+      "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_runtime_bytes": 0,
+      "next_token_id": 2955490,
+      "proxy_family": "no_supported_proxy_pattern",
+      "runtime_bytes": 23877,
+      "runtime_code_hash": "0x243f9e091ddf11c7c04e28059fdbbf1bab82b72d414fafb8e096c097aaeb622a"
+    },
+    "regent": {
+      "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+      "decimals": 18,
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "implementation_runtime_bytes": 0,
+      "proxy_family": "no_supported_proxy_pattern",
+      "runtime_bytes": 12791,
+      "runtime_code_hash": "0x780092a64f1f9280792aad406597d051e610e1a9ee0a57033187faf21a79a21f",
+      "symbol": "REGENT"
+    },
+    "usdc": {
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "decimals": 6,
+      "implementation": "0x2Ce6311ddAE708829bc0784C967b7d77D19FD779",
+      "implementation_code_hash": "0x11b75a237997ab8328f65b2d5a55c10f0346d0a175741ed42ddf4f2c66b9e873",
+      "implementation_runtime_bytes": 23464,
+      "proxy_family": "zeppelinos",
+      "runtime_bytes": 1852,
+      "runtime_code_hash": "0xa6705a10bb756b5dea144591118be77d7af0c3eee3bf2dfe2583dcb0364fefab",
+      "symbol": "USDC"
     }
   },
+  "endpoint": "reached only through the configured `base` alias; no endpoint is ever recorded here",
+  "headers": {
+    "later": {
+      "base_fee_per_gas": 5000000,
+      "block_number": 50362268,
+      "parent_block_hash": "0xd90c4ee83f6a65750b299e0944542c61086eb1ad8025b4a7aab25d4a3cd8a87f",
+      "parent_block_number": 50362267,
+      "timestamp": 1787513883
+    },
+    "pinned": {
+      "base_fee_per_gas": 5000000,
+      "block_number": 50361968,
+      "parent_block_hash": "0xd89c09ecbd647329ed87f4d5f08e0e5b0ab746c1795390fe75567ceeda79f1ec",
+      "parent_block_number": 50361967,
+      "timestamp": 1787513283
+    }
+  },
+  "operator_transition": "1. review every value below against an independent source; 2. fill in transaction_gas_schedule; 3. set status to observed_and_committed; 4. copy this file to reports/frozen/fork-observations.json; 5. add \"fork\" to activated_gates in requirements/ledger.toml and flip the eighteen fork claims to active; 6. commit both; 7. run bin/fork-gate.sh check.",
   "permit2": {
     "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
-    "runtime_code_hash": null,
-    "runtime_bytes": null,
-    "proxy_family": null,
-    "implementation": null,
-    "implementation_code_hash": null,
-    "implementation_runtime_bytes": null,
-    "note": "the canonical Permit2 deployment every bidder allowance goes through; its ABI is frozen from the pinned IAllowanceTransfer interface, its deployed runtime is a fork observation"
+    "implementation": "0x0000000000000000000000000000000000000000",
+    "implementation_code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+    "implementation_runtime_bytes": 0,
+    "proxy_family": "no_supported_proxy_pattern",
+    "runtime_bytes": 9152,
+    "runtime_code_hash": "0xa67739abc3ede9dbdc0491636c67d6a14ac07fab9030c3f509b1eb7b11dff8ed"
+  },
+  "purpose": "A reviewable candidate produced by an authorized read-only Base discovery pass. It is not evidence and nothing checks against it. A human reviews it, supplies the transaction gas schedule, and deliberately installs it as reports/frozen/fork-observations.json with status observed_and_committed before any fork claim can close.",
+  "status": "observed_and_committed",
+  "transaction_gas_schedule": {
+    "calldata_nonzero_byte_gas": 16,
+    "calldata_zero_byte_gas": 4,
+    "floor_per_calldata_token": 10,
+    "intrinsic_gas": 21000,
+    "note": "the Base transaction gas rules active at each header. No contract exposes these, so discovery cannot observe them: the reviewer fills them in from the protocol rules active at the recorded headers before installing this record. GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a sum.",
+    "reviewer_action": "reviewed against Base Isthmus, Base Azul, EIP-7623, and EIP-7825 rules active at both recorded headers"
   }
 }
