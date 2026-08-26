@@ -100,13 +100,22 @@ activation object**. It contains the independently reviewed observation record, 
 and is the only kind of commit `bin/fork-gate.sh check` accepts because the record and activation
 must already be committed and clean before provider access begins.
 
-## 4. Execution status for this candidate
+## 4. Execution status
 
-**Executed and passing under read-only Base authority.** The reviewed observation binds blocks
-`50362455` and `50362755`. The ledger activates `fork`; the compiled listing contains exactly the
-thirty-six mapped selectors; and the compare-only gate executed each one exactly once, eighteen at
-each header, with zero failures or skips. It reconciled fifty-six normalized cross-header verdicts
-and proved the committed observation and ledger were unchanged after both runs.
+> **Not executed for this candidate.** Everything in this section describes the run made against an
+> earlier candidate's production bytecode. `regent-alv1.7` and `regent-alv1.7.1` both changed
+> production bytes, so this candidate has no provider-backed evidence of its own. That run is
+> `regent-4wx`'s, it happens **once**, and it happens against the final candidate — after this
+> correction and the separate liquidity-position locker are both integrated and reviewed — rather
+> than once per intermediate candidate. The committed observation record is chain truth and is
+> unaffected; the execution against Regent bytecode is what has to be repeated.
+
+**Executed and passing under read-only Base authority, for the earlier candidate.** The reviewed
+observation binds blocks `50362455` and `50362755`. The ledger activates `fork`; the compiled
+listing contains exactly the thirty-six mapped selectors; and the compare-only gate executed each
+one exactly once, eighteen at each header, with zero failures or skips. It reconciled fifty-six
+normalized cross-header verdicts and proved the committed observation and ledger were unchanged
+after both runs.
 
 The discovery pass wrote only gitignored scratch and closed no claim. A separate provider was used
 to confirm both headers, every recorded runtime identity and supported proxy classification, the
@@ -126,7 +135,7 @@ of them manufactures an intermediate state that production cannot reach on its o
 | `deal(REGENT, launcher, fee)` | `ForkAutolaunch._launchAsWallet` | Gives a launcher exactly the current launch fee | A launcher acquires REGENT and approves the factory. A fork cannot mint REGENT, so the balance is staged; the approval and the launch are then the real calls. |
 | `deal(REGENT, bidder, amount)` | `ProtocolFork`, `TransactionGasFork` | Gives a bidder REGENT to bid with | A bidder acquires REGENT. Every subsequent step — the ERC20 approval to Permit2, the Permit2 allowance, the five-argument bid — is the real production sequence. |
 | `deal(USDC, depositor, amount)` | `ProtocolFork._checkLiveStaking` | Gives a depositor USDC to skim | The splitter's USDC skim. The approval and `depositUSDC` call shapes are the splitter's own. |
-| `deal(REGENT, stranger, amount)` then a real `transfer` | `ProtocolFork._checkManagers` | Pre-seeds the shared PositionManager with third-party REGENT | An ordinary holder sending REGENT to the shared PositionManager. Only the acquisition is staged; the transfer is a real one. Seeding it is what makes the exact `CONTRACT_BALANCE`/`TAKE_PAIR` disposition provable rather than trivially zero. |
+| `deal(REGENT, stranger, amount)` then a real `transfer` | `ProtocolFork._checkManagers` | Pre-seeds the shared PositionManager with third-party REGENT | An ordinary holder sending REGENT to the shared PositionManager. Only the acquisition is staged; the transfer is a real one. Seeding it is what makes the preservation provable rather than trivially zero: graduation settles the exact two amounts it funds, so a foreign balance that was there before is still there afterwards, to the unit. |
 | a bidder's own `claimTokens` then a real `transfer` | `ProtocolFork._checkManagers` | Pre-seeds the shared PositionManager with this launch's SUBJECT and with another launch's | A bidder who claimed auction tokens sending some of them onward. Nothing is staged at all here: the SUBJECT is really claimed from a really graduated auction. The second launch's SUBJECT is what proves cross-launch inventory stays untouched. |
 | `vm.prank(bidder)` / `vm.prank(outbidBidder)` for `exitBid`, `exitPartiallyFilledBid`, `claimTokens` | `ProtocolFork` | Acts as the bid's own owner | Those calls are the bid owner's own. Every required refund, partial-exit and claim path is driven from that bidder's account, never from a backend. The pinned CCA refuses a claim on an unexited bid, so a claim is always the two calls a real bidder makes. |
 | `vm.prank(launcher)` / `vm.prank(bidder)` | throughout | Acts as an ordinary EOA | Those accounts are ordinary EOAs with no privilege. Pranking one is the same as that person sending the transaction. |

@@ -94,9 +94,9 @@ Rules:
 - IDs are sequential; internal salts derive only from the ID; duplicate names and symbols are allowed.
 - Metadata is nonempty and byte-bounded: name 64, symbol 16, description 512, website 256, image 256.
 - Treasury is immutable and launcher-chosen. There is no recovery admin and no recovery authority anywhere in the system.
-- Launch-time treasury admission lives only in `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction is created. It refuses exactly the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking contract, any address already carrying the fixed minimal-clone runtime of the admitted escrow, splitter, or receiver implementation, and the two addresses this launch's own splitter and canonical receiver will be deployed to. Every other treasury is admitted with no code requirement. There is no registry, no generalized denylist, and no code-length rule.
-- Each launch's splitter and canonical receiver are deployed with CREATE2 from a salt the strategy derives from its own private role constants and the launch's immutable identity, so both addresses exist before the auction does. That derivation is internal: it exposes no caller choice, carries no authority, is not part of the ABI, and never replaces `LaunchGraduated` or the strategy record as the canonical account of what a launch deployed.
-- A treasury that later becomes a *different* launch's splitter or receiver is admitted, and may deliver the first launch's payouts into that other launch's ordinary accounting. That is accepted launcher-selected destination behaviour; refusing it would require enumerating launches that do not exist yet.
+- Launch-time treasury admission lives only in `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction is created. It refuses exactly six addresses: the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, and the frozen live staking contract. Every other treasury is admitted. There is no code-length rule, no codehash fingerprint, no interface probe, no registry, no generalized denylist, and no predicted-address rule.
+- Each launch's splitter and canonical receiver are deployed with ordinary CREATE clones, so each address follows from the shared strategy's nonce at graduation and from nothing any caller chose. Neither address exists as a fact before that graduation succeeds: `LaunchGraduated` and the strategy record are the only canonical account of what a launch deployed.
+- An admitted treasury may be an already-deployed Autolaunch artifact of another launch, and then delivers this launch's payouts into that artifact's ordinary accounting. An admitted treasury may also collide with an address the strategy's current nonce would later produce; that graduation's clone initializer reverts, the whole migration rolls back including the nonce advance, and the launch stalls — with its raised REGENT still in the CCA, its escrow still pending, its reserve and unsold SUBJECT unmoved, no pool or vesting begun, and CCA exit and claim rights intact — until any other launch's graduation moves the nonce past the collision. Both are accepted launcher-selected destination behaviour; refusing either would require enumerating launches that do not exist yet.
 - Launcher provenance gives no authority. A later failed auction does not refund the fee.
 - Factory pause never blocks existing auctions, finalization, refunds, staking, claims, swaps, payments, vesting, or recovery.
 
@@ -118,18 +118,18 @@ Graduation is atomic:
 
 1. checkpoint and prove graduation;
 2. derive the final-price PoolKey and PoolId;
-3. deploy the splitter clone;
+3. deploy the splitter as an ordinary clone;
 4. register the PoolId once in the hook;
 5. sweep REGENT and initialize at the exact CCA final price;
 6. mint one full-range LP position to the dead address;
 7. send unused REGENT to immutable treasury;
 8. send unused SUBJECT reserve to escrow;
 9. sweep successful-auction unsold SUBJECT into escrow;
-10. deploy the canonical zero-referral receiver;
+10. deploy the canonical zero-referral receiver as an ordinary clone;
 11. activate 365-day vesting from that timestamp;
 12. record graduation atomically.
 
-Steps 3 and 10 deploy to the two CREATE2 addresses derived in section 4; nothing about that address is caller-selected.
+Steps 3 and 10 are ordinary CREATE clone deployments from the shared strategy, so each address is whatever that strategy's nonce produced at graduation; nothing about either address is caller-selected, derived in advance, or published.
 
 The official pool is static 0.30%, tick spacing 60, with one managed full-range position whose NFT is sent to the dead address. Third parties may add independent positions.
 
@@ -194,7 +194,7 @@ Required groups:
 | `HOK-*` | Correct permission bits; only PoolManager callbacks; strategy-only write-once registration; registered PoolKey validation; all four swap shapes; independent 1% rounding; zero-fee tiny swaps; synchronous settlement; zero retained inventory; arbitrary router compatibility; and settlement-failure rollback. |
 | `SPL-*` | Exactly three supported assets; exact 2% skim and destinations; zero-stake treasury routing; stake and unstake snapshots; caller-only claims; fixed three-token `claimAll`; one protected remainder per token; principal protection; direct deposits and surplus recognition; permissionless whole-balance recovery; unsupported-token recovery exclusions; and forced-ETH behavior. |
 | `RCV-*` | Canonical and custom creation; referral boundaries, flooring, beneficiary, and referral-before-splitter ordering; atomic pay and sweep; supported-token validation; note defaults, editor, and event; immutable beneficiary, splitter, and referral; and recovery fixed to treasury. |
-| `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT at the dead address; actual LP consumption; separate residues; exact PositionManager funding with foreign balances preserved; deterministic splitter and canonical-receiver clone addresses; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
+| `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT at the dead address; actual LP consumption; separate residues; exact PositionManager funding with foreign balances preserved; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
 | `FAIL-*` | Unmet raise, zero bids, partial bidding, full failed inventory return, exact dead-address delta, bidder refunds, no graduated infrastructure, and repeated-finalization rejection. |
 | `INV-*` | Total-supply conservation; splitter solvency; SUBJECT principal and protected-remainder conservation; no cross-launch reserve use; no unexplained factory, strategy, or hook balances; immutable lifecycle; receiver conservation; and hook conservation. |
 | `GAS-*` | Every runtime and initcode limit plus the complete direct-wallet launch, successful migration, and failed migration at or below 14M under maximum metadata, worst valid raise/inventory, cold external state, intrinsic gas, and calldata gas. Complete-transaction claims require the fork gate. |

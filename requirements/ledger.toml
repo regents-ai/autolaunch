@@ -31,7 +31,7 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6"]
+activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1"]
 
 # `fork` is activated only with the separately discovered, independently reviewed, and
 # committed Base observation record. The compare-only gate must execute every mapped fork
@@ -701,14 +701,16 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_FAC_014_MetadataBoundaryInputsBehaveExactly"]
 
-# C5 correction, corrected again by regent-alv1.7. The launcher chooses the treasury, so a
-# hostile or broken treasury can strand or break its own launch's value; that damage stays
-# confined to that launch. What C6 adds is the honest limit of that sentence: lifecycle state
-# and the isolated 5% reserve are isolated, but value the launcher deliberately points at
-# another launch's artifact is not. No denylist is added for it.
+# C5 correction, corrected again by regent-alv1.7 and by regent-alv1.7.1. The launcher chooses the
+# treasury, so a hostile or broken treasury can strand or break its own launch's value; that damage
+# stays confined to that launch. The honest limit of that sentence: lifecycle state and the isolated
+# 5% reserve are isolated, but value the launcher deliberately points at another launch's artifact
+# is not. The proved case is an already-deployed splitter, which is what admission really admits; a
+# collision with a *future* clone address is STR-019's stall, and it is recoverable rather than
+# permanent. No denylist is added for either.
 [[requirement]]
 id = "FAC-015"
-statement = "The treasury is immutable and launcher-chosen. A treasury that can never move what it receives strands only its own launch's payouts, while a second launch sharing the same factory, strategy and hook graduates, registers its own pool, and gets its own splitter, receiver and treasury payouts untouched. Lifecycle state and each launch's isolated 5% reserve are always isolated; explicit value routed to a launcher-selected cross-launch treasury is not, and a treasury that later becomes another launch's splitter or receiver may deliver the first launch's payouts into that other launch's ordinary accounting."
+statement = "The treasury is immutable and launcher-chosen. A treasury that can never move what it receives strands only its own launch's payouts, while a second launch sharing the same factory, strategy and hook graduates, registers its own pool, and gets its own splitter, receiver and treasury payouts untouched. Lifecycle state and each launch's isolated 5% reserve are always isolated; explicit value routed to a launcher-selected cross-launch treasury is not, and a launch whose treasury is another launch's already-deployed splitter or receiver delivers its own payouts into that other launch's ordinary accounting."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -835,8 +837,8 @@ selectors = ["test_FAC_026_SuccessfulFeeCollectionEmitsTheExactCollectionEvent"]
 # the launch path has. STR-019 owns the refusal set; this owns its atomicity at the factory.
 [[requirement]]
 id = "FAC-028"
-statement = "A treasury the strategy refuses at launch rolls the whole attempted launch back together — the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event — and disturbs no existing launch's lifecycle, escrow custody or isolated 5% reserve."
-owner = "C6"
+statement = "Each of the six treasuries the strategy refuses at launch rolls the whole attempted launch back together — the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event — and disturbs no existing launch's lifecycle, escrow custody or isolated 5% reserve."
+owner = "C6.1"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
@@ -1152,25 +1154,26 @@ selectors = [
     "test_STR_018_RepeatedFailureMigrationIsRejected",
 ]
 
-# regent-alv1.7 addition. The system's one launch-time treasury admission, owned by the strategy
-# and run after the escrow is authenticated and before the auction exists. The refusal set is
-# closed and exact: six protocol accounts by address, the three Autolaunch clone classes by their
-# fixed minimal-clone runtime, and this launch's own two future clone addresses. Those last two are
-# knowable because both clones are deployed with CREATE2 from a salt the strategy derives from the
-# launch's own immutable identity — MIG-021 proves graduation lands on exactly them. There is no
-# registry, no generalized denylist and no code-presence requirement.
+# regent-alv1.7 addition, corrected by regent-alv1.7.1. The system's one launch-time treasury
+# admission, owned by the strategy and run after the escrow is authenticated and before the auction
+# exists. The refusal set is closed and exact: six shared-system destinations by address, and
+# nothing else. C6's clone-runtime fingerprint and future-slot rules are deleted along with the
+# CREATE2 machinery they depended on, so an already-deployed escrow, splitter or receiver, and an
+# address a later ordinary-CREATE clone will occupy, are all admitted. The nonce-dependent stall
+# that admission produces is bounded and recoverable, and is proved rather than prevented. There is
+# no registry, no generalized denylist and no code-presence requirement.
 [[requirement]]
 id = "STR-019"
-statement = "RegentLBPStrategy.initializeDistribution owns one launch-time treasury admission, run after the escrow is authenticated and before the auction is created. It refuses exactly the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking contract, any address already carrying the fixed minimal-clone runtime of the admitted escrow, splitter or receiver implementation, and the two addresses this launch's own splitter and canonical receiver will be deployed to. Every other treasury is admitted with no code test at all, including the dead address, an ordinary EOA, an arbitrary deployed contract, the Governance and Regent Safe, a live CCA auction, and an address only a different launch's artifact will occupy. A refused treasury reverts before any reserve is pulled and before any auction exists."
-owner = "C6"
+statement = "RegentLBPStrategy.initializeDistribution owns one launch-time treasury admission, run after the escrow is authenticated and before the auction is created. It refuses exactly six addresses — the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, and the frozen live staking contract — and performs no code-length, codehash, interface, registry or predicted-address test of any kind. Every other treasury is admitted, including the dead address, an ordinary EOA, an arbitrary deployed contract, the Governance and Regent Safe, a live CCA auction, an already-deployed Autolaunch escrow, splitter or receiver, and an address the strategy's current CREATE nonce would later produce. A refused treasury reverts before any reserve is pulled and before any auction exists. A treasury that collides with the strategy's next clone address makes that graduation's clone initializer revert, which rolls the whole migration back including the nonce advance, so the launch stalls with its raised REGENT still in the CCA, its escrow still pending, its reserve and unsold SUBJECT unmoved, no pool or vesting begun, and the CCA's own exit and claim rights intact — until any other launch's graduation moves the nonce past the collision, after which the stalled launch migrates normally."
+owner = "C6.1"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = [
     "test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists",
-    "test_STR_019_OwnFutureCloneTreasuriesAreRejected",
     "test_STR_019_AdmissibleTreasuryClassesAreAccepted",
+    "test_STR_019_NextCloneTreasuryStallsMigrationUntilAnInterveningGraduationMovesTheNonce",
 ]
 
 # ---------------------------------------------------------------------------
@@ -1983,12 +1986,14 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_MIG_002_DerivesFinalPricePoolKeyAndPoolId"]
 
-# regent-alv1.7 statement correction. The splitter is now a deterministic CREATE2 clone, so the
-# selector asserts the address as well as the bindings. MIG-021 owns why that address is knowable
-# in advance; this stays the plain "graduation deploys it, bound to this launch" claim.
+# regent-alv1.7.1 statement correction. The splitter is an ordinary CREATE clone again, so its
+# address is a function of the strategy's nonce and is deliberately not asserted. The selector
+# asserts what identity actually means here: exactly two contracts created, the recorded one
+# presenting the fixed minimal-clone runtime of the bound implementation, and every binding this
+# launch's own.
 [[requirement]]
 id = "MIG-003"
-statement = "Graduation deploys the splitter clone, at this launch's own deterministic clone address, bound to this launch's SUBJECT, treasury and frozen protocol bindings."
+statement = "Graduation deploys the splitter as one ordinary clone of the bound implementation and records it once, bound to this launch's SUBJECT, treasury and frozen protocol bindings."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
@@ -2167,26 +2172,15 @@ selectors = ["test_MIG_019_MigrationDependencyReentrancyIsRejectedWithCompleteRo
 # test_MIG_020_GraduationSurvivesRecoveryAdminDestroyedAtLaunch is deleted, and the ID is never
 # reused.
 
-# regent-alv1.7 addition, and the terminal half of STR-019. Launch-time admission can refuse this
-# launch's own two future clones only because both are deployed with CREATE2 from a salt the
-# strategy derives from the launch's immutable identity — the factory-assigned launch id and the
-# SUBJECT the authenticated escrow bound — so both addresses are facts before the auction exists.
-# This claim closes that loop from the other end: the addresses admission refused are the addresses
-# graduation actually deploys to, so the refusal is truthful rather than approximate and no admitted
-# launch can reach a destination its own graduation would later have to refuse.
-#
-# The test derives both addresses from first principles rather than from the strategy, which
-# publishes no getter for them: the two role strings, the salt, and the CREATE2 rule are restated in
-# test/mocks/LaunchCloneSlots.sol and share no code with production.
-[[requirement]]
-id = "MIG-021"
-statement = "One launch's splitter and canonical receiver are deployed to two addresses derived deterministically from the strategy's own private role constants and that launch's immutable identity. Launch-time admission refuses both, atomically and before the auction exists, and a real graduation of that same launch deploys its splitter and its canonical receiver to exactly those two refused addresses, correctly bound and registered. The derivation exposes no caller choice, is not part of the strategy's ABI, and is never the canonical record of what a launch deployed."
-owner = "C6"
-contract = "migration"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_MIG_021_OwnCloneSlotsAreRefusedAndAreExactlyWhereGraduationDeploys"]
+# regent-alv1.7.1 retirement. MIG-021 was the terminal half of C6's CREATE2 clone identity: the two
+# addresses launch-time admission refused were the two addresses graduation deployed to. C6.1
+# restores the upstream ordinary `LibClone.clone`, so there is no launch-derived clone address, no
+# future-slot refusal, and therefore no loop to close. The claim has no subject left. It is retired
+# rather than repointed at replacement behaviour, its selector
+# test_MIG_021_OwnCloneSlotsAreRefusedAndAreExactlyWhereGraduationDeploys is deleted along with the
+# first-principles helper test/mocks/LaunchCloneSlots.sol it used, and the ID is never reused.
+# MIG-003 owns ordinary clone identity; STR-019 owns the nonce-collision stall admission accepts.
+# test/integration/AutolaunchTerminalCustody.t.sol survives for MIG-022.
 
 # regent-alv1.7 addition. The second C6 blocker, closed. The pinned planner closes every plan by
 # settling CONTRACT_BALANCE of each pool currency, which resolves to the *shared* PositionManager's

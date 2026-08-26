@@ -179,13 +179,14 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
     /// @dev `MIG-017`, C5 correction: the residue this plan actually leaves, measured where the
     ///      pinned planner actually sends it.
     ///
-    ///      `PositionPlanner.toPlan` closes with `SETTLE(currency0, CONTRACT_BALANCE)`,
-    ///      `SETTLE(currency1, CONTRACT_BALANCE)`, `TAKE_PAIR(currency0, currency1, recipient)`, and
-    ///      the strategy passes `ActionConstants.MSG_SENDER` as that recipient. The PositionManager
-    ///      resolves that sentinel to its own caller, so the refund goes to **the strategy** — never
-    ///      to the PositionManager. Watching the PositionManager's balance therefore proves nothing
-    ///      about the refund at all: `CONTRACT_BALANCE` drains that contract to zero whether the
-    ///      refund was zero or enormous.
+    ///      `PositionPlanner.toPlan` closes with two settlements and
+    ///      `TAKE_PAIR(currency0, currency1, recipient)`, and the strategy passes
+    ///      `ActionConstants.MSG_SENDER` as that recipient. The PositionManager resolves that
+    ///      sentinel to its own caller, so the refund goes to **the strategy** — never to the
+    ///      PositionManager. Watching the PositionManager's balance therefore proves nothing about
+    ///      the refund: the strategy rewrites the pinned planner's two `CONTRACT_BALANCE` amounts to
+    ///      the exact two amounts it funds (`MIG-022`), so that contract keeps whatever it already
+    ///      held whether this plan's refund was zero or enormous.
     ///
     ///      What is measured instead:
     ///
@@ -218,8 +219,8 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
         assertEq(uint256(graduated.lpSubjectUsed), moves.lpSubjectUsed, "the measured LP consumption moved");
         assertEq(uint256(graduated.lpRegentUsed), moves.lpRegentUsed, "the measured LP consumption moved");
 
-        // The pool charged exactly what the strategy funded, in both currencies, so the two
-        // CONTRACT_BALANCE settlements left no credit for TAKE_PAIR to return.
+        // The pool charged exactly what the strategy funded, in both currencies, so the two exact
+        // settlements left no credit for TAKE_PAIR to return.
         assertEq(
             regent.balanceOf(BaseBindings.POOL_MANAGER) - poolManagerRegentBefore,
             uint256(graduated.lpRegentUsed),
@@ -248,17 +249,17 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
         assertEq(regentResidue, 0, "the plan refunded REGENT to the strategy through TAKE_PAIR");
         assertEq(subjectResidue, 0, "the plan refunded SUBJECT to the strategy through TAKE_PAIR");
 
-        // The PositionManager keeps nothing either, which is CONTRACT_BALANCE doing its job rather
-        // than evidence about the refund.
+        // The PositionManager holds exactly what it held before, which is the exact-settlement
+        // property `MIG-022` owns rather than evidence about this plan's refund.
         assertEq(
             regent.balanceOf(BaseBindings.POSITION_MANAGER),
             positionManagerRegentBefore,
-            "CONTRACT_BALANCE left REGENT at the PositionManager"
+            "graduation changed the PositionManager's REGENT balance"
         );
         assertEq(
             launched.subject.balanceOf(BaseBindings.POSITION_MANAGER),
             0,
-            "CONTRACT_BALANCE left SUBJECT at the PositionManager"
+            "graduation left this launch's SUBJECT at the PositionManager"
         );
     }
 

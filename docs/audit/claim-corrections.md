@@ -8,7 +8,9 @@ Section 4 records what its successor, `regent-alv1.6.1`, changed after C5's own 
 it — including the enumerated source-delta gate that replaced C5's all-bytes-equal claim. Section 5
 records what the next successor, `regent-alv1.7` (C6), changed: the recovery administrator is deleted
 outright, recovery becomes permissionless and whole-balance, and one launch-time treasury admission
-is added.
+is added. Section 6 records what `regent-alv1.7.1` (C6.1) changed: the per-launch clones return to
+the pinned upstream ordinary `CREATE`, C6's CREATE2 and clone-fingerprint treasury machinery is
+deleted, and launch-time admission narrows to exactly six addresses.
 
 ## 1. Corrections to closed claims
 
@@ -223,45 +225,49 @@ launch's stray assets forever.
 
 ### 5.2 Launch-time treasury admission
 
-The launcher still chooses the treasury, and it is still immutable. C6 adds one private check inside
+> **Corrected by `regent-alv1.7.1`.** This section is the current description. C6's original text
+> described a wider refusal set and a CREATE2 clone identity, both of which section 6 deletes.
+
+The launcher still chooses the treasury, and it is still immutable. There is one private check inside
 `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction
-is created, refusing a closed set:
+is created, and it refuses exactly six addresses: the bound factory, the shared strategy, the bound
+fee hook, the frozen PoolManager, the frozen PositionManager, and the frozen live staking contract.
+Sending a launch's payouts to any of them would either strand them in an account with no path back
+out or feed them into shared accounting that was never told about them.
 
-- by exact address: the bound factory, the shared strategy, the bound fee hook, the frozen
-  PoolManager, the frozen PositionManager, and the frozen live staking contract;
-- by fixed minimal-clone runtime fingerprint: any address already carrying the 44-byte Solady clone
-  runtime of the admitted escrow, splitter, or receiver implementation;
-- by exact address again: the two addresses this launch's own splitter and canonical receiver will
-  be deployed to.
+Nothing else is judged. There is no `code.length` test, no clone-runtime fingerprint, no interface
+probe, no registry, no generalized denylist, and no predicted-address rule, because each of those
+would refuse the ordinary treasuries the design exists for. The escrow's own zero-treasury and
+`treasury_ == address(this)` refusals run one call earlier and are unchanged.
 
-That last pair is the part worth explaining. An earlier draft of this ticket admitted them, on the
-reasoning that admission can only answer for the code an address carries *now*. The audit rejected
-that: the two clones were deployed with plain `CREATE`, so their addresses depended on the
-strategy's nonce, and a launcher who guessed that nonce produced a launch that was admitted, took
-bidders' REGENT, and then could never bind its own splitter — a stall with no alternate migration.
+Each launch's splitter and canonical receiver are deployed with ordinary `LibClone.clone`, exactly as
+the pinned upstream migrator does. A clone's address is therefore a function of the shared strategy's
+nonce at the moment of graduation, and of nothing any caller chose. Nothing derives it in advance,
+nothing publishes it, and no launch is refused on account of it. `LaunchGraduated` and the strategy
+record remain the only canonical account of what a launch deployed.
 
-C6 removes the guess instead of accepting the stall. Both clones are now deployed with `CREATE2`
-from a salt the strategy derives from one of its own private role constants and the launch's
-immutable identity — the factory-assigned launch ID and the SUBJECT the authenticated escrow bound.
-Nothing about that salt is supplied, chosen, or influenced by any caller, and it grants no authority.
-Because it depends on nothing but facts that already exist when `initializeDistribution` runs, both
-addresses are known before the auction is created, so admission can refuse them truthfully.
-`MIG-021` closes the loop from the other end: a real graduation deploys to exactly the two addresses
-admission refused. The derivation stays internal — it is not part of the strategy's ABI, and
-`LaunchGraduated` and the strategy record remain the only canonical account of what a launch
-deployed.
+Two consequences follow from that narrowness. Both are named, tested, and accepted rather than
+prevented.
 
-Everything else stays admissible with no code requirement at all — the dead address, an ordinary
-EOA, an arbitrary contract, the Governance and Regent Safe, a live CCA auction, and an address only
-a *different* launch's artifact will occupy. There is no registry, no generalized denylist, and no
-code-length rule, because each of those would refuse the ordinary treasuries the design is for. The
-escrow's own `treasury_ == address(this)` refusal runs one call earlier and is unchanged.
+**An existing artifact as a treasury.** A launcher may name a splitter or canonical receiver that
+another launch already deployed. Its own payouts then land inside that artifact's ordinary
+accounting, where permissionless surplus recognition or permissionless recovery routes them onward
+under that launch's rules — `FAC-015`, proved end to end through two real launches.
 
-One consequence of that deliberate narrowness survives, and it is named and tested rather than
-hidden: a launcher who names an address which later becomes *another* launch's splitter or receiver
-may deliver its own payouts into that launch's ordinary accounting — `FAC-015`. Refusing it would
-require the strategy to enumerate every launch that does not exist yet. It costs that launcher its
-own value and nobody else's; lifecycle state and each launch's isolated 5% reserve stay isolated.
+**A collision with the strategy's next clone address.** A launcher may name an address the shared
+strategy's current nonce would later produce. That launch's own graduation then tries to deploy a
+clone onto its own treasury, and the clone's initializer refuses to bind a treasury equal to itself,
+so the whole migration reverts. Ordinary EVM atomicity rolls back the clone, the terminal record,
+every transfer and the nonce advance together, which means an immediate retry targets the same
+address and fails identically. The launch stalls — with its raised REGENT still in the CCA, its
+escrow still `Pending`, its 5% reserve and the auction's unsold SUBJECT unmoved, no pool and no
+vesting begun, and the CCA's own exit and claim rights untouched — until any other launch's
+graduation consumes the next two nonces. The stalled launch then migrates normally, onto different
+addresses, possibly routing its payouts into whichever artifact took the contested one. `STR-019`
+drives that whole sequence against the real factory, the real auctions and the real strategy nonce.
+
+Refusing either consequence would require the strategy to enumerate launches that do not exist yet.
+Neither touches another launch's lifecycle state, custody ledger, or isolated 5% reserve.
 
 ### 5.3 Exact PositionManager funding
 
@@ -285,23 +291,23 @@ same property against the deployed PositionManager on Base.
 | --- | --- | --- |
 | `FAC-016` | The claim's subject — the recovery admin — no longer exists. | **Retired.** The entry and its selector `test_FAC_016_RecoveryAdminIsAnImmutableDeployedContract` are deleted, and the ID is never reused. Launch-time admission still exists, but it admits the treasury and is `STR-019`. |
 | `MIG-020` | Same: it proved graduation survived a destroyed recovery admin. | **Retired.** The entry and its selector `test_MIG_020_GraduationSurvivesRecoveryAdminDestroyedAtLaunch` are deleted. Nothing replaces it, because the failure mode it guarded cannot occur without an administrator. |
-| `FAC-015` | "Its blast radius is exactly one launch" was too strong once a launcher can point its treasury at another launch's artifact. | Statement corrected to say which isolation is promised and which is not: lifecycle state and each launch's isolated 5% reserve always are; explicit value routed to a launcher-selected cross-launch treasury is not. The immutability half and its test are unchanged; `test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated` proves the named consequence end to end through real launches. |
+| `FAC-015` | "Its blast radius is exactly one launch" was too strong once a launcher can point its treasury at another launch's artifact. | Statement corrected to say which isolation is promised and which is not: lifecycle state and each launch's isolated 5% reserve always are; explicit value routed to a launcher-selected cross-launch treasury is not. The immutability half and its test are unchanged; `test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated` proves the named consequence end to end through real launches. **Corrected again in section 6:** the statement and the test now name an already-deployed splitter, which is what admission actually admits, instead of a predicted future clone address. |
 | `SPL-017` | "Only the immutable recovery admin may recover" is false. | Rewritten to the new normative statement — permissionless, complete balance, immutable treasury, zero-balance revert, hostile token contained — and its selector renamed to `test_SPL_017_RecoveryIsPermissionlessWholeBalanceToTheTreasury`. The old selector is deleted rather than repointed at replacement behaviour. |
 | `RCV-009` | Same, on the receiver. | Same treatment; the selector is now `test_RCV_009_RecoveryIsPermissionlessWholeBalanceToTheTreasury`. |
 | `ABI-003` | `LaunchParams` no longer carries `recoveryAdmin`. | Statement corrected to the eight remaining fields, in order. The test proves them against both the compiler's field list and the tuple encoded in `launch`'s own selector. |
 | `ABI-005` | "administrative recovery functions" is no longer what they are. | Statement corrected to the two permissionless recovery functions at their new amount-free signatures, and the selector renamed to `test_ABI_005_SplitterRecoverySurfaceIsExact`. |
 | `ABI-012` | Half the claim — that the strategy's `RecoveryAdminHasNoCode(address)` survives — is now false. | Rewritten as the whole-surface deletion it has become, with its selector renamed to `test_ABI_012_DeletedRecoveryAdministrationSurfaceIsAbsent`. It still diffs in both directions: every deleted selector absent from the frozen surface and from every generated per-contract ABI, and the two replacement recovery entry points asserted present. |
 | `STR-013` | Its selector list carried the recovery-admin admission test. | That selector is removed. The remaining six are unchanged; the frozen CCA parameter set is not affected. |
-| `MIG-003` | "Graduation deploys the splitter clone" no longer says where. | Statement corrected to name the deterministic clone address alongside the bindings the selector already asserted. |
+| `MIG-003` | "Graduation deploys the splitter clone" no longer says where. | Statement corrected to name the deterministic clone address alongside the bindings the selector already asserted. **Superseded in section 6:** with ordinary clones restored there is no deterministic address to name, so the statement and the test assert clone authenticity and exact clone count instead. |
 | `DEP-046` | It described the deployed PositionManager's `CONTRACT_BALANCE` disposition, which graduation no longer asks for. | Statement corrected to preservation: a real graduation on Base settles only what this launch funds and leaves every other REGENT, SUBJECT and cross-launch balance at that shared contract untouched to the unit. The two fork selectors are unchanged in name and rewritten in body. |
 
 ### 5.5 Additions
 
 | Addition | What it is |
 | --- | --- |
-| `STR-019` | The closed launch-time treasury refusal and admission set, proved class by class before any auction exists, with a fresh SUBJECT and a genuinely funded escrow per arm so every refusal is reached through the real authentication path. Its second selector covers the two refusals that carry no code at all — this launch's own future clone addresses. |
-| `FAC-028` | Atomicity of that refusal at the factory: the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event roll back together, and no existing launch's lifecycle, escrow custody or isolated reserve is disturbed. Nine arms, including the attempted launch's own two clone slots. |
-| `MIG-021` | The terminal half of `STR-019`: the two addresses admission refused are exactly the two addresses a real graduation of that same launch deploys to, correctly bound and registered. The test derives both from first principles in `test/mocks/LaunchCloneSlots.sol` — the role strings, the salt, and the CREATE2 rule — sharing no code with production, so it proves the derivation rather than restating it. |
+| `STR-019` | The closed launch-time treasury refusal and admission set, proved class by class before any auction exists, with a fresh SUBJECT and a genuinely funded escrow per arm so every refusal is reached through the real authentication path. **Narrowed in section 6** to exactly six addresses, with a third selector that drives the accepted nonce-collision stall end to end. |
+| `FAC-028` | Atomicity of that refusal at the factory: the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event roll back together, and no existing launch's lifecycle, escrow custody or isolated reserve is disturbed. **Narrowed in section 6** from nine arms to the six real refusal arms; every rollback assertion is retained. |
+| `MIG-021` | The terminal half of `STR-019`: the two addresses admission refused are exactly the two addresses a real graduation of that same launch deploys to, correctly bound and registered. **Retired in section 6** together with `test/mocks/LaunchCloneSlots.sol`; the ID is never reused. |
 | `MIG-022` | Exact PositionManager funding on a real graduation, with REGENT and SUBJECT pre-seeded at the shared PositionManager through production paths and both preserved to the unit. |
 | `test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated` | The cross-launch consequence, driven through two real launches: the first launch's own vested payout lands on the address the second launch's splitter later occupies, and permissionless recovery then routes it to the second launch's treasury. |
 
@@ -320,8 +326,8 @@ This is the complete production ABI change. Nothing else moved.
 - `initializeDistribution` changes signature: `initializeDistribution((uint256,address,address,uint128))` / `0x8e9c3c87` becomes `initializeDistribution((uint256,address,uint128))` / `0xd7750ed5`. Factory-only, so no external consumer calls it.
 - `distribution(address)` keeps selector `0xc2db09c1` but its **return tuple loses its fifteenth field**, `address recoveryAdmin`.
 - Error `RecoveryAdminHasNoCode(address)` / `0xa6397a8c` is deleted; error `RefusedTreasury(address)` / `0xa30fa418` is added.
-- No view function is added. The launch-scoped clone-address derivation and the two clone-runtime
-  fingerprints it is checked against are private, so the strategy's read surface is unchanged apart
+- No view function is added. Launch-time treasury admission is a private helper over six addresses
+  the strategy already publishes or already binds, so the strategy's read surface is unchanged apart
   from the `distribution` tuple above.
 
 **`SubjectSplitterV1`**
@@ -350,3 +356,91 @@ obligation, exactly as before; nothing in this repository pins a hook address.
 
 **Required downstream confirmation:** have the Ash lane compare the delta above against its own tree
 when it consumes the frozen ABI. This repository cannot see that tree and did not read it.
+
+## 6. `regent-alv1.7.1` (C6.1) — treasury simplification and ordinary-clone restoration
+
+One founder-directed correction to C6, in production code that changes no public ABI. The result
+stays **mainnet NO-GO**.
+
+### 6.1 What changed and why
+
+C6 answered the "self-slot launch stall" by making both per-launch clones deterministic: CREATE2 over
+a salt derived from private role constants and the launch's identity, so launch-time admission could
+refuse a launch's own two future clone addresses. That worked, and it cost more than the founder
+wants to pay: a fork of pinned upstream deployment behaviour, two extra immutables, two private role
+constants, a salt derivation, an address predictor, a first-principles test helper restating all of
+it, and a treasury refusal set that had grown from a list of shared accounts into a code-shape rule.
+
+The founder ruling is to accept the stall and delete the machinery. C6.1 therefore:
+
+- restores the pinned upstream ordinary `LibClone.clone` for both the splitter and the canonical
+  receiver;
+- deletes `splitterCloneCodehash`, `receiverCloneCodehash`, both private clone-role constants, the
+  salt derivation, both `cloneDeterministic` calls, the CREATE2 address predictor, and
+  `test/mocks/LaunchCloneSlots.sol`;
+- narrows launch-time treasury admission to exactly six addresses, so the private helper no longer
+  takes the launch ID or the SUBJECT and performs no code test of any kind;
+- preserves everything else C6 did: `escrowCloneCodehash` and the escrow clone authentication it
+  serves, the deleted recovery administrator, permissionless whole-balance recovery fixed to the
+  immutable treasury, the three protected core assets, exact PositionManager settlement, the terminal
+  lifecycle write before the first state-changing external call, and the migration ordering.
+
+The hook is untouched in source and in compiled bytes. It remains REGENT-only: two independently
+floored 1% lanes, one to the Regent Safe and one to the launch splitter, for 2% total; the absolute
+requested amount when REGENT is specified, including partial and zero fills; the absolute realized
+REGENT delta when REGENT is unspecified; no SUBJECT charge; pool fee still 0.30%.
+
+### 6.2 Corrections to claims
+
+| Claim | What was wrong | What this ticket did |
+| --- | --- | --- |
+| `STR-019` | The statement described a refusal set of six addresses *plus* three clone-runtime fingerprints *plus* two predicted addresses, none of which the code performs any more. | Rewritten to the exact six addresses and to the explicit absence of every other kind of test, and extended to state the nonce-collision stall and its recovery. Owner moved from `C6` to `C6.1`. `test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists` now enumerates six arms with a distinct funded escrow each; `test_STR_019_AdmissibleTreasuryClassesAreAccepted` now includes a really deployed escrow, splitter and receiver among the admitted classes; `test_STR_019_OwnFutureCloneTreasuriesAreRejected` is deleted; and a new integration selector, `test_STR_019_NextCloneTreasuryStallsMigrationUntilAnInterveningGraduationMovesTheNonce`, drives the whole stall-and-recovery sequence. |
+| `FAC-028` | Three of its nine rollback arms named treasuries the strategy no longer refuses. | Narrowed to the six real refusal arms. Every rollback assertion — fee, token, escrow, auction, launch ID, both records, every event, and the untouched pre-existing launch — is retained unchanged. Owner moved from `C6` to `C6.1`. |
+| `MIG-003` | It asserted a deterministic clone address that no longer exists. | Rewritten as ordinary clone identity: graduation creates exactly two contracts, and the recorded splitter presents the fixed 44-byte minimal-proxy runtime of the bound implementation with every binding this launch's own. No address assertion. |
+| `FAC-015` | Its test constructed the cross-launch case from a *predicted* future splitter address, which is no longer how admission behaves, and the prose implied every nonce collision is permanent. | The test now graduates a launch first and points a second launch's treasury at that **already-deployed** splitter. The statement names the already-deployed case; the recoverable future-address collision is `STR-019`'s. |
+| `MIG-021` | Its entire subject — deterministic clone identity — is deleted. | **Retired.** The entry, its selector `test_MIG_021_OwnCloneSlotsAreRefusedAndAreExactlyWhereGraduationDeploys` and the helper `test/mocks/LaunchCloneSlots.sol` are deleted, and the ID is never reused. `test/integration/AutolaunchTerminalCustody.t.sol` remains for `MIG-022`. |
+| `MIG-017` | Two explanations still said the pinned planner's `CONTRACT_BALANCE` settlement drains the PositionManager to zero. C6 replaced those two settlement amounts, so it does not. | The rollback test's comment and its two assertion messages, and the PositionManager witness row in [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md), now describe preserved foreign balances. The exact-settlement proof itself is unchanged. |
+
+### 6.3 The accepted stall, stated precisely
+
+The audit finding C6 answered was real, and C6.1 does not pretend otherwise; it answers it with
+disclosure and evidence instead of with machinery. A launcher who names the address the shared
+strategy's current nonce would next produce gets a launch that is admitted, takes bidders' REGENT,
+and then cannot complete its own migration.
+
+What makes that acceptable rather than a loss:
+
+- the failed migration is a whole-transaction revert, so nothing is half-done and nothing is
+  remembered — including the nonce advance;
+- while it is stalled the launch's value is exactly where it was: raised REGENT in the CCA, the 85%
+  in a `Pending` escrow, the isolated 5% reserve at the strategy, unsold SUBJECT at the auction;
+- bidders keep the CCA's own independent exit and claim rights throughout, which is where their
+  REGENT and their tokens actually are;
+- the collision is not permanent. The address depends on a shared nonce, so any other launch's
+  graduation moves it, and the stalled launch then migrates normally;
+- no other launch's lifecycle state, custody ledger or isolated reserve is touched at any point.
+
+No retry mode, alternate pool, rescue migration, warning system, CREATE2 shim, or synthetic
+clone-fingerprint admission test is added. If the treasury the launcher named has by then become the
+intervening launch's splitter, the retry routes that launch's payouts into it — which is the
+`FAC-015` consequence, arrived at by a different road.
+
+### 6.4 ABI and downstream
+
+C6.1 changes **no public ABI**. Every deleted item was private: two immutables with no getter, two
+private constants, three private functions, and two arguments of a private helper. Every function
+selector, event topic, indexed field, integer width, error and return-tuple layout is byte-identical
+to the integrated C6 surface, and `bin/freeze-artifacts.py check` proves it by regenerating
+`abi/*.json` and `reports/frozen/abi-surface.json` from this candidate's own artifacts and comparing
+them byte for byte. The already-integrated C6 ABI delta in section 5.6 is therefore still the whole
+delta a downstream consumer must apply.
+
+The strategy's compiled runtime does change — it is smaller — so a fresh deployment produces a
+different strategy address, and the hook is CREATE2-mined over `abi.encode(PoolManager, strategy)`.
+Fresh hook-salt mining remains a deployment-packet obligation exactly as before; nothing in this
+repository pins a hook address.
+
+**Provider-backed evidence.** It has not run for this candidate and is not meant to. `regent-4wx`
+owns it, and it runs **once**, against the final candidate — after this correction *and* the separate
+liquidity-position locker are both integrated and reviewed — rather than once per intermediate
+candidate. Everything in this packet that depends on it is labelled as awaiting that single run.

@@ -1,4 +1,4 @@
-# Founder audit packet — C5 as corrected by regent-alv1.6.1 and regent-alv1.7
+# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7 and regent-alv1.7.1
 
 **Release posture: mainnet NO-GO.** Nothing in this repository is deployed, no Regent address
 exists, and no deployment instruction has been given. This packet exists to be audited, not acted
@@ -11,11 +11,23 @@ exact-production fork lifecycle suite. What changed, and why, is in
 
 `regent-alv1.7` is the next successor. It deletes the recovery administrator outright, makes both
 recovery calls permissionless and whole-balance to the immutable treasury, and adds one closed
-launch-time treasury admission in the strategy. It changed four production contracts, so the
-separately authorized fork evidence has to be re-executed against this candidate's bytecode before
-the `fork` claims carry evidence for it. Section 5 of
-[claim-corrections.md](claim-corrections.md) carries the whole delta, including the exact ABI
-change for the downstream Ash lane.
+launch-time treasury admission in the strategy. Section 5 of
+[claim-corrections.md](claim-corrections.md) carries that delta, including the exact ABI change for
+the downstream Ash lane.
+
+`regent-alv1.7.1` is this candidate. It restores the pinned upstream ordinary `CREATE` clones for the
+per-launch splitter and canonical receiver, deletes C6's CREATE2 salts, address prediction,
+future-slot refusal and clone-runtime fingerprint rule, and narrows launch-time treasury admission to
+exactly six shared-system addresses. It changes **no public ABI**; the strategy's compiled runtime
+shrinks. The consequences it deliberately admits — a treasury that is another launch's artifact, and
+a treasury that collides with the strategy's next clone address — are named and driven end to end
+rather than prevented. Section 6 of [claim-corrections.md](claim-corrections.md) carries the whole
+delta.
+
+The four production contracts whose bytes differ from the pre-edit C4 baseline are unchanged as a
+set. The separately authorized fork evidence has not been executed against this candidate's bytecode
+and is not meant to be: `regent-4wx` runs it **once**, against the final candidate, after this
+correction and the separate liquidity-position locker are both integrated and reviewed.
 
 ## What is in the packet
 
@@ -106,13 +118,15 @@ gate also proved the observation record and ledger stayed byte-identical to thei
 The two objects remain distinct: the earlier offline pass did not prove a fork claim, while the
 activation candidate carries and checks the separately reviewed fork authority.
 
-**This candidate is a third object: the `regent-alv1.7` correction.** Its offline gate is complete
-and green, and it changed the compiled bytes of the factory, the strategy, the splitter and the
-receiver — which the enumerated source-delta record names and the freezer proves. The committed
-observation record is chain truth and is unaffected by that, but the fork *execution* is not: it ran
-against the previous candidate's bytecode. Re-running `discover`, reviewing and installing the
-result, and running `check` at both headers against this candidate is a separately authorized step
-that has not happened here, and nothing in this packet claims it has.
+**This candidate is a third object: the `regent-alv1.7` correction as further corrected by
+`regent-alv1.7.1`.** Its offline gate is complete and green, and it changed the compiled bytes of the
+factory, the strategy, the splitter and the receiver — which the enumerated source-delta record names
+and the freezer proves. The committed observation record is chain truth and is unaffected by that,
+but the fork *execution* is not: it ran against an earlier candidate's bytecode. Re-running
+`discover`, reviewing and installing the result, and running `check` at both headers is `regent-4wx`'s
+separately authorized step. It runs once, against the final post-correction, post-liquidity-locker
+candidate — not once per intermediate candidate — and it has not happened here. Nothing in this
+packet claims it has.
 
 ## Evidence map
 
@@ -123,15 +137,16 @@ that has not happened here, and nothing in this packet claims it has.
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | activated and mapped; executed and passing at both committed headers against the *previous* candidate's bytecode. `regent-alv1.7` changed four production contracts, so this candidate needs its own separately authorized fork execution before these carry evidence for it |
-| `GAS-003..006` | fork | same: activated and mapped, and awaiting re-execution against this candidate's bytecode |
+| `DEP-040..053` | fork | activated and mapped; executed and passing at both committed headers against an *earlier* candidate's bytecode. `regent-4wx` runs the single re-execution against the final post-correction, post-liquidity-locker candidate before these carry evidence for it |
+| `GAS-003..006` | fork | same: activated and mapped, and awaiting that one re-execution |
 
 ## What is not proved
 
 - **This candidate's own fork execution.** The `fork` claims are activated and mapped, and every one
-  of their selectors still compiles offline, but the committed fork run was executed against the
-  previous candidate's production bytecode. It must be repeated under the founder's separate
-  read-only authority before it is evidence for this candidate.
+  of their selectors still compiles offline, but the committed fork run was executed against an
+  earlier candidate's production bytecode. `regent-4wx` repeats it once under the founder's separate
+  read-only authority, against the final candidate — after this correction and the separate
+  liquidity-position locker are both integrated — and not once per intermediate candidate.
 - **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
   signed nothing, and moved no value outside isolated local fork state.
 - **Workflow review and custody state.** Independent review, the Solidity Auditor, integration, and

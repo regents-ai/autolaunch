@@ -181,8 +181,9 @@ other case: the clone implementations and their clones are proved hermetically u
 than external chain truth.
 
 C0 activates only its own dependency, binding, chain, and ABI-provenance claims. C1 through
-C5 add their contracts and activate their own, and C6 activates the launch-time treasury
-admission claims its correction added.
+C5 add their contracts and activate their own, C6 activates the launch-time treasury
+admission claims its correction added, and C6.1 takes ownership of the two of them its own
+correction rewrote.
 
 ## The separately authorized fork gate
 
@@ -206,9 +207,10 @@ gate reconciles.
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
 gate's committed evidence. `fork` is active with the separately reviewed observation record, and its
 eighteen claims executed once at each committed Base header and passed **against the production
-bytecode of the candidate before this one**. The `regent-alv1.7` correction changed four production
-contracts, so that fork execution has to be repeated against this candidate's bytecode under the
-same separate authority before those claims carry evidence for it; the observation record itself is
-chain truth and is unaffected. Their thirty-six selectors remain outside the offline test root, so
-only the read-only fork gate can execute or close them, and this candidate's offline gate neither
-ran nor claimed any of them.
+bytecode of an earlier candidate**. `regent-alv1.7` and `regent-alv1.7.1` both changed production
+bytes, so that fork execution has to be repeated under the same separate authority before those
+claims carry evidence. `regent-4wx` owns that repetition: it runs once, against the final candidate
+— after this correction and the separate liquidity-position locker are both integrated — rather than
+once per intermediate candidate. The observation record itself is chain truth and is unaffected.
+Their thirty-six selectors remain outside the offline test root, so only the read-only fork gate can
+execute or close them, and this candidate's offline gate neither ran nor claimed any of them.

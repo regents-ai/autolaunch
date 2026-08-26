@@ -77,17 +77,32 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         _assertPoolKeyDerivation(false);
     }
 
-    /// @notice `MIG-003`: graduation deploys this launch's splitter as an exact clone bound to the
-    ///         launch's own SUBJECT and treasury.
+    /// @notice `MIG-003`: graduation deploys this launch's splitter as one ordinary clone of the
+    ///         admitted implementation, bound to the launch's own SUBJECT and treasury and recorded
+    ///         once.
+    /// @dev The clone is an ordinary `LibClone.clone`, so its address is whatever the strategy's
+    ///      nonce produced and is deliberately not asserted. What is asserted is the identity that
+    ///      matters: graduation created exactly two contracts, the recorded splitter's deployed
+    ///      runtime is the fixed 44-byte minimal proxy of the implementation the strategy is
+    ///      permanently bound to, and every one of its six bindings is this launch's own.
     function test_MIG_003_DeploysTheSplitterClone() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduation(launched, 2_000e18);
 
-        address predicted = _splitterSlot(launched.launchId, address(launched.subject));
+        uint64 nonceBefore = vm.getNonce(address(strategy));
         strategy.migrate(address(launched.auction));
+        assertEq(
+            vm.getNonce(address(strategy)),
+            nonceBefore + 2,
+            "graduation created other than exactly the splitter and the canonical receiver"
+        );
 
         SubjectSplitterV1 splitter = SubjectSplitterV1(_distribution(launched).splitter);
-        assertEq(address(splitter), predicted, "the splitter is not at this launch's deterministic slot");
+        assertEq(
+            address(splitter).codehash,
+            _cloneCodehash(address(splitterImplementation)),
+            "the splitter is not an authentic clone of the bound implementation"
+        );
         assertEq(splitter.subject(), address(launched.subject), "the splitter bound another SUBJECT");
         assertEq(splitter.regent(), BaseBindings.REGENT, "splitter REGENT binding");
         assertEq(splitter.usdc(), BaseBindings.USDC, "splitter USDC binding");

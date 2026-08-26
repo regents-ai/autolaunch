@@ -586,24 +586,22 @@ contract RegentLBPStrategyTest is StrategyFixture {
     // C3-I2 — launch-time treasury admission
     // -------------------------------------------------------------------------
 
-    /// @notice `STR-019`: the closed refusal set, proved class by class before any auction exists.
-    /// @dev The six protocol accounts are refused by exact address. The three Autolaunch clone
-    ///      classes are refused by the fixed minimal-clone runtime a clone of each admitted
-    ///      implementation always presents, so an already-deployed escrow, splitter or canonical
-    ///      receiver is refused wherever it happens to sit. Every arm gets its own SUBJECT, so each
-    ///      escrow really holds the exact 85% and each refusal is reached through the real
-    ///      authentication path rather than short-circuited by a funding failure.
+    /// @notice `STR-019`: the closed refusal set is exactly six shared-system destinations, proved
+    ///         one by one before any auction exists.
+    /// @dev Every arm is an exact address: the bound factory, the shared strategy, the bound fee
+    ///      hook, the frozen PoolManager, the frozen PositionManager and the frozen live staking
+    ///      contract. There is no seventh arm, because there is no seventh rule — no `code.length`
+    ///      test, no clone fingerprint, no predicted address. Each arm gets its own SUBJECT and its
+    ///      own funded escrow, so every refusal is reached through the real authentication path
+    ///      rather than short-circuited by a funding failure.
     function test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists() public {
-        address[9] memory refused = [
+        address[6] memory refused = [
             address(factory),
             address(strategy),
             strategy.hook(),
             BaseBindings.POOL_MANAGER,
             BaseBindings.POSITION_MANAGER,
-            BaseBindings.LIVE_STAKING,
-            _clone(address(escrowImplementation)),
-            _clone(address(splitterImplementation)),
-            _clone(address(receiverImplementation))
+            BaseBindings.LIVE_STAKING
         ];
 
         for (uint256 i; i < refused.length; ++i) {
@@ -611,44 +609,29 @@ contract RegentLBPStrategyTest is StrategyFixture {
         }
     }
 
-    /// @notice `STR-019`, `C6-I3`: a launch is refused at its own two future clone addresses.
-    /// @dev These are the only refused addresses that carry no code at the moment of the refusal.
-    ///      Both are derived by `LaunchCloneSlots` from this launch's own identity, independently of
-    ///      the strategy, so the refusal is proved against a first-principles CREATE2 derivation and
-    ///      not against a production getter — the strategy publishes none. `MIG-021` closes the loop
-    ///      by proving a real graduation deploys to exactly these two addresses.
-    function test_STR_019_OwnFutureCloneTreasuriesAreRejected() public {
-        uint256 splitterLaunchId = 20;
-        address splitterSubject = _subjectAddress(splitterLaunchId);
-        address ownSplitter = _splitterSlot(splitterLaunchId, splitterSubject);
-        assertEq(ownSplitter.code.length, 0, "the launch's own splitter slot already carries code");
-        _assertTreasuryRefused(ownSplitter, splitterLaunchId);
-
-        uint256 receiverLaunchId = 21;
-        address receiverSubject = _subjectAddress(receiverLaunchId);
-        address ownReceiver = _receiverSlot(receiverLaunchId, receiverSubject);
-        assertEq(ownReceiver.code.length, 0, "the launch's own receiver slot already carries code");
-        _assertTreasuryRefused(ownReceiver, receiverLaunchId);
-    }
-
-    /// @notice `STR-019`: everything outside that closed set stays admissible, with no code test.
-    /// @dev The dead address, an ordinary EOA that has never existed, an arbitrary deployed
-    ///      contract, the Governance and Regent Safe, a live CCA auction, and an address only a
-    ///      *different* launch's splitter will ever occupy are all accepted. The last one is the
-    ///      consequence C6 names rather than removes: refusing it would mean enumerating every launch
-    ///      that does not exist yet, so it stays launcher-selected destination behaviour under
-    ///      `FAC-015`. Admission is a closed list of exact addresses and three clone fingerprints; it
-    ///      is not a registry, a denylist, or a code-length rule.
+    /// @notice `STR-019`: everything outside those six addresses stays admissible, with no code test.
+    /// @dev The dead address, an ordinary EOA that has never existed, an arbitrary deployed contract,
+    ///      the Governance and Regent Safe, a live CCA auction, and — deliberately — an already
+    ///      deployed authentic Autolaunch escrow, splitter and canonical receiver are all accepted.
+    ///      Those last three are the C6 fingerprint rule this correction deletes: admission judges
+    ///      exact addresses and nothing else, so an existing Autolaunch artifact is an ordinary
+    ///      launcher-selected destination whose consequences are `FAC-015`'s, not a refusal.
+    ///
+    ///      Each clone here is really deployed rather than fingerprinted, so what is proved is that a
+    ///      real artifact is admitted — not that some code shape is. Admission is a closed list of
+    ///      six addresses; it is not a registry, a denylist, or a code-length rule.
     function test_STR_019_AdmissibleTreasuryClassesAreAccepted() public {
         Launch memory live = _defaultLaunch();
 
-        address[6] memory admitted = [
+        address[8] memory admitted = [
             BaseBindings.DEAD_ADDRESS,
             outsider,
             address(new EscrowImpostor(SUBJECT_LOW, treasury, address(strategy))),
             BaseBindings.GOVERNANCE_AND_REGENT_SAFE,
             address(live.auction),
-            _splitterSlot(999, _subjectAddress(999))
+            _clone(address(escrowImplementation)),
+            _clone(address(splitterImplementation)),
+            _clone(address(receiverImplementation))
         ];
 
         for (uint256 i; i < admitted.length; ++i) {
@@ -694,7 +677,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     }
 
     /// @dev The address this test's launch id stages its SUBJECT at. One SUBJECT per launch id, so
-    ///      the `(launchId, subject)` pair a clone slot is derived from is fixed before the launch.
+    ///      no two arms ever contend for the same `auctionOfSubject` entry.
     function _subjectAddress(uint256 launchId) private pure returns (address) {
         return address(uint160(0x5000 + launchId));
     }

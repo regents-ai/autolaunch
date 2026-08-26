@@ -14,8 +14,8 @@ each constructor takes.
 
 | Contract | Runtime (B) | EIP-170 margin | Creation (B) | Constructor args (B) | Initcode (B) | EIP-3860 margin |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `RegentsAutolaunchFactoryV1` | 7,097 | 17,479 | 35,333 | 160 | 35,493 | 13,659 |
-| `RegentLBPStrategy` | 19,935 | 4,641 | 20,680 | 128 | 20,808 | 28,344 |
+| `RegentsAutolaunchFactoryV1` | 7,097 | 17,479 | 34,435 | 160 | 34,595 | 14,557 |
+| `RegentLBPStrategy` | 19,266 | 5,310 | 19,782 | 128 | 19,910 | 29,242 |
 | `RegentFeeHook` | 5,780 | 18,796 | 6,599 | 64 | 6,663 | 42,489 |
 | `ConditionalVestingEscrowV1` | 4,527 | 20,049 | 4,665 | 0 | 4,665 | 44,487 |
 | `SubjectSplitterV1` | 5,158 | 19,418 | 5,296 | 0 | 5,296 | 43,856 |
@@ -34,7 +34,7 @@ and suffix literals in the production strategy's own clone-code-hash computation
 transcribed. `test_GAS_001_*` measures that length on a real clone the factory created, and compares
 its `EXTCODEHASH` against the strategy's own `escrowCloneCodehash`.
 
-The tightest margin in the set is the strategy's 4,641 runtime bytes, comfortably above the 1,000-byte
+The tightest margin in the set is the strategy's 5,310 runtime bytes, comfortably above the 1,000-byte
 headroom the contract-worker rules require when no stricter budget is recorded, and none is.
 
 ### EVM code identity

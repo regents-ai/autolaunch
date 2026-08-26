@@ -63,7 +63,7 @@ library FrozenIdentity {
     // -----------------------------------------------------------------------
 
     /// @notice SHA-256 of the current `SPEC.md` authority text.
-    bytes32 internal constant SPEC_SHA256 = 0x200ce4023707a0075285c8228af8ac8277aaa82977a1131c242987d88bc46031;
+    bytes32 internal constant SPEC_SHA256 = 0x5eedf6ed64292866eb7d0f16e2a96bb022251671dddc37575f507ad49bd826c3;
 
     // -----------------------------------------------------------------------
     // Binding set

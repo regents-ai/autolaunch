@@ -229,28 +229,20 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
     ///         together — and never disturbs an existing launch.
     /// @dev The refusal happens after the fee has moved, after the SUBJECT exists and after that
     ///      launch's escrow has been cloned and funded with the exact 85%, so this is the widest
-    ///      rollback the launch path has. Each arm names one refused class: the shared protocol
-    ///      accounts by exact address, an already-deployed authentic escrow clone by its fixed
-    ///      minimal-clone runtime, and the attempted launch's own two future clone slots by exact
-    ///      address. `STR-019` owns the complete class enumeration at the strategy.
+    ///      rollback the launch path has. The six arms are the whole refusal set: the six shared
+    ///      system destinations, each by exact address. `STR-019` owns the class enumeration at the
+    ///      strategy, including the classes admission deliberately admits.
     function test_FAC_028_RefusedTreasuryRollsTheWholeLaunchBack() public {
         Launched memory existing = _defaultLaunch();
         Pristine memory pristine = _pristine();
 
-        // Every rolled-back attempt reuses the untouched launch id, so all nine arms share one
-        // identity and the last two really are that attempt's own slots.
-        (address ownSplitter, address ownReceiver) = _plannedSlots(pristine.nextLaunchId, _params());
-
-        address[9] memory refused = [
+        address[6] memory refused = [
             address(factory),
             address(strategy),
             address(hook),
             BaseBindings.POOL_MANAGER,
             BaseBindings.POSITION_MANAGER,
-            BaseBindings.LIVE_STAKING,
-            address(existing.escrow),
-            ownSplitter,
-            ownReceiver
+            BaseBindings.LIVE_STAKING
         ];
 
         for (uint256 i; i < refused.length; ++i) {

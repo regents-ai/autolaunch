@@ -1,7 +1,7 @@
 {
   "authority": "SPEC.md",
   "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs. src/bindings/FrozenIdentity.sol and src/bindings/BaseBindings.sol are the compiled copies; test/bindings/ proves the compiled copies equal this file.",
-  "spec_sha256": "200ce4023707a0075285c8228af8ac8277aaa82977a1131c242987d88bc46031",
+  "spec_sha256": "5eedf6ed64292866eb7d0f16e2a96bb022251671dddc37575f507ad49bd826c3",
   "chain": {
     "name": "base-mainnet",
     "id": 8453
@@ -101,7 +101,7 @@
   },
   "final_source_delta": {
     "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. That is what proves regent-alv1.7 touched exactly the factory, the strategy, the splitter and the receiver, and left the escrow and the fee hook byte-identical. It proves which production bytes moved; the source diff and independent review prove why.",
-    "ticket": "regent-alv1.7",
+    "ticket": "regent-alv1.7.1",
     "changed": [
       {
         "key": "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
@@ -113,7 +113,7 @@
       },
       {
         "key": "src/strategy/RegentLBPStrategy.sol:RegentLBPStrategy",
-        "reason": "DistributionParams and Distribution lose their recoveryAdmin field, RecoveryAdminHasNoCode(address) is deleted, the splitter initializer call loses its seventh argument, one private launch-time treasury admission is added between escrow authentication and auction creation, both per-launch clones move from CREATE to launch-derived CREATE2, and the pinned planner's two CONTRACT_BALANCE settlement amounts are replaced with the exact amounts this graduation funds. STR-019, FAC-028, MIG-021 and MIG-022 carry the behaviour."
+        "reason": "DistributionParams and Distribution lose their recoveryAdmin field, RecoveryAdminHasNoCode(address) is deleted, the splitter initializer call loses its seventh argument, one private launch-time treasury admission refusing exactly six shared-system addresses is added between escrow authentication and auction creation, both per-launch clones stay on the pinned upstream ordinary LibClone.clone, and the pinned planner's two CONTRACT_BALANCE settlement amounts are replaced with the exact amounts this graduation funds. STR-019, FAC-028, MIG-003 and MIG-022 carry the behaviour."
       },
       {
         "key": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",

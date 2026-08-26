@@ -242,31 +242,30 @@ deliberate_additions:
       that raise from one on-grid bid and graduates.
     evidence: [STR-013, STR-014]
 
-  - behaviour: The launch treasury is admitted once, at initialization, against a closed refusal
-      set: the bound factory, this strategy, the bound hook, the frozen PoolManager, the frozen
-      PositionManager, the frozen live staking contract, any address already carrying the fixed
-      minimal-clone runtime of the admitted escrow, splitter or receiver implementation, and the two
-      addresses this launch's own splitter and canonical receiver will be deployed to. Everything
-      else is admitted with no code requirement.
-    reason: Those destinations either cannot move what they receive or would absorb a launch's
+  - behaviour: The launch treasury is admitted once, at initialization, against a closed refusal set
+      of exactly six shared-system destinations: the bound factory, this strategy, the bound hook,
+      the frozen PoolManager, the frozen PositionManager and the frozen live staking contract.
+      Everything else is admitted, with no code-length test, no codehash fingerprint, no interface
+      probe and no predicted address.
+    reason: Those six destinations either cannot move what they receive or would absorb a launch's
       payouts into accounting that was never told about them, and the treasury is only ever used at
       graduation, so validating it there would let a bad value survive a whole auction before
-      failing the terminal transaction. The launch's own two clone addresses are refusable because
-      both clones are deployed deterministically from the launch's immutable identity, so admitting
-      one would admit a launch whose own graduation must later refuse to bind it. The set stays
-      closed and address- or fingerprint-based on purpose: no registry, generalized denylist or
-      code-length rule is added, and the one surviving cross-launch consequence is recorded in the
-      threat model.
-    evidence: [STR-019, FAC-028, MIG-021]
+      failing the terminal transaction. The set stays closed and address-based on purpose: no
+      registry, generalized denylist, code-length rule or clone fingerprint is added, because each
+      of those would refuse the ordinary treasuries the design exists for. The two consequences that
+      survive — a treasury that is another launch's artifact, and a treasury that collides with an
+      address this strategy's current nonce would later produce — are recorded in the threat model
+      and proved rather than prevented.
+    evidence: [STR-019, FAC-028, FAC-015]
 
-  - behaviour: Both per-launch clones are deployed with CREATE2 from a salt derived only from a
-      private role constant of this contract and the launch's immutable identity — its
-      factory-assigned launch ID and the SUBJECT its authenticated escrow bound.
-    reason: The upstream migrator clones with plain CREATE, whose address depends on the deployer's
-      nonce and therefore on unrelated launches' deployment order. A launch-derived CREATE2 identity
-      makes both addresses knowable before the auction exists, which is what lets admission refuse
-      them. The salt exposes no caller choice, confers no authority, and is not part of the ABI.
-    evidence: [MIG-021, MIG-003]
+  - behaviour: Both per-launch clones keep the pinned upstream ordinary `LibClone.clone`,
+      unchanged. No salt, address prediction or deterministic deployment is introduced.
+    reason: This is preservation rather than a deviation, recorded here because an earlier
+      correction briefly replaced it. The upstream migrator clones with plain CREATE and so does
+      this fork, so a clone's address is a function of the shared strategy's nonce and of nothing a
+      caller chose. Nothing derives it, nothing publishes it, and nothing admits or refuses a
+      treasury on account of it.
+    evidence: [MIG-003, STR-019]
 
   - behaviour: The pinned planner's two `CONTRACT_BALANCE` settlement amounts are replaced with the
       exact two amounts this graduation transfers to the PositionManager. The action sequence and

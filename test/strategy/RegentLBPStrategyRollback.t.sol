@@ -101,17 +101,17 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
     ///      The two clone initializations are failed at the implementation the clone delegates to,
     ///      which is the code that actually runs the initializer. Failing them at the clone address
     ///      itself is not available: the clone does not exist when the injection is set up, and
-    ///      giving that address anything at all makes the strategy's `CREATE2` collide, which would
-    ///      test a deployment collision instead of an initialization failure. The two deterministic
-    ///      clone slots are still derived and asserted, because they are what must stay codeless
-    ///      after every rolled-back attempt and what the eventual clean graduation must occupy.
+    ///      giving that address anything at all would make the strategy's `CREATE` fail, which would
+    ///      test a deployment collision instead of an initialization failure. The two addresses the
+    ///      next two ordinary clones will occupy are still derived from the strategy's current nonce
+    ///      and asserted, because they are what must stay codeless after every rolled-back attempt —
+    ///      and the fact that the clean graduation still lands on them is the nonce rollback itself.
     function test_STR_004_RollbackIsCompleteAtEveryNamedExternalBoundary() public {
         // A raise big enough that both LP residues are non-zero, so every later stage is real.
         Launch memory launch = _defaultLaunch();
         _bidToGraduationAt(launch, 20_000_000e18, 500);
 
-        address splitter = _splitterSlot(1, address(launch.subject));
-        address receiver = _receiverSlot(1, address(launch.subject));
+        (address splitter, address receiver) = _nextCloneAddresses();
 
         _assertBoundaryRollsBack(
             launch, address(splitterImplementation), SubjectSplitterV1.initialize.selector, "1 splitter initialization"
@@ -145,13 +145,14 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
         assertEq(splitter.code.length, 0, "no injected failure left a splitter clone behind");
         assertEq(receiver.code.length, 0, "no injected failure left a receiver clone behind");
 
-        // The launch none of those injections touched still graduates, into exactly the clone
-        // addresses the failed attempts were reaching for.
+        // The launch none of those injections touched still graduates, into exactly the two
+        // addresses the strategy's pre-attempt nonce named — which is the nonce rollback proved from
+        // the outside: eight rolled-back clone deployments left the counter exactly where it was.
         strategy.migrate(address(launch.auction));
         RegentLBPStrategy.Distribution memory d = strategy.distribution(address(launch.auction));
         assertEq(uint8(d.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Graduated), "the untouched migration works");
-        assertEq(d.splitter, splitter, "at the predicted splitter address");
-        assertEq(d.receiver, receiver, "and the predicted receiver address");
+        assertEq(d.splitter, splitter, "at the address the pre-attempt nonce named");
+        assertEq(d.receiver, receiver, "and the next one after it");
     }
 
     /// @notice No dependency callback can enter a second mutation, in either entry point.

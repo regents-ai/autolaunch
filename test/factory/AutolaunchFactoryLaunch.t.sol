@@ -371,74 +371,68 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
 
     /// @notice `FAC-015`: value a launcher deliberately routes to another launch's artifact is not
     ///         promised to stay isolated. Lifecycle state and the isolated 5% reserve still are.
-    /// @dev The named C6 consequence, produced exactly as production produces it. The launcher of
-    ///      the first launch names the address a *different*, later launch's splitter will occupy.
-    ///      Launch-time admission accepts it: it refuses only this launch's own two clone slots, and
-    ///      refusing every other launch's would mean enumerating launches that do not exist yet.
-    ///      Once the second launch graduates, that address is a real splitter, and the first launch's
-    ///      own vested payout sitting there is inside the second launch's ordinary accounting —
-    ///      permissionless recovery sends it to the second launch's treasury. Nothing about it
-    ///      corrupts either launch's lifecycle or reserve.
+    /// @dev The named accepted consequence, produced exactly as production produces it and with no
+    ///      predicted address anywhere. A first launch graduates and its splitter becomes a real,
+    ///      deployed, ordinary contract. A second launcher then names *that already-deployed
+    ///      splitter* as its own treasury, and launch-time admission accepts it: admission judges six
+    ///      exact shared-system addresses and nothing else, so an existing Autolaunch artifact is an
+    ///      ordinary launcher-selected destination. The second launch's own vested payout then sits
+    ///      inside the first launch's ordinary accounting, where permissionless recovery sends it to
+    ///      the first launch's treasury. Nothing about it corrupts either launch's lifecycle or
+    ///      reserve.
     function test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated() public {
-        // The second launch's identity, and therefore its splitter slot, is already fixed here: the
-        // factory hands out launch ids in order and every SUBJECT is a CREATE2 of the pinned UERC20
-        // factory over that launch id.
-        (address futureSecondSplitter,) = _plannedSortedSlots(factory.nextLaunchId() + 1, false);
-        assertEq(futureSecondSplitter.code.length, 0, "the second launch's splitter slot already carries code");
+        Launched memory host = _launchSorted(false, _params());
+        _bidToGraduation(host, 20_000e18);
+        strategy.migrate(address(host.auction));
 
-        RegentsAutolaunchFactoryV1.LaunchParams memory firstParams = _params();
-        firstParams.treasury = futureSecondSplitter;
-        Launched memory first = _launchSorted(true, firstParams);
-        Launched memory second = _launchSorted(false, _params());
+        address hostSplitter = _distribution(host).splitter;
+        assertGt(hostSplitter.code.length, 0, "the host launch's splitter is not deployed");
 
-        _rollToStart(first);
-        _bid(first, bidder, 20_000e18, _bidPrice(10));
-        _bid(second, bidder, 20_000e18, _bidPrice(10));
-        _rollToMigration(second);
+        // The second launcher names that deployed splitter, and admission accepts it.
+        RegentsAutolaunchFactoryV1.LaunchParams memory guestParams = _params();
+        guestParams.treasury = hostSplitter;
+        Launched memory guest = _launchSorted(true, guestParams);
+        assertEq(_distribution(guest).treasury, hostSplitter, "the guest launch did not record the treasury it chose");
+        assertEq(SubjectSplitterV1(hostSplitter).treasury(), treasury, "the host splitter changed its own treasury");
 
-        strategy.migrate(address(first.auction));
-        strategy.migrate(address(second.auction));
-
-        address secondSplitter = _distribution(second).splitter;
-        assertEq(secondSplitter, futureSecondSplitter, "the second splitter is not where the first launch aimed");
+        _bidToGraduation(guest, 20_000e18);
+        strategy.migrate(address(guest.auction));
         assertEq(
-            SubjectSplitterV1(_distribution(first).splitter).treasury(),
-            secondSplitter,
-            "the first launch did not keep the treasury it chose"
+            SubjectSplitterV1(_distribution(guest).splitter).treasury(),
+            hostSplitter,
+            "the guest launch did not keep the treasury it chose"
         );
 
-        // The first launch's own vested payout, released by its own permissionless escrow call.
+        // The guest launch's own vested payout, released by its own permissionless escrow call.
         vm.warp(block.timestamp + 30 days);
-        first.escrow.release();
-        uint256 crossed = first.subject.balanceOf(secondSplitter);
-        assertGt(crossed, 0, "the first launch paid its chosen treasury nothing");
+        guest.escrow.release();
+        uint256 crossed = guest.subject.balanceOf(hostSplitter);
+        assertGt(crossed, 0, "the guest launch paid its chosen treasury nothing");
 
-        // It is now the second launch's inventory, and anyone may route it to the second treasury.
+        // It is now the host launch's inventory, and anyone may route it to the host's treasury.
         vm.prank(outsider);
-        SubjectSplitterV1(secondSplitter).recoverUnsupportedToken(address(first.subject));
-        assertEq(first.subject.balanceOf(treasury), crossed, "the first launch's payout did not cross launches");
+        SubjectSplitterV1(hostSplitter).recoverUnsupportedToken(address(guest.subject));
+        assertEq(guest.subject.balanceOf(treasury), crossed, "the guest launch's payout did not cross launches");
 
         // What stays isolated: each launch's lifecycle, its own reserve, and its own SUBJECT ledger.
         assertEq(
-            uint8(_distribution(second).lifecycle),
+            uint8(_distribution(host).lifecycle),
             uint8(RegentLBPStrategy.Lifecycle.Graduated),
-            "the second launch's lifecycle was disturbed"
+            "the host launch's lifecycle was disturbed"
         );
         assertEq(
-            uint8(_distribution(first).lifecycle),
+            uint8(_distribution(guest).lifecycle),
             uint8(RegentLBPStrategy.Lifecycle.Graduated),
-            "the first launch's lifecycle was disturbed"
+            "the guest launch's lifecycle was disturbed"
         );
+        assertEq(SubjectSplitterV1(hostSplitter).totalStaked(), 0, "the crossed value was counted as staked principal");
         assertEq(
-            SubjectSplitterV1(secondSplitter).totalStaked(), 0, "the crossed value was counted as staked principal"
-        );
-        assertEq(
-            SubjectSplitterV1(secondSplitter).unclaimedLiability(address(second.subject)),
+            SubjectSplitterV1(hostSplitter).unclaimedLiability(address(host.subject)),
             0,
-            "the crossed value was recognized as the second launch's revenue"
+            "the crossed value was recognized as the host launch's revenue"
         );
-        assertEq(second.subject.totalSupply(), TOTAL_SUPPLY, "the second launch's supply moved");
-        assertEq(first.subject.totalSupply(), TOTAL_SUPPLY, "the first launch's supply moved");
+        assertEq(host.subject.totalSupply(), TOTAL_SUPPLY, "the host launch's supply moved");
+        assertEq(guest.subject.totalSupply(), TOTAL_SUPPLY, "the guest launch's supply moved");
     }
 
     /// @dev `FAC-015`, C5 correction: the treasury is launcher-chosen as well as immutable, so its

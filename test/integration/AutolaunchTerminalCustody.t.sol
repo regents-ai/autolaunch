@@ -2,85 +2,17 @@
 pragma solidity 0.8.26;
 
 import {BaseBindings} from "../../src/bindings/BaseBindings.sol";
-import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
-import {RegentsAutolaunchFactoryV1} from "../../src/factory/RegentsAutolaunchFactoryV1.sol";
-import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
 import {AutolaunchFixture} from "./AutolaunchFixture.sol";
 
-/// @notice `MIG-021` and `MIG-022`: what a real graduation does with the two addresses it deploys to
-///         and with the shared PositionManager's existing inventory.
-/// @dev Both clones are deployed with CREATE2 from a salt the strategy derives from the launch's own
-///      immutable identity, so both addresses are facts before the auction exists. That is what makes
-///      launch-time treasury admission able to refuse them, and `MIG-021` is the other half of that
-///      claim: the addresses admission refused are the addresses graduation actually occupies.
-///
-///      `MIG-022` is the settlement half. The strategy funds the PositionManager with exactly the two
-///      amounts its own position consumes, so REGENT and SUBJECT already sitting at that shared
-///      contract are byte-for-byte untouched by this launch's graduation.
+/// @notice `MIG-022`: what a real graduation does with the shared PositionManager's existing
+///         inventory.
+/// @dev The strategy funds the PositionManager with exactly the two amounts its own position
+///      consumes, so REGENT and SUBJECT already sitting at that shared contract are byte-for-byte
+///      untouched by this launch's graduation.
 contract AutolaunchTerminalCustodyTest is AutolaunchFixture {
     function setUp() public {
         _deployAutolaunch();
-    }
-
-    // -------------------------------------------------------------------------
-    // MIG-021 — deterministic clone identity
-    // -------------------------------------------------------------------------
-
-    /// @notice `MIG-021`: a launch is refused at its own splitter slot and at its own canonical
-    ///         receiver slot, and the graduation that follows deploys to exactly those two addresses.
-    /// @dev Both slots are derived by `LaunchCloneSlots` from first principles — the two role strings
-    ///      the strategy hashes, the salt it builds, and the CREATE2 rule — so nothing here restates a
-    ///      production getter. The refused attempts and the successful launch share one identity:
-    ///      each refusal rolls the whole launch back, so the launch id and the SUBJECT the pinned
-    ///      UERC20 factory derives from it never move.
-    function test_MIG_021_OwnCloneSlotsAreRefusedAndAreExactlyWhereGraduationDeploys() public {
-        uint256 launchId = factory.nextLaunchId();
-        RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.name = _nameSorting(true, params.symbol, launchId);
-        (address splitterSlot, address receiverSlot) = _plannedSlots(launchId, params);
-
-        assertEq(splitterSlot.code.length, 0, "the splitter slot carries code before the launch");
-        assertEq(receiverSlot.code.length, 0, "the receiver slot carries code before the launch");
-        assertTrue(splitterSlot != receiverSlot, "both clone roles derive the same address");
-
-        _assertRefusedAsTreasury(params.name, splitterSlot, launchId);
-        _assertRefusedAsTreasury(params.name, receiverSlot, launchId);
-
-        // The same launch, on an ordinary treasury, graduates into exactly those two addresses.
-        Launched memory launched = _launchAs(launcher, params);
-        assertEq(launched.launchId, launchId, "a refused attempt consumed the launch id");
-
-        _bidToGraduation(launched, 2_000e18);
-        strategy.migrate(address(launched.auction));
-
-        RegentLBPStrategy.Distribution memory d = _distribution(launched);
-        assertEq(d.splitter, splitterSlot, "the splitter is not at the address admission refused");
-        assertEq(d.receiver, receiverSlot, "the receiver is not at the address admission refused");
-
-        // And they are the real, correctly bound artifacts, not merely code at the right address.
-        assertEq(SubjectSplitterV1(d.splitter).subject(), address(launched.subject), "splitter SUBJECT binding");
-        assertEq(SubjectSplitterV1(d.splitter).treasury(), treasury, "splitter treasury binding");
-        assertEq(PaymentReceiverV1(payable(d.receiver)).splitter(), d.splitter, "receiver splitter binding");
-        assertEq(PaymentReceiverV1(payable(d.receiver)).referralBps(), 0, "the canonical receiver carries a referral");
-        assertEq(hook.splitterOf(_poolId(launched)), d.splitter, "the pool registered another splitter");
-    }
-
-    /// @dev One launch attempt whose only defect is its treasury, refused before its auction exists
-    ///      and leaving the launch id, the escrow and the strategy's records exactly where they were.
-    function _assertRefusedAsTreasury(string memory name, address slot, uint256 launchId) private {
-        RegentsAutolaunchFactoryV1.LaunchParams memory attempt = _params();
-        attempt.name = name;
-        attempt.treasury = slot;
-
-        _fundFee(launcher, attempt.expectedLaunchFee);
-        vm.prank(launcher);
-        vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.RefusedTreasury.selector, slot));
-        factory.launch(attempt);
-
-        assertEq(factory.nextLaunchId(), launchId, "a refused launch consumed an id");
-        assertEq(factory.launches(launchId).subject, address(0), "a refused launch left a record");
-        assertEq(slot.code.length, 0, "a refused launch deployed something at the slot");
     }
 
     // -------------------------------------------------------------------------
