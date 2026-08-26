@@ -51,6 +51,11 @@ abstract contract HookFixture is Test {
     uint256 internal constant DEFAULT_LIQUIDITY = 1e21;
     uint256 internal constant TOKEN_MINT = 1e30;
 
+    /// @dev The complete SUBJECT supply every authentic launch mints. A splitter binds only a
+    ///      SUBJECT reporting exactly this, so every etched SUBJECT here is minted at the launch
+    ///      supply rather than at an arbitrary funding figure.
+    uint256 internal constant SUBJECT_TOTAL_SUPPLY = 100_000_000_000e18;
+
     address internal constant REGENT = BaseBindings.REGENT;
     address internal constant REGENT_SAFE = BaseBindings.GOVERNANCE_AND_REGENT_SAFE;
 
@@ -103,19 +108,20 @@ abstract contract HookFixture is Test {
 
         splitterImplementation = new SubjectSplitterV1();
 
-        regent = _etchToken(REGENT);
+        regent = _etchToken(REGENT, TOKEN_MINT);
         (bool ok,) = _constructHookAt(HOOK_ADDRESS, address(manager), strategy);
         require(ok, "HookFixture: hook construction failed");
         hook = RegentFeeHook(HOOK_ADDRESS);
     }
 
-    /// @dev Place `MockERC20` runtime code at an exact address. Storage starts empty, which is what
-    ///      a freshly deployed token looks like, and the `decimals` immutable travels with the code.
-    function _etchToken(address where) internal returns (MockERC20 token) {
+    /// @dev Place `MockERC20` runtime code at an exact address and mint it an exact supply. Storage
+    ///      starts empty, which is what a freshly deployed token looks like, and the `decimals`
+    ///      immutable travels with the code.
+    function _etchToken(address where, uint256 supply) internal returns (MockERC20 token) {
         MockERC20 template = new MockERC20("Etched", "ETCH", 18);
         vm.etch(where, address(template).code);
         token = MockERC20(where);
-        token.mint(address(this), TOKEN_MINT);
+        token.mint(address(this), supply);
     }
 
     /// @dev Run the hook's real constructor at `where`. Returns the constructor's own outcome so a
@@ -133,7 +139,7 @@ abstract contract HookFixture is Test {
 
     /// @dev One registered, initialized, funded official pool for `subjectAddress`.
     function _openPool(address subjectAddress, uint256 liquidity) internal returns (Pool memory pool) {
-        pool.subject = _etchToken(subjectAddress);
+        pool.subject = _etchToken(subjectAddress, SUBJECT_TOTAL_SUPPLY);
         pool.regentIsCurrency0 = REGENT < subjectAddress;
         pool.splitter = _newSplitter(subjectAddress);
 

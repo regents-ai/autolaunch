@@ -44,13 +44,32 @@ abstract contract C1Fixture is Test {
         regent = new MockERC20("Regent", "REGENT", 18);
         subject = new MockERC20("Subject", "SUBJ", 18);
         liveStaking = new MockLiveStaking(address(usdc));
+
+        // The shared SUBJECT is one launch's token, so it presents the complete 100B supply the
+        // splitter's initializer requires, held here the way the factory holds it before
+        // distributing it.
+        subject.mint(address(this), TOTAL_SUPPLY);
     }
 
     /// @dev Clone and initialize a splitter in one call, the way C4 must.
     function _newSplitter() internal returns (SubjectSplitterV1 splitter) {
+        splitter = _newSplitterFor(subject);
+    }
+
+    /// @dev Another launch: its own SUBJECT presenting exactly the complete supply, and a splitter
+    ///      bound to that token. A splitter binds only a SUBJECT reporting the complete supply, and
+    ///      mock funding raises the shared token's supply past it, so a second splitter opened
+    ///      part-way through a test binds its own launch token exactly as production would.
+    function _newLaunchSplitter() internal returns (MockERC20 launchSubject, SubjectSplitterV1 splitter) {
+        launchSubject = new MockERC20("Subject", "SUBJ", 18);
+        launchSubject.mint(address(this), TOTAL_SUPPLY);
+        splitter = _newSplitterFor(launchSubject);
+    }
+
+    function _newSplitterFor(MockERC20 launchSubject) private returns (SubjectSplitterV1 splitter) {
         splitter = SubjectSplitterV1(LibClone.clone(address(splitterImplementation)));
         splitter.initialize(
-            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
+            address(usdc), address(regent), address(launchSubject), address(liveStaking), regentSafe, treasury
         );
     }
 

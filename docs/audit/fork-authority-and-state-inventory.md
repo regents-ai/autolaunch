@@ -103,7 +103,7 @@ must already be committed and clean before provider access begins.
 ## 4. Execution status
 
 > **Not executed for this candidate.** Everything in this section describes the run made against an
-> earlier candidate's production bytecode. `regent-alv1.7`, `regent-alv1.7.1` and `regent-alv1.10` all
+> earlier candidate's production bytecode. `regent-alv1.7`, `regent-alv1.7.1`, `regent-alv1.10` and `regent-alv1.11` all
 > changed production bytes, so this candidate has no provider-backed evidence of its own. That run is
 > `regent-4wx`'s, it happens **once**, and it happens against the final candidate — after this
 > correction and every later one is integrated and reviewed — rather than once per intermediate

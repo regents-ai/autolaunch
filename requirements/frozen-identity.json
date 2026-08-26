@@ -1,7 +1,7 @@
 {
   "authority": "SPEC.md",
   "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs. src/bindings/FrozenIdentity.sol and src/bindings/BaseBindings.sol are the compiled copies; test/bindings/ proves the compiled copies equal this file.",
-  "spec_sha256": "228dc09128f223efb0b937c9c410a87fc491f5a736977a47c27458fd0c697f9c",
+  "spec_sha256": "c85bc2e4cfab13a49dc06b054a3dc695289c71bc19f405bd464f6ee64f5370b9",
   "chain": {
     "name": "base-mainnet",
     "id": 8453
@@ -100,12 +100,12 @@
     "integrated_c4_commit": "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
   },
   "final_source_delta": {
-    "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. That is what proves the ticket sequence through regent-alv1.10 touched exactly the factory, the strategy, the splitter and the receiver, and left the escrow and the fee hook byte-identical. It proves which production bytes moved; the source diff and independent review prove why.",
-    "ticket": "regent-alv1.10",
+    "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. That is what proves the ticket sequence through regent-alv1.11 touched exactly the factory, the strategy, the splitter and the receiver, and left the escrow and the fee hook byte-identical. It proves which production bytes moved; the source diff and independent review prove why.",
+    "ticket": "regent-alv1.11",
     "changed": [
       {
         "key": "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
-        "reason": "regent-alv1.7.1 deleted the recoveryAdmin binding, its getter, its modifier, its NotRecoveryAdmin error and its initializer argument, made both recovery entry points permissionless, amount-free and whole-balance to the immutable treasury, and shortened SplitterInitialized and initialize to six fields; SPL-017, SPL-018 and ABI-005 carry that behaviour and ABI-012 carries the deleted selectors. regent-alv1.10 then divides each post-skim net by fixed total-supply coverage — stakers collectively receive floor(net * totalStaked / 100_000_000_000e18) through the existing accumulator and the immutable treasury immediately receives the exact remainder — and requires a later block than an account's own latest stake before any partial or complete unstake, adding error SameBlockUnstake() as the only new ABI member and a private per-account stake-block mapping with no getter. SPL-005, SPL-006, SPL-009, SPL-013, HOK-011, INV-002 and ABI-004 carry that behaviour."
+        "reason": "regent-alv1.7.1 deleted the recoveryAdmin binding, its getter, its modifier, its NotRecoveryAdmin error and its initializer argument, made both recovery entry points permissionless, amount-free and whole-balance to the immutable treasury, and shortened SplitterInitialized and initialize to six fields; SPL-017, SPL-018 and ABI-005 carry that behaviour and ABI-012 carries the deleted selectors. regent-alv1.10 then divides each post-skim net by fixed total-supply coverage — stakers collectively receive floor(net * totalStaked / 100_000_000_000e18) through the existing accumulator and the immutable treasury immediately receives the exact remainder — and requires a later block than an account's own latest stake before any partial or complete unstake, adding a private per-account stake-block mapping with no getter. regent-alv1.11 then binds initialization to the exact immutable supply with the bare precondition require(IERC20Minimal(subject_).totalSupply() == SUBJECT_TOTAL_SUPPLY) — placed after the duplicate-token refusal and before the first binding write, storing no copy and adding no error or getter — extends the same later-block rule to claim and claimAll through one shared private check, renames the refusal to SameBlockStakeExit(address account, uint256 stakeBlock) as the only ABI addition of either ticket, and replaces RevenueRecognized's bool paidToStakers with the exact uint256 stakerShare and uint256 treasuryShare, moving that event's topic0 while every other topic, selector, indexed field and integer width stands. SPL-005, SPL-006, SPL-009, SPL-013, SPL-023, HOK-011, INV-002, ABI-004 and ABI-007 carry that behaviour."
       },
       {
         "key": "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1",
@@ -117,7 +117,7 @@
       },
       {
         "key": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",
-        "reason": "LaunchParams, the Launch record and LaunchCreated lose their recoveryAdmin field, the launch-record readback renumbers accordingly, and SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH and RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH are updated to the corrected clone runtimes. regent-alv1.10 moves SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH once more, to the runtime the supply-coverage splitter compiles to, so the factory's existing constructor admission keeps admitting the real implementation; no selector, field, event or other factory behaviour changes with it. ABI-002, ABI-003, ABI-007, ABI-011 and DEP-060 carry it."
+        "reason": "LaunchParams, the Launch record and LaunchCreated lose their recoveryAdmin field, the launch-record readback renumbers accordingly, and SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH and RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH are updated to the corrected clone runtimes. regent-alv1.10 and regent-alv1.11 each move SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH once more, to the runtime the supply-coverage splitter and then the supply-bound splitter compile to, so the factory's existing constructor admission keeps admitting the real implementation; that literal is the only factory edit either ticket makes, and no selector, field, event or other factory behaviour changes with it. ABI-002, ABI-003, ABI-007, ABI-011 and DEP-060 carry it."
       }
     ]
   },

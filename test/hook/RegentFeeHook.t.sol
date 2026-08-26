@@ -66,7 +66,7 @@ contract RegentFeeHookTest is HookFixture {
     // =========================================================================
 
     function test_HOK_002_OnlyTheStrategyRegistersAnExactPoolKey() public {
-        MockERC20 subject = _etchToken(SUBJECT_LOW);
+        MockERC20 subject = _etchToken(SUBJECT_LOW, SUBJECT_TOTAL_SUPPLY);
         SubjectSplitterV1 splitter = _newSplitter(SUBJECT_LOW);
         PoolKey memory key = _officialKey(SUBJECT_LOW);
 
@@ -420,6 +420,8 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(pool.splitter.claimable(REGENT, staker), stakerShare, "staker claimable");
         assertEq(regent.balanceOf(REGENT_SAFE), before.safeRegent + settled.lane + skim, "no second skim was taken");
 
+        // The claim is the staker's own value exit, so it waits for the block after its stake.
+        vm.roll(vm.getBlockNumber() + 1);
         vm.prank(staker);
         pool.splitter.claim(REGENT);
         assertEq(regent.balanceOf(staker), stakerShare, "staker claimed its covered share of the lane");
@@ -671,7 +673,7 @@ contract RegentFeeHookTest is HookFixture {
 
         // Initialization of an unregistered official pool is impossible, so the deterministic pool
         // cannot be brought into existence at a price the auction never cleared.
-        _etchToken(SUBJECT_HIGH);
+        _etchToken(SUBJECT_HIGH, SUBJECT_TOTAL_SUPPLY);
         PoolKey memory unregistered = _officialKey(SUBJECT_HIGH);
         vm.prank(strategy);
         (bool ok, bytes memory returned) = _tryInitialize(unregistered);
@@ -997,7 +999,7 @@ contract RegentFeeHookTest is HookFixture {
 
     /// @dev A registered, initialized, funded pool whose splitter is the hostile stand-in.
     function _openHostilePool(address subjectAddress, uint256 liquidity) private returns (Pool memory pool) {
-        pool.subject = _etchToken(subjectAddress);
+        pool.subject = _etchToken(subjectAddress, SUBJECT_TOTAL_SUPPLY);
         pool.regentIsCurrency0 = REGENT < subjectAddress;
         pool.key = _officialKey(subjectAddress);
         pool.id = pool.key.toId();

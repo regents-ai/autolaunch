@@ -18,6 +18,10 @@ import {ReceiverHandler} from "./handlers/ReceiverHandler.sol";
 contract ReceiverInvariantsTest is Test {
     uint256 internal constant PAYER_FUNDING = 1_000_000_000e18;
 
+    /// @dev The complete SUBJECT supply the launch minted. The splitter binds only a SUBJECT
+    ///      reporting exactly this, so the payer's SUBJECT is the whole launch token.
+    uint256 internal constant SUBJECT_TOTAL_SUPPLY = 100_000_000_000e18;
+
     SubjectSplitterV1 internal splitter;
     MockERC20 internal usdc;
     MockERC20 internal regent;
@@ -34,6 +38,7 @@ contract ReceiverInvariantsTest is Test {
         regent = new MockERC20("Regent", "REGENT", 18);
         subject = new MockERC20("Subject", "SUBJ", 18);
         liveStaking = new MockLiveStaking(address(usdc));
+        subject.mint(payer, SUBJECT_TOTAL_SUPPLY);
 
         splitter = SubjectSplitterV1(LibClone.clone(address(new SubjectSplitterV1())));
         splitter.initialize(
@@ -54,7 +59,6 @@ contract ReceiverInvariantsTest is Test {
 
         usdc.mint(payer, PAYER_FUNDING);
         regent.mint(payer, PAYER_FUNDING);
-        subject.mint(payer, PAYER_FUNDING);
 
         handler = new ReceiverHandler(receivers, bps, beneficiaries, usdc, regent, subject, payer);
         targetContract(address(handler));

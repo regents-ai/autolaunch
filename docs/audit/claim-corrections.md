@@ -465,15 +465,13 @@ allocation through the accumulator that already existed, so an account staking a
 earns a tenth of the net whether it is the only staker or one of many, and the rounding that coverage
 floors away belongs to the treasury.
 
-The denominator is an internal constant with no getter and no setter. The splitter does not read the
-bound token's supply and gains no clamp or supply check: the authentic factory and escrow graph is
-already what proves an admitted SUBJECT carries exactly 100 billion units, and a self-made clone
-bound to some other token is not a protocol launch. Section 8 of the threat model records what such a
-clone gets instead.
+The denominator is an internal constant with no getter and no setter. C9 left it as an assumption
+about the caller graph — the splitter did not read the bound token's supply at all. C10 closes that,
+and section 8.1 below carries the correction.
 
 Separately, an unstake — partial or complete — now requires a later block than that account's own
-latest stake, and every later stake resets the delay for that account's whole position. This is the
-only new ABI member in the change: `error SameBlockUnstake()`. Stake and claim remain immediate.
+latest stake, and every later stake resets the delay for that account's whole position. Stake and
+claim remained immediate in C9; C10 extends the same rule to claims.
 
 ### 7.2 Corrected claims
 
@@ -503,11 +501,110 @@ treasury, and complete coverage, where it must be the whole net with the treasur
 
 ### 7.4 Delta and evidence
 
-No function selector, event topic, indexed field, or integer width changes. The one ABI addition is
-`SameBlockUnstake()`. The splitter's compiled runtime moves, so the factory's
-`SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH` literal moves with it — that literal is the factory's
-only edit, and no other factory behaviour changes. The escrow, the hook, the strategy and the
+No function selector, event topic, indexed field, or integer width changed in C9 itself. The
+splitter's compiled runtime moved, so the factory's `SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH`
+literal moved with it — that literal was the factory's only edit, and no other factory behaviour
+changed. The escrow, the hook, the strategy and the receiver compiled to bytes identical to the
+previous candidate's.
+
+## 8. `regent-alv1.11` (C10) — supply binding, next-block value exits, and exact recognition shares
+
+C9 was reviewed and three things came back. Each is closed here; nothing else about the splitter
+changes.
+
+### 8.1 The denominator is now the bound token's own supply
+
+C9 divided every net by a fixed 100 billion and argued that the caller graph guaranteed it. That is
+an argument about who deploys a clone, not a property of the clone. A splitter bound to a token with
+a different supply divided by the wrong denominator, and nothing in the contract would have said so.
+
+Initialization now executes one bare precondition, immediately after the existing duplicate-token
+refusal and before the first binding is written:
+
+```solidity
+require(IERC20Minimal(subject_).totalSupply() == SUBJECT_TOTAL_SUPPLY);
+```
+
+`IERC20Minimal` already declared `totalSupply()`, so no interface moves. A supply one unit short, one
+unit over, absent, or unreadable leaves the clone unbound rather than bound to a denominator that is
+not its own — every binding write happens after the check, so a refused initialization is atomic. The
+splitter stores no copy of the supply, exposes no getter for it, adds no error of its own for it, and
+never reads it again: after initialization the denominator is the same internal constant it was, and
+it is now a proven property of the bound token rather than an assumption about its deployer.
+
+The premise this rests on is the pinned UERC20's, not the splitter's: `UERC20`'s constructor mints
+`params.totalSupply` exactly once and `BaseUERC20` exposes no mint or burn afterwards, so an admitted
+SUBJECT's supply is fixed for its lifetime and graduation consumes this check once. Section 8 of the
+threat model records that premise and what a self-made clone gets instead.
+
+### 8.2 Every value exit waits, not only the principal exit
+
+C9 delayed `unstake` and left `claim` and `claimAll` immediate. The delay's purpose is to make a
+stake, recognize, take-the-value-out round trip impossible inside one transaction, and a claim is
+taking value out. A funded position could still stake, recognize revenue against its own coverage,
+and claim the resulting share, all atomically; only the principal had to wait.
+
+`unstake`, `claim` and `claimAll` now share one private check, and the error names what it is waiting
+on: `SameBlockStakeExit(address account, uint256 stakeBlock)`, which replaces `SameBlockUnstake()`.
+The stake block is recorded only after the exact SUBJECT pull succeeds, so a refused stake delays
+nothing. Refusal order is preserved exactly: `unstake` still refuses a zero amount and then an
+over-withdrawal before it asks about the block, so a non-staker is still told it has no stake;
+`claim` still refuses an unsupported token first; `claimAll` asks about the block first of all. A
+same-block claim with nothing to pay is refused rather than treated as a silent no-op, because a
+no-op that succeeds is indistinguishable from a rule that does not apply.
+
+A top-up therefore locks the caller's complete position *and* everything that position has already
+accrued until the next block. Recognition, accrual, the `claimable` views, caller-only authority and
+stake effectiveness all stay immediate, and no production contract calls the splitter's caller-only
+surface inside a composed transaction, so this reaches only direct user exits.
+
+### 8.3 `RevenueRecognized` reports amounts, not a verdict
+
+C9's event carried `bool paidToStakers`, which answered whether the staker allocation was nonzero and
+nothing more. An indexer reading it could not tell how the net actually split without recomputing the
+contract's own arithmetic. The field becomes the two exact amounts:
+
+```solidity
+event RevenueRecognized(
+    address indexed token,
+    address indexed source,
+    bytes32 indexed revenueRef,
+    uint256 gross,
+    uint256 skim,
+    uint256 net,
+    uint256 stakerShare,
+    uint256 treasuryShare
+);
+```
+
+The recognition arithmetic is unchanged; only what is emitted is. `gross == skim + stakerShare +
+treasuryShare` exactly, `stakerShare == 0` says what `paidToStakers == false` used to, and the
+protected carry and per-account dust remain subdivisions of `stakerShare` rather than further token
+amounts — they are inside the liability that share created, never added to it.
+
+### 8.4 Corrected claims
+
+| Claim | What was wrong | What this ticket did |
+| --- | --- | --- |
+| `SPL-009` | It stated that claiming was immediate and that only the unstake waited, which was true of C9 and is the gap C10 closes. | Rewritten as the whole exit rule: stake and accrual immediate, every value exit a later block on, the top-up locking accrued claims too, the preserved refusal order for each entry point, a refused no-op claim, and the atomic attempt failing entirely. Both selectors are renamed to `test_SPL_009_StakeAndAccrualTakeEffectImmediately` and `test_SPL_009_EveryValueExitWaitsForTheBlockAfterTheStake`. |
+| `ABI-004` | It named `SameBlockUnstake()` as the delay's one ABI member and said nothing about whether the supply precondition added anything. | Rewritten to require the renamed `SameBlockStakeExit(address,uint256)`, to require the complete error surface to stay at the eleven the splitter declares plus its three inherited — which is what proves the bare precondition added no error — and to keep requiring that neither the per-account stake block nor the fixed supply became a readable getter. |
+| `SPL-023` | New. Nothing required the bound SUBJECT to report the supply its net is divided by. | Added: the exact precondition, its position between the duplicate refusal and the first binding write, refusal for a supply one unit short, one unit over, absent and unreadable, no stored copy, no getter, no error, and no later read. `test_SPL_023_InitializationBindsOnlyTheCompleteSubjectSupply` carries it. |
+
+### 8.5 Delta and evidence
+
+The ABI delta is exactly two members: `SameBlockUnstake()` becomes
+`SameBlockStakeExit(address,uint256)`, and `RevenueRecognized`'s trailing `bool` becomes two
+`uint256`s, which moves that event's topic0. No function selector, no other event topic, no indexed
+field and no integer width moves, and the error surface stays at fourteen members. The splitter's
+compiled runtime moves, so the factory's `SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH` literal moves
+with it — that literal is the factory's only edit. The escrow, the hook, the strategy and the
 receiver compile to bytes identical to the previous candidate's.
+
+Test fixtures now present exactly the complete SUBJECT supply before a splitter is initialized, which
+is what production already does, and the hook, pause-scope and receiver-invariant suites advance one
+block before an existing exit. No assertion was removed or weakened. The splitter invariant handler
+advances a block before its ordinary `claim`, `claimAll` and `unstake` actions rather than mirroring
+the eligibility rule, so `fail_on_revert` keeps its full strength.
 
 **Provider-backed evidence.** It has not run for this candidate and is not meant to. `regent-4wx`
 owns it and it still runs once, against the final candidate.

@@ -1634,15 +1634,15 @@ selectors = ["test_SPL_008_PrincipalClaimsAndRemainderAreExcludedFromSurplus"]
 
 [[requirement]]
 id = "SPL-009"
-statement = "Staking and claiming are immediate, but unstaking, partial or complete, requires a later block than that caller's own latest stake, and every later stake resets the delay for that caller's whole position; a refused exit mutates no principal, claim, reward, or treasury state, and an atomic stake, recognize, claim and unstake attempt fails entirely."
+statement = "Staking and accrual are immediate, but every value exit — unstake, partial or complete, claim, and claimAll — requires a later block than that caller's own latest stake, and every later stake resets the delay for that caller's whole position and its already accrued claims; unstake refuses a zero amount and an over-withdrawal first, in that order, claim refuses an unsupported token first, a same-block claim with nothing to pay is refused rather than a no-op, a refused exit mutates no principal, claim, reward, or treasury state, and an atomic stake, recognize, claim and unstake attempt fails entirely."
 owner = "C1"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = [
-    "test_SPL_009_StakingAndClaimingTakeEffectImmediately",
-    "test_SPL_009_UnstakeRequiresALaterBlockThanTheLatestStake",
+    "test_SPL_009_StakeAndAccrualTakeEffectImmediately",
+    "test_SPL_009_EveryValueExitWaitsForTheBlockAfterTheStake",
 ]
 
 [[requirement]]
@@ -1787,6 +1787,16 @@ evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = ["test_SPL_022_RecoveryTokenReentrancyCannotReachProtectedSplitterAssets"]
+
+[[requirement]]
+id = "SPL-023"
+statement = "A splitter binds only a SUBJECT reporting exactly the complete 100 billion supply its net is divided by: initialization reads that supply once, after the duplicate-token refusal and before any binding is written, and a supply one unit short, one unit over, absent, or unreadable leaves the clone unbound; no copy of the supply is stored, no getter or error is added for it, and no later path reads it again."
+owner = "C1"
+contract = "SubjectSplitterV1"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_SPL_023_InitializationBindsOnlyTheCompleteSubjectSupply"]
 
 # ---------------------------------------------------------------------------
 # RCV — canonical and custom creation; referral boundaries, flooring,
@@ -2552,7 +2562,7 @@ selectors = ["test_ABI_003_LaunchParamsFieldsAreExact"]
 
 [[requirement]]
 id = "ABI-004"
-statement = "The splitter's caller-only surface is exactly stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue, and the exit delay added exactly one ABI member to it: the SameBlockUnstake() error, with no getter for the per-account stake block it enforces and none for the fixed supply the net is divided by."
+statement = "The splitter's caller-only surface is exactly stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue; the exit delay contributes exactly one ABI member to it, the SameBlockStakeExit(address,uint256) error, and the supply precondition contributes none, so the complete error surface stays at the eleven the splitter declares plus its three inherited; and there is no getter for the per-account stake block the delay enforces or for the fixed supply the net is divided by and initialization requires."
 owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"

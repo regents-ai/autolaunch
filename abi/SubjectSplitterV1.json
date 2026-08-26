@@ -524,10 +524,16 @@
           "internalType": "uint256"
         },
         {
-          "name": "paidToStakers",
-          "type": "bool",
+          "name": "stakerShare",
+          "type": "uint256",
           "indexed": false,
-          "internalType": "bool"
+          "internalType": "uint256"
+        },
+        {
+          "name": "treasuryShare",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -703,8 +709,19 @@
     },
     {
       "type": "error",
-      "name": "SameBlockUnstake",
-      "inputs": []
+      "name": "SameBlockStakeExit",
+      "inputs": [
+        {
+          "name": "account",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "stakeBlock",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
     },
     {
       "type": "error",

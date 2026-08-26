@@ -1,4 +1,4 @@
-# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7, regent-alv1.7.1 and regent-alv1.10
+# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7, regent-alv1.7.1, regent-alv1.10 and regent-alv1.11
 
 **Release posture: mainnet NO-GO.** Nothing in this repository is deployed, no Regent address
 exists, and no deployment instruction has been given. This packet exists to be audited, not acted
@@ -23,16 +23,31 @@ consequences it deliberately admits — a treasury that is another launch's arti
 that collides with the strategy's next clone address — are named and driven end to end rather than
 prevented. Section 6 of [claim-corrections.md](claim-corrections.md) carries the whole delta.
 
-`regent-alv1.10` is this candidate. It changes how a recognized net is divided. The 2% skim and its
+`regent-alv1.10` changes how a recognized net is divided. The 2% skim and its
 two destinations are untouched; the 98% net is now divided by fixed total-supply coverage, so current
 stakers collectively receive the floored fraction of it that the staked share of the complete 100
 billion SUBJECT supply represents and the launch treasury immediately receives the exact remainder in
 the same transaction. An account staking a tenth of the supply therefore earns a tenth of the net
 whether it is the only staker or one of many. It also requires a later block than an account's own
 latest stake before that account may unstake, which makes an atomic stake, recognize, claim and exit
-round trip fail entirely. Stake and claim stay immediate. The single ABI addition is
-`error SameBlockUnstake()`; no function selector, event topic, indexed field or integer width moves.
-Section 7 of [claim-corrections.md](claim-corrections.md) carries the whole delta.
+round trip fail entirely. Section 7 of [claim-corrections.md](claim-corrections.md) carries that
+delta.
+
+`regent-alv1.11` is this candidate, and it closes the three things review found open in that one.
+The denominator is no longer an assumption: initialization now executes the bare precondition
+`require(IERC20Minimal(subject_).totalSupply() == SUBJECT_TOTAL_SUPPLY)` after the duplicate-token
+refusal and before the first binding write, so a clone binds only a SUBJECT that actually reports the
+supply its net is divided by, and it stores no copy, adds no getter and never reads the supply again.
+The exit delay now covers every value exit rather than only principal: `unstake`, `claim` and
+`claimAll` share one private check, so a top-up locks the caller's complete position *and* its
+already accrued claims until the next block. And `RevenueRecognized` stops answering a yes/no
+question — its `bool paidToStakers` becomes the exact `uint256 stakerShare` and `uint256
+treasuryShare`, so an indexer reads the whole split off one event and `gross` is exactly
+`skim + stakerShare + treasuryShare`. Stake, recognition, accrual and the `claimable` views stay
+immediate. The only ABI additions across both tickets are the renamed
+`error SameBlockStakeExit(address account, uint256 stakeBlock)` and that event's moved topic0; no
+function selector, other event topic, indexed field or integer width moves. Section 8 of
+[claim-corrections.md](claim-corrections.md) carries the whole delta.
 
 The four production contracts whose bytes differ from the pre-edit C4 baseline are unchanged as a
 set. The separately authorized fork evidence has not been executed against this candidate's bytecode
@@ -134,8 +149,12 @@ factory, the strategy, the splitter and the receiver — which the enumerated so
 and the freezer proves. The committed observation record is chain truth and is unaffected by that,
 but the fork *execution* is not: it ran against an earlier candidate's bytecode.
 
-**This C9 candidate is the fourth object.** Its offline gate is complete and green, and it changes
-the splitter plus the factory's matching implementation hash. Re-running
+**The C9 supply-coverage correction was a fourth object.** Its offline gate was complete and green,
+and it changed the splitter plus the factory's matching implementation hash.
+
+**This C10 candidate is the fifth object.** Its offline gate is complete and green, and it changes
+the same two files again: the splitter's supply binding, exit rule and recognition event, and the
+factory's matching implementation hash. Re-running
 `discover`, reviewing and installing the result, and running `check` at both headers is `regent-4wx`'s
 separately authorized step. It runs once, against the final post-correction
 candidate — not once per intermediate candidate — and it has not happened here. Nothing in this

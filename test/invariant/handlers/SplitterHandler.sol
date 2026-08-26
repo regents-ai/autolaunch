@@ -93,11 +93,11 @@ contract SplitterHandler is CommonBase, StdUtils {
         principalStaked += amount;
     }
 
-    /// @dev The ordinary exit. Production requires a later block than the actor's latest stake, so
-    ///      the sequence advances one block and then unstakes unconditionally: this handler never
-    ///      mirrors the eligibility rule and never returns early on it, so a wrongly refused exit
-    ///      is a real revert that `fail_on_revert` catches, and principal exits and post-unstake
-    ///      carry stay fully exercised.
+    /// @dev The ordinary principal exit. Production requires a later block than the actor's latest
+    ///      stake, so the sequence advances one block and then unstakes unconditionally: this
+    ///      handler never mirrors the eligibility rule and never returns early on it, so a wrongly
+    ///      refused exit is a real revert that `fail_on_revert` catches, and principal exits and
+    ///      post-unstake carry stay fully exercised.
     function unstake(uint256 actorSeed, uint256 amount) external {
         calls += 1;
         address actor = _actor(actorSeed);
@@ -155,12 +155,16 @@ contract SplitterHandler is CommonBase, StdUtils {
         _recordRecognition(address(token), unaccounted);
     }
 
+    /// @dev A claim is a value exit too, so it waits the same block the principal exit does. The
+    ///      advance is unconditional for the same reason: the eligibility rule is never mirrored
+    ///      here, so a wrongly refused claim stays a real revert.
     function claim(uint256 actorSeed, uint256 tokenSeed) external {
         calls += 1;
         address actor = _actor(actorSeed);
         MockERC20 token = _token(tokenSeed);
 
         uint256 owed = splitter.claimable(address(token), actor);
+        vm.roll(vm.getBlockNumber() + 1);
         vm.prank(actor);
         splitter.claim(address(token));
 
@@ -175,6 +179,7 @@ contract SplitterHandler is CommonBase, StdUtils {
         uint256 owedRegent = splitter.claimable(address(regent), actor);
         uint256 owedSubject = splitter.claimable(address(subject), actor);
 
+        vm.roll(vm.getBlockNumber() + 1);
         vm.prank(actor);
         splitter.claimAll();
 

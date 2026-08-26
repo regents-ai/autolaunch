@@ -50,11 +50,6 @@ contract SplitterInvariantsTest is Test {
         unsupported = new MockERC20("Unsupported", "UNSUP", 18);
         liveStaking = new MockLiveStaking(address(usdc));
 
-        splitter = SubjectSplitterV1(LibClone.clone(address(new SubjectSplitterV1())));
-        splitter.initialize(
-            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
-        );
-
         address[4] memory actors =
             [makeAddr("staker-a"), makeAddr("staker-b"), makeAddr("payer-c"), makeAddr("payer-d")];
         for (uint256 i; i < actors.length; ++i) {
@@ -63,6 +58,13 @@ contract SplitterInvariantsTest is Test {
             subject.mint(actors[i], ACTOR_FUNDING);
             unsupported.mint(actors[i], ACTOR_FUNDING);
         }
+
+        // Four quarters is the complete supply, so SUBJECT is already the whole launch token by the
+        // time the splitter binds it — which is the only supply a splitter will bind.
+        splitter = SubjectSplitterV1(LibClone.clone(address(new SubjectSplitterV1())));
+        splitter.initialize(
+            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
+        );
 
         handler = new SplitterHandler(splitter, usdc, regent, subject, unsupported, regentSafe, treasury, actors);
 

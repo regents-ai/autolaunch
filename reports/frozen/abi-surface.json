@@ -710,7 +710,7 @@
         "0x0bec8af1e4aaf435321e7041133dfbf5f5b6742217ae28770c66657df0da5453 UnsupportedTokenRecovered(address,address,uint256) indexed=2",
         "0x0f5bb82176feb1b5e747e28471aa92156a04d9f3ab9f45f28e2d704232b93f75 Unstaked(address,uint256) indexed=1",
         "0x1689ff76899a73e015b320864ebe12f63b8028f741cd98db58bdcc9a32674efa SplitterInitialized(address,address,address,address,address,address) indexed=2",
-        "0x2df2f9e72ef5347bca3f8ecb2a78285808c96ea4412f65db85d090765480c96b RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,bool) indexed=3",
+        "0x887c41330a8802e0f1d40dda8ad8e24a4240de3bb6ec41fdceb1038893a96e03 RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256) indexed=3",
         "0x9e71bc8eea02a63969f509818f2dafb9254532904319f9dbda79b67bd34a5f3d Staked(address,uint256) indexed=1",
         "0xa4fd34581d49ec5ce6fc532ecde6f4aac2520a513d654e1468e6a8e2e5410826 ForcedEthRecovered(address,uint256) indexed=1",
         "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2 Initialized(uint64) indexed=0",
@@ -736,7 +736,8 @@
           "uint256 gross",
           "uint256 skim",
           "uint256 net",
-          "bool paidToStakers"
+          "uint256 stakerShare",
+          "uint256 treasuryShare"
         ],
         "SplitterInitialized": [
           "address usdc",
@@ -766,9 +767,9 @@
         "0x2007aa4c SelfAddress()",
         "0x33c9778b StakingAllowanceNotCleared(uint256)",
         "0x45be0a26 InsufficientStake(uint256,uint256)",
+        "0x655eb2e7 SameBlockStakeExit(address,uint256)",
         "0x8657cb48 ProtectedToken(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
-        "0xa2990ddf SameBlockUnstake()",
         "0xab143c06 Reentrancy()",
         "0xbf16aab6 UnsupportedToken(address)",
         "0xd7e6bcf8 NotInitializing()",

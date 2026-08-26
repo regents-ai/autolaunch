@@ -131,16 +131,22 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             );
         }
 
-        // The exit delay added exactly one ABI member and nothing else. The error is declared, and
-        // neither the per-account stake block it enforces nor the fixed supply the net is divided
-        // by became a readable getter.
+        // The exit delay contributes exactly one ABI member: the error every refused exit carries,
+        // naming the account and the stake block it is waiting out. The supply precondition
+        // contributes none at all — it is a bare requirement — so the complete error surface is
+        // the eleven the splitter declares plus the three its two inherited guards do.
+        string[] memory errors = _frozenStrings(SPLITTER, "errors");
         assertTrue(
             _contains(
-                _frozenStrings(SPLITTER, "errors"),
-                _functionLine(SubjectSplitterV1.SameBlockUnstake.selector, "SameBlockUnstake()")
+                errors,
+                _functionLine(SubjectSplitterV1.SameBlockStakeExit.selector, "SameBlockStakeExit(address,uint256)")
             ),
-            "the splitter no longer declares SameBlockUnstake()"
+            "the splitter no longer declares SameBlockStakeExit(address,uint256)"
         );
+        assertEq(errors.length, 14, "the splitter's error surface is not its eleven plus three inherited");
+
+        // Neither the per-account stake block the delay enforces nor the fixed supply the net is
+        // divided by and initialization requires became a readable getter.
         string[] memory viewFunctions = _frozenStrings(SPLITTER, "view_functions");
         string[3] memory withheld = ["lastStakeBlock", "lastStakeBlockOf", "SUBJECT_TOTAL_SUPPLY"];
         for (uint256 i; i < withheld.length; ++i) {
@@ -301,7 +307,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEventFields(
             SPLITTER,
             "RevenueRecognized",
-            "address indexed token|address indexed source|bytes32 indexed revenueRef|uint256 gross|uint256 skim|uint256 net|bool paidToStakers"
+            "address indexed token|address indexed source|bytes32 indexed revenueRef|uint256 gross|uint256 skim|uint256 net|uint256 stakerShare|uint256 treasuryShare"
         );
         _assertEventFields(
             SPLITTER,
@@ -894,7 +900,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         events[3] = FrozenEvent(SubjectSplitterV1.Claimed.selector, "Claimed(address,address,uint256)", 2);
         events[4] = FrozenEvent(
             SubjectSplitterV1.RevenueRecognized.selector,
-            "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,bool)",
+            "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)",
             3
         );
         events[5] = FrozenEvent(

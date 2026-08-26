@@ -48,11 +48,12 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     uint256 public constant SCALE = 1e36;
 
     /// @dev The complete SUBJECT supply every authentic launch mints, and the fixed denominator
-    ///      of the staker allocation. Coverage — not the staked share of whoever happens to be
+    ///      of the staker share. Coverage — not the staked share of whoever happens to be
     ///      staked — is what decides how much of a net reaches stakers at all, so a single
     ///      account staking 10% of the supply earns 10% of the net whether it is alone or one of
-    ///      many. It is an internal constant with no getter and no setter: the authentic factory
-    ///      and escrow graph already proves each admitted SUBJECT carries exactly this supply.
+    ///      many. It is an internal constant with no getter and no setter; initialization refuses
+    ///      any SUBJECT that does not report exactly it, so the denominator is the bound token's
+    ///      own supply rather than an assumption about it.
     uint256 private constant SUBJECT_TOTAL_SUPPLY = 100_000_000_000e18;
 
     /// @notice The USDC binding this splitter recognizes.
@@ -98,7 +99,8 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     mapping(address token => mapping(address account => uint256 dust)) private _claimableDust;
 
     /// @dev The block in which an account last staked. Every later stake resets it for that
-    ///      account's whole position, so no part of a position can leave in its own stake block.
+    ///      account's whole position and for everything that position has already accrued, so no
+    ///      value at all can leave an account in that account's own stake block.
     mapping(address account => uint256 blockNumber) private _lastStakeBlock;
 
     event SplitterInitialized(
@@ -119,7 +121,8 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         uint256 gross,
         uint256 skim,
         uint256 net,
-        bool paidToStakers
+        uint256 stakerShare,
+        uint256 treasuryShare
     );
     event UnsupportedTokenRecovered(address indexed token, address indexed treasury, uint256 amount);
     event ForcedEthRecovered(address indexed treasury, uint256 amount);
@@ -131,7 +134,7 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     error UnsupportedToken(address token);
     error ProtectedToken(address token);
     error InsufficientStake(uint256 staked, uint256 requested);
-    error SameBlockUnstake();
+    error SameBlockStakeExit(address account, uint256 stakeBlock);
     error InexactTransfer(uint256 expected, uint256 found);
     error StakingDepositMismatch(uint256 expected, uint256 reported);
     error StakingAllowanceNotCleared(uint256 found);
@@ -145,6 +148,12 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     /// @dev Regent Safe and launch treasury may intentionally be the same Safe, so they are not
     ///      required to differ. The three recognized tokens must be distinct, or one asset's
     ///      accumulator and liability would alias another's.
+    ///
+    ///      The SUBJECT being bound must report exactly the supply every net is divided by. That
+    ///      read happens once, here, before a single binding is written: a token with any other
+    ///      supply, or one whose supply cannot be read at all, leaves the clone unbound rather
+    ///      than bound to a denominator that is not its own. Nothing is stored, and nothing reads
+    ///      the supply again afterwards.
     function initialize(
         address usdc_,
         address regent_,
@@ -161,6 +170,8 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         _requireBindable(treasury_);
 
         if (usdc_ == regent_ || usdc_ == subject_ || regent_ == subject_) revert DuplicateTokenBinding();
+
+        require(IERC20Minimal(subject_).totalSupply() == SUBJECT_TOTAL_SUPPLY);
 
         usdc = usdc_;
         regent = regent_;
@@ -184,8 +195,9 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     ///      against the current accumulator before the balance moves, so a stake change never
     ///      grants, re-credits, or forfeits anything already earned. `C1-I4`.
     ///
-    ///      The stake block is recorded for the caller and only for the caller, so nobody can
-    ///      reset another account's exit delay.
+    ///      The stake block is recorded once the exact pull has succeeded, for the caller and only
+    ///      for the caller, so a refused stake delays nothing and nobody can reset another
+    ///      account's exit delay.
     function stake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
@@ -200,17 +212,15 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     }
 
     /// @notice Return staked SUBJECT principal to `msg.sender`, from a later block than its stake.
-    /// @dev Partial and complete withdrawals alike require `block.number` past the caller's latest
-    ///      stake block, so a position funded and recognized inside one transaction cannot also
-    ///      leave in it. One block is the whole rule: there is no cooldown, epoch, queue, or time
-    ///      weighting, and a refused attempt mutates no principal, claim, reward, or treasury
-    ///      state. Zero amount and an over-withdrawal are still refused first, in that order.
+    /// @dev Partial and complete withdrawals alike wait for the block after the caller's latest
+    ///      stake, so a position funded and recognized inside one transaction cannot also leave in
+    ///      it. Zero amount and an over-withdrawal are still refused first, in that order.
     function unstake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
         uint256 staked = stakedOf[msg.sender];
         if (amount > staked) revert InsufficientStake(staked, amount);
-        if (block.number <= _lastStakeBlock[msg.sender]) revert SameBlockUnstake();
+        _requireLaterBlockThanStake(msg.sender);
 
         _accrueAll(msg.sender);
 
@@ -221,15 +231,19 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         _pushExact(subject, msg.sender, amount);
     }
 
-    /// @notice Settle one recognized asset for `msg.sender` only.
+    /// @notice Settle one recognized asset for `msg.sender` only, from a later block than its stake.
+    /// @dev An unsupported token is refused before the delay is ever consulted.
     function claim(address token) external nonReentrant {
         _requireSupported(token);
+        _requireLaterBlockThanStake(msg.sender);
         _claim(token, msg.sender);
     }
 
-    /// @notice Settle exactly the three recognized assets for `msg.sender` only.
+    /// @notice Settle exactly the three recognized assets for `msg.sender` only, from a later block
+    ///         than its stake.
     function claimAll() external nonReentrant {
         address account = msg.sender;
+        _requireLaterBlockThanStake(account);
         _claim(usdc, account);
         _claim(regent, account);
         _claim(subject, account);
@@ -331,6 +345,18 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         if (token != usdc && token != regent && token != subject) revert UnsupportedToken(token);
     }
 
+    /// @dev The one exit rule, shared by every path that can move value out to an account:
+    ///      principal, one asset's claim, and all three. One block is the whole of it — there is
+    ///      no cooldown, epoch, queue, or time weighting — and a top-up restarts it for the
+    ///      caller's complete position and for everything that position has already accrued, so a
+    ///      stake, recognize, claim and exit round trip cannot complete inside one transaction. A
+    ///      refused call mutates no principal, claim, reward, or treasury state, and refuses even
+    ///      when it would have moved nothing.
+    function _requireLaterBlockThanStake(address account) private view {
+        uint256 stakeBlock = _lastStakeBlock[account];
+        if (block.number <= stakeBlock) revert SameBlockStakeExit(account, stakeBlock);
+    }
+
     /// @dev `account`'s exact entitlement in `token`: the whole units it may claim now and the
     ///      sub-unit remainder it still owns. Entitlement earned since the last checkpoint is
     ///      `stakedOf[account] * (accRewardPerShare[token] - checkpoint)` in scaled units, which
@@ -381,19 +407,20 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     ///      same transaction: current stakers collectively receive
     ///      `floor(net * totalStaked / SUBJECT_TOTAL_SUPPLY)` and the treasury immediately
     ///      receives the exact remainder, so coverage rounding is treasury-owned and an unstaked
-    ///      supply sends the whole net to the treasury. Only the staker allocation becomes
+    ///      supply sends the whole net to the treasury. The event carries both amounts, and
+    ///      `gross == skim + stakerShare + treasuryShare` exactly. Only the staker share becomes
     ///      liability, and it does so before the accumulator division, so the scaled carry and
-    ///      the per-account division dust stay inside protected inventory forever. A treasury
-    ///      transfer failure fails the whole recognition. `C1-I3`, `C1-I5`.
+    ///      the per-account division dust are subdivisions of that same liability rather than
+    ///      further token amounts. A treasury transfer failure fails the whole recognition.
+    ///      `C1-I3`, `C1-I5`.
     function _recognize(address token, uint256 gross, bytes32 revenueRef) private {
         uint256 skim = (gross * SKIM_BPS) / BPS_DENOMINATOR;
         uint256 net = gross - skim;
-        uint256 stakerAllocation = FixedPointMathLib.fullMulDiv(net, totalStaked, SUBJECT_TOTAL_SUPPLY);
-        uint256 treasuryAllocation = net - stakerAllocation;
-        bool paidToStakers = stakerAllocation != 0;
+        uint256 stakerShare = FixedPointMathLib.fullMulDiv(net, totalStaked, SUBJECT_TOTAL_SUPPLY);
+        uint256 treasuryShare = net - stakerShare;
 
-        if (paidToStakers) _distribute(token, stakerAllocation);
-        emit RevenueRecognized(token, msg.sender, revenueRef, gross, skim, net, paidToStakers);
+        if (stakerShare != 0) _distribute(token, stakerShare);
+        emit RevenueRecognized(token, msg.sender, revenueRef, gross, skim, net, stakerShare, treasuryShare);
 
         if (skim != 0) {
             if (token == usdc) {
@@ -402,17 +429,17 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
                 _pushExact(token, regentSafe, skim);
             }
         }
-        if (treasuryAllocation != 0) _pushExact(token, treasury, treasuryAllocation);
+        if (treasuryShare != 0) _pushExact(token, treasury, treasuryShare);
     }
 
-    /// @dev The whole staker allocation becomes liability; only the divisible part reaches the
+    /// @dev The whole staker share becomes liability; only the divisible part reaches the
     ///      accumulator, and the indivisible scaled numerator rolls forward as this asset's single
-    ///      carry. Current stakers divide exactly this allocation and nothing else.
-    function _distribute(address token, uint256 allocation) private {
+    ///      carry. Current stakers divide exactly this share and nothing else.
+    function _distribute(address token, uint256 share) private {
         uint256 staked = totalStaked;
-        uint256 numerator = allocation * SCALE + carriedRemainder[token];
+        uint256 numerator = share * SCALE + carriedRemainder[token];
 
-        unclaimedLiability[token] += allocation;
+        unclaimedLiability[token] += share;
         accRewardPerShare[token] += numerator / staked;
         carriedRemainder[token] = numerator % staked;
     }

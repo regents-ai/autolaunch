@@ -123,6 +123,7 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
 
         uint256 claimable = splitter.claimable(address(regent), outsider);
         assertGt(claimable, 0, "a paused factory blocked revenue recognition");
+        vm.roll(vm.getBlockNumber() + 1);
         vm.prank(outsider);
         splitter.claim(address(regent));
         assertEq(regent.balanceOf(outsider), 100e18 + claimable, "a paused factory blocked a claim");
@@ -205,17 +206,19 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         assertGt(regentClaimable, 0, "no REGENT revenue accrued");
         assertGt(usdcClaimable, 0, "no USDC revenue accrued");
 
-        // Claiming is immediate; the exit needs a later block than the staker's own latest stake,
-        // and the pause has no reach into either.
-        vm.startPrank(outsider);
-        splitter.claimAll();
-        vm.expectRevert(SubjectSplitterV1.SameBlockUnstake.selector);
+        // Accrual is immediate; every value exit needs a later block than the staker's own latest
+        // stake, and the pause has no reach into the refusal or the exit.
+        vm.prank(outsider);
+        vm.expectRevert(
+            abi.encodeWithSelector(SubjectSplitterV1.SameBlockStakeExit.selector, outsider, vm.getBlockNumber())
+        );
         splitter.unstake(10_000_000_000e18);
-        vm.stopPrank();
 
         vm.roll(vm.getBlockNumber() + 1);
-        vm.prank(outsider);
+        vm.startPrank(outsider);
+        splitter.claimAll();
         splitter.unstake(10_000_000_000e18);
+        vm.stopPrank();
 
         assertEq(regent.balanceOf(outsider), regentClaimable, "a paused factory blocked a REGENT claim");
         assertEq(usdc.balanceOf(outsider), usdcClaimable, "a paused factory blocked a USDC claim");
