@@ -53,7 +53,7 @@
       "implementation": "0x0000000000000000000000000000000000000000",
       "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
-      "next_token_id": 2955586,
+      "next_token_id": 2972429,
       "proxy_family": "no_supported_proxy_pattern",
       "runtime_bytes": 23877,
       "runtime_code_hash": "0x243f9e091ddf11c7c04e28059fdbbf1bab82b72d414fafb8e096c097aaeb622a"
@@ -85,17 +85,17 @@
   "headers": {
     "later": {
       "base_fee_per_gas": 5000000,
-      "block_number": 50362755,
-      "parent_block_hash": "0x1149a92e780dfc3b9e196de252f8bfe55bfd3e8238ea1d5fc5a8d9af760dccb7",
-      "parent_block_number": 50362754,
-      "timestamp": 1787514857
+      "block_number": 50495791,
+      "parent_block_hash": "0xa73f6dfe498711ff5027a072aa24339eb6c53f263581473d0d238b63f8c6bf92",
+      "parent_block_number": 50495790,
+      "timestamp": 1787780929
     },
     "pinned": {
       "base_fee_per_gas": 5000000,
-      "block_number": 50362455,
-      "parent_block_hash": "0x6ea67aa7c6ea1704f2222af795694d09cf2246cf825e251bdcb4d17f884776a5",
-      "parent_block_number": 50362454,
-      "timestamp": 1787514257
+      "block_number": 50495491,
+      "parent_block_hash": "0x3f5a0293b81062c1e060a11c70a7581b5948b07bbc8a30c57cbfe98ab264035b",
+      "parent_block_number": 50495490,
+      "timestamp": 1787780329
     }
   },
   "operator_transition": "Completed: every observed value was checked against an independent provider; the active Base transaction gas schedule was supplied from protocol rules; and this record was installed and committed with status observed_and_committed before the fork gate was activated.",
@@ -116,6 +116,6 @@
     "floor_per_calldata_token": 10,
     "intrinsic_gas": 21000,
     "note": "The Base transaction gas rules active at each header. No contract exposes these, so discovery could not observe them; the reviewer supplied them from the protocol rules active at the recorded headers before installation. GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a sum.",
-    "reviewer_action": "reviewed against Base Isthmus, Base Azul, EIP-7623, and EIP-7825 rules active at both recorded headers"
+    "reviewer_action": "reviewed against the independent official Base public RPC, the Base Isthmus and Azul specifications, EIP-7623, and EIP-7825; every observed identity and getter matched, and the only non-header drift from the prior record was the expected monotonic PositionManager next_token_id increase from 2955586 to 2972429"
   }
 }
