@@ -197,20 +197,33 @@ purpose: a gate that observed a value and then compared it to itself would prove
 - A human reviews that candidate, supplies the transaction gas schedule the chain does not expose,
   installs it as `reports/frozen/fork-observations.json`, activates the `fork` gate, and commits.
 - `bin/fork-gate.sh check` runs under a profile with no write permission at all. It refuses to start
-  until that record and that activation are committed and clean, runs the mapped selectors once per
-  committed header, reconciles both runs against one compiled listing, and proves both files
-  unchanged afterwards.
+  until that record and that activation are committed and clean, runs all eighteen fork claims at
+  the pinned header and the focused nine-claim drift subset at the later head, reconciles both runs
+  against one compiled listing, and proves both files unchanged afterwards.
 
 Both fork profiles build into `out-fork`, so fork artifacts can never reach the `out/` the required
 gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
 gate's committed evidence. `fork` is active with the separately reviewed observation record, and its
-eighteen claims executed once at each committed Base header and passed **against the production
-bytecode of an earlier candidate**. `regent-alv1.7`, `regent-alv1.7.1` and `regent-alv1.10` all
-changed production bytes, so that fork execution has to be repeated under the same separate authority before those
-claims carry evidence. `regent-4wx` owns that repetition: it runs once, against the final candidate
-— after this correction and every later one is integrated — rather than once per intermediate
-candidate. The observation record itself is chain truth and is unaffected.
-Their thirty-six selectors remain outside the offline test root, so only the read-only fork gate can
-execute or close them, and this candidate's offline gate neither ran nor claimed any of them.
+earlier execution ran all eighteen claims at both committed Base headers and passed **against the
+production bytecode of an earlier candidate**. `regent-alv1.7`, `regent-alv1.7.1`, `regent-alv1.10`
+and `regent-alv1.11` all changed production bytes, so `regent-4wx` owns one replacement execution
+against the final candidate: all eighteen claims at the pinned header and the focused nine-claim
+subset at the later head. The observation record itself remains chain truth until its reviewed
+replacement is installed. The current twenty-seven mapped selectors remain outside the offline test
+root, so only the read-only fork gate can execute or close them; the offline gate neither runs nor
+claims them.
+
+### The production authority and the evidence candidate are two commits, named apart
+
+The production authority is commit `7e70077d66b7a1a511806a68f086583c733c812a`, tree
+`23f26023216ec93f9014b3c0295588b5aede6ee0`. The fork-evidence candidate is a separate `regent-4wx`
+commit whose parent is exactly that one; its own commit and tree are its own, and the ticket's
+candidate record names them. The two share one `src/` tree,
+`314889bcc6cabd5ceff336af93082d009df86205`, because the evidence candidate changes no production
+byte — its diff reaches only `README.md`, `bin/fork-gate.sh`, `test-fork/`,
+`requirements/ledger.toml`, `docs/audit/` and `docs/security/threat-model.md`.
+`docs/audit/README.md` carries the same table, and states there — as here — that the earlier C9
+evidence commit `49b7458e5c93f502247905201352074ef5b5c409` predates the C10 splitter and certifies
+nothing about this candidate.

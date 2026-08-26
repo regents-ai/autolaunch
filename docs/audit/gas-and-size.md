@@ -138,7 +138,7 @@ identically, and there is no admitted relation between two routers' settlement s
 of them to. The one absolute gas limit this repository holds anything to is the founder's 14,000,000
 complete-transaction ceiling below.
 
-## Complete-transaction gas (`GAS-003` through `GAS-006`) — measured at both Base headers
+## Complete-transaction gas (`GAS-003` through `GAS-006`)
 
 > **Superseded measurements — do not read these as this candidate's figures.** The table below was
 > measured against the **previous** candidate's production bytecode. `regent-alv1.7` changed the
@@ -147,6 +147,16 @@ complete-transaction ceiling below.
 > this candidate. They are kept here as the last executed record, not as a current claim. The size
 > and code-identity tables above **are** current: they are regenerated from this candidate's own
 > artifacts and reconciled by `bin/gate.sh` on every run.
+>
+> **The re-measurement will produce fewer columns, on purpose.** That earlier run measured all four
+> claims at both headers. `regent-4wx` narrowed the three envelope claims — `GAS-003`, `GAS-004`,
+> `GAS-005` — to the committed pinned header, because each of them drives a real launch or migration
+> against the shared Base singletons and the fresh-head subset re-reads the deployed code identity
+> those depend on instead of repeating the work. `GAS-006`, which is the claim about what the
+> *figure* is rather than what it must stay under, still runs at both headers, so the measurement
+> method itself remains proved against the fresh head. The "Later total" and "Later margin" columns
+> below therefore belong to the superseded run and will not have successors for the three envelope
+> rows.
 
 All four claims executed against the exact production bytecode of the previous candidate at Base
 blocks `50362455` and `50362755`. The totals include the measured gross execution cost plus the

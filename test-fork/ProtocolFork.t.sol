@@ -11,10 +11,19 @@ import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol"
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {ForkAutolaunch} from "./ForkAutolaunch.sol";
 
-/// @notice `DEP-045`, `DEP-046`, `DEP-048`, and `DEP-049` at both committed headers.
+/// @notice `DEP-045`, `DEP-046`, `DEP-048`, and `DEP-049` at the committed pinned header.
 /// @dev These are the behaviour claims a hermetic double can never satisfy: the deployed live
 ///      staking contract, the deployed PoolManager and PositionManager, the deployed CCA and
 ///      Permit2, and both complete Regent terminal paths driven end to end against all of them.
+///
+///      All four are pinned-only. Each drives real launches, real bids and a real migration against
+///      the shared Base singletons, and the fresh-head subset re-reads the deployed code identity of
+///      every binding they depend on instead of repeating the whole portfolio. One consequence is
+///      accepted explicitly rather than papered over: `DEP-045` reads the live staking contract's
+///      mutable `paused()` and proves both the deposit and the owner-driven fail-closed path, and
+///      the fresh-head subset does not re-read it. `docs/audit/fork-authority-and-state-inventory.md`
+///      records that `paused()` must be checked immediately before any separately authorized
+///      deployment.
 contract ProtocolForkTest is ForkAutolaunch {
     using StateLibrary for IPoolManager;
 
@@ -28,10 +37,6 @@ contract ProtocolForkTest is ForkAutolaunch {
 
     function test_DEP_045_ForkPinnedLiveStakingDepositUsdcMatchesAssumedSemantics() public {
         _checkLiveStaking(Header.Pinned);
-    }
-
-    function test_DEP_045_ForkLatestLiveStakingDepositUsdcMatchesAssumedSemantics() public {
-        _checkLiveStaking(Header.Later);
     }
 
     /// @dev Three halves, and none of them is optional.
@@ -105,10 +110,6 @@ contract ProtocolForkTest is ForkAutolaunch {
 
     function test_DEP_046_ForkPinnedPoolAndPositionManagerGettersMatchAssumedSemantics() public {
         _checkManagers(Header.Pinned);
-    }
-
-    function test_DEP_046_ForkLatestPoolAndPositionManagerGettersMatchAssumedSemantics() public {
-        _checkManagers(Header.Later);
     }
 
     /// @dev The migration path relies on `nextTokenId` advancing by exactly one per minted position
@@ -241,10 +242,6 @@ contract ProtocolForkTest is ForkAutolaunch {
         _checkCcaAndPermit2(Header.Pinned);
     }
 
-    function test_DEP_048_ForkLatestCcaAndPermit2BehaveAsAssumed() public {
-        _checkCcaAndPermit2(Header.Later);
-    }
-
     /// @dev The bidder path exactly as the product will drive it, and every required path is driven
     ///      rather than left to whichever outcome one auction happened to reach.
     ///
@@ -327,10 +324,6 @@ contract ProtocolForkTest is ForkAutolaunch {
 
     function test_DEP_049_ForkPinnedBothTerminalPathsExecuteEndToEnd() public {
         _checkBothTerminalPaths(Header.Pinned);
-    }
-
-    function test_DEP_049_ForkLatestBothTerminalPathsExecuteEndToEnd() public {
-        _checkBothTerminalPaths(Header.Later);
     }
 
     /// @dev Three terminal outcomes against the real dependencies: a graduation, a zero-bid

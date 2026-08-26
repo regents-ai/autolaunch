@@ -7,19 +7,24 @@ import {
 } from "continuous-clearing-auction/interfaces/IContinuousClearingAuctionFactory.sol";
 import {ForkFixture} from "./ForkFixture.sol";
 
-/// @notice `DEP-050`: the two committed headers reach the same normalized verdict for every fork
-///         claim.
+/// @notice `DEP-050`: the two committed headers reach the same normalized verdict for the exact
+///         subset of fork claims that runs at both of them.
 /// @dev Two layers, on purpose.
 ///
-///      Inside Solidity, each side recomputes the header-independent decisions every other fork
-///      claim depends on and emits them as one normalized verdict string. A verdict deliberately
+///      Inside Solidity, each side recomputes the header-independent decisions the cross-header
+///      claims depend on and emits them as one normalized verdict string. A verdict deliberately
 ///      carries a *decision*, never a header-dependent value: no block number, no timestamp, no
 ///      balance, no base fee. Two headers that disagree about a decision therefore produce two
 ///      different strings.
 ///
 ///      Outside Solidity, `bin/fork-gate.sh` extracts every `verdict <claim> <header>` line from
-///      both runs' JSON reports and requires the pinned set and the later set to be identical, so
-///      the agreement is proved across two separate processes rather than inside one of them.
+///      both runs' JSON reports and holds the later set to an equality rather than to whatever the
+///      two happen to have in common: its keys must be exactly `DEP-040`, `DEP-041`, `DEP-042`,
+///      `DEP-043`, `DEP-047`, `DEP-051`, `DEP-052`, `GAS-006` and every `DEP-050.*` key this
+///      contract emits at the pinned header, each decision must equal its pinned counterpart, and a
+///      missing or an extra key fails. The agreement is therefore proved across two separate
+///      processes rather than inside one of them, and a silently shrinking later run fails instead
+///      of reconciling a smaller intersection.
 ///
 ///      This claim is narrowed to the pinned header recorded for this candidate and the later head
 ///      captured for the same candidate. The ceremony-time fresh-head recheck belongs to

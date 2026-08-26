@@ -17,7 +17,12 @@ headers against a *previous* candidate's production bytecode; `regent-alv1.7`, `
 `regent-alv1.10` and `regent-alv1.11` all changed production bytes, so they await re-execution under the founder's
 separate read-only authority. That provider-backed evidence is `regent-4wx`'s, it runs once, and it
 runs against the final candidate — after this correction and every later one is integrated — rather
-than once per intermediate candidate. The liquidity-position locker that earlier packets named as a
+than once per intermediate candidate. It will also be narrower than the run described above: every
+fork claim at the committed pinned header, and only the nine-claim identity, proxy, controller,
+header and gas-method subset again at the fresh head, so the live staking contract's mutable
+`paused()` is not re-read there and must be read again immediately before any separately authorized
+deployment. `docs/audit/fork-authority-and-state-inventory.md` section 2.1 states that limitation in
+full. The liquidity-position locker that earlier packets named as a
 second precondition was cancelled and is not coming, so the final candidate is whichever correction
 lands last. Deployment and a signed ceremony remain outside this packet either way.
 

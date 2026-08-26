@@ -8,11 +8,16 @@ import {
 import {ForkFixture} from "./ForkFixture.sol";
 import {ForkHeaders} from "./ForkHeaders.sol";
 
-/// @notice `DEP-040` through `DEP-044`, `DEP-047`, `DEP-051`, and `DEP-052` at both committed
-///         headers.
-/// @dev Every claim runs twice in two separately created forks and never shares state between them.
-///      Each pair compares the live chain against `reports/frozen/fork-observations.json`, which was
-///      recorded by a separate authorized discovery pass and reviewed before this gate ever ran.
+/// @notice `DEP-040` through `DEP-044`, `DEP-047`, `DEP-051`, and `DEP-052`.
+/// @dev Every claim here runs at the committed pinned header, and all of them but `DEP-044` run
+///      again at the later head, each in its own separately created fork that shares state with no
+///      other. Every run compares the live chain against `reports/frozen/fork-observations.json`,
+///      which was recorded by a separate authorized discovery pass and reviewed before this gate
+///      ever ran.
+///
+///      `DEP-044` is pinned-only on purpose: REGENT and USDC transfer, allowance and getter
+///      semantics are the deployed tokens' own code, and the fresh-head subset re-reads the code
+///      identity that would have to move first (`DEP-042`, `DEP-051`, `DEP-043`).
 contract BaseBindingsForkTest is ForkFixture {
     function setUp() public {
         _loadObservations();
@@ -279,10 +284,6 @@ contract BaseBindingsForkTest is ForkFixture {
 
     function test_DEP_044_ForkPinnedRegentAndUsdcGettersMatchAssumedSemantics() public {
         _checkTokenSemantics(Header.Pinned);
-    }
-
-    function test_DEP_044_ForkLatestRegentAndUsdcGettersMatchAssumedSemantics() public {
-        _checkTokenSemantics(Header.Later);
     }
 
     /// @dev The accounting paths assume exact-amount transfers with no fee taken in flight, exact

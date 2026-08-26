@@ -35,8 +35,10 @@ activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1"]
 
 # `fork` is activated only with the separately discovered, independently reviewed, and
 # committed Base observation record. The compare-only gate must execute every mapped fork
-# selector exactly once at each of the two committed headers, against the production bytecode
-# of the candidate being closed.
+# selector exactly once, against the production bytecode of the candidate being closed. Every
+# fork claim is proved at the committed pinned header; a named subset — DEP-040, DEP-041,
+# DEP-042, DEP-043, DEP-047, DEP-050, DEP-051, DEP-052 and GAS-006 — is proved again at the
+# later head, and each claim's selector list below is the enumeration of where it runs.
 activated_gates = ["hermetic", "invariant", "fork"]
 groups = [
     "DEP",
@@ -387,47 +389,48 @@ selectors = [
     "test_DEP_043_ForkLatestEveryBindingProxyStatusMatchesTheManifest",
 ]
 
+# regent-4wx narrowing. Proved at the committed pinned header only. The fresh-head subset re-reads
+# the deployed code identity of both tokens (DEP-042, DEP-043, DEP-051), which is what would have to
+# move before their transfer, allowance and getter semantics could.
 [[requirement]]
 id = "DEP-044"
-statement = "On Base, the REGENT and USDC bindings answer decimals, symbol, balanceOf, allowance, and transfer with the semantics the accounting paths rely on."
+statement = "On Base at the committed pinned header, the REGENT and USDC bindings answer decimals, symbol, balanceOf, allowance, and transfer with the semantics the accounting paths rely on."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_DEP_044_ForkPinnedRegentAndUsdcGettersMatchAssumedSemantics",
-    "test_DEP_044_ForkLatestRegentAndUsdcGettersMatchAssumedSemantics",
-]
+selectors = ["test_DEP_044_ForkPinnedRegentAndUsdcGettersMatchAssumedSemantics"]
 
+# regent-4wx narrowing. Proved at the committed pinned header only, and this is the one narrowing
+# with an accepted cost: paused() is mutable deployed state, so the fresh-head subset does not
+# re-read it. docs/audit/fork-authority-and-state-inventory.md records that it must be read
+# immediately before any separately authorized deployment.
 [[requirement]]
 id = "DEP-045"
-statement = "On Base, the live staking binding answers depositUSDC and its admitted getters as the splitter assumes, including the paused failure path."
+statement = "On Base at the committed pinned header, the live staking binding answers depositUSDC and its admitted getters as the splitter assumes, including the owner-driven paused failure path; because paused() is mutable deployed state and is not re-read at the later head, it must be read again immediately before any separately authorized deployment."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_DEP_045_ForkPinnedLiveStakingDepositUsdcMatchesAssumedSemantics",
-    "test_DEP_045_ForkLatestLiveStakingDepositUsdcMatchesAssumedSemantics",
-]
+selectors = ["test_DEP_045_ForkPinnedLiveStakingDepositUsdcMatchesAssumedSemantics"]
 
-# regent-alv1.7 correction. The semantics the migration path relies on changed with C6-I8: the
+# regent-alv1.7 correction, narrowed to the pinned header by regent-4wx: this claim drives two real
+# launches, two real bids and a real migration against the shared Base singletons, and the
+# fresh-head subset re-reads the deployed code identity of both managers instead of repeating it.
+# The semantics the migration path relies on changed with C6-I8: the
 # strategy no longer settles the shared PositionManager's whole balance, so the deployed-contract
 # claim is now preservation rather than disposition. MIG-022 owns the hermetic half.
 [[requirement]]
 id = "DEP-046"
-statement = "On Base, the PoolManager and PositionManager bindings answer the getters and present the semantics the migration path relies on, including that a real graduation against the deployed PositionManager settles only the exact amounts this launch funds and preserves every other REGENT, SUBJECT and cross-launch balance held there to the unit."
+statement = "On Base at the committed pinned header, the PoolManager and PositionManager bindings answer the getters and present the semantics the migration path relies on, including that a real graduation against the deployed PositionManager settles only the exact amounts this launch funds and preserves every other REGENT, SUBJECT and cross-launch balance held there to the unit."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_DEP_046_ForkPinnedPoolAndPositionManagerGettersMatchAssumedSemantics",
-    "test_DEP_046_ForkLatestPoolAndPositionManagerGettersMatchAssumedSemantics",
-]
+selectors = ["test_DEP_046_ForkPinnedPoolAndPositionManagerGettersMatchAssumedSemantics"]
 
 [[requirement]]
 id = "DEP-047"
@@ -442,38 +445,38 @@ selectors = [
     "test_DEP_047_ForkLatestChainIdIsBaseMainnet",
 ]
 
+# regent-4wx narrowing. Proved at the committed pinned header only; DEP-040 and DEP-051 re-read the
+# CCA factory's and Permit2's deployed runtime code identity at the later head.
 [[requirement]]
 id = "DEP-048"
-statement = "On Base, the real CCA auction and the real Permit2 deployment behave as the bidding, exit, claim, and refund paths assume."
+statement = "On Base at the committed pinned header, the real CCA auction and the real Permit2 deployment behave as the bidding, exit, claim, and refund paths assume."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_DEP_048_ForkPinnedCcaAndPermit2BehaveAsAssumed",
-    "test_DEP_048_ForkLatestCcaAndPermit2BehaveAsAssumed",
-]
+selectors = ["test_DEP_048_ForkPinnedCcaAndPermit2BehaveAsAssumed"]
 
+# regent-4wx narrowing. Proved at the committed pinned header only.
 [[requirement]]
 id = "DEP-049"
-statement = "On Base, both terminal paths \u2014 graduation and failure retirement \u2014 execute end to end against the real external contracts."
+statement = "On Base at the committed pinned header, both terminal paths \u2014 graduation and failure retirement \u2014 execute end to end against the real external contracts."
 owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_DEP_049_ForkPinnedBothTerminalPathsExecuteEndToEnd",
-    "test_DEP_049_ForkLatestBothTerminalPathsExecuteEndToEnd",
-]
+selectors = ["test_DEP_049_ForkPinnedBothTerminalPathsExecuteEndToEnd"]
 
-# C5 narrowing. Verdict agreement is between the header recorded for this candidate and a
-# later head captured for the same candidate. The ceremony-time fresh-head recheck belongs to
-# regent-4wx, not to this claim.
+# C5 narrowing, narrowed again by regent-4wx. Verdict agreement is between the header recorded for
+# this candidate and a later head captured for the same candidate, and it now covers the exact
+# cross-header subset rather than every fork claim: the claims that still run at both headers are
+# DEP-040, DEP-041, DEP-042, DEP-043, DEP-047, DEP-051, DEP-052, GAS-006 and DEP-050's own
+# per-binding verdicts. bin/fork-gate.sh holds the later key set to an equality against exactly
+# that, so a later run that quietly shrank fails instead of reconciling a smaller intersection.
 [[requirement]]
 id = "DEP-050"
-statement = "The authorized fork gate reaches the same normalized verdict for every fork claim at the pinned block header recorded for this candidate and at the later Base head captured for the same candidate."
+statement = "The authorized fork gate reaches the same normalized verdict at the pinned block header recorded for this candidate and at the later Base head captured for the same candidate, for exactly the cross-header claim subset: DEP-040, DEP-041, DEP-042, DEP-043, DEP-047, DEP-051, DEP-052, GAS-006, and every per-binding verdict this claim's own selectors emit. The gate compares the later verdict key set to that subset by equality — a missing key and an extra key each fail — and requires every shared key's decision to be identical."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
@@ -484,9 +487,14 @@ selectors = [
     "test_DEP_050_ForkLatestNormalizedVerdictsMatchThePinnedHeader",
 ]
 
+# regent-4wx correction. The earlier statement said this compared against "the final chain
+# manifest". It does not and cannot: every binding row in contracts/autolaunch-release-manifest.json
+# carries a null runtime_code_hash and status "fork_pending", so comparing against it would compare
+# against nothing. The authority this claim actually reads is the separately reviewed and committed
+# fork observation record, and the statement now names it.
 [[requirement]]
 id = "DEP-051"
-statement = "On Base, every external binding's exact deployed runtime code hash equals the runtime code hash the final chain manifest records for that binding."
+statement = "On Base, at the committed pinned header and again at the later head, every external binding's exact deployed runtime code hash equals the runtime code hash reports/frozen/fork-observations.json records for that binding, and the deployed CCA factory additionally equals the frozen admission hash compiled into BaseBindings."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
@@ -514,23 +522,23 @@ selectors = [
     "test_DEP_052_ForkLatestHeaderIsFullyBoundToTheCommittedRecord",
 ]
 
-# regent-alv1.6.1 addition. The founder-authorized exact-production lifecycle suite: the whole
-# Autolaunch path, deployed from the exact final artifacts and driven through production-reachable
-# callers against the real frozen Base bindings, at both committed headers. The existing focused
-# fork claims and the complete-transaction gas claims stay separate named proofs; this one is the
-# end-to-end path they each cut one slice out of.
+# regent-alv1.6.1 addition, narrowed and extended by regent-4wx. The founder-authorized
+# exact-production lifecycle suite: the whole Autolaunch path, deployed from the exact final
+# artifacts and driven through production-reachable callers against the real frozen Base bindings.
+# One lifecycle portfolio runs, at the committed pinned header; the fresh-head subset does not
+# repeat it. The existing focused fork claims and the complete-transaction gas claims stay separate
+# named proofs; this one is the end-to-end path they each cut one slice out of. The C9 supply-
+# coverage division and the C10 exact-supply binding, explicit recognition amounts and delayed value
+# exits are now proved here on the real path rather than assumed from the hermetic gate.
 [[requirement]]
 id = "DEP-053"
-statement = "On Base at each committed header independently, one suite deploys the exact final production UERC20 factory, C1 implementations, factory, strategy, and mined hook, reconciles their creation and runtime code identities against the frozen build, and then — through production-reachable callers only, against the real CCA, Permit2, REGENT, USDC, live staking, PoolManager, and PositionManager bindings — drives exact wallet fee approval and launch, five-argument bidding, a failed auction with full bidder refund and exactly 100 billion SUBJECT retired to the dead address, a graduated auction migrating at the CCA final price with bidder exit and SUBJECT claim, SUBJECT stake, canonical receiver payments in USDC, REGENT, and SUBJECT, splitter skims, claimAll, and unstake, and at least one real Uniswap v4 swap that synchronously settles both one-percent REGENT hook lanes and leaves the hook no inventory. It asserts exact final balances and allowances, both lifecycles, dead-address ownership of the LP NFT, the position's actual consumption and both residues, and that no production contract holds an unexplained balance. Test-only funding and routing is itemized and manufactures no protocol authority, code, custody, or otherwise unreachable state."
+statement = "On Base at the committed pinned header, one suite deploys the exact final production UERC20 factory, C1 implementations, factory, strategy, and mined hook, reconciles their creation and runtime code identities against the frozen build, and then — through production-reachable callers only, against the real CCA, Permit2, REGENT, USDC, live staking, PoolManager, and PositionManager bindings — drives exact wallet fee approval and launch, five-argument bidding, a failed auction with full bidder refund and exactly 100 billion SUBJECT retired to the dead address, a graduated auction migrating at the CCA final price with bidder exit and SUBJECT claim, SUBJECT stake, canonical receiver payments in USDC, REGENT, and SUBJECT, splitter skims, a bound splitter whose SUBJECT reports exactly the 100 billion supply its initialization requires, a same-block unstake, claim and claimAll each refused with the exact SameBlockStakeExit(account, stakeBlock) while principal, entitlement, splitter inventory and protected inventory all stay put, and, exactly one block later, a claim, a claimAll and a complete unstake that return the exact entitlements and exactly the principal, and at least one real Uniswap v4 swap that synchronously settles both one-percent REGENT hook lanes and leaves the hook no inventory. For every recognition — the three payments and the splitter's own hook lane alike — it reads that recognition's own RevenueRecognized back out of the run's logs, holds its gross, skim, net, stakerShare and treasuryShare to independently derived arithmetic and to gross == skim + stakerShare + treasuryShare, and then asserts the reported stakerShare — the floored supply-coverage share floor(net * totalStaked / 100000000000e18) — as both the staker liability delta and the splitter's held delta, and the reported treasuryShare as the launch treasury's delta in that same transaction. It asserts exact final balances and allowances, both lifecycles, dead-address ownership of the LP NFT, the position's actual consumption and both residues, and that no production contract holds an unexplained balance. Test-only funding and routing is itemized and manufactures no protocol authority, code, custody, or otherwise unreachable state."
 owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_DEP_053_ForkPinnedCompleteProductionLifecycleExecutesEndToEnd",
-    "test_DEP_053_ForkLatestCompleteProductionLifecycleExecutesEndToEnd",
-]
+selectors = ["test_DEP_053_ForkPinnedCompleteProductionLifecycleExecutesEndToEnd"]
 
 # Repository-owned code, so this stays hermetic: the escrow, splitter, and receiver
 # implementations and their clones are deployed by this system's own tests, and their code
@@ -2469,51 +2477,45 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_GAS_007_HookCallbackAndRouterSettlementGasAreMeasured"]
 
+# regent-4wx narrowing. The three envelopes are measured at the committed pinned header. The gas
+# schedule they apply is read from the committed observation for the header being measured, and
+# GAS-006 — the claim about what the figure is — still runs at both headers.
 [[requirement]]
 id = "GAS-003"
-statement = "On the authorized Base fork, the complete direct-wallet launch transaction stays at or below 14,000,000 gas under the worst admitted conditions: maximum-length metadata, the worst valid required raise, and cold deployed external state."
+statement = "On the authorized Base fork at the committed pinned header, the complete direct-wallet launch transaction stays at or below 14,000,000 gas under the worst admitted conditions: maximum-length metadata, the worst valid required raise, and cold deployed external state."
 owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_GAS_003_ForkPinnedCompleteLaunchStaysUnderFourteenMillion",
-    "test_GAS_003_ForkLatestCompleteLaunchStaysUnderFourteenMillion",
-]
+selectors = ["test_GAS_003_ForkPinnedCompleteLaunchStaysUnderFourteenMillion"]
 
 [[requirement]]
 id = "GAS-004"
-statement = "On the authorized Base fork, the complete successful migration transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold deployed external state and the largest admitted pool and inventory state."
+statement = "On the authorized Base fork at the committed pinned header, the complete successful migration transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold deployed external state and the largest admitted pool and inventory state."
 owner = "C5"
 contract = "migration"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_GAS_004_ForkPinnedCompleteGraduationStaysUnderFourteenMillion",
-    "test_GAS_004_ForkLatestCompleteGraduationStaysUnderFourteenMillion",
-]
+selectors = ["test_GAS_004_ForkPinnedCompleteGraduationStaysUnderFourteenMillion"]
 
 [[requirement]]
 id = "GAS-005"
-statement = "On the authorized Base fork, the complete failed migration transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold deployed external state."
+statement = "On the authorized Base fork at the committed pinned header, the complete failed migration transaction stays at or below 14,000,000 gas under the worst admitted conditions, including cold deployed external state."
 owner = "C5"
 contract = "migration"
 evidence_class = "fork-execution"
 gate = "fork"
 status = "active"
-selectors = [
-    "test_GAS_005_ForkPinnedCompleteFailureRetirementStaysUnderFourteenMillion",
-    "test_GAS_005_ForkLatestCompleteFailureRetirementStaysUnderFourteenMillion",
-]
+selectors = ["test_GAS_005_ForkPinnedCompleteFailureRetirementStaysUnderFourteenMillion"]
 
-# The shared measurement method behind GAS-003, GAS-004, and GAS-005, proved once. It does
-# not restate their caps: it proves that the number each of them compares against 14,000,000
-# is the full outer transaction, intrinsic gas and calldata gas included.
+# The shared measurement method behind GAS-003, GAS-004, and GAS-005, proved once at each committed
+# header. It does not restate their caps: it proves that the number each of them compares against
+# 14,000,000 is the full outer transaction, intrinsic gas and calldata gas included.
 [[requirement]]
 id = "GAS-006"
-statement = "On the authorized Base fork, the gas figure measured for every complete-transaction claim is the full outer transaction, including the intrinsic transaction cost and the calldata cost, and not an inner call's gas."
+statement = "On the authorized Base fork, at the committed pinned header and again at the later head, the gas figure measured for every complete-transaction claim is the full outer transaction, including the intrinsic transaction cost and the calldata cost, and not an inner call's gas."
 owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"

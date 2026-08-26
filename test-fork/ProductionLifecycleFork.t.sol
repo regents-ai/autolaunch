@@ -20,15 +20,21 @@ import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionMa
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {UERC20Factory} from "uerc20-factory/factories/UERC20Factory.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {ForkAutolaunch} from "./ForkAutolaunch.sol";
 
 /// @notice `DEP-053`: the complete Autolaunch path, built from the exact final production artifacts
-///         and driven end to end against the real frozen Base bindings, at both committed headers.
+///         and driven end to end against the real frozen Base bindings, at the committed pinned
+///         header.
 /// @dev The other fork contracts each cut one slice out of this path — bindings, upstream behaviour,
 ///      terminal outcomes, complete-transaction gas — and they stay separate named proofs. This one
 ///      is the whole path in one run: deploy, reconcile code identity, launch, bid, fail, refund,
-///      retire, graduate, migrate, exit, claim, stake, pay, swap, skim, claim, unstake, and account
-///      for every unit at the end.
+///      retire, graduate, migrate, exit, claim, stake, pay, swap, skim, refuse every same-block value
+///      exit, claim and unstake a block later, and account for every unit at the end.
+///
+///      One complete lifecycle portfolio runs, and it runs at the pinned header. The reduced
+///      fresh-head subset deliberately does not repeat it; `docs/audit/README.md` and
+///      `docs/audit/fork-authority-and-state-inventory.md` carry that accepted limitation.
 ///
 ///      Nothing here manufactures authority, code, custody, or an unreachable state. Every staged
 ///      thing is one of exactly two kinds, and both are itemized in
@@ -54,6 +60,21 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     uint256 internal constant SKIM_BPS = 200;
     uint256 internal constant BPS_DENOMINATOR = 10_000;
 
+    /// @dev The C10 recognition event's topic. The boolean the old event carried is gone; the
+    ///      splitter now states both shares outright, and every division below is read back out of
+    ///      this log rather than only inferred from balances.
+    bytes32 internal constant REVENUE_RECOGNIZED_TOPIC =
+        keccak256("RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)");
+
+    /// @dev One recognition exactly as the splitter reported it.
+    struct Recognition {
+        uint256 gross;
+        uint256 skim;
+        uint256 net;
+        uint256 stakerShare;
+        uint256 treasuryShare;
+    }
+
     /// @dev A raise no single admitted bid can meet, so this launch ends economically failed.
     uint128 internal constant UNREACHABLE_RAISE = 50_000_000e18;
 
@@ -77,10 +98,6 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
 
     function test_DEP_053_ForkPinnedCompleteProductionLifecycleExecutesEndToEnd() public {
         _runCompleteLifecycle(Header.Pinned);
-    }
-
-    function test_DEP_053_ForkLatestCompleteProductionLifecycleExecutesEndToEnd() public {
-        _runCompleteLifecycle(Header.Later);
     }
 
     // -------------------------------------------------------------------------
@@ -112,7 +129,7 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
 
         _payCanonicalReceiver(graduating, d, splitter);
         _swapBothHookLanes(graduating, d, splitter);
-        _claimAllAndUnstake(graduating, splitter, staked);
+        _exitAcrossTheBlockBoundary(graduating, splitter, staked);
 
         _assertNoUnexplainedProductionBalances(graduating, d);
 
@@ -359,6 +376,17 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         assertGt(d.splitter.code.length, 0, "graduation deployed no splitter");
         assertGt(d.receiver.code.length, 0, "graduation deployed no canonical receiver");
         assertEq(SubjectSplitterV1(d.splitter).subject(), address(graduating.subject), "splitter SUBJECT binding");
+
+        // The real clone was initialized against the real token's own supply. C10 reads
+        // `totalSupply()` once during `initialize` and refuses to bind anything that does not report
+        // exactly the hundred billion every net is later divided by, so a bound splitter plus this
+        // reading is that precondition proved on the production path: the denominator below is the
+        // deployed SUBJECT's own supply, not an assumption about it.
+        assertEq(
+            graduating.subject.totalSupply(),
+            TOTAL_SUPPLY,
+            "the bound SUBJECT does not report the exact supply the splitter divides every net by"
+        );
         assertEq(PaymentReceiverV1(payable(d.receiver)).referralBps(), 0, "the canonical receiver charges a referral");
         assertEq(PaymentReceiverV1(payable(d.receiver)).beneficiary(), treasury, "canonical beneficiary");
 
@@ -437,9 +465,11 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     // -------------------------------------------------------------------------
 
     /// @dev One payment per recognized asset through the canonical zero-referral receiver, each from
-    ///      an ordinary payer's own account. Every skim destination is asserted: USDC into the live
-    ///      REGENT staking contract through its own `depositUSDC`, REGENT and SUBJECT to the frozen
-    ///      Regent Safe.
+    ///      an ordinary payer's own account, and each divided exactly the way the production splitter
+    ///      divides it: the 2% skim to its own destination — USDC into the live REGENT staking
+    ///      contract through its own `depositUSDC`, REGENT and SUBJECT to the frozen Regent Safe —
+    ///      the floored coverage fraction of the post-skim net to the stakers, and the exact
+    ///      remainder to the launch treasury inside the same transaction.
     function _payCanonicalReceiver(
         ForkLaunch memory graduating,
         RegentLBPStrategy.Distribution memory d,
@@ -447,24 +477,19 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     ) private {
         PaymentReceiverV1 receiver = PaymentReceiverV1(payable(d.receiver));
 
-        uint256 usdcAmount = 1_000e6;
-        deal(BaseBindings.USDC, payer, usdcAmount);
-        uint256 stakingBefore = _balanceOf(BaseBindings.USDC, BaseBindings.LIVE_STAKING);
-        _payAs(receiver, BaseBindings.USDC, usdcAmount, bytes32("usdc-payment"));
-        assertEq(
-            _balanceOf(BaseBindings.USDC, BaseBindings.LIVE_STAKING) - stakingBefore,
-            (usdcAmount * SKIM_BPS) / BPS_DENOMINATOR,
-            "the USDC skim did not reach the live staking contract"
+        deal(BaseBindings.USDC, payer, 1_000e6);
+        _payAndDivide(
+            splitter, receiver, BaseBindings.USDC, 1_000e6, bytes32("usdc-payment"), BaseBindings.LIVE_STAKING
         );
 
-        uint256 regentAmount = 500e18;
-        deal(BaseBindings.REGENT, payer, regentAmount);
-        uint256 safeBefore = _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
-        _payAs(receiver, BaseBindings.REGENT, regentAmount, bytes32("regent-payment"));
-        assertEq(
-            _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE) - safeBefore,
-            (regentAmount * SKIM_BPS) / BPS_DENOMINATOR,
-            "the REGENT skim did not reach the Regent Safe"
+        deal(BaseBindings.REGENT, payer, 500e18);
+        _payAndDivide(
+            splitter,
+            receiver,
+            BaseBindings.REGENT,
+            500e18,
+            bytes32("regent-payment"),
+            BaseBindings.GOVERNANCE_AND_REGENT_SAFE
         );
 
         // SUBJECT the bidder really claimed, forwarded to the payer and paid in.
@@ -472,22 +497,109 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         assertGt(subjectAmount, 0, "the bidder holds no unstaked SUBJECT to pay with");
         vm.prank(bidder);
         UERC20(address(graduating.subject)).transfer(payer, subjectAmount);
-        uint256 safeSubjectBefore = _balanceOf(address(graduating.subject), BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
-        _payAs(receiver, address(graduating.subject), subjectAmount, bytes32("subject-payment"));
-        assertEq(
-            _balanceOf(address(graduating.subject), BaseBindings.GOVERNANCE_AND_REGENT_SAFE) - safeSubjectBefore,
-            (subjectAmount * SKIM_BPS) / BPS_DENOMINATOR,
-            "the SUBJECT skim did not reach the Regent Safe"
+        _payAndDivide(
+            splitter,
+            receiver,
+            address(graduating.subject),
+            subjectAmount,
+            bytes32("subject-payment"),
+            BaseBindings.GOVERNANCE_AND_REGENT_SAFE
         );
 
-        // Every net share became staker liability, and nothing stayed at the receiver.
-        assertGt(splitter.unclaimedLiability(BaseBindings.USDC), 0, "no USDC became staker liability");
-        assertGt(splitter.unclaimedLiability(BaseBindings.REGENT), 0, "no REGENT became staker liability");
-        assertGt(splitter.unclaimedLiability(address(graduating.subject)), 0, "no SUBJECT became staker liability");
+        // Nothing stayed at the receiver.
         assertEq(_balanceOf(BaseBindings.USDC, d.receiver), 0, "the receiver stranded USDC");
         assertEq(_balanceOf(BaseBindings.REGENT, d.receiver), 0, "the receiver stranded REGENT");
         assertEq(_balanceOf(address(graduating.subject), d.receiver), 0, "the receiver stranded SUBJECT");
         assertEq(_allowance(BaseBindings.USDC, d.receiver, d.splitter), 0, "a receiver allowance survived");
+    }
+
+    /// @dev One recognized payment, with every destination held to the exact amount the splitter
+    ///      itself reported for it.
+    ///
+    ///      The staker share is `floor(net * totalStaked / TOTAL_SUPPLY)` and the launch treasury
+    ///      takes the rest, so the whole net reaching the stakers is not an outcome this can pass by
+    ///      accident. The expected share is deliberately written as plain arithmetic rather than as a
+    ///      call into the same full-precision helper the production path uses: both factors here are
+    ///      bounded by the hundred-billion-unit supply, so the product cannot overflow and the
+    ///      expected value stays an independent derivation.
+    function _payAndDivide(
+        SubjectSplitterV1 splitter,
+        PaymentReceiverV1 receiver,
+        address token,
+        uint256 gross,
+        bytes32 ref,
+        address skimDestination
+    ) private {
+        uint256 skim = (gross * SKIM_BPS) / BPS_DENOMINATOR;
+        uint256 stakerShare = ((gross - skim) * splitter.totalStaked()) / TOTAL_SUPPLY;
+        assertGt(stakerShare, 0, "this payment's coverage share floored away to nothing");
+        assertGt(
+            (gross - skim) - stakerShare, 0, "this payment left the launch treasury nothing, so coverage was total"
+        );
+
+        uint256 skimmedBefore = _balanceOf(token, skimDestination);
+        uint256 liabilityBefore = splitter.unclaimedLiability(token);
+        uint256 heldBefore = _balanceOf(token, address(splitter));
+        uint256 treasuryBefore = _balanceOf(token, treasury);
+
+        vm.recordLogs();
+        _payAs(receiver, token, gross, ref);
+        Recognition memory r = _soleRecognition(address(splitter), token);
+        _assertRecognitionIsExact(r, gross, skim, stakerShare);
+
+        assertEq(
+            _balanceOf(token, skimDestination) - skimmedBefore,
+            r.skim,
+            "the two-percent skim did not reach its own destination"
+        );
+        assertEq(
+            splitter.unclaimedLiability(token) - liabilityBefore,
+            r.stakerShare,
+            "staker liability did not rise by exactly the supply-coverage share"
+        );
+        assertEq(
+            _balanceOf(token, address(splitter)) - heldBefore,
+            r.stakerShare,
+            "the splitter is not holding exactly the share it recognized"
+        );
+        assertEq(
+            _balanceOf(token, treasury) - treasuryBefore,
+            r.treasuryShare,
+            "the launch treasury did not immediately receive the exact uncovered remainder"
+        );
+    }
+
+    /// @dev The one `RevenueRecognized` an inflow produced, read back out of this run's own logs
+    ///      rather than predicted. Reading it is the point: every balance assertion around it is made
+    ///      against the splitter's own five amounts, and those amounts are then held to independent
+    ///      arithmetic by `_assertRecognitionIsExact`.
+    function _soleRecognition(address splitter, address token) private returns (Recognition memory r) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool found;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != splitter) continue;
+            if (logs[i].topics.length != 4 || logs[i].topics[0] != REVENUE_RECOGNIZED_TOPIC) continue;
+            assertFalse(found, "one inflow produced more than one recognition");
+            assertEq(address(uint160(uint256(logs[i].topics[1]))), token, "the recognition names another token");
+            (r.gross, r.skim, r.net, r.stakerShare, r.treasuryShare) =
+                abi.decode(logs[i].data, (uint256, uint256, uint256, uint256, uint256));
+            found = true;
+        }
+        assertTrue(found, "the splitter recognized nothing for this inflow");
+    }
+
+    /// @dev C10 deleted the `paidToStakers` boolean and states both amounts outright instead, so the
+    ///      event is now the splitter's own account of how it divided an inflow. Every field is
+    ///      checked: the gross and skim against what was paid, the net against `gross - skim`, the
+    ///      staker share against the independently derived supply-coverage fraction, the treasury
+    ///      share against the exact remainder, and the three parts against the whole.
+    function _assertRecognitionIsExact(Recognition memory r, uint256 gross, uint256 skim, uint256 stakerShare) private {
+        assertEq(r.gross, gross, "the recognition reported another gross amount");
+        assertEq(r.skim, skim, "the recognition reported another skim amount");
+        assertEq(r.net, gross - skim, "the recognition's net is not its gross less its skim");
+        assertEq(r.stakerShare, stakerShare, "the recognition's staker share is not the supply-coverage fraction");
+        assertEq(r.treasuryShare, r.net - r.stakerShare, "the recognition's treasury share is not the exact remainder");
+        assertEq(r.skim + r.stakerShare + r.treasuryShare, r.gross, "the recognition did not conserve its gross");
     }
 
     function _payAs(PaymentReceiverV1 receiver, address token, uint256 amount, bytes32 ref) private {
@@ -508,6 +620,12 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     ///      launch splitter, where the ordinary 2% REGENT skim applies to it and also reaches the
     ///      Safe. The Safe's delta is therefore `lane + skim(lane)`, not `lane`, and asserting the
     ///      sum is what proves both lanes settled rather than one of them twice.
+    ///
+    ///      The splitter lane meets no hook-specific path once it arrives: it is an ordinary
+    ///      recognition, so it emits the same `RevenueRecognized` a direct payment does, its post-skim
+    ///      net is divided by the same fixed supply coverage, and the launch treasury takes the exact
+    ///      remainder in this same swap. The lane's division is read back out of that event and held
+    ///      to independent arithmetic, exactly as the three payments are.
     function _swapBothHookLanes(
         ForkLaunch memory graduating,
         RegentLBPStrategy.Distribution memory d,
@@ -519,12 +637,21 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         uint256 lane = amountIn / hook.LANE_DIVISOR();
         uint256 laneSkim = (lane * SKIM_BPS) / BPS_DENOMINATOR;
         assertGt(laneSkim, 0, "the swap is too small for both the lane and its own skim to floor above zero");
+        uint256 laneStakerShare = ((lane - laneSkim) * splitter.totalStaked()) / TOTAL_SUPPLY;
+        assertGt(laneStakerShare, 0, "the splitter lane's coverage share floored away to nothing");
+        assertGt(
+            (lane - laneSkim) - laneStakerShare,
+            0,
+            "the splitter lane left the launch treasury nothing, so coverage was total"
+        );
 
         deal(BaseBindings.REGENT, swapper, amountIn);
         uint256 safeBefore = _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
         uint256 liabilityBefore = splitter.unclaimedLiability(BaseBindings.REGENT);
         uint256 splitterHeldBefore = _balanceOf(BaseBindings.REGENT, d.splitter);
+        uint256 treasuryBefore = _balanceOf(BaseBindings.REGENT, treasury);
 
+        vm.recordLogs();
         vm.startPrank(swapper);
         _approveExactly(BaseBindings.REGENT, address(swapRouter), amountIn);
         swapRouter.swap(
@@ -539,20 +666,28 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         );
         vm.stopPrank();
 
+        Recognition memory r = _soleRecognition(d.splitter, BaseBindings.REGENT);
+        _assertRecognitionIsExact(r, lane, laneSkim, laneStakerShare);
+
         assertEq(
             _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE) - safeBefore,
-            lane + laneSkim,
+            lane + r.skim,
             "the two lanes did not settle as one Safe lane plus the splitter lane's own skim"
         );
         assertEq(
             splitter.unclaimedLiability(BaseBindings.REGENT) - liabilityBefore,
-            lane - laneSkim,
-            "the splitter lane did not become staker liability net of its own skim"
+            r.stakerShare,
+            "the splitter lane's net did not become staker liability at the supply-coverage fraction"
         );
         assertEq(
             _balanceOf(BaseBindings.REGENT, d.splitter) - splitterHeldBefore,
-            lane - laneSkim,
-            "the splitter is not holding exactly the net it recognized"
+            r.stakerShare,
+            "the splitter is not holding exactly the share it recognized"
+        );
+        assertEq(
+            _balanceOf(BaseBindings.REGENT, treasury) - treasuryBefore,
+            r.treasuryShare,
+            "the launch treasury did not receive the lane's exact uncovered remainder in the swap"
         );
 
         // The hook keeps nothing at all, which is the whole synchronous-settlement claim.
@@ -563,40 +698,102 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     }
 
     // -------------------------------------------------------------------------
-    // stage 8 — the staker takes its share and leaves
+    // stage 8 — every value exit waits a block, then the staker takes its share and leaves
     // -------------------------------------------------------------------------
 
-    function _claimAllAndUnstake(ForkLaunch memory graduating, SubjectSplitterV1 splitter, uint256 staked) private {
-        uint256 usdcBefore = _balanceOf(BaseBindings.USDC, bidder);
-        uint256 regentBefore = _balanceOf(BaseBindings.REGENT, bidder);
-        uint256 subjectBefore = _balanceOf(address(graduating.subject), bidder);
+    function _exitAcrossTheBlockBoundary(ForkLaunch memory graduating, SubjectSplitterV1 splitter, uint256 staked)
+        private
+    {
+        _proveEverySameBlockExitIsRefused(address(graduating.subject), splitter, staked);
+        _claimAndExitOneBlockLater(address(graduating.subject), splitter, staked);
+    }
+
+    /// @dev The C10 exit rule on the real path rather than only against a hermetic double. Accrual is
+    ///      immediate — the stake, all three payments and the swap happened in this block and the
+    ///      `claimable` views already report the entitlement they produced — but *value* may not
+    ///      leave in the account's own stake block. All three exits are refused here, each with the
+    ///      exact `SameBlockStakeExit(account, stakeBlock)` this position earned, and the refusals
+    ///      move no principal, no entitlement, no splitter inventory, and no protected accounting.
+    ///
+    ///      The expected stake block is `block.number` because nothing has rolled since the stake; a
+    ///      later edit that inserted a roll would fail here rather than silently weaken the claim.
+    function _proveEverySameBlockExitIsRefused(address subjectToken, SubjectSplitterV1 splitter, uint256 staked)
+        private
+    {
+        address[3] memory tokens = [BaseBindings.USDC, BaseBindings.REGENT, subjectToken];
+        uint256[3] memory bidderBefore;
+        uint256[3] memory splitterBefore;
+        uint256[3] memory protectedBefore;
+        uint256[3] memory claimableBefore;
+        for (uint256 i; i < tokens.length; ++i) {
+            bidderBefore[i] = _balanceOf(tokens[i], bidder);
+            splitterBefore[i] = _balanceOf(tokens[i], address(splitter));
+            protectedBefore[i] = splitter.protectedBalance(tokens[i]);
+            claimableBefore[i] = splitter.claimable(tokens[i], bidder);
+            assertGt(claimableBefore[i], 0, "the only staker earned nothing in a recognized asset");
+        }
+
+        bytes memory refusal =
+            abi.encodeWithSelector(SubjectSplitterV1.SameBlockStakeExit.selector, bidder, block.number);
+
+        vm.startPrank(bidder);
+        vm.expectRevert(refusal);
+        splitter.unstake(staked);
+        vm.expectRevert(refusal);
+        splitter.claim(subjectToken);
+        vm.expectRevert(refusal);
+        splitter.claimAll();
+        vm.stopPrank();
+
+        assertEq(splitter.stakedOf(bidder), staked, "a refused exit changed the account's principal");
+        assertEq(splitter.totalStaked(), staked, "a refused exit changed the staked total");
+        for (uint256 i; i < tokens.length; ++i) {
+            assertEq(_balanceOf(tokens[i], bidder), bidderBefore[i], "a refused exit moved value to the account");
+            assertEq(
+                _balanceOf(tokens[i], address(splitter)),
+                splitterBefore[i],
+                "a refused exit moved the splitter's inventory"
+            );
+            assertEq(
+                splitter.protectedBalance(tokens[i]), protectedBefore[i], "a refused exit changed protected inventory"
+            );
+            assertEq(splitter.claimable(tokens[i], bidder), claimableBefore[i], "a refused exit changed an entitlement");
+        }
+    }
+
+    /// @dev Exactly one block later the identical calls succeed. `claim` settles one asset and
+    ///      `claimAll` settles the other two, so both refused surfaces are proved open again rather
+    ///      than only the one; then the complete withdrawal returns exactly the principal and
+    ///      nothing else. Waiting one block is what a real staker does.
+    function _claimAndExitOneBlockLater(address subjectToken, SubjectSplitterV1 splitter, uint256 staked) private {
+        vm.roll(block.number + 1);
 
         uint256 usdcClaimable = splitter.claimable(BaseBindings.USDC, bidder);
-        uint256 regentClaimable = splitter.claimable(BaseBindings.REGENT, bidder);
-        uint256 subjectClaimable = splitter.claimable(address(graduating.subject), bidder);
-        assertGt(usdcClaimable, 0, "the only staker earned no USDC");
-        assertGt(regentClaimable, 0, "the only staker earned no REGENT");
-        assertGt(subjectClaimable, 0, "the only staker earned no SUBJECT");
+        uint256 usdcBefore = _balanceOf(BaseBindings.USDC, bidder);
+        vm.prank(bidder);
+        splitter.claim(BaseBindings.USDC);
+        assertEq(
+            _balanceOf(BaseBindings.USDC, bidder) - usdcBefore, usdcClaimable, "the single-asset claim was inexact"
+        );
 
+        uint256 regentClaimable = splitter.claimable(BaseBindings.REGENT, bidder);
+        uint256 subjectClaimable = splitter.claimable(subjectToken, bidder);
+        uint256 regentBefore = _balanceOf(BaseBindings.REGENT, bidder);
+        uint256 principalBefore = _balanceOf(subjectToken, bidder);
         vm.prank(bidder);
         splitter.claimAll();
-
-        assertEq(_balanceOf(BaseBindings.USDC, bidder) - usdcBefore, usdcClaimable, "the USDC claim was inexact");
         assertEq(
             _balanceOf(BaseBindings.REGENT, bidder) - regentBefore, regentClaimable, "the REGENT claim was inexact"
         );
-        assertEq(
-            _balanceOf(address(graduating.subject), bidder) - subjectBefore,
-            subjectClaimable,
-            "the SUBJECT claim was inexact"
-        );
+        assertEq(_balanceOf(subjectToken, bidder) - principalBefore, subjectClaimable, "the SUBJECT claim was inexact");
+        assertEq(splitter.claimable(BaseBindings.USDC, bidder), 0, "claimAll left a USDC entitlement standing");
 
-        uint256 principalBefore = _balanceOf(address(graduating.subject), bidder);
+        principalBefore = _balanceOf(subjectToken, bidder);
         vm.prank(bidder);
         splitter.unstake(staked);
 
         assertEq(
-            _balanceOf(address(graduating.subject), bidder) - principalBefore,
+            _balanceOf(subjectToken, bidder) - principalBefore,
             staked,
             "unstaking returned other than the exact principal"
         );

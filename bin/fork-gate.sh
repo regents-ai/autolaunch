@@ -22,7 +22,10 @@
 #   discover  Observes Base and writes ONE reviewable candidate under reports/generated/fork/,
 #             which is gitignored scratch. It reads no committed observation and it cannot write
 #             one: the `fork-discovery` profile's only write permission is that scratch directory.
-#             It closes no claim and it is not part of the ledger reconciliation.
+#             It closes no claim and it is not part of the ledger reconciliation. It runs the same
+#             way whether or not a reviewed observation is already committed — a replacement
+#             candidate is still only scratch until a human installs it, and this pass proves it
+#             changed no committed file before it exits.
 #
 #   check     Compare-only. It refuses to start unless a human has already reviewed the candidate,
 #             installed it as reports/frozen/fork-observations.json, activated the `fork` gate in
@@ -125,10 +128,21 @@ for forbidden in PRIVATE_KEY ETH_PRIVATE_KEY MNEMONIC ETH_KEYSTORE ETH_FROM ETHE
     [ -z "$value" ] || fail "$forbidden is set; this gate is read-only and refuses to run beside signing authority"
 done
 
-# The endpoint is consumed, never printed. Only its presence is ever reported.
+# The endpoint is consumed, never printed. Only its presence and its shape are ever reported.
+#
+# Presence alone is not enough. An authorized attempt has already been made where the value injected
+# here was not an endpoint at all: it created no fork, installed no observation, closed no claim and
+# certified nothing, and the failure only surfaced once Forge tried to open a fork with it. The shape
+# test below moves that refusal to the boundary, before any provider access and before the harness
+# can start. It is a refusal, not a probe — nothing is dialled, and the value itself is neither
+# printed nor persisted in either branch.
 eval "endpoint=\${$RPC_ENV:-}"
 [ -n "$endpoint" ] ||
     fail "no read-only Base provider is injected under $RPC_ENV; fork claims stay pending and C5 cannot close"
+case "$endpoint" in
+    http://?* | https://?* | ws://?* | wss://?*) : ;;
+    *) fail "the value injected under $RPC_ENV is not an http(s) or ws(s) endpoint; its value is never printed" ;;
+esac
 unset endpoint
 printf 'a read-only Base endpoint is injected under %s and is never printed or persisted\n' "$RPC_ENV"
 
@@ -141,9 +155,18 @@ status=discovery_pending
     status=$(python3 -c "import json;print(json.load(open('$observations'))['status'])")
 
 if [ "$mode" = discover ]; then
-    [ "$status" != observed_and_committed ] ||
-        fail "the observation record is already committed; re-observing it would overwrite reviewed evidence"
-    printf 'discovery: no committed observation is read, and none can be written\n'
+    # An already-committed record is not a reason to refuse. A later candidate has to be observable
+    # while the current one is still installed, or a re-observation would mean deleting reviewed
+    # evidence first. Nothing about that is a write: this pass reads no committed observation, the
+    # `fork-discovery` profile can write only gitignored scratch, and the committed state is proved
+    # unchanged below before this mode exits.
+    baseline_state=$(committed_state)
+    if [ "$status" = observed_and_committed ]; then
+        printf 'discovery: a reviewed observation is already committed; this pass neither reads nor '
+        printf 'replaces it, and the candidate it writes stays ignored scratch until a human installs it\n'
+    else
+        printf 'discovery: no committed observation is read, and none can be written\n'
+    fi
 else
     [ -f "$observations" ] || fail "the committed fork observation record is absent: $observations"
     [ "$status" = observed_and_committed ] ||
@@ -298,11 +321,15 @@ if [ "$mode" = discover ]; then
         fail "the discovery pass exited $discovery_status; its scanned diagnostics are retained under $generated"
     [ -f "$candidate" ] || fail "the discovery pass wrote no candidate at $candidate"
 
-    # Discovery may not have touched the committed record, even indirectly.
+    # Discovery may not have touched the committed record or the ledger, even indirectly. The
+    # comparison is against this run's own baseline rather than against emptiness, so a candidate
+    # observed beside an already-committed record still proves the exact thing that matters: nothing
+    # about those two files moved while the provider was reachable.
     after_state=$(committed_state)
-    [ -z "$after_state" ] ||
+    [ "$after_state" = "$baseline_state" ] ||
         fail "the discovery pass changed a committed file, which it must never do:
-$after_state"
+before: $baseline_state
+after:  $after_state"
 
     # ---------------------------------------------------------------------------
     section "Provider-secret scan"
@@ -316,7 +343,38 @@ $after_state"
     section "Operator transition"
     # ---------------------------------------------------------------------------
 
-    cat <<TRANSITION
+    if [ "$status" = observed_and_committed ]; then
+        cat <<TRANSITION
+
+A reviewable REPLACEMENT candidate is at:
+
+    $candidate
+
+The record now at $observations is unchanged, and the fork claims in
+$ledger are already active. Nothing about this candidate has been
+blessed and nothing reads it. To make it the evidence instead, deliberately:
+
+  1. read every observed value and check it against an independent source;
+  2. diff this candidate against the record now at $observations and
+     explain every difference outside the two headers before accepting it — a moved runtime hash,
+     proxy family, implementation or fee controller is chain drift to account for, not drift to
+     absorb silently;
+  3. fill in transaction_gas_schedule — the chain does not expose those rules, so discovery
+     leaves them zero and the reviewer supplies the ones active at the newly recorded headers;
+  4. set "status" to "observed_and_committed";
+  5. overwrite $observations with it;
+  6. leave $ledger alone unless a claim's activation actually changed —
+     "fork" is already an activated gate and every fork claim is already active, so there is
+     normally nothing to flip;
+  7. commit whichever of the two files changed;
+  8. run: $0 check
+
+Until step 7 lands, '$0 check' still checks against the OLD committed record, and this
+candidate is scratch that closes nothing.
+
+TRANSITION
+    else
+        cat <<TRANSITION
 
 A reviewable candidate is at:
 
@@ -329,13 +387,14 @@ Nothing has been blessed. To turn it into evidence, deliberately:
      leaves them zero and the reviewer supplies the ones active at the recorded headers;
   3. set "status" to "observed_and_committed";
   4. install it as $observations;
-  5. add "fork" to activated_gates in $ledger and flip the eighteen fork claims to active;
+  5. add "fork" to activated_gates in $ledger and flip every fork claim to active;
   6. commit both files;
   7. run: $0 check
 
 Until step 6 lands, '$0 check' refuses to run, and every fork claim stays pending.
 
 TRANSITION
+    fi
     printf 'FORK DISCOVERY PASS\n'
     exit 0
 fi
@@ -352,6 +411,8 @@ FOUNDRY_OFFLINE=true forge test --list --json --no-match-contract "$DISCOVERY_CO
 section "Pinned header"
 # ---------------------------------------------------------------------------
 
+# Every remaining ForkPinned selector — the complete portfolio, including the one full production
+# lifecycle and the three complete-transaction envelopes.
 pinned_status=0
 RUST_LOG=error forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkPinned' --fork-url "$RPC_ALIAS" \
     >"$pinned_report" 2>"$pinned_log" || pinned_status=$?
@@ -363,6 +424,10 @@ scan_then_display "$pinned_log"
 section "Later header"
 # ---------------------------------------------------------------------------
 
+# Only the remaining ForkLatest selectors, which are the focused fresh-head subset the harness now
+# carries: DEP-040, DEP-041, DEP-042, DEP-043, DEP-047, DEP-050, DEP-051, DEP-052 and GAS-006. The
+# selectors are the enumeration — no claim can be quietly added to or dropped from this run without
+# the compiled listing and the ledger reconciliation below disagreeing about it.
 later_status=0
 RUST_LOG=error forge test --json -vv --no-match-contract "$DISCOVERY_CONTRACT" --match-test 'ForkLatest' --fork-url "$RPC_ALIAS" \
     >"$later_report" 2>"$later_log" || later_status=$?
@@ -375,9 +440,10 @@ section "Ledger reconciliation"
 # ---------------------------------------------------------------------------
 
 # Both runs together are this gate's execution evidence. The compiled listing enumerates all
-# thirty-six mapped selectors — eighteen claims, one selector per committed header — and the two
-# reports are reconciled against it as one merged multiset, so every claim maps to exactly one
-# pinned and one later selector and each of them executes exactly once across the whole gate.
+# twenty-seven mapped selectors — eighteen claims at the pinned header and the focused nine-claim
+# subset at the later head — and the two reports are reconciled against it as one merged multiset,
+# so every mapped selector executes exactly once across the whole gate. A selector that exists but
+# runs at neither header, or one that runs but is not mapped, fails here.
 python3 "$checker" ledger \
     --ledger "$ledger" \
     --spec SPEC.md \
@@ -387,7 +453,7 @@ python3 "$checker" ledger \
     --receipt "$offline_receipt"
 
 # ---------------------------------------------------------------------------
-section "Normalized verdict agreement (DEP-050)"
+section "Normalized verdict agreement across the cross-header subset (DEP-050)"
 # ---------------------------------------------------------------------------
 
 python3 - "$pinned_report" "$later_report" <<'PYTHON'
@@ -418,14 +484,39 @@ def verdicts(path, header):
 pinned = verdicts(sys.argv[1], "pinned")
 later = verdicts(sys.argv[2], "later")
 
+# The exact cross-header claim set, written out rather than derived from whatever the later run
+# happened to emit. Reconciling the intersection would pass a later run that had silently shrunk to
+# one claim, so the later key set is held to an equality against this instead: a key missing from it
+# and a key beyond it are both failures.
+REQUIRED_LATER = {
+    "DEP-040",
+    "DEP-041",
+    "DEP-042",
+    "DEP-043",
+    "DEP-047",
+    "DEP-051",
+    "DEP-052",
+    "GAS-006",
+}
+
+# DEP-050's own verdicts are per-binding and per-measurement, so their exact keys come from the
+# pinned verdict test rather than from a literal list that would have to be edited in step with it.
+# The later head must carry every one of them and no other.
+dep_050 = {claim for claim in pinned if claim.startswith("DEP-050.")}
+expected_later = REQUIRED_LATER | dep_050
+
 problems = []
 if not pinned:
     problems.append("the pinned run emitted no normalized verdict")
-for claim in sorted(set(pinned) - set(later)):
-    problems.append(f"claim {claim} reached a verdict at the pinned header but not at the later head")
-for claim in sorted(set(later) - set(pinned)):
-    problems.append(f"claim {claim} reached a verdict at the later head but not at the pinned header")
-for claim in sorted(set(pinned) & set(later)):
+if not dep_050:
+    problems.append("the pinned run emitted no DEP-050 verdict, so the cross-header set is undefined")
+for claim in sorted(REQUIRED_LATER - set(pinned)):
+    problems.append(f"claim {claim} is a cross-header claim but reached no verdict at the pinned header")
+for claim in sorted(expected_later - set(later)):
+    problems.append(f"claim {claim} is a cross-header claim but reached no verdict at the later head")
+for claim in sorted(set(later) - expected_later):
+    problems.append(f"claim {claim} reached a verdict at the later head but is not a cross-header claim")
+for claim in sorted(expected_later & set(later) & set(pinned)):
     if pinned[claim] != later[claim]:
         problems.append(f"claim {claim}: pinned says [{pinned[claim]}], later head says [{later[claim]}]")
 
@@ -435,7 +526,10 @@ if problems:
         print(f"  - {problem}", file=sys.stderr)
     raise SystemExit(1)
 
-print(f"normalized verdicts reconciled across both headers: {len(pinned)}")
+print(
+    f"normalized verdicts: {len(pinned)} recorded at the pinned header; the later head carries "
+    f"exactly the {len(expected_later)} cross-header keys and agrees with every one"
+)
 PYTHON
 
 # ---------------------------------------------------------------------------

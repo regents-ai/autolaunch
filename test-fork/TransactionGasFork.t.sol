@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {BaseBindings} from "../src/bindings/BaseBindings.sol";
 import {RegentLBPStrategy} from "../src/strategy/RegentLBPStrategy.sol";
 import {ForkAutolaunch} from "./ForkAutolaunch.sol";
 
-/// @notice `GAS-003` through `GAS-006` at both committed headers: the complete outer transaction
-///         cost of a direct-wallet launch, a successful migration, and a failed retirement.
-/// @dev What is measured is the whole transaction, not an inner call. Execution gas is measured
+/// @notice `GAS-003` through `GAS-006`: the complete outer transaction cost of a direct-wallet
+///         launch, a successful migration, and a failed retirement.
+/// @dev The three envelopes are measured at the committed pinned header. `GAS-006` — the claim about
+///      what the *figure* is rather than what it must stay under — runs at both headers, so the
+///      measurement method itself is still proved against the fresh head.
+///
+///      What is measured is the whole transaction, not an inner call. Execution gas is measured
 ///      around the real external call a wallet makes; the intrinsic and calldata components are
 ///      then added from the Base transaction gas schedule active at that exact header, which the
 ///      committed observation record carries. Post-Prague chains price calldata as a *floor* rather
@@ -48,10 +51,6 @@ contract TransactionGasForkTest is ForkAutolaunch {
         _checkLaunchEnvelope(Header.Pinned);
     }
 
-    function test_GAS_003_ForkLatestCompleteLaunchStaysUnderFourteenMillion() public {
-        _checkLaunchEnvelope(Header.Later);
-    }
-
     function _checkLaunchEnvelope(Header header) private {
         _selectFork(header);
         _deployOnFork();
@@ -70,10 +69,6 @@ contract TransactionGasForkTest is ForkAutolaunch {
 
     function test_GAS_004_ForkPinnedCompleteGraduationStaysUnderFourteenMillion() public {
         _checkGraduationEnvelope(Header.Pinned);
-    }
-
-    function test_GAS_004_ForkLatestCompleteGraduationStaysUnderFourteenMillion() public {
-        _checkGraduationEnvelope(Header.Later);
     }
 
     function _checkGraduationEnvelope(Header header) private {
@@ -106,10 +101,6 @@ contract TransactionGasForkTest is ForkAutolaunch {
 
     function test_GAS_005_ForkPinnedCompleteFailureRetirementStaysUnderFourteenMillion() public {
         _checkFailureEnvelope(Header.Pinned);
-    }
-
-    function test_GAS_005_ForkLatestCompleteFailureRetirementStaysUnderFourteenMillion() public {
-        _checkFailureEnvelope(Header.Later);
     }
 
     /// @dev The worst failed retirement is a partially bid auction, not an unbid one: it carries a

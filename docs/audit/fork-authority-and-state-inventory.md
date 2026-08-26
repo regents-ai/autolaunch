@@ -23,6 +23,33 @@ encoding the digest belongs to without guessing.
 
 Covered: read-only Base access for the claims listed above, at a pinned header and a later head.
 
+### 2.1 How the two headers are used, and the one limitation that follows
+
+The authority's "pinned block and fresh latest-head repetitions" is satisfied as follows, and the
+shape is stated plainly because it is narrower than "everything twice".
+
+**Every fork claim is proved at the committed pinned header.** That is the complete portfolio: the
+whole production lifecycle end to end, both terminal paths, the real CCA and Permit2 bidder
+sequence, the PoolManager and PositionManager preservation claim, the live staking deposit and its
+owner-driven paused failure, the token semantics, and the three complete-transaction gas envelopes.
+
+**A focused subset is proved again at the later head.** Exactly nine claims run there — `DEP-040`,
+`DEP-041`, `DEP-042`, `DEP-043`, `DEP-047`, `DEP-050`, `DEP-051`, `DEP-052` and `GAS-006` — and
+between them they re-derive, from live chain state at that header, the deployed code identity, code
+presence, proxy family and implementation identity of every binding, the CCA factory's zero fee
+controller, the chain id, the complete header binding, and the gas-measurement method. Those are the
+facts a chain moving under the evidence would move first.
+
+**One full lifecycle portfolio runs, not two.** The behaviour claims that drive real launches, bids,
+migrations and swaps are pinned-only. This packet does not claim otherwise anywhere.
+
+**The accepted limitation, named.** The pinned proof covers the live staking contract's real deposit
+*and* its owner-driven paused failure, which is the fail-closed half `DEP-045` exists for. But
+`paused()` is mutable deployed state, and the reduced fresh-head subset does not re-read it. Code
+identity moving would be caught at the later head; an owner flipping that flag would not. **That
+state must therefore be read again, immediately before any separately authorized deployment**, and
+a deployed `paused() == true` is a stop exactly as it is inside `DEP-045`.
+
 Not covered, and not attempted anywhere in this repository: any Base write, broadcast, deployment,
 signature, key generation, wallet request, admission change, production-data access, or value
 movement. `bin/fork-gate.sh` refuses to start if any signing-authority environment variable is set,
@@ -56,12 +83,21 @@ PositionManager's next token id, and the live staking contract's owner and pause
 no claim, carries no requirement id, and is excluded by name from every ledger reconciliation. The
 gate then proves it changed no committed file.
 
+Discovery runs the same way whether or not a reviewed observation is already committed. It has to:
+re-observing a chain while the current record is still installed is the only way to produce a
+replacement without deleting reviewed evidence first. That changes nothing about the boundary — the
+pass reads no committed observation, the profile can write only that one gitignored directory, and
+the gate compares the committed state of the record and the ledger before and after the provider is
+reachable and stops on any difference. A candidate produced beside a live record is ignored scratch
+until a human installs it.
+
 **The human step.** A reviewer reads the candidate, checks every value against an independent
 source, and supplies the one thing the chain does not expose — the transaction gas schedule active
 at those headers, which is a protocol rule rather than a contract getter. The reviewer then sets
 `status` to `observed_and_committed`, installs the file at `reports/frozen/fork-observations.json`,
-adds `fork` to `activated_gates` in `requirements/ledger.toml`, flips the eighteen fork claims to
-active, and commits both.
+replacing any record already there, makes sure `requirements/ledger.toml` activates `fork` with
+every fork claim active, and commits whichever of the two files changed. For a replacement
+observation the ledger is normally already correct and only the record moves.
 
 **Phase two — `bin/fork-gate.sh check`.** Runs under the `fork` profile, which grants **no** write
 permission anywhere, so it is structurally incapable of authoring an observation. Before it touches
@@ -69,8 +105,15 @@ the provider it proves the record says `observed_and_committed`, that the ledger
 and every fork claim is active, and that both files are committed and clean. After both header runs
 it proves both files are still byte-identical to what was committed and that no candidate was
 produced. It then reconciles the two runs' reports as one merged multiset against the compiled
-listing, so each of the eighteen claims maps to exactly one pinned and one later selector and each of
-the thirty-six executes exactly once.
+listing of twenty-seven mapped selectors — eighteen at the pinned header and the nine-claim
+fresh-head subset at the later head — so every mapped selector executes exactly once and nothing
+listed goes unrun.
+
+Verdict agreement is reconciled by equality rather than by intersection. The later run's verdict keys
+must be exactly `DEP-040`, `DEP-041`, `DEP-042`, `DEP-043`, `DEP-047`, `DEP-051`, `DEP-052`,
+`GAS-006` and every per-binding `DEP-050.*` key the pinned verdict test emitted; a missing key and an
+extra key each fail, and every shared key's decision must match. A later run that had silently shrunk
+to a handful of claims therefore fails instead of reconciling a smaller overlap.
 
 The two profiles also use their own build directory, `out-fork`, so fork artifacts can never
 accumulate in `out/` and change the artifact count the required gate reconciles.
@@ -103,25 +146,40 @@ must already be committed and clean before provider access begins.
 ## 4. Execution status
 
 > **Not executed for this candidate.** Everything in this section describes the run made against an
-> earlier candidate's production bytecode. `regent-alv1.7`, `regent-alv1.7.1`, `regent-alv1.10` and `regent-alv1.11` all
-> changed production bytes, so this candidate has no provider-backed evidence of its own. That run is
-> `regent-4wx`'s, it happens **once**, and it happens against the final candidate — after this
-> correction and every later one is integrated and reviewed — rather than once per intermediate
-> candidate. The committed observation record is chain truth and is
-> unaffected; the execution against Regent bytecode is what has to be repeated.
+> earlier candidate's production bytecode, under the earlier both-headers-for-everything portfolio.
+> `regent-alv1.7`, `regent-alv1.7.1`, `regent-alv1.10` and `regent-alv1.11` all changed production
+> bytes, so this candidate has no provider-backed evidence of its own. That run is `regent-4wx`'s, it
+> happens **once**, and it happens against the final candidate — after this correction and every
+> later one is integrated and reviewed — rather than once per intermediate candidate. The committed
+> observation record is chain truth and is unaffected; the execution against Regent bytecode is what
+> has to be repeated, and it will run the portfolio section 2.1 describes rather than the one below.
 
-**Executed and passing under read-only Base authority, for the earlier candidate.** The reviewed
-observation binds blocks `50362455` and `50362755`. The ledger activates `fork`; the compiled
-listing contains exactly the thirty-six mapped selectors; and the compare-only gate executed each
-one exactly once, eighteen at each header, with zero failures or skips. It reconciled fifty-six
-normalized cross-header verdicts and proved the committed observation and ledger were unchanged
-after both runs.
+**Executed and passing under read-only Base authority, for the earlier candidate and under the
+earlier portfolio.** The reviewed observation binds blocks `50362455` and `50362755`. The ledger
+activates `fork`; the compiled listing at that time contained thirty-six mapped selectors, eighteen
+claims at each header; and the compare-only gate executed each one exactly once with zero failures or
+skips. It reconciled fifty-six normalized cross-header verdicts and proved the committed observation
+and ledger were unchanged after both runs. Those counts belong to that run. This tree's harness maps
+twenty-seven selectors, and the counts the next execution reports will be its own.
 
 The discovery pass wrote only gitignored scratch and closed no claim. A separate provider was used
 to confirm both headers, every recorded runtime identity and supported proxy classification, the
 two implementation identities, CCA's zero fee controller, live staking and token getters, and the
 pinned PositionManager counter before the record was installed. No provider write, signature,
 deployment, or value movement occurred.
+
+### 4.1 The failed `regent-4wx` attempt, recorded as what it was
+
+One authorized attempt to run the replacement execution has already been made and did not produce
+evidence. The value injected under `REGENT_BASE_RPC_URL` was not an endpoint, so **no fork was ever
+created**: no observation candidate was written, nothing was installed at
+`reports/frozen/fork-observations.json`, no claim closed, no verdict was emitted, and nothing was
+certified. The committed record and the ledger were byte-identical before and after it, which is the
+property the gate proves rather than asserts. It is recorded here because an attempt that produced
+nothing is still part of the honest history of this evidence, and because the correction it prompted
+is visible in `bin/fork-gate.sh`: the injected value's shape is now refused at the authority boundary,
+before any provider access, instead of failing later inside Forge. The value itself was not printed
+or persisted then and is not now.
 
 ## 5. Staged fork state, and the production path that makes each state reachable
 
@@ -131,7 +189,7 @@ of them manufactures an intermediate state that production cannot reach on its o
 | Cheatcode | Where | What it stages | The real production path |
 | --- | --- | --- | --- |
 | `vm.createSelectFork(alias, block)` | `ForkFixture._selectFork` | A fresh isolated fork at one recorded header | Reading Base at a block. Each claim gets its own fork, so no claim inherits another's warmed access list or staged balances. |
-| `vm.roll` | `ProtocolFork`, `TransactionGasFork` | Moves to an auction's own start, end, claim, or migration block | Time passing. The auction's schedule is fixed at creation; every roll is forward-only and lands on a block the auction itself defines. |
+| `vm.roll` | `ProtocolFork`, `TransactionGasFork`, `ProductionLifecycleFork` | Moves to an auction's own start, end, claim, or migration block, and — once, in the lifecycle suite — forward exactly one block | Time passing. The auction's schedule is fixed at creation; every roll is forward-only and lands on a block the auction itself defines. The single one-block roll is the splitter's own exit rule: no value at all may leave an account in that account's own stake block, so the suite first proves that the same-block `unstake`, `claim` and `claimAll` are each refused with the exact `SameBlockStakeExit(account, stakeBlock)` and that none of them moves principal, entitlement, splitter inventory or protected inventory, then advances one block and takes the entitlements and the principal out. Waiting one block is what a real staker does. |
 | `deal(REGENT, launcher, fee)` | `ForkAutolaunch._launchAsWallet` | Gives a launcher exactly the current launch fee | A launcher acquires REGENT and approves the factory. A fork cannot mint REGENT, so the balance is staged; the approval and the launch are then the real calls. |
 | `deal(REGENT, bidder, amount)` | `ProtocolFork`, `TransactionGasFork` | Gives a bidder REGENT to bid with | A bidder acquires REGENT. Every subsequent step — the ERC20 approval to Permit2, the Permit2 allowance, the five-argument bid — is the real production sequence. |
 | `deal(USDC, depositor, amount)` | `ProtocolFork._checkLiveStaking` | Gives a depositor USDC to skim | The splitter's USDC skim. The approval and `depositUSDC` call shapes are the splitter's own. |
@@ -154,9 +212,10 @@ production cannot reach on its own.
 
 ## 6. Isolation and coldness
 
-Each of the thirty-six fork selectors calls `_selectFork` itself, so it opens its own fork and runs
-in state no other selector touched. That is what makes the mandatory live-staking pause safe: it
-happens in a fork one claim created and no other claim can observe. It is also what makes the gas
+Each of the twenty-seven mapped fork selectors calls `_selectFork` itself, so it opens its own fork
+and runs in state no other selector touched. That is what makes the mandatory live-staking pause
+safe: it happens in a fork one claim created and no other claim can observe. It is also what makes
+the gas
 claims' cold measurements real: the first external touch inside a freshly created fork is genuinely
 cold, and `GAS-006` proves it by running a second identical-shape launch in the same fork as a warm
 control and requiring it to be cheaper. A run whose warm control is not cheaper has not measured

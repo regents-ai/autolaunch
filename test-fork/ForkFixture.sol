@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {BaseBindings} from "../src/bindings/BaseBindings.sol";
-import {ForkHeaders} from "./ForkHeaders.sol";
 
 /// @notice The read-only Base fork harness. Two isolated forks, one committed observation record,
 ///         and one normalized verdict per claim per header.
@@ -16,10 +15,13 @@ import {ForkHeaders} from "./ForkHeaders.sol";
 ///      2. The final gate is check-only. Every test below reads the committed record and compares
 ///         it against what the chain answers now. Nothing writes an observation during a check run.
 ///
-///      Each claim runs twice, in two separately created forks: once at the pinned block header
-///      recorded for this candidate, and once at the later head captured for the same candidate.
-///      The two never share state. Each run emits one normalized verdict per claim, and
-///      `bin/fork-gate.sh` reconciles the two sets for `DEP-050`.
+///      Every claim runs at the pinned block header recorded for this candidate. A named subset —
+///      `DEP-040`, `DEP-041`, `DEP-042`, `DEP-043`, `DEP-047`, `DEP-050`, `DEP-051`, `DEP-052` and
+///      `GAS-006` — runs again at the later head captured for the same candidate. Each run creates
+///      its own fork and they never share state. Each emits one normalized verdict per claim, and
+///      `bin/fork-gate.sh` reconciles the later set against the pinned one by equality for
+///      `DEP-050`: the later keys must be exactly that subset, missing or extra keys fail, and every
+///      shared key's decision must match.
 ///
 ///      The endpoint is never named here. It is reached only through the `base` alias, whose value
 ///      stays an unresolved environment reference in every committed file; `bin/fork-gate.sh`
@@ -312,9 +314,10 @@ abstract contract ForkFixture is Test {
     // -------------------------------------------------------------------------
 
     /// @dev One claim's normalized verdict at one header. `bin/fork-gate.sh` reads these out of the
-    ///      two runs' JSON test reports and requires the pinned and later sets to be identical, which
-    ///      is `DEP-050`. Normalized means the string carries the claim's *decision*, never a
-    ///      header-dependent value like a block number, a timestamp, or a balance.
+    ///      two runs' JSON test reports and requires the later set to equal the exact cross-header
+    ///      subset, with every shared decision identical, which is `DEP-050`. Normalized means the
+    ///      string carries the claim's *decision*, never a header-dependent value like a block
+    ///      number, a timestamp, or a balance.
     function _emitVerdict(string memory claim, Header header, string memory verdict) internal {
         emit log_named_string(string.concat("verdict ", claim, " ", _headerName(header)), verdict);
     }

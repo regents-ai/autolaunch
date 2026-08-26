@@ -13,10 +13,15 @@ import {ForkHeaders} from "./ForkHeaders.sol";
 ///
 ///        reports/generated/fork/fork-observations-candidate.json
 ///
-///      A human reads that candidate, fills in the two transaction-gas-schedule values the chain
-///      does not expose, flips its status, installs it at `reports/frozen/fork-observations.json`,
-///      activates `fork` in `requirements/ledger.toml`, and commits both. Only then can
-///      `bin/fork-gate.sh check` run, and check is compare-only against what was reviewed.
+///      A human reads that candidate, fills in the transaction-gas-schedule values the chain does
+///      not expose, flips its status, installs it at `reports/frozen/fork-observations.json` —
+///      replacing whatever was committed there — makes sure `requirements/ledger.toml` activates
+///      `fork`, and commits. Only then can `bin/fork-gate.sh check` run, and check is compare-only
+///      against what was reviewed.
+///
+///      This pass runs the same way whether or not a reviewed observation is already committed. It
+///      never reads one, and the only path it can write is gitignored scratch, so a candidate
+///      produced beside a live committed record is ignored until a human installs it.
 ///
 ///      Header choice is deterministic rather than arbitrary. The run opens one fork at the chain
 ///      head, takes that height as the *later* header, and takes `later - CONFIRMATION_DEPTH` as
@@ -239,11 +244,14 @@ contract ForkDiscoveryTest is Test {
     }
 
     function _transition() private pure returns (string memory) {
-        return "1. review every value below against an independent source; 2. fill in "
-            "transaction_gas_schedule; 3. set status to observed_and_committed; 4. copy this file to "
-            "reports/frozen/fork-observations.json; 5. add \"fork\" to activated_gates in "
-            "requirements/ledger.toml and flip the eighteen fork claims to active; 6. commit both; "
-            "7. run bin/fork-gate.sh check.";
+        return "1. review every value below against an independent source; 2. diff this file against "
+            "any record already at reports/frozen/fork-observations.json and account for every "
+            "difference outside the two headers before accepting it; 3. fill in "
+            "transaction_gas_schedule; 4. set status to observed_and_committed; 5. copy this file to "
+            "reports/frozen/fork-observations.json, replacing any record already committed there; "
+            "6. if requirements/ledger.toml does not already activate \"fork\" with every fork claim "
+            "active, activate it; 7. commit whatever of the two changed; 8. run bin/fork-gate.sh "
+            "check. Until step 7 lands this file is scratch: nothing reads it and no claim closes " "against it.";
     }
 
     // -------------------------------------------------------------------------
