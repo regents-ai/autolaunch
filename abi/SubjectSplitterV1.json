@@ -209,11 +209,6 @@
           "name": "treasury_",
           "type": "address",
           "internalType": "address"
-        },
-        {
-          "name": "recoveryAdmin_",
-          "type": "address",
-          "internalType": "address"
         }
       ],
       "outputs": [],
@@ -272,13 +267,7 @@
     {
       "type": "function",
       "name": "recoverForcedETH",
-      "inputs": [
-        {
-          "name": "amount",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
+      "inputs": [],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -290,28 +279,10 @@
           "name": "token",
           "type": "address",
           "internalType": "address"
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "internalType": "uint256"
         }
       ],
       "outputs": [],
       "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "recoveryAdmin",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "address",
-          "internalType": "address"
-        }
-      ],
-      "stateMutability": "view"
     },
     {
       "type": "function",
@@ -600,12 +571,6 @@
           "type": "address",
           "indexed": true,
           "internalType": "address"
-        },
-        {
-          "name": "recoveryAdmin",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
         }
       ],
       "anonymous": false
@@ -722,17 +687,6 @@
     },
     {
       "type": "error",
-      "name": "NotRecoveryAdmin",
-      "inputs": [
-        {
-          "name": "caller",
-          "type": "address",
-          "internalType": "address"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "ProtectedToken",
       "inputs": [
         {
@@ -812,13 +766,12 @@
     "claimable(address,address)": "d4570c1c",
     "claimableDust(address,address)": "1c92efb6",
     "depositRecognizedRevenue(address,uint256,bytes32)": "515ef0c9",
-    "initialize(address,address,address,address,address,address,address)": "35876476",
+    "initialize(address,address,address,address,address,address)": "cc2a9a5b",
     "liveStaking()": "7bea49c4",
     "protectedBalance(address)": "3dc1a23b",
     "recognizeSurplusRevenue(address,bytes32)": "0c46395a",
-    "recoverForcedETH(uint256)": "cfbe2877",
-    "recoverUnsupportedToken(address,uint256)": "0112d431",
-    "recoveryAdmin()": "5f6529a3",
+    "recoverForcedETH()": "4725dd8e",
+    "recoverUnsupportedToken(address)": "22ab5669",
     "regent()": "35cd696e",
     "regentSafe()": "c39058c4",
     "stake(uint256)": "a694fc3a",

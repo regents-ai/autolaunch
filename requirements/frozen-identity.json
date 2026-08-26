@@ -1,7 +1,7 @@
 {
   "authority": "SPEC.md",
   "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs. src/bindings/FrozenIdentity.sol and src/bindings/BaseBindings.sol are the compiled copies; test/bindings/ proves the compiled copies equal this file.",
-  "spec_sha256": "c62d75332ffcac80de9c5259f92b571a5b8264be45d90326c0012b3d88f082e3",
+  "spec_sha256": "200ce4023707a0075285c8228af8ac8277aaa82977a1131c242987d88bc46031",
   "chain": {
     "name": "base-mainnet",
     "id": 8453
@@ -100,16 +100,24 @@
     "integrated_c4_commit": "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
   },
   "final_source_delta": {
-    "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. C5 needed no such set because its only production edit was a comment; regent-alv1.6.1 corrects a terminal-path defect and therefore does. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. It proves which production bytes moved; the source diff and independent review prove why.",
-    "ticket": "regent-alv1.6.1",
+    "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. That is what proves regent-alv1.7 touched exactly the factory, the strategy, the splitter and the receiver, and left the escrow and the fee hook byte-identical. It proves which production bytes moved; the source diff and independent review prove why.",
+    "ticket": "regent-alv1.7",
     "changed": [
       {
         "key": "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
-        "reason": "initialize no longer re-evaluates whether the recovery admin still carries code, and the now-unused splitter-local RecoveryAdminHasNoCode() error is deleted with it. Launch-time admission stays the strategy's single check (FAC-016); the terminal-path liveness this restores is MIG-020 and the deleted selector is ABI-012."
+        "reason": "The recoveryAdmin binding, its getter, its modifier, its NotRecoveryAdmin error and its initializer argument are deleted, and both recovery entry points become permissionless, amount-free and whole-balance to the immutable treasury. SplitterInitialized and initialize lose their seventh field. SPL-017, SPL-018 and ABI-005 carry the behaviour; ABI-012 carries the deleted selectors."
+      },
+      {
+        "key": "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1",
+        "reason": "The same deletion on the receiver: the recoveryAdmin binding read from the splitter, its getter, its modifier and its NotRecoveryAdmin error are gone, and both recovery entry points become permissionless, amount-free and whole-balance to the immutable treasury. RCV-009, RCV-010, RCV-011 and ABI-006 carry the behaviour."
+      },
+      {
+        "key": "src/strategy/RegentLBPStrategy.sol:RegentLBPStrategy",
+        "reason": "DistributionParams and Distribution lose their recoveryAdmin field, RecoveryAdminHasNoCode(address) is deleted, the splitter initializer call loses its seventh argument, one private launch-time treasury admission is added between escrow authentication and auction creation, both per-launch clones move from CREATE to launch-derived CREATE2, and the pinned planner's two CONTRACT_BALANCE settlement amounts are replaced with the exact amounts this graduation funds. STR-019, FAC-028, MIG-021 and MIG-022 carry the behaviour."
       },
       {
         "key": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",
-        "reason": "SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH is updated to the corrected splitter's runtime hash. That literal is the only factory source change; DEP-060 reconciles it against the compiled artifact and against a real deployed implementation."
+        "reason": "LaunchParams, the Launch record and LaunchCreated lose their recoveryAdmin field, the launch-record readback renumbers accordingly, and SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH and RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH are updated to the corrected clone runtimes. ABI-002, ABI-003, ABI-007, ABI-011 and DEP-060 carry it."
       }
     ]
   },

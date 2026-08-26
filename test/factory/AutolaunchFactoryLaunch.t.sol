@@ -11,7 +11,7 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {AutolaunchFixture} from "../integration/AutolaunchFixture.sol";
-import {MockRecoveryAdmin} from "../mocks/MockRecoveryAdmin.sol";
+import {InertTreasury} from "../mocks/InertTreasury.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 /// @notice `C4-I3` and `C4-I4`: one `launch` call produces exactly one canonical SUBJECT, one
@@ -33,7 +33,6 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         address auction,
         address escrow,
         address treasury,
-        address recoveryAdmin,
         uint128 requiredRegentRaised,
         uint64 startBlock,
         uint64 endBlock
@@ -97,12 +96,12 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             );
         }
 
-        // The signature carries exactly the nine admitted fields, so there is nowhere for a
+        // The signature carries exactly the eight admitted fields, so there is nowhere for a
         // user-supplied salt to enter.
         assertEq(
             RegentsAutolaunchFactoryV1.launch.selector,
-            bytes4(keccak256("launch((string,string,string,string,string,address,address,uint128,uint256))")),
-            "the launch signature is not the admitted nine-field tuple"
+            bytes4(keccak256("launch((string,string,string,string,string,address,uint128,uint256))")),
+            "the launch signature is not the admitted eight-field tuple"
         );
 
         // C5 correction: name and symbol *do* move the created address, because the pinned UERC20
@@ -370,6 +369,78 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         _assertTreasuryBlastRadiusIsOneLaunch();
     }
 
+    /// @notice `FAC-015`: value a launcher deliberately routes to another launch's artifact is not
+    ///         promised to stay isolated. Lifecycle state and the isolated 5% reserve still are.
+    /// @dev The named C6 consequence, produced exactly as production produces it. The launcher of
+    ///      the first launch names the address a *different*, later launch's splitter will occupy.
+    ///      Launch-time admission accepts it: it refuses only this launch's own two clone slots, and
+    ///      refusing every other launch's would mean enumerating launches that do not exist yet.
+    ///      Once the second launch graduates, that address is a real splitter, and the first launch's
+    ///      own vested payout sitting there is inside the second launch's ordinary accounting —
+    ///      permissionless recovery sends it to the second launch's treasury. Nothing about it
+    ///      corrupts either launch's lifecycle or reserve.
+    function test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated() public {
+        // The second launch's identity, and therefore its splitter slot, is already fixed here: the
+        // factory hands out launch ids in order and every SUBJECT is a CREATE2 of the pinned UERC20
+        // factory over that launch id.
+        (address futureSecondSplitter,) = _plannedSortedSlots(factory.nextLaunchId() + 1, false);
+        assertEq(futureSecondSplitter.code.length, 0, "the second launch's splitter slot already carries code");
+
+        RegentsAutolaunchFactoryV1.LaunchParams memory firstParams = _params();
+        firstParams.treasury = futureSecondSplitter;
+        Launched memory first = _launchSorted(true, firstParams);
+        Launched memory second = _launchSorted(false, _params());
+
+        _rollToStart(first);
+        _bid(first, bidder, 20_000e18, _bidPrice(10));
+        _bid(second, bidder, 20_000e18, _bidPrice(10));
+        _rollToMigration(second);
+
+        strategy.migrate(address(first.auction));
+        strategy.migrate(address(second.auction));
+
+        address secondSplitter = _distribution(second).splitter;
+        assertEq(secondSplitter, futureSecondSplitter, "the second splitter is not where the first launch aimed");
+        assertEq(
+            SubjectSplitterV1(_distribution(first).splitter).treasury(),
+            secondSplitter,
+            "the first launch did not keep the treasury it chose"
+        );
+
+        // The first launch's own vested payout, released by its own permissionless escrow call.
+        vm.warp(block.timestamp + 30 days);
+        first.escrow.release();
+        uint256 crossed = first.subject.balanceOf(secondSplitter);
+        assertGt(crossed, 0, "the first launch paid its chosen treasury nothing");
+
+        // It is now the second launch's inventory, and anyone may route it to the second treasury.
+        vm.prank(outsider);
+        SubjectSplitterV1(secondSplitter).recoverUnsupportedToken(address(first.subject));
+        assertEq(first.subject.balanceOf(treasury), crossed, "the first launch's payout did not cross launches");
+
+        // What stays isolated: each launch's lifecycle, its own reserve, and its own SUBJECT ledger.
+        assertEq(
+            uint8(_distribution(second).lifecycle),
+            uint8(RegentLBPStrategy.Lifecycle.Graduated),
+            "the second launch's lifecycle was disturbed"
+        );
+        assertEq(
+            uint8(_distribution(first).lifecycle),
+            uint8(RegentLBPStrategy.Lifecycle.Graduated),
+            "the first launch's lifecycle was disturbed"
+        );
+        assertEq(
+            SubjectSplitterV1(secondSplitter).totalStaked(), 0, "the crossed value was counted as staked principal"
+        );
+        assertEq(
+            SubjectSplitterV1(secondSplitter).unclaimedLiability(address(second.subject)),
+            0,
+            "the crossed value was recognized as the second launch's revenue"
+        );
+        assertEq(second.subject.totalSupply(), TOTAL_SUPPLY, "the second launch's supply moved");
+        assertEq(first.subject.totalSupply(), TOTAL_SUPPLY, "the first launch's supply moved");
+    }
+
     /// @dev `FAC-015`, C5 correction: the treasury is launcher-chosen as well as immutable, so its
     ///      blast radius is worth naming. A treasury that can never move a token strands its own
     ///      launch's payouts permanently — and reaches nothing else. A second launch created in the
@@ -378,7 +449,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     ///      confined by construction, because every payout destination is per-launch.
     function _assertTreasuryBlastRadiusIsOneLaunch() private {
         // A deployed contract with no token-moving surface at all. Anything sent here is stranded.
-        address strandingTreasury = address(new MockRecoveryAdmin());
+        address strandingTreasury = address(new InertTreasury());
 
         RegentsAutolaunchFactoryV1.LaunchParams memory bad = _params();
         bad.treasury = strandingTreasury;
@@ -425,46 +496,6 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
 
         // The shared hook retains nothing attributable through either launch.
         assertEq(regent.balanceOf(address(hook)), 0, "the shared hook retained REGENT");
-    }
-
-    /// @notice `FAC-016`: the recovery admin must be a deployed contract that is not the shared
-    ///         strategy, and it is fixed for the life of the launch.
-    /// @dev The rejections are the canonical downstream contracts' own; the factory does not restate
-    ///      them merely to change the revert source.
-    function test_FAC_016_RecoveryAdminIsAnImmutableDeployedContract() public {
-        RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-
-        params.recoveryAdmin = address(0);
-        _expectMetadataRevert(
-            params, abi.encodeWithSelector(RegentLBPStrategy.RecoveryAdminHasNoCode.selector, address(0))
-        );
-
-        params.recoveryAdmin = outsider;
-        _expectMetadataRevert(
-            params, abi.encodeWithSelector(RegentLBPStrategy.RecoveryAdminHasNoCode.selector, outsider)
-        );
-
-        params.recoveryAdmin = address(strategy);
-        _expectMetadataRevert(params, abi.encodeWithSelector(RegentLBPStrategy.SelfAddress.selector));
-
-        assertEq(factory.nextLaunchId(), 1, "a rejected recovery admin allocated an ID");
-
-        params.recoveryAdmin = address(recoveryAdmin);
-        Launched memory launched = _launchAs(launcher, params);
-        assertEq(
-            factory.launches(launched.launchId).recoveryAdmin,
-            address(recoveryAdmin),
-            "the factory recorded another admin"
-        );
-        assertEq(_distribution(launched).recoveryAdmin, address(recoveryAdmin), "the strategy recorded another admin");
-
-        _bidToGraduation(launched, 2_000e18);
-        strategy.migrate(address(launched.auction));
-        assertEq(
-            SubjectSplitterV1(_distribution(launched).splitter).recoveryAdmin(),
-            address(recoveryAdmin),
-            "graduation bound another recovery admin"
-        );
     }
 
     /// @notice `FAC-017`: being the launcher is provenance and nothing else.
@@ -675,9 +706,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotAuthenticEscrow.selector, impostor));
         vm.prank(address(factory));
         strategy.initializeDistribution(
-            RegentLBPStrategy.DistributionParams({
-                launchId: 99, escrow: impostor, recoveryAdmin: address(recoveryAdmin), requiredRegentRaised: 1_000e18
-            })
+            RegentLBPStrategy.DistributionParams({launchId: 99, escrow: impostor, requiredRegentRaised: 1_000e18})
         );
     }
 
@@ -775,7 +804,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     ) private {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bytes32 topic =
-            keccak256("LaunchCreated(uint256,address,address,address,address,address,address,uint128,uint64,uint64)");
+            keccak256("LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64)");
         bool seen;
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != address(factory) || logs[i].topics[0] != topic) continue;
@@ -788,15 +817,13 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
                 address loggedAuction,
                 address loggedEscrow,
                 address loggedTreasury,
-                address loggedAdmin,
                 uint128 loggedRaise,
                 uint64 loggedStart,
                 uint64 loggedEnd
-            ) = abi.decode(logs[i].data, (address, address, address, address, uint128, uint64, uint64));
+            ) = abi.decode(logs[i].data, (address, address, address, uint128, uint64, uint64));
             assertEq(loggedAuction, auction, "event auction");
             assertEq(loggedEscrow, escrow, "event escrow");
             assertEq(loggedTreasury, params.treasury, "event treasury");
-            assertEq(loggedAdmin, params.recoveryAdmin, "event recovery admin");
             assertEq(loggedRaise, params.requiredRegentRaised, "event required raise");
             assertEq(loggedStart, startBlock, "event start block");
             assertEq(loggedEnd, endBlock, "event end block");

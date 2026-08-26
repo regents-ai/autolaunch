@@ -7,7 +7,6 @@ import {LibClone} from "solady/utils/LibClone.sol";
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {MockLiveStaking} from "../mocks/MockLiveStaking.sol";
-import {MockRecoveryAdmin} from "../mocks/MockRecoveryAdmin.sol";
 import {ReceiverHandler} from "./handlers/ReceiverHandler.sol";
 
 /// @notice `INV-008`: receiver accounting conserves referral, skim, and net for every payment
@@ -24,7 +23,6 @@ contract ReceiverInvariantsTest is Test {
     MockERC20 internal regent;
     MockERC20 internal subject;
     MockLiveStaking internal liveStaking;
-    MockRecoveryAdmin internal recoveryAdmin;
     ReceiverHandler internal handler;
 
     address internal regentSafe = makeAddr("regentSafe");
@@ -36,17 +34,10 @@ contract ReceiverInvariantsTest is Test {
         regent = new MockERC20("Regent", "REGENT", 18);
         subject = new MockERC20("Subject", "SUBJ", 18);
         liveStaking = new MockLiveStaking(address(usdc));
-        recoveryAdmin = new MockRecoveryAdmin();
 
         splitter = SubjectSplitterV1(LibClone.clone(address(new SubjectSplitterV1())));
         splitter.initialize(
-            address(usdc),
-            address(regent),
-            address(subject),
-            address(liveStaking),
-            regentSafe,
-            treasury,
-            address(recoveryAdmin)
+            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
         );
 
         PaymentReceiverV1 implementation = new PaymentReceiverV1();

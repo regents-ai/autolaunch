@@ -11,11 +11,14 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 ///         splitter's three assets, pays the immutable referral first, and hands the remainder to
 ///         the splitter in the same transaction.
 /// @dev The caller supplies only the splitter, the beneficiary, the referral share, the note
-///      editor, and whether this is the launch's canonical receiver. Treasury, recovery admin, and
-///      the three recognized tokens are read from the splitter's own getters, so a receiver can
-///      never disagree with its splitter about them. Nothing here is settable afterwards: there is
-///      no upgrade path, no reinitializer, no role change, no referral change, no destination
+///      editor, and whether this is the launch's canonical receiver. The treasury and the three
+///      recognized tokens are read from the splitter's own getters, so a receiver can never
+///      disagree with its splitter about them. Nothing here is settable afterwards: there is no
+///      upgrade path, no reinitializer, no role change, no referral change, no destination
 ///      change, no arbitrary recipient, no pause, and no receiver disablement.
+///
+///      Recovery is permissionless and matches the splitter's: the complete recoverable balance,
+///      always to the immutable treasury, with no administrator to lose.
 ///
 ///      Named invariants: `C1-I5` receiver conservation, `C1-I6` fixed authority, `C1-I7` atomic
 ///      failure.
@@ -42,9 +45,6 @@ contract PaymentReceiverV1 is Initializable, ReentrancyGuard {
 
     /// @notice The recovery destination, read from the splitter at initialization.
     address public treasury;
-
-    /// @notice The only account allowed to recover, read from the splitter at initialization.
-    address public recoveryAdmin;
 
     /// @notice The USDC binding, read from the splitter at initialization.
     address public usdc;
@@ -83,17 +83,11 @@ contract PaymentReceiverV1 is Initializable, ReentrancyGuard {
     error UnsupportedToken(address token);
     error ProtectedToken(address token);
     error NotNoteEditor(address caller);
-    error NotRecoveryAdmin(address caller);
     error InexactTransfer(uint256 expected, uint256 found);
 
     /// @dev The implementation is permanently uninitializable, so only clones accept payments.
     constructor() {
         _disableInitializers();
-    }
-
-    modifier onlyRecoveryAdmin() {
-        if (msg.sender != recoveryAdmin) revert NotRecoveryAdmin(msg.sender);
-        _;
     }
 
     /// @notice Fix this clone's bindings. Runs exactly once. `C1-I6`.
@@ -125,7 +119,6 @@ contract PaymentReceiverV1 is Initializable, ReentrancyGuard {
         referralBps = referralBps_;
         noteEditor = noteEditor_;
         treasury = treasury_;
-        recoveryAdmin = SubjectSplitterV1(splitter_).recoveryAdmin();
         usdc = SubjectSplitterV1(splitter_).usdc();
         regent = SubjectSplitterV1(splitter_).regent();
         subject = SubjectSplitterV1(splitter_).subject();
@@ -169,20 +162,29 @@ contract PaymentReceiverV1 is Initializable, ReentrancyGuard {
         _route(token, amount, paymentRef);
     }
 
-    /// @notice Send an unsupported ERC20 to the fixed treasury. Recovery admin only.
-    /// @dev One guarded transfer and nothing else, so a hostile token can fail only this call.
-    function recoverUnsupportedToken(address token, uint256 amount) external nonReentrant onlyRecoveryAdmin {
+    /// @notice Send this receiver's whole balance of an unsupported ERC20 to the fixed treasury.
+    /// @dev Permissionless. The caller names only which token to sweep; the amount is this
+    ///      receiver's complete balance of it and the destination is always the immutable
+    ///      treasury. USDC, REGENT and SUBJECT are permanently refused, so a pending payment can
+    ///      never be diverted. Beyond the balance read it is one guarded transfer and nothing
+    ///      else, so a hostile token can fail only its own call.
+    function recoverUnsupportedToken(address token) external nonReentrant {
         if (token == usdc || token == regent || token == subject) revert ProtectedToken(token);
+
+        uint256 amount = token.balanceOf(address(this));
         if (amount == 0) revert ZeroAmount();
 
         emit UnsupportedTokenRecovered(token, treasury, amount);
         token.safeTransfer(treasury, amount);
     }
 
-    /// @notice Send forced ETH to the fixed treasury. Recovery admin only.
-    /// @dev This contract has no receive or fallback function, so an ordinary ETH transfer reverts
-    ///      and only EVM force-send behavior can ever leave ETH here.
-    function recoverForcedETH(uint256 amount) external nonReentrant onlyRecoveryAdmin {
+    /// @notice Send this receiver's whole ETH balance to the fixed treasury.
+    /// @dev Permissionless, for the same reason. This contract has no receive or fallback
+    ///      function, so an ordinary ETH transfer reverts and only EVM force-send behavior can
+    ///      ever leave ETH here.
+    // slither-disable-next-line incorrect-equality
+    function recoverForcedETH() external nonReentrant {
+        uint256 amount = address(this).balance;
         if (amount == 0) revert ZeroAmount();
 
         emit ForcedEthRecovered(treasury, amount);

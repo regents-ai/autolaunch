@@ -6,7 +6,6 @@ import {LibClone} from "solady/utils/LibClone.sol";
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {MockLiveStaking} from "../mocks/MockLiveStaking.sol";
-import {MockRecoveryAdmin} from "../mocks/MockRecoveryAdmin.sol";
 import {SplitterHandler} from "./handlers/SplitterHandler.sol";
 
 /// @notice `INV-002`, `INV-003`, and `INV-005`: three deliberately separate accounting models over
@@ -33,7 +32,6 @@ contract SplitterInvariantsTest is Test {
     MockERC20 internal subject;
     MockERC20 internal unsupported;
     MockLiveStaking internal liveStaking;
-    MockRecoveryAdmin internal recoveryAdmin;
     SplitterHandler internal handler;
 
     address internal regentSafe = makeAddr("regentSafe");
@@ -45,17 +43,10 @@ contract SplitterInvariantsTest is Test {
         subject = new MockERC20("Subject", "SUBJ", 18);
         unsupported = new MockERC20("Unsupported", "UNSUP", 18);
         liveStaking = new MockLiveStaking(address(usdc));
-        recoveryAdmin = new MockRecoveryAdmin();
 
         splitter = SubjectSplitterV1(LibClone.clone(address(new SubjectSplitterV1())));
         splitter.initialize(
-            address(usdc),
-            address(regent),
-            address(subject),
-            address(liveStaking),
-            regentSafe,
-            treasury,
-            address(recoveryAdmin)
+            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
         );
 
         address[4] memory actors =
@@ -67,9 +58,7 @@ contract SplitterInvariantsTest is Test {
             unsupported.mint(actors[i], ACTOR_FUNDING);
         }
 
-        handler = new SplitterHandler(
-            splitter, usdc, regent, subject, unsupported, address(recoveryAdmin), regentSafe, treasury, actors
-        );
+        handler = new SplitterHandler(splitter, usdc, regent, subject, unsupported, regentSafe, treasury, actors);
 
         targetContract(address(handler));
     }

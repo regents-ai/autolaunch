@@ -48,7 +48,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         expected[0] = _assertFrozenFunction(
             frozenLines,
             RegentsAutolaunchFactoryV1.launch.selector,
-            "launch((string,string,string,string,string,address,address,uint128,uint256))",
+            "launch((string,string,string,string,string,address,uint128,uint256))",
             "factory"
         );
         expected[1] = _assertFrozenFunction(
@@ -70,7 +70,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertSameSet(frozenLines, expected, "factory public mutation surface");
     }
 
-    /// @notice `ABI-003`: `LaunchParams` carries exactly the nine `SPEC.md` fields, in order, at
+    /// @notice `ABI-003`: `LaunchParams` carries exactly the eight `SPEC.md` fields, in order, at
     ///         exactly those widths.
     /// @dev Two independent proofs of the same shape: the field list the compiler recorded in the
     ///      ABI, and the tuple encoded inside `launch`'s own selector. A reordered, renamed, added,
@@ -78,14 +78,13 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     function test_ABI_003_LaunchParamsFieldsAreExact() public view {
         string[] memory frozen = _frozenStrings(FACTORY, "input_structs.launch_params");
 
-        string[9] memory expected = [
+        string[8] memory expected = [
             "string name",
             "string symbol",
             "string description",
             "string website",
             "string image",
             "address treasury",
-            "address recoveryAdmin",
             "uint128 requiredRegentRaised",
             "uint256 expectedLaunchFee"
         ];
@@ -96,7 +95,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         }
 
         assertEq(
-            bytes4(keccak256("launch((string,string,string,string,string,address,address,uint128,uint256))")),
+            bytes4(keccak256("launch((string,string,string,string,string,address,uint128,uint256))")),
             RegentsAutolaunchFactoryV1.launch.selector,
             "the LaunchParams tuple encoded in launch's selector is not the frozen one"
         );
@@ -134,8 +133,8 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     }
 
     /// @notice `ABI-005`: beyond those six the splitter exposes only its one-shot initializer and
-    ///         the two administrative recovery functions, and nothing else that mutates.
-    function test_ABI_005_SplitterAdministrativeRecoverySurfaceIsExact() public view {
+    ///         the two permissionless recovery functions, and nothing else that mutates.
+    function test_ABI_005_SplitterRecoverySurfaceIsExact() public view {
         string[] memory frozenLines = _frozenStrings(SPLITTER, "mutating_functions");
 
         string[] memory callerOnly = _splitterCallerOnly(frozenLines);
@@ -146,17 +145,17 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         expected[callerOnly.length] = _assertFrozenFunction(
             frozenLines,
             SubjectSplitterV1.initialize.selector,
-            "initialize(address,address,address,address,address,address,address)",
+            "initialize(address,address,address,address,address,address)",
             "splitter"
         );
         expected[callerOnly.length + 1] = _assertFrozenFunction(
             frozenLines,
             SubjectSplitterV1.recoverUnsupportedToken.selector,
-            "recoverUnsupportedToken(address,uint256)",
+            "recoverUnsupportedToken(address)",
             "splitter"
         );
         expected[callerOnly.length + 2] = _assertFrozenFunction(
-            frozenLines, SubjectSplitterV1.recoverForcedETH.selector, "recoverForcedETH(uint256)", "splitter"
+            frozenLines, SubjectSplitterV1.recoverForcedETH.selector, "recoverForcedETH()", "splitter"
         );
 
         _assertSameSet(frozenLines, expected, "splitter complete mutating surface");
@@ -183,11 +182,11 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         expected[3] = _assertFrozenFunction(
             frozenLines,
             PaymentReceiverV1.recoverUnsupportedToken.selector,
-            "recoverUnsupportedToken(address,uint256)",
+            "recoverUnsupportedToken(address)",
             "receiver"
         );
         expected[4] = _assertFrozenFunction(
-            frozenLines, PaymentReceiverV1.recoverForcedETH.selector, "recoverForcedETH(uint256)", "receiver"
+            frozenLines, PaymentReceiverV1.recoverForcedETH.selector, "recoverForcedETH()", "receiver"
         );
         expected[5] = _assertFrozenFunction(
             frozenLines,
@@ -227,7 +226,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEventFields(
             FACTORY,
             "LaunchCreated",
-            "uint256 indexed launchId|address indexed launcher|address indexed subject|address auction|address escrow|address treasury|address recoveryAdmin|uint128 requiredRegentRaised|uint64 startBlock|uint64 endBlock"
+            "uint256 indexed launchId|address indexed launcher|address indexed subject|address auction|address escrow|address treasury|uint128 requiredRegentRaised|uint64 startBlock|uint64 endBlock"
         );
         _assertEventFields(
             FACTORY,
@@ -288,7 +287,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEventFields(
             SPLITTER,
             "SplitterInitialized",
-            "address usdc|address regent|address indexed subject|address liveStaking|address regentSafe|address indexed treasury|address indexed recoveryAdmin"
+            "address usdc|address regent|address indexed subject|address liveStaking|address regentSafe|address indexed treasury"
         );
         _assertEventFields(SPLITTER, "Staked", "address indexed account|uint256 amount");
         _assertEventFields(SPLITTER, "Unstaked", "address indexed account|uint256 amount");
@@ -392,12 +391,12 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertReturnTuple(
             FACTORY,
             "launches_return0",
-            "address launcher|address subject|address auction|address escrow|address treasury|address recoveryAdmin"
+            "address launcher|address subject|address auction|address escrow|address treasury"
         );
         _assertReturnTuple(
             STRATEGY,
             "distribution_return0",
-            "uint8 lifecycle|uint64 startBlock|uint64 endBlock|uint64 claimBlock|uint64 migrationBlock|uint128 requiredRegentRaised|uint128 reserve|uint128 lpRegentUsed|uint128 lpSubjectUsed|uint160 finalSqrtPriceX96|uint256 launchId|address subject|address escrow|address treasury|address recoveryAdmin|address splitter|address receiver|bytes32 poolId|uint256 lpTokenId"
+            "uint8 lifecycle|uint64 startBlock|uint64 endBlock|uint64 claimBlock|uint64 migrationBlock|uint128 requiredRegentRaised|uint128 reserve|uint128 lpRegentUsed|uint128 lpSubjectUsed|uint160 finalSqrtPriceX96|uint256 launchId|address subject|address escrow|address treasury|address splitter|address receiver|bytes32 poolId|uint256 lpTokenId"
         );
         _assertReturnTuple(
             STRATEGY,
@@ -459,13 +458,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         SubjectSplitterV1(d.splitter)
             .initialize(
-                address(usdc),
-                address(regent),
-                address(launched.subject),
-                address(liveStaking),
-                governance,
-                outsider,
-                address(recoveryAdmin)
+                address(usdc), address(regent), address(launched.subject), address(liveStaking), governance, outsider
             );
 
         // The canonical receiver clone, and a custom one the factory made afterwards.
@@ -483,13 +476,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         escrowImplementation.initialize(address(launched.subject), treasury, address(strategy));
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         splitterImplementation.initialize(
-            address(usdc),
-            address(regent),
-            address(launched.subject),
-            address(liveStaking),
-            governance,
-            treasury,
-            address(recoveryAdmin)
+            address(usdc), address(regent), address(launched.subject), address(liveStaking), governance, treasury
         );
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         receiverImplementation.initialize(d.splitter, treasury, 0, treasury, false);
@@ -557,69 +544,90 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     }
 
     // -------------------------------------------------------------------------
-    // ABI-012 — the deleted splitter recovery-admin error selector
+    // ABI-012 — the deleted recovery-administration surface
     // -------------------------------------------------------------------------
 
-    /// @notice `ABI-012`: `SubjectSplitterV1.RecoveryAdminHasNoCode()` — selector `0x4f986444` — is
-    ///         gone from the frozen error surface and from every generated per-contract ABI, while
-    ///         the strategy's own `RecoveryAdminHasNoCode(address)` survives because launch-time
-    ///         admission still rejects a code-less recovery admin.
+    /// @notice `ABI-012`: the whole recovery-administration surface is deleted. The strategy's
+    ///         `RecoveryAdminHasNoCode(address)` (`0xa6397a8c`), the splitter's and the receiver's
+    ///         `NotRecoveryAdmin(address)`, their `recoveryAdmin()` getters, and the earlier
+    ///         `RecoveryAdminHasNoCode()` (`0x4f986444`) appear on no production contract's frozen
+    ///         surface, and no generated per-contract ABI document names a recovery admin at all.
     /// @dev A hard-deleted selector is proved by diff, never by calling it. Two independently
-    ///      generated authorities are diffed here — `reports/frozen/abi-surface.json`, which is the
+    ///      generated authorities are diffed: `reports/frozen/abi-surface.json`, the
     ///      complete-surface record, and the `abi/` document the release manifest names for each
-    ///      contract — and the strategy's surviving error is asserted present in both, so this is a
-    ///      diff in both directions rather than a bare absence.
+    ///      contract. Both directions are covered — every deleted selector is asserted absent, and
+    ///      the recovery entry points that replaced them are asserted present with their new,
+    ///      amount-free signatures, so an accidental deletion of recovery itself fails here too.
     ///
-    ///      A runtime byte scan is deliberately *not* used. It is sound for a deleted function,
-    ///      whose selector the dispatcher must carry literally, and `ABI-009` uses it for exactly
-    ///      that. It is not sound for a custom error under this repository's via-IR build: solc
-    ///      rewrites the revert prologue's constant into whatever encoding is cheapest, and for
-    ///      this very error it emits `shl(226, 0x298e5ea3)` rather than `shl(224, 0xa6397a8c)`, so
-    ///      the live strategy runtime does not contain the four selector bytes anywhere. A scan
-    ///      would therefore report a live error as absent, which makes its absence result worth
-    ///      nothing in either direction.
-    function test_ABI_012_DeletedSplitterRecoveryAdminErrorSelectorIsAbsent() public view {
-        bytes4 deleted = 0x4f986444;
-        bytes4 kept = RegentLBPStrategy.RecoveryAdminHasNoCode.selector;
+    ///      A runtime byte scan is deliberately *not* used for the errors. It is sound for a
+    ///      deleted function, whose selector the dispatcher must carry literally, and `ABI-009`
+    ///      uses it for exactly that. It is not sound for a custom error under this repository's
+    ///      via-IR build: solc rewrites the revert prologue's constant into whatever encoding is
+    ///      cheapest, so a live error's four selector bytes may appear nowhere in the runtime and a
+    ///      scan would report it absent. The two generated ABI records carry no such ambiguity.
+    function test_ABI_012_DeletedRecoveryAdministrationSurfaceIsAbsent() public view {
+        // Every literal below is compiler truth, not transcription.
+        bytes4 hasNoCodeArity0 = 0x4f986444;
+        bytes4 hasNoCodeArity1 = 0xa6397a8c;
+        assertEq(bytes4(keccak256("RecoveryAdminHasNoCode()")), hasNoCodeArity0, "0x4f986444 is not that signature");
+        assertEq(
+            bytes4(keccak256("RecoveryAdminHasNoCode(address)")), hasNoCodeArity1, "0xa6397a8c is not that signature"
+        );
 
-        // Both literals are compiler truth, not transcription.
-        assertEq(bytes4(keccak256("RecoveryAdminHasNoCode()")), deleted, "0x4f986444 is not that signature");
-        assertEq(bytes4(keccak256("RecoveryAdminHasNoCode(address)")), kept, "the surviving selector moved");
-        assertTrue(deleted != kept, "the deleted and surviving selectors collided");
+        string[3] memory deletedLines = [
+            _functionLine(hasNoCodeArity0, "RecoveryAdminHasNoCode()"),
+            _functionLine(hasNoCodeArity1, "RecoveryAdminHasNoCode(address)"),
+            _functionLine(bytes4(keccak256("NotRecoveryAdmin(address)")), "NotRecoveryAdmin(address)")
+        ];
+        string memory getterLine = _functionLine(bytes4(keccak256("recoveryAdmin()")), "recoveryAdmin()");
 
-        string memory deletedLine = _functionLine(deleted, "RecoveryAdminHasNoCode()");
-        string memory declaration = "\"name\": \"RecoveryAdminHasNoCode\"";
         string memory manifest = vm.readFile(MANIFEST_PATH);
         string[6] memory contractNames = [FACTORY, STRATEGY, HOOK, ESCROW, SPLITTER, RECEIVER];
 
         for (uint256 c; c < contractNames.length; ++c) {
             string memory name = contractNames[c];
+            string[] memory errors = _frozenStrings(name, "errors");
+            for (uint256 i; i < deletedLines.length; ++i) {
+                assertFalse(
+                    _contains(errors, deletedLines[i]), string.concat(name, " still declares ", deletedLines[i])
+                );
+            }
             assertFalse(
-                _contains(_frozenStrings(name, "errors"), deletedLine),
-                string.concat(name, " still declares the deleted ", deletedLine)
+                _declaresFunctionNamed(errors, "RecoveryAdminHasNoCode"),
+                string.concat(name, " still declares a RecoveryAdminHasNoCode error at some arity")
+            );
+            assertFalse(
+                _declaresFunctionNamed(errors, "NotRecoveryAdmin"),
+                string.concat(name, " still declares a NotRecoveryAdmin error at some arity")
+            );
+            assertFalse(
+                _contains(_frozenStrings(name, "view_functions"), getterLine),
+                string.concat(name, " still exposes a recoveryAdmin() getter")
             );
 
-            // The generated ABI document the manifest itself names for this contract. Only the
-            // strategy may declare an error of that name, at any arity at all.
+            // The generated ABI document the manifest itself names for this contract. No production
+            // ABI mentions a recovery admin under any name, arity, or member kind.
             string memory abiPath = vm.parseJsonString(manifest, string.concat(".contracts.", name, ".abi_file"));
-            bool declares = _containsText(vm.readFile(abiPath), declaration);
-            if (keccak256(bytes(name)) == keccak256(bytes(STRATEGY))) {
-                assertTrue(declares, string.concat(abiPath, " lost the launch-time recovery-admin admission error"));
-            } else {
-                assertFalse(declares, string.concat(abiPath, " still declares a RecoveryAdminHasNoCode error"));
-            }
+            assertFalse(
+                _containsText(vm.readFile(abiPath), "ecoveryAdmin"),
+                string.concat(abiPath, " still names a recovery admin")
+            );
         }
 
-        // The splitter declares no error of that name at any arity at all.
-        assertFalse(
-            _declaresFunctionNamed(_frozenStrings(SPLITTER, "errors"), "RecoveryAdminHasNoCode"),
-            "the splitter still declares a RecoveryAdminHasNoCode error"
-        );
-
-        // The strategy's launch-time admission error is still on the frozen surface.
+        // The other direction: recovery itself survives, in its amount-free permissionless form.
         assertTrue(
-            _contains(_frozenStrings(STRATEGY, "errors"), _functionLine(kept, "RecoveryAdminHasNoCode(address)")),
-            "the launch-time recovery-admin admission error was deleted too"
+            _contains(
+                _frozenStrings(SPLITTER, "mutating_functions"),
+                _functionLine(SubjectSplitterV1.recoverUnsupportedToken.selector, "recoverUnsupportedToken(address)")
+            ),
+            "the splitter lost permissionless unsupported-token recovery"
+        );
+        assertTrue(
+            _contains(
+                _frozenStrings(RECEIVER, "mutating_functions"),
+                _functionLine(PaymentReceiverV1.recoverForcedETH.selector, "recoverForcedETH()")
+            ),
+            "the receiver lost permissionless forced-ETH recovery"
         );
     }
 
@@ -691,10 +699,13 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
 
         // The final-source-delta record is closed and reasoned. `bin/freeze-artifacts.py check` is
         // what compares bytes; this is the independent Solidity side of the same claim — the record
-        // names exactly the two production contracts this ticket moved, and nothing else.
+        // names exactly the four production contracts this ticket moved, and nothing else. The two
+        // it must not name are the fee hook and the escrow, whose source this ticket never touched.
         string memory frozenIdentity = vm.readFile("requirements/frozen-identity.json");
-        string[2] memory changed = [
+        string[4] memory changed = [
             "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
+            "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1",
+            "src/strategy/RegentLBPStrategy.sol:RegentLBPStrategy",
             "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1"
         ];
         for (uint256 i; i < changed.length; ++i) {
@@ -711,8 +722,8 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             );
         }
         assertFalse(
-            vm.keyExistsJson(frozenIdentity, ".final_source_delta.changed[2]"),
-            "the final-source-delta record names a third contract"
+            vm.keyExistsJson(frozenIdentity, ".final_source_delta.changed[4]"),
+            "the final-source-delta record names a fifth contract"
         );
     }
 
@@ -788,7 +799,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         events = new FrozenEvent[](6);
         events[0] = FrozenEvent(
             RegentsAutolaunchFactoryV1.LaunchCreated.selector,
-            "LaunchCreated(uint256,address,address,address,address,address,address,uint128,uint64,uint64)",
+            "LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64)",
             3
         );
         events[1] =
@@ -856,8 +867,8 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         events = new FrozenEvent[](8);
         events[0] = FrozenEvent(
             SubjectSplitterV1.SplitterInitialized.selector,
-            "SplitterInitialized(address,address,address,address,address,address,address)",
-            3
+            "SplitterInitialized(address,address,address,address,address,address)",
+            2
         );
         events[1] = FrozenEvent(SubjectSplitterV1.Staked.selector, "Staked(address,uint256)", 1);
         events[2] = FrozenEvent(SubjectSplitterV1.Unstaked.selector, "Unstaked(address,uint256)", 1);

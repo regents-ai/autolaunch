@@ -9,7 +9,6 @@ import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {MockAuction} from "./MockAuction.sol";
 import {MockERC20} from "./MockERC20.sol";
 import {MockLiveStaking} from "./MockLiveStaking.sol";
-import {MockRecoveryAdmin} from "./MockRecoveryAdmin.sol";
 
 /// @notice Shared C1 fixture: the three implementations, the external mocks at their boundary, and
 ///         the ordinary `LibClone.clone` deployment path.
@@ -30,7 +29,6 @@ abstract contract C1Fixture is Test {
     MockERC20 internal regent;
     MockERC20 internal subject;
     MockLiveStaking internal liveStaking;
-    MockRecoveryAdmin internal recoveryAdmin;
 
     address internal treasury = makeAddr("treasury");
     address internal regentSafe = makeAddr("regentSafe");
@@ -46,20 +44,13 @@ abstract contract C1Fixture is Test {
         regent = new MockERC20("Regent", "REGENT", 18);
         subject = new MockERC20("Subject", "SUBJ", 18);
         liveStaking = new MockLiveStaking(address(usdc));
-        recoveryAdmin = new MockRecoveryAdmin();
     }
 
     /// @dev Clone and initialize a splitter in one call, the way C4 must.
     function _newSplitter() internal returns (SubjectSplitterV1 splitter) {
         splitter = SubjectSplitterV1(LibClone.clone(address(splitterImplementation)));
         splitter.initialize(
-            address(usdc),
-            address(regent),
-            address(subject),
-            address(liveStaking),
-            regentSafe,
-            treasury,
-            address(recoveryAdmin)
+            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
         );
     }
 

@@ -22,7 +22,6 @@ contract SplitterHandler is CommonBase, StdUtils {
     MockERC20 public immutable regent;
     MockERC20 public immutable subject;
     MockERC20 public immutable unsupported;
-    address public immutable recoveryAdmin;
     address public immutable regentSafe;
     address public immutable treasury;
 
@@ -56,7 +55,6 @@ contract SplitterHandler is CommonBase, StdUtils {
         MockERC20 regent_,
         MockERC20 subject_,
         MockERC20 unsupported_,
-        address recoveryAdmin_,
         address regentSafe_,
         address treasury_,
         address[4] memory actors_
@@ -66,7 +64,6 @@ contract SplitterHandler is CommonBase, StdUtils {
         regent = regent_;
         subject = subject_;
         unsupported = unsupported_;
-        recoveryAdmin = recoveryAdmin_;
         regentSafe = regentSafe_;
         treasury = treasury_;
         actors = actors_;
@@ -186,8 +183,10 @@ contract SplitterHandler is CommonBase, StdUtils {
         vm.prank(giver);
         unsupported.transfer(address(splitter), amount);
 
-        vm.prank(recoveryAdmin);
-        splitter.recoverUnsupportedToken(address(unsupported), amount);
+        // Recovery is permissionless and takes the splitter's complete balance of the token, so
+        // any actor may call it and no amount is chosen here.
+        vm.prank(giver);
+        splitter.recoverUnsupportedToken(address(unsupported));
     }
 
     // -------------------------------------------------------------------------

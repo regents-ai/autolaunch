@@ -181,7 +181,8 @@ other case: the clone implementations and their clones are proved hermetically u
 than external chain truth.
 
 C0 activates only its own dependency, binding, chain, and ABI-provenance claims. C1 through
-C5 add their contracts and activate their own.
+C5 add their contracts and activate their own, and C6 activates the launch-time treasury
+admission claims its correction added.
 
 ## The separately authorized fork gate
 
@@ -203,7 +204,11 @@ Both fork profiles build into `out-fork`, so fork artifacts can never reach the 
 gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
-gate's committed evidence. `fork` is now active with the separately reviewed observation record:
-all eighteen fork claims executed once at each committed Base header and passed. Their thirty-six
-selectors remain outside the offline test root, so only the read-only fork gate can execute or close
-them.
+gate's committed evidence. `fork` is active with the separately reviewed observation record, and its
+eighteen claims executed once at each committed Base header and passed **against the production
+bytecode of the candidate before this one**. The `regent-alv1.7` correction changed four production
+contracts, so that fork execution has to be repeated against this candidate's bytecode under the
+same separate authority before those claims carry evidence for it; the observation record itself is
+chain truth and is unaffected. Their thirty-six selectors remain outside the offline test root, so
+only the read-only fork gate can execute or close them, and this candidate's offline gate neither
+ran nor claimed any of them.

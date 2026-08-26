@@ -21,8 +21,8 @@ import {IPositionDescriptor} from "@uniswap/v4-periphery/src/interfaces/IPositio
 import {IWETH9} from "@uniswap/v4-periphery/src/interfaces/external/IWETH9.sol";
 import {PositionManager} from "@uniswap/v4-periphery/src/PositionManager.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
+import {LaunchCloneSlots} from "../mocks/LaunchCloneSlots.sol";
 import {MockLiveStaking} from "../mocks/MockLiveStaking.sol";
-import {MockRecoveryAdmin} from "../mocks/MockRecoveryAdmin.sol";
 import {LaunchFactoryDouble} from "./doubles/LaunchFactoryDouble.sol";
 import {Permit2Double} from "./doubles/Permit2Double.sol";
 import {StagedERC20} from "./doubles/StagedERC20.sol";
@@ -80,7 +80,6 @@ abstract contract StrategyFixture is Test {
     ConditionalVestingEscrowV1 internal escrowImplementation;
     SubjectSplitterV1 internal splitterImplementation;
     PaymentReceiverV1 internal receiverImplementation;
-    MockRecoveryAdmin internal recoveryAdmin;
 
     StagedERC20 internal regent;
     PoolManager internal poolManager;
@@ -133,7 +132,6 @@ abstract contract StrategyFixture is Test {
         escrowImplementation = new ConditionalVestingEscrowV1();
         splitterImplementation = new SubjectSplitterV1();
         receiverImplementation = new PaymentReceiverV1();
-        recoveryAdmin = new MockRecoveryAdmin();
 
         address predictedFactory = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1);
         strategy = new RegentLBPStrategy(
@@ -180,8 +178,7 @@ abstract contract StrategyFixture is Test {
         launch.subject = _etchToken(subjectAt);
         launch.subject.mint(address(factory), TOTAL_SUPPLY);
 
-        (address escrow, address auction) =
-            factory.launch(subjectAt, treasury, address(recoveryAdmin), launchId, requiredRegentRaised);
+        (address escrow, address auction) = factory.launch(subjectAt, treasury, launchId, requiredRegentRaised);
         launch.escrow = ConditionalVestingEscrowV1(escrow);
         launch.auction = IContinuousClearingAuction(auction);
     }
@@ -189,6 +186,16 @@ abstract contract StrategyFixture is Test {
     /// @dev The default launch: SUBJECT sorts below REGENT, so REGENT is the pool's currency1.
     function _defaultLaunch() internal returns (Launch memory launch) {
         launch = _newLaunch(SUBJECT_LOW, 1, 1_000e18);
+    }
+
+    /// @notice The address a launch's splitter clone will occupy, derived independently of production.
+    function _splitterSlot(uint256 launchId, address subject) internal view returns (address) {
+        return LaunchCloneSlots.splitter(address(strategy), address(splitterImplementation), launchId, subject);
+    }
+
+    /// @notice The address a launch's canonical receiver clone will occupy, derived the same way.
+    function _receiverSlot(uint256 launchId, address subject) internal view returns (address) {
+        return LaunchCloneSlots.canonicalReceiver(address(strategy), address(receiverImplementation), launchId, subject);
     }
 
     // -------------------------------------------------------------------------

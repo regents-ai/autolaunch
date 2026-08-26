@@ -1,4 +1,4 @@
-# Founder audit packet — C5 as corrected by regent-alv1.6.1
+# Founder audit packet — C5 as corrected by regent-alv1.6.1 and regent-alv1.7
 
 **Release posture: mainnet NO-GO.** Nothing in this repository is deployed, no Regent address
 exists, and no deployment instruction has been given. This packet exists to be audited, not acted
@@ -8,6 +8,14 @@ The C5 candidate was stopped by its own final audit: one terminal-path custody d
 code and two overstated pieces of fork evidence. `regent-alv1.6.1` corrects all three and adds the
 exact-production fork lifecycle suite. What changed, and why, is in
 [claim-corrections.md](claim-corrections.md) section 4.
+
+`regent-alv1.7` is the next successor. It deletes the recovery administrator outright, makes both
+recovery calls permissionless and whole-balance to the immutable treasury, and adds one closed
+launch-time treasury admission in the strategy. It changed four production contracts, so the
+separately authorized fork evidence has to be re-executed against this candidate's bytecode before
+the `fork` claims carry evidence for it. Section 5 of
+[claim-corrections.md](claim-corrections.md) carries the whole delta, including the exact ABI
+change for the downstream Ash lane.
 
 ## What is in the packet
 
@@ -95,8 +103,16 @@ reviewed record was committed before check mode could run. The ledger now activa
 compare-only gate executed all eighteen fork claims once at each of the two committed headers. The
 gate also proved the observation record and ledger stayed byte-identical to their committed state.
 
-The two objects remain distinct: the earlier offline pass did not prove a fork claim, while this
+The two objects remain distinct: the earlier offline pass did not prove a fork claim, while the
 activation candidate carries and checks the separately reviewed fork authority.
+
+**This candidate is a third object: the `regent-alv1.7` correction.** Its offline gate is complete
+and green, and it changed the compiled bytes of the factory, the strategy, the splitter and the
+receiver — which the enumerated source-delta record names and the freezer proves. The committed
+observation record is chain truth and is unaffected by that, but the fork *execution* is not: it ran
+against the previous candidate's bytecode. Re-running `discover`, reviewing and installing the
+result, and running `check` at both headers against this candidate is a separately authorized step
+that has not happened here, and nothing in this packet claims it has.
 
 ## Evidence map
 
@@ -107,11 +123,15 @@ activation candidate carries and checks the separately reviewed fork authority.
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | active, executed at both committed headers, passing |
-| `GAS-003..006` | fork | active, executed at both committed headers, passing |
+| `DEP-040..053` | fork | activated and mapped; executed and passing at both committed headers against the *previous* candidate's bytecode. `regent-alv1.7` changed four production contracts, so this candidate needs its own separately authorized fork execution before these carry evidence for it |
+| `GAS-003..006` | fork | same: activated and mapped, and awaiting re-execution against this candidate's bytecode |
 
 ## What is not proved
 
+- **This candidate's own fork execution.** The `fork` claims are activated and mapped, and every one
+  of their selectors still compiles offline, but the committed fork run was executed against the
+  previous candidate's production bytecode. It must be repeated under the founder's separate
+  read-only authority before it is evidence for this candidate.
 - **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
   signed nothing, and moved no value outside isolated local fork state.
 - **Workflow review and custody state.** Independent review, the Solidity Auditor, integration, and

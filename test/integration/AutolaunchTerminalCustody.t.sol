@@ -2,137 +2,182 @@
 pragma solidity 0.8.26;
 
 import {BaseBindings} from "../../src/bindings/BaseBindings.sol";
-import {ConditionalVestingEscrowV1} from "../../src/escrow/ConditionalVestingEscrowV1.sol";
 import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
 import {RegentsAutolaunchFactoryV1} from "../../src/factory/RegentsAutolaunchFactoryV1.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
-import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
-import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
 import {AutolaunchFixture} from "./AutolaunchFixture.sol";
 
-/// @notice A recovery admin that carries code when it is admitted and can destroy itself.
-/// @dev Under EIP-6780 a `SELFDESTRUCT` erases the account only when that account was created in
-///      the same transaction, which is exactly the reachable shape this regression needs: a
-///      launcher deploys its own admin, launches with it, and destroys it, all in one transaction.
-///      Nothing about it is privileged — the production admission checks only that the address
-///      carries code, and the recovery entry points compare `msg.sender` against the bound address.
-contract SelfDestructingRecoveryAdmin {
-    function role() external pure returns (bytes32) {
-        return "recovery-admin";
-    }
-
-    /// @notice Erase this account. Reachable only in the transaction that created it.
-    function destroy() external {
-        selfdestruct(payable(msg.sender));
-    }
-}
-
-/// @notice `MIG-020`: losing the immutable recovery admin's code after launch never blocks the only
-///         migration path a launched auction has.
-/// @dev The state is produced the way production produces it, and no cheatcode manufactures it:
-///      `setUp` — the earlier Foundry transaction — deploys `SelfDestructingRecoveryAdmin`, runs a
-///      complete `launch` through the real factory with that address as the launch's recovery
-///      admin, and then calls `destroy()` on it. Because the admin was created in that same
-///      transaction, EIP-6780 erases the account, so by the time the test transaction below runs
-///      the immutable admin address carries no code at all. No `vm.etch`, `vm.store`, or
-///      `vm.mockCall` appears anywhere in this file.
+/// @notice `MIG-021` and `MIG-022`: what a real graduation does with the two addresses it deploys to
+///         and with the shared PositionManager's existing inventory.
+/// @dev Both clones are deployed with CREATE2 from a salt the strategy derives from the launch's own
+///      immutable identity, so both addresses are facts before the auction exists. That is what makes
+///      launch-time treasury admission able to refuse them, and `MIG-021` is the other half of that
+///      claim: the addresses admission refused are the addresses graduation actually occupies.
 ///
-///      `FAC-016` continues to prove the other half: a launch whose recovery admin carries no code
-///      at admission time is refused outright by `RegentLBPStrategy.initializeDistribution`, which
-///      is the one and only place that test exists.
+///      `MIG-022` is the settlement half. The strategy funds the PositionManager with exactly the two
+///      amounts its own position consumes, so REGENT and SUBJECT already sitting at that shared
+///      contract are byte-for-byte untouched by this launch's graduation.
 contract AutolaunchTerminalCustodyTest is AutolaunchFixture {
-    SelfDestructingRecoveryAdmin internal destroyedAdmin;
-
-    uint256 internal launchId;
-    UERC20 internal subject;
-    ConditionalVestingEscrowV1 internal escrow;
-    IContinuousClearingAuction internal auction;
-
-    /// @dev One transaction: deploy the admin, launch with it, destroy it.
     function setUp() public {
         _deployAutolaunch();
+    }
 
-        destroyedAdmin = new SelfDestructingRecoveryAdmin();
-        require(address(destroyedAdmin).code.length != 0, "the admin was not deployed with code");
+    // -------------------------------------------------------------------------
+    // MIG-021 — deterministic clone identity
+    // -------------------------------------------------------------------------
 
+    /// @notice `MIG-021`: a launch is refused at its own splitter slot and at its own canonical
+    ///         receiver slot, and the graduation that follows deploys to exactly those two addresses.
+    /// @dev Both slots are derived by `LaunchCloneSlots` from first principles — the two role strings
+    ///      the strategy hashes, the salt it builds, and the CREATE2 rule — so nothing here restates a
+    ///      production getter. The refused attempts and the successful launch share one identity:
+    ///      each refusal rolls the whole launch back, so the launch id and the SUBJECT the pinned
+    ///      UERC20 factory derives from it never move.
+    function test_MIG_021_OwnCloneSlotsAreRefusedAndAreExactlyWhereGraduationDeploys() public {
+        uint256 launchId = factory.nextLaunchId();
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.recoveryAdmin = address(destroyedAdmin);
-        Launched memory launched = _launchSorted(true, params);
+        params.name = _nameSorting(true, params.symbol, launchId);
+        (address splitterSlot, address receiverSlot) = _plannedSlots(launchId, params);
 
-        launchId = launched.launchId;
-        subject = launched.subject;
-        escrow = launched.escrow;
-        auction = launched.auction;
+        assertEq(splitterSlot.code.length, 0, "the splitter slot carries code before the launch");
+        assertEq(receiverSlot.code.length, 0, "the receiver slot carries code before the launch");
+        assertTrue(splitterSlot != receiverSlot, "both clone roles derive the same address");
 
-        destroyedAdmin.destroy();
+        _assertRefusedAsTreasury(params.name, splitterSlot, launchId);
+        _assertRefusedAsTreasury(params.name, receiverSlot, launchId);
+
+        // The same launch, on an ordinary treasury, graduates into exactly those two addresses.
+        Launched memory launched = _launchAs(launcher, params);
+        assertEq(launched.launchId, launchId, "a refused attempt consumed the launch id");
+
+        _bidToGraduation(launched, 2_000e18);
+        strategy.migrate(address(launched.auction));
+
+        RegentLBPStrategy.Distribution memory d = _distribution(launched);
+        assertEq(d.splitter, splitterSlot, "the splitter is not at the address admission refused");
+        assertEq(d.receiver, receiverSlot, "the receiver is not at the address admission refused");
+
+        // And they are the real, correctly bound artifacts, not merely code at the right address.
+        assertEq(SubjectSplitterV1(d.splitter).subject(), address(launched.subject), "splitter SUBJECT binding");
+        assertEq(SubjectSplitterV1(d.splitter).treasury(), treasury, "splitter treasury binding");
+        assertEq(PaymentReceiverV1(payable(d.receiver)).splitter(), d.splitter, "receiver splitter binding");
+        assertEq(PaymentReceiverV1(payable(d.receiver)).referralBps(), 0, "the canonical receiver carries a referral");
+        assertEq(hook.splitterOf(_poolId(launched)), d.splitter, "the pool registered another splitter");
     }
 
-    /// @notice `MIG-020`: a graduated launch whose recovery admin was destroyed in the launch
-    ///         transaction still migrates, and every graduation artifact is produced and recorded.
-    function test_MIG_020_GraduationSurvivesRecoveryAdminDestroyedAtLaunch() public {
-        address admin = address(destroyedAdmin);
+    /// @dev One launch attempt whose only defect is its treasury, refused before its auction exists
+    ///      and leaving the launch id, the escrow and the strategy's records exactly where they were.
+    function _assertRefusedAsTreasury(string memory name, address slot, uint256 launchId) private {
+        RegentsAutolaunchFactoryV1.LaunchParams memory attempt = _params();
+        attempt.name = name;
+        attempt.treasury = slot;
 
-        // The premise, proved rather than assumed: the immutable admin address is code-less now.
-        assertEq(admin.code.length, 0, "the recovery admin still carries code, so nothing is being proved");
-        assertEq(
-            factory.launches(launchId).recoveryAdmin,
-            admin,
-            "the launch did not record the admin it was actually launched with"
-        );
+        _fundFee(launcher, attempt.expectedLaunchFee);
+        vm.prank(launcher);
+        vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.RefusedTreasury.selector, slot));
+        factory.launch(attempt);
 
-        _bidToGraduation(_restore(), 2_000e18);
-        strategy.migrate(address(auction));
-
-        RegentLBPStrategy.Distribution memory d = strategy.distribution(address(auction));
-
-        // Graduation.
-        assertEq(
-            uint8(d.lifecycle),
-            uint8(RegentLBPStrategy.Lifecycle.Graduated),
-            "a code-less recovery admin blocked the only migration path"
-        );
-        assertGt(d.finalSqrtPriceX96, 0, "graduation recorded no final price");
-        assertGt(d.lpTokenId, 0, "graduation minted no full-range position");
-
-        // Splitter initialization, bound to the same immutable admin the launch recorded.
-        SubjectSplitterV1 splitter = SubjectSplitterV1(d.splitter);
-        assertGt(d.splitter.code.length, 0, "graduation deployed no splitter");
-        assertEq(splitter.recoveryAdmin(), admin, "the splitter bound another recovery admin");
-        assertEq(splitter.subject(), address(subject), "the splitter bound another SUBJECT");
-        assertEq(splitter.treasury(), treasury, "the splitter bound another treasury");
-        assertEq(splitter.regentSafe(), BaseBindings.GOVERNANCE_AND_REGENT_SAFE, "the splitter bound another Safe");
-
-        // The canonical zero-referral receiver.
-        PaymentReceiverV1 canonical = PaymentReceiverV1(payable(d.receiver));
-        assertGt(d.receiver.code.length, 0, "graduation deployed no canonical receiver");
-        assertEq(canonical.referralBps(), 0, "the canonical receiver charges a referral");
-        assertEq(canonical.beneficiary(), treasury, "the canonical beneficiary is not the treasury");
-        assertEq(canonical.splitter(), d.splitter, "the canonical receiver bound another splitter");
-
-        // Vesting.
-        assertEq(
-            uint8(escrow.lifecycle()),
-            uint8(ConditionalVestingEscrowV1.Lifecycle.Graduated),
-            "the escrow did not reach its graduated state"
-        );
-        assertGt(escrow.vestingStart(), 0, "graduation never activated vesting");
-        assertTrue(escrow.graduatedSweepDone(), "the graduated unsold sweep did not run");
-
-        // The immutable record, and the factory's own copy of it.
-        assertEq(factory.launches(launchId).recoveryAdmin, admin, "the factory record lost the recovery admin");
-        assertEq(d.recoveryAdmin, admin, "the strategy record lost the recovery admin");
-
-        // The disclosed consequence, stated as a fact rather than left implicit: recovery is now
-        // permanently uncallable on this launch's splitter and on its canonical receiver, because
-        // no account can ever again present `msg.sender == admin`. Everything else still works,
-        // which the rest of this assertion set has already proved.
-        assertEq(splitter.recoveryAdmin().code.length, 0, "the splitter's admin regained code");
-        assertEq(canonical.recoveryAdmin().code.length, 0, "the receiver's admin regained code");
+        assertEq(factory.nextLaunchId(), launchId, "a refused launch consumed an id");
+        assertEq(factory.launches(launchId).subject, address(0), "a refused launch left a record");
+        assertEq(slot.code.length, 0, "a refused launch deployed something at the slot");
     }
 
-    /// @dev Rebuild the fixture's launch view from the fields `setUp` recorded.
-    function _restore() private view returns (Launched memory) {
-        return Launched({launchId: launchId, subject: subject, escrow: escrow, auction: auction});
+    // -------------------------------------------------------------------------
+    // MIG-022 — exact PositionManager funding
+    // -------------------------------------------------------------------------
+
+    /// @notice `MIG-022`, `C6-I8`: a real graduation transfers the PositionManager exactly the two
+    ///         amounts its own position consumes, so REGENT and SUBJECT already held there are
+    ///         untouched to the unit.
+    /// @dev The pinned planner closes every plan by settling `CONTRACT_BALANCE` of each pool
+    ///      currency, which would settle the shared PositionManager's *whole* balance and hand the
+    ///      resulting credit back to the strategy as if it were this launch's unspent budget — from
+    ///      there it would leave through this launch's own destinations. The strategy replaces those
+    ///      two settlement amounts with the exact amounts it transfers in, and this proves it.
+    ///
+    ///      Both pre-seeds arrive through real production paths and no cheatcode writes a balance: a
+    ///      REGENT holder sends REGENT to the shared PositionManager, and the auction's own bidder
+    ///      claims SUBJECT at `claimBlock` — which precedes the migration block — and sends some of it
+    ///      there. The launch then graduates normally, with its LP consumption, its residue routing
+    ///      and its recorded artifacts all still exact.
+    function test_MIG_022_GraduationLeavesForeignPositionManagerBalancesUntouched() public {
+        // A raise well above the reserve's worth, so both residues are non-zero and the routing this
+        // test must not disturb is really exercised.
+        Launched memory launched = _defaultLaunch();
+        _rollToStart(launched);
+        uint256 bidId = _bid(launched, bidder, 20_000_000e18, _bidPrice(500));
+
+        uint256 seededRegent = 1_000e18;
+        address stranger = makeAddr("position-manager-stranger");
+        regent.mint(stranger, seededRegent);
+        vm.prank(stranger);
+        regent.transfer(BaseBindings.POSITION_MANAGER, seededRegent);
+
+        // The bidder's own claimed SUBJECT, sent from the bidder's own account. The pinned CCA
+        // refuses `claimTokens` for a bid that has not been exited, so a claim is always the bid
+        // owner's own two calls, and `claimBlock` precedes the migration block.
+        vm.roll(uint256(launched.auction.claimBlock()));
+        vm.prank(bidder);
+        launched.auction.exitBid(bidId);
+        vm.prank(bidder);
+        launched.auction.claimTokens(bidId);
+        uint256 seededSubject = launched.subject.balanceOf(bidder);
+        assertGt(seededSubject, 0, "the bidder claimed no SUBJECT to pre-seed the PositionManager with");
+        vm.prank(bidder);
+        launched.subject.transfer(BaseBindings.POSITION_MANAGER, seededSubject);
+
+        uint256 regentBefore = regent.balanceOf(BaseBindings.POSITION_MANAGER);
+        uint256 subjectBefore = launched.subject.balanceOf(BaseBindings.POSITION_MANAGER);
+        assertEq(regentBefore, seededRegent, "the PositionManager holds no foreign REGENT");
+        assertEq(subjectBefore, seededSubject, "the PositionManager holds no foreign SUBJECT");
+
+        uint256 treasuryRegentBefore = regent.balanceOf(treasury);
+        uint256 escrowSubjectBefore = launched.subject.balanceOf(address(launched.escrow));
+        uint256 auctionRegentBefore = regent.balanceOf(address(launched.auction));
+        uint256 auctionSubjectBefore = launched.subject.balanceOf(address(launched.auction));
+
+        _rollToMigration(launched);
+        strategy.migrate(address(launched.auction));
+
+        // The whole claim: not "roughly preserved", exactly preserved, in both pool assets.
+        assertEq(
+            regent.balanceOf(BaseBindings.POSITION_MANAGER),
+            regentBefore,
+            "graduation settled REGENT this launch never funded"
+        );
+        assertEq(
+            launched.subject.balanceOf(BaseBindings.POSITION_MANAGER),
+            subjectBefore,
+            "graduation settled SUBJECT this launch never funded"
+        );
+
+        // And the foreign inventory reached neither of this launch's two value destinations: the
+        // treasury received exactly the unused raise and the escrow exactly the unused reserve.
+        RegentLBPStrategy.Distribution memory d = _distribution(launched);
+        uint256 swept = auctionRegentBefore - regent.balanceOf(address(launched.auction));
+        assertGt(swept, d.lpRegentUsed, "the position consumed the whole raise, so there is no residue to check");
+        assertEq(
+            regent.balanceOf(treasury) - treasuryRegentBefore,
+            swept - d.lpRegentUsed,
+            "the treasury received more than this launch's own unused raise"
+        );
+        // The escrow is fed from two places at graduation — its own sweep of the auction's unsold
+        // SUBJECT and the strategy's residue — so the strategy's share is isolated before comparing.
+        uint256 escrowFromStrategy = (launched.subject.balanceOf(address(launched.escrow)) - escrowSubjectBefore)
+            - (auctionSubjectBefore - launched.subject.balanceOf(address(launched.auction)));
+        assertEq(
+            escrowFromStrategy,
+            RESERVE_ALLOCATION - d.lpSubjectUsed,
+            "the escrow received more than this launch's own unused reserve"
+        );
+
+        // The graduation itself is entirely normal.
+        assertEq(uint8(d.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Graduated), "the launch did not graduate");
+        assertEq(positionManager.nextTokenId(), d.lpTokenId + 1, "exactly one position was not minted");
+        assertGt(d.lpRegentUsed, 0, "the position consumed no REGENT");
+        assertGt(d.lpSubjectUsed, 0, "the position consumed no SUBJECT");
+        assertEq(regent.balanceOf(address(strategy)), 0, "the strategy kept REGENT after graduation");
+        assertEq(launched.subject.balanceOf(address(strategy)), 0, "the strategy kept SUBJECT after graduation");
     }
 }

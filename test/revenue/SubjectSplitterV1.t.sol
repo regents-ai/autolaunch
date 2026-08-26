@@ -35,7 +35,6 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertEq(splitter.liveStaking(), address(liveStaking), "live staking bound");
         assertEq(splitter.regentSafe(), regentSafe, "regent safe bound");
         assertEq(splitter.treasury(), treasury, "treasury bound");
-        assertEq(splitter.recoveryAdmin(), address(recoveryAdmin), "recovery admin bound");
 
         // A fourth asset is not revenue, is not claimable, and is not recognizable.
         MockERC20 other = new MockERC20("Other", "OTH", 18);
@@ -52,27 +51,15 @@ contract SubjectSplitterV1Test is C1Fixture {
         // The implementation can never hold revenue, and a clone binds exactly once.
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         splitterImplementation.initialize(
-            address(usdc),
-            address(regent),
-            address(subject),
-            address(liveStaking),
-            regentSafe,
-            treasury,
-            address(recoveryAdmin)
+            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
         );
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         splitter.initialize(
-            address(usdc),
-            address(regent),
-            address(subject),
-            address(liveStaking),
-            regentSafe,
-            treasury,
-            address(recoveryAdmin)
+            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury
         );
 
         // Every binding is validated before it is fixed.
-        for (uint256 i; i < 7; ++i) {
+        for (uint256 i; i < 6; ++i) {
             _expectInitRevert(SubjectSplitterV1.ZeroAddress.selector, i, address(0));
             _expectSelfBindingRevert(i);
         }
@@ -81,17 +68,6 @@ contract SubjectSplitterV1Test is C1Fixture {
         _expectInitRevert(SubjectSplitterV1.DuplicateTokenBinding.selector, 0, address(regent));
         _expectInitRevert(SubjectSplitterV1.DuplicateTokenBinding.selector, 0, address(subject));
         _expectInitRevert(SubjectSplitterV1.DuplicateTokenBinding.selector, 1, address(subject));
-
-        // The recovery admin is admitted as a deployed contract once, at launch, by
-        // `RegentLBPStrategy.initializeDistribution` (`FAC-016`). This initializer binds whatever
-        // that admission passed and never re-evaluates whether the address still carries code, so
-        // graduation cannot be stranded by an admin destroyed after admission (`MIG-020`).
-        SubjectSplitterV1 codelessAdmin = SubjectSplitterV1(LibClone.clone(address(splitterImplementation)));
-        codelessAdmin.initialize(
-            address(usdc), address(regent), address(subject), address(liveStaking), regentSafe, treasury, outsider
-        );
-        assertEq(codelessAdmin.recoveryAdmin(), outsider, "the splitter did not bind the admitted recovery admin");
-        assertEq(outsider.code.length, 0, "this account was supposed to carry no code");
     }
 
     // ------------------------------------------------------------------ SPL-002
@@ -277,9 +253,8 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertLt(splitter.carriedRemainder(address(regent)), splitter.totalStaked() + 1, "one carry per asset");
         vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
         splitter.recognizeSurplusRevenue(address(usdc), bytes32("skim-the-carry"));
-        vm.prank(address(recoveryAdmin));
         vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.ProtectedToken.selector, address(usdc)));
-        splitter.recoverUnsupportedToken(address(usdc), 1);
+        splitter.recoverUnsupportedToken(address(usdc));
     }
 
     // ------------------------------------------------------------------ SPL-008
@@ -864,50 +839,60 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     // ------------------------------------------------------------------ SPL-017
 
-    /// @notice SPL-017: only the recovery admin recovers, and always to the immutable treasury.
-    function test_SPL_017_OnlyRecoveryAdminRecoversToTheImmutableTreasury() public {
+    /// @notice SPL-017: splitter recovery is permissionless, moves the complete balance, and can
+    ///         only ever reach the immutable treasury. A zero balance fails and mutates nothing.
+    function test_SPL_017_RecoveryIsPermissionlessWholeBalanceToTheTreasury() public {
         MockERC20 other = new MockERC20("Other", "OTH", 18);
-        other.mint(address(splitter), 500e18);
 
+        // Nothing to recover: both paths revert and neither leaves a trace.
         address[3] memory callers = [address(this), treasury, outsider];
         for (uint256 i; i < callers.length; ++i) {
             vm.startPrank(callers[i]);
-            vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.NotRecoveryAdmin.selector, callers[i]));
-            splitter.recoverUnsupportedToken(address(other), 1);
-            vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.NotRecoveryAdmin.selector, callers[i]));
-            splitter.recoverForcedETH(1);
+            vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
+            splitter.recoverUnsupportedToken(address(other));
+            vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
+            splitter.recoverForcedETH();
             vm.stopPrank();
         }
+        assertEq(other.balanceOf(treasury), 0, "a failed recovery moved value");
+        assertEq(address(splitter).balance, 0, "a failed ETH recovery moved value");
 
-        // Zero amounts are rejected on both paths.
-        vm.startPrank(address(recoveryAdmin));
-        vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
-        splitter.recoverUnsupportedToken(address(other), 0);
-        vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
-        splitter.recoverForcedETH(0);
+        // Every caller in turn recovers the complete balance, and every unit lands on the fixed
+        // treasury. No caller keeps anything and no caller can name a destination.
+        for (uint256 i; i < callers.length; ++i) {
+            other.mint(address(splitter), 500e18);
+            uint256 treasuryBefore = other.balanceOf(treasury);
 
-        // The destination is the fixed treasury, never a caller-chosen address.
-        splitter.recoverUnsupportedToken(address(other), 500e18);
-        vm.stopPrank();
+            vm.prank(callers[i]);
+            vm.expectEmit(true, true, true, true, address(splitter));
+            emit SubjectSplitterV1.UnsupportedTokenRecovered(address(other), treasury, 500e18);
+            splitter.recoverUnsupportedToken(address(other));
 
-        assertEq(other.balanceOf(treasury), 500e18, "recovered to the immutable treasury");
-        assertEq(other.balanceOf(address(recoveryAdmin)), 0, "not to the admin");
+            assertEq(other.balanceOf(treasury) - treasuryBefore, 500e18, "the whole balance reached the treasury");
+            assertEq(other.balanceOf(address(splitter)), 0, "the splitter kept a remainder");
+            if (callers[i] != treasury) assertEq(other.balanceOf(callers[i]), 0, "the caller was paid for calling");
+        }
+
+        // There is no amount-taking or recipient-taking overload left to call.
         assertFalse(
             _callSucceeds(
-                abi.encodeWithSignature(
-                    "recoverUnsupportedToken(address,uint256,address)", address(other), uint256(1), outsider
-                )
-            )
+                abi.encodeWithSignature("recoverUnsupportedToken(address,uint256)", address(other), uint256(1))
+            ),
+            "an amount-taking recovery selector still exists"
         );
+        assertFalse(_callSucceeds(abi.encodeWithSignature("recoverForcedETH(uint256)", uint256(1))));
 
         vm.deal(address(this), 1 ether);
         new ForceEthSender{value: 1 ether}(address(splitter));
         uint256 treasuryEth = treasury.balance;
 
-        vm.prank(address(recoveryAdmin));
-        splitter.recoverForcedETH(1 ether);
+        vm.prank(outsider);
+        vm.expectEmit(true, true, true, true, address(splitter));
+        emit SubjectSplitterV1.ForcedEthRecovered(treasury, 1 ether);
+        splitter.recoverForcedETH();
         assertEq(treasury.balance - treasuryEth, 1 ether, "forced ETH reached the treasury");
         assertEq(address(splitter).balance, 0, "no ETH remains");
+        assertEq(outsider.balance, 0, "the caller took forced ETH");
     }
 
     // ------------------------------------------------------------------ SPL-018
@@ -927,16 +912,16 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertGt(carry, 0, "there is a carry to protect");
 
         address[3] memory core = [address(usdc), address(regent), address(subject)];
-        vm.startPrank(address(recoveryAdmin));
+        vm.startPrank(outsider);
         for (uint256 i; i < core.length; ++i) {
             vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.ProtectedToken.selector, core[i]));
-            splitter.recoverUnsupportedToken(core[i], 1);
+            splitter.recoverUnsupportedToken(core[i]);
         }
 
         // An unsupported token is recoverable and touches nothing that belongs to a staker.
         MockERC20 other = new MockERC20("Other", "OTH", 18);
         other.mint(address(splitter), 500e18);
-        splitter.recoverUnsupportedToken(address(other), 500e18);
+        splitter.recoverUnsupportedToken(address(other));
         vm.stopPrank();
 
         assertEq(splitter.totalStaked(), principal, "principal untouched");
@@ -963,8 +948,8 @@ contract SubjectSplitterV1Test is C1Fixture {
         new ForceEthSender{value: 1 ether}(address(splitter));
         assertEq(address(splitter).balance, 1 ether, "forced ETH is possible");
 
-        vm.prank(address(recoveryAdmin));
-        splitter.recoverForcedETH(1 ether);
+        vm.prank(outsider);
+        splitter.recoverForcedETH();
         assertEq(address(splitter).balance, 0, "forced ETH is recoverable to the treasury");
     }
 
@@ -1064,11 +1049,11 @@ contract SubjectSplitterV1Test is C1Fixture {
         MockERC20 hostile = new MockERC20("Hostile", "HOS", 18);
         hostile.mint(address(splitter), 500e18);
         hostile.setReentry(
-            address(splitter), abi.encodeCall(SubjectSplitterV1.recoverUnsupportedToken, (address(regent), 1))
+            address(splitter), abi.encodeCall(SubjectSplitterV1.recoverUnsupportedToken, (address(regent)))
         );
 
-        vm.prank(address(recoveryAdmin));
-        splitter.recoverUnsupportedToken(address(hostile), 500e18);
+        vm.prank(outsider);
+        splitter.recoverUnsupportedToken(address(hostile));
 
         assertEq(hostile.reentryAttempts(), 1, "the token did try to re-enter");
         assertFalse(hostile.lastReentrySucceeded(), "the re-entrant recovery was rejected");
@@ -1082,9 +1067,9 @@ contract SubjectSplitterV1Test is C1Fixture {
         MockERC20 broken = new MockERC20("Broken", "BRK", 18);
         broken.mint(address(splitter), 10e18);
         broken.setReverts(true);
-        vm.prank(address(recoveryAdmin));
+        vm.prank(outsider);
         vm.expectRevert();
-        splitter.recoverUnsupportedToken(address(broken), 10e18);
+        splitter.recoverUnsupportedToken(address(broken));
 
         uint256 owed = splitter.claimable(address(regent), alice);
         vm.prank(alice);
@@ -1156,31 +1141,30 @@ contract SubjectSplitterV1Test is C1Fixture {
         );
     }
 
-    /// @dev The seven valid bindings, rebuilt on every call so no arm can leak into the next.
-    function _validBindings() private view returns (address[7] memory values) {
+    /// @dev The six valid bindings, rebuilt on every call so no arm can leak into the next.
+    function _validBindings() private view returns (address[6] memory values) {
         values[0] = address(usdc);
         values[1] = address(regent);
         values[2] = address(subject);
         values[3] = address(liveStaking);
         values[4] = regentSafe;
         values[5] = treasury;
-        values[6] = address(recoveryAdmin);
     }
 
     function _expectInitRevert(bytes4 expected, uint256 index, address replacement) private {
-        address[7] memory values = _validBindings();
+        address[6] memory values = _validBindings();
         values[index] = replacement;
         SubjectSplitterV1 fresh = SubjectSplitterV1(LibClone.clone(address(splitterImplementation)));
         vm.expectRevert(expected);
-        fresh.initialize(values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
+        fresh.initialize(values[0], values[1], values[2], values[3], values[4], values[5]);
     }
 
     function _expectSelfBindingRevert(uint256 index) private {
-        address[7] memory values = _validBindings();
+        address[6] memory values = _validBindings();
         SubjectSplitterV1 fresh = SubjectSplitterV1(LibClone.clone(address(splitterImplementation)));
         values[index] = address(fresh);
         vm.expectRevert(SubjectSplitterV1.SelfAddress.selector);
-        fresh.initialize(values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
+        fresh.initialize(values[0], values[1], values[2], values[3], values[4], values[5]);
     }
 
     function _callSucceeds(bytes memory data) private returns (bool ok) {

@@ -71,7 +71,7 @@ The CCA binding requires runtime code hash `0xa1d2a90564f4f63580b25de42efaff9250
 
 ## 4. Factory
 
-`LaunchParams` contains only `name`, `symbol`, `description`, `website`, `image`, `treasury`, `recoveryAdmin`, `requiredRegentRaised`, and `expectedLaunchFee`.
+`LaunchParams` contains only `name`, `symbol`, `description`, `website`, `image`, `treasury`, `requiredRegentRaised`, and `expectedLaunchFee`.
 
 Public mutations contain only:
 
@@ -93,7 +93,10 @@ Rules:
 - There is no user start, floor, hook, pool setting, Safe, ERC-8004 identity, or salt.
 - IDs are sequential; internal salts derive only from the ID; duplicate names and symbols are allowed.
 - Metadata is nonempty and byte-bounded: name 64, symbol 16, description 512, website 256, image 256.
-- Treasury is immutable. Recovery admin is an immutable deployed contract.
+- Treasury is immutable and launcher-chosen. There is no recovery admin and no recovery authority anywhere in the system.
+- Launch-time treasury admission lives only in `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction is created. It refuses exactly the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking contract, any address already carrying the fixed minimal-clone runtime of the admitted escrow, splitter, or receiver implementation, and the two addresses this launch's own splitter and canonical receiver will be deployed to. Every other treasury is admitted with no code requirement. There is no registry, no generalized denylist, and no code-length rule.
+- Each launch's splitter and canonical receiver are deployed with CREATE2 from a salt the strategy derives from its own private role constants and the launch's immutable identity, so both addresses exist before the auction does. That derivation is internal: it exposes no caller choice, carries no authority, is not part of the ABI, and never replaces `LaunchGraduated` or the strategy record as the canonical account of what a launch deployed.
+- A treasury that later becomes a *different* launch's splitter or receiver is admitted, and may deliver the first launch's payouts into that other launch's ordinary accounting. That is accepted launcher-selected destination behaviour; refusing it would require enumerating launches that do not exist yet.
 - Launcher provenance gives no authority. A later failed auction does not refund the fee.
 - Factory pause never blocks existing auctions, finalization, refunds, staking, claims, swaps, payments, vesting, or recovery.
 
@@ -126,7 +129,11 @@ Graduation is atomic:
 11. activate 365-day vesting from that timestamp;
 12. record graduation atomically.
 
+Steps 3 and 10 deploy to the two CREATE2 addresses derived in section 4; nothing about that address is caller-selected.
+
 The official pool is static 0.30%, tick spacing 60, with one managed full-range position whose NFT is sent to the dead address. Third parties may add independent positions.
+
+The PositionManager is shared with every other v4 user, so graduation settles only the exact two amounts it transfers there for its own mint. REGENT and SUBJECT already held at the PositionManager are never settled, never become the launch's credit, and never reach its treasury or escrow.
 
 ## 6. Shared hook
 
@@ -155,8 +162,8 @@ Staking is immediate. Claims and unstaking are independent of the factory launch
 pay(address token, uint256 amount, bytes32 paymentRef)
 sweep(address token, bytes32 paymentRef)
 setReceiverNote(bytes32 note)
-recoverUnsupportedToken(address token, uint256 amount)
-recoverForcedETH(uint256 amount)
+recoverUnsupportedToken(address token)
+recoverForcedETH()
 ```
 
 - Referral is immutable, runs before splitter processing, and is 0 through 2.5% inclusive.
@@ -165,7 +172,7 @@ recoverForcedETH(uint256 amount)
 - Note defaults to the receiver address encoded as `bytes32` and appears with `paymentRef` in events.
 - `pay` and bare-transfer `sweep` use the same atomic referral-before-splitter route.
 - Ordinary ETH transfers revert.
-- Only immutable recovery admin may send forced ETH or unsupported ERC20s, always to immutable treasury.
+- Recovery of forced ETH and of unsupported ERC20s is permissionless. Each call moves the complete recoverable balance, always to immutable treasury, and the caller names neither an amount nor a destination. A zero recoverable balance reverts without mutating anything.
 - USDC, REGENT, and SUBJECT are permanently protected from recovery.
 - No unsupported-token enumeration; a malicious token can fail only its recovery call.
 
@@ -182,18 +189,18 @@ Required groups:
 | `DEP-*` | Compiler and full recursive gitlink pins; chain ID; every external address, exact runtime code hash, proxy status, relevant getter, zero CCA controller, and clone implementation and runtime hashes. |
 | `FAC-*` | Governance-only fee and pause; pause scope; fee-update and fee-collection events; exact positive and zero fee allowances plus cleanup; stale-fee and complete-launch rollback; metadata bounds; sequential IDs; duplicate names; no user salts; launcher provenance; fixed start; reachable raise; and complete launch. |
 | `TOK-*` | Exactly 100B supply; 18 decimals; Autolaunch factory creator; immutable metadata; and no public mint, owner, tax, blacklist, upgrade, or administrative burn. |
-| `STR-*` | Only the canonical factory initializes; unknown auctions are rejected; exact 10/5/85 transfer; per-auction reserve isolation; permissionless migration; exact CCA parameters; final-price conversion in both currency orderings; one-shot finalization; and no committed retry state. |
+| `STR-*` | Only the canonical factory initializes; unknown auctions are rejected; exact 10/5/85 transfer; per-auction reserve isolation; permissionless migration; exact CCA parameters; the closed launch-time treasury refusal and admission set; final-price conversion in both currency orderings; one-shot finalization; and no committed retry state. |
 | `ESC-*` | One-time initialization; exact 85% pending custody; no pending release; strategy-only resolution; success starts 365-day linear vesting to the fixed treasury beneficiary; failure retires exactly 100B; and late failed SUBJECT goes only to the dead address. |
 | `HOK-*` | Correct permission bits; only PoolManager callbacks; strategy-only write-once registration; registered PoolKey validation; all four swap shapes; independent 1% rounding; zero-fee tiny swaps; synchronous settlement; zero retained inventory; arbitrary router compatibility; and settlement-failure rollback. |
-| `SPL-*` | Exactly three supported assets; exact 2% skim and destinations; zero-stake treasury routing; stake and unstake snapshots; caller-only claims; fixed three-token `claimAll`; one protected remainder per token; principal protection; direct deposits and surplus recognition; unsupported-token recovery exclusions; and forced-ETH behavior. |
+| `SPL-*` | Exactly three supported assets; exact 2% skim and destinations; zero-stake treasury routing; stake and unstake snapshots; caller-only claims; fixed three-token `claimAll`; one protected remainder per token; principal protection; direct deposits and surplus recognition; permissionless whole-balance recovery; unsupported-token recovery exclusions; and forced-ETH behavior. |
 | `RCV-*` | Canonical and custom creation; referral boundaries, flooring, beneficiary, and referral-before-splitter ordering; atomic pay and sweep; supported-token validation; note defaults, editor, and event; immutable beneficiary, splitter, and referral; and recovery fixed to treasury. |
-| `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT at the dead address; actual LP consumption; separate residues; canonical receiver; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
+| `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT at the dead address; actual LP consumption; separate residues; exact PositionManager funding with foreign balances preserved; deterministic splitter and canonical-receiver clone addresses; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
 | `FAIL-*` | Unmet raise, zero bids, partial bidding, full failed inventory return, exact dead-address delta, bidder refunds, no graduated infrastructure, and repeated-finalization rejection. |
 | `INV-*` | Total-supply conservation; splitter solvency; SUBJECT principal and protected-remainder conservation; no cross-launch reserve use; no unexplained factory, strategy, or hook balances; immutable lifecycle; receiver conservation; and hook conservation. |
 | `GAS-*` | Every runtime and initcode limit plus the complete direct-wallet launch, successful migration, and failed migration at or below 14M under maximum metadata, worst valid raise/inventory, cold external state, intrinsic gas, and calldata gas. Complete-transaction claims require the fork gate. |
 | `ABI-*` | Exact selectors, event topics, indexed fields, integer widths, clone initializers, and absence of obsolete Safe, ERC-8004, registry, flush, and retry interfaces. |
 
-Boundary coverage includes fee inputs `0, 1, 49, 50, 99, 100, 9_999, 10_000`; referral bps `0, 1, 249, 250, 251`; zero stake, first stake, full unstake, restake, interleaved deposits, and claims before and after stake changes; maximum and one-byte-over metadata plus malformed UTF-8; zero/self and contract/non-contract recovery-admin addresses; simultaneous launches sharing one strategy and hook; both REGENT currency orderings; reentrancy attempts from recovery tokens, hook callbacks, receiver paths, and migration dependencies; and failure after every migration external call.
+Boundary coverage includes fee inputs `0, 1, 49, 50, 99, 100, 9_999, 10_000`; referral bps `0, 1, 249, 250, 251`; zero stake, first stake, full unstake, restake, interleaved deposits, and claims before and after stake changes; maximum and one-byte-over metadata plus malformed UTF-8; every refused and every admitted launch-time treasury class; simultaneous launches sharing one strategy and hook; both REGENT currency orderings; reentrancy attempts from recovery tokens, hook callbacks, receiver paths, and migration dependencies; and failure after every migration external call.
 
 ## 10. Gates
 

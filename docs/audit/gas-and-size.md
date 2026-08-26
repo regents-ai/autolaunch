@@ -14,12 +14,12 @@ each constructor takes.
 
 | Contract | Runtime (B) | EIP-170 margin | Creation (B) | Constructor args (B) | Initcode (B) | EIP-3860 margin |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `RegentsAutolaunchFactoryV1` | 7,309 | 17,267 | 34,361 | 160 | 34,521 | 14,631 |
-| `RegentLBPStrategy` | 18,987 | 5,589 | 19,496 | 128 | 19,624 | 29,528 |
+| `RegentsAutolaunchFactoryV1` | 7,097 | 17,479 | 35,333 | 160 | 35,493 | 13,659 |
+| `RegentLBPStrategy` | 19,935 | 4,641 | 20,680 | 128 | 20,808 | 28,344 |
 | `RegentFeeHook` | 5,780 | 18,796 | 6,599 | 64 | 6,663 | 42,489 |
 | `ConditionalVestingEscrowV1` | 4,527 | 20,049 | 4,665 | 0 | 4,665 | 44,487 |
-| `SubjectSplitterV1` | 5,312 | 19,264 | 5,450 | 0 | 5,450 | 43,702 |
-| `PaymentReceiverV1` | 3,520 | 21,056 | 3,658 | 0 | 3,658 | 45,494 |
+| `SubjectSplitterV1` | 5,158 | 19,418 | 5,296 | 0 | 5,296 | 43,856 |
+| `PaymentReceiverV1` | 3,312 | 21,264 | 3,450 | 0 | 3,450 | 45,702 |
 | `UERC20Factory` | 12,682 | 11,894 | 12,708 | n/a | n/a | 36,444 |
 | `UERC20` | 5,550 | 19,026 | 8,126 | n/a | n/a | 41,026 |
 
@@ -34,7 +34,7 @@ and suffix literals in the production strategy's own clone-code-hash computation
 transcribed. `test_GAS_001_*` measures that length on a real clone the factory created, and compares
 its `EXTCODEHASH` against the strategy's own `escrowCloneCodehash`.
 
-The tightest margin in the set is the strategy's 5,589 runtime bytes, comfortably above the 1,000-byte
+The tightest margin in the set is the strategy's 4,641 runtime bytes, comfortably above the 1,000-byte
 headroom the contract-worker rules require when no stricter budget is recorded, and none is.
 
 ### EVM code identity
@@ -49,12 +49,12 @@ admission identity.
 
 | Contract | Runtime keccak-256 | Is a deployed `EXTCODEHASH` |
 | --- | --- | --- |
-| `RegentsAutolaunchFactoryV1` | `0xa9e2754d2808af9abcb4a35e70187742eb920f9c58e7e5db9b06b281b3a20d5e` | no — 3 immutables |
-| `RegentLBPStrategy` | `0x68fc92d1648f6aa33538adb451041a958aeb6300f621d357decff48bfa2c4c2e` | no — 5 immutables |
+| `RegentsAutolaunchFactoryV1` | `0x2f25d01a4b728381d375027885839c6eb5f33c8af518a4f2c1b0de9546d84b2b` | no — 3 immutables |
+| `RegentLBPStrategy` | `0x2961ae6f5256edd407361392a7ca05c574388648798227e2323c9b0536246fc1` | no — 7 immutables |
 | `RegentFeeHook` | `0xa9c238ca912ae9123fda5402dc33b534fbcee659acc9d92af0fb5cebc20b4f00` | no — 2 immutables |
 | `ConditionalVestingEscrowV1` | `0x462e3b12b73402b61b3561345880a5b6eeed4f13d2088f156712fe1b293f1545` | yes |
-| `SubjectSplitterV1` | `0x456c2ec34270e3bc634d891f6a294c0a7bcc1c5d2e09988220f9d694033e6d30` | yes |
-| `PaymentReceiverV1` | `0xe32bf8b68d8ff16c05950630af2c6b78247c7825e2153dba4d54fa86108ce5cf` | yes |
+| `SubjectSplitterV1` | `0x7537e8d6fce71bf4d62f92e17fd058c345985e26063ed3fa4cca45ba3b2e8e2c` | yes |
+| `PaymentReceiverV1` | `0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573` | yes |
 | `UERC20Factory` | `0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f` | yes |
 | `UERC20` | `0x6ad37cfdb261cfb8dd1d15659b9b37b09b26f93c080a03d89bcbb46e2e68af53` | no — 4 immutables |
 
@@ -140,9 +140,18 @@ complete-transaction ceiling below.
 
 ## Complete-transaction gas (`GAS-003` through `GAS-006`) — measured at both Base headers
 
-All four claims executed against the exact production bytecode at Base blocks `50362455` and
-`50362755`. The totals include the measured gross execution cost plus the intrinsic and calldata
-schedule active at each header. Every envelope is below the founder's 14,000,000-gas ceiling.
+> **Superseded measurements — do not read these as this candidate's figures.** The table below was
+> measured against the **previous** candidate's production bytecode. `regent-alv1.7` changed the
+> compiled bytes of the factory, the strategy, the splitter and the receiver, so all four envelopes
+> have to be re-measured under the founder's separate read-only fork authority before they describe
+> this candidate. They are kept here as the last executed record, not as a current claim. The size
+> and code-identity tables above **are** current: they are regenerated from this candidate's own
+> artifacts and reconciled by `bin/gate.sh` on every run.
+
+All four claims executed against the exact production bytecode of the previous candidate at Base
+blocks `50362455` and `50362755`. The totals include the measured gross execution cost plus the
+intrinsic and calldata schedule active at each header. Every envelope was below the founder's
+14,000,000-gas ceiling.
 
 | Claim | Envelope | Pinned total | Later total | Pinned margin | Later margin |
 | --- | --- | ---: | ---: | ---: | ---: |

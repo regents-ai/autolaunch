@@ -78,23 +78,22 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     }
 
     /// @notice `MIG-003`: graduation deploys this launch's splitter as an exact clone bound to the
-    ///         launch's own SUBJECT, treasury and recovery admin.
+    ///         launch's own SUBJECT and treasury.
     function test_MIG_003_DeploysTheSplitterClone() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduation(launched, 2_000e18);
 
-        address predicted = vm.computeCreateAddress(address(strategy), vm.getNonce(address(strategy)));
+        address predicted = _splitterSlot(launched.launchId, address(launched.subject));
         strategy.migrate(address(launched.auction));
 
         SubjectSplitterV1 splitter = SubjectSplitterV1(_distribution(launched).splitter);
-        assertEq(address(splitter), predicted, "the splitter is not the strategy's next clone");
+        assertEq(address(splitter), predicted, "the splitter is not at this launch's deterministic slot");
         assertEq(splitter.subject(), address(launched.subject), "the splitter bound another SUBJECT");
         assertEq(splitter.regent(), BaseBindings.REGENT, "splitter REGENT binding");
         assertEq(splitter.usdc(), BaseBindings.USDC, "splitter USDC binding");
         assertEq(splitter.liveStaking(), BaseBindings.LIVE_STAKING, "splitter live staking binding");
         assertEq(splitter.regentSafe(), BaseBindings.GOVERNANCE_AND_REGENT_SAFE, "splitter Regent Safe binding");
         assertEq(splitter.treasury(), treasury, "splitter treasury binding");
-        assertEq(splitter.recoveryAdmin(), address(recoveryAdmin), "splitter recovery admin binding");
     }
 
     /// @notice `MIG-004`: the launch's PoolId is registered in the shared hook exactly once, by the
@@ -374,7 +373,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
 
         uint256[8] memory order = [
             _firstLog(logs, keccak256("CheckpointUpdated(uint256,uint256,uint24)")),
-            _firstLog(logs, keccak256("SplitterInitialized(address,address,address,address,address,address,address)")),
+            _firstLog(logs, keccak256("SplitterInitialized(address,address,address,address,address,address)")),
             _firstLog(logs, keccak256("PoolRegistered(bytes32,address,address)")),
             _firstLog(logs, keccak256("Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)")),
             _firstLog(logs, keccak256("ModifyLiquidity(bytes32,address,int24,int24,int256,bytes32)")),

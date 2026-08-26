@@ -145,7 +145,6 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     struct DistributionParams {
         uint256 launchId;
         address escrow;
-        address recoveryAdmin;
         uint128 requiredRegentRaised;
     }
 
@@ -165,7 +164,6 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         address subject;
         address escrow;
         address treasury;
-        address recoveryAdmin;
         address splitter;
         address receiver;
         PoolId poolId;
@@ -186,6 +184,20 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
 
     /// @notice The runtime code hash an authentic escrow clone of `escrowImplementation` must present.
     bytes32 public immutable escrowCloneCodehash;
+
+    /// @dev The runtime code hashes an authentic clone of `splitterImplementation` and of
+    ///      `receiverImplementation` present. Unlike `escrowCloneCodehash`, which authenticates a
+    ///      caller-supplied escrow and is therefore part of this contract's external contract, these
+    ///      two exist only to recognize an already-deployed Autolaunch clone inside treasury
+    ///      admission. Nothing outside this contract consults them, so neither joins the ABI.
+    bytes32 private immutable splitterCloneCodehash;
+    bytes32 private immutable receiverCloneCodehash;
+
+    /// @dev The two internal role tags that separate one launch's splitter deployment identity from
+    ///      its canonical receiver's. They are constants of this contract, carry no authority, and
+    ///      are never supplied, chosen, or influenced by any caller.
+    bytes32 private constant SPLITTER_CLONE_ROLE = keccak256("RegentLBPStrategy.launchSplitter");
+    bytes32 private constant CANONICAL_RECEIVER_CLONE_ROLE = keccak256("RegentLBPStrategy.launchCanonicalReceiver");
 
     /// @notice The one authentic `RegentFeeHook`. Zero until the factory binds it, permanent after.
     address public hook;
@@ -234,7 +246,7 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     error EscrowCustodyMismatch(uint256 found);
     error SubjectAlreadyLaunched(address subject, address auction);
     error UnreachableRequiredRaise(uint128 requiredRegentRaised);
-    error RecoveryAdminHasNoCode(address recoveryAdmin);
+    error RefusedTreasury(address treasury);
     error ProtocolFeeControllerNotZero(address controller);
     error AuctionHasNoCode(address auction);
     error AuctionBindingMismatch(uint256 field, uint256 expected, uint256 found);
@@ -272,6 +284,12 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         escrowCloneCodehash = keccak256(
             abi.encodePacked(hex"3d3d3d3d363d3d37363d73", escrowImplementation_, hex"5af43d3d93803e602a57fd5bf3")
         );
+        splitterCloneCodehash = keccak256(
+            abi.encodePacked(hex"3d3d3d3d363d3d37363d73", splitterImplementation_, hex"5af43d3d93803e602a57fd5bf3")
+        );
+        receiverCloneCodehash = keccak256(
+            abi.encodePacked(hex"3d3d3d3d363d3d37363d73", receiverImplementation_, hex"5af43d3d93803e602a57fd5bf3")
+        );
     }
 
     modifier onlyFactory() {
@@ -302,21 +320,16 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
 
     /// @notice Create one launch's canonical CCA auction and take custody of its isolated 5% reserve.
     /// @dev Factory only, impossible before the hook is bound. Every economic input except the launch
-    ///      id, the escrow, the recovery admin and the required raise is fixed here; SUBJECT, treasury
-    ///      and the start block come from the authenticated escrow and the current block. `C3-I2`.
+    ///      id, the escrow and the required raise is fixed here; SUBJECT, treasury and the start
+    ///      block come from the authenticated escrow and the current block. `C3-I2`.
     ///
-    ///      The `recoveryAdmin.code.length` test below is the system's *only* launch-time admission
-    ///      of a recovery admin, and it is deliberately the only place that test exists. Carrying
-    ///      code is mutable environmental state: EIP-6780 lets a contract created and destroyed in
-    ///      the same transaction disappear, so an address admitted here can be codeless later.
-    ///      Graduation is a launched auction's only migration path, so `SubjectSplitterV1.initialize`
-    ///      never re-evaluates this fact — a second check there would let a launcher's own admin,
-    ///      destroyed after admission, permanently strand a graduated launch. `MIG-020` proves
-    ///      graduation still completes after that destruction; `FAC-016` proves a code-less address
-    ///      is still refused here. The narrower consequence — that losing this admin's code
-    ///      permanently disables unsupported-token and forced-ETH recovery on the launch splitter
-    ///      and on every receiver created for that launch — is disclosed in
-    ///      `docs/security/threat-model.md`.
+    ///      `_requireAdmissibleTreasury` is the system's only launch-time treasury admission, and it
+    ///      runs here — after the escrow is authenticated, so the treasury being judged is the one
+    ///      the escrow really bound, and before the auction exists, so a refusal costs nothing. It
+    ///      can refuse this launch's own future splitter and canonical receiver because both are
+    ///      deployed deterministically from this launch's immutable identity, so both addresses are
+    ///      already known here. `_launchCloneAddresses` is that derivation and `_graduate` deploys to
+    ///      exactly those two addresses from the same two salts.
     // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
     function initializeDistribution(DistributionParams calldata params)
         external
@@ -327,11 +340,10 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         if (hook == address(0)) revert HookNotBound();
 
         (address subject, address treasury) = _authenticateEscrow(params.escrow);
+        _requireAdmissibleTreasury(treasury, params.launchId, subject);
         if (params.requiredRegentRaised == 0 || params.requiredRegentRaised > MAX_REACHABLE_RAISE) {
             revert UnreachableRequiredRaise(params.requiredRegentRaised);
         }
-        if (params.recoveryAdmin == address(this)) revert SelfAddress();
-        if (params.recoveryAdmin.code.length == 0) revert RecoveryAdminHasNoCode(params.recoveryAdmin);
 
         address auctionFactory = BaseBindings.CCA_FACTORY;
         address controller = address(IContinuousClearingAuctionFactory(auctionFactory).protocolFeeController());
@@ -378,7 +390,6 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         d.subject = subject;
         d.escrow = params.escrow;
         d.treasury = treasury;
-        d.recoveryAdmin = params.recoveryAdmin;
         auctionOfSubject[subject] = auction;
 
         emit DistributionCreated(
@@ -485,7 +496,9 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         PoolKey memory key = poolKeyOf(subject);
         PoolId poolId = key.toId();
 
-        address splitter = LibClone.clone(splitterImplementation);
+        uint256 launchId = d.launchId;
+        address splitter =
+            LibClone.cloneDeterministic(splitterImplementation, _cloneSalt(SPLITTER_CLONE_ROLE, launchId, subject));
         SubjectSplitterV1(splitter)
             .initialize(
                 BaseBindings.USDC,
@@ -493,8 +506,7 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
                 subject,
                 BaseBindings.LIVE_STAKING,
                 BaseBindings.GOVERNANCE_AND_REGENT_SAFE,
-                d.treasury,
-                d.recoveryAdmin
+                d.treasury
             );
 
         RegentFeeHook(hook).registerPool(key, splitter);
@@ -527,7 +539,9 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
 
         ConditionalVestingEscrowV1(escrow).sweepGraduatedUnsoldSubject(auction);
 
-        address receiver = LibClone.clone(receiverImplementation);
+        address receiver = LibClone.cloneDeterministic(
+            receiverImplementation, _cloneSalt(CANONICAL_RECEIVER_CLONE_ROLE, launchId, subject)
+        );
         PaymentReceiverV1(payable(receiver)).initialize(splitter, d.treasury, 0, d.treasury, true);
 
         ConditionalVestingEscrowV1(escrow).activateVesting();
@@ -547,7 +561,11 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
 
     /// @dev Resolves exactly one full-range position from the raised REGENT and the recorded reserve,
     ///      mints its NFT straight to the dead address, and returns the amounts the position actually
-    ///      consumed — never the offered maxima. Plan dust returns here through `TAKE_PAIR`.
+    ///      consumed — never the offered maxima. This launch's own plan dust returns here through
+    ///      `TAKE_PAIR`, and nothing else does: the two settlement amounts are rewritten from the
+    ///      pinned planner's `CONTRACT_BALANCE` sentinel to the exact two amounts this launch
+    ///      transfers, so REGENT or SUBJECT already sitting at the shared PositionManager is never
+    ///      settled, never becomes this launch's credit, and never reaches its treasury or escrow.
     function _mintFullRangePosition(
         PoolKey memory key,
         uint160 sqrtPriceX96,
@@ -574,7 +592,12 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
             ? (SafeCastLib.toUint128(positions[0].amount0), SafeCastLib.toUint128(positions[0].amount1))
             : (SafeCastLib.toUint128(positions[0].amount1), SafeCastLib.toUint128(positions[0].amount0));
 
-        Plan memory plan = PositionPlanner.toPlan(positions, key, ActionConstants.MSG_SENDER);
+        Plan memory plan = _exactlyFundedPlan(
+            positions,
+            key,
+            regentIsCurrency0 ? lpRegentUsed : lpSubjectUsed,
+            regentIsCurrency0 ? lpSubjectUsed : lpRegentUsed
+        );
 
         address positionManager = BaseBindings.POSITION_MANAGER;
         lpTokenId = IPositionManager(positionManager).nextTokenId();
@@ -585,6 +608,28 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
 
         uint256 minted = IPositionManager(positionManager).nextTokenId();
         if (minted != lpTokenId + 1) revert UnexpectedPositionMintCount(lpTokenId + 1, minted);
+    }
+
+    /// @dev The pinned plan for these positions, with its two settlement amounts pinned to what this
+    ///      launch actually funds. The pinned planner closes every plan with
+    ///      `SETTLE(currency0, CONTRACT_BALANCE)`, `SETTLE(currency1, CONTRACT_BALANCE)`,
+    ///      `TAKE_PAIR(currency0, currency1, MSG_SENDER)`. That sentinel resolves to the
+    ///      PositionManager's *whole* balance of each currency, and the PositionManager is a shared
+    ///      contract, so it would settle inventory this launch never funded and hand the resulting
+    ///      credit back to this strategy as if it were this launch's unused budget. The pinned action
+    ///      sequence is kept exactly as it is and every mint parameter is untouched; only the two
+    ///      settlement amounts are replaced with `amount0` and `amount1`, the exact two amounts this
+    ///      graduation transfers in. `C6-I8`.
+    function _exactlyFundedPlan(Position[] memory positions, PoolKey memory key, uint128 amount0, uint128 amount1)
+        private
+        pure
+        returns (Plan memory plan)
+    {
+        plan = PositionPlanner.toPlan(positions, key, ActionConstants.MSG_SENDER);
+
+        uint256 settleOffset = positions.length;
+        plan.params[settleOffset] = abi.encode(key.currency0, uint256(amount0), false);
+        plan.params[settleOffset + 1] = abi.encode(key.currency1, uint256(amount1), false);
     }
 
     /// @dev Every exposed binding of the freshly created auction, read back before any value moves.
@@ -626,6 +671,94 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
 
         address existing = auctionOfSubject[subject];
         if (existing != address(0)) revert SubjectAlreadyLaunched(subject, existing);
+    }
+
+    /// @dev The exact, closed launch-time treasury refusal. It names the shared protocol accounts a
+    ///      launch's payouts must never land on — this factory, this strategy, the bound hook, the
+    ///      frozen PoolManager, PositionManager and live staking contract — and the three authentic
+    ///      Autolaunch clone classes, recognized by the fixed 44-byte Solady runtime a clone of each
+    ///      admitted implementation always presents. Sending a launch's payouts to any of those
+    ///      would either strand them in an account with no path back out or feed them into
+    ///      accounting that was never told about them.
+    ///
+    ///      It also refuses this launch's own two future clones by exact address. Both are deployed
+    ///      with CREATE2 from a launch-derived salt, so `_launchCloneAddresses` already knows them
+    ///      here, and `_graduate` deploys to exactly those addresses from the same two salts. That
+    ///      closes what would otherwise be a launch admitted at a destination its own graduation must
+    ///      later refuse to bind — a stall after bidders had already committed REGENT, with no
+    ///      alternate migration.
+    ///
+    ///      Everything else stays admissible, deliberately and without a code test: the dead
+    ///      address, an ordinary EOA, an arbitrary contract, a live CCA auction, the Governance and
+    ///      Regent Safe, and every other address that carries no code yet. The refusal is a closed
+    ///      list of exact addresses and three fixed clone fingerprints; it is not a registry, a
+    ///      generalized denylist, or a code-length rule, and it never widens with the protocol.
+    ///
+    ///      One named consequence survives it, and only across launches: a launcher who names an
+    ///      address that a *different* launch's splitter or canonical receiver will occupy may
+    ///      deliver its own payouts into that launch's ordinary revenue accounting (`FAC-015`). That
+    ///      is launcher-selected destination behavior, it costs that launcher its own value and no
+    ///      one else's lifecycle state or reserve, and refusing it would require this strategy to
+    ///      enumerate every launch that does not exist yet.
+    ///
+    ///      The escrow's own `treasury_ == address(this)` refusal already ran, one call earlier, on
+    ///      this launch's own escrow; it is preserved and not repeated here.
+    function _requireAdmissibleTreasury(address treasury, uint256 launchId, address subject) private view {
+        if (
+            treasury == factory || treasury == address(this) || treasury == hook
+                || treasury == BaseBindings.POOL_MANAGER || treasury == BaseBindings.POSITION_MANAGER
+                || treasury == BaseBindings.LIVE_STAKING
+        ) revert RefusedTreasury(treasury);
+
+        (address ownSplitter, address ownReceiver) = _launchCloneAddresses(launchId, subject);
+        if (treasury == ownSplitter || treasury == ownReceiver) revert RefusedTreasury(treasury);
+
+        bytes32 found = treasury.codehash;
+        if (found == escrowCloneCodehash || found == splitterCloneCodehash || found == receiverCloneCodehash) {
+            revert RefusedTreasury(treasury);
+        }
+    }
+
+    /// @dev The exact two addresses this launch's splitter and canonical receiver will be deployed to.
+    ///      Both clones are deployed with CREATE2 from a salt derived from this contract's own private
+    ///      role constant and the launch's immutable identity, so both addresses exist as facts from
+    ///      the moment that identity does — before the auction is created, and long before graduation
+    ///      deploys them. That is what lets launch-time treasury admission refuse them truthfully
+    ///      instead of admitting a launch that could never graduate.
+    ///
+    ///      This is a derivation, not a record, and it is deliberately not part of this contract's ABI.
+    ///      `LaunchGraduated` and `distribution().splitter` / `.receiver` remain the only canonical
+    ///      authority for what a launch actually deployed. `C6-I3`, `C6-I5`, `C6-I6`.
+    function _launchCloneAddresses(uint256 launchId, address subject)
+        private
+        view
+        returns (address splitter, address receiver)
+    {
+        splitter = _predictClone(splitterImplementation, _cloneSalt(SPLITTER_CLONE_ROLE, launchId, subject));
+        receiver = _predictClone(receiverImplementation, _cloneSalt(CANONICAL_RECEIVER_CLONE_ROLE, launchId, subject));
+    }
+
+    /// @dev The launch-scoped CREATE2 salt for one clone role. It is `keccak256` of a private role
+    ///      constant of this contract and the launch's own immutable identity — the factory-assigned
+    ///      launch id and the SUBJECT the authenticated escrow bound — and nothing else. No caller
+    ///      supplies, chooses, or influences any part of it, and it confers no authority.
+    function _cloneSalt(bytes32 role, uint256 launchId, address subject) private pure returns (bytes32) {
+        return keccak256(abi.encode(role, launchId, subject));
+    }
+
+    /// @dev The exact address a launch-scoped clone of `implementation` is deployed to, computed the
+    ///      way the EVM computes a CREATE2 address. The truncation to 160 bits is explicit because
+    ///      `LibClone`'s own predictor deliberately returns a value with dirty upper bits.
+    function _predictClone(address implementation, bytes32 salt) private view returns (address) {
+        return address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(bytes1(0xff), address(this), salt, LibClone.initCodeHash(implementation))
+                    )
+                )
+            )
+        );
     }
 
     function _requireBinding(uint256 field, uint256 expected, uint256 found) private pure {

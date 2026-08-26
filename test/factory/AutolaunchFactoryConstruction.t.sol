@@ -199,10 +199,7 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
         vm.prank(outsider);
         strategy.initializeDistribution(
             RegentLBPStrategy.DistributionParams({
-                launchId: 1,
-                escrow: address(escrowImplementation),
-                recoveryAdmin: address(recoveryAdmin),
-                requiredRegentRaised: 1_000e18
+                launchId: 1, escrow: address(escrowImplementation), requiredRegentRaised: 1_000e18
             })
         );
 

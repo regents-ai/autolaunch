@@ -330,11 +330,6 @@
               "internalType": "address"
             },
             {
-              "name": "recoveryAdmin",
-              "type": "address",
-              "internalType": "address"
-            },
-            {
               "name": "splitter",
               "type": "address",
               "internalType": "address"
@@ -427,11 +422,6 @@
             },
             {
               "name": "escrow",
-              "type": "address",
-              "internalType": "address"
-            },
-            {
-              "name": "recoveryAdmin",
               "type": "address",
               "internalType": "address"
             },
@@ -936,19 +926,19 @@
     },
     {
       "type": "error",
-      "name": "RecoveryAdminHasNoCode",
+      "name": "Reentrancy",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "RefusedTreasury",
       "inputs": [
         {
-          "name": "recoveryAdmin",
+          "name": "treasury",
           "type": "address",
           "internalType": "address"
         }
       ]
-    },
-    {
-      "type": "error",
-      "name": "Reentrancy",
-      "inputs": []
     },
     {
       "type": "error",
@@ -1058,7 +1048,7 @@
     "escrowImplementation()": "4ca8ff5a",
     "factory()": "c45a0155",
     "hook()": "7f5a7c7b",
-    "initializeDistribution((uint256,address,address,uint128))": "8e9c3c87",
+    "initializeDistribution((uint256,address,uint128))": "d7750ed5",
     "migrate(address)": "ce5494bb",
     "poolKeyOf(address)": "8652edf9",
     "receiverImplementation()": "112e335c",

@@ -23,15 +23,12 @@ contract LaunchFactoryDouble {
         RegentLBPStrategy(strategy_).bindHook(hook_);
     }
 
-    function launch(
-        address subject,
-        address treasury,
-        address recoveryAdmin,
-        uint256 launchId,
-        uint128 requiredRegentRaised
-    ) external returns (address escrow, address auction) {
+    function launch(address subject, address treasury, uint256 launchId, uint128 requiredRegentRaised)
+        external
+        returns (address escrow, address auction)
+    {
         escrow = _fundedEscrow(subject, treasury);
-        auction = _initialize(subject, escrow, recoveryAdmin, launchId, requiredRegentRaised);
+        auction = _initialize(subject, escrow, launchId, requiredRegentRaised);
     }
 
     /// @notice Clone and fund an escrow without ever handing it to the strategy.
@@ -40,14 +37,11 @@ contract LaunchFactoryDouble {
     }
 
     /// @notice Initialize against an escrow this factory already funded.
-    function initialize(
-        address subject,
-        address escrow,
-        address recoveryAdmin,
-        uint256 launchId,
-        uint128 requiredRegentRaised
-    ) external returns (address auction) {
-        auction = _initialize(subject, escrow, recoveryAdmin, launchId, requiredRegentRaised);
+    function initialize(address subject, address escrow, uint256 launchId, uint128 requiredRegentRaised)
+        external
+        returns (address auction)
+    {
+        auction = _initialize(subject, escrow, launchId, requiredRegentRaised);
     }
 
     function _fundedEscrow(address subject, address treasury) private returns (address escrow) {
@@ -56,20 +50,14 @@ contract LaunchFactoryDouble {
         ConditionalVestingEscrowV1(escrow).initialize(subject, treasury, address(strategy));
     }
 
-    function _initialize(
-        address subject,
-        address escrow,
-        address recoveryAdmin,
-        uint256 launchId,
-        uint128 requiredRegentRaised
-    ) private returns (address auction) {
+    function _initialize(address subject, address escrow, uint256 launchId, uint128 requiredRegentRaised)
+        private
+        returns (address auction)
+    {
         _approve(subject, address(strategy), strategy.DISTRIBUTION_PULL());
         auction = strategy.initializeDistribution(
             RegentLBPStrategy.DistributionParams({
-                launchId: launchId,
-                escrow: escrow,
-                recoveryAdmin: recoveryAdmin,
-                requiredRegentRaised: requiredRegentRaised
+                launchId: launchId, escrow: escrow, requiredRegentRaised: requiredRegentRaised
             })
         );
     }

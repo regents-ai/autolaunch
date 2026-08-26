@@ -105,8 +105,8 @@ preserved:
 replaced:
   - upstream_behaviour: Arbitrary caller-supplied `MigratorParameters` plus `initializerParams`,
       ABI-decoded from `configData`.
-    replacement: One typed `DistributionParams` of exactly `launchId`, `escrow`, `recoveryAdmin`
-      and `requiredRegentRaised`. SUBJECT, treasury and the start block are derived from the
+    replacement: One typed `DistributionParams` of exactly `launchId`, `escrow` and
+      `requiredRegentRaised`. SUBJECT, treasury and the start block are derived from the
       authenticated escrow and the current block rather than accepted as redundant copies.
     reason: Every other auction and pool input is frozen by SPEC.md section 5, so accepting them
       would create configuration the specification does not admit.
@@ -242,10 +242,39 @@ deliberate_additions:
       that raise from one on-grid bid and graduates.
     evidence: [STR-013, STR-014]
 
-  - behaviour: `recoveryAdmin` must be a deployed, non-self contract at initialization.
-    reason: The recovery admin is only used at graduation, so validating it there would let a bad
-      value survive a whole auction before failing the terminal transaction.
-    evidence: [STR-013]
+  - behaviour: The launch treasury is admitted once, at initialization, against a closed refusal
+      set: the bound factory, this strategy, the bound hook, the frozen PoolManager, the frozen
+      PositionManager, the frozen live staking contract, any address already carrying the fixed
+      minimal-clone runtime of the admitted escrow, splitter or receiver implementation, and the two
+      addresses this launch's own splitter and canonical receiver will be deployed to. Everything
+      else is admitted with no code requirement.
+    reason: Those destinations either cannot move what they receive or would absorb a launch's
+      payouts into accounting that was never told about them, and the treasury is only ever used at
+      graduation, so validating it there would let a bad value survive a whole auction before
+      failing the terminal transaction. The launch's own two clone addresses are refusable because
+      both clones are deployed deterministically from the launch's immutable identity, so admitting
+      one would admit a launch whose own graduation must later refuse to bind it. The set stays
+      closed and address- or fingerprint-based on purpose: no registry, generalized denylist or
+      code-length rule is added, and the one surviving cross-launch consequence is recorded in the
+      threat model.
+    evidence: [STR-019, FAC-028, MIG-021]
+
+  - behaviour: Both per-launch clones are deployed with CREATE2 from a salt derived only from a
+      private role constant of this contract and the launch's immutable identity — its
+      factory-assigned launch ID and the SUBJECT its authenticated escrow bound.
+    reason: The upstream migrator clones with plain CREATE, whose address depends on the deployer's
+      nonce and therefore on unrelated launches' deployment order. A launch-derived CREATE2 identity
+      makes both addresses knowable before the auction exists, which is what lets admission refuse
+      them. The salt exposes no caller choice, confers no authority, and is not part of the ABI.
+    evidence: [MIG-021, MIG-003]
+
+  - behaviour: The pinned planner's two `CONTRACT_BALANCE` settlement amounts are replaced with the
+      exact two amounts this graduation transfers to the PositionManager. The action sequence and
+      every mint parameter are otherwise untouched.
+    reason: The PositionManager is shared with every other Uniswap v4 user on Base, so
+      `CONTRACT_BALANCE` would settle inventory this launch never funded and return the credit to
+      this strategy as if it were this launch's unspent budget.
+    evidence: [MIG-022, DEP-046]
 
   - behaviour: Exactly one LP NFT must be minted, checked against PositionManager's own
       `nextTokenId`, and the position's actual consumption is recorded rather than the budgets.

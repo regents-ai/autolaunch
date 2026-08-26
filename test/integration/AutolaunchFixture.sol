@@ -25,8 +25,8 @@ import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {UERC20Factory} from "uerc20-factory/factories/UERC20Factory.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
+import {LaunchCloneSlots} from "../mocks/LaunchCloneSlots.sol";
 import {MockLiveStaking} from "../mocks/MockLiveStaking.sol";
-import {MockRecoveryAdmin} from "../mocks/MockRecoveryAdmin.sol";
 import {Permit2Double} from "../strategy/doubles/Permit2Double.sol";
 import {StagedERC20} from "../strategy/doubles/StagedERC20.sol";
 
@@ -52,11 +52,11 @@ import {StagedERC20} from "../strategy/doubles/StagedERC20.sol";
 ///         `RegentsAutolaunchFactoryV1.launch`, and every auction is a real
 ///         `ContinuousClearingAuction` created by the real CCA factory and driven by real bids.
 ///
-///      Four binding-level doubles remain, each named and each serving hermetic behaviour only:
+///      Three binding-level doubles remain, each named and each serving hermetic behaviour only:
 ///      `Permit2Double` (real Permit2 pins `=0.8.17` and cannot be built under the frozen `0.8.26`
-///      compiler), `StagedERC20` staged at the frozen REGENT and USDC addresses, `MockLiveStaking`,
-///      and `MockRecoveryAdmin`. None of them satisfies a deployed-runtime claim; `SPEC.md` section
-///      10 leaves those to the separately authorized fork gate.
+///      compiler), `StagedERC20` staged at the frozen REGENT and USDC addresses, and
+///      `MockLiveStaking`. None of them satisfies a deployed-runtime claim; `SPEC.md` section 10
+///      leaves those to the separately authorized fork gate.
 abstract contract AutolaunchFixture is Test {
     using StateLibrary for IPoolManager;
 
@@ -91,7 +91,6 @@ abstract contract AutolaunchFixture is Test {
     ConditionalVestingEscrowV1 internal escrowImplementation;
     SubjectSplitterV1 internal splitterImplementation;
     PaymentReceiverV1 internal receiverImplementation;
-    MockRecoveryAdmin internal recoveryAdmin;
 
     StagedERC20 internal regent;
     StagedERC20 internal usdc;
@@ -150,7 +149,6 @@ abstract contract AutolaunchFixture is Test {
         escrowImplementation = new ConditionalVestingEscrowV1();
         splitterImplementation = new SubjectSplitterV1();
         receiverImplementation = new PaymentReceiverV1();
-        recoveryAdmin = new MockRecoveryAdmin();
 
         hookSalt = _mineHookSalt(vm.computeCreateAddress(address(this), vm.getNonce(address(this))));
 
@@ -208,7 +206,6 @@ abstract contract AutolaunchFixture is Test {
             website: "https://regents.sh",
             image: "ipfs://image",
             treasury: treasury,
-            recoveryAdmin: address(recoveryAdmin),
             requiredRegentRaised: 1_000e18,
             expectedLaunchFee: INITIAL_LAUNCH_FEE
         });
@@ -314,6 +311,48 @@ abstract contract AutolaunchFixture is Test {
 
     function _distribution(Launched memory launched) internal view returns (RegentLBPStrategy.Distribution memory) {
         return strategy.distribution(address(launched.auction));
+    }
+
+    // -------------------------------------------------------------------------
+    // deterministic clone slots
+    // -------------------------------------------------------------------------
+
+    /// @notice The address a launch's splitter clone will occupy, derived independently of production.
+    function _splitterSlot(uint256 launchId, address subject) internal view returns (address) {
+        return LaunchCloneSlots.splitter(address(strategy), address(splitterImplementation), launchId, subject);
+    }
+
+    /// @notice The address a launch's canonical receiver clone will occupy, derived the same way.
+    function _receiverSlot(uint256 launchId, address subject) internal view returns (address) {
+        return LaunchCloneSlots.canonicalReceiver(address(strategy), address(receiverImplementation), launchId, subject);
+    }
+
+    /// @notice The two slots a launch will use, computed before that launch exists.
+    /// @dev Both inputs are knowable in advance: the factory assigns launch ids in order from its own
+    ///      counter, and the pinned UERC20 factory derives every SUBJECT with CREATE2 from exactly
+    ///      the arguments `RegentsAutolaunchFactoryV1.launch` will pass. So a launch's whole
+    ///      identity — and therefore both of its clone slots — is fixed before its transaction runs.
+    function _plannedSlots(uint256 launchId, RegentsAutolaunchFactoryV1.LaunchParams memory params)
+        internal
+        view
+        returns (address splitterSlot, address receiverSlot)
+    {
+        address subject =
+            uerc20Factory.getUERC20Address(params.name, params.symbol, 18, address(factory), bytes32(launchId));
+        splitterSlot = _splitterSlot(launchId, subject);
+        receiverSlot = _receiverSlot(launchId, subject);
+    }
+
+    /// @notice The same two slots for a launch that `_launchSorted` will create, which picks the
+    ///         SUBJECT name deterministically from the launch id and the requested sort side.
+    function _plannedSortedSlots(uint256 launchId, bool subjectBelowRegent)
+        internal
+        view
+        returns (address splitterSlot, address receiverSlot)
+    {
+        RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
+        params.name = _nameSorting(subjectBelowRegent, params.symbol, launchId);
+        return _plannedSlots(launchId, params);
     }
 
     // -------------------------------------------------------------------------

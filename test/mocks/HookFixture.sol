@@ -21,7 +21,6 @@ import {RegentFeeHook} from "../../src/hook/RegentFeeHook.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {MockERC20} from "./MockERC20.sol";
 import {MockLiveStaking} from "./MockLiveStaking.sol";
-import {MockRecoveryAdmin} from "./MockRecoveryAdmin.sol";
 import {NestedSwapAttacker} from "./NestedSwapAttacker.sol";
 import {SimpleSwapRouter} from "./SimpleSwapRouter.sol";
 
@@ -88,7 +87,6 @@ abstract contract HookFixture is Test {
 
     RegentFeeHook internal hook;
     SubjectSplitterV1 internal splitterImplementation;
-    MockRecoveryAdmin internal recoveryAdmin;
     MockERC20 internal regent;
 
     address internal strategy = makeAddr("strategy");
@@ -104,7 +102,6 @@ abstract contract HookFixture is Test {
         nestedAttacker = new NestedSwapAttacker(IPoolManager(address(manager)));
 
         splitterImplementation = new SubjectSplitterV1();
-        recoveryAdmin = new MockRecoveryAdmin();
 
         regent = _etchToken(REGENT);
         (bool ok,) = _constructHookAt(HOOK_ADDRESS, address(manager), strategy);
@@ -168,9 +165,7 @@ abstract contract HookFixture is Test {
         MockLiveStaking liveStaking = new MockLiveStaking(address(usdc));
 
         splitter = SubjectSplitterV1(LibClone.clone(address(splitterImplementation)));
-        splitter.initialize(
-            address(usdc), REGENT, subjectAddress, address(liveStaking), REGENT_SAFE, treasury, address(recoveryAdmin)
-        );
+        splitter.initialize(address(usdc), REGENT, subjectAddress, address(liveStaking), REGENT_SAFE, treasury);
     }
 
     function _approveAll(MockERC20 subject) internal {

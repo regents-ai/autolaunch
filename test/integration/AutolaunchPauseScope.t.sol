@@ -142,11 +142,11 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         vm.stopPrank();
         assertEq(regent.balanceOf(address(canonical)), 0, "a paused factory blocked a payment");
 
-        // 9. recovery of an unsupported token by the immutable recovery admin
+        // 9. permissionless recovery of an unsupported token
         StagedERC20 stray = new StagedERC20();
         stray.mint(address(canonical), 5e18);
-        vm.prank(address(recoveryAdmin));
-        canonical.recoverUnsupportedToken(address(stray), 5e18);
+        vm.prank(outsider);
+        canonical.recoverUnsupportedToken(address(stray));
         assertEq(stray.balanceOf(treasury), 5e18, "a paused factory blocked recovery");
 
         // 10. custom receiver creation

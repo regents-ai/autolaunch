@@ -10,9 +10,12 @@
 #   activated_gates     the gate that class of evidence must run under is authorized.
 #
 # An activated ticket may therefore still hold claims pending, but only when their
-# designated gate is not activated. That was the earlier offline C5 state; this candidate
-# activates both C5 and the separately authorized fork gate. Once a claim's owner and its
-# gate are both activated, the claim MUST be active.
+# designated gate is not activated. That was the earlier offline C5 state; the C5 evidence
+# activation candidate turned on both C5 and the separately authorized fork gate, and this
+# regent-alv1.7 successor adds C6. Once a claim's owner and its gate are both activated, the
+# claim MUST be active. Activation is not execution: this candidate changed four production
+# contracts, so the fork gate has to run again against its bytecode under the founder's
+# separate read-only authority before the fork claims carry evidence for it.
 #
 # status = "active"   the claim's selectors must exist, must execute exactly once under the
 #                     designated gate, and must pass; a gate-dependency claim additionally
@@ -28,11 +31,12 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5"]
+activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6"]
 
 # `fork` is activated only with the separately discovered, independently reviewed, and
-# committed Base observation record. The compare-only gate must now execute every mapped fork
-# selector exactly once at each of the two committed headers before C5 can close.
+# committed Base observation record. The compare-only gate must execute every mapped fork
+# selector exactly once at each of the two committed headers, against the production bytecode
+# of the candidate being closed.
 activated_gates = ["hermetic", "invariant", "fork"]
 groups = [
     "DEP",
@@ -409,9 +413,12 @@ selectors = [
     "test_DEP_045_ForkLatestLiveStakingDepositUsdcMatchesAssumedSemantics",
 ]
 
+# regent-alv1.7 correction. The semantics the migration path relies on changed with C6-I8: the
+# strategy no longer settles the shared PositionManager's whole balance, so the deployed-contract
+# claim is now preservation rather than disposition. MIG-022 owns the hermetic half.
 [[requirement]]
 id = "DEP-046"
-statement = "On Base, the PoolManager and PositionManager bindings answer the getters and present the semantics the migration path relies on."
+statement = "On Base, the PoolManager and PositionManager bindings answer the getters and present the semantics the migration path relies on, including that a real graduation against the deployed PositionManager settles only the exact amounts this launch funds and preserves every other REGENT, SUBJECT and cross-launch balance held there to the unit."
 owner = "C5"
 contract = "BaseBindings"
 evidence_class = "fork-execution"
@@ -694,33 +701,30 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_FAC_014_MetadataBoundaryInputsBehaveExactly"]
 
-# C5 correction. Immutability has a blast radius worth naming: the launcher chooses the
-# treasury, so a hostile or broken treasury can strand or break its own launch's value, and
-# the claim now records that this damage is confined to that launch. No denylist is added.
+# C5 correction, corrected again by regent-alv1.7. The launcher chooses the treasury, so a
+# hostile or broken treasury can strand or break its own launch's value; that damage stays
+# confined to that launch. What C6 adds is the honest limit of that sentence: lifecycle state
+# and the isolated 5% reserve are isolated, but value the launcher deliberately points at
+# another launch's artifact is not. No denylist is added for it.
 [[requirement]]
 id = "FAC-015"
-statement = "The treasury is immutable and launcher-chosen, and its blast radius is exactly one launch: a treasury that can never move what it receives strands only its own launch's payouts, while a second launch sharing the same factory, strategy and hook graduates, registers its own pool, and gets its own splitter, receiver and treasury payouts untouched."
+statement = "The treasury is immutable and launcher-chosen. A treasury that can never move what it receives strands only its own launch's payouts, while a second launch sharing the same factory, strategy and hook graduates, registers its own pool, and gets its own splitter, receiver and treasury payouts untouched. Lifecycle state and each launch's isolated 5% reserve are always isolated; explicit value routed to a launcher-selected cross-launch treasury is not, and a treasury that later becomes another launch's splitter or receiver may deliver the first launch's payouts into that other launch's ordinary accounting."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_FAC_015_TreasuryIsImmutable"]
+selectors = [
+    "test_FAC_015_TreasuryIsImmutable",
+    "test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated",
+]
 
-# regent-alv1.6.1 correction. "Deployed contract" was open enough to be read as a standing
-# property, which is what produced a second, redundant code check on the graduation path. It is a
-# launch-time admission and nothing more: the strategy is the single place the check exists, and
-# the narrower consequence of later code loss is disclosed in docs/security/threat-model.md and
-# proved live by MIG-020.
-[[requirement]]
-id = "FAC-016"
-statement = "The recovery admin is immutable, and it is admitted as a deployed contract exactly once, at launch, by RegentLBPStrategy.initializeDistribution — the single launch-time contract-code check in the system. The shared strategy rejects itself as a recovery admin, and zero and non-contract addresses are rejected there because they carry no code. No later call re-evaluates whether that immutable address still carries code."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_016_RecoveryAdminIsAnImmutableDeployedContract"]
+# regent-alv1.7 retirement. FAC-016 claimed the recovery admin was immutable and admitted as a
+# deployed contract at launch. C6 deletes the recovery admin outright, so the claim has no
+# subject left; it is retired here rather than repointed at replacement behaviour, and its
+# selector test_FAC_016_RecoveryAdminIsAnImmutableDeployedContract is deleted with it. The ID is
+# never reused. Launch-time admission still exists, but it admits the treasury, not an
+# administrator, and it is STR-019 and FAC-028.
 
 [[requirement]]
 id = "FAC-017"
@@ -825,6 +829,19 @@ evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = ["test_FAC_026_SuccessfulFeeCollectionEmitsTheExactCollectionEvent"]
+
+# regent-alv1.7 addition. The launch-time treasury refusal lands after the fee has moved, after
+# the SUBJECT exists and after the escrow has been cloned and funded, so it is the widest rollback
+# the launch path has. STR-019 owns the refusal set; this owns its atomicity at the factory.
+[[requirement]]
+id = "FAC-028"
+statement = "A treasury the strategy refuses at launch rolls the whole attempted launch back together — the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event — and disturbs no existing launch's lifecycle, escrow custody or isolated 5% reserve."
+owner = "C6"
+contract = "AutolaunchFactory"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_FAC_028_RefusedTreasuryRollsTheWholeLaunchBack"]
 
 [[requirement]]
 id = "FAC-027"
@@ -1058,7 +1075,6 @@ selectors = [
     "test_STR_013_InauthenticEscrowIsRejected",
     "test_STR_013_UnreachableRequiredRaiseIsRejected",
     "test_STR_013_AdmittedMaximumRaiseIsReachedByRealOnGridBidding",
-    "test_STR_013_RecoveryAdminMustBeADeployedNonSelfContract",
     "test_STR_013_UnexpectedTokenBehaviourRollsInitializationBack",
 ]
 
@@ -1134,6 +1150,27 @@ status = "active"
 selectors = [
     "test_STR_018_FinalizationIsOneShot",
     "test_STR_018_RepeatedFailureMigrationIsRejected",
+]
+
+# regent-alv1.7 addition. The system's one launch-time treasury admission, owned by the strategy
+# and run after the escrow is authenticated and before the auction exists. The refusal set is
+# closed and exact: six protocol accounts by address, the three Autolaunch clone classes by their
+# fixed minimal-clone runtime, and this launch's own two future clone addresses. Those last two are
+# knowable because both clones are deployed with CREATE2 from a salt the strategy derives from the
+# launch's own immutable identity — MIG-021 proves graduation lands on exactly them. There is no
+# registry, no generalized denylist and no code-presence requirement.
+[[requirement]]
+id = "STR-019"
+statement = "RegentLBPStrategy.initializeDistribution owns one launch-time treasury admission, run after the escrow is authenticated and before the auction is created. It refuses exactly the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking contract, any address already carrying the fixed minimal-clone runtime of the admitted escrow, splitter or receiver implementation, and the two addresses this launch's own splitter and canonical receiver will be deployed to. Every other treasury is admitted with no code test at all, including the dead address, an ordinary EOA, an arbitrary deployed contract, the Governance and Regent Safe, a live CCA auction, and an address only a different launch's artifact will occupy. A refused treasury reverts before any reserve is pulled and before any auction exists."
+owner = "C6"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = [
+    "test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists",
+    "test_STR_019_OwnFutureCloneTreasuriesAreRejected",
+    "test_STR_019_AdmissibleTreasuryClassesAreAccepted",
 ]
 
 # ---------------------------------------------------------------------------
@@ -1684,15 +1721,19 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_SPL_016_SkimRoundingIsExactAtTheInflowBoundaryInputs"]
 
+# regent-alv1.7 rewrite. The administrator is deleted rather than replaced, so the old claim and
+# its selector are retired together and this is the new normative statement, not the old one
+# repointed. Removing the caller check is safe because the call has nothing left to choose: the
+# amount is the whole recoverable balance and the destination is the immutable treasury.
 [[requirement]]
 id = "SPL-017"
-statement = "Only the immutable recovery admin may recover an unsupported ERC20 or forced ETH from the splitter, and always to the immutable treasury."
+statement = "Splitter recovery of an unsupported ERC20 or of forced ETH is permissionless: any caller may trigger it, each call moves the splitter's complete balance of that asset and only to the immutable treasury, the caller can name neither an amount nor a destination and keeps nothing, a zero recoverable balance reverts without mutating anything, and a hostile unsupported token can fail only its own recovery call."
 owner = "C1"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_SPL_017_OnlyRecoveryAdminRecoversToTheImmutableTreasury"]
+selectors = ["test_SPL_017_RecoveryIsPermissionlessWholeBalanceToTheTreasury"]
 
 [[requirement]]
 id = "SPL-018"
@@ -1832,15 +1873,17 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_RCV_008_OrdinaryEthTransfersRevert"]
 
+# regent-alv1.7 rewrite, for the same reason as SPL-017: the administrator is deleted, so the old
+# claim and its selector are retired together rather than repointed.
 [[requirement]]
 id = "RCV-009"
-statement = "Only the immutable recovery admin may send forced ETH or unsupported ERC20s from a receiver, and always to the immutable treasury."
+statement = "Receiver recovery of an unsupported ERC20 or of forced ETH is permissionless: any caller may trigger it, each call moves the receiver's complete balance of that asset and only to the immutable treasury, the caller can name neither an amount nor a destination and keeps nothing, and a zero recoverable balance reverts without mutating anything."
 owner = "C1"
 contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_RCV_009_OnlyRecoveryAdminRecoversToTheImmutableTreasury"]
+selectors = ["test_RCV_009_RecoveryIsPermissionlessWholeBalanceToTheTreasury"]
 
 [[requirement]]
 id = "RCV-010"
@@ -1940,9 +1983,12 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_MIG_002_DerivesFinalPricePoolKeyAndPoolId"]
 
+# regent-alv1.7 statement correction. The splitter is now a deterministic CREATE2 clone, so the
+# selector asserts the address as well as the bindings. MIG-021 owns why that address is knowable
+# in advance; this stays the plain "graduation deploys it, bound to this launch" claim.
 [[requirement]]
 id = "MIG-003"
-statement = "Graduation deploys the splitter clone."
+statement = "Graduation deploys the splitter clone, at this launch's own deterministic clone address, bound to this launch's SUBJECT, treasury and frozen protocol bindings."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
@@ -2115,20 +2161,48 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_MIG_019_MigrationDependencyReentrancyIsRejectedWithCompleteRollback"]
 
-# regent-alv1.6.1 addition. The terminal-path liveness half of FAC-016: launch-time admission is
-# the only code check, so an admin destroyed after admission can never block the one migration
-# path a launched auction has. The state is produced the way production produces it — the earlier
-# Foundry transaction, `setUp`, deploys the admin, launches with it, and destroys it under
-# EIP-6780 — and no cheatcode manufactures it. FAC-016 keeps the rejection half.
+# regent-alv1.7 retirement. MIG-020 was the terminal-path liveness half of FAC-016: a launch whose
+# recovery admin was destroyed after admission still migrated. C6 deletes the recovery admin, so
+# the claim has no subject left. It is retired rather than repointed, its selector
+# test_MIG_020_GraduationSurvivesRecoveryAdminDestroyedAtLaunch is deleted, and the ID is never
+# reused.
+
+# regent-alv1.7 addition, and the terminal half of STR-019. Launch-time admission can refuse this
+# launch's own two future clones only because both are deployed with CREATE2 from a salt the
+# strategy derives from the launch's immutable identity — the factory-assigned launch id and the
+# SUBJECT the authenticated escrow bound — so both addresses are facts before the auction exists.
+# This claim closes that loop from the other end: the addresses admission refused are the addresses
+# graduation actually deploys to, so the refusal is truthful rather than approximate and no admitted
+# launch can reach a destination its own graduation would later have to refuse.
+#
+# The test derives both addresses from first principles rather than from the strategy, which
+# publishes no getter for them: the two role strings, the salt, and the CREATE2 rule are restated in
+# test/mocks/LaunchCloneSlots.sol and share no code with production.
 [[requirement]]
-id = "MIG-020"
-statement = "A launch whose immutable recovery admin was created, admitted at launch, and destroyed under EIP-6780 in that same transaction still migrates in a later transaction: graduation completes, the splitter clone is initialized and bound to that immutable admin address, the canonical zero-referral receiver is created, 365-day vesting is activated, and the factory and strategy records both still carry the admin address. The only lost capability is recovery of unsupported ERC20s and forced ETH on that launch's splitter and receivers."
-owner = "C5"
+id = "MIG-021"
+statement = "One launch's splitter and canonical receiver are deployed to two addresses derived deterministically from the strategy's own private role constants and that launch's immutable identity. Launch-time admission refuses both, atomically and before the auction exists, and a real graduation of that same launch deploys its splitter and its canonical receiver to exactly those two refused addresses, correctly bound and registered. The derivation exposes no caller choice, is not part of the strategy's ABI, and is never the canonical record of what a launch deployed."
+owner = "C6"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_MIG_020_GraduationSurvivesRecoveryAdminDestroyedAtLaunch"]
+selectors = ["test_MIG_021_OwnCloneSlotsAreRefusedAndAreExactlyWhereGraduationDeploys"]
+
+# regent-alv1.7 addition. The second C6 blocker, closed. The pinned planner closes every plan by
+# settling CONTRACT_BALANCE of each pool currency, which resolves to the *shared* PositionManager's
+# whole balance; the strategy replaces those two settlement amounts with the exact two amounts it
+# transfers in, leaving the pinned action sequence and every mint parameter untouched. The
+# regression is measured on a real graduation with both pool assets pre-seeded through production
+# paths, and DEP-046 measures the same property against the deployed PositionManager on Base.
+[[requirement]]
+id = "MIG-022"
+statement = "Graduation funds the PositionManager with exactly the two amounts this launch's own position consumes. REGENT and SUBJECT already held at the shared PositionManager are preserved to the unit across a real graduation, never become this launch's credit, and reach neither its treasury nor its escrow, while the launch's own LP consumption, residue routing and recorded artifacts stay exact."
+owner = "C6"
+contract = "migration"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = ["test_MIG_022_GraduationLeavesForeignPositionManagerBalancesUntouched"]
 
 # ---------------------------------------------------------------------------
 # FAIL — unmet raise, zero bids, partial bidding, full failed inventory return,
@@ -2474,7 +2548,7 @@ selectors = ["test_ABI_002_FactoryPublicMutationSurfaceIsExact"]
 
 [[requirement]]
 id = "ABI-003"
-statement = "LaunchParams contains only name, symbol, description, website, image, treasury, recoveryAdmin, requiredRegentRaised, and expectedLaunchFee."
+statement = "LaunchParams contains only name, symbol, description, website, image, treasury, requiredRegentRaised, and expectedLaunchFee."
 owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -2494,13 +2568,13 @@ selectors = ["test_ABI_004_SplitterCallerOnlySurfaceIsExact"]
 
 [[requirement]]
 id = "ABI-005"
-statement = "Beyond those six caller-only functions the splitter exposes only its administrative recovery functions, recoverUnsupportedToken and recoverForcedETH, and no other mutating entrypoint."
+statement = "Beyond those six caller-only functions the splitter exposes only its one-shot initializer and its two permissionless recovery functions, recoverUnsupportedToken(address) and recoverForcedETH(), and no other mutating entrypoint."
 owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_ABI_005_SplitterAdministrativeRecoverySurfaceIsExact"]
+selectors = ["test_ABI_005_SplitterRecoverySurfaceIsExact"]
 
 [[requirement]]
 id = "ABI-006"
@@ -2566,22 +2640,20 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_ABI_011_ReturnTupleLayoutsAreFrozen"]
 
-# regent-alv1.6.1 addition. Removing the splitter's redundant recovery-admin code check deletes one
-# custom error and therefore one selector from the frozen ABI. A hard-deleted selector is proved by
-# an ABI diff, never by calling it. The two authorities diffed are the frozen error surface and the
-# generated per-contract ABI document the release manifest names. A runtime byte scan is
-# deliberately excluded: it is sound for a deleted function, whose dispatcher must carry the
-# selector literally, and ABI-009 uses it there, but it is unsound for a custom error under this
-# repository's via-IR build, where solc emits this very error's revert prologue as
-# shl(226, 0x298e5ea3) instead of shl(224, 0xa6397a8c), so the live strategy runtime contains the
-# four selector bytes nowhere. Claiming absence from a scan that cannot see presence would be
-# claiming nothing.
+# regent-alv1.7 rewrite. C6 deletes the recovery administrator outright, so the surviving half of
+# the regent-alv1.6.1 claim — the strategy's own RecoveryAdminHasNoCode(address) — is deleted too
+# and the claim is restated as the whole-surface deletion it now is. A hard-deleted selector is
+# proved by ABI diff, never by calling it. A runtime byte scan is deliberately excluded for the
+# errors: it is sound for a deleted function, whose dispatcher must carry the selector literally,
+# and ABI-009 uses it there, but under this repository's via-IR build solc rewrites a custom
+# error's revert prologue constant into whatever encoding is cheapest, so a live error's four
+# selector bytes can be absent from the runtime and a scan would prove nothing either way.
 [[requirement]]
 id = "ABI-012"
-statement = "The splitter error selector 0x4f986444, RecoveryAdminHasNoCode(), is deleted: it appears in no production contract's frozen error surface, and no generated per-contract ABI other than the strategy's declares an error of that name at any arity, while the strategy's own distinct RecoveryAdminHasNoCode(address) selector 0xa6397a8c remains on both records, because launch-time admission still rejects a code-less recovery admin."
+statement = "The whole recovery-administration ABI surface is deleted: the strategy's RecoveryAdminHasNoCode(address) selector 0xa6397a8c, the earlier splitter RecoveryAdminHasNoCode() selector 0x4f986444, the splitter's and receiver's NotRecoveryAdmin(address) error, and the splitter's and receiver's recoveryAdmin() getter appear on no production contract's frozen surface, and no generated per-contract ABI document names a recovery admin under any name, arity or member kind. Recovery itself survives in its amount-free permissionless form on both clones."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_ABI_012_DeletedSplitterRecoveryAdminErrorSelectorIsAbsent"]
+selectors = ["test_ABI_012_DeletedRecoveryAdministrationSurfaceIsAbsent"]

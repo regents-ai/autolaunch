@@ -49,7 +49,6 @@ abstract contract ForkAutolaunch is ForkFixture {
     ConditionalVestingEscrowV1 internal escrowImplementation;
     SubjectSplitterV1 internal splitterImplementation;
     PaymentReceiverV1 internal receiverImplementation;
-    ForkRecoveryAdmin internal recoveryAdmin;
 
     address internal launcher = makeAddr("fork-launcher");
     address internal bidder = makeAddr("fork-bidder");
@@ -70,7 +69,6 @@ abstract contract ForkAutolaunch is ForkFixture {
         escrowImplementation = new ConditionalVestingEscrowV1();
         splitterImplementation = new SubjectSplitterV1();
         receiverImplementation = new PaymentReceiverV1();
-        recoveryAdmin = new ForkRecoveryAdmin();
 
         address predictedFactory = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
         address predictedStrategy = vm.computeCreateAddress(predictedFactory, 1);
@@ -105,7 +103,6 @@ abstract contract ForkAutolaunch is ForkFixture {
             website: _filled(MAX_WEBSITE_BYTES),
             image: _filled(MAX_IMAGE_BYTES),
             treasury: treasury,
-            recoveryAdmin: address(recoveryAdmin),
             requiredRegentRaised: requiredRegentRaised,
             expectedLaunchFee: factory.launchFee()
         });
@@ -209,14 +206,5 @@ abstract contract ForkAutolaunch is ForkFixture {
         vm.prank(bidder);
         launched.auction.claimTokens(bidId);
         claimed = launched.subject.balanceOf(bidder) - before;
-    }
-}
-
-/// @notice A deployed contract standing in for the immutable recovery admin on a fork.
-/// @dev The production constructor requires an admin that carries code and checks nothing else, so
-///      this is a deployment input rather than a substituted behaviour.
-contract ForkRecoveryAdmin {
-    function role() external pure returns (bytes32) {
-        return "recovery-admin";
     }
 }

@@ -224,6 +224,71 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
         );
     }
 
+    /// @notice `FAC-028`: a treasury the strategy refuses at launch rolls the whole attempted launch
+    ///         back — the fee, the SUBJECT, the escrow, the auction, the records and the events
+    ///         together — and never disturbs an existing launch.
+    /// @dev The refusal happens after the fee has moved, after the SUBJECT exists and after that
+    ///      launch's escrow has been cloned and funded with the exact 85%, so this is the widest
+    ///      rollback the launch path has. Each arm names one refused class: the shared protocol
+    ///      accounts by exact address, an already-deployed authentic escrow clone by its fixed
+    ///      minimal-clone runtime, and the attempted launch's own two future clone slots by exact
+    ///      address. `STR-019` owns the complete class enumeration at the strategy.
+    function test_FAC_028_RefusedTreasuryRollsTheWholeLaunchBack() public {
+        Launched memory existing = _defaultLaunch();
+        Pristine memory pristine = _pristine();
+
+        // Every rolled-back attempt reuses the untouched launch id, so all nine arms share one
+        // identity and the last two really are that attempt's own slots.
+        (address ownSplitter, address ownReceiver) = _plannedSlots(pristine.nextLaunchId, _params());
+
+        address[9] memory refused = [
+            address(factory),
+            address(strategy),
+            address(hook),
+            BaseBindings.POOL_MANAGER,
+            BaseBindings.POSITION_MANAGER,
+            BaseBindings.LIVE_STAKING,
+            address(existing.escrow),
+            ownSplitter,
+            ownReceiver
+        ];
+
+        for (uint256 i; i < refused.length; ++i) {
+            RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
+            params.treasury = refused[i];
+            _assertRollsBack(
+                pristine,
+                string.concat("refused treasury ", vm.toString(i)),
+                abi.encodeWithSelector(RegentLBPStrategy.RefusedTreasury.selector, refused[i]),
+                params
+            );
+        }
+
+        // The launch that already existed is untouched by every one of those attempts.
+        assertEq(
+            uint8(_distribution(existing).lifecycle),
+            uint8(RegentLBPStrategy.Lifecycle.Active),
+            "a refused launch disturbed an existing launch"
+        );
+        assertEq(
+            existing.subject.balanceOf(address(existing.escrow)),
+            PENDING_ALLOCATION,
+            "a refused launch reached an existing launch's escrow custody"
+        );
+        assertEq(
+            existing.subject.balanceOf(address(strategy)),
+            RESERVE_ALLOCATION,
+            "a refused launch reached an existing launch's isolated reserve"
+        );
+
+        // And the next launch, on an admitted treasury, is completely normal.
+        Launched memory clean = _launchAs(launcher, _params());
+        assertEq(clean.launchId, pristine.nextLaunchId, "the clean launch did not take the untouched ID");
+        assertEq(
+            uint8(_distribution(clean).lifecycle), uint8(RegentLBPStrategy.Lifecycle.Active), "the clean launch is idle"
+        );
+    }
+
     // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
@@ -248,10 +313,19 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
     /// @dev Attempt the launch with whatever fault is currently armed, require it to revert, and
     ///      prove every pre-launch fact survived untouched.
     function _assertRollsBack(Pristine memory pristine, string memory stage, bytes memory expected) private {
+        _assertRollsBack(pristine, stage, expected, _params());
+    }
+
+    function _assertRollsBack(
+        Pristine memory pristine,
+        string memory stage,
+        bytes memory expected,
+        RegentsAutolaunchFactoryV1.LaunchParams memory params
+    ) private {
         if (expected.length == 0) vm.expectRevert();
         else vm.expectRevert(expected);
         vm.prank(launcher);
-        factory.launch(_params());
+        factory.launch(params);
         vm.clearMockedCalls();
 
         assertEq(factory.nextLaunchId(), pristine.nextLaunchId, string.concat(stage, ": an ID was consumed"));

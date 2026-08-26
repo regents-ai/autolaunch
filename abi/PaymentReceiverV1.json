@@ -132,13 +132,7 @@
     {
       "type": "function",
       "name": "recoverForcedETH",
-      "inputs": [
-        {
-          "name": "amount",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
+      "inputs": [],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -150,28 +144,10 @@
           "name": "token",
           "type": "address",
           "internalType": "address"
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "internalType": "uint256"
         }
       ],
       "outputs": [],
       "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "recoveryAdmin",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "address",
-          "internalType": "address"
-        }
-      ],
-      "stateMutability": "view"
     },
     {
       "type": "function",
@@ -504,17 +480,6 @@
     },
     {
       "type": "error",
-      "name": "NotRecoveryAdmin",
-      "inputs": [
-        {
-          "name": "caller",
-          "type": "address",
-          "internalType": "address"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "ProtectedToken",
       "inputs": [
         {
@@ -575,9 +540,8 @@
     "noteEditor()": "b73598e7",
     "pay(address,uint256,bytes32)": "5e5571ac",
     "receiverNote()": "e5738587",
-    "recoverForcedETH(uint256)": "cfbe2877",
-    "recoverUnsupportedToken(address,uint256)": "0112d431",
-    "recoveryAdmin()": "5f6529a3",
+    "recoverForcedETH()": "4725dd8e",
+    "recoverUnsupportedToken(address)": "22ab5669",
     "referralBps()": "1fbb6ff0",
     "regent()": "35cd696e",
     "setReceiverNote(bytes32)": "b1379b2f",

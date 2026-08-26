@@ -12,22 +12,16 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 /// @notice The fixed, implementation-locked clone target that recognizes one launch's revenue in
 ///         exactly three assets, skims 2% once, and pays the remainder to current SUBJECT stakers
 ///         or, when nobody is staked, straight to the launch treasury.
-/// @dev Seven bindings are fixed at initialization and never change: USDC, REGENT, the launch's
-///      SUBJECT, the live REGENT staking contract, the Regent Safe, the launch treasury, and the
-///      recovery admin. There is no upgrade path, no reinitializer, no setter, no pause, no token
-///      registry, no epoch, no queue, and no external lifecycle read.
+/// @dev Six bindings are fixed at initialization and never change: USDC, REGENT, the launch's
+///      SUBJECT, the live REGENT staking contract, the Regent Safe, and the launch treasury.
+///      There is no upgrade path, no reinitializer, no setter, no pause, no token registry, no
+///      epoch, no queue, no external lifecycle read, and no recovery authority of any kind.
 ///
-///      The recovery admin is admitted as a deployed contract exactly once, at launch, by
-///      `RegentLBPStrategy.initializeDistribution`. This initializer deliberately does not
-///      re-evaluate that fact: whether an address still carries code is mutable environmental
-///      state — EIP-6780 lets a contract created and destroyed in one transaction disappear — and
-///      graduation is the only migration path a launched auction has. Re-checking it here would
-///      let a launcher's own admin, destroyed after admission, permanently strand a graduated
-///      launch. The recorded consequence is narrower and is disclosed in
-///      `docs/security/threat-model.md`: if that immutable admin loses its code, this splitter's
-///      `recoverUnsupportedToken` and `recoverForcedETH` — and the same two calls on every
-///      receiver created for the launch — can never be called again, while graduation, revenue
-///      recognition, staking, claims and unstaking all remain available.
+///      Recovery is permissionless because it has nothing to decide. Both recovery calls read
+///      the complete recoverable balance themselves and send it to the immutable treasury, so
+///      the caller chooses neither the amount nor the destination and gains nothing by calling.
+///      Removing the administrator removes the only account whose disappearance could have made
+///      recovery unreachable.
 ///
 ///      Reward accounting is one accumulator per asset at exact scale `SCALE`, one global scaled
 ///      numerator carry per asset, and, per account, an accumulator checkpoint plus stored
@@ -70,9 +64,6 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     /// @notice The launch treasury, the zero-stake destination and the only recovery destination.
     address public treasury;
 
-    /// @notice The only account allowed to recover forced ETH or an unsupported ERC20.
-    address public recoveryAdmin;
-
     /// @notice Total SUBJECT principal currently staked across all accounts.
     uint256 public totalStaked;
 
@@ -103,8 +94,7 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         address indexed subject,
         address liveStaking,
         address regentSafe,
-        address indexed treasury,
-        address indexed recoveryAdmin
+        address indexed treasury
     );
     event Staked(address indexed account, uint256 amount);
     event Unstaked(address indexed account, uint256 amount);
@@ -127,7 +117,6 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     error ZeroAmount();
     error UnsupportedToken(address token);
     error ProtectedToken(address token);
-    error NotRecoveryAdmin(address caller);
     error InsufficientStake(uint256 staked, uint256 requested);
     error InexactTransfer(uint256 expected, uint256 found);
     error StakingDepositMismatch(uint256 expected, uint256 reported);
@@ -138,12 +127,7 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         _disableInitializers();
     }
 
-    modifier onlyRecoveryAdmin() {
-        if (msg.sender != recoveryAdmin) revert NotRecoveryAdmin(msg.sender);
-        _;
-    }
-
-    /// @notice Fix this clone's seven bindings. Runs exactly once. `C1-I6`.
+    /// @notice Fix this clone's six bindings. Runs exactly once. `C1-I6`.
     /// @dev Regent Safe and launch treasury may intentionally be the same Safe, so they are not
     ///      required to differ. The three recognized tokens must be distinct, or one asset's
     ///      accumulator and liability would alias another's.
@@ -153,8 +137,7 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         address subject_,
         address liveStaking_,
         address regentSafe_,
-        address treasury_,
-        address recoveryAdmin_
+        address treasury_
     ) external initializer {
         _requireBindable(usdc_);
         _requireBindable(regent_);
@@ -162,7 +145,6 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         _requireBindable(liveStaking_);
         _requireBindable(regentSafe_);
         _requireBindable(treasury_);
-        _requireBindable(recoveryAdmin_);
 
         if (usdc_ == regent_ || usdc_ == subject_ || regent_ == subject_) revert DuplicateTokenBinding();
 
@@ -175,10 +157,8 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         regentSafe = regentSafe_;
         // slither-disable-next-line missing-zero-check
         treasury = treasury_;
-        // slither-disable-next-line missing-zero-check
-        recoveryAdmin = recoveryAdmin_;
 
-        emit SplitterInitialized(usdc_, regent_, subject_, liveStaking_, regentSafe_, treasury_, recoveryAdmin_);
+        emit SplitterInitialized(usdc_, regent_, subject_, liveStaking_, regentSafe_, treasury_);
     }
 
     // -------------------------------------------------------------------------
@@ -258,21 +238,30 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     // recovery
     // -------------------------------------------------------------------------
 
-    /// @notice Send an unsupported ERC20 to the fixed treasury. Recovery admin only.
-    /// @dev One guarded transfer and nothing else: no enumeration, no semantic probing, and no
-    ///      balance assertion, so a hostile token can fail only this call.
-    function recoverUnsupportedToken(address token, uint256 amount) external nonReentrant onlyRecoveryAdmin {
+    /// @notice Send this splitter's whole balance of an unsupported ERC20 to the fixed treasury.
+    /// @dev Permissionless. The caller names only which token to sweep; the amount is this
+    ///      splitter's complete balance of it and the destination is always the immutable
+    ///      treasury, so calling this grants the caller nothing. USDC, REGENT and SUBJECT are
+    ///      permanently refused, which is what keeps recognized revenue and staked principal out
+    ///      of reach. Beyond the balance read it is one guarded transfer and nothing else: no
+    ///      enumeration and no semantic probing, so a hostile token can fail only its own call.
+    function recoverUnsupportedToken(address token) external nonReentrant {
         if (token == usdc || token == regent || token == subject) revert ProtectedToken(token);
+
+        uint256 amount = token.balanceOf(address(this));
         if (amount == 0) revert ZeroAmount();
 
         emit UnsupportedTokenRecovered(token, treasury, amount);
         token.safeTransfer(treasury, amount);
     }
 
-    /// @notice Send forced ETH to the fixed treasury. Recovery admin only.
-    /// @dev This contract has no receive or fallback function, so an ordinary ETH transfer reverts
-    ///      and only EVM force-send behavior can ever leave ETH here.
-    function recoverForcedETH(uint256 amount) external nonReentrant onlyRecoveryAdmin {
+    /// @notice Send this splitter's whole ETH balance to the fixed treasury.
+    /// @dev Permissionless, for the same reason. This contract has no receive or fallback
+    ///      function, so an ordinary ETH transfer reverts and only EVM force-send behavior can
+    ///      ever leave ETH here.
+    // slither-disable-next-line incorrect-equality
+    function recoverForcedETH() external nonReentrant {
+        uint256 amount = address(this).balance;
         if (amount == 0) revert ZeroAmount();
 
         emit ForcedEthRecovered(treasury, amount);

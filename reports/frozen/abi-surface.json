@@ -22,7 +22,6 @@
         "0x5af02677 unpauseLaunches()",
         "0x680c60c7 MAX_NAME_BYTES()",
         "0x737d618f RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
-        "0x783eed53 launch((string,string,string,string,string,address,address,uint128,uint256))",
         "0x7b443a76 launches(uint256)",
         "0x7f5a7c7b hook()",
         "0x8096479a MAX_IMAGE_BYTES()",
@@ -35,6 +34,7 @@
         "0xc81ea2a0 MAX_DESCRIPTION_BYTES()",
         "0xca2afc6c launchIdOfSubject(address)",
         "0xcf3cf573 launchFee()",
+        "0xd0464e3e launch((string,string,string,string,string,address,uint128,uint256))",
         "0xe79b502e pauseLaunches()",
         "0xebd6c243 PENDING_ALLOCATION()",
         "0xf1bf1b45 MAX_WEBSITE_BYTES()"
@@ -42,8 +42,8 @@
       "mutating_functions": [
         "0x5313be2c setLaunchFee(uint256)",
         "0x5af02677 unpauseLaunches()",
-        "0x783eed53 launch((string,string,string,string,string,address,address,uint128,uint256))",
         "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
+        "0xd0464e3e launch((string,string,string,string,string,address,uint128,uint256))",
         "0xe79b502e pauseLaunches()"
       ],
       "view_functions": [
@@ -75,8 +75,8 @@
         "0x07ec20fda323d7aad667bc196c6195b67fa0027c76058fe6d9fb0ffa94f1719a LaunchesUnpaused() indexed=0",
         "0x0fd958ac60db1437ae35514054402c4e597e81881e4b6dd47a6509bd89121428 LaunchFeeUpdated(uint256,uint256) indexed=0",
         "0x2d6582e82dfaee6ad7ac4835d63119ce985332ceedd38d6187674eabc44fe857 PaymentReceiverCreated(uint256,address,address,address,uint16) indexed=3",
-        "0x9f3b0730114747603d4395bfe87ba93159db303d7898a3a197877eb01a64b9c6 LaunchFeeCollected(uint256,address,address,uint256) indexed=2",
-        "0xca3d1d4b2083435e11137aab340619d30df4b91203fffec8a2073a630d52e492 LaunchCreated(uint256,address,address,address,address,address,address,uint128,uint64,uint64) indexed=3"
+        "0x7b5b327fb976e7bf5fb279515b3ea1821166f52c0b46e5825f0146b249f963f2 LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64) indexed=3",
+        "0x9f3b0730114747603d4395bfe87ba93159db303d7898a3a197877eb01a64b9c6 LaunchFeeCollected(uint256,address,address,uint256) indexed=2"
       ],
       "event_fields": {
         "LaunchCreated": [
@@ -86,7 +86,6 @@
           "address auction",
           "address escrow",
           "address treasury",
-          "address recoveryAdmin",
           "uint128 requiredRegentRaised",
           "uint64 startBlock",
           "uint64 endBlock"
@@ -140,7 +139,6 @@
           "string website",
           "string image",
           "address treasury",
-          "address recoveryAdmin",
           "uint128 requiredRegentRaised",
           "uint256 expectedLaunchFee"
         ]
@@ -151,8 +149,7 @@
           "address subject",
           "address auction",
           "address escrow",
-          "address treasury",
-          "address recoveryAdmin"
+          "address treasury"
         ]
       }
     },
@@ -180,12 +177,12 @@
         "0x80ff9c38 AUCTION_ALLOCATION()",
         "0x8652edf9 poolKeyOf(address)",
         "0x8b8e722e MAX_REACHABLE_RAISE()",
-        "0x8e9c3c87 initializeDistribution((uint256,address,address,uint128))",
         "0xbad6a39e auctionOfSubject(address)",
         "0xbfd822e1 MIGRATION_DELAY_BLOCKS()",
         "0xc2db09c1 distribution(address)",
         "0xc45a0155 factory()",
         "0xce5494bb migrate(address)",
+        "0xd7750ed5 initializeDistribution((uint256,address,uint128))",
         "0xdb46bf59 AUCTION_STEPS()",
         "0xdd1b9c4a POOL_FEE()",
         "0xe63db9b2 splitterImplementation()",
@@ -194,8 +191,8 @@
       ],
       "mutating_functions": [
         "0x10202c54 bindHook(address)",
-        "0x8e9c3c87 initializeDistribution((uint256,address,address,uint128))",
-        "0xce5494bb migrate(address)"
+        "0xce5494bb migrate(address)",
+        "0xd7750ed5 initializeDistribution((uint256,address,uint128))"
       ],
       "view_functions": [
         "0x0e0651f3 escrowCloneCodehash()",
@@ -277,7 +274,7 @@
         "0x962d77b1 UnreachableRequiredRaise(uint128)",
         "0x98e8cdf6 HookNotBound()",
         "0x9e172b1d ImplementationHasNoCode(address)",
-        "0xa6397a8c RecoveryAdminHasNoCode(address)",
+        "0xa30fa418 RefusedTreasury(address)",
         "0xab143c06 Reentrancy()",
         "0xb550282e NotFactory(address)",
         "0xc6ab8458 MigrationNotYetAllowed(uint64,uint256)",
@@ -295,7 +292,6 @@
         "initializeDistribution_params": [
           "uint256 launchId",
           "address escrow",
-          "address recoveryAdmin",
           "uint128 requiredRegentRaised"
         ]
       },
@@ -315,7 +311,6 @@
           "address subject",
           "address escrow",
           "address treasury",
-          "address recoveryAdmin",
           "address splitter",
           "address receiver",
           "bytes32 poolId",
@@ -654,21 +649,20 @@
       "source": "src/revenue/SubjectSplitterV1.sol",
       "constructor": [],
       "functions": [
-        "0x0112d431 recoverUnsupportedToken(address,uint256)",
         "0x0a59a98c subject()",
         "0x0c46395a recognizeSurplusRevenue(address,bytes32)",
         "0x1c4aa285 SKIM_BPS()",
         "0x1c92efb6 claimableDust(address,address)",
         "0x1e83409a claim(address)",
+        "0x22ab5669 recoverUnsupportedToken(address)",
         "0x2e17de78 unstake(uint256)",
         "0x2f4207ea unclaimedLiability(address)",
-        "0x35876476 initialize(address,address,address,address,address,address,address)",
         "0x35cd696e regent()",
         "0x3dc1a23b protectedBalance(address)",
         "0x3e413bee usdc()",
+        "0x4725dd8e recoverForcedETH()",
         "0x515ef0c9 depositRecognizedRevenue(address,uint256,bytes32)",
         "0x5dcea4d4 accRewardPerShare(address)",
-        "0x5f6529a3 recoveryAdmin()",
         "0x61d027b3 treasury()",
         "0x7bea49c4 liveStaking()",
         "0x817b1cd2 totalStaked()",
@@ -676,21 +670,21 @@
         "0xa694fc3a stake(uint256)",
         "0xaf500ba3 stakedOf(address)",
         "0xc39058c4 regentSafe()",
-        "0xcfbe2877 recoverForcedETH(uint256)",
+        "0xcc2a9a5b initialize(address,address,address,address,address,address)",
         "0xd1058e59 claimAll()",
         "0xd4570c1c claimable(address,address)",
         "0xe1a45218 BPS_DENOMINATOR()",
         "0xeced5526 SCALE()"
       ],
       "mutating_functions": [
-        "0x0112d431 recoverUnsupportedToken(address,uint256)",
         "0x0c46395a recognizeSurplusRevenue(address,bytes32)",
         "0x1e83409a claim(address)",
+        "0x22ab5669 recoverUnsupportedToken(address)",
         "0x2e17de78 unstake(uint256)",
-        "0x35876476 initialize(address,address,address,address,address,address,address)",
+        "0x4725dd8e recoverForcedETH()",
         "0x515ef0c9 depositRecognizedRevenue(address,uint256,bytes32)",
         "0xa694fc3a stake(uint256)",
-        "0xcfbe2877 recoverForcedETH(uint256)",
+        "0xcc2a9a5b initialize(address,address,address,address,address,address)",
         "0xd1058e59 claimAll()"
       ],
       "view_functions": [
@@ -702,7 +696,6 @@
         "0x3dc1a23b protectedBalance(address)",
         "0x3e413bee usdc()",
         "0x5dcea4d4 accRewardPerShare(address)",
-        "0x5f6529a3 recoveryAdmin()",
         "0x61d027b3 treasury()",
         "0x7bea49c4 liveStaking()",
         "0x817b1cd2 totalStaked()",
@@ -716,12 +709,12 @@
       "events": [
         "0x0bec8af1e4aaf435321e7041133dfbf5f5b6742217ae28770c66657df0da5453 UnsupportedTokenRecovered(address,address,uint256) indexed=2",
         "0x0f5bb82176feb1b5e747e28471aa92156a04d9f3ab9f45f28e2d704232b93f75 Unstaked(address,uint256) indexed=1",
+        "0x1689ff76899a73e015b320864ebe12f63b8028f741cd98db58bdcc9a32674efa SplitterInitialized(address,address,address,address,address,address) indexed=2",
         "0x2df2f9e72ef5347bca3f8ecb2a78285808c96ea4412f65db85d090765480c96b RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,bool) indexed=3",
         "0x9e71bc8eea02a63969f509818f2dafb9254532904319f9dbda79b67bd34a5f3d Staked(address,uint256) indexed=1",
         "0xa4fd34581d49ec5ce6fc532ecde6f4aac2520a513d654e1468e6a8e2e5410826 ForcedEthRecovered(address,uint256) indexed=1",
         "0xc7f505b2f371ae2175ee4913f4499e1f2633a7b5936321eed1cdaeb6115181d2 Initialized(uint64) indexed=0",
-        "0xf7a40077ff7a04c7e61f6f26fb13774259ddf1b6bce9ecf26a8276cdd3992683 Claimed(address,address,uint256) indexed=2",
-        "0xf8dee9e13cd7985023b608a594d1dded7026dbee2410e00a6ffff7782f4eabf2 SplitterInitialized(address,address,address,address,address,address,address) indexed=3"
+        "0xf7a40077ff7a04c7e61f6f26fb13774259ddf1b6bce9ecf26a8276cdd3992683 Claimed(address,address,uint256) indexed=2"
       ],
       "event_fields": {
         "Claimed": [
@@ -751,8 +744,7 @@
           "address indexed subject",
           "address liveStaking",
           "address regentSafe",
-          "address indexed treasury",
-          "address indexed recoveryAdmin"
+          "address indexed treasury"
         ],
         "Staked": [
           "address indexed account",
@@ -776,7 +768,6 @@
         "0x45be0a26 InsufficientStake(uint256,uint256)",
         "0x8657cb48 ProtectedToken(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
-        "0x97e9d21c NotRecoveryAdmin(address)",
         "0xab143c06 Reentrancy()",
         "0xbf16aab6 UnsupportedToken(address)",
         "0xd7e6bcf8 NotInitializing()",
@@ -791,32 +782,31 @@
       "source": "src/revenue/PaymentReceiverV1.sol",
       "constructor": [],
       "functions": [
-        "0x0112d431 recoverUnsupportedToken(address,uint256)",
         "0x0a59a98c subject()",
         "0x1759be85 initialize(address,address,uint16,address,bool)",
         "0x1fbb6ff0 referralBps()",
+        "0x22ab5669 recoverUnsupportedToken(address)",
         "0x35cd696e regent()",
         "0x38af3eed beneficiary()",
         "0x3cd8045e splitter()",
         "0x3e413bee usdc()",
+        "0x4725dd8e recoverForcedETH()",
         "0x5e5571ac pay(address,uint256,bytes32)",
-        "0x5f6529a3 recoveryAdmin()",
         "0x61d027b3 treasury()",
         "0x62959a6e MAX_REFERRAL_BPS()",
         "0x8a738683 sweep(address,bytes32)",
         "0xb1379b2f setReceiverNote(bytes32)",
         "0xb73598e7 noteEditor()",
-        "0xcfbe2877 recoverForcedETH(uint256)",
         "0xe1a45218 BPS_DENOMINATOR()",
         "0xe5738587 receiverNote()"
       ],
       "mutating_functions": [
-        "0x0112d431 recoverUnsupportedToken(address,uint256)",
         "0x1759be85 initialize(address,address,uint16,address,bool)",
+        "0x22ab5669 recoverUnsupportedToken(address)",
+        "0x4725dd8e recoverForcedETH()",
         "0x5e5571ac pay(address,uint256,bytes32)",
         "0x8a738683 sweep(address,bytes32)",
-        "0xb1379b2f setReceiverNote(bytes32)",
-        "0xcfbe2877 recoverForcedETH(uint256)"
+        "0xb1379b2f setReceiverNote(bytes32)"
       ],
       "view_functions": [
         "0x0a59a98c subject()",
@@ -825,7 +815,6 @@
         "0x38af3eed beneficiary()",
         "0x3cd8045e splitter()",
         "0x3e413bee usdc()",
-        "0x5f6529a3 recoveryAdmin()",
         "0x61d027b3 treasury()",
         "0x62959a6e MAX_REFERRAL_BPS()",
         "0xb73598e7 noteEditor()",
@@ -880,7 +869,6 @@
         "0x6e0f0d63 CanonicalRequiresZeroReferral(uint16)",
         "0x8657cb48 ProtectedToken(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
-        "0x97e9d21c NotRecoveryAdmin(address)",
         "0xab143c06 Reentrancy()",
         "0xae7419cc CanonicalRequiresTreasuryBeneficiary(address)",
         "0xb56d04e7 NotNoteEditor(address)",

@@ -112,25 +112,22 @@ contract ProtocolForkTest is ForkAutolaunch {
     }
 
     /// @dev The migration path relies on `nextTokenId` advancing by exactly one per minted position
-    ///      and on the pinned planner's own settlement semantics, which are sharper than "the
-    ///      PositionManager keeps whatever is left". `PositionPlanner.toPlan` closes every plan with
+    ///      and on the deployed PositionManager's settlement semantics matching what the strategy
+    ///      now asks of it. `PositionPlanner.toPlan` closes every plan with
     ///      `SETTLE(currency0, CONTRACT_BALANCE)`, `SETTLE(currency1, CONTRACT_BALANCE)`,
-    ///      `TAKE_PAIR(currency0, currency1, MSG_SENDER)`, so:
+    ///      `TAKE_PAIR(currency0, currency1, MSG_SENDER)`. That `CONTRACT_BALANCE` sentinel resolves
+    ///      to the deployed PositionManager's *entire* balance of each pool currency, and the
+    ///      PositionManager is shared with every other v4 user on Base, so honouring the sentinel
+    ///      would settle inventory this launch never funded and hand the credit back through
+    ///      `TAKE_PAIR` as if it were this launch's unspent budget. `C6-I8` replaces those two
+    ///      settlement amounts with the exact two amounts the strategy transfers in, and this is that
+    ///      claim measured against the real deployed contract rather than a double: both pool
+    ///      currencies must be preserved to the unit across a real graduation, and so must a
+    ///      different launch's SUBJECT, which is not a currency of this pool at all.
     ///
-    ///        - `CONTRACT_BALANCE` settles the PositionManager's *entire* balance of each pool
-    ///          currency, including inventory that was already sitting there before this launch;
-    ///        - `TAKE_PAIR` returns the unspent remainder to `MSG_SENDER`, which the PositionManager
-    ///          resolves to its own caller — the strategy — and never to itself.
-    ///
-    ///      So third-party inventory in a *pool currency* is swept into the pool, refunded to the
-    ///      strategy, and forwarded by the strategy to this launch's own destinations. That is a
-    ///      real, exactly-recordable disposition and it is asserted here rather than logged. A
-    ///      *different* launch's SUBJECT is not a currency of this pool and must be untouched,
-    ///      which is what keeps cross-launch inventory distinct.
-    ///
-    ///      Both pre-seeds arrive through real production paths: a third party who holds REGENT
-    ///      sends some to the shared PositionManager, and a bidder who claimed auction tokens sends
-    ///      some of those. Neither is written into storage.
+    ///      Every pre-seed arrives through a real production path: a third party who holds REGENT
+    ///      sends some to the shared PositionManager, and a bidder who exited and claimed auction
+    ///      tokens sends some of those. Nothing is written into storage.
     function _checkManagers(Header header) private {
         _selectFork(header);
         _deployOnFork();
@@ -196,34 +193,34 @@ contract ProtocolForkTest is ForkAutolaunch {
         (uint160 sqrtPriceX96,,,) = IPoolManager(BaseBindings.POOL_MANAGER).getSlot0(d.poolId);
         assertEq(sqrtPriceX96, d.finalSqrtPriceX96, "the pool did not open at the recorded final price");
 
-        // The exact CONTRACT_BALANCE disposition: both pool currencies drained to zero.
+        // The exact-funding disposition: both pool currencies preserved to the unit, on the real
+        // deployed PositionManager.
         assertEq(
             _balanceOf(BaseBindings.REGENT, BaseBindings.POSITION_MANAGER),
-            0,
-            "CONTRACT_BALANCE left REGENT at the PositionManager"
+            seededRegent,
+            "graduation settled REGENT this launch never funded"
         );
         assertEq(
             _balanceOf(address(subjectLaunch.subject), BaseBindings.POSITION_MANAGER),
-            0,
-            "CONTRACT_BALANCE left this launch's SUBJECT at the PositionManager"
+            seededSubject,
+            "graduation settled SUBJECT this launch never funded"
         );
 
-        // The exact TAKE_PAIR disposition: the refund reached the strategy, which forwarded the
-        // seeded REGENT to this launch's treasury alongside its own unused raise, and the seeded
-        // SUBJECT to this launch's escrow alongside its own unused reserve.
+        // And nothing foreign reached this launch's two value destinations: the treasury received
+        // exactly its own unused raise, the escrow exactly its own unused reserve.
         uint256 swept = auctionRegentBefore - _balanceOf(BaseBindings.REGENT, address(subjectLaunch.auction));
         assertEq(
             _balanceOf(BaseBindings.REGENT, treasury) - treasuryRegentBefore,
-            seededRegent + (swept - d.lpRegentUsed),
-            "the seeded REGENT did not land at this launch's treasury through TAKE_PAIR"
+            swept - d.lpRegentUsed,
+            "the seeded REGENT reached this launch's treasury"
         );
         uint256 escrowFromStrategy =
             (_balanceOf(address(subjectLaunch.subject), address(subjectLaunch.escrow)) - escrowSubjectBefore)
                 - (auctionSubjectBefore - _balanceOf(address(subjectLaunch.subject), address(subjectLaunch.auction)));
         assertEq(
             escrowFromStrategy,
-            seededSubject + (strategy.RESERVE_ALLOCATION() - d.lpSubjectUsed),
-            "the seeded SUBJECT did not land at this launch's escrow through TAKE_PAIR"
+            strategy.RESERVE_ALLOCATION() - d.lpSubjectUsed,
+            "the seeded SUBJECT reached this launch's escrow"
         );
 
         // Cross-launch inventory is not a currency of this pool and is untouched, to the unit.
@@ -233,7 +230,7 @@ contract ProtocolForkTest is ForkAutolaunch {
             "another launch's SUBJECT at the shared PositionManager was consumed"
         );
 
-        _emitVerdict("DEP-046", header, "contract-balance-settles-take-pair-refunds-to-strategy");
+        _emitVerdict("DEP-046", header, "exact-funding-preserves-foreign-position-manager-balances");
     }
 
     // -------------------------------------------------------------------------

@@ -13,7 +13,10 @@ the one shared `RegentFeeHook`, the one shared `RegentLBPStrategy`, and the one
 dependency, binding, chain, ABI-provenance, factory, token, escrow, splitter, receiver, hook,
 strategy, migration, failure, stateful invariant, ABI, deployed-runtime, and complete-transaction
 gas mitigations carry their designated evidence. The fork claims executed at both committed Base
-headers; deployment and a signed ceremony remain outside this packet.
+headers against the *previous* candidate's production bytecode; `regent-alv1.7` changed four
+production contracts, so they await re-execution under the founder's separate read-only authority
+before they are evidence for this candidate. Deployment and a signed ceremony remain outside this
+packet either way.
 
 ## 1. Assets
 
@@ -43,14 +46,11 @@ headers; deployment and a signed ceremony remain outside this packet.
    implementations and their clones, is proved hermetically instead (`DEP-060`).
 4. **Governance.** The Regent Safe may change the launch fee and pause new launches, and
    nothing else (`FAC-006`, `FAC-007`, `FAC-019`).
-5. **Recovery admin.** An immutable address, admitted **once, at launch, as a deployed contract**,
-   may move only forced ETH and unsupported ERC20s, only to the immutable treasury, on both the
-   receiver and the splitter (`RCV-009`, `RCV-010`, `SPL-017`, `SPL-018`). "Deployed contract" is a
-   launch-time admission and nothing more: `RegentLBPStrategy.initializeDistribution` is the single
-   place the code check exists (`FAC-016`), and no later call re-evaluates it. Carrying code is
-   mutable environmental state — EIP-6780 lets an account created and destroyed in one transaction
-   disappear — and graduation is a launched auction's only migration path, so re-checking it later
-   would let a launcher strand its own graduated launch. The consequence is disclosed in section 8.
+5. **Recovery.** There is no recovery authority. Anyone may move forced ETH and unsupported ERC20s
+   off a splitter or a receiver, always the complete balance and always to that launch's immutable
+   treasury (`SPL-017`, `SPL-018`, `RCV-009`, `RCV-010`). The caller names neither an amount nor a
+   destination, so there is nothing for an untrusted caller to gain and no administrator whose
+   disappearance could make recovery unreachable.
 6. **Everyone else.** Launchers, bidders, stakers, payers, swappers, and migrators are
    untrusted callers whose only power is the specified public surface.
 
@@ -66,7 +66,8 @@ headers; deployment and a signed ceremony remain outside this packet.
 | Pool registration | the strategy only, once | hook registration | `HOK-002`, `HOK-003` |
 | Swap fee settlement | PoolManager with a registered key | hook callbacks | `HOK-013`, `HOK-016`, `HOK-017` |
 | Staking, claims, revenue | any caller, for itself only | splitter surface | `SPL-014`, `SPL-010` |
-| Recovery | immutable recovery admin | `recoverUnsupportedToken`, `recoverForcedETH` on both receiver and splitter | `RCV-009`, `RCV-010`, `RCV-011`, `SPL-017`, `SPL-018`, `ABI-005` |
+| Recovery | any caller, to the immutable treasury only | `recoverUnsupportedToken`, `recoverForcedETH` on both receiver and splitter | `RCV-009`, `RCV-010`, `RCV-011`, `SPL-017`, `SPL-018`, `ABI-005` |
+| Launch-time treasury admission | the strategy only, once per launch | `initializeDistribution` | `STR-019`, `FAC-028`, `MIG-021` |
 
 No upgrade authority, implementation pointer, kill switch, keeper, or arbitrary-execution
 surface exists anywhere in the frozen design.
@@ -90,9 +91,9 @@ points, and neither can hand control to an address an attacker chose. Every exte
 one makes goes to a fixed, code-identity-checked destination: the frozen REGENT binding, the pinned
 UERC20 factory whose runtime hash the constructor admitted, a freshly created `UERC20` at an address
 the pinned factory derived, a clone of an admitted C1 implementation, and this factory's own
-strategy. A launcher supplies a treasury and a recovery admin, but neither is ever *called* — the
-treasury is only ever stored and later paid as an ERC20 recipient, and the recovery admin is only
-ever stored and compared against `msg.sender` in the C1 clones. The four external contract types
+strategy. A launcher supplies a treasury, but it is never *called* — it is only ever
+stored, checked against the closed launch-time refusal set, and later paid as an ERC20 recipient.
+The four external contract types
 that could plausibly call back are all Regent's own or pinned code, and the shared strategy carries
 its own `nonReentrant` guard on both of its mutating entry points, so a re-entrant `launch` during a
 migration and a re-entrant `migrate` during a launch are both refused there (`MIG-019`).
@@ -149,8 +150,10 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Unobservable fee action | a fee change or a fee collection the product watcher cannot see | `FAC-025`, `FAC-026` |
 | Authority creep | pause blocking refunds, claims, or vesting; launcher provenance conferring power | `FAC-017`, `FAC-019`, `SPL-010` |
 | Metadata abuse | oversized, empty, or malformed UTF-8 metadata; token metadata edited after creation | `FAC-013`, `FAC-014`, `TOK-004` |
-| Admin-address abuse | a zero, self, or non-contract recovery admin admitted at launch | `FAC-016` |
-| Terminal-custody denial | a launcher's own recovery admin, admitted at launch and then destroyed under EIP-6780, used to make graduation impossible and strand a launch that already raised | `MIG-020`, and the single-check rule in section 5 below |
+| Protocol-account treasury abuse | naming the shared factory, the shared strategy, the bound hook, PoolManager, PositionManager, live staking, or an already-deployed authentic escrow, splitter or receiver clone as a launch treasury, so a launch's payouts land where nothing can move them out or where another launch's accounting absorbs them | `STR-019`, `FAC-028` |
+| Self-slot launch stall | naming the address this launch's own splitter or canonical receiver will be deployed to, producing a launch that takes bidders' REGENT and can then never bind its own clones — refused at launch instead, because both clone addresses are deterministic and therefore knowable before the auction exists | `STR-019`, `FAC-028`, `MIG-021` |
+| Shared-PositionManager inventory capture | settling the shared PositionManager's whole balance of a pool currency, so REGENT or SUBJECT another v4 user left there becomes this launch's credit and leaves through this launch's treasury and escrow | `MIG-022`, `MIG-017`, `DEP-046` |
+| Recovery-authority denial | making a launch's recovery permanently uncallable by controlling, losing, or destroying the account allowed to call it | no such account exists: recovery is permissionless, whole-balance and treasury-fixed (`SPL-017`, `RCV-009`) |
 | Cross-launch interference | simultaneous launches sharing the one strategy and hook reaching each other's reserve or inventory | `FAC-022`, `STR-012`, `INV-009`, `INV-010` |
 | Foreign auction injection | initializing or migrating an auction the strategy never recorded, including a real CCA auction over the same SUBJECT created outside the strategy | `STR-016` |
 | Fake clone substitution | an escrow that answers every getter correctly but is not a clone of the bound implementation, or an authentic clone bound to a foreign strategy, an already-resolved lifecycle, or the wrong custody | `STR-013` |
@@ -178,7 +181,7 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Staker dilution or theft | interleaved stake and unstake around a deposit, or claiming another staker's share | `SPL-013`, `SPL-014`, `SPL-015`, `INV-003` |
 | Remainder skimming | repeatedly recognizing dust to drain the carried remainder | `SPL-007`, `INV-005` |
 | Referral skimming | a referral paid above the floored share, or paid to anyone but the immutable beneficiary | `RCV-002`, `RCV-003`, `RCV-014` |
-| Recovery abuse | recovering a core token, staked principal, an unclaimed claim, or the carried remainder; recovering to a caller-chosen destination; sending ordinary ETH to create recoverable balance | `RCV-008`, `RCV-009`, `RCV-010`, `SPL-017`, `SPL-018`, `SPL-019` |
+| Recovery abuse | recovering a core token, staked principal, an unclaimed claim, or the carried remainder; recovering to a caller-chosen destination or keeping any part of the recovered balance; sending ordinary ETH to create recoverable balance | `RCV-008`, `RCV-009`, `RCV-010`, `SPL-017`, `SPL-018`, `SPL-019` |
 | Malicious token | a token that reverts, lies about transfers, or breaks solvency accounting | `SPL-012`, `RCV-011`, `RCV-012` |
 | Gas exhaustion | a terminal transaction that cannot fit in a Base block, or a gas figure measured without the intrinsic and calldata cost | `GAS-003`, `GAS-004`, `GAS-005`, `GAS-006` |
 | Hook callback cost drift | a fee callback whose cold cost is not measured against a genuine control, so a swap becomes quietly more expensive than anyone recorded | `GAS-007` measures and publishes it; it asserts no absolute callback limit, because none exists in v4, in the pinned closure, or in a founder requirement. The only absolute gas limit is the 14,000,000 complete-transaction ceiling (`GAS-003`–`GAS-006`) |
@@ -199,7 +202,8 @@ reviewer meets it as a decision rather than as a surprise.
 | Immediate stake timing | A stake credits in the same block and earns from the very next recognition. Anyone who owns or can borrow SUBJECT may therefore stake, trigger recognition of a waiting inflow, claim, and unstake with nothing in between, and keep the whole net of that one recognition. The specification makes staking immediate, so no cooldown, activation delay, epoch, queue, previous-block eligibility rule, or total-supply denominator exists to prevent it, and adding one would change the frozen economics. What the round trip cannot reach is anything outside that single recognition: it earns from no recognition before its stake and none after its exit, and it takes nothing from another staker's position — it only dilutes the share of whoever was staked for that one recognition. | `SPL-009`, `SPL-013` |
 | Permissionless surplus-recognition ordering | Anyone may call `recognizeSurplusRevenue`, so the block in which a bare transfer becomes revenue is chosen by an untrusted caller, and therefore so is the stake set that shares it. Combined with immediate staking, that caller may put itself into the stake set first and take the resulting share, which is the same accepted round trip as above. Recognition still pays only current stakers or the treasury, still skims exactly once, and still cannot relabel principal, unclaimed liability, or the carried remainder. | `SPL-011`, `SPL-009`, `SPL-008` |
 | Paused live staking fails closed | While the live REGENT staking contract is paused or reverting, a USDC recognition with a nonzero skim reverts in full. USDC revenue simply cannot be recognized during that window; nothing is queued, retried, or diverted. | `SPL-003` |
-| Losing the recovery admin's code permanently disables recovery, and only recovery | The recovery admin is admitted as a deployed contract exactly once, at launch. If that immutable address later stops carrying code — it self-destructs under EIP-6780 in the transaction that created it, or it never had a way to act in the first place — then nothing can ever again present `msg.sender == recoveryAdmin`, so `recoverUnsupportedToken` and `recoverForcedETH` become permanently uncallable on that launch's splitter **and on every receiver created for that launch**, canonical and custom alike. Unsupported ERC20s and force-sent ETH sitting in any of those contracts are then stuck forever, exactly as escrow's force-sent ETH already is. Nothing else is affected: graduation and migration, revenue recognition and skims, staking, claims, `claimAll`, unstaking, payments, sweeps, vesting, and swaps all continue to work, and USDC, REGENT and SUBJECT were never recoverable in the first place. The alternative — re-checking the admin's code on the graduation path — would let a launcher's own destroyed admin strand a launch that already raised, which is a far larger loss than a stuck unsupported token. No replacement admin, fallback admin, retry mode, or new authority is added. | `MIG-020`, `FAC-016`, `SPL-017`, `SPL-018`, `RCV-009`, `RCV-010` |
+| A launcher may point its payouts into another launch's accounting | Launch-time treasury admission refuses the shared protocol accounts, every already-deployed authentic clone, and this launch's own two future clone addresses — but it cannot refuse the clone addresses of launches that do not exist yet, and enumerating them is not a thing a contract can do. A launcher may therefore name an address that later becomes a *different* launch's splitter or canonical receiver. That launch's own payouts — vested SUBJECT, unused REGENT — then sit inside the other launch's ordinary inventory, where permissionless surplus recognition or permissionless recovery routes them onward under that launch's rules. Lifecycle state and each launch's isolated 5% reserve are never affected. This is explicit launcher-selected destination behaviour, not a leak: value only ever goes where its own launcher pointed it. | `FAC-015`, `STR-019`, `INV-009`, `INV-010` |
+| Recovery is permissionless, so anyone may trigger it | Both recovery calls can be made by anyone, at any time, including inside another transaction. There is nothing to choose: the amount is the complete recoverable balance and the destination is the immutable treasury, so a caller can neither divert value nor keep any of it, and the worst it can do is pay the gas to move a launch's own stray asset to that launch's own treasury sooner. Removing the administrator removes the only account whose loss could have made recovery permanently unreachable. | `SPL-017`, `SPL-018`, `RCV-009`, `RCV-010` |
 | Permanently stuck force-sent escrow ETH | The escrow has no recovery path of any kind, so ETH force-sent to it can never be moved. The specification gives escrow exactly two resolutions and no rescue authority, and adding one would be new authority over a custody contract. | `ESC-008` |
 | Exact-inventory failure deadlock | Failure resolution requires exactly 100 billion SUBJECT. If a contributor is short or an extra unit is present, the launch stays pending rather than retiring a partial supply. Deadlock is preferred to an unprovable retirement. | `ESC-005` |
 | The specified lane charges the requested amount, not the filled amount | When REGENT is the swap's specified currency the two lanes are charged against `abs(amountSpecified)` in `beforeSwap`, before the pool has executed anything. A price limit can therefore stop the fill short — in the extreme, at nothing at all — while the trader still pays both lanes on the full requested amount. The specification freezes the specified-currency charge at the requested amount, and moving it to the realized amount would mean charging after the swap in every shape, which is a different design. | `HOK-006` |
@@ -207,7 +211,7 @@ reviewer meets it as a decision rather than as a surprise.
 | An unrelated REGENT gift stays stuck at the hook | The hook has no recovery, sweep, receive, or fallback path. REGENT sent to it outside a swap is not attributable fee inventory and is never spent, never distributed, and never recoverable; each swap simply finishes at exactly the pre-swap balance. Adding a rescue path would be new authority over a contract that is meant to have none. | `HOK-014`, `HOK-015` |
 | The 5% reserve is an offered maximum, not a guaranteed contribution | The full-range position is quoted from the auction's own final price, so it consumes whichever side runs out first. Whatever the position does not consume — often most of the reserve — goes to that launch's escrow and joins its vesting schedule, and whatever raised REGENT it does not consume goes to the immutable treasury. The specification routes both residues explicitly, so neither is stranded and neither is topped up. | `STR-015`, `ESC-003` |
 | Unrelated REGENT at the shared strategy stays untouched | REGENT sent to the shared strategy outside a launch is never attributed to any launch: graduation forwards only the delta its own auction sweep produced. That gift is therefore not recoverable by anyone, exactly like the hook's. It is named here rather than swept because sweeping it would mean paying one launch's treasury with value it did not raise. | `STR-015`, `INV-010` |
-| PositionManager balance gifts join the launch's residues | The pinned position plan settles PositionManager's whole balance of each currency and takes the surplus back, which is upstream behavior this fork preserves. Anything gifted to PositionManager therefore leaves with the migrating launch rather than staying stuck. The strategy makes no claim over those units: its own accounting isolates the raise its auction produced and the reserve it recorded, and it records the position's actual consumption rather than the offered maxima. | `STR-015` |
+| PositionManager balance gifts stay where they are | The pinned position plan closes with `SETTLE(CONTRACT_BALANCE)` on both pool currencies, which would settle the *shared* PositionManager's whole balance and hand the surplus back to the migrating launch. Graduation replaces those two settlement amounts with the exact amounts it transfers in, so REGENT or SUBJECT another v4 user left at the PositionManager is never settled, never becomes a launch's credit, and never reaches its treasury or escrow. The consequence, named rather than fixed: such a gift is not recoverable by anyone through Regent, exactly like the hook's and the strategy's. Sweeping it would mean paying one launch's treasury with value it did not fund. | `MIG-022`, `MIG-017`, `DEP-046` |
 | Checkpoint exhaustion is an upstream liveness condition | If the auction's tick book is large enough that its final checkpoint will not fit in one migration, the migration reverts and remembers nothing. The resolution is upstream and permissionless: anyone calls the auction's own `forceIterateOverTicks` to advance the book, then anyone calls `migrate` again. There is deliberately no attempt counter, progress record, partial migration, or retry mode inside the strategy, because any of those would be exactly the committed technical-failure state the specification forbids. | `STR-004` |
 | One global scaled carry per asset | The indivisible part of each distribution is carried forward as a single scaled numerator per asset. It is inside protected liability, is never separately withdrawable, and cannot be surplus-recognized or recovered. | `SPL-007`, `SPL-018` |
 | Every SUBJECT grants Permit2 an infinite allowance forever | The pinned UERC20 is a Solady ERC20, which reports `type(uint256).max` as every holder's allowance to the canonical Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`) and cannot have it revoked. Every Autolaunch SUBJECT therefore lets Permit2 move any holder's balance on that holder's own signed authority, including the balances held by escrow, the strategy, the splitter, and the receivers. This is upstream token behavior the specification adopts by pinning that factory, not a Regent decision, and no Regent contract ever signs a Permit2 authorization. Allowance-cleanup proofs are therefore scoped to the spenders Regent actually names — the escrow, the strategy, the splitter, and the launch-fee payer — rather than asserting that a SUBJECT allowance is universally zero. | `FAC-027`, `MIG-016` |
@@ -218,7 +222,8 @@ reviewer meets it as a decision rather than as a surprise.
 
 ## 9. Explicitly out of scope for this proof packet
 
-Read-only Base discovery and fork execution occurred at the two committed headers. No provider
+Read-only Base discovery and fork execution occurred at the two committed headers, for the previous
+candidate; this candidate's own fork execution has not happened. No provider
 write, contract deployment, signature, broadcast transaction, wallet action, secret access,
 production-data mutation, admission decision, or value movement occurred. Deployment-time
 latest-head drift remains a separate ceremony check rather than a claim made here.

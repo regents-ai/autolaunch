@@ -157,9 +157,8 @@ contract RegentLBPStrategyTest is StrategyFixture {
         subject.mint(address(factory), TOTAL_SUPPLY);
         address escrow = factory.fundedEscrow(SUBJECT_LOW, treasury);
 
-        RegentLBPStrategy.DistributionParams memory params = RegentLBPStrategy.DistributionParams({
-            launchId: 1, escrow: escrow, recoveryAdmin: address(recoveryAdmin), requiredRegentRaised: 1_000e18
-        });
+        RegentLBPStrategy.DistributionParams memory params =
+            RegentLBPStrategy.DistributionParams({launchId: 1, escrow: escrow, requiredRegentRaised: 1_000e18});
 
         vm.prank(outsider);
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotFactory.selector, outsider));
@@ -167,7 +166,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
 
         // The escrow's own funding is untouched and the launch is still creatable by the factory.
         assertEq(subject.balanceOf(escrow), PENDING_ALLOCATION, "escrow custody untouched");
-        address auction = factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, 1_000e18);
+        address auction = factory.initialize(SUBJECT_LOW, escrow, 1, 1_000e18);
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), auction, "the bound factory succeeds");
     }
 
@@ -184,10 +183,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.expectRevert(RegentLBPStrategy.HookNotBound.selector);
         fresh.initializeDistribution(
             RegentLBPStrategy.DistributionParams({
-                launchId: 1,
-                escrow: address(escrowImplementation),
-                recoveryAdmin: address(recoveryAdmin),
-                requiredRegentRaised: 1_000e18
+                launchId: 1, escrow: address(escrowImplementation), requiredRegentRaised: 1_000e18
             })
         );
     }
@@ -349,7 +345,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         );
 
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.ProtocolFeeControllerNotZero.selector, outsider));
-        factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, 1_000e18);
+        factory.initialize(SUBJECT_LOW, escrow, 1, 1_000e18);
 
         assertEq(subject.balanceOf(address(strategy)), 0, "no reserve was pulled");
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(0), "no launch was recorded");
@@ -400,7 +396,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.expectRevert(
             abi.encodeWithSelector(RegentLBPStrategy.SubjectAlreadyLaunched.selector, SUBJECT_LOW, address(a.auction))
         );
-        factory.initialize(SUBJECT_LOW, address(a.escrow), address(recoveryAdmin), 2, 1_000e18);
+        factory.initialize(SUBJECT_LOW, address(a.escrow), 2, 1_000e18);
 
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(a.auction), "the first auction still owns it");
         assertEq(a.subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "exactly one reserve");
@@ -440,7 +436,6 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertEq(d.subject, address(launch.subject), "recorded subject");
         assertEq(d.escrow, address(launch.escrow), "recorded escrow");
         assertEq(d.treasury, treasury, "treasury derived from escrow");
-        assertEq(d.recoveryAdmin, address(recoveryAdmin), "recorded recovery admin");
         assertEq(d.requiredRegentRaised, 4_000e18, "recorded required raise");
         assertEq(uint8(d.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Active), "active");
     }
@@ -463,13 +458,13 @@ contract RegentLBPStrategyTest is StrategyFixture {
         // A hand-rolled impostor that answers every escrow getter correctly is still not a clone.
         EscrowImpostor impostor = new EscrowImpostor(SUBJECT_LOW, treasury, address(strategy));
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotAuthenticEscrow.selector, address(impostor)));
-        factory.initialize(SUBJECT_LOW, address(impostor), address(recoveryAdmin), 1, 1_000e18);
+        factory.initialize(SUBJECT_LOW, address(impostor), 1, 1_000e18);
 
         // A clone of a different escrow implementation is not a clone of the bound one.
         ConditionalVestingEscrowV1 rivalImplementation = new ConditionalVestingEscrowV1();
         address rival = _clone(address(rivalImplementation));
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotAuthenticEscrow.selector, rival));
-        factory.initialize(SUBJECT_LOW, rival, address(recoveryAdmin), 1, 1_000e18);
+        factory.initialize(SUBJECT_LOW, rival, 1, 1_000e18);
 
         // An authentic, correctly funded clone bound to a foreign strategy is refused too. It gets
         // its own SUBJECT so its 85% custody is genuine.
@@ -479,7 +474,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         other.approve(foreign, PENDING_ALLOCATION);
         ConditionalVestingEscrowV1(foreign).initialize(SUBJECT_LOW_ALT, treasury, outsider);
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.EscrowStrategyMismatch.selector, outsider));
-        factory.initialize(SUBJECT_LOW_ALT, foreign, address(recoveryAdmin), 1, 1_000e18);
+        factory.initialize(SUBJECT_LOW_ALT, foreign, 1, 1_000e18);
 
         assertEq(subject.balanceOf(address(strategy)), 0, "no reserve was pulled by any rejected path");
         assertEq(other.balanceOf(address(strategy)), 0, "and none by the foreign-strategy path either");
@@ -493,19 +488,18 @@ contract RegentLBPStrategyTest is StrategyFixture {
         address escrow = factory.fundedEscrow(SUBJECT_LOW, treasury);
 
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.UnreachableRequiredRaise.selector, uint128(0)));
-        factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, 0);
+        factory.initialize(SUBJECT_LOW, escrow, 1, 0);
 
         uint128 tooHigh = strategy.MAX_REACHABLE_RAISE() + 1;
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.UnreachableRequiredRaise.selector, tooHigh));
-        factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, tooHigh);
+        factory.initialize(SUBJECT_LOW, escrow, 1, tooHigh);
 
         // Both rejections happen before the auction exists at all.
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(0), "no auction was created for a rejected raise");
         assertEq(subject.balanceOf(address(strategy)), 0, "and no reserve was pulled");
 
         // The exact boundary is admitted.
-        address auction =
-            factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, strategy.MAX_REACHABLE_RAISE());
+        address auction = factory.initialize(SUBJECT_LOW, escrow, 1, strategy.MAX_REACHABLE_RAISE());
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), auction, "the reachable boundary is a valid launch");
     }
 
@@ -553,24 +547,6 @@ contract RegentLBPStrategyTest is StrategyFixture {
         );
     }
 
-    /// @notice `C3-I2`: the recovery admin is validated before the auction begins, not at graduation.
-    function test_STR_013_RecoveryAdminMustBeADeployedNonSelfContract() public {
-        StagedERC20 subject = _etchToken(SUBJECT_LOW);
-        subject.mint(address(factory), TOTAL_SUPPLY);
-        address escrow = factory.fundedEscrow(SUBJECT_LOW, treasury);
-
-        vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.RecoveryAdminHasNoCode.selector, address(0)));
-        factory.initialize(SUBJECT_LOW, escrow, address(0), 1, 1_000e18);
-
-        vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.RecoveryAdminHasNoCode.selector, outsider));
-        factory.initialize(SUBJECT_LOW, escrow, outsider, 1, 1_000e18);
-
-        vm.expectRevert(RegentLBPStrategy.SelfAddress.selector);
-        factory.initialize(SUBJECT_LOW, escrow, address(strategy), 1, 1_000e18);
-
-        assertEq(subject.balanceOf(address(strategy)), 0, "no reserve was pulled by any rejected path");
-    }
-
     /// @notice `C3-I2`: the 15% pull and the 10% delivery are exact, and a token that moves anything
     ///         else rolls the whole initialization back.
     function test_STR_013_UnexpectedTokenBehaviourRollsInitializationBack() public {
@@ -584,7 +560,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.expectRevert(
             abi.encodeWithSelector(RegentLBPStrategy.InexactTransfer.selector, DISTRIBUTION_PULL, DISTRIBUTION_PULL - 1)
         );
-        factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, 1_000e18);
+        factory.initialize(SUBJECT_LOW, escrow, 1, 1_000e18);
 
         // Movement 2 is the exact 10% delivery to the auction.
         subject.resetMovements();
@@ -594,16 +570,133 @@ contract RegentLBPStrategyTest is StrategyFixture {
                 RegentLBPStrategy.InexactTransfer.selector, AUCTION_ALLOCATION, AUCTION_ALLOCATION - 1
             )
         );
-        factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, 1_000e18);
+        factory.initialize(SUBJECT_LOW, escrow, 1, 1_000e18);
 
         subject.arm(0, StagedERC20.Fault.None);
         assertEq(subject.balanceOf(address(strategy)), 0, "no reserve survived a rolled-back initialization");
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(0), "no launch survived either");
 
         subject.resetMovements();
-        address auction = factory.initialize(SUBJECT_LOW, escrow, address(recoveryAdmin), 1, 1_000e18);
+        address auction = factory.initialize(SUBJECT_LOW, escrow, 1, 1_000e18);
         assertEq(subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "the clean path still works");
         assertEq(subject.balanceOf(auction), AUCTION_ALLOCATION, "and delivers the exact auction supply");
+    }
+
+    // -------------------------------------------------------------------------
+    // C3-I2 — launch-time treasury admission
+    // -------------------------------------------------------------------------
+
+    /// @notice `STR-019`: the closed refusal set, proved class by class before any auction exists.
+    /// @dev The six protocol accounts are refused by exact address. The three Autolaunch clone
+    ///      classes are refused by the fixed minimal-clone runtime a clone of each admitted
+    ///      implementation always presents, so an already-deployed escrow, splitter or canonical
+    ///      receiver is refused wherever it happens to sit. Every arm gets its own SUBJECT, so each
+    ///      escrow really holds the exact 85% and each refusal is reached through the real
+    ///      authentication path rather than short-circuited by a funding failure.
+    function test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists() public {
+        address[9] memory refused = [
+            address(factory),
+            address(strategy),
+            strategy.hook(),
+            BaseBindings.POOL_MANAGER,
+            BaseBindings.POSITION_MANAGER,
+            BaseBindings.LIVE_STAKING,
+            _clone(address(escrowImplementation)),
+            _clone(address(splitterImplementation)),
+            _clone(address(receiverImplementation))
+        ];
+
+        for (uint256 i; i < refused.length; ++i) {
+            _assertTreasuryRefused(refused[i], i + 1);
+        }
+    }
+
+    /// @notice `STR-019`, `C6-I3`: a launch is refused at its own two future clone addresses.
+    /// @dev These are the only refused addresses that carry no code at the moment of the refusal.
+    ///      Both are derived by `LaunchCloneSlots` from this launch's own identity, independently of
+    ///      the strategy, so the refusal is proved against a first-principles CREATE2 derivation and
+    ///      not against a production getter — the strategy publishes none. `MIG-021` closes the loop
+    ///      by proving a real graduation deploys to exactly these two addresses.
+    function test_STR_019_OwnFutureCloneTreasuriesAreRejected() public {
+        uint256 splitterLaunchId = 20;
+        address splitterSubject = _subjectAddress(splitterLaunchId);
+        address ownSplitter = _splitterSlot(splitterLaunchId, splitterSubject);
+        assertEq(ownSplitter.code.length, 0, "the launch's own splitter slot already carries code");
+        _assertTreasuryRefused(ownSplitter, splitterLaunchId);
+
+        uint256 receiverLaunchId = 21;
+        address receiverSubject = _subjectAddress(receiverLaunchId);
+        address ownReceiver = _receiverSlot(receiverLaunchId, receiverSubject);
+        assertEq(ownReceiver.code.length, 0, "the launch's own receiver slot already carries code");
+        _assertTreasuryRefused(ownReceiver, receiverLaunchId);
+    }
+
+    /// @notice `STR-019`: everything outside that closed set stays admissible, with no code test.
+    /// @dev The dead address, an ordinary EOA that has never existed, an arbitrary deployed
+    ///      contract, the Governance and Regent Safe, a live CCA auction, and an address only a
+    ///      *different* launch's splitter will ever occupy are all accepted. The last one is the
+    ///      consequence C6 names rather than removes: refusing it would mean enumerating every launch
+    ///      that does not exist yet, so it stays launcher-selected destination behaviour under
+    ///      `FAC-015`. Admission is a closed list of exact addresses and three clone fingerprints; it
+    ///      is not a registry, a denylist, or a code-length rule.
+    function test_STR_019_AdmissibleTreasuryClassesAreAccepted() public {
+        Launch memory live = _defaultLaunch();
+
+        address[6] memory admitted = [
+            BaseBindings.DEAD_ADDRESS,
+            outsider,
+            address(new EscrowImpostor(SUBJECT_LOW, treasury, address(strategy))),
+            BaseBindings.GOVERNANCE_AND_REGENT_SAFE,
+            address(live.auction),
+            _splitterSlot(999, _subjectAddress(999))
+        ];
+
+        for (uint256 i; i < admitted.length; ++i) {
+            _assertTreasuryAdmitted(admitted[i], i);
+        }
+    }
+
+    /// @dev One launch attempt whose escrow is authentic, pending and exactly funded, and whose only
+    ///      defect is its treasury. Nothing may survive the refusal.
+    function _assertTreasuryRefused(address candidate, uint256 launchId) private {
+        (StagedERC20 subject, address escrow) = _fundedEscrowFor(candidate, launchId);
+
+        vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.RefusedTreasury.selector, candidate));
+        factory.initialize(address(subject), escrow, launchId, 1_000e18);
+
+        assertEq(subject.balanceOf(address(strategy)), 0, "a refused treasury still pulled a reserve");
+        assertEq(strategy.auctionOfSubject(address(subject)), address(0), "a refused treasury still created an auction");
+        assertEq(subject.balanceOf(escrow), PENDING_ALLOCATION, "a refused treasury moved the pending allocation");
+    }
+
+    /// @dev One complete launch on an admitted treasury, recorded and funded exactly as usual.
+    function _assertTreasuryAdmitted(address candidate, uint256 index) private {
+        uint256 launchId = index + 100;
+        (StagedERC20 subject, address escrow) = _fundedEscrowFor(candidate, launchId);
+
+        address auction = factory.initialize(address(subject), escrow, launchId, 1_000e18);
+
+        assertEq(strategy.distribution(auction).treasury, candidate, "the admitted treasury was not recorded");
+        assertEq(subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "the admitted launch pulled no reserve");
+        assertEq(subject.balanceOf(auction), AUCTION_ALLOCATION, "the admitted launch delivered no auction supply");
+    }
+
+    /// @dev A fresh SUBJECT at this launch id's own address, fully held by the factory double, and an
+    ///      authentic escrow clone bound to `candidate` and holding the exact 85%.
+    function _fundedEscrowFor(address candidate, uint256 launchId)
+        private
+        returns (StagedERC20 subject, address escrow)
+    {
+        address subjectAt = _subjectAddress(launchId);
+        subject = _etchToken(subjectAt);
+        subject.mint(address(factory), TOTAL_SUPPLY);
+        escrow = factory.fundedEscrow(subjectAt, candidate);
+    }
+
+    /// @dev The address this test's launch id stages its SUBJECT at. One SUBJECT per launch id, so
+    ///      the `(launchId, subject)` pair a clone slot is derived from is fixed before the launch.
+    function _subjectAddress(uint256 launchId) private pure returns (address) {
+        return address(uint160(0x5000 + launchId));
     }
 
     // -------------------------------------------------------------------------
@@ -635,7 +728,6 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertEq(d.splitter.codehash, _cloneCodehash(address(splitterImplementation)), "3. authentic splitter clone");
         assertEq(SubjectSplitterV1(d.splitter).subject(), address(launch.subject), "splitter subject");
         assertEq(SubjectSplitterV1(d.splitter).treasury(), treasury, "splitter treasury");
-        assertEq(SubjectSplitterV1(d.splitter).recoveryAdmin(), address(recoveryAdmin), "splitter recovery admin");
 
         // 4. registered once in the hook.
         assertEq(hook.splitterOf(d.poolId), d.splitter, "4. the pool is registered to that splitter");

@@ -9,15 +9,15 @@
       "contract": "RegentsAutolaunchFactoryV1",
       "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 7309,
-      "runtime_keccak256": "0xa9e2754d2808af9abcb4a35e70187742eb920f9c58e7e5db9b06b281b3a20d5e",
-      "runtime_sha256": "02e0333d34ffda674996f7870313bcdfd4cf6d55a71967b5afab3219057cfb50",
+      "runtime_bytes": 7097,
+      "runtime_keccak256": "0x2f25d01a4b728381d375027885839c6eb5f33c8af518a4f2c1b0de9546d84b2b",
+      "runtime_sha256": "3a0a44eec380c7ff0bfbbb444d3d51e982d9cd30d5ba22c48a043ac4034edea4",
       "runtime_immutable_references": 3,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 34361,
-      "creation_keccak256": "0x0f87f2752cf675b02b87bc2deca4c97e32e94927915cc3e73ea796893db929dc",
-      "creation_sha256": "997da4f94bfac14ff38bec965b81b46da9d171fa2a3a1dca95fdc0f4554a7a2a",
-      "runtime_margin_bytes": 17267,
+      "creation_bytes": 35333,
+      "creation_keccak256": "0x81f93c889b1f47fe87cfd494c44a1a2d3615ee73fad8d3f35c39f9f60cdfcf9f",
+      "creation_sha256": "8719753d01d95801feedbe0c4d1c354150b533106216e17c14c32e510eb2e488",
+      "runtime_margin_bytes": 17479,
       "constructor": [
         "address uerc20Factory_",
         "address escrowImplementation_",
@@ -26,22 +26,22 @@
         "bytes32 hookSalt"
       ],
       "constructor_args_bytes": 160,
-      "initcode_bytes": 34521,
-      "initcode_margin_bytes": 14631
+      "initcode_bytes": 35493,
+      "initcode_margin_bytes": 13659
     },
     {
       "contract": "RegentLBPStrategy",
       "source": "src/strategy/RegentLBPStrategy.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 18987,
-      "runtime_keccak256": "0x68fc92d1648f6aa33538adb451041a958aeb6300f621d357decff48bfa2c4c2e",
-      "runtime_sha256": "c759943b6e0ddf74e5cae0c7c331bc2115e7cfc7676217f1dc15737e7c24bd25",
-      "runtime_immutable_references": 5,
+      "runtime_bytes": 19935,
+      "runtime_keccak256": "0x2961ae6f5256edd407361392a7ca05c574388648798227e2323c9b0536246fc1",
+      "runtime_sha256": "e05caf331439360e9b19a6e627735384c79b2f6cf78556d98f165c554714af6c",
+      "runtime_immutable_references": 7,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 19496,
-      "creation_keccak256": "0x61728515d64972c70afd16faa924322687a22e9dc3ce751a2b6b4f934b97024c",
-      "creation_sha256": "4f0134fb9c08a015477c3b8f0f494e73b472ed89e8be69211dcb4218b5fc6ae5",
-      "runtime_margin_bytes": 5589,
+      "creation_bytes": 20680,
+      "creation_keccak256": "0xd78e20f4c3b88e04229d16ded80d9e66f6e4bd4cef6191498336fd7a5154af25",
+      "creation_sha256": "5e0cdd5893fd90fb14f62519776a22609f9c5762ddeb5bc7ea668dceb23d82a0",
+      "runtime_margin_bytes": 4641,
       "constructor": [
         "address factory_",
         "address escrowImplementation_",
@@ -49,8 +49,8 @@
         "address receiverImplementation_"
       ],
       "constructor_args_bytes": 128,
-      "initcode_bytes": 19624,
-      "initcode_margin_bytes": 29528
+      "initcode_bytes": 20808,
+      "initcode_margin_bytes": 28344
     },
     {
       "contract": "RegentFeeHook",
@@ -95,37 +95,37 @@
       "contract": "SubjectSplitterV1",
       "source": "src/revenue/SubjectSplitterV1.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 5312,
-      "runtime_keccak256": "0x456c2ec34270e3bc634d891f6a294c0a7bcc1c5d2e09988220f9d694033e6d30",
-      "runtime_sha256": "1d8f66761485977c45a13f784c702675e5ec541ae9c382c6b87e25e6aa68078f",
+      "runtime_bytes": 5158,
+      "runtime_keccak256": "0x7537e8d6fce71bf4d62f92e17fd058c345985e26063ed3fa4cca45ba3b2e8e2c",
+      "runtime_sha256": "c0686709b2a0c64e6ec29efcb78a220025c54a1bbd5d6135b5ac2dedac347ac1",
       "runtime_immutable_references": 0,
       "runtime_keccak256_is_deployed_codehash": true,
-      "creation_bytes": 5450,
-      "creation_keccak256": "0xe960c2021064d3ac8e17c247290ac1879f339849d41014ea69894fefdef7e05c",
-      "creation_sha256": "ab7b74e25dee3353952eb9167b56dbc8cb464eae1fc9698163da8dab200efd45",
-      "runtime_margin_bytes": 19264,
+      "creation_bytes": 5296,
+      "creation_keccak256": "0x22b252d104c58b0cbc7d80d8bd5c60b830c1c5c38373a96a860f9a5da967f74e",
+      "creation_sha256": "5bb3d008f334e98d6a3bc24b1b23e7c6cfca8dc2f6e70f66b1bfa83f828f2ecc",
+      "runtime_margin_bytes": 19418,
       "constructor": [],
       "constructor_args_bytes": 0,
-      "initcode_bytes": 5450,
-      "initcode_margin_bytes": 43702
+      "initcode_bytes": 5296,
+      "initcode_margin_bytes": 43856
     },
     {
       "contract": "PaymentReceiverV1",
       "source": "src/revenue/PaymentReceiverV1.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 3520,
-      "runtime_keccak256": "0xe32bf8b68d8ff16c05950630af2c6b78247c7825e2153dba4d54fa86108ce5cf",
-      "runtime_sha256": "8320d43d2888c3b03cb96e33218705e95eaee31feba26a289f4076bd35519ac9",
+      "runtime_bytes": 3312,
+      "runtime_keccak256": "0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573",
+      "runtime_sha256": "ec545e7edd6557cd8a2324f0bb0bbda77dc8acf58dcca22cff82963a8e02f269",
       "runtime_immutable_references": 0,
       "runtime_keccak256_is_deployed_codehash": true,
-      "creation_bytes": 3658,
-      "creation_keccak256": "0xd2e03110bca212a401af2398fd03d7af423f9abb223a7de2f238c6857643a9b2",
-      "creation_sha256": "b539f6eb123eff091e4363703f70a968103d6c1633afa6a6385b439aa60f20eb",
-      "runtime_margin_bytes": 21056,
+      "creation_bytes": 3450,
+      "creation_keccak256": "0xb9a4877bb134c7049aa473058332f7831f1eee18bfa8c1851fca90c0f39345a1",
+      "creation_sha256": "5c1fa577ad13a96177c4c44cbd881a6a473406cba46890d91aae3343f81826a6",
+      "runtime_margin_bytes": 21264,
       "constructor": [],
       "constructor_args_bytes": 0,
-      "initcode_bytes": 3658,
-      "initcode_margin_bytes": 45494
+      "initcode_bytes": 3450,
+      "initcode_margin_bytes": 45702
     }
   ],
   "dependency_contracts": [
@@ -182,13 +182,13 @@
     },
     {
       "clone_of": "SubjectSplitterV1",
-      "implementation_runtime_keccak256": "0x456c2ec34270e3bc634d891f6a294c0a7bcc1c5d2e09988220f9d694033e6d30",
+      "implementation_runtime_keccak256": "0x7537e8d6fce71bf4d62f92e17fd058c345985e26063ed3fa4cca45ba3b2e8e2c",
       "runtime_bytes": 44,
       "runtime_margin_bytes": 24532
     },
     {
       "clone_of": "PaymentReceiverV1",
-      "implementation_runtime_keccak256": "0xe32bf8b68d8ff16c05950630af2c6b78247c7825e2153dba4d54fa86108ce5cf",
+      "implementation_runtime_keccak256": "0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573",
       "runtime_bytes": 44,
       "runtime_margin_bytes": 24532
     }

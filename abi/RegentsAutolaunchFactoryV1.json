@@ -298,11 +298,6 @@
               "internalType": "address"
             },
             {
-              "name": "recoveryAdmin",
-              "type": "address",
-              "internalType": "address"
-            },
-            {
               "name": "requiredRegentRaised",
               "type": "uint128",
               "internalType": "uint128"
@@ -409,11 +404,6 @@
             },
             {
               "name": "treasury",
-              "type": "address",
-              "internalType": "address"
-            },
-            {
-              "name": "recoveryAdmin",
               "type": "address",
               "internalType": "address"
             }
@@ -537,12 +527,6 @@
         },
         {
           "name": "treasury",
-          "type": "address",
-          "indexed": false,
-          "internalType": "address"
-        },
-        {
-          "name": "recoveryAdmin",
           "type": "address",
           "indexed": false,
           "internalType": "address"
@@ -926,7 +910,7 @@
     "UERC20_FACTORY_RUNTIME_CODE_HASH()": "4e894821",
     "createPaymentReceiver(uint256,address,uint16)": "9d2299e4",
     "hook()": "7f5a7c7b",
-    "launch((string,string,string,string,string,address,address,uint128,uint256))": "783eed53",
+    "launch((string,string,string,string,string,address,uint128,uint256))": "d0464e3e",
     "launchFee()": "cf3cf573",
     "launchIdOfSubject(address)": "ca2afc6c",
     "launches(uint256)": "7b443a76",

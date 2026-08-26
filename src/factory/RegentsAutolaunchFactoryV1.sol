@@ -84,11 +84,11 @@ contract RegentsAutolaunchFactoryV1 {
 
     /// @notice The runtime code hash the `SubjectSplitterV1` implementation must present.
     bytes32 public constant SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH =
-        0x456c2ec34270e3bc634d891f6a294c0a7bcc1c5d2e09988220f9d694033e6d30;
+        0x7537e8d6fce71bf4d62f92e17fd058c345985e26063ed3fa4cca45ba3b2e8e2c;
 
     /// @notice The runtime code hash the `PaymentReceiverV1` implementation must present.
     bytes32 public constant RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH =
-        0xe32bf8b68d8ff16c05950630af2c6b78247c7825e2153dba4d54fa86108ce5cf;
+        0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573;
 
     /// @notice Everything a launcher supplies, in exactly this order.
     /// @dev There is deliberately no start block, floor price, hook, pool setting, Safe,
@@ -101,7 +101,6 @@ contract RegentsAutolaunchFactoryV1 {
         string website;
         string image;
         address treasury;
-        address recoveryAdmin;
         uint128 requiredRegentRaised;
         uint256 expectedLaunchFee;
     }
@@ -113,7 +112,6 @@ contract RegentsAutolaunchFactoryV1 {
         address auction;
         address escrow;
         address treasury;
-        address recoveryAdmin;
     }
 
     /// @notice The pinned UERC20 factory every admitted SUBJECT is created by.
@@ -146,7 +144,6 @@ contract RegentsAutolaunchFactoryV1 {
         address auction,
         address escrow,
         address treasury,
-        address recoveryAdmin,
         uint128 requiredRegentRaised,
         uint64 startBlock,
         uint64 endBlock
@@ -254,7 +251,7 @@ contract RegentsAutolaunchFactoryV1 {
         escrow = _fundEscrow(subject, params.treasury);
         auction = _initializeDistribution(subject, escrow, params, launchId);
 
-        _launches[launchId] = Launch(msg.sender, subject, auction, escrow, params.treasury, params.recoveryAdmin);
+        _launches[launchId] = Launch(msg.sender, subject, auction, escrow, params.treasury);
         launchIdOfSubject[subject] = launchId;
     }
 
@@ -392,10 +389,7 @@ contract RegentsAutolaunchFactoryV1 {
         subject.safeApprove(address(strategy), DISTRIBUTION_PULL);
         auction = strategy.initializeDistribution(
             RegentLBPStrategy.DistributionParams({
-                launchId: launchId,
-                escrow: escrow,
-                recoveryAdmin: params.recoveryAdmin,
-                requiredRegentRaised: params.requiredRegentRaised
+                launchId: launchId, escrow: escrow, requiredRegentRaised: params.requiredRegentRaised
             })
         );
 
@@ -409,8 +403,7 @@ contract RegentsAutolaunchFactoryV1 {
         _requireRecorded(1, uint256(uint160(subject)), uint256(uint160(recorded.subject)));
         _requireRecorded(2, uint256(uint160(escrow)), uint256(uint160(recorded.escrow)));
         _requireRecorded(3, uint256(uint160(params.treasury)), uint256(uint160(recorded.treasury)));
-        _requireRecorded(4, uint256(uint160(params.recoveryAdmin)), uint256(uint160(recorded.recoveryAdmin)));
-        _requireRecorded(5, params.requiredRegentRaised, recorded.requiredRegentRaised);
+        _requireRecorded(4, params.requiredRegentRaised, recorded.requiredRegentRaised);
 
         emit LaunchCreated(
             launchId,
@@ -419,7 +412,6 @@ contract RegentsAutolaunchFactoryV1 {
             auction,
             escrow,
             params.treasury,
-            params.recoveryAdmin,
             params.requiredRegentRaised,
             recorded.startBlock,
             recorded.endBlock

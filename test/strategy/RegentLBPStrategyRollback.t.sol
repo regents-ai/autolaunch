@@ -101,18 +101,17 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
     ///      The two clone initializations are failed at the implementation the clone delegates to,
     ///      which is the code that actually runs the initializer. Failing them at the clone address
     ///      itself is not available: the clone does not exist when the injection is set up, and
-    ///      giving that address anything at all makes the strategy's `CREATE` collide, which would
-    ///      test a deployment collision instead of an initialization failure. The predicted clone
-    ///      addresses are still derived and asserted, because they are what must stay codeless
+    ///      giving that address anything at all makes the strategy's `CREATE2` collide, which would
+    ///      test a deployment collision instead of an initialization failure. The two deterministic
+    ///      clone slots are still derived and asserted, because they are what must stay codeless
     ///      after every rolled-back attempt and what the eventual clean graduation must occupy.
     function test_STR_004_RollbackIsCompleteAtEveryNamedExternalBoundary() public {
         // A raise big enough that both LP residues are non-zero, so every later stage is real.
         Launch memory launch = _defaultLaunch();
         _bidToGraduationAt(launch, 20_000_000e18, 500);
 
-        uint64 nonce = vm.getNonce(address(strategy));
-        address splitter = vm.computeCreateAddress(address(strategy), nonce);
-        address receiver = vm.computeCreateAddress(address(strategy), nonce + 1);
+        address splitter = _splitterSlot(1, address(launch.subject));
+        address receiver = _receiverSlot(1, address(launch.subject));
 
         _assertBoundaryRollsBack(
             launch, address(splitterImplementation), SubjectSplitterV1.initialize.selector, "1 splitter initialization"
@@ -186,7 +185,7 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
         third.resetMovements();
         third.arm(1, StagedERC20.Fault.Reenter);
 
-        factory.initialize(SUBJECT_LOW_ALT, escrow, address(recoveryAdmin), 3, 1_000e18);
+        factory.initialize(SUBJECT_LOW_ALT, escrow, 3, 1_000e18);
 
         assertEq(third.reentryAttempts(), 1, "the token did attempt to re-enter initialization");
         assertFalse(third.lastReentrySucceeded(), "and the re-entrant call was refused");

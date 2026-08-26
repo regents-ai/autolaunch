@@ -5,8 +5,10 @@ it discharged. C5 itself changed no contract behaviour: its only production edit
 range in `src/bindings/BaseBindings.sol`.
 
 Section 4 records what its successor, `regent-alv1.6.1`, changed after C5's own final audit stopped
-it — including the one production behaviour change in this repository's history and the enumerated
-source-delta gate that replaced C5's all-bytes-equal claim.
+it — including the enumerated source-delta gate that replaced C5's all-bytes-equal claim. Section 5
+records what the next successor, `regent-alv1.7` (C6), changed: the recovery administrator is deleted
+outright, recovery becomes permissionless and whole-balance, and one launch-time treasury admission
+is added.
 
 ## 1. Corrections to closed claims
 
@@ -69,6 +71,12 @@ production-reachable evidence.
 | The C4 runtime baseline must be an independent capture, not a self-declaration | `bin/freeze-artifacts.py check` now proves it against Git: the working file must be byte-identical to the blob the capture commit committed, that commit must sit directly on integrated C4, and the two must share one `src` tree. Forging it needs a rewritten history. |
 
 ## 4. `regent-alv1.6.1` — the terminal-custody correction
+
+> **Superseded in part.** Everything below is the historical record of what `regent-alv1.6.1`
+> changed. `regent-alv1.7` (section 5) then deleted the recovery administrator outright, so
+> `FAC-016` and `MIG-020` — and every sentence here about an admin's code, its liveness, or its
+> loss — no longer describe live behaviour. The `DEP-016`, `DEP-043`, `GAS-007`, `DEP-052`,
+> `DEP-053` and gate-order entries below are unaffected and still current.
 
 C5's own final Solidity audit stopped it: one confirmed terminal-path defect in production code, and
 two pieces of fork evidence that claimed more than they measured. This successor corrects all three
@@ -187,3 +195,158 @@ read. `SPEC.md` section 11 permits contract-independent Ash work before C5 only 
 fact, entitlement, or admission result", and binds every Regent ABI consumer to the freeze C5 now
 carries. **Required downstream confirmation:** have the Ash lane compare the exact delta above
 against its own tree when it consumes the frozen ABI, since this repository cannot see that tree.
+
+## 5. `regent-alv1.7` (C6) — the recovery and treasury correction
+
+Three founder-approved corrections. The result stays **mainnet NO-GO**.
+
+### 5.1 The recovery administrator is deleted
+
+`regent-alv1.6.1` disclosed an accepted consequence: if a launch's immutable recovery admin ever
+stopped carrying code, that launch's `recoverUnsupportedToken` and `recoverForcedETH` became
+permanently uncallable on its splitter and on every receiver created for it. C6 removes the
+consequence by removing the account that caused it.
+
+The administrator existed to decide two things — the amount and, implicitly, when — and neither is a
+decision. Both calls now read the complete recoverable balance themselves and send it to the
+launch's immutable treasury:
+
+- `recoverUnsupportedToken(address token)` sweeps this contract's whole balance of `token`, with
+  USDC, REGENT and SUBJECT permanently refused;
+- `recoverForcedETH()` sweeps this contract's whole ETH balance;
+- both keep their reentrancy guard, both revert on a zero recoverable balance without mutating
+  anything, and a hostile unsupported token can still fail only its own call.
+
+A caller can name neither an amount nor a destination and keeps nothing, so opening the calls to
+anyone grants nobody anything. What it removes is the single account whose loss could strand a
+launch's stray assets forever.
+
+### 5.2 Launch-time treasury admission
+
+The launcher still chooses the treasury, and it is still immutable. C6 adds one private check inside
+`RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction
+is created, refusing a closed set:
+
+- by exact address: the bound factory, the shared strategy, the bound fee hook, the frozen
+  PoolManager, the frozen PositionManager, and the frozen live staking contract;
+- by fixed minimal-clone runtime fingerprint: any address already carrying the 44-byte Solady clone
+  runtime of the admitted escrow, splitter, or receiver implementation;
+- by exact address again: the two addresses this launch's own splitter and canonical receiver will
+  be deployed to.
+
+That last pair is the part worth explaining. An earlier draft of this ticket admitted them, on the
+reasoning that admission can only answer for the code an address carries *now*. The audit rejected
+that: the two clones were deployed with plain `CREATE`, so their addresses depended on the
+strategy's nonce, and a launcher who guessed that nonce produced a launch that was admitted, took
+bidders' REGENT, and then could never bind its own splitter — a stall with no alternate migration.
+
+C6 removes the guess instead of accepting the stall. Both clones are now deployed with `CREATE2`
+from a salt the strategy derives from one of its own private role constants and the launch's
+immutable identity — the factory-assigned launch ID and the SUBJECT the authenticated escrow bound.
+Nothing about that salt is supplied, chosen, or influenced by any caller, and it grants no authority.
+Because it depends on nothing but facts that already exist when `initializeDistribution` runs, both
+addresses are known before the auction is created, so admission can refuse them truthfully.
+`MIG-021` closes the loop from the other end: a real graduation deploys to exactly the two addresses
+admission refused. The derivation stays internal — it is not part of the strategy's ABI, and
+`LaunchGraduated` and the strategy record remain the only canonical account of what a launch
+deployed.
+
+Everything else stays admissible with no code requirement at all — the dead address, an ordinary
+EOA, an arbitrary contract, the Governance and Regent Safe, a live CCA auction, and an address only
+a *different* launch's artifact will occupy. There is no registry, no generalized denylist, and no
+code-length rule, because each of those would refuse the ordinary treasuries the design is for. The
+escrow's own `treasury_ == address(this)` refusal runs one call earlier and is unchanged.
+
+One consequence of that deliberate narrowness survives, and it is named and tested rather than
+hidden: a launcher who names an address which later becomes *another* launch's splitter or receiver
+may deliver its own payouts into that launch's ordinary accounting — `FAC-015`. Refusing it would
+require the strategy to enumerate every launch that does not exist yet. It costs that launcher its
+own value and nobody else's; lifecycle state and each launch's isolated 5% reserve stay isolated.
+
+### 5.3 Exact PositionManager funding
+
+The second finding the audit raised. `PositionPlanner.toPlan` — pinned upstream code, not ours —
+closes every plan with `SETTLE(currency0, CONTRACT_BALANCE)`, `SETTLE(currency1, CONTRACT_BALANCE)`,
+`TAKE_PAIR(currency0, currency1, MSG_SENDER)`. `CONTRACT_BALANCE` resolves to the PositionManager's
+*entire* balance of each currency, and the PositionManager is shared with every other Uniswap v4
+user on Base. Honouring it would have settled REGENT and SUBJECT this launch never funded, handed
+the resulting credit back to the strategy as if it were this launch's unspent budget, and forwarded
+it to this launch's treasury and escrow.
+
+Graduation now replaces exactly those two settlement amounts with the exact two amounts it transfers
+in for its own mint. The pinned action sequence is untouched, every mint parameter is untouched, and
+this launch's own plan dust still returns through `TAKE_PAIR`. `MIG-022` proves the preservation on a
+real graduation with both pool assets pre-seeded through production paths, and `DEP-046` proves the
+same property against the deployed PositionManager on Base.
+
+### 5.4 Corrections to claims
+
+| Claim | What was wrong | What this ticket did |
+| --- | --- | --- |
+| `FAC-016` | The claim's subject — the recovery admin — no longer exists. | **Retired.** The entry and its selector `test_FAC_016_RecoveryAdminIsAnImmutableDeployedContract` are deleted, and the ID is never reused. Launch-time admission still exists, but it admits the treasury and is `STR-019`. |
+| `MIG-020` | Same: it proved graduation survived a destroyed recovery admin. | **Retired.** The entry and its selector `test_MIG_020_GraduationSurvivesRecoveryAdminDestroyedAtLaunch` are deleted. Nothing replaces it, because the failure mode it guarded cannot occur without an administrator. |
+| `FAC-015` | "Its blast radius is exactly one launch" was too strong once a launcher can point its treasury at another launch's artifact. | Statement corrected to say which isolation is promised and which is not: lifecycle state and each launch's isolated 5% reserve always are; explicit value routed to a launcher-selected cross-launch treasury is not. The immutability half and its test are unchanged; `test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated` proves the named consequence end to end through real launches. |
+| `SPL-017` | "Only the immutable recovery admin may recover" is false. | Rewritten to the new normative statement — permissionless, complete balance, immutable treasury, zero-balance revert, hostile token contained — and its selector renamed to `test_SPL_017_RecoveryIsPermissionlessWholeBalanceToTheTreasury`. The old selector is deleted rather than repointed at replacement behaviour. |
+| `RCV-009` | Same, on the receiver. | Same treatment; the selector is now `test_RCV_009_RecoveryIsPermissionlessWholeBalanceToTheTreasury`. |
+| `ABI-003` | `LaunchParams` no longer carries `recoveryAdmin`. | Statement corrected to the eight remaining fields, in order. The test proves them against both the compiler's field list and the tuple encoded in `launch`'s own selector. |
+| `ABI-005` | "administrative recovery functions" is no longer what they are. | Statement corrected to the two permissionless recovery functions at their new amount-free signatures, and the selector renamed to `test_ABI_005_SplitterRecoverySurfaceIsExact`. |
+| `ABI-012` | Half the claim — that the strategy's `RecoveryAdminHasNoCode(address)` survives — is now false. | Rewritten as the whole-surface deletion it has become, with its selector renamed to `test_ABI_012_DeletedRecoveryAdministrationSurfaceIsAbsent`. It still diffs in both directions: every deleted selector absent from the frozen surface and from every generated per-contract ABI, and the two replacement recovery entry points asserted present. |
+| `STR-013` | Its selector list carried the recovery-admin admission test. | That selector is removed. The remaining six are unchanged; the frozen CCA parameter set is not affected. |
+| `MIG-003` | "Graduation deploys the splitter clone" no longer says where. | Statement corrected to name the deterministic clone address alongside the bindings the selector already asserted. |
+| `DEP-046` | It described the deployed PositionManager's `CONTRACT_BALANCE` disposition, which graduation no longer asks for. | Statement corrected to preservation: a real graduation on Base settles only what this launch funds and leaves every other REGENT, SUBJECT and cross-launch balance at that shared contract untouched to the unit. The two fork selectors are unchanged in name and rewritten in body. |
+
+### 5.5 Additions
+
+| Addition | What it is |
+| --- | --- |
+| `STR-019` | The closed launch-time treasury refusal and admission set, proved class by class before any auction exists, with a fresh SUBJECT and a genuinely funded escrow per arm so every refusal is reached through the real authentication path. Its second selector covers the two refusals that carry no code at all — this launch's own future clone addresses. |
+| `FAC-028` | Atomicity of that refusal at the factory: the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event roll back together, and no existing launch's lifecycle, escrow custody or isolated reserve is disturbed. Nine arms, including the attempted launch's own two clone slots. |
+| `MIG-021` | The terminal half of `STR-019`: the two addresses admission refused are exactly the two addresses a real graduation of that same launch deploys to, correctly bound and registered. The test derives both from first principles in `test/mocks/LaunchCloneSlots.sol` — the role strings, the salt, and the CREATE2 rule — sharing no code with production, so it proves the derivation rather than restating it. |
+| `MIG-022` | Exact PositionManager funding on a real graduation, with REGENT and SUBJECT pre-seeded at the shared PositionManager through production paths and both preserved to the unit. |
+| `test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated` | The cross-launch consequence, driven through two real launches: the first launch's own vested payout lands on the address the second launch's splitter later occupies, and permissionless recovery then routes it to the second launch's treasury. |
+
+### 5.6 Exact final ABI delta for the Ash lane
+
+This is the complete production ABI change. Nothing else moved.
+
+**`RegentsAutolaunchFactoryV1`**
+
+- `launch` changes signature: `launch((string,string,string,string,string,address,address,uint128,uint256))` / `0x783eed53` becomes `launch((string,string,string,string,string,address,uint128,uint256))` / `0xd0464e3e`. The `recoveryAdmin` field is removed from `LaunchParams`; the other eight fields keep their order and widths.
+- `LaunchCreated` changes topic0: `0xca3d1d4b2083435e11137aab340619d30df4b91203fffec8a2073a630d52e492` becomes `0x7b5b327fb976e7bf5fb279515b3ea1821166f52c0b46e5825f0146b249f963f2`. The non-indexed `recoveryAdmin` argument is removed; the three indexed arguments and every other field are unchanged.
+- `launches(uint256)` keeps selector `0x7b443a76` but its **return tuple loses its sixth field**, `address recoveryAdmin`. A positional decoder must be updated even though the selector did not move.
+
+**`RegentLBPStrategy`**
+
+- `initializeDistribution` changes signature: `initializeDistribution((uint256,address,address,uint128))` / `0x8e9c3c87` becomes `initializeDistribution((uint256,address,uint128))` / `0xd7750ed5`. Factory-only, so no external consumer calls it.
+- `distribution(address)` keeps selector `0xc2db09c1` but its **return tuple loses its fifteenth field**, `address recoveryAdmin`.
+- Error `RecoveryAdminHasNoCode(address)` / `0xa6397a8c` is deleted; error `RefusedTreasury(address)` / `0xa30fa418` is added.
+- No view function is added. The launch-scoped clone-address derivation and the two clone-runtime
+  fingerprints it is checked against are private, so the strategy's read surface is unchanged apart
+  from the `distribution` tuple above.
+
+**`SubjectSplitterV1`**
+
+- `initialize(address,address,address,address,address,address,address)` / `0x35876476` becomes `initialize(address,address,address,address,address,address)` / `0xcc2a9a5b`.
+- `recoverUnsupportedToken(address,uint256)` / `0x0112d431` becomes `recoverUnsupportedToken(address)` / `0x22ab5669`.
+- `recoverForcedETH(uint256)` / `0xcfbe2877` becomes `recoverForcedETH()` / `0x4725dd8e`.
+- The `recoveryAdmin()` getter / `0x5f6529a3` is deleted.
+- Error `NotRecoveryAdmin(address)` / `0x97e9d21c` is deleted.
+- `SplitterInitialized` changes topic0: `0xf8dee9e13cd7985023b608a594d1dded7026dbee2410e00a6ffff7782f4eabf2` becomes `0x1689ff76899a73e015b320864ebe12f63b8028f741cd98db58bdcc9a32674efa`. The indexed `recoveryAdmin` argument is removed, so the event drops from three indexed arguments to two — `subject` and `treasury` — and a watcher filtering on the third topic must be updated.
+
+**`PaymentReceiverV1`**
+
+- `recoverUnsupportedToken(address,uint256)` / `0x0112d431` becomes `recoverUnsupportedToken(address)` / `0x22ab5669`.
+- `recoverForcedETH(uint256)` / `0xcfbe2877` becomes `recoverForcedETH()` / `0x4725dd8e`.
+- The `recoveryAdmin()` getter / `0x5f6529a3` is deleted.
+- Error `NotRecoveryAdmin(address)` / `0x97e9d21c` is deleted.
+
+**`ConditionalVestingEscrowV1`** and **`RegentFeeHook`**: no ABI change of any kind, and no source change. `bin/freeze-artifacts.py check` proves both compile to the exact runtime and creation byte strings the C4 capture recorded.
+
+**Deployment consequence.** The strategy's runtime changed, so the strategy address a fresh
+deployment produces changes, and the hook is CREATE2-mined over `abi.encode(PoolManager, strategy)`.
+The fee hook's **source** is unchanged and its **runtime identity changes only through that new
+immutable strategy binding**. Fresh hook-salt mining therefore remains a deployment-packet
+obligation, exactly as before; nothing in this repository pins a hook address.
+
+**Required downstream confirmation:** have the Ash lane compare the delta above against its own tree
+when it consumes the frozen ABI. This repository cannot see that tree and did not read it.

@@ -221,52 +221,66 @@ contract PaymentReceiverV1Test is C1Fixture {
         assertEq(address(canonical).balance, 1 ether, "only forced ETH can arrive");
 
         uint256 treasuryEth = treasury.balance;
-        vm.prank(address(recoveryAdmin));
-        canonical.recoverForcedETH(1 ether);
+        vm.prank(outsider);
+        canonical.recoverForcedETH();
         assertEq(treasury.balance - treasuryEth, 1 ether, "forced ETH is recoverable to the treasury");
     }
 
     // ------------------------------------------------------------------ RCV-009
 
-    /// @notice RCV-009: only the recovery admin recovers, and always to the immutable treasury.
-    function test_RCV_009_OnlyRecoveryAdminRecoversToTheImmutableTreasury() public {
+    /// @notice RCV-009: receiver recovery is permissionless, moves the complete balance, and can
+    ///         only ever reach the immutable treasury. A zero balance fails and mutates nothing.
+    function test_RCV_009_RecoveryIsPermissionlessWholeBalanceToTheTreasury() public {
         MockERC20 other = new MockERC20("Other", "OTH", 18);
-        other.mint(address(canonical), 500e18);
-        vm.deal(address(this), 1 ether);
-        new ForceEthSender{value: 1 ether}(address(canonical));
 
+        // Nothing to recover: every caller is refused and nothing moves.
         address[4] memory callers = [address(this), treasury, referrer, outsider];
         for (uint256 i; i < callers.length; ++i) {
             vm.startPrank(callers[i]);
-            vm.expectRevert(abi.encodeWithSelector(PaymentReceiverV1.NotRecoveryAdmin.selector, callers[i]));
-            canonical.recoverUnsupportedToken(address(other), 1);
-            vm.expectRevert(abi.encodeWithSelector(PaymentReceiverV1.NotRecoveryAdmin.selector, callers[i]));
-            canonical.recoverForcedETH(1);
+            vm.expectRevert(PaymentReceiverV1.ZeroAmount.selector);
+            canonical.recoverUnsupportedToken(address(other));
+            vm.expectRevert(PaymentReceiverV1.ZeroAmount.selector);
+            canonical.recoverForcedETH();
             vm.stopPrank();
         }
+        assertEq(other.balanceOf(treasury), 0, "a failed recovery moved value");
 
-        vm.startPrank(address(recoveryAdmin));
-        vm.expectRevert(PaymentReceiverV1.ZeroAmount.selector);
-        canonical.recoverUnsupportedToken(address(other), 0);
-        vm.expectRevert(PaymentReceiverV1.ZeroAmount.selector);
-        canonical.recoverForcedETH(0);
+        // Each caller in turn takes the complete balance to the fixed treasury and keeps nothing.
+        for (uint256 i; i < callers.length; ++i) {
+            other.mint(address(canonical), 500e18);
+            uint256 treasuryBefore = other.balanceOf(treasury);
 
+            vm.prank(callers[i]);
+            vm.expectEmit(true, true, true, true, address(canonical));
+            emit PaymentReceiverV1.UnsupportedTokenRecovered(address(other), treasury, 500e18);
+            canonical.recoverUnsupportedToken(address(other));
+
+            assertEq(other.balanceOf(treasury) - treasuryBefore, 500e18, "the whole balance reached the treasury");
+            assertEq(other.balanceOf(address(canonical)), 0, "the receiver kept a remainder");
+            if (callers[i] != treasury) assertEq(other.balanceOf(callers[i]), 0, "the caller was paid for calling");
+        }
+
+        vm.deal(address(this), 1 ether);
+        new ForceEthSender{value: 1 ether}(address(canonical));
         uint256 treasuryEth = treasury.balance;
-        canonical.recoverUnsupportedToken(address(other), 500e18);
-        canonical.recoverForcedETH(1 ether);
-        vm.stopPrank();
-
-        assertEq(other.balanceOf(treasury), 500e18, "the token reached the fixed treasury");
-        assertEq(other.balanceOf(address(recoveryAdmin)), 0, "not the admin");
+        vm.prank(outsider);
+        vm.expectEmit(true, true, true, true, address(canonical));
+        emit PaymentReceiverV1.ForcedEthRecovered(treasury, 1 ether);
+        canonical.recoverForcedETH();
         assertEq(treasury.balance - treasuryEth, 1 ether, "the ETH reached the fixed treasury");
+        assertEq(address(canonical).balance, 0, "no ETH remains");
+
+        // Neither an amount nor a destination can be named any more.
         assertFalse(
             _callSucceeds(
                 address(canonical),
-                abi.encodeWithSignature(
-                    "recoverUnsupportedToken(address,uint256,address)", address(other), uint256(1), outsider
-                )
+                abi.encodeWithSignature("recoverUnsupportedToken(address,uint256)", address(other), uint256(1))
             ),
-            "no caller-chosen destination exists"
+            "an amount-taking recovery selector still exists"
+        );
+        assertFalse(
+            _callSucceeds(address(canonical), abi.encodeWithSignature("recoverForcedETH(uint256)", uint256(1))),
+            "an amount-taking ETH recovery selector still exists"
         );
     }
 
@@ -279,10 +293,10 @@ contract PaymentReceiverV1Test is C1Fixture {
         subject.mint(address(canonical), 1_000e18);
 
         address[3] memory supported = [address(usdc), address(regent), address(subject)];
-        vm.startPrank(address(recoveryAdmin));
+        vm.startPrank(outsider);
         for (uint256 i; i < supported.length; ++i) {
             vm.expectRevert(abi.encodeWithSelector(PaymentReceiverV1.ProtectedToken.selector, supported[i]));
-            canonical.recoverUnsupportedToken(supported[i], 1);
+            canonical.recoverUnsupportedToken(supported[i]);
         }
         vm.stopPrank();
 
@@ -305,9 +319,9 @@ contract PaymentReceiverV1Test is C1Fixture {
         malicious.mint(address(canonical), 100e18);
         malicious.setReverts(true);
 
-        vm.prank(address(recoveryAdmin));
+        vm.prank(outsider);
         vm.expectRevert();
-        canonical.recoverUnsupportedToken(address(malicious), 100e18);
+        canonical.recoverUnsupportedToken(address(malicious));
 
         // Nothing enumerates it, so no other path ever touches it.
         assertFalse(
@@ -321,8 +335,8 @@ contract PaymentReceiverV1Test is C1Fixture {
 
         MockERC20 honest = new MockERC20("Honest", "HON", 18);
         honest.mint(address(canonical), 50e18);
-        vm.prank(address(recoveryAdmin));
-        canonical.recoverUnsupportedToken(address(honest), 50e18);
+        vm.prank(outsider);
+        canonical.recoverUnsupportedToken(address(honest));
         assertEq(honest.balanceOf(treasury), 50e18, "another token's recovery is unaffected");
         assertEq(malicious.balanceOf(address(canonical)), 100e18, "the malicious token simply stays put");
     }
@@ -364,7 +378,6 @@ contract PaymentReceiverV1Test is C1Fixture {
         assertEq(receiver.splitter(), address(splitter), "splitter bound");
         assertEq(receiver.beneficiary(), referrer, "beneficiary bound");
         assertEq(receiver.treasury(), splitter.treasury(), "treasury derived from the splitter");
-        assertEq(receiver.recoveryAdmin(), splitter.recoveryAdmin(), "recovery admin derived");
         assertEq(receiver.usdc(), splitter.usdc(), "USDC derived");
         assertEq(receiver.regent(), splitter.regent(), "REGENT derived");
         assertEq(receiver.subject(), splitter.subject(), "SUBJECT derived");
@@ -461,8 +474,8 @@ contract PaymentReceiverV1Test is C1Fixture {
         hostile.setReentry(
             address(receiver), abi.encodeCall(PaymentReceiverV1.sweep, (address(usdc), bytes32("reenter")))
         );
-        vm.prank(address(recoveryAdmin));
-        receiver.recoverUnsupportedToken(address(hostile), 100e18);
+        vm.prank(outsider);
+        receiver.recoverUnsupportedToken(address(hostile));
 
         assertFalse(hostile.lastReentrySucceeded(), "the re-entrant sweep was rejected");
         assertEq(usdc.balanceOf(address(receiver)), 500_000, "the bare balance was not routed by the attacker");
@@ -470,7 +483,7 @@ contract PaymentReceiverV1Test is C1Fixture {
 
         // A hostile splitter attacking mid-route: the whole route rolls back and no value moves.
         HostileSplitter hostileSplitter =
-            new HostileSplitter(treasury, address(recoveryAdmin), address(usdc), address(regent), address(subject));
+            new HostileSplitter(treasury, address(usdc), address(regent), address(subject));
         PaymentReceiverV1 exposed = _newReceiver(address(hostileSplitter), referrer, 100, editor, false);
         hostileSplitter.setReentry(
             address(exposed), abi.encodeCall(PaymentReceiverV1.sweep, (address(usdc), bytes32("reenter")))
@@ -513,8 +526,8 @@ contract PaymentReceiverV1Test is C1Fixture {
         receiver.setReceiverNote(bytes32("desk-1"));
         assertEq(receiver.receiverNote(), bytes32("desk-1"), "the fixed editor edits");
 
-        // Every other caller is rejected, including the beneficiary, the treasury, and the admin.
-        address[5] memory rejected = [address(this), referrer, treasury, address(recoveryAdmin), outsider];
+        // Every other caller is rejected, including the beneficiary and the treasury.
+        address[4] memory rejected = [address(this), referrer, treasury, outsider];
         for (uint256 i; i < rejected.length; ++i) {
             vm.prank(rejected[i]);
             vm.expectRevert(abi.encodeWithSelector(PaymentReceiverV1.NotNoteEditor.selector, rejected[i]));
