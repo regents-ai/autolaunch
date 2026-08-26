@@ -24,7 +24,13 @@ import {SplitterHandler} from "./handlers/SplitterHandler.sol";
 ///      was actually claimed.
 contract SplitterInvariantsTest is Test {
     uint256 internal constant SCALE = 1e36;
-    uint256 internal constant ACTOR_FUNDING = 1_000_000e18;
+
+    /// @dev A quarter of the fixed 100 billion SUBJECT supply each, for four actors. That bounds
+    ///      the aggregate stake at exactly the coverage denominator and never above it, while
+    ///      making every stake a material fraction of the supply — which is what puts real
+    ///      allocations through the accumulator, the carry, the account dust and the exit paths
+    ///      instead of flooring almost every recognition to a zero staker share.
+    uint256 internal constant ACTOR_FUNDING = 25_000_000_000e18;
 
     SubjectSplitterV1 internal splitter;
     MockERC20 internal usdc;
@@ -102,6 +108,14 @@ contract SplitterInvariantsTest is Test {
                 MockERC20(token).balanceOf(address(splitter)) - splitter.protectedBalance(token),
                 0,
                 "an unrecognized surplus survived recognition"
+            );
+
+            // The other side of the same split: every net the staked supply did not cover was
+            // delivered to the treasury inside its own recognition, never held back or deferred.
+            assertEq(
+                MockERC20(token).balanceOf(treasury),
+                handler.routedToTreasury(token),
+                "the treasury holds something other than exactly the uncovered net it was owed"
             );
         }
     }

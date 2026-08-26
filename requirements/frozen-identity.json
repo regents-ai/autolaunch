@@ -1,7 +1,7 @@
 {
   "authority": "SPEC.md",
   "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs. src/bindings/FrozenIdentity.sol and src/bindings/BaseBindings.sol are the compiled copies; test/bindings/ proves the compiled copies equal this file.",
-  "spec_sha256": "5eedf6ed64292866eb7d0f16e2a96bb022251671dddc37575f507ad49bd826c3",
+  "spec_sha256": "228dc09128f223efb0b937c9c410a87fc491f5a736977a47c27458fd0c697f9c",
   "chain": {
     "name": "base-mainnet",
     "id": 8453
@@ -100,12 +100,12 @@
     "integrated_c4_commit": "81e17ddef773a6a825b5312e238cf3c4f5a1c0b1"
   },
   "final_source_delta": {
-    "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. That is what proves regent-alv1.7 touched exactly the factory, the strategy, the splitter and the receiver, and left the escrow and the fee hook byte-identical. It proves which production bytes moved; the source diff and independent review prove why.",
-    "ticket": "regent-alv1.7.1",
+    "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. That is what proves the ticket sequence through regent-alv1.10 touched exactly the factory, the strategy, the splitter and the receiver, and left the escrow and the fee hook byte-identical. It proves which production bytes moved; the source diff and independent review prove why.",
+    "ticket": "regent-alv1.10",
     "changed": [
       {
         "key": "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
-        "reason": "The recoveryAdmin binding, its getter, its modifier, its NotRecoveryAdmin error and its initializer argument are deleted, and both recovery entry points become permissionless, amount-free and whole-balance to the immutable treasury. SplitterInitialized and initialize lose their seventh field. SPL-017, SPL-018 and ABI-005 carry the behaviour; ABI-012 carries the deleted selectors."
+        "reason": "regent-alv1.7.1 deleted the recoveryAdmin binding, its getter, its modifier, its NotRecoveryAdmin error and its initializer argument, made both recovery entry points permissionless, amount-free and whole-balance to the immutable treasury, and shortened SplitterInitialized and initialize to six fields; SPL-017, SPL-018 and ABI-005 carry that behaviour and ABI-012 carries the deleted selectors. regent-alv1.10 then divides each post-skim net by fixed total-supply coverage — stakers collectively receive floor(net * totalStaked / 100_000_000_000e18) through the existing accumulator and the immutable treasury immediately receives the exact remainder — and requires a later block than an account's own latest stake before any partial or complete unstake, adding error SameBlockUnstake() as the only new ABI member and a private per-account stake-block mapping with no getter. SPL-005, SPL-006, SPL-009, SPL-013, HOK-011, INV-002 and ABI-004 carry that behaviour."
       },
       {
         "key": "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1",
@@ -117,7 +117,7 @@
       },
       {
         "key": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",
-        "reason": "LaunchParams, the Launch record and LaunchCreated lose their recoveryAdmin field, the launch-record readback renumbers accordingly, and SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH and RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH are updated to the corrected clone runtimes. ABI-002, ABI-003, ABI-007, ABI-011 and DEP-060 carry it."
+        "reason": "LaunchParams, the Launch record and LaunchCreated lose their recoveryAdmin field, the launch-record readback renumbers accordingly, and SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH and RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH are updated to the corrected clone runtimes. regent-alv1.10 moves SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH once more, to the runtime the supply-coverage splitter compiles to, so the factory's existing constructor admission keeps admitting the real implementation; no selector, field, event or other factory behaviour changes with it. ABI-002, ABI-003, ABI-007, ABI-011 and DEP-060 carry it."
       }
     ]
   },

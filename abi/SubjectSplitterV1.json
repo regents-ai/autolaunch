@@ -703,6 +703,11 @@
     },
     {
       "type": "error",
+      "name": "SameBlockUnstake",
+      "inputs": []
+    },
+    {
+      "type": "error",
       "name": "SelfAddress",
       "inputs": []
     },

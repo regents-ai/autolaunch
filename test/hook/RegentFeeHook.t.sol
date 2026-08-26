@@ -396,11 +396,14 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(regent.balanceOf(address(pool.splitter)), before.splitterRegent, "splitter retained the lane");
         assertEq(regent.balanceOf(REGENT_SAFE), before.safeRegent + settled.lane + skim, "Safe lane and skim");
 
-        // A staked claimant: the same lane accrues to the staker instead of the treasury.
-        pool.subject.transfer(staker, 1_000e18);
+        // A staked claimant holding a quarter of the fixed SUBJECT supply: the splitter lane is
+        // divided by that coverage exactly as a direct recognition would be, with no second skim
+        // and no hook-specific rule. A quarter accrues to the staker; the rest is the treasury's.
+        uint256 quarterSupply = 25_000_000_000e18;
+        pool.subject.transfer(staker, quarterSupply);
         vm.startPrank(staker);
-        pool.subject.approve(address(pool.splitter), 1_000e18);
-        pool.splitter.stake(1_000e18);
+        pool.subject.approve(address(pool.splitter), quarterSupply);
+        pool.splitter.stake(quarterSupply);
         vm.stopPrank();
 
         before = _ledger(pool, address(this));
@@ -410,13 +413,16 @@ contract RegentFeeHookTest is HookFixture {
 
         skim = (settled.lane * pool.splitter.SKIM_BPS()) / pool.splitter.BPS_DENOMINATOR();
         net = settled.lane - skim;
-        assertEq(regent.balanceOf(treasury), before.treasuryRegent, "staked lane leaked to the treasury");
-        assertEq(regent.balanceOf(address(pool.splitter)), before.splitterRegent + net, "staker net held");
-        assertEq(pool.splitter.claimable(REGENT, staker), net, "staker claimable");
+        uint256 stakerShare = net / 4;
+        assertGt(stakerShare, 0, "the staked lane accrued nothing");
+        assertEq(regent.balanceOf(treasury), before.treasuryRegent + net - stakerShare, "uncovered lane to treasury");
+        assertEq(regent.balanceOf(address(pool.splitter)), before.splitterRegent + stakerShare, "staker net held");
+        assertEq(pool.splitter.claimable(REGENT, staker), stakerShare, "staker claimable");
+        assertEq(regent.balanceOf(REGENT_SAFE), before.safeRegent + settled.lane + skim, "no second skim was taken");
 
         vm.prank(staker);
         pool.splitter.claim(REGENT);
-        assertEq(regent.balanceOf(staker), net, "staker claimed the net lane");
+        assertEq(regent.balanceOf(staker), stakerShare, "staker claimed its covered share of the lane");
     }
 
     // =========================================================================

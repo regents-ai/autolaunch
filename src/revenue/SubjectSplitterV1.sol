@@ -10,8 +10,9 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 /// @title SubjectSplitterV1
 /// @notice The fixed, implementation-locked clone target that recognizes one launch's revenue in
-///         exactly three assets, skims 2% once, and pays the remainder to current SUBJECT stakers
-///         or, when nobody is staked, straight to the launch treasury.
+///         exactly three assets, skims 2% once, and divides the remainder by how much of the
+///         complete SUBJECT supply is staked: current stakers collectively receive that fraction
+///         of the net and the launch treasury immediately receives the rest.
 /// @dev Six bindings are fixed at initialization and never change: USDC, REGENT, the launch's
 ///      SUBJECT, the live REGENT staking contract, the Regent Safe, and the launch treasury.
 ///      There is no upgrade path, no reinitializer, no setter, no pause, no token registry, no
@@ -45,6 +46,14 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
 
     /// @notice The exact fixed-point scale of every reward accumulator.
     uint256 public constant SCALE = 1e36;
+
+    /// @dev The complete SUBJECT supply every authentic launch mints, and the fixed denominator
+    ///      of the staker allocation. Coverage — not the staked share of whoever happens to be
+    ///      staked — is what decides how much of a net reaches stakers at all, so a single
+    ///      account staking 10% of the supply earns 10% of the net whether it is alone or one of
+    ///      many. It is an internal constant with no getter and no setter: the authentic factory
+    ///      and escrow graph already proves each admitted SUBJECT carries exactly this supply.
+    uint256 private constant SUBJECT_TOTAL_SUPPLY = 100_000_000_000e18;
 
     /// @notice The USDC binding this splitter recognizes.
     address public usdc;
@@ -88,6 +97,10 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     /// @dev The sub-unit entitlement an account still owns, scaled by `SCALE` and always below it.
     mapping(address token => mapping(address account => uint256 dust)) private _claimableDust;
 
+    /// @dev The block in which an account last staked. Every later stake resets it for that
+    ///      account's whole position, so no part of a position can leave in its own stake block.
+    mapping(address account => uint256 blockNumber) private _lastStakeBlock;
+
     event SplitterInitialized(
         address usdc,
         address regent,
@@ -118,6 +131,7 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     error UnsupportedToken(address token);
     error ProtectedToken(address token);
     error InsufficientStake(uint256 staked, uint256 requested);
+    error SameBlockUnstake();
     error InexactTransfer(uint256 expected, uint256 found);
     error StakingDepositMismatch(uint256 expected, uint256 reported);
     error StakingAllowanceNotCleared(uint256 found);
@@ -169,6 +183,9 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     /// @dev Pre-change entitlement — whole units and the sub-unit remainder alike — is banked
     ///      against the current accumulator before the balance moves, so a stake change never
     ///      grants, re-credits, or forfeits anything already earned. `C1-I4`.
+    ///
+    ///      The stake block is recorded for the caller and only for the caller, so nobody can
+    ///      reset another account's exit delay.
     function stake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
@@ -177,16 +194,23 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
 
         stakedOf[msg.sender] += amount;
         totalStaked += amount;
+        _lastStakeBlock[msg.sender] = block.number;
 
         emit Staked(msg.sender, amount);
     }
 
-    /// @notice Return staked SUBJECT principal to `msg.sender`.
+    /// @notice Return staked SUBJECT principal to `msg.sender`, from a later block than its stake.
+    /// @dev Partial and complete withdrawals alike require `block.number` past the caller's latest
+    ///      stake block, so a position funded and recognized inside one transaction cannot also
+    ///      leave in it. One block is the whole rule: there is no cooldown, epoch, queue, or time
+    ///      weighting, and a refused attempt mutates no principal, claim, reward, or treasury
+    ///      state. Zero amount and an over-withdrawal are still refused first, in that order.
     function unstake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
         uint256 staked = stakedOf[msg.sender];
         if (amount > staked) revert InsufficientStake(staked, amount);
+        if (block.number <= _lastStakeBlock[msg.sender]) revert SameBlockUnstake();
 
         _accrueAll(msg.sender);
 
@@ -352,16 +376,23 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
         _pushExact(token, account, amount);
     }
 
-    /// @dev The one recognition path. Floors the skim once, routes it, and either distributes the
-    ///      full net to stakers or sends it straight to the treasury. In the staked branch the
-    ///      whole net becomes liability before the accumulator division, so the scaled carry and
-    ///      the per-account division dust stay inside protected inventory forever. `C1-I3`, `C1-I5`.
+    /// @dev The one recognition path. Floors the skim once, routes it, divides the post-skim net
+    ///      by how much of the complete SUBJECT supply is staked, and delivers both parts in this
+    ///      same transaction: current stakers collectively receive
+    ///      `floor(net * totalStaked / SUBJECT_TOTAL_SUPPLY)` and the treasury immediately
+    ///      receives the exact remainder, so coverage rounding is treasury-owned and an unstaked
+    ///      supply sends the whole net to the treasury. Only the staker allocation becomes
+    ///      liability, and it does so before the accumulator division, so the scaled carry and
+    ///      the per-account division dust stay inside protected inventory forever. A treasury
+    ///      transfer failure fails the whole recognition. `C1-I3`, `C1-I5`.
     function _recognize(address token, uint256 gross, bytes32 revenueRef) private {
         uint256 skim = (gross * SKIM_BPS) / BPS_DENOMINATOR;
         uint256 net = gross - skim;
-        bool paidToStakers = totalStaked != 0;
+        uint256 stakerAllocation = FixedPointMathLib.fullMulDiv(net, totalStaked, SUBJECT_TOTAL_SUPPLY);
+        uint256 treasuryAllocation = net - stakerAllocation;
+        bool paidToStakers = stakerAllocation != 0;
 
-        if (paidToStakers) _distribute(token, net);
+        if (paidToStakers) _distribute(token, stakerAllocation);
         emit RevenueRecognized(token, msg.sender, revenueRef, gross, skim, net, paidToStakers);
 
         if (skim != 0) {
@@ -371,16 +402,17 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
                 _pushExact(token, regentSafe, skim);
             }
         }
-        if (!paidToStakers) _pushExact(token, treasury, net);
+        if (treasuryAllocation != 0) _pushExact(token, treasury, treasuryAllocation);
     }
 
-    /// @dev The whole net becomes liability; only the divisible part reaches the accumulator, and
-    ///      the indivisible scaled numerator rolls forward as this asset's single carry.
-    function _distribute(address token, uint256 net) private {
+    /// @dev The whole staker allocation becomes liability; only the divisible part reaches the
+    ///      accumulator, and the indivisible scaled numerator rolls forward as this asset's single
+    ///      carry. Current stakers divide exactly this allocation and nothing else.
+    function _distribute(address token, uint256 allocation) private {
         uint256 staked = totalStaked;
-        uint256 numerator = net * SCALE + carriedRemainder[token];
+        uint256 numerator = allocation * SCALE + carriedRemainder[token];
 
-        unclaimedLiability[token] += net;
+        unclaimedLiability[token] += allocation;
         accRewardPerShare[token] += numerator / staked;
         carriedRemainder[token] = numerator % staked;
     }

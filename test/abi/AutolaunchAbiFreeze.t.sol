@@ -130,6 +130,25 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
                 string.concat("the splitter no longer declares ", noAccountArgument[i])
             );
         }
+
+        // The exit delay added exactly one ABI member and nothing else. The error is declared, and
+        // neither the per-account stake block it enforces nor the fixed supply the net is divided
+        // by became a readable getter.
+        assertTrue(
+            _contains(
+                _frozenStrings(SPLITTER, "errors"),
+                _functionLine(SubjectSplitterV1.SameBlockUnstake.selector, "SameBlockUnstake()")
+            ),
+            "the splitter no longer declares SameBlockUnstake()"
+        );
+        string[] memory viewFunctions = _frozenStrings(SPLITTER, "view_functions");
+        string[3] memory withheld = ["lastStakeBlock", "lastStakeBlockOf", "SUBJECT_TOTAL_SUPPLY"];
+        for (uint256 i; i < withheld.length; ++i) {
+            assertFalse(
+                _declaresFunctionNamed(viewFunctions, withheld[i]),
+                string.concat("the splitter exposes a ", withheld[i], " getter")
+            );
+        }
     }
 
     /// @notice `ABI-005`: beyond those six the splitter exposes only its one-shot initializer and

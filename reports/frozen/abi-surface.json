@@ -768,6 +768,7 @@
         "0x45be0a26 InsufficientStake(uint256,uint256)",
         "0x8657cb48 ProtectedToken(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
+        "0xa2990ddf SameBlockUnstake()",
         "0xab143c06 Reentrancy()",
         "0xbf16aab6 UnsupportedToken(address)",
         "0xd7e6bcf8 NotInitializing()",

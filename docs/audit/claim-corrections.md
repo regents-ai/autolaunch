@@ -441,6 +441,73 @@ Fresh hook-salt mining remains a deployment-packet obligation exactly as before;
 repository pins a hook address.
 
 **Provider-backed evidence.** It has not run for this candidate and is not meant to. `regent-4wx`
-owns it, and it runs **once**, against the final candidate — after this correction *and* the separate
-liquidity-position locker are both integrated and reviewed — rather than once per intermediate
-candidate. Everything in this packet that depends on it is labelled as awaiting that single run.
+owns it, and it runs **once**, against the final candidate — after this correction and every later one
+is integrated and reviewed — rather than once per intermediate candidate. Everything in this packet that depends on it is labelled as awaiting that single run.
+
+## 7. `regent-alv1.10` (C9) — supply-proportional staker allocation and a one-block exit
+
+One founder-directed change to how a recognized net is divided, and one narrow rule about when a
+staked position may leave. The result stays **mainnet NO-GO**.
+
+### 7.1 What changed and why
+
+Through C6.1 the splitter asked one question of each recognition: is anything staked? If nothing was,
+the whole 98% net went to the launch treasury; if anything at all was, the whole 98% net went to the
+accumulator and was divided among whoever happened to be staked. A single account holding a
+thousandth of a percent of the supply, alone, therefore earned the entire net — its share of *the
+stake set*, not its share of the token.
+
+C9 replaces that question with a proportion. The 2% skim and its two destinations are untouched. The
+post-skim net is then divided by fixed total-supply coverage: current stakers collectively receive
+`floor(net * totalStaked / 100_000_000_000e18)`, computed in full precision, and the launch treasury
+immediately receives the exact remainder in the same transaction. Current stakers divide only that
+allocation through the accumulator that already existed, so an account staking a tenth of the supply
+earns a tenth of the net whether it is the only staker or one of many, and the rounding that coverage
+floors away belongs to the treasury.
+
+The denominator is an internal constant with no getter and no setter. The splitter does not read the
+bound token's supply and gains no clamp or supply check: the authentic factory and escrow graph is
+already what proves an admitted SUBJECT carries exactly 100 billion units, and a self-made clone
+bound to some other token is not a protocol launch. Section 8 of the threat model records what such a
+clone gets instead.
+
+Separately, an unstake — partial or complete — now requires a later block than that account's own
+latest stake, and every later stake resets the delay for that account's whole position. This is the
+only new ABI member in the change: `error SameBlockUnstake()`. Stake and claim remain immediate.
+
+### 7.2 Corrected claims
+
+| Claim | What was wrong | What this ticket did |
+| --- | --- | --- |
+| `SPL-005` | "Net 98% goes pro rata to current SUBJECT stakers" described a division among the stake set, which is exactly the behaviour the founder replaced. | Rewritten as the coverage rule and the per-account consequence: stakers collectively receive the floored fraction of the net that the staked share of the complete supply represents, and divide only that. Its test is renamed to `test_SPL_005_NetSplitsByFixedSupplyCoverage` and now proves 40% coverage held three-to-one, the founder's sole-10%-holder example, complete coverage, and a smallest-unit inflow. |
+| `SPL-006` | It spoke only about zero stake, which is now one case of a general rule rather than the rule itself. | Rewritten as the treasury's whole entitlement: everything coverage does not reach, the floored-away rounding included, delivered in the same recognition — plus the rollback when that delivery fails. Its test is renamed to `test_SPL_006_UncoveredNetGoesImmediatelyToTheImmutableTreasury`. |
+| `SPL-009` | "Staking is immediate" was true and complete before; it is now true but no longer complete, because the exit is not. | Rewritten to state both halves: stake and claim are immediate, the exit needs a later block, a later stake resets it, a refused exit mutates nothing, and an atomic stake/recognize/claim/unstake attempt fails entirely. Both selectors are renamed accordingly. |
+| `SPL-013` | It said a staker is paid "the share their staked snapshot earned", which no longer names what the share is a share *of*. | Corrected to name the staker allocation as the divisible quantity, and its deterministic counterexample is re-derived at 50% and 25% coverage so the half-unit story it exists to tell still happens. |
+| `HOK-011` | It said the splitter lane is skimmed and stopped there, which now understates what the lane meets. | Extended: the lane's post-skim net is divided by the same coverage rule a direct recognition uses, with no second skim and no hook-specific path. Its test proves a quarter-supply staker earning a quarter of the lane's net. |
+| `INV-002` | Solvency alone no longer describes the whole split, because the treasury is now a destination on every recognition rather than only on unstaked ones. | Extended to require that the treasury holds exactly the net the staked supply never covered, reconciled against the handler's independent outside summary. |
+| `ABI-004` | It enumerated the six caller-only functions, which is still exactly right, but said nothing about what the exit delay added. | Extended to require that the delay added exactly one ABI member — `SameBlockUnstake()` — and that neither the per-account stake block nor the fixed denominator became a readable getter. |
+
+### 7.3 The obsolete stress case
+
+`SPL-012` carried a deterministic maximum-ratio sequence: one wei of stake taking the whole net of a
+`type(uint128).max` inflow, then the rest of the supply staking against an accumulator at its widest
+value. Its purpose was a `stakedOf * accumulator` product that a naive implementation would overflow.
+Coverage makes that frontier unreachable — the allocation a single wei can receive is now bounded by
+the wei's share of the supply, which caps the accumulator far below where the product could overflow
+— so preserving the test would have meant preserving a shape the arithmetic can no longer take.
+
+It is re-derived rather than kept or silently dropped. `_assertCoverageExtremesStaySolvent` proves the
+two ends of the coverage range against the same maximum economic inflow per asset: one wei of stake,
+where the allocation must be nonzero and yet far below the net with the exact difference reaching the
+treasury, and complete coverage, where it must be the whole net with the treasury receiving nothing.
+
+### 7.4 Delta and evidence
+
+No function selector, event topic, indexed field, or integer width changes. The one ABI addition is
+`SameBlockUnstake()`. The splitter's compiled runtime moves, so the factory's
+`SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH` literal moves with it — that literal is the factory's
+only edit, and no other factory behaviour changes. The escrow, the hook, the strategy and the
+receiver compile to bytes identical to the previous candidate's.
+
+**Provider-backed evidence.** It has not run for this candidate and is not meant to. `regent-4wx`
+owns it and it still runs once, against the final candidate.

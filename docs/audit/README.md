@@ -1,4 +1,4 @@
-# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7 and regent-alv1.7.1
+# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7, regent-alv1.7.1 and regent-alv1.10
 
 **Release posture: mainnet NO-GO.** Nothing in this repository is deployed, no Regent address
 exists, and no deployment instruction has been given. This packet exists to be audited, not acted
@@ -15,19 +15,29 @@ launch-time treasury admission in the strategy. Section 5 of
 [claim-corrections.md](claim-corrections.md) carries that delta, including the exact ABI change for
 the downstream Ash lane.
 
-`regent-alv1.7.1` is this candidate. It restores the pinned upstream ordinary `CREATE` clones for the
-per-launch splitter and canonical receiver, deletes C6's CREATE2 salts, address prediction,
-future-slot refusal and clone-runtime fingerprint rule, and narrows launch-time treasury admission to
-exactly six shared-system addresses. It changes **no public ABI**; the strategy's compiled runtime
-shrinks. The consequences it deliberately admits — a treasury that is another launch's artifact, and
-a treasury that collides with the strategy's next clone address — are named and driven end to end
-rather than prevented. Section 6 of [claim-corrections.md](claim-corrections.md) carries the whole
-delta.
+`regent-alv1.7.1` restores the pinned upstream ordinary `CREATE` clones for the per-launch splitter
+and canonical receiver, deletes C6's CREATE2 salts, address prediction, future-slot refusal and
+clone-runtime fingerprint rule, and narrows launch-time treasury admission to exactly six
+shared-system addresses. It changes **no public ABI**; the strategy's compiled runtime shrinks. The
+consequences it deliberately admits — a treasury that is another launch's artifact, and a treasury
+that collides with the strategy's next clone address — are named and driven end to end rather than
+prevented. Section 6 of [claim-corrections.md](claim-corrections.md) carries the whole delta.
+
+`regent-alv1.10` is this candidate. It changes how a recognized net is divided. The 2% skim and its
+two destinations are untouched; the 98% net is now divided by fixed total-supply coverage, so current
+stakers collectively receive the floored fraction of it that the staked share of the complete 100
+billion SUBJECT supply represents and the launch treasury immediately receives the exact remainder in
+the same transaction. An account staking a tenth of the supply therefore earns a tenth of the net
+whether it is the only staker or one of many. It also requires a later block than an account's own
+latest stake before that account may unstake, which makes an atomic stake, recognize, claim and exit
+round trip fail entirely. Stake and claim stay immediate. The single ABI addition is
+`error SameBlockUnstake()`; no function selector, event topic, indexed field or integer width moves.
+Section 7 of [claim-corrections.md](claim-corrections.md) carries the whole delta.
 
 The four production contracts whose bytes differ from the pre-edit C4 baseline are unchanged as a
 set. The separately authorized fork evidence has not been executed against this candidate's bytecode
 and is not meant to be: `regent-4wx` runs it **once**, against the final candidate, after this
-correction and the separate liquidity-position locker are both integrated and reviewed.
+correction and every later one is integrated and reviewed.
 
 ## What is in the packet
 
@@ -100,7 +110,7 @@ These are two different things and the distinction is load-bearing:
   candidate; discovery did not read it, and the gate proves the committed record stayed unchanged
   throughout both compare-only executions.
 
-## Two different objects: the reviewed offline candidate and the later evidence-activation commit
+## Evidence history: the offline candidate, activation, and later corrections
 
 This distinction is load-bearing and easy to lose, so it is stated once, plainly.
 
@@ -108,7 +118,7 @@ This distinction is load-bearing and easy to lose, so it is stated once, plainly
 `discovery_pending`, `fork` was absent from the ledger, and the offline gate proved only the
 hermetic and invariant claims in that tree.
 
-**This candidate is the later evidence-activation object.** Under the founder's separate read-only
+**The activation candidate was a second object.** Under the founder's separate read-only
 Base authority, discovery produced a candidate observation; its values were checked against an
 independent provider, the Base gas schedule was supplied from the active protocol rules, and the
 reviewed record was committed before check mode could run. The ledger now activates `fork`, and the
@@ -118,13 +128,16 @@ gate also proved the observation record and ledger stayed byte-identical to thei
 The two objects remain distinct: the earlier offline pass did not prove a fork claim, while the
 activation candidate carries and checks the separately reviewed fork authority.
 
-**This candidate is a third object: the `regent-alv1.7` correction as further corrected by
-`regent-alv1.7.1`.** Its offline gate is complete and green, and it changed the compiled bytes of the
+**The C6 correction was a third object: `regent-alv1.7` as further corrected by
+`regent-alv1.7.1`.** Its offline gate was complete and green, and it changed the compiled bytes of the
 factory, the strategy, the splitter and the receiver — which the enumerated source-delta record names
 and the freezer proves. The committed observation record is chain truth and is unaffected by that,
-but the fork *execution* is not: it ran against an earlier candidate's bytecode. Re-running
+but the fork *execution* is not: it ran against an earlier candidate's bytecode.
+
+**This C9 candidate is the fourth object.** Its offline gate is complete and green, and it changes
+the splitter plus the factory's matching implementation hash. Re-running
 `discover`, reviewing and installing the result, and running `check` at both headers is `regent-4wx`'s
-separately authorized step. It runs once, against the final post-correction, post-liquidity-locker
+separately authorized step. It runs once, against the final post-correction
 candidate — not once per intermediate candidate — and it has not happened here. Nothing in this
 packet claims it has.
 
@@ -137,7 +150,7 @@ packet claims it has.
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | activated and mapped; executed and passing at both committed headers against an *earlier* candidate's bytecode. `regent-4wx` runs the single re-execution against the final post-correction, post-liquidity-locker candidate before these carry evidence for it |
+| `DEP-040..053` | fork | activated and mapped; executed and passing at both committed headers against an *earlier* candidate's bytecode. `regent-4wx` runs the single re-execution against the final post-correction candidate before these carry evidence for it |
 | `GAS-003..006` | fork | same: activated and mapped, and awaiting that one re-execution |
 
 ## What is not proved
@@ -145,8 +158,8 @@ packet claims it has.
 - **This candidate's own fork execution.** The `fork` claims are activated and mapped, and every one
   of their selectors still compiles offline, but the committed fork run was executed against an
   earlier candidate's production bytecode. `regent-4wx` repeats it once under the founder's separate
-  read-only authority, against the final candidate — after this correction and the separate
-  liquidity-position locker are both integrated — and not once per intermediate candidate.
+  read-only authority, against the final candidate — after this correction and every later one is
+  integrated — and not once per intermediate candidate.
 - **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
   signed nothing, and moved no value outside isolated local fork state.
 - **Workflow review and custody state.** Independent review, the Solidity Auditor, integration, and

@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {SubjectSplitterV1} from "../../../src/revenue/SubjectSplitterV1.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
+import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {CommonBase} from "forge-std/Base.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
 
@@ -17,6 +18,10 @@ import {StdUtils} from "forge-std/StdUtils.sol";
 ///      nothing to do returns instead of reverting. `fail_on_revert = true` therefore keeps its
 ///      full strength: any revert is a real one.
 contract SplitterHandler is CommonBase, StdUtils {
+    /// @notice The fixed SUBJECT supply the splitter divides every net by. Written here from the
+    ///         specification, not read from the splitter, which exposes no getter for it.
+    uint256 public constant SUBJECT_TOTAL_SUPPLY = 100_000_000_000e18;
+
     SubjectSplitterV1 public immutable splitter;
     MockERC20 public immutable usdc;
     MockERC20 public immutable regent;
@@ -31,7 +36,7 @@ contract SplitterHandler is CommonBase, StdUtils {
     mapping(address token => uint256 amount) public recognizedGross;
     /// @notice Amounts the splitter skimmed away from stakers, per token.
     mapping(address token => uint256 amount) public routedSkim;
-    /// @notice Net amounts sent straight to the treasury because nothing was staked, per token.
+    /// @notice Net amounts the staked supply did not cover and that went straight to the treasury.
     mapping(address token => uint256 amount) public routedToTreasury;
     /// @notice Net amounts credited to stakers, per token.
     mapping(address token => uint256 amount) public creditedToStakers;
@@ -88,6 +93,11 @@ contract SplitterHandler is CommonBase, StdUtils {
         principalStaked += amount;
     }
 
+    /// @dev The ordinary exit. Production requires a later block than the actor's latest stake, so
+    ///      the sequence advances one block and then unstakes unconditionally: this handler never
+    ///      mirrors the eligibility rule and never returns early on it, so a wrongly refused exit
+    ///      is a real revert that `fail_on_revert` catches, and principal exits and post-unstake
+    ///      carry stay fully exercised.
     function unstake(uint256 actorSeed, uint256 amount) external {
         calls += 1;
         address actor = _actor(actorSeed);
@@ -95,6 +105,7 @@ contract SplitterHandler is CommonBase, StdUtils {
         if (staked == 0) return;
         amount = bound(amount, 1, staked);
 
+        vm.roll(vm.getBlockNumber() + 1);
         vm.prank(actor);
         splitter.unstake(amount);
 
@@ -194,18 +205,20 @@ contract SplitterHandler is CommonBase, StdUtils {
     // -------------------------------------------------------------------------
 
     /// @dev The observable split of one recognition, computed from the specified rule rather than
-    ///      read back out of the splitter.
+    ///      read back out of the splitter: the floored 2% skim, then the post-skim net divided by
+    ///      how much of the fixed 100 billion SUBJECT supply was staked at that moment. Everything
+    ///      the staked supply did not cover was the treasury's immediately.
     function _recordRecognition(address token, uint256 gross) private {
         uint256 skim = (gross * 200) / 10_000;
         uint256 net = gross - skim;
+        uint256 staked = splitter.totalStaked();
+        uint256 allocation = FixedPointMathLib.fullMulDiv(net, staked, SUBJECT_TOTAL_SUPPLY);
 
         recognizedGross[token] += gross;
         routedSkim[token] += skim;
-        uint256 staked = splitter.totalStaked();
-        if (staked == 0) {
-            routedToTreasury[token] += net;
-        } else {
-            creditedToStakers[token] += net;
+        routedToTreasury[token] += net - allocation;
+        if (allocation != 0) {
+            creditedToStakers[token] += allocation;
             carryCeiling[token] = staked;
         }
     }

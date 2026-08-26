@@ -103,11 +103,11 @@ must already be committed and clean before provider access begins.
 ## 4. Execution status
 
 > **Not executed for this candidate.** Everything in this section describes the run made against an
-> earlier candidate's production bytecode. `regent-alv1.7` and `regent-alv1.7.1` both changed
-> production bytes, so this candidate has no provider-backed evidence of its own. That run is
+> earlier candidate's production bytecode. `regent-alv1.7`, `regent-alv1.7.1` and `regent-alv1.10` all
+> changed production bytes, so this candidate has no provider-backed evidence of its own. That run is
 > `regent-4wx`'s, it happens **once**, and it happens against the final candidate — after this
-> correction and the separate liquidity-position locker are both integrated and reviewed — rather
-> than once per intermediate candidate. The committed observation record is chain truth and is
+> correction and every later one is integrated and reviewed — rather than once per intermediate
+> candidate. The committed observation record is chain truth and is
 > unaffected; the execution against Regent bytecode is what has to be repeated.
 
 **Executed and passing under read-only Base authority, for the earlier candidate.** The reviewed

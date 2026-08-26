@@ -1449,7 +1449,7 @@ selectors = ["test_HOK_010_OneLaneGoesDirectlyToTheRegentSafe"]
 
 [[requirement]]
 id = "HOK-011"
-statement = "The other 1% REGENT lane goes to the subject splitter, where the normal 2% REGENT skim applies."
+statement = "The other 1% REGENT lane goes to the subject splitter, where the normal 2% REGENT skim applies and the post-skim net is divided by the same fixed total-supply coverage a direct recognition uses, with no second skim and no hook-specific rule."
 owner = "C2"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
@@ -1594,23 +1594,23 @@ selectors = ["test_SPL_004_RegentAndSubjectSkimsGoToTheRegentSafe"]
 
 [[requirement]]
 id = "SPL-005"
-statement = "Net 98% goes pro rata to current SUBJECT stakers."
+statement = "Current SUBJECT stakers collectively receive the floored fraction of the post-skim net represented by the staked share of the complete 100 billion SUBJECT supply, and divide only that allocation pro rata, so an account staking a tenth of the supply earns a tenth of the net whether it is the only staker or one of many."
 owner = "C1"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_SPL_005_NetGoesProRataToCurrentStakers"]
+selectors = ["test_SPL_005_NetSplitsByFixedSupplyCoverage"]
 
 [[requirement]]
 id = "SPL-006"
-statement = "With no SUBJECT staked, net 98% goes immediately to the immutable treasury."
+statement = "Whatever the staked supply does not cover, coverage rounding included and the whole net when nothing is staked, reaches the immutable treasury in the same recognition; a treasury delivery that fails rolls that whole recognition back."
 owner = "C1"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_SPL_006_ZeroStakeSendsNetToTheImmutableTreasury"]
+selectors = ["test_SPL_006_UncoveredNetGoesImmediatelyToTheImmutableTreasury"]
 
 [[requirement]]
 id = "SPL-007"
@@ -1634,15 +1634,15 @@ selectors = ["test_SPL_008_PrincipalClaimsAndRemainderAreExcludedFromSurplus"]
 
 [[requirement]]
 id = "SPL-009"
-statement = "Staking is immediate."
+statement = "Staking and claiming are immediate, but unstaking, partial or complete, requires a later block than that caller's own latest stake, and every later stake resets the delay for that caller's whole position; a refused exit mutates no principal, claim, reward, or treasury state, and an atomic stake, recognize, claim and unstake attempt fails entirely."
 owner = "C1"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = [
-    "test_SPL_009_StakingTakesEffectImmediately",
-    "test_SPL_009_ImmediateStakeCanCaptureARecognitionAroundIt",
+    "test_SPL_009_StakingAndClaimingTakeEffectImmediately",
+    "test_SPL_009_UnstakeRequiresALaterBlockThanTheLatestStake",
 ]
 
 [[requirement]]
@@ -1683,7 +1683,7 @@ selectors = [
 
 [[requirement]]
 id = "SPL-013"
-statement = "Across zero stake, a first stake, a full unstake, a restake, interleaved deposits, and claims taken before and after each stake change, every staker is paid exactly the share their staked snapshot earned."
+statement = "Across zero stake, a first stake, a full unstake, a restake, interleaved deposits, and claims taken before and after each stake change, every staker is paid exactly the share of its launch's staker allocation that its staked snapshot earned, and never a unit that was never allocated."
 owner = "C1"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
@@ -2303,7 +2303,7 @@ selectors = ["invariant_INV_001_SubjectSupplyIsConserved"]
 
 [[requirement]]
 id = "INV-002"
-statement = "The splitter remains solvent for every recognized token across every reachable operation sequence."
+statement = "The splitter remains solvent for every recognized token across every reachable operation sequence, holding exactly the principal it custodies plus the liability it still owes, while the treasury holds exactly the net that the staked supply never covered."
 owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-invariant"
@@ -2552,7 +2552,7 @@ selectors = ["test_ABI_003_LaunchParamsFieldsAreExact"]
 
 [[requirement]]
 id = "ABI-004"
-statement = "The splitter's caller-only surface is exactly stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue."
+statement = "The splitter's caller-only surface is exactly stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue, and the exit delay added exactly one ABI member to it: the SameBlockUnstake() error, with no getter for the per-account stake block it enforces and none for the fixed supply the net is divided by."
 owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"

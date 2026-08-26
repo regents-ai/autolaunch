@@ -141,7 +141,9 @@ The immutable strategy/PoolManager-bound hook lets only the strategy register an
 
 ## 7. Splitter
 
-The splitter recognizes exactly USDC, REGENT, and its own SUBJECT token. Every recognized inflow floors a 2% skim exactly once. USDC skim uses exact approval, live staking `depositUSDC`, behavior verification, and allowance cleanup. REGENT and SUBJECT skims go to the Regent Safe. Net 98% goes pro rata to current SUBJECT stakers, or immediately to immutable treasury when no SUBJECT is staked. One staker-owned arithmetic remainder per token is protected and carried forward. Staked SUBJECT principal, claims, and remainder are excluded from surplus and recovery.
+The splitter recognizes exactly USDC, REGENT, and its own SUBJECT token. Every recognized inflow floors a 2% skim exactly once. USDC skim uses exact approval, live staking `depositUSDC`, behavior verification, and allowance cleanup. REGENT and SUBJECT skims go to the Regent Safe.
+
+The 98% net is then divided by fixed total-supply coverage rather than among whoever happens to be staked. Current SUBJECT stakers collectively receive the floored fraction of the net represented by the staked share of the complete 100 billion SUBJECT supply, and immutable treasury receives the exact remainder in the same recognition. Current stakers divide only that allocation pro rata, so an account staking a tenth of the supply earns a tenth of the net whether it is the only staker or one of many. Coverage rounding belongs to treasury, and a launch with nothing staked sends the whole net there. One staker-owned arithmetic remainder per token is protected and carried forward. Staked SUBJECT principal, claims, and remainder are excluded from surplus and recovery.
 
 Caller-only functions:
 
@@ -154,7 +156,7 @@ depositRecognizedRevenue(address token, uint256 amount, bytes32 revenueRef)
 recognizeSurplusRevenue(address token, bytes32 revenueRef)
 ```
 
-Staking is immediate. Claims and unstaking are independent of the factory launch pause. Supported bare transfers become revenue only through permissionless surplus recognition.
+Staking and claims are immediate: stake present at a recognition earns from it, and what it earns can be claimed in the same block. Unstaking, partial or complete, requires a later block than that caller's own latest stake, and every later stake resets the delay for that caller's whole position. Claims and unstaking are independent of the factory launch pause. Supported bare transfers become revenue only through permissionless surplus recognition.
 
 ## 8. Payment receivers and recovery
 
@@ -192,7 +194,7 @@ Required groups:
 | `STR-*` | Only the canonical factory initializes; unknown auctions are rejected; exact 10/5/85 transfer; per-auction reserve isolation; permissionless migration; exact CCA parameters; the closed launch-time treasury refusal and admission set; final-price conversion in both currency orderings; one-shot finalization; and no committed retry state. |
 | `ESC-*` | One-time initialization; exact 85% pending custody; no pending release; strategy-only resolution; success starts 365-day linear vesting to the fixed treasury beneficiary; failure retires exactly 100B; and late failed SUBJECT goes only to the dead address. |
 | `HOK-*` | Correct permission bits; only PoolManager callbacks; strategy-only write-once registration; registered PoolKey validation; all four swap shapes; independent 1% rounding; zero-fee tiny swaps; synchronous settlement; zero retained inventory; arbitrary router compatibility; and settlement-failure rollback. |
-| `SPL-*` | Exactly three supported assets; exact 2% skim and destinations; zero-stake treasury routing; stake and unstake snapshots; caller-only claims; fixed three-token `claimAll`; one protected remainder per token; principal protection; direct deposits and surplus recognition; permissionless whole-balance recovery; unsupported-token recovery exclusions; and forced-ETH behavior. |
+| `SPL-*` | Exactly three supported assets; exact 2% skim and destinations; fixed total-supply coverage of the net; immediate treasury delivery of the uncovered remainder, coverage rounding included, and of the whole net at zero stake; immediate stake and claim with a later-block exit; stake and unstake snapshots; caller-only claims; fixed three-token `claimAll`; one protected remainder per token; principal protection; direct deposits and surplus recognition; permissionless whole-balance recovery; unsupported-token recovery exclusions; and forced-ETH behavior. |
 | `RCV-*` | Canonical and custom creation; referral boundaries, flooring, beneficiary, and referral-before-splitter ordering; atomic pay and sweep; supported-token validation; note defaults, editor, and event; immutable beneficiary, splitter, and referral; and recovery fixed to treasury. |
 | `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT at the dead address; actual LP consumption; separate residues; exact PositionManager funding with foreign balances preserved; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
 | `FAIL-*` | Unmet raise, zero bids, partial bidding, full failed inventory return, exact dead-address delta, bidder refunds, no graduated infrastructure, and repeated-finalization rejection. |
@@ -200,7 +202,7 @@ Required groups:
 | `GAS-*` | Every runtime and initcode limit plus the complete direct-wallet launch, successful migration, and failed migration at or below 14M under maximum metadata, worst valid raise/inventory, cold external state, intrinsic gas, and calldata gas. Complete-transaction claims require the fork gate. |
 | `ABI-*` | Exact selectors, event topics, indexed fields, integer widths, clone initializers, and absence of obsolete Safe, ERC-8004, registry, flush, and retry interfaces. |
 
-Boundary coverage includes fee inputs `0, 1, 49, 50, 99, 100, 9_999, 10_000`; referral bps `0, 1, 249, 250, 251`; zero stake, first stake, full unstake, restake, interleaved deposits, and claims before and after stake changes; maximum and one-byte-over metadata plus malformed UTF-8; every refused and every admitted launch-time treasury class; simultaneous launches sharing one strategy and hook; both REGENT currency orderings; reentrancy attempts from recovery tokens, hook callbacks, receiver paths, and migration dependencies; and failure after every migration external call.
+Boundary coverage includes fee inputs `0, 1, 49, 50, 99, 100, 9_999, 10_000`; referral bps `0, 1, 249, 250, 251`; zero stake, first stake, full unstake, restake, interleaved deposits, and claims before and after stake changes; zero, partial, multiple-holder, and complete supply coverage plus a net whose coverage share floors to zero; same-block partial and complete exit refusal, next-block success, and a later stake resetting the delay; maximum and one-byte-over metadata plus malformed UTF-8; every refused and every admitted launch-time treasury class; simultaneous launches sharing one strategy and hook; both REGENT currency orderings; reentrancy attempts from recovery tokens, hook callbacks, receiver paths, and migration dependencies; and failure after every migration external call.
 
 ## 10. Gates
 

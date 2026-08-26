@@ -73,8 +73,10 @@ contract SubjectSplitterV1Test is C1Fixture {
     // ------------------------------------------------------------------ SPL-002
 
     /// @notice SPL-002: every recognized inflow floors a 2% skim exactly once.
+    /// @dev The whole supply is staked, so coverage is complete and the entire net is the staker
+    ///      allocation. That isolates the skim: nothing here is absorbed by treasury rounding.
     function test_SPL_002_EveryRecognizedInflowIsSkimmedExactlyOnce() public {
-        _stake(alice, 1_000e18);
+        _stake(alice, TOTAL_SUPPLY);
 
         MockERC20[3] memory tokens = [usdc, regent, subject];
         for (uint256 i; i < tokens.length; ++i) {
@@ -100,7 +102,9 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-003: the USDC skim approves exactly, deposits, verifies, and clears its allowance.
     function test_SPL_003_UsdcSkimApprovesDepositsVerifiesAndClearsAllowance() public {
-        _stake(alice, 1_000e18);
+        // Half the supply is staked, so every recognition below has a live staker branch *and* a
+        // live treasury branch: a failure inside the skim must roll both of them back.
+        _stake(alice, TOTAL_SUPPLY / 2);
         _deposit(usdc, 1_000_000, bytes32("pay-1"));
 
         assertEq(liveStaking.depositCalls(), 1, "deposited once");
@@ -113,6 +117,9 @@ contract SubjectSplitterV1Test is C1Fixture {
 
         uint256 liabilityAfter = splitter.unclaimedLiability(address(usdc));
         uint256 accAfter = splitter.accRewardPerShare(address(usdc));
+        uint256 treasuryAfter = usdc.balanceOf(treasury);
+        assertGt(liabilityAfter, 0, "the staker branch is not live");
+        assertGt(treasuryAfter, 0, "the treasury branch is not live");
 
         // A staking contract that reports the wrong amount fails the whole recognition closed.
         liveStaking.setReportsWrongAmount(true);
@@ -142,6 +149,7 @@ contract SubjectSplitterV1Test is C1Fixture {
 
         assertEq(splitter.unclaimedLiability(address(usdc)), liabilityAfter, "no failed attempt changed liability");
         assertEq(splitter.accRewardPerShare(address(usdc)), accAfter, "no failed attempt changed the accumulator");
+        assertEq(usdc.balanceOf(treasury), treasuryAfter, "no failed attempt delivered a treasury allocation");
         assertEq(liveStaking.depositCalls(), 1, "only the successful skim was committed");
         assertEq(usdc.allowance(address(splitter), address(liveStaking)), 0, "no residual allowance survives");
     }
@@ -150,7 +158,9 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-004: the REGENT and SUBJECT skims go to the Regent Safe.
     function test_SPL_004_RegentAndSubjectSkimsGoToTheRegentSafe() public {
-        _stake(alice, 1_000e18);
+        // Complete coverage, so no part of either net is a treasury allocation and the Regent Safe
+        // deltas below are the skims and nothing else.
+        _stake(alice, TOTAL_SUPPLY);
 
         _deposit(regent, 50_000e18, bytes32("regent"));
         assertEq(regent.balanceOf(regentSafe), 1_000e18, "2% of REGENT to the Regent Safe");
@@ -165,53 +175,77 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     // ------------------------------------------------------------------ SPL-005
 
-    /// @notice SPL-005: the net goes pro rata to current stakers, at dust and at realistic scale.
-    function test_SPL_005_NetGoesProRataToCurrentStakers() public {
-        _stake(alice, 3e18);
-        _stake(bob, 1e18);
+    /// @notice SPL-005: the staker allocation is the floored fraction of the net represented by
+    ///         `totalStaked / 100B`, and current stakers divide exactly that allocation pro rata.
+    ///         An account's earnings follow its share of the complete supply, not its share of
+    ///         whoever happens to be staked beside it.
+    function test_SPL_005_NetSplitsByFixedSupplyCoverage() public {
+        // 30% and 10% of the complete supply: 40% coverage, held three-to-one.
+        _stake(alice, 30_000_000_000e18);
+        _stake(bob, 10_000_000_000e18);
 
-        _deposit(usdc, 1_000, bytes32("split"));
-        assertEq(splitter.claimable(address(usdc), alice), 735, "three quarters of the 980 net");
-        assertEq(splitter.claimable(address(usdc), bob), 245, "one quarter of the 980 net");
+        usdc.mint(address(this), 1_000_000);
+        usdc.approve(address(splitter), 1_000_000);
+        vm.expectEmit(true, true, true, true, address(splitter));
+        emit SubjectSplitterV1.RevenueRecognized(
+            address(usdc), address(this), bytes32("split"), 1_000_000, 20_000, 980_000, true
+        );
+        splitter.depositRecognizedRevenue(address(usdc), 1_000_000, bytes32("split"));
 
-        // Joining after a deposit earns nothing from it.
+        // 40% of the 980,000 net reaches stakers; the uncovered 60% is the treasury's immediately.
+        assertEq(splitter.unclaimedLiability(address(usdc)), 392_000, "40% coverage of the net");
+        assertEq(usdc.balanceOf(treasury), 588_000, "the uncovered 60% reached the treasury at once");
+        assertEq(usdc.balanceOf(address(liveStaking)), 20_000, "the skim is unchanged by coverage");
+
+        // Inside that allocation the two stakers divide three-to-one, which is the same thing as
+        // each earning its own coverage of the complete supply: Alice staked 30% of the supply and
+        // earned 30% of the whole net, Bob staked 10% and earned 10%.
+        assertEq(splitter.claimable(address(usdc), alice), (980_000 * 3) / 10, "Alice earned her 30% of the net");
+        assertEq(splitter.claimable(address(usdc), bob), 980_000 / 10, "Bob earned his 10% of the net");
+
+        // Joining after a recognition earns nothing from it.
         address carol = makeAddr("carol");
-        _stake(carol, 4e18);
+        _stake(carol, 10_000_000_000e18);
         assertEq(splitter.claimable(address(usdc), carol), 0, "no retroactive earnings");
 
-        // One smallest unit still distributes at the maximum 100B stake.
-        SubjectSplitterV1 maxStake = _newSplitter();
+        // The founder's example standing alone: one account holding 10% of the supply is the only
+        // staker, and still earns exactly 10% of the net rather than all of it.
+        SubjectSplitterV1 soleTenth = _newSplitter();
+        address holder = makeAddr("holder");
+        subject.mint(holder, 10_000_000_000e18);
+        vm.startPrank(holder);
+        subject.approve(address(soleTenth), 10_000_000_000e18);
+        soleTenth.stake(10_000_000_000e18);
+        vm.stopPrank();
+
+        _depositTo(soleTenth, usdc, 1_000_000, bytes32("sole-tenth"));
+        assertEq(soleTenth.claimable(address(usdc), holder), 98_000, "a sole 10% holder earns 10% of the net");
+        assertEq(usdc.balanceOf(treasury), 588_000 + 882_000, "the other 90% went to the treasury");
+
+        // Complete coverage is the upper bound: the whole net becomes the staker allocation and the
+        // treasury receives nothing, for the smallest possible inflow as well as a large one.
+        SubjectSplitterV1 fullCoverage = _newSplitter();
         address whale = makeAddr("whale");
         subject.mint(whale, TOTAL_SUPPLY);
         vm.startPrank(whale);
-        subject.approve(address(maxStake), TOTAL_SUPPLY);
-        maxStake.stake(TOTAL_SUPPLY);
+        subject.approve(address(fullCoverage), TOTAL_SUPPLY);
+        fullCoverage.stake(TOTAL_SUPPLY);
         vm.stopPrank();
 
-        usdc.mint(address(this), 1);
-        usdc.approve(address(maxStake), 1);
-        maxStake.depositRecognizedRevenue(address(usdc), 1, bytes32("dust"));
-        assertEq(maxStake.claimable(address(usdc), whale), 1, "one smallest unit reaches the maximum stake");
-
-        // A realistic one-USDC payment at a one-million-SUBJECT stake pays the exact net.
-        SubjectSplitterV1 realistic = _newSplitter();
-        address holder = makeAddr("holder");
-        subject.mint(holder, 1_000_000e18);
-        vm.startPrank(holder);
-        subject.approve(address(realistic), 1_000_000e18);
-        realistic.stake(1_000_000e18);
-        vm.stopPrank();
-
-        usdc.mint(address(this), 1e6);
-        usdc.approve(address(realistic), 1e6);
-        realistic.depositRecognizedRevenue(address(usdc), 1e6, bytes32("one-usdc"));
-        assertEq(realistic.claimable(address(usdc), holder), 980_000, "one USDC minus the exact 2% skim");
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
+        _depositTo(fullCoverage, usdc, 1, bytes32("dust"));
+        assertEq(fullCoverage.claimable(address(usdc), whale), 1, "one smallest unit reaches a fully covered stake");
+        _depositTo(fullCoverage, usdc, 1_000_000, bytes32("full"));
+        assertEq(fullCoverage.claimable(address(usdc), whale), 1 + 980_000, "the whole net at complete coverage");
+        assertEq(usdc.balanceOf(treasury), treasuryBefore, "complete coverage left nothing for the treasury");
     }
 
     // ------------------------------------------------------------------ SPL-006
 
-    /// @notice SPL-006: with nothing staked, the net goes immediately to the immutable treasury.
-    function test_SPL_006_ZeroStakeSendsNetToTheImmutableTreasury() public {
+    /// @notice SPL-006: whatever the staked supply does not cover reaches the immutable treasury in
+    ///         the same recognition, including the coverage rounding and the whole net when nothing
+    ///         is staked. A treasury that cannot receive fails the entire recognition.
+    function test_SPL_006_UncoveredNetGoesImmediatelyToTheImmutableTreasury() public {
         assertEq(splitter.totalStaked(), 0, "nothing staked");
 
         _deposit(usdc, 1_000_000, bytes32("no-stakers"));
@@ -223,31 +257,74 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertEq(splitter.accRewardPerShare(address(usdc)), 0, "no accumulator movement");
 
         // A staker who arrives afterwards has no claim on it.
-        _stake(alice, 1_000e18);
+        _stake(alice, 10_000_000_000e18);
         assertEq(splitter.claimable(address(usdc), alice), 0, "no later staker claim was created");
+
+        // Coverage rounding belongs to the treasury: at 10% coverage a nine-unit net floors to a
+        // zero staker allocation, the whole net is delivered, and the event says so.
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
+        usdc.mint(address(this), 9);
+        usdc.approve(address(splitter), 9);
+        vm.expectEmit(true, true, true, true, address(splitter));
+        emit SubjectSplitterV1.RevenueRecognized(address(usdc), address(this), bytes32("rounding"), 9, 0, 9, false);
+        splitter.depositRecognizedRevenue(address(usdc), 9, bytes32("rounding"));
+
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, 9, "the floored-away net reached the treasury whole");
+        assertEq(splitter.unclaimedLiability(address(usdc)), 0, "a floored allocation created no liability");
+        assertEq(splitter.accRewardPerShare(address(usdc)), 0, "a floored allocation never moved the accumulator");
+        assertEq(splitter.carriedRemainder(address(usdc)), 0, "a floored allocation created no carry");
+
+        // A treasury delivery that fails rolls the whole recognition back. A ten-unit bare balance
+        // skims nothing, so the treasury transfer is the only transfer this recognition attempts.
+        usdc.mint(address(this), 10);
+        usdc.transfer(address(splitter), 10);
+        uint256 liability = splitter.unclaimedLiability(address(usdc));
+        uint256 accumulator = splitter.accRewardPerShare(address(usdc));
+        uint256 carry = splitter.carriedRemainder(address(usdc));
+
+        usdc.setReturnsFalse(true);
+        vm.expectRevert();
+        splitter.recognizeSurplusRevenue(address(usdc), bytes32("treasury-down"));
+        usdc.setReturnsFalse(false);
+
+        assertEq(splitter.unclaimedLiability(address(usdc)), liability, "a failed delivery changed liability");
+        assertEq(splitter.accRewardPerShare(address(usdc)), accumulator, "a failed delivery moved the accumulator");
+        assertEq(splitter.carriedRemainder(address(usdc)), carry, "a failed delivery changed the carry");
+        assertEq(
+            usdc.balanceOf(address(splitter)) - splitter.protectedBalance(address(usdc)),
+            10,
+            "the refused inflow is still unrecognized"
+        );
     }
 
     // ------------------------------------------------------------------ SPL-007
 
     /// @notice SPL-007: one indivisible remainder per asset is protected and carried forward.
     function test_SPL_007_PerTokenRemainderIsProtectedAndCarriedForward() public {
-        // Three wei of stake and one-unit deposits make the carry the whole story: the third
-        // deposit only pays out because the first two carries rolled forward.
-        _stake(alice, 3);
+        // 30% coverage held equally by three accounts. Each four-unit inflow allocates exactly one
+        // unit to stakers, which three equal stakes cannot divide, so the carry is the whole story:
+        // the third recognition only pays out because the first two carries rolled forward.
+        address carol = makeAddr("carol");
+        _stake(alice, 10_000_000_000e18);
+        _stake(bob, 10_000_000_000e18);
+        _stake(carol, 10_000_000_000e18);
 
-        _deposit(usdc, 1, bytes32("carry-1"));
+        _deposit(usdc, 4, bytes32("carry-1"));
+        assertEq(splitter.unclaimedLiability(address(usdc)), 1, "30% of the four-unit net, floored");
         assertEq(splitter.claimable(address(usdc), alice), 0, "nothing divisible yet");
-        assertEq(splitter.carriedRemainder(address(usdc)), 1, "the whole scaled remainder is carried");
-        assertEq(splitter.unclaimedLiability(address(usdc)), 1, "the full net stayed protected");
+        assertGt(splitter.carriedRemainder(address(usdc)), 0, "the indivisible scaled numerator is carried");
 
-        _deposit(usdc, 1, bytes32("carry-2"));
-        assertEq(splitter.claimable(address(usdc), alice), 1, "the carry released one unit");
-        assertEq(splitter.carriedRemainder(address(usdc)), 2, "the carry rolls forward again");
+        _deposit(usdc, 4, bytes32("carry-2"));
+        assertEq(splitter.claimable(address(usdc), alice), 0, "two units still do not divide by three");
+        assertGt(splitter.carriedRemainder(address(usdc)), 0, "the carry rolls forward again");
 
-        _deposit(usdc, 1, bytes32("carry-3"));
-        assertEq(splitter.claimable(address(usdc), alice), 3, "the carry released the rest");
+        _deposit(usdc, 4, bytes32("carry-3"));
+        assertEq(splitter.claimable(address(usdc), alice), 1, "the carry released one whole unit each");
+        assertEq(splitter.claimable(address(usdc), bob), 1, "for every equal staker");
+        assertEq(splitter.claimable(address(usdc), carol), 1, "including the third");
         assertEq(splitter.carriedRemainder(address(usdc)), 0, "the carry is spent, not lost");
-        assertEq(splitter.unclaimedLiability(address(usdc)), 3, "liability equals every recognized net");
+        assertEq(splitter.unclaimedLiability(address(usdc)), 3, "liability equals every staker allocation");
+        assertEq(usdc.balanceOf(treasury), 9, "the uncovered 70% of each net reached the treasury");
 
         // The carry is never separately withdrawable and never re-recognizable.
         assertLt(splitter.carriedRemainder(address(regent)), splitter.totalStaked() + 1, "one carry per asset");
@@ -261,12 +338,16 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-008: principal, unclaimed claims, and the remainder are outside surplus.
     function test_SPL_008_PrincipalClaimsAndRemainderAreExcludedFromSurplus() public {
-        _stake(alice, 3e18);
+        // Complete coverage, so every net below is wholly a staker allocation and the held SUBJECT
+        // is exactly principal plus liability with no treasury share in between.
+        _stake(alice, TOTAL_SUPPLY);
         _deposit(subject, 1_000e18, bytes32("subject-revenue"));
 
         uint256 liability = splitter.unclaimedLiability(address(subject));
         uint256 held = subject.balanceOf(address(splitter));
-        assertEq(splitter.protectedBalance(address(subject)), liability + 3e18, "principal is protected separately");
+        assertEq(
+            splitter.protectedBalance(address(subject)), liability + TOTAL_SUPPLY, "principal is protected separately"
+        );
         assertEq(held, splitter.protectedBalance(address(subject)), "nothing is unaccounted");
 
         // With principal and unclaimed claims present, surplus recognition finds nothing.
@@ -282,23 +363,24 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertEq(
             splitter.unclaimedLiability(address(subject)), liability + 490e18, "only the bare balance was recognized"
         );
-        assertEq(splitter.totalStaked(), 3e18, "principal untouched");
+        assertEq(splitter.totalStaked(), TOTAL_SUPPLY, "principal untouched");
 
-        // Principal is still fully returnable after everything above.
+        // Principal is still fully returnable after everything above, one block on from the stake.
         uint256 claimBefore = splitter.claimable(address(subject), alice);
+        _nextBlock();
         vm.prank(alice);
-        splitter.unstake(3e18);
-        assertEq(subject.balanceOf(alice), 3e18, "principal returned in full");
+        splitter.unstake(TOTAL_SUPPLY);
+        assertEq(subject.balanceOf(alice), TOTAL_SUPPLY, "principal returned in full");
         assertEq(splitter.claimable(address(subject), alice), claimBefore, "earnings survived the unstake");
     }
 
     // ------------------------------------------------------------------ SPL-009
 
-    /// @notice SPL-009: staking takes effect immediately, in the same block.
-    function test_SPL_009_StakingTakesEffectImmediately() public {
-        _stake(alice, 1_000e18);
-        assertEq(splitter.stakedOf(alice), 1_000e18, "credited immediately");
-        assertEq(splitter.totalStaked(), 1_000e18, "counted immediately");
+    /// @notice SPL-009: staking and claiming take effect immediately, in the staking block itself.
+    function test_SPL_009_StakingAndClaimingTakeEffectImmediately() public {
+        _stake(alice, TOTAL_SUPPLY);
+        assertEq(splitter.stakedOf(alice), TOTAL_SUPPLY, "credited immediately");
+        assertEq(splitter.totalStaked(), TOTAL_SUPPLY, "counted immediately");
 
         // A zero-amount stake or unstake is rejected outright rather than recorded as an event.
         vm.startPrank(alice);
@@ -307,63 +389,119 @@ contract SubjectSplitterV1Test is C1Fixture {
         vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
         splitter.unstake(0);
         vm.stopPrank();
-        assertEq(splitter.totalStaked(), 1_000e18, "the refused calls changed no stake");
+        assertEq(splitter.totalStaked(), TOTAL_SUPPLY, "the refused calls changed no stake");
 
+        // Earning and settling both happen inside the staking block. Only the exit waits.
         _deposit(usdc, 1_000_000, bytes32("same-block"));
         assertEq(splitter.claimable(address(usdc), alice), 980_000, "earns from the very next recognition");
-
-        // Unstaking is equally immediate.
         vm.prank(alice);
-        splitter.unstake(1_000e18);
-        assertEq(splitter.totalStaked(), 0, "removed immediately");
+        splitter.claim(address(usdc));
+        assertEq(usdc.balanceOf(alice), 980_000, "claimed in the same block it was earned");
+
+        // One block on, the position leaves in full and earns nothing afterwards.
+        _nextBlock();
+        vm.prank(alice);
+        splitter.unstake(TOTAL_SUPPLY);
+        assertEq(splitter.totalStaked(), 0, "removed in the block the exit was allowed");
 
         _deposit(usdc, 1_000_000, bytes32("after-exit"));
-        assertEq(splitter.claimable(address(usdc), alice), 980_000, "no share of revenue after exit");
+        assertEq(splitter.claimable(address(usdc), alice), 0, "no share of revenue after exit");
         assertEq(usdc.balanceOf(treasury), 980_000, "the later net went to the treasury");
     }
 
-    /// @notice SPL-009: immediacy in its strongest honest form. Nothing separates a stake from
-    ///         the recognition that follows it, so a caller who owns or borrows SUBJECT may stake,
-    ///         recognize a waiting inflow, claim, and unstake with no delay in between and keep
-    ///         the whole net. This is the founder-frozen economic choice, recorded as accepted
-    ///         behavior in the threat model, not a defect: there is no cooldown, epoch, queue, or
-    ///         previous-block eligibility rule anywhere in this contract.
-    function test_SPL_009_ImmediateStakeCanCaptureARecognitionAroundIt() public {
-        // Revenue sits on the splitter as a bare transfer, waiting for anyone to recognize it.
-        usdc.mint(address(this), 1_000_000);
-        usdc.transfer(address(splitter), 1_000_000);
+    /// @notice SPL-009: a position cannot leave in the block it was funded in. One block is the
+    ///         whole rule — there is no cooldown, epoch, queue, or time weighting — and it prevents
+    ///         exactly one thing: financing a stake, recognizing revenue against it, and exiting,
+    ///         all inside a single atomic transaction. What bounds a funded holder's share is the
+    ///         fixed-supply fraction, not the delay.
+    function test_SPL_009_UnstakeRequiresALaterBlockThanTheLatestStake() public {
+        _stake(alice, 30_000_000_000e18);
 
-        // The opportunist borrows SUBJECT and is the only staker for exactly this recognition.
-        address opportunist = makeAddr("opportunist");
-        subject.mint(opportunist, 1_000e18);
+        // Zero amount is refused first, an over-withdrawal second, and only a valid positive
+        // withdrawal in the staking block reaches the same-block refusal.
+        vm.startPrank(alice);
+        vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
+        splitter.unstake(0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                SubjectSplitterV1.InsufficientStake.selector, 30_000_000_000e18, 30_000_000_000e18 + 1
+            )
+        );
+        splitter.unstake(30_000_000_000e18 + 1);
 
-        vm.startPrank(opportunist);
-        subject.approve(address(splitter), 1_000e18);
-        splitter.stake(1_000e18);
-        splitter.recognizeSurplusRevenue(address(usdc), bytes32("captured"));
-        splitter.claim(address(usdc));
-        splitter.unstake(1_000e18);
+        // Partial and complete withdrawals alike are refused, and neither mutates anything.
+        vm.expectRevert(SubjectSplitterV1.SameBlockUnstake.selector);
+        splitter.unstake(1);
+        vm.expectRevert(SubjectSplitterV1.SameBlockUnstake.selector);
+        splitter.unstake(30_000_000_000e18);
         vm.stopPrank();
 
-        assertEq(usdc.balanceOf(opportunist), 980_000, "the whole net was captured around the inflow");
-        assertEq(subject.balanceOf(opportunist), 1_000e18, "the borrowed principal came straight back");
-        assertEq(splitter.totalStaked(), 0, "and nothing is staked afterwards");
-        assertEq(usdc.balanceOf(address(liveStaking)), 20_000, "the skim still ran exactly once");
+        assertEq(splitter.stakedOf(alice), 30_000_000_000e18, "a refused exit changed the position");
+        assertEq(splitter.totalStaked(), 30_000_000_000e18, "a refused exit changed the staked total");
+        assertEq(subject.balanceOf(alice), 0, "a refused exit returned principal");
 
-        // The capture takes only what that one recognition created: no earlier or later revenue,
-        // and no other staker's position, is reachable this way.
+        // The next block permits an ordinary partial exit.
+        _nextBlock();
+        vm.prank(alice);
+        splitter.unstake(10_000_000_000e18);
+        assertEq(splitter.stakedOf(alice), 20_000_000_000e18, "the partial exit was refused after a block");
+
+        // A later stake resets the delay for the whole position, not only for the new principal.
         _stake(alice, 1_000e18);
-        _deposit(usdc, 1_000_000, bytes32("later"));
-        assertEq(splitter.claimable(address(usdc), opportunist), 0, "the exited capturer earns nothing after");
-        assertEq(splitter.claimable(address(usdc), alice), 980_000, "the later staker keeps its own net");
+        vm.startPrank(alice);
+        vm.expectRevert(SubjectSplitterV1.SameBlockUnstake.selector);
+        splitter.unstake(1);
+        vm.stopPrank();
+        _nextBlock();
+        vm.prank(alice);
+        splitter.unstake(20_000_000_000e18 + 1_000e18);
+        assertEq(splitter.stakedOf(alice), 0, "the reset delay never cleared");
+
+        // The atomic capture the rule exists to prevent. Revenue waits on the splitter as a bare
+        // transfer; a capturer borrows the whole supply, stakes it, recognizes the inflow, claims
+        // and tries to leave in one transaction. The exit fails and takes the whole attempt with it.
+        usdc.mint(address(this), 1_000_000);
+        usdc.transfer(address(splitter), 1_000_000);
+        subject.mint(address(this), TOTAL_SUPPLY);
+
+        vm.expectRevert(SubjectSplitterV1.SameBlockUnstake.selector);
+        this.attemptAtomicCapture(TOTAL_SUPPLY);
+
+        assertEq(splitter.totalStaked(), 0, "the refused attempt left principal staked");
+        assertEq(subject.balanceOf(address(this)), TOTAL_SUPPLY, "the borrowed principal did not roll back");
+        assertEq(usdc.balanceOf(address(this)), 0, "the refused attempt paid the capturer");
+        assertEq(usdc.balanceOf(address(liveStaking)), 0, "the refused attempt committed a skim");
+        assertEq(usdc.balanceOf(treasury), 0, "the refused attempt delivered a treasury allocation");
+        assertEq(
+            usdc.balanceOf(address(splitter)) - splitter.protectedBalance(address(usdc)),
+            1_000_000,
+            "the waiting inflow is still unrecognized"
+        );
+
+        // The same inflow is recognized normally afterwards and nobody captured anything.
+        _stake(bob, TOTAL_SUPPLY);
+        vm.prank(outsider);
+        splitter.recognizeSurplusRevenue(address(usdc), bytes32("honest"));
+        assertEq(splitter.claimable(address(usdc), bob), 980_000, "the honest staker earns the net");
+        assertEq(splitter.claimable(address(usdc), address(this)), 0, "the refused capturer earns nothing");
         _assertSolvent();
+    }
+
+    /// @dev One external self-call, so `vm.expectRevert` proves the *whole* stake, recognize, claim
+    ///      and unstake attempt reverts together rather than only its last step.
+    function attemptAtomicCapture(uint256 amount) external {
+        subject.approve(address(splitter), amount);
+        splitter.stake(amount);
+        splitter.recognizeSurplusRevenue(address(usdc), bytes32("captured"));
+        splitter.claim(address(usdc));
+        splitter.unstake(amount);
     }
 
     // ------------------------------------------------------------------ SPL-011
 
     /// @notice SPL-011: a bare transfer is revenue only after permissionless recognition.
     function test_SPL_011_BareTransfersBecomeRevenueOnlyThroughRecognition() public {
-        _stake(alice, 1_000e18);
+        _stake(alice, TOTAL_SUPPLY);
 
         usdc.mint(address(this), 1_000_000);
         usdc.transfer(address(splitter), 1_000_000);
@@ -426,75 +564,78 @@ contract SubjectSplitterV1Test is C1Fixture {
         _assertSolvent();
 
         uint256 aliceSubjectBefore = subject.balanceOf(alice);
+        _nextBlock();
         vm.prank(alice);
         splitter.unstake(aliceStake);
         _assertSolvent();
         assertEq(subject.balanceOf(alice) - aliceSubjectBefore, aliceStake, "principal returned exactly");
         assertEq(splitter.stakedOf(alice), 0, "stake fully withdrawn");
 
-        _assertMaximumStressSequenceStaysSolvent();
+        _assertCoverageExtremesStaySolvent();
     }
 
-    /// @dev The frozen deterministic stress sequence: one wei of stake, the maximum economic
-    ///      recognition for each asset, the whole remaining supply staked, then claim and unstake.
-    ///      It proves the 1e36 accumulator and Solady full-precision multiplication stay live and
-    ///      solvent at the widest representable ratio, which is where a naive `stake * acc`
-    ///      product would overflow and a naive scale would collapse into a non-distributing carry.
-    function _assertMaximumStressSequenceStaysSolvent() private {
-        SubjectSplitterV1 stressed = _newSplitter();
-        address dust = makeAddr("dust");
-        address whale = makeAddr("stress-whale");
-
-        subject.mint(dust, 1);
-        vm.startPrank(dust);
-        subject.approve(address(stressed), 1);
-        stressed.stake(1);
-        vm.stopPrank();
-
-        // The maximum economic inflow per asset: uint128 for the two external assets, and the
-        // launch's whole 100B supply for SUBJECT, which can never exceed it.
+    /// @dev The deterministic coverage-extreme sequence, re-derived for the supply-coverage split.
+    ///      The old maximum-ratio case aimed at a `stake * accumulator` overflow that the coverage
+    ///      denominator now makes unreachable, so what is worth proving instead is the two ends of
+    ///      the coverage range against the maximum economic inflow per asset: the smallest nonzero
+    ///      stake, where the allocation must be nonzero yet far below the net, and complete
+    ///      coverage, where it must be the whole net and the treasury must receive nothing.
+    function _assertCoverageExtremesStaySolvent() private {
         uint256 externalGross = type(uint128).max;
         uint256 externalNet = externalGross - (externalGross * 200) / 10_000;
         uint256 subjectNet = TOTAL_SUPPLY - (TOTAL_SUPPLY * 200) / 10_000;
-        _depositTo(stressed, usdc, externalGross, bytes32("stress-usdc"));
-        _depositTo(stressed, regent, externalGross, bytes32("stress-regent"));
-        _depositTo(stressed, subject, TOTAL_SUPPLY, bytes32("stress-subject"));
 
-        // The sole dust staker owns the whole net of every asset, to the unit.
-        assertEq(stressed.claimable(address(usdc), dust), externalNet, "the whole USDC net reached one wei of stake");
-        assertEq(stressed.claimable(address(regent), dust), externalNet, "the whole REGENT net did too");
-        assertEq(stressed.claimable(address(subject), dust), subjectNet, "and the whole SUBJECT net");
-
-        // The rest of the supply then stakes against an accumulator at its widest value.
-        subject.mint(whale, TOTAL_SUPPLY - 1);
-        vm.startPrank(whale);
-        subject.approve(address(stressed), TOTAL_SUPPLY - 1);
-        stressed.stake(TOTAL_SUPPLY - 1);
+        // One wei of stake: the smallest coverage a launch can have without being unstaked.
+        SubjectSplitterV1 minimal = _newSplitter();
+        address dust = makeAddr("dust");
+        subject.mint(dust, 1);
+        vm.startPrank(dust);
+        subject.approve(address(minimal), 1);
+        minimal.stake(1);
         vm.stopPrank();
 
-        assertEq(stressed.totalStaked(), TOTAL_SUPPLY, "the whole supply is staked");
-        assertEq(stressed.claimable(address(usdc), whale), 0, "the joiner captures no prior unit");
-        assertEq(stressed.claimable(address(usdc), dust), externalNet, "and the dust staker keeps all of it");
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
+        _depositTo(minimal, usdc, externalGross, bytes32("extreme-usdc"));
+        uint256 allocated = minimal.unclaimedLiability(address(usdc));
 
-        vm.prank(dust);
-        stressed.claimAll();
+        assertGt(allocated, 0, "one wei of stake earned nothing from the maximum inflow");
+        assertLt(allocated, externalNet, "one wei of stake earned an uncovered share of the net");
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, externalNet - allocated, "the rest is the treasury's");
+        // With a single staked wei there is nothing to divide, so the sole staker owns it exactly.
+        assertEq(minimal.claimable(address(usdc), dust), allocated, "the sole staker owns the whole allocation");
+        _assertSolventFor(minimal);
+
+        // Complete coverage: the whole net of every asset becomes the staker allocation.
+        SubjectSplitterV1 complete = _newSplitter();
+        address whale = makeAddr("coverage-whale");
+        subject.mint(whale, TOTAL_SUPPLY);
+        vm.startPrank(whale);
+        subject.approve(address(complete), TOTAL_SUPPLY);
+        complete.stake(TOTAL_SUPPLY);
+        vm.stopPrank();
+
+        treasuryBefore = usdc.balanceOf(treasury);
+        _depositTo(complete, usdc, externalGross, bytes32("complete-usdc"));
+        _depositTo(complete, regent, externalGross, bytes32("complete-regent"));
+        _depositTo(complete, subject, TOTAL_SUPPLY, bytes32("complete-subject"));
+
+        assertEq(complete.claimable(address(usdc), whale), externalNet, "the whole USDC net at complete coverage");
+        assertEq(complete.claimable(address(regent), whale), externalNet, "the whole REGENT net did too");
+        assertEq(complete.claimable(address(subject), whale), subjectNet, "and the whole SUBJECT net");
+        assertEq(usdc.balanceOf(treasury), treasuryBefore, "complete coverage left the treasury nothing");
+        _assertSolventFor(complete);
+
         vm.prank(whale);
-        stressed.claimAll();
+        complete.claimAll();
+        assertEq(usdc.balanceOf(whale), externalNet, "claimed the exact USDC net");
+        assertEq(regent.balanceOf(whale), externalNet, "claimed the exact REGENT net");
+        _assertSolventFor(complete);
 
-        assertEq(usdc.balanceOf(dust), externalNet, "claimed the exact USDC net");
-        assertEq(regent.balanceOf(dust), externalNet, "claimed the exact REGENT net");
-        assertEq(subject.balanceOf(dust), subjectNet, "claimed the exact SUBJECT net");
-        assertEq(usdc.balanceOf(whale), 0, "the joiner claimed nothing");
-        _assertSolventFor(stressed);
-
-        vm.prank(dust);
-        stressed.unstake(1);
+        _nextBlock();
         vm.prank(whale);
-        stressed.unstake(TOTAL_SUPPLY - 1);
-
-        assertEq(stressed.totalStaked(), 0, "all principal returned");
-        assertEq(subject.balanceOf(whale), TOTAL_SUPPLY - 1, "the whale's principal returned exactly");
-        _assertSolventFor(stressed);
+        complete.unstake(TOTAL_SUPPLY);
+        assertEq(complete.totalStaked(), 0, "all principal returned");
+        _assertSolventFor(complete);
     }
 
     /// @notice SPL-012: across stakes, unstakes, deposits, claims, and a restake, everything
@@ -530,8 +671,9 @@ contract SubjectSplitterV1Test is C1Fixture {
         recognized += _depositTrackingStakerNet(secondGross, bytes32("second"));
         _assertPaidPlusClaimableWithin(recognized);
 
-        // Alice reduces or fully exits her position, which is where the accounting must neither
-        // re-credit nor forfeit the fraction of a unit she had already earned.
+        // Alice reduces or fully exits her position one block on, which is where the accounting
+        // must neither re-credit nor forfeit the fraction of a unit she had already earned.
+        _nextBlock();
         vm.prank(alice);
         splitter.unstake(aliceExit);
         _assertPaidPlusClaimableWithin(recognized);
@@ -583,20 +725,21 @@ contract SubjectSplitterV1Test is C1Fixture {
         _stake(alice, firstStake);
         assertEq(splitter.claimable(address(usdc), alice), 0, "no retroactive earnings from before the stake");
 
-        // The sole staker earns the whole net apart from at most the one indivisible unit that
-        // stays inside protected liability as this asset's carried remainder.
-        _deposit(usdc, grossBetween, bytes32("alice-only"));
+        // The sole staker earns its whole coverage allocation apart from at most the one
+        // indivisible unit that stays inside protected liability as this asset's carried remainder.
         uint256 netBetween = grossBetween - (grossBetween * 200) / 10_000;
+        uint256 allocatedBetween = _depositTrackingStakerNet(grossBetween, bytes32("alice-only"));
         uint256 aliceEarnedAlone = splitter.claimable(address(usdc), alice);
-        assertLe(aliceEarnedAlone, netBetween, "a sole staker never earns more than the net");
-        assertGe(aliceEarnedAlone + 1, netBetween, "a sole staker loses at most the carried unit");
+        assertLe(allocatedBetween, netBetween, "the allocation exceeded the net it came from");
+        assertLe(aliceEarnedAlone, allocatedBetween, "a sole staker never earns more than the allocation");
+        assertGe(aliceEarnedAlone + 1, allocatedBetween, "a sole staker loses at most the carried unit");
 
         // Bob joins. Alice keeps every unit she had already earned; Bob starts from zero.
         _stake(bob, secondStake);
         assertEq(splitter.claimable(address(usdc), alice), aliceEarnedAlone, "prior earnings preserved exactly");
         assertEq(splitter.claimable(address(usdc), bob), 0, "the joiner captures no prior unit");
 
-        _deposit(usdc, grossAfter, bytes32("shared"));
+        uint256 allocatedAfter = _depositTrackingStakerNet(grossAfter, bytes32("shared"));
         uint256 aliceAfter = splitter.claimable(address(usdc), alice);
         uint256 bobAfter = splitter.claimable(address(usdc), bob);
         assertGe(aliceAfter, aliceEarnedAlone, "earnings never shrink");
@@ -613,14 +756,15 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertEq(splitter.claimable(address(regent), alice), 0, "and settled it exactly once");
         assertEq(splitter.claimable(address(usdc), alice), aliceAfter, "settling one asset never touches another");
 
-        // A full exit preserves what was earned and forfeits nothing.
+        // A full exit one block on preserves what was earned and forfeits nothing.
+        _nextBlock();
         vm.prank(alice);
         splitter.unstake(firstStake);
         assertEq(splitter.claimable(address(usdc), alice), aliceAfter, "a full unstake preserves earnings");
 
-        // Every distributed unit is covered by protected liability, and nothing was invented.
-        uint256 netAfter = grossAfter - (grossAfter * 200) / 10_000;
-        assertLe(aliceAfter + bobAfter, netBetween + netAfter, "no unit exists that was never recognized");
+        // Every distributed unit is covered by protected liability, and nothing was invented: the
+        // two stakers together never hold more than the two allocations actually made to them.
+        assertLe(aliceAfter + bobAfter, allocatedBetween + allocatedAfter, "no unit exists that was never allocated");
         assertLe(aliceAfter + bobAfter, splitter.unclaimedLiability(address(usdc)), "claims are covered by liability");
         _assertSolvent();
 
@@ -646,32 +790,36 @@ contract SubjectSplitterV1Test is C1Fixture {
         _assertSolvent();
     }
 
-    /// @notice SPL-013: the deterministic stake-change counterexample. Two equal stakers, a
-    ///         two-unit recognition, an equal partial unstake by each, then a one-unit
-    ///         recognition. Only three units ever entered liability and balance, so aggregate
-    ///         whole-unit claimability may never reach four; the half unit each staker still owns
-    ///         stays inside liability until a later recognition completes it.
+    /// @notice SPL-013: the deterministic stake-change counterexample. Half the supply is staked
+    ///         equally by two accounts, so a four-unit net allocates two units to stakers; each
+    ///         halves its stake, and a second four-unit net then allocates one unit against a
+    ///         quarter of the supply. Only three units were ever allocated, so aggregate whole-unit
+    ///         claimability may never reach four; the half unit each staker still owns stays inside
+    ///         liability until a later recognition completes it.
     function test_SPL_013_StakeChangesNeverOverCreditOrStrandWholeUnits() public {
-        _stake(alice, 2);
-        _stake(bob, 2);
+        _stake(alice, 25_000_000_000e18);
+        _stake(bob, 25_000_000_000e18);
 
-        // Two units enter against four wei of stake: half a unit per staked wei.
-        _deposit(usdc, 2, bytes32("two"));
-        assertEq(splitter.unclaimedLiability(address(usdc)), 2, "the whole net became liability");
+        // 50% coverage of a four-unit net: two units to stakers, one each, two to the treasury.
+        _deposit(usdc, 4, bytes32("two"));
+        assertEq(splitter.unclaimedLiability(address(usdc)), 2, "half the four-unit net became liability");
+        assertEq(usdc.balanceOf(treasury), 2, "the uncovered half reached the treasury");
 
-        // Each staker halves its stake, banking exactly one earned whole unit.
+        // Each staker halves its stake one block on, banking exactly one earned whole unit.
+        _nextBlock();
         vm.prank(alice);
-        splitter.unstake(1);
+        splitter.unstake(12_500_000_000e18);
         vm.prank(bob);
-        splitter.unstake(1);
+        splitter.unstake(12_500_000_000e18);
         assertEq(splitter.claimable(address(usdc), alice), 1, "Alice keeps the whole unit she earned");
         assertEq(splitter.claimable(address(usdc), bob), 1, "and Bob keeps his");
 
-        // One more unit enters against two wei of stake: half a unit per staked wei again.
-        _deposit(usdc, 1, bytes32("one"));
+        // 25% coverage of another four-unit net: one unit against two equal stakes, so half a unit
+        // per staker again.
+        _deposit(usdc, 4, bytes32("one"));
 
         uint256 liability = splitter.unclaimedLiability(address(usdc));
-        assertEq(liability, 3, "exactly three units were ever recognized");
+        assertEq(liability, 3, "exactly three units were ever allocated to stakers");
         assertEq(usdc.balanceOf(address(splitter)), 3, "and exactly three units are held");
 
         uint256 aliceOwed = splitter.claimable(address(usdc), alice);
@@ -684,12 +832,14 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertEq(splitter.claimableDust(address(usdc), alice), halfUnit, "Alice's half unit is banked, not lost");
         assertEq(splitter.claimableDust(address(usdc), bob), halfUnit, "and so is Bob's");
 
-        // A staker joining at this checkpoint earns nothing from either recognition.
+        // A staker joining at this checkpoint earns nothing from either recognition, and leaves
+        // again a block later without disturbing anything.
         address carol = makeAddr("carol");
-        _stake(carol, 4);
+        _stake(carol, 10_000_000_000e18);
         assertEq(splitter.claimable(address(usdc), carol), 0, "the joiner captures nothing retroactively");
+        _nextBlock();
         vm.prank(carol);
-        splitter.unstake(4);
+        splitter.unstake(10_000_000_000e18);
 
         // Both settle. Each is paid its whole unit; each half unit stays inside liability.
         vm.prank(alice);
@@ -705,7 +855,7 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertEq(splitter.claimable(address(usdc), bob), 0, "for either staker");
 
         // A later recognition completes each protected half unit into a whole one.
-        _deposit(usdc, 1, bytes32("three"));
+        _deposit(usdc, 4, bytes32("three"));
         assertEq(splitter.claimable(address(usdc), alice), 1, "the carried half unit became a whole unit");
         assertEq(splitter.claimable(address(usdc), bob), 1, "for both stakers");
 
@@ -726,20 +876,21 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-014: the six caller-only functions act only for their caller.
     function test_SPL_014_CallerOnlyFunctionsActOnlyForTheCaller() public {
-        subject.mint(alice, 1_000e18);
+        subject.mint(alice, TOTAL_SUPPLY);
         subject.mint(bob, 1_000e18);
 
         vm.startPrank(alice);
-        subject.approve(address(splitter), 1_000e18);
-        splitter.stake(1_000e18);
+        subject.approve(address(splitter), TOTAL_SUPPLY);
+        splitter.stake(TOTAL_SUPPLY);
         vm.stopPrank();
 
-        assertEq(splitter.stakedOf(alice), 1_000e18, "stake credited the caller");
+        assertEq(splitter.stakedOf(alice), TOTAL_SUPPLY, "stake credited the caller");
         assertEq(splitter.stakedOf(bob), 0, "and nobody else");
 
         _deposit(usdc, 1_000_000, bytes32("shared"));
 
-        // Bob cannot unstake or claim what belongs to Alice.
+        // Bob cannot unstake or claim what belongs to Alice. A non-staker is refused for having no
+        // stake at all, before any exit-delay question is ever asked.
         vm.prank(bob);
         vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.InsufficientStake.selector, 0, 1));
         splitter.unstake(1);
@@ -776,7 +927,7 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-015: claimAll settles exactly the three recognized tokens.
     function test_SPL_015_ClaimAllSettlesExactlyTheThreeRecognizedTokens() public {
-        _stake(alice, 1_000e18);
+        _stake(alice, TOTAL_SUPPLY);
         _deposit(usdc, 1_000_000, bytes32("u"));
         _deposit(regent, 1_000e18, bytes32("r"));
         _deposit(subject, 1_000e18, bytes32("s"));
@@ -807,8 +958,10 @@ contract SubjectSplitterV1Test is C1Fixture {
     // ------------------------------------------------------------------ SPL-016
 
     /// @notice SPL-016: the 2% skim floors exactly at every boundary inflow.
+    /// @dev Complete coverage, so each recognition's liability delta is the whole net and the skim
+    ///      is the only rounding this test can be measuring.
     function test_SPL_016_SkimRoundingIsExactAtTheInflowBoundaryInputs() public {
-        _stake(alice, 1_000e18);
+        _stake(alice, TOTAL_SUPPLY);
 
         uint256[7] memory grossInputs = [uint256(1), 49, 50, 99, 100, 9_999, 10_000];
         uint256[7] memory expectedSkims = [uint256(0), 0, 1, 1, 2, 199, 200];
@@ -899,8 +1052,10 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-018: recovery can never reach a core token or staker-owned value.
     function test_SPL_018_RecoveryCanNeverReachProtectedSplitterAssets() public {
-        _stake(alice, 3);
-        _deposit(usdc, 1, bytes32("carry"));
+        // 30% coverage, which allocates one indivisible unit out of a four-unit net and so leaves a
+        // real carry for recovery to fail to reach.
+        _stake(alice, 30_000_000_000e18);
+        _deposit(usdc, 4, bytes32("carry"));
         _deposit(regent, 1_000e18, bytes32("regent"));
         _deposit(subject, 1_000e18, bytes32("subject"));
 
@@ -957,7 +1112,9 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-020: a direct deposit recognizes exactly its own amount, once, with its ref.
     function test_SPL_020_DepositRecognizedRevenueRecognizesExactlyOnce() public {
-        _stake(alice, 1_000e18);
+        // Complete coverage, so the event's `net` and the liability it creates are the same number
+        // and `paidToStakers` is true because the allocation is nonzero.
+        _stake(alice, TOTAL_SUPPLY);
 
         // An unrelated bare balance is present and must not be swept into this deposit.
         usdc.mint(address(this), 5_000_000);
@@ -995,7 +1152,7 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-021: reentrancy through a recognized token changes no accounting.
     function test_SPL_021_ReentrancyCannotChangeSplitterAccounting() public {
-        _stake(alice, 1_000e18);
+        _stake(alice, TOTAL_SUPPLY / 2);
         _deposit(usdc, 1_000_000, bytes32("base"));
 
         uint256 liability = splitter.unclaimedLiability(address(usdc));
@@ -1037,12 +1194,13 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     /// @notice SPL-022: a re-entrant recovery token reaches nothing protected.
     function test_SPL_022_RecoveryTokenReentrancyCannotReachProtectedSplitterAssets() public {
-        _stake(alice, 3);
-        _deposit(usdc, 1, bytes32("carry"));
+        _stake(alice, 30_000_000_000e18);
+        _deposit(usdc, 4, bytes32("carry"));
         _deposit(regent, 1_000e18, bytes32("regent"));
 
         uint256 principal = splitter.totalStaked();
         uint256 carry = splitter.carriedRemainder(address(usdc));
+        assertGt(carry, 0, "there is a carry to protect");
         uint256 regentLiability = splitter.unclaimedLiability(address(regent));
         uint256 regentHeld = regent.balanceOf(address(splitter));
 
@@ -1081,6 +1239,14 @@ contract SubjectSplitterV1Test is C1Fixture {
 
     // ------------------------------------------------------------------ helpers
 
+    /// @dev Advance exactly one block, so a staked position becomes withdrawable. The height comes
+    ///      from the cheatcode rather than from `block.number`, which the via-IR optimizer is free
+    ///      to hoist across an intervening `vm.roll` and would otherwise make a second advance in
+    ///      the same test silently repeat the first.
+    function _nextBlock() private {
+        vm.roll(vm.getBlockNumber() + 1);
+    }
+
     function _stake(address account, uint256 amount) private {
         subject.mint(account, amount);
         vm.startPrank(account);
@@ -1099,11 +1265,15 @@ contract SubjectSplitterV1Test is C1Fixture {
         target.depositRecognizedRevenue(address(token), gross, revenueRef);
     }
 
-    /// @dev Deposit USDC and return the net that actually became a staker liability. With nobody
-    ///      staked the net goes straight to the treasury and is never owed to a staker.
+    /// @dev Deposit USDC and return the amount that actually became a staker liability, observed as
+    ///      the liability the recognition created rather than recomputed from the splitter's own
+    ///      formula. Whatever the staked supply did not cover went straight to the treasury and is
+    ///      never owed to a staker, so this is independently bounded by the post-skim net.
     function _depositTrackingStakerNet(uint256 gross, bytes32 revenueRef) private returns (uint256 stakerNet) {
-        if (splitter.totalStaked() != 0) stakerNet = gross - (gross * 200) / 10_000;
+        uint256 before = splitter.unclaimedLiability(address(usdc));
         _deposit(usdc, gross, revenueRef);
+        stakerNet = splitter.unclaimedLiability(address(usdc)) - before;
+        assertLe(stakerNet, gross - (gross * 200) / 10_000, "a recognition credited stakers beyond its own net");
     }
 
     /// @dev Everything already paid to the two stakers plus everything they may claim right now is
