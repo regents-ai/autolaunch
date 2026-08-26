@@ -813,7 +813,19 @@ contract RegentLBPStrategyTest is StrategyFixture {
     ///         to and reaches escrow; only the recorded reserve is ever budgeted for LP.
     function test_STR_015_GiftedSubjectIsRoutedToEscrow() public {
         Launch memory launch = _defaultLaunch();
-        launch.subject.mint(address(strategy), 3_000e18);
+
+        // A gift is a transfer, never new supply: the launch's complete 100B is already minted and
+        // production has no path that could create a 100B-and-three-thousandth token. The 3,000 is
+        // moved out of the escrow's pending custody to an ordinary holder, who then gifts it on, so
+        // the strategy meets exactly the same 3,000 it always did against an unchanged total supply.
+        // Escrow authentication already ran inside `_defaultLaunch`, and the escrow's graduation
+        // path measures its own deltas rather than an absolute custody figure, so the withdrawal is
+        // invisible to everything this test drives — and `escrowBefore` is snapshotted after it.
+        address donor = makeAddr("subject-donor");
+        vm.prank(address(launch.escrow));
+        launch.subject.transfer(donor, 3_000e18);
+        vm.prank(donor);
+        launch.subject.transfer(address(strategy), 3_000e18);
 
         _bidToGraduation(launch, 2_000e18);
         uint256 escrowBefore = launch.subject.balanceOf(address(launch.escrow));
