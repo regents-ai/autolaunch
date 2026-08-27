@@ -130,7 +130,12 @@ contract RegentsAutolaunchFactoryV1 {
     uint256 public launchFee;
 
     /// @notice Whether new launches are paused. Nothing else in the system is ever paused.
-    bool public launchesPaused;
+    /// @dev Every factory is born paused, so putting the graph on chain and opening it to launchers
+    ///      are two separate acts by two different accounts: the deployer's five creations leave
+    ///      this `true`, and only the frozen Governance and Regent Safe can ever turn it off. The
+    ///      constructor writes it and announces nothing, so anything deciding whether launches are
+    ///      admitted reads this getter rather than waiting for an event that was never emitted.
+    bool public launchesPaused = true;
 
     /// @notice The launch a SUBJECT belongs to, or zero if this factory never created it.
     mapping(address subject => uint256 launchId) public launchIdOfSubject;
@@ -265,13 +270,16 @@ contract RegentsAutolaunchFactoryV1 {
     /// @notice Stop admitting new launches. Governance only.
     /// @dev This gates `launch` and nothing else. Existing auctions, migration, refunds, staking,
     ///      claims, swaps, payments, vesting, recovery and custom receivers are all untouched by it.
+    ///      A factory that has never been opened is already paused, so this is the second half of
+    ///      the ordinary order — open, then close, then open again — and not the first.
     function pauseLaunches() external onlyGovernance {
         if (launchesPaused) revert LaunchesAlreadyPaused();
         launchesPaused = true;
         emit LaunchesPaused();
     }
 
-    /// @notice Admit new launches again. Governance only.
+    /// @notice Admit new launches. Governance only, and on a newly deployed factory this is the one
+    ///         call that opens it for the first time.
     function unpauseLaunches() external onlyGovernance {
         if (!launchesPaused) revert LaunchesNotPaused();
         launchesPaused = false;

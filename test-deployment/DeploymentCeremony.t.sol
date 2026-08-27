@@ -182,7 +182,7 @@ contract DeploymentCeremonyTest is Test {
         assertEq(address(factory.hook()), graph.hook, "the factory bound another hook");
         assertEq(factory.launchFee(), factory.INITIAL_LAUNCH_FEE(), "the factory was not born at its initial fee");
         assertEq(factory.nextLaunchId(), 1, "the factory was not born at launch id one");
-        assertFalse(factory.launchesPaused(), "the factory was born paused");
+        assertTrue(factory.launchesPaused(), "the fifth receipt did not leave the factory paused");
 
         assertEq(strategy.factory(), graph.factory, "the strategy bound another factory");
         assertEq(strategy.escrowImplementation(), graph.escrowImplementation, "the strategy bound another escrow");
@@ -249,6 +249,17 @@ contract DeploymentCeremonyTest is Test {
         vm.prank(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
         factory.setLaunchFee(7);
         assertEq(factory.launchFee(), 7, "the frozen Safe is not the launch-fee authority");
+
+        // The same is true of activation, and it is proved the only honest way: the ceremony's own
+        // graph is still closed, and impersonating the frozen Safe's exact address and calling the
+        // real `unpauseLaunches()` opens it. Nothing here writes storage directly, nothing here is
+        // a live Safe signature, and nothing here proves anything about that Safe's own signer
+        // configuration — only that the graph these five creations produce admits that one address
+        // and no other as the account a later, separately authorized activation would come from.
+        assertTrue(factory.launchesPaused(), "the ceremony graph did not stay paused");
+        vm.prank(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
+        factory.unpauseLaunches();
+        assertFalse(factory.launchesPaused(), "the frozen Safe is not the activation authority");
 
         // Nothing about the deployer survives in the graph: no balance, no code, no allowance from
         // any created contract, and no residual role. Its remaining ETH is ordinary wallet property.

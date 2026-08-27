@@ -14,7 +14,7 @@ each constructor takes.
 
 | Contract | Runtime (B) | EIP-170 margin | Creation (B) | Constructor args (B) | Initcode (B) | EIP-3860 margin |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `RegentsAutolaunchFactoryV1` | 7,097 | 17,479 | 34,435 | 160 | 34,595 | 14,557 |
+| `RegentsAutolaunchFactoryV1` | 7,097 | 17,479 | 34,448 | 160 | 34,608 | 14,544 |
 | `RegentLBPStrategy` | 19,266 | 5,310 | 19,782 | 128 | 19,910 | 29,242 |
 | `RegentFeeHook` | 5,780 | 18,796 | 6,599 | 64 | 6,663 | 42,489 |
 | `ConditionalVestingEscrowV1` | 4,527 | 20,049 | 4,665 | 0 | 4,665 | 44,487 |

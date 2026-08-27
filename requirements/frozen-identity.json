@@ -1,7 +1,7 @@
 {
   "authority": "SPEC.md",
   "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs. src/bindings/FrozenIdentity.sol and src/bindings/BaseBindings.sol are the compiled copies; test/bindings/ proves the compiled copies equal this file.",
-  "spec_sha256": "c85bc2e4cfab13a49dc06b054a3dc695289c71bc19f405bd464f6ee64f5370b9",
+  "spec_sha256": "e85f4b23f56c62cb9e4bb39583efd1b810731a90ee3dad7dd5c11d5c5cdc40af",
   "chain": {
     "name": "base-mainnet",
     "id": 8453
@@ -101,7 +101,7 @@
   },
   "final_source_delta": {
     "note": "The closed set of src/** contracts whose compiled bytes are allowed to differ from the immutable C4 capture above. bin/freeze-artifacts.py check requires every contract named here to ACTUALLY differ, so this record can never become a standing exemption, and requires every contract not named here to equal C4 byte for byte. That is what proves the ticket sequence through regent-alv1.11 touched exactly the factory, the strategy, the splitter and the receiver, and left the escrow and the fee hook byte-identical. It proves which production bytes moved; the source diff and independent review prove why.",
-    "ticket": "regent-alv1.11",
+    "ticket": "regent-alv1.12",
     "changed": [
       {
         "key": "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
@@ -117,7 +117,7 @@
       },
       {
         "key": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",
-        "reason": "LaunchParams, the Launch record and LaunchCreated lose their recoveryAdmin field, the launch-record readback renumbers accordingly, and SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH and RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH are updated to the corrected clone runtimes. regent-alv1.10 and regent-alv1.11 each move SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH once more, to the runtime the supply-coverage splitter and then the supply-bound splitter compile to, so the factory's existing constructor admission keeps admitting the real implementation; that literal is the only factory edit either ticket makes, and no selector, field, event or other factory behaviour changes with it. ABI-002, ABI-003, ABI-007, ABI-011 and DEP-060 carry it."
+        "reason": "regent-alv1.12 declares the existing launchesPaused storage slot with the initializer true, so every factory is born paused and deploying the graph is separated from opening it: the five creation transactions leave launches closed, the disposable deployer gains nothing over that, and only the frozen Governance/Regent Safe's own unpauseLaunches() admits the first launch. The constructor's one extra store is the whole delta — the deployed runtime bytes and their keccak do not move at all, only the creation code does — and no selector, event topic, indexed field, integer width, error, constructor argument, economic rule or admission rule changes with it. FAC-007, FAC-019, DEP-072 and DEP-073 carry the behaviour. The literals this entry recorded before still stand: regent-alv1.7.1 removed the recoveryAdmin field from LaunchParams, the Launch record and LaunchCreated and renumbered the launch-record readback, and regent-alv1.7.1, regent-alv1.10 and regent-alv1.11 each moved SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH and RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH to the clone runtimes their own splitter and receiver edits produced, so the factory's existing constructor admission keeps admitting the real implementations. ABI-002, ABI-003, ABI-007, ABI-011 and DEP-060 carry that part."
       }
     ]
   },

@@ -597,7 +597,7 @@ selectors = ["test_DEP_071_FactoryAloneCreatesTheStrategyAndTheMinedHook"]
 
 [[requirement]]
 id = "DEP-072"
-statement = "Every constructor binding and runtime readback across the seven contracts the ceremony produces is exact: the factory's token factory, strategy and hook, its initial launch fee, first launch id and unpaused state; the strategy's factory, three clone implementations and bound hook; the hook's PoolManager and strategy; and the deployed runtime code hash of each of the four admitted addresses equals the hash the factory constructor admitted."
+statement = "Every constructor binding and runtime readback across the seven contracts the ceremony produces is exact: the factory's token factory, strategy and hook, its initial launch fee, first launch id and paused state — the fifth receipt leaves launches closed; the strategy's factory, three clone implementations and bound hook; the hook's PoolManager and strategy; and the deployed runtime code hash of each of the four admitted addresses equals the hash the factory constructor admitted."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -607,7 +607,7 @@ selectors = ["test_DEP_072_EveryConstructorBindingAndReadbackIsExact"]
 
 [[requirement]]
 id = "DEP-073"
-statement = "After the five creations the disposable deployer holds no protocol authority anywhere in the graph: every governance-only and factory-only entry point refuses it, the frozen Governance/Regent Safe is the sole launch-fee and pause authority, and no contract the ceremony created holds ETH."
+statement = "After the five creations the disposable deployer holds no protocol authority anywhere in the graph: every governance-only and factory-only entry point refuses it, the frozen Governance/Regent Safe is the sole launch-fee and pause authority, and no contract the ceremony created holds ETH. The created graph is still paused, and impersonating that exact Safe address and calling the real unpauseLaunches() opens it — which proves only that the graph admits that one address as its activation authority, never that the live Safe's signers executed anything and never that any activation is authorized."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -709,13 +709,16 @@ selectors = ["test_FAC_006_OnlyGovernanceChangesTheLaunchFee"]
 
 [[requirement]]
 id = "FAC-007"
-statement = "Governance may pause and unpause only new launches, and no other actor holds that authority."
+statement = "Every freshly constructed factory begins paused, so construction alone admits no launch: launchesPaused() is true, a launch reverts with LaunchesArePaused before any fee movement, launch-ID allocation, deployment or event, pauseLaunches() reverts with LaunchesAlreadyPaused, and the constructor emits no pause or unpause event. Governance may then pause and unpause only new launches, and no other actor holds that authority."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_FAC_007_OnlyGovernancePausesNewLaunches"]
+selectors = [
+    "test_FAC_007_AFreshFactoryIsBornPausedUntilGovernanceOpensIt",
+    "test_FAC_007_OnlyGovernancePausesNewLaunches",
+]
 
 [[requirement]]
 id = "FAC-008"

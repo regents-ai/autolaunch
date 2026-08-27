@@ -160,6 +160,29 @@ abstract contract AutolaunchFixture is Test {
         );
         strategy = factory.strategy();
         hook = factory.hook();
+
+        // Every factory is born paused, so a harness that launches has to be opened first. That
+        // happens here, once, through the real `unpauseLaunches()` from the frozen Safe's own
+        // address — never a storage edit — which is exactly the deliberate governance transaction a
+        // deployed factory waits for. `_deployUntouchedFactory` is what the born-paused proof
+        // observes instead, precisely because this call never reaches it.
+        vm.prank(governance);
+        factory.unpauseLaunches();
+    }
+
+    /// @notice A second factory, constructed the same admitted way and left exactly as construction
+    ///         left it.
+    /// @dev The deliberate unpause above never touches this one, so it is the only honest place to
+    ///      observe what a freshly deployed factory actually admits.
+    function _deployUntouchedFactory() internal returns (RegentsAutolaunchFactoryV1 fresh) {
+        bytes32 salt = _mineHookSalt(vm.computeCreateAddress(address(this), vm.getNonce(address(this))));
+        fresh = new RegentsAutolaunchFactoryV1(
+            address(uerc20Factory),
+            address(escrowImplementation),
+            address(splitterImplementation),
+            address(receiverImplementation),
+            salt
+        );
     }
 
     /// @notice The one admitted hook-salt derivation, exactly as C5's deployment packet will run it.

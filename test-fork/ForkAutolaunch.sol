@@ -88,6 +88,16 @@ abstract contract ForkAutolaunch is ForkFixture {
         );
         strategy = factory.strategy();
         hook = factory.hook();
+
+        // The deployed graph starts closed, exactly as a real fifth receipt leaves it, and that is
+        // asserted here before anything else so no lifecycle below can be read as evidence that a
+        // fresh factory admits launches. Opening it is the one deliberate governance step this
+        // harness stages: a prank of the frozen Safe's own address calling the real
+        // `unpauseLaunches()`, never a storage edit, and never a claim about that Safe's signers.
+        assertTrue(factory.launchesPaused(), "the freshly deployed fork factory was not born paused");
+        vm.prank(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
+        factory.unpauseLaunches();
+        assertFalse(factory.launchesPaused(), "the frozen governance identity could not open the factory");
     }
 
     /// @notice Launch parameters at the worst admitted metadata shape and a caller-chosen raise.

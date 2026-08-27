@@ -29,8 +29,36 @@ creation would end construction past nonce 3. `DEP-071` asserts exactly that.
 There is no sixth transaction. No helper is deployed, no proxy is installed, no ownership is
 transferred, no role is granted, no governance call is made, no application is admitted, and no
 post-deployment binding call exists to make. The factory is born with its launch fee, its first
-launch id, and its unpaused state already correct, and the frozen Governance/Regent Safe is already
+launch id, and its paused state already correct, and the frozen Governance/Regent Safe is already
 its only mutable authority because that address is compiled into it.
+
+## Deploying the graph and opening it are two separate acts
+
+**The fifth receipt leaves launches closed.** Every factory is born paused, so a completed ceremony
+puts the whole graph on Base without admitting a single launch. The disposable deployer gains no
+say in that: it cannot pause, cannot unpause, and cannot make the constructor, the script, or any
+helper do it on its way past. `DEP-072` reads the deployed factory's `launchesPaused()` back and
+requires `true`; `DEP-073` proves the deployer is refused by both switches and that the frozen
+Governance/Regent Safe is the one address the created graph admits as its activation authority,
+by impersonating that exact address on a local fork and calling the real `unpauseLaunches()`.
+
+That impersonation proves what the graph admits and nothing more. It is not a Safe signature, it
+says nothing about that Safe's own signers or threshold, and it is not an authorization: no
+rehearsal, packet, manifest, gate or passing run is an instruction to activate anything.
+
+**Activation is a later, separate Regent Safe transaction, and it is not authorized by this
+ticket.** After a ceremony confirms, the receipt-derived deployed manifest, the source and runtime
+checks, and the frontend's admission wiring may all be prepared while the factory is still closed.
+Opening it needs a further founder instruction, after which the Safe signs one `unpauseLaunches()`.
+Until that transaction confirms, `launch` reverts with `LaunchesArePaused` before any fee moves,
+any ID is allocated, or anything is deployed.
+
+**Read the state, do not infer it.** The constructor writes the paused flag and emits nothing, so
+there is no `LaunchesPaused` log at deployment and there never will be one for that initial state.
+Anything downstream that decides whether launches are open — the runbook, the deployed manifest
+handoff, the product's admission surface — reads `launchesPaused()` on the deployed factory rather
+than inferring the initial state from an event that was never emitted. Enforcing that in the Ash
+application is outside this contract ticket.
 
 ## The three values the ceremony consumes
 
@@ -240,7 +268,7 @@ operation, not a prerequisite transaction in this five-creation ceremony.
 | --- | --- |
 | `DEP-070` | five direct zero-value creations on the deployer's own nonce sequence, in the fixed order, advancing the nonce by exactly five |
 | `DEP-071` | the factory alone creates the strategy at factory nonce 1 and the hook by `CREATE2` over the pre-mined salt, at an address carrying exactly the five permission bits |
-| `DEP-072` | every constructor binding and runtime readback across the seven contracts, and the four admitted runtime code hashes |
-| `DEP-073` | the disposable deployer retains no protocol authority, and the frozen Safe is the sole mutable authority |
+| `DEP-072` | every constructor binding and runtime readback across the seven contracts, the four admitted runtime code hashes, and the paused state the fifth receipt leaves behind |
+| `DEP-073` | the disposable deployer retains no protocol authority, the frozen Safe is the sole mutable authority, and the created graph admits that one address — and only it — as the account a later activation would come from |
 | `DEP-074` | EIP-170 and EIP-3860 margins for all seven contracts, plus each creation's in-EVM gas floor under a 14,000,000 guardrail. No complete deployment-transaction gas figure is measured or claimed |
 | `DEP-075` | every mismatch aborts in simulation, before anything is created and before a broadcast has a sequence to send, and a completed ceremony cannot be resumed |

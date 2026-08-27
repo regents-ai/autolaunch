@@ -167,7 +167,7 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
 
         // A second factory produces its own hook at its own mined address, bound to its own
         // strategy. Nothing about the first graph is reachable from the second.
-        RegentsAutolaunchFactoryV1 second = _deploySecondFactory();
+        RegentsAutolaunchFactoryV1 second = _deployUntouchedFactory();
         assertTrue(address(second.hook()) != address(hook), "the second factory reused the first hook");
         assertEq(second.hook().strategy(), address(second.strategy()), "the second hook is misbound");
         assertEq(
@@ -252,16 +252,5 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
             )
         );
         new RegentsAutolaunchFactoryV1(tokenFactory, escrow, splitter, receiver, bytes32(0));
-    }
-
-    function _deploySecondFactory() private returns (RegentsAutolaunchFactoryV1 second) {
-        bytes32 salt = _mineHookSalt(vm.computeCreateAddress(address(this), vm.getNonce(address(this))));
-        second = new RegentsAutolaunchFactoryV1(
-            address(uerc20Factory),
-            address(escrowImplementation),
-            address(splitterImplementation),
-            address(receiverImplementation),
-            salt
-        );
     }
 }

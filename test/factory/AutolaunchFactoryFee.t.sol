@@ -98,6 +98,73 @@ contract AutolaunchFactoryFeeTest is AutolaunchFixture {
         }
     }
 
+    /// @notice `FAC-007`: a factory is born paused. Construction admits no launch, announces no
+    ///         pause, and leaves the frozen Safe as the only account that can ever open it.
+    /// @dev The subject is a second factory the fixture's deliberate governance unpause never
+    ///      reached, so what it reports is what construction alone left behind and nothing else.
+    function test_FAC_007_AFreshFactoryIsBornPausedUntilGovernanceOpensIt() public {
+        vm.recordLogs();
+        RegentsAutolaunchFactoryV1 fresh = _deployUntouchedFactory();
+
+        // The paused default is storage, not an announcement: nothing anywhere in construction may
+        // emit a pause event a reader could mistake for a governance decision.
+        bytes32 paused = keccak256("LaunchesPaused()");
+        bytes32 unpaused = keccak256("LaunchesUnpaused()");
+        Vm.Log[] memory constructionLogs = vm.getRecordedLogs();
+        for (uint256 i; i < constructionLogs.length; ++i) {
+            assertTrue(constructionLogs[i].topics[0] != paused, "construction emitted a pause event");
+            assertTrue(constructionLogs[i].topics[0] != unpaused, "construction emitted an unpause event");
+        }
+
+        assertTrue(fresh.launchesPaused(), "a freshly constructed factory does not start paused");
+        assertEq(fresh.nextLaunchId(), 1, "a fresh factory did not start at launch id one");
+        assertEq(fresh.launchFee(), 1_000_000e18, "a fresh factory did not start at the initial fee");
+
+        // Closing what construction already closed is the same explicit state error it always was.
+        vm.expectRevert(RegentsAutolaunchFactoryV1.LaunchesAlreadyPaused.selector);
+        vm.prank(governance);
+        fresh.pauseLaunches();
+
+        // A launch is refused before the fee moves, before an ID is allocated, and before anything
+        // is deployed.
+        RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
+        regent.mint(launcher, params.expectedLaunchFee);
+        vm.prank(launcher);
+        regent.approve(address(fresh), params.expectedLaunchFee);
+
+        uint256 safeBefore = regent.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
+        uint64 nonceBefore = vm.getNonce(address(fresh));
+        vm.expectRevert(RegentsAutolaunchFactoryV1.LaunchesArePaused.selector);
+        vm.prank(launcher);
+        fresh.launch(params);
+
+        assertEq(fresh.nextLaunchId(), 1, "a born-paused factory allocated an ID");
+        assertEq(
+            regent.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE), safeBefore, "a born-paused factory took a fee"
+        );
+        assertEq(regent.allowance(launcher, address(fresh)), params.expectedLaunchFee, "the fee allowance was consumed");
+        assertEq(vm.getNonce(address(fresh)), nonceBefore, "a born-paused factory deployed something");
+
+        // Opening it is governance's alone, and nothing about deploying it granted anyone else that.
+        address[3] memory strangers = [launcher, outsider, address(this)];
+        for (uint256 i; i < strangers.length; ++i) {
+            vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.NotGovernance.selector, strangers[i]));
+            vm.prank(strangers[i]);
+            fresh.unpauseLaunches();
+        }
+        assertTrue(fresh.launchesPaused(), "a stranger opened the factory");
+
+        vm.expectEmit(true, true, true, true, address(fresh));
+        emit LaunchesUnpaused();
+        vm.prank(governance);
+        fresh.unpauseLaunches();
+        assertFalse(fresh.launchesPaused(), "governance could not open the factory");
+
+        vm.prank(launcher);
+        (uint256 launchId,,,) = fresh.launch(params);
+        assertEq(launchId, 1, "the opened factory did not admit its first launch");
+    }
+
     /// @notice `FAC-007`: only governance pauses or unpauses, the pause gates `launch` alone, and
     ///         repeating either transition is an explicit state error rather than a second path.
     function test_FAC_007_OnlyGovernancePausesNewLaunches() public {

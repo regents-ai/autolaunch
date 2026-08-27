@@ -87,6 +87,7 @@ Rules:
 
 - Supply is exactly 100 billion 18-decimal SUBJECT: 10% auction, 5% LP reserve, 85% vesting.
 - Initial launch fee is exactly 1,000,000 REGENT and goes to the Regent Safe.
+- Every factory begins paused. Construction admits no launch and announces no pause, so deploying the graph and opening it to launchers are separate acts: the five creation transactions leave launches closed, the disposable deployer gains no authority over that, and only a later Governance and Regent Safe transaction calling `unpauseLaunches()` admits the first launch. Anything deciding whether launches are open reads `launchesPaused()`.
 - Governance may change the fee, including to zero, and pause or unpause only new launches.
 - Factory allowance must equal the expected positive fee exactly. Zero fee requires zero factory allowance. A stale expected fee reverts everything.
 - Start is always `block.number + 1,800`.
