@@ -50,11 +50,11 @@ function selector, other event topic, indexed field or integer width moves. Sect
 [claim-corrections.md](claim-corrections.md) carries the whole delta.
 
 The four production contracts whose bytes differ from the pre-edit C4 baseline are unchanged as a
-set. The separately authorized fork evidence has not been executed against this candidate's bytecode
-and is not meant to be: `regent-4wx` runs it **once**, against the final candidate, after this
-correction and every later one is integrated and reviewed.
+set. `regent-4wx` executed the separately authorized fork proof once against this final C10 source
+authority: all eighteen fork claims at Base block `50495491`, followed by exactly the nine
+drift-sensitive claims at block `50495791`. All twenty-seven mapped selectors passed.
 
-## The production authority and the evidence candidate are two different commits
+## The production authority and the evidence candidate are two different identities
 
 They are named apart because they are separately auditable, and because conflating them is exactly
 how an evidence-only change would come to read as a production change.
@@ -64,13 +64,14 @@ how an evidence-only change would come to read as a production change.
 | Production authority commit | `7e70077d66b7a1a511806a68f086583c733c812a` |
 | Production authority tree | `23f26023216ec93f9014b3c0295588b5aede6ee0` |
 | Production source tree (`src/`) | `314889bcc6cabd5ceff336af93082d009df86205` |
-| Evidence candidate | the single `regent-4wx` commit whose parent is exactly the production authority commit, on branch `regent/regent-4wx-final-base-fork-proof-c10`. Its own commit and tree differ from both rows above and are recorded verbatim in that ticket's candidate record. |
+| Evidence candidate | the linear, evidence-only `regent-4wx` stack rooted at the production authority commit, on branch `regent/regent-4wx-final-base-fork-proof-c10`. Its exact final commit and tree are recorded verbatim in the ticket's candidate record. |
 
 The evidence candidate changes no production byte. Its `src/` tree is the same
 `314889bcc6cabd5ceff336af93082d009df86205`, and its whole diff is confined to `README.md`,
-`bin/fork-gate.sh`, `test-fork/`, `requirements/ledger.toml`, `docs/audit/` and
-`docs/security/threat-model.md`. `bin/gate.sh` regenerates the frozen ABI, size and runtime-identity
-documents from the compiled artifacts on either tree and gets the same bytes.
+`bin/fork-gate.sh`, `test-fork/`, `requirements/ledger.toml`,
+`reports/frozen/fork-observations.json`, `docs/audit/` and `docs/security/threat-model.md`.
+`bin/gate.sh` regenerates the frozen ABI, size and runtime-identity documents from the compiled
+artifacts on either tree and gets the same bytes.
 
 **The earlier C9 evidence candidate certifies nothing about this one.** Commit
 `49b7458e5c93f502247905201352074ef5b5c409` carried an earlier version of this same harness on top of
@@ -180,12 +181,12 @@ but the fork *execution* is not: it ran against an earlier candidate's bytecode.
 and it changed the splitter plus the factory's matching implementation hash.
 
 **This C10 candidate is the fifth object.** Its offline gate is complete and green, and it changes
-the same two files again: the splitter's supply binding, exit rule and recognition event, and the
-factory's matching implementation hash. Re-running
-`discover`, reviewing and installing the result, and running `check` is `regent-4wx`'s
-separately authorized step. It runs once, against the final post-correction
-candidate — not once per intermediate candidate — and it has not happened here. Nothing in this
-packet claims it has.
+the same two production files again: the splitter's supply binding, exit rule and recognition event,
+and the factory's matching implementation hash. `regent-4wx` then refreshed and independently
+reviewed the observation record and ran `check` once against the final post-correction source
+authority — not once per intermediate candidate. The run executed twenty-seven mapped selectors
+with zero failures or skips: eighteen claims at block `50495491`, then the approved nine-claim
+subset at block `50495791`.
 
 `regent-4wx` also fixed what that run will execute. The complete fork portfolio is proved at the
 committed pinned header, and a focused nine-claim subset — `DEP-040`, `DEP-041`, `DEP-042`,
@@ -204,21 +205,11 @@ the shape and the one limitation that follows from it.
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | activated and mapped; executed and passing against an *earlier* candidate's bytecode, under the earlier both-headers portfolio. `regent-4wx` runs the single re-execution against the final post-correction candidate — every claim at the pinned header, the nine-claim subset again at the later head — before these carry evidence for it |
-| `GAS-003..006` | fork | same: activated and mapped, and awaiting that one re-execution. `GAS-003`, `GAS-004` and `GAS-005` are measured at the pinned header; `GAS-006`, the claim about what the figure is, runs at both |
+| `DEP-040..053` | fork | active, executed and passing against the final C10 source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
+| `GAS-003..006` | fork | active, executed and passing; the three transaction envelopes run at the pinned header and `GAS-006` runs at both |
 
 ## What is not proved
 
-- **This candidate's own fork execution.** The `fork` claims are activated and mapped, and every one
-  of their selectors still compiles offline, but the committed fork run was executed against an
-  earlier candidate's production bytecode. `regent-4wx` repeats it once under the founder's separate
-  read-only authority, against the final candidate — after this correction and every later one is
-  integrated — and not once per intermediate candidate. One authorized attempt at that repetition has
-  already failed on a value injected under `REGENT_BASE_RPC_URL` that was not an endpoint: it created
-  no fork, wrote no candidate, installed no observation, closed no claim and certified nothing, and
-  the committed record and ledger were unchanged by it.
-  [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md) section 4.1 records
-  it and the boundary refusal it prompted.
 - **A second lifecycle portfolio at the fresh head.** The behaviour claims that drive real launches,
   bids, migrations, payments and swaps run once, at the committed pinned header. The fresh head
   re-derives every binding's deployed code identity, proxy family, implementation identity, the

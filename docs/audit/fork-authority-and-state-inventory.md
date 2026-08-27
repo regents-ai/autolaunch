@@ -145,22 +145,13 @@ must already be committed and clean before provider access begins.
 
 ## 4. Execution status
 
-> **Not executed for this candidate.** Everything in this section describes the run made against an
-> earlier candidate's production bytecode, under the earlier both-headers-for-everything portfolio.
-> `regent-alv1.7`, `regent-alv1.7.1`, `regent-alv1.10` and `regent-alv1.11` all changed production
-> bytes, so this candidate has no provider-backed evidence of its own. That run is `regent-4wx`'s, it
-> happens **once**, and it happens against the final candidate — after this correction and every
-> later one is integrated and reviewed — rather than once per intermediate candidate. The committed
-> observation record is chain truth and is unaffected; the execution against Regent bytecode is what
-> has to be repeated, and it will run the portfolio section 2.1 describes rather than the one below.
-
-**Executed and passing under read-only Base authority, for the earlier candidate and under the
-earlier portfolio.** The reviewed observation binds blocks `50362455` and `50362755`. The ledger
-activates `fork`; the compiled listing at that time contained thirty-six mapped selectors, eighteen
-claims at each header; and the compare-only gate executed each one exactly once with zero failures or
-skips. It reconciled fifty-six normalized cross-header verdicts and proved the committed observation
-and ledger were unchanged after both runs. Those counts belong to that run. This tree's harness maps
-twenty-seven selectors, and the counts the next execution reports will be its own.
+**Executed and passing under read-only Base authority for the final C10 source authority.** The
+reviewed observation binds blocks `50495491` and `50495791`. The ledger activates `fork`; the
+compiled listing contains twenty-seven mapped selectors; and the compare-only gate executed all
+eighteen fork claims at the pinned header plus exactly the approved nine-claim subset at the later
+header, with zero failures or skips. It recorded fifty-six normalized verdicts at the pinned header,
+forty-seven at the later header, proved every shared decision equal, and proved the committed
+observation and ledger byte-identical before and after provider access.
 
 The discovery pass wrote only gitignored scratch and closed no claim. A separate provider was used
 to confirm both headers, every recorded runtime identity and supported proxy classification, the

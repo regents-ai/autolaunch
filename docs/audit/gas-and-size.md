@@ -140,35 +140,21 @@ complete-transaction ceiling below.
 
 ## Complete-transaction gas (`GAS-003` through `GAS-006`)
 
-> **Superseded measurements — do not read these as this candidate's figures.** The table below was
-> measured against the **previous** candidate's production bytecode. `regent-alv1.7` changed the
-> compiled bytes of the factory, the strategy, the splitter and the receiver, so all four envelopes
-> have to be re-measured under the founder's separate read-only fork authority before they describe
-> this candidate. They are kept here as the last executed record, not as a current claim. The size
-> and code-identity tables above **are** current: they are regenerated from this candidate's own
-> artifacts and reconciled by `bin/gate.sh` on every run.
->
-> **The re-measurement will produce fewer columns, on purpose.** That earlier run measured all four
-> claims at both headers. `regent-4wx` narrowed the three envelope claims — `GAS-003`, `GAS-004`,
-> `GAS-005` — to the committed pinned header, because each of them drives a real launch or migration
-> against the shared Base singletons and the fresh-head subset re-reads the deployed code identity
-> those depend on instead of repeating the work. `GAS-006`, which is the claim about what the
-> *figure* is rather than what it must stay under, still runs at both headers, so the measurement
-> method itself remains proved against the fresh head. The "Later total" and "Later margin" columns
-> below therefore belong to the superseded run and will not have successors for the three envelope
-> rows.
-
-All four claims executed against the exact production bytecode of the previous candidate at Base
-blocks `50362455` and `50362755`. The totals include the measured gross execution cost plus the
+All four claims executed against the exact final C10 production bytecode at Base blocks `50495491`
+and `50495791`. `GAS-003`, `GAS-004` and `GAS-005` run at the pinned header; `GAS-006` runs at both
+and records the same cold and warm execution figures. The totals include measured gross cost plus the
 intrinsic and calldata schedule active at each header. Every envelope was below the founder's
 14,000,000-gas ceiling.
 
 | Claim | Envelope | Pinned total | Later total | Pinned margin | Later margin |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `GAS-003` | launch with maximum metadata and worst valid raise | 7,700,622 | 7,700,622 | 6,299,378 | 6,299,378 |
-| `GAS-004` | successful graduation | 1,454,529 | 1,454,529 | 12,545,471 | 12,545,471 |
-| `GAS-005` | failed-auction retirement with bidder inventory | 293,819 | 293,807 | 13,706,181 | 13,706,193 |
-| `GAS-006` | independent full-envelope launch measurement | 7,700,526 | 7,700,526 | 6,299,474 | 6,299,474 |
+| `GAS-003` | launch with maximum metadata and worst valid raise | 7,655,256 | — | 6,344,744 | — |
+| `GAS-004` | successful graduation | 1,407,858 | — | 12,592,142 | — |
+| `GAS-005` | failed-auction retirement with bidder inventory | 293,797 | — | 13,706,203 | — |
+| `GAS-006` | independent full-envelope launch measurement | 7,655,160 | 7,655,160 | 6,344,840 | 6,344,840 |
+
+`GAS-006` measured 7,613,988 gas cold and 7,486,688 gas warm at both headers. The warm control is
+127,300 gas cheaper; the test requires only the load-bearing fact that it is cheaper.
 
 The executed calculation is deliberately explicit:
 

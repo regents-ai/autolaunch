@@ -205,25 +205,22 @@ Both fork profiles build into `out-fork`, so fork artifacts can never reach the 
 gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
-gate's committed evidence. `fork` is active with the separately reviewed observation record, and its
-earlier execution ran all eighteen claims at both committed Base headers and passed **against the
-production bytecode of an earlier candidate**. `regent-alv1.7`, `regent-alv1.7.1`, `regent-alv1.10`
-and `regent-alv1.11` all changed production bytes, so `regent-4wx` owns one replacement execution
-against the final candidate: all eighteen claims at the pinned header and the focused nine-claim
-subset at the later head. The observation record itself remains chain truth until its reviewed
-replacement is installed. The current twenty-seven mapped selectors remain outside the offline test
-root, so only the read-only fork gate can execute or close them; the offline gate neither runs nor
-claims them.
+gate's committed evidence. `fork` is active with the separately reviewed observation record.
+`regent-4wx` executed all eighteen claims at Base block `50495491` and the focused nine-claim subset
+at block `50495791` against the final C10 source authority; all twenty-seven mapped selectors passed.
+Those selectors remain outside the offline test root, so only the read-only fork gate can execute or
+close them; the offline gate neither runs nor claims them.
 
-### The production authority and the evidence candidate are two commits, named apart
+### The production authority and the evidence candidate are named apart
 
 The production authority is commit `7e70077d66b7a1a511806a68f086583c733c812a`, tree
-`23f26023216ec93f9014b3c0295588b5aede6ee0`. The fork-evidence candidate is a separate `regent-4wx`
-commit whose parent is exactly that one; its own commit and tree are its own, and the ticket's
-candidate record names them. The two share one `src/` tree,
+`23f26023216ec93f9014b3c0295588b5aede6ee0`. The fork-evidence candidate is the linear,
+evidence-only `regent-4wx` stack rooted at that authority; the ticket's candidate record names its
+exact final commit and tree. The two share one `src/` tree,
 `314889bcc6cabd5ceff336af93082d009df86205`, because the evidence candidate changes no production
 byte — its diff reaches only `README.md`, `bin/fork-gate.sh`, `test-fork/`,
-`requirements/ledger.toml`, `docs/audit/` and `docs/security/threat-model.md`.
+`requirements/ledger.toml`, `reports/frozen/fork-observations.json`, `docs/audit/` and
+`docs/security/threat-model.md`.
 `docs/audit/README.md` carries the same table, and states there — as here — that the earlier C9
 evidence commit `49b7458e5c93f502247905201352074ef5b5c409` predates the C10 splitter and certifies
 nothing about this candidate.
