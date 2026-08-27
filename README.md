@@ -19,7 +19,9 @@ audit gates pass.
 > No deployment, signature, provider write, or value movement is authorized by this
 > repository. Nothing here has been deployed. A deployment packet and deployer have been
 > selected, but only a later founder instruction naming the packet's exact digest may
-> authorize a signature or a broadcast.
+> authorize a signature or a broadcast. Every factory is also born paused, so even a
+> completed ceremony admits no launch: opening one is a separate Governance and Regent Safe
+> transaction that needs its own founder instruction, and nothing here is that instruction.
 
 > [!IMPORTANT]
 > Evidence here is local by construction. `.github/workflows/test.yml` runs the same required
@@ -264,11 +266,14 @@ Both fork profiles build into `out-fork`, so fork artifacts can never reach the 
 gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
-gate's committed evidence. `fork` is active with the separately reviewed observation record.
-`regent-4wx` executed all eighteen claims at Base block `50495491` and the focused nine-claim subset
-at block `50495791` against the final C10 source authority; all twenty-seven mapped selectors passed.
-Those selectors remain outside the offline test root, so only the read-only fork gate can execute or
-close them; the offline gate neither runs nor claims them.
+gate's committed evidence. `fork` is active with the separately reviewed observation record. This
+candidate executed all eighteen claims at Base block `50495491` and the focused nine-claim subset at
+block `50495791` against its own born-paused source authority; all twenty-seven mapped selectors
+passed. The record's observed values did not move — the same reviewed headers, bindings, proxies and
+gas schedule were re-checked live and matched — so only the `source_authority` it names moved, which
+is what makes the run evidence about these bytes rather than an earlier candidate's. Those selectors
+remain outside the offline test root, so only the read-only fork gate can execute or close them; the
+offline gate neither runs nor claims them.
 
 ## The deployment-ceremony gate
 
@@ -308,19 +313,27 @@ authorization state is still `not authorized`: no founder has granted a `GO_TO_D
 signing method is named, and only a later founder instruction naming the packet's exact digest
 may authorize a signature or a broadcast.
 
-### The production authority and the evidence candidate are named apart
+**And a completed ceremony would still admit no launch.** Every factory is born paused, so the fifth
+receipt leaves launches closed and the disposable deployer has no say in that. `DEP-072` reads the
+paused state back off the ceremony graph, and `DEP-073` proves that graph admits the frozen
+Governance and Regent Safe address — and only it — as the account a later activation would come
+from, by impersonating that address on a local fork and calling the real `unpauseLaunches()`. That
+proves what the graph admits; it is not a Safe signature, says nothing about that Safe's signers,
+and authorizes nothing. Opening a deployed factory is a separate Safe transaction requiring its own
+founder instruction, and anything downstream reads `launchesPaused()` rather than inferring the
+initial state from an event that was never emitted.
 
-The production authority is commit `7e70077d66b7a1a511806a68f086583c733c812a`, tree
-`23f26023216ec93f9014b3c0295588b5aede6ee0`. The fork-evidence candidate is the linear,
-evidence-only `regent-4wx` stack rooted at that authority; the ticket's candidate record names its
-exact final commit and tree. The two share one `src/` tree,
-`314889bcc6cabd5ceff336af93082d009df86205`, because the evidence candidate changes no production
-byte — its diff reaches only `README.md`, `bin/fork-gate.sh`, `test-fork/`,
-`requirements/ledger.toml`, `reports/frozen/fork-observations.json`, `docs/audit/` and
-`docs/security/threat-model.md`.
-`docs/audit/README.md` carries the same table, and states there — as here — that the earlier C9
-evidence commit `49b7458e5c93f502247905201352074ef5b5c409` predates the C10 splitter and certifies
-nothing about this candidate.
+### The production authority and the fork-evidence commit are named apart
+
+The production authority is commit `9eb3a7257a96e781b4a3d115e881d50acd496216`, tree
+`abb3a2894f60e1335a38f38be4902d1d9002a083`, carrying `src/` tree
+`2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b`. The fork-evidence commit is
+`aa97e4189835abdf16c4771513c296adcb4abd95`, which sits directly on it and shares that same `src/`
+tree, because it changes no production byte: its whole diff is the two `source_authority` fields
+inside `reports/frozen/fork-observations.json`, the naming step the fork gate proves against Git and
+against the checkout before any fork test opens. `docs/audit/README.md` carries the same table, and
+states there — as here — that the identities the earlier `regent-4wx` proof named belong to the
+pre-`regent-alv1.12` bytecode and certify nothing about this candidate.
 
 ## The other repositories
 

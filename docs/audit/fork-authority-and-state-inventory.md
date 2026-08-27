@@ -145,19 +145,30 @@ must already be committed and clean before provider access begins.
 
 ## 4. Execution status
 
-**Executed and passing under read-only Base authority for the final C10 source authority.** The
-reviewed observation binds blocks `50495491` and `50495791`. The ledger activates `fork`; the
-compiled listing contains twenty-seven mapped selectors; and the compare-only gate executed all
-eighteen fork claims at the pinned header plus exactly the approved nine-claim subset at the later
-header, with zero failures or skips. It recorded fifty-six normalized verdicts at the pinned header,
-forty-seven at the later header, proved every shared decision equal, and proved the committed
-observation and ledger byte-identical before and after provider access.
+**Executed and passing under read-only Base authority for the `regent-alv1.12` born-paused source
+authority.** The reviewed observation binds blocks `50495491` and `50495791`. The ledger activates
+`fork`; the compiled listing contains twenty-seven mapped selectors; and the compare-only gate
+executed all eighteen fork claims at the pinned header plus exactly the approved nine-claim subset
+at the later header, with zero failures or skips. It recorded fifty-six normalized verdicts at the
+pinned header, forty-seven at the later header, proved every shared decision equal, and proved the
+committed observation and ledger byte-identical before and after provider access.
 
-The discovery pass wrote only gitignored scratch and closed no claim. A separate provider was used
-to confirm both headers, every recorded runtime identity and supported proxy classification, the
-two implementation identities, CCA's zero fee controller, live staking and token getters, and the
-pinned PositionManager counter before the record was installed. No provider write, signature,
-deployment, or value movement occurred.
+That run was made against production authority commit
+`9eb3a7257a96e781b4a3d115e881d50acd496216`, carrying `src/` tree
+`2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b`, and the gate proved both against Git and against the
+checkout before any fork test opened. The evidence commit is
+`aa97e4189835abdf16c4771513c296adcb4abd95`, which changes nothing but the two `source_authority`
+fields inside the record. No observed value moved with it: the same reviewed headers, bindings,
+proxy families, implementations and transaction gas schedule were re-checked live against Base and
+matched exactly, which is what makes this a re-execution against different bytecode rather than a
+re-observation of the chain. Discovery was therefore not re-run, and nothing about the reviewed
+record was re-derived by the candidate it certifies.
+
+The earlier discovery pass wrote only gitignored scratch and closed no claim. A separate provider
+was used to confirm both headers, every recorded runtime identity and supported proxy
+classification, the two implementation identities, CCA's zero fee controller, live staking and token
+getters, and the pinned PositionManager counter before the record was installed. No provider write,
+signature, deployment, or value movement occurred in that pass or in this one.
 
 ### 4.1 The failed `regent-4wx` attempt, recorded as what it was
 

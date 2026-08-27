@@ -1,4 +1,4 @@
-# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7, regent-alv1.7.1, regent-alv1.10 and regent-alv1.11
+# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7, regent-alv1.7.1, regent-alv1.10, regent-alv1.11 and regent-alv1.12
 
 **Release posture: mainnet NO-GO.** Nothing in this repository is deployed, no Regent address
 exists, and no deployment instruction has been given. This packet exists to be audited, not acted
@@ -33,7 +33,7 @@ latest stake before that account may unstake, which makes an atomic stake, recog
 round trip fail entirely. Section 7 of [claim-corrections.md](claim-corrections.md) carries that
 delta.
 
-`regent-alv1.11` is this candidate, and it closes the three things review found open in that one.
+`regent-alv1.11` closes the three things review found open in that one.
 The denominator is no longer an assumption: initialization now executes the bare precondition
 `require(IERC20Minimal(subject_).totalSupply() == SUBJECT_TOTAL_SUPPLY)` after the duplicate-token
 refusal and before the first binding write, so a clone binds only a SUBJECT that actually reports the
@@ -49,8 +49,23 @@ immediate. The only ABI additions across both tickets are the renamed
 function selector, other event topic, indexed field or integer width moves. Section 8 of
 [claim-corrections.md](claim-corrections.md) carries the whole delta.
 
+`regent-alv1.12` is this candidate, and it changes one production decision: every Autolaunch factory
+now begins paused. Deploying the graph and opening it to launchers become two separate acts by two
+different accounts — the five creation transactions leave launches closed, the disposable deployer
+gains nothing over that, and only a later Governance and Regent Safe `unpauseLaunches()` admits the
+first launch. The constructor writes the flag and announces nothing, so anything downstream reads
+`launchesPaused()` rather than inferring the initial state from an event that was never emitted.
+Nothing else moves: no selector, event topic, indexed field, integer width, error, constructor
+argument, five-transaction topology, predicted address, hook salt, economic rule, hook rule,
+treasury admission, required-raise rule or metadata rule changes, and the factory's deployed runtime
+bytes are byte-identical to the previous candidate's — only its creation code grows, by the
+constructor's one extra store. `FAC-007` proves the born-paused default on a separately constructed
+factory the shared fixture's deliberate unpause never reaches; `DEP-072` reads the paused state back
+off the ceremony graph and `DEP-073` proves that graph admits the frozen Safe address, and only it,
+as its activation authority. **Activation itself is not authorized by this candidate.**
+
 The four production contracts whose bytes differ from the pre-edit C4 baseline are unchanged as a
-set. `regent-4wx` executed the separately authorized fork proof once against this final C10 source
+set. The separately authorized fork proof was executed once against this candidate's source
 authority: all eighteen fork claims at Base block `50495491`, followed by exactly the nine
 drift-sensitive claims at block `50495791`. All twenty-seven mapped selectors passed.
 
@@ -61,17 +76,23 @@ how an evidence-only change would come to read as a production change.
 
 | Object | Identity |
 | --- | --- |
-| Production authority commit | `7e70077d66b7a1a511806a68f086583c733c812a` |
-| Production authority tree | `23f26023216ec93f9014b3c0295588b5aede6ee0` |
-| Production source tree (`src/`) | `314889bcc6cabd5ceff336af93082d009df86205` |
-| Evidence candidate | the linear, evidence-only `regent-4wx` stack rooted at the production authority commit, on branch `regent/regent-4wx-final-base-fork-proof-c10`. Its exact final commit and tree are recorded verbatim in the ticket's candidate record. |
+| Production authority commit | `9eb3a7257a96e781b4a3d115e881d50acd496216` |
+| Production authority tree | `abb3a2894f60e1335a38f38be4902d1d9002a083` |
+| Production source tree (`src/`) | `2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b` |
+| Fork-evidence commit | `aa97e4189835abdf16c4771513c296adcb4abd95` |
 
-The evidence candidate changes no production byte. Its `src/` tree is the same
-`314889bcc6cabd5ceff336af93082d009df86205`, and its whole diff is confined to `README.md`,
-`bin/fork-gate.sh`, `test-fork/`, `requirements/ledger.toml`,
-`reports/frozen/fork-observations.json`, `docs/audit/` and `docs/security/threat-model.md`.
-`bin/gate.sh` regenerates the frozen ABI, size and runtime-identity documents from the compiled
-artifacts on either tree and gets the same bytes.
+The fork-evidence commit changes no production byte. Its `src/` tree is the same
+`2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b`, and its whole diff is the two `source_authority` fields
+inside `reports/frozen/fork-observations.json` — the naming step the fork gate then proves against
+Git and against the checkout before any fork test opens. `bin/gate.sh` regenerates the frozen ABI,
+size and runtime-identity documents from the compiled artifacts on either tree and gets the same
+bytes.
+
+The identities the earlier `regent-4wx` proof named — production authority
+`7e70077d66b7a1a511806a68f086583c733c812a`, tree `23f26023216ec93f9014b3c0295588b5aede6ee0`, `src/`
+tree `314889bcc6cabd5ceff336af93082d009df86205`, evidence commit
+`f6bb34087dc16f6edf72e434f30f5e953071a579` — belong to the pre-`regent-alv1.12` bytecode and
+certify nothing about this one.
 
 **The earlier C9 evidence candidate certifies nothing about this one.** Commit
 `49b7458e5c93f502247905201352074ef5b5c409` carried an earlier version of this same harness on top of
@@ -181,13 +202,20 @@ but the fork *execution* is not: it ran against an earlier candidate's bytecode.
 **The C9 supply-coverage correction was a fourth object.** Its offline gate was complete and green,
 and it changed the splitter plus the factory's matching implementation hash.
 
-**This C10 candidate is the fifth object.** Its offline gate is complete and green, and it changes
+**The C10 candidate was the fifth object.** Its offline gate was complete and green, and it changed
 the same two production files again: the splitter's supply binding, exit rule and recognition event,
 and the factory's matching implementation hash. `regent-4wx` then refreshed and independently
-reviewed the observation record and ran `check` once against the final post-correction source
-authority — not once per intermediate candidate. The run executed twenty-seven mapped selectors
-with zero failures or skips: eighteen claims at block `50495491`, then the approved nine-claim
-subset at block `50495791`.
+reviewed the observation record and ran `check` once against that post-correction source authority —
+not once per intermediate candidate.
+
+**This `regent-alv1.12` candidate is the sixth object.** Its offline gate is complete and green, and
+it changes one production file: the factory's `launchesPaused` slot now starts `true`. Because the
+factory's compiled bytes move, the earlier fork *execution* does not carry over, so the record was
+pointed at this candidate's own source authority and `check` was run again against it. That run
+executed twenty-seven mapped selectors with zero failures or skips: eighteen claims at block
+`50495491`, then the approved nine-claim subset at block `50495791`. The observed Base facts were
+unchanged and were re-checked live rather than re-observed, so no discovery pass and no new
+reviewer decision was involved.
 
 `regent-4wx` also fixed what that run will execute. The complete fork portfolio is proved at the
 committed pinned header, and a focused nine-claim subset — `DEP-040`, `DEP-041`, `DEP-042`,
@@ -206,9 +234,9 @@ the shape and the one limitation that follows from it.
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | active, executed and passing against the final C10 source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
+| `DEP-040..053` | fork | active, executed and passing against this candidate's source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
 | `GAS-003..006` | fork | active, executed and passing; the three transaction envelopes run at the pinned header and `GAS-006` runs at both |
-| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider. They prove the five-transaction ceremony itself, not a deployment: see [deployment-ceremony.md](deployment-ceremony.md) |
+| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider, and again under the read-only `--rehearse`. They prove the five-transaction ceremony itself — including that its fifth receipt leaves launches paused — and not a deployment: see [deployment-ceremony.md](deployment-ceremony.md) |
 
 ## What is not proved
 
@@ -225,9 +253,16 @@ the shape and the one limitation that follows from it.
 - **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
   signed nothing, and moved no value outside isolated local fork state. The deployment gate is the
   same: `DEP-070..075` prove what the five creation transactions would do and what stops a wrong
-  one, and the packet they render is a proposal whose status is `mainnet-NO-GO`. No deployer has
-  been selected, no address is predicted, no salt is mined into the packet, and only a later
-  founder instruction naming that packet's exact digest may authorize a signature or a broadcast.
+  one, and the packet they render is a proposal whose status is `mainnet-NO-GO`. The packet now
+  pins a founder-selected disposable deployer, its starting nonce, the mined hook salt and the
+  seven addresses those determine, and only a later founder instruction naming that packet's exact
+  digest may authorize a signature or a broadcast.
+- **An activation.** The factory is born paused, and nothing here opens it. `DEP-073` impersonates
+  the frozen Safe's exact address on a local fork to show that the created graph admits that one
+  address as its activation authority; that is a statement about the graph, not a Safe signature,
+  not a claim about that Safe's signers or threshold, and not permission to send anything. Opening
+  a deployed factory is a separate Regent Safe transaction that needs its own founder instruction,
+  and no rehearsal, packet, manifest or passing gate is that instruction.
 - **What the five deployment transactions cost.** `DEP-074` proves the EIP-170 and EIP-3860 size
   margins and measures each creation's in-EVM gas, which is a floor rather than a transaction cost.
   No complete deployment-transaction gas figure exists for these five creations: the full

@@ -140,21 +140,31 @@ complete-transaction ceiling below.
 
 ## Complete-transaction gas (`GAS-003` through `GAS-006`)
 
-All four claims executed against the exact final C10 production bytecode at Base blocks `50495491`
-and `50495791`. `GAS-003`, `GAS-004` and `GAS-005` run at the pinned header; `GAS-006` runs at both
-and records the same cold and warm execution figures. The totals include measured gross cost plus the
-intrinsic and calldata schedule active at each header. Every envelope was below the founder's
-14,000,000-gas ceiling.
+All four claims executed against the exact `regent-alv1.12` born-paused production bytecode at Base
+blocks `50495491` and `50495791`. `GAS-003`, `GAS-004` and `GAS-005` run at the pinned header;
+`GAS-006` runs at both and records the same cold and warm execution figures. The totals include
+measured gross cost plus the intrinsic and calldata schedule active at each header. Every envelope
+was below the founder's 14,000,000-gas ceiling.
 
 | Claim | Envelope | Pinned total | Later total | Pinned margin | Later margin |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `GAS-003` | launch with maximum metadata and worst valid raise | 7,655,256 | — | 6,344,744 | — |
+| `GAS-003` | launch with maximum metadata and worst valid raise | 7,653,256 | — | 6,346,744 | — |
 | `GAS-004` | successful graduation | 1,407,858 | — | 12,592,142 | — |
 | `GAS-005` | failed-auction retirement with bidder inventory | 293,797 | — | 13,706,203 | — |
-| `GAS-006` | independent full-envelope launch measurement | 7,655,160 | 7,655,160 | 6,344,840 | 6,344,840 |
+| `GAS-006` | independent full-envelope launch measurement | 7,653,160 | 7,653,160 | 6,346,840 | 6,346,840 |
 
-`GAS-006` measured 7,613,988 gas cold and 7,486,688 gas warm at both headers. The warm control is
-127,300 gas cheaper; the test requires only the load-bearing fact that it is cheaper.
+`GAS-006` measured 7,611,988 gas cold and 7,486,688 gas warm at both headers. The warm control is
+125,300 gas cheaper; the test requires only the load-bearing fact that it is cheaper.
+
+Both launch figures are 2,000 gas below the ones the previous candidate recorded, and the reason is
+the born-paused default rather than any change to what a launch does. A factory now has to be opened
+by the frozen Safe before it will admit a launch, so the fork harness makes that one governance call
+in the same fork it deployed into; the `launchesPaused` slot the launch then reads is already warm,
+at 100 gas instead of a cold 2,100. Graduation, retirement and the warm launch control are all
+unchanged, because none of them is the first touch of that slot. A real launch, sent on its own
+transaction against a factory the Safe opened in an earlier one, pays the cold 2,100 again — so the
+earlier, larger figure stays the conservative one to fund against, and both are far below the
+ceiling either way.
 
 The executed calculation is deliberately explicit:
 

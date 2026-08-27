@@ -22,7 +22,7 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x8f51cb00d022b76f70ca5218610b9c409dab5d70542d18e90d8e5041e974594e"
+    "value": "0x28c1cac554960bb9f1a107020c20679d4c3f8ef0396bbea8ad87127991b0a6a5"
   },
   "external_observation": {
     "governance_and_regent_safe": {
@@ -48,11 +48,11 @@
   },
   "external_observation_note": "The mutable external state a deployment depends on: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, modules, module page terminator, fallback handler, singleton and version. Frozen by `bin/deployment-gate.sh --prepare` and compared exactly by `--rehearse`, which also holds every frozen binding's runtime and proxy identity to reports/frozen/fork-observations.json and re-asserts the CCA zero fee controller and the USDC pause and blacklist policy. `observed_at_block` is provenance, not a comparison, because the head moves.",
   "immutable_identities": {
-    "fork_evidence_commit": "f6bb34087dc16f6edf72e434f30f5e953071a579",
+    "fork_evidence_commit": "aa97e4189835abdf16c4771513c296adcb4abd95",
     "note": "The production authority and the evidence candidate are two different identities that share one src/ tree. The candidate commit this packet was rendered from is proved by bin/deployment-gate.sh at run time and is deliberately not embedded here: a file cannot carry the hash of the commit that contains it.",
-    "production_authority_commit": "7e70077d66b7a1a511806a68f086583c733c812a",
-    "production_authority_tree": "23f26023216ec93f9014b3c0295588b5aede6ee0",
-    "shared_src_tree": "314889bcc6cabd5ceff336af93082d009df86205"
+    "production_authority_commit": "9eb3a7257a96e781b4a3d115e881d50acd496216",
+    "production_authority_tree": "abb3a2894f60e1335a38f38be4902d1d9002a083",
+    "shared_src_tree": "2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b"
   },
   "limits": {
     "code_identity_note": "`creation_code_keccak256` is the frozen build's own deployer-independent identity for the contract. It is not the hash of the initcode a real transaction sends: four of these seven constructors take arguments that are themselves addresses this ceremony produces, so that hash is only knowable once a deployer is selected. `initcode_bytes` is the whole creation code plus those encoded arguments, because that is what EIP-3860 measures.",
@@ -143,11 +143,11 @@
         "constructor_args_bytes": 160,
         "contract": "RegentsAutolaunchFactoryV1",
         "created_by": "deployer",
-        "creation_code_bytes": 34435,
-        "creation_code_keccak256": "0xa4dd9e39eb55725119cc75942c904b39aeab783d74b647fa50f0ca1928b49e74",
+        "creation_code_bytes": 34448,
+        "creation_code_keccak256": "0x6511b1120156d6835cb492bcdf5e33e35e052dd76e9530c018fc5dd2511bbbdf",
         "deployer_nonce_offset": 4,
-        "initcode_bytes": 34595,
-        "initcode_margin_bytes": 14557,
+        "initcode_bytes": 34608,
+        "initcode_margin_bytes": 14544,
         "mechanism": "transaction",
         "runtime_bytes": 7097,
         "runtime_margin_bytes": 17479,
