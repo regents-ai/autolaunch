@@ -31,7 +31,7 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1"]
+activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1", "regent-839.7"]
 
 # `fork` is activated only with the separately discovered, independently reviewed, and
 # committed Base observation record. The compare-only gate must execute every mapped fork
@@ -39,7 +39,13 @@ activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1"]
 # fork claim is proved at the committed pinned header; a named subset — DEP-040, DEP-041,
 # DEP-042, DEP-043, DEP-047, DEP-050, DEP-051, DEP-052 and GAS-006 — is proved again at the
 # later head, and each claim's selector list below is the enumeration of where it runs.
-activated_gates = ["hermetic", "invariant", "fork"]
+#
+# `deployment` is activated by regent-839.7, the candidate that carries that gate's own
+# evidence. Its claims are proved by `bin/deployment-gate.sh --offline`, which needs no
+# provider: the five creation transactions reach no external contract, so the whole ceremony
+# is decidable offline and the chief's separately authorized Base rehearsal re-runs the same
+# selectors against a read-only fork rather than proving different ones.
+activated_gates = ["hermetic", "invariant", "fork", "deployment"]
 groups = [
     "DEP",
     "FAC",
@@ -556,6 +562,78 @@ selectors = [
     "test_DEP_060_Uerc20FactoryRuntimeIdentityIsTheAdmittedOne",
     "test_DEP_060_ConstructorRejectsAnyUnexpectedRuntimeCodeHash",
 ]
+
+# The deployment ceremony itself, owned entirely by regent-839.7 and closed only by
+# `bin/deployment-gate.sh` under the `deployment` gate. These claims are about the five
+# creation transactions a founder-selected deployer sends and about nothing else: they add no
+# production behaviour, and every one of them is proved by running the real
+# `script/DeployAutolaunchV1.s.sol` from `test-deployment/`. They are deliberately not fork
+# claims — the ceremony reaches no external contract at all, so a provider would prove nothing
+# about it — and deliberately not hermetic claims, because their selectors live outside the
+# offline test root and the required gate must never execute or close them.
+
+[[requirement]]
+id = "DEP-070"
+statement = "The ceremony is exactly five direct, zero-value creation transactions from the founder-selected deployer, in the order UERC20Factory, ConditionalVestingEscrowV1, SubjectSplitterV1, PaymentReceiverV1, RegentsAutolaunchFactoryV1, landing on that deployer's own CREATE addresses at the pinned starting nonce and the four offsets after it, advancing the deployer's nonce by exactly five and leaving no created contract holding ETH."
+owner = "regent-839.7"
+contract = "deployment-ceremony"
+evidence_class = "deployment-ceremony"
+gate = "deployment"
+status = "active"
+selectors = [
+    "test_DEP_070_FiveTopLevelCreationsLandOnThePinnedNonceSequence",
+    "testFuzz_DEP_070_TopLevelDerivationIsTheDeployerCreateSequence",
+]
+
+[[requirement]]
+id = "DEP-071"
+statement = "The Autolaunch factory's constructor alone creates the two internal contracts: RegentLBPStrategy at the factory's first internal CREATE, factory nonce 1, and RegentFeeHook by CREATE2 over the packet's pre-mined salt and the frozen build's exact hook initcode, at an address carrying exactly the five permission bits the hook declares; the factory makes no third internal creation."
+owner = "regent-839.7"
+contract = "deployment-ceremony"
+evidence_class = "deployment-ceremony"
+gate = "deployment"
+status = "active"
+selectors = ["test_DEP_071_FactoryAloneCreatesTheStrategyAndTheMinedHook"]
+
+[[requirement]]
+id = "DEP-072"
+statement = "Every constructor binding and runtime readback across the seven contracts the ceremony produces is exact: the factory's token factory, strategy and hook, its initial launch fee, first launch id and unpaused state; the strategy's factory, three clone implementations and bound hook; the hook's PoolManager and strategy; and the deployed runtime code hash of each of the four admitted addresses equals the hash the factory constructor admitted."
+owner = "regent-839.7"
+contract = "deployment-ceremony"
+evidence_class = "deployment-ceremony"
+gate = "deployment"
+status = "active"
+selectors = ["test_DEP_072_EveryConstructorBindingAndReadbackIsExact"]
+
+[[requirement]]
+id = "DEP-073"
+statement = "After the five creations the disposable deployer holds no protocol authority anywhere in the graph: every governance-only and factory-only entry point refuses it, the frozen Governance/Regent Safe is the sole launch-fee and pause authority, and no contract the ceremony created holds ETH."
+owner = "regent-839.7"
+contract = "deployment-ceremony"
+evidence_class = "deployment-ceremony"
+gate = "deployment"
+status = "active"
+selectors = ["test_DEP_073_TheDeployerRetainsNoProtocolAuthority"]
+
+[[requirement]]
+id = "DEP-074"
+statement = "Every contract the ceremony creates, the two internal ones included, deploys runtime within the EIP-170 limit and is created from initcode within the EIP-3860 limit, measured from the ceremony's own execution against the exact constructor arguments it uses. The in-EVM gas each of the five creations consumes is measured and held under 14,000,000 as a guardrail only: it excludes the intrinsic cost, the initcode calldata cost and EIP-3860's per-word charge a real creation transaction carries, so it is a floor and never a complete-transaction gas result. No complete deployment-transaction gas figure is claimed by this or any other requirement, and the full per-transaction estimates stay pending the exact selected deployer and salt and an authorized rehearsal."
+owner = "regent-839.7"
+contract = "deployment-ceremony"
+evidence_class = "deployment-ceremony"
+gate = "deployment"
+status = "active"
+selectors = ["test_DEP_074_EveryCreationFitsTheDeployabilityLimits"]
+
+[[requirement]]
+id = "DEP-075"
+statement = "The ceremony aborts during simulation, before it creates anything and therefore before any transaction sequence exists for a broadcast to send, on an unselected deployer, a hook salt whose derived address does not carry the five permission bits, a chain that is not Base mainnet, or a deployer nonce that is not the pinned starting nonce; and because a completed ceremony leaves the deployer past that nonce, the same packet is refused rather than resumed or replayed."
+owner = "regent-839.7"
+contract = "deployment-ceremony"
+evidence_class = "deployment-ceremony"
+gate = "deployment"
+status = "active"
+selectors = ["test_DEP_075_AnyPinnedValueMismatchAbortsBeforeTheFirstCreation"]
 
 # ---------------------------------------------------------------------------
 # FAC — governance-only fee and pause; pause scope; fee-update and

@@ -1,0 +1,15 @@
+{
+  "artifact": "regents-autolaunch-base-mainnet-deployed-manifest",
+  "version": 1,
+  "status": "not deployed",
+  "populated_by": "confirmed Base receipts, and nothing else",
+  "note": "This file is the only record of deployed facts, and it is deliberately empty. It is not the packet: the packet is a proposal about what a ceremony would do, and it is rendered from an offline or fork run. Nothing simulated may be written here — not a fork address, not a rehearsal transaction hash, not a fork block number. Every field below is populated once, from confirmed Base receipts, after a founder GO_TO_DEPLOY has named the approved packet digest and the ceremony has actually run. bin/deployment-gate.sh proves this file carries no address, no hash, and no nonzero number on every run.",
+  "approved_packet_digest": null,
+  "deployer": null,
+  "starting_nonce": null,
+  "hook_salt": null,
+  "transactions": [],
+  "contracts": [],
+  "abi_topic_digest": null,
+  "external_observation_epoch": null
+}

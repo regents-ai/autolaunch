@@ -88,6 +88,7 @@ statement about this candidate, and this packet makes none.
 | [claim-corrections.md](claim-corrections.md) | every correction C5 made to an already-closed C2/C3/C4 claim, and the inherited obligations it closed |
 | [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md) | the founder fork authority text and its digest, the read-only boundary, the staged-state inventory, and the named hermetic-double limits |
 | [gas-and-size.md](gas-and-size.md) | deployable byte margins, EVM code identity, the hook callback measurement recorded without an invented limit, and the complete-transaction gas figures. Every figure on that page is re-proved by the gate against the artifact or the executed measurement it came from |
+| [deployment-ceremony.md](deployment-ceremony.md) | the five-transaction Base ceremony, the three values it consumes, what stops a wrong one, the two deployment-gate modes, the external-state preflight, and the approval boundary that keeps the repository mainnet NO-GO |
 | `../security/threat-model.md` | the threat model and the requirement each mitigation maps to |
 | `../security/slither-dispositions.md` | one disposition row per Slither result and one record per inline suppression |
 | `../../contracts/autolaunch-release-manifest.json` | the generated release manifest: surface allowlist, code identity, clone derivation, bindings, and deployment-pending discipline |
@@ -207,6 +208,7 @@ the shape and the one limitation that follows from it.
 | `INV-001..010` | invariant | active, executed, passing |
 | `DEP-040..053` | fork | active, executed and passing against the final C10 source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
 | `GAS-003..006` | fork | active, executed and passing; the three transaction envelopes run at the pinned header and `GAS-006` runs at both |
+| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider. They prove the five-transaction ceremony itself, not a deployment: see [deployment-ceremony.md](deployment-ceremony.md) |
 
 ## What is not proved
 
@@ -221,6 +223,15 @@ the shape and the one limitation that follows from it.
   stop. [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md) section 2.1
   states this in full.
 - **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
-  signed nothing, and moved no value outside isolated local fork state.
+  signed nothing, and moved no value outside isolated local fork state. The deployment gate is the
+  same: `DEP-070..075` prove what the five creation transactions would do and what stops a wrong
+  one, and the packet they render is a proposal whose status is `mainnet-NO-GO`. No deployer has
+  been selected, no address is predicted, no salt is mined into the packet, and only a later
+  founder instruction naming that packet's exact digest may authorize a signature or a broadcast.
+- **What the five deployment transactions cost.** `DEP-074` proves the EIP-170 and EIP-3860 size
+  margins and measures each creation's in-EVM gas, which is a floor rather than a transaction cost.
+  No complete deployment-transaction gas figure exists for these five creations: the full
+  per-transaction estimates stay pending the exact selected deployer and salt and an authorized
+  rehearsal.
 - **Workflow review and custody state.** Independent review, the Solidity Auditor, integration, and
   ticket closure are Control evidence rather than Solidity claims proved by this packet.

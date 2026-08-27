@@ -10,6 +10,9 @@
 #     value movement, and no production-data access;
 #   - the endpoint is reached only through the `base` alias, whose value stays an unresolved
 #     environment reference in every committed file and every artifact this run produces;
+#   - that alias is proved live and on chain 8453 by one read-only chain-id probe before any fork
+#     test runs, so a dead, unreachable, malformed or wrong-chain endpoint stops the gate instead
+#     of surfacing as a harness failure. `selftest-dead-endpoint` is that refusal's own regression;
 #   - every mutation, impersonation, block movement, and staged balance happens in Forge's own
 #     local fork state and is inventoried in docs/audit/fork-authority-and-state-inventory.md;
 #   - nothing a provider produced is displayed before it has been scanned. Every pass writes its
@@ -31,7 +34,9 @@
 #             installed it as reports/frozen/fork-observations.json, activated the `fork` gate in
 #             requirements/ledger.toml, and committed both — and it proves those files are clean
 #             both before it touches the provider and after it finishes, so a check run cannot
-#             have written the record it is checking against.
+#             have written the record it is checking against. The record names the production
+#             authority commit and src/ tree it was observed against, and both are proved against
+#             Git and against this checkout before any fork test can run.
 #
 # A failure of this gate is a stop-report. Never relax a pinned identity or a threshold to pass.
 set -eu
@@ -47,6 +52,14 @@ GATES=fork
 
 RPC_ALIAS=base
 RPC_ENV=REGENT_BASE_RPC_URL
+
+# The one chain this gate is about. The endpoint boundary below refuses everything else.
+CHAIN_ID=8453
+PROBE_REFUSAL="the configured $RPC_ALIAS endpoint did not answer a read-only chain-id probe with exactly $CHAIN_ID"
+
+# A closed loopback port, and the only endpoint the dead-endpoint regression uses. Nothing listens
+# on the discard port, so the refusal it produces is deterministic and reaches no network.
+DEAD_ENDPOINT=http://127.0.0.1:9
 
 # The discovery pass is one contract and closes nothing. Every other fork contract carries the
 # mapped claim selectors, so the two are separated by name in both directions below.
@@ -97,6 +110,36 @@ committed_state() {
     git status --porcelain -- "$observations" "$ledger"
 }
 
+# One read-only `eth_chainId` read through the configured `$RPC_ALIAS` alias, and the whole
+# endpoint boundary. Without it a dead, unreachable, malformed or wrong-chain endpoint surfaces
+# only as a Forge failure deep inside the harness, where a run that never opened a fork is hard to
+# tell from one that observed something.
+#
+# The endpoint is never exposed. `cast` names the URL in its own diagnostics, so the capture is
+# scanned before anything is displayed and dropped unread if the scan finds it, and neither capture
+# survives the probe. The answer itself is printed only when it is plain digits, and every failure
+# — dead, unreachable, malformed, or another chain — is the same refusal.
+probe_base_chain_id() {
+    probe_status=0
+    cast chain-id --rpc-url "$RPC_ALIAS" >"$probe_out" 2>"$probe_err" || probe_status=$?
+
+    if python3 "$checker" sanitize --scan "$probe_err"; then
+        if [ -s "$probe_err" ]; then cat "$probe_err" >&2; fi
+    else
+        printf 'the probe diagnostics named the endpoint and were dropped unread\n' >&2
+    fi
+
+    observed=$(tr -d '[:space:]' <"$probe_out")
+    rm -f "$probe_out" "$probe_err"
+
+    [ "$probe_status" -eq 0 ] || fail "$PROBE_REFUSAL (cast exited $probe_status)"
+    case "$observed" in
+        '' | *[!0-9]*) fail "$PROBE_REFUSAL (its answer was not a plain chain id and is not printed)" ;;
+    esac
+    [ "$observed" = "$CHAIN_ID" ] || fail "$PROBE_REFUSAL (it answered chain $observed)"
+    printf 'the configured %s alias answers a read-only chain-id probe with exactly %s\n' "$RPC_ALIAS" "$CHAIN_ID"
+}
+
 mode=${1:-check}
 case "$mode" in
     discover)
@@ -105,7 +148,32 @@ case "$mode" in
     check)
         FOUNDRY_PROFILE=fork
         ;;
-    *) fail "unknown mode '$mode'; use discover or check" ;;
+    selftest-dead-endpoint)
+        # The regression for that boundary, and the only mode that reaches no network at all. It
+        # re-runs this same script in `check` mode with the `$RPC_ALIAS` alias pointed at a closed
+        # loopback port, so the production probe above is the code under test and the real endpoint
+        # is neither read nor passed on. It cannot stand in for a check run: it reaches no fork
+        # test, closes no claim, and this gate's pass marker never appears in it.
+        section "Dead-endpoint regression"
+        selftest_status=0
+        selftest_output=$(REGENT_BASE_RPC_URL="$DEAD_ENDPOINT" "$0" check 2>&1) || selftest_status=$?
+        printf '%s\n' "$selftest_output"
+
+        [ "$selftest_status" -ne 0 ] || fail "a dead endpoint exited 0; the boundary does not hold"
+        case "$selftest_output" in
+            *'FORK GATE PASS'*) fail "a dead endpoint printed this gate's pass marker" ;;
+        esac
+        case "$selftest_output" in
+            *"$PROBE_REFUSAL"*) : ;;
+            *) fail "the dead-endpoint run stopped before the chain-id probe, so it proves nothing" ;;
+        esac
+
+        printf '\nthe dead-endpoint run exited %s at the %s chain-id probe and printed no FORK GATE PASS\n' \
+            "$selftest_status" "$RPC_ALIAS"
+        printf 'DEAD-ENDPOINT REGRESSION PASS\n'
+        exit 0
+        ;;
+    *) fail "unknown mode '$mode'; use discover, check, or selftest-dead-endpoint" ;;
 esac
 export FOUNDRY_PROFILE
 
@@ -115,6 +183,7 @@ section "Authority and read-only boundary"
 
 command -v git >/dev/null 2>&1 || fail "git is not on PATH"
 command -v forge >/dev/null 2>&1 || fail "forge is not on PATH"
+command -v cast >/dev/null 2>&1 || fail "cast is not on PATH"
 command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH"
 
 # The offline gate must have already passed on this exact tree. Its receipt is reused rather
@@ -200,10 +269,43 @@ PYTHON
     printf 'check: the reviewed observation and the activated ledger are committed and clean\n'
 fi
 
+# ---------------------------------------------------------------------------
+section "Evidence identity"
+# ---------------------------------------------------------------------------
+
+# The record names the production authority it was observed against, and both of those values are
+# proved here — against Git and against this checkout — before any fork test can run. Otherwise a
+# reviewed record is only self-describing prose: it would compare live Base against numbers taken
+# from some other source tree without anything noticing.
+if [ -f "$observations" ]; then
+    identity=$(python3 -c 'import json,sys
+record = json.load(open(sys.argv[1], encoding="utf-8"))["source_authority"]
+print(record["production_authority_commit"], record["production_source_tree"])' "$observations")
+    recorded_commit=${identity% *}
+    recorded_src_tree=${identity#* }
+
+    git cat-file -e "${recorded_commit}^{commit}" 2>/dev/null ||
+        fail "the record names production authority commit $recorded_commit, which is not an object in this repository"
+    authority_src_tree=$(git rev-parse "${recorded_commit}:src")
+    [ "$authority_src_tree" = "$recorded_src_tree" ] ||
+        fail "the record names production source tree $recorded_src_tree, but commit $recorded_commit carries $authority_src_tree"
+
+    checkout_src_tree=$(git rev-parse 'HEAD:src')
+    [ "$checkout_src_tree" = "$recorded_src_tree" ] ||
+        fail "this checkout's src/ tree is $checkout_src_tree, not the $recorded_src_tree the record was observed against"
+
+    printf 'the record names production authority %s carrying src/ tree %s, and this checkout is that tree\n' \
+        "$recorded_commit" "$recorded_src_tree"
+else
+    printf 'no observation record is installed yet, so there is no named source authority to prove\n'
+fi
+
 rm -rf "$generated"
 mkdir -p "$generated"
 
 forge_config="$generated/forge-config.json"
+probe_out="$generated/chain-id-probe.out"
+probe_err="$generated/chain-id-probe.err"
 pinned_report="$generated/forge-test-pinned.json"
 later_report="$generated/forge-test-later.json"
 pinned_log="$generated/forge-test-pinned.log"
@@ -303,6 +405,14 @@ section "Formatting and build, before any provider access"
 FOUNDRY_OFFLINE=true forge fmt --check
 FOUNDRY_OFFLINE=true forge build
 
+# ---------------------------------------------------------------------------
+section "Base endpoint boundary"
+# ---------------------------------------------------------------------------
+
+# The first provider contact this gate makes, and it happens before any Forge fork test in either
+# mode. `bin/fork-gate.sh selftest-dead-endpoint` is this refusal's regression.
+probe_base_chain_id
+
 if [ "$mode" = discover ]; then
     # ---------------------------------------------------------------------------
     section "Authorized read-only discovery"
@@ -361,15 +471,17 @@ blessed and nothing reads it. To make it the evidence instead, deliberately:
      absorb silently;
   3. fill in transaction_gas_schedule — the chain does not expose those rules, so discovery
      leaves them zero and the reviewer supplies the ones active at the newly recorded headers;
-  4. set "status" to "observed_and_committed";
-  5. overwrite $observations with it;
-  6. leave $ledger alone unless a claim's activation actually changed —
+  4. fill in source_authority with the production authority commit and the src/ tree it carries;
+     discovery cannot know either, and check mode proves both against Git and this checkout;
+  5. set "status" to "observed_and_committed";
+  6. overwrite $observations with it;
+  7. leave $ledger alone unless a claim's activation actually changed —
      "fork" is already an activated gate and every fork claim is already active, so there is
      normally nothing to flip;
-  7. commit whichever of the two files changed;
-  8. run: $0 check
+  8. commit whichever of the two files changed;
+  9. run: $0 check
 
-Until step 7 lands, '$0 check' still checks against the OLD committed record, and this
+Until step 8 lands, '$0 check' still checks against the OLD committed record, and this
 candidate is scratch that closes nothing.
 
 TRANSITION
@@ -385,13 +497,15 @@ Nothing has been blessed. To turn it into evidence, deliberately:
   1. read every observed value and check it against an independent source;
   2. fill in transaction_gas_schedule — the chain does not expose those rules, so discovery
      leaves them zero and the reviewer supplies the ones active at the recorded headers;
-  3. set "status" to "observed_and_committed";
-  4. install it as $observations;
-  5. add "fork" to activated_gates in $ledger and flip every fork claim to active;
-  6. commit both files;
-  7. run: $0 check
+  3. fill in source_authority with the production authority commit and the src/ tree it carries;
+     discovery cannot know either, and check mode proves both against Git and this checkout;
+  4. set "status" to "observed_and_committed";
+  5. install it as $observations;
+  6. add "fork" to activated_gates in $ledger and flip every fork claim to active;
+  7. commit both files;
+  8. run: $0 check
 
-Until step 6 lands, '$0 check' refuses to run, and every fork claim stays pending.
+Until step 7 lands, '$0 check' refuses to run, and every fork claim stays pending.
 
 TRANSITION
     fi

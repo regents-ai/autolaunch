@@ -150,6 +150,9 @@ bin/gate.sh
 | `test/bindings/` | the proofs that those compiled copies equal the independently verified frozen identity |
 | `test/abi/`, `test/gas/`, `test/invariant/` | the frozen-surface, deployable-size, hook-cost, and stateful accounting proofs |
 | `test-fork/` | the read-only Base fork harness; outside the offline test root, so it can never execute against a hermetic or invariant claim |
+| `script/` | the one deployment script: five direct, zero-value creation transactions and nothing else. It imports no miner, holds no key, and is never invoked with `--broadcast` by any gate |
+| `test-deployment/` | the deployment-ceremony harness and the external-state preflight; outside both other test roots, so only the deployment gate can execute or close its claims |
+| `deployments/base-mainnet/` | the mainnet-NO-GO packet, which is a proposal, and the deployed manifest, which is an empty record. Nothing here has been deployed |
 | `docs/security/` | threat model and Slither dispositions |
 | `docs/audit/` | the founder audit packet: posture, claim corrections, fork authority and staged-state inventory, gas and size |
 | `reports/generated/` | scratch gate evidence. `bin/gate.sh` deletes and rewrites it on every run and `.gitignore` keeps it out of the tree. Never committed, never an authority. |
@@ -195,11 +198,19 @@ purpose: a gate that observed a value and then compared it to itself would prove
   and its only writable path is gitignored scratch. It observes Base, writes a single reviewable
   candidate, reads no committed observation, and closes no claim.
 - A human reviews that candidate, supplies the transaction gas schedule the chain does not expose,
-  installs it as `reports/frozen/fork-observations.json`, activates the `fork` gate, and commits.
+  names the production authority commit and `src/` tree it was observed against, installs it as
+  `reports/frozen/fork-observations.json`, activates the `fork` gate, and commits.
 - `bin/fork-gate.sh check` runs under a profile with no write permission at all. It refuses to start
-  until that record and that activation are committed and clean, runs all eighteen fork claims at
-  the pinned header and the focused nine-claim drift subset at the later head, reconciles both runs
-  against one compiled listing, and proves both files unchanged afterwards.
+  until that record and that activation are committed and clean, proves the authority the record
+  names against Git and against this checkout, runs all eighteen fork claims at the pinned header
+  and the focused nine-claim drift subset at the later head, reconciles both runs against one
+  compiled listing, and proves both files unchanged afterwards.
+
+Before either mode runs a fork test it makes one read-only chain-id probe through the configured
+`base` alias and requires exactly chain 8453, so a dead, unreachable, malformed or wrong-chain
+endpoint stops the gate rather than surfacing as a harness failure. That refusal has its own
+regression: `bin/fork-gate.sh selftest-dead-endpoint` re-runs the gate against a closed loopback
+port and requires a nonzero exit with no pass marker. It reaches no network.
 
 Both fork profiles build into `out-fork`, so fork artifacts can never reach the `out/` the required
 gate reconciles.
@@ -210,6 +221,32 @@ gate's committed evidence. `fork` is active with the separately reviewed observa
 at block `50495791` against the final C10 source authority; all twenty-seven mapped selectors passed.
 Those selectors remain outside the offline test root, so only the read-only fork gate can execute or
 close them; the offline gate neither runs nor claims them.
+
+## The deployment-ceremony gate
+
+`bin/deployment-gate.sh` is not part of the required check either. It proves the `deployment` gate
+alone: the five direct, zero-value creation transactions a founder-selected disposable deployer
+would send to put the Autolaunch graph on Base, and nothing else. It has two modes.
+
+- `--offline` is the writer's mode and carries `DEP-070..075`. It runs with `FOUNDRY_OFFLINE=true`
+  and with the Base endpoint variable cleared from the child environment, so no network can be
+  reached even by accident. The whole ceremony is decidable that way: the five creations call no
+  external contract at all.
+- `--rehearse` is the chief's mode, run only under the founder's separate read-only Base authority
+  and only after independent review. It runs the same ceremony selectors against a read-only fork
+  and adds the external-state preflight, which re-reads the frozen binding identities, the CCA fee
+  controller, the live staking and USDC policy, and the exact Regent Safe control surface.
+
+Both modes refuse to run beside signing authority or beside a `.env`, `.env.local` or `.envrc`
+file, and neither invokes `forge script --broadcast`. Both end at mainnet NO-GO. The deployment
+profile builds into gitignored scratch under `reports/generated/`, separate from both `out/` and
+`out-fork/`, and its Solidity has no filesystem permission at all — so the packet under
+`deployments/base-mainnet/` is rendered and compared by the shell, and no test can author one for
+itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) is the full account.
+
+**Nothing in this repository has been deployed.** No provider was accessed while preparing this
+tooling, no deployer has been selected, no address is predicted, and only a later founder
+instruction naming the packet's exact digest may authorize a signature or a broadcast.
 
 ### The production authority and the evidence candidate are named apart
 
