@@ -1,9 +1,11 @@
 {
   "artifact": "regents-autolaunch-base-mainnet-deployment-packet",
   "authorization": {
+    "command_shape": "forge script script/DeployAutolaunchV1.s.sol:DeployAutolaunchV1 --rpc-url base --broadcast --slow",
     "granted_by": null,
     "instrument": "a founder GO_TO_DEPLOY naming this packet's exact digest",
-    "note": "Nothing in this repository may be signed, broadcast, funded, or deployed until the founder separately approves this exact digest. The signing method is recorded at that point by name; its credential never appears in this packet or anywhere in this repository.",
+    "note": "Nothing in this repository may be signed, broadcast, funded, or deployed until the founder separately approves this exact digest. The signing method is recorded at that point by name; its credential never appears in this packet or anywhere in this repository. `command_shape` is the shape an authorized ceremony would take, recorded as text: `--slow` sends the five creations one at a time and waits for each receipt. No gate in this repository invokes it. If any transaction fails or is replaced after an earlier creation has confirmed, this packet is terminally invalid: `--resume` is forbidden, the nonce is read again, the graph is recomputed, the gates and the independent review are repeated, and a new founder-approved digest is required.",
+    "resume_forbidden": true,
     "signing_method": null,
     "state": "not authorized"
   },
@@ -22,10 +24,10 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x1356b86c6d8082269e5685c430cb049efd5ff05d57ef6c6329713c5d4db04f59"
+    "value": "0x47d421ef2e23535bd48f2e4f8c47539ee41670c7f591813ac2d44ca06d0a55f9"
   },
   "external_observation": null,
-  "external_observation_note": "No provider was accessed while preparing this packet. The external-state preflight \u2014 the frozen binding identities, the CCA zero fee controller, the live staking owner, pause and USDC binding, the mutable USDC pause and blacklist policy, and the exact Regent Safe owners, threshold, guard, modules and fallback handler \u2014 runs under `bin/deployment-gate.sh --rehearse` on the founder's separate read-only Base authority.",
+  "external_observation_note": "No provider was accessed while preparing this packet, and no external observation has been frozen. The external-state preflight \u2014 the frozen binding runtime and proxy identities, the CCA zero fee controller, the live staking owner, pause and USDC binding, the mutable USDC pause and blacklist policy, and the exact Regent Safe owners, threshold, guard, modules, fallback handler, singleton and version \u2014 runs under `bin/deployment-gate.sh --prepare` and `--rehearse` on the founder's separate read-only Base authority.",
   "immutable_identities": {
     "fork_evidence_commit": "f6bb34087dc16f6edf72e434f30f5e953071a579",
     "note": "The production authority and the evidence candidate are two different identities that share one src/ tree. The candidate commit this packet was rendered from is proved by bin/deployment-gate.sh at run time and is deliberately not embedded here: a file cannot carry the hash of the commit that contains it.",
@@ -43,8 +45,9 @@
   "selection": {
     "deployer": null,
     "hook_salt": null,
-    "note": "No deployer has been selected. Every address this ceremony produces is a function of that account and its exact nonce, so the graph is derivable but not yet determined. Selecting a deployer, reading its live nonce, mining the hook salt once against the predicted factory and strategy, and re-rendering this packet is the step that fills this section in.",
+    "note": "No deployer has been selected. Every address this ceremony produces is a function of that account and its exact nonce, so the graph is derivable but not yet determined, and this packet cannot claim that the exact ceremony was rehearsed. The remaining founder input is one public disposable deployer address; `bin/deployment-gate.sh --prepare <deployer>` then reads its live nonce, mines the hook salt once against the predicted factory and strategy, and writes a reviewable candidate that a human installs.",
     "predicted_addresses": null,
+    "source": "deployments/base-mainnet/ceremony-selection.json",
     "starting_nonce": null
   },
   "status": "mainnet-NO-GO",

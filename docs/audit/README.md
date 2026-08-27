@@ -88,7 +88,7 @@ statement about this candidate, and this packet makes none.
 | [claim-corrections.md](claim-corrections.md) | every correction C5 made to an already-closed C2/C3/C4 claim, and the inherited obligations it closed |
 | [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md) | the founder fork authority text and its digest, the read-only boundary, the staged-state inventory, and the named hermetic-double limits |
 | [gas-and-size.md](gas-and-size.md) | deployable byte margins, EVM code identity, the hook callback measurement recorded without an invented limit, and the complete-transaction gas figures. Every figure on that page is re-proved by the gate against the artifact or the executed measurement it came from |
-| [deployment-ceremony.md](deployment-ceremony.md) | the five-transaction Base ceremony, the three values it consumes, what stops a wrong one, the two deployment-gate modes, the external-state preflight, and the approval boundary that keeps the repository mainnet NO-GO |
+| [deployment-ceremony.md](deployment-ceremony.md) | the five-transaction Base ceremony, the three values it consumes, what stops a wrong one, the deployment-gate modes, the chain-id endpoint boundary, the external-state preflight, and the approval boundary that keeps the repository mainnet NO-GO |
 | `../security/threat-model.md` | the threat model and the requirement each mitigation maps to |
 | `../security/slither-dispositions.md` | one disposition row per Slither result and one record per inline suppression |
 | `../../contracts/autolaunch-release-manifest.json` | the generated release manifest: surface allowlist, code identity, clone derivation, bindings, and deployment-pending discipline |

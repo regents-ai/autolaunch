@@ -4,20 +4,26 @@ pragma solidity 0.8.26;
 import {BaseBindings} from "../src/bindings/BaseBindings.sol";
 import {Test} from "forge-std/Test.sol";
 
-/// @notice The final external-state preflight, run only in the deployment gate's separately
-///         authorized Base rehearsal mode.
+/// @notice The final external-state preflight, run in the deployment gate's two provider modes.
 /// @dev This contract closes no requirement and carries no requirement id. It is excluded by name
 ///      from the deployment gate's compiled listing and from the ledger reconciliation, exactly as
-///      the fork gate excludes its discovery pass, because it asserts live chain truth that no
+///      the fork gate excludes its discovery pass, because it reads live chain truth that no
 ///      committed record can freeze and that no offline run can reach.
 ///
 ///      What it does is stop a ceremony rather than describe one. Every read below is a hard
 ///      `staticcall` that reverts if the provider, the account, or the getter fails, so a run that
 ///      cannot reach Base fails loudly instead of reporting an empty observation, and the gate can
-///      never claim a fork it did not open. The mutable facts — the live staking pause, the USDC
-///      pause and blacklist policy, and the Safe's exact owner set, threshold, guard, modules and
-///      fallback handler — are read again here because each of them can move between the reviewed
-///      packet and the broadcast, and each of them changes whether the deployed system works or who
+///      never claim a fork it did not open.
+///
+///      This profile has no filesystem permission at all, so nothing here can read a frozen record
+///      or write an observation. Every value it measures is emitted as a decoded log and compared
+///      by `bin/deployment-gate.sh` against committed authority instead: the runtime and supported
+///      proxy identity of all eight bindings against `reports/frozen/fork-observations.json`, and
+///      the mutable control surface — the live staking owner, pause and USDC binding, and the
+///      Safe's exact owners, threshold, guard, modules, fallback handler, singleton and version —
+///      against the snapshot frozen in `deployments/base-mainnet/ceremony-selection.json`. Those
+///      mutable facts are re-read on every rehearsal because each can move between the reviewed
+///      packet and the broadcast, and each changes whether the deployed system works or who
 ///      controls it.
 ///
 ///      Nothing here writes, signs, broadcasts, funds, or moves value. The fork is read-only and
@@ -34,25 +40,56 @@ contract DeploymentPreflightTest is Test {
     /// @notice The sentinel a Safe's module linked list starts from.
     address internal constant SAFE_MODULE_SENTINEL = address(0x1);
 
+    /// @notice The three namespaced implementation slots and the Safe singleton slot, in the order
+    ///         the frozen observation record was classified by.
+    /// @dev The rule is `test-fork/ForkDiscovery.t.sol`'s, restated here because this test root
+    ///      compiles on its own and the deployment profile can read no file. A binding matching none
+    ///      of the four is `no_supported_proxy_pattern`, which is what was measured rather than a
+    ///      claim that it is not a proxy at all. Slot zero is ordinary storage for anything that is
+    ///      not a Safe proxy, so that detector applies to exactly the frozen Regent Safe.
+    bytes32 internal constant EIP1967_IMPLEMENTATION_SLOT =
+        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+    bytes32 internal constant EIP1822_IMPLEMENTATION_SLOT =
+        0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7;
+    bytes32 internal constant ZEPPELINOS_IMPLEMENTATION_SLOT =
+        0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3;
+    bytes32 internal constant SAFE_SINGLETON_SLOT = bytes32(uint256(0));
+    bytes4 internal constant SAFE_MASTER_COPY_SELECTOR = 0xa619486e;
+    uint256 internal constant SAFE_PROXY_MAX_RUNTIME_BYTES = 256;
+    string internal constant NO_SUPPORTED_PROXY_PATTERN = "no_supported_proxy_pattern";
+
     function setUp() public {
         vm.createSelectFork(RPC_ALIAS);
     }
 
-    /// @notice Chain identity, and the presence or absence of code at every frozen binding.
-    function test_PreflightChainAndFrozenBindingPresence() public {
+    /// @notice Chain identity, and the complete runtime and supported proxy identity of every
+    ///         frozen binding, emitted for comparison against the frozen observation record.
+    /// @dev Nothing is asserted about a binding here. Presence would be the weaker half of a
+    ///      comparison the gate makes exactly: `bin/deployment-gate.sh` holds every value below to
+    ///      `reports/frozen/fork-observations.json`, which is the sole frozen runtime and proxy
+    ///      identity authority, so a moved runtime, a moved implementation, or an empty read fails
+    ///      the run rather than passing a presence check.
+    function test_PreflightChainAndFrozenBindingIdentity() public {
         assertEq(block.chainid, BaseBindings.BASE_CHAIN_ID, "the preflight fork is not Base mainnet");
         emit log_named_uint("preflight block_number", block.number);
         emit log_named_uint("preflight block_timestamp", block.timestamp);
 
+        string[8] memory ids = _bindingIds();
         address[8] memory bindings = BaseBindings.all();
         for (uint256 i; i < bindings.length; ++i) {
-            if (bindings[i] == BaseBindings.DEAD_ADDRESS) {
-                assertEq(bindings[i].code.length, 0, "the dead address carries code");
-                continue;
-            }
-            assertGt(bindings[i].code.length, 0, "a frozen binding carries no deployed code");
-            emit log_named_address("preflight binding", bindings[i]);
-            emit log_named_bytes32("  runtime_codehash", bindings[i].codehash);
+            (string memory family, address implementation) = _classify(bindings[i]);
+
+            emit log_named_string("preflight binding_id", ids[i]);
+            emit log_named_address("  binding_address", bindings[i]);
+            emit log_named_uint("  binding_runtime_bytes", bindings[i].code.length);
+            emit log_named_bytes32("  binding_runtime_code_hash", bindings[i].codehash);
+            emit log_named_string("  binding_proxy_family", family);
+            emit log_named_address("  binding_implementation", implementation);
+            emit log_named_bytes32(
+                "  binding_implementation_code_hash",
+                implementation == address(0) ? bytes32(0) : implementation.codehash
+            );
+            emit log_named_uint("  binding_implementation_runtime_bytes", implementation.code.length);
         }
     }
 
@@ -69,21 +106,24 @@ contract DeploymentPreflightTest is Test {
 
     /// @notice Live staking is unpaused, bound to the frozen USDC, and owned by a real account.
     /// @dev A paused live-staking contract means the splitter's USDC skim cannot settle, so a
-    ///      deployment into that state is a stop rather than a note.
+    ///      deployment into that state is a stop rather than a note. The three values are also
+    ///      emitted, because ownership can move between the reviewed packet and the broadcast: the
+    ///      gate holds each of them to the snapshot the committed ceremony selection froze.
     function test_PreflightLiveStakingOwnerPauseAndUsdcBinding() public {
         address staking = BaseBindings.LIVE_STAKING;
 
         address owner = _callAddress(staking, abi.encodeWithSignature("owner()"));
         assertTrue(owner != address(0), "live staking reports no owner");
 
-        assertFalse(_callBool(staking, abi.encodeWithSignature("paused()")), "live staking is paused");
-        assertEq(
-            _callAddress(staking, abi.encodeWithSignature("usdc()")),
-            BaseBindings.USDC,
-            "live staking is bound to a different USDC"
-        );
+        bool paused = _callBool(staking, abi.encodeWithSignature("paused()"));
+        assertFalse(paused, "live staking is paused");
+
+        address usdc = _callAddress(staking, abi.encodeWithSignature("usdc()"));
+        assertEq(usdc, BaseBindings.USDC, "live staking is bound to a different USDC");
 
         emit log_named_address("preflight live_staking_owner", owner);
+        emit log_named_string("preflight live_staking_paused", paused ? "true" : "false");
+        emit log_named_address("preflight live_staking_usdc", usdc);
     }
 
     /// @notice The mutable USDC policy the revenue path depends on.
@@ -109,11 +149,14 @@ contract DeploymentPreflightTest is Test {
         );
     }
 
-    /// @notice The exact Governance/Regent Safe control surface, frozen into this run's record.
+    /// @notice The exact Governance/Regent Safe control surface, emitted for exact comparison.
     /// @dev The factory's only mutable authority is this Safe, so who can act as it — and through
     ///      what guard, module or fallback handler — is part of the deployment decision. Every
-    ///      value is emitted for the packet; the structural relations that must hold whatever the
-    ///      membership is are asserted here.
+    ///      value is emitted and the gate holds each one to the snapshot the committed ceremony
+    ///      selection froze, so an added owner, a lowered threshold, an installed guard, a new
+    ///      module, a swapped fallback handler and a changed singleton or version are each a stop.
+    ///      The structural relations asserted here are the ones that must hold whatever the
+    ///      membership is, and they are what a preparation run has instead of a snapshot.
     function test_PreflightGovernanceSafeControlSurface() public {
         address safe = BaseBindings.GOVERNANCE_AND_REGENT_SAFE;
 
@@ -139,6 +182,55 @@ contract DeploymentPreflightTest is Test {
         emit log_named_address("preflight safe_fallback_handler", _slotAsAddress(safe, SAFE_FALLBACK_HANDLER_SLOT));
         emit log_named_address("preflight safe_singleton", _slotAsAddress(safe, bytes32(0)));
         emit log_named_string("preflight safe_version", _callString(safe, abi.encodeWithSignature("VERSION()")));
+    }
+
+    // -------------------------------------------------------------------------
+    // binding identity
+    // -------------------------------------------------------------------------
+
+    /// @dev The frozen observation record's own key for each binding, in `BaseBindings.all()` order.
+    function _bindingIds() private pure returns (string[8] memory ids) {
+        ids = [
+            "regent",
+            "usdc",
+            "cca_factory",
+            "pool_manager",
+            "position_manager",
+            "live_staking",
+            "governance_and_regent_safe",
+            "dead_address"
+        ];
+    }
+
+    /// @dev The four supported proxy patterns, in the order the frozen record was classified by.
+    function _classify(address account) private view returns (string memory family, address implementation) {
+        implementation = _slotAsAddress(account, EIP1967_IMPLEMENTATION_SLOT);
+        if (implementation != address(0)) return ("eip1967", implementation);
+        implementation = _slotAsAddress(account, EIP1822_IMPLEMENTATION_SLOT);
+        if (implementation != address(0)) return ("eip1822", implementation);
+        implementation = _slotAsAddress(account, ZEPPELINOS_IMPLEMENTATION_SLOT);
+        if (implementation != address(0)) return ("zeppelinos", implementation);
+        if (account == BaseBindings.GOVERNANCE_AND_REGENT_SAFE) {
+            implementation = _safeSingleton(account);
+            if (implementation != address(0)) return ("safe_singleton", implementation);
+        }
+        return (NO_SUPPORTED_PROXY_PATTERN, address(0));
+    }
+
+    /// @dev Four agreeing measurements: slot zero, `masterCopy()`, a delegating-stub runtime shape,
+    ///      and a singleton that carries more code than the stub in front of it.
+    function _safeSingleton(address account) private view returns (address) {
+        address slotValue = _slotAsAddress(account, SAFE_SINGLETON_SLOT);
+        if (slotValue == address(0) || slotValue.code.length == 0) return address(0);
+
+        (bool ok, bytes memory returned) = account.staticcall(abi.encodePacked(SAFE_MASTER_COPY_SELECTOR));
+        if (!ok || returned.length < 32) return address(0);
+        if (abi.decode(returned, (address)) != slotValue) return address(0);
+
+        uint256 proxyBytes = account.code.length;
+        if (proxyBytes == 0 || proxyBytes > SAFE_PROXY_MAX_RUNTIME_BYTES) return address(0);
+        if (proxyBytes >= slotValue.code.length) return address(0);
+        return slotValue;
     }
 
     // -------------------------------------------------------------------------

@@ -1,0 +1,15 @@
+{
+  "artifact": "regents-autolaunch-base-mainnet-ceremony-selection",
+  "version": 1,
+  "status": "selection_pending",
+  "note": "The one place the two things a ceremony cannot derive for itself are written down: the founder's public deployer selection, and the mutable external control surface a deployment depends on. Both are null until a human installs them. bin/deployment-gate.sh --prepare <deployer> writes a reviewable candidate under reports/generated/deployment/ and stops without a pass marker; installing that candidate here is a deliberate, reviewed, committed step. --rehearse only ever compares against this file and never writes it, and it refuses to run while this file is still pending, because a rehearsal that cannot compare the exact selected deployer and the exact live control surface is not the ceremony. No key, mnemonic, keystore path, endpoint or credential belongs in this file: every value here is public.",
+  "selection": {
+    "deployer": null,
+    "starting_nonce": null,
+    "hook_salt": null,
+    "predicted_addresses": null,
+    "note": "The founder-selected disposable deployer, its exact starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the seven addresses that follow from those three. Remaining founder input: the deployer address. Nothing in this repository may invent one."
+  },
+  "control_snapshot": null,
+  "control_snapshot_note": "Frozen from an authorized preparation run and then compared on every rehearsal: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, enabled modules, module page terminator, fallback handler, singleton and version. reports/frozen/fork-observations.json stays the sole frozen runtime and proxy identity authority and is never restated here; this file holds only the mutable control facts that record freezes nothing about."
+}

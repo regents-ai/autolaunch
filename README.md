@@ -151,8 +151,8 @@ bin/gate.sh
 | `test/abi/`, `test/gas/`, `test/invariant/` | the frozen-surface, deployable-size, hook-cost, and stateful accounting proofs |
 | `test-fork/` | the read-only Base fork harness; outside the offline test root, so it can never execute against a hermetic or invariant claim |
 | `script/` | the one deployment script: five direct, zero-value creation transactions and nothing else. It imports no miner, holds no key, and is never invoked with `--broadcast` by any gate |
-| `test-deployment/` | the deployment-ceremony harness and the external-state preflight; outside both other test roots, so only the deployment gate can execute or close its claims |
-| `deployments/base-mainnet/` | the mainnet-NO-GO packet, which is a proposal, and the deployed manifest, which is an empty record. Nothing here has been deployed |
+| `test-deployment/` | the deployment-ceremony harness, the external-state preflight, and the selection derivation; outside both other test roots, so only the deployment gate can execute or close its claims |
+| `deployments/base-mainnet/` | the mainnet-NO-GO packet, which is a proposal; the ceremony selection, which is the founder's input and starts pending; and the deployed manifest, which is an empty record. Nothing here has been deployed |
 | `docs/security/` | threat model and Slither dispositions |
 | `docs/audit/` | the founder audit packet: posture, claim corrections, fork authority and staged-state inventory, gas and size |
 | `reports/generated/` | scratch gate evidence. `bin/gate.sh` deletes and rewrites it on every run and `.gitignore` keeps it out of the tree. Never committed, never an authority. |
@@ -226,19 +226,28 @@ close them; the offline gate neither runs nor claims them.
 
 `bin/deployment-gate.sh` is not part of the required check either. It proves the `deployment` gate
 alone: the five direct, zero-value creation transactions a founder-selected disposable deployer
-would send to put the Autolaunch graph on Base, and nothing else. It has two modes.
+would send to put the Autolaunch graph on Base, and nothing else. It has four modes.
 
 - `--offline` is the writer's mode and carries `DEP-070..075`. It runs with `FOUNDRY_OFFLINE=true`
   and with the Base endpoint variable cleared from the child environment, so no network can be
   reached even by accident. The whole ceremony is decidable that way: the five creations call no
   external contract at all.
-- `--rehearse` is the chief's mode, run only under the founder's separate read-only Base authority
-  and only after independent review. It runs the same ceremony selectors against a read-only fork
-  and adds the external-state preflight, which re-reads the frozen binding identities, the CCA fee
-  controller, the live staking and USDC policy, and the exact Regent Safe control surface.
+- `--prepare <deployer>` is the only mode that derives a ceremony's free parameters. Under the
+  founder's separate read-only Base authority it reads that public account's live nonce, mines the
+  hook salt once, snapshots the live control surface, and writes one candidate into gitignored
+  scratch. It closes no claim, renders no packet, and prints no pass marker.
+- `--rehearse` is the chief's mode, run under the same authority and only after independent review.
+  It is compare-only: it runs the ceremony selectors against a read-only fork, holds every frozen
+  binding's runtime and proxy identity to `reports/frozen/fork-observations.json` and the live
+  control surface to the committed selection snapshot, re-derives the seven predicted addresses,
+  and simulates the exact deployment script with no `--broadcast` and no signer. It refuses to run
+  while the ceremony selection is still pending.
+- `--selftest-dead-endpoint` is the regression for the chain-id boundary the two provider modes
+  cross before any Forge test or script: one read-only probe through the `base` alias must answer
+  exactly 8453. It reaches no network.
 
-Both modes refuse to run beside signing authority or beside a `.env`, `.env.local` or `.envrc`
-file, and neither invokes `forge script --broadcast`. Both end at mainnet NO-GO. The deployment
+Every mode refuses to run beside signing authority or beside a `.env`, `.env.local` or `.envrc`
+file, and none invokes `forge script --broadcast`. Every mode ends at mainnet NO-GO. The deployment
 profile builds into gitignored scratch under `reports/generated/`, separate from both `out/` and
 `out-fork/`, and its Solidity has no filesystem permission at all — so the packet under
 `deployments/base-mainnet/` is rendered and compared by the shell, and no test can author one for
@@ -246,7 +255,8 @@ itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) i
 
 **Nothing in this repository has been deployed.** No provider was accessed while preparing this
 tooling, no deployer has been selected, no address is predicted, and only a later founder
-instruction naming the packet's exact digest may authorize a signature or a broadcast.
+instruction naming the packet's exact digest may authorize a signature or a broadcast. The one
+remaining founder input is a public disposable deployer address; nothing here may invent one.
 
 ### The production authority and the evidence candidate are named apart
 
