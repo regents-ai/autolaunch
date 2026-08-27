@@ -22,9 +22,30 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xbefb7fc4f3a2db5a4d0cde1712606a72400e78c952576f518a453b46861bf173"
+    "value": "0x8f51cb00d022b76f70ca5218610b9c409dab5d70542d18e90d8e5041e974594e"
   },
-  "external_observation": null,
+  "external_observation": {
+    "governance_and_regent_safe": {
+      "fallback_handler": "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99",
+      "guard": "0x0000000000000000000000000000000000000000",
+      "module_next_page": "0x0000000000000000000000000000000000000001",
+      "modules": [],
+      "owners": [
+        "0x8C172cA4b5Dd9449217C636A953727eACD690e37",
+        "0x978BDbECb54C54800D01055Df5A8f6af600BfaCe",
+        "0x1d0dcABAeb941823E51935F795Be184aBeBf76dF"
+      ],
+      "singleton": "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762",
+      "threshold": 2,
+      "version": "1.4.1"
+    },
+    "live_staking": {
+      "owner": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "paused": false,
+      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    },
+    "observed_at_block": 50508978
+  },
   "external_observation_note": "The mutable external state a deployment depends on: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, modules, module page terminator, fallback handler, singleton and version. Frozen by `bin/deployment-gate.sh --prepare` and compared exactly by `--rehearse`, which also holds every frozen binding's runtime and proxy identity to reports/frozen/fork-observations.json and re-asserts the CCA zero fee controller and the USDC pause and blacklist policy. `observed_at_block` is provenance, not a comparison, because the head moves.",
   "immutable_identities": {
     "fork_evidence_commit": "f6bb34087dc16f6edf72e434f30f5e953071a579",
@@ -41,11 +62,19 @@
     "in_evm_creation_gas_guardrail": 14000000
   },
   "selection": {
-    "deployer": null,
-    "hook_salt": null,
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000000e75",
     "note": "The founder-selected disposable deployer, its starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the seven addresses those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` derives them and a human installs the packet candidate it writes; while it is null this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves the deployer five nonces past this one, so this packet is single-use.",
-    "predicted_addresses": null,
-    "starting_nonce": null
+    "predicted_addresses": {
+      "escrow_implementation": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+      "factory": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+      "hook": "0xA912ceABd03F86B7fd4b1Cf54d263B69AaD5e0cc",
+      "receiver_implementation": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
+      "splitter_implementation": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
+      "strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
+      "uerc20_factory": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563"
+    },
+    "starting_nonce": 0
   },
   "status": "mainnet-NO-GO",
   "topology": {
