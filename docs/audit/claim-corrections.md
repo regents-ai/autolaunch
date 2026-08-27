@@ -440,9 +440,10 @@ different strategy address, and the hook is CREATE2-mined over `abi.encode(PoolM
 Fresh hook-salt mining remains a deployment-packet obligation exactly as before; nothing in this
 repository pins a hook address.
 
-**Provider-backed evidence.** It has not run for this candidate and is not meant to. `regent-4wx`
-owns it, and it runs **once**, against the final candidate — after this correction and every later one
-is integrated and reviewed — rather than once per intermediate candidate. Everything in this packet that depends on it is labelled as awaiting that single run.
+**Provider-backed evidence.** It was intentionally not run against this intermediate C6.1
+candidate. `regent-4wx` has since run it once against the exact final C10 source, rather than once per
+intermediate candidate. The final packet records the pinned-header proof and later-header drift
+subset, while Control binds the exact evidence commit and tree.
 
 ## 7. `regent-alv1.10` (C9) — supply-proportional staker allocation and a one-block exit
 
@@ -606,5 +607,8 @@ block before an existing exit. No assertion was removed or weakened. The splitte
 advances a block before its ordinary `claim`, `claimAll` and `unstake` actions rather than mirroring
 the eligibility rule, so `fail_on_revert` keeps its full strength.
 
-**Provider-backed evidence.** It has not run for this candidate and is not meant to. `regent-4wx`
-owns it and it still runs once, against the final candidate.
+**Provider-backed evidence.** `regent-4wx` ran once against this exact final C10 source. The complete
+pinned-header lifecycle and the focused later-header identity, proxy, controller, and gas-schedule
+subset passed; the reviewed observation is committed and the compare-only check left it unchanged.
+Control binds the exact final evidence commit and tree. No provider write, signature, broadcast,
+deployment, or value movement occurred.
