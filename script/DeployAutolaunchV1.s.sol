@@ -199,10 +199,10 @@ contract DeployAutolaunchV1 is Script {
 
     /// @notice The broadcast entrypoint, consuming the three pinned ceremony values.
     /// @dev The three values arrive through the process environment, set from the approved packet by
-    ///      whoever executes an authorized ceremony. No gate in this repository invokes this
-    ///      entrypoint: `bin/deployment-gate.sh` runs `forge test` in both of its modes and never
-    ///      `forge script --broadcast`. No key, mnemonic, keystore path or endpoint is read here or
-    ///      anywhere else in this file, and the gate refuses to run beside signing authority at all.
+    ///      whoever executes an authorized ceremony. The deployment gate invokes this entrypoint
+    ///      only for an unsigned rehearsal: it omits `--broadcast` and every signer option. No key,
+    ///      mnemonic, keystore path or endpoint is read here or anywhere else in this file, and the
+    ///      gate refuses to run beside signing authority at all.
     function run() external returns (Graph memory) {
         if (block.chainid != BaseBindings.BASE_CHAIN_ID) {
             revert WrongChain(BaseBindings.BASE_CHAIN_ID, block.chainid);
