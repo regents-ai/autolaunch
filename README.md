@@ -1,14 +1,66 @@
 # Regents Autolaunch Contracts
 
-Clean Solidity implementation of the founder-frozen Autolaunch V1 system.
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![Solidity 0.8.26](https://img.shields.io/badge/solidity-0.8.26-lightgrey)](https://soliditylang.org)
+[![Foundry 1.5.1](https://img.shields.io/badge/foundry-1.5.1--stable-lightgrey)](https://getfoundry.sh)
+[![Slither 0.11.5](https://img.shields.io/badge/slither-0.11.5-lightgrey)](https://github.com/crytic/slither)
+[![Status: not deployed](https://img.shields.io/badge/status-not%20deployed-lightgrey)](#the-deployment-ceremony-gate)
+
+Clean Solidity implementation of the founder-frozen Autolaunch V1 system, written and
+maintained by Regents Labs. Autolaunch is the Regent token-launch system; this repository
+holds its contracts, its proofs, and the gates that decide whether those proofs still hold.
 
 The controlling specification is [SPEC.md](SPEC.md). The prior implementation in
 `regent-contracts` is historical reference only. This repository contains no deployed
 release until the complete claim-level test, static-analysis, fork, review, and founder
 audit gates pass.
 
-No deployment, signature, provider write, or value movement is authorized by this
-repository.
+> [!WARNING]
+> No deployment, signature, provider write, or value movement is authorized by this
+> repository. Nothing here has been deployed. A deployment packet and deployer have been
+> selected, but only a later founder instruction naming the packet's exact digest may
+> authorize a signature or a broadcast.
+
+> [!IMPORTANT]
+> Evidence here is local by construction. `.github/workflows/test.yml` runs the same required
+> `bin/gate.sh`, materializing the pinned toolchain over the network first so the gate itself
+> stays offline. Until a hosted run has been observed and reviewed, a local `bin/gate.sh` is
+> the whole evidence, and no CI-green claim is made anywhere in this repository.
+
+## Where this sits
+
+```text
+  client surfaces
+    ios                               mobile app, wallet, action signing
+    regents-cli                       operator control surface
+    regents-techtree-hermes-plugin    Hermes mission-control tab
+                    │
+                    ▼
+  platform
+    ash-platform                      Phoenix, LiveView, Ash: web, API, product domains
+                    │
+                    ▼
+  services and chain
+    siwa-server                       agent request signing, nonce and replay state
+    media-web                         hosted card images and video
+    fly-sentinel                      operator health checks
+    regent-contracts                  canonical Solidity, ABIs, deployment records
+    autolaunch-contracts              frozen Autolaunch V1 Solidity   ◀ this repository
+
+  shared libraries and standalone tools
+    elixir-utils                      SIWA, ENS, XMTP, cache, Credo checks
+    design-system                     tokens and regent_ui components
+    python-cli                        offline Techtree skill-tree inspection
+    videocontrol                      video project and timeline workflows
+```
+
+## The three gates
+
+| Gate | Command | Authorization | What it proves |
+| --- | --- | --- | --- |
+| Required | `bin/gate.sh` | none needed; fully offline | The `hermetic` and `invariant` claims, and only those. This is the one command that must pass before a change is proposed. |
+| Fork | `bin/fork-gate.sh` | the founder's separate read-only Base authority | The `fork` claims, against real Base state. Never runs inside the required gate. |
+| Deployment ceremony | `bin/deployment-gate.sh` | founder authority for its provider modes | The five zero-value creation transactions of the ceremony. Every mode ends at mainnet NO-GO. |
 
 ## The required gate
 
@@ -87,10 +139,6 @@ gates, and only those. It runs the external tools and hands every structured com
 
 Anything missing, drifted, or unproven fails closed. A gate failure is a stop-report: never
 relax a pinned identity, threshold, or configuration value to make it pass.
-
-The repository has no configured Git remote, so `.github/workflows/test.yml` is reviewed
-statically and has not been executed on a hosted runner. No CI-green claim is made anywhere
-in this repository; `bin/gate.sh` run locally is the whole evidence.
 
 ## Setup
 
@@ -253,10 +301,12 @@ profile builds into gitignored scratch under `reports/generated/`, separate from
 `deployments/base-mainnet/` is rendered and compared by the shell, and no test can author one for
 itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) is the full account.
 
-**Nothing in this repository has been deployed.** No provider was accessed while preparing this
-tooling, no deployer has been selected, no address is predicted, and only a later founder
-instruction naming the packet's exact digest may authorize a signature or a broadcast. The one
-remaining founder input is a public disposable deployer address; nothing here may invent one.
+**Nothing in this repository has been deployed.** The frozen packet under
+`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the five
+predicted addresses, and it records the external state observed at Base block `50508978`. Its
+authorization state is still `not authorized`: no founder has granted a `GO_TO_DEPLOY`, no
+signing method is named, and only a later founder instruction naming the packet's exact digest
+may authorize a signature or a broadcast.
 
 ### The production authority and the evidence candidate are named apart
 
@@ -271,3 +321,24 @@ byte — its diff reaches only `README.md`, `bin/fork-gate.sh`, `test-fork/`,
 `docs/audit/README.md` carries the same table, and states there — as here — that the earlier C9
 evidence commit `49b7458e5c93f502247905201352074ef5b5c409` predates the C10 splitter and certifies
 nothing about this candidate.
+
+## The other repositories
+
+| Repository | What it is | What it deliberately does not do |
+| --- | --- | --- |
+| `ash-platform` | The Phoenix, LiveView, and Ash application: public web pages, the HTTP API, product domains, human identity, billing, and the Techtree and Autolaunch product areas. | It does not hold Solidity source or user signing keys; wallet actions remain browser-signed. |
+| `design-system` | The shared Regent visual language: the style guide, design tokens, logos, fonts, and the `regent_ui` Phoenix component library. | Shared components never own product workflow state, authorisation decisions, money movement, or product database behaviour. |
+| `elixir-utils` | A collection of standalone Elixir libraries used across the family: SIWA, ENS, XMTP, a cache, agentbook helpers, and the in-house `credo_ash` lint checks. | Each package is a library only; none of them runs a service or holds product behaviour. |
+| `fly-sentinel` | A small Phoenix service that reports Fly.io observability and operator preview checks. | It observes and reports; it does not deploy, scale, or change any other application. |
+| `ios` | The Expo and React Native mobile app: the mobile wallet, action signing, and mobile Regent records. | It consumes the platform HTTP contracts and owns no server-side product logic. |
+| `media-web` | A standalone Phoenix service that serves hosted Regents card images and video files from `media.regents.sh`. | It only serves bytes over HTTP; it holds no identity, database, or product logic. |
+| `python-cli` | The installable `regents-techtree` Python package, whose shipped surface is a deterministic offline inspection of one champion/challenger skill-tree pair. | It does not evaluate or execute an agent, and it makes no network calls once its locked dependencies are installed. |
+| `regent-contracts` | The canonical home for Regent Solidity source, Foundry tests, deployment scripts, verified deployment records, ABIs, and the chain-contract manifest. | It holds no HTTP or CLI contracts, Ash resources, workflow logic, UI, or projection workers. |
+| `regents-cli` | The operator control surface: the `regents` command line tool, its generated bindings, and its local runtime. | It drives the platform over published contracts and owns no product database or on-chain authority. |
+| `regents-techtree-hermes-plugin` | The Hermes plugin that presents Techtree mission control across Forge, Techtree Verify, and Uplift. | It is presentation only: no second task store, no private Verify database, no identity model, no payment system, and no Hermes runtime of its own. |
+| `siwa-server` | The shared Sign-In With Anything service for signed agent requests, nonce and replay state, and internal keyring endpoints. | It owns no product data or product authorization policy. |
+| `videocontrol` | A separate product: video project workflows, timeline editing, preview rendering, and Codex plugin media control. | It shares the house style but no runtime, database, or contract with the Regent platform. |
+
+## License
+
+MIT — see [LICENSE](LICENSE). Dependencies under `lib/` keep their own licenses.
