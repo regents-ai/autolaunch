@@ -295,7 +295,9 @@ if missing:
     raise SystemExit(f"the run emitted no {', '.join(missing)}; no external state was observed")
 
 # --- runtime and proxy identity, against the frozen observation record ----------
-frozen = json.load(open(observations_path, encoding="utf-8"))["bindings"]
+observation = json.load(open(observations_path, encoding="utf-8"))
+frozen = dict(observation["bindings"])
+frozen["permit2"] = observation["permit2"]
 if sorted(bindings) != sorted(frozen):
     problems.append(f"the preflight observed bindings {sorted(bindings)}, the frozen record names {sorted(frozen)}")
 

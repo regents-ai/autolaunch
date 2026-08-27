@@ -18,7 +18,8 @@ import {Test} from "forge-std/Test.sol";
 ///      This profile has no filesystem permission at all, so nothing here can read a frozen record
 ///      or write an observation. Every value it measures is emitted as a decoded log and compared
 ///      by `bin/deployment-gate.sh` against committed authority instead: the runtime and supported
-///      proxy identity of all eight bindings against `reports/frozen/fork-observations.json`, and
+///      proxy identity of all eight bindings plus canonical Permit2 against
+///      `reports/frozen/fork-observations.json`, and
 ///      the mutable control surface — the live staking owner, pause and USDC binding, and the
 ///      Safe's exact owners, threshold, guard, modules, fallback handler, singleton and version —
 ///      against the snapshot frozen in `deployments/base-mainnet/ceremony-selection.json`. Those
@@ -31,6 +32,9 @@ import {Test} from "forge-std/Test.sol";
 contract DeploymentPreflightTest is Test {
     /// @notice The configured Base endpoint alias. Never an endpoint, always an alias.
     string internal constant RPC_ALIAS = "base";
+
+    /// @notice Canonical Permit2 used by every CCA bid.
+    address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     /// @notice The Safe storage slots that hold the two powers a signature check does not cover.
     /// @dev Derived rather than transcribed, so a mistyped literal cannot silently read slot zero.
@@ -77,20 +81,9 @@ contract DeploymentPreflightTest is Test {
         string[8] memory ids = _bindingIds();
         address[8] memory bindings = BaseBindings.all();
         for (uint256 i; i < bindings.length; ++i) {
-            (string memory family, address implementation) = _classify(bindings[i]);
-
-            emit log_named_string("preflight binding_id", ids[i]);
-            emit log_named_address("  binding_address", bindings[i]);
-            emit log_named_uint("  binding_runtime_bytes", bindings[i].code.length);
-            emit log_named_bytes32("  binding_runtime_code_hash", bindings[i].codehash);
-            emit log_named_string("  binding_proxy_family", family);
-            emit log_named_address("  binding_implementation", implementation);
-            emit log_named_bytes32(
-                "  binding_implementation_code_hash",
-                implementation == address(0) ? bytes32(0) : implementation.codehash
-            );
-            emit log_named_uint("  binding_implementation_runtime_bytes", implementation.code.length);
+            _emitBinding(ids[i], bindings[i]);
         }
+        _emitBinding("permit2", PERMIT2);
     }
 
     /// @notice The CCA factory is the admitted code and still charges no protocol fee.
@@ -173,6 +166,9 @@ contract DeploymentPreflightTest is Test {
             safe.staticcall(abi.encodeWithSignature("getModulesPaginated(address,uint256)", SAFE_MODULE_SENTINEL, 32));
         require(ok, "the Regent Safe did not answer getModulesPaginated");
         (address[] memory modules, address nextModulePage) = abi.decode(returned, (address[], address));
+        assertEq(
+            nextModulePage, SAFE_MODULE_SENTINEL, "the Regent Safe has more modules than this exact snapshot reads"
+        );
 
         emit log_named_uint("preflight safe_threshold", threshold);
         emit log_named_array("preflight safe_owners", owners);
@@ -200,6 +196,21 @@ contract DeploymentPreflightTest is Test {
             "governance_and_regent_safe",
             "dead_address"
         ];
+    }
+
+    function _emitBinding(string memory id, address binding) private {
+        (string memory family, address implementation) = _classify(binding);
+
+        emit log_named_string("preflight binding_id", id);
+        emit log_named_address("  binding_address", binding);
+        emit log_named_uint("  binding_runtime_bytes", binding.code.length);
+        emit log_named_bytes32("  binding_runtime_code_hash", binding.codehash);
+        emit log_named_string("  binding_proxy_family", family);
+        emit log_named_address("  binding_implementation", implementation);
+        emit log_named_bytes32(
+            "  binding_implementation_code_hash", implementation == address(0) ? bytes32(0) : implementation.codehash
+        );
+        emit log_named_uint("  binding_implementation_runtime_bytes", implementation.code.length);
     }
 
     /// @dev The four supported proxy patterns, in the order the frozen record was classified by.
