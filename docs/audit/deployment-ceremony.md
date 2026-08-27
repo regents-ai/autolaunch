@@ -88,11 +88,10 @@ repeated, and a new founder-approved digest is required.
   Base PoolManager, is compared rather than called.
 - **`--prepare <deployer>`** is the only mode that derives a ceremony's free parameters. Under the
   founder's separate read-only Base authority it reads that public account's live nonce, mines the
-  hook salt once, snapshots the live control surface, and writes one candidate into gitignored
-  scratch. It closes no claim, renders no packet, and prints no pass marker; installing what it
-  wrote is a deliberate human step.
-- **`--rehearse`** is the chief's mode, run under the same read-only authority and only after this
-  candidate has been independently reviewed. It is compare-only and authors nothing.
+  hook salt once, snapshots the live control surface, and writes one complete packet candidate into
+  gitignored scratch. It closes no claim, installs nothing, and prints no pass marker.
+- **`--rehearse`** is the chief's mode, run under the same read-only authority and only after the
+  committed packet has been independently reviewed. It is compare-only and authors nothing.
 - **`--selftest-dead-endpoint`** is the regression for the chain-id boundary below. It reaches no
   network.
 
@@ -104,37 +103,32 @@ contents. `forge script --broadcast` is never invoked, in any mode.
 
 ## The endpoint boundary
 
-Before a provider mode runs a single Forge test or the deployment script, one read-only
+Before a provider mode builds, runs a Forge test, or runs the deployment script, one read-only
 `cast chain-id` probe through the configured `base` alias must answer exactly `8453`. Without it a
 dead, unreachable, malformed or wrong-chain endpoint would surface only as a Forge failure deep
 inside the harness, where a run that never opened a fork is hard to tell from one that observed
-Base. Every failure — dead, unreachable, malformed, or another chain — is the same refusal, and the
-endpoint's value is never printed.
+Base. Every failure is the same refusal, and the endpoint's value is never printed.
 
-`bin/deployment-gate.sh --selftest-dead-endpoint` is that refusal's own regression. It re-runs the
-gate in `--rehearse` with the alias pointed at a closed loopback port that nothing listens on, and
-requires a nonzero exit, the probe's refusal, and no `DEPLOYMENT GATE PASS` anywhere in the output.
-It is the same boundary and the same regression `bin/fork-gate.sh` carries.
+`bin/deployment-gate.sh --selftest-dead-endpoint` is that refusal's regression: it re-runs the gate
+in `--rehearse` with the alias pointed at a closed loopback port, and requires a nonzero exit, the
+probe's refusal, and no `DEPLOYMENT GATE PASS` anywhere in the output. `bin/fork-gate.sh` carries
+the same boundary and the same regression.
 
-## The founder-selected ceremony
+## Preparation, and what a human installs
 
-`deployments/base-mainnet/ceremony-selection.json` is the one place the two things a ceremony
-cannot derive for itself are written down: the founder's public deployer selection, and a snapshot
-of the mutable external control surface. It starts pending, with every field null, and no gate mode
-ever writes it.
+The committed packet is the sole ceremony authority. Its `selection` and `external_observation`
+sections hold the two things a ceremony cannot derive for itself — the founder's public deployer
+selection, and a snapshot of the mutable external control surface — and no gate mode writes them.
 
-A preparation run reads the selected account's live nonce off Base, mines the hook salt once
+`--prepare <deployer>` reads the selected account's live nonce off Base, mines the hook salt once
 against the predicted factory and the predicted strategy, derives the seven addresses those three
-values determine, and freezes the live control surface — the live staking owner, pause state and
-USDC binding, and the Safe's exact owners, threshold, guard, modules, module page terminator,
-fallback handler, singleton and version. All of that goes into a candidate under
+values determine, freezes the live control surface, and renders a complete packet candidate under
 `reports/generated/deployment/`, which is gitignored scratch that nothing reads.
 
-Installing that candidate is a human step: read every value against an independent source, commit
-it, re-render the packet with `--offline`, and commit that too. **A pending selection blocks the
-exact rehearsal.** `--rehearse` refuses to run while it is pending, because a rehearsal that cannot
-compare the selected deployer, the predicted addresses and the live control surface is not the
-ceremony, and the packet it would render could not honestly claim otherwise.
+Installing that candidate is a human step: read every value against an independent source, install
+it as the committed packet, re-render with `--offline`, and commit. Until then `--rehearse` refuses
+to run, because a rehearsal that cannot compare the selected deployer, the predicted addresses and
+the live control surface is not the ceremony.
 
 **Remaining founder input: one public disposable deployer address.** Nothing in this repository may
 choose, derive, or invent one.
@@ -150,52 +144,44 @@ address.
 Run in the two provider modes, and only ever a stop condition. Every read is a hard `staticcall`
 that reverts if the provider, the account, or the getter fails, so a run that cannot reach Base
 fails loudly instead of reporting an empty observation, and the gate can never claim a fork it did
-not open. It reads:
+not open. It asserts chain id 8453, the CCA factory's admitted runtime code hash and its
+`protocolFeeController() == address(0)`, live staking's `paused() == false` and
+`usdc() == BaseBindings.USDC` (a paused live staking contract means the splitter's USDC skim cannot
+settle), and the mutable USDC policy: `paused() == false` and neither the frozen Regent Safe nor the
+live staking binding blacklisted.
 
-- chain id 8453, and the complete runtime and supported proxy identity of all eight frozen
-  bindings: runtime length, runtime code hash, proxy family, implementation address, implementation
-  code hash, and implementation runtime length;
-- the CCA factory's runtime code hash against the admitted one, and its
-  `protocolFeeController() == address(0)`;
-- live staking's `owner()`, `paused() == false`, and `usdc() == BaseBindings.USDC` — a paused live
-  staking contract means the splitter's USDC skim cannot settle, so deploying into that state is a
-  stop rather than a note;
-- the mutable USDC policy: `paused() == false`, and that neither the frozen Regent Safe nor the
-  live staking binding is blacklisted;
-- the exact Governance/Regent Safe control surface: owners, threshold, guard, enabled modules,
-  module page terminator, fallback handler, singleton, and version.
+The deployment profile's Solidity has no filesystem permission, so it can read no committed record
+and write no observation. Everything it measures is emitted as a decoded log and compared by the
+shell against committed authority:
 
-The deployment profile's Solidity has no filesystem permission at all, so the preflight can read no
-committed record and write no observation. Every value above is emitted as a decoded log and
-compared by the shell against committed authority:
+- **runtime and supported proxy identity** — address, runtime length, runtime code hash, proxy
+  family, implementation, implementation code hash, implementation runtime length — for all eight
+  frozen bindings plus canonical Permit2, against `reports/frozen/fork-observations.json`, which
+  stays the sole frozen authority for those. Any moved value is drift to account for, not to absorb.
+- **the mutable control surface** — the live staking owner, pause state and USDC binding, and the
+  Safe's exact owners, threshold, guard, modules, fallback handler, singleton and version — against
+  the committed packet's `external_observation`, exactly. An added Safe owner, a lowered threshold,
+  an installed guard, a new module, a swapped fallback handler, a changed singleton or version, or a
+  moved live-staking owner is each a stop. `observed_at_block` is provenance and is not compared,
+  because the head moves. A Safe with more modules than one page holds fails closed rather than
+  being compared against a truncated list.
 
-- **runtime and proxy identity** goes to `reports/frozen/fork-observations.json`, which stays the
-  sole frozen authority for those. Any moved runtime hash, length, proxy family or implementation
-  is drift to account for, not drift to absorb.
-- **the mutable control surface** goes to the snapshot in
-  `deployments/base-mainnet/ceremony-selection.json`, exactly: an added Safe owner, a lowered
-  threshold, an installed guard, a new module, a swapped fallback handler, a changed singleton or
-  version, or a moved live-staking owner is each a stop. The observation block is recorded as
-  provenance and is not compared, because the head moves.
-
-A preparation run has no snapshot to compare against — it is what freezes one — so the structural
-relations that must hold whatever the membership is are asserted in Solidity as well: a live
-staking owner that exists, a nonempty Safe owner set, and a threshold between one and that owner
-count.
+A preparation run has nothing to compare against — it is what freezes the snapshot — so the
+relations that must hold whatever the membership is are asserted in Solidity too: a live staking
+owner that exists, a nonempty Safe owner set, and a threshold between one and that owner count.
 
 The preflight carries no requirement id and closes no claim. Neither does the selection contract
-beside it, which re-derives the seven predicted addresses from the committed values. Both are
-excluded by name from the compiled listing and from the ledger reconciliation in every mode,
-exactly as `bin/fork-gate.sh` excludes its discovery pass.
+beside it, which re-derives the seven predicted addresses. Both are excluded by name from the
+compiled listing and the ledger reconciliation, exactly as `bin/fork-gate.sh` excludes its discovery
+pass.
 
-## The rehearsal is the ceremony
+## The rehearsal runs the exact script, unsigned
 
-With a selection installed, `--rehearse` exports only its three public values — deployer, starting
-nonce, hook salt — and runs `script/DeployAutolaunchV1.s.sol` against Base with **no `--broadcast`
-flag and no signer of any kind**: no `--private-key`, no `--account`, no keystore, no `--ledger`,
-no `--interactive`, no sender. Without them Foundry simulates the transaction sequence and sends
-nothing. The dry run's scratch is written under the gitignored `broadcast/` prefix and is never
-evidence.
+`--rehearse` exports the committed packet's three public values — deployer, starting nonce, hook
+salt — and runs `script/DeployAutolaunchV1.s.sol` against Base with **no `--broadcast` flag and no
+signer of any kind**: no `--private-key`, no `--account`, no keystore, no `--ledger`, no
+`--interactive`, no sender. Without them Foundry simulates the transaction sequence and sends
+nothing.
 
 What that proves is the script's own checks, against live chain state: the deployer's live Base
 nonce still equals the committed starting nonce, the pinned salt still derives a hook address
@@ -203,16 +189,8 @@ carrying the five permission bits, each simulated creation lands on the committe
 the factory's `strategy()` and `hook()` readbacks are the predicted internal addresses. Any
 mismatch reverts the simulation, which is a stop rather than a new candidate.
 
-The eventual authorized command shape is recorded in the packet as text and is never run from this
-repository:
-
-```
-forge script script/DeployAutolaunchV1.s.sol:DeployAutolaunchV1 --rpc-url base --broadcast --slow
-```
-
-`--slow` is load-bearing: it sends the five creations one at a time and waits for each receipt, so
-no skipped, dropped or replaced nonce can move the factory away from the packet's prediction.
-**`--resume` is forbidden.** A partial ceremony is terminal, not resumable.
+This ticket authorizes no deployment. No gate, script, or committed artifact here carries a
+broadcast command; assembling one is part of the separate founder approval described below.
 
 ## The packet, and what may name it
 
@@ -224,11 +202,10 @@ that is a deliberate human step, and the deployment profile's Solidity has no fi
 at all, so no test can author a packet for itself.
 
 The packet carries the frozen build, the exact five-transaction topology, the code identity and
-both deployability margins for all seven contracts, the two immutable identities named apart, the
-authorized command shape as text, and the `selection` and `external_observation` sections it reads
-straight out of the committed ceremony selection. While that selection is pending both are null and
-the packet says so plainly: it cannot claim that the exact ceremony was rehearsed. Its digest is
-`sha256` over the document rendered with `digest.value` set to null, so installing a selection
+both deployability margins for all seven contracts, the two immutable identities named apart, and
+the `selection` and `external_observation` sections a preparation run fills in. While those are
+null the packet says so plainly: it cannot claim that the exact ceremony was rehearsed. Its digest
+is `sha256` over the document rendered with `digest.value` set to null, so installing a selection
 produces a different digest — which is exactly right, because a different ceremony needs a new
 founder approval.
 

@@ -5,27 +5,19 @@ import {BaseBindings} from "../src/bindings/BaseBindings.sol";
 import {Test} from "forge-std/Test.sol";
 
 /// @notice The final external-state preflight, run in the deployment gate's two provider modes.
-/// @dev This contract closes no requirement and carries no requirement id. It is excluded by name
-///      from the deployment gate's compiled listing and from the ledger reconciliation, exactly as
-///      the fork gate excludes its discovery pass, because it reads live chain truth that no
-///      committed record can freeze and that no offline run can reach.
+/// @dev This contract closes no requirement and carries no requirement id, so the deployment gate
+///      excludes it by name from the compiled listing and the ledger reconciliation. Every read
+///      below is a hard `staticcall` that reverts if the provider, the account, or the getter
+///      fails, so a run that cannot reach Base fails loudly instead of reporting an empty
+///      observation, and the gate can never claim a fork it did not open.
 ///
-///      What it does is stop a ceremony rather than describe one. Every read below is a hard
-///      `staticcall` that reverts if the provider, the account, or the getter fails, so a run that
-///      cannot reach Base fails loudly instead of reporting an empty observation, and the gate can
-///      never claim a fork it did not open.
-///
-///      This profile has no filesystem permission at all, so nothing here can read a frozen record
-///      or write an observation. Every value it measures is emitted as a decoded log and compared
-///      by `bin/deployment-gate.sh` against committed authority instead: the runtime and supported
-///      proxy identity of all eight bindings plus canonical Permit2 against
-///      `reports/frozen/fork-observations.json`, and
-///      the mutable control surface — the live staking owner, pause and USDC binding, and the
-///      Safe's exact owners, threshold, guard, modules, fallback handler, singleton and version —
-///      against the snapshot frozen in `deployments/base-mainnet/ceremony-selection.json`. Those
-///      mutable facts are re-read on every rehearsal because each can move between the reviewed
-///      packet and the broadcast, and each changes whether the deployed system works or who
-///      controls it.
+///      This profile has no filesystem permission, so nothing here reads a frozen record or writes
+///      an observation. Every value is emitted as a decoded log and compared by
+///      `bin/deployment-gate.sh`: runtime and supported proxy identity for the eight bindings plus
+///      canonical Permit2 against `reports/frozen/fork-observations.json`, and the mutable control
+///      surface against `deployments/base-mainnet/mainnet-no-go-packet.json`. Those mutable facts
+///      are re-read on every rehearsal because each can move between the reviewed packet and the
+///      broadcast, and each changes whether the deployed system works or who controls it.
 ///
 ///      Nothing here writes, signs, broadcasts, funds, or moves value. The fork is read-only and
 ///      the endpoint is reached only through the `base` alias, whose value is never printed.
@@ -46,10 +38,9 @@ contract DeploymentPreflightTest is Test {
 
     /// @notice The three namespaced implementation slots and the Safe singleton slot, in the order
     ///         the frozen observation record was classified by.
-    /// @dev The rule is `test-fork/ForkDiscovery.t.sol`'s, restated here because this test root
-    ///      compiles on its own and the deployment profile can read no file. A binding matching none
-    ///      of the four is `no_supported_proxy_pattern`, which is what was measured rather than a
-    ///      claim that it is not a proxy at all. Slot zero is ordinary storage for anything that is
+    /// @dev The rule is `test-fork/ForkDiscovery.t.sol`'s, restated because this test root compiles
+    ///      on its own and the deployment profile can read no file. A binding matching none of the
+    ///      four is `no_supported_proxy_pattern`. Slot zero is ordinary storage for anything that is
     ///      not a Safe proxy, so that detector applies to exactly the frozen Regent Safe.
     bytes32 internal constant EIP1967_IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
@@ -68,11 +59,9 @@ contract DeploymentPreflightTest is Test {
 
     /// @notice Chain identity, and the complete runtime and supported proxy identity of every
     ///         frozen binding, emitted for comparison against the frozen observation record.
-    /// @dev Nothing is asserted about a binding here. Presence would be the weaker half of a
-    ///      comparison the gate makes exactly: `bin/deployment-gate.sh` holds every value below to
-    ///      `reports/frozen/fork-observations.json`, which is the sole frozen runtime and proxy
-    ///      identity authority, so a moved runtime, a moved implementation, or an empty read fails
-    ///      the run rather than passing a presence check.
+    /// @dev Nothing is asserted about a binding here, because the gate compares every value below
+    ///      to `reports/frozen/fork-observations.json` exactly: a moved runtime, a moved
+    ///      implementation, or an empty read fails the run rather than passing a presence check.
     function test_PreflightChainAndFrozenBindingIdentity() public {
         assertEq(block.chainid, BaseBindings.BASE_CHAIN_ID, "the preflight fork is not Base mainnet");
         emit log_named_uint("preflight block_number", block.number);
@@ -99,9 +88,8 @@ contract DeploymentPreflightTest is Test {
 
     /// @notice Live staking is unpaused, bound to the frozen USDC, and owned by a real account.
     /// @dev A paused live-staking contract means the splitter's USDC skim cannot settle, so a
-    ///      deployment into that state is a stop rather than a note. The three values are also
-    ///      emitted, because ownership can move between the reviewed packet and the broadcast: the
-    ///      gate holds each of them to the snapshot the committed ceremony selection froze.
+    ///      deployment into that state is a stop rather than a note. All three are also emitted,
+    ///      because ownership can move: the gate holds each to the committed packet.
     function test_PreflightLiveStakingOwnerPauseAndUsdcBinding() public {
         address staking = BaseBindings.LIVE_STAKING;
 
@@ -145,11 +133,10 @@ contract DeploymentPreflightTest is Test {
     /// @notice The exact Governance/Regent Safe control surface, emitted for exact comparison.
     /// @dev The factory's only mutable authority is this Safe, so who can act as it — and through
     ///      what guard, module or fallback handler — is part of the deployment decision. Every
-    ///      value is emitted and the gate holds each one to the snapshot the committed ceremony
-    ///      selection froze, so an added owner, a lowered threshold, an installed guard, a new
-    ///      module, a swapped fallback handler and a changed singleton or version are each a stop.
-    ///      The structural relations asserted here are the ones that must hold whatever the
-    ///      membership is, and they are what a preparation run has instead of a snapshot.
+    ///      value is emitted and the gate holds each to the committed packet, so an added owner, a
+    ///      lowered threshold, an installed guard, a new module, a swapped fallback handler or a
+    ///      changed singleton or version is each a stop. The relations asserted here are the ones
+    ///      that must hold whatever the membership is, which is what preparation has instead.
     function test_PreflightGovernanceSafeControlSurface() public {
         address safe = BaseBindings.GOVERNANCE_AND_REGENT_SAFE;
 
@@ -229,7 +216,7 @@ contract DeploymentPreflightTest is Test {
     }
 
     /// @dev Four agreeing measurements: slot zero, `masterCopy()`, a delegating-stub runtime shape,
-    ///      and a singleton that carries more code than the stub in front of it.
+    ///      and a singleton carrying more code than the stub in front of it.
     function _safeSingleton(address account) private view returns (address) {
         address slotValue = _slotAsAddress(account, SAFE_SINGLETON_SLOT);
         if (slotValue == address(0) || slotValue.code.length == 0) return address(0);

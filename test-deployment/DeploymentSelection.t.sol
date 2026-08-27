@@ -9,23 +9,18 @@ import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
 import {Test} from "forge-std/Test.sol";
 
 /// @notice The founder-selected ceremony values, derived once and compared ever after.
-/// @dev This contract closes no requirement and carries no requirement id. Like the preflight it is
-///      excluded by name from the deployment gate's compiled listing and from the ledger
-///      reconciliation, and like the preflight it runs only in the gate's two provider modes.
+/// @dev This contract closes no requirement and carries no requirement id, so the deployment gate
+///      excludes it by name from the compiled listing and the ledger reconciliation. It runs only
+///      in that gate's two provider modes, against a read-only fork.
 ///
-///      A ceremony has exactly two free parameters — a founder-selected account and the nonce it is
-///      at — and everything else follows from them. `--prepare` reads that account's live nonce off
-///      Base, mines the hook salt once against the predicted factory and the predicted strategy, and
-///      emits the resulting graph for the gate to write as a reviewable candidate. `--rehearse`
-///      re-derives the same graph from the values a human then installed and committed, and the gate
-///      holds it to the committed record; a rehearsal derives nothing it is allowed to keep.
+///      A ceremony has two free parameters — a founder-selected account and the nonce it is at.
+///      `--prepare` reads that account's live nonce off Base and mines the hook salt once;
+///      `--rehearse` re-derives the same graph from the committed packet's values. Mining lives
+///      here rather than in `script/DeployAutolaunchV1.s.sol` on purpose: the script imports no
+///      miner and contains no search loop, so a broadcast can only consume a pinned salt.
 ///
-///      Mining lives here rather than in `script/DeployAutolaunchV1.s.sol` on purpose: the script
-///      imports no miner and contains no search loop, so a broadcast can only ever consume the salt
-///      an approved packet pinned.
-///
-///      Nothing here signs, broadcasts, funds, or moves value, and no key, mnemonic or endpoint is
-///      read. The three values below are public ceremony parameters and the fork is read-only.
+///      The three values below are public ceremony parameters. Nothing here signs, broadcasts,
+///      funds, or moves value, and no key, mnemonic or endpoint is read.
 contract DeploymentSelectionTest is Test {
     /// @notice The configured Base endpoint alias. Never an endpoint, always an alias.
     string internal constant RPC_ALIAS = "base";
@@ -53,8 +48,8 @@ contract DeploymentSelectionTest is Test {
     }
 
     /// @notice Preparation: the founder's deployer, its live Base nonce, and the salt mined once.
-    /// @dev The gate writes what this emits as a gitignored candidate and stops. Installing it is a
-    ///      deliberate human step, so nothing this function derives can become authority by itself.
+    /// @dev The gate writes what this emits into a gitignored packet candidate and stops. Installing
+    ///      that candidate is a deliberate human step, so nothing derived here becomes authority.
     function test_SelectionPrepareCandidate() public {
         address deployer = vm.envAddress(DEPLOYER_ENV);
         uint256 startingNonce = vm.getNonce(deployer);
@@ -76,7 +71,7 @@ contract DeploymentSelectionTest is Test {
         );
     }
 
-    /// @notice Rehearsal: the same graph, re-derived from the committed selection and nothing else.
+    /// @notice Rehearsal: the same graph, re-derived from the committed packet and nothing else.
     function test_SelectionMatchesTheCommittedValues() public {
         _emitSelection(
             DeployAutolaunchV1.Ceremony({
@@ -88,7 +83,7 @@ contract DeploymentSelectionTest is Test {
     }
 
     /// @dev The whole graph, through the script's own derivation. `predict` rejects a salt whose
-    ///      hook address does not carry the five permission bits, so a wrong salt fails here.
+    ///      hook address does not carry the five permission bits.
     function _emitSelection(DeployAutolaunchV1.Ceremony memory ceremony) private {
         DeployAutolaunchV1.Graph memory graph = deployment.predict(ceremony);
 

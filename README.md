@@ -152,7 +152,7 @@ bin/gate.sh
 | `test-fork/` | the read-only Base fork harness; outside the offline test root, so it can never execute against a hermetic or invariant claim |
 | `script/` | the one deployment script: five direct, zero-value creation transactions and nothing else. It imports no miner, holds no key, and is never invoked with `--broadcast` by any gate |
 | `test-deployment/` | the deployment-ceremony harness, the external-state preflight, and the selection derivation; outside both other test roots, so only the deployment gate can execute or close its claims |
-| `deployments/base-mainnet/` | the mainnet-NO-GO packet, which is a proposal; the ceremony selection, which is the founder's input and starts pending; and the deployed manifest, which is an empty record. Nothing here has been deployed |
+| `deployments/base-mainnet/` | the mainnet-NO-GO packet, which is a proposal and the sole ceremony authority, and the deployed manifest, which is an empty record. Nothing here has been deployed |
 | `docs/security/` | threat model and Slither dispositions |
 | `docs/audit/` | the founder audit packet: posture, claim corrections, fork authority and staged-state inventory, gas and size |
 | `reports/generated/` | scratch gate evidence. `bin/gate.sh` deletes and rewrites it on every run and `.gitignore` keeps it out of the tree. Never committed, never an authority. |
@@ -234,17 +234,17 @@ would send to put the Autolaunch graph on Base, and nothing else. It has four mo
   external contract at all.
 - `--prepare <deployer>` is the only mode that derives a ceremony's free parameters. Under the
   founder's separate read-only Base authority it reads that public account's live nonce, mines the
-  hook salt once, snapshots the live control surface, and writes one candidate into gitignored
-  scratch. It closes no claim, renders no packet, and prints no pass marker.
+  hook salt once, snapshots the live control surface, and writes one complete packet candidate into
+  gitignored scratch. It closes no claim, installs nothing, and prints no pass marker.
 - `--rehearse` is the chief's mode, run under the same authority and only after independent review.
   It is compare-only: it runs the ceremony selectors against a read-only fork, holds every frozen
   binding's runtime and proxy identity to `reports/frozen/fork-observations.json` and the live
-  control surface to the committed selection snapshot, re-derives the seven predicted addresses,
-  and simulates the exact deployment script with no `--broadcast` and no signer. It refuses to run
-  while the ceremony selection is still pending.
+  control surface to the committed packet, re-derives the seven predicted addresses, and simulates
+  the exact deployment script with no `--broadcast` and no signer. It refuses to run while the
+  committed packet pins no deployer.
 - `--selftest-dead-endpoint` is the regression for the chain-id boundary the two provider modes
-  cross before any Forge test or script: one read-only probe through the `base` alias must answer
-  exactly 8453. It reaches no network.
+  cross before any build, Forge test or script: one read-only probe through the `base` alias must
+  answer exactly 8453. It reaches no network.
 
 Every mode refuses to run beside signing authority or beside a `.env`, `.env.local` or `.envrc`
 file, and none invokes `forge script --broadcast`. Every mode ends at mainnet NO-GO. The deployment
