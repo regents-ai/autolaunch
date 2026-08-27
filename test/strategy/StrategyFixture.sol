@@ -54,11 +54,9 @@ abstract contract StrategyFixture is Test {
 
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
-    /// @dev Exactly the five permission bits `RegentFeeHook` declares.
-    uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
-            | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
-    );
+    /// @dev Exactly the three permission bits `RegentFeeHook` declares.
+    uint160 internal constant HOOK_FLAGS =
+        uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG);
     address internal constant HOOK_ADDRESS = address(uint160(uint256(0x3333) << 144) | HOOK_FLAGS);
 
     /// @dev Chosen so `SUBJECT_LOW < REGENT < SUBJECT_HIGH`, giving both PoolKey orderings.

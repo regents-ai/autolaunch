@@ -83,7 +83,7 @@ transaction sequence is assembled and nothing is broadcast at all. All of them a
 `DEP-075`:
 
 - an unselected deployer is refused during derivation, before any nonce is read;
-- a salt whose derived hook address does not carry exactly the five permission bits Uniswap v4
+- a salt whose derived hook address does not carry exactly the three permission bits Uniswap v4
   encodes in a hook address is refused during derivation. The factory constructor's own
   `Hooks.validateHookAddress` would reject it too, but only in the fifth creation — after four
   transactions that, in a real ceremony, would already be irreversible;
@@ -213,7 +213,7 @@ nothing.
 
 What that proves is the script's own checks, against live chain state: the deployer's live Base
 nonce still equals the committed starting nonce, the pinned salt still derives a hook address
-carrying the five permission bits, each simulated creation lands on the committed prediction, and
+carrying the three permission bits, each simulated creation lands on the committed prediction, and
 the factory's `strategy()` and `hook()` readbacks are the predicted internal addresses. Any
 mismatch reverts the simulation, which is a stop rather than a new candidate.
 
@@ -267,7 +267,7 @@ operation, not a prerequisite transaction in this five-creation ceremony.
 | Claim | What it proves |
 | --- | --- |
 | `DEP-070` | five direct zero-value creations on the deployer's own nonce sequence, in the fixed order, advancing the nonce by exactly five |
-| `DEP-071` | the factory alone creates the strategy at factory nonce 1 and the hook by `CREATE2` over the pre-mined salt, at an address carrying exactly the five permission bits |
+| `DEP-071` | the factory alone creates the strategy at factory nonce 1 and the hook by `CREATE2` over the pre-mined salt, at an address carrying exactly the three permission bits |
 | `DEP-072` | every constructor binding and runtime readback across the seven contracts, the four admitted runtime code hashes, and the paused state the fifth receipt leaves behind |
 | `DEP-073` | the disposable deployer retains no protocol authority, the frozen Safe is the sole mutable authority, and the created graph admits that one address — and only it — as the account a later activation would come from |
 | `DEP-074` | EIP-170 and EIP-3860 margins for all seven contracts, plus each creation's in-EVM gas floor under a 14,000,000 guardrail. No complete deployment-transaction gas figure is measured or claimed |

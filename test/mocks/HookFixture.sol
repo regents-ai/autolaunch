@@ -24,7 +24,7 @@ import {MockLiveStaking} from "./MockLiveStaking.sol";
 import {NestedSwapAttacker} from "./NestedSwapAttacker.sol";
 import {SimpleSwapRouter} from "./SimpleSwapRouter.sol";
 
-/// @notice The C2 hook fixture: a real `PoolManager`, two unrelated real swap routers, real
+/// @notice The FA-07 hook fixture: a real `PoolManager`, two unrelated real swap routers, real
 ///         `SubjectSplitterV1` clones, and the real `RegentFeeHook` bound to them.
 /// @dev Three deliberate choices keep this honest.
 ///
@@ -68,11 +68,9 @@ abstract contract HookFixture is Test {
     address internal constant SUBJECT_ALT = 0x2222222222222222222222222222222222222222;
     address internal constant SUBJECT_ALT2 = 0x3333333333333333333333333333333333333333;
 
-    /// @notice Exactly the five permission bits the hook declares, and no others.
-    uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
-            | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
-    );
+    /// @notice Exactly the three permission bits the hook declares, and no others.
+    uint160 internal constant HOOK_FLAGS =
+        uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG);
 
     address internal constant HOOK_ADDRESS = address(uint160(uint256(0x4444) << 144) | HOOK_FLAGS);
 
@@ -302,10 +300,10 @@ abstract contract HookFixture is Test {
         bool found;
         PoolId poolId;
         address sender;
+        address feeToken;
         uint256 charged;
         uint256 lane;
         bool exactInput;
-        bool regentSpecified;
     }
 
     /// @dev The one `SwapFeeSettled` the hook emitted, if it emitted any. Reading the event rather
@@ -322,8 +320,8 @@ abstract contract HookFixture is Test {
             entry.found = true;
             entry.poolId = PoolId.wrap(logs[i].topics[1]);
             entry.sender = address(uint160(uint256(logs[i].topics[2])));
-            (entry.charged, entry.lane, entry.exactInput, entry.regentSpecified) =
-                abi.decode(logs[i].data, (uint256, uint256, bool, bool));
+            entry.feeToken = address(uint160(uint256(logs[i].topics[3])));
+            (entry.charged, entry.lane, entry.exactInput) = abi.decode(logs[i].data, (uint256, uint256, bool));
             buffer[count++] = entry;
         }
         found = new Settlement[](count);

@@ -128,7 +128,7 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
     /// @dev Uniswap v4 encodes callback permissions in the low bits of a hook address, so this is a
     ///      deployment fact and not a code fact. It is proved here against the address the
     ///      production constructor actually produced from the pre-mined salt.
-    function test_HOK_004_MinedHookAddressCarriesExactlyTheDeclaredPermissionBits() public view {
+    function test_HOK_003_FA07_I3_FactoryHookAddressCarriesExactPermissionBits() public view {
         uint160 bits = uint160(address(hook)) & Hooks.ALL_HOOK_MASK;
         assertEq(bits, HOOK_FLAGS, "the mined hook address does not carry exactly the declared bits");
 
@@ -161,7 +161,7 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
 
     /// @notice `HOK-001`: the hook the production constructor deployed points back at that
     ///         constructor's own strategy and at the frozen PoolManager, permanently.
-    function test_HOK_001_FactoryConstructionBindsHookToStrategyAndPoolManager() public {
+    function test_HOK_003_FA07_I3_FactoryBindsHookToStrategyAndPoolManager() public {
         assertEq(hook.strategy(), address(strategy), "the hook is not bound to this factory's strategy");
         assertEq(address(hook.poolManager()), BaseBindings.POOL_MANAGER, "the hook is not bound to the PoolManager");
 

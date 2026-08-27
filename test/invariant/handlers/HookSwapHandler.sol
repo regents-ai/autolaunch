@@ -10,7 +10,7 @@ import {MockERC20} from "../../mocks/MockERC20.sol";
 import {SimpleSwapRouter} from "../../mocks/SimpleSwapRouter.sol";
 
 /// @notice Drives a registered official pool through every swap shape the hook supports, through two
-///         unrelated routers, and gifts the hook REGENT it must never consume.
+///         unrelated routers, and gifts the hook both fee assets it must never consume.
 /// @dev Amounts are bounded well inside the pool's liquidity and the price limits are the pinned
 ///      fixture's, so a swap that reverts here is a real failure rather than an exhausted pool.
 ///      `fail_on_revert = true` therefore keeps its full strength.
@@ -22,7 +22,7 @@ contract HookSwapHandler is CommonBase, StdUtils {
     ///      constraint and every swap settles.
     uint256 internal constant MAX_SWAP = 1e20;
 
-    /// @dev A lane is `charged / 100` floored, so anything below one hundred units charges nothing.
+    /// @dev A lane is `feeBase / 100` floored, so anything below one hundred units charges nothing.
     uint256 internal constant ZERO_LANE_CEILING = 99;
 
     PoolSwapTest public immutable pinnedRouter;
@@ -33,8 +33,9 @@ contract HookSwapHandler is CommonBase, StdUtils {
 
     PoolKey private _key;
 
-    /// @notice REGENT handed to the hook as an unattributable external gift.
-    uint256 public giftedToHook;
+    /// @notice Fee assets handed to the hook as unattributable external gifts.
+    uint256 public giftedRegentToHook;
+    uint256 public giftedSubjectToHook;
     /// @notice Swaps that actually settled, by shape.
     uint256 public exactInputSwaps;
     uint256 public exactOutputSwaps;
@@ -96,7 +97,17 @@ contract HookSwapHandler is CommonBase, StdUtils {
         amount = bound(amount, 1, available > MAX_SWAP ? MAX_SWAP : available);
 
         regent.transfer(hook, amount);
-        giftedToHook += amount;
+        giftedRegentToHook += amount;
+    }
+
+    /// @dev An explained external SUBJECT gift. It is not lane inventory and must remain untouched.
+    function giftSubjectToHook(uint256 amount) external {
+        uint256 available = subject.balanceOf(address(this));
+        if (available == 0) return;
+        amount = bound(amount, 1, available > MAX_SWAP ? MAX_SWAP : available);
+
+        subject.transfer(hook, amount);
+        giftedSubjectToHook += amount;
     }
 
     // -------------------------------------------------------------------------

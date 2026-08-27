@@ -25,11 +25,10 @@ contract DeploymentSelectionTest is Test {
     /// @notice The configured Base endpoint alias. Never an endpoint, always an alias.
     string internal constant RPC_ALIAS = "base";
 
-    /// @notice Exactly the five permission bits `RegentFeeHook` declares, stated independently of
+    /// @notice Exactly the three permission bits `RegentFeeHook` declares, stated independently of
     ///         the script so a wrong flag set in either place fails rather than agrees with itself.
     uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
-            | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
+        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
     );
 
     /// @notice The factory nonce its first internal `CREATE` — the strategy — consumes.
@@ -83,7 +82,7 @@ contract DeploymentSelectionTest is Test {
     }
 
     /// @dev The whole graph, through the script's own derivation. `predict` rejects a salt whose
-    ///      hook address does not carry the five permission bits.
+    ///      hook address does not carry the three permission bits.
     function _emitSelection(DeployAutolaunchV1.Ceremony memory ceremony) private {
         DeployAutolaunchV1.Graph memory graph = deployment.predict(ceremony);
 

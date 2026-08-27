@@ -31,11 +31,10 @@ import {Test} from "forge-std/Test.sol";
 ///      the script attributes each `CREATE` to the deployer's own nonce sequence, which is what
 ///      makes the predicted addresses the real ones; under `forge test` it sends nothing.
 contract DeploymentCeremonyTest is Test {
-    /// @notice Exactly the five permission bits `RegentFeeHook` declares, stated independently of
+    /// @notice Exactly the three permission bits `RegentFeeHook` declares, stated independently of
     ///         the script so a wrong flag set in either place fails rather than agrees with itself.
     uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
-            | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
+        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
     );
 
     /// @notice EIP-170's deployed-runtime ceiling and EIP-3860's initcode ceiling.
@@ -128,7 +127,7 @@ contract DeploymentCeremonyTest is Test {
 
     /// @notice `DEP-071`: the factory constructor alone creates the strategy at its first internal
     ///         `CREATE` and the hook by `CREATE2` over the pre-mined salt, and the hook address
-    ///         carries exactly the five declared permission bits.
+    ///         carries exactly the three declared permission bits.
     function test_DEP_071_FactoryAloneCreatesTheStrategyAndTheMinedHook() public {
         (DeployAutolaunchV1.Ceremony memory ceremony,) = _prepare();
         DeployAutolaunchV1.Graph memory graph = deployment.execute(ceremony);
@@ -147,7 +146,7 @@ contract DeploymentCeremonyTest is Test {
         );
 
         uint160 bits = uint160(graph.hook) & Hooks.ALL_HOOK_MASK;
-        assertEq(uint256(bits), uint256(HOOK_FLAGS), "the hook address does not carry exactly the five bits");
+        assertEq(uint256(bits), uint256(HOOK_FLAGS), "the hook address does not carry exactly the three bits");
 
         // The factory made both, and only those two. A contract's nonce starts at one under
         // EIP-161, the strategy's `CREATE` consumes nonce 1, and the hook's `CREATE2` consumes one
@@ -370,7 +369,7 @@ contract DeploymentCeremonyTest is Test {
             DeployAutolaunchV1.Ceremony({deployer: address(0), startingNonce: 0, hookSalt: ceremony.hookSalt})
         );
 
-        // A salt that is not the mined one derives a hook address without the five permission bits.
+        // A salt that is not the mined one derives a hook address without the three permission bits.
         // It is refused during derivation, before the script creates anything, so a broadcast of
         // this sequence is never assembled at all. The factory constructor's own
         // `Hooks.validateHookAddress` would catch it too, but only in the fifth creation — after

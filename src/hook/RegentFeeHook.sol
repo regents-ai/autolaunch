@@ -5,11 +5,6 @@ import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {SafeCast} from "@uniswap/v4-core/src/libraries/SafeCast.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
-import {
-    BeforeSwapDelta,
-    BeforeSwapDeltaLibrary,
-    toBeforeSwapDelta
-} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
@@ -17,13 +12,13 @@ import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {BaseHook} from "@uniswap/v4-periphery/src/utils/BaseHook.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {BaseBindings} from "../bindings/BaseBindings.sol";
+import {IERC20Minimal} from "../interfaces/IERC20Minimal.sol";
 import {SubjectSplitterV1} from "../revenue/SubjectSplitterV1.sol";
 
 /// @title RegentFeeHook
-/// @notice The one shared Uniswap v4 hook every official Autolaunch pool carries. It charges two
-///         independently floored 1% REGENT lanes on every swap and settles both of them inside the
-///         swap transaction: one lane straight to the Regent Safe, one lane through the launch's
-///         `SubjectSplitterV1`.
+/// @notice The one shared Uniswap v4 hook every official Autolaunch pool carries. After every swap,
+///         it charges two independently floored 1% lanes in the actual realized unspecified
+///         currency: one lane straight to the Regent Safe and one through the launch's splitter.
 /// @dev Two immutables — the PoolManager and the strategy — are fixed at construction and never
 ///      change. There is no initializer, upgrade, replacement, setter, flush, threshold, keeper,
 ///      pause, router allowlist, recovery, or fee mutation of any kind, and registration is
@@ -31,18 +26,17 @@ import {SubjectSplitterV1} from "../revenue/SubjectSplitterV1.sol";
 ///      frozen REGENT binding, the strategy-validated splitter, and ordinary EVM atomicity are the
 ///      complete authority and reentrancy design; no separate guard exists or is needed.
 ///
-///      Settlement follows the pinned v4 convention exactly. When REGENT is the swap's *specified*
-///      currency the charge is taken in `beforeSwap` from `abs(amountSpecified)` and returned as a
-///      positive specified delta; when REGENT is the *unspecified* currency the charge is taken in
-///      `afterSwap` from the absolute REGENT component of the realized `BalanceDelta` and returned
-///      as a positive unspecified delta. Exactly one of the two callbacks ever charges a given swap.
+///      Settlement follows the pinned v4 convention exactly. The specified currency is currency0
+///      exactly when `(amountSpecified < 0) == zeroForOne`; the other raw `BalanceDelta` component
+///      is the realized unspecified currency. A positive after-swap return delta charges only that
+///      component, preserving the core's specified-currency result for full, partial, and zero fills.
 ///
-///      Named invariants: `C2-I1` exact authority, `C2-I2` fee conservation, `C2-I3` synchronous
-///      cleanliness, `C2-I4` shape symmetry, `C2-I5` atomic failure, `C2-I6` no control plane.
+///      Named invariants: `FA07-I1` realized unspecified base, `FA07-I2` exact equal lanes,
+///      `FA07-I3` unchanged authority, `FA07-I4` atomic cleanliness, `FA07-I5` observability.
 contract RegentFeeHook is BaseHook {
     using SafeTransferLib for address;
 
-    /// @notice Each lane is `chargedRegent / LANE_DIVISOR`, floored independently. Two equal lanes.
+    /// @notice Each lane is `feeBase / LANE_DIVISOR`, floored independently. Two equal lanes.
     uint256 public constant LANE_DIVISOR = 100;
 
     /// @notice The only static LP fee an official pool may carry, 0.30%.
@@ -63,10 +57,10 @@ contract RegentFeeHook is BaseHook {
     event SwapFeeSettled(
         PoolId indexed poolId,
         address indexed sender,
-        uint256 chargedRegent,
+        address indexed feeToken,
+        uint256 feeBase,
         uint256 lane,
-        bool exactInput,
-        bool regentSpecified
+        bool exactInput
     );
 
     error ZeroStrategy();
@@ -82,8 +76,8 @@ contract RegentFeeHook is BaseHook {
     error RegentNotInPoolKey();
     error SplitterHasNoCode(address splitter);
     error SplitterBindingMismatch(address expected, address found);
-    error SpecifiedAmountOutOfRange();
     error AttributableBalanceNotRestored(uint256 expected, uint256 found);
+    error AttributableAllowanceNotRestored(uint256 expected, uint256 found);
 
     /// @dev `BaseHook` validates that this address carries exactly the permission bits
     ///      `getHookPermissions` declares, so a mis-mined deployment cannot exist.
@@ -102,11 +96,11 @@ contract RegentFeeHook is BaseHook {
             afterAddLiquidity: false,
             beforeRemoveLiquidity: false,
             afterRemoveLiquidity: false,
-            beforeSwap: true,
+            beforeSwap: false,
             afterSwap: true,
             beforeDonate: false,
             afterDonate: false,
-            beforeSwapReturnDelta: true,
+            beforeSwapReturnDelta: false,
             afterSwapReturnDelta: true,
             afterAddLiquidityReturnDelta: false,
             afterRemoveLiquidityReturnDelta: false
@@ -116,7 +110,7 @@ contract RegentFeeHook is BaseHook {
     /// @notice Bind one exact official `PoolKey` to one launch splitter. Strategy only, once ever.
     /// @dev The whole key is validated before any state is consumed, and the stored `PoolId` is the
     ///      keccak of that exact key, so a pool whose currencies, fee, tick spacing, or hook differ
-    ///      in any byte is a different — and unregistered — pool. `C2-I1`, `C2-I6`.
+    ///      in any byte is a different — and unregistered — pool. `FA07-I3`.
     function registerPool(PoolKey calldata key, address splitter) external {
         if (msg.sender != strategy) revert NotStrategy(msg.sender);
         if (address(key.hooks) != address(this)) revert ForeignHook(address(key.hooks));
@@ -147,7 +141,7 @@ contract RegentFeeHook is BaseHook {
     }
 
     /// @dev Only the strategy may initialize a registered official pool, so nobody can front-run the
-    ///      deterministic pool into existence at a price the auction never cleared. `C2-I1`.
+    ///      deterministic pool into existence at a price the auction never cleared. `FA07-I3`.
     function _beforeInitialize(address sender, PoolKey calldata key, uint160) internal view override returns (bytes4) {
         PoolId poolId = key.toId();
         if (splitterOf[poolId] == address(0)) revert PoolNotRegistered(poolId);
@@ -155,27 +149,8 @@ contract RegentFeeHook is BaseHook {
         return BaseHook.beforeInitialize.selector;
     }
 
-    /// @dev Charges the two lanes when REGENT is the specified currency, from `abs(amountSpecified)`,
-    ///      and returns them as a positive specified delta. `C2-I2`, `C2-I4`.
-    function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata)
-        internal
-        override
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
-        (PoolId poolId, address splitter, bool regentSpecified) = _resolve(key, params);
-        if (!regentSpecified) return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
-
-        int256 amountSpecified = params.amountSpecified;
-        if (amountSpecified == type(int256).min) revert SpecifiedAmountOutOfRange();
-        uint256 charged = uint256(amountSpecified < 0 ? -amountSpecified : amountSpecified);
-
-        int128 hookDelta = _chargeLanes(poolId, splitter, sender, charged, amountSpecified < 0, true);
-        return (BaseHook.beforeSwap.selector, toBeforeSwapDelta(hookDelta, 0), 0);
-    }
-
-    /// @dev Charges the two lanes when REGENT is the unspecified currency, from the absolute REGENT
-    ///      component of the realized swap delta, and returns them as a positive unspecified delta.
-    ///      A swap already charged in `beforeSwap` is never charged again here. `C2-I2`, `C2-I4`.
+    /// @dev Charges two lanes from the absolute actual unspecified component of the raw core delta,
+    ///      then returns their sum as a positive unspecified-currency hook delta. `FA07-I1`–`I4`.
     function _afterSwap(
         address sender,
         PoolKey calldata key,
@@ -183,71 +158,64 @@ contract RegentFeeHook is BaseHook {
         BalanceDelta delta,
         bytes calldata
     ) internal override returns (bytes4, int128) {
-        (PoolId poolId, address splitter, bool regentSpecified) = _resolve(key, params);
-        if (regentSpecified) return (BaseHook.afterSwap.selector, 0);
-
-        int128 regentDelta = Currency.unwrap(key.currency0) == BaseBindings.REGENT ? delta.amount0() : delta.amount1();
-        // Checked negation: an `int128.min` component reverts here rather than truncating.
-        if (regentDelta < 0) regentDelta = -regentDelta;
+        (PoolId poolId, address splitter) = _resolve(key);
+        bool specifiedIsCurrency0 = (params.amountSpecified < 0) == params.zeroForOne;
+        Currency feeCurrency = specifiedIsCurrency0 ? key.currency1 : key.currency0;
+        int256 realizedDelta = specifiedIsCurrency0 ? int256(delta.amount1()) : int256(delta.amount0());
+        uint256 feeBase = uint256(realizedDelta < 0 ? -realizedDelta : realizedDelta);
 
         int128 hookDelta =
-            _chargeLanes(poolId, splitter, sender, uint256(uint128(regentDelta)), params.amountSpecified < 0, false);
+            _chargeLanes(poolId, splitter, sender, Currency.unwrap(feeCurrency), feeBase, params.amountSpecified < 0);
         return (BaseHook.afterSwap.selector, hookDelta);
     }
 
-    /// @dev The registered pool, its splitter, and which side of this swap REGENT sits on. Reverts
-    ///      for any key the strategy never registered, which is the whole key-side authority
-    ///      boundary; `BaseHook` supplies the caller-side one. `C2-I1`.
-    function _resolve(PoolKey calldata key, SwapParams calldata params)
-        private
-        view
-        returns (PoolId poolId, address splitter, bool regentSpecified)
-    {
+    /// @dev Resolves the registered pool and splitter. Reverts for any key the strategy never
+    ///      registered, which is the whole key-side authority
+    ///      boundary; `BaseHook` supplies the caller-side one. `FA07-I3`.
+    function _resolve(PoolKey calldata key) private view returns (PoolId poolId, address splitter) {
         poolId = key.toId();
         splitter = splitterOf[poolId];
         if (splitter == address(0)) revert PoolNotRegistered(poolId);
-
-        // The pinned v4 convention: the specified currency is currency0 exactly when the swap is
-        // exact-input zero-for-one or exact-output one-for-zero.
-        bool specifiedIsCurrency0 = (params.amountSpecified < 0) == params.zeroForOne;
-        regentSpecified = specifiedIsCurrency0 == (Currency.unwrap(key.currency0) == BaseBindings.REGENT);
     }
 
     /// @dev Floors one 1% lane, uses that same amount twice, and settles both lanes synchronously:
     ///      one taken straight to the Regent Safe, one taken here, exact-approved, and pulled by the
-    ///      registered splitter. The hook's REGENT balance must return to its pre-callback level, so
-    ///      a splitter that under-pulls, over-pulls, or refunds fails the whole swap. Exact
-    ///      consumption of an exact approval leaves no allowance behind. A lane of zero is a valid
-    ///      no-op that makes no PoolManager, token, splitter, or approval call at all.
-    ///      `C2-I2`, `C2-I3`, `C2-I5`.
+    ///      registered splitter. The hook's fee-token balance and splitter allowance must return to
+    ///      their pre-callback levels, so an inexact pull or refund fails the whole swap. A zero lane
+    ///      is a valid no-op that makes no PoolManager, token, splitter, or approval call at all.
+    ///      `FA07-I2`, `FA07-I4`.
     function _chargeLanes(
         PoolId poolId,
         address splitter,
         address sender,
-        uint256 charged,
-        bool exactInput,
-        bool regentSpecified
+        address feeToken,
+        uint256 feeBase,
+        bool exactInput
     ) private returns (int128) {
-        uint256 lane = charged / LANE_DIVISOR;
+        uint256 lane = feeBase / LANE_DIVISOR;
         if (lane == 0) return 0;
 
         // Two equal lanes summed, never one floored 2%. Never truncate either: the returned `int128`
         // hook delta must represent both lanes exactly.
         int128 hookDelta = SafeCast.toInt128(lane + lane);
 
-        address regent = BaseBindings.REGENT;
-        uint256 balanceBefore = regent.balanceOf(address(this));
+        uint256 balanceBefore = feeToken.balanceOf(address(this));
+        uint256 allowanceBefore = IERC20Minimal(feeToken).allowance(address(this), splitter);
 
-        poolManager.take(Currency.wrap(regent), BaseBindings.GOVERNANCE_AND_REGENT_SAFE, lane);
-        poolManager.take(Currency.wrap(regent), address(this), lane);
+        poolManager.take(Currency.wrap(feeToken), BaseBindings.GOVERNANCE_AND_REGENT_SAFE, lane);
+        poolManager.take(Currency.wrap(feeToken), address(this), lane);
 
-        regent.safeApprove(splitter, lane);
-        SubjectSplitterV1(splitter).depositRecognizedRevenue(regent, lane, PoolId.unwrap(poolId));
+        feeToken.safeApprove(splitter, lane);
+        SubjectSplitterV1(splitter).depositRecognizedRevenue(feeToken, lane, PoolId.unwrap(poolId));
 
-        uint256 balanceAfter = regent.balanceOf(address(this));
+        uint256 balanceAfter = feeToken.balanceOf(address(this));
         if (balanceAfter != balanceBefore) revert AttributableBalanceNotRestored(balanceBefore, balanceAfter);
+        uint256 allowanceAfter = IERC20Minimal(feeToken).allowance(address(this), splitter);
+        if (allowanceAfter != allowanceBefore) {
+            revert AttributableAllowanceNotRestored(allowanceBefore, allowanceAfter);
+        }
 
-        emit SwapFeeSettled(poolId, sender, charged, lane, exactInput, regentSpecified);
+        emit SwapFeeSettled(poolId, sender, feeToken, feeBase, lane, exactInput);
         return hookDelta;
     }
 

@@ -129,10 +129,12 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         assertEq(regent.balanceOf(outsider), 100e18 + claimable, "a paused factory blocked a claim");
 
         // 7. swaps through the official pool and its hook
-        uint256 safeBefore = regent.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
+        uint256 safeSubjectBefore = winner.subject.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
         _swap(winner, 1_000e18);
         assertGt(
-            regent.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE), safeBefore, "a paused factory blocked a swap"
+            winner.subject.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE),
+            safeSubjectBefore,
+            "a paused factory blocked a swap"
         );
 
         // 8. payments through the canonical receiver

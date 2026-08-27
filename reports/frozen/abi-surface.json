@@ -374,7 +374,7 @@
         "0xe8323b0b splitterOf(bytes32)"
       ],
       "events": [
-        "0xed635d6e006eb21c9f43821f70b65b0394fb189e2641973011fc2dd0acb0ab0a SwapFeeSettled(bytes32,address,uint256,uint256,bool,bool) indexed=2",
+        "0x5fb0fa2ff28a7326bb4956d77b72d2e230d4e2e1c9319283d40e90b277a1dffd SwapFeeSettled(bytes32,address,address,uint256,uint256,bool) indexed=3",
         "0xfafdbdd88ac30f0aa936e576be61816ea751908540523fa81b80c4a406ad7bec PoolRegistered(bytes32,address,address) indexed=3"
       ],
       "event_fields": {
@@ -386,16 +386,15 @@
         "SwapFeeSettled": [
           "bytes32 indexed poolId",
           "address indexed sender",
-          "uint256 chargedRegent",
+          "address indexed feeToken",
+          "uint256 feeBase",
           "uint256 lane",
-          "bool exactInput",
-          "bool regentSpecified"
+          "bool exactInput"
         ]
       },
       "errors": [
         "0x0a85dc29 HookNotImplemented()",
         "0x1d192bc6 SplitterHasNoCode(address)",
-        "0x227bc32e SpecifiedAmountOutOfRange()",
         "0x2607872a PoolAlreadyRegistered(bytes32)",
         "0x2b64041d AttributableBalanceNotRestored(uint256,uint256)",
         "0x3c4d173a NotStrategy(address)",
@@ -409,6 +408,7 @@
         "0xa09f1ee2 CurrencyOrderInvalid(address,address)",
         "0xae18210a NotPoolManager()",
         "0xb4f9c3f9 SplitterBindingMismatch(address,address)",
+        "0xd01449c5 AttributableAllowanceNotRestored(uint256,uint256)",
         "0xdfb996b3 ForeignHook(address)"
       ],
       "input_structs": {

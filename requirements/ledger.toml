@@ -31,7 +31,7 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1", "regent-839.7"]
+activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1", "regent-839.7", "regent-alv1.13"]
 
 # `fork` is activated only with the separately discovered, independently reviewed, and
 # committed Base observation record. The compare-only gate must execute every mapped fork
@@ -587,7 +587,7 @@ selectors = [
 
 [[requirement]]
 id = "DEP-071"
-statement = "The Autolaunch factory's constructor alone creates the two internal contracts: RegentLBPStrategy at the factory's first internal CREATE, factory nonce 1, and RegentFeeHook by CREATE2 over the packet's pre-mined salt and the frozen build's exact hook initcode, at an address carrying exactly the five permission bits the hook declares; the factory makes no third internal creation."
+statement = "The Autolaunch factory's constructor alone creates the two internal contracts: RegentLBPStrategy at the factory's first internal CREATE, factory nonce 1, and RegentFeeHook by CREATE2 over the packet's pre-mined salt and the frozen build's exact hook initcode, at an address carrying exactly the three permission bits the hook declares; the factory makes no third internal creation."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -627,7 +627,7 @@ selectors = ["test_DEP_074_EveryCreationFitsTheDeployabilityLimits"]
 
 [[requirement]]
 id = "DEP-075"
-statement = "The ceremony aborts during simulation, before it creates anything and therefore before any transaction sequence exists for a broadcast to send, on an unselected deployer, a hook salt whose derived address does not carry the five permission bits, a chain that is not Base mainnet, or a deployer nonce that is not the pinned starting nonce; and because a completed ceremony leaves the deployer past that nonce, the same packet is refused rather than resumed or replayed."
+statement = "The ceremony aborts during simulation, before it creates anything and therefore before any transaction sequence exists for a broadcast to send, on an unselected deployer, a hook salt whose derived address does not carry the three permission bits, a chain that is not Base mainnet, or a deployer nonce that is not the pinned starting nonce; and because a completed ceremony leaves the deployer past that nonce, the same packet is refused rather than resumed or replayed."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -1417,221 +1417,102 @@ status = "active"
 selectors = ["test_ESC_014_GraduatedUnsoldSubjectIsSweptBeforeVesting"]
 
 # ---------------------------------------------------------------------------
-# HOK — correct permission bits; only PoolManager callbacks; strategy-only
-#       write-once registration; registered PoolKey validation; all four swap
-#       shapes; independent 1% rounding; zero-fee tiny swaps; synchronous
-#       settlement; zero retained inventory; arbitrary router compatibility;
-#       and settlement-failure rollback
+# HOK — FA-07 realized unspecified-currency fees, exact after-swap permissions,
+#       two independently floored in-kind lanes, synchronous conservation and
+#       rollback, caller limits and observability, frozen surface replacement,
+#       and representative official-pool paths for both charged assets
 # ---------------------------------------------------------------------------
 
 [[requirement]]
 id = "HOK-001"
-statement = "The hook is immutably bound to the strategy and the PoolManager."
-owner = "C2"
+statement = "Every registered official-pool swap derives its fee token from the unspecified currency and its fee base from the absolute actual unspecified component of core's raw BalanceDelta after execution. The positive return delta changes only that currency: both currency orderings, all four exact-input and exact-output forms, and full, partial, zero, and sub-threshold fills preserve the specified-currency core result and charge only from realized execution."
+owner = "regent-alv1.13"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = [
-    "test_HOK_001_BindingToStrategyAndPoolManagerIsImmutable",
-    "test_HOK_001_FactoryConstructionBindsHookToStrategyAndPoolManager",
+    "test_HOK_001_FA07_I1_AllTradeFormsAndOrderingsUseRealizedUnspecifiedCurrency",
+    "test_HOK_001_FA07_I1_PriceLimitedPartialAndZeroFillsRemainValid",
 ]
 
 [[requirement]]
 id = "HOK-002"
-statement = "Only the strategy may register a pool, and only with an exact PoolKey."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_002_OnlyTheStrategyRegistersAnExactPoolKey"]
-
-[[requirement]]
-id = "HOK-003"
-statement = "A PoolKey may be registered once and never replaced."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_003_PoolKeyRegistrationIsOnceAndFinal"]
-
-[[requirement]]
-id = "HOK-004"
-statement = "The hook declares exactly the permissions its specified behavior requires, and the address the canonical factory mines and deploys it to carries exactly those permission bits."
-owner = "C2"
+statement = "Each lane is independently floor(feeBase / 100) in the realized unspecified asset. One exact lane goes directly to the Governance and Regent Safe and one exact lane goes through the registered splitter's unchanged in-kind accounting; a zero lane performs no fee settlement call, and successful settlement restores the hook's attributable balance and allowance for REGENT and SUBJECT alike."
+owner = "regent-alv1.13"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
 selectors = [
-    "test_HOK_004_HookPermissionsAreExactlyThoseRequired",
-    "test_HOK_004_MinedHookAddressCarriesExactlyTheDeclaredPermissionBits",
+    "test_HOK_002_FA07_I2_RoundingBoundariesAreMeasuredFromExecution",
+    "test_HOK_002_FA07_I2_BothAssetsRouteInKindWithExactCleanLanes",
+]
+
+[[requirement]]
+id = "HOK-003"
+statement = "The hook declares exactly beforeInitialize, afterSwap, and afterSwapReturnDelta; its mined address carries exactly those bits, while beforeSwap remains inherited but disabled and directly callable only by PoolManager. The immutable PoolManager and strategy bindings, strategy-only write-once exact-key registration and initialization, and PoolManager-plus-registered-key callback boundary remain unchanged."
+owner = "regent-alv1.13"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = [
+    "test_HOK_003_FA07_I3_ImmutableBindingsAndExactRegistrationAuthority",
+    "test_HOK_003_FA07_I3_PermissionsAndInheritedBeforeSwapBoundaryAreExact",
+    "test_HOK_003_FA07_I3_FactoryHookAddressCarriesExactPermissionBits",
+    "test_HOK_003_FA07_I3_FactoryBindsHookToStrategyAndPoolManager",
+]
+
+[[requirement]]
+id = "HOK-004"
+statement = "For both fee assets, each successful callback settles both lanes synchronously and emits only after cleanup. Splitter revert, under-pull or refund, exact-output take-before-settle reserve exhaustion, foreign callback attempts, and reentrant authority attempts revert atomically without advancing pool state, token movement, lane delivery, splitter accounting, hook inventory, or allowance."
+owner = "regent-alv1.13"
+contract = "RegentFeeHook"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = [
+    "test_HOK_004_FA07_I4_SplitterFailuresRollbackBothFeeAssets",
+    "test_HOK_004_FA07_I4_ExactOutputReserveExhaustionRollsBack",
+    "test_HOK_004_FA07_I4_ForeignAndReentrantCallbacksGainNoAuthority",
 ]
 
 [[requirement]]
 id = "HOK-005"
-statement = "Exact-input swaps with REGENT as the specified currency charge both REGENT lanes."
-owner = "C2"
+statement = "For exact input and exact output in both directions, a caller's minimum-output and maximum-input limits are enforced against the final post-hook wallet delta. SwapFeeSettled exposes exactly the pool, callback sender, charged token, realized fee base, one-percent lane, and exact-input mode; sender is router context only and grants no authority."
+owner = "regent-alv1.13"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_HOK_005_ExactInputChargesRegentWhenSpecified"]
+selectors = [
+    "test_HOK_005_FA07_I5_PostHookWalletLimitsAreExact",
+    "test_HOK_005_FA07_I5_EventUsesRouterContextWithoutAuthority",
+]
 
-# C5 correction. The exact-output specified-REGENT lane is charged from abs(amountSpecified)
-# before the swap resolves, so the boundary that matters is a request the pool cannot fill in
-# full: a partial fill and a zero fill must both still charge from the requested amount.
 [[requirement]]
 id = "HOK-006"
-statement = "Exact-output swaps with REGENT as the specified currency charge both REGENT lanes from the absolute requested output, including the partial-fill and zero-fill boundaries where the pool delivers less than, or none of, the requested amount."
-owner = "C2"
+statement = "The obsolete specified-REGENT pre-swap fee path, its beforeSwap permission and return-delta bit, its error and state remnants, and the old event identity are absent. The inherited beforeSwap selector remains at BaseHook's PoolManager boundary, the replacement event is SwapFeeSettled(bytes32,address,address,uint256,uint256,bool) with three indexed fields, and no flush, threshold, keeper, pause, router allowlist, splitter replacement, fee setter, sweep, or recovery control plane exists."
+owner = "regent-alv1.13"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_HOK_006_ExactOutputChargesRegentWhenSpecified"]
+selectors = ["test_HOK_006_FA07_I6_ObsoletePreSwapControlPlaneIsAbsent"]
 
-# SPEC.md section 9 names `test_HOK_007_ExactOutputChargesRegentWhenUnspecified` as a
-# founder exemplar selector, so HOK-007 owns the exact-output/unspecified shape and HOK-008
-# owns exact-input/unspecified. This is the only HOK meaning that moved.
 [[requirement]]
 id = "HOK-007"
-statement = "Exact-output swaps with REGENT as the unspecified currency charge both REGENT lanes."
-owner = "C2"
+statement = "A representative production-shaped official-pool exact-input swap executes locally for each charged asset against the pinned PoolManager and real splitter, delivering both lanes in kind while preserving the specified input, and compatibility is claimed only for the single-pool router paths covered by the test portfolio."
+owner = "regent-alv1.13"
 contract = "RegentFeeHook"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_HOK_007_ExactOutputChargesRegentWhenUnspecified"]
-
-[[requirement]]
-id = "HOK-008"
-statement = "Exact-input swaps with REGENT as the unspecified currency charge both REGENT lanes."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_008_ExactInputChargesRegentWhenUnspecified"]
-
-[[requirement]]
-id = "HOK-009"
-statement = "The hook independently floors two 1% REGENT lanes per swap."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_009_TwoOnePercentLanesAreFlooredIndependently"]
-
-[[requirement]]
-id = "HOK-010"
-statement = "One 1% REGENT lane goes directly to the Regent Safe."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_010_OneLaneGoesDirectlyToTheRegentSafe"]
-
-[[requirement]]
-id = "HOK-011"
-statement = "The other 1% REGENT lane goes to the subject splitter, where the normal 2% REGENT skim applies and the post-skim net is divided by the same fixed total-supply coverage a direct recognition uses, with no second skim and no hook-specific rule."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_011_OtherLaneGoesToTheSplitterAndIsSkimmed"]
-
-[[requirement]]
-id = "HOK-012"
-statement = "Swaps too small to charge a floored lane are handled exactly, without underflow or silent loss."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_012_TinySwapsChargeNothingWithoutLoss"]
-
-[[requirement]]
-id = "HOK-013"
-statement = "Settlement finishes inside the swap transaction."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_013_SettlementCompletesInsideTheSwapTransaction"]
-
-[[requirement]]
-id = "HOK-014"
-statement = "The hook retains no attributable fee inventory after a swap."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_014_NoAttributableInventoryRemainsAfterASwap"]
-
-[[requirement]]
-id = "HOK-015"
-statement = "The hook has no flush, threshold, keeper, pause, router allowlist, replacement, or fee setter."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_015_NoFlushThresholdKeeperPauseOrFeeSetterExists"]
-
-# C5 correction. There are two distinct insufficient-settlement branches and the claim now
-# names both: the splitter that reverts outright, and the splitter that returns without
-# consuming the exact approved lane so the hook's own restored-balance check fails.
-[[requirement]]
-id = "HOK-016"
-statement = "Settlement failure reverts the swap in both insufficient-settlement branches: a splitter that reverts inside depositRecognizedRevenue, and a splitter that returns successfully without consuming exactly the approved lane."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_016_SettlementFailureRevertsTheSwap"]
-
-[[requirement]]
-id = "HOK-017"
-statement = "The PoolManager plus the registered PoolKey is the entire authority boundary; any other caller or key is rejected."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_017_PoolManagerAndRegisteredKeyAreTheOnlyAuthority"]
-
-# C5 correction. The C2 statement was broader than the exercised evidence. HOK-018 now names
-# the exact nested-swap sub-lanes it drives, including the mandatory nested zero-lane case,
-# and records that the nested attacker's own failure mode is an arithmetic panic inside its
-# outer settlement rather than a hook-authored revert.
-[[requirement]]
-id = "HOK-018"
-statement = "Arbitrary routers and nested reentrant swaps cannot change lane accounting or escape the authority boundary: an unrelated router settles identically to the pinned one, a nested swap inside a hook callback charges its own lanes independently of the outer swap and never borrows the outer swap's inventory, and the nested zero-lane sub-case charges nothing and makes no PoolManager, token, splitter, or approval call. The nested attacker's outer settlement fails with an arithmetic panic, not a hook-authored revert."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_018_ArbitraryRoutersAndReentrancyCannotChangeLaneAccounting"]
-
-[[requirement]]
-id = "HOK-019"
-statement = "Lane rounding is exact at fee inputs 0, 1, 49, 50, 99, 100, 9,999, and 10,000 units of the charged REGENT amount."
-owner = "C2"
-contract = "RegentFeeHook"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_HOK_019_LaneRoundingIsExactAtTheFeeBoundaryInputs"]
+selectors = [
+    "test_HOK_007_FA07_I7_OfficialPathChargesRealizedSubjectOutputInKind",
+    "test_HOK_007_FA07_I7_OfficialPathChargesRealizedRegentOutputInKind",
+]
 
 # ---------------------------------------------------------------------------
 # SPL — exactly three supported assets; exact 2% skim and destinations;
@@ -2425,13 +2306,13 @@ selectors = ["invariant_INV_003_StakedPrincipalIsNeverSpent"]
 
 [[requirement]]
 id = "INV-004"
-statement = "The hook never retains attributable REGENT after a settled swap."
-owner = "C5"
+statement = "Across arbitrary sequences of both-direction exact-input, exact-output and zero-lane swaps through both tested single-pool routers, the hook never retains attributable REGENT or SUBJECT, never spends an explained external gift of either asset, never leaves either splitter allowance, and conserves both token supplies."
+owner = "regent-alv1.13"
 contract = "RegentFeeHook"
 evidence_class = "solidity-invariant"
 gate = "invariant"
 status = "active"
-selectors = ["invariant_INV_004_HookNeverRetainsAttributableRegent"]
+selectors = ["invariant_INV_004_FA07_I4_HookNeverRetainsAttributableFeeAssets"]
 
 # C5 correction. The remainder model is separate from the principal model. It measures the
 # scaled reward numerator only: the single carried remainder plus every account's banked

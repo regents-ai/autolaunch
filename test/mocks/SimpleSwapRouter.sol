@@ -21,16 +21,48 @@ contract SimpleSwapRouter is IUnlockCallback {
         address payer;
         PoolKey key;
         SwapParams params;
+        uint256 minAmountOut;
+        uint256 maxAmountIn;
     }
 
     error NotManager();
+    error InsufficientOutput(uint256 minimum, uint256 actual);
+    error ExcessiveInput(uint256 maximum, uint256 actual);
 
     constructor(IPoolManager manager_) {
         manager = manager_;
     }
 
     function swap(PoolKey calldata key, SwapParams calldata params) external returns (BalanceDelta delta) {
-        delta = abi.decode(manager.unlock(abi.encode(CallbackData(msg.sender, key, params))), (BalanceDelta));
+        return _swap(key, params, 0, type(uint256).max);
+    }
+
+    /// @notice The same single-pool path with caller limits enforced against the post-hook delta.
+    function swapWithLimits(PoolKey calldata key, SwapParams calldata params, uint256 minAmountOut, uint256 maxAmountIn)
+        external
+        returns (BalanceDelta delta)
+    {
+        return _swap(key, params, minAmountOut, maxAmountIn);
+    }
+
+    function _swap(PoolKey calldata key, SwapParams calldata params, uint256 minAmountOut, uint256 maxAmountIn)
+        private
+        returns (BalanceDelta delta)
+    {
+        delta = abi.decode(
+            manager.unlock(
+                abi.encode(
+                    CallbackData({
+                        payer: msg.sender,
+                        key: key,
+                        params: params,
+                        minAmountOut: minAmountOut,
+                        maxAmountIn: maxAmountIn
+                    })
+                )
+            ),
+            (BalanceDelta)
+        );
     }
 
     function unlockCallback(bytes calldata rawData) external returns (bytes memory) {
@@ -38,6 +70,15 @@ contract SimpleSwapRouter is IUnlockCallback {
 
         CallbackData memory data = abi.decode(rawData, (CallbackData));
         BalanceDelta delta = manager.swap(data.key, data.params, "");
+        bool specifiedIsCurrency0 = (data.params.amountSpecified < 0) == data.params.zeroForOne;
+        int256 unspecifiedDelta = specifiedIsCurrency0 ? int256(delta.amount1()) : int256(delta.amount0());
+        if (data.params.amountSpecified < 0) {
+            uint256 actualOutput = uint256(unspecifiedDelta);
+            if (actualOutput < data.minAmountOut) revert InsufficientOutput(data.minAmountOut, actualOutput);
+        } else {
+            uint256 actualInput = uint256(-unspecifiedDelta);
+            if (actualInput > data.maxAmountIn) revert ExcessiveInput(data.maxAmountIn, actualInput);
+        }
 
         // This router did nothing else inside the lock, so its outstanding deltas are exactly the
         // swap delta the manager just returned.

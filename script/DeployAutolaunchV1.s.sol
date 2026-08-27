@@ -31,7 +31,7 @@ import {Script} from "forge-std/Script.sol";
 ///      Every check here runs while Foundry simulates the whole script, which it does before a
 ///      separately authorized broadcast signs anything. The deployer's live nonce must equal the
 ///      pinned starting nonce; the hook address the pinned salt derives must already carry exactly
-///      the five permission bits Uniswap v4 encodes in a hook address; each simulated creation's
+///      the three permission bits Uniswap v4 encodes in a hook address; each simulated creation's
 ///      address must equal the prediction; and the factory's own `strategy()` and `hook()`
 ///      readbacks must equal the predicted internal addresses. A mismatch aborts the simulation, so
 ///      no transaction sequence is assembled and nothing is broadcast at all.
@@ -47,11 +47,9 @@ import {Script} from "forge-std/Script.sol";
 ///      graph, and the frozen Governance/Regent Safe remains the sole launch-fee and new-launch
 ///      pause authority exactly as it was compiled into the factory.
 contract DeployAutolaunchV1 is Script {
-    /// @notice Exactly the five permission bits `RegentFeeHook` declares.
-    uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
-            | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
-    );
+    /// @notice Exactly the three permission bits `RegentFeeHook` declares.
+    uint160 internal constant HOOK_FLAGS =
+        uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG);
 
     /// @notice The low bits of an address Uniswap v4 reads a hook's permissions out of.
     uint160 internal constant HOOK_FLAG_MASK = Hooks.ALL_HOOK_MASK;

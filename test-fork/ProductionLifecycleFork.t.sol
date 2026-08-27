@@ -75,6 +75,13 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         uint256 treasuryShare;
     }
 
+    struct HookSettlement {
+        address feeToken;
+        uint256 feeBase;
+        uint256 lane;
+        bool exactInput;
+    }
+
     /// @dev A raise no single admitted bid can meet, so this launch ends economically failed.
     uint128 internal constant UNREACHABLE_RAISE = 50_000_000e18;
 
@@ -615,9 +622,10 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     // stage 7 — one real v4 swap, both hook lanes settled inside it
     // -------------------------------------------------------------------------
 
-    /// @dev A REGENT-in exact-input swap on the official pool through an ordinary router. Both 1%
-    ///      lanes settle inside this one transaction — one straight to the Regent Safe, one into the
-    ///      launch splitter, where the ordinary 2% REGENT skim applies to it and also reaches the
+    /// @dev A REGENT-in exact-input swap on the official pool through an ordinary router. The
+    ///      realized unspecified currency is SUBJECT, so both 1% lanes settle in SUBJECT inside
+    ///      this one transaction — one straight to the Regent Safe, one into the launch splitter,
+    ///      where the ordinary 2% SUBJECT skim applies to it and also reaches the
     ///      Safe. The Safe's delta is therefore `lane + skim(lane)`, not `lane`, and asserting the
     ///      sum is what proves both lanes settled rather than one of them twice.
     ///
@@ -634,22 +642,13 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         PoolKey memory key = strategy.poolKeyOf(address(graduating.subject));
         bool regentIsCurrency0 = Currency.unwrap(key.currency0) == BaseBindings.REGENT;
         uint256 amountIn = uint256(-SWAP_AMOUNT_SPECIFIED);
-        uint256 lane = amountIn / hook.LANE_DIVISOR();
-        uint256 laneSkim = (lane * SKIM_BPS) / BPS_DENOMINATOR;
-        assertGt(laneSkim, 0, "the swap is too small for both the lane and its own skim to floor above zero");
-        uint256 laneStakerShare = ((lane - laneSkim) * splitter.totalStaked()) / TOTAL_SUPPLY;
-        assertGt(laneStakerShare, 0, "the splitter lane's coverage share floored away to nothing");
-        assertGt(
-            (lane - laneSkim) - laneStakerShare,
-            0,
-            "the splitter lane left the launch treasury nothing, so coverage was total"
-        );
+        address feeToken = address(graduating.subject);
 
         deal(BaseBindings.REGENT, swapper, amountIn);
-        uint256 safeBefore = _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
-        uint256 liabilityBefore = splitter.unclaimedLiability(BaseBindings.REGENT);
-        uint256 splitterHeldBefore = _balanceOf(BaseBindings.REGENT, d.splitter);
-        uint256 treasuryBefore = _balanceOf(BaseBindings.REGENT, treasury);
+        uint256 safeBefore = _balanceOf(feeToken, BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
+        uint256 liabilityBefore = splitter.unclaimedLiability(feeToken);
+        uint256 splitterHeldBefore = _balanceOf(feeToken, d.splitter);
+        uint256 treasuryBefore = _balanceOf(feeToken, treasury);
 
         vm.recordLogs();
         vm.startPrank(swapper);
@@ -666,35 +665,65 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         );
         vm.stopPrank();
 
-        Recognition memory r = _soleRecognition(d.splitter, BaseBindings.REGENT);
+        HookSettlement memory settled = _soleHookSettlement();
+        assertEq(settled.feeToken, feeToken, "the hook charged other than realized SUBJECT output");
+        assertTrue(settled.exactInput, "the hook reported another swap mode");
+        assertEq(settled.lane, settled.feeBase / hook.LANE_DIVISOR(), "the lane did not floor realized output");
+        uint256 lane = settled.lane;
+        uint256 laneSkim = (lane * SKIM_BPS) / BPS_DENOMINATOR;
+        assertGt(laneSkim, 0, "the swap is too small for both the lane and its own skim to floor above zero");
+        uint256 laneStakerShare = ((lane - laneSkim) * splitter.totalStaked()) / TOTAL_SUPPLY;
+        assertGt(laneStakerShare, 0, "the splitter lane's coverage share floored away to nothing");
+        assertGt(
+            (lane - laneSkim) - laneStakerShare,
+            0,
+            "the splitter lane left the launch treasury nothing, so coverage was total"
+        );
+
+        Recognition memory r = _soleRecognition(d.splitter, feeToken);
         _assertRecognitionIsExact(r, lane, laneSkim, laneStakerShare);
 
         assertEq(
-            _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE) - safeBefore,
+            _balanceOf(feeToken, BaseBindings.GOVERNANCE_AND_REGENT_SAFE) - safeBefore,
             lane + r.skim,
             "the two lanes did not settle as one Safe lane plus the splitter lane's own skim"
         );
         assertEq(
-            splitter.unclaimedLiability(BaseBindings.REGENT) - liabilityBefore,
+            splitter.unclaimedLiability(feeToken) - liabilityBefore,
             r.stakerShare,
             "the splitter lane's net did not become staker liability at the supply-coverage fraction"
         );
         assertEq(
-            _balanceOf(BaseBindings.REGENT, d.splitter) - splitterHeldBefore,
+            _balanceOf(feeToken, d.splitter) - splitterHeldBefore,
             r.stakerShare,
             "the splitter is not holding exactly the share it recognized"
         );
         assertEq(
-            _balanceOf(BaseBindings.REGENT, treasury) - treasuryBefore,
+            _balanceOf(feeToken, treasury) - treasuryBefore,
             r.treasuryShare,
             "the launch treasury did not receive the lane's exact uncovered remainder in the swap"
         );
 
         // The hook keeps nothing at all, which is the whole synchronous-settlement claim.
-        assertEq(_balanceOf(BaseBindings.REGENT, address(hook)), 0, "the hook retained attributable REGENT");
-        assertEq(_allowance(BaseBindings.REGENT, address(hook), d.splitter), 0, "a hook allowance survived the swap");
+        assertEq(_balanceOf(feeToken, address(hook)), 0, "the hook retained attributable SUBJECT");
+        assertEq(_allowance(feeToken, address(hook), d.splitter), 0, "a hook allowance survived the swap");
         assertEq(_balanceOf(BaseBindings.REGENT, swapper), 0, "the swapper did not spend its whole exact input");
         assertGt(_balanceOf(address(graduating.subject), swapper), 0, "the swapper received no SUBJECT");
+    }
+
+    function _soleHookSettlement() private returns (HookSettlement memory settled) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool found;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(hook)) continue;
+            if (logs[i].topics.length != 4 || logs[i].topics[0] != RegentFeeHook.SwapFeeSettled.selector) continue;
+            assertFalse(found, "one swap produced more than one hook settlement");
+            settled.feeToken = address(uint160(uint256(logs[i].topics[3])));
+            (settled.feeBase, settled.lane, settled.exactInput) =
+                abi.decode(logs[i].data, (uint256, uint256, bool));
+            found = true;
+        }
+        assertTrue(found, "the hook emitted no settlement");
     }
 
     // -------------------------------------------------------------------------

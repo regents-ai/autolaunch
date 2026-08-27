@@ -288,7 +288,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEventFields(
             HOOK,
             "SwapFeeSettled",
-            "bytes32 indexed poolId|address indexed sender|uint256 chargedRegent|uint256 lane|bool exactInput|bool regentSpecified"
+            "bytes32 indexed poolId|address indexed sender|address indexed feeToken|uint256 feeBase|uint256 lane|bool exactInput"
         );
 
         _assertEventFields(
@@ -452,7 +452,8 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
 
         Hooks.Permissions memory permissions = hook.getHookPermissions();
         assertTrue(permissions.beforeInitialize, "getHookPermissions() field 0 is not beforeInitialize");
-        assertTrue(permissions.beforeSwapReturnDelta, "getHookPermissions() field 10 is not beforeSwapReturnDelta");
+        assertFalse(permissions.beforeSwapReturnDelta, "getHookPermissions() field 10 enabled beforeSwapReturnDelta");
+        assertTrue(permissions.afterSwapReturnDelta, "getHookPermissions() field 11 is not afterSwapReturnDelta");
         assertFalse(permissions.beforeDonate, "getHookPermissions() field 8 is not beforeDonate");
     }
 
@@ -724,14 +725,15 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
 
         // The final-source-delta record is closed and reasoned. `bin/freeze-artifacts.py check` is
         // what compares bytes; this is the independent Solidity side of the same claim — the record
-        // names exactly the four production contracts this ticket moved, and nothing else. The two
-        // it must not name are the fee hook and the escrow, whose source this ticket never touched.
+        // names exactly the five production contracts the successor sequence moved, and nothing
+        // else. The escrow remains byte-identical to the C4 capture.
         string memory frozenIdentity = vm.readFile("requirements/frozen-identity.json");
-        string[4] memory changed = [
+        string[5] memory changed = [
             "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
             "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1",
             "src/strategy/RegentLBPStrategy.sol:RegentLBPStrategy",
-            "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1"
+            "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",
+            "src/hook/RegentFeeHook.sol:RegentFeeHook"
         ];
         for (uint256 i; i < changed.length; ++i) {
             string memory entry = string.concat(".final_source_delta.changed[", vm.toString(i), "]");
@@ -747,8 +749,8 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             );
         }
         assertFalse(
-            vm.keyExistsJson(frozenIdentity, ".final_source_delta.changed[4]"),
-            "the final-source-delta record names a fifth contract"
+            vm.keyExistsJson(frozenIdentity, ".final_source_delta.changed[5]"),
+            "the final-source-delta record names a sixth contract"
         );
     }
 
@@ -863,7 +865,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         events = new FrozenEvent[](2);
         events[0] = FrozenEvent(RegentFeeHook.PoolRegistered.selector, "PoolRegistered(bytes32,address,address)", 3);
         events[1] = FrozenEvent(
-            RegentFeeHook.SwapFeeSettled.selector, "SwapFeeSettled(bytes32,address,uint256,uint256,bool,bool)", 2
+            RegentFeeHook.SwapFeeSettled.selector, "SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)", 3
         );
     }
 

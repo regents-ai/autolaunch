@@ -14,9 +14,9 @@
       "runtime_sha256": "d99383c6bcf73dad18ae4c81a4fc04277d57cb43bbed0fd9adb75fcd5a927a4a",
       "runtime_immutable_references": 3,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 34448,
-      "creation_keccak256": "0x6511b1120156d6835cb492bcdf5e33e35e052dd76e9530c018fc5dd2511bbbdf",
-      "creation_sha256": "0a13d9ae0e8106a402e35a6e9020cdb1933debe3203c84fb1c4f07683477e622",
+      "creation_bytes": 33482,
+      "creation_keccak256": "0x9762f3d562103a8728bfd67335231e3d626f2adfa9283daeb239f74acb6b0162",
+      "creation_sha256": "f33670dfde00854c4e5ddf4265f9dd23fda068e7fcc677eda063c952697570df",
       "runtime_margin_bytes": 17479,
       "constructor": [
         "address uerc20Factory_",
@@ -26,8 +26,8 @@
         "bytes32 hookSalt"
       ],
       "constructor_args_bytes": 160,
-      "initcode_bytes": 34608,
-      "initcode_margin_bytes": 14544
+      "initcode_bytes": 33642,
+      "initcode_margin_bytes": 15510
     },
     {
       "contract": "RegentLBPStrategy",
@@ -56,22 +56,22 @@
       "contract": "RegentFeeHook",
       "source": "src/hook/RegentFeeHook.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 5780,
-      "runtime_keccak256": "0xa9c238ca912ae9123fda5402dc33b534fbcee659acc9d92af0fb5cebc20b4f00",
-      "runtime_sha256": "45f5f3d7fdf9d6ba3c859a45da48dd8492b84cba5241c4921f96d3068b3cc29d",
+      "runtime_bytes": 4831,
+      "runtime_keccak256": "0x23b340c11c9e77999062a2605b37e2de5f9a7fc4c7f28ab96c2277646c083d54",
+      "runtime_sha256": "914d0a2d93dfc3f7de68f2a476d026c61015d36f663be9bdc4c45e6bf288f414",
       "runtime_immutable_references": 2,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 6599,
-      "creation_keccak256": "0xa34969cc32e6741d5a5787f4d43db7e3dab3034da01c3ef60561256313e22ab5",
-      "creation_sha256": "07b0802132ed437a0c44ef1b844c1fd6efbbe94d5b0994c53e4d046eafe8f88e",
-      "runtime_margin_bytes": 18796,
+      "creation_bytes": 5633,
+      "creation_keccak256": "0x6921d24e34f58cbf5ed8aecdfd9a822e614005cda060c1a2868f188bac0ef34a",
+      "creation_sha256": "1a91323b61f052e1f941f2318745b7b10229c46ce66b40d33eb15f1c504da074",
+      "runtime_margin_bytes": 19745,
       "constructor": [
         "address manager_",
         "address strategy_"
       ],
       "constructor_args_bytes": 64,
-      "initcode_bytes": 6663,
-      "initcode_margin_bytes": 42489
+      "initcode_bytes": 5697,
+      "initcode_margin_bytes": 43455
     },
     {
       "contract": "ConditionalVestingEscrowV1",

@@ -1062,7 +1062,13 @@
           "internalType": "address"
         },
         {
-          "name": "chargedRegent",
+          "name": "feeToken",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "feeBase",
           "type": "uint256",
           "indexed": false,
           "internalType": "uint256"
@@ -1078,15 +1084,25 @@
           "type": "bool",
           "indexed": false,
           "internalType": "bool"
-        },
-        {
-          "name": "regentSpecified",
-          "type": "bool",
-          "indexed": false,
-          "internalType": "bool"
         }
       ],
       "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "AttributableAllowanceNotRestored",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
     },
     {
       "type": "error",
@@ -1187,11 +1203,6 @@
     {
       "type": "error",
       "name": "SelfStrategy",
-      "inputs": []
-    },
-    {
-      "type": "error",
-      "name": "SpecifiedAmountOutOfRange",
       "inputs": []
     },
     {

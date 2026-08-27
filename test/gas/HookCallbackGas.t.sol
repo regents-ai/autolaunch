@@ -9,10 +9,10 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 /// @notice `GAS-007`: the cold and warm cost of the supported hook callbacks, and a second
 ///         supported router's own sync/settle timing, measured as a genuinely controlled difference
 ///         and recorded.
-/// @dev The measurement is a difference, and the control is exact. The hook charges when the 1%
-///      lane floors above zero and returns immediately when it does not, so the lane boundary is a
-///      single wei: a specified amount of `LANE_DIVISOR` charges a lane, and `LANE_DIVISOR - 1`
-///      charges nothing. The two swaps are therefore run one wei apart on two pools this fixture
+/// @dev The measurement is a difference, and the control is exact. Against the pinned core at the
+///      fixture's opening state, specified inputs 102 and 101 realize unspecified outputs 100 and
+///      99 respectively. The test reads the settlement event to prove which side of the lane floor
+///      each execution reached. The two swaps therefore run one wei apart on two pools this fixture
 ///      opens identically — same currency ordering, same fee, same tick spacing, same opening
 ///      price, same liquidity, same direction, same price limit, same router, same warmth — and
 ///      the pools' sameness is asserted rather than assumed. Their difference is the callback and
@@ -41,6 +41,9 @@ import {HookFixture} from "../mocks/HookFixture.sol";
 ///      the founder's 14,000,000 complete-transaction limit, which `GAS-003` through `GAS-006`
 ///      prove on the authorized fork gate.
 contract HookCallbackGasTest is HookFixture {
+    int256 internal constant BOUNDARY_CHARGING = -102;
+    int256 internal constant BOUNDARY_ZERO_LANE = -101;
+
     /// @dev A production-sized charging swap: one REGENT, whose lane is large enough that the
     ///      splitter's own 2% skim is nonzero and every branch of the settlement runs.
     int256 internal constant PRODUCTION_SWAP = -1e18;
@@ -66,22 +69,19 @@ contract HookCallbackGasTest is HookFixture {
     function test_GAS_007_HookCallbackAndRouterSettlementGasAreMeasured() public {
         _assertPoolsAreIdenticallyBuilt();
 
-        int256 boundaryCharging = -int256(hook.LANE_DIVISOR());
-        int256 boundaryZeroLane = boundaryCharging + 1;
-
         // Cold: no pool here has ever been swapped, so all three pay first-touch storage and
         // account costs. The only difference between the first two is whether a lane is charged.
-        uint256 coldCharging = _measurePinned(charging, boundaryCharging);
-        uint256 coldControl = _measurePinned(control, boundaryZeroLane);
-        uint256 coldProduction = _measurePinned(production, PRODUCTION_SWAP);
+        uint256 coldCharging = _measurePinned(charging, BOUNDARY_CHARGING, true);
+        uint256 coldControl = _measurePinned(control, BOUNDARY_ZERO_LANE, false);
+        uint256 coldProduction = _measurePinned(production, PRODUCTION_SWAP, true);
         assertGt(coldCharging, coldControl, "the charging swap did not cost more than the zero-lane control");
         uint256 coldCallback = coldCharging - coldControl;
         uint256 coldProductionLane = coldProduction - coldControl;
 
         // Warm: the same three swaps again, with every touched slot and account now warm.
-        uint256 warmCharging = _measurePinned(charging, boundaryCharging);
-        uint256 warmControl = _measurePinned(control, boundaryZeroLane);
-        uint256 warmProduction = _measurePinned(production, PRODUCTION_SWAP);
+        uint256 warmCharging = _measurePinned(charging, BOUNDARY_CHARGING, true);
+        uint256 warmControl = _measurePinned(control, BOUNDARY_ZERO_LANE, false);
+        uint256 warmProduction = _measurePinned(production, PRODUCTION_SWAP, true);
         assertGt(warmCharging, warmControl, "the warm charging swap did not cost more than its control");
         uint256 warmCallback = warmCharging - warmControl;
         uint256 warmProductionLane = warmProduction - warmControl;
@@ -111,8 +111,17 @@ contract HookCallbackGasTest is HookFixture {
 
         // Whatever it cost, the accounting is unchanged: nothing attributable stays at the hook.
         assertEq(regent.balanceOf(address(hook)), 0, "the hook retained REGENT while being measured");
-        assertEq(regent.allowance(address(hook), address(charging.splitter)), 0, "a splitter allowance survived");
-        assertEq(regent.allowance(address(hook), address(production.splitter)), 0, "a splitter allowance survived");
+        assertEq(charging.subject.balanceOf(address(hook)), 0, "the hook retained charging SUBJECT");
+        assertEq(control.subject.balanceOf(address(hook)), 0, "the hook retained control SUBJECT");
+        assertEq(production.subject.balanceOf(address(hook)), 0, "the hook retained production SUBJECT");
+        assertEq(
+            charging.subject.allowance(address(hook), address(charging.splitter)), 0, "a splitter allowance survived"
+        );
+        assertEq(
+            production.subject.allowance(address(hook), address(production.splitter)),
+            0,
+            "a splitter allowance survived"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -137,11 +146,22 @@ contract HookCallbackGasTest is HookFixture {
         assertEq(_currentSqrtPrice(pools[0]), SQRT_PRICE_1_1, "the pools did not open at parity");
     }
 
-    function _measurePinned(Pool memory pool, int256 amountSpecified) private returns (uint256 used) {
+    function _measurePinned(Pool memory pool, int256 amountSpecified, bool shouldCharge)
+        private
+        returns (uint256 used)
+    {
         SwapParams memory params = _swapParams(_regentIsInput(pool), amountSpecified);
+        vm.recordLogs();
         uint256 before = gasleft();
         swapRouter.swap(pool.key, params, PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), "");
         used = before - gasleft();
+        Settlement[] memory settlements = _recordedSettlements();
+        if (shouldCharge) {
+            assertEq(settlements.length, 1, "FA07-I2 charging measurement did not settle");
+            assertGt(settlements[0].lane, 0, "FA07-I2 charging measurement had a zero lane");
+        } else {
+            assertEq(settlements.length, 0, "FA07-I2 control crossed the lane floor");
+        }
     }
 
     function _measureAlt(Pool memory pool, int256 amountSpecified) private returns (uint256 used) {
