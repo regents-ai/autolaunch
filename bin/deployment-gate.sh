@@ -88,7 +88,7 @@ PRODUCTION_AUTHORITY_TREE=e1439723f4263d70024cac59bbeab48d3eeec894
 PRODUCTION_AUTHORITY_SRC_TREE=a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952
 # Filled with the exact clean B' commit only after the founder's fork check writes a successful
 # receipt for it. A preparation run cannot proceed while this sentinel remains.
-FORK_EVIDENCE_COMMIT=PENDING_FOUNDER_FORK_CHECK
+FORK_EVIDENCE_COMMIT=a39cf05a1d53678c14a4042c751aa452d346e7c2
 
 # The discard port. Nothing listens on it, so the dead-endpoint regression is deterministic.
 DEAD_ENDPOINT=http://127.0.0.1:9
@@ -1699,7 +1699,7 @@ IN_EVM_CREATION_GAS_GUARDRAIL = 14_000_000
 PRODUCTION_AUTHORITY_COMMIT = "3634f6f0e11523c426662b7524f2c94fd37d3597"
 PRODUCTION_AUTHORITY_TREE = "e1439723f4263d70024cac59bbeab48d3eeec894"
 SHARED_SRC_TREE = "a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952"
-FORK_EVIDENCE_COMMIT = "PENDING_FOUNDER_FORK_CHECK"
+FORK_EVIDENCE_COMMIT = "a39cf05a1d53678c14a4042c751aa452d346e7c2"
 
 CREATION_ORDER = [
     ("UERC20Factory", "lib/uerc20-factory/src/factories/UERC20Factory.sol"),
