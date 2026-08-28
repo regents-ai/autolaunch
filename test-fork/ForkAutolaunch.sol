@@ -30,9 +30,8 @@ abstract contract ForkAutolaunch is ForkFixture {
     uint256 internal constant INITIAL_LAUNCH_FEE = 1_000_000e18;
 
     /// @dev Exactly the three permission bits `RegentFeeHook` declares.
-    uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
-    );
+    uint160 internal constant HOOK_FLAGS =
+        uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG);
 
     /// @notice The longest metadata every field admits, so gas is measured at the worst admitted shape.
     uint256 internal constant MAX_NAME_BYTES = 64;

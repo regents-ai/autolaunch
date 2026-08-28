@@ -551,7 +551,8 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
 
         vm.recordLogs();
         _payAs(receiver, token, gross, ref);
-        Recognition memory r = _soleRecognition(address(splitter), token);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        Recognition memory r = _soleRecognition(logs, address(splitter), token);
         _assertRecognitionIsExact(r, gross, skim, stakerShare);
 
         assertEq(
@@ -580,8 +581,10 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     ///      rather than predicted. Reading it is the point: every balance assertion around it is made
     ///      against the splitter's own five amounts, and those amounts are then held to independent
     ///      arithmetic by `_assertRecognitionIsExact`.
-    function _soleRecognition(address splitter, address token) private returns (Recognition memory r) {
-        Vm.Log[] memory logs = vm.getRecordedLogs();
+    function _soleRecognition(Vm.Log[] memory logs, address splitter, address token)
+        private
+        returns (Recognition memory r)
+    {
         bool found;
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != splitter) continue;
@@ -619,15 +622,15 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     }
 
     // -------------------------------------------------------------------------
-    // stage 7 — one real v4 swap, both hook lanes settled inside it
+    // stage 7 — two real v4 swaps, both fee assets and both hook lanes settled
     // -------------------------------------------------------------------------
 
-    /// @dev A REGENT-in exact-input swap on the official pool through an ordinary router. The
-    ///      realized unspecified currency is SUBJECT, so both 1% lanes settle in SUBJECT inside
-    ///      this one transaction — one straight to the Regent Safe, one into the launch splitter,
-    ///      where the ordinary 2% SUBJECT skim applies to it and also reaches the
-    ///      Safe. The Safe's delta is therefore `lane + skim(lane)`, not `lane`, and asserting the
-    ///      sum is what proves both lanes settled rather than one of them twice.
+    /// @dev Two exact-input swaps traverse the same official pool through an ordinary router. The
+    ///      REGENT-in swap charges realized SUBJECT output; its SUBJECT output then funds the
+    ///      reverse swap, which charges realized REGENT output. Each transaction sends one exact
+    ///      1% lane straight to the Regent Safe and one through the launch splitter, whose ordinary
+    ///      2% skim also reaches the Safe. The Safe delta is therefore `lane + skim(lane)`, and
+    ///      asserting that sum for each asset proves both lanes settled rather than one twice.
     ///
     ///      The splitter lane meets no hook-specific path once it arrives: it is an ordinary
     ///      recognition, so it emits the same `RevenueRecognized` a direct payment does, its post-skim
@@ -641,32 +644,53 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     ) private {
         PoolKey memory key = strategy.poolKeyOf(address(graduating.subject));
         bool regentIsCurrency0 = Currency.unwrap(key.currency0) == BaseBindings.REGENT;
-        uint256 amountIn = uint256(-SWAP_AMOUNT_SPECIFIED);
-        address feeToken = address(graduating.subject);
+        uint256 regentIn = uint256(-SWAP_AMOUNT_SPECIFIED);
 
-        deal(BaseBindings.REGENT, swapper, amountIn);
+        deal(BaseBindings.REGENT, swapper, regentIn);
+        _swapOneFeeAsset(
+            key, regentIsCurrency0, BaseBindings.REGENT, address(graduating.subject), regentIn, d, splitter
+        );
+
+        uint256 subjectIn = _balanceOf(address(graduating.subject), swapper);
+        assertGt(subjectIn, 0, "the first official-pool swap returned no SUBJECT for the reverse swap");
+        _swapOneFeeAsset(
+            key, !regentIsCurrency0, address(graduating.subject), BaseBindings.REGENT, subjectIn, d, splitter
+        );
+    }
+
+    function _swapOneFeeAsset(
+        PoolKey memory key,
+        bool zeroForOne,
+        address inputToken,
+        address feeToken,
+        uint256 amountIn,
+        RegentLBPStrategy.Distribution memory d,
+        SubjectSplitterV1 splitter
+    ) private {
         uint256 safeBefore = _balanceOf(feeToken, BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
         uint256 liabilityBefore = splitter.unclaimedLiability(feeToken);
         uint256 splitterHeldBefore = _balanceOf(feeToken, d.splitter);
         uint256 treasuryBefore = _balanceOf(feeToken, treasury);
+        uint256 outputBefore = _balanceOf(feeToken, swapper);
 
         vm.recordLogs();
         vm.startPrank(swapper);
-        _approveExactly(BaseBindings.REGENT, address(swapRouter), amountIn);
+        _approveExactly(inputToken, address(swapRouter), amountIn);
         swapRouter.swap(
             key,
             SwapParams({
-                zeroForOne: regentIsCurrency0,
-                amountSpecified: SWAP_AMOUNT_SPECIFIED,
-                sqrtPriceLimitX96: regentIsCurrency0 ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+                zeroForOne: zeroForOne,
+                amountSpecified: -int256(amountIn),
+                sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
             }),
             PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ""
         );
         vm.stopPrank();
 
-        HookSettlement memory settled = _soleHookSettlement();
-        assertEq(settled.feeToken, feeToken, "the hook charged other than realized SUBJECT output");
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        HookSettlement memory settled = _soleHookSettlement(logs);
+        assertEq(settled.feeToken, feeToken, "the hook charged other than the realized fee asset");
         assertTrue(settled.exactInput, "the hook reported another swap mode");
         assertEq(settled.lane, settled.feeBase / hook.LANE_DIVISOR(), "the lane did not floor realized output");
         uint256 lane = settled.lane;
@@ -680,7 +704,7 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
             "the splitter lane left the launch treasury nothing, so coverage was total"
         );
 
-        Recognition memory r = _soleRecognition(d.splitter, feeToken);
+        Recognition memory r = _soleRecognition(logs, d.splitter, feeToken);
         _assertRecognitionIsExact(r, lane, laneSkim, laneStakerShare);
 
         assertEq(
@@ -705,22 +729,20 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         );
 
         // The hook keeps nothing at all, which is the whole synchronous-settlement claim.
-        assertEq(_balanceOf(feeToken, address(hook)), 0, "the hook retained attributable SUBJECT");
+        assertEq(_balanceOf(feeToken, address(hook)), 0, "the hook retained an attributable fee asset");
         assertEq(_allowance(feeToken, address(hook), d.splitter), 0, "a hook allowance survived the swap");
-        assertEq(_balanceOf(BaseBindings.REGENT, swapper), 0, "the swapper did not spend its whole exact input");
-        assertGt(_balanceOf(address(graduating.subject), swapper), 0, "the swapper received no SUBJECT");
+        assertEq(_balanceOf(inputToken, swapper), 0, "the swapper did not spend its whole exact input");
+        assertGt(_balanceOf(feeToken, swapper), outputBefore, "the swapper received no realized fee asset");
     }
 
-    function _soleHookSettlement() private returns (HookSettlement memory settled) {
-        Vm.Log[] memory logs = vm.getRecordedLogs();
+    function _soleHookSettlement(Vm.Log[] memory logs) private returns (HookSettlement memory settled) {
         bool found;
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != address(hook)) continue;
             if (logs[i].topics.length != 4 || logs[i].topics[0] != RegentFeeHook.SwapFeeSettled.selector) continue;
             assertFalse(found, "one swap produced more than one hook settlement");
             settled.feeToken = address(uint160(uint256(logs[i].topics[3])));
-            (settled.feeBase, settled.lane, settled.exactInput) =
-                abi.decode(logs[i].data, (uint256, uint256, bool));
+            (settled.feeBase, settled.lane, settled.exactInput) = abi.decode(logs[i].data, (uint256, uint256, bool));
             found = true;
         }
         assertTrue(found, "the hook emitted no settlement");

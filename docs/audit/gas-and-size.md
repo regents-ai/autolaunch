@@ -82,19 +82,23 @@ it. Their difference is the callback and nothing else.
 | Measurement | Gas |
 | --- | ---: |
 | controlled charging callback, cold (gas) | 211,870 |
-| controlled charging callback, warm (gas) | 100,071 |
-| production-lane callback, cold pool warm safe (gas) | 192,257 |
-| production-lane callback, warm (gas) | 106,057 |
-| pinned-router production swap, cold total (gas) | 294,469 |
-| pinned-router production swap, warm total (gas) | 166,015 |
-| second supported router, warm sync/settle swap total (gas) | 156,207 |
+| controlled charging callback, warm (gas) | 100,069 |
+| production-lane callback, cold pool warm safe (gas) | 192,277 |
+| production-lane callback, warm (gas) | 106,077 |
+| pinned-router production swap, cold total (gas) | 294,489 |
+| pinned-router production swap, warm total (gas) | 166,036 |
+| second supported router, warm sync/settle swap total (gas) | 156,239 |
+
+The FA-07 Phase-B evidence run re-emitted these seven figures exactly: the expanded one-tick,
+currency-ordering, and raw-delta boundary tests changed no production bytecode and caused no
+`GAS-007` measurement drift.
 
 ### What each figure is
 
 - **Controlled charging callback, cold — 211,870 gas.** The exact realized lane-boundary difference on a
   completely cold system: the first settlement anywhere pays the first touch of the Regent Safe, of
   the launch splitter, and of the splitter's onward destination.
-- **Production-lane callback, cold pool warm safe — 192,257 gas.** A full one-REGENT swap on a third
+- **Production-lane callback, cold pool warm safe — 192,277 gas.** A full one-REGENT swap on a third
   identically built pool, run after the boundary pair, so the Regent Safe and REGENT's own slots are
   already warm and only that pool's splitter is cold. This is the posture the second and every later
   launch on a live system meets on its own first swap.
@@ -132,7 +136,7 @@ with the production-lane warm figure here to within 0.3%. The cold figures diffe
 a swap total while this measures a lane-boundary differential that isolates the callback and includes
 the cold Safe and splitter touches.
 
-The second router settles the same swap for 156,207 gas, beside the pinned router's 166,015 warm
+The second router settles the same swap for 156,239 gas, beside the pinned router's 166,036 warm
 total. That comparison is **recorded only**: the hook has no router allowlist and charges both
 identically, and there is no admitted relation between two routers' settlement styles to hold either
 of them to. The one absolute gas limit this repository holds anything to is the founder's 14,000,000
@@ -140,8 +144,8 @@ complete-transaction ceiling below.
 
 ## Complete-transaction gas (`GAS-003` through `GAS-006`)
 
-All four claims executed against the exact `regent-alv1.12` born-paused production bytecode at Base
-blocks `50495491` and `50495791`. `GAS-003`, `GAS-004` and `GAS-005` run at the pinned header;
+All four retained measurements use the unchanged production source tree at Base blocks `50541328`
+and `50541628`. `GAS-003`, `GAS-004` and `GAS-005` run at the pinned header;
 `GAS-006` runs at both and records the same cold and warm execution figures. The totals include
 measured gross cost plus the intrinsic and calldata schedule active at each header. Every envelope
 was below the founder's 14,000,000-gas ceiling.
@@ -149,22 +153,18 @@ was below the founder's 14,000,000-gas ceiling.
 | Claim | Envelope | Pinned total | Later total | Pinned margin | Later margin |
 | --- | --- | ---: | ---: | ---: | ---: |
 | `GAS-003` | launch with maximum metadata and worst valid raise | 7,653,256 | — | 6,346,744 | — |
-| `GAS-004` | successful graduation | 1,407,858 | — | 12,592,142 | — |
+| `GAS-004` | successful graduation | 1,407,973 | — | 12,592,027 | — |
 | `GAS-005` | failed-auction retirement with bidder inventory | 293,797 | — | 13,706,203 | — |
 | `GAS-006` | independent full-envelope launch measurement | 7,653,160 | 7,653,160 | 6,346,840 | 6,346,840 |
 
 `GAS-006` measured 7,611,988 gas cold and 7,486,688 gas warm at both headers. The warm control is
 125,300 gas cheaper; the test requires only the load-bearing fact that it is cheaper.
 
-Both launch figures are 2,000 gas below the ones the previous candidate recorded, and the reason is
-the born-paused default rather than any change to what a launch does. A factory now has to be opened
-by the frozen Safe before it will admit a launch, so the fork harness makes that one governance call
-in the same fork it deployed into; the `launchesPaused` slot the launch then reads is already warm,
-at 100 gas instead of a cold 2,100. Graduation, retirement and the warm launch control are all
-unchanged, because none of them is the first touch of that slot. A real launch, sent on its own
-transaction against a factory the Safe opened in an earlier one, pays the cold 2,100 again — so the
-earlier, larger figure stays the conservative one to fund against, and both are far below the
-ceiling either way.
+The launch figures include the harness's deliberate local Safe unpause before launch, so its
+`launchesPaused` read is warm. A real launch sent in a later transaction pays the cold read again;
+the 14,000,000 ceiling leaves ample margin either way. The table records the exact retained report
+figures for these headers, including the corrected `GAS-004` total and margin, without carrying a
+number forward from an older report.
 
 The executed calculation is deliberately explicit:
 

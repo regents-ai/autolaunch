@@ -102,12 +102,14 @@ observation the ledger is normally already correct and only the record moves.
 **Phase two — `bin/fork-gate.sh check`.** Runs under the `fork` profile, which grants **no** write
 permission anywhere, so it is structurally incapable of authoring an observation. Before it touches
 the provider it proves the record says `observed_and_committed`, that the ledger activates `fork`
-and every fork claim is active, and that both files are committed and clean. After both header runs
-it proves both files are still byte-identical to what was committed and that no candidate was
+and every fork claim is active, and that the entire tracked and untracked non-generated worktree is
+clean. After both header runs it proves the same whole-worktree condition and that no candidate was
 produced. It then reconciles the two runs' reports as one merged multiset against the compiled
 listing of twenty-seven mapped selectors — eighteen at the pinned header and the nine-claim
 fresh-head subset at the later head — so every mapped selector executes exactly once and nothing
-listed goes unrun.
+listed goes unrun. Only after those checks and verdict agreement pass does it write
+`reports/generated/fork/fork-check-receipt.json`, binding the tested commit, full tree, source tree,
+both execution-report hashes, compiled-list hash and the exact 18+9 selector counts.
 
 Verdict agreement is reconciled by equality rather than by intersection. The later run's verdict keys
 must be exactly `DEP-040`, `DEP-041`, `DEP-042`, `DEP-043`, `DEP-047`, `DEP-051`, `DEP-052`,
@@ -140,29 +142,24 @@ file. Both orders are proved deterministically, without a provider, by
 The earlier C5 review object was offline: its observation was `discovery_pending`, `fork` was absent
 from `activated_gates`, and every fork claim was pending. This candidate is the **different, later
 activation object**. It contains the independently reviewed observation record, activates `fork`,
-and is the only kind of commit `bin/fork-gate.sh check` accepts because the record and activation
-must already be committed and clean before provider access begins.
+and is the only kind of commit `bin/fork-gate.sh check` accepts because the record, activation and
+entire non-generated checkout must already be committed and clean before provider access begins.
 
 ## 4. Execution status
 
-**Executed and passing under read-only Base authority for the `regent-alv1.12` born-paused source
-authority.** The reviewed observation binds blocks `50495491` and `50495791`. The ledger activates
-`fork`; the compiled listing contains twenty-seven mapped selectors; and the compare-only gate
-executed all eighteen fork claims at the pinned header plus exactly the approved nine-claim subset
-at the later header, with zero failures or skips. It recorded fifty-six normalized verdicts at the
-pinned header, forty-seven at the later header, proved every shared decision equal, and proved the
-committed observation and ledger byte-identical before and after provider access.
+**Pending one new founder check on the clean evidence successor.** The reviewed observation binds
+blocks `50541328` and `50541628`. The ledger activates `fork`, the compiled listing maps twenty-seven
+selectors, and check mode is fixed to run all eighteen pinned selectors plus exactly the approved
+nine-selector later subset. This document does not claim that successor run has passed until its
+generated receipt exists and names the exact clean successor commit and tree.
 
-That run was made against production authority commit
-`9eb3a7257a96e781b4a3d115e881d50acd496216`, carrying `src/` tree
-`2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b`, and the gate proved both against Git and against the
-checkout before any fork test opened. The evidence commit is
-`aa97e4189835abdf16c4771513c296adcb4abd95`, which changes nothing but the two `source_authority`
-fields inside the record. No observed value moved with it: the same reviewed headers, bindings,
-proxy families, implementations and transaction gas schedule were re-checked live against Base and
-matched exactly, which is what makes this a re-execution against different bytecode rather than a
-re-observation of the chain. Discovery was therefore not re-run, and nothing about the reviewed
-record was re-derived by the candidate it certifies.
+Production authority is commit `3634f6f0e11523c426662b7524f2c94fd37d3597`, full tree
+`e1439723f4263d70024cac59bbeab48d3eeec894`, carrying `src/` tree
+`a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952`. The evidence successor carries that same source tree
+and no production-byte change. Earlier fork output without the successor's commit/tree-bound receipt
+does not authorize packet preparation. After the founder check succeeds, the deployment renderer
+must name the receipt's exact evidence commit and independently re-derive its tree, source tree,
+report hashes and selector counts before any preparation provider access.
 
 The earlier discovery pass wrote only gitignored scratch and closed no claim. A separate provider
 was used to confirm both headers, every recorded runtime identity and supported proxy

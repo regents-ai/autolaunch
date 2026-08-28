@@ -4,8 +4,9 @@ pragma solidity 0.8.26;
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
-import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {BalanceDelta, toBalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {Currency, CurrencyLibrary} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
@@ -19,11 +20,31 @@ import {HookReentrancyProbe} from "../mocks/HookReentrancyProbe.sol";
 import {HostileHookSplitter} from "../mocks/HostileHookSplitter.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {SimpleSwapRouter} from "../mocks/SimpleSwapRouter.sol";
+import {Vm} from "forge-std/Vm.sol";
+
+/// @notice Arithmetic-boundary manager used only to deliver a chosen raw core delta through the
+///         production hook and fund the two `take` calls that delta causes.
+contract RawDeltaPoolManager {
+    function take(Currency currency, address to, uint256 amount) external {
+        require(MockERC20(Currency.unwrap(currency)).transfer(to, amount), "raw take failed");
+    }
+
+    function callAfterSwap(RegentFeeHook target, PoolKey calldata key, SwapParams calldata params, BalanceDelta delta)
+        external
+        returns (bytes4 selector, int128 hookDelta)
+    {
+        return target.afterSwap(address(this), key, params, delta, "");
+    }
+}
 
 /// @notice Claim-level FA-07 coverage against the pinned PoolManager and real splitter.
 contract RegentFeeHookTest is HookFixture {
+    using StateLibrary for IPoolManager;
+
     uint160 internal constant MIN_LIMIT = TickMath.MIN_SQRT_PRICE + 1;
     uint160 internal constant MAX_LIMIT = TickMath.MAX_SQRT_PRICE - 1;
+    address internal constant SUBJECT_HIGH_2 = 0xF111111111111111111111111111111111111111;
+    address internal constant SUBJECT_HIGH_3 = 0xF222222222222222222222222222222222222222;
 
     struct TokenLedger {
         uint256 safe;
@@ -165,6 +186,61 @@ contract RegentFeeHookTest is HookFixture {
         _assertPartialAndZero(p2, _regentIsInput(p2), false, REGENT);
         Pool memory p3 = _openPool(SUBJECT_ALT2, DEFAULT_LIQUIDITY);
         _assertPartialAndZero(p3, !_regentIsInput(p3), false, SUBJECT_ALT2);
+        Pool memory p4 = _openPool(SUBJECT_HIGH_2, DEFAULT_LIQUIDITY);
+        _assertPartialAndZero(p4, true, false, REGENT);
+        Pool memory p5 = _openPool(SUBJECT_HIGH_3, DEFAULT_LIQUIDITY);
+        _assertPartialAndZero(p5, false, false, SUBJECT_HIGH_3);
+    }
+
+    function test_HOK_001_FA07_I1_RawInt128MinimumUnspecifiedComponentsAreExact() public {
+        RawDeltaPoolManager rawManager = new RawDeltaPoolManager();
+        (address mined, bytes32 salt) = HookMiner.find(
+            address(this),
+            HOOK_FLAGS,
+            type(RegentFeeHook).creationCode,
+            abi.encode(IPoolManager(address(rawManager)), address(this))
+        );
+        RegentFeeHook rawHook = new RegentFeeHook{salt: salt}(IPoolManager(address(rawManager)), address(this));
+        assertEq(address(rawHook), mined, "FA07-I1 raw hook mined address");
+
+        MockERC20 rawSubject = _etchToken(SUBJECT_HIGH, SUBJECT_TOTAL_SUPPLY);
+        SubjectSplitterV1 rawSplitter = _newSplitter(SUBJECT_HIGH);
+        PoolKey memory key = PoolKey({
+            currency0: Currency.wrap(REGENT),
+            currency1: Currency.wrap(SUBJECT_HIGH),
+            fee: rawHook.POOL_FEE(),
+            tickSpacing: rawHook.POOL_TICK_SPACING(),
+            hooks: IHooks(address(rawHook))
+        });
+        rawHook.registerPool(key, address(rawSplitter));
+
+        uint256 feeBase = uint256(1) << 127;
+        uint256 lane = feeBase / rawHook.LANE_DIVISOR();
+        regent.mint(address(rawManager), lane * 2);
+        rawSubject.mint(address(rawManager), lane * 2);
+
+        _assertRawMinimum(
+            rawManager,
+            rawHook,
+            rawSplitter,
+            key,
+            SwapParams({zeroForOne: true, amountSpecified: 1, sqrtPriceLimitX96: MIN_LIMIT}),
+            toBalanceDelta(type(int128).min, 1),
+            regent,
+            feeBase,
+            lane
+        );
+        _assertRawMinimum(
+            rawManager,
+            rawHook,
+            rawSplitter,
+            key,
+            SwapParams({zeroForOne: false, amountSpecified: 1, sqrtPriceLimitX96: MAX_LIMIT}),
+            toBalanceDelta(1, type(int128).min),
+            rawSubject,
+            feeBase,
+            lane
+        );
     }
 
     function test_HOK_002_FA07_I2_RoundingBoundariesAreMeasuredFromExecution() public {
@@ -314,20 +390,37 @@ contract RegentFeeHookTest is HookFixture {
         private
     {
         int256 requested = exactInput ? -int256(1e21) : int256(1e21);
-        uint160 current = _currentSqrtPrice(pool);
-        uint160 partialLimit = zeroForOne ? current - (current / 1000) : current + (current / 1000);
+        (uint160 current, int24 currentTick,,) = IPoolManager(address(manager)).getSlot0(pool.id);
+        uint160 partialLimit = TickMath.getSqrtPriceAtTick(zeroForOne ? currentTick - 1 : currentTick + 1);
+        bool specifiedIsCurrency0 = exactInput == zeroForOne;
+        MockERC20 specifiedToken =
+            MockERC20(Currency.unwrap(specifiedIsCurrency0 ? pool.key.currency0 : pool.key.currency1));
+        uint256 specifiedBalanceBefore = specifiedToken.balanceOf(address(this));
         vm.recordLogs();
         BalanceDelta partialDelta = _swapWithLimit(pool, zeroForOne, requested, partialLimit);
         Settlement memory settled = _onlySettlement();
-        bool specifiedIsCurrency0 = exactInput == zeroForOne;
         int128 specifiedDelta = specifiedIsCurrency0 ? partialDelta.amount0() : partialDelta.amount1();
         int128 unspecifiedDelta = specifiedIsCurrency0 ? partialDelta.amount1() : partialDelta.amount0();
         uint256 postHookUnspecified = _abs(unspecifiedDelta);
         uint256 feeBase = exactInput ? postHookUnspecified + 2 * settled.lane : postHookUnspecified - 2 * settled.lane;
         assertEq(settled.feeToken, expectedFeeToken, "FA07-I1 partial fee token");
         assertEq(settled.charged, feeBase, "FA07-I1 partial realized base");
+        assertEq(settled.lane, feeBase / hook.LANE_DIVISOR(), "FA07-I2 partial lane");
+        assertEq(
+            exactInput ? feeBase - postHookUnspecified : postHookUnspecified - feeBase,
+            2 * settled.lane,
+            "FA07-I1 partial returned delta"
+        );
         assertGt(_abs(specifiedDelta), 0, "FA07-I1 partial fill executed nothing");
         assertLt(_abs(specifiedDelta), _abs256(requested), "FA07-I1 price limit did not create partial fill");
+        uint256 specifiedBalanceAfter = specifiedToken.balanceOf(address(this));
+        assertEq(
+            specifiedDelta < 0
+                ? specifiedBalanceBefore - specifiedBalanceAfter
+                : specifiedBalanceAfter - specifiedBalanceBefore,
+            _abs(specifiedDelta),
+            "FA07-I1 partial specified-side wallet delta"
+        );
 
         current = _currentSqrtPrice(pool);
         uint160 zeroLimit = zeroForOne ? current - 1 : current + 1;
@@ -340,6 +433,57 @@ contract RegentFeeHookTest is HookFixture {
         assertEq(zeroOutput, 0, "FA07-I1 zero fill realized output currency");
         assertLt(_abs(dustInput), 100, "FA07-I2 zero fill crossed lane floor");
         assertEq(_recordedSettlements().length, 0, "FA07-I2 zero fill settled a lane");
+    }
+
+    function _assertRawMinimum(
+        RawDeltaPoolManager rawManager,
+        RegentFeeHook rawHook,
+        SubjectSplitterV1 rawSplitter,
+        PoolKey memory key,
+        SwapParams memory params,
+        BalanceDelta rawDelta,
+        MockERC20 feeToken,
+        uint256 feeBase,
+        uint256 lane
+    ) private {
+        bool specifiedIsCurrency0 = params.zeroForOne == false;
+        int128 specified = specifiedIsCurrency0 ? rawDelta.amount0() : rawDelta.amount1();
+        int128 unspecified = specifiedIsCurrency0 ? rawDelta.amount1() : rawDelta.amount0();
+        assertEq(specified, 1, "FA07-I1 raw specified component");
+        assertEq(unspecified, type(int128).min, "FA07-I1 raw unspecified component");
+
+        uint256 safeBefore = feeToken.balanceOf(REGENT_SAFE);
+        uint256 treasuryBefore = feeToken.balanceOf(treasury);
+        vm.recordLogs();
+        (bytes4 selector, int128 returned) = rawManager.callAfterSwap(rawHook, key, params, rawDelta);
+        Settlement memory settled = _onlySettlementFrom(address(rawHook));
+        uint256 skim = (lane * rawSplitter.SKIM_BPS()) / rawSplitter.BPS_DENOMINATOR();
+
+        assertEq(selector, IHooks.afterSwap.selector, "FA07-I1 raw callback selector");
+        assertEq(returned, int128(int256(lane * 2)), "FA07-I1 raw returned delta");
+        assertEq(settled.feeToken, address(feeToken), "FA07-I1 raw unspecified asset");
+        assertEq(settled.charged, feeBase, "FA07-I1 raw fee base");
+        assertEq(settled.lane, lane, "FA07-I2 raw lane");
+        assertFalse(settled.exactInput, "FA07-I1 raw mode");
+        assertEq(feeToken.balanceOf(REGENT_SAFE), safeBefore + lane + skim, "FA07-I2 raw Safe route");
+        assertEq(feeToken.balanceOf(treasury), treasuryBefore + lane - skim, "FA07-I2 raw splitter route");
+        assertEq(feeToken.balanceOf(address(rawHook)), 0, "FA07-I4 raw hook balance");
+        assertEq(feeToken.allowance(address(rawHook), address(rawSplitter)), 0, "FA07-I4 raw allowance");
+    }
+
+    function _onlySettlementFrom(address emitter) private returns (Settlement memory settled) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != emitter) continue;
+            if (logs[i].topics.length != 4 || logs[i].topics[0] != RegentFeeHook.SwapFeeSettled.selector) continue;
+            assertFalse(settled.found, "FA07-I1 multiple raw settlements");
+            settled.found = true;
+            settled.poolId = PoolId.wrap(logs[i].topics[1]);
+            settled.sender = address(uint160(uint256(logs[i].topics[2])));
+            settled.feeToken = address(uint160(uint256(logs[i].topics[3])));
+            (settled.charged, settled.lane, settled.exactInput) = abi.decode(logs[i].data, (uint256, uint256, bool));
+        }
+        assertTrue(settled.found, "FA07-I1 missing raw settlement");
     }
 
     function _assertRouterLimits(Pool memory pool, bool zeroForOne, int256 amountSpecified) private {

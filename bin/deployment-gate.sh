@@ -14,6 +14,10 @@
 #                             into gitignored scratch. It installs nothing and prints no pass marker.
 #   --rehearse                Compare-only, against the committed packet. It authors nothing.
 #   --selftest-dead-endpoint  The chain-id boundary's regression. It reaches no network.
+#   --selftest-stale-source   The production-source authority regression. It reaches no network.
+#   --selftest-stale-receipt  The absent/stale fork-check receipt regression. It reaches no network.
+#   --selftest-receipt-paths  The exact retained-report path boundary's regression. It reaches no network.
+#   --selftest-receipt-substitution  The single-snapshot continuity regression. It reaches no network.
 #
 # Provider modes probe `cast chain-id` through the configured alias before any build, Forge run or
 # script, so a dead, unreachable, malformed or wrong-chain endpoint stops here rather than surfacing
@@ -33,11 +37,43 @@
 # value to make it pass.
 set -eu
 
+GIT_NO_REPLACE_OBJECTS=1
+export GIT_NO_REPLACE_OBJECTS
+
+for git_context in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
+    GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE GIT_CEILING_DIRECTORIES \
+    GIT_DISCOVERY_ACROSS_FILESYSTEM GIT_QUARANTINE_PATH GIT_SHALLOW_FILE GIT_GRAFT_FILE \
+    GIT_REPLACE_REF_BASE GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_CONFIG_SYSTEM \
+    GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM GIT_EXEC_PATH GIT_PREFIX; do
+    eval "git_context_value=\${$git_context:-}"
+    [ -z "$git_context_value" ] || {
+        printf 'DEPLOYMENT GATE FAIL: ambient Git context override %s is set\n' "$git_context" >&2
+        exit 1
+    }
+done
+unset git_context_value
+
 cd "$(dirname "$0")/.."
+physical_root=$(pwd -P)
+command -v git >/dev/null 2>&1 || {
+    printf 'DEPLOYMENT GATE FAIL: git is not on PATH\n' >&2
+    exit 1
+}
+git_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+    printf 'DEPLOYMENT GATE FAIL: the physical script root is not a Git worktree\n' >&2
+    exit 1
+}
+git_root=$(cd "$git_root" && pwd -P)
+[ "$git_root" = "$physical_root" ] || {
+    printf 'DEPLOYMENT GATE FAIL: Git top level does not equal the physical script root\n' >&2
+    exit 1
+}
+cd "$physical_root"
 
 FOUNDRY_PROFILE=deployment
 GIT_TERMINAL_PROMPT=0
-export FOUNDRY_PROFILE GIT_TERMINAL_PROMPT
+PYTHONDONTWRITEBYTECODE=1
+export FOUNDRY_PROFILE GIT_TERMINAL_PROMPT PYTHONDONTWRITEBYTECODE
 
 # The only gate this entrypoint proves.
 GATES=deployment
@@ -46,6 +82,13 @@ RPC_ALIAS=base
 RPC_ENV=REGENT_BASE_RPC_URL
 CHAIN_ID=8453
 PROBE_REFUSAL="the configured $RPC_ALIAS endpoint did not answer a read-only chain-id probe with exactly $CHAIN_ID"
+
+PRODUCTION_AUTHORITY_COMMIT=3634f6f0e11523c426662b7524f2c94fd37d3597
+PRODUCTION_AUTHORITY_TREE=e1439723f4263d70024cac59bbeab48d3eeec894
+PRODUCTION_AUTHORITY_SRC_TREE=a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952
+# Filled with the exact clean B' commit only after the founder's fork check writes a successful
+# receipt for it. A preparation run cannot proceed while this sentinel remains.
+FORK_EVIDENCE_COMMIT=PENDING_FOUNDER_FORK_CHECK
 
 # The discard port. Nothing listens on it, so the dead-endpoint regression is deterministic.
 DEAD_ENDPOINT=http://127.0.0.1:9
@@ -65,14 +108,644 @@ packet=deployments/base-mainnet/mainnet-no-go-packet.json
 manifest=deployments/base-mainnet/deployed-manifest.json
 
 generated=reports/generated/deployment
+fork_receipt=reports/generated/fork/fork-check-receipt.json
+fork_pinned_report=reports/generated/fork/forge-test-pinned.json
+fork_later_report=reports/generated/fork/forge-test-later.json
+fork_test_list=reports/generated/fork/forge-test-list.json
+offline_receipt=reports/generated/dependency-receipt.txt
 
 fail() {
     printf 'DEPLOYMENT GATE FAIL: %s\n' "$*" >&2
     exit 1
 }
 
+reject_replace_refs() {
+    replacement_refs=$(
+        {
+            git for-each-ref --format='ticket repository: %(refname)' refs/replace/
+            git submodule foreach --quiet --recursive \
+                'git for-each-ref --format="recursive submodule $displaypath: %(refname)" refs/replace/'
+        }
+    ) || fail "could not inspect replacement refs in the ticket repository and initialized recursive submodules"
+    [ -z "$replacement_refs" ] || fail "Git replacement refs are forbidden:
+$replacement_refs"
+}
+
+reject_replace_refs
+
+fork_receipt_snapshot=
+cleanup_receipt_snapshot() {
+    [ -z "${fork_receipt_snapshot:-}" ] || rm -f "$fork_receipt_snapshot"
+}
+trap cleanup_receipt_snapshot EXIT
+trap 'cleanup_receipt_snapshot; exit 1' HUP INT TERM
+
+snapshot_receipt() {
+    source_path=$1
+    snapshot_path=$2
+    python3 - "$source_path" "$snapshot_path" <<'PYTHON'
+import hashlib
+import os
+import stat
+import sys
+
+source, destination = sys.argv[1:]
+try:
+    metadata = os.lstat(source)
+except FileNotFoundError:
+    raise SystemExit(f"the successful fork-check receipt is absent: {source}")
+if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+    raise SystemExit(f"fork-check receipt must be a regular non-symlink file: {source}")
+source_fd = os.open(source, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+try:
+    chunks = []
+    while True:
+        block = os.read(source_fd, 1024 * 1024)
+        if not block:
+            break
+        chunks.append(block)
+finally:
+    os.close(source_fd)
+data = b"".join(chunks)
+destination_fd = os.open(destination, os.O_WRONLY | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0))
+try:
+    os.write(destination_fd, data)
+finally:
+    os.close(destination_fd)
+os.chmod(destination, stat.S_IRUSR)
+print(hashlib.sha256(data).hexdigest())
+PYTHON
+}
+
+# The production commit, its full tree, its src tree, and this checkout's src tree are one authority
+# comparison. The stale-source regression calls this exact function with a mismatched recorded src
+# tree and must stop before any pass marker.
+verify_source_authority() {
+    recorded_src=$1
+    git cat-file -e "$PRODUCTION_AUTHORITY_COMMIT^{commit}" 2>/dev/null ||
+        fail "production authority commit $PRODUCTION_AUTHORITY_COMMIT does not exist locally"
+
+    found_tree=$(git rev-parse "$PRODUCTION_AUTHORITY_COMMIT^{tree}")
+    [ "$found_tree" = "$PRODUCTION_AUTHORITY_TREE" ] ||
+        fail "production authority tree mismatch: expected $PRODUCTION_AUTHORITY_TREE, found $found_tree"
+
+    found_src=$(git rev-parse "$PRODUCTION_AUTHORITY_COMMIT:src")
+    [ "$found_src" = "$recorded_src" ] ||
+        fail "production source tree mismatch: recorded $recorded_src, found $found_src"
+
+    checkout_src=$(git rev-parse 'HEAD:src')
+    [ "$checkout_src" = "$recorded_src" ] ||
+        fail "candidate source tree mismatch: recorded $recorded_src, found $checkout_src"
+}
+
+# The deployment packet may consume only a successful fork check against the exact evidence commit
+# its renderer names. The receipt lives in ignored scratch, but its commit/tree/src identity and all
+# retained report hashes are independently re-derived here, and the current checkout must separately
+# be clean before this function is called.
+verify_fork_receipt() {
+    receipt_path=$1
+    expected_commit=${2:-$FORK_EVIDENCE_COMMIT}
+
+    [ -e "$receipt_path" ] || fail "the successful fork-check receipt is absent: $receipt_path"
+    git cat-file -e "$expected_commit^{commit}" 2>/dev/null ||
+        fail "the renderer's fork evidence authority is not a commit in this repository: $expected_commit"
+    expected_tree=$(git rev-parse "$expected_commit^{tree}")
+    expected_src=$(git rev-parse "$expected_commit:src")
+
+    python3 - "$receipt_path" "$expected_commit" "$expected_tree" "$expected_src" \
+        "$physical_root" "$fork_pinned_report" "$fork_later_report" "$fork_test_list" \
+        "$ledger" "$observations" <<'PYTHON'
+import hashlib
+import json
+import os
+import stat
+import sys
+import tomllib
+
+(
+    path,
+    expected_commit,
+    expected_tree,
+    expected_src,
+    repo_root,
+    pinned_path,
+    later_path,
+    list_path,
+    ledger_path,
+    observations_path,
+) = sys.argv[1:]
+problems = []
+
+
+def regular_not_symlink(candidate, label):
+    try:
+        metadata = os.lstat(candidate)
+    except FileNotFoundError:
+        problems.append(f"{label} is absent: {candidate}")
+        return False
+    if stat.S_ISLNK(metadata.st_mode):
+        problems.append(f"{label} must not be a symlink: {candidate}")
+        return False
+    if not stat.S_ISREG(metadata.st_mode):
+        problems.append(f"{label} is not a regular file: {candidate}")
+        return False
+    return True
+
+
+if not regular_not_symlink(path, "fork-check receipt"):
+    receipt = {}
+else:
+    receipt = json.load(open(path, encoding="utf-8"))
+identity = receipt.get("tested_identity") or {}
+counts = receipt.get("executed_selectors") or {}
+
+expected = {
+    "artifact": "regent-fork-check-receipt",
+    "version": 1,
+    "status": "passed",
+    "worktree": "clean",
+}
+for key, wanted in expected.items():
+    if receipt.get(key) != wanted:
+        problems.append(f"receipt {key}: expected [{wanted}], found [{receipt.get(key)}]")
+for key, wanted in (("commit", expected_commit), ("tree", expected_tree), ("src_tree", expected_src)):
+    if identity.get(key) != wanted:
+        problems.append(f"receipt {key} mismatch: expected [{wanted}], found [{identity.get(key)}]")
+
+# Do not touch paths named by a receipt until its authority and fixed shape are exact.
+if problems:
+    print("FORK RECEIPT RECONCILIATION FAILED", file=sys.stderr)
+    for problem in problems:
+        print(f"  - {problem}", file=sys.stderr)
+    raise SystemExit(1)
+
+reports = receipt.get("reports") or {}
+expected_reports = {
+    "pinned": pinned_path,
+    "later": later_path,
+    "compiled_test_list": list_path,
+}
+if set(reports) != set(expected_reports):
+    problems.append(
+        f"receipt report keys: expected {sorted(expected_reports)}, found {sorted(reports)}"
+    )
+
+canonical_repo = os.path.realpath(repo_root)
+declared_canonical_targets = []
+for label, exact_path in expected_reports.items():
+    row = reports.get(label) or {}
+    report_path = row.get("path")
+    wanted_hash = row.get("sha256")
+    if isinstance(report_path, str):
+        declared_canonical_targets.append(os.path.realpath(report_path))
+    if report_path != exact_path:
+        problems.append(f"receipt report {label} path: expected [{exact_path}], found [{report_path}]")
+        continue
+    if not regular_not_symlink(report_path, f"receipt report {label}"):
+        continue
+    canonical = os.path.realpath(report_path)
+    canonical_expected = os.path.join(canonical_repo, exact_path)
+    if canonical != canonical_expected:
+        problems.append(
+            f"receipt report {label} canonical target: expected [{canonical_expected}], found [{canonical}]"
+        )
+        continue
+    found_hash = hashlib.sha256(open(report_path, "rb").read()).hexdigest()
+    if found_hash != wanted_hash:
+        problems.append(f"receipt report {label} hash mismatch: expected [{wanted_hash}], found [{found_hash}]")
+
+if len(declared_canonical_targets) != len(set(declared_canonical_targets)):
+    problems.append("receipt report paths resolve to duplicate canonical targets")
+
+if problems:
+    print("FORK RECEIPT RECONCILIATION FAILED", file=sys.stderr)
+    for problem in problems:
+        print(f"  - {problem}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def listed_selectors(candidate):
+    found = []
+    for contracts in json.load(open(candidate, encoding="utf-8")).values():
+        for names in contracts.values():
+            found.extend(names)
+    return found
+
+
+def executed_selectors(candidate):
+    found = {}
+    for suite in json.load(open(candidate, encoding="utf-8")).values():
+        for signature, outcome in suite.get("test_results", {}).items():
+            selector = signature.split("(", 1)[0]
+            if selector in found:
+                problems.append(f"{candidate}: selector executed more than once: {selector}")
+            found[selector] = outcome
+    return found
+
+
+ledger_document = tomllib.load(open(ledger_path, "rb"))
+fork_claims = [
+    row for row in ledger_document["requirement"]
+    if row.get("gate") == "fork" and row.get("status") == "active"
+]
+claim_keys = [row.get("id") for row in fork_claims]
+if len(claim_keys) != 18 or len(set(claim_keys)) != 18:
+    problems.append(f"local ledger fork claim keys: expected 18 unique, found {len(set(claim_keys))}")
+
+expected_pinned = set()
+expected_later = set()
+for row in fork_claims:
+    selectors = row.get("selectors") or []
+    if not selectors:
+        problems.append(f"local ledger fork claim {row.get('id')} has no selector")
+    for selector in selectors:
+        if "ForkPinned" in selector:
+            expected_pinned.add(selector)
+        elif "ForkLatest" in selector:
+            expected_later.add(selector)
+        else:
+            problems.append(f"local ledger fork selector names neither header: {selector}")
+
+pinned = executed_selectors(pinned_path)
+later = executed_selectors(later_path)
+listed = listed_selectors(list_path)
+if len(listed) != len(set(listed)):
+    problems.append("compiled fork test list contains duplicate selectors")
+if set(pinned) != expected_pinned:
+    problems.append(
+        f"pinned report selectors differ from the local ledger: expected {len(expected_pinned)}, found {len(pinned)}"
+    )
+if set(later) != expected_later:
+    problems.append(
+        f"later report selectors differ from the local ledger: expected {len(expected_later)}, found {len(later)}"
+    )
+if set(listed) != expected_pinned | expected_later:
+    problems.append(
+        f"compiled fork test list differs from the local ledger: expected {len(expected_pinned | expected_later)}, "
+        f"found {len(set(listed))}"
+    )
+for report_path, outcomes in ((pinned_path, pinned), (later_path, later)):
+    for selector, outcome in outcomes.items():
+        if outcome.get("status") != "Success":
+            problems.append(f"{report_path}: {selector} reported {outcome.get('status')}")
+
+derived_counts = {
+    "pinned": len(pinned),
+    "later": len(later),
+    "total": len(pinned) + len(later),
+}
+if derived_counts != {"pinned": 18, "later": 9, "total": 27}:
+    problems.append(f"retained report selector counts: expected 18+9=27, found {derived_counts}")
+if counts != derived_counts:
+    problems.append(f"receipt-declared selector counts {counts} differ from rederived {derived_counts}")
+
+observation = json.load(open(observations_path, encoding="utf-8"))
+binding_identities = dict(observation.get("bindings") or {})
+if "permit2" in binding_identities:
+    problems.append("frozen observation duplicates the permit2 binding identity")
+binding_identities["permit2"] = observation.get("permit2")
+required_identity_fields = {
+    "address",
+    "runtime_bytes",
+    "runtime_code_hash",
+    "proxy_family",
+    "implementation",
+    "implementation_code_hash",
+    "implementation_runtime_bytes",
+}
+if len(binding_identities) != 9:
+    problems.append(f"frozen observation binding identities: expected 9, found {len(binding_identities)}")
+for binding, facts in binding_identities.items():
+    if not isinstance(facts, dict):
+        problems.append(f"frozen observation binding {binding} is not an identity object")
+        continue
+    missing = required_identity_fields - set(facts)
+    if missing:
+        problems.append(f"frozen observation binding {binding} lacks {sorted(missing)}")
+
+
+def verdicts(outcomes, header):
+    found = {}
+    for outcome in outcomes.values():
+        for entry in outcome.get("decoded_logs") or []:
+            if not entry.startswith("verdict "):
+                continue
+            label, _, decision = entry.partition(": ")
+            parts = label.split(" ")
+            if len(parts) != 3 or parts[2] != header:
+                continue
+            claim = parts[1]
+            if claim in found and found[claim] != decision:
+                problems.append(f"{header} verdict {claim} has conflicting decisions")
+            found[claim] = decision
+    return found
+
+
+pinned_verdicts = verdicts(pinned, "pinned")
+later_verdicts = verdicts(later, "later")
+required_later = {"DEP-040", "DEP-041", "DEP-042", "DEP-043", "DEP-047", "DEP-051", "DEP-052", "GAS-006"}
+expected_dep_050 = {
+    "DEP-050.chain": "chain-id=base",
+    "DEP-050.cca-code": "cca-runtime=frozen",
+    "DEP-050.cca-controller": "controller=zero",
+}
+empty_bindings = []
+for binding, facts in (observation.get("bindings") or {}).items():
+    expected_dep_050[f"DEP-050.binding.{binding}"] = "code-presence=expected"
+    if facts.get("runtime_bytes") == 0:
+        empty_bindings.append(binding)
+        continue
+    expected_dep_050[f"DEP-050.codehash.{binding}"] = "codehash=committed"
+    expected_dep_050[f"DEP-050.proxy.{binding}"] = f"family={facts.get('proxy_family')}"
+    expected_dep_050[f"DEP-050.implementation.{binding}"] = "implementation=committed"
+    expected_dep_050[f"DEP-050.implementation-code.{binding}"] = "implementation-codehash=committed"
+if empty_bindings != ["dead_address"]:
+    problems.append(f"frozen dead-address exception: expected ['dead_address'], found {empty_bindings}")
+
+pinned_dep_050 = {key: value for key, value in pinned_verdicts.items() if key.startswith("DEP-050.")}
+later_dep_050 = {key: value for key, value in later_verdicts.items() if key.startswith("DEP-050.")}
+if pinned_dep_050 != expected_dep_050:
+    missing = sorted(set(expected_dep_050) - set(pinned_dep_050))
+    extra = sorted(set(pinned_dep_050) - set(expected_dep_050))
+    wrong = sorted(
+        key for key in set(expected_dep_050) & set(pinned_dep_050)
+        if expected_dep_050[key] != pinned_dep_050[key]
+    )
+    problems.append(f"pinned DEP-050 schema/decisions differ: missing={missing}, extra={extra}, wrong={wrong}")
+if later_dep_050 != expected_dep_050:
+    missing = sorted(set(expected_dep_050) - set(later_dep_050))
+    extra = sorted(set(later_dep_050) - set(expected_dep_050))
+    wrong = sorted(
+        key for key in set(expected_dep_050) & set(later_dep_050)
+        if expected_dep_050[key] != later_dep_050[key]
+    )
+    problems.append(f"later DEP-050 schema/decisions differ: missing={missing}, extra={extra}, wrong={wrong}")
+
+expected_later_verdicts = required_later | set(expected_dep_050)
+if set(later_verdicts) != expected_later_verdicts:
+    problems.append(
+        f"later normalized verdict keys differ: expected {len(expected_later_verdicts)}, found {len(later_verdicts)}"
+    )
+for claim in required_later - set(pinned_verdicts):
+    problems.append(f"pinned normalized verdict is absent for {claim}")
+for claim in expected_later_verdicts & set(pinned_verdicts) & set(later_verdicts):
+    if pinned_verdicts[claim] != later_verdicts[claim]:
+        problems.append(f"normalized verdict disagreement for {claim}")
+
+observed_binding_ids = set(observation.get("bindings") or {})
+verdict_binding_ids = {
+    claim.removeprefix("DEP-050.binding.")
+    for claim in pinned_dep_050
+    if claim.startswith("DEP-050.binding.")
+}
+if verdict_binding_ids != observed_binding_ids:
+    problems.append(
+        f"DEP-050 verdict binding ids differ from the eight ordinary frozen bindings: "
+        f"expected {sorted(observed_binding_ids)}, found {sorted(verdict_binding_ids)}"
+    )
+
+if problems:
+    print("FORK RECEIPT EVIDENCE RECONCILIATION FAILED", file=sys.stderr)
+    for problem in problems:
+        print(f"  - {problem}", file=sys.stderr)
+    raise SystemExit(1)
+
+print(
+    f"fork-check receipt: commit {expected_commit}, tree {expected_tree}, src {expected_src}; "
+    f"three exact regular report paths and hashes; {len(claim_keys)} claim keys; "
+    f"{len(binding_identities)} binding identities; selectors 18+9=27; normalized verdicts agree"
+)
+PYTHON
+
+    python3 "$checker" ledger \
+        --ledger "$ledger" \
+        --spec SPEC.md \
+        --gates fork \
+        --test-list "$fork_test_list" \
+        --test-report "$fork_pinned_report" "$fork_later_report" \
+        --receipt "$offline_receipt"
+}
+
+# A passing mode also binds the committed packet and this run's render to the same A/B authority.
+# Preparation has no pass marker and checks only its new render; offline and rehearsal check both.
+verify_packet_authority() {
+    receipt_path=$1
+    receipt_sha=$2
+    shift 2
+    python3 - "$PRODUCTION_AUTHORITY_COMMIT" "$PRODUCTION_AUTHORITY_TREE" \
+        "$PRODUCTION_AUTHORITY_SRC_TREE" "$FORK_EVIDENCE_COMMIT" "$receipt_path" "$receipt_sha" "$@" <<'PYTHON'
+import hashlib
+import json
+import sys
+
+production_commit, production_tree, source_tree, fork_commit, receipt_path, receipt_sha, *paths = sys.argv[1:]
+receipt_bytes = open(receipt_path, "rb").read()
+found_receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
+receipt = json.loads(receipt_bytes)
+problems = []
+if found_receipt_sha != receipt_sha:
+    problems.append(f"fork receipt snapshot digest expected [{receipt_sha}], found [{found_receipt_sha}]")
+for path in paths:
+    document = json.load(open(path, encoding="utf-8"))
+    identities = document.get("immutable_identities", {})
+    expected = {
+        "production_authority_commit": production_commit,
+        "production_authority_tree": production_tree,
+        "shared_src_tree": source_tree,
+        "fork_evidence_commit": fork_commit,
+    }
+    for key, wanted in expected.items():
+        found = identities.get(key)
+        if found != wanted:
+            problems.append(f"{path}: {key} expected [{wanted}], found [{found}]")
+    if document.get("fork_check_receipt") != receipt:
+        problems.append(f"{path}: embedded fork-check receipt does not equal {receipt_path}")
+    if document.get("fork_check_receipt_sha256") != receipt_sha:
+        problems.append(f"{path}: embedded fork-check receipt digest does not equal the private snapshot")
+
+if problems:
+    print("PACKET AUTHORITY RECONCILIATION FAILED", file=sys.stderr)
+    for problem in problems:
+        print(f"  - {problem}", file=sys.stderr)
+    raise SystemExit(1)
+
+print(f"packet authority: {len(paths)} document(s) name the exact production and fork evidence identities")
+PYTHON
+}
+
 section() {
     printf '\n=== %s ===\n' "$*"
+}
+
+# Git status is not the filesystem authority. This also compares tracked bytes directly, rejects
+# hidden index flags and forces ignored recursive submodule dirt into the result.
+repository_snapshot() {
+    python3 - <<'PYTHON'
+import hashlib
+import os
+import stat
+import subprocess
+import sys
+
+
+def run(args, cwd=".", text=False):
+    return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=text).stdout
+
+
+def read_indexed_blobs(repo, oids):
+    ordered = list(dict.fromkeys(oids))
+    if not ordered:
+        return {}
+    batch = subprocess.run(
+        ["git", "cat-file", "--batch"],
+        cwd=repo,
+        input=("\n".join(ordered) + "\n").encode(),
+        check=True,
+        capture_output=True,
+    ).stdout
+    cursor = 0
+    blobs = {}
+    for wanted in ordered:
+        line_end = batch.find(b"\n", cursor)
+        if line_end < 0:
+            raise ValueError(f"truncated indexed blob header for {wanted}")
+        header = batch[cursor:line_end].decode().split()
+        if len(header) != 3 or header[0] != wanted or header[1] != "blob":
+            raise ValueError(f"unexpected indexed blob header for {wanted}")
+        size = int(header[2])
+        start = line_end + 1
+        end = start + size
+        if end >= len(batch) or batch[end:end + 1] != b"\n":
+            raise ValueError(f"truncated indexed blob body for {wanted}")
+        blobs[wanted] = batch[start:end]
+        cursor = end + 1
+    if cursor != len(batch):
+        raise ValueError("unexpected trailing indexed blob data")
+    return blobs
+
+
+def verify_tracked_bytes(repo, label, digest):
+    entries = []
+    seen = set()
+    for entry in run(["git", "ls-files", "-s", "-z"], cwd=repo).split(b"\0"):
+        if not entry:
+            continue
+        metadata, raw_path = entry.split(b"\t", 1)
+        mode, oid, stage = metadata.decode().split()
+        path = os.fsdecode(raw_path)
+        if stage != "0" or path in seen:
+            problems.append(f"non-stage-zero index entry in {label}: {path}")
+            continue
+        seen.add(path)
+        if mode != "160000":
+            entries.append((mode, oid, raw_path, path))
+    try:
+        indexed_blobs = read_indexed_blobs(repo, [entry[1] for entry in entries])
+    except (OSError, subprocess.SubprocessError, ValueError) as error:
+        problems.append(f"could not read raw indexed blobs in {label}: {error}")
+        return
+    for mode, oid, raw_path, path in entries:
+        try:
+            full_path = os.path.join(repo, path)
+            found = os.lstat(full_path)
+            if mode == "120000":
+                if not stat.S_ISLNK(found.st_mode):
+                    raise ValueError("expected a symbolic link")
+                data = os.fsencode(os.readlink(full_path))
+            else:
+                if mode not in {"100644", "100755"}:
+                    raise ValueError(f"unexpected indexed mode {mode}")
+                if not stat.S_ISREG(found.st_mode) or stat.S_ISLNK(found.st_mode):
+                    raise ValueError("expected a regular file")
+                descriptor = os.open(full_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                try:
+                    chunks = []
+                    while True:
+                        block = os.read(descriptor, 1024 * 1024)
+                        if not block:
+                            break
+                        chunks.append(block)
+                    data = b"".join(chunks)
+                finally:
+                    os.close(descriptor)
+                executable = bool(found.st_mode & 0o111)
+                if executable != (mode == "100755"):
+                    raise ValueError("executable bits differ from the index")
+            if data != indexed_blobs[oid]:
+                raise ValueError("bytes differ from the indexed blob")
+            digest.update(
+                label.encode() + b"\0" + mode.encode() + b"\0" + raw_path + b"\0"
+                + hashlib.sha256(data).digest()
+            )
+        except (FileNotFoundError, OSError, ValueError) as error:
+            problems.append(f"tracked filesystem mismatch in {label}: {path}: {error}")
+
+
+problems = []
+ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True)
+if ordinary:
+    problems.extend(ordinary.rstrip("\n").splitlines())
+scratch_roots = (
+    b"reports/generated/",
+    b"cache/",
+    b"cache-fork/",
+    b"out/",
+    b"out-fork/",
+    b"artifacts/",
+    b"broadcast/",
+)
+ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
+for path in ignored:
+    if path and not path.startswith(scratch_roots):
+        problems.append("!! " + os.fsdecode(path))
+
+flagged = [
+    entry.decode("utf-8", errors="backslashreplace")
+    for entry in run(["git", "ls-files", "-v", "-z"]).split(b"\0")
+    if entry and (entry[:1] == b"S" or entry[:1].islower())
+]
+if flagged:
+    problems.append("special index flags: " + ", ".join(flagged))
+
+digest = hashlib.sha256()
+verify_tracked_bytes(".", "ticket repository", digest)
+
+for line in run(["git", "submodule", "status", "--recursive"], text=True).splitlines():
+    if not line or line[0] != " ":
+        problems.append("recursive submodule identity mismatch: " + line)
+        continue
+    parts = line[1:].split()
+    if len(parts) < 2:
+        problems.append("unparseable recursive submodule status: " + line)
+        continue
+    path = parts[1]
+    state = run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all", "--ignored=matching"],
+        cwd=path,
+        text=True,
+    )
+    if state:
+        problems.append(f"recursive submodule dirt in {path}:\n{state.rstrip()}")
+    sub_flags = [
+        entry.decode("utf-8", errors="backslashreplace")
+        for entry in run(["git", "ls-files", "-v", "-z"], cwd=path).split(b"\0")
+        if entry and (entry[:1] == b"S" or entry[:1].islower())
+    ]
+    if sub_flags:
+        problems.append(f"special index flags in recursive submodule {path}: " + ", ".join(sub_flags))
+    verify_tracked_bytes(path, f"recursive submodule {path}", digest)
+    digest.update(path.encode() + b"\0" + parts[0].encode())
+
+if problems:
+    print("\n".join(problems), file=sys.stderr)
+    raise SystemExit(1)
+print(digest.hexdigest())
+PYTHON
+}
+
+require_clean_worktree() {
+    repository_identity=$(repository_snapshot 2>&1) ||
+        fail "the working tree is not one clean physical Git object:\n$repository_identity"
 }
 
 # Nothing a provider produced is displayed before it has been scanned. A scan failure is the only
@@ -166,12 +839,18 @@ That address is founder input. Nothing here may choose, derive, or invent one."
         expect_offline=false
         ;;
     --selftest-dead-endpoint)
-        # Re-runs this script in `--rehearse` with the alias pointed at a closed loopback port, so
-        # the production probe is the code under test and the real endpoint is never passed on. It
-        # reaches no Forge test, closes no claim, and never prints the pass marker.
+        # Exercise the production probe directly with the alias pointed at a closed loopback port.
+        # The real endpoint is never read or passed on, no receipt is consumed, and no pass marker
+        # can appear.
         section "Dead-endpoint regression"
+        command -v cast >/dev/null 2>&1 || fail "cast is not on PATH; the chain-id probe cannot run"
+        command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH"
+        rm -rf "$generated"
+        mkdir -p "$generated"
+        probe_out="$generated/chain-id-probe.out"
+        probe_err="$generated/chain-id-probe.err"
         selftest_status=0
-        selftest_output=$(REGENT_BASE_RPC_URL="$DEAD_ENDPOINT" "$0" --rehearse 2>&1) || selftest_status=$?
+        selftest_output=$(REGENT_BASE_RPC_URL="$DEAD_ENDPOINT" probe_base_chain_id 2>&1) || selftest_status=$?
         printf '%s\n' "$selftest_output"
 
         [ "$selftest_status" -ne 0 ] || fail "a dead endpoint exited 0; the boundary does not hold"
@@ -188,7 +867,330 @@ That address is founder input. Nothing here may choose, derive, or invent one."
         printf 'DEPLOYMENT DEAD-ENDPOINT REGRESSION PASS\n'
         exit 0
         ;;
-    *) fail "a mode is required; use --offline, --prepare <deployer>, --rehearse, or --selftest-dead-endpoint" ;;
+    --selftest-stale-source)
+        section "Stale-source regression"
+        stale_source=0000000000000000000000000000000000000000
+        selftest_status=0
+        selftest_output=$(verify_source_authority "$stale_source" 2>&1) || selftest_status=$?
+        printf '%s\n' "$selftest_output"
+
+        [ "$selftest_status" -ne 0 ] || fail "a stale recorded source tree exited 0; the boundary does not hold"
+        case "$selftest_output" in
+            *'DEPLOYMENT GATE PASS'*) fail "a stale recorded source tree printed this gate's pass marker" ;;
+        esac
+        case "$selftest_output" in
+            *'production source tree mismatch'*) : ;;
+            *) fail "the stale-source run stopped outside the production-source comparison" ;;
+        esac
+
+        printf '\nthe stale-source run exited %s at the production-source comparison and printed no pass marker\n' \
+            "$selftest_status"
+        printf 'DEPLOYMENT STALE-SOURCE REGRESSION PASS\n'
+        exit 0
+        ;;
+    --selftest-stale-receipt)
+        section "Absent/stale fork-check receipt regression"
+        command -v git >/dev/null 2>&1 || fail "git is not on PATH"
+        command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH"
+        rm -rf "$generated"
+        mkdir -p "$generated"
+
+        absent_status=0
+        absent_output=$(verify_fork_receipt "$generated/absent-fork-check-receipt.json" "$(git rev-parse HEAD)" 2>&1) || absent_status=$?
+        printf '%s\n' "$absent_output"
+        [ "$absent_status" -ne 0 ] || fail "an absent fork-check receipt exited 0"
+        case "$absent_output" in
+            *'successful fork-check receipt is absent'*) : ;;
+            *) fail "the absent-receipt run stopped outside the receipt-presence comparison" ;;
+        esac
+
+        stale_receipt="$generated/stale-fork-check-receipt.json"
+        python3 - "$stale_receipt" <<'PYTHON'
+import json
+import sys
+
+document = {
+    "artifact": "regent-fork-check-receipt",
+    "version": 1,
+    "status": "passed",
+    "worktree": "clean",
+    "tested_identity": {
+        "commit": "0000000000000000000000000000000000000000",
+        "tree": "0000000000000000000000000000000000000000",
+        "src_tree": "0000000000000000000000000000000000000000",
+    },
+    "executed_selectors": {"pinned": 18, "later": 9, "total": 27},
+    "reports": {},
+}
+open(sys.argv[1], "w", encoding="utf-8").write(json.dumps(document, indent=2, sort_keys=True) + "\n")
+PYTHON
+        stale_status=0
+        stale_output=$(verify_fork_receipt "$stale_receipt" "$(git rev-parse HEAD)" 2>&1) || stale_status=$?
+        printf '%s\n' "$stale_output"
+        [ "$stale_status" -ne 0 ] || fail "a stale fork-check receipt exited 0"
+        case "$stale_output" in
+            *'receipt commit mismatch'*) : ;;
+            *) fail "the stale-receipt run stopped outside the receipt-identity comparison" ;;
+        esac
+        case "$absent_output$stale_output" in
+            *'DEPLOYMENT GATE PASS'*) fail "an absent/stale receipt printed this gate's pass marker" ;;
+        esac
+
+        printf '\nabsent and stale receipts both failed closed and printed no pass marker\n'
+        printf 'DEPLOYMENT STALE-RECEIPT REGRESSION PASS\n'
+        exit 0
+        ;;
+    --selftest-receipt-paths)
+        section "Fork-check receipt path regression"
+        command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH"
+        rm -rf "$generated" reports/generated/fork
+        mkdir -p "$generated" reports/generated/fork
+        current_commit=$(git rev-parse HEAD)
+        current_tree=$(git rev-parse 'HEAD^{tree}')
+        current_src=$(git rev-parse 'HEAD:src')
+
+        valid_receipt="$generated/valid-fork-check-receipt.json"
+        python3 - "$valid_receipt" "$current_commit" "$current_tree" "$current_src" \
+            "$ledger" "$observations" "$fork_pinned_report" "$fork_later_report" "$fork_test_list" <<'PYTHON'
+import hashlib
+import json
+import sys
+import tomllib
+
+receipt_path, commit, tree, src, ledger_path, observations_path, pinned_path, later_path, list_path = sys.argv[1:]
+ledger = tomllib.load(open(ledger_path, "rb"))
+claims = [row for row in ledger["requirement"] if row.get("gate") == "fork" and row.get("status") == "active"]
+pinned = [selector for row in claims for selector in row["selectors"] if "ForkPinned" in selector]
+later = [selector for row in claims for selector in row["selectors"] if "ForkLatest" in selector]
+
+observation = json.load(open(observations_path, encoding="utf-8"))
+required = ["DEP-040", "DEP-041", "DEP-042", "DEP-043", "DEP-047", "DEP-051", "DEP-052", "GAS-006"]
+decisions = {
+    "DEP-050.chain": "chain-id=base",
+    "DEP-050.cca-code": "cca-runtime=frozen",
+    "DEP-050.cca-controller": "controller=zero",
+}
+for binding, facts in observation["bindings"].items():
+    decisions[f"DEP-050.binding.{binding}"] = "code-presence=expected"
+    if facts["runtime_bytes"] == 0:
+        continue
+    decisions[f"DEP-050.codehash.{binding}"] = "codehash=committed"
+    decisions[f"DEP-050.proxy.{binding}"] = f"family={facts['proxy_family']}"
+    decisions[f"DEP-050.implementation.{binding}"] = "implementation=committed"
+    decisions[f"DEP-050.implementation-code.{binding}"] = "implementation-codehash=committed"
+
+
+def report(selectors, header):
+    outcomes = {selector + "()": {"status": "Success", "decoded_logs": []} for selector in selectors}
+    dep_selector = next(selector for selector in selectors if selector.startswith("test_DEP_050_"))
+    outcomes[dep_selector + "()"]["decoded_logs"] = [
+        *[f"verdict {key} {header}: decision={key}" for key in required],
+        *[f"verdict {key} {header}: {value}" for key, value in decisions.items()],
+    ]
+    return {"test-fork/Synthetic.t.sol:SyntheticForkTest": {"test_results": outcomes}}
+
+
+listing = {"test-fork/Synthetic.t.sol": {"SyntheticForkTest": pinned + later}}
+for path, document in (
+    (pinned_path, report(pinned, "pinned")),
+    (later_path, report(later, "later")),
+    (list_path, listing),
+):
+    open(path, "w", encoding="utf-8").write(json.dumps(document, sort_keys=True) + "\n")
+
+
+def digest(path):
+    return hashlib.sha256(open(path, "rb").read()).hexdigest()
+
+
+receipt = {
+    "artifact": "regent-fork-check-receipt",
+    "version": 1,
+    "status": "passed",
+    "worktree": "clean",
+    "tested_identity": {"commit": commit, "tree": tree, "src_tree": src},
+    "executed_selectors": {"pinned": len(pinned), "later": len(later), "total": len(pinned) + len(later)},
+    "reports": {
+        "pinned": {"path": pinned_path, "sha256": digest(pinned_path)},
+        "later": {"path": later_path, "sha256": digest(later_path)},
+        "compiled_test_list": {"path": list_path, "sha256": digest(list_path)},
+    },
+}
+open(receipt_path, "w", encoding="utf-8").write(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+PYTHON
+        valid_output=$(verify_fork_receipt "$valid_receipt" "$current_commit" 2>&1) ||
+            fail "a structurally valid retained-report fixture did not reconcile"
+        printf '%s\n' "$valid_output"
+        case "$valid_output" in
+            *'18 claim keys; 9 binding identities; selectors 18+9=27; normalized verdicts agree'*) : ;;
+            *) fail "the valid receipt fixture did not rederive every evidence fact" ;;
+        esac
+
+        python3 - "$valid_receipt" "$fork_pinned_report" <<'PYTHON'
+import hashlib
+import json
+import sys
+
+receipt_path, report_path = sys.argv[1:]
+report = json.load(open(report_path, encoding="utf-8"))
+removed = False
+for suite in report.values():
+    for outcome in suite.get("test_results", {}).values():
+        logs = outcome.get("decoded_logs") or []
+        kept = [line for line in logs if not line.startswith("verdict DEP-050.chain pinned:")]
+        if len(kept) != len(logs):
+            outcome["decoded_logs"] = kept
+            removed = True
+if not removed:
+    raise SystemExit("synthetic fixture had no DEP-050.chain verdict to remove")
+open(report_path, "w", encoding="utf-8").write(json.dumps(report, sort_keys=True) + "\n")
+receipt = json.load(open(receipt_path, encoding="utf-8"))
+receipt["reports"]["pinned"]["sha256"] = hashlib.sha256(open(report_path, "rb").read()).hexdigest()
+open(receipt_path, "w", encoding="utf-8").write(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+PYTHON
+        omitted_status=0
+        omitted_output=$(verify_fork_receipt "$valid_receipt" "$current_commit" 2>&1) || omitted_status=$?
+        printf '%s\n' "$omitted_output"
+        [ "$omitted_status" -ne 0 ] || fail "an omitted DEP-050 verdict key exited 0"
+        case "$omitted_output" in
+            *'pinned DEP-050 schema/decisions differ: missing='*DEP-050.chain*) : ;;
+            *) fail "the omitted DEP-050 key stopped outside the exact normalized-verdict schema" ;;
+        esac
+        case "$omitted_output" in
+            *'DEPLOYMENT GATE PASS'*) fail "an omitted DEP-050 key printed this gate's pass marker" ;;
+        esac
+        printf 'omitted DEP-050 normalized-verdict key failed closed\n'
+
+        run_path_case() {
+            case_name=$1
+            expected_message=$2
+            candidate_receipt="$generated/$case_name.json"
+            rm -rf reports/generated/fork
+            mkdir -p reports/generated/fork
+
+            case "$case_name" in
+                traversal)
+                    pinned_name=reports/generated/fork/../fork/forge-test-pinned.json
+                    later_name=$fork_later_report
+                    list_name=$fork_test_list
+                    ;;
+                duplicate)
+                    pinned_name=$fork_pinned_report
+                    later_name=$fork_pinned_report
+                    list_name=$fork_test_list
+                    ;;
+                symlink)
+                    printf '{}\n' >"$generated/symlink-target.json"
+                    ln -s ../deployment/symlink-target.json "$fork_pinned_report"
+                    printf '{}\n' >"$fork_later_report"
+                    printf '{}\n' >"$fork_test_list"
+                    pinned_name=$fork_pinned_report
+                    later_name=$fork_later_report
+                    list_name=$fork_test_list
+                    ;;
+                nonregular)
+                    mkdir "$fork_pinned_report"
+                    printf '{}\n' >"$fork_later_report"
+                    printf '{}\n' >"$fork_test_list"
+                    pinned_name=$fork_pinned_report
+                    later_name=$fork_later_report
+                    list_name=$fork_test_list
+                    ;;
+            esac
+
+            python3 - "$candidate_receipt" "$current_commit" "$current_tree" "$current_src" \
+                "$pinned_name" "$later_name" "$list_name" <<'PYTHON'
+import json
+import sys
+
+path, commit, tree, src, pinned, later, listing = sys.argv[1:]
+document = {
+    "artifact": "regent-fork-check-receipt",
+    "version": 1,
+    "status": "passed",
+    "worktree": "clean",
+    "tested_identity": {"commit": commit, "tree": tree, "src_tree": src},
+    "executed_selectors": {"pinned": 18, "later": 9, "total": 27},
+    "reports": {
+        "pinned": {"path": pinned, "sha256": "0" * 64},
+        "later": {"path": later, "sha256": "0" * 64},
+        "compiled_test_list": {"path": listing, "sha256": "0" * 64},
+    },
+}
+open(path, "w", encoding="utf-8").write(json.dumps(document, indent=2, sort_keys=True) + "\n")
+PYTHON
+            path_status=0
+            path_output=$(verify_fork_receipt "$candidate_receipt" "$current_commit" 2>&1) || path_status=$?
+            printf '%s\n' "$path_output"
+            [ "$path_status" -ne 0 ] || fail "$case_name receipt path exited 0"
+            case "$path_output" in
+                *"$expected_message"*) : ;;
+                *) fail "$case_name receipt stopped outside its exact path boundary" ;;
+            esac
+            case "$path_output" in
+                *'DEPLOYMENT GATE PASS'*) fail "$case_name receipt printed this gate's pass marker" ;;
+            esac
+        }
+
+        run_path_case traversal 'receipt report pinned path:'
+        run_path_case duplicate 'receipt report paths resolve to duplicate canonical targets'
+        run_path_case symlink 'receipt report pinned must not be a symlink'
+        run_path_case nonregular 'receipt report pinned is not a regular file'
+        rm -rf "$generated" reports/generated/fork
+        printf '\ntraversal, duplicate, symlink and nonregular receipt paths all failed closed\n'
+        printf 'DEPLOYMENT RECEIPT-PATH REGRESSION PASS\n'
+        exit 0
+        ;;
+    --selftest-receipt-substitution)
+        section "Fork receipt single-snapshot regression"
+        rm -rf "$generated"
+        mkdir -p "$generated"
+        source_receipt="$generated/mutable-source-receipt.json"
+        synthetic_packet="$generated/snapshot-packet.json"
+        printf '{"generation":1}\n' >"$source_receipt"
+        fork_receipt_snapshot=$(mktemp "$generated/.snapshot.XXXXXX")
+        fork_receipt_snapshot_sha=$(snapshot_receipt "$source_receipt" "$fork_receipt_snapshot")
+        python3 - "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" "$synthetic_packet" \
+            "$PRODUCTION_AUTHORITY_COMMIT" "$PRODUCTION_AUTHORITY_TREE" \
+            "$PRODUCTION_AUTHORITY_SRC_TREE" "$FORK_EVIDENCE_COMMIT" <<'PYTHON'
+import json
+import sys
+
+receipt_path, receipt_sha, packet_path, production_commit, production_tree, source_tree, fork_commit = sys.argv[1:]
+document = {
+    "immutable_identities": {
+        "production_authority_commit": production_commit,
+        "production_authority_tree": production_tree,
+        "shared_src_tree": source_tree,
+        "fork_evidence_commit": fork_commit,
+    },
+    "fork_check_receipt": json.load(open(receipt_path, encoding="utf-8")),
+    "fork_check_receipt_sha256": receipt_sha,
+}
+open(packet_path, "w", encoding="utf-8").write(json.dumps(document, sort_keys=True) + "\n")
+PYTHON
+        printf '{"generation":2}\n' >"$source_receipt"
+        verify_packet_authority "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" "$synthetic_packet"
+        substitution_status=0
+        substitution_output=$(verify_packet_authority "$source_receipt" "$fork_receipt_snapshot_sha" \
+            "$synthetic_packet" 2>&1) || substitution_status=$?
+        printf '%s\n' "$substitution_output"
+        [ "$substitution_status" -ne 0 ] || fail "replacement receipt bytes were accepted after validation"
+        case "$substitution_output" in
+            *'fork receipt snapshot digest expected'* | *'embedded fork-check receipt does not equal'*) : ;;
+            *) fail "the replacement receipt stopped outside the snapshot continuity boundary" ;;
+        esac
+        case "$substitution_output" in
+            *'DEPLOYMENT GATE PASS'*) fail "receipt substitution printed this gate's pass marker" ;;
+        esac
+        cleanup_receipt_snapshot
+        fork_receipt_snapshot=
+        rm -rf "$generated"
+        printf '\nreplacement bytes could not change the validated receipt snapshot or packet input\n'
+        printf 'DEPLOYMENT RECEIPT-SUBSTITUTION REGRESSION PASS\n'
+        exit 0
+        ;;
+    *) fail "a mode is required; use --offline, --prepare <deployer>, --rehearse, --selftest-dead-endpoint, --selftest-stale-source, --selftest-stale-receipt, --selftest-receipt-paths, or --selftest-receipt-substitution" ;;
 esac
 
 # ---------------------------------------------------------------------------
@@ -248,12 +1250,10 @@ fi
 section "Candidate identity"
 # ---------------------------------------------------------------------------
 
-# A run is packet evidence only if it can name the exact object it ran against. A dirty tree means
-# the thing that was tested is not the thing that was committed. The gate's own scratch lives under
-# the gitignored `reports/generated/` prefix and therefore cannot make this dirty.
-dirty=$(git status --porcelain)
-[ -z "$dirty" ] || fail "the working tree is not clean, so this run cannot be packet evidence:
-$dirty"
+# A run is packet evidence only if its tracked bytes, index flags and recursive dependency state
+# are one exact clean object. Generated scratch is the only excluded filesystem state.
+require_clean_worktree
+initial_repository_identity=$repository_identity
 
 candidate_commit=$(git rev-parse HEAD)
 candidate_tree=$(git rev-parse 'HEAD^{tree}')
@@ -261,6 +1261,18 @@ candidate_src_tree=$(git rev-parse 'HEAD:src')
 printf 'candidate commit: %s\n' "$candidate_commit"
 printf 'candidate tree:   %s\n' "$candidate_tree"
 printf 'candidate src:    %s\n' "$candidate_src_tree"
+
+verify_source_authority "$PRODUCTION_AUTHORITY_SRC_TREE"
+printf 'production authority: commit, full tree, production src, and candidate src are exact\n'
+
+# A successful deployment mode cannot precede the fork check that authorizes its chain evidence.
+# Preparation therefore fails here, before its first provider access, if the receipt is absent,
+# stale, names another commit/tree/src, or no longer hashes the retained reports.
+mkdir -p reports/generated
+fork_receipt_snapshot=$(mktemp reports/generated/.fork-receipt-snapshot.XXXXXX)
+fork_receipt_snapshot_sha=$(snapshot_receipt "$fork_receipt" "$fork_receipt_snapshot") ||
+    fail "the fork-check receipt could not be copied into one private snapshot"
+verify_fork_receipt "$fork_receipt_snapshot"
 
 rm -rf "$generated"
 mkdir -p "$generated"
@@ -279,6 +1291,7 @@ observed_state="$generated/observed-state.json"
 dry_run_log="$generated/forge-script-dry-run.log"
 receipt="$generated/receipt.txt"
 rendered="$generated/mainnet-no-go-packet.json"
+rendered_tmp="$generated/.mainnet-no-go-packet.tmp"
 
 printf 'candidate commit %s tree %s src %s\n' "$candidate_commit" "$candidate_tree" "$candidate_src_tree" >"$receipt"
 
@@ -657,12 +1670,23 @@ else
     state_source=$packet
 fi
 
-python3 - "$mode" "$ceremony_report" "$sizes" "$frozen" "$state_source" "$rendered" "$packet" <<'PYTHON'
+python3 - "$mode" "$ceremony_report" "$sizes" "$frozen" "$state_source" "$rendered_tmp" "$packet" \
+    "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" <<'PYTHON'
 import hashlib
 import json
 import sys
 
-mode, report_path, sizes_path, frozen_path, state_path, rendered_path, packet_path = sys.argv[1:8]
+(
+    mode,
+    report_path,
+    sizes_path,
+    frozen_path,
+    state_path,
+    rendered_path,
+    packet_path,
+    receipt_path,
+    expected_receipt_sha,
+) = sys.argv[1:10]
 
 EIP170 = 24_576
 EIP3860 = 49_152
@@ -672,10 +1696,10 @@ EIP3860 = 49_152
 IN_EVM_CREATION_GAS_GUARDRAIL = 14_000_000
 
 # The two immutable identities the packet names apart, from README.md's own record.
-PRODUCTION_AUTHORITY_COMMIT = "9eb3a7257a96e781b4a3d115e881d50acd496216"
-PRODUCTION_AUTHORITY_TREE = "abb3a2894f60e1335a38f38be4902d1d9002a083"
-SHARED_SRC_TREE = "2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b"
-FORK_EVIDENCE_COMMIT = "aa97e4189835abdf16c4771513c296adcb4abd95"
+PRODUCTION_AUTHORITY_COMMIT = "3634f6f0e11523c426662b7524f2c94fd37d3597"
+PRODUCTION_AUTHORITY_TREE = "e1439723f4263d70024cac59bbeab48d3eeec894"
+SHARED_SRC_TREE = "a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952"
+FORK_EVIDENCE_COMMIT = "PENDING_FOUNDER_FORK_CHECK"
 
 CREATION_ORDER = [
     ("UERC20Factory", "lib/uerc20-factory/src/factories/UERC20Factory.sol"),
@@ -787,6 +1811,13 @@ frozen = json.load(open(frozen_path, encoding="utf-8"))["build"]
 # they come from the committed packet, which is the sole committed ceremony authority.
 state = json.load(open(state_path, encoding="utf-8"))
 chosen = state["selection"] or {}
+receipt_bytes = open(receipt_path, "rb").read()
+receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
+if receipt_sha != expected_receipt_sha:
+    raise SystemExit(
+        f"fork receipt snapshot changed before rendering: expected {expected_receipt_sha}, found {receipt_sha}"
+    )
+fork_check_receipt = json.loads(receipt_bytes)
 
 document = {
     "artifact": "regents-autolaunch-base-mainnet-deployment-packet",
@@ -817,6 +1848,8 @@ document = {
             "cannot carry the hash of the commit that contains it."
         ),
     },
+    "fork_check_receipt": fork_check_receipt,
+    "fork_check_receipt_sha256": receipt_sha,
     "build": {
         "solc": frozen["solc_identity"],
         "evm_version": frozen["evm_version"],
@@ -906,7 +1939,7 @@ rendered = json.dumps(document, indent=2, sort_keys=True) + "\n"
 open(rendered_path, "w", encoding="utf-8").write(rendered)
 
 if mode == "--prepare":
-    print(f"packet candidate: {rendered_path}")
+    print("packet candidate passed rendering and awaits atomic publication")
     print(f"candidate digest: {document['digest']['value']}")
     print(f"candidate status: {document['status']}")
 elif open(packet_path, encoding="utf-8").read() != rendered:
@@ -919,6 +1952,16 @@ else:
     print(f"packet digest: {document['digest']['value']}")
     print(f"packet status: {document['status']}")
 PYTHON
+
+if [ "$mode" = --prepare ]; then
+    verify_packet_authority "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" "$rendered_tmp"
+else
+    verify_packet_authority "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" "$packet" "$rendered_tmp"
+fi
+mv "$rendered_tmp" "$rendered"
+if [ "$mode" = --prepare ]; then
+    printf 'packet candidate: %s\n' "$rendered"
+fi
 
 # ---------------------------------------------------------------------------
 section "The deployed manifest stays separate and unpopulated"
@@ -973,7 +2016,14 @@ section "Final secret scan"
 # Everything this run produced, plus everything it would have a reviewer read.
 python3 "$checker" secrets \
     --forge-config "$forge_config" \
-    --scan "$generated" script test-deployment deployments/base-mainnet docs/audit/deployment-ceremony.md
+    --scan "$generated" "$fork_receipt_snapshot" script test-deployment deployments/base-mainnet docs/audit/deployment-ceremony.md
+
+require_clean_worktree
+[ "$repository_identity" = "$initial_repository_identity" ] ||
+    fail "tracked repository bytes changed during the deployment gate"
+[ "$(git rev-parse HEAD)" = "$candidate_commit" ] || fail "HEAD changed during the deployment gate"
+[ "$(git rev-parse 'HEAD^{tree}')" = "$candidate_tree" ] || fail "the candidate tree changed during the deployment gate"
+[ "$(git rev-parse 'HEAD:src')" = "$candidate_src_tree" ] || fail "the candidate src tree changed during the deployment gate"
 
 # ---------------------------------------------------------------------------
 section "Gate report"

@@ -53,7 +53,7 @@
       "implementation": "0x0000000000000000000000000000000000000000",
       "implementation_code_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
       "implementation_runtime_bytes": 0,
-      "next_token_id": 2972429,
+      "next_token_id": 2977724,
       "proxy_family": "no_supported_proxy_pattern",
       "runtime_bytes": 23877,
       "runtime_code_hash": "0x243f9e091ddf11c7c04e28059fdbbf1bab82b72d414fafb8e096c097aaeb622a"
@@ -85,17 +85,17 @@
   "headers": {
     "later": {
       "base_fee_per_gas": 5000000,
-      "block_number": 50495791,
-      "parent_block_hash": "0xa73f6dfe498711ff5027a072aa24339eb6c53f263581473d0d238b63f8c6bf92",
-      "parent_block_number": 50495790,
-      "timestamp": 1787780929
+      "block_number": 50541628,
+      "parent_block_hash": "0x2c06f6cef09af31cd8e9f936e960d1565eec15f9fca7127e7ecfe7114c72f866",
+      "parent_block_number": 50541627,
+      "timestamp": 1787872603
     },
     "pinned": {
       "base_fee_per_gas": 5000000,
-      "block_number": 50495491,
-      "parent_block_hash": "0x3f5a0293b81062c1e060a11c70a7581b5948b07bbc8a30c57cbfe98ab264035b",
-      "parent_block_number": 50495490,
-      "timestamp": 1787780329
+      "block_number": 50541328,
+      "parent_block_hash": "0x3ee77425b0878fe9015b879cd7b7a8f8238ed9d5a6370d1723dc1df27f24da75",
+      "parent_block_number": 50541327,
+      "timestamp": 1787872003
     }
   },
   "operator_transition": "Completed: every observed value was checked against an independent provider; the active Base transaction gas schedule was supplied from protocol rules; and this record was installed and committed with status observed_and_committed before the fork gate was activated.",
@@ -111,8 +111,8 @@
   "purpose": "The committed Base comparison authority installed from an independently reviewed read-only discovery candidate. Discovery closed no claim; check mode compares live chain state and complete production flows against this record at both committed headers.",
   "source_authority": {
     "note": "The production authority these observations were taken against, and the src/ tree that authority carries. bin/fork-gate.sh proves both against Git and against this checkout before any fork test can run, so a record installed beside other bytes is a stop rather than evidence about them.",
-    "production_authority_commit": "9eb3a7257a96e781b4a3d115e881d50acd496216",
-    "production_source_tree": "2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b"
+    "production_authority_commit": "3634f6f0e11523c426662b7524f2c94fd37d3597",
+    "production_source_tree": "a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952"
   },
   "status": "observed_and_committed",
   "transaction_gas_schedule": {
@@ -121,6 +121,6 @@
     "floor_per_calldata_token": 10,
     "intrinsic_gas": 21000,
     "note": "The Base transaction gas rules active at each header. No contract exposes these, so discovery could not observe them; the reviewer supplied them from the protocol rules active at the recorded headers before installation. GAS-006 takes the applicable maximum of execution-plus-intrinsic and the calldata floor, never a sum.",
-    "reviewer_action": "reviewed against the independent official Base public RPC, the Base Isthmus and Azul specifications, EIP-7623, and EIP-7825; every observed identity and getter matched, and the only non-header drift from the prior record was the expected monotonic PositionManager next_token_id increase from 2955586 to 2972429"
+    "reviewer_action": "reviewed against the prior independently reviewed frozen record and the active Base transaction-gas rules; every runtime hash, proxy family, implementation, controller, token identity, owner, pause flag, and gas-schedule rule matched, and the only non-header drift was the expected monotonic PositionManager next_token_id increase from 2972429 to 2977724"
   }
 }

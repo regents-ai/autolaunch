@@ -27,9 +27,8 @@ contract DeploymentSelectionTest is Test {
 
     /// @notice Exactly the three permission bits `RegentFeeHook` declares, stated independently of
     ///         the script so a wrong flag set in either place fails rather than agrees with itself.
-    uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
-    );
+    uint160 internal constant HOOK_FLAGS =
+        uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG);
 
     /// @notice The factory nonce its first internal `CREATE` — the strategy — consumes.
     uint256 internal constant STRATEGY_FACTORY_NONCE = 1;

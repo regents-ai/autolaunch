@@ -33,9 +33,8 @@ import {Test} from "forge-std/Test.sol";
 contract DeploymentCeremonyTest is Test {
     /// @notice Exactly the three permission bits `RegentFeeHook` declares, stated independently of
     ///         the script so a wrong flag set in either place fails rather than agrees with itself.
-    uint160 internal constant HOOK_FLAGS = uint160(
-        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
-    );
+    uint160 internal constant HOOK_FLAGS =
+        uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG);
 
     /// @notice EIP-170's deployed-runtime ceiling and EIP-3860's initcode ceiling.
     uint256 internal constant EIP170_RUNTIME_LIMIT = 24_576;

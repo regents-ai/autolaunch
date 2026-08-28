@@ -1,4 +1,4 @@
-# Founder audit packet — C5 as corrected by regent-alv1.6.1, regent-alv1.7, regent-alv1.7.1, regent-alv1.10, regent-alv1.11 and regent-alv1.12
+# Founder audit packet — C5 through the regent-alv1.13.1 evidence successor
 
 **Release posture: mainnet NO-GO.** Nothing in this repository is deployed, no Regent address
 exists, and no deployment instruction has been given. This packet exists to be audited, not acted
@@ -49,7 +49,7 @@ immediate. The only ABI additions across both tickets are the renamed
 function selector, other event topic, indexed field or integer width moves. Section 8 of
 [claim-corrections.md](claim-corrections.md) carries the whole delta.
 
-`regent-alv1.12` is this candidate, and it changes one production decision: every Autolaunch factory
+`regent-alv1.12` changed one production decision: every Autolaunch factory
 now begins paused. Deploying the graph and opening it to launchers become two separate acts by two
 different accounts — the five creation transactions leave launches closed, the disposable deployer
 gains nothing over that, and only a later Governance and Regent Safe `unpauseLaunches()` admits the
@@ -64,10 +64,16 @@ factory the shared fixture's deliberate unpause never reaches; `DEP-072` reads t
 off the ceremony graph and `DEP-073` proves that graph admits the frozen Safe address, and only it,
 as its activation authority. **Activation itself is not authorized by this candidate.**
 
-The four production contracts whose bytes differ from the pre-edit C4 baseline are unchanged as a
-set. The separately authorized fork proof was executed once against this candidate's source
-authority: all eighteen fork claims at Base block `50495491`, followed by exactly the nine
-drift-sensitive claims at block `50495791`. All twenty-seven mapped selectors passed.
+`regent-alv1.13.1` separates production authority from its fork evidence. Production is frozen at
+commit `3634f6f0e11523c426662b7524f2c94fd37d3597`; the evidence successor changes no `src/**` byte.
+It adds the realized unspecified-currency lifecycle coverage and makes a fork pass usable by the
+deployment packet only through a generated receipt that binds the tested commit, full tree, source
+tree, both report hashes and the exact 18+9 executed-selector split.
+
+The reviewed observation records Base blocks `50541328` and `50541628`. The next separately
+authorized check must execute all eighteen pinned selectors and exactly nine later selectors on the
+clean evidence successor and write the commit-bound receipt. Until that founder run succeeds, this
+document does not claim a passing fork check for the successor.
 
 ## The production authority and the evidence candidate are two different identities
 
@@ -76,23 +82,17 @@ how an evidence-only change would come to read as a production change.
 
 | Object | Identity |
 | --- | --- |
-| Production authority commit | `9eb3a7257a96e781b4a3d115e881d50acd496216` |
-| Production authority tree | `abb3a2894f60e1335a38f38be4902d1d9002a083` |
-| Production source tree (`src/`) | `2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b` |
-| Fork-evidence commit | `aa97e4189835abdf16c4771513c296adcb4abd95` |
+| Production authority commit | `3634f6f0e11523c426662b7524f2c94fd37d3597` |
+| Production authority tree | `e1439723f4263d70024cac59bbeab48d3eeec894` |
+| Production source tree (`src/`) | `a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952` |
+| Fork-evidence commit | the clean successor named exactly by `reports/generated/fork/fork-check-receipt.json` after the founder check |
 
-The fork-evidence commit changes no production byte. Its `src/` tree is the same
-`2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b`, and its whole diff is the two `source_authority` fields
-inside `reports/frozen/fork-observations.json` — the naming step the fork gate then proves against
-Git and against the checkout before any fork test opens. `bin/gate.sh` regenerates the frozen ABI,
-size and runtime-identity documents from the compiled artifacts on either tree and gets the same
-bytes.
-
-The identities the earlier `regent-4wx` proof named — production authority
-`7e70077d66b7a1a511806a68f086583c733c812a`, tree `23f26023216ec93f9014b3c0295588b5aede6ee0`, `src/`
-tree `314889bcc6cabd5ceff336af93082d009df86205`, evidence commit
-`f6bb34087dc16f6edf72e434f30f5e953071a579` — belong to the pre-`regent-alv1.12` bytecode and
-certify nothing about this one.
+The evidence successor changes no production byte. Its `src/` tree is exactly
+`a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952`. Before provider access, `bin/fork-gate.sh check`
+refuses every tracked or untracked non-generated difference and prints the exact HEAD commit, full
+tree and source tree. A pass writes those identities and the retained report hashes to ignored
+scratch. `bin/deployment-gate.sh --prepare` accepts only that exact receipt after the renderer has
+been set to the same evidence commit; absent, stale, dirty or mismatched evidence fails closed.
 
 **The earlier C9 evidence candidate certifies nothing about this one.** Commit
 `49b7458e5c93f502247905201352074ef5b5c409` carried an earlier version of this same harness on top of
@@ -153,7 +153,9 @@ statement about this candidate, and this packet makes none.
   and is excluded by name from every ledger reconciliation.
 - `check` is compare-only under a profile with no write permission at all. It refuses to start
   until a human has reviewed that candidate, installed it, activated the `fork` gate, and committed
-  both — and it proves those files unchanged afterwards.
+  both. It additionally refuses every non-generated worktree difference, proves the whole tree
+  unchanged afterwards, and writes a generated commit/tree/src/report-hash receipt only after all
+  twenty-seven selectors and both reconciliations pass.
 
 [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md) carries the full
 transition and the staged-state inventory.
@@ -208,14 +210,11 @@ and the factory's matching implementation hash. `regent-4wx` then refreshed and 
 reviewed the observation record and ran `check` once against that post-correction source authority —
 not once per intermediate candidate.
 
-**This `regent-alv1.12` candidate is the sixth object.** Its offline gate is complete and green, and
-it changes one production file: the factory's `launchesPaused` slot now starts `true`. Because the
-factory's compiled bytes move, the earlier fork *execution* does not carry over, so the record was
-pointed at this candidate's own source authority and `check` was run again against it. That run
-executed twenty-seven mapped selectors with zero failures or skips: eighteen claims at block
-`50495491`, then the approved nine-claim subset at block `50495791`. The observed Base facts were
-unchanged and were re-checked live rather than re-observed, so no discovery pass and no new
-reviewer decision was involved.
+**The current production authority and evidence successor are the next objects.** Production A is
+commit `3634f6f0e11523c426662b7524f2c94fd37d3597`; the successor keeps its exact `src/` tree and carries
+the reviewed observation for blocks `50541328` and `50541628`. Its fork execution is deliberately
+pending until the founder runs the check on the clean committed successor and the gate emits the
+new receipt. Earlier unbound runs do not certify this successor.
 
 `regent-4wx` also fixed what that run will execute. The complete fork portfolio is proved at the
 committed pinned header, and a focused nine-claim subset — `DEP-040`, `DEP-041`, `DEP-042`,
@@ -234,9 +233,9 @@ the shape and the one limitation that follows from it.
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | active, executed and passing against this candidate's source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
-| `GAS-003..006` | fork | active, executed and passing; the three transaction envelopes run at the pinned header and `GAS-006` runs at both |
-| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider, and again under the read-only `--rehearse`. They prove the five-transaction ceremony itself — including that its fifth receipt leaves launches paused — and not a deployment: see [deployment-ceremony.md](deployment-ceremony.md) |
+| `DEP-040..053` | fork | active in the ledger; the clean successor's founder check and receipt are pending |
+| `GAS-003..006` | fork | active in the ledger; execution at blocks `50541328`/`50541628` is pending the same founder check |
+| `DEP-070..075` | deployment | active in the ledger; packet preparation is blocked until the exact successful fork receipt exists and is bound to the renderer |
 
 ## What is not proved
 
@@ -253,10 +252,10 @@ the shape and the one limitation that follows from it.
 - **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
   signed nothing, and moved no value outside isolated local fork state. The deployment gate is the
   same: `DEP-070..075` prove what the five creation transactions would do and what stops a wrong
-  one, and the packet they render is a proposal whose status is `mainnet-NO-GO`. The packet now
-  pins a founder-selected disposable deployer, its starting nonce, the mined hook salt and the
-  seven addresses those determine, and only a later founder instruction naming that packet's exact
-  digest may authorize a signature or a broadcast.
+  one, and every packet they render is a proposal whose status is `mainnet-NO-GO`. The currently
+  installed packet is intentionally not final authority for this successor. A new candidate may be
+  prepared only after the exact fork receipt exists, and only a later founder instruction naming a
+  reviewed packet's exact digest may authorize a signature or broadcast.
 - **An activation.** The factory is born paused, and nothing here opens it. `DEP-073` impersonates
   the frozen Safe's exact address on a local fork to show that the created graph admits that one
   address as its activation authority; that is a statement about the graph, not a Safe signature,
