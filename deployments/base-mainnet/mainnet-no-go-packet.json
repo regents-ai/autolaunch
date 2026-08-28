@@ -22,7 +22,7 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x28c1cac554960bb9f1a107020c20679d4c3f8ef0396bbea8ad87127991b0a6a5"
+    "value": "0xa93ef29ff3fbc9cba36c0e9ced37cbecd1ceba5f9c8902238a4159cc822c0538"
   },
   "external_observation": {
     "governance_and_regent_safe": {
@@ -44,15 +44,46 @@
       "paused": false,
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     },
-    "observed_at_block": 50508978
+    "observed_at_block": 50577738
   },
   "external_observation_note": "The mutable external state a deployment depends on: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, modules, module page terminator, fallback handler, singleton and version. Frozen by `bin/deployment-gate.sh --prepare` and compared exactly by `--rehearse`, which also holds every frozen binding's runtime and proxy identity to reports/frozen/fork-observations.json and re-asserts the CCA zero fee controller and the USDC pause and blacklist policy. `observed_at_block` is provenance, not a comparison, because the head moves.",
+  "fork_check_receipt": {
+    "artifact": "regent-fork-check-receipt",
+    "executed_selectors": {
+      "later": 9,
+      "pinned": 18,
+      "total": 27
+    },
+    "reports": {
+      "compiled_test_list": {
+        "path": "reports/generated/fork/forge-test-list.json",
+        "sha256": "21cd56b89a58b16057cb73ca2814125866d519f0589e5cfe6371b9c4c6bdc4e3"
+      },
+      "later": {
+        "path": "reports/generated/fork/forge-test-later.json",
+        "sha256": "8b902a34397624c77497bb53a297f80d2e6f8bcab4f3b4d66b6c3bf27fa6dfad"
+      },
+      "pinned": {
+        "path": "reports/generated/fork/forge-test-pinned.json",
+        "sha256": "7a03347113714011f1c092ad2bce6f8e11991c4faaa277fced26a49680bafc8d"
+      }
+    },
+    "status": "passed",
+    "tested_identity": {
+      "commit": "a39cf05a1d53678c14a4042c751aa452d346e7c2",
+      "src_tree": "a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952",
+      "tree": "90afff38f669c8dce0fb27ecfc761a81a642fcf7"
+    },
+    "version": 1,
+    "worktree": "clean"
+  },
+  "fork_check_receipt_sha256": "dfc6e59fd041843efa35b618e00455b621505a7bb81453f5608578e2f8aa506e",
   "immutable_identities": {
-    "fork_evidence_commit": "aa97e4189835abdf16c4771513c296adcb4abd95",
+    "fork_evidence_commit": "a39cf05a1d53678c14a4042c751aa452d346e7c2",
     "note": "The production authority and the evidence candidate are two different identities that share one src/ tree. The candidate commit this packet was rendered from is proved by bin/deployment-gate.sh at run time and is deliberately not embedded here: a file cannot carry the hash of the commit that contains it.",
-    "production_authority_commit": "9eb3a7257a96e781b4a3d115e881d50acd496216",
-    "production_authority_tree": "abb3a2894f60e1335a38f38be4902d1d9002a083",
-    "shared_src_tree": "2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b"
+    "production_authority_commit": "3634f6f0e11523c426662b7524f2c94fd37d3597",
+    "production_authority_tree": "e1439723f4263d70024cac59bbeab48d3eeec894",
+    "shared_src_tree": "a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952"
   },
   "limits": {
     "code_identity_note": "`creation_code_keccak256` is the frozen build's own deployer-independent identity for the contract. It is not the hash of the initcode a real transaction sends: four of these seven constructors take arguments that are themselves addresses this ceremony produces, so that hash is only knowable once a deployer is selected. `initcode_bytes` is the whole creation code plus those encoded arguments, because that is what EIP-3860 measures.",
@@ -63,12 +94,12 @@
   },
   "selection": {
     "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
-    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000000e75",
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000001bc5",
     "note": "The founder-selected disposable deployer, its starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the seven addresses those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` derives them and a human installs the packet candidate it writes; while it is null this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves the deployer five nonces past this one, so this packet is single-use.",
     "predicted_addresses": {
       "escrow_implementation": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
       "factory": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
-      "hook": "0xA912ceABd03F86B7fd4b1Cf54d263B69AaD5e0cc",
+      "hook": "0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044",
       "receiver_implementation": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
       "splitter_implementation": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
       "strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
@@ -143,11 +174,11 @@
         "constructor_args_bytes": 160,
         "contract": "RegentsAutolaunchFactoryV1",
         "created_by": "deployer",
-        "creation_code_bytes": 34448,
-        "creation_code_keccak256": "0x6511b1120156d6835cb492bcdf5e33e35e052dd76e9530c018fc5dd2511bbbdf",
+        "creation_code_bytes": 33482,
+        "creation_code_keccak256": "0x9762f3d562103a8728bfd67335231e3d626f2adfa9283daeb239f74acb6b0162",
         "deployer_nonce_offset": 4,
-        "initcode_bytes": 34608,
-        "initcode_margin_bytes": 14544,
+        "initcode_bytes": 33642,
+        "initcode_margin_bytes": 15510,
         "mechanism": "transaction",
         "runtime_bytes": 7097,
         "runtime_margin_bytes": 17479,
@@ -175,14 +206,14 @@
         "constructor_args_bytes": 64,
         "contract": "RegentFeeHook",
         "created_by": "RegentsAutolaunchFactoryV1",
-        "creation_code_bytes": 6599,
-        "creation_code_keccak256": "0xa34969cc32e6741d5a5787f4d43db7e3dab3034da01c3ef60561256313e22ab5",
-        "initcode_bytes": 6663,
-        "initcode_margin_bytes": 42489,
+        "creation_code_bytes": 5633,
+        "creation_code_keccak256": "0x6921d24e34f58cbf5ed8aecdfd9a822e614005cda060c1a2868f188bac0ef34a",
+        "initcode_bytes": 5697,
+        "initcode_margin_bytes": 43455,
         "mechanism": "CREATE2",
-        "required_permission_bits": 8396,
-        "runtime_bytes": 5780,
-        "runtime_margin_bytes": 18796,
+        "required_permission_bits": 8260,
+        "runtime_bytes": 4831,
+        "runtime_margin_bytes": 19745,
         "salt": "the pre-mined hookSalt this packet pins once a deployer is selected",
         "source": "src/hook/RegentFeeHook.sol"
       }
