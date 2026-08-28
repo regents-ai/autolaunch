@@ -22,7 +22,7 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xa93ef29ff3fbc9cba36c0e9ced37cbecd1ceba5f9c8902238a4159cc822c0538"
+    "value": "0x3096205ee95346e673029cb3130b65bf0262959cc592b45535b13794d48db02d"
   },
   "external_observation": {
     "governance_and_regent_safe": {
@@ -61,11 +61,11 @@
       },
       "later": {
         "path": "reports/generated/fork/forge-test-later.json",
-        "sha256": "8b902a34397624c77497bb53a297f80d2e6f8bcab4f3b4d66b6c3bf27fa6dfad"
+        "sha256": "27539d1e69ffdf6bf534a97dba9e4f569d589c590237b4c549dbafa49b2552d5"
       },
       "pinned": {
         "path": "reports/generated/fork/forge-test-pinned.json",
-        "sha256": "7a03347113714011f1c092ad2bce6f8e11991c4faaa277fced26a49680bafc8d"
+        "sha256": "f2b3430cfbc1a859c6003edc72ba463ea30bc61f2751764daea4d082e42ee57b"
       }
     },
     "status": "passed",
@@ -77,7 +77,7 @@
     "version": 1,
     "worktree": "clean"
   },
-  "fork_check_receipt_sha256": "dfc6e59fd041843efa35b618e00455b621505a7bb81453f5608578e2f8aa506e",
+  "fork_check_receipt_sha256": "776e1de7fef0d2b8ba47a7bc81aae1d9344ff83d6f69e8a952ec118832211dfb",
   "immutable_identities": {
     "fork_evidence_commit": "a39cf05a1d53678c14a4042c751aa452d346e7c2",
     "note": "The production authority and the evidence candidate are two different identities that share one src/ tree. The candidate commit this packet was rendered from is proved by bin/deployment-gate.sh at run time and is deliberately not embedded here: a file cannot carry the hash of the commit that contains it.",
