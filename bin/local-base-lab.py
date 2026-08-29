@@ -34,6 +34,11 @@ CCA_FACTORY = "0x000000001f26a0044baa66024e7b6599c61963f8"
 POOL_MANAGER = "0x498581ff718922c3f8e6a244956af099b2652b2b"
 POSITION_MANAGER = "0x7c5f5a4bbd8fd63184577525326123b519429bdc"
 GOVERNANCE_SAFE = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
+FOUNDER_LOCAL_ADMIN = "0x0cb27e883e207905ad2a94f9b6ef0c7a99223c37"
+UNRELATED_ADMIN = "0x000000000000000000000000000000000000dead"
+PINNED_SAFE_RUNTIME_HASH = (
+    "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c"
+)
 
 GENERATED = Path("reports/generated/local-base-lab")
 STATE_PATH = GENERATED / "state.json"
@@ -65,7 +70,13 @@ ABI_TARGETS = {
 
 # Fixed selectors from repository-pinned ABIs.
 TRANSFER = "0xa9059cbb"
+ADMIN = "0xf851a440"
+FACTORY = "0xc45a0155"
+SET_LAUNCH_FEE = "0x5313be2c"
+PAUSE_LAUNCHES = "0xe79b502e"
 UNPAUSE_LAUNCHES = "0x5af02677"
+NOT_ADMIN = "0x17a84242"
+LAUNCH_FEE = "0xcf3cf573"
 LAUNCHES_PAUSED = "0x3bc340c2"
 START_BLOCK = "0x48cd4cb1"
 END_BLOCK = "0x083c6323"
@@ -76,6 +87,14 @@ DISTRIBUTION = "0xc2db09c1"
 
 class LabError(RuntimeError):
     """An expected local-lab failure."""
+
+
+class RpcError(LabError):
+    """A JSON-RPC error with its machine-readable revert data retained."""
+
+    def __init__(self, method: str, message: str, data: Any):
+        super().__init__(f"local RPC {method} failed: {message}")
+        self.data = data
 
 
 def repository_root() -> Path:
@@ -173,7 +192,7 @@ class RpcClient:
             raise LabError(f"local RPC request failed for {method}") from exc
         if "error" in document:
             message = document["error"].get("message", "unknown RPC error")
-            raise LabError(f"local RPC {method} failed: {message}")
+            raise RpcError(method, message, document["error"].get("data"))
         if "result" not in document:
             raise LabError(f"local RPC omitted the result for {method}")
         return document["result"]
@@ -212,6 +231,32 @@ def atomic_write_json(path: Path, document: Mapping[str, Any]) -> None:
         with handle:
             json.dump(document, handle, indent=2, sort_keys=True)
             handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            temporary.unlink()
+
+
+def read_optional_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except FileNotFoundError:
+        return None
+
+
+def restore_optional_bytes(path: Path, content: bytes | None) -> None:
+    if content is None:
+        with contextlib.suppress(FileNotFoundError):
+            path.unlink()
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(dir=path.parent, delete=False)
+    temporary = Path(handle.name)
+    try:
+        with handle:
+            handle.write(content)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
@@ -278,6 +323,54 @@ def compile_lab(root: Path) -> None:
         root,
         environment=forge_environment(),
     )
+
+
+def keccak_code(root: Path, code: str) -> str:
+    if not re.fullmatch(r"0x(?:[0-9a-fA-F]{2})*", code):
+        raise LabError("runtime code is not byte-aligned hex")
+    digest = run_checked(
+        ["cast", "keccak", code], root, environment=child_environment()
+    ).strip()
+    if not re.fullmatch(r"0x[0-9a-fA-F]{64}", digest):
+        raise LabError("Cast returned an invalid runtime hash")
+    return digest.lower()
+
+
+def require_clean_safe_runtime(root: Path, code: str) -> str:
+    if keccak_code(root, code) != PINNED_SAFE_RUNTIME_HASH:
+        raise LabError(
+            "governance Safe runtime does not match the pinned clean baseline"
+        )
+    return code.lower()
+
+
+def load_adapter_initcode(root: Path) -> str:
+    artifact_path = (
+        root
+        / GENERATED
+        / "foundry-out/LocalFactoryGovernance.sol/LocalFactoryGovernance.json"
+    )
+    artifact = load_json(artifact_path)
+    try:
+        initcode = artifact["bytecode"]["object"]
+    except (KeyError, TypeError) as exc:
+        raise LabError("local governance adapter artifact is invalid") from exc
+    if not isinstance(initcode, str) or not re.fullmatch(
+        r"0x(?:[0-9a-fA-F]{2})+", initcode
+    ):
+        raise LabError("local governance adapter initcode is invalid")
+    return initcode.lower()
+
+
+def adapter_runtime(root: Path, client: RpcClient, admin: str, factory: str) -> str:
+    compile_lab(root)
+    creation = load_adapter_initcode(root) + abi_address(admin) + abi_address(factory)
+    runtime = client.read("eth_call", [{"data": creation}, "latest"])
+    if not isinstance(runtime, str) or not re.fullmatch(
+        r"0x(?:[0-9a-fA-F]{2})+", runtime
+    ):
+        raise LabError("adapter constructor returned invalid runtime code")
+    return runtime.lower()
 
 
 def load_abis(root: Path) -> dict[str, Any]:
@@ -417,6 +510,33 @@ def rpc_call(client: RpcClient, target: str, data: str) -> str:
     return result
 
 
+def runtime_code(client: RpcClient, target: str) -> str:
+    result = client.read("eth_getCode", [normalize_address(target), "latest"])
+    if not isinstance(result, str) or not re.fullmatch(
+        r"0x(?:[0-9a-fA-F]{2})*", result
+    ):
+        raise LabError("eth_getCode returned invalid runtime code")
+    return result.lower()
+
+
+def snapshot(client: RpcClient) -> str:
+    snapshot_id = client.mutate("evm_snapshot")
+    if not isinstance(snapshot_id, str) or not snapshot_id.startswith("0x"):
+        raise LabError("Anvil returned an invalid snapshot id")
+    return snapshot_id
+
+
+def revert_snapshot(client: RpcClient, snapshot_id: str) -> None:
+    if client.mutate("evm_revert", [snapshot_id]) is not True:
+        raise LabError("Anvil failed to restore the local snapshot")
+
+
+def set_runtime_code(client: RpcClient, target: str, code: str) -> None:
+    client.mutate("anvil_setCode", [normalize_address(target), code])
+    if runtime_code(client, target) != code.lower():
+        raise LabError("Anvil did not install the exact requested runtime code")
+
+
 def decode_uint(data: str) -> int:
     raw = bytes.fromhex(data.removeprefix("0x"))
     if len(raw) != 32:
@@ -429,6 +549,14 @@ def decode_address(data: str) -> str:
     if len(raw) != 32 or any(raw[:12]):
         raise LabError("address readback has the wrong ABI value")
     return normalize_address("0x" + raw[12:].hex())
+
+
+def factory_state(client: RpcClient, factory: str) -> tuple[int, bool]:
+    fee = decode_uint(rpc_call(client, factory, LAUNCH_FEE))
+    paused = decode_uint(rpc_call(client, factory, LAUNCHES_PAUSED))
+    if paused not in (0, 1):
+        raise LabError("factory pause readback is not boolean")
+    return fee, bool(paused)
 
 
 def abi_address(value: str) -> str:
@@ -473,6 +601,27 @@ def send_transaction(client: RpcClient, sender: str, target: str, data: str) -> 
     return transaction_hash
 
 
+def send_and_wait(client: RpcClient, sender: str, target: str, data: str) -> None:
+    wait_receipt(client, send_transaction(client, sender, target, data))
+
+
+def call_from(client: RpcClient, sender: str, target: str, data: str) -> str:
+    result = client.read(
+        "eth_call",
+        [
+            {
+                "from": normalize_address(sender),
+                "to": normalize_address(target),
+                "data": data,
+            },
+            "latest",
+        ],
+    )
+    if not isinstance(result, str) or not result.startswith("0x"):
+        raise LabError("eth_call returned invalid data")
+    return result
+
+
 @contextlib.contextmanager
 def impersonated(client: RpcClient, account: str):
     account = normalize_address(account)
@@ -481,6 +630,83 @@ def impersonated(client: RpcClient, account: str):
         yield
     finally:
         client.mutate("anvil_stopImpersonatingAccount", [account])
+
+
+def verify_adapter_bindings(client: RpcClient, admin: str, factory: str) -> None:
+    if decode_address(rpc_call(client, GOVERNANCE_SAFE, ADMIN)) != admin:
+        raise LabError("installed adapter admin binding is wrong")
+    if decode_address(rpc_call(client, GOVERNANCE_SAFE, FACTORY)) != factory:
+        raise LabError("installed adapter factory binding is wrong")
+
+
+def restore_factory_state(
+    client: RpcClient, admin: str, factory: str, fee: int, paused: bool
+) -> None:
+    current_fee, current_paused = factory_state(client, factory)
+    if current_fee != fee:
+        send_and_wait(
+            client,
+            admin,
+            GOVERNANCE_SAFE,
+            SET_LAUNCH_FEE + abi_uint(fee),
+        )
+    if current_paused != paused:
+        selector = PAUSE_LAUNCHES if paused else UNPAUSE_LAUNCHES
+        send_and_wait(client, admin, GOVERNANCE_SAFE, selector)
+
+
+def prove_adapter(
+    client: RpcClient,
+    admin: str,
+    factory: str,
+    prior_fee: int,
+    prior_paused: bool,
+    prior_governance_balance: int,
+) -> None:
+    proof_fee = prior_fee ^ 1
+    client.mutate("anvil_setBalance", [admin, quantity(10**18)])
+    with impersonated(client, admin):
+        try:
+            send_and_wait(
+                client,
+                admin,
+                GOVERNANCE_SAFE,
+                SET_LAUNCH_FEE + abi_uint(proof_fee),
+            )
+            if factory_state(client, factory)[0] != proof_fee:
+                raise LabError("authorized adapter fee proof did not change the fee")
+
+            first = UNPAUSE_LAUNCHES if prior_paused else PAUSE_LAUNCHES
+            second = PAUSE_LAUNCHES if prior_paused else UNPAUSE_LAUNCHES
+            send_and_wait(client, admin, GOVERNANCE_SAFE, first)
+            if factory_state(client, factory)[1] == prior_paused:
+                raise LabError("authorized adapter pause proof did not change state")
+            send_and_wait(client, admin, GOVERNANCE_SAFE, second)
+            if factory_state(client, factory)[1] != prior_paused:
+                raise LabError("authorized adapter pause proof did not restore state")
+
+            try:
+                call_from(
+                    client,
+                    UNRELATED_ADMIN,
+                    GOVERNANCE_SAFE,
+                    SET_LAUNCH_FEE + abi_uint(proof_fee),
+                )
+            except RpcError as exc:
+                expected_revert = NOT_ADMIN + abi_address(UNRELATED_ADMIN)
+                if not isinstance(exc.data, str) or exc.data.lower() != expected_revert:
+                    raise LabError(
+                        "unrelated caller did not return the exact NotAdmin rejection"
+                    ) from exc
+            else:
+                raise LabError("unrelated caller was not rejected by the adapter")
+        finally:
+            restore_factory_state(client, admin, factory, prior_fee, prior_paused)
+
+    if factory_state(client, factory) != (prior_fee, prior_paused):
+        raise LabError("factory state was not restored after adapter proof")
+    if account_balance(client, REGENT, GOVERNANCE_SAFE) != prior_governance_balance:
+        raise LabError("governance REGENT custody changed during adapter proof")
 
 
 def unpause_factory(client: RpcClient, factory: str) -> None:
@@ -596,6 +822,9 @@ def command_start(args: argparse.Namespace) -> None:
             raise LabError("Anvil did not expose a local deployment account")
         deployer = normalize_address(str(accounts[0]), "local deployer")
         graph = deploy_graph(root, client, deployer)
+        safe_runtime = require_clean_safe_runtime(
+            root, runtime_code(client, GOVERNANCE_SAFE)
+        )
         unpause_factory(client, graph["factory"])
         state = {
             "status": "active",
@@ -606,6 +835,7 @@ def command_start(args: argparse.Namespace) -> None:
             "addresses": {
                 key: value for key, value in graph.items() if key != "hook_salt"
             },
+            "governance_safe_original_runtime": safe_runtime,
         }
         atomic_write_json(state_path, state)
         write_site_config(root, rpc_url, graph, abis)
@@ -635,6 +865,144 @@ def local_client(root: Path) -> tuple[dict[str, Any], RpcClient]:
     client = RpcClient(str(state["rpc_url"]))
     client.assert_local()
     return state, client
+
+
+def command_admin(args: argparse.Namespace) -> None:
+    admin = normalize_address(args.admin, "local admin")
+    if admin != FOUNDER_LOCAL_ADMIN:
+        raise LabError("local admin must be the founder-authorized address")
+
+    root = repository_root()
+    state, client = local_client(root)
+    state_path = root / STATE_PATH
+    config_path = root / SITE_CONFIG_PATH
+    prior_state_bytes = read_optional_bytes(state_path)
+    prior_config_bytes = read_optional_bytes(config_path)
+    if prior_state_bytes is None or prior_config_bytes is None:
+        raise LabError("both generated lab documents are required for admin install")
+    config = load_json(config_path)
+
+    try:
+        factory = normalize_address(state["addresses"]["factory"], "factory")
+        config_addresses = config["addresses"]
+        config_factory = normalize_address(config_addresses["factory"], "factory")
+        config_safe = normalize_address(
+            config_addresses["governance_safe"], "governance Safe"
+        )
+    except (KeyError, TypeError) as exc:
+        raise LabError("generated lab documents omit required addresses") from exc
+    if config_factory != factory or config_safe != GOVERNANCE_SAFE:
+        raise LabError(
+            "generated lab documents disagree with compiled governance bindings"
+        )
+    if config.get("rpc_url") != state.get("rpc_url"):
+        raise LabError("generated lab documents disagree on the local RPC")
+    if config.get("chain_id") != LOCAL_CHAIN_ID:
+        raise LabError("site config has the wrong local chain ID")
+
+    expected_runtime = adapter_runtime(root, client, admin, factory)
+    current_runtime = runtime_code(client, GOVERNANCE_SAFE)
+    prior_fee, prior_paused = factory_state(client, factory)
+    prior_governance_balance = account_balance(client, REGENT, GOVERNANCE_SAFE)
+    baseline = state.get("governance_safe_original_runtime")
+
+    if current_runtime == expected_runtime:
+        verify_adapter_bindings(client, admin, factory)
+        if state.get("local_admin") != admin or config.get("local_admin") != admin:
+            raise LabError("installed adapter is missing matching generated state")
+        if not isinstance(baseline, str):
+            raise LabError("installed adapter is missing its original Safe baseline")
+        require_clean_safe_runtime(root, baseline)
+        print("local factory admin already installed and verified")
+        return
+
+    if "local_admin" in state or "local_admin" in config:
+        raise LabError("generated state claims a different or incomplete admin install")
+    if baseline is None:
+        baseline = require_clean_safe_runtime(root, current_runtime)
+    elif not isinstance(baseline, str):
+        raise LabError("recorded governance Safe baseline is invalid")
+    else:
+        baseline = require_clean_safe_runtime(root, baseline)
+        if current_runtime != baseline:
+            raise LabError("governance Safe has unrecognized runtime code")
+
+    outer_snapshot: str | None = None
+    try:
+        outer_snapshot = snapshot(client)
+        set_runtime_code(client, GOVERNANCE_SAFE, expected_runtime)
+        verify_adapter_bindings(client, admin, factory)
+
+        proof_snapshot = snapshot(client)
+        try:
+            prove_adapter(
+                client,
+                admin,
+                factory,
+                prior_fee,
+                prior_paused,
+                prior_governance_balance,
+            )
+        finally:
+            revert_snapshot(client, proof_snapshot)
+
+        if runtime_code(client, GOVERNANCE_SAFE) != expected_runtime:
+            raise LabError("adapter runtime changed after proof rollback")
+        verify_adapter_bindings(client, admin, factory)
+        if factory_state(client, factory) != (prior_fee, prior_paused):
+            raise LabError("factory state changed after proof rollback")
+        if account_balance(client, REGENT, GOVERNANCE_SAFE) != prior_governance_balance:
+            raise LabError("governance REGENT custody changed after proof rollback")
+
+        updated_state = dict(state)
+        updated_state["governance_safe_original_runtime"] = baseline
+        updated_state["local_admin"] = admin
+        updated_config = dict(config)
+        updated_config["local_admin"] = admin
+        atomic_write_json(state_path, updated_state)
+        atomic_write_json(config_path, updated_config)
+
+        if load_json(state_path).get("local_admin") != admin:
+            raise LabError("state did not persist the local admin")
+        if load_json(config_path).get("local_admin") != admin:
+            raise LabError("site config did not persist the local admin")
+        print("local factory admin installed and verified")
+    except BaseException as exc:
+        rollback_errors: list[str] = []
+        if outer_snapshot is not None:
+            try:
+                revert_snapshot(client, outer_snapshot)
+            except BaseException as rollback_exc:
+                rollback_errors.append(f"chain snapshot: {rollback_exc}")
+        try:
+            restore_optional_bytes(state_path, prior_state_bytes)
+            restore_optional_bytes(config_path, prior_config_bytes)
+        except BaseException as rollback_exc:
+            rollback_errors.append(f"generated JSON: {rollback_exc}")
+        try:
+            if runtime_code(client, GOVERNANCE_SAFE) != baseline:
+                rollback_errors.append("Safe runtime did not restore exactly")
+            if factory_state(client, factory) != (prior_fee, prior_paused):
+                rollback_errors.append("factory state did not restore exactly")
+            if (
+                account_balance(client, REGENT, GOVERNANCE_SAFE)
+                != prior_governance_balance
+            ):
+                rollback_errors.append("governance REGENT balance did not restore")
+            if read_optional_bytes(state_path) != prior_state_bytes:
+                rollback_errors.append("state JSON did not restore exactly")
+            if read_optional_bytes(config_path) != prior_config_bytes:
+                rollback_errors.append("site-config JSON did not restore exactly")
+        except BaseException as rollback_exc:
+            rollback_errors.append(f"rollback verification: {rollback_exc}")
+        if rollback_errors:
+            raise LabError(
+                f"admin install failed ({exc}); rollback failed: "
+                + "; ".join(rollback_errors)
+            ) from exc
+        if isinstance(exc, LabError):
+            raise
+        raise LabError(f"admin install failed and was rolled back: {exc}") from exc
 
 
 def account_balance(client: RpcClient, token: str, account: str) -> int:
@@ -782,6 +1150,8 @@ def command_status(args: argparse.Namespace) -> None:
         "block": parse_quantity(client.read("eth_blockNumber")),
         "addresses": state["addresses"],
     }
+    if "local_admin" in state:
+        response["local_admin"] = state["local_admin"]
     if args.auction:
         response["auction"] = auction_timing(client, args.auction)
     print(json.dumps(response, indent=2, sort_keys=True))
@@ -841,6 +1211,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--wallet-eth", default="1", help="minimum local wallet ETH (default: 1)"
     )
     fund.set_defaults(handler=command_fund)
+    admin = commands.add_parser(
+        "admin", help="install the founder-only local factory governance adapter"
+    )
+    admin.add_argument("admin", help="founder-authorized local admin address")
+    admin.set_defaults(handler=command_admin)
     advance = commands.add_parser("advance", help="mine to an auction lifecycle block")
     advance.add_argument("auction", help="auction address")
     advance.add_argument(

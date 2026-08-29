@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
 import os
@@ -9,6 +10,7 @@ import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 
@@ -25,6 +27,8 @@ AUCTION = "0x" + "33" * 20
 STRATEGY = "0x" + "44" * 20
 FACTORY = "0x" + "55" * 20
 TX_HASH = "0x" + "66" * 32
+ORIGINAL_SAFE_RUNTIME = "0x60006000"
+ADAPTER_RUNTIME = "0x60016001"
 
 
 def word(value: int) -> str:
@@ -46,6 +50,105 @@ class FakeRpc(lab.RpcClient):
             return hex(self.chain_id)
         result = self.results.get(method)
         return result() if callable(result) else result
+
+
+class AdminRpc(FakeRpc):
+    def __init__(self, *, paused: bool = False):
+        super().__init__()
+        self.code = ORIGINAL_SAFE_RUNTIME
+        self.adapter_admin = lab.FOUNDER_LOCAL_ADMIN
+        self.adapter_factory = FACTORY
+        self.fee = 25
+        self.paused = paused
+        self.regent_balance = 777
+        self.snapshots: dict[str, tuple[str, int, bool, int]] = {}
+        self.snapshot_counter = 0
+        self.transaction_counter = 0
+        self.send_failure_at: int | None = None
+        self.unrelated_rejections = 0
+
+    def _request(self, method, params=()):
+        self.calls.append((method, list(params)))
+        if method == "eth_chainId":
+            return hex(self.chain_id)
+        if method == "eth_getCode":
+            return self.code
+        if method == "evm_snapshot":
+            self.snapshot_counter += 1
+            snapshot_id = hex(self.snapshot_counter)
+            self.snapshots[snapshot_id] = (
+                self.code,
+                self.fee,
+                self.paused,
+                self.regent_balance,
+            )
+            return snapshot_id
+        if method == "evm_revert":
+            snapshot_id = params[0]
+            saved = self.snapshots.get(snapshot_id)
+            if saved is None:
+                return False
+            self.code, self.fee, self.paused, self.regent_balance = saved
+            return True
+        if method == "anvil_setCode":
+            self.code = params[1].lower()
+            return True
+        if method in {
+            "anvil_setBalance",
+            "anvil_impersonateAccount",
+            "anvil_stopImpersonatingAccount",
+        }:
+            return True
+        if method == "eth_sendTransaction":
+            self.transaction_counter += 1
+            if self.send_failure_at == self.transaction_counter:
+                raise lab.LabError("injected transaction failure")
+            transaction = params[0]
+            if transaction["from"] != lab.FOUNDER_LOCAL_ADMIN:
+                raise lab.LabError("unexpected transaction sender")
+            data = transaction["data"]
+            if data.startswith(lab.SET_LAUNCH_FEE):
+                self.fee = int(data[len(lab.SET_LAUNCH_FEE) :], 16)
+            elif data == lab.PAUSE_LAUNCHES:
+                if self.paused:
+                    raise lab.LabError("already paused")
+                self.paused = True
+            elif data == lab.UNPAUSE_LAUNCHES:
+                if not self.paused:
+                    raise lab.LabError("not paused")
+                self.paused = False
+            else:
+                raise lab.LabError("unexpected admin selector")
+            return "0x" + f"{self.transaction_counter:064x}"
+        if method == "eth_getTransactionReceipt":
+            return {"status": "0x1", "transactionHash": params[0]}
+        if method == "eth_call":
+            request = params[0]
+            target = request.get("to")
+            data = request.get("data", "0x")
+            if target == lab.GOVERNANCE_SAFE:
+                if "from" in request:
+                    if request["from"] == lab.UNRELATED_ADMIN:
+                        self.unrelated_rejections += 1
+                        raise lab.RpcError(
+                            "eth_call",
+                            "execution reverted",
+                            lab.NOT_ADMIN + lab.abi_address(lab.UNRELATED_ADMIN),
+                        )
+                    raise lab.LabError("unexpected eth_call sender")
+                if data == lab.ADMIN:
+                    return "0x" + lab.abi_address(self.adapter_admin)
+                if data == lab.FACTORY:
+                    return "0x" + lab.abi_address(self.adapter_factory)
+            if target == FACTORY:
+                if data == lab.LAUNCH_FEE:
+                    return word(self.fee)
+                if data == lab.LAUNCHES_PAUSED:
+                    return word(int(self.paused))
+            if target == lab.REGENT:
+                return word(self.regent_balance)
+            raise lab.LabError("unexpected eth_call")
+        return True
 
 
 class BoundaryTests(unittest.TestCase):
@@ -259,6 +362,367 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(config["addresses"]["regent"], lab.REGENT)
         self.assertEqual(config["addresses"]["permit2"], lab.PERMIT2)
 
+    def test_start_captures_the_pinned_safe_runtime_in_generated_state(self):
+        graph = {
+            label: ("0x" + "ab" * (32 if label == "hook_salt" else 20))
+            for label in lab.GRAPH_LABELS
+        }
+        client = FakeRpc()
+        client.results.update(
+            {
+                "eth_accounts": [WALLET],
+                "eth_getCode": ORIGINAL_SAFE_RUNTIME,
+                "eth_blockNumber": "0x64",
+            }
+        )
+        process = SimpleNamespace(pid=999)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with (
+                mock.patch.dict(
+                    os.environ,
+                    {lab.REGENT_BASE_RPC_ENV: "https://provider.invalid/rpc"},
+                ),
+                mock.patch.object(lab, "repository_root", return_value=root),
+                mock.patch.object(lab, "require_base_upstream"),
+                mock.patch.object(lab, "compile_lab"),
+                mock.patch.object(lab, "load_abis", return_value={}),
+                mock.patch.object(lab, "reserve_port", return_value=8545),
+                mock.patch.object(lab, "start_anvil", return_value=process),
+                mock.patch.object(lab, "RpcClient", return_value=client),
+                mock.patch.object(lab, "deploy_graph", return_value=graph),
+                mock.patch.object(lab, "unpause_factory"),
+                mock.patch.object(
+                    lab, "keccak_code", return_value=lab.PINNED_SAFE_RUNTIME_HASH
+                ),
+                mock.patch("builtins.print"),
+            ):
+                lab.command_start(Namespace(fork_block=None))
+            state = lab.load_json(root / lab.STATE_PATH)
+            self.assertEqual(
+                state["governance_safe_original_runtime"], ORIGINAL_SAFE_RUNTIME
+            )
+            config = lab.load_json(root / lab.SITE_CONFIG_PATH)
+            self.assertNotIn("local_admin", state)
+            self.assertNotIn("local_admin", config)
+
+    def test_adapter_runtime_uses_exactly_two_encoded_constructor_addresses(self):
+        client = FakeRpc()
+        client.results["eth_call"] = ADAPTER_RUNTIME
+        with (
+            mock.patch.object(lab, "compile_lab"),
+            mock.patch.object(lab, "load_adapter_initcode", return_value="0x6000"),
+        ):
+            runtime = lab.adapter_runtime(
+                ROOT, client, lab.FOUNDER_LOCAL_ADMIN, FACTORY
+            )
+        self.assertEqual(runtime, ADAPTER_RUNTIME)
+        request = next(
+            params[0] for method, params in client.calls if method == "eth_call"
+        )
+        self.assertNotIn("to", request)
+        self.assertEqual(len(bytes.fromhex(request["data"].removeprefix("0x"))), 2 + 64)
+
+
+class AdminTests(unittest.TestCase):
+    def write_documents(self, root: Path, *, baseline: bool = True):
+        state = {
+            "status": "active",
+            "pid": 42,
+            "rpc_url": "http://127.0.0.1:8545",
+            "chain_id": lab.LOCAL_CHAIN_ID,
+            "addresses": {"factory": FACTORY},
+        }
+        if baseline:
+            state["governance_safe_original_runtime"] = ORIGINAL_SAFE_RUNTIME
+        config = {
+            "rpc_url": state["rpc_url"],
+            "chain_id": lab.LOCAL_CHAIN_ID,
+            "addresses": {
+                "factory": FACTORY,
+                "governance_safe": lab.GOVERNANCE_SAFE,
+            },
+            "abis": {},
+        }
+        lab.atomic_write_json(root / lab.STATE_PATH, state)
+        lab.atomic_write_json(root / lab.SITE_CONFIG_PATH, config)
+        return state, config
+
+    @contextlib.contextmanager
+    def admin_context(self, root: Path, state, client: AdminRpc):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(
+                mock.patch.object(lab, "repository_root", return_value=root)
+            )
+            stack.enter_context(
+                mock.patch.object(lab, "local_client", return_value=(state, client))
+            )
+            stack.enter_context(
+                mock.patch.object(lab, "adapter_runtime", return_value=ADAPTER_RUNTIME)
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    lab, "keccak_code", return_value=lab.PINNED_SAFE_RUNTIME_HASH
+                )
+            )
+            stack.enter_context(mock.patch("builtins.print"))
+            yield
+
+    def test_first_install_proves_all_calls_and_preserves_state_and_custody(self):
+        for paused in (False, True):
+            with (
+                self.subTest(paused=paused),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                root = Path(directory)
+                state, _config = self.write_documents(root)
+                client = AdminRpc(paused=paused)
+                with self.admin_context(root, state, client):
+                    lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+
+                saved_state = lab.load_json(root / lab.STATE_PATH)
+                saved_config = lab.load_json(root / lab.SITE_CONFIG_PATH)
+                self.assertEqual(client.code, ADAPTER_RUNTIME)
+                self.assertEqual((client.fee, client.paused), (25, paused))
+                self.assertEqual(client.regent_balance, 777)
+                self.assertEqual(client.unrelated_rejections, 1)
+                self.assertEqual(
+                    saved_state["governance_safe_original_runtime"],
+                    ORIGINAL_SAFE_RUNTIME,
+                )
+                self.assertEqual(saved_state["local_admin"], lab.FOUNDER_LOCAL_ADMIN)
+                self.assertEqual(saved_config["local_admin"], lab.FOUNDER_LOCAL_ADMIN)
+                sent = [
+                    params[0]["data"]
+                    for method, params in client.calls
+                    if method == "eth_sendTransaction"
+                ]
+                self.assertTrue(
+                    any(data.startswith(lab.SET_LAUNCH_FEE) for data in sent)
+                )
+                self.assertIn(lab.PAUSE_LAUNCHES, sent)
+                self.assertIn(lab.UNPAUSE_LAUNCHES, sent)
+
+    def test_pre_amendment_state_seeds_only_the_pinned_clean_baseline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, _config = self.write_documents(root, baseline=False)
+            client = AdminRpc()
+            with self.admin_context(root, state, client):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            self.assertEqual(
+                lab.load_json(root / lab.STATE_PATH)[
+                    "governance_safe_original_runtime"
+                ],
+                ORIGINAL_SAFE_RUNTIME,
+            )
+
+    def test_proof_failure_restores_code_factory_json_and_balance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, _config = self.write_documents(root)
+            state_bytes = (root / lab.STATE_PATH).read_bytes()
+            config_bytes = (root / lab.SITE_CONFIG_PATH).read_bytes()
+            client = AdminRpc()
+            client.send_failure_at = 2
+            with (
+                self.admin_context(root, state, client),
+                self.assertRaisesRegex(lab.LabError, "injected"),
+            ):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
+            self.assertEqual((client.fee, client.paused), (25, False))
+            self.assertEqual(client.regent_balance, 777)
+            self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
+            self.assertEqual((root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes)
+
+    def test_install_verification_failure_rolls_back_before_proof(self):
+        class IgnoredCodeWriteRpc(AdminRpc):
+            def _request(self, method, params=()):
+                if method == "anvil_setCode":
+                    self.calls.append((method, list(params)))
+                    return True
+                return super()._request(method, params)
+
+        for client, message in (
+            (IgnoredCodeWriteRpc(), "exact requested runtime"),
+            (AdminRpc(), "factory binding"),
+        ):
+            with (
+                self.subTest(message=message),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                root = Path(directory)
+                state, _config = self.write_documents(root)
+                if message == "factory binding":
+                    client.adapter_factory = WALLET
+                state_bytes = (root / lab.STATE_PATH).read_bytes()
+                config_bytes = (root / lab.SITE_CONFIG_PATH).read_bytes()
+                with (
+                    self.admin_context(root, state, client),
+                    self.assertRaisesRegex(lab.LabError, message),
+                ):
+                    lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+                self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
+                self.assertEqual((client.fee, client.paused), (25, False))
+                self.assertEqual(client.regent_balance, 777)
+                self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
+                self.assertEqual(
+                    (root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes
+                )
+
+    def test_persistence_failure_restores_exact_prior_documents_and_chain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, _config = self.write_documents(root)
+            state_bytes = (root / lab.STATE_PATH).read_bytes()
+            config_bytes = (root / lab.SITE_CONFIG_PATH).read_bytes()
+            client = AdminRpc()
+            real_write = lab.atomic_write_json
+            writes = 0
+
+            def fail_second_write(path, document):
+                nonlocal writes
+                writes += 1
+                if writes == 2:
+                    raise OSError("injected persistence failure")
+                real_write(path, document)
+
+            with (
+                self.admin_context(root, state, client),
+                mock.patch.object(
+                    lab, "atomic_write_json", side_effect=fail_second_write
+                ),
+                self.assertRaisesRegex(lab.LabError, "rolled back.*persistence"),
+            ):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
+            self.assertEqual((client.fee, client.paused), (25, False))
+            self.assertEqual(client.regent_balance, 777)
+            self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
+            self.assertEqual((root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes)
+
+    def test_matching_repeat_is_a_verified_no_op(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, _config = self.write_documents(root)
+            client = AdminRpc()
+            with self.admin_context(root, state, client):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            state_bytes = (root / lab.STATE_PATH).read_bytes()
+            config_bytes = (root / lab.SITE_CONFIG_PATH).read_bytes()
+            repeat_state = lab.load_json(root / lab.STATE_PATH)
+            call_count = len(client.calls)
+            with self.admin_context(root, repeat_state, client):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            repeat_methods = [method for method, _ in client.calls[call_count:]]
+            self.assertFalse(
+                any(
+                    method
+                    in {
+                        "anvil_setCode",
+                        "eth_sendTransaction",
+                        "evm_snapshot",
+                        "evm_revert",
+                    }
+                    for method in repeat_methods
+                )
+            )
+            self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
+            self.assertEqual((root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes)
+            self.assertEqual((client.fee, client.paused), (25, False))
+
+    def test_runtime_or_binding_mismatch_refuses_before_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, config = self.write_documents(root)
+            client = AdminRpc()
+            client.code = "0xdeadbeef"
+            with (
+                self.admin_context(root, state, client),
+                self.assertRaisesRegex(lab.LabError, "unrecognized runtime"),
+            ):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            self.assertFalse(
+                any(method == "evm_snapshot" for method, _ in client.calls)
+            )
+
+            client = AdminRpc()
+            client.code = ADAPTER_RUNTIME
+            client.adapter_factory = WALLET
+            state["local_admin"] = lab.FOUNDER_LOCAL_ADMIN
+            config["local_admin"] = lab.FOUNDER_LOCAL_ADMIN
+            lab.atomic_write_json(root / lab.STATE_PATH, state)
+            lab.atomic_write_json(root / lab.SITE_CONFIG_PATH, config)
+            with (
+                self.admin_context(root, state, client),
+                self.assertRaisesRegex(lab.LabError, "factory binding"),
+            ):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            self.assertFalse(
+                any(method == "evm_snapshot" for method, _ in client.calls)
+            )
+
+    def test_wrong_admin_is_refused_before_lab_or_rpc_access(self):
+        with (
+            mock.patch.object(lab, "local_client") as local_client,
+            self.assertRaisesRegex(lab.LabError, "founder-authorized"),
+        ):
+            lab.command_admin(Namespace(admin=WALLET))
+        local_client.assert_not_called()
+
+    def test_admin_inherits_active_lab_loopback_and_chain_refusal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state, _config = self.write_documents(root)
+            mainnet = FakeRpc(chain_id=lab.BASE_CHAIN_ID)
+            with (
+                mock.patch.object(lab, "repository_root", return_value=root),
+                mock.patch.object(lab, "recorded_anvil_matches", return_value=True),
+                mock.patch.object(lab, "RpcClient", return_value=mainnet),
+                self.assertRaisesRegex(lab.LabError, "expected local chain"),
+            ):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+            self.assertEqual(mainnet.calls, [("eth_chainId", [])])
+
+            state["rpc_url"] = "http://10.0.0.1:8545"
+            lab.atomic_write_json(root / lab.STATE_PATH, state)
+            with (
+                mock.patch.object(lab, "repository_root", return_value=root),
+                self.assertRaisesRegex(lab.LabError, "literal loopback"),
+            ):
+                lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+
+    def test_status_displays_the_installed_local_admin(self):
+        client = FakeRpc()
+        client.results["eth_blockNumber"] = "0x64"
+        state = {
+            "rpc_url": client.url,
+            "addresses": {"factory": FACTORY},
+            "local_admin": lab.FOUNDER_LOCAL_ADMIN,
+        }
+        with (
+            mock.patch.object(lab, "local_client", return_value=(state, client)),
+            mock.patch("builtins.print") as output,
+        ):
+            lab.command_status(Namespace(auction=None))
+        displayed = json.loads(output.call_args.args[0])
+        self.assertEqual(displayed["local_admin"], lab.FOUNDER_LOCAL_ADMIN)
+
+    def test_pinned_safe_runtime_is_a_required_baseline(self):
+        with mock.patch.object(
+            lab, "keccak_code", return_value=lab.PINNED_SAFE_RUNTIME_HASH
+        ):
+            self.assertEqual(
+                lab.require_clean_safe_runtime(ROOT, ORIGINAL_SAFE_RUNTIME),
+                ORIGINAL_SAFE_RUNTIME,
+            )
+        with (
+            mock.patch.object(lab, "keccak_code", return_value="0x" + "00" * 32),
+            self.assertRaisesRegex(lab.LabError, "pinned clean baseline"),
+        ):
+            lab.require_clean_safe_runtime(ROOT, ORIGINAL_SAFE_RUNTIME)
+
 
 class FundingTests(unittest.TestCase):
     def test_amount_and_transfer_calldata_are_exact(self):
@@ -401,8 +865,11 @@ class SurfaceTests(unittest.TestCase):
         parser = lab.build_parser()
         action = next(action for action in parser._actions if action.dest == "command")
         self.assertEqual(
-            set(action.choices), {"start", "fund", "advance", "pace", "status", "stop"}
+            set(action.choices),
+            {"start", "admin", "fund", "advance", "pace", "status", "stop"},
         )
+        args = parser.parse_args(["admin", lab.FOUNDER_LOCAL_ADMIN])
+        self.assertEqual(args.admin, lab.FOUNDER_LOCAL_ADMIN)
         args = parser.parse_args(["pace", AUCTION])
         self.assertEqual(args.duration_seconds, 1800.0)
         args = parser.parse_args(["advance", AUCTION, "claim"])
@@ -436,6 +903,28 @@ class SurfaceTests(unittest.TestCase):
         self.assertIn("[profile.local-base-lab]", foundry)
         self.assertIn("offline = true", foundry.split("[profile.local-base-lab]", 1)[1])
         self.assertIn("ffi = false", foundry.split("[profile.local-base-lab]", 1)[1])
+
+    def test_adapter_surface_is_fixed_and_has_no_custody_or_upgrade_path(self):
+        source = (ROOT / "tools/local-base-lab/LocalFactoryGovernance.sol").read_text()
+        for required in (
+            "address public immutable admin",
+            "address public immutable factory",
+            "function setLaunchFee(uint256 newFee)",
+            "function pauseLaunches()",
+            "function unpauseLaunches()",
+        ):
+            self.assertIn(required, source)
+        for forbidden in (
+            "delegatecall",
+            "selfdestruct",
+            "function execute",
+            "function transfer",
+            "function recover",
+            "receive()",
+            "fallback()",
+            "payable",
+        ):
+            self.assertNotIn(forbidden, source)
 
 
 if __name__ == "__main__":
