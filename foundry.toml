@@ -136,3 +136,16 @@ cache_path = "reports/generated/deployment-cache"
 offline = false
 ffi = false
 fs_permissions = []
+
+# A separate, offline-build profile for the founder's local Base-fork lab. The only RPC this
+# profile is ever given is the controller-created loopback Anvil node; Anvil, not Forge, owns the
+# read-only upstream fork. All build and broadcast scratch stays below the already-ignored lab
+# directory, and the Solidity wrapper has no filesystem access or FFI.
+[profile.local-base-lab]
+script = "tools/local-base-lab"
+out = "reports/generated/local-base-lab/foundry-out"
+cache_path = "reports/generated/local-base-lab/foundry-cache"
+broadcast = "reports/generated/local-base-lab/broadcast"
+offline = true
+ffi = false
+fs_permissions = []
