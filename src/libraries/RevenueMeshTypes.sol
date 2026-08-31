@@ -22,7 +22,7 @@ library RevenueMeshTypes {
         uint256 maxFeeBps;
         address baseReceiver;
         address baseSplitter;
-        address admittedFactory;
+        address candidateFactory;
         bytes32 inboxRuntimeCodeHash;
         bytes32 bridgeSecurityClass;
         bytes32 settlementTransport;

@@ -12,7 +12,11 @@ The factory exposes route facts suitable for a later manifest. They distinguish:
 
 No production address or active manifest is generated here. A later manifest must be tied to the
 separately admitted factory and its immutable configuration; the same Base pair under another
-factory or configuration is a different candidate.
+factory or configuration is a different candidate. Factory runtime identity and provenance must be
+admitted separately. The constructor binds source chain identity to the executing EVM chain, while
+the configured source CCTP domain remains unverified until it is checked against the admitted Circle
+messenger deployment or exact CCTP message evidence. The pinned burn interface does not expose a
+local-domain getter, so activation must not invent or rely on an unsupported generic messenger ABI.
 
 ## Receipt stages
 

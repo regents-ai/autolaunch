@@ -15,7 +15,6 @@ contract CctpRevenueInboxV1Test is TestBase {
     address private constant BASE_RECEIVER = address(0xBEEF);
     address private constant BASE_SPLITTER = address(0xCAFE);
     uint32 private constant SOURCE_DOMAIN = 3;
-    uint256 private constant SOURCE_CHAIN_ID = 42161;
     bytes32 private constant SOURCE_NAMESPACE = "eip155";
     uint256 private constant MINIMUM_SWEEP = 100;
     uint256 private constant MAX_BURN = 1000;
@@ -25,10 +24,12 @@ contract CctpRevenueInboxV1Test is TestBase {
     MockTokenMessengerV2 private messenger;
     RevenueInboxFactoryV1 private factory;
     SweepActor private sweeper;
+    uint256 private sourceChainId;
 
     function setUp() public {
         token = new MockUsdc();
         messenger = new MockTokenMessengerV2();
+        sourceChainId = block.chainid;
         factory = _newFactory(MINIMUM_SWEEP, MAX_BURN, MAX_FEE_BPS);
         sweeper = new SweepActor();
     }
@@ -62,7 +63,7 @@ contract CctpRevenueInboxV1Test is TestBase {
                 BASE_RECEIVER,
                 BASE_SPLITTER,
                 SOURCE_NAMESPACE,
-                SOURCE_CHAIN_ID,
+                sourceChainId,
                 "CCTP_V2_STANDARD"
             )
         );
@@ -70,7 +71,7 @@ contract CctpRevenueInboxV1Test is TestBase {
         assertEq(factory.sourceUsdc(), address(token), "factory token");
         assertEq(factory.tokenMessenger(), address(messenger), "factory messenger");
         assertEq(factory.sourceDomain(), SOURCE_DOMAIN, "factory source domain");
-        assertEq(factory.sourceChainId(), SOURCE_CHAIN_ID, "factory chain");
+        assertEq(factory.sourceChainId(), sourceChainId, "factory chain");
         assertEq(factory.sourceNamespace(), SOURCE_NAMESPACE, "factory namespace");
         assertEq(factory.minimumSweep(), MINIMUM_SWEEP, "factory minimum");
         assertEq(factory.maxBurnPerMessage(), MAX_BURN, "factory cap");
@@ -80,7 +81,7 @@ contract CctpRevenueInboxV1Test is TestBase {
         assertEq(address(inbox.usdc()), address(token), "inbox token");
         assertEq(address(inbox.tokenMessenger()), address(messenger), "inbox messenger");
         assertEq(inbox.sourceDomain(), SOURCE_DOMAIN, "inbox source domain");
-        assertEq(inbox.sourceChainId(), SOURCE_CHAIN_ID, "inbox chain");
+        assertEq(inbox.sourceChainId(), sourceChainId, "inbox chain");
         assertEq(inbox.sourceNamespace(), SOURCE_NAMESPACE, "inbox namespace");
         assertEq(inbox.minimumSweep(), MINIMUM_SWEEP, "inbox minimum");
         assertEq(inbox.maxBurnPerMessage(), MAX_BURN, "inbox cap");
@@ -172,28 +173,49 @@ contract CctpRevenueInboxV1Test is TestBase {
 
     function testFactoryRejectsInvalidBindingsAndEconomics() public {
         assertTrue(
-            _factoryConstructionFails(address(0), address(messenger), 3, 1, SOURCE_NAMESPACE, 1, 1, 0), "zero token"
+            _factoryConstructionFails(address(0), address(messenger), 3, sourceChainId, SOURCE_NAMESPACE, 1, 1, 0),
+            "zero token"
         );
         assertTrue(
-            _factoryConstructionFails(address(token), address(0), 3, 1, SOURCE_NAMESPACE, 1, 1, 0), "zero messenger"
+            _factoryConstructionFails(address(token), address(0), 3, sourceChainId, SOURCE_NAMESPACE, 1, 1, 0),
+            "zero messenger"
         );
         assertTrue(
             _factoryConstructionFails(address(token), address(messenger), 3, 0, SOURCE_NAMESPACE, 1, 1, 0), "zero chain"
         );
         assertTrue(
-            _factoryConstructionFails(address(token), address(messenger), 3, 1, bytes32(0), 1, 1, 0), "zero namespace"
+            _factoryConstructionFails(address(token), address(messenger), 3, sourceChainId, bytes32(0), 1, 1, 0),
+            "zero namespace"
         );
         assertTrue(
-            _factoryConstructionFails(address(token), address(messenger), 3, 1, SOURCE_NAMESPACE, 0, 1, 0),
+            _factoryConstructionFails(address(token), address(messenger), 3, sourceChainId, SOURCE_NAMESPACE, 0, 1, 0),
             "zero minimum"
         );
         assertTrue(
-            _factoryConstructionFails(address(token), address(messenger), 3, 1, SOURCE_NAMESPACE, 2, 1, 0),
+            _factoryConstructionFails(address(token), address(messenger), 3, sourceChainId, SOURCE_NAMESPACE, 2, 1, 0),
             "minimum above cap"
         );
         assertTrue(
-            _factoryConstructionFails(address(token), address(messenger), 3, 1, SOURCE_NAMESPACE, 1, 1, 10_001),
+            _factoryConstructionFails(
+                address(token), address(messenger), 3, sourceChainId, SOURCE_NAMESPACE, 1, 1, 10_001
+            ),
             "fee above BPS"
+        );
+    }
+
+    function testFactoryAcceptsExecutingSourceChainIdentity() public {
+        RevenueInboxFactoryV1 currentChainFactory = new RevenueInboxFactoryV1(
+            address(token), address(messenger), SOURCE_DOMAIN, block.chainid, SOURCE_NAMESPACE, 1, 1, 0
+        );
+        assertEq(currentChainFactory.sourceChainId(), block.chainid, "executing chain rejected");
+    }
+
+    function testFactoryRejectsMismatchedSourceChainIdentity() public {
+        assertTrue(
+            _factoryConstructionFails(
+                address(token), address(messenger), SOURCE_DOMAIN, block.chainid + 1, SOURCE_NAMESPACE, 1, 1, 0
+            ),
+            "mismatched chain accepted"
         );
     }
 
@@ -204,7 +226,7 @@ contract CctpRevenueInboxV1Test is TestBase {
             address(token),
             address(messenger),
             SOURCE_DOMAIN,
-            SOURCE_CHAIN_ID,
+            sourceChainId,
             SOURCE_NAMESPACE,
             MINIMUM_SWEEP,
             MAX_BURN,
@@ -223,7 +245,7 @@ contract CctpRevenueInboxV1Test is TestBase {
 
     function testSourceDomainZeroRemainsValidForEthereumCctp() public {
         RevenueInboxFactoryV1 ethereumFactory =
-            new RevenueInboxFactoryV1(address(token), address(messenger), 0, 1, SOURCE_NAMESPACE, 1, 1, 0);
+            new RevenueInboxFactoryV1(address(token), address(messenger), 0, sourceChainId, SOURCE_NAMESPACE, 1, 1, 0);
         assertEq(ethereumFactory.sourceDomain(), uint32(0), "Ethereum CCTP domain");
     }
 
@@ -278,7 +300,7 @@ contract CctpRevenueInboxV1Test is TestBase {
         assertEq(facts.tokenMessengerV2, address(messenger), "facts messenger");
         assertEq(facts.sourceDomain, SOURCE_DOMAIN, "facts source domain");
         assertEq(facts.sourceNamespace, SOURCE_NAMESPACE, "facts namespace");
-        assertEq(facts.sourceChainId, SOURCE_CHAIN_ID, "facts chain");
+        assertEq(facts.sourceChainId, sourceChainId, "facts chain");
         assertEq(facts.destinationDomain, uint32(6), "facts Base domain");
         assertEq(facts.finalityThreshold, uint32(2000), "facts finality");
         assertTrue(facts.permissionlessCompletion, "facts completion");
@@ -287,7 +309,7 @@ contract CctpRevenueInboxV1Test is TestBase {
         assertEq(facts.maxFeeBps, MAX_FEE_BPS, "facts fee BPS");
         assertEq(facts.baseReceiver, BASE_RECEIVER, "facts receiver");
         assertEq(facts.baseSplitter, BASE_SPLITTER, "facts splitter");
-        assertEq(facts.admittedFactory, address(factory), "facts factory");
+        assertEq(facts.candidateFactory, address(factory), "facts factory");
         assertEq(facts.inboxRuntimeCodeHash, factory.inboxRuntimeCodeHash(), "facts code hash");
         assertEq(facts.bridgeSecurityClass, "CCTP_ISSUER_NATIVE", "facts class");
         assertEq(facts.settlementTransport, "CCTP_V2_STANDARD", "facts settlement");
@@ -419,7 +441,7 @@ contract CctpRevenueInboxV1Test is TestBase {
 
     function _newFactory(uint256 minimum, uint256 cap, uint256 feeBps) private returns (RevenueInboxFactoryV1) {
         return new RevenueInboxFactoryV1(
-            address(token), address(messenger), SOURCE_DOMAIN, SOURCE_CHAIN_ID, SOURCE_NAMESPACE, minimum, cap, feeBps
+            address(token), address(messenger), SOURCE_DOMAIN, sourceChainId, SOURCE_NAMESPACE, minimum, cap, feeBps
         );
     }
 

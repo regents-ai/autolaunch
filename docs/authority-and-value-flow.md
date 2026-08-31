@@ -19,7 +19,8 @@ chain reads, address publication, activation, signing, or value movement.
 ## Authority answers
 
 - Factory construction is the only point at which source USDC, TokenMessenger V2, source domain,
-  source namespace, source chain ID, minimum sweep, burn cap, and fee ceiling are selected.
+  source namespace, source chain ID, minimum sweep, burn cap, and fee ceiling are selected. The
+  configured source chain ID must equal the executing EVM chain.
 - Route deployment is permissionless and accepts only the Base receiver and Base splitter. The
   created inbox has no owner, admin, pending owner, role, operator, or mutable configuration.
 - The factory has no owner, role, pause, upgrade, arbitrary-call, rescue, or configuration setter.
@@ -27,8 +28,10 @@ chain reads, address publication, activation, signing, or value movement.
   cap, and every destination and transport field is fixed.
 - The caller can initiate a burn but cannot take custody, grant a role, change a recipient, or
   complete an authority transition.
-- Base compatibility and provenance are later admission facts. This offline candidate cannot mark
-  a pair active and performs no provider-backed Base read.
+- Factory runtime identity and provenance, exact immutable configuration admission, local CCTP
+  source-domain verification against the admitted messenger deployment or message evidence, and
+  Base compatibility are later gates. This offline candidate cannot mark a pair active and performs
+  no provider-backed chain read.
 - A successful sweep finishes with the intended amount consumed and the TokenMessenger allowance
   at zero. Every token, messenger, under-consumption, or cleanup failure reverts the whole sweep,
   restoring the pre-call balance and allowance.
@@ -39,8 +42,10 @@ chain reads, address publication, activation, signing, or value movement.
 ## Final-state checklist
 
 - [x] Every created route address must have code; deployment tests assert this.
-- [x] Factory code identity, factory configuration, route identity, and inbox bindings are checked
-      independently; repeat deployment fails closed on any mismatch.
+- [x] Factory-relative route identity, inbox runtime identity, and inbox bindings are checked;
+      repeat deployment fails closed on any mismatch.
+- [ ] Factory runtime identity/provenance and exact configuration are not yet admitted; they remain
+      later activation requirements.
 - [x] No contract has an owner, admin, role holder, pending owner, or staged transition.
 - [x] No deployer, factory, relayer, operator, or helper retains authority over an inbox.
 - [x] A successful sweep consumes exactly the bounded amount and leaves zero allowance and no

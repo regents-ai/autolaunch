@@ -4,7 +4,8 @@ pragma solidity 0.8.26;
 import {CctpRevenueInboxV1} from "./CctpRevenueInboxV1.sol";
 import {RevenueMeshTypes} from "./libraries/RevenueMeshTypes.sol";
 
-/// @notice Canonical factory for one immutable source-chain CCTP configuration.
+/// @notice Deterministic candidate factory for one immutable source-chain CCTP configuration.
+/// @dev Canonical status remains relative to later admission of this factory and configuration.
 contract RevenueInboxFactoryV1 {
     string public constant ROUTE_VERSION_TAG = "AUTOLAUNCH_REVENUE_ROUTE_V1";
     string public constant ROUTE_KIND = "CCTP_V2_STANDARD";
@@ -27,6 +28,7 @@ contract RevenueInboxFactoryV1 {
     );
 
     error ZeroBinding();
+    error SourceChainMismatch(uint256 configured, uint256 executing);
     error InvalidSweepBounds(uint256 minimumSweep, uint256 maxBurnPerMessage);
     error InvalidFeeCeiling(uint256 maxFeeBps);
     error Create2DeploymentFailed(bytes32 routeId);
@@ -47,6 +49,7 @@ contract RevenueInboxFactoryV1 {
             sourceUsdc_ == address(0) || tokenMessenger_ == address(0) || sourceChainId_ == 0
                 || sourceNamespace_ == bytes32(0)
         ) revert ZeroBinding();
+        if (sourceChainId_ != block.chainid) revert SourceChainMismatch(sourceChainId_, block.chainid);
         if (minimumSweep_ == 0 || minimumSweep_ > maxBurnPerMessage_) {
             revert InvalidSweepBounds(minimumSweep_, maxBurnPerMessage_);
         }
@@ -127,7 +130,7 @@ contract RevenueInboxFactoryV1 {
             maxFeeBps: maxFeeBps,
             baseReceiver: baseReceiver,
             baseSplitter: baseSplitter,
-            admittedFactory: address(this),
+            candidateFactory: address(this),
             inboxRuntimeCodeHash: inboxRuntimeCodeHash(),
             bridgeSecurityClass: RevenueMeshTypes.BRIDGE_SECURITY_CLASS,
             settlementTransport: RevenueMeshTypes.SETTLEMENT_TRANSPORT,

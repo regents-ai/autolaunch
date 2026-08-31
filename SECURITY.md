@@ -24,11 +24,18 @@ CCTP is classified as `CCTP_ISSUER_NATIVE`; it depends on Circle's contracts and
 service. RevenueMesh does not take relayer custody, but it cannot remove the issuer trust model.
 
 Code identity alone never establishes Base receiver compatibility. Later activation requires a
-founder-authorized live read proving the frozen admitted receiver code hash, exact receiver address,
-exact splitter binding, canonical Base USDC binding, zero referral basis points, initialized state,
-and admitted factory provenance or equivalent frozen release evidence. A canary must separately
-prove source burn, attested Base mint, and receiver-to-splitter recognition. Until all later gates
-pass, every route remains unverified and inactive and its payment address must not be published.
+founder-authorized admission of the factory runtime identity, provenance, and exact immutable
+configuration. The constructor proves the configured source chain ID equals the executing EVM
+chain, but Circle's pinned `depositForBurn` interface exposes no local-domain getter. The configured
+source CCTP domain must therefore be verified later against the admitted Circle messenger deployment
+or exact CCTP message evidence, without assuming an unsupported generic messenger ABI.
+
+Activation also requires a live Base read proving the frozen admitted receiver code hash, exact
+receiver address, exact splitter binding, canonical Base USDC binding, zero referral basis points,
+initialized state, and admitted Autolaunch provenance or equivalent frozen release evidence. A
+canary must separately prove source burn, attested Base mint, and receiver-to-splitter recognition.
+Until all later gates pass, every route remains unverified and inactive and its payment address must
+not be published.
 
 No such live check, deployment, address publication, signing, burn, mint, or value movement is part
 of this repository candidate.

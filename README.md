@@ -12,6 +12,8 @@ Every route produced here is an **unverified, inactive offline candidate**. This
 no production addresses, deployment scripts, RPC configuration, relayer, activation mechanism, or
 manifest that claims a route is active. See [Base compatibility](docs/base-compatibility.md),
 [manifest and settlement facts](docs/manifest-and-settlement.md), and [security](SECURITY.md).
+Factory identity, provenance, exact configuration, and the configured local CCTP domain remain
+later admission requirements.
 
 ## Local checks
 
