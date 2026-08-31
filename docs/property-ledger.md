@@ -28,8 +28,14 @@ pre-existing tests in the repository and no tests are removed by this ticket.
 | Factory identity/provenance, immutable configuration, and local CCTP source domain remain later admission facts | ADV-001 and ADV-002 review corrections | Gap | Corrected authority, activation, and manifest documentation with inactive route facts | Passing |
 | Outputs distinguish issuer-native CCTP, exact source token, domains, finality, permissionless completion, and immutable bindings | RM-EVM-8 | Gap | Route-facts and messenger call-field assertions | Passing |
 | Settlement docs do not claim one-to-one recognition | Pinned `PaymentReceiverV1.sweep` behavior and RM-EVM-8 | Pinned source blob `8909504ae1de9bf1b1be84fde6c70751ccf4c0f8` | Manifest and settlement documentation | Passing |
-| Deployable runtime and total initcode remain within EIP-170/EIP-3860 with at least 1,000 runtime bytes headroom | Tier 1 plan | Gap | Bundled deployability gate with 256-byte factory and 352-byte inbox constructor arguments | Passing |
+| Deployable runtime and total initcode remain within EIP-170/EIP-3860 with at least 1,000 runtime bytes headroom | Tier 1 plan | Gap | Bundled deployability gate with 64-byte Arbitrum wrapper, 256-byte base factory, and 352-byte inbox constructor arguments | Passing |
 | Static analysis has no unresolved high-impact finding | Tier 1 plan | Gap | `slither .` reports zero findings after narrow, documented design suppressions | Passing |
+| Arbitrum One wrapper construction succeeds only on chain ID 42161 | ARB-1 and ARB-3 | Base factory checks configured identity against `block.chainid` | Correct-chain success and wrong-chain rejection tests | Passing |
+| Wrapper fixes domain 3, native USDC, TokenMessenger V2, `bytes32("eip155")`, chain 42161, and `10_000_000e6` burn cap | ARB-2 | Gap | Constant getters, inherited immutable getters, and route-facts assertions | Passing |
+| Wrapper constructor forwards only caller-selected minimum sweep and fee ceiling through existing bounds | ARB-4 | Base factory economic-bound tests | Exact forwarding plus zero/above-cap minimum and fee-over-10,000 tests | Passing |
+| Arbitrum route ID and CREATE2 address remain deterministic and factory-relative | ARB-5 | Generic factory formula and anti-alias tests | Independently computed fixed route-ID vector plus repeated address/deployment proof | Passing |
+| Wrapper adds no forbidden mutation, authority, rescue, proxy, arbitrary-call, or delegatecall surface | ARB-5 | Generic production ABI/runtime proof | Static ABI-selector and runtime-opcode proof including the wrapper | Passing |
+| Wrapper is documented only as an offline, unverified, inactive candidate with owner-attributed source facts | ARB-1 and ARB-6 | Generic inactive route facts | Official-source attribution dated 2026-08-30 and unchanged inactive route-facts assertions | Passing |
 
 ## Removed tests
 

@@ -8,6 +8,7 @@ chain reads, address publication, activation, signing, or value movement.
 | Artifact or step | Production caller | Initial owner/admin | Final owner/admin | Required transition | Can this caller perform it now? | Assets or allowances affected |
 | --- | --- | --- | --- | --- | --- | --- |
 | Construct `RevenueInboxFactoryV1` | Later founder-authorized deployer | None | None | None; every route parameter is fixed in construction | Yes in a later deployment transaction; not performed by this ticket | No assets or allowances |
+| Construct `ArbitrumOneRevenueInboxFactoryV1` | Later founder-authorized deployer on Arbitrum One | None | None | None; chain, bridge, asset, namespace, domain, and burn cap are fixed by code, while the deployer selects only the minimum sweep and fee ceiling | Only after later admission and deployment authorization; not performed by this ticket | No assets or allowances |
 | Deploy a route inbox | Any account or contract | None | None | Factory creates the inbox directly with its final bindings | Yes, atomically through `deploy(baseReceiver, baseSplitter)` | No assets or allowances |
 | Repeat route deployment | Any account or contract | None | None | Return the existing exact-code, exact-binding inbox or fail closed | Yes, atomically through the same factory call | No assets or allowances |
 | Receive source USDC | Any payer | None | None | Ordinary ERC-20 transfer to the deterministic inbox | Yes after a later admitted deployment | Source USDC ends at the inbox until swept |
@@ -21,6 +22,12 @@ chain reads, address publication, activation, signing, or value movement.
 - Factory construction is the only point at which source USDC, TokenMessenger V2, source domain,
   source namespace, source chain ID, minimum sweep, burn cap, and fee ceiling are selected. The
   configured source chain ID must equal the executing EVM chain.
+- The Arbitrum One wrapper removes selection of the chain-owned and bridge-owned facts from the
+  deployment surface. It fixes chain ID `42161`, CCTP source domain `3`, native USDC
+  `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`, TokenMessenger V2
+  `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d`, RevenueMesh namespace `bytes32("eip155")`,
+  and the `10_000_000e6` per-message cap. Its deployer selects only the nonzero minimum sweep and
+  fee ceiling within the existing factory bounds.
 - Route deployment is permissionless and accepts only the Base receiver and Base splitter. The
   created inbox has no owner, admin, pending owner, role, operator, or mutable configuration.
 - The factory has no owner, role, pause, upgrade, arbitrary-call, rescue, or configuration setter.
@@ -46,6 +53,8 @@ chain reads, address publication, activation, signing, or value movement.
       repeat deployment fails closed on any mismatch.
 - [ ] Factory runtime identity/provenance and exact configuration are not yet admitted; they remain
       later activation requirements.
+- [ ] The Arbitrum One wrapper runtime identity/provenance and fixed configuration are not yet
+      admitted; official documentation attribution is offline evidence, not a live deployment fact.
 - [x] No contract has an owner, admin, role holder, pending owner, or staged transition.
 - [x] No deployer, factory, relayer, operator, or helper retains authority over an inbox.
 - [x] A successful sweep consumes exactly the bounded amount and leaves zero allowance and no

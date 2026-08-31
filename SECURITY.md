@@ -37,6 +37,11 @@ canary must separately prove source burn, attested Base mint, and receiver-to-sp
 Until all later gates pass, every route remains unverified and inactive and its payment address must
 not be published.
 
+The Arbitrum One wrapper's fixed chain, domain, token, messenger, namespace, and burn-cap values are
+offline configuration evidence only. Later admission must detect official-source changes and use a
+new reviewed wrapper version rather than treating stale constants as active. This repository does
+not perform a provider-backed check of those values.
+
 No such live check, deployment, address publication, signing, burn, mint, or value movement is part
 of this repository candidate.
 

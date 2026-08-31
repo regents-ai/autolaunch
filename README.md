@@ -15,6 +15,13 @@ manifest that claims a route is active. See [Base compatibility](docs/base-compa
 Factory identity, provenance, exact configuration, and the configured local CCTP domain remain
 later admission requirements.
 
+`ArbitrumOneRevenueInboxFactoryV1` is the first concrete source wrapper. It fixes Arbitrum One chain
+ID `42161`, CCTP domain `3`, native USDC, TokenMessenger V2, the `eip155` namespace, and Circle's
+`10,000,000 USDC` per-transaction burn limit. Its constructor accepts only the minimum sweep and
+maximum fee basis points; it deliberately supplies no policy defaults. The owner-attributed fixed
+facts and independently computed route vector are recorded in
+[Arbitrum One wrapper facts](docs/arbitrum-one.md).
+
 ## Local checks
 
 ```sh
