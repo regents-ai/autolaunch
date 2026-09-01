@@ -670,10 +670,7 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         assertEq(swept.source, d.receiver, "receiver sweep recognition source");
         assertEq(swept.revenueRef, bytes32(0), "receiver sweep asserted a reference");
         _assertRecognitionIsExact(
-            swept,
-            receiverGross,
-            receiverSkim,
-            ((receiverGross - receiverSkim) * splitter.totalStaked()) / TOTAL_SUPPLY
+            swept, receiverGross, receiverSkim, ((receiverGross - receiverSkim) * splitter.totalStaked()) / TOTAL_SUPPLY
         );
         _assertAggregateBalances(splitter, receiverBefore, swept);
         assertEq(_balanceOf(BaseBindings.USDC, d.receiver), 0, "aggregate receiver balance survived");
