@@ -312,7 +312,8 @@ profile builds into gitignored scratch under `reports/generated/`, separate from
 itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) is the full account.
 
 **Nothing in this repository has been deployed.** The frozen packet under
-`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the seven predicted addresses, and it records the external state observed at Base block `50754918`. Its
+`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the seven
+predicted addresses, and it records the external state observed at Base block `50754918`. Its
 authorization state is still `not authorized`: no founder has granted a `GO_TO_DEPLOY`, no
 signing method is named, and only a later founder instruction naming the packet's exact digest
 may authorize a signature or a broadcast.

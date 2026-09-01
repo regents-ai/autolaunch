@@ -247,7 +247,7 @@ or skips: eighteen claims at block `50541328`, then the approved nine-claim subs
 `50541628`. The observed Base facts were unchanged and were re-checked live rather than re-observed,
 so no discovery pass and no new reviewer decision was involved.
 
-`regent-4wx` also fixed what that run will execute. The complete fork portfolio is proved at the
+`regent-4wx` also fixed what that run executed. The complete fork portfolio is proved at the
 committed pinned header, and a focused nine-claim subset — `DEP-040`, `DEP-041`, `DEP-042`,
 `DEP-043`, `DEP-047`, `DEP-050`, `DEP-051`, `DEP-052`, `GAS-006` — is proved again at the later
 head. **One full lifecycle portfolio runs, not two**, and no claim in this packet says every fork
