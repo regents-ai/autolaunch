@@ -1,0 +1,30 @@
+{
+  "artifact": "regent-fork-check-receipt",
+  "executed_selectors": {
+    "later": 9,
+    "pinned": 18,
+    "total": 27
+  },
+  "reports": {
+    "compiled_test_list": {
+      "path": "reports/generated/fork/forge-test-list.json",
+      "sha256": "21cd56b89a58b16057cb73ca2814125866d519f0589e5cfe6371b9c4c6bdc4e3"
+    },
+    "later": {
+      "path": "reports/generated/fork/forge-test-later.json",
+      "sha256": "17c509de4eef4c334272962d13d31596c6f2442e1b213bf45577a7e49caa4875"
+    },
+    "pinned": {
+      "path": "reports/generated/fork/forge-test-pinned.json",
+      "sha256": "211eec28b51558075a7f5bee7f4eddb128e605df85869fc0372db6767843c80d"
+    }
+  },
+  "status": "passed",
+  "tested_identity": {
+    "commit": "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa",
+    "src_tree": "91a741e417b75706a4071f7bdac2c5e13548c0fc",
+    "tree": "b15498bdf6df6198cf2f1476db5aa5c9b4796882"
+  },
+  "version": 1,
+  "worktree": "clean"
+}
