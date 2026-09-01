@@ -11,14 +11,16 @@ EIP-3860 margins it records for the splitter, the receiver, the factory and the 
 candidate's own measurements, because the receiver-provenance lookup and the reference-free aggregate
 paths changed all four contracts' compiled bytes.
 
-**The selection section is carried forward, not re-prepared.** `--offline` never derives a deployer,
-a starting nonce, a hook salt or an address; it renders those from the previously committed packet,
-which stays the sole committed ceremony authority. Only `--prepare <deployer>` derives them, and
-neither `--prepare` nor `--rehearse` has been run against this identity. The founder-selected
-deployer, the mined hook salt and the seven predicted addresses are therefore the prior packet's
-proposal awaiting re-preparation, and this packet does not claim the exact ceremony was rehearsed for
-these bytes. `external_observation` is carried forward the same way, from the earlier authorized
-read of live Base state. Status stays mainnet NO-GO and authorization stays `not authorized`.
+**The selection section was re-prepared and rehearsed for this identity.** Under the founder's
+separate read-only Base authority, `bin/deployment-gate.sh --prepare 0x9b2C414614aEE294202c1219520955EF3B596031`
+read the selected deployer's live nonce (`0`), mined the hook salt, re-derived the seven predicted
+addresses and snapshotted the live Safe and live-staking control surface at Base block `50754918`.
+Every one of those values came back byte-identical to the prior packet; the only fields that moved
+were `external_observation.observed_at_block` and the digest. A human installed that candidate, and
+`--offline` re-rendered it byte for byte. `--rehearse` then held every frozen binding and the
+control surface to the committed values, re-derived the seven addresses exactly, and simulated the
+exact deployment script against a read-only Base fork with no signer and no broadcast. Status stays
+mainnet NO-GO and authorization stays `not authorized`; a rehearsal is not an approval.
 
 Two files live in this directory, and keeping them apart is the point.
 

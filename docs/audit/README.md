@@ -266,7 +266,7 @@ the shape and the one limitation that follows from it.
 | `INV-001..010` | invariant | active, executed, passing |
 | `DEP-040..053` | fork | active, executed and passing against this candidate's source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
 | `GAS-003..006` | fork | active, executed and passing at blocks `50541328`/`50541628`; the three transaction envelopes run at the pinned header and `GAS-006` runs at both |
-| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider. The packet is re-rendered from this candidate; `--prepare` and `--rehearse` have not been run against this identity, so its selection section is the prior packet's carried forward |
+| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider. The packet is re-rendered from this candidate, then `--prepare 0x9b2C414614aEE294202c1219520955EF3B596031` and `--rehearse` ran under the founder's separate read-only Base authority at observed block `50754918`: the live nonce (`0`), the mined salt, the seven predicted addresses and the external control surface re-derived exactly, and the exact deployment script simulated cleanly with nothing broadcast |
 
 ## What is not proved
 
@@ -284,10 +284,10 @@ the shape and the one limitation that follows from it.
   signed nothing, and moved no value outside isolated local fork state. The deployment gate is the
   same: `DEP-070..075` prove what the five creation transactions would do and what stops a wrong
   one, and every packet they render is a proposal whose status is `mainnet-NO-GO`. The installed
-  packet now carries this candidate's own code identity, sizes and margins, but its deployer, hook
-  salt, seven predicted addresses and external observation are the prior packet's, rendered forward
-  unchanged: only `--prepare <deployer>` derives those, and it has not been run for this identity.
-  Only a later founder instruction naming a reviewed packet's exact digest may authorize a signature
+  packet carries this candidate's own code identity, sizes and margins, and its deployer, hook salt,
+  seven predicted addresses and external observation were re-derived live by `--prepare` at block
+  `50754918` and held by `--rehearse`, which simulated the exact script without a signer and
+  broadcast nothing. Only a later founder instruction naming a reviewed packet's exact digest may authorize a signature
   or broadcast.
 - **An activation.** The factory is born paused, and nothing here opens it. `DEP-073` impersonates
   the frozen Safe's exact address on a local fork to show that the created graph admits that one

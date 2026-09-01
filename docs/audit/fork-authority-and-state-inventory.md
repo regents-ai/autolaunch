@@ -171,8 +171,11 @@ The check wrote the commit-bound receipt naming that exact evidence commit, its 
 tree, both report hashes and the exact eighteen-plus-nine executed-selector split. Earlier fork
 output without that receipt does not authorize packet preparation, and the deployment renderer names
 the receipt's exact evidence commit and independently re-derives all of it before any preparation
-provider access. `bin/deployment-gate.sh --prepare` and `--rehearse` have not been run against this
-identity; only the read-only fork check and the offline deployment gate have.
+provider access. `bin/deployment-gate.sh --prepare 0x9b2C414614aEE294202c1219520955EF3B596031` and `--rehearse` then ran
+against this identity under the same read-only authority: the deployer's live nonce, the mined
+salt, the seven predicted addresses and the Safe and live-staking control surface observed at block
+`50754918` matched the prior packet exactly, and the exact deployment script simulated cleanly with
+no signer and no broadcast.
 
 The earlier discovery pass wrote only gitignored scratch and closed no claim. A separate provider
 was used to confirm both headers, every recorded runtime identity and supported proxy

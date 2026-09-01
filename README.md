@@ -312,8 +312,7 @@ profile builds into gitignored scratch under `reports/generated/`, separate from
 itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) is the full account.
 
 **Nothing in this repository has been deployed.** The frozen packet under
-`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the five
-predicted addresses, and it records the external state observed at Base block `50508978`. Its
+`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the seven predicted addresses, and it records the external state observed at Base block `50754918`. Its
 authorization state is still `not authorized`: no founder has granted a `GO_TO_DEPLOY`, no
 signing method is named, and only a later founder instruction naming the packet's exact digest
 may authorize a signature or a broadcast.
@@ -345,9 +344,11 @@ The packet under `deployments/base-mainnet/` was re-rendered from this authority
 compiled bytes moved with the receiver-provenance lookup and the reference-free aggregate paths — the
 splitter, the receiver, the factory and the strategy — so their code identity, sizes and margins and
 the packet digest all moved with them. The packet's `selection` and `external_observation` sections
-did not: `--offline` renders those forward from the committed packet rather than deriving them, and
-neither `--prepare` nor `--rehearse` has been run against this identity, so the deployer, hook salt
-and seven predicted addresses remain the prior packet's proposal pending re-preparation.
+were then re-derived live: `--prepare` under the founder's separate read-only Base authority read
+the deployer's nonce (`0`), mined the salt, re-derived the seven predicted addresses and snapshotted
+the control surface at block `50754918`, all byte-identical to the prior packet, and `--rehearse`
+held them and simulated the exact script against a read-only fork with nothing broadcast. Status
+stays mainnet NO-GO.
 
 ## The other repositories
 

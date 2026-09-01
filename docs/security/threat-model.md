@@ -12,10 +12,11 @@ the one shared `RegentFeeHook`, the one shared `RegentLBPStrategy`, and the one
 `RegentsAutolaunchFactoryV1` that deploys and binds both of them and creates every launch. The
 dependency, binding, chain, ABI-provenance, factory, token, escrow, splitter, receiver, hook,
 strategy, migration, failure, stateful invariant, ABI, deployed-runtime, and complete-transaction
-gas mitigations carry their designated evidence. Under separate read-only authority, `regent-4wx`
-executed every fork claim at Base block `50495491` and the nine-claim identity, proxy, controller,
-header and gas-method subset again at block `50495791`; all twenty-seven mapped selectors passed
-against the final C10 source authority. The live staking contract's mutable
+gas mitigations carry their designated evidence. Under separate read-only authority, the `regent-alv1.16`
+fork check executed every fork claim at Base block `50541328` and the nine-claim identity, proxy,
+controller, header and gas-method subset again at block `50541628`; all twenty-seven mapped
+selectors passed against the receiver-provenance source authority
+`f4114f5276386f48bf8dc53ee344189d98c8896e`. The live staking contract's mutable
 `paused()` is not re-read there and must be read again immediately before any separately authorized
 deployment. `docs/audit/fork-authority-and-state-inventory.md` section 2.1 states that limitation in
 full. The liquidity-position locker that earlier packets named as a
