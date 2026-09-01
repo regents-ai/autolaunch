@@ -15,6 +15,7 @@ import {LibClone} from "solady/utils/LibClone.sol";
 contract LaunchFactoryDouble {
     RegentLBPStrategy public immutable strategy;
     address public immutable escrowImplementation;
+    address public registeredCanonicalAuction;
 
     constructor(address strategy_, address hook_) {
         strategy = RegentLBPStrategy(strategy_);
@@ -42,6 +43,11 @@ contract LaunchFactoryDouble {
         returns (address auction)
     {
         auction = _initialize(subject, escrow, launchId, requiredRegentRaised);
+    }
+
+    function registerCanonicalPaymentReceiver(address auction) external {
+        require(msg.sender == address(strategy), "LaunchFactoryDouble: not strategy");
+        registeredCanonicalAuction = auction;
     }
 
     function _fundedEscrow(address subject, address treasury) private returns (address escrow) {

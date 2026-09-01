@@ -254,11 +254,6 @@
           "name": "token",
           "type": "address",
           "internalType": "address"
-        },
-        {
-          "name": "revenueRef",
-          "type": "bytes32",
-          "internalType": "bytes32"
         }
       ],
       "outputs": [],
@@ -791,7 +786,7 @@
     "initialize(address,address,address,address,address,address)": "cc2a9a5b",
     "liveStaking()": "7bea49c4",
     "protectedBalance(address)": "3dc1a23b",
-    "recognizeSurplusRevenue(address,bytes32)": "0c46395a",
+    "recognizeSurplusRevenue(address)": "eac37a82",
     "recoverForcedETH()": "4725dd8e",
     "recoverUnsupportedToken(address)": "22ab5669",
     "regent()": "35cd696e",

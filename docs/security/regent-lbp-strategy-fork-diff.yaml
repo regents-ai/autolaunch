@@ -163,8 +163,9 @@ replaced:
   - upstream_behaviour: Migration ends once the position is minted and the residues are swept.
     replacement: Graduation continues through the frozen terminal order: splitter clone, write-once
       hook registration, pool initialization, position mint, residues, escrow's graduated sweep,
-      canonical zero-referral receiver, and escrow's 365-day vesting activation.
-    reason: SPEC.md section 5 specifies the whole twelve-step atomic graduation.
+      canonical zero-referral receiver, escrow's 365-day vesting activation, complete terminal
+      distribution, factory provenance registration, and the final graduation announcement.
+    reason: SPEC.md section 5 specifies the whole fourteen-step atomic graduation.
     evidence: [STR-015]
 
 deleted:

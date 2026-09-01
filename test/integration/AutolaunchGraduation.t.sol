@@ -22,7 +22,7 @@ import {AutolaunchFixture} from "./AutolaunchFixture.sol";
 import {Permit2Double} from "../strategy/doubles/Permit2Double.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-/// @notice `C4-I6`: a graduated launch performs the twelve fixed steps in order, in one transaction,
+/// @notice `C4-I6`: a graduated launch performs the fourteen fixed steps in order, in one transaction,
 ///         against the real pinned CCA, PoolManager, PositionManager and `PositionPlanner`, and ends
 ///         with an exactly accounted ledger and no stranded inventory.
 contract AutolaunchGraduationTest is AutolaunchFixture {
@@ -298,6 +298,9 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertEq(canonical.noteEditor(), treasury, "the canonical note editor is not the treasury");
         assertEq(canonical.splitter(), d.splitter, "the canonical receiver bound another splitter");
         assertEq(canonical.subject(), address(launched.subject), "the canonical receiver bound another SUBJECT");
+        assertEq(
+            factory.launchIdOfPaymentReceiver(d.receiver), launched.launchId, "canonical receiver provenance is absent"
+        );
     }
 
     /// @notice `MIG-011`: vesting opens at the graduation timestamp, over the launch's whole final
@@ -346,6 +349,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertGt(d.lpSubjectUsed, 0, "no SUBJECT consumption was recorded");
         assertGt(d.lpRegentUsed, 0, "no REGENT consumption was recorded");
         assertEq(PoolId.unwrap(d.poolId), PoolId.unwrap(_poolId(launched)), "the recorded PoolId is not the pool's");
+        assertEq(factory.launchIdOfPaymentReceiver(d.receiver), launched.launchId, "receiver provenance was not atomic");
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bytes32 topic =
@@ -372,13 +376,13 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertEq(seen, 1, "graduation announced itself other than once");
     }
 
-    /// @notice `MIG-013`: the twelve steps run in exactly the specified order.
+    /// @notice `MIG-013`: the fourteen steps run in exactly the specified order.
     /// @dev The proof is the real log stream of one graduation. Each step that touches state emits
     ///      its own event, so the first occurrence of each of those topics must appear in the fixed
     ///      order. Steps one and two — the final checkpoint and the pure PoolKey derivation — are
     ///      proved by `MIG-001` and `MIG-002`; the checkpoint's own event is asserted here to be
     ///      ahead of every terminal step.
-    function test_MIG_013_TwelveStepsExecuteInTheSpecifiedOrder() public {
+    function test_MIG_013_FourteenStepsExecuteInTheSpecifiedOrder() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduationAt(launched, 20_000_000e18, 500);
 
@@ -407,7 +411,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
             "6 full-range mint",
             "9 escrow sweep",
             "11 vesting activation",
-            "12 graduation record"
+            "14 graduation announcement"
         ];
         for (uint256 i; i < order.length; ++i) {
             assertLt(order[i], type(uint256).max, string.concat(names[i], " never happened"));
@@ -427,6 +431,11 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertLt(escrowPayout, order[5], "9 escrow sweep ran before the escrow payout");
         assertLt(order[5], receiverInit, "10 canonical receiver ran before the sweep");
         assertLt(receiverInit, order[6], "11 vesting ran before the canonical receiver");
+        assertEq(
+            factory.launchIdOfPaymentReceiver(_distribution(launched).receiver),
+            launched.launchId,
+            "13 canonical receiver provenance was not registered"
+        );
     }
 
     /// @notice `MIG-014`: the official pool is static 0.30% with tick spacing 60 and carries exactly

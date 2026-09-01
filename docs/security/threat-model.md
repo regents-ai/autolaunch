@@ -65,6 +65,7 @@ lands last. Deployment and a signed ceremony remain outside this packet either w
 | Fee and pause | governance Safe | `setLaunchFee`, `pauseLaunches`, `unpauseLaunches` | `FAC-006`, `FAC-007`, `FAC-019` |
 | Launch | any caller with the exact allowance | `launch` | `FAC-008`, `FAC-009`, `FAC-010`, `FAC-020` |
 | Receiver creation | any caller | `createPaymentReceiver`, receiver creation | `FAC-024`, `RCV-001` |
+| Canonical receiver provenance | the immutable strategy only | `registerCanonicalPaymentReceiver(auction)` | `FAC-024`, `STR-004`, `MIG-012` |
 | Distribution initialization | the bound factory only | strategy initialization | `STR-002` |
 | Migration | any caller | `migrate(auction)` | `STR-003`, `MIG-001`, `MIG-013` |
 | Pool registration | the strategy only, once | hook registration | `HOK-002`, `HOK-003` |
@@ -116,7 +117,7 @@ that ordinary EVM atomicity and the strategy's own guard do not already provide,
 `launched → auction open → auction ended → (graduated | economically failed)`.
 
 Graduation and failure are mutually exclusive and terminal (`INV-007`). Graduation is one atomic
-twelve-step transaction (`MIG-013`); failure retires exactly 100 billion SUBJECT to the dead
+fourteen-step transaction (`MIG-013`); failure retires exactly 100 billion SUBJECT to the dead
 address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 
 ## 6. Accounting invariants
@@ -172,6 +173,8 @@ address while leaving bidder refunds intact (`FAIL-004`, `FAIL-006`).
 | Auction identity substitution | resolving or sweeping through an auction that sells another launch's token or names another recipient, or reading a graduation flag from a stale pre-checkpoint state | `ESC-004`, `ESC-005`, `ESC-014` |
 | Unsold-inventory loss at graduation | skipping the graduated unsold sweep, running it twice, or opening vesting over an incomplete inventory | `ESC-014`, `ESC-002`, `ESC-007` |
 | Note-editor capture | a caller other than the receiver's fixed note editor relabeling its payments | `RCV-016`, `RCV-006` |
+| Receiver-provenance forgery | an unknown, pending, failed, mismatched, reverted, or external lookalike receiver appearing as factory-created | `FAC-024`, `MIG-012`, `MIG-013` |
+| Aggregate-reference forgery | a sweep or surplus caller attaching a payment-looking label to an unattributed balance | `RCV-007`, `SPL-011`, `ABI-004`, `ABI-006` |
 | Price-ordering asymmetry | a final price that differs depending on which currency is token0, or a reachable price that converts outside the v4 tick range | `STR-014` |
 | Migration partial commit | failure after an external call leaving a half-migrated launch | `MIG-017`, `STR-004` |
 | Repeat or replay | migrating or retiring twice, finalizing an auction twice, re-running an escrow or clone initializer | `MIG-018`, `FAIL-008`, `STR-018`, `ESC-001`, `ABI-008` |

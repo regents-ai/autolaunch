@@ -1,4 +1,4 @@
-# Founder audit packet — C5 through the regent-alv1.13.1 evidence successor
+# Founder audit packet — C5 through the regent-alv1.16 candidate
 
 **Release posture: mainnet NO-GO.** Nothing in this repository is deployed, no Regent address
 exists, and no deployment instruction has been given. This packet exists to be audited, not acted
@@ -69,6 +69,14 @@ commit `3634f6f0e11523c426662b7524f2c94fd37d3597`; the evidence successor change
 It adds the realized unspecified-currency lifecycle coverage and makes a fork pass usable by the
 deployment packet only through a generated receipt that binds the tested commit, full tree, source
 tree, both report hashes and the exact 18+9 executed-selector split.
+
+`regent-alv1.16` adds one non-enumerable factory provenance lookup for canonical and custom payment
+receivers. The strategy writes its complete terminal distribution, registers the canonical receiver
+through the factory's immutable-strategy-only callback, then emits `LaunchGraduated`; the strategy
+record and event remain the canonical authority. The two permissionless aggregate balance paths now
+accept no reference and propagate zero, while atomic `pay` and direct recognized deposits preserve
+their exact references. The live Base aggregate-path execution and its replacement deployment packet
+remain founder-run gates after this exact candidate is reviewed and integrated.
 
 The reviewed observation records Base blocks `50541328` and `50541628`. The next separately
 authorized check must execute all eighteen pinned selectors and exactly nine later selectors on the

@@ -538,7 +538,7 @@ selectors = [
 # exits are now proved here on the real path rather than assumed from the hermetic gate.
 [[requirement]]
 id = "DEP-053"
-statement = "On Base at the committed pinned header, one suite deploys the exact final production UERC20 factory, C1 implementations, factory, strategy, and mined hook, reconciles their creation and runtime code identities against the frozen build, and then — through production-reachable callers only, against the real CCA, Permit2, REGENT, USDC, live staking, PoolManager, and PositionManager bindings — drives exact wallet fee approval and launch, five-argument bidding, a failed auction with full bidder refund and exactly 100 billion SUBJECT retired to the dead address, a graduated auction migrating at the CCA final price with bidder exit and SUBJECT claim, SUBJECT stake, canonical receiver payments in USDC, REGENT, and SUBJECT, splitter skims, a bound splitter whose SUBJECT reports exactly the 100 billion supply its initialization requires, a same-block unstake, claim and claimAll each refused with the exact SameBlockStakeExit(account, stakeBlock) while principal, entitlement, splitter inventory and protected inventory all stay put, and, exactly one block later, a claim, a claimAll and a complete unstake that return the exact entitlements and exactly the principal, and two real Uniswap v4 exact-input swaps that charge both realized fee assets: REGENT in charges SUBJECT, then that SUBJECT output funds the reverse swap and charges REGENT. For each fee asset it proves the exact Safe lane, the exact splitter recognition and downstream skim/coverage routing, zero attributable hook balance, and zero splitter allowance. For every recognition — the three payments and both splitter hook lanes alike — it reads that recognition's own RevenueRecognized back out of the run's logs, holds its gross, skim, net, stakerShare and treasuryShare to independently derived arithmetic and to gross == skim + stakerShare + treasuryShare, and then asserts the reported stakerShare — the floored supply-coverage share floor(net * totalStaked / 100000000000e18) — as both the staker liability delta and the splitter's held delta, and the reported treasuryShare as the launch treasury's delta in that same transaction. It asserts exact final balances and allowances, both lifecycles, dead-address ownership of the LP NFT, the position's actual consumption and both residues, and that no production contract holds an unexplained balance. Test-only funding and routing is itemized and manufactures no protocol authority, code, custody, or otherwise unreachable state."
+statement = "On Base at the committed pinned header, one suite deploys the exact final production UERC20 factory, C1 implementations, factory, strategy, and mined hook, reconciles their creation and runtime code identities against the frozen build, and then — through production-reachable callers only, against the real CCA, Permit2, REGENT, USDC, live staking, PoolManager, and PositionManager bindings — drives exact wallet fee approval and launch, five-argument bidding, a failed auction with full bidder refund and exactly 100 billion SUBJECT retired to the dead address, a graduated auction migrating at the CCA final price with bidder exit and SUBJECT claim, SUBJECT stake, canonical receiver provenance, atomic canonical receiver payments in USDC, REGENT, and SUBJECT with their exact nonzero references, splitter skims, and both aggregate USDC paths: a bare transfer to the canonical receiver followed by sweep(address), and a bare transfer to its splitter followed by recognizeSurplusRevenue(address). Each aggregate path succeeds through the live staking binding, conserves skim, staker liability and custody, and treasury remainder, clears allowances, and carries bytes32(0) through its contract events and observable live-staking calldata. The bound splitter's SUBJECT reports exactly the 100 billion supply its initialization requires. A same-block unstake, claim and claimAll are each refused with the exact SameBlockStakeExit(account, stakeBlock) while principal, entitlement, splitter inventory and protected inventory all stay put, and exactly one block later a claim, a claimAll and a complete unstake return the exact entitlements and exactly the principal. Two real Uniswap v4 exact-input swaps charge both realized fee assets: REGENT in charges SUBJECT, then that SUBJECT output funds the reverse swap and charges REGENT. For each fee asset the suite proves the exact Safe lane, the exact splitter recognition and downstream skim/coverage routing, zero attributable hook balance, and zero splitter allowance. For every recognition it reads RevenueRecognized from the run's logs, holds gross, skim, net, stakerShare and treasuryShare to independently derived arithmetic and to gross == skim + stakerShare + treasuryShare, and asserts the reported stakerShare as both the staker liability delta and splitter-held delta and treasuryShare as the launch treasury delta in that transaction. It asserts exact final balances and allowances, both lifecycles, dead-address ownership of the LP NFT, actual position consumption and both residues, and no unexplained production-contract balance. Test-only funding and routing is itemized and manufactures no protocol authority, code, custody, or otherwise unreachable state."
 owner = "C5"
 contract = "system"
 evidence_class = "fork-execution"
@@ -893,13 +893,16 @@ selectors = ["test_FAC_023_RequiredRaiseIsNonzeroAndReachable"]
 
 [[requirement]]
 id = "FAC-024"
-statement = "createPaymentReceiver is callable by anyone for a recorded launch that has graduated and therefore exposes a nonzero canonical splitter, and it creates only a custom receiver. A pending or failed launch has no splitter and cannot initialize one."
+statement = "Every canonical or custom payment receiver created by the admitted graph maps non-enumerably to exactly its factory launch, while unknown addresses, external lookalike clones, pending or failed launches, and reverted creations map to zero. createPaymentReceiver remains callable by anyone only for a graduated launch and registers only after successful initialization. Canonical registration is callable only by the immutable strategy, requires its complete graduated distribution with nonzero launch ID and receiver and exact factory launch auction, SUBJECT, escrow and treasury identity, and the mapping never makes a receiver canonical."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_FAC_024_CreatePaymentReceiverIsPermissionlessAndCustomOnly"]
+selectors = [
+    "test_FAC_024_CreatePaymentReceiverIsPermissionlessAndCustomOnly",
+    "test_FAC_024_CanonicalRegistrationRejectsUnauthorizedAndMismatchedState",
+]
 
 [[requirement]]
 id = "FAC-025"
@@ -1048,7 +1051,7 @@ selectors = ["test_STR_003_MigrateIsPermissionless"]
 
 [[requirement]]
 id = "STR-004"
-statement = "Technical migration failure is an ordinary EVM revert with no retry counter, retry mode, alternate pool, recovery migration, or committed technical-failure state."
+statement = "Technical migration failure is an ordinary EVM revert with no retry counter, retry mode, alternate pool, recovery migration, or committed technical-failure state. The named external-boundary matrix includes the factory receiver-provenance callback after receiver initialization, vesting activation and the complete terminal distribution write; failure there rolls back the mapping, distribution, vesting, clones and nonces, balances, pool and hook state, and every event."
 owner = "C3"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
@@ -1628,7 +1631,7 @@ selectors = ["test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause"]
 
 [[requirement]]
 id = "SPL-011"
-statement = "Supported bare transfers become revenue only through permissionless surplus recognition."
+statement = "Supported bare transfers become revenue only through permissionless surplus recognition, whose one-argument aggregate path asserts no attributable reference and propagates bytes32(0) through RevenueRecognized and live-staking metadata; direct recognized deposits preserve their caller's exact reference."
 owner = "C1"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
@@ -1839,7 +1842,7 @@ selectors = ["test_RCV_006_NoteDefaultsToTheReceiverAddressAndIsEmitted"]
 
 [[requirement]]
 id = "RCV-007"
-statement = "pay and bare-transfer sweep use the same atomic referral-before-splitter route."
+statement = "pay and bare-transfer sweep use the same atomic referral-before-splitter route; pay preserves its caller's exact payment reference while one-argument aggregate sweep asserts no attributable reference and propagates bytes32(0) through PaymentRouted, RevenueRecognized and downstream staking metadata."
 owner = "C1"
 contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"
@@ -2044,7 +2047,7 @@ selectors = ["test_MIG_009_UnsoldSubjectIsSweptIntoEscrow"]
 
 [[requirement]]
 id = "MIG-010"
-statement = "Graduation deploys the canonical zero-referral receiver."
+statement = "Graduation deploys and initializes the canonical zero-referral receiver, which remains canonical only because the strategy records it and emits LaunchGraduated; the factory mapping records only its launch provenance."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
@@ -2064,7 +2067,7 @@ selectors = ["test_MIG_011_ActivatesVestingFromTheGraduationTimestamp"]
 
 [[requirement]]
 id = "MIG-012"
-statement = "Graduation records the graduation atomically."
+statement = "Graduation writes the complete terminal distribution, registers the canonical receiver's factory provenance, and emits LaunchGraduated atomically; no intermediate mapping, distribution, vesting, clone, pool, balance or event effect survives a failure."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
@@ -2074,13 +2077,13 @@ selectors = ["test_MIG_012_RecordsGraduationAtomically"]
 
 [[requirement]]
 id = "MIG-013"
-statement = "The twelve graduation steps execute in exactly the specified order."
+statement = "The fourteen graduation steps execute in exactly the specified order: receiver initialization, vesting activation, complete terminal distribution write, factory provenance registration, and LaunchGraduated are the final five."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_MIG_013_TwelveStepsExecuteInTheSpecifiedOrder"]
+selectors = ["test_MIG_013_FourteenStepsExecuteInTheSpecifiedOrder"]
 
 [[requirement]]
 id = "MIG-014"
@@ -2507,7 +2510,7 @@ selectors = ["test_ABI_001_ProtocolFeeControllerSelectorDerivesFromPinnedSignatu
 
 [[requirement]]
 id = "ABI-002"
-statement = "The factory's public mutation surface is exactly launch, setLaunchFee, pauseLaunches, unpauseLaunches, and createPaymentReceiver."
+statement = "The factory's public mutation surface is exactly launch, setLaunchFee, pauseLaunches, unpauseLaunches, createPaymentReceiver, and the immutable-strategy-only registerCanonicalPaymentReceiver callback; it additionally exposes the non-enumerable launchIdOfPaymentReceiver getter and no receiver list, count, pagination, canonical flag, mutable administration or provenance event."
 owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -2527,7 +2530,7 @@ selectors = ["test_ABI_003_LaunchParamsFieldsAreExact"]
 
 [[requirement]]
 id = "ABI-004"
-statement = "The splitter's caller-only surface is exactly stake, unstake, claim, claimAll, depositRecognizedRevenue, and recognizeSurplusRevenue; the exit delay contributes exactly one ABI member to it, the SameBlockStakeExit(address,uint256) error, and the supply precondition contributes none, so the complete error surface stays at the eleven the splitter declares plus its three inherited; and there is no getter for the per-account stake block the delay enforces or for the fixed supply the net is divided by and initialization requires."
+statement = "The splitter's caller-only surface is exactly stake(uint256), unstake(uint256), claim(address), claimAll(), depositRecognizedRevenue(address,uint256,bytes32), and recognizeSurplusRevenue(address); the old two-argument aggregate selector is absent. The exit delay contributes exactly one ABI member to it, the SameBlockStakeExit(address,uint256) error, and the supply precondition contributes none, so the complete error surface stays at the eleven the splitter declares plus its three inherited; and there is no getter for the per-account stake block the delay enforces or for the fixed supply the net is divided by and initialization requires."
 owner = "C5"
 contract = "SubjectSplitterV1"
 evidence_class = "solidity-hermetic"
@@ -2547,7 +2550,7 @@ selectors = ["test_ABI_005_SplitterRecoverySurfaceIsExact"]
 
 [[requirement]]
 id = "ABI-006"
-statement = "The receiver's surface is exactly pay, sweep, setReceiverNote, recoverUnsupportedToken, and recoverForcedETH."
+statement = "The receiver's surface is exactly pay(address,uint256,bytes32), sweep(address), setReceiverNote(bytes32), recoverUnsupportedToken(address), recoverForcedETH(), and its one-shot initializer; the old two-argument aggregate sweep selector is absent."
 owner = "C5"
 contract = "PaymentReceiverV1"
 evidence_class = "solidity-hermetic"

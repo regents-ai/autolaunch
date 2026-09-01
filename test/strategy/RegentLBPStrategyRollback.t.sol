@@ -13,6 +13,7 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import {StrategyFixture} from "./StrategyFixture.sol";
 import {StagedERC20} from "./doubles/StagedERC20.sol";
+import {LaunchFactoryDouble} from "./doubles/LaunchFactoryDouble.sol";
 
 /// @notice `C3-I4` and `C3-I6`: a technical problem anywhere in initialization or migration is an
 ///         ordinary EVM revert that restores the exact pre-call state, no dependency can re-enter a
@@ -91,7 +92,8 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
     /// @dev The stage enumeration above fails ERC20 movements. These eight injections fail the
     ///      calls that are not token movements at all, by name and one at a time: the two clone
     ///      initializations, the hook registration, the CCA currency sweep, the PoolManager and
-    ///      PositionManager calls, and the two escrow calls. Each injection starts from the same
+    ///      PositionManager calls, the two escrow calls, and the factory provenance callback. Each
+    ///      injection starts from the same
     ///      pinned, eligible, economically successful auction and must leave every observable fact
     ///      of that launch — recorded lifecycle and graduation artifacts, the strategy's own clone
     ///      nonce, hook registration, pool price, minted positions, every REGENT and SUBJECT
@@ -140,6 +142,12 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
         );
         _assertBoundaryRollsBack(
             launch, address(launch.escrow), ConditionalVestingEscrowV1.activateVesting.selector, "8 vesting activation"
+        );
+        _assertBoundaryRollsBack(
+            launch,
+            address(factory),
+            LaunchFactoryDouble.registerCanonicalPaymentReceiver.selector,
+            "9 factory receiver registration"
         );
 
         assertEq(splitter.code.length, 0, "no injected failure left a splitter clone behind");

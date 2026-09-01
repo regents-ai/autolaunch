@@ -84,11 +84,11 @@ contract RegentsAutolaunchFactoryV1 {
 
     /// @notice The runtime code hash the `SubjectSplitterV1` implementation must present.
     bytes32 public constant SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH =
-        0x2d357f0664857f6c18885241c1f7c26e87e8100f1c74c32d41509c8c2deabc47;
+        0x51f75aa1524323c76b393e14aa236909badf323187512949d4356163316f749e;
 
     /// @notice The runtime code hash the `PaymentReceiverV1` implementation must present.
     bytes32 public constant RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH =
-        0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573;
+        0x98088902bc81f8472949dad00e0670d1427cff0ae1bed025120993c9b0c9dfbc;
 
     /// @notice Everything a launcher supplies, in exactly this order.
     /// @dev There is deliberately no start block, floor price, hook, pool setting, Safe,
@@ -140,6 +140,11 @@ contract RegentsAutolaunchFactoryV1 {
     /// @notice The launch a SUBJECT belongs to, or zero if this factory never created it.
     mapping(address subject => uint256 launchId) public launchIdOfSubject;
 
+    /// @notice The launch a payment receiver belongs to, or zero if this factory never registered it.
+    /// @dev This is non-enumerable provenance only. The strategy's graduated distribution remains
+    ///      the sole authority for which one receiver is canonical.
+    mapping(address receiver => uint256 launchId) public launchIdOfPaymentReceiver;
+
     mapping(uint256 launchId => Launch) private _launches;
 
     event LaunchCreated(
@@ -187,6 +192,7 @@ contract RegentsAutolaunchFactoryV1 {
     error LaunchRecordMismatch(uint256 field, uint256 expected, uint256 found);
     error UnknownLaunch(uint256 launchId);
     error LaunchNotGraduated(uint256 launchId);
+    error NotStrategy(address caller);
 
     /// @dev Deploys and binds the whole shared graph. Every admitted identity is checked before any
     ///      deployment happens, and the strategy's own `bindHook` is what proves the freshly mined
@@ -305,7 +311,29 @@ contract RegentsAutolaunchFactoryV1 {
         receiver = LibClone.clone(strategy.receiverImplementation());
         PaymentReceiverV1(payable(receiver)).initialize(splitter, beneficiary, referralBps, msg.sender, false);
 
+        launchIdOfPaymentReceiver[receiver] = launchId;
+
         emit PaymentReceiverCreated(launchId, receiver, msg.sender, beneficiary, referralBps);
+    }
+
+    /// @notice Register the canonical receiver recorded by the strategy for one graduated auction.
+    /// @dev Strategy only. The complete terminal distribution must already exist, and every launch
+    ///      identity is checked against this factory's own record before provenance is written.
+    function registerCanonicalPaymentReceiver(address auction) external {
+        if (msg.sender != address(strategy)) revert NotStrategy(msg.sender);
+
+        RegentLBPStrategy.Distribution memory recorded = strategy.distribution(auction);
+        _requireRecorded(5, uint256(uint8(RegentLBPStrategy.Lifecycle.Graduated)), uint256(uint8(recorded.lifecycle)));
+        _requireRecorded(6, 1, recorded.launchId == 0 ? 0 : 1);
+        _requireRecorded(7, 1, recorded.receiver == address(0) ? 0 : 1);
+
+        Launch storage launch_ = _launches[recorded.launchId];
+        _requireRecorded(8, uint256(uint160(auction)), uint256(uint160(launch_.auction)));
+        _requireRecorded(9, uint256(uint160(launch_.subject)), uint256(uint160(recorded.subject)));
+        _requireRecorded(10, uint256(uint160(launch_.escrow)), uint256(uint160(recorded.escrow)));
+        _requireRecorded(11, uint256(uint160(launch_.treasury)), uint256(uint160(recorded.treasury)));
+
+        launchIdOfPaymentReceiver[recorded.receiver] = recorded.launchId;
     }
 
     /// @notice One recorded launch's complete identity, or an all-zero record for an unknown ID.

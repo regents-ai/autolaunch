@@ -81,6 +81,7 @@ setLaunchFee(uint256)
 pauseLaunches()
 unpauseLaunches()
 createPaymentReceiver(uint256 launchId, address beneficiary, uint16 referralBps)
+registerCanonicalPaymentReceiver(address auction)
 ```
 
 Rules:
@@ -96,7 +97,7 @@ Rules:
 - Metadata is nonempty and byte-bounded: name 64, symbol 16, description 512, website 256, image 256.
 - Treasury is immutable and launcher-chosen. There is no recovery admin and no recovery authority anywhere in the system.
 - Launch-time treasury admission lives only in `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction is created. It refuses exactly six addresses: the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, and the frozen live staking contract. Every other treasury is admitted. There is no code-length rule, no codehash fingerprint, no interface probe, no registry, no generalized denylist, and no predicted-address rule.
-- Each launch's splitter and canonical receiver are deployed with ordinary CREATE clones, so each address follows from the shared strategy's nonce at graduation and from nothing any caller chose. Neither address exists as a fact before that graduation succeeds: `LaunchGraduated` and the strategy record are the only canonical account of what a launch deployed.
+- Each launch's splitter and canonical receiver are deployed with ordinary CREATE clones, so each address follows from the shared strategy's nonce at graduation and from nothing any caller chose. The factory records every successfully initialized custom receiver and, through the immutable-strategy-only callback, the canonical receiver after the strategy has written the complete graduated distribution. `launchIdOfPaymentReceiver(address)` is a non-enumerable provenance lookup where zero means unknown; it does not make a receiver canonical. `LaunchGraduated` and the strategy record remain the only canonical account of what a launch deployed.
 - An admitted treasury may be an already-deployed Autolaunch artifact of another launch, and then delivers this launch's payouts into that artifact's ordinary accounting. An admitted treasury may also collide with an address the strategy's current nonce would later produce; that graduation's clone initializer reverts, the whole migration rolls back including the nonce advance, and the launch stalls — with its raised REGENT still in the CCA, its escrow still pending, its reserve and unsold SUBJECT unmoved, no pool or vesting begun, and CCA exit and claim rights intact — until any other launch's graduation moves the nonce past the collision. Both are accepted launcher-selected destination behaviour; refusing either would require enumerating launches that do not exist yet.
 - Launcher provenance gives no authority. A later failed auction does not refund the fee.
 - Factory pause never blocks existing auctions, finalization, refunds, staking, claims, swaps, payments, vesting, or recovery.
@@ -128,7 +129,9 @@ Graduation is atomic:
 9. sweep successful-auction unsold SUBJECT into escrow;
 10. deploy the canonical zero-referral receiver as an ordinary clone;
 11. activate 365-day vesting from that timestamp;
-12. record graduation atomically.
+12. write the complete terminal distribution;
+13. register the canonical receiver's factory provenance;
+14. emit `LaunchGraduated`.
 
 Steps 3 and 10 are ordinary CREATE clone deployments from the shared strategy, so each address is whatever that strategy's nonce produced at graduation; nothing about either address is caller-selected, derived in advance, or published.
 
@@ -156,7 +159,7 @@ unstake(uint256)
 claim(address token)
 claimAll()
 depositRecognizedRevenue(address token, uint256 amount, bytes32 revenueRef)
-recognizeSurplusRevenue(address token, bytes32 revenueRef)
+recognizeSurplusRevenue(address token)
 ```
 
 Staking and accrual are immediate: stake present at a recognition earns from it at once. Every value exit waits — `unstake`, partial or complete, `claim`, and `claimAll` all require a later block than that caller's own latest stake, and every later stake resets the delay for that caller's whole position and its already accrued claims. `unstake` refuses a zero amount and an over-withdrawal first, in that order; `claim` refuses an unsupported token first; a same-block claim with nothing to pay is refused rather than treated as a no-op. Claims and unstaking are independent of the factory launch pause. Supported bare transfers become revenue only through permissionless surplus recognition.
@@ -165,7 +168,7 @@ Staking and accrual are immediate: stake present at a recognition earns from it 
 
 ```solidity
 pay(address token, uint256 amount, bytes32 paymentRef)
-sweep(address token, bytes32 paymentRef)
+sweep(address token)
 setReceiverNote(bytes32 note)
 recoverUnsupportedToken(address token)
 recoverForcedETH()
@@ -175,7 +178,7 @@ recoverForcedETH()
 - Canonical receiver has zero referral and a treasury-edited note.
 - Anyone may pay gas to create a custom receiver; its creator edits its note.
 - Note defaults to the receiver address encoded as `bytes32` and appears with `paymentRef` in events.
-- `pay` and bare-transfer `sweep` use the same atomic referral-before-splitter route.
+- `pay` and bare-transfer `sweep` use the same atomic referral-before-splitter route. Atomic `pay` and direct recognized deposits preserve their exact caller-supplied reference. Aggregate sweep and surplus recognition accept no reference and propagate `bytes32(0)` as “no attributable reference asserted.” CCTP message hashes and hook data remain offchain per-payment evidence; these contracts do not parse or verify CCTP.
 - Ordinary ETH transfers revert.
 - Recovery of forced ETH and of unsupported ERC20s is permissionless. Each call moves the complete recoverable balance, always to immutable treasury, and the caller names neither an amount nor a destination. A zero recoverable balance reverts without mutating anything.
 - USDC, REGENT, and SUBJECT are permanently protected from recovery.

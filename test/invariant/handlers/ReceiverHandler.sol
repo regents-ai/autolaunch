@@ -96,7 +96,7 @@ contract ReceiverHandler is CommonBase, StdUtils {
         if (sitting == 0) return;
 
         vm.prank(payer);
-        receivers[index].sweep(address(token), bytes32(calls));
+        receivers[index].sweep(address(token));
 
         unswept[address(token)] -= sitting;
         _record(index, address(token), sitting);

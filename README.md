@@ -10,6 +10,11 @@ Clean Solidity implementation of the founder-frozen Autolaunch V1 system, writte
 maintained by Regents Labs. Autolaunch is the Regent token-launch system; this repository
 holds its contracts, its proofs, and the gates that decide whether those proofs still hold.
 
+The current candidate adds a non-enumerable factory lookup from payment receiver to launch ID and
+removes caller-authored references from aggregate receiver sweeps and splitter surplus recognition.
+The strategy distribution and `LaunchGraduated` remain the canonical-receiver authority; atomic
+payments and direct recognized deposits still preserve their exact references.
+
 The controlling specification is [SPEC.md](SPEC.md). The prior implementation in
 `regent-contracts` is historical reference only. This repository contains no deployed
 release until the complete claim-level test, static-analysis, fork, review, and founder

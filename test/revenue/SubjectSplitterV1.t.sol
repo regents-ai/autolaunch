@@ -44,7 +44,7 @@ contract SubjectSplitterV1Test is C1Fixture {
         vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.UnsupportedToken.selector, address(other)));
         splitter.depositRecognizedRevenue(address(other), 1, bytes32(0));
         vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.UnsupportedToken.selector, address(other)));
-        splitter.recognizeSurplusRevenue(address(other), bytes32(0));
+        splitter.recognizeSurplusRevenue(address(other));
         vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.UnsupportedToken.selector, address(other)));
         splitter.claim(address(other));
 
@@ -93,7 +93,7 @@ contract SubjectSplitterV1Test is C1Fixture {
 
             // Recognizing again finds nothing: the inflow cannot be skimmed a second time.
             vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
-            splitter.recognizeSurplusRevenue(address(token), bytes32("again"));
+            splitter.recognizeSurplusRevenue(address(token));
             assertEq(_skimHeld(token) - skimBefore, skim, "still exactly one skim");
         }
     }
@@ -291,7 +291,7 @@ contract SubjectSplitterV1Test is C1Fixture {
 
         usdc.setReturnsFalse(true);
         vm.expectRevert();
-        splitter.recognizeSurplusRevenue(address(usdc), bytes32("treasury-down"));
+        splitter.recognizeSurplusRevenue(address(usdc));
         usdc.setReturnsFalse(false);
 
         assertEq(splitter.unclaimedLiability(address(usdc)), liability, "a failed delivery changed liability");
@@ -336,7 +336,7 @@ contract SubjectSplitterV1Test is C1Fixture {
         // The carry is never separately withdrawable and never re-recognizable.
         assertLt(splitter.carriedRemainder(address(regent)), splitter.totalStaked() + 1, "one carry per asset");
         vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
-        splitter.recognizeSurplusRevenue(address(usdc), bytes32("skim-the-carry"));
+        splitter.recognizeSurplusRevenue(address(usdc));
         vm.expectRevert(abi.encodeWithSelector(SubjectSplitterV1.ProtectedToken.selector, address(usdc)));
         splitter.recoverUnsupportedToken(address(usdc));
     }
@@ -359,12 +359,12 @@ contract SubjectSplitterV1Test is C1Fixture {
 
         // With principal and unclaimed claims present, surplus recognition finds nothing.
         vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
-        splitter.recognizeSurplusRevenue(address(subject), bytes32("relabel"));
+        splitter.recognizeSurplusRevenue(address(subject));
 
         // Only a genuinely unaccounted bare transfer becomes surplus.
         subject.mint(address(this), 500e18);
         subject.transfer(address(splitter), 500e18);
-        splitter.recognizeSurplusRevenue(address(subject), bytes32("bare"));
+        splitter.recognizeSurplusRevenue(address(subject));
 
         assertEq(subject.balanceOf(regentSafe), 20e18 + 10e18, "each inflow skimmed once");
         assertEq(
@@ -531,7 +531,7 @@ contract SubjectSplitterV1Test is C1Fixture {
         // The same inflow is recognized normally afterwards and nobody captured anything.
         _stake(bob, TOTAL_SUPPLY);
         vm.prank(outsider);
-        splitter.recognizeSurplusRevenue(address(usdc), bytes32("honest"));
+        splitter.recognizeSurplusRevenue(address(usdc));
         assertEq(splitter.claimable(address(usdc), bob), 980_000, "the honest staker earns the net");
         assertEq(splitter.claimable(address(usdc), address(this)), 0, "the refused capturer earns nothing");
         _assertSolvent();
@@ -542,7 +542,7 @@ contract SubjectSplitterV1Test is C1Fixture {
     function attemptAtomicCapture(uint256 amount) external {
         subject.approve(address(splitter), amount);
         splitter.stake(amount);
-        splitter.recognizeSurplusRevenue(address(usdc), bytes32("captured"));
+        splitter.recognizeSurplusRevenue(address(usdc));
         splitter.claim(address(usdc));
         splitter.unstake(amount);
     }
@@ -560,15 +560,20 @@ contract SubjectSplitterV1Test is C1Fixture {
         assertEq(splitter.unclaimedLiability(address(usdc)), 0, "no liability yet");
         assertEq(usdc.balanceOf(address(liveStaking)), 0, "no skim yet");
 
+        vm.expectEmit(true, true, true, true, address(splitter));
+        emit SubjectSplitterV1.RevenueRecognized(
+            address(usdc), outsider, bytes32(0), 1_000_000, 20_000, 980_000, 980_000, 0
+        );
         vm.prank(outsider);
-        splitter.recognizeSurplusRevenue(address(usdc), bytes32("anyone"));
+        splitter.recognizeSurplusRevenue(address(usdc));
 
         assertEq(usdc.balanceOf(address(liveStaking)), 20_000, "recognition skimmed once");
+        assertEq(liveStaking.lastSourceRef(), bytes32(0), "aggregate recognition asserted a reference");
         assertEq(splitter.claimable(address(usdc), alice), 980_000, "recognition created the claim");
 
         // A second recognition finds nothing and changes nothing.
         vm.expectRevert(SubjectSplitterV1.ZeroAmount.selector);
-        splitter.recognizeSurplusRevenue(address(usdc), bytes32("again"));
+        splitter.recognizeSurplusRevenue(address(usdc));
         assertEq(usdc.balanceOf(address(liveStaking)), 20_000, "still one skim");
     }
 
@@ -1219,8 +1224,7 @@ contract SubjectSplitterV1Test is C1Fixture {
         // The SUBJECT pull re-enters surplus recognition mid-stake.
         subject.mint(bob, 500e18);
         subject.setReentry(
-            address(splitter),
-            abi.encodeCall(SubjectSplitterV1.recognizeSurplusRevenue, (address(subject), bytes32("reenter")))
+            address(splitter), abi.encodeCall(SubjectSplitterV1.recognizeSurplusRevenue, (address(subject)))
         );
         vm.startPrank(bob);
         subject.approve(address(splitter), 500e18);

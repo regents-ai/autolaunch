@@ -150,7 +150,7 @@ contract SplitterHandler is CommonBase, StdUtils {
         if (unaccounted == 0) return;
 
         vm.prank(giver);
-        splitter.recognizeSurplusRevenue(address(token), bytes32(calls));
+        splitter.recognizeSurplusRevenue(address(token));
 
         _recordRecognition(address(token), unaccounted);
     }

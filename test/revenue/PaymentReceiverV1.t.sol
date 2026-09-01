@@ -188,8 +188,12 @@ contract PaymentReceiverV1Test is C1Fixture {
         uint256 treasuryBefore = usdc.balanceOf(treasury);
         uint256 skimBefore = usdc.balanceOf(address(liveStaking));
 
+        vm.expectEmit(true, true, true, true, address(receiver));
+        emit PaymentReceiverV1.PaymentRouted(
+            bytes32(0), receiver.receiverNote(), address(usdc), 500_000, 5_000, 495_000
+        );
         vm.prank(outsider);
-        receiver.sweep(address(usdc), bytes32("sweep-1"));
+        receiver.sweep(address(usdc));
 
         // The sweep took the identical route over the bare balance.
         assertEq(usdc.balanceOf(referrer) - referralBefore, 5_000, "same floored referral rule");
@@ -200,7 +204,7 @@ contract PaymentReceiverV1Test is C1Fixture {
 
         // An empty sweep is rejected rather than emitting an empty route.
         vm.expectRevert(PaymentReceiverV1.ZeroAmount.selector);
-        receiver.sweep(address(usdc), bytes32("sweep-2"));
+        receiver.sweep(address(usdc));
         vm.expectRevert(PaymentReceiverV1.ZeroAmount.selector);
         receiver.pay(address(usdc), 0, bytes32("pay-0"));
     }
@@ -306,7 +310,7 @@ contract PaymentReceiverV1Test is C1Fixture {
 
         // A supported balance leaves only through the ordinary route.
         vm.prank(outsider);
-        canonical.sweep(address(usdc), bytes32("sweep"));
+        canonical.sweep(address(usdc));
         assertEq(usdc.balanceOf(address(canonical)), 0, "swept through the route, never through recovery");
         assertEq(usdc.balanceOf(treasury), 980_000, "and it reached the splitter's destinations");
     }
@@ -354,7 +358,7 @@ contract PaymentReceiverV1Test is C1Fixture {
         vm.expectRevert(abi.encodeWithSelector(PaymentReceiverV1.UnsupportedToken.selector, address(other)));
         canonical.pay(address(other), 1e18, bytes32("bad"));
         vm.expectRevert(abi.encodeWithSelector(PaymentReceiverV1.UnsupportedToken.selector, address(other)));
-        canonical.sweep(address(other), bytes32("bad"));
+        canonical.sweep(address(other));
         vm.stopPrank();
 
         assertEq(other.balanceOf(address(canonical)), 100e18, "the unsupported balance did not move");
@@ -471,9 +475,7 @@ contract PaymentReceiverV1Test is C1Fixture {
         MockERC20 hostile = new MockERC20("Hostile", "HOS", 18);
         hostile.mint(address(receiver), 100e18);
         usdc.mint(address(receiver), 500_000);
-        hostile.setReentry(
-            address(receiver), abi.encodeCall(PaymentReceiverV1.sweep, (address(usdc), bytes32("reenter")))
-        );
+        hostile.setReentry(address(receiver), abi.encodeCall(PaymentReceiverV1.sweep, (address(usdc))));
         vm.prank(outsider);
         receiver.recoverUnsupportedToken(address(hostile));
 
@@ -485,9 +487,7 @@ contract PaymentReceiverV1Test is C1Fixture {
         HostileSplitter hostileSplitter =
             new HostileSplitter(treasury, address(usdc), address(regent), address(subject));
         PaymentReceiverV1 exposed = _newReceiver(address(hostileSplitter), referrer, 100, editor, false);
-        hostileSplitter.setReentry(
-            address(exposed), abi.encodeCall(PaymentReceiverV1.sweep, (address(usdc), bytes32("reenter")))
-        );
+        hostileSplitter.setReentry(address(exposed), abi.encodeCall(PaymentReceiverV1.sweep, (address(usdc))));
 
         usdc.mint(payer, 1_000_000);
         uint256 payerBefore = usdc.balanceOf(payer);

@@ -222,11 +222,6 @@
           "name": "token",
           "type": "address",
           "internalType": "address"
-        },
-        {
-          "name": "paymentRef",
-          "type": "bytes32",
-          "internalType": "bytes32"
         }
       ],
       "outputs": [],
@@ -547,7 +542,7 @@
     "setReceiverNote(bytes32)": "b1379b2f",
     "splitter()": "3cd8045e",
     "subject()": "0a59a98c",
-    "sweep(address,bytes32)": "8a738683",
+    "sweep(address)": "01681a62",
     "treasury()": "61d027b3",
     "usdc()": "3e413bee"
   }

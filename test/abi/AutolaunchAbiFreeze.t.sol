@@ -39,12 +39,12 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     // ABI-002 / ABI-003 — the factory
     // -------------------------------------------------------------------------
 
-    /// @notice `ABI-002`: the factory's public mutation surface is exactly the five `SPEC.md`
+    /// @notice `ABI-002`: the factory's public mutation surface is exactly the six `SPEC.md`
     ///         section 4 entry points — no owner transfer, no setter, no upgrade, no arbitrary call.
     function test_ABI_002_FactoryPublicMutationSurfaceIsExact() public view {
         string[] memory frozenLines = _frozenStrings(FACTORY, "mutating_functions");
 
-        string[] memory expected = new string[](5);
+        string[] memory expected = new string[](6);
         expected[0] = _assertFrozenFunction(
             frozenLines,
             RegentsAutolaunchFactoryV1.launch.selector,
@@ -66,8 +66,18 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             "createPaymentReceiver(uint256,address,uint16)",
             "factory"
         );
+        expected[5] = _assertFrozenFunction(
+            frozenLines,
+            RegentsAutolaunchFactoryV1.registerCanonicalPaymentReceiver.selector,
+            "registerCanonicalPaymentReceiver(address)",
+            "factory"
+        );
 
         _assertSameSet(frozenLines, expected, "factory public mutation surface");
+        assertTrue(
+            _carriesSelector(address(factory).code, bytes4(keccak256("launchIdOfPaymentReceiver(address)"))),
+            "the factory receiver-provenance getter is absent"
+        );
     }
 
     /// @notice `ABI-003`: `LaunchParams` carries exactly the eight `SPEC.md` fields, in order, at
@@ -120,7 +130,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             "claim(address)",
             "claimAll()",
             "depositRecognizedRevenue(address,uint256,bytes32)",
-            "recognizeSurplusRevenue(address,bytes32)"
+            "recognizeSurplusRevenue(address)"
         ];
         for (uint256 i; i < noAccountArgument.length; ++i) {
             assertTrue(
@@ -184,6 +194,12 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         );
 
         _assertSameSet(frozenLines, expected, "splitter complete mutating surface");
+        assertFalse(
+            _carriesSelector(
+                address(splitterImplementation).code, bytes4(keccak256("recognizeSurplusRevenue(address,bytes32)"))
+            ),
+            "the removed two-argument surplus selector is still dispatched"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -199,8 +215,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         expected[0] = _assertFrozenFunction(
             frozenLines, PaymentReceiverV1.pay.selector, "pay(address,uint256,bytes32)", "receiver"
         );
-        expected[1] =
-            _assertFrozenFunction(frozenLines, PaymentReceiverV1.sweep.selector, "sweep(address,bytes32)", "receiver");
+        expected[1] = _assertFrozenFunction(frozenLines, PaymentReceiverV1.sweep.selector, "sweep(address)", "receiver");
         expected[2] = _assertFrozenFunction(
             frozenLines, PaymentReceiverV1.setReceiverNote.selector, "setReceiverNote(bytes32)", "receiver"
         );
@@ -221,6 +236,10 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         );
 
         _assertSameSet(frozenLines, expected, "receiver mutating surface");
+        assertFalse(
+            _carriesSelector(address(receiverImplementation).code, bytes4(keccak256("sweep(address,bytes32)"))),
+            "the removed two-argument sweep selector is still dispatched"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -774,7 +793,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         expected[5] = _assertFrozenFunction(
             frozenLines,
             SubjectSplitterV1.recognizeSurplusRevenue.selector,
-            "recognizeSurplusRevenue(address,bytes32)",
+            "recognizeSurplusRevenue(address)",
             "splitter"
         );
     }

@@ -5,6 +5,7 @@ import {RegentsAutolaunchFactoryV1} from "../../src/factory/RegentsAutolaunchFac
 import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
 import {AutolaunchFixture} from "../integration/AutolaunchFixture.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 
 /// @notice `C4-I5`: anyone may pay the gas to create a custom payment receiver for a graduated
 ///         launch, that receiver always binds to the launch's canonical splitter, and nothing about
@@ -58,6 +59,9 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
         strategy.migrate(address(pending.auction));
         RegentLBPStrategy.Distribution memory d = _distribution(pending);
         address canonical = d.receiver;
+        assertEq(
+            factory.launchIdOfPaymentReceiver(canonical), pending.launchId, "canonical receiver provenance is absent"
+        );
 
         vm.prank(outsider);
         address custom = factory.createPaymentReceiver(pending.launchId, bidder, 100);
@@ -70,6 +74,7 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
         assertEq(PaymentReceiverV1(payable(custom)).referralBps(), 100, "the supplied referral was not fixed");
         assertEq(PaymentReceiverV1(payable(custom)).noteEditor(), outsider, "the creator is not the note editor");
         assertEq(PaymentReceiverV1(payable(custom)).treasury(), treasury, "the receiver disagrees with its splitter");
+        assertEq(factory.launchIdOfPaymentReceiver(custom), pending.launchId, "custom receiver provenance is absent");
         assertEq(_distribution(pending).receiver, canonical, "the strategy's canonical receiver moved");
 
         // A custom receiver may legitimately look exactly like a canonical one. Canonical identity
@@ -79,7 +84,17 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
         assertEq(PaymentReceiverV1(payable(lookalike)).referralBps(), 0, "lookalike referral");
         assertEq(PaymentReceiverV1(payable(lookalike)).beneficiary(), treasury, "lookalike beneficiary");
         assertTrue(lookalike != canonical, "a lookalike became the canonical receiver");
+        assertEq(
+            factory.launchIdOfPaymentReceiver(lookalike), pending.launchId, "custom lookalike provenance is absent"
+        );
         assertEq(_distribution(pending).receiver, canonical, "the canonical receiver moved");
+
+        // The same initialized shape created outside the admitted factory/strategy graph has no
+        // factory provenance and cannot change canonical identity.
+        address externalLookalike = LibClone.clone(strategy.receiverImplementation());
+        PaymentReceiverV1(payable(externalLookalike)).initialize(d.splitter, treasury, 0, treasury, true);
+        assertEq(factory.launchIdOfPaymentReceiver(externalLookalike), 0, "an external lookalike forged provenance");
+        assertEq(_distribution(pending).receiver, canonical, "an external lookalike became canonical");
 
         // A factory pause gates new launches and nothing else.
         vm.prank(governance);
@@ -105,8 +120,10 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
         factory.createPaymentReceiver(pending.launchId, address(0), 0);
         assertEq(vm.getNonce(address(factory)), nonceBefore, "a rejected creation left a clone behind");
         assertEq(predicted.code.length, 0, "a rejected creation left code behind");
+        assertEq(factory.launchIdOfPaymentReceiver(predicted), 0, "a rejected creation left provenance behind");
+        assertEq(factory.launchIdOfPaymentReceiver(outsider), 0, "an unknown address has provenance");
 
-        // The factory keeps no receiver list; the event is the record.
+        // The factory keeps one non-enumerable lookup and no receiver list.
         bytes memory runtime = address(factory).code;
         string[3] memory forbidden = ["receiversOf(uint256)", "receiverCount(uint256)", "receivers(uint256,uint256)"];
         for (uint256 i; i < forbidden.length; ++i) {
@@ -115,6 +132,74 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
                 string.concat("the factory enumerates receivers: ", forbidden[i])
             );
         }
+    }
+
+    /// @notice Canonical provenance accepts only the immutable strategy's complete, graduated,
+    ///         launch-matching distribution and leaves every rejected receiver unknown.
+    function test_FAC_024_CanonicalRegistrationRejectsUnauthorizedAndMismatchedState() public {
+        Launched memory launched = _launchAs(launcher, _params());
+        RegentLBPStrategy.Distribution memory recorded = _distribution(launched);
+
+        vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.NotStrategy.selector, outsider));
+        vm.prank(outsider);
+        factory.registerCanonicalPaymentReceiver(address(launched.auction));
+
+        _expectRegistrationMismatch(address(launched.auction), recorded, 5, 2, 1);
+
+        RegentLBPStrategy.Distribution memory unknown;
+        _expectRegistrationMismatch(makeAddr("unknown-auction"), unknown, 5, 2, 0);
+
+        Launched memory failed = _launchAs(launcher, _params());
+        _rollToMigration(failed);
+        strategy.migrate(address(failed.auction));
+        _expectRegistrationMismatch(
+            address(failed.auction), _distribution(failed), 5, 2, uint256(uint8(RegentLBPStrategy.Lifecycle.Failed))
+        );
+
+        recorded.lifecycle = RegentLBPStrategy.Lifecycle.Graduated;
+        recorded.receiver = outsider;
+
+        RegentLBPStrategy.Distribution memory invalid = recorded;
+        invalid.launchId = 0;
+        _expectRegistrationMismatch(address(launched.auction), invalid, 6, 1, 0);
+        invalid.launchId = launched.launchId;
+
+        invalid.receiver = address(0);
+        _expectRegistrationMismatch(address(launched.auction), invalid, 7, 1, 0);
+        invalid.receiver = outsider;
+
+        address otherAuction = makeAddr("other-auction");
+        _expectRegistrationMismatch(
+            otherAuction, recorded, 8, uint256(uint160(otherAuction)), uint256(uint160(address(launched.auction)))
+        );
+
+        invalid.subject = makeAddr("other-subject");
+        _expectRegistrationMismatch(
+            address(launched.auction),
+            invalid,
+            9,
+            uint256(uint160(address(launched.subject))),
+            uint256(uint160(invalid.subject))
+        );
+        invalid.subject = address(launched.subject);
+
+        invalid.escrow = makeAddr("other-escrow");
+        _expectRegistrationMismatch(
+            address(launched.auction),
+            invalid,
+            10,
+            uint256(uint160(address(launched.escrow))),
+            uint256(uint160(invalid.escrow))
+        );
+        invalid.escrow = address(launched.escrow);
+
+        invalid.treasury = makeAddr("other-treasury");
+        _expectRegistrationMismatch(
+            address(launched.auction), invalid, 11, uint256(uint160(treasury)), uint256(uint160(invalid.treasury))
+        );
+
+        assertEq(factory.launchIdOfPaymentReceiver(outsider), 0, "a rejected distribution registered a receiver");
+        assertEq(factory.launchIdOfPaymentReceiver(address(0)), 0, "zero gained receiver provenance");
     }
 
     /// @notice `RCV-001`: creation costs nothing but gas, whoever pays it becomes that receiver's
@@ -165,5 +250,23 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
         assertEq(regent.balanceOf(outsider), 50e18, "the referral did not reach the beneficiary");
         assertEq(regent.balanceOf(address(custom)), 0, "the receiver retained value");
         assertEq(regent.allowance(address(custom), custom.splitter()), 0, "the receiver left an allowance behind");
+    }
+
+    function _expectRegistrationMismatch(
+        address auction,
+        RegentLBPStrategy.Distribution memory recorded,
+        uint256 expectedField,
+        uint256 expected,
+        uint256 found
+    ) private {
+        vm.mockCall(address(strategy), abi.encodeCall(RegentLBPStrategy.distribution, (auction)), abi.encode(recorded));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RegentsAutolaunchFactoryV1.LaunchRecordMismatch.selector, expectedField, expected, found
+            )
+        );
+        vm.prank(address(strategy));
+        factory.registerCanonicalPaymentReceiver(auction);
+        vm.clearMockedCalls();
     }
 }

@@ -19,9 +19,11 @@
         "0x4e894821 UERC20_FACTORY_RUNTIME_CODE_HASH()",
         "0x5313be2c setLaunchFee(uint256)",
         "0x53e916eb DISTRIBUTION_PULL()",
+        "0x5ab3c139 launchIdOfPaymentReceiver(address)",
         "0x5af02677 unpauseLaunches()",
         "0x680c60c7 MAX_NAME_BYTES()",
         "0x737d618f RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
+        "0x77f2b0c7 registerCanonicalPaymentReceiver(address)",
         "0x7b443a76 launches(uint256)",
         "0x7f5a7c7b hook()",
         "0x8096479a MAX_IMAGE_BYTES()",
@@ -42,6 +44,7 @@
       "mutating_functions": [
         "0x5313be2c setLaunchFee(uint256)",
         "0x5af02677 unpauseLaunches()",
+        "0x77f2b0c7 registerCanonicalPaymentReceiver(address)",
         "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
         "0xd0464e3e launch((string,string,string,string,string,address,uint128,uint256))",
         "0xe79b502e pauseLaunches()"
@@ -54,6 +57,7 @@
         "0x4861cf83 SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
         "0x4e894821 UERC20_FACTORY_RUNTIME_CODE_HASH()",
         "0x53e916eb DISTRIBUTION_PULL()",
+        "0x5ab3c139 launchIdOfPaymentReceiver(address)",
         "0x680c60c7 MAX_NAME_BYTES()",
         "0x737d618f RECEIVER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
         "0x7b443a76 launches(uint256)",
@@ -116,6 +120,7 @@
         "0x2adf950a AllowanceNotConsumed(address,uint256)",
         "0x2ee9da4b SubjectNotFullyDistributed(uint256)",
         "0x3a1455a0 LaunchesArePaused()",
+        "0x3c4d173a NotStrategy(address)",
         "0x3edfad0a SubjectHasNoCode(address)",
         "0x4d1d1ebb LaunchFeeAllowanceMismatch(uint256,uint256)",
         "0x623befa0 LaunchRecordMismatch(uint256,uint256,uint256)",
@@ -650,7 +655,6 @@
       "constructor": [],
       "functions": [
         "0x0a59a98c subject()",
-        "0x0c46395a recognizeSurplusRevenue(address,bytes32)",
         "0x1c4aa285 SKIM_BPS()",
         "0x1c92efb6 claimableDust(address,address)",
         "0x1e83409a claim(address)",
@@ -674,10 +678,10 @@
         "0xd1058e59 claimAll()",
         "0xd4570c1c claimable(address,address)",
         "0xe1a45218 BPS_DENOMINATOR()",
+        "0xeac37a82 recognizeSurplusRevenue(address)",
         "0xeced5526 SCALE()"
       ],
       "mutating_functions": [
-        "0x0c46395a recognizeSurplusRevenue(address,bytes32)",
         "0x1e83409a claim(address)",
         "0x22ab5669 recoverUnsupportedToken(address)",
         "0x2e17de78 unstake(uint256)",
@@ -685,7 +689,8 @@
         "0x515ef0c9 depositRecognizedRevenue(address,uint256,bytes32)",
         "0xa694fc3a stake(uint256)",
         "0xcc2a9a5b initialize(address,address,address,address,address,address)",
-        "0xd1058e59 claimAll()"
+        "0xd1058e59 claimAll()",
+        "0xeac37a82 recognizeSurplusRevenue(address)"
       ],
       "view_functions": [
         "0x0a59a98c subject()",
@@ -784,6 +789,7 @@
       "source": "src/revenue/PaymentReceiverV1.sol",
       "constructor": [],
       "functions": [
+        "0x01681a62 sweep(address)",
         "0x0a59a98c subject()",
         "0x1759be85 initialize(address,address,uint16,address,bool)",
         "0x1fbb6ff0 referralBps()",
@@ -796,18 +802,17 @@
         "0x5e5571ac pay(address,uint256,bytes32)",
         "0x61d027b3 treasury()",
         "0x62959a6e MAX_REFERRAL_BPS()",
-        "0x8a738683 sweep(address,bytes32)",
         "0xb1379b2f setReceiverNote(bytes32)",
         "0xb73598e7 noteEditor()",
         "0xe1a45218 BPS_DENOMINATOR()",
         "0xe5738587 receiverNote()"
       ],
       "mutating_functions": [
+        "0x01681a62 sweep(address)",
         "0x1759be85 initialize(address,address,uint16,address,bool)",
         "0x22ab5669 recoverUnsupportedToken(address)",
         "0x4725dd8e recoverForcedETH()",
         "0x5e5571ac pay(address,uint256,bytes32)",
-        "0x8a738683 sweep(address,bytes32)",
         "0xb1379b2f setReceiverNote(bytes32)"
       ],
       "view_functions": [

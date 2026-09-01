@@ -349,6 +349,25 @@
     },
     {
       "type": "function",
+      "name": "launchIdOfPaymentReceiver",
+      "inputs": [
+        {
+          "name": "receiver",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "launchIdOfSubject",
       "inputs": [
         {
@@ -442,6 +461,19 @@
       "type": "function",
       "name": "pauseLaunches",
       "inputs": [],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "registerCanonicalPaymentReceiver",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -802,6 +834,17 @@
     },
     {
       "type": "error",
+      "name": "NotStrategy",
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
       "name": "StaleLaunchFee",
       "inputs": [
         {
@@ -912,11 +955,13 @@
     "hook()": "7f5a7c7b",
     "launch((string,string,string,string,string,address,uint128,uint256))": "d0464e3e",
     "launchFee()": "cf3cf573",
+    "launchIdOfPaymentReceiver(address)": "5ab3c139",
     "launchIdOfSubject(address)": "ca2afc6c",
     "launches(uint256)": "7b443a76",
     "launchesPaused()": "3bc340c2",
     "nextLaunchId()": "979bd9cc",
     "pauseLaunches()": "e79b502e",
+    "registerCanonicalPaymentReceiver(address)": "77f2b0c7",
     "setLaunchFee(uint256)": "5313be2c",
     "strategy()": "a8c62e76",
     "uerc20Factory()": "0b8c5565",

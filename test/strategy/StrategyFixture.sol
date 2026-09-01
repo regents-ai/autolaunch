@@ -265,6 +265,7 @@ abstract contract StrategyFixture is Test {
         uint8 escrowLifecycle;
         bool escrowSweepDone;
         uint64 escrowVestingStart;
+        address registeredCanonicalAuction;
     }
 
     function _ledger(Launch memory launch) internal view returns (Ledger memory snapshot) {
@@ -297,6 +298,7 @@ abstract contract StrategyFixture is Test {
         snapshot.escrowLifecycle = uint8(launch.escrow.lifecycle());
         snapshot.escrowSweepDone = launch.escrow.graduatedSweepDone();
         snapshot.escrowVestingStart = launch.escrow.vestingStart();
+        snapshot.registeredCanonicalAuction = factory.registeredCanonicalAuction();
     }
 
     function _poolId(Launch memory launch) internal view returns (PoolId) {
@@ -351,5 +353,10 @@ abstract contract StrategyFixture is Test {
         assertEq(found.escrowLifecycle, before.escrowLifecycle, string.concat(stage, ": escrow lifecycle moved"));
         assertEq(found.escrowSweepDone, before.escrowSweepDone, string.concat(stage, ": escrow sweep ran"));
         assertEq(found.escrowVestingStart, before.escrowVestingStart, string.concat(stage, ": vesting started"));
+        assertEq(
+            found.registeredCanonicalAuction,
+            before.registeredCanonicalAuction,
+            string.concat(stage, ": canonical receiver registration survived")
+        );
     }
 }

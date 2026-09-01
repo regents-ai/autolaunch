@@ -5,6 +5,7 @@ import {BaseBindings} from "../src/bindings/BaseBindings.sol";
 import {ConditionalVestingEscrowV1} from "../src/escrow/ConditionalVestingEscrowV1.sol";
 import {RegentsAutolaunchFactoryV1} from "../src/factory/RegentsAutolaunchFactoryV1.sol";
 import {RegentFeeHook} from "../src/hook/RegentFeeHook.sol";
+import {IRegentRevenueStakingMinimal} from "../src/interfaces/IRegentRevenueStakingMinimal.sol";
 import {PaymentReceiverV1} from "../src/revenue/PaymentReceiverV1.sol";
 import {SubjectSplitterV1} from "../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../src/strategy/RegentLBPStrategy.sol";
@@ -65,9 +66,13 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     ///      this log rather than only inferred from balances.
     bytes32 internal constant REVENUE_RECOGNIZED_TOPIC =
         keccak256("RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)");
+    bytes32 internal constant PAYMENT_ROUTED_TOPIC =
+        keccak256("PaymentRouted(bytes32,bytes32,address,uint256,uint256,uint256)");
 
     /// @dev One recognition exactly as the splitter reported it.
     struct Recognition {
+        address source;
+        bytes32 revenueRef;
         uint256 gross;
         uint256 skim;
         uint256 net;
@@ -80,6 +85,13 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         uint256 feeBase;
         uint256 lane;
         bool exactInput;
+    }
+
+    struct AggregateBalances {
+        uint256 liveStaking;
+        uint256 liability;
+        uint256 splitterHeld;
+        uint256 treasuryHeld;
     }
 
     /// @dev A raise no single admitted bid can meet, so this launch ends economically failed.
@@ -135,6 +147,7 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         _stakeSubject(graduating, splitter, staked);
 
         _payCanonicalReceiver(graduating, d, splitter);
+        _exerciseAggregateUsdcPaths(graduating, d, splitter);
         _swapBothHookLanes(graduating, d, splitter);
         _exitAcrossTheBlockBoundary(graduating, splitter, staked);
 
@@ -396,6 +409,7 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         );
         assertEq(PaymentReceiverV1(payable(d.receiver)).referralBps(), 0, "the canonical receiver charges a referral");
         assertEq(PaymentReceiverV1(payable(d.receiver)).beneficiary(), treasury, "canonical beneficiary");
+        assertEq(factory.launchIdOfPaymentReceiver(d.receiver), graduating.launchId, "receiver provenance");
 
         // The pool opened at the price the auction actually settled on, and only the strategy could
         // have opened it.
@@ -553,6 +567,8 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         _payAs(receiver, token, gross, ref);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         Recognition memory r = _soleRecognition(logs, address(splitter), token);
+        assertEq(r.source, address(receiver), "the atomic recognition names another source");
+        assertEq(r.revenueRef, ref, "the atomic payment reference changed");
         _assertRecognitionIsExact(r, gross, skim, stakerShare);
 
         assertEq(
@@ -591,6 +607,8 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
             if (logs[i].topics.length != 4 || logs[i].topics[0] != REVENUE_RECOGNIZED_TOPIC) continue;
             assertFalse(found, "one inflow produced more than one recognition");
             assertEq(address(uint160(uint256(logs[i].topics[1]))), token, "the recognition names another token");
+            r.source = address(uint160(uint256(logs[i].topics[2])));
+            r.revenueRef = logs[i].topics[3];
             (r.gross, r.skim, r.net, r.stakerShare, r.treasuryShare) =
                 abi.decode(logs[i].data, (uint256, uint256, uint256, uint256, uint256));
             found = true;
@@ -619,6 +637,124 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         vm.stopPrank();
         assertEq(_balanceOf(token, payer), 0, "the payer kept part of an exact payment");
         assertEq(_allowance(token, payer, address(receiver)), 0, "a payer left standing spend authority behind");
+    }
+
+    /// @dev The two production aggregate USDC paths against the pinned live-staking binding. Bare
+    ///      balances have no attributable payment identity, so both paths must carry bytes32(0)
+    ///      through their contract events and the exact live-staking calldata.
+    function _exerciseAggregateUsdcPaths(
+        ForkLaunch memory graduating,
+        RegentLBPStrategy.Distribution memory d,
+        SubjectSplitterV1 splitter
+    ) private {
+        PaymentReceiverV1 receiver = PaymentReceiverV1(payable(d.receiver));
+        bytes32 sourceTag = bytes32(uint256(uint160(address(graduating.subject))));
+
+        uint256 receiverGross = 100e6;
+        AggregateBalances memory receiverBefore = _aggregateBalances(splitter);
+        deal(BaseBindings.USDC, payer, receiverGross);
+        vm.prank(payer);
+        _mustCall(BaseBindings.USDC, abi.encodeWithSignature("transfer(address,uint256)", d.receiver, receiverGross));
+
+        uint256 receiverSkim = (receiverGross * SKIM_BPS) / BPS_DENOMINATOR;
+        vm.expectCall(
+            BaseBindings.LIVE_STAKING,
+            abi.encodeCall(IRegentRevenueStakingMinimal.depositUSDC, (receiverSkim, sourceTag, bytes32(0)))
+        );
+        vm.recordLogs();
+        vm.prank(payer);
+        receiver.sweep(BaseBindings.USDC);
+        Vm.Log[] memory receiverLogs = vm.getRecordedLogs();
+        _assertAggregatePaymentRouted(receiverLogs, d.receiver, receiverGross);
+        Recognition memory swept = _soleRecognition(receiverLogs, d.splitter, BaseBindings.USDC);
+        assertEq(swept.source, d.receiver, "receiver sweep recognition source");
+        assertEq(swept.revenueRef, bytes32(0), "receiver sweep asserted a reference");
+        _assertRecognitionIsExact(
+            swept,
+            receiverGross,
+            receiverSkim,
+            ((receiverGross - receiverSkim) * splitter.totalStaked()) / TOTAL_SUPPLY
+        );
+        _assertAggregateBalances(splitter, receiverBefore, swept);
+        assertEq(_balanceOf(BaseBindings.USDC, d.receiver), 0, "aggregate receiver balance survived");
+        assertEq(_allowance(BaseBindings.USDC, d.receiver, d.splitter), 0, "aggregate receiver allowance survived");
+
+        uint256 splitterGross = 200e6;
+        AggregateBalances memory splitterBefore = _aggregateBalances(splitter);
+        deal(BaseBindings.USDC, payer, splitterGross);
+        vm.prank(payer);
+        _mustCall(BaseBindings.USDC, abi.encodeWithSignature("transfer(address,uint256)", d.splitter, splitterGross));
+
+        uint256 splitterSkim = (splitterGross * SKIM_BPS) / BPS_DENOMINATOR;
+        vm.expectCall(
+            BaseBindings.LIVE_STAKING,
+            abi.encodeCall(IRegentRevenueStakingMinimal.depositUSDC, (splitterSkim, sourceTag, bytes32(0)))
+        );
+        vm.recordLogs();
+        vm.prank(payer);
+        splitter.recognizeSurplusRevenue(BaseBindings.USDC);
+        Vm.Log[] memory splitterLogs = vm.getRecordedLogs();
+        Recognition memory surplus = _soleRecognition(splitterLogs, d.splitter, BaseBindings.USDC);
+        assertEq(surplus.source, payer, "surplus recognition source");
+        assertEq(surplus.revenueRef, bytes32(0), "surplus recognition asserted a reference");
+        _assertRecognitionIsExact(
+            surplus,
+            splitterGross,
+            splitterSkim,
+            ((splitterGross - splitterSkim) * splitter.totalStaked()) / TOTAL_SUPPLY
+        );
+        _assertAggregateBalances(splitter, splitterBefore, surplus);
+        assertEq(_allowance(BaseBindings.USDC, d.splitter, BaseBindings.LIVE_STAKING), 0, "staking allowance survived");
+    }
+
+    function _aggregateBalances(SubjectSplitterV1 splitter) private view returns (AggregateBalances memory balances) {
+        balances.liveStaking = _balanceOf(BaseBindings.USDC, BaseBindings.LIVE_STAKING);
+        balances.liability = splitter.unclaimedLiability(BaseBindings.USDC);
+        balances.splitterHeld = _balanceOf(BaseBindings.USDC, address(splitter));
+        balances.treasuryHeld = _balanceOf(BaseBindings.USDC, treasury);
+    }
+
+    function _assertAggregateBalances(
+        SubjectSplitterV1 splitter,
+        AggregateBalances memory beforeBalances,
+        Recognition memory recognition
+    ) private view {
+        assertEq(
+            _balanceOf(BaseBindings.USDC, BaseBindings.LIVE_STAKING) - beforeBalances.liveStaking,
+            recognition.skim,
+            "aggregate skim did not reach live staking"
+        );
+        assertEq(
+            splitter.unclaimedLiability(BaseBindings.USDC) - beforeBalances.liability,
+            recognition.stakerShare,
+            "aggregate staker liability delta"
+        );
+        assertEq(
+            _balanceOf(BaseBindings.USDC, address(splitter)) - beforeBalances.splitterHeld,
+            recognition.stakerShare,
+            "aggregate splitter inventory delta"
+        );
+        assertEq(
+            _balanceOf(BaseBindings.USDC, treasury) - beforeBalances.treasuryHeld,
+            recognition.treasuryShare,
+            "aggregate treasury delta"
+        );
+    }
+
+    function _assertAggregatePaymentRouted(Vm.Log[] memory logs, address receiver, uint256 gross) private pure {
+        bool found;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != receiver) continue;
+            if (logs[i].topics.length != 4 || logs[i].topics[0] != PAYMENT_ROUTED_TOPIC) continue;
+            assertFalse(found, "one sweep produced more than one route");
+            assertEq(logs[i].topics[1], bytes32(0), "aggregate PaymentRouted asserted a reference");
+            (uint256 loggedGross, uint256 referral, uint256 net) = abi.decode(logs[i].data, (uint256, uint256, uint256));
+            assertEq(loggedGross, gross, "aggregate route gross");
+            assertEq(referral, 0, "canonical aggregate referral");
+            assertEq(net, gross, "canonical aggregate net");
+            found = true;
+        }
+        assertTrue(found, "aggregate receiver route event absent");
     }
 
     // -------------------------------------------------------------------------

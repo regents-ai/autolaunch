@@ -262,14 +262,15 @@ contract SubjectSplitterV1 is Initializable, ReentrancyGuard {
     /// @dev Permissionless by design: a bare transfer becomes revenue only here. The unaccounted
     ///      amount is the held balance minus protected inventory, so staked principal, unclaimed
     ///      liability, the carried remainder, and per-account division dust can never be relabeled
-    ///      as new revenue. `C1-I3`, `C1-I4`.
-    function recognizeSurplusRevenue(address token, bytes32 revenueRef) external nonReentrant {
+    ///      as new revenue. An aggregate bare balance asserts no attributable reference, so the
+    ///      recognized reference is always zero. `C1-I3`, `C1-I4`.
+    function recognizeSurplusRevenue(address token) external nonReentrant {
         _requireSupported(token);
 
         uint256 unaccounted = token.balanceOf(address(this)) - protectedBalance(token);
         if (unaccounted == 0) revert ZeroAmount();
 
-        _recognize(token, unaccounted, revenueRef);
+        _recognize(token, unaccounted, bytes32(0));
     }
 
     // -------------------------------------------------------------------------

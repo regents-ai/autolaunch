@@ -14,7 +14,9 @@ interface IRegentRevenueStakingMinimal {
     /// @notice Deposit USDC as recognized revenue for the live REGENT stakers.
     /// @param amount The exact USDC amount the caller has approved to this contract.
     /// @param sourceTag Event metadata. The splitter passes its SUBJECT token address.
-    /// @param sourceRef Event metadata. The splitter forwards its caller's `revenueRef`.
+    /// @param sourceRef Event metadata. Direct recognized deposits preserve the caller's
+    ///        `revenueRef`; aggregate surplus recognition supplies zero because no attributable
+    ///        reference is asserted.
     /// @return received The amount the implementation observed itself actually receive.
     function depositUSDC(uint256 amount, bytes32 sourceTag, bytes32 sourceRef) external returns (uint256 received);
 }

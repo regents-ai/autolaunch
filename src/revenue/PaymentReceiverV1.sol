@@ -153,13 +153,15 @@ contract PaymentReceiverV1 is Initializable, ReentrancyGuard {
     }
 
     /// @notice Route this receiver's entire bare balance of `token`.
-    function sweep(address token, bytes32 paymentRef) external nonReentrant {
+    /// @dev A bare aggregate balance asserts no attributable payment reference, so the routed
+    ///      reference is always zero.
+    function sweep(address token) external nonReentrant {
         _requireSupported(token);
 
         uint256 amount = token.balanceOf(address(this));
         if (amount == 0) revert ZeroAmount();
 
-        _route(token, amount, paymentRef);
+        _route(token, amount, bytes32(0));
     }
 
     /// @notice Send this receiver's whole balance of an unsupported ERC20 to the fixed treasury.

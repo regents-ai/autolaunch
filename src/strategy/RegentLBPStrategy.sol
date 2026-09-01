@@ -527,6 +527,14 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         d.lpRegentUsed = lpRegentUsed;
         d.lpSubjectUsed = lpSubjectUsed;
 
+        (bool registered, bytes memory reason) =
+            factory.call(abi.encodeWithSignature("registerCanonicalPaymentReceiver(address)", auction));
+        if (!registered) {
+            assembly ("memory-safe") {
+                revert(add(reason, 0x20), mload(reason))
+            }
+        }
+
         emit LaunchGraduated(
             auction, subject, poolId, splitter, receiver, sqrtPriceX96, lpTokenId, lpRegentUsed, lpSubjectUsed
         );

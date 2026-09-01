@@ -2,6 +2,11 @@
 
 **Nothing here has been deployed.** The repository is mainnet NO-GO.
 
+The installed packet predates the receiver-provenance and aggregate-reference candidate and is
+superseded. A replacement may be prepared only after the exact integrated candidate passes the
+founder-run Base fork gate and produces its commit-bound receipt. Until then the existing selection,
+addresses, hashes, margins, and digest are historical proposal data, not deployment authority.
+
 Two files live in this directory, and keeping them apart is the point.
 
 - `mainnet-no-go-packet.json` is a **proposal**, and the sole committed ceremony authority. It
