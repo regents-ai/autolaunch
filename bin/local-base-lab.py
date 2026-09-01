@@ -44,6 +44,10 @@ GENERATED = Path("reports/generated/local-base-lab")
 STATE_PATH = GENERATED / "state.json"
 SITE_CONFIG_PATH = GENERATED / "site-config.json"
 
+# Foundry loads one of these from the project root into every Forge child it starts, so clearing
+# the upstream variable from the child environment is not enough on its own.
+DOTENV_NAMES = (".env", ".env.local", ".envrc")
+
 ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 GRAPH_LOG_RE = re.compile(r"REGENT_LOCAL_LAB_([A-Z0-9_]+)\s*:?\s*(0x[0-9a-fA-F]+)")
 GRAPH_LABELS = {
@@ -70,6 +74,7 @@ ABI_TARGETS = {
 
 # Fixed selectors from repository-pinned ABIs.
 TRANSFER = "0xa9059cbb"
+BALANCE_OF = "0x70a08231"
 ADMIN = "0xf851a440"
 FACTORY = "0xc45a0155"
 SET_LAUNCH_FEE = "0x5313be2c"
@@ -89,6 +94,10 @@ class LabError(RuntimeError):
     """An expected local-lab failure."""
 
 
+class TerminationSignal(BaseException):
+    """A termination signal delivered while a lab install is mid-flight."""
+
+
 class RpcError(LabError):
     """A JSON-RPC error with its machine-readable revert data retained."""
 
@@ -99,6 +108,34 @@ class RpcError(LabError):
 
 def repository_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def require_no_dotenv(root: Path) -> None:
+    """Refuse to run beside a dotenv file Foundry would load into every Forge child."""
+    for name in DOTENV_NAMES:
+        if (root / name).exists():
+            raise LabError(
+                f"{name} exists in the repository root; the local lab never reads one "
+                "and refuses to run beside one"
+            )
+
+
+def _raise_termination(number: int, _frame: Any) -> None:
+    raise TerminationSignal(f"received {signal.Signals(number).name}")
+
+
+@contextlib.contextmanager
+def termination_unwinds():
+    """Make SIGTERM and SIGHUP unwind through the same rollback path SIGINT already takes."""
+    previous = {
+        number: signal.signal(number, _raise_termination)
+        for number in (signal.SIGTERM, signal.SIGHUP)
+    }
+    try:
+        yield
+    finally:
+        for number, handler in previous.items():
+            signal.signal(number, handler)
 
 
 def normalize_address(value: str, label: str = "address") -> str:
@@ -519,6 +556,13 @@ def runtime_code(client: RpcClient, target: str) -> str:
     return result.lower()
 
 
+def require_deployed_code(client: RpcClient, addresses: Mapping[str, str]) -> None:
+    """Prove the broadcast really landed before either generated document is written."""
+    for label, address in sorted(addresses.items()):
+        if runtime_code(client, address) == "0x":
+            raise LabError(f"deployed {label} has no runtime code on the local lab")
+
+
 def snapshot(client: RpcClient) -> str:
     snapshot_id = client.mutate("evm_snapshot")
     if not isinstance(snapshot_id, str) or not snapshot_id.startswith("0x"):
@@ -822,6 +866,8 @@ def command_start(args: argparse.Namespace) -> None:
             raise LabError("Anvil did not expose a local deployment account")
         deployer = normalize_address(str(accounts[0]), "local deployer")
         graph = deploy_graph(root, client, deployer)
+        addresses = {key: value for key, value in graph.items() if key != "hook_salt"}
+        require_deployed_code(client, addresses)
         safe_runtime = require_clean_safe_runtime(
             root, runtime_code(client, GOVERNANCE_SAFE)
         )
@@ -832,9 +878,7 @@ def command_start(args: argparse.Namespace) -> None:
             "rpc_url": rpc_url,
             "chain_id": LOCAL_CHAIN_ID,
             "block_number_at_start": parse_quantity(client.read("eth_blockNumber")),
-            "addresses": {
-                key: value for key, value in graph.items() if key != "hook_salt"
-            },
+            "addresses": addresses,
             "governance_safe_original_runtime": safe_runtime,
         }
         atomic_write_json(state_path, state)
@@ -928,85 +972,89 @@ def command_admin(args: argparse.Namespace) -> None:
             raise LabError("governance Safe has unrecognized runtime code")
 
     outer_snapshot: str | None = None
-    try:
-        outer_snapshot = snapshot(client)
-        set_runtime_code(client, GOVERNANCE_SAFE, expected_runtime)
-        verify_adapter_bindings(client, admin, factory)
-
-        proof_snapshot = snapshot(client)
+    with termination_unwinds():
         try:
-            prove_adapter(
-                client,
-                admin,
-                factory,
-                prior_fee,
-                prior_paused,
-                prior_governance_balance,
-            )
-        finally:
-            revert_snapshot(client, proof_snapshot)
+            outer_snapshot = snapshot(client)
+            set_runtime_code(client, GOVERNANCE_SAFE, expected_runtime)
+            verify_adapter_bindings(client, admin, factory)
 
-        if runtime_code(client, GOVERNANCE_SAFE) != expected_runtime:
-            raise LabError("adapter runtime changed after proof rollback")
-        verify_adapter_bindings(client, admin, factory)
-        if factory_state(client, factory) != (prior_fee, prior_paused):
-            raise LabError("factory state changed after proof rollback")
-        if account_balance(client, REGENT, GOVERNANCE_SAFE) != prior_governance_balance:
-            raise LabError("governance REGENT custody changed after proof rollback")
-
-        updated_state = dict(state)
-        updated_state["governance_safe_original_runtime"] = baseline
-        updated_state["local_admin"] = admin
-        updated_config = dict(config)
-        updated_config["local_admin"] = admin
-        atomic_write_json(state_path, updated_state)
-        atomic_write_json(config_path, updated_config)
-
-        if load_json(state_path).get("local_admin") != admin:
-            raise LabError("state did not persist the local admin")
-        if load_json(config_path).get("local_admin") != admin:
-            raise LabError("site config did not persist the local admin")
-        print("local factory admin installed and verified")
-    except BaseException as exc:
-        rollback_errors: list[str] = []
-        if outer_snapshot is not None:
+            proof_snapshot = snapshot(client)
             try:
-                revert_snapshot(client, outer_snapshot)
-            except BaseException as rollback_exc:
-                rollback_errors.append(f"chain snapshot: {rollback_exc}")
-        try:
-            restore_optional_bytes(state_path, prior_state_bytes)
-            restore_optional_bytes(config_path, prior_config_bytes)
-        except BaseException as rollback_exc:
-            rollback_errors.append(f"generated JSON: {rollback_exc}")
-        try:
-            if runtime_code(client, GOVERNANCE_SAFE) != baseline:
-                rollback_errors.append("Safe runtime did not restore exactly")
+                prove_adapter(
+                    client,
+                    admin,
+                    factory,
+                    prior_fee,
+                    prior_paused,
+                    prior_governance_balance,
+                )
+            finally:
+                revert_snapshot(client, proof_snapshot)
+
+            if runtime_code(client, GOVERNANCE_SAFE) != expected_runtime:
+                raise LabError("adapter runtime changed after proof rollback")
+            verify_adapter_bindings(client, admin, factory)
             if factory_state(client, factory) != (prior_fee, prior_paused):
-                rollback_errors.append("factory state did not restore exactly")
+                raise LabError("factory state changed after proof rollback")
             if (
                 account_balance(client, REGENT, GOVERNANCE_SAFE)
                 != prior_governance_balance
             ):
-                rollback_errors.append("governance REGENT balance did not restore")
-            if read_optional_bytes(state_path) != prior_state_bytes:
-                rollback_errors.append("state JSON did not restore exactly")
-            if read_optional_bytes(config_path) != prior_config_bytes:
-                rollback_errors.append("site-config JSON did not restore exactly")
-        except BaseException as rollback_exc:
-            rollback_errors.append(f"rollback verification: {rollback_exc}")
-        if rollback_errors:
-            raise LabError(
-                f"admin install failed ({exc}); rollback failed: "
-                + "; ".join(rollback_errors)
-            ) from exc
-        if isinstance(exc, LabError):
-            raise
-        raise LabError(f"admin install failed and was rolled back: {exc}") from exc
+                raise LabError("governance REGENT custody changed after proof rollback")
+
+            updated_state = dict(state)
+            updated_state["governance_safe_original_runtime"] = baseline
+            updated_state["local_admin"] = admin
+            updated_config = dict(config)
+            updated_config["local_admin"] = admin
+            atomic_write_json(state_path, updated_state)
+            atomic_write_json(config_path, updated_config)
+
+            if load_json(state_path).get("local_admin") != admin:
+                raise LabError("state did not persist the local admin")
+            if load_json(config_path).get("local_admin") != admin:
+                raise LabError("site config did not persist the local admin")
+            print("local factory admin installed and verified")
+        except BaseException as exc:
+            rollback_errors: list[str] = []
+            if outer_snapshot is not None:
+                try:
+                    revert_snapshot(client, outer_snapshot)
+                except BaseException as rollback_exc:
+                    rollback_errors.append(f"chain snapshot: {rollback_exc}")
+            try:
+                restore_optional_bytes(state_path, prior_state_bytes)
+                restore_optional_bytes(config_path, prior_config_bytes)
+            except BaseException as rollback_exc:
+                rollback_errors.append(f"generated JSON: {rollback_exc}")
+            try:
+                if runtime_code(client, GOVERNANCE_SAFE) != baseline:
+                    rollback_errors.append("Safe runtime did not restore exactly")
+                if factory_state(client, factory) != (prior_fee, prior_paused):
+                    rollback_errors.append("factory state did not restore exactly")
+                if (
+                    account_balance(client, REGENT, GOVERNANCE_SAFE)
+                    != prior_governance_balance
+                ):
+                    rollback_errors.append("governance REGENT balance did not restore")
+                if read_optional_bytes(state_path) != prior_state_bytes:
+                    rollback_errors.append("state JSON did not restore exactly")
+                if read_optional_bytes(config_path) != prior_config_bytes:
+                    rollback_errors.append("site-config JSON did not restore exactly")
+            except BaseException as rollback_exc:
+                rollback_errors.append(f"rollback verification: {rollback_exc}")
+            if rollback_errors:
+                raise LabError(
+                    f"admin install failed ({exc}); rollback failed: "
+                    + "; ".join(rollback_errors)
+                ) from exc
+            if isinstance(exc, LabError):
+                raise
+            raise LabError(f"admin install failed and was rolled back: {exc}") from exc
 
 
 def account_balance(client: RpcClient, token: str, account: str) -> int:
-    return decode_uint(rpc_call(client, token, "0x70a08231" + abi_address(account)))
+    return decode_uint(rpc_call(client, token, BALANCE_OF + abi_address(account)))
 
 
 def command_fund(args: argparse.Namespace) -> None:
@@ -1239,6 +1287,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = build_parser().parse_args(argv)
+        require_no_dotenv(repository_root())
         args.handler(args)
         return 0
     except LabError as exc:

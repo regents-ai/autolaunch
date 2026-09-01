@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
+import io
 import json
 import os
+import re
+import signal
+import subprocess
 import tempfile
 import unittest
+import urllib.request
 from argparse import Namespace
 from pathlib import Path
 from types import SimpleNamespace
@@ -29,10 +34,19 @@ FACTORY = "0x" + "55" * 20
 TX_HASH = "0x" + "66" * 32
 ORIGINAL_SAFE_RUNTIME = "0x60006000"
 ADAPTER_RUNTIME = "0x60016001"
+UPSTREAM_URL = "https://provider.invalid/v2/upstream-project-secret"
 
 
 def word(value: int) -> str:
     return "0x" + f"{value:064x}"
+
+
+def lab_graph() -> dict[str, str]:
+    """One deployment graph whose seven addresses are all distinct."""
+    return {
+        label: "0x" + f"{index:0{64 if label == 'hook_salt' else 40}x}"
+        for index, label in enumerate(sorted(lab.GRAPH_LABELS), start=1)
+    }
 
 
 class FakeRpc(lab.RpcClient):
@@ -50,6 +64,26 @@ class FakeRpc(lab.RpcClient):
             return hex(self.chain_id)
         result = self.results.get(method)
         return result() if callable(result) else result
+
+
+class StartRpc(FakeRpc):
+    """A local node whose per-address code readback can be emptied for one address."""
+
+    def __init__(self, empty: str | None = None):
+        super().__init__()
+        self.empty = empty
+
+    def _request(self, method, params=()):
+        self.calls.append((method, list(params)))
+        if method == "eth_chainId":
+            return hex(self.chain_id)
+        if method == "eth_getCode":
+            return "0x" if params[0] == self.empty else ORIGINAL_SAFE_RUNTIME
+        if method == "eth_accounts":
+            return [WALLET]
+        if method == "eth_blockNumber":
+            return "0x64"
+        return True
 
 
 class AdminRpc(FakeRpc):
@@ -192,6 +226,41 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(environment["FOUNDRY_OFFLINE"], "true")
         self.assertEqual(environment["EXTRA"], "ok")
 
+    def test_every_command_refuses_beside_a_repository_root_dotenv(self):
+        commands = (
+            ["start"],
+            ["status"],
+            ["stop"],
+            ["admin", lab.FOUNDER_LOCAL_ADMIN],
+            ["advance", AUCTION, "start"],
+            ["pace", AUCTION],
+            ["fund", WALLET, "--holder", HOLDER, "--amount", "1"],
+        )
+        for name in lab.DOTENV_NAMES:
+            for command in commands:
+                with (
+                    self.subTest(dotenv=name, command=command[0]),
+                    tempfile.TemporaryDirectory() as directory,
+                ):
+                    root = Path(directory)
+                    (root / name).write_text(
+                        f"{lab.REGENT_BASE_RPC_ENV}={UPSTREAM_URL}\n"
+                    )
+                    stderr = io.StringIO()
+                    with (
+                        mock.patch.object(lab, "repository_root", return_value=root),
+                        mock.patch.object(subprocess, "run") as run,
+                        mock.patch.object(subprocess, "Popen") as popen,
+                        mock.patch.object(urllib.request, "urlopen") as urlopen,
+                        contextlib.redirect_stderr(stderr),
+                    ):
+                        self.assertEqual(lab.main(command), 1)
+                    self.assertIn(name, stderr.getvalue())
+                    self.assertNotIn(UPSTREAM_URL, stderr.getvalue())
+                    run.assert_not_called()
+                    popen.assert_not_called()
+                    urlopen.assert_not_called()
+
     def test_missing_or_credentialed_upstream_is_refused(self):
         with self.assertRaises(lab.LabError):
             lab.validate_upstream_url("")
@@ -278,6 +347,29 @@ class BoundaryTests(unittest.TestCase):
 
 
 class DeploymentTests(unittest.TestCase):
+    @contextlib.contextmanager
+    def start_context(self, root: Path, client: StartRpc, graph: dict[str, str]):
+        with (
+            mock.patch.dict(os.environ, {lab.REGENT_BASE_RPC_ENV: UPSTREAM_URL}),
+            mock.patch.object(lab, "repository_root", return_value=root),
+            mock.patch.object(lab, "require_base_upstream"),
+            mock.patch.object(lab, "compile_lab"),
+            mock.patch.object(lab, "load_abis", return_value={}),
+            mock.patch.object(lab, "reserve_port", return_value=8545),
+            mock.patch.object(
+                lab, "start_anvil", return_value=SimpleNamespace(pid=999)
+            ),
+            mock.patch.object(lab, "terminate_process"),
+            mock.patch.object(lab, "RpcClient", return_value=client),
+            mock.patch.object(lab, "deploy_graph", return_value=graph),
+            mock.patch.object(lab, "unpause_factory"),
+            mock.patch.object(
+                lab, "keccak_code", return_value=lab.PINNED_SAFE_RUNTIME_HASH
+            ),
+            mock.patch("builtins.print"),
+        ):
+            yield
+
     def graph_output(self) -> str:
         rows = []
         for index, label in enumerate(sorted(lab.GRAPH_LABELS), start=1):
@@ -344,59 +436,55 @@ class DeploymentTests(unittest.TestCase):
             ["anvil_impersonateAccount", "anvil_stopImpersonatingAccount"],
         )
 
-    def test_site_config_is_small_and_contains_no_upstream_or_private_key(self):
-        graph = {
-            label: ("0x" + "ab" * (32 if label == "hook_salt" else 20))
-            for label in lab.GRAPH_LABELS
-        }
+    def test_site_config_is_a_closed_field_set_with_no_upstream_value(self):
+        graph = lab_graph()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            lab.write_site_config(root, "http://127.0.0.1:9123", graph, {"factory": []})
+            with mock.patch.dict(os.environ, {lab.REGENT_BASE_RPC_ENV: UPSTREAM_URL}):
+                lab.write_site_config(
+                    root, "http://127.0.0.1:9123", graph, {"factory": []}
+                )
+            written = (root / lab.SITE_CONFIG_PATH).read_text()
             config = lab.load_json(root / lab.SITE_CONFIG_PATH)
         self.assertEqual(set(config), {"rpc_url", "chain_id", "addresses", "abis"})
+        self.assertEqual(
+            set(config["addresses"]),
+            (lab.GRAPH_LABELS - {"hook_salt"})
+            | {
+                "regent",
+                "permit2",
+                "cca_factory",
+                "pool_manager",
+                "position_manager",
+                "governance_safe",
+            },
+        )
         self.assertEqual(config["chain_id"], 31337)
-        self.assertNotIn("hook_salt", config["addresses"])
-        encoded = json.dumps(config).lower()
-        self.assertNotIn("private", encoded)
-        self.assertNotIn("upstream", encoded)
+        self.assertEqual(config["rpc_url"], "http://127.0.0.1:9123")
+        self.assertEqual(config["abis"], {"factory": []})
         self.assertEqual(config["addresses"]["regent"], lab.REGENT)
         self.assertEqual(config["addresses"]["permit2"], lab.PERMIT2)
+        for leaked in (
+            UPSTREAM_URL,
+            "provider.invalid",
+            "upstream-project-secret",
+            lab.REGENT_BASE_RPC_ENV,
+        ):
+            self.assertNotIn(leaked, written)
+        for value in (
+            [config["rpc_url"], str(config["chain_id"])]
+            + list(config["addresses"].values())
+            + [json.dumps(config["abis"])]
+        ):
+            self.assertNotIn("provider.invalid", value)
+            self.assertNotIn("private", value.lower())
 
     def test_start_captures_the_pinned_safe_runtime_in_generated_state(self):
-        graph = {
-            label: ("0x" + "ab" * (32 if label == "hook_salt" else 20))
-            for label in lab.GRAPH_LABELS
-        }
-        client = FakeRpc()
-        client.results.update(
-            {
-                "eth_accounts": [WALLET],
-                "eth_getCode": ORIGINAL_SAFE_RUNTIME,
-                "eth_blockNumber": "0x64",
-            }
-        )
-        process = SimpleNamespace(pid=999)
+        graph = lab_graph()
+        client = StartRpc()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            with (
-                mock.patch.dict(
-                    os.environ,
-                    {lab.REGENT_BASE_RPC_ENV: "https://provider.invalid/rpc"},
-                ),
-                mock.patch.object(lab, "repository_root", return_value=root),
-                mock.patch.object(lab, "require_base_upstream"),
-                mock.patch.object(lab, "compile_lab"),
-                mock.patch.object(lab, "load_abis", return_value={}),
-                mock.patch.object(lab, "reserve_port", return_value=8545),
-                mock.patch.object(lab, "start_anvil", return_value=process),
-                mock.patch.object(lab, "RpcClient", return_value=client),
-                mock.patch.object(lab, "deploy_graph", return_value=graph),
-                mock.patch.object(lab, "unpause_factory"),
-                mock.patch.object(
-                    lab, "keccak_code", return_value=lab.PINNED_SAFE_RUNTIME_HASH
-                ),
-                mock.patch("builtins.print"),
-            ):
+            with self.start_context(root, client, graph):
                 lab.command_start(Namespace(fork_block=None))
             state = lab.load_json(root / lab.STATE_PATH)
             self.assertEqual(
@@ -405,6 +493,26 @@ class DeploymentTests(unittest.TestCase):
             config = lab.load_json(root / lab.SITE_CONFIG_PATH)
             self.assertNotIn("local_admin", state)
             self.assertNotIn("local_admin", config)
+            self.assertEqual(set(state["addresses"]), lab.GRAPH_LABELS - {"hook_salt"})
+        read = [params[0] for method, params in client.calls if method == "eth_getCode"]
+        for address in state["addresses"].values():
+            self.assertIn(address, read)
+
+    def test_start_writes_nothing_when_a_deployed_address_has_no_code(self):
+        graph = lab_graph()
+        for label in sorted(lab.GRAPH_LABELS - {"hook_salt"}):
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                client = StartRpc(empty=graph[label])
+                with (
+                    self.start_context(root, client, graph),
+                    self.assertRaisesRegex(
+                        lab.LabError, f"{label} has no runtime code"
+                    ),
+                ):
+                    lab.command_start(Namespace(fork_block=None))
+                self.assertFalse((root / lab.STATE_PATH).exists())
+                self.assertFalse((root / lab.SITE_CONFIG_PATH).exists())
 
     def test_adapter_runtime_uses_exactly_two_encoded_constructor_addresses(self):
         client = FakeRpc()
@@ -601,6 +709,55 @@ class AdminTests(unittest.TestCase):
             self.assertEqual(client.regent_balance, 777)
             self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
             self.assertEqual((root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes)
+
+    def test_termination_signal_rolls_back_chain_and_both_documents(self):
+        class TerminatedRpc(AdminRpc):
+            """Deliver a termination signal after the adapter code is installed."""
+
+            def __init__(self, number: int):
+                super().__init__()
+                self.number = number
+                self.delivered = False
+
+            def _request(self, method, params=()):
+                if (
+                    method == "evm_snapshot"
+                    and self.code == ADAPTER_RUNTIME
+                    and not self.delivered
+                ):
+                    self.delivered = True
+                    # The installed handler raises before the next bytecode runs.
+                    os.kill(os.getpid(), self.number)
+                return super()._request(method, params)
+
+        for number in (signal.SIGTERM, signal.SIGHUP):
+            with (
+                self.subTest(signal=signal.Signals(number).name),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                root = Path(directory)
+                state, _config = self.write_documents(root)
+                state_bytes = (root / lab.STATE_PATH).read_bytes()
+                config_bytes = (root / lab.SITE_CONFIG_PATH).read_bytes()
+                client = TerminatedRpc(number)
+                outer_handler = signal.getsignal(number)
+                with (
+                    self.admin_context(root, state, client),
+                    self.assertRaisesRegex(
+                        lab.LabError,
+                        f"rolled back.*{signal.Signals(number).name}",
+                    ),
+                ):
+                    lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
+                self.assertTrue(client.delivered)
+                self.assertIs(signal.getsignal(number), outer_handler)
+                self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
+                self.assertEqual((client.fee, client.paused), (25, False))
+                self.assertEqual(client.regent_balance, 777)
+                self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
+                self.assertEqual(
+                    (root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes
+                )
 
     def test_matching_repeat_is_a_verified_no_op(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -858,6 +1015,118 @@ class TimingTests(unittest.TestCase):
         self.assertEqual(lab.paced_target(start, end, 3600, 1800), end)
         with self.assertRaises(lab.LabError):
             lab.paced_target(start, end, 1, 0)
+
+
+class ArtifactDerivationTests(unittest.TestCase):
+    """Every pinned selector and ABI offset must still come out of the compiled sources."""
+
+    ADAPTER = "LocalFactoryGovernance"
+    FUNCTION_SELECTORS = {
+        "TRANSFER": (lab.ABI_TARGETS["token"], "transfer(address,uint256)"),
+        "BALANCE_OF": (lab.ABI_TARGETS["token"], "balanceOf(address)"),
+        "ADMIN": (ADAPTER, "admin()"),
+        "FACTORY": (ADAPTER, "factory()"),
+        "SET_LAUNCH_FEE": (ADAPTER, "setLaunchFee(uint256)"),
+        "PAUSE_LAUNCHES": (ADAPTER, "pauseLaunches()"),
+        "UNPAUSE_LAUNCHES": (ADAPTER, "unpauseLaunches()"),
+        "LAUNCH_FEE": (lab.ABI_TARGETS["factory"], "launchFee()"),
+        "LAUNCHES_PAUSED": (lab.ABI_TARGETS["factory"], "launchesPaused()"),
+        "START_BLOCK": (lab.ABI_TARGETS["auction"], "startBlock()"),
+        "END_BLOCK": (lab.ABI_TARGETS["auction"], "endBlock()"),
+        "CLAIM_BLOCK": (lab.ABI_TARGETS["auction"], "claimBlock()"),
+        "FUNDS_RECIPIENT": (lab.ABI_TARGETS["auction"], "fundsRecipient()"),
+        "DISTRIBUTION": (lab.ABI_TARGETS["strategy"], "distribution(address)"),
+    }
+    ERROR_SELECTORS = {"NOT_ADMIN": (ADAPTER, "NotAdmin(address)")}
+    STATIC_ABI_TYPES = {
+        "uint8",
+        "uint64",
+        "uint128",
+        "uint160",
+        "uint256",
+        "address",
+        "bytes32",
+    }
+    _inspected: dict[tuple[str, str], object] = {}
+
+    @classmethod
+    def inspect(cls, contract: str, field: str):
+        key = (contract, field)
+        if key not in cls._inspected:
+            completed = subprocess.run(
+                ["forge", "inspect", contract, field, "--json"],
+                cwd=ROOT,
+                env=lab.forge_environment(),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                check=True,
+            )
+            cls._inspected[key] = json.loads(completed.stdout)
+        return cls._inspected[key]
+
+    def test_every_pinned_selector_constant_is_derived_from_an_artifact(self):
+        pinned = {
+            name
+            for name, value in vars(lab).items()
+            if name.isupper()
+            and isinstance(value, str)
+            and re.fullmatch(r"0x[0-9a-f]{8}", value)
+        }
+        self.assertEqual(
+            pinned, set(self.FUNCTION_SELECTORS) | set(self.ERROR_SELECTORS)
+        )
+        self.assertEqual(len(pinned), 15)
+
+    def test_function_selectors_match_the_compiled_method_identifiers(self):
+        for name, (contract, signature) in sorted(self.FUNCTION_SELECTORS.items()):
+            identifiers = self.inspect(contract, "methodIdentifiers")
+            with self.subTest(constant=name):
+                self.assertIn(signature, identifiers)
+                self.assertEqual(getattr(lab, name), "0x" + identifiers[signature])
+
+    def test_error_selectors_match_the_compiled_error_identifiers(self):
+        for name, (contract, signature) in sorted(self.ERROR_SELECTORS.items()):
+            errors = self.inspect(contract, "errors")
+            with self.subTest(constant=name):
+                self.assertIn(signature, errors)
+                self.assertEqual(getattr(lab, name), "0x" + errors[signature])
+
+    def test_distribution_migration_offset_comes_from_the_compiled_abi(self):
+        abi = self.inspect(lab.ABI_TARGETS["strategy"], "abi")
+        entry = next(
+            item
+            for item in abi
+            if item.get("type") == "function" and item.get("name") == "distribution"
+        )
+        components = entry["outputs"][0]["components"]
+        self.assertEqual(
+            {component["type"] for component in components} - self.STATIC_ABI_TYPES,
+            set(),
+        )
+        self.assertEqual(len(components), 18)
+        index = [component["name"] for component in components].index("migrationBlock")
+        self.assertEqual(index, 4)
+
+        migration = 86_629
+        words = [0] * len(components)
+        words[index] = migration
+        client = FakeRpc()
+        values = {
+            lab.START_BLOCK: word(100),
+            lab.END_BLOCK: word(86_501),
+            lab.CLAIM_BLOCK: word(86_565),
+            lab.FUNDS_RECIPIENT: "0x" + "00" * 12 + STRATEGY[2:],
+        }
+
+        def eth_call():
+            data = client.calls[-1][1][0]["data"]
+            if data.startswith(lab.DISTRIBUTION):
+                return "0x" + "".join(f"{value:064x}" for value in words)
+            return values[data]
+
+        client.results["eth_call"] = eth_call
+        self.assertEqual(lab.auction_timing(client, AUCTION)["migration"], migration)
 
 
 class SurfaceTests(unittest.TestCase):
