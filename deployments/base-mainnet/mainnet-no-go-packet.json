@@ -22,7 +22,7 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x0b89c7d213ed85878456985fcca45a3331b038200de002bf249d2c23a1c53681"
+    "value": "0xb80de55fb6b1e0240c12c9a52ed313fd0b16482fb2b704e0aa4f77b34e5d81f3"
   },
   "external_observation": {
     "governance_and_regent_safe": {
@@ -44,7 +44,7 @@
       "paused": false,
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     },
-    "observed_at_block": 50577738
+    "observed_at_block": 50754918
   },
   "external_observation_note": "The mutable external state a deployment depends on: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, modules, module page terminator, fallback handler, singleton and version. Frozen by `bin/deployment-gate.sh --prepare` and compared exactly by `--rehearse`, which also holds every frozen binding's runtime and proxy identity to reports/frozen/fork-observations.json and re-asserts the CCA zero fee controller and the USDC pause and blacklist policy. `observed_at_block` is provenance, not a comparison, because the head moves.",
   "fork_check_receipt": {
