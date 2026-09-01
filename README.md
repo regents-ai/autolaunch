@@ -272,13 +272,13 @@ gate reconciles.
 
 A gate is added to the ledger's `activated_gates` only in the candidate that already carries that
 gate's committed evidence. `fork` is active with the separately reviewed observation record. This
-candidate executed all eighteen claims at Base block `50495491` and the focused nine-claim subset at
-block `50495791` against its own born-paused source authority; all twenty-seven mapped selectors
-passed. The record's observed values did not move — the same reviewed headers, bindings, proxies and
-gas schedule were re-checked live and matched — so only the `source_authority` it names moved, which
-is what makes the run evidence about these bytes rather than an earlier candidate's. Those selectors
-remain outside the offline test root, so only the read-only fork gate can execute or close them; the
-offline gate neither runs nor claims them.
+candidate executed all eighteen claims at Base block `50541328` and the focused nine-claim subset at
+block `50541628` against its own receiver-provenance source authority; all twenty-seven mapped
+selectors passed. The record's observed values did not move — the same reviewed headers, bindings,
+proxies and gas schedule were re-checked live and matched — so only the `source_authority` it names
+moved, which is what makes the run evidence about these bytes rather than an earlier candidate's.
+Those selectors remain outside the offline test root, so only the read-only fork gate can execute or
+close them; the offline gate neither runs nor claims them.
 
 ## The deployment-ceremony gate
 
@@ -330,15 +330,24 @@ initial state from an event that was never emitted.
 
 ### The production authority and the fork-evidence commit are named apart
 
-The production authority is commit `9eb3a7257a96e781b4a3d115e881d50acd496216`, tree
-`abb3a2894f60e1335a38f38be4902d1d9002a083`, carrying `src/` tree
-`2ffbc27e93a7d0fbf46ec8281b8e4b08fc7a4f7b`. The fork-evidence commit is
-`aa97e4189835abdf16c4771513c296adcb4abd95`, which sits directly on it and shares that same `src/`
-tree, because it changes no production byte: its whole diff is the two `source_authority` fields
-inside `reports/frozen/fork-observations.json`, the naming step the fork gate proves against Git and
-against the checkout before any fork test opens. `docs/audit/README.md` carries the same table, and
-states there — as here — that the identities the earlier `regent-4wx` proof named belong to the
-pre-`regent-alv1.12` bytecode and certify nothing about this candidate.
+The production authority is commit `f4114f5276386f48bf8dc53ee344189d98c8896e`, tree
+`bb660324bb1d5cc322adeb243b0bd51779821fcb`, carrying `src/` tree
+`91a741e417b75706a4071f7bdac2c5e13548c0fc`. The fork-evidence commit is
+`ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`, which sits on it and shares that same `src/` tree,
+because it changes no production byte: its whole diff is the two `source_authority` fields inside
+`reports/frozen/fork-observations.json` — the naming step the fork gate proves against Git and
+against the checkout before any fork test opens — and one whitespace-only `forge fmt` of
+`test-fork/ProductionLifecycleFork.t.sol`. `docs/audit/README.md` carries the same table, and states
+there — as here — that the identities earlier proofs named belong to pre-`regent-alv1.16` bytecode
+and certify nothing about this candidate.
+
+The packet under `deployments/base-mainnet/` was re-rendered from this authority. Four contracts'
+compiled bytes moved with the receiver-provenance lookup and the reference-free aggregate paths — the
+splitter, the receiver, the factory and the strategy — so their code identity, sizes and margins and
+the packet digest all moved with them. The packet's `selection` and `external_observation` sections
+did not: `--offline` renders those forward from the committed packet rather than deriving them, and
+neither `--prepare` nor `--rehearse` has been run against this identity, so the deployer, hook salt
+and seven predicted addresses remain the prior packet's proposal pending re-preparation.
 
 ## The other repositories
 

@@ -75,13 +75,18 @@ receivers. The strategy writes its complete terminal distribution, registers the
 through the factory's immutable-strategy-only callback, then emits `LaunchGraduated`; the strategy
 record and event remain the canonical authority. The two permissionless aggregate balance paths now
 accept no reference and propagate zero, while atomic `pay` and direct recognized deposits preserve
-their exact references. The live Base aggregate-path execution and its replacement deployment packet
-remain founder-run gates after this exact candidate is reviewed and integrated.
+their exact references. Both founder-run gates that follow integration have now been taken as far as
+they go without a deployment instruction: the read-only Base fork check has been executed against
+this exact candidate, and the deployment packet has been re-rendered from it offline.
 
-The reviewed observation records Base blocks `50541328` and `50541628`. The next separately
-authorized check must execute all eighteen pinned selectors and exactly nine later selectors on the
-clean evidence successor and write the commit-bound receipt. Until that founder run succeeds, this
-document does not claim a passing fork check for the successor.
+The reviewed observation records Base blocks `50541328` and `50541628`, and the separately authorized
+check executed all eighteen pinned selectors at the pinned header and exactly the approved nine later
+selectors at the later header — twenty-seven mapped selectors, all passing — then wrote the
+commit-bound receipt naming evidence commit `ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`. The record's
+observed values did not move: the same reviewed headers, bindings, proxies and gas schedule were
+re-checked live against Base and matched, so this was a re-execution against different bytecode
+rather than a re-observation of the chain, and no discovery pass and no new reviewer decision was
+involved.
 
 ## The production authority and the evidence candidate are two different identities
 
@@ -90,17 +95,26 @@ how an evidence-only change would come to read as a production change.
 
 | Object | Identity |
 | --- | --- |
-| Production authority commit | `3634f6f0e11523c426662b7524f2c94fd37d3597` |
-| Production authority tree | `e1439723f4263d70024cac59bbeab48d3eeec894` |
-| Production source tree (`src/`) | `a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952` |
-| Fork-evidence commit | the clean successor named exactly by `reports/generated/fork/fork-check-receipt.json` after the founder check |
+| Production authority commit | `f4114f5276386f48bf8dc53ee344189d98c8896e` |
+| Production authority tree | `bb660324bb1d5cc322adeb243b0bd51779821fcb` |
+| Production source tree (`src/`) | `91a741e417b75706a4071f7bdac2c5e13548c0fc` |
+| Fork-evidence commit | `ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`, named exactly by `reports/generated/fork/fork-check-receipt.json` |
 
-The evidence successor changes no production byte. Its `src/` tree is exactly
-`a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952`. Before provider access, `bin/fork-gate.sh check`
-refuses every tracked or untracked non-generated difference and prints the exact HEAD commit, full
-tree and source tree. A pass writes those identities and the retained report hashes to ignored
-scratch. `bin/deployment-gate.sh --prepare` accepts only that exact receipt after the renderer has
-been set to the same evidence commit; absent, stale, dirty or mismatched evidence fails closed.
+The fork-evidence commit changes no production byte. Its `src/` tree is exactly
+`91a741e417b75706a4071f7bdac2c5e13548c0fc`, and its whole diff over the authority is the two
+`source_authority` fields inside `reports/frozen/fork-observations.json` plus one whitespace-only
+`forge fmt` of `test-fork/ProductionLifecycleFork.t.sol`. Before provider access,
+`bin/fork-gate.sh check` refuses every tracked or untracked non-generated difference and prints the
+exact HEAD commit, full tree and source tree. A pass writes those identities and the retained report
+hashes to ignored scratch. `bin/deployment-gate.sh` accepts only that exact receipt after the
+renderer has been set to the same evidence commit; absent, stale, dirty or mismatched evidence fails
+closed.
+
+The identities the earlier `regent-alv1.13.1` records named — production authority
+`3634f6f0e11523c426662b7524f2c94fd37d3597`, tree `e1439723f4263d70024cac59bbeab48d3eeec894`, `src/`
+tree `a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952`, evidence commit
+`a39cf05a1d53678c14a4042c751aa452d346e7c2` — belong to the pre-`regent-alv1.16` bytecode and certify
+nothing about this one.
 
 **The earlier C9 evidence candidate certifies nothing about this one.** Commit
 `49b7458e5c93f502247905201352074ef5b5c409` carried an earlier version of this same harness on top of
@@ -218,11 +232,20 @@ and the factory's matching implementation hash. `regent-4wx` then refreshed and 
 reviewed the observation record and ran `check` once against that post-correction source authority —
 not once per intermediate candidate.
 
-**The current production authority and evidence successor are the next objects.** Production A is
-commit `3634f6f0e11523c426662b7524f2c94fd37d3597`; the successor keeps its exact `src/` tree and carries
-the reviewed observation for blocks `50541328` and `50541628`. Its fork execution is deliberately
-pending until the founder runs the check on the clean committed successor and the gate emits the
-new receipt. Earlier unbound runs do not certify this successor.
+**The `regent-alv1.13.1` authority was the next object.** Production was frozen at commit
+`3634f6f0e11523c426662b7524f2c94fd37d3597`, and its evidence successor
+`a39cf05a1d53678c14a4042c751aa452d346e7c2` kept that exact `src/` tree.
+
+**This `regent-alv1.16` candidate is the object after it.** Its offline gate is complete and green,
+and it changes four production contracts: the factory gains the non-enumerable receiver-provenance
+lookup and its strategy-only registration callback, the strategy registers the canonical receiver
+inside graduation, and the receiver and splitter drop the caller-authored reference from their two
+permissionless aggregate paths. Because all four contracts' compiled bytes move, no earlier fork
+execution carries over, so the record was pointed at this candidate's own source authority and
+`check` was run again against it. That run executed twenty-seven mapped selectors with zero failures
+or skips: eighteen claims at block `50541328`, then the approved nine-claim subset at block
+`50541628`. The observed Base facts were unchanged and were re-checked live rather than re-observed,
+so no discovery pass and no new reviewer decision was involved.
 
 `regent-4wx` also fixed what that run will execute. The complete fork portfolio is proved at the
 committed pinned header, and a focused nine-claim subset — `DEP-040`, `DEP-041`, `DEP-042`,
@@ -241,9 +264,9 @@ the shape and the one limitation that follows from it.
 | `GAS-001`, `GAS-002`, `GAS-007` | hermetic | active, executed, passing |
 | `ABI-001..012` | hermetic | active, executed, passing |
 | `INV-001..010` | invariant | active, executed, passing |
-| `DEP-040..053` | fork | active in the ledger; the clean successor's founder check and receipt are pending |
-| `GAS-003..006` | fork | active in the ledger; execution at blocks `50541328`/`50541628` is pending the same founder check |
-| `DEP-070..075` | deployment | active in the ledger; packet preparation is blocked until the exact successful fork receipt exists and is bound to the renderer |
+| `DEP-040..053` | fork | active, executed and passing against this candidate's source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
+| `GAS-003..006` | fork | active, executed and passing at blocks `50541328`/`50541628`; the three transaction envelopes run at the pinned header and `GAS-006` runs at both |
+| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider. The packet is re-rendered from this candidate; `--prepare` and `--rehearse` have not been run against this identity, so its selection section is the prior packet's carried forward |
 
 ## What is not proved
 
@@ -260,10 +283,12 @@ the shape and the one limitation that follows from it.
 - **A deployment or signed ceremony.** The fork gate is read-only; it deployed nothing to Base,
   signed nothing, and moved no value outside isolated local fork state. The deployment gate is the
   same: `DEP-070..075` prove what the five creation transactions would do and what stops a wrong
-  one, and every packet they render is a proposal whose status is `mainnet-NO-GO`. The currently
-  installed packet is intentionally not final authority for this successor. A new candidate may be
-  prepared only after the exact fork receipt exists, and only a later founder instruction naming a
-  reviewed packet's exact digest may authorize a signature or broadcast.
+  one, and every packet they render is a proposal whose status is `mainnet-NO-GO`. The installed
+  packet now carries this candidate's own code identity, sizes and margins, but its deployer, hook
+  salt, seven predicted addresses and external observation are the prior packet's, rendered forward
+  unchanged: only `--prepare <deployer>` derives those, and it has not been run for this identity.
+  Only a later founder instruction naming a reviewed packet's exact digest may authorize a signature
+  or broadcast.
 - **An activation.** The factory is born paused, and nothing here opens it. `DEP-073` impersonates
   the frozen Safe's exact address on a local fork to show that the created graph admits that one
   address as its activation authority; that is a statement about the graph, not a Safe signature,

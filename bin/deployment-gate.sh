@@ -83,12 +83,12 @@ RPC_ENV=REGENT_BASE_RPC_URL
 CHAIN_ID=8453
 PROBE_REFUSAL="the configured $RPC_ALIAS endpoint did not answer a read-only chain-id probe with exactly $CHAIN_ID"
 
-PRODUCTION_AUTHORITY_COMMIT=3634f6f0e11523c426662b7524f2c94fd37d3597
-PRODUCTION_AUTHORITY_TREE=e1439723f4263d70024cac59bbeab48d3eeec894
-PRODUCTION_AUTHORITY_SRC_TREE=a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952
+PRODUCTION_AUTHORITY_COMMIT=f4114f5276386f48bf8dc53ee344189d98c8896e
+PRODUCTION_AUTHORITY_TREE=bb660324bb1d5cc322adeb243b0bd51779821fcb
+PRODUCTION_AUTHORITY_SRC_TREE=91a741e417b75706a4071f7bdac2c5e13548c0fc
 # Filled with the exact clean B' commit only after the founder's fork check writes a successful
 # receipt for it. A preparation run cannot proceed while this sentinel remains.
-FORK_EVIDENCE_COMMIT=a39cf05a1d53678c14a4042c751aa452d346e7c2
+FORK_EVIDENCE_COMMIT=ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa
 
 # The discard port. Nothing listens on it, so the dead-endpoint regression is deterministic.
 DEAD_ENDPOINT=http://127.0.0.1:9
@@ -1696,10 +1696,10 @@ EIP3860 = 49_152
 IN_EVM_CREATION_GAS_GUARDRAIL = 14_000_000
 
 # The two immutable identities the packet names apart, from README.md's own record.
-PRODUCTION_AUTHORITY_COMMIT = "3634f6f0e11523c426662b7524f2c94fd37d3597"
-PRODUCTION_AUTHORITY_TREE = "e1439723f4263d70024cac59bbeab48d3eeec894"
-SHARED_SRC_TREE = "a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952"
-FORK_EVIDENCE_COMMIT = "a39cf05a1d53678c14a4042c751aa452d346e7c2"
+PRODUCTION_AUTHORITY_COMMIT = "f4114f5276386f48bf8dc53ee344189d98c8896e"
+PRODUCTION_AUTHORITY_TREE = "bb660324bb1d5cc322adeb243b0bd51779821fcb"
+SHARED_SRC_TREE = "91a741e417b75706a4071f7bdac2c5e13548c0fc"
+FORK_EVIDENCE_COMMIT = "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa"
 
 CREATION_ORDER = [
     ("UERC20Factory", "lib/uerc20-factory/src/factories/UERC20Factory.sol"),

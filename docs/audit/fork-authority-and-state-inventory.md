@@ -147,19 +147,32 @@ entire non-generated checkout must already be committed and clean before provide
 
 ## 4. Execution status
 
-**Pending one new founder check on the clean evidence successor.** The reviewed observation binds
-blocks `50541328` and `50541628`. The ledger activates `fork`, the compiled listing maps twenty-seven
-selectors, and check mode is fixed to run all eighteen pinned selectors plus exactly the approved
-nine-selector later subset. This document does not claim that successor run has passed until its
-generated receipt exists and names the exact clean successor commit and tree.
+**Executed and passing under read-only Base authority for the `regent-alv1.16` receiver-provenance
+source authority.** The reviewed observation binds blocks `50541328` and `50541628`. The ledger
+activates `fork`, the compiled listing maps twenty-seven selectors, and the compare-only gate
+executed all eighteen fork claims at the pinned header plus exactly the approved nine-claim subset at
+the later header, with zero failures or skips.
 
-Production authority is commit `3634f6f0e11523c426662b7524f2c94fd37d3597`, full tree
-`e1439723f4263d70024cac59bbeab48d3eeec894`, carrying `src/` tree
-`a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952`. The evidence successor carries that same source tree
-and no production-byte change. Earlier fork output without the successor's commit/tree-bound receipt
-does not authorize packet preparation. After the founder check succeeds, the deployment renderer
-must name the receipt's exact evidence commit and independently re-derive its tree, source tree,
-report hashes and selector counts before any preparation provider access.
+That run was made against production authority commit
+`f4114f5276386f48bf8dc53ee344189d98c8896e`, full tree
+`bb660324bb1d5cc322adeb243b0bd51779821fcb`, carrying `src/` tree
+`91a741e417b75706a4071f7bdac2c5e13548c0fc`, and the gate proved both against Git and against the
+checkout before any fork test opened. The evidence commit is
+`ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`, which carries that same source tree and no
+production-byte change: it moves the two `source_authority` fields inside the record and applies one
+whitespace-only `forge fmt` to `test-fork/ProductionLifecycleFork.t.sol`. No observed value moved
+with it — the same reviewed headers, bindings, proxy families, implementations and transaction gas
+schedule were re-checked live against Base and matched exactly, which is what makes this a
+re-execution against different bytecode rather than a re-observation of the chain. Discovery was
+therefore not re-run, and nothing about the reviewed record was re-derived by the candidate it
+certifies.
+
+The check wrote the commit-bound receipt naming that exact evidence commit, its tree, its source
+tree, both report hashes and the exact eighteen-plus-nine executed-selector split. Earlier fork
+output without that receipt does not authorize packet preparation, and the deployment renderer names
+the receipt's exact evidence commit and independently re-derives all of it before any preparation
+provider access. `bin/deployment-gate.sh --prepare` and `--rehearse` have not been run against this
+identity; only the read-only fork check and the offline deployment gate have.
 
 The earlier discovery pass wrote only gitignored scratch and closed no claim. A separate provider
 was used to confirm both headers, every recorded runtime identity and supported proxy
