@@ -1325,6 +1325,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (LabError, TerminationSignal) as exc:
         print(f"local Base lab failed: {exc}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("local Base lab failed: interrupted", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
