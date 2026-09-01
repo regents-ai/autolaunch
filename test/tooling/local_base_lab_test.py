@@ -374,7 +374,7 @@ class DeploymentTests(unittest.TestCase):
             mock.patch.object(
                 lab, "keccak_code", return_value=lab.PINNED_SAFE_RUNTIME_HASH
             ),
-            mock.patch("builtins.print"),
+            contextlib.redirect_stdout(io.StringIO()),
         ):
             yield
 
@@ -522,7 +522,7 @@ class DeploymentTests(unittest.TestCase):
                 self.assertFalse((root / lab.STATE_PATH).exists())
                 self.assertFalse((root / lab.SITE_CONFIG_PATH).exists())
 
-    def test_termination_during_start_still_terminates_the_spawned_anvil(self):
+    def test_termination_during_start_stops_anvil_and_reports_one_clean_line(self):
         class SignalledStartRpc(StartRpc):
             """Deliver SIGTERM after the deployment lands but before state.json exists."""
 
@@ -537,22 +537,34 @@ class DeploymentTests(unittest.TestCase):
                 return super()._request(method, params)
 
         graph = lab_graph()
-        client = SignalledStartRpc()
         outer_handler = signal.getsignal(signal.SIGTERM)
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            with (
-                self.start_context(root, client, graph),
-                mock.patch.object(lab, "terminate_process") as terminate,
-                self.assertRaisesRegex(lab.TerminationSignal, "SIGTERM"),
-            ):
-                lab.command_start(Namespace(fork_block=None))
-            self.assertTrue(client.delivered)
-            self.assertIs(signal.getsignal(signal.SIGTERM), outer_handler)
-            terminate.assert_called_once()
-            self.assertEqual(terminate.call_args.args[0].pid, 999)
-            self.assertFalse((root / lab.STATE_PATH).exists())
-            self.assertFalse((root / lab.SITE_CONFIG_PATH).exists())
+        for entry in ("command_start", "main"):
+            with self.subTest(entry=entry), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                client = SignalledStartRpc()
+                stderr = io.StringIO()
+                with (
+                    self.start_context(root, client, graph),
+                    mock.patch.object(lab, "terminate_process") as terminate,
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    if entry == "main":
+                        self.assertEqual(lab.main(["start"]), 1)
+                    else:
+                        with self.assertRaisesRegex(lab.TerminationSignal, "SIGTERM"):
+                            lab.command_start(Namespace(fork_block=None))
+                self.assertTrue(client.delivered)
+                self.assertIs(signal.getsignal(signal.SIGTERM), outer_handler)
+                terminate.assert_called_once()
+                self.assertEqual(terminate.call_args.args[0].pid, 999)
+                self.assertFalse((root / lab.STATE_PATH).exists())
+                self.assertFalse((root / lab.SITE_CONFIG_PATH).exists())
+                self.assertEqual(
+                    stderr.getvalue(),
+                    "local Base lab failed: received SIGTERM\n"
+                    if entry == "main"
+                    else "",
+                )
 
     def test_adapter_runtime_uses_exactly_two_encoded_constructor_addresses(self):
         client = FakeRpc()

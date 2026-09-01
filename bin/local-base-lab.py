@@ -1322,7 +1322,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         require_no_dotenv(repository_root())
         args.handler(args)
         return 0
-    except LabError as exc:
+    except (LabError, TerminationSignal) as exc:
         print(f"local Base lab failed: {exc}", file=sys.stderr)
         return 1
 
