@@ -211,6 +211,14 @@ class BoundaryTests(unittest.TestCase):
             local.calls[-2:], [("eth_chainId", []), ("anvil_mine", ["0x1"])]
         )
 
+    def test_malformed_local_rpc_ports_fail_as_lab_errors(self):
+        for url in ("http://127.0.0.1:99999", "http://127.0.0.1:abc"):
+            with (
+                self.subTest(url=url),
+                self.assertRaisesRegex(lab.LabError, "local RPC URL must"),
+            ):
+                lab.validate_loopback_rpc_url(url)
+
     def test_upstream_is_only_anvil_input_and_forge_children_are_scrubbed(self):
         secret = "https://provider.invalid/secret"
         command = lab.build_anvil_command(9123, secret, 123)
@@ -514,6 +522,38 @@ class DeploymentTests(unittest.TestCase):
                 self.assertFalse((root / lab.STATE_PATH).exists())
                 self.assertFalse((root / lab.SITE_CONFIG_PATH).exists())
 
+    def test_termination_during_start_still_terminates_the_spawned_anvil(self):
+        class SignalledStartRpc(StartRpc):
+            """Deliver SIGTERM after the deployment lands but before state.json exists."""
+
+            def __init__(self):
+                super().__init__()
+                self.delivered = False
+
+            def _request(self, method, params=()):
+                if method == "eth_blockNumber" and not self.delivered:
+                    self.delivered = True
+                    os.kill(os.getpid(), signal.SIGTERM)
+                return super()._request(method, params)
+
+        graph = lab_graph()
+        client = SignalledStartRpc()
+        outer_handler = signal.getsignal(signal.SIGTERM)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with (
+                self.start_context(root, client, graph),
+                mock.patch.object(lab, "terminate_process") as terminate,
+                self.assertRaisesRegex(lab.TerminationSignal, "SIGTERM"),
+            ):
+                lab.command_start(Namespace(fork_block=None))
+            self.assertTrue(client.delivered)
+            self.assertIs(signal.getsignal(signal.SIGTERM), outer_handler)
+            terminate.assert_called_once()
+            self.assertEqual(terminate.call_args.args[0].pid, 999)
+            self.assertFalse((root / lab.STATE_PATH).exists())
+            self.assertFalse((root / lab.SITE_CONFIG_PATH).exists())
+
     def test_adapter_runtime_uses_exactly_two_encoded_constructor_addresses(self):
         client = FakeRpc()
         client.results["eth_call"] = ADAPTER_RUNTIME
@@ -757,6 +797,84 @@ class AdminTests(unittest.TestCase):
                 self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
                 self.assertEqual(
                     (root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes
+                )
+
+    def test_a_second_signal_cannot_interrupt_the_admin_rollback(self):
+        class DoubleSignalRpc(AdminRpc):
+            """Terminate mid-install, then again once the rollback is under way."""
+
+            def __init__(self, second_at: str | None):
+                super().__init__()
+                self.second_at = second_at
+                self.first = False
+                self.second = False
+
+            def _request(self, method, params=()):
+                if (
+                    method == "evm_snapshot"
+                    and self.code == ADAPTER_RUNTIME
+                    and not self.first
+                ):
+                    self.first = True
+                    os.kill(os.getpid(), signal.SIGTERM)
+                if method == self.second_at and not self.second:
+                    self.second = True
+                    os.kill(os.getpid(), signal.SIGHUP)
+                return super()._request(method, params)
+
+        for step in ("chain revert", "JSON restore"):
+            with self.subTest(step=step), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state, _config = self.write_documents(root)
+                state_bytes = (root / lab.STATE_PATH).read_bytes()
+                config_bytes = (root / lab.SITE_CONFIG_PATH).read_bytes()
+                client = DoubleSignalRpc(
+                    "evm_revert" if step == "chain revert" else None
+                )
+                real_restore = lab.restore_optional_bytes
+                restores: list[Path] = []
+
+                def restore(path, content):
+                    restores.append(path)
+                    if step == "JSON restore" and len(restores) == 1:
+                        os.kill(os.getpid(), signal.SIGHUP)
+                    real_restore(path, content)
+
+                stderr = io.StringIO()
+                with (
+                    mock.patch.object(lab, "repository_root", return_value=root),
+                    mock.patch.object(
+                        lab, "local_client", return_value=(state, client)
+                    ),
+                    mock.patch.object(
+                        lab, "adapter_runtime", return_value=ADAPTER_RUNTIME
+                    ),
+                    mock.patch.object(
+                        lab, "keccak_code", return_value=lab.PINNED_SAFE_RUNTIME_HASH
+                    ),
+                    mock.patch.object(
+                        lab, "restore_optional_bytes", side_effect=restore
+                    ),
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    self.assertEqual(lab.main(["admin", lab.FOUNDER_LOCAL_ADMIN]), 1)
+
+                self.assertTrue(client.first)
+                self.assertEqual(client.second, step == "chain revert")
+                self.assertEqual(len(restores), 2)
+                self.assertIn("SIGTERM", stderr.getvalue())
+                self.assertNotIn("SIGHUP", stderr.getvalue())
+                self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
+                self.assertEqual((client.fee, client.paused), (25, False))
+                self.assertEqual(client.regent_balance, 777)
+                self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
+                self.assertEqual(
+                    (root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes
+                )
+                self.assertFalse(
+                    {signal.SIGINT, signal.SIGTERM, signal.SIGHUP}
+                    & signal.pthread_sigmask(signal.SIG_BLOCK, [])
                 )
 
     def test_matching_repeat_is_a_verified_no_op(self):
@@ -1065,18 +1183,25 @@ class ArtifactDerivationTests(unittest.TestCase):
             cls._inspected[key] = json.loads(completed.stdout)
         return cls._inspected[key]
 
-    def test_every_pinned_selector_constant_is_derived_from_an_artifact(self):
-        pinned = {
+    @staticmethod
+    def selector_shaped_constants() -> set[str]:
+        """Every module-level selector-shaped string, whatever case name or value uses."""
+        return {
             name
             for name, value in vars(lab).items()
-            if name.isupper()
-            and isinstance(value, str)
-            and re.fullmatch(r"0x[0-9a-f]{8}", value)
+            if isinstance(value, str) and re.fullmatch(r"0x[0-9a-fA-F]{8}", value)
         }
-        self.assertEqual(
-            pinned, set(self.FUNCTION_SELECTORS) | set(self.ERROR_SELECTORS)
-        )
-        self.assertEqual(len(pinned), 15)
+
+    def test_every_pinned_selector_constant_is_derived_from_an_artifact(self):
+        derived = set(self.FUNCTION_SELECTORS) | set(self.ERROR_SELECTORS)
+        self.assertEqual(self.selector_shaped_constants(), derived)
+        self.assertEqual(len(derived), 15)
+        for name, value in (("EXTRA_SEL", "0xA9059CBB"), ("ExtraSel", "0xa9059cbb")):
+            with (
+                self.subTest(injected=name),
+                mock.patch.object(lab, name, value, create=True),
+            ):
+                self.assertEqual(self.selector_shaped_constants() - derived, {name})
 
     def test_function_selectors_match_the_compiled_method_identifiers(self):
         for name, (contract, signature) in sorted(self.FUNCTION_SELECTORS.items()):
@@ -1091,6 +1216,30 @@ class ArtifactDerivationTests(unittest.TestCase):
             with self.subTest(constant=name):
                 self.assertIn(signature, errors)
                 self.assertEqual(getattr(lab, name), "0x" + errors[signature])
+
+    def test_adapter_stays_well_inside_the_code_size_limits_with_a_fixed_surface(self):
+        artifact_path = (
+            ROOT
+            / lab.GENERATED
+            / "foundry-out/LocalFactoryGovernance.sol/LocalFactoryGovernance.json"
+        )
+        if not artifact_path.exists():
+            lab.compile_lab(ROOT)
+        artifact = lab.load_json(artifact_path)
+        runtime = bytes.fromhex(
+            artifact["deployedBytecode"]["object"].removeprefix("0x")
+        )
+        initcode = bytes.fromhex(artifact["bytecode"]["object"].removeprefix("0x"))
+        self.assertLessEqual(len(runtime), 24_576 - 1_000)
+        self.assertLessEqual(len(initcode) + 64, 49_152 - 1_000)
+
+        expected = {
+            signature: getattr(lab, name).removeprefix("0x")
+            for name, (contract, signature) in self.FUNCTION_SELECTORS.items()
+            if contract == self.ADAPTER
+        }
+        self.assertEqual(len(expected), 5)
+        self.assertEqual(artifact["methodIdentifiers"], expected)
 
     def test_distribution_migration_offset_comes_from_the_compiled_abi(self):
         abi = self.inspect(lab.ABI_TARGETS["strategy"], "abi")

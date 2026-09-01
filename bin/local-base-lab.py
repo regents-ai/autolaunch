@@ -138,6 +138,24 @@ def termination_unwinds():
             signal.signal(number, handler)
 
 
+@contextlib.contextmanager
+def rollback_uninterrupted():
+    """Run one rollback to completion even while termination signals keep arriving.
+
+    A second signal is held pending for the whole body, so a rollback can never stop
+    half-applied. Restoring the mask delivers it, and the handler's exception is dropped
+    because the failure already being reported is the one that caused the rollback.
+    """
+    previous = signal.pthread_sigmask(
+        signal.SIG_BLOCK, (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+    )
+    try:
+        yield
+    finally:
+        with contextlib.suppress(TerminationSignal, KeyboardInterrupt):
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous)
+
+
 def normalize_address(value: str, label: str = "address") -> str:
     if not ADDRESS_RE.fullmatch(value):
         raise LabError(f"{label} must be a 20-byte hex address")
@@ -198,7 +216,11 @@ def validate_loopback_rpc_url(value: str) -> str:
         raise LabError("local RPC host must be a literal loopback address") from exc
     if not address.is_loopback:
         raise LabError("local RPC host must be a literal loopback address")
-    if parsed.query or parsed.fragment or parsed.port is None:
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise LabError("local RPC URL must have a numeric in-range port") from exc
+    if parsed.query or parsed.fragment or port is None:
         raise LabError("local RPC URL must include a port and no query or fragment")
     return value
 
@@ -856,49 +878,52 @@ def command_start(args: argparse.Namespace) -> None:
     rpc_url = validate_loopback_rpc_url(f"http://127.0.0.1:{port}")
     process: subprocess.Popen[bytes] | None = None
     complete = False
-    try:
-        process = start_anvil(
-            build_anvil_command(port, upstream, args.fork_block), rpc_url
-        )
-        client = RpcClient(rpc_url)
-        accounts = client.read("eth_accounts")
-        if not isinstance(accounts, list) or not accounts:
-            raise LabError("Anvil did not expose a local deployment account")
-        deployer = normalize_address(str(accounts[0]), "local deployer")
-        graph = deploy_graph(root, client, deployer)
-        addresses = {key: value for key, value in graph.items() if key != "hook_salt"}
-        require_deployed_code(client, addresses)
-        safe_runtime = require_clean_safe_runtime(
-            root, runtime_code(client, GOVERNANCE_SAFE)
-        )
-        unpause_factory(client, graph["factory"])
-        state = {
-            "status": "active",
-            "pid": process.pid,
-            "rpc_url": rpc_url,
-            "chain_id": LOCAL_CHAIN_ID,
-            "block_number_at_start": parse_quantity(client.read("eth_blockNumber")),
-            "addresses": addresses,
-            "governance_safe_original_runtime": safe_runtime,
-        }
-        atomic_write_json(state_path, state)
-        write_site_config(root, rpc_url, graph, abis)
-        complete = True
-        print(
-            json.dumps(
-                {
-                    "rpc_url": rpc_url,
-                    "chain_id": LOCAL_CHAIN_ID,
-                    "site_config": str(root / SITE_CONFIG_PATH),
-                    "addresses": state["addresses"],
-                },
-                indent=2,
-                sort_keys=True,
+    with termination_unwinds():
+        try:
+            process = start_anvil(
+                build_anvil_command(port, upstream, args.fork_block), rpc_url
             )
-        )
-    finally:
-        if process is not None and not complete:
-            terminate_process(process)
+            client = RpcClient(rpc_url)
+            accounts = client.read("eth_accounts")
+            if not isinstance(accounts, list) or not accounts:
+                raise LabError("Anvil did not expose a local deployment account")
+            deployer = normalize_address(str(accounts[0]), "local deployer")
+            graph = deploy_graph(root, client, deployer)
+            addresses = {
+                key: value for key, value in graph.items() if key != "hook_salt"
+            }
+            require_deployed_code(client, addresses)
+            safe_runtime = require_clean_safe_runtime(
+                root, runtime_code(client, GOVERNANCE_SAFE)
+            )
+            unpause_factory(client, graph["factory"])
+            state = {
+                "status": "active",
+                "pid": process.pid,
+                "rpc_url": rpc_url,
+                "chain_id": LOCAL_CHAIN_ID,
+                "block_number_at_start": parse_quantity(client.read("eth_blockNumber")),
+                "addresses": addresses,
+                "governance_safe_original_runtime": safe_runtime,
+            }
+            atomic_write_json(state_path, state)
+            write_site_config(root, rpc_url, graph, abis)
+            complete = True
+            print(
+                json.dumps(
+                    {
+                        "rpc_url": rpc_url,
+                        "chain_id": LOCAL_CHAIN_ID,
+                        "site_config": str(root / SITE_CONFIG_PATH),
+                        "addresses": state["addresses"],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        finally:
+            if process is not None and not complete:
+                terminate_process(process)
 
 
 def local_client(root: Path) -> tuple[dict[str, Any], RpcClient]:
@@ -1016,41 +1041,48 @@ def command_admin(args: argparse.Namespace) -> None:
                 raise LabError("site config did not persist the local admin")
             print("local factory admin installed and verified")
         except BaseException as exc:
-            rollback_errors: list[str] = []
-            if outer_snapshot is not None:
+            with rollback_uninterrupted():
+                rollback_errors: list[str] = []
+                if outer_snapshot is not None:
+                    try:
+                        revert_snapshot(client, outer_snapshot)
+                    except BaseException as rollback_exc:
+                        rollback_errors.append(f"chain snapshot: {rollback_exc}")
                 try:
-                    revert_snapshot(client, outer_snapshot)
+                    restore_optional_bytes(state_path, prior_state_bytes)
+                    restore_optional_bytes(config_path, prior_config_bytes)
                 except BaseException as rollback_exc:
-                    rollback_errors.append(f"chain snapshot: {rollback_exc}")
-            try:
-                restore_optional_bytes(state_path, prior_state_bytes)
-                restore_optional_bytes(config_path, prior_config_bytes)
-            except BaseException as rollback_exc:
-                rollback_errors.append(f"generated JSON: {rollback_exc}")
-            try:
-                if runtime_code(client, GOVERNANCE_SAFE) != baseline:
-                    rollback_errors.append("Safe runtime did not restore exactly")
-                if factory_state(client, factory) != (prior_fee, prior_paused):
-                    rollback_errors.append("factory state did not restore exactly")
-                if (
-                    account_balance(client, REGENT, GOVERNANCE_SAFE)
-                    != prior_governance_balance
-                ):
-                    rollback_errors.append("governance REGENT balance did not restore")
-                if read_optional_bytes(state_path) != prior_state_bytes:
-                    rollback_errors.append("state JSON did not restore exactly")
-                if read_optional_bytes(config_path) != prior_config_bytes:
-                    rollback_errors.append("site-config JSON did not restore exactly")
-            except BaseException as rollback_exc:
-                rollback_errors.append(f"rollback verification: {rollback_exc}")
-            if rollback_errors:
+                    rollback_errors.append(f"generated JSON: {rollback_exc}")
+                try:
+                    if runtime_code(client, GOVERNANCE_SAFE) != baseline:
+                        rollback_errors.append("Safe runtime did not restore exactly")
+                    if factory_state(client, factory) != (prior_fee, prior_paused):
+                        rollback_errors.append("factory state did not restore exactly")
+                    if (
+                        account_balance(client, REGENT, GOVERNANCE_SAFE)
+                        != prior_governance_balance
+                    ):
+                        rollback_errors.append(
+                            "governance REGENT balance did not restore"
+                        )
+                    if read_optional_bytes(state_path) != prior_state_bytes:
+                        rollback_errors.append("state JSON did not restore exactly")
+                    if read_optional_bytes(config_path) != prior_config_bytes:
+                        rollback_errors.append(
+                            "site-config JSON did not restore exactly"
+                        )
+                except BaseException as rollback_exc:
+                    rollback_errors.append(f"rollback verification: {rollback_exc}")
+                if rollback_errors:
+                    raise LabError(
+                        f"admin install failed ({exc}); rollback failed: "
+                        + "; ".join(rollback_errors)
+                    ) from exc
+                if isinstance(exc, LabError):
+                    raise
                 raise LabError(
-                    f"admin install failed ({exc}); rollback failed: "
-                    + "; ".join(rollback_errors)
+                    f"admin install failed and was rolled back: {exc}"
                 ) from exc
-            if isinstance(exc, LabError):
-                raise
-            raise LabError(f"admin install failed and was rolled back: {exc}") from exc
 
 
 def account_balance(client: RpcClient, token: str, account: str) -> int:
