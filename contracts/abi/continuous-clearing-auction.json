@@ -1,0 +1,36 @@
+[
+  {
+    "type": "function",
+    "name": "submitBid",
+    "stateMutability": "payable",
+    "notice": "Canonical five-argument bid. Uniswap/continuous-clearing-auction 7d7602d257733315434570f2a0c2f94f1c7b207a src/interfaces/IContinuousClearingAuction.sol:136-142 declares it; src/ContinuousClearingAuction.sol:464-482 implements it and collects a non-native currency only through Permit2 at line 479.",
+    "inputs": [
+      {"name": "maxPriceQ96", "type": "uint256"},
+      {"name": "amount", "type": "uint128"},
+      {"name": "owner", "type": "address"},
+      {"name": "prevTickPriceQ96", "type": "uint256"},
+      {"name": "hookData", "type": "bytes"}
+    ],
+    "outputs": [{"name": "bidId", "type": "uint256"}]
+  },
+  {
+    "type": "function",
+    "name": "currency",
+    "stateMutability": "view",
+    "notice": "Uniswap/continuous-clearing-auction 7d7602d257733315434570f2a0c2f94f1c7b207a src/interfaces/IContinuousClearingAuction.sol:211 declares it; src/ContinuousClearingAuction.sol:719-721 returns the immutable CURRENCY, which is itself internal.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "address"}]
+  },
+  {
+    "type": "event",
+    "name": "BidSubmitted",
+    "anonymous": false,
+    "notice": "Uniswap/continuous-clearing-auction 7d7602d257733315434570f2a0c2f94f1c7b207a src/interfaces/IContinuousClearingAuction.sol:103 declares it; src/ContinuousClearingAuction.sol:391 emits it with the bid id the call assigned.",
+    "inputs": [
+      {"name": "id", "type": "uint256", "indexed": true},
+      {"name": "owner", "type": "address", "indexed": true},
+      {"name": "priceQ96", "type": "uint256", "indexed": false},
+      {"name": "amount", "type": "uint128", "indexed": false}
+    ]
+  }
+]

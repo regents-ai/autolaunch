@@ -1,0 +1,149 @@
+[
+  {
+    "type": "function",
+    "name": "pay",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:143-153 pulls exactly amount from msg.sender and routes it in the same transaction.",
+    "inputs": [
+      {"name": "token", "type": "address"},
+      {"name": "amount", "type": "uint256"},
+      {"name": "paymentRef", "type": "bytes32"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "sweep",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:156-163 routes this receiver's entire bare balance; a zero balance reverts ZeroAmount.",
+    "inputs": [
+      {"name": "token", "type": "address"},
+      {"name": "paymentRef", "type": "bytes32"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "setReceiverNote",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:131-138 replaces the note, fixed note editor only, and emits ReceiverNoteUpdated.",
+    "inputs": [
+      {"name": "note", "type": "bytes32"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "splitter",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:35 declares the splitter every routed net payment is recognized by.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "beneficiary",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:38 declares the only account the referral share is ever paid to.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "referralBps",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:41 declares the immutable referral share in basis points.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "uint16"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "noteEditor",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:44 declares the only account allowed to edit this receiver's note.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "receiverNote",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:59 declares the note; line 125 defaults it to this receiver's own address as bytes32.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "bytes32"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "subject",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:56 declares the SUBJECT binding, read from the splitter at initialization.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "usdc",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:50 declares the USDC binding, read from the splitter at initialization.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "regent",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:53 declares the REGENT binding, read from the splitter at initialization.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "treasury",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:47 declares the recovery destination, read from the splitter at initialization.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PaymentRouted",
+    "anonymous": false,
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:65-72 declares it; line 232 emits it once per routed pay or sweep with the actual gross, referral and net.",
+    "inputs": [
+      {"name": "paymentRef", "type": "bytes32", "indexed": true},
+      {"name": "receiverNote", "type": "bytes32", "indexed": true},
+      {"name": "token", "type": "address", "indexed": true},
+      {"name": "gross", "type": "uint256", "indexed": false},
+      {"name": "referral", "type": "uint256", "indexed": false},
+      {"name": "net", "type": "uint256", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ReceiverNoteUpdated",
+    "anonymous": false,
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/PaymentReceiverV1.sol:64 declares it; line 137 emits it with the previous and new note.",
+    "inputs": [
+      {"name": "previousNote", "type": "bytes32", "indexed": false},
+      {"name": "newNote", "type": "bytes32", "indexed": false}
+    ]
+  }
+]

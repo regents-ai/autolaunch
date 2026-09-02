@@ -52,6 +52,12 @@ if database_config do
 end
 
 if config_env() == :prod do
+  # The site reads one canonical `safe` Base block through this endpoint.
+  # Development has a default in `config.exs`; production must say which
+  # endpoint it trusts, so a missing value stops the boot instead of quietly
+  # reading a public one.
+  config :autolaunch, :base_read_rpc_url, System.fetch_env!("BASE_READ_RPC_URL")
+
   config :autolaunch, :session_options, secure: true, http_only: true
 
   unless migrating? do

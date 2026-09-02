@@ -62,6 +62,11 @@ defmodule Autolaunch.MixProject do
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
+      # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
+      {:jose, "~> 1.11.12"},
+      {:decimal, "== 3.1.1"},
+      {:req, "== 0.6.2"},
+      {:yaml_elixir, "== 2.12.2"},
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},

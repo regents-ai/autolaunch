@@ -1,0 +1,262 @@
+version: 1
+product: autolaunch-web
+contracts:
+  - id: base_mainnet_reviewed_evidence
+    chain_target: base-mainnet
+    authority: evidence_only
+    autolaunch_consumer_freeze:
+      repository: autolaunch-contracts
+      source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+      source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+      abi_surface_sha256: 8dc198f19bb55e76bcd6e81326a14203358717a9e74606bd280c8ce7be186e31
+      release_manifest_sha256: a9ea436c3a66f4f296a4d9759be842ab77992578950cb23c2d8996d7b73c4c04
+      fork_observations_sha256: 198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c
+      deployment_status: deployment_pending
+      admission: disabled
+    admitted_prepared_actions: []
+    reviewed_action_evidence:
+      - contract_id: continuous_clearing_auction
+        contract_name: IContinuousClearingAuction
+        target: stored_auction_address
+        source_commit: 7d7602d257733315434570f2a0c2f94f1c7b207a
+        interface_note: >-
+          submit_bid is the canonical five-argument submitBid(uint256,uint128,address,uint256,bytes)
+          declared at Uniswap/continuous-clearing-auction src/interfaces/IContinuousClearingAuction.sol
+          lines 136-142 and implemented at src/ContinuousClearingAuction.sol lines 464-482, which
+          collects a non-native currency only through Permit2 at line 479. The four-argument overload
+          at lines 486-493 is not prepared: it defaults prevTickPriceQ96 to FLOOR_PRICE_Q96 and walks
+          every tick from the floor.
+        abi_path: abi/continuous-clearing-auction.json
+        abi_sha256: f687d42ad0fd981e38ba7f43baad6428014f5056a129a7bf13906f5704e5194b
+        confirmation_event_signature: BidSubmitted(uint256,address,uint256,uint128)
+        confirmation_event_topic0: "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
+        reads:
+          - id: currency
+            signature: currency()
+            selector: "0xe5a6b10f"
+        action_ids:
+          - submit_bid
+      - contract_id: permit2
+        contract_name: IAllowanceTransfer
+        target: canonical_permit2
+        address: "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+        source_commit: cc56ad0f3439c502c246fc5cfcc3db92bb8b7219
+        address_provenance: >-
+          The auction's own dependency closure names the address: Solady
+          2af06408b6a204824c2ecb245779ed400b535fb5 src/utils/SafeTransferLib.sol line 64 declares
+          PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3, and lines 458-484 of the same file
+          are the permit2TransferFrom the auction calls. Deployed-runtime admission is a C5 gate.
+        abi_path: abi/permit2.json
+        abi_sha256: ced6a1b558e80e4a80c5bc1920da8cca21fa63806ac379b5c1c8ab4b6c866832
+        reads:
+          - id: allowance
+            signature: allowance(address,address,address)
+            selector: "0x927da105"
+        action_ids:
+          - approve
+      - contract_id: quote_token_erc20
+        contract_name: IERC20
+        target: stored_quote_token_address
+        interface_note: >-
+          The only ERC-20 allowance a bid prepares is the canonical Permit2 spender; the auction
+          itself is never an ERC-20 spender.
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        action_ids:
+          - approve_exact
+      - contract_id: subject_token_erc20
+        contract_name: IERC20
+        target: stored_subject_token_address
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/revenue/SubjectSplitterV1.sol:65 declares the launch's own SUBJECT binding and
+          line 193 pulls exactly the staked amount through _pullExact, which lines 446-451
+          hold to an exact balance delta. The only SUBJECT allowance a stake prepares is the
+          exact splitter spender, using the standard nonpayable ERC-20 approve interface.
+        action_ids:
+          - approve_exact
+      - contract_id: subject_splitter_v1
+        contract_name: SubjectSplitterV1
+        target: stored_subject_splitter_address
+        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+        abi_path: abi/subject-splitter-v1.json
+        abi_sha256: f507fa80395283b722259f6da9dec0ab65b3f33f4b9d5a2a80399593561b3a66
+        runtime_keccak256: "0x4ba470d4c443ae5889f5e1f9095e07ed228853604762554437003ed115c56105"
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/revenue/SubjectSplitterV1.sol defines the four caller-only customer calls at
+          lines 189-236, each acting for msg.sender alone with no recipient argument, and the
+          reads this lane prepares against at lines 59-80 and 300-302. The ABI file is derived
+          from the artifact that pinned build produced, whose metadata keccak256 for that
+          source is 0xd411b2c4c69184ea684bfe63d118907c786fdad5a54cb3505488733161c58f4f.
+        interface_note: >-
+          stake and unstake take only uint256; there is no recipient-argument overload and no
+          claimUSDC. claim(address) and claimAll() settle for msg.sender alone and return early
+          when nothing is owed, so a canonical success with no Claimed log is a truthful no-op.
+          Line 391 divides each post-skim net by staked coverage of the complete 100-billion
+          SUBJECT supply declared at line 56 and line 392 leaves the treasury the exact
+          remainder, so the whole allocation is derived from totalStaked and the reviewed
+          amount. Line 213 refuses any unstake in the caller's own latest stake block; the
+          SameBlockUnstake error it reverts with is deliberately not derived, because
+          _lastStakeBlock has no getter and no browser behavior consumes it.
+        confirmation_event_signatures:
+          - Staked(address,uint256)
+          - Unstaked(address,uint256)
+          - Claimed(address,address,uint256)
+        action_ids:
+          - stake
+          - unstake
+          - claim
+          - claim_all
+      - contract_id: payment_receiver_v1
+        contract_name: PaymentReceiverV1
+        target: projected_canonical_receiver_address
+        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+        abi_path: abi/payment-receiver-v1.json
+        abi_sha256: 14e6ff28b277866ad60f97abbb89890b7d5168c0723f23b830aca598e14e84e2
+        runtime_keccak256: "0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573"
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/revenue/PaymentReceiverV1.sol defines pay at lines 143-153, sweep at lines
+          156-163 and setReceiverNote at lines 131-138, and the bindings this lane proves
+          canonical at lines 35-59. Line 125 defaults the note to the receiver's own address
+          encoded as bytes32. The ABI file is derived from the artifact that pinned build
+          produced, whose metadata keccak256 for that source is
+          0x9309839372d094bb14663c0559dad7983afddc893076c6a3dae1d515ea636f8c.
+        interface_note: >-
+          A receiver is canonical only when referralBps() is 0 and the splitter's treasury is
+          both beneficiary() and noteEditor(), which is the whole of the zero-referral
+          treasury-bound economics this lane reviews. Canonical provenance itself comes from
+          the projected canonical_receiver_address plus final C5 evidence; these reads
+          prove the economics, never the provenance.
+        confirmation_event_signatures:
+          - PaymentRouted(bytes32,bytes32,address,uint256,uint256,uint256)
+          - ReceiverNoteUpdated(bytes32,bytes32)
+        action_ids:
+          - pay
+          - sweep
+          - set_receiver_note
+      - contract_id: regent_erc20
+        contract_name: IERC20
+        address: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+        interface_note: >-
+          The only REGENT allowance a launch prepares is the exact current launch fee held by the
+          reviewed factory, including the exact zero a zero fee requires. There is no additive and
+          no unlimited approval, and no other spender.
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        runtime_code:
+          bytes: 12791
+          sha256: 8e9ac19be1f8016942a42e5808f723fb26a0f139dc7d00ba23099812128a44c7
+          keccak256: "0x780092a64f1f9280792aad406597d051e610e1a9ee0a57033187faf21a79a21f"
+        action_ids:
+          - approve_exact
+      - contract_id: regents_autolaunch_factory_v1
+        contract_name: RegentsAutolaunchFactoryV1
+        target: c5_admitted_factory_address
+        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+        source_keccak256: "0x0c09b28c782252ed8a99d68c027f7125c52c64410d6e4a03d018ff022c245c9a"
+        abi_path: abi/regents-autolaunch-factory-v1.json
+        abi_sha256: 1cd2fce9c969dea3f043d6478505ce4c6e1b8657208e1eed3bc3290a4999d1f4
+        runtime_keccak256: "0x38787efb5e28dc9d53e3e19a51ef7f83d02033e98e3414029df0f0841c06ff20"
+        factory_bound_splitter_runtime_keccak256: "0x4ba470d4c443ae5889f5e1f9095e07ed228853604762554437003ed115c56105"
+        artifact_provenance: >-
+          The consumer ABI is derived from out/RegentsAutolaunchFactoryV1.sol/RegentsAutolaunchFactoryV1.json,
+          a Foundry build output that the upstream repository's .gitignore excludes from version
+          control. It is source authority but it is not a tracked file, so the durable fingerprint
+          pinned here is source_keccak256: the compiler's own metadata Keccak-256 of
+          src/factory/RegentsAutolaunchFactoryV1.sol at source_commit, which any rebuild of that
+          commit reproduces. runtime_keccak256 is the frozen-artifact runtime hash the pinned
+          release manifest records for that same commit, and
+          factory_bound_splitter_runtime_keccak256 is the SubjectSplitterV1 implementation hash
+          line 86-87 of that source admits by exact code hash.
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/factory/RegentsAutolaunchFactoryV1.sol declares the eight-field LaunchParams at lines
+          97-106 and the one customer call at lines 228-256, and the reads this lane reviews
+          against at lines 121, 130, 133, 136 and 304-306.
+        interface_note: >-
+          launch takes one dynamic tuple and nothing else: no recovery admin, start block, floor
+          price, hook, pool setting, salt, supply, allocation or schedule. Lines 239-243 require
+          every metadata field to be nonempty within its exact byte cap, line 235 refuses a stale
+          fee, and lines 320-321 require the launcher's factory allowance to equal that fee
+          exactly. There is no recovery authority anywhere in the graph: recovery is permissionless
+          to the fixed launch treasury. setLaunchFee, pauseLaunches, unpauseLaunches and
+          createPaymentReceiver are deliberately not derived.
+        confirmation_event_signatures:
+          - LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64)
+          - LaunchFeeCollected(uint256,address,address,uint256)
+        action_ids:
+          - launch
+      - contract_id: regent_lbp_strategy_v1
+        contract_name: RegentLBPStrategy
+        target: reviewed_factory_bound_strategy_address
+        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+        source_keccak256: "0x214e642ba5105763d7952909552f501800adb7e3887b67024afb797fa02ede01"
+        abi_path: abi/regent-lbp-strategy-v1.json
+        abi_sha256: 29205b15c3cd9f010a9b4b946463d281a4a059c6327c3eff73286784b537ea68
+        runtime_keccak256: "0x5ee28f1c96259ac3cb8134873cca3f24a07fa151bcc8818064a66480f2d59fb6"
+        artifact_provenance: >-
+          The consumer ABI is derived from out/RegentLBPStrategy.sol/RegentLBPStrategy.json, a
+          Foundry build output that the upstream repository's .gitignore excludes from version
+          control. It is source authority but it is not a tracked file, so the durable fingerprint
+          pinned here is source_keccak256: the compiler's own metadata Keccak-256 of
+          src/strategy/RegentLBPStrategy.sol at source_commit, which any rebuild of that commit
+          reproduces. runtime_keccak256 is the frozen-artifact runtime hash the pinned release
+          manifest records for that same commit.
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/strategy/RegentLBPStrategy.sol declares factory() at line 174, the one authentic
+          hook() at line 189, and the twelve founder-frozen launch terms at lines 63, 66, 69, 75,
+          78, 81, 84, 87, 90, 109, 112 and 132.
+        interface_note: >-
+          Every term here is read for display only; none is an input a launcher chooses. Line 321
+          refuses a required raise of zero or above MAX_REACHABLE_RAISE, and POOL_TICK_SPACING is a
+          signed int24 returned sign-extended into a full word. Lines 673-679 are the system's only
+          launch-time treasury admission: they refuse exactly the factory, this strategy, hook(),
+          PoolManager, PositionManager and live staking. No strategy call is prepared: this lane
+          never reaches bindHook, initializeDistribution or migrate.
+        reads:
+          - id: hook
+            signature: hook()
+            selector: "0x7f5a7c7b"
+        refused_launch_treasuries:
+          - id: pool_manager
+            address: "0x498581fF718922c3f8e6A244956aF099B2652b2b"
+          - id: position_manager
+            address: "0x7C5f5A4bBd8fD63184577525326123B519429bDc"
+          - id: live_staking
+            address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+        refused_launch_treasury_provenance: >-
+          The other three of the exact six are read at the reviewed block: factory and strategy
+          from the launch snapshot, hook from the strategy read above. These three are frozen
+          constants, declared at src/bindings/BaseBindings.sol lines 19, 20 and 21 at
+          source_commit, whose Keccak-256 is
+          0xcb7a62955cecd898f981c394eecffc16d55aae76bfbc09b2a452528a20d9e9c4.
+        action_ids: []
+      - contract_id: regent_revenue_staking
+        address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+        runtime_code:
+          bytes: 11757
+          sha256: 9e7d05378e4aeddb4db00bdaa88e6a466c3061d6514a760bbe93fa5d665129bb
+          keccak256: "0xcaef93094fa27d35f5ff9e619d5ee75528c7c18f19f4f31a0a5eaba62a976497"
+        onchain_constants:
+          stake_token: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+          usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+        reads:
+          - id: stake_token
+            signature: stakeToken()
+            selector: "0x51ed6a30"
+          - id: usdc
+            signature: usdc()
+            selector: "0x3e413bee"
+          - id: total_staked
+            signature: totalStaked()
+            selector: "0x817b1cd2"
+    validation_command: mix test test/autolaunch/chain/manifest_test.exs

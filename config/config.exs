@@ -59,6 +59,8 @@ config :autolaunch,
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :autolaunch, :base_read_rpc_url, "https://base-rpc.publicnode.com"
+
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
 config :autolaunch, :session_options,

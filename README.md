@@ -151,6 +151,7 @@ the first task of the deployment unit (U8 in the site plan).
 | `DATABASE_DIRECT_URL` | Always | The direct PostgreSQL URL the migrate command connects with. |
 | `SECRET_KEY_BASE` | Always | At least 64 bytes. |
 | `PHX_HOST` | Always | The public hostname the site generates URLs for. |
+| `BASE_READ_RPC_URL` | Always | The Base endpoint the site reads one canonical `safe` block through. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 
 `Autolaunch.DatabaseConfig` checks the shape of both database URLs and refuses a deployment

@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.SessionAuthorityHelpers do
   @doc """
   The mounted lease a connected socket for `account_id` proves.
 
-  Every protected Stake and Redeem write runs inside this lease, so a test that
+  Every protected write runs inside this lease, so a test that
   drives those flows directly mints the same authority a connected mount would
   rather than writing without one.
   """
