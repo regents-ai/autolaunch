@@ -46,10 +46,10 @@ defmodule Autolaunch.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.29.3"},
+      {:ash, "~> 3.32"},
       {:assent, "== 0.3.1"},
       {:ash_phoenix, "~> 2.3"},
-      {:ash_postgres, "~> 2.10.0"},
+      {:ash_postgres, "~> 2.13"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
@@ -93,9 +93,13 @@ defmodule Autolaunch.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        # The Accounts domain names its four resources at compile time, which is
-        # how Ash.Domain declares them. Nothing else is compile-connected.
-        "xref graph --label compile-connected --fail-above 4",
+        # Two kinds of compile-connected edge are permitted: the Accounts domain
+        # naming its four resources, and each resource naming the policy check
+        # modules its policies use, which Ash 3.32 resolves at compile time.
+        # Nothing else is permitted. The ceiling is four domain-to-resource
+        # edges plus five resource-to-check edges, and it is re-based per unit
+        # when a domain, resource or check module lands.
+        "xref graph --label compile-connected --fail-above 9",
         "test --warnings-as-errors",
         "ash.codegen --check"
       ]
