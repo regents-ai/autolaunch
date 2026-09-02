@@ -480,7 +480,7 @@ defmodule Autolaunch.Accounts.XOAuth do
       :crypto.hash(
         :sha256,
         [
-          "ash-platform:x-oauth-attempt:v1",
+          "autolaunch:x-oauth-attempt:v1",
           <<0>>,
           lineage,
           <<0>>,

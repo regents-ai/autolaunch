@@ -3,26 +3,17 @@ defmodule Autolaunch.PublicIdentityTest do
 
   alias Autolaunch.PublicIdentity
 
-  test "public labels resolve profile choice, Regent nameclaim, ENS, then abbreviated wallet" do
+  test "public labels resolve profile choice, ENS, then abbreviated wallet" do
     identity = %{
       display_name: "Profile choice",
-      regent_nameclaim: "atlas.regent.eth",
       ens_name: "atlas.eth",
       wallet_address: "0x111111111111111111111111111111111111a1b2"
     }
 
     assert PublicIdentity.label(identity) == "Profile choice"
-    assert PublicIdentity.label(%{identity | display_name: " "}) == "atlas.regent.eth"
+    assert PublicIdentity.label(%{identity | display_name: " "}) == "atlas.eth"
 
-    assert PublicIdentity.label(%{identity | display_name: nil, regent_nameclaim: nil}) ==
-             "atlas.eth"
-
-    assert PublicIdentity.label(%{
-             identity
-             | display_name: nil,
-               regent_nameclaim: nil,
-               ens_name: nil
-           }) == "0x1111…a1b2"
+    assert PublicIdentity.label(%{identity | display_name: nil, ens_name: nil}) == "0x1111…a1b2"
   end
 
   test "wallet avatars are local, deterministic, and address-specific" do

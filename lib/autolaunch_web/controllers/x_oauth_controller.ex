@@ -96,7 +96,7 @@ defmodule AutolaunchWeb.XOAuthHTML do
               do: "X account connected.",
               else: "X connection could not be completed."}
           </p>
-          <p><a href="/settings" style="color:#ff5a1f">Return to Regents</a></p>
+          <p><a href="/" style="color:#ff5a1f">Back to Autolaunch</a></p>
         </main>
         <script>
           (() => {

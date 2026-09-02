@@ -27,6 +27,8 @@ defmodule AutolaunchWeb.Router do
   scope "/", AutolaunchWeb do
     pipe_through :browser
 
+    live "/", HomeLive, :home
+
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/session", PrivySessionController, :create
     get "/auth/session", PrivySessionController, :show
@@ -39,7 +41,7 @@ defmodule AutolaunchWeb.Router do
     live_session :product_shell,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
-      live "/", HomeLive, :home
+      live "/portfolio", PortfolioLive, :portfolio
     end
   end
 end

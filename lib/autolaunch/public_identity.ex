@@ -27,7 +27,6 @@ defmodule Autolaunch.PublicIdentity do
   defp preferred_labels(identity) do
     [
       Map.get(identity, :display_name),
-      Map.get(identity, :regent_nameclaim),
       Map.get(identity, :ens_name)
     ]
   end

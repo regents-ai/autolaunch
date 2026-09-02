@@ -286,7 +286,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     AutolaunchWeb.Endpoint.subscribe(topic)
 
     {:ok, view, _html} =
-      build_conn() |> init_test_session(get_session(signed_in)) |> live("/")
+      build_conn() |> init_test_session(get_session(signed_in)) |> live("/portfolio")
 
     assert Process.alive?(view.pid)
 
@@ -311,7 +311,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     refute_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"}
     assert Process.alive?(view.pid)
 
-    assert render(view) =~ "Autolaunch"
+    assert render(view) =~ "Portfolio"
   end
 
   test "ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: reads and mounts change no authority" do
@@ -320,11 +320,11 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     topic = get_session(signed_in, :live_socket_id)
     AutolaunchWeb.Endpoint.subscribe(topic)
 
-    for read <- [&get(&1, "/"), &get(&1, "/auth/session"), &get(&1, "/auth/csrf")] do
+    for read <- [&get(&1, "/portfolio"), &get(&1, "/auth/session"), &get(&1, "/auth/csrf")] do
       refute browser |> recycled() |> read.() |> session_cookie()
     end
 
-    {:ok, view, _html} = browser |> recycled() |> live("/")
+    {:ok, view, _html} = browser |> recycled() |> live("/portfolio")
     assert Process.alive?(view.pid)
 
     # Remaining signed in is not a session event: the generation this browser
@@ -778,7 +778,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     assert {:error, {:redirect, %{to: "/"}}} =
              build_conn()
              |> init_test_session(get_session(signed_in))
-             |> live("/")
+             |> live("/portfolio")
   end
 
   test "STALE_LOGOUT_REVOKES: lapsed wallet evidence fails closed on the same rule" do
@@ -910,7 +910,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
   end
 
   defp assert_no_session_cookie(browser) do
-    for read <- [&get(&1, "/"), &get(&1, "/auth/session")] do
+    for read <- [&get(&1, "/portfolio"), &get(&1, "/auth/session"), &get(&1, "/")] do
       refute browser |> recycled() |> read.() |> session_cookie()
     end
   end

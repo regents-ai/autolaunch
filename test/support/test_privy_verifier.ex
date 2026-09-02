@@ -7,9 +7,7 @@ defmodule Autolaunch.TestPrivyVerifier do
   The identity token deterministically paired with `access_token`.
 
   Real Privy access and identity tokens are distinct strings with distinct
-  roles, so the fixtures are too. `test/browser/support/authenticated_privy.ts`
-  builds the same partner for the acceptance browsers and has to stay in step
-  with this.
+  roles, so the fixtures are too.
   """
   def identity_token(access_token), do: access_token <> @identity_suffix
 
@@ -67,46 +65,6 @@ defmodule Autolaunch.TestPrivyVerifier do
        privy_user_id: "did:privy:other",
        wallet_address: "0x3333333333333333333333333333333333333333",
        wallet_addresses: ["0x3333333333333333333333333333333333333333"]
-     }}
-  end
-
-  def verify_access_token("valid-staking") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "staking-browser-session",
-       privy_user_id: "did:privy:staking-browser",
-       wallet_address: "0x1111111111111111111111111111111111111111",
-       wallet_addresses: ["0x1111111111111111111111111111111111111111"]
-     }}
-  end
-
-  def verify_access_token("valid-redemption") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "redemption-browser-session",
-       privy_user_id: "did:privy:redemption-browser",
-       wallet_address: "0x1111111111111111111111111111111111111111",
-       wallet_addresses: ["0x1111111111111111111111111111111111111111"]
-     }}
-  end
-
-  def verify_access_token("valid-autolaunch-draft") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "autolaunch-draft-browser-session",
-       privy_user_id: "did:privy:autolaunch-draft-browser",
-       wallet_address: "0x3333333333333333333333333333333333333333",
-       wallet_addresses: ["0x3333333333333333333333333333333333333333"]
-     }}
-  end
-
-  def verify_access_token("valid-formation-cloud") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "formation-cloud-browser-session",
-       privy_user_id: "did:privy:formation-cloud-browser",
-       wallet_address: "0x4444444444444444444444444444444444444444",
-       wallet_addresses: ["0x4444444444444444444444444444444444444444"]
      }}
   end
 

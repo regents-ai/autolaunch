@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     signed_in = init_test_session(conn, %{human_account_id: account.id})
     %{"session_lineage" => lineage, "live_socket_id" => cookie_topic} = get_session(signed_in)
 
-    markup = html_response(get(signed_in, "/"), 200)
+    markup = html_response(get(signed_in, "/portfolio"), 200)
 
     # Phoenix.LiveView.Static signs this token with Phoenix.Token, which is
     # integrity-only: anyone holding the markup can read what it carries.
@@ -20,7 +20,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
     assert session == %{
              "render_topic" => SessionAuthority.topic(lineage),
-             "render_route" => "/"
+             "render_route" => "/portfolio"
            }
 
     refute markup =~ lineage
@@ -36,8 +36,8 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
   end
 
   test "CANONICAL_AUTHORITY_ROW: an anonymous render signs only its route" do
-    assert %{session: %{"render_route" => "/"} = session} =
-             build_conn() |> get("/") |> html_response(200) |> static_session!()
+    assert %{session: %{"render_route" => "/portfolio"} = session} =
+             build_conn() |> get("/portfolio") |> html_response(200) |> static_session!()
 
     assert Map.keys(session) == ["render_route"]
   end
@@ -92,10 +92,10 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     browser = init_test_session(build_conn(), %{human_account_id: account!().id})
 
     # The socket's own session names a different lineage and a decoy route.
-    handshake = Map.put(get_session(browser), "render_route", "/settings")
+    handshake = Map.put(get_session(browser), "render_route", "/decoy")
 
-    assert {:error, {:redirect, %{to: "/"}}} =
-             page |> connects_with(handshake) |> live("/")
+    assert {:error, {:redirect, %{to: "/portfolio"}}} =
+             page |> connects_with(handshake) |> live("/portfolio")
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an already-sent static render loses to the current handshake",
@@ -104,7 +104,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     signed_in = init_test_session(conn, %{human_account_id: account.id})
 
     # The dead render happens under the exact claim of its own moment.
-    static = get(signed_in, "/")
+    static = get(signed_in, "/portfolio")
     assert %{session: %{"render_topic" => _topic}} = static_session!(html_response(static, 200))
 
     # Two refreshes land before that already-sent page connects its socket.
@@ -113,7 +113,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
     {:ok, view, _html} = static |> connects_with(SessionAuthority.session(later)) |> live()
 
-    assert render(view) =~ "Autolaunch"
+    assert render(view) =~ "Portfolio"
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an invalid handshake is refused onto the public root",
@@ -134,10 +134,10 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
           %{}
         ] do
       assert {:error, {:redirect, %{to: "/"}}} =
-               signed_in |> connects_with(handshake) |> live("/")
+               signed_in |> connects_with(handshake) |> live("/portfolio")
     end
 
-    static = get(signed_in, "/")
+    static = get(signed_in, "/portfolio")
     assert SessionAuthority.revoke(claim(signed_in))
 
     assert {:error, {:redirect, %{to: "/"}}} = static |> connects_with(current) |> live()
@@ -149,7 +149,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     assert SessionAuthority.revoke(claim(signed_in))
 
     # The render names no lineage, but the handshake still asserts one.
-    anonymous = get(build_conn(), "/")
+    anonymous = get(build_conn(), "/portfolio")
     assert %{session: session} = static_session!(html_response(anonymous, 200))
     refute Map.has_key?(session, "render_topic")
 
@@ -164,20 +164,20 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     browser = init_test_session(conn, %{human_account_id: account!().id})
 
     # The page was fetched without the cookie the socket then connects with.
-    anonymous = get(build_conn(), "/")
+    anonymous = get(build_conn(), "/portfolio")
 
-    assert {:error, {:redirect, %{to: "/"}}} =
+    assert {:error, {:redirect, %{to: "/portfolio"}}} =
              anonymous |> connects_with(get_session(browser)) |> live()
 
     # The realigned request names that lineage, so the next mount accepts it.
-    {:ok, view, _html} = live(browser, "/")
-    assert render(view) =~ "Autolaunch"
+    {:ok, view, _html} = live(browser, "/portfolio")
+    assert render(view) =~ "Portfolio"
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a handshake and render with no claim mount anonymous" do
-    {:ok, view, _html} = live(build_conn(), "/")
+    {:ok, view, _html} = live(build_conn(), "/portfolio")
 
-    assert render(view) =~ "Autolaunch"
+    assert render(view) =~ "Portfolio"
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a different current lineage reloads the same route once",
@@ -185,12 +185,12 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     page = init_test_session(conn, %{human_account_id: account!().id})
     browser = init_test_session(build_conn(), %{human_account_id: account!().id})
 
-    assert {:error, {:redirect, %{to: "/"}}} =
-             page |> connects_with(get_session(browser)) |> live("/")
+    assert {:error, {:redirect, %{to: "/portfolio"}}} =
+             page |> connects_with(get_session(browser)) |> live("/portfolio")
 
     # The reloaded page is signed for the browser's own lineage and mounts.
-    {:ok, view, _html} = live(browser, "/")
-    assert render(view) =~ "Autolaunch"
+    {:ok, view, _html} = live(browser, "/portfolio")
+    assert render(view) =~ "Portfolio"
   end
 
   test "MOUNTED_LEASE_POLICY_C: a mounted socket survives drift and dies on revocation", %{
@@ -199,15 +199,15 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
 
-    {:ok, view, _html} = live(signed_in, "/")
+    {:ok, view, _html} = live(signed_in, "/portfolio")
 
     # A live navigation over the same transport revalidates under the drift.
     assert {:ok, :refresh, _drifted} = SessionAuthority.sign_in(claim(signed_in), account.id)
-    assert render_patch(view, "/") =~ "Autolaunch"
+    assert render_patch(view, "/portfolio") =~ "Portfolio"
 
     # The revoked lease halts navigation at the authority hook itself.
     assert SessionAuthority.revoke(claim(signed_in))
-    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/")
+    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/portfolio")
   end
 
   test "MOUNTED_LEASE_POLICY_C: a mounted socket dies when the account's provider evidence lapses",
@@ -215,13 +215,13 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
 
-    {:ok, view, _html} = live(signed_in, "/")
+    {:ok, view, _html} = live(signed_in, "/portfolio")
 
     assert {:ok, _lapsed} = Accounts.refresh_verified(account, nil, [], actor: %System{})
 
-    # The root renders for anonymous visitors, so only the authority hook can be
-    # refusing this navigation.
-    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/")
+    # /portfolio renders for anonymous visitors, so only the authority hook can
+    # be refusing this navigation.
+    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/portfolio")
   end
 
   test "MOUNTED_LEASE_POLICY_C: an invalid claim exposes no private dead render", %{conn: conn} do
@@ -230,7 +230,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     current = get_session(signed_in)
 
     assert %{session: %{"render_topic" => _topic}} =
-             static_session!(html_response(get(signed_in, "/"), 200))
+             static_session!(html_response(get(signed_in, "/portfolio"), 200))
 
     for session <- [
           %{current | "session_generation" => current["session_generation"] - 1},
@@ -242,7 +242,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
       dead =
         build_conn()
         |> Phoenix.ConnTest.init_test_session(session)
-        |> get("/")
+        |> get("/portfolio")
         |> html_response(200)
 
       assert %{session: signed} = static_session!(dead)
@@ -258,7 +258,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     topic = get_session(signed_in, :live_socket_id)
     AutolaunchWeb.Endpoint.subscribe(topic)
 
-    {:ok, view, _html} = live(signed_in, "/")
+    {:ok, view, _html} = live(signed_in, "/portfolio")
     assert Process.alive?(view.pid)
 
     deleted =
@@ -272,7 +272,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
     # The browser still holds the revoked claim, so its reconnect is refused
     # rather than quietly downgraded.
-    assert {:error, {:redirect, %{to: "/"}}} = live(signed_in, "/")
+    assert {:error, {:redirect, %{to: "/"}}} = live(signed_in, "/portfolio")
   end
 
   defp account! do
