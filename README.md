@@ -82,13 +82,11 @@ contracts/chain-contracts.yaml  the chain-contract manifest, once it lands
 priv/repo/migrations/           applied schema history, never rewritten
 lib/autolaunch/accounts/        identity and sign-in
 lib/autolaunch/chain/           chain reads and the addresses they use
-lib/autolaunch/launch_actions.ex
-lib/autolaunch/bid_actions.ex
-lib/autolaunch/subject_wallet_actions.ex
+lib/autolaunch/*_actions.ex     the wallet boundaries
 ```
 
-The three `*_actions.ex` files are the wallet boundaries: they build what a person's wallet is
-asked to sign. Nothing else may build a transaction.
+The `*_actions.ex` files are the wallet boundaries: they build what a person's wallet is asked
+to sign. Nothing else may build a transaction.
 
 ## Deployment
 
@@ -111,19 +109,23 @@ npm side of the build back as one piece.
 
 ### The sealed supply directory
 
-`scripts/build-release-context.sh <destination> <arch> <supply-directory>` reads exactly these
-files from the supply directory and refuses if any of them is missing or fails its digest:
+`scripts/build-release-context.sh <destination> <arch> <supply-directory>` reads these files
+from the supply directory:
 
 ```text
 SUPPLY-MANIFEST.txt   the digests below, one `key=value` per line
 MIX-CACHE.tar         the Mix, Hex and rebar3 caches, packed under a mix-cache/ prefix
-esbuild-linux-arm64   the bundler executable for arm64 builds
-esbuild-linux-x64     the bundler executable for amd64 builds
+esbuild-linux-arm64   the bundler executable, for an arm64 build
+esbuild-linux-x64     the bundler executable, for an amd64 build
 ```
 
-`SUPPLY-MANIFEST.txt` must carry the keys below. Only the executable for the architecture
-being built is read, so a supply that serves one architecture needs only its own pair of
-esbuild keys alongside the two Mix keys.
+The first two are always required and the script refuses without them. The two esbuild lines
+are one per architecture: a run reads only the executable for the architecture it is building
+for, and checks only that one's digest, so a supply directory serving a single architecture
+needs only that one file.
+
+`SUPPLY-MANIFEST.txt` must carry the two Mix keys below and, for each architecture the
+directory serves, that architecture's pair of esbuild keys.
 
 | Key | What it is held to |
 | --- | --- |
@@ -135,9 +137,10 @@ esbuild keys alongside the two Mix keys.
 | `esbuild-linux-x64.file` | The `file(1)` description of that executable. Must name `x86-64`. |
 
 No supply directory for this repository exists yet. The sealed archives kept for the platform
-were packed against a different lockfile, so their `mix_lock_sha256` does not match this one
-and the script refuses them, by design. Packing the first Autolaunch supply directory is the
-first task of the deployment unit (U8 in the site plan).
+describe themselves in a different manifest shape and carry neither `mix_lock_sha256` nor
+`mix_cache_sha256`, so the script refuses them at the first key it looks for, with
+`manifest <path> has no mix_lock_sha256`. Packing the first Autolaunch supply directory is
+the first task of the deployment unit (U8 in the site plan).
 
 ### Environment
 
