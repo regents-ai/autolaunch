@@ -1,0 +1,43 @@
+/* The base layer: the colour the palette owes to what a page renders before it
+ * has any components. html and body already take their ground, their text and
+ * their family from regent.css, so nothing here repeats that. */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-fg);
+  font-weight: var(--font-weight-semibold);
+}
+
+a {
+  color: var(--glass-text-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a {
+    transition: color var(--duration-fast) ease;
+  }
+
+  a:hover {
+    color: var(--color-accent-hover);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--glass-text-accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-accent-secondary);
+  color: var(--color-fg-on-accent);
+}
+
+main {
+  padding: var(--space-4);
+}
