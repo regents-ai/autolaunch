@@ -30,6 +30,14 @@ config :autolaunch, Autolaunch.Repo,
 
 config :ash, :missed_notifications, :ignore
 
+config :autolaunch, :privy_verifier, Autolaunch.TestPrivyVerifier
+
+# Every test case here reaches one node holding one anonymous bootstrap budget
+# for the loopback address they all share, so the release-sized allowance is
+# raised rather than let unrelated cases spend one another's. The focused
+# controller tests restore the release 30/300 themselves.
+config :autolaunch, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

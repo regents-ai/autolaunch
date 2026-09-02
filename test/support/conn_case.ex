@@ -1,5 +1,5 @@
 defmodule AutolaunchWeb.ConnCase do
-  @moduledoc "Connection test support: a built conn and a sandboxed database connection."
+  @moduledoc "Connection and LiveView test support: a bound conn and a sandboxed database connection."
 
   use ExUnit.CaseTemplate
 
@@ -9,13 +9,15 @@ defmodule AutolaunchWeb.ConnCase do
 
       use AutolaunchWeb, :verified_routes
 
-      import Phoenix.ConnTest
       import Plug.Conn
+      import Phoenix.ConnTest, except: [build_conn: 0, init_test_session: 2]
+      import Phoenix.LiveViewTest
+      import AutolaunchWeb.SessionAuthorityHelpers
     end
   end
 
   setup tags do
     Autolaunch.DataCase.setup_sandbox(tags)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    {:ok, conn: AutolaunchWeb.SessionAuthorityHelpers.build_conn()}
   end
 end

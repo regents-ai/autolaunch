@@ -17,7 +17,9 @@ config :ash,
   include_embedded_source_by_default?: false,
   show_keysets_for_all_actions?: false,
   default_page_type: :keyset,
-  policies: [no_filter_static_forbidden_reads?: false],
+  # An unauthorized read answers with Ash.Error.Forbidden rather than an empty
+  # result, so a refusal can never be mistaken for an absent row.
+  policies: [no_filter_static_forbidden_reads?: true],
   keep_read_action_loads_when_loading?: false,
   default_actions_require_atomic?: true,
   read_action_after_action_hooks_in_order?: true,
@@ -53,8 +55,11 @@ config :spark,
   ]
 
 config :autolaunch,
+  ash_domains: [Autolaunch.Accounts],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
+
+config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
 config :autolaunch, :session_options,
   store: :cookie,

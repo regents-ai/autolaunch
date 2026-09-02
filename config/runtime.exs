@@ -6,6 +6,35 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 
+privy_verification_key =
+  case System.get_env("PRIVY_VERIFICATION_KEY") do
+    nil ->
+      nil
+
+    value ->
+      value
+      |> String.replace("\\r\\n", "\n")
+      |> String.replace("\\n", "\n")
+  end
+
+config :autolaunch, :privy,
+  app_id: System.get_env("PRIVY_APP_ID"),
+  verification_key: privy_verification_key
+
+x_oauth_client_id =
+  case System.get_env("X_OAUTH_CLIENT_ID") do
+    value when is_binary(value) ->
+      case String.trim(value) do
+        "" -> nil
+        value -> value
+      end
+
+    _missing ->
+      nil
+  end
+
+config :autolaunch, :x_oauth_client_id, x_oauth_client_id
+
 # The release sets this on its migration commands, and only on those, so the
 # migration boot can take a direct connection while the web boot takes the
 # pooled one.

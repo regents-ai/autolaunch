@@ -9,6 +9,7 @@ defmodule Autolaunch.Application do
   def start(_type, _args) do
     children = [
       AutolaunchWeb.Telemetry,
+      {Autolaunch.Accounts.BootstrapRateLimiter, []},
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
