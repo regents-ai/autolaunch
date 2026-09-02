@@ -1,19 +1,11 @@
 FROM docker.io/library/gcc@sha256:9ca91b05c7b07d2979f16413e8b2cd6ec8a7c80ffca4121ccab0aeba33f90460 AS native
 FROM docker.io/hexpm/elixir@sha256:d21e3b8bab8bc2e8d51eb4bb03b1d73aad6b91c5c90b3ecc778eb5d136c2e3e6 AS elixir
-FROM docker.io/library/node@sha256:5aea649bacdc35e8e20571131c4f3547477dfe66e677d45c005af6dbd1edfaa7 AS node
 FROM docker.io/library/debian@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241 AS slim
 
-FROM native AS assets
-
-ENV npm_config_nodedir=/usr/local
-WORKDIR /workspace/autolaunch-web
-COPY --from=node /usr/local /usr/local
-COPY npm-cache/_cacache /root/.npm/_cacache
-COPY autolaunch-web/package.json autolaunch-web/package-lock.json ./
-RUN npm ci --offline --omit=dev --ignore-scripts --no-audit --no-fund
-
 # The C toolchain in this stage is what builds the SAT solver Ash resolves its
-# policies with; the rest of the dependency tree is pure Elixir.
+# policies with; the rest of the dependency tree is pure Elixir. The bundler is
+# the standalone esbuild executable the context carries, so the build needs no
+# Node runtime and no npm install: this site ships no browser packages.
 FROM native AS build
 
 ENV MIX_ENV=prod
@@ -21,9 +13,6 @@ ENV HOME=/root
 WORKDIR /workspace/autolaunch-web
 
 COPY --from=elixir /usr/local /usr/local
-COPY --from=assets /usr/local/bin/node /usr/local/bin/node
-COPY --from=assets /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
 COPY mix-cache /root/.mix
 # The context carries exactly one bundler executable, the one for the target
@@ -41,7 +30,6 @@ COPY autolaunch-web/priv priv
 COPY autolaunch-web/rel rel
 COPY autolaunch-web/assets assets
 COPY autolaunch-web/contracts contracts
-COPY --from=assets /workspace/autolaunch-web/node_modules node_modules
 RUN mix compile && mix assets.deploy && mix release
 
 # The release carries its own ERTS, so the runtime image needs no Elixir and no

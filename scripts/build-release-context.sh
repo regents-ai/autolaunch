@@ -7,7 +7,6 @@
 #     design-system/regent_ui/ the sibling source mix.exs resolves by path
 #     elixir-utils/privy/      the sibling source mix.exs resolves by path
 #     mix-cache/               Mix, Hex and rebar3, extracted from the sealed archive
-#     npm-cache/_cacache/      the npm content cache
 #     esbuild-linux-arm64      the bundler executable for the target, under the
 #       or esbuild-linux-x64   architecture-specific name Mix looks it up by
 #
@@ -24,10 +23,9 @@
 #
 # The sealed supply directory holds:
 #
-#   SUPPLY-MANIFEST.txt   mix_lock_sha256, package_lock_sha256, mix_cache_sha256,
+#   SUPPLY-MANIFEST.txt   mix_lock_sha256, mix_cache_sha256,
 #                         esbuild-linux-<arch>.sha256, esbuild-linux-<arch>.file
 #   MIX-CACHE.tar         the Mix, Hex and rebar3 caches, under a mix-cache/ prefix
-#   npm-cache/            the npm content cache payload
 #   esbuild-linux-arm64   the bundler executables, one per architecture
 #   esbuild-linux-x64
 #
@@ -72,7 +70,7 @@ esac
 
 manifest="$supply/SUPPLY-MANIFEST.txt"
 
-for required in "$manifest" "$supply/MIX-CACHE.tar" "$supply/npm-cache" \
+for required in "$manifest" "$supply/MIX-CACHE.tar" \
   "$privy_source" "$regent_ui_source"; do
   [ -e "$required" ] || die "missing supply input: $required"
 done
@@ -115,12 +113,8 @@ expect_sha256() {
 
 printf 'verifying sealed supply\n'
 
-# Each cache is keyed to one exact lockfile. A drifted lockfile means the cache
-# cannot satisfy an offline install, so stop before assembling anything.
-read_manifest_value package_lock_sha256 "$manifest" package_lock_sha256
-expect_sha256 "package-lock.json against the npm cache" \
-  "$repo_root/package-lock.json" "$package_lock_sha256"
-
+# The cache is keyed to one exact lockfile. A drifted lockfile means the cache
+# cannot satisfy an offline build, so stop before assembling anything.
 read_manifest_value mix_lock_sha256 "$manifest" mix_lock_sha256
 expect_sha256 "mix.lock against the Mix cache" "$repo_root/mix.lock" "$mix_lock_sha256"
 
@@ -139,7 +133,7 @@ staging="$(mktemp -d "${destination%/}.staging.XXXXXX")"
 trap 'chmod -R u+w "$staging" 2>/dev/null || true; rm -rf -- "$staging"' EXIT
 
 mkdir -p "$staging/autolaunch-web" "$staging/elixir-utils/privy" \
-  "$staging/design-system/regent_ui" "$staging/npm-cache"
+  "$staging/design-system/regent_ui"
 
 # The checkouts enter whole, minus their own build output and anything shaped
 # like a secrets file. This script excludes those itself, so the assembled
@@ -158,10 +152,6 @@ rsync -a "${env_filters[@]}" --exclude '.git' \
 rsync -a "${env_filters[@]}" --exclude '.git' --exclude '_build/' \
   --exclude 'deps/' --exclude 'node_modules/' \
   "$regent_ui_source/" "$staging/design-system/regent_ui/"
-
-# The sealed npm directory is the cache payload itself, so it lands one level
-# down: npm resolves its content under <cache>/_cacache.
-rsync -a --chmod=u+rwX "$supply/npm-cache/" "$staging/npm-cache/_cacache/"
 
 # Only the executable just verified enters, never whatever else the supply holds.
 install -m 0755 "$supply/$esbuild_binary" "$staging/$esbuild_binary"

@@ -78,7 +78,7 @@ These paths carry the boundary between the site and money. A change to any of th
 protected change: it needs its own review and is never edited as a side effect of other work.
 
 ```text
-contracts/                      the HTTP contract and, once it lands, the chain manifest
+contracts/chain-contracts.yaml  the chain-contract manifest, once it lands
 priv/repo/migrations/           applied schema history, never rewritten
 lib/autolaunch/accounts/        identity and sign-in
 lib/autolaunch/chain/           chain reads and the addresses they use
@@ -104,6 +104,42 @@ asked to sign. Nothing else may build a transaction.
 The image is built from `Dockerfile`, whose parent build context is assembled offline by
 `scripts/build-release-context.sh` from a sealed supply directory. The Fly configuration lives
 in `fly.toml` (`autolaunch-sh`) and `fly.staging.toml` (`autolaunch-staging`).
+
+The image build needs no Node and installs no browser packages: the bundler is a standalone
+executable the context carries. When a later unit adds browser runtime packages, it adds the
+npm side of the build back as one piece.
+
+### The sealed supply directory
+
+`scripts/build-release-context.sh <destination> <arch> <supply-directory>` reads exactly these
+files from the supply directory and refuses if any of them is missing or fails its digest:
+
+```text
+SUPPLY-MANIFEST.txt   the digests below, one `key=value` per line
+MIX-CACHE.tar         the Mix, Hex and rebar3 caches, packed under a mix-cache/ prefix
+esbuild-linux-arm64   the bundler executable for arm64 builds
+esbuild-linux-x64     the bundler executable for amd64 builds
+```
+
+`SUPPLY-MANIFEST.txt` must carry the keys below. Only the executable for the architecture
+being built is read, so a supply that serves one architecture needs only its own pair of
+esbuild keys alongside the two Mix keys.
+
+| Key | What it is held to |
+| --- | --- |
+| `mix_lock_sha256` | The SHA-256 of the `mix.lock` this cache was packed for. Checked against this repository's `mix.lock`. |
+| `mix_cache_sha256` | The SHA-256 of `MIX-CACHE.tar`. |
+| `esbuild-linux-arm64.sha256` | The SHA-256 of `esbuild-linux-arm64`. Read for an `arm64` build. |
+| `esbuild-linux-arm64.file` | The `file(1)` description of that executable. Must name `ARM aarch64`. |
+| `esbuild-linux-x64.sha256` | The SHA-256 of `esbuild-linux-x64`. Read for an `amd64` build. |
+| `esbuild-linux-x64.file` | The `file(1)` description of that executable. Must name `x86-64`. |
+
+No supply directory for this repository exists yet. The sealed archives kept for the platform
+were packed against a different lockfile, so their `mix_lock_sha256` does not match this one
+and the script refuses them, by design. Packing the first Autolaunch supply directory is the
+first task of the deployment unit (U8 in the site plan).
+
+### Environment
 
 | Variable | Required | What it is for |
 | --- | --- | --- |

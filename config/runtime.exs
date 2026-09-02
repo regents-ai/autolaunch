@@ -23,6 +23,8 @@ if database_config do
 end
 
 if config_env() == :prod do
+  config :autolaunch, :session_options, secure: true, http_only: true
+
   unless migrating? do
     host = String.trim(System.fetch_env!("PHX_HOST"))
     secret_key_base = System.fetch_env!("SECRET_KEY_BASE")

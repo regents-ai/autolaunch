@@ -8,8 +8,6 @@
 !autolaunch-web/rel/**
 !autolaunch-web/mix.exs
 !autolaunch-web/mix.lock
-!autolaunch-web/package.json
-!autolaunch-web/package-lock.json
 # The RegentUI source enters as narrowly as the build uses it: the project file
 # and modules Mix compiles, and the stylesheets autolaunch-web/assets/css/app.css
 # imports. Its own tests, lockfile, tooling files, digested priv/static output
@@ -19,7 +17,6 @@
 !design-system/regent_ui/assets/css/**
 !elixir-utils/privy/**
 !mix-cache/**
-!npm-cache/**
 !esbuild-linux-arm64
 !esbuild-linux-x64
 

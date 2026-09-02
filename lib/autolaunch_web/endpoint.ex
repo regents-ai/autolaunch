@@ -1,15 +1,9 @@
 defmodule AutolaunchWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :autolaunch
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
-  @session_options [
-    store: :cookie,
-    key: "_autolaunch_key",
-    signing_salt: "hqjc/6fr",
-    same_site: "Lax"
-  ]
+  # A connected mount reads the cookie the socket handshake carried, so the
+  # transport must decode it with the same options the request plug runs with.
+  @session_options {Application, :fetch_env!, [:autolaunch, :session_options]}
 
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],
@@ -47,6 +41,6 @@ defmodule AutolaunchWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
-  plug Plug.Session, @session_options
+  plug AutolaunchWeb.Plugs.RuntimeSession
   plug AutolaunchWeb.Router
 end

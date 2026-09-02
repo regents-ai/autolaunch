@@ -56,6 +56,14 @@ config :autolaunch,
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :autolaunch, :session_options,
+  store: :cookie,
+  key: "_autolaunch_key",
+  signing_salt: "hqjc/6fr",
+  same_site: "Lax",
+  secure: false,
+  http_only: true
+
 # Configure the endpoint
 config :autolaunch, AutolaunchWeb.Endpoint,
   url: [host: "localhost"],
