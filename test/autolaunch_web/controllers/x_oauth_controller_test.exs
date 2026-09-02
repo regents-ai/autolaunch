@@ -141,7 +141,7 @@ defmodule AutolaunchWeb.XOAuthControllerTest do
     assert body =~ ~s(data-origin="#{Autolaunch.Accounts.XOAuth.origin()}")
     assert body =~ ~s(data-generation="#{generation}")
     assert body =~ ~s(data-role="company")
-    assert body =~ ~s(source: "ash-x-oauth")
+    assert body =~ ~s(source: "autolaunch-x-oauth")
     refute body =~ "attacker.example"
     refute body =~ "controller-state"
     refute body =~ "controller-verifier"

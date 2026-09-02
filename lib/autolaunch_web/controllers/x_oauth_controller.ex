@@ -103,7 +103,7 @@ defmodule AutolaunchWeb.XOAuthHTML do
             const result = document.getElementById("x-oauth-result");
             const value = (key) => result.dataset[key] || null;
             const message = {
-              source: "ash-x-oauth",
+              source: "autolaunch-x-oauth",
               status: value("status"),
               role: value("role"),
               generation: value("generation")

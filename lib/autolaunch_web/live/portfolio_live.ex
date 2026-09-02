@@ -5,10 +5,15 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
+  def handle_event("refresh", _params, socket), do: {:noreply, socket}
+
   def render(assigns) do
     ~H"""
     <main>
-      <h1>Portfolio</h1>
+      <div id="account-control" data-account-kind={@account_control.kind}>
+        <h1>Portfolio</h1>
+        <button phx-click="refresh">Refresh</button>
+      </div>
     </main>
     """
   end

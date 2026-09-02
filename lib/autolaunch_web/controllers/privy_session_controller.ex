@@ -140,7 +140,7 @@ defmodule AutolaunchWeb.PrivySessionController do
         conn
         |> rotate_session(claim)
         |> put_identity_conflict_header(identity_conflicts)
-        |> put_resp_header("x-ash-session-changed", to_string(transition == :bind))
+        |> put_resp_header("x-autolaunch-session-changed", to_string(transition == :bind))
         |> json(session_payload(account))
 
       {:switch, topic} ->
@@ -182,7 +182,7 @@ defmodule AutolaunchWeb.PrivySessionController do
   # marker names nothing about the refusal, and every other refusal carries none,
   # so no other 401 can end a provider session.
   defp mark_recoverable(conn, :access_verification, :token_verification_failed),
-    do: put_resp_header(conn, "x-ash-provider-relogin", "allowed")
+    do: put_resp_header(conn, "x-autolaunch-provider-relogin", "allowed")
 
   defp mark_recoverable(conn, _stage, _reason), do: conn
 
@@ -265,7 +265,7 @@ defmodule AutolaunchWeb.PrivySessionController do
   defp put_identity_conflict_header(conn, []), do: conn
 
   defp put_identity_conflict_header(conn, _conflicts),
-    do: put_resp_header(conn, "x-ash-identity-error", "already-connected")
+    do: put_resp_header(conn, "x-autolaunch-identity-error", "already-connected")
 
   # The access token travels only as the bearer and the identity token only as
   # Privy's own header, so neither reaches a URL, a body or a log. Exactly one

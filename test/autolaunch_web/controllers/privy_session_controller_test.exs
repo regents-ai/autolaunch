@@ -49,7 +49,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
              ["avatar_data_uri", "kind", "label", "profile_path", "settings_path"]
 
     refute Map.has_key?(payload["account_control"], "wallet_address")
-    assert get_resp_header(signed_in, "x-ash-session-changed") == ["true"]
+    assert get_resp_header(signed_in, "x-autolaunch-session-changed") == ["true"]
     assert payload["account_control"]["profile_path"] == nil
     assert payload["account_control"]["avatar_data_uri"] =~ "data:image/svg+xml;base64,"
 
@@ -298,7 +298,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
-    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
+    assert get_resp_header(refreshed, "x-autolaunch-session-changed") == ["false"]
     assert get_session(refreshed, :session_lineage) == lineage
 
     assert get_session(refreshed, :session_generation) ==
@@ -311,7 +311,10 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     refute_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"}
     assert Process.alive?(view.pid)
 
-    assert render(view) =~ "Portfolio"
+    # The socket's next event revalidates under the advanced generation and
+    # keeps the principal the mount proved.
+    render_click(view, "refresh")
+    assert has_element?(view, "#account-control[data-account-kind=signed_in]")
   end
 
   test "ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: reads and mounts change no authority" do
@@ -390,7 +393,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(rebound, 200)
-    assert get_resp_header(rebound, "x-ash-session-changed") == ["true"]
+    assert get_resp_header(rebound, "x-autolaunch-session-changed") == ["true"]
     refute get_session(rebound, :session_lineage) == get_session(signed_in, :session_lineage)
   end
 
@@ -554,7 +557,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     marked =
       browser() |> put_privy_pair("stale-access") |> post("/auth/privy/session", %{})
 
-    assert get_resp_header(marked, "x-ash-provider-relogin") == ["allowed"]
+    assert get_resp_header(marked, "x-autolaunch-provider-relogin") == ["allowed"]
 
     # Every other way this endpoint refuses, across all three of its stages.
     unmarked = [
@@ -571,7 +574,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
     for refused <- unmarked do
       refused = post(refused, "/auth/privy/session", %{})
 
-      assert get_resp_header(refused, "x-ash-provider-relogin") == []
+      assert get_resp_header(refused, "x-autolaunch-provider-relogin") == []
       assert json_response(refused, 401) == json_response(marked, 401)
       assert refused.private[:plug_session_info] == marked.private[:plug_session_info]
     end
@@ -594,7 +597,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
 
     assert_response_sent_then_disconnect(topic)
     assert json_response(marked, 401) == %{"error" => "unauthorized"}
-    assert get_resp_header(marked, "x-ash-provider-relogin") == ["allowed"]
+    assert get_resp_header(marked, "x-autolaunch-provider-relogin") == ["allowed"]
     assert marked.private[:plug_session_info] == :drop
     assert_no_token_disclosure(marked)
 
@@ -822,7 +825,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
-    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
+    assert get_resp_header(refreshed, "x-autolaunch-session-changed") == ["false"]
     assert get_session(refreshed, :live_socket_id) == topic
 
     assert {:ok, current} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
@@ -854,7 +857,7 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(response, 200)
-    assert get_resp_header(response, "x-ash-identity-error") == ["already-connected"]
+    assert get_resp_header(response, "x-autolaunch-identity-error") == ["already-connected"]
 
     account = Accounts.get_by_privy_did!("did:privy:conflicting-social", actor: %System{})
     assert SessionAuthority.exact(claim(response)) == {:ok, account.id}
@@ -871,8 +874,8 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert %{"authenticated" => true} = json_response(refreshed, 200)
-    assert get_resp_header(refreshed, "x-ash-identity-error") == ["already-connected"]
-    assert get_resp_header(refreshed, "x-ash-session-changed") == ["false"]
+    assert get_resp_header(refreshed, "x-autolaunch-identity-error") == ["already-connected"]
+    assert get_resp_header(refreshed, "x-autolaunch-session-changed") == ["false"]
     assert get_session(refreshed, :live_socket_id) == topic
     refute_receive %Phoenix.Socket.Broadcast{topic: ^topic, event: "disconnect"}
   end

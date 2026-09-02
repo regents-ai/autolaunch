@@ -10,11 +10,6 @@ defmodule Autolaunch.Accounts do
 
       define :get_human_account, action: :read_self, args: [:id]
 
-      define :get_public_profile_source,
-        action: :public_profile_source,
-        args: [:id],
-        not_found_error?: false
-
       define :register_verified,
         action: :register_verified,
         args: [:privy_did, :wallet_address, :wallet_addresses]

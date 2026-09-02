@@ -7,6 +7,11 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
 
+  # The principal the shell assigned, read off the placeholder's own marker: the
+  # only thing on this page that tells a signed-in mount from an anonymous one.
+  @signed_in "#account-control[data-account-kind=signed_in]"
+  @anonymous "#account-control[data-account-kind=sign_in]"
+
   test "CANONICAL_AUTHORITY_ROW: the signed static token carries no credential", %{conn: conn} do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
@@ -113,7 +118,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
     {:ok, view, _html} = static |> connects_with(SessionAuthority.session(later)) |> live()
 
-    assert render(view) =~ "Portfolio"
+    assert has_element?(view, @signed_in)
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: an invalid handshake is refused onto the public root",
@@ -141,6 +146,26 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     assert SessionAuthority.revoke(claim(signed_in))
 
     assert {:error, {:redirect, %{to: "/"}}} = static |> connects_with(current) |> live()
+  end
+
+  test "HANDSHAKE_IS_CONNECTED_AUTHORITY: the public root terminates the refusal it receives", %{
+    conn: conn
+  } do
+    account = account!()
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    assert SessionAuthority.revoke(claim(signed_in))
+
+    # The protected route refuses this browser onto the public root.
+    assert {:error, {:redirect, %{to: "/"}}} = live(signed_in, "/portfolio")
+
+    # The public root then answers the same browser and refuses nothing, so the
+    # refusal has somewhere to land rather than bouncing.
+    plain = get(signed_in, "/")
+    assert html_response(plain, 200) =~ "Autolaunch"
+
+    assert {:ok, view, html} = live(signed_in, "/")
+    assert html =~ "Autolaunch"
+    assert render(view) =~ "Autolaunch"
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a claim-shaped handshake under an anonymous render is refused" do
@@ -171,13 +196,13 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
     # The realigned request names that lineage, so the next mount accepts it.
     {:ok, view, _html} = live(browser, "/portfolio")
-    assert render(view) =~ "Portfolio"
+    assert has_element?(view, @signed_in)
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a handshake and render with no claim mount anonymous" do
     {:ok, view, _html} = live(build_conn(), "/portfolio")
 
-    assert render(view) =~ "Portfolio"
+    assert has_element?(view, @anonymous)
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a different current lineage reloads the same route once",
@@ -190,7 +215,7 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
     # The reloaded page is signed for the browser's own lineage and mounts.
     {:ok, view, _html} = live(browser, "/portfolio")
-    assert render(view) =~ "Portfolio"
+    assert has_element?(view, @signed_in)
   end
 
   test "MOUNTED_LEASE_POLICY_C: a mounted socket survives drift and dies on revocation", %{
@@ -200,13 +225,22 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     signed_in = init_test_session(conn, %{human_account_id: account.id})
 
     {:ok, view, _html} = live(signed_in, "/portfolio")
+    assert has_element?(view, @signed_in)
+
+    # An event under the drift revalidates and keeps the principal.
+    assert {:ok, :refresh, _drifted} = SessionAuthority.sign_in(claim(signed_in), account.id)
+    render_click(view, "refresh")
+    assert has_element?(view, @signed_in)
 
     # A live navigation over the same transport revalidates under the drift.
-    assert {:ok, :refresh, _drifted} = SessionAuthority.sign_in(claim(signed_in), account.id)
     assert render_patch(view, "/portfolio") =~ "Portfolio"
 
-    # The revoked lease halts navigation at the authority hook itself.
+    # The revoked lease withdraws the principal from the next event without
+    # navigating, and then halts navigation at the authority hook itself.
     assert SessionAuthority.revoke(claim(signed_in))
+    render_click(view, "refresh")
+    assert has_element?(view, @anonymous)
+
     assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/portfolio")
   end
 
@@ -216,8 +250,12 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
     signed_in = init_test_session(conn, %{human_account_id: account.id})
 
     {:ok, view, _html} = live(signed_in, "/portfolio")
+    assert has_element?(view, @signed_in)
 
     assert {:ok, _lapsed} = Accounts.refresh_verified(account, nil, [], actor: %System{})
+
+    render_click(view, "refresh")
+    assert has_element?(view, @anonymous)
 
     # /portfolio renders for anonymous visitors, so only the authority hook can
     # be refusing this navigation.
