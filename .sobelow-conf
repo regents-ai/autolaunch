@@ -1,0 +1,12 @@
+[
+  private: true,
+  skip: true,
+  ignore: [
+    # Config.CSP: this site serves no scripts or styles of its own beyond the
+    # bundled application file; the unit that builds the shell sets the policy.
+    "Config.CSP",
+    # Config.HTTPS: TLS terminates at the Fly edge, where both fly files set
+    # force_https on the HTTP service.
+    "Config.HTTPS"
+  ]
+]

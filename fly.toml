@@ -1,0 +1,29 @@
+app = "autolaunch-sh"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  release_command = "/app/bin/migrate"
+
+[env]
+  PORT = "4000"
+  PHX_HOST = "autolaunch.sh"
+  AUTOLAUNCH_DEPLOYMENT_ROLE = "production"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+
+# BEAM release + migrations OOM at Fly's 256MB default.
+[[vm]]
+  memory_mb = 1024
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "10s"
+  method = "GET"
+  path = "/healthz"
+  protocol = "http"
+  timeout = "2s"

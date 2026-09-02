@@ -1,0 +1,17 @@
+{
+  "name": "autolaunch-web-assets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "assets:build": "mix assets.build",
+    "typecheck": "tsc --project assets/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:browser": "npm run assets:build && playwright test",
+    "test:budgets": "vitest run --config vitest.budgets.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
