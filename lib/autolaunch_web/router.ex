@@ -42,6 +42,7 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
       live "/portfolio", PortfolioLive, :portfolio
+      live "/regent", RegentLive, :regent
     end
   end
 end

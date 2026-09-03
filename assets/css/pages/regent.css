@@ -1,0 +1,36 @@
+.regent-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--color-fg);
+}
+
+.regent-page h1 {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.regent-status {
+  color: var(--color-fg-muted);
+}
+
+.regent-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.regent-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.regent-facts dt {
+  color: var(--color-fg-muted);
+}
+
+.regent-facts dd {
+  margin: 0;
+}
