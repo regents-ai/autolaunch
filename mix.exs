@@ -67,6 +67,7 @@ defmodule Autolaunch.MixProject do
       {:decimal, "== 3.1.1"},
       {:req, "== 0.6.2"},
       {:yaml_elixir, "== 2.12.2"},
+      {:vix, "== 0.41.0"},
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
@@ -98,13 +99,14 @@ defmodule Autolaunch.MixProject do
         "format --check-formatted",
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
-        # Two kinds of compile-connected edge are permitted: the Accounts domain
-        # naming its four resources, and each resource naming the policy check
+        # Two kinds of compile-connected edge are permitted: a domain naming
+        # its compile-time resources, and each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time.
-        # Nothing else is permitted. The ceiling is four domain-to-resource
-        # edges plus five resource-to-check edges, and it is re-based per unit
-        # when a domain, resource or check module lands.
-        "xref graph --label compile-connected --fail-above 9",
+        # Nothing else is permitted. The ceiling is twelve domain-to-resource
+        # edges (Accounts four, Autolaunch eight) plus twenty resource-to-check
+        # edges, and it is re-based per unit when a domain, resource or check
+        # module lands.
+        "xref graph --label compile-connected --fail-above 32",
         "test --warnings-as-errors",
         "ash.codegen --check"
       ]

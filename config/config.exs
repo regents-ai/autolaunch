@@ -55,7 +55,7 @@ config :spark,
   ]
 
 config :autolaunch,
-  ash_domains: [Autolaunch.Accounts],
+  ash_domains: [Autolaunch.Accounts, Autolaunch],
   ecto_repos: [Autolaunch.Repo],
   generators: [timestamp_type: :utc_datetime]
 

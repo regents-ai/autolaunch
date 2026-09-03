@@ -32,6 +32,10 @@ config :ash, :missed_notifications, :ignore
 
 config :autolaunch, :privy_verifier, Autolaunch.TestPrivyVerifier
 
+config :autolaunch,
+       :autolaunch_treasury_chain_client,
+       Autolaunch.TestAutolaunchTreasuryChainClient
+
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is
 # raised rather than let unrelated cases spend one another's. The focused
