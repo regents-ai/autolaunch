@@ -53,6 +53,15 @@ defmodule Autolaunch.Chain.Abi do
   @doc "The one REGENT address this site reads, quotes and approves against."
   def regent_address, do: @evidence["regent_erc20"]["address"]
 
+  @doc "The admitted factory address, or `:none` while the manifest entry is address-free."
+  @spec factory_address() :: {:ok, String.t()} | :none
+  def factory_address do
+    case @evidence["regents_autolaunch_factory_v1"]["address"] do
+      address when is_binary(address) and address != "" -> {:ok, address}
+      _absent -> :none
+    end
+  end
+
   def encode_erc20(id, arguments) when id in ["approve", "balance_of", "allowance"] do
     entry =
       Enum.find(@erc20_interface, &(&1["id"] == id)) || raise "missing ERC-20 ABI entry #{id}"

@@ -80,6 +80,7 @@ defmodule Autolaunch do
         not_found_error?: false
 
       define :project_lab_auction, action: :project_lab
+      define :project_launch_auction, action: :project_launch
 
       define :set_auction_bid_terms,
         action: :set_bid_terms,
@@ -134,9 +135,13 @@ defmodule Autolaunch do
     # `SubjectWalletOperations` under a session lease, on the same terms.
     resource @subject_wallet_operation
 
-    # The durable direct-wallet launch is written only by `LaunchOperations`
-    # under a session lease, on the same terms.
-    resource @launch_operation
+    # Writes stay on LaunchActions; this read is the production projection's match.
+    resource @launch_operation do
+      define :chain_verified_launch_operation_by_hash,
+        action: :chain_verified_by_launch_hash,
+        args: [:launch_transaction_hash],
+        not_found_error?: false
+    end
 
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public

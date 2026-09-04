@@ -99,6 +99,24 @@ defmodule Autolaunch.LabProjection do
 
   def auction_id(address) when is_binary(address), do: stable_uuid("auction:" <> address)
 
+  @doc false
+  def auction_attrs(arguments, overrides) when is_map(arguments) and is_map(overrides) do
+    Map.merge(
+      %{
+        title: arguments["name"],
+        summary: arguments["description"],
+        token_symbol: arguments["symbol"],
+        website: arguments["website"],
+        image: arguments["image"],
+        featured: false,
+        quote_token_symbol: "REGENT",
+        quote_token_decimals: @regent_decimals,
+        current_clearing_price: "0"
+      },
+      overrides
+    )
+  end
+
   def subject_identity(address) when is_binary(address),
     do: "lab:" <> (address |> String.downcase() |> String.trim_leading("0x"))
 
@@ -273,23 +291,18 @@ defmodule Autolaunch.LabProjection do
          human_account_id
        ) do
     with {:ok, auction} <-
-           create(Auction, :project_lab, %{
-             projection_id: auction_id,
-             title: arguments["name"],
-             summary: arguments["description"],
-             token_symbol: arguments["symbol"],
-             website: arguments["website"],
-             image: arguments["image"],
-             creator_human_account_id: human_account_id,
-             featured: false,
-             state: :active,
-             auction_address: result["auction"],
-             quote_token_address: arguments["regent"],
-             quote_token_symbol: "REGENT",
-             quote_token_decimals: @regent_decimals,
-             current_clearing_price: "0",
-             treasury_address: result["treasury"]
-           }),
+           create(
+             Auction,
+             :project_lab,
+             auction_attrs(arguments, %{
+               projection_id: auction_id,
+               creator_human_account_id: human_account_id,
+               state: :active,
+               auction_address: result["auction"],
+               quote_token_address: arguments["regent"],
+               treasury_address: result["treasury"]
+             })
+           ),
          {:ok, _subject} <-
            create(Subject, :project_lab, %{
              subject_id: subject_id,

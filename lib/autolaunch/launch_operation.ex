@@ -71,6 +71,17 @@ defmodule Autolaunch.LaunchOperation do
       filter expr(human_account_id == ^arg(:human_account_id) and is_nil(terminal_at))
     end
 
+    read :chain_verified_by_launch_hash do
+      get? true
+      argument :launch_transaction_hash, :string, allow_nil?: false
+
+      filter expr(
+               state == :chain_verified and
+                 fragment("lower(?)", launch_transaction_hash) ==
+                   fragment("lower(?)", ^arg(:launch_transaction_hash))
+             )
+    end
+
     create :prepare do
       accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false

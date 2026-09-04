@@ -10,6 +10,41 @@ defmodule Autolaunch.Auction do
   alias Autolaunch.LabProjection
   require Ash.Query
 
+  @projection_accept [
+    :title,
+    :summary,
+    :token_symbol,
+    :website,
+    :image,
+    :creator_human_account_id,
+    :featured,
+    :state,
+    :opened_at,
+    :auction_address,
+    :quote_token_address,
+    :quote_token_symbol,
+    :quote_token_decimals,
+    :current_clearing_price,
+    :treasury_address
+  ]
+
+  @projection_upsert [
+    :title,
+    :summary,
+    :token_symbol,
+    :website,
+    :image,
+    :creator_human_account_id,
+    :state,
+    :opened_at,
+    :auction_address,
+    :quote_token_address,
+    :quote_token_symbol,
+    :quote_token_decimals,
+    :current_clearing_price,
+    :treasury_address
+  ]
+
   postgres do
     table "auctions"
     repo Autolaunch.Repo
@@ -108,44 +143,18 @@ defmodule Autolaunch.Auction do
 
     create :project_lab do
       argument :projection_id, :uuid, allow_nil?: false
-
-      accept [
-        :title,
-        :summary,
-        :token_symbol,
-        :website,
-        :image,
-        :creator_human_account_id,
-        :featured,
-        :state,
-        :opened_at,
-        :auction_address,
-        :quote_token_address,
-        :quote_token_symbol,
-        :quote_token_decimals,
-        :current_clearing_price,
-        :treasury_address
-      ]
-
+      accept @projection_accept
       change set_attribute(:id, arg(:projection_id))
       upsert? true
+      upsert_fields @projection_upsert
+    end
 
-      upsert_fields [
-        :title,
-        :summary,
-        :token_symbol,
-        :website,
-        :image,
-        :creator_human_account_id,
-        :state,
-        :opened_at,
-        :auction_address,
-        :quote_token_address,
-        :quote_token_symbol,
-        :quote_token_decimals,
-        :current_clearing_price,
-        :treasury_address
-      ]
+    create :project_launch do
+      argument :projection_id, :uuid, allow_nil?: false
+      accept @projection_accept
+      change set_attribute(:id, arg(:projection_id))
+      upsert? true
+      upsert_fields @projection_upsert
     end
 
     update :set_bid_terms do
@@ -251,6 +260,7 @@ defmodule Autolaunch.Auction do
 
     policy action([
              :project_lab,
+             :project_launch,
              :watchable_lab,
              :lab_by_id_for_update,
              :refresh_lab_market

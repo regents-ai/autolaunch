@@ -20,6 +20,7 @@ defmodule Autolaunch.Indexer.Ledger do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Indexer.{Block, Chain, Cursor, Log, Source}
+  alias Autolaunch.LaunchProjection
   alias Autolaunch.Repo
 
   @actor %System{}
@@ -177,7 +178,8 @@ defmodule Autolaunch.Indexer.Ledger do
 
       :none ->
         blocks = record_blocks(cursor.chain_id, headers, now)
-        record_logs(cursor.chain_id, blocks, logs, now)
+        stored_logs = record_logs(cursor.chain_id, blocks, logs, now)
+        project_launches(stored_logs)
         promote(cursor.chain_id, finality, bound)
         move_to(cursor, List.last(headers).number + 1)
     end
@@ -293,6 +295,14 @@ defmodule Autolaunch.Indexer.Ledger do
       |> by_key(&{&1.block_hash, &1.log_index})
 
     Enum.each(logs, &verify_log(Map.fetch!(stored, {&1.block_hash, &1.log_index}), &1))
+    Map.values(stored)
+  end
+
+  defp project_launches(logs) do
+    case LaunchProjection.project_logs(logs) do
+      :ok -> :ok
+      {:error, reason} -> Repo.rollback(reason)
+    end
   end
 
   defp verify_log(
