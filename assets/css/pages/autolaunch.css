@@ -4,8 +4,21 @@
 .launchpad-create {
   display: grid;
   gap: clamp(1.25rem, 2.5vw, 2rem);
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
+}
+
+.launchpad-create {
+  max-width: 100%;
+  padding: var(--space-4, 16px);
+}
+
+.launchpad-create,
+.launchpad-create *,
+.launchpad-create *::before,
+.launchpad-create *::after {
+  box-sizing: border-box;
 }
 
 .launchpad-home__topbar {
@@ -353,7 +366,9 @@
 
 .launchpad-form-section input[type="text"],
 .launchpad-form-section textarea {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--hairline-strong);
@@ -386,6 +401,53 @@
   margin: 0;
   border-radius: 0.75rem;
   object-fit: cover;
+}
+
+.launchpad-upload__url {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+}
+
+.launchpad-upload__url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.launchpad-upload__control input[type="file"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.launchpad-upload__url-row input[type="text"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 0.7rem;
+  background: var(--color-bg);
+  color: inherit;
+}
+
+.launchpad-upload__url-row button {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.7rem;
+  background: var(--color-accent);
+  color: var(--color-fg-on-accent);
+}
+
+.launchpad-limit {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 0.75rem;
+  background: var(--color-surface-elevated);
+  color: var(--color-fg);
 }
 
 .launchpad-create__preview {
@@ -549,6 +611,10 @@
 
   .x-connections__actions button {
     flex: 1;
+  }
+
+  .launchpad-upload__url-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

@@ -16,7 +16,6 @@ config :autolaunch, Autolaunch.Repo,
   hostname: "127.0.0.1",
   port: 5432,
   database: "autolaunch#{System.get_env("MIX_TEST_PARTITION")}_test",
-  pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 10,
   # A case that sends two callers at one row shares one sandboxed connection
   # between them, so the second caller waits while the first one holds it. The
@@ -26,7 +25,14 @@ config :autolaunch, Autolaunch.Repo,
   # after a tenth of a second, and the case then fails on a checkout error
   # rather than on anything it set out to prove. The 1_000ms below lets a
   # caller wait two seconds instead.
-  queue_target: 1_000
+  queue_target: 1_000,
+  # The Playwright server must commit drafts and sessions; ExUnit keeps the
+  # sandbox so ordinary cases stay isolated.
+  pool:
+    if(System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1",
+      do: DBConnection.ConnectionPool,
+      else: Ecto.Adapters.SQL.Sandbox
+    )
 
 config :ash, :missed_notifications, :ignore
 

@@ -11,9 +11,13 @@ import {
   installCrossTabCsrf,
   type PinnedSocket,
 } from "./auth_lazy"
+import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
+import {XConnections} from "./hooks/x_connections"
 
 const hooks = {
   ...colocatedHooks,
+  AutolaunchLaunchDraft,
+  XConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 

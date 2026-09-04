@@ -41,6 +41,7 @@ defmodule AutolaunchWeb.Router do
     live_session :product_shell,
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
+      live "/create", CreateLive, :create
       live "/auctions", AuctionsLive, :index
       live "/auctions/:auction_id", AuctionLive, :show
       live "/tokens", TokensLive, :index

@@ -14,7 +14,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "MIX_ENV=test mix autolaunch.seed_browser_subject && MIX_ENV=test AUTOLAUNCH_BROWSER_TEST=1 mix phx.server",
+      "MIX_ENV=test mix autolaunch.seed_browser_subject && MIX_ENV=test mix autolaunch.seed_browser_draft_owner && MIX_ENV=test AUTOLAUNCH_BROWSER_TEST=1 PRIVY_APP_ID=browser-test-public-id mix phx.server",
     url: "http://127.0.0.1:4050/healthz",
     reuseExistingServer: false,
     timeout: 120_000,
