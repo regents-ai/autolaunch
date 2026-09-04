@@ -1,6 +1,7 @@
 defmodule Autolaunch.TestSupport do
   @moduledoc false
 
+  alias Autolaunch.Accounts
   alias Autolaunch.Actors.System
 
   @doc "Projects one Auction through `project_lab_auction` as the system actor."
@@ -13,7 +14,8 @@ defmodule Autolaunch.TestSupport do
         title: Map.get(opts, :title, "Auction"),
         summary: Map.get(opts, :summary),
         token_symbol: Map.get(opts, :symbol),
-        creator_human_account_id: Map.get(opts, :creator_human_account_id),
+        creator_human_account_id:
+          Map.get(opts, :creator_human_account_id) || register_creator!().id,
         featured: Map.get(opts, :featured, false),
         state: Map.get(opts, :state, :created),
         opened_at: Map.get(opts, :opened_at),
@@ -112,6 +114,18 @@ defmodule Autolaunch.TestSupport do
         started_at: Map.get(opts, :started_at),
         finished_at: Map.get(opts, :finished_at)
       },
+      actor: %System{}
+    )
+  end
+
+  def register_creator! do
+    nonce = Elixir.System.unique_integer([:positive])
+    wallet = "0x" <> String.pad_leading(Integer.to_string(nonce, 16), 40, "0")
+
+    Accounts.register_verified!(
+      "did:privy:project-auction:#{nonce}",
+      wallet,
+      [wallet],
       actor: %System{}
     )
   end

@@ -67,6 +67,8 @@ defmodule Autolaunch.AuctionTokenTest do
   end
 
   test "project_lab rejects missing and lookalike system actors" do
+    creator = account!(Elixir.System.unique_integer([:positive]))
+
     for actor <- [nil, %{role: :system}, %{role: :human, human_account_id: 1}] do
       assert {:error, %Ash.Error.Forbidden{}} =
                Autolaunch.project_lab_auction(
@@ -74,7 +76,8 @@ defmodule Autolaunch.AuctionTokenTest do
                    projection_id: Ash.UUID.generate(),
                    title: "Nope",
                    featured: false,
-                   state: :created
+                   state: :created,
+                   creator_human_account_id: creator.id
                  },
                  actor: actor
                )

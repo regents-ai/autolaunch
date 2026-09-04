@@ -75,6 +75,7 @@ defmodule Autolaunch.LaunchOperation do
       accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false
       argument :launch_draft_id, :uuid, allow_nil?: false
+      validate Autolaunch.LaunchOperation.Validations.AuctionLimit
       change set_attribute(:human_account_id, arg(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
     end

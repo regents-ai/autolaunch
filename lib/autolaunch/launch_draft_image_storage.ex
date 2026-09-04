@@ -7,7 +7,7 @@ defmodule Autolaunch.LaunchDraftImageStorage do
   require Ash.Query
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchDraft, LaunchDraftImage}
+  alias Autolaunch.{ImageFetch, LaunchDraft, LaunchDraftImage}
   alias Autolaunch.LaunchDraft.ImageValidator
 
   @type stored :: %{
@@ -31,6 +31,14 @@ defmodule Autolaunch.LaunchDraftImageStorage do
 
   def store_and_attach(_draft, _bytes, _declared_type, _filename, _actor),
     do: {:error, :image_unavailable}
+
+  @spec store_fetched(Ash.Resource.record(), String.t(), struct()) ::
+          {:ok, stored()} | {:error, term()}
+  def store_fetched(%LaunchDraft{} = draft, url, actor) when is_binary(url) do
+    with {:ok, {bytes, content_type}} <- ImageFetch.fetch(url) do
+      store_and_attach(draft, bytes, content_type, filename_from_url(url), actor)
+    end
+  end
 
   @spec public_url(Ash.Resource.record()) :: String.t()
   def public_url(%LaunchDraftImage{id: id, digest: digest}) do
@@ -112,6 +120,20 @@ defmodule Autolaunch.LaunchDraftImageStorage do
 
   defp bounded_url(url) when is_binary(url) and byte_size(url) <= 256, do: :ok
   defp bounded_url(_url), do: {:error, :image_url_too_long}
+
+  defp filename_from_url(url) do
+    case URI.parse(url).path do
+      path when is_binary(path) ->
+        case Path.basename(path) do
+          "" -> "image"
+          "." -> "image"
+          name -> name
+        end
+
+      _missing ->
+        "image"
+    end
+  end
 
   defp sha256(bytes), do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
 

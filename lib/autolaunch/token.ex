@@ -5,7 +5,8 @@ defmodule Autolaunch.Token do
     otp_app: :autolaunch,
     domain: Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   require Ash.Query
 
@@ -17,9 +18,12 @@ defmodule Autolaunch.Token do
   actions do
     read :read do
       primary? true
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
     end
 
     read :list_public do
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
                 load: [:treasury_security_report, :auction]
@@ -28,6 +32,7 @@ defmodule Autolaunch.Token do
 
     read :top_public do
       filter expr(not is_nil(top_rank))
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
 
       prepare build(
                 sort: [top_rank: :asc, id: :asc],
@@ -37,6 +42,8 @@ defmodule Autolaunch.Token do
     end
 
     read :recently_graduated_public do
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
                 limit: 12,
@@ -49,6 +56,7 @@ defmodule Autolaunch.Token do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
       prepare fn query, _context -> launchpad_query(query, 8) end
     end
 
@@ -57,6 +65,7 @@ defmodule Autolaunch.Token do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
       prepare fn query, _context -> launchpad_query(query, 24) end
     end
 
@@ -66,6 +75,7 @@ defmodule Autolaunch.Token do
         constraints: SubjectIdentity.constraints()
 
       filter expr(subject_id == ^arg(:subject_id))
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
 
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
@@ -78,6 +88,7 @@ defmodule Autolaunch.Token do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
       prepare build(load: [:treasury_security_report, :auction])
     end
 
@@ -89,6 +100,7 @@ defmodule Autolaunch.Token do
         constraints: SubjectIdentity.constraints()
 
       filter expr(subject_id == ^arg(:subject_id) and not is_nil(price_quote))
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
       prepare build(sort: [price_updated_at: :desc, id: :desc], limit: 1)
     end
 

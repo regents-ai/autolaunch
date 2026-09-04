@@ -9,6 +9,9 @@ defmodule Autolaunch.LaunchDraft.ImageValidator do
   @jpeg_start <<255, 216>>
   @jpeg_frames [0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF]
 
+  @spec maximum_bytes() :: pos_integer()
+  def maximum_bytes, do: @maximum_bytes
+
   @spec validate(binary(), String.t()) :: {:ok, String.t()} | {:error, atom()}
   def validate(bytes, declared_type)
       when is_binary(bytes) and declared_type in @content_types and

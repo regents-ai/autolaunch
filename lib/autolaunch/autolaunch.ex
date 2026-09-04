@@ -366,6 +366,62 @@ defmodule Autolaunch do
     to: Autolaunch.LaunchActions,
     as: :open_operation
 
+  # Two Ash.count/read queries under the system actor: LaunchOperation is
+  # system-only, and the in-flight window is "chain_verified with no Auction
+  # row yet". Lab projection names that address on result["auction"].
+  @spec auctions_prepared_by(integer()) :: non_neg_integer()
+  def auctions_prepared_by(human_account_id) when is_integer(human_account_id) do
+    actor = %Autolaunch.Actors.System{}
+
+    auction_count =
+      Autolaunch.Auction
+      |> Ash.Query.for_read(:read, %{}, actor: actor)
+      |> Ash.Query.filter(creator_human_account_id == ^human_account_id)
+      |> Ash.count!()
+
+    {:ok, operations} =
+      @launch_operation
+      |> Ash.Query.for_read(:read, %{}, actor: actor)
+      |> Ash.Query.filter(human_account_id == ^human_account_id and state == :chain_verified)
+      |> Ash.read()
+
+    auction_count + in_flight_count(operations, actor)
+  end
+
+  defp in_flight_count(operations, actor) do
+    addresses =
+      operations
+      |> Enum.map(&result_auction_address/1)
+      |> Enum.reject(&is_nil/1)
+
+    projected = projected_auction_addresses(addresses, actor)
+
+    Enum.count(addresses, fn address ->
+      not MapSet.member?(projected, String.downcase(address))
+    end)
+  end
+
+  defp result_auction_address(%{result: result}) when is_map(result) do
+    case result["auction"] do
+      address when is_binary(address) and address != "" -> address
+      _ -> nil
+    end
+  end
+
+  defp result_auction_address(_operation), do: nil
+
+  defp projected_auction_addresses([], _actor), do: MapSet.new()
+
+  defp projected_auction_addresses(addresses, actor) do
+    lowered = Enum.map(addresses, &String.downcase/1)
+
+    Autolaunch.Auction
+    |> Ash.Query.for_read(:read, %{}, actor: actor)
+    |> Ash.Query.filter(fragment("lower(?)", auction_address) in ^lowered)
+    |> Ash.read!()
+    |> MapSet.new(&String.downcase(&1.auction_address))
+  end
+
   def list_public_auctions(mode, sort, limit, opts \\ []) do
     Autolaunch.Auction
     |> Ash.Query.for_read(:read)

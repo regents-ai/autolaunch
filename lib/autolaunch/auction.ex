@@ -3,7 +3,8 @@ defmodule Autolaunch.Auction do
     otp_app: :autolaunch,
     domain: Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   alias Autolaunch.{BidActions, TreasurySecurity}
   alias Autolaunch.LabProjection
@@ -17,13 +18,17 @@ defmodule Autolaunch.Auction do
   actions do
     read :read do
       primary? true
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
     end
 
     read :list_public do
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
       prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
     read :recent_public do
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+
       prepare build(
                 sort: [inserted_at: :desc, id: :asc],
                 limit: 12,
@@ -33,6 +38,7 @@ defmodule Autolaunch.Auction do
 
     read :featured_public do
       filter expr(featured == true)
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
 
       prepare build(
                 sort: [inserted_at: :desc, id: :asc],
@@ -46,6 +52,7 @@ defmodule Autolaunch.Auction do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
       prepare fn query, _context -> market_query(query, [:created, :active], 8) end
     end
 
@@ -54,6 +61,7 @@ defmodule Autolaunch.Auction do
         allow_nil?: false,
         constraints: [allow_empty?: true, max_length: 80]
 
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
       prepare fn query, _context -> market_query(query, [:created, :active, :failed], 24) end
     end
 
@@ -61,6 +69,7 @@ defmodule Autolaunch.Auction do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(id == ^arg(:id))
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
       prepare build(load: [:treasury_security_report])
     end
 
@@ -354,6 +363,7 @@ defmodule Autolaunch.Auction do
 
   relationships do
     belongs_to :creator_human_account, Autolaunch.Accounts.HumanAccount do
+      allow_nil? false
       attribute_public? true
       attribute_type :integer
     end

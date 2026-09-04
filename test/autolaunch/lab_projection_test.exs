@@ -228,7 +228,7 @@ defmodule Autolaunch.LabProjectionTest do
 
   defp launch_operation(human_account_id \\ nil) do
     %{
-      human_account_id: human_account_id,
+      human_account_id: human_account_id || account!("launch-op").id,
       envelope: %{
         "chain_id" => 31_337,
         "expected_signer" => @wallet,

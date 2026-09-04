@@ -158,7 +158,8 @@ defmodule Autolaunch.LabMarketFeedTest do
           title: "Local auction",
           featured: false,
           state: :active,
-          auction_address: @lab_address
+          auction_address: @lab_address,
+          creator_human_account_id: Autolaunch.TestSupport.register_creator!().id
         },
         actor: actor,
         domain: Autolaunch
@@ -194,7 +195,8 @@ defmodule Autolaunch.LabMarketFeedTest do
           featured: false,
           state: :active,
           auction_address: @lab_address,
-          current_clearing_price: "1"
+          current_clearing_price: "1",
+          creator_human_account_id: Autolaunch.TestSupport.register_creator!().id
         },
         actor: actor,
         domain: Autolaunch
@@ -235,7 +237,8 @@ defmodule Autolaunch.LabMarketFeedTest do
         featured: false,
         state: :active,
         auction_address: existing_address,
-        current_clearing_price: "1"
+        current_clearing_price: "1",
+        creator_human_account_id: Autolaunch.TestSupport.register_creator!().id
       },
       actor: actor,
       domain: Autolaunch
@@ -275,7 +278,8 @@ defmodule Autolaunch.LabMarketFeedTest do
         featured: false,
         state: :active,
         auction_address: @lab_address,
-        current_clearing_price: "1"
+        current_clearing_price: "1",
+        creator_human_account_id: Autolaunch.TestSupport.register_creator!().id
       },
       actor: actor,
       domain: Autolaunch
@@ -972,6 +976,8 @@ defmodule Autolaunch.LabMarketFeedTest do
       actor: actor
     )
 
+    creator_id = Autolaunch.TestSupport.register_creator!().id
+
     inputs =
       Enum.map(1..257, fn number ->
         address = "0x" <> (number |> Integer.to_string(16) |> String.pad_leading(40, "0"))
@@ -981,7 +987,8 @@ defmodule Autolaunch.LabMarketFeedTest do
           title: "Capacity #{number}",
           featured: false,
           state: :active,
-          auction_address: address
+          auction_address: address,
+          creator_human_account_id: creator_id
         }
       end)
 
