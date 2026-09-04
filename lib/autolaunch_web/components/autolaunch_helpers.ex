@@ -2,6 +2,8 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  alias Autolaunch.Accounts.XOAuth
+  alias Autolaunch.Actors.Human
   alias Autolaunch.Lab
   alias Autolaunch.Token
   alias Autolaunch.TreasurySecurity
@@ -257,4 +259,202 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     do: Calendar.strftime(value, "%b %-d, %Y at %H:%M UTC")
 
   def display_time(_value), do: "Not available"
+
+  def empty_market, do: %{generation: 0, head: nil, degraded?: false, auctions: %{}}
+
+  def page_record(%{ok?: true, result: %{record: record}}), do: record
+  def page_record(_page), do: nil
+
+  def page_status(%{ok?: true, result: %{status: status}}, _on_failed), do: status
+  def page_status(%{failed: true}, on_failed), do: on_failed
+  def page_status(_page, _on_failed), do: :loading
+
+  def page_connections(%{ok?: true, result: %{creator_connections: connections}}),
+    do: connections
+
+  def page_connections(_page), do: %{}
+
+  def page_list(%{ok?: true, result: result}, key), do: Map.get(result, key, [])
+  def page_list(_page, _key), do: []
+
+  def load_auction_page(id) do
+    case Autolaunch.get_public_auction(id) do
+      {:ok, nil} -> {:ok, %{page: empty_detail()}}
+      {:ok, record} -> {:ok, %{page: ready_detail(record)}}
+      {:error, _reason} -> {:ok, %{page: empty_detail()}}
+    end
+  end
+
+  def load_token_page(id) do
+    case Autolaunch.get_public_token(id) do
+      {:ok, nil} -> {:ok, %{page: empty_detail()}}
+      {:ok, record} -> {:ok, %{page: ready_detail(record)}}
+      {:error, _reason} -> {:ok, %{page: empty_detail()}}
+    end
+  end
+
+  def load_launch_page(id) do
+    case Autolaunch.get_public_launch(id) do
+      {:ok, nil} ->
+        {:ok, %{page: empty_detail()}}
+
+      {:ok, record} ->
+        {:ok, %{page: ready_detail(record)}}
+
+      {:error, _reason} ->
+        {:ok, %{page: %{status: :error, record: nil, creator_connections: %{}}}}
+    end
+  end
+
+  def load_subject_page(id) do
+    case Autolaunch.get_public_subject(id) do
+      {:ok, nil} ->
+        {:ok, %{page: empty_subject()}}
+
+      {:ok, subject} ->
+        load_subject_details(subject)
+
+      {:error, _reason} ->
+        {:ok, %{page: error_subject()}}
+    end
+  end
+
+  def load_holdings(%Human{} = actor) do
+    with {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor),
+         {:ok, returnable} <- Autolaunch.list_my_returnable_bid_positions(actor: actor),
+         {:ok, claimed} <- Autolaunch.list_my_claimed_token_positions(actor: actor) do
+      {:ok,
+       %{
+         status: :ready,
+         positions: positions,
+         returnable_positions: returnable,
+         claimed_token_positions: Enum.filter(claimed, & &1.token)
+       }}
+    else
+      _error -> {:error, :unavailable}
+    end
+  end
+
+  def human_actor(%{principal: {:human, account}}),
+    do: %Human{human_account_id: account.id}
+
+  def human_actor(_access_context), do: nil
+
+  attr :actions, :list, required: true
+  attr :empty_copy, :string, required: true
+  attr :id_prefix, :string, required: true
+
+  def subject_action_list(assigns) do
+    ~H"""
+    <p :if={@actions == []} class="autolaunch-empty">{@empty_copy}</p>
+    <ol :if={@actions != []} class="autolaunch-record-list">
+      <li :for={action <- @actions} id={"#{@id_prefix}-#{action.id}"}>
+        <article>
+          <h3>{display_action(action.action)}</h3>
+          <dl>
+            <div>
+              <dt>Status</dt><dd>{display_text(action.status)}</dd>
+            </div>
+            <div>
+              <dt>Owner</dt><dd>{display_text(action.owner_address)}</dd>
+            </div>
+            <div>
+              <dt>Chain</dt><dd>{action.chain_id}</dd>
+            </div>
+            <div>
+              <dt>Transaction</dt><dd>{display_text(action.tx_hash)}</dd>
+            </div>
+            <div>
+              <dt>Amount</dt><dd>{display_text(action.amount)}</dd>
+            </div>
+            <div>
+              <dt>Block</dt><dd>{display_text(action.block_number)}</dd>
+            </div>
+            <div>
+              <dt>Time</dt><dd>{display_time(action.inserted_at)}</dd>
+            </div>
+          </dl>
+        </article>
+      </li>
+    </ol>
+    """
+  end
+
+  defp load_subject_details(subject) do
+    with {:ok, tokens} <- Autolaunch.list_subject_tokens(subject.subject_id),
+         {:ok, actions} <- Autolaunch.list_subject_actions(subject.subject_id),
+         {:ok, settlements} <- Autolaunch.list_subject_settlements(subject.subject_id) do
+      {:ok,
+       %{
+         page: %{
+           status: :ready,
+           record: subject,
+           creator_connections: %{},
+           tokens: tokens,
+           actions: actions,
+           settlements: settlements
+         }
+       }}
+    else
+      {:error, _reason} -> {:ok, %{page: error_subject()}}
+    end
+  end
+
+  defp ready_detail(record),
+    do: %{status: :ready, record: record, creator_connections: creator_connections(record)}
+
+  defp empty_detail, do: %{status: :empty, record: nil, creator_connections: %{}}
+
+  defp empty_subject,
+    do: %{
+      status: :empty,
+      record: nil,
+      creator_connections: %{},
+      tokens: [],
+      actions: [],
+      settlements: []
+    }
+
+  defp error_subject,
+    do: %{
+      status: :error,
+      record: nil,
+      creator_connections: %{},
+      tokens: [],
+      actions: [],
+      settlements: []
+    }
+
+  defp creator_connections(record) do
+    case creator_id(record) do
+      id when is_integer(id) ->
+        case XOAuth.public_for_humans([id]) do
+          {:ok, connections} ->
+            connections
+            |> group_x_connections()
+            |> Map.get(id, %{})
+
+          {:error, _reason} ->
+            %{}
+        end
+
+      _missing ->
+        %{}
+    end
+  end
+
+  defp creator_id(%{creator_human_account_id: id}), do: id
+  defp creator_id(%{auction: %{creator_human_account_id: id}}), do: id
+  defp creator_id(_record), do: nil
+
+  defp group_x_connections(connections) do
+    Enum.reduce(connections, %{}, fn connection, grouped ->
+      Map.update(
+        grouped,
+        connection.human_account_id,
+        %{connection.role => connection},
+        &Map.put(&1, connection.role, connection)
+      )
+    end)
+  end
 end

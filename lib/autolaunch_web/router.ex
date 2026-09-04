@@ -42,9 +42,13 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
       live "/auctions", AuctionsLive, :index
+      live "/auctions/:auction_id", AuctionLive, :show
       live "/tokens", TokensLive, :index
+      live "/tokens/:token_id", TokenLive, :show
       live "/launches", LaunchesLive, :index
+      live "/launches/:id", LaunchLive, :show
       live "/subjects", SubjectsLive, :index
+      live "/subjects/:id", SubjectLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/regent", RegentLive, :regent
     end
