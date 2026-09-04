@@ -24,6 +24,16 @@ defmodule AutolaunchWeb.Router do
     get "/healthz", HealthController, :show
   end
 
+  scope "/api/v1", AutolaunchWeb do
+    pipe_through :api
+
+    get "/auctions", AuctionController, :index
+    get "/auctions/:id", AuctionController, :show
+    post "/auctions/:id/bid-quote", AuctionController, :bid_quote
+    get "/tokens", TokenController, :index
+    get "/treasury-security/:address", TreasuryController, :show
+  end
+
   scope "/", AutolaunchWeb do
     pipe_through :browser
 
