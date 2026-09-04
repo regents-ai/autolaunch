@@ -147,6 +147,7 @@ defmodule AutolaunchWeb.XOAuthControllerTest do
     refute body =~ "controller-verifier"
     refute body =~ "callback-code"
     refute body =~ "callback-access-token"
+    refute body =~ ~r/style="[^"]*#[0-9A-Fa-f]/
     assert get_resp_header(callback, "cache-control") == ["no-store"]
     assert get_resp_header(callback, "content-security-policy") != []
   end

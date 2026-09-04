@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.XOAuthController do
     |> no_store()
     |> put_resp_header(
       "content-security-policy",
-      "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'"
+      "default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
     )
     |> put_root_layout(false)
     |> render(:callback,
@@ -77,13 +77,22 @@ defmodule AutolaunchWeb.XOAuthHTML do
   def callback(assigns) do
     ~H"""
     <!doctype html>
-    <html lang="en">
+    <html lang="en" data-brand="autolaunch" data-theme="dark">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width" />
         <title>X connection</title>
+        <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
+        <script>
+          ((query) => {
+            const follow = () =>
+              document.documentElement.setAttribute("data-theme", query.matches ? "light" : "dark")
+            follow()
+            query.addEventListener("change", follow)
+          })(window.matchMedia("(prefers-color-scheme: light)"))
+        </script>
       </head>
-      <body style="font-family:system-ui;background:#111;color:#fff;padding:2rem">
+      <body class="x-oauth-result">
         <main
           id="x-oauth-result"
           data-origin={@origin}
@@ -96,7 +105,7 @@ defmodule AutolaunchWeb.XOAuthHTML do
               do: "X account connected.",
               else: "X connection could not be completed."}
           </p>
-          <p><a href="/" style="color:#ff5a1f">Back to Autolaunch</a></p>
+          <p><a href="/">Back to Autolaunch</a></p>
         </main>
         <script>
           (() => {

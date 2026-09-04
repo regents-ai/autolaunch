@@ -13,4 +13,12 @@ defmodule AutolaunchWeb.ThemeTest do
 
     assert html =~ ~s(<meta name="color-scheme" content="dark light">)
   end
+
+  test "shell styles name tokens instead of literal colours" do
+    hex = ~r/#[0-9A-Fa-f]{3,8}\b/
+
+    for path <- Path.wildcard("assets/css/shell/*.css") do
+      refute File.read!(path) =~ hex, "#{path} must use tokens"
+    end
+  end
 end

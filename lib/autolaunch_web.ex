@@ -49,7 +49,9 @@ defmodule AutolaunchWeb do
 
   def live_view do
     quote do
-      use Phoenix.LiveView
+      use Phoenix.LiveView, layout: {AutolaunchWeb.Layouts, :app}
+
+      on_mount {AutolaunchWeb.Live.Session, :shell}
 
       unquote(html_helpers())
     end

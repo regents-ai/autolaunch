@@ -1,0 +1,10 @@
+<div class="shell">
+  <a class="shell-skip" href="#shell-content">Skip to content</a>
+  <.rail current_path={@current_path} />
+  <div class="shell-main">
+    <.top_bar account_control={@account_control} />
+    <div id="shell-content" class="shell-content" tabindex="-1">
+      {@inner_content}
+    </div>
+  </div>
+</div>

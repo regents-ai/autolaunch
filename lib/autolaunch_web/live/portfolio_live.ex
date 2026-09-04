@@ -21,9 +21,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def render(assigns) do
     ~H"""
-    <div id="account-control" data-account-kind={@account_control.kind}>
-      <button phx-click="refresh">Refresh</button>
-    </div>
+    <button type="button" class="shell-sr-only" phx-click="refresh">Refresh</button>
 
     <section id="autolaunch-holdings" class="autolaunch-page">
       <header class="autolaunch-heading">

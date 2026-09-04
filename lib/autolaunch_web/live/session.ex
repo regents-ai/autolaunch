@@ -31,6 +31,20 @@ defmodule AutolaunchWeb.Live.Session do
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
   end
 
+  # The product shell needs a path and an account control on every LiveView,
+  # including the public root, which stays outside :load_human so a refused
+  # handshake can land there. :shell runs from the live_view macro first and
+  # presents what the cookie already proves; :load_human then replaces that
+  # control when the page is inside the product session.
+  def on_mount(:shell, _params, session, socket) do
+    {:cont,
+     socket
+     |> assign_shell_control(session)
+     |> attach_hook(:current_path, :handle_params, fn _params, uri, socket ->
+       {:cont, Phoenix.Component.assign(socket, :current_path, path_of(uri))}
+     end)}
+  end
+
   # The lease starts absent on every mount and is only ever granted by a
   # connected mount that proved its claim, so a disconnected render can read but
   # can never reach a protected write.
@@ -126,6 +140,24 @@ defmodule AutolaunchWeb.Live.Session do
       access_context: access_context,
       account_control: AccessContext.account_control(access_context)
     )
+  end
+
+  # Home is outside the product session, so this only presents what the cookie
+  # can already prove. It never refuses a mount; :load_human still owns that.
+  defp assign_shell_control(socket, session) do
+    access_context = access_context(disconnected_account(session))
+
+    Phoenix.Component.assign(socket,
+      current_path: "/",
+      account_control: AccessContext.account_control(access_context)
+    )
+  end
+
+  defp path_of(uri) when is_binary(uri) do
+    case URI.parse(uri).path do
+      path when is_binary(path) and path != "" -> path
+      _missing -> "/"
+    end
   end
 
   defp access_context(nil), do: AccessContext.anonymous()
