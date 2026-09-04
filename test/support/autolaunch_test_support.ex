@@ -118,6 +118,33 @@ defmodule Autolaunch.TestSupport do
     )
   end
 
+  @doc "Inserts one auction row beneath the resource so listing tests can prove R10."
+  def insert_null_creator_auction! do
+    id = Ecto.UUID.generate()
+    now = DateTime.utc_now()
+
+    # The resource and migration refuse NULL; AE6 still has to prove a
+    # beneath-the-resource row is filtered from every public read.
+    {:ok, _} =
+      Autolaunch.Repo.query(
+        "ALTER TABLE auctions ALTER COLUMN creator_human_account_id DROP NOT NULL"
+      )
+
+    {1, nil} =
+      Autolaunch.Repo.insert_all("auctions", [
+        %{
+          id: Ecto.UUID.dump!(id),
+          title: "Hidden",
+          featured: true,
+          state: "active",
+          inserted_at: now,
+          updated_at: now
+        }
+      ])
+
+    id
+  end
+
   def register_creator! do
     nonce = Elixir.System.unique_integer([:positive])
     wallet = "0x" <> String.pad_leading(Integer.to_string(nonce, 16), 40, "0")

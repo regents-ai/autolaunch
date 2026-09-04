@@ -41,6 +41,7 @@ defmodule AutolaunchWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
+  plug AutolaunchWeb.Plugs.LaunchImage
   plug AutolaunchWeb.Plugs.RuntimeSession
   plug AutolaunchWeb.Router
 end
