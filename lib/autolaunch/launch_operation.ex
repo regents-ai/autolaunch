@@ -10,10 +10,10 @@ defmodule Autolaunch.LaunchOperation do
 
   The database decides every race. `action_id` is unique, each hash column is
   unique within itself across every operation, and a partial identity over
-  `terminal_at IS NULL` allows one open launch per human account. A claimed step
-  whose outcome is unknown holds that slot until the account explicitly ends it;
-  it never becomes a fresh send, and a hash that arrives late attaches to the
-  operation it belongs to without reopening it.
+  `terminal_at IS NULL` allows one open launch per human account. A new prepare
+  closes whatever is open as replaced and takes the slot; a closed step never
+  becomes a fresh send, and a hash that arrives late attaches to the operation
+  it belongs to without reopening it.
 
   `chain_verified` is the honest terminal success: this server proved its own
   receipt evidence. Canonical public launch confirmation is the finalized
