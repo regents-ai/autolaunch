@@ -2,16 +2,6 @@ defmodule Autolaunch do
   use Ash.Domain,
     otp_app: :autolaunch
 
-  # Part B owns these modules. The copied domain pass-throughs stay so the
-  # interface is identical; they are only called once those modules exist.
-  @compile {:no_warn_undefined,
-            [
-              Autolaunch.BidActions,
-              Autolaunch.SubjectWalletActions,
-              Autolaunch.LaunchActions,
-              Autolaunch.LabPositionActions
-            ]}
-
   require Ash.Query
 
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
@@ -375,25 +365,6 @@ defmodule Autolaunch do
   defdelegate open_launch_operation(opts),
     to: Autolaunch.LaunchActions,
     as: :open_operation
-
-  # The development-only local-fork position lane is deliberately stateless on
-  # the server: every action is a fresh signed envelope tied to the exact
-  # projected bid, runtime config, signer and receipt readback.
-  defdelegate lab_position(auction_id, address, opts),
-    to: Autolaunch.LabPositionActions,
-    as: :position
-
-  defdelegate prepare_lab_position(bid_id, address, kind, opts),
-    to: Autolaunch.LabPositionActions,
-    as: :prepare
-
-  defdelegate claim_lab_position_dispatch(operation, address, opts),
-    to: Autolaunch.LabPositionActions,
-    as: :claim_dispatch
-
-  defdelegate verify_lab_position(operation, hash, opts),
-    to: Autolaunch.LabPositionActions,
-    as: :verify
 
   def list_public_auctions(mode, sort, limit, opts \\ []) do
     Autolaunch.Auction
