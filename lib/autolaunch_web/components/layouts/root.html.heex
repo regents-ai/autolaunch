@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark light" />
     <meta name="csrf-token" content={get_csrf_token()} />
+    <meta name="privy-app-id" content={Autolaunch.Privy.app_id()} />
+    <meta
+      name="privy-bridge-src"
+      content={AutolaunchWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}
+    />
     <.live_title default="Autolaunch">{assigns[:page_title]}</.live_title>
     <link rel="icon" type="image/svg+xml" href={~p"/favicon.svg"} />
     <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32.png"} />

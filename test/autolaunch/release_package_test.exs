@@ -40,13 +40,11 @@ defmodule Autolaunch.ReleasePackageTest do
     # A miniature stand-in for the real parent context, holding one file for
     # every rule: package sources, the sibling Privy source, the narrow slice of
     # the RegentUI source the build compiles and styles from, the sealed offline
-    # inputs, and the things that must never enter -- the npm manifests and
-    # cache (this site ships no browser packages, so the image build installs
-    # none), host build artifacts under a dependency's priv, a sibling's tests,
-    # lockfile, tooling files, digested output and JavaScript, environment
-    # files, and everything outside the declared allowlist. A real context
-    # carries one bundler executable; the rules admit either architecture's
-    # name.
+    # inputs — Mix cache, npm manifests and npm cache — host build artifacts
+    # under a dependency's priv, a sibling's tests, lockfile, tooling files,
+    # digested output and JavaScript, environment files, and everything outside
+    # the declared allowlist. A real context carries one bundler executable; the
+    # rules admit either architecture's name.
     write_files(context, [
       {"autolaunch-web/lib/app.ex", "defmodule App do\nend\n"},
       {"autolaunch-web/config/config.exs", "import Config\n"},
@@ -124,6 +122,8 @@ defmodule Autolaunch.ReleasePackageTest do
              "autolaunch-web/lib/app.ex",
              "autolaunch-web/mix.exs",
              "autolaunch-web/mix.lock",
+             "autolaunch-web/package-lock.json",
+             "autolaunch-web/package.json",
              "autolaunch-web/priv/static/app.css",
              "autolaunch-web/rel/overlays/bin/migrate",
              "design-system/regent_ui/assets/css/regent.css",
@@ -132,7 +132,8 @@ defmodule Autolaunch.ReleasePackageTest do
              "elixir-utils/privy/lib/privy.ex",
              "esbuild-linux-arm64",
              "esbuild-linux-x64",
-             "mix-cache/archives/hex"
+             "mix-cache/archives/hex",
+             "npm-cache/_cacache/content"
            ]
   end
 
@@ -195,15 +196,20 @@ defmodule Autolaunch.ReleasePackageTest do
       |> join_continuations()
       |> Enum.filter(&String.starts_with?(&1, "rsync "))
 
-    assert length(rsync_calls) == 3
+    assert length(rsync_calls) == 4
+
+    {filtered, unfiltered} =
+      Enum.split_with(rsync_calls, &String.contains?(&1, ~s("${env_filters[@]}")))
 
     for source <- [~s("$repo_root/"), ~s("$privy_source/"), ~s("$regent_ui_source/")] do
-      assert Enum.count(rsync_calls, &String.contains?(&1, source)) == 1,
-             "the copy of #{source} must appear exactly once"
+      assert Enum.count(filtered, &String.contains?(&1, source)) == 1,
+             "the copy of #{source} must take the env filters"
     end
 
-    assert Enum.all?(rsync_calls, &String.contains?(&1, ~s("${env_filters[@]}"))),
-           "every source-tree copy must take the env filters"
+    assert length(filtered) == 3
+
+    assert [npm_cache_copy] = unfiltered
+    assert String.contains?(npm_cache_copy, "npm-cache")
   end
 
   test "CTX-ENV the script's guard refuses a staging tree carrying an env-shaped file" do

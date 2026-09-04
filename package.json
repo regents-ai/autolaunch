@@ -9,8 +9,18 @@
     "test:browser": "npm run assets:build && playwright test",
     "test:budgets": "vitest run --config vitest.budgets.config.ts"
   },
+  "dependencies": {
+    "@privy-io/react-auth": "3.34.0",
+    "@solana-program/system": "0.12.2",
+    "@solana-program/token": "0.14.0",
+    "@solana/kit": "6.10.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
   "devDependencies": {
     "@playwright/test": "1.61.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   }

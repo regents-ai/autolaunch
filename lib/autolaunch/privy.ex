@@ -110,10 +110,14 @@ defmodule Autolaunch.Privy do
   defp names_authenticated_session?(%{"sid" => _named}, _session_id), do: false
   defp names_authenticated_session?(_claims, _session_id), do: true
 
+  def app_id, do: privy_config()[:app_id]
+
   defp verifier, do: Application.get_env(:autolaunch, :regent_privy_module, RegentPrivy)
 
+  defp privy_config, do: Application.get_env(:autolaunch, :privy, [])
+
   defp verification_options do
-    config = Application.get_env(:autolaunch, :privy, [])
+    config = privy_config()
 
     case {config[:app_id], config[:verification_key]} do
       {app_id, key} when is_binary(app_id) and app_id != "" and is_binary(key) and key != "" ->

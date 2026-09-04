@@ -4,15 +4,34 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/autolaunch"
 
-import {browserCsrfToken} from "./csrf"
+import {
+  browserCsrfToken,
+  holdSocketDuringCookieRotation,
+  installAccountAuthLazyLoader,
+  installCrossTabCsrf,
+  type PinnedSocket,
+} from "./auth_lazy"
 
+const hooks = {
+  ...colocatedHooks,
+}
+if (!browserCsrfToken()) throw new Error("Missing CSRF token")
+
+// Sign in and refresh renew the session and rotate its CSRF state, so every
+// connection and reconnection reads the token the browser holds now.
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: browserCsrfToken(document)},
-  hooks: {...colocatedHooks},
+  params: () => ({_csrf_token: browserCsrfToken()}),
+  hooks,
 })
 
+// Installed before the first connect, so even the page's opening attempt is
+// subject to the barrier. `types.d.ts` describes only the LiveSocket surface
+// this application calls, so the transport entry point is named at the cast.
+holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
+installAccountAuthLazyLoader()
+installCrossTabCsrf()
 
 // Exposed for the browser console: liveSocket.enableDebug(), enableLatencySim().
 window.liveSocket = liveSocket

@@ -24,9 +24,11 @@ mix setup
 mix phx.server
 ```
 
-The site is then at `http://localhost:4050`. `mix setup` fetches dependencies, installs the
-npm packages, creates the `autolaunch_dev` database on loopback PostgreSQL, and builds the
-assets.
+The site is then at `http://localhost:4050`. `mix setup` fetches dependencies, runs
+`npm ci` against the repository-root lockfile (React, Privy, and the TypeScript
+tooling the browser bundle needs), creates the `autolaunch_dev` database on loopback
+PostgreSQL, and builds the assets. A clean checkout can run `npm ci` on its own
+before `npm run typecheck` or `npm test`.
 
 ## Repository layout
 
@@ -103,9 +105,11 @@ The image is built from `Dockerfile`, whose parent build context is assembled of
 `scripts/build-release-context.sh` from a sealed supply directory. The Fly configuration lives
 in `fly.toml` (`autolaunch-sh`) and `fly.staging.toml` (`autolaunch-staging`).
 
-The image build needs no Node and installs no browser packages: the bundler is a standalone
-executable the context carries. When a later unit adds browser runtime packages, it adds the
-npm side of the build back as one piece.
+The image build installs browser packages from a sealed npm cache (`npm ci --offline`) and
+bundles them with the standalone esbuild executable the context carries. The first release
+must pack that cache against this repository's `package-lock.json`, record
+`package_lock_sha256` in `SUPPLY-MANIFEST.txt`, and stage `npm-cache/` in the supply
+directory — this ticket does not seal a cache or build a Docker image.
 
 ### The sealed supply directory
 
@@ -115,20 +119,22 @@ from the supply directory:
 ```text
 SUPPLY-MANIFEST.txt   the digests below, one `key=value` per line
 MIX-CACHE.tar         the Mix, Hex and rebar3 caches, packed under a mix-cache/ prefix
+npm-cache/            the sealed npm content cache (staged as npm-cache/_cacache/)
 esbuild-linux-arm64   the bundler executable, for an arm64 build
 esbuild-linux-x64     the bundler executable, for an amd64 build
 ```
 
-The first two are always required and the script refuses without them. The two esbuild lines
+The first three are always required and the script refuses without them. The two esbuild lines
 are one per architecture: a run reads only the executable for the architecture it is building
 for, and checks only that one's digest, so a supply directory serving a single architecture
 needs only that one file.
 
-`SUPPLY-MANIFEST.txt` must carry the two Mix keys below and, for each architecture the
+`SUPPLY-MANIFEST.txt` must carry the Mix and npm keys below and, for each architecture the
 directory serves, that architecture's pair of esbuild keys.
 
 | Key | What it is held to |
 | --- | --- |
+| `package_lock_sha256` | The SHA-256 of the `package-lock.json` this npm cache was packed for. Checked against this repository's `package-lock.json`. |
 | `mix_lock_sha256` | The SHA-256 of the `mix.lock` this cache was packed for. Checked against this repository's `mix.lock`. |
 | `mix_cache_sha256` | The SHA-256 of `MIX-CACHE.tar`. |
 | `esbuild-linux-arm64.sha256` | The SHA-256 of `esbuild-linux-arm64`. Read for an `arm64` build. |
