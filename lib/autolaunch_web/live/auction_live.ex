@@ -94,7 +94,14 @@ defmodule AutolaunchWeb.AuctionLive do
           <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
         </div>
       </dl>
-      <div id="autolaunch-bid"></div>
+      <.live_component
+        module={AutolaunchWeb.BidComponent}
+        id="autolaunch-bid"
+        auction={@page_record}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
       <div :if={@local_lab?} id="autolaunch-lab-position"></div>
     </article>
 

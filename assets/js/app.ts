@@ -11,12 +11,18 @@ import {
   installCrossTabCsrf,
   type PinnedSocket,
 } from "./auth_lazy"
+import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
+import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
+import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {XConnections} from "./hooks/x_connections"
 
 const hooks = {
   ...colocatedHooks,
+  AutolaunchBidWallet,
   AutolaunchLaunchDraft,
+  AutolaunchLaunchWallet,
+  AutolaunchSubjectWallet,
   XConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

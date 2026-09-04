@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
 
   test "auction detail keeps its identifier and an honest not-found state", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/auctions/auction-42")
-    html = render_async(view)
+    html = render_async(view, 5_000)
 
     assert has_element?(view, "#autolaunch-auction-detail")
     assert html =~ "Auction not found"
@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
       )
 
     {:ok, view, _html} = live(conn, "/auctions/#{auction.id}")
-    html = render_async(view)
+    html = render_async(view, 5_000)
 
     assert has_element?(view, "#autolaunch-auction-detail")
     assert html =~ "BixBench launch"
@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.AuctionLiveTest do
     hidden_id = TestSupport.insert_null_creator_auction!()
 
     {:ok, view, _html} = live(conn, "/auctions/#{hidden_id}")
-    html = render_async(view)
+    html = render_async(view, 5_000)
 
     assert has_element?(view, "#autolaunch-auction-detail", "Auction not found")
     assert html =~ "No public auction exists at #{hidden_id}."

@@ -76,6 +76,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :x_connections, :list, default: []
   attr :x_oauth_enabled, :boolean, default: false
   attr :auction_limit_reached, :boolean, default: false
+  attr :current_human_id, :integer, default: nil
+  attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
 
   def create(assigns) do
@@ -243,12 +245,15 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               The wallet component shows the exact REGENT fee and transaction sequence before
               anything is submitted.
             </p>
-            <div
+            <.live_component
               :if={@launch_ready? && @active_draft}
+              module={AutolaunchWeb.LaunchWalletComponent}
               id={"autolaunch-launch-wallet-#{@active_draft.id}"}
-              class="launch-wallet"
-            >
-            </div>
+              draft={@active_draft}
+              authenticated
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+            />
             <button :if={!@launch_ready?} type="button" disabled>
               Complete token details and treasury
             </button>

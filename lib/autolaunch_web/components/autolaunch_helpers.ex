@@ -340,6 +340,9 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def human_actor(_access_context), do: nil
 
+  def current_human_id(%{principal: {:human, %{id: id}}}), do: id
+  def current_human_id(_access_context), do: nil
+
   attr :actions, :list, required: true
   attr :empty_copy, :string, required: true
   attr :id_prefix, :string, required: true

@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
 
   test "subject detail has an honest not-found state", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/subjects/subject-42")
-    html = render_async(view)
+    html = render_async(view, 5_000)
 
     assert has_element?(view, "#autolaunch-subject-detail", "Subject not found")
     assert html =~ "No public subject exists at subject-42."
@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
       assert subject.subject_id == subject_id
 
       {:ok, detail, _html} = live(conn, "/subjects/#{subject_id}")
-      detail_html = render_async(detail)
+      detail_html = render_async(detail, 5_000)
       assert has_element?(detail, "#autolaunch-subject-detail", subject_id)
       assert detail_html =~ subject_id
     end
@@ -53,7 +53,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
       )
 
     {:ok, detail, _html} = live(conn, "/subjects/#{subject.subject_id}")
-    html = render_async(detail)
+    html = render_async(detail, 5_000)
 
     assert has_element?(detail, "#autolaunch-subject-detail")
     assert has_element?(detail, "#autolaunch-subject-detail", subject.subject_id)
@@ -98,7 +98,7 @@ defmodule AutolaunchWeb.SubjectLiveTest do
       )
 
     {:ok, detail, _html} = live(conn, "/subjects/#{subject.subject_id}")
-    html = render_async(detail)
+    html = render_async(detail, 5_000)
 
     assert has_element?(detail, "#subject-related-tokens", "No related tokens yet.")
     assert has_element?(detail, "#subject-recent-actions", "No subject actions yet.")

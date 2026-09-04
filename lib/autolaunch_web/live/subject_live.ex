@@ -79,7 +79,15 @@ defmodule AutolaunchWeb.SubjectLive do
         </dl>
       </section>
 
-      <div :if={@page_record.chain_id != Lab.chain_id()} id="autolaunch-subject-wallet"></div>
+      <.live_component
+        :if={@page_record.chain_id != Lab.chain_id()}
+        module={AutolaunchWeb.SubjectWalletComponent}
+        id="autolaunch-subject-wallet"
+        subject={@page_record}
+        authenticated={@account_control && @account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
 
       <section aria-labelledby="subject-revenue-title">
         <h2 id="subject-revenue-title">Revenue</h2>

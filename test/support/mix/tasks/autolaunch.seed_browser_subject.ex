@@ -42,12 +42,11 @@ defmodule Mix.Tasks.Autolaunch.SeedBrowserSubject do
       subject_id: @subject_id,
       subject_kind: "agent",
       chain_id: 8453,
-      token_address: "0x3333333333333333333333333333333333333b01",
-      splitter_address: "0x4444444444444444444444444444444444444b01",
-      ingress_address: "0x5555555555555555555555555555555555555b01",
-      treasury_address: "0x6666666666666666666666666666666666666b01",
-      factory_address: "0x7777777777777777777777777777777777777b01",
-      creator_address: "0x8888888888888888888888888888888888888b01"
+      token_address: Autolaunch.SubjectWalletFixture.token(),
+      splitter_address: Autolaunch.SubjectWalletFixture.splitter(),
+      treasury_address: Autolaunch.SubjectWalletFixture.treasury(),
+      creator_address: Autolaunch.SubjectWalletFixture.wallet(),
+      canonical_receiver_address: Autolaunch.SubjectWalletFixture.receiver()
     )
 
     :ok

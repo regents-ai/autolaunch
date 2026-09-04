@@ -338,6 +338,131 @@ defmodule AutolaunchWeb.Live.SessionAuthorityGateTest do
 
   defp other_lineage, do: SessionAuthority.bootstrap().lineage
 
+  test "CENTRAL_CURRENT_ACTOR: revocation denies later wallet-action preparation at the boundary",
+       %{conn: conn} do
+    Autolaunch.BidFixture.install()
+
+    account =
+      Accounts.register_verified!(
+        "did:privy:session-gate-prepare:#{Elixir.System.unique_integer([:positive])}",
+        @wallet,
+        [@wallet],
+        actor: %System{}
+      )
+
+    auction = auction!()
+
+    report =
+      Autolaunch.TestAutolaunchTreasuryChainClient.seed_verified!(
+        "0x9999999999999999999999999999999999999999"
+      )
+
+    Autolaunch.set_auction_treasury_security_report!(auction, report.id, actor: %System{})
+    cleanup_treasury_fixture()
+
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, view, _html} = live(signed_in, "/auctions/#{auction.id}")
+    render_async(view, 5_000)
+
+    render_hook(element(view, "#autolaunch-bid"), "bid_active_wallet", %{"address" => @wallet})
+
+    assert view
+           |> form("#autolaunch-bid-form", %{amount: "1", max_price: "3"})
+           |> render_submit() =~ "Place the bid"
+
+    assert SessionAuthority.revoke(claim(signed_in))
+
+    assert view
+           |> element(~s(#autolaunch-bid button[phx-click="cancel_bid_review"]))
+           |> render_click() =~ "Sign in again to continue."
+
+    assert {:error, {:redirect, %{to: "/"}}} = live(signed_in, "/auctions/#{auction.id}")
+  end
+
+  test "CENTRAL_CURRENT_ACTOR: revocation denies a later subject wallet write at the boundary",
+       %{conn: conn} do
+    Autolaunch.SubjectWalletFixture.install()
+
+    account =
+      Accounts.register_verified!(
+        "did:privy:session-gate-subject:#{Elixir.System.unique_integer([:positive])}",
+        @wallet,
+        [@wallet],
+        actor: %System{}
+      )
+
+    subject =
+      Autolaunch.SubjectWalletFixture.subject!(
+        "subject:gate:#{Elixir.System.unique_integer([:positive])}"
+      )
+
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+    {:ok, view, _html} = live(signed_in, "/subjects/#{subject.subject_id}")
+    render_async(view, 5_000)
+
+    card = element(view, "#autolaunch-subject-wallet")
+    render_hook(card, "subject_active_wallet", %{"address" => @wallet})
+
+    view |> element("#autolaunch-subject-wallet-action-unstake") |> render_click()
+
+    assert view
+           |> form("#autolaunch-subject-wallet-form", %{amount: "10"})
+           |> render_submit() =~ "Unstake"
+
+    assert SessionAuthority.revoke(claim(signed_in))
+
+    assert view
+           |> element(
+             ~s(#autolaunch-subject-wallet button[phx-click="cancel_subject_wallet_review"])
+           )
+           |> render_click() =~ "Sign in again to continue."
+
+    assert {:error, {:redirect, %{to: "/"}}} =
+             live(signed_in, "/subjects/#{subject.subject_id}")
+  end
+
+  test "CENTRAL_CURRENT_ACTOR: revocation denies a later launch write at the boundary",
+       %{conn: conn} do
+    Autolaunch.LaunchFixture.install()
+    context = Autolaunch.LaunchFixture.actor()
+
+    Autolaunch.TestAutolaunchTreasuryChainClient.seed_verified!(
+      Autolaunch.LaunchFixture.treasury()
+    )
+
+    cleanup_treasury_fixture()
+
+    card = "#autolaunch-launch-wallet-#{context[:draft].id}"
+    signed_in = init_test_session(conn, %{human_account_id: context[:account].id})
+    {:ok, view, _html} = live(signed_in, "/create")
+
+    render_hook(element(view, card), "launch_active_wallet", %{
+      "address" => Autolaunch.LaunchFixture.wallet()
+    })
+
+    assert view
+           |> element(~s(#{card} button[phx-click="review_launch"]))
+           |> render_click() =~ "Review this launch"
+
+    assert SessionAuthority.revoke(claim(signed_in))
+    {:ok, %{operation: operation}} = Autolaunch.open_launch_operation(context[:opts])
+
+    assert view
+           |> element(
+             ~s(#{card} button[phx-click="cancel_launch_review"][phx-value-action-id="#{operation.action_id}"])
+           )
+           |> render_click() =~ "Sign in again to continue."
+  end
+
+  defp auction!, do: Autolaunch.BidFixture.auction!("Gate bid preparation")
+
+  defp cleanup_treasury_fixture do
+    on_exit(fn ->
+      Application.delete_env(:autolaunch, :autolaunch_treasury_chain_client)
+      Application.delete_env(:autolaunch, :test_autolaunch_treasury_observation)
+    end)
+  end
+
   defp put_valid_csrf(conn) do
     token = Plug.CSRFProtection.get_csrf_token()
 

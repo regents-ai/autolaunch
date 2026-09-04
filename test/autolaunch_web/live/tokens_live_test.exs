@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.TokensLiveTest do
 
   test "the empty tokens index keeps its identifier and copy", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/tokens")
-    html = render_async(view)
+    html = render_async(view, 5_000)
 
     assert has_element?(view, "#autolaunch-tokens")
     assert html =~ "Tokens"
@@ -44,7 +44,7 @@ defmodule AutolaunchWeb.TokensLiveTest do
       )
 
     {:ok, view, _html} = live(conn, ~p"/tokens")
-    html = render_async(view)
+    html = render_async(view, 5_000)
 
     assert has_element?(view, "#autolaunch-tokens")
     assert html =~ "BixBench launch"

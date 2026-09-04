@@ -63,6 +63,10 @@ if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
   config :autolaunch,
          :autolaunch_launch_chain_client,
          Autolaunch.TestAutolaunchLaunchChainClient
+
+  config :autolaunch,
+         :autolaunch_treasury_chain_client,
+         Autolaunch.TestAutolaunchTreasuryChainClient
 end
 
 # Every test case here reaches one node holding one anonymous bootstrap budget

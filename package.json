@@ -15,7 +15,8 @@
     "@solana-program/token": "0.14.0",
     "@solana/kit": "6.10.0",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "viem": "2.55.1"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",
