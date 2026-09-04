@@ -46,6 +46,19 @@ config :autolaunch,
        :autolaunch_indexer_http_client,
        Autolaunch.TestAutolaunchIndexerChainClient
 
+# The subject-wallet and launch browser proofs need a Base answer without a
+# provider, a wallet or a chain call. Ordinary ExUnit cases install and restore
+# these clients themselves, so only the Playwright server process selects them.
+if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
+  config :autolaunch,
+         :autolaunch_subject_wallet_chain_client,
+         Autolaunch.TestAutolaunchSubjectWalletChainClient
+
+  config :autolaunch,
+         :autolaunch_launch_chain_client,
+         Autolaunch.TestAutolaunchLaunchChainClient
+end
+
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is
 # raised rather than let unrelated cases spend one another's. The focused

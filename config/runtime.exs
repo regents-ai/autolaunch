@@ -35,6 +35,32 @@ x_oauth_client_id =
 
 config :autolaunch, :x_oauth_client_id, x_oauth_client_id
 
+autolaunch_lab_path = System.get_env("AUTOLAUNCH_LAB_CONFIG")
+
+autolaunch_lab =
+  case {config_env(), autolaunch_lab_path} do
+    {_env, nil} ->
+      nil
+
+    {_env, ""} ->
+      nil
+
+    {:prod, _path} ->
+      raise "AUTOLAUNCH_LAB_CONFIG is development/test only"
+
+    {env, path} when env in [:dev, :test] ->
+      Autolaunch.Lab.load!(path)
+  end
+
+config :autolaunch, :autolaunch_lab_enabled, not is_nil(autolaunch_lab)
+config :autolaunch, :autolaunch_lab_config_path, autolaunch_lab && autolaunch_lab.path
+
+if autolaunch_lab do
+  config :autolaunch,
+         :autolaunch_lab_run_id,
+         System.fetch_env!("AUTOLAUNCH_ACCEPTANCE_RUN_ID")
+end
+
 # The release sets this on its migration commands, and only on those, so the
 # migration boot can take a direct connection while the web boot takes the
 # pooled one.
