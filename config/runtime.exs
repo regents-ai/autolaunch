@@ -47,7 +47,26 @@ database_config =
     Autolaunch.DatabaseConfig.runtime_config!(config_env())
   end
 
+# The Base log ledger reads its own dedicated endpoint, separate from the
+# simple-read RPC. The test environment owns this setting outright so a shell
+# that exports one cannot start an indexer under a test run. When a lab config
+# path is set the ledger stays off, as source runtime.exs:120-123.
+lab_configured? =
+  case System.get_env("AUTOLAUNCH_LAB_CONFIG") do
+    value when is_binary(value) and value != "" -> true
+    _missing -> false
+  end
+
+if lab_configured? do
+  config :autolaunch, :autolaunch_indexer_rpc_url, nil
+else
+  config :autolaunch,
+         :autolaunch_indexer_rpc_url,
+         if(config_env() == :test, do: nil, else: System.get_env("AUTOLAUNCH_INDEXER_RPC_URL"))
+end
+
 if database_config do
+  config :autolaunch, :database_startup_enabled, true
   config :autolaunch, Autolaunch.Repo, database_config
 end
 

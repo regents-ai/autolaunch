@@ -36,6 +36,16 @@ config :autolaunch,
        :autolaunch_treasury_chain_client,
        Autolaunch.TestAutolaunchTreasuryChainClient
 
+config :autolaunch, :database_startup_enabled, true
+
+# The Base log ledger never runs under test: the tests drive its handler
+# directly against a fake endpoint, and nothing in the shell can turn it on.
+config :autolaunch, :autolaunch_indexer_rpc_url, nil
+
+config :autolaunch,
+       :autolaunch_indexer_http_client,
+       Autolaunch.TestAutolaunchIndexerChainClient
+
 # Every test case here reaches one node holding one anonymous bootstrap budget
 # for the loopback address they all share, so the release-sized allowance is
 # raised rather than let unrelated cases spend one another's. The focused

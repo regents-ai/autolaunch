@@ -60,6 +60,7 @@ config :autolaunch,
   generators: [timestamp_type: :utc_datetime]
 
 config :autolaunch, :base_read_rpc_url, "https://base-rpc.publicnode.com"
+config :autolaunch, :autolaunch_indexer_rpc_url, nil
 
 config :autolaunch, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
