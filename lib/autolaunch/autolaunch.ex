@@ -249,6 +249,14 @@ defmodule Autolaunch do
         args: [:auction_address, :onchain_bid_id]
     end
 
+    # The Base log ledger is written only by its own SystemActor actions, so it
+    # is registered without a code interface of any kind. Plain module names:
+    # Module.concat fails Spark verify (part A).
+    resource Autolaunch.Indexer.Source
+    resource Autolaunch.Indexer.Cursor
+    resource Autolaunch.Indexer.Block
+    resource Autolaunch.Indexer.Log
+
     resource Autolaunch.TreasurySecurityReport do
       define :list_treasury_security_reports, action: :for_address, args: [:address]
 

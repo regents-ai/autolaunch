@@ -121,7 +121,9 @@
              files: %{
                excluded: [
                  # Exact-size assertions are clearer test failures than counting helpers.
-                 "test/**/*.exs"
+                 "test/**/*.exs",
+                 # These validations require an exact ABI/domain shape, not an emptiness test.
+                 "lib/autolaunch/indexer/chain.ex"
                ]
              }
            ]},
