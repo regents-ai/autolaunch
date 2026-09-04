@@ -485,10 +485,6 @@ defmodule Autolaunch.LabMarketFeed do
     @read_concurrency 8
     @read_timeout 10_000
 
-    # Autolaunch.Lab, LabRpc and LabAbi land on regent-uiq.9; this attribute
-    # is removed with that ticket.
-    @compile {:no_warn_undefined, [Autolaunch.Lab, Autolaunch.LabRpc, Autolaunch.LabAbi]}
-
     alias Autolaunch
     alias Autolaunch.Actors.System, as: SystemActor
     alias Autolaunch.Chain.Rpc

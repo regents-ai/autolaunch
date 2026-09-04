@@ -5,9 +5,6 @@ defmodule Autolaunch.Application do
 
   use Application
 
-  # Autolaunch.Lab lands on regent-uiq.9; this attribute is removed with that ticket.
-  @compile {:no_warn_undefined, Autolaunch.Lab}
-
   @impl true
   def start(_type, _args) do
     # See https://hexdocs.pm/elixir/Supervisor.html
