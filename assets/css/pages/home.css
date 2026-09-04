@@ -1,0 +1,81 @@
+.home-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.home-create {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.home-create h1 {
+  margin: 0;
+}
+
+.home-create__action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-fg-on-accent);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.home-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.home-filters__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.home-filters__group p {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.home-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+.home-chip[aria-current="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-fg-on-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-create__action:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .home-chip:hover {
+    background: color-mix(in oklab, var(--color-fg) 6%, var(--color-surface));
+  }
+
+  .home-chip[aria-current="true"]:hover {
+    background: var(--color-accent-hover);
+  }
+}

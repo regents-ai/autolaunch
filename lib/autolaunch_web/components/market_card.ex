@@ -121,7 +121,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: presentation.image,
       status: "Graduated",
       metric_label: "Price",
-      metric: token.price_quote,
+      metric: present(token.price_quote, "No price yet"),
       address: presentation.auction_address,
       path: "/tokens/#{token.id}",
       connections: connection_list(connections)
