@@ -1,0 +1,36 @@
+{
+  "name": "@regentslabs/autolaunch-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Autolaunch public API CLI for humans and coding agents.",
+  "bin": {
+    "autolaunch": "bin/autolaunch.js"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/regents-ai/autolaunch-contracts.git",
+    "directory": "cli"
+  },
+  "scripts": {
+    "build": "node --check bin/autolaunch.js && node --check src/cli.js && node --check src/commands.js",
+    "test": "node --test test/cli.test.js",
+    "test:parity": "node --test test/parity.test.js",
+    "check": "npm run build && npm test",
+    "prepack": "npm run build",
+    "check:contract": "node scripts/check-contract.mjs"
+  },
+  "license": "MIT"
+}
