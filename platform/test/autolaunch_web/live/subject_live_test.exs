@@ -78,6 +78,35 @@ defmodule AutolaunchWeb.SubjectLiveTest do
     refute html =~ "$"
   end
 
+  test "settlement outcomes stay visible while transaction details are collapsed", %{conn: conn} do
+    subject = TestSupport.project_subject(subject_id: "subject:settlement:failure")
+    now = DateTime.utc_now()
+
+    Autolaunch.Repo.insert_all("subject_actions", [
+      %{
+        id: Ecto.UUID.dump!(Ecto.UUID.generate()),
+        subject_id: Ecto.UUID.dump!(subject.id),
+        action: "settle_buyback",
+        status: "reverted",
+        chain_id: 8453,
+        tx_hash: "0x" <> String.duplicate("ab", 32),
+        inserted_at: now,
+        updated_at: now
+      }
+    ])
+
+    {:ok, view, _html} = live(conn, "/subjects/#{subject.subject_id}")
+    render_async(view, 5_000)
+
+    assert has_element?(view, "section[aria-labelledby=subject-settlement-title] > p", "reverted")
+
+    assert has_element?(
+             view,
+             "details#subject-settlement-history:not([open])",
+             "0x" <> String.duplicate("ab", 32)
+           )
+  end
+
   test "subject detail shows honest empty related records and no derived money", %{conn: conn} do
     subject =
       TestSupport.project_subject(

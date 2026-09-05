@@ -157,19 +157,24 @@ defmodule AutolaunchWeb.LaunchWalletLiveTest do
       assert html =~ "Base"
       assert html =~ "Two transactions"
       assert html =~ "0x1111…1111"
-      assert html =~ "0x5555…5555"
+      assert has_element?(view, "#{card(context)} .launch-wallet-review > dl", Fixture.treasury())
     end
 
     test "the fixed terms are plain English and never promise an exact start block", context do
       view = reviewed(context)
       html = render(view)
 
-      assert html =~ "Bidding opens a fixed delay after your launch transaction is mined"
-      assert html =~ "10% of the supply is sold in the auction"
-      assert html =~ "5% is kept as the pool reserve"
-      assert html =~ "85% stays in escrow"
-      assert html =~ "The pool fee is 0.30%."
-      assert html =~ "Every launch uses these same terms."
+      assert has_element?(view, "#{card(context)} .launch-wallet-terms", "10% auction")
+      assert has_element?(view, "#{card(context)} .launch-wallet-terms", "5% pool reserve")
+
+      assert has_element?(
+               view,
+               "#{card(context)} .launch-wallet-terms",
+               "85% escrow until settlement"
+             )
+
+      assert has_element?(view, "#{card(context)} .launch-wallet-terms", "0.30%")
+      assert has_element?(view, "#{card(context)} details:not([open])", "fixed block delays")
 
       # No exact future start block is ever inferred for the customer.
       refute html =~ "30001800"

@@ -33,9 +33,7 @@ defmodule AutolaunchWeb.PortfolioLiveTest do
     assert has_element?(view, "#account-control[data-account-kind=signed_in]")
     assert has_element?(view, "#autolaunch-holdings", "Your portfolio")
     assert html =~ "Bids from your verified wallets will appear here."
-    assert html =~ "No positions are returnable."
-    assert html =~ "Claimed launch tokens will appear here."
-    refute has_element?(view, "#autolaunch-holdings button")
+    assert has_element?(view, "#portfolio-refresh")
     refute html =~ "$"
   end
 
@@ -91,17 +89,16 @@ defmodule AutolaunchWeb.PortfolioLiveTest do
     assert html =~ "1.75"
     assert html =~ "Estimated tokens"
     assert html =~ "14"
-    assert html =~ "This position can be returned."
-    assert html =~ "No return is started from this page."
 
     assert has_element?(
              view,
              ~s(#autolaunch-bid-live\\:returnable a[href="/auctions/#{return_auction.id}"]),
-             "View auction"
+             "View return options"
            )
 
-    assert has_element?(view, "#autolaunch-returnable-positions", "Returnable Research Launch")
-    assert html =~ "This page never opens a wallet or starts a transaction."
+    assert has_element?(view, "#autolaunch-bid-positions", "Returnable Research Launch")
+    assert has_element?(view, "details#portfolio-history:not([open])", "Claimed Research Launch")
+    refute has_element?(view, "#autolaunch-bid-positions", "Claimed Research Launch")
 
     assert has_element?(
              view,
@@ -114,8 +111,8 @@ defmodule AutolaunchWeb.PortfolioLiveTest do
     refute has_element?(view, "#autolaunch-bid-live\\:other-user")
     refute has_element?(view, "#autolaunch-bid-positions dd", "999")
     refute has_element?(view, "#autolaunch-returnable-positions li", "999")
-    refute has_element?(view, "#autolaunch-holdings button")
-    refute has_element?(view, "#autolaunch-holdings [phx-click]")
+    assert has_element?(view, "#portfolio-refresh")
+    refute has_element?(view, "#autolaunch-holdings [data-launch-wallet-send]")
     refute html =~ "$"
   end
 
@@ -152,6 +149,24 @@ defmodule AutolaunchWeb.PortfolioLiveTest do
     refute html =~ "One Token · ONE"
     refute html =~ "Ambiguous Token"
     refute html =~ "AMB"
+  end
+
+  test "refresh fetches newly available positions and keeps returnable bids first", %{conn: conn} do
+    account = account!("refresh", @wallet_a, [@wallet_a])
+    auction = auction!("Refresh auction")
+
+    {:ok, view, _html} =
+      conn |> init_test_session(%{human_account_id: account.id}) |> live("/portfolio")
+
+    bid!("refresh:returnable", auction.id, @wallet_a, status: "returnable")
+    bid!("refresh:active", auction.id, @wallet_a, status: "active")
+    refute has_element?(view, "#autolaunch-bid-positions li")
+
+    view |> element("#portfolio-refresh") |> render_click()
+
+    assert has_element?(view, "#autolaunch-bid-positions li:first-child", "Returnable")
+    assert has_element?(view, "#autolaunch-bid-positions li:nth-child(2)", "Active")
+    assert has_element?(view, "#autolaunch-holdings [role=status]", "Updated")
   end
 
   defp account!(suffix, primary, addresses) do

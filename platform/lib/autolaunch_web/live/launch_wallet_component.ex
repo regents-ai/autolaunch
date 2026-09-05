@@ -155,7 +155,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           </div>
           <div>
             <dt>Treasury</dt>
-            <dd class="launch-wallet-mono">{short(argument(@operation, "treasury"))}</dd>
+            <dd class="launch-wallet-mono">{argument(@operation, "treasury")}</dd>
           </div>
           <div>
             <dt>Treasury custody</dt>
@@ -177,9 +177,20 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
         <p class="launch-wallet-risk">{@operation.envelope["risk_copy"]}</p>
 
-        <ul class="launch-wallet-terms">
-          <li :for={sentence <- fixed_terms(@operation)}>{sentence}</li>
-        </ul>
+        <dl class="launch-wallet-terms">
+          <div>
+            <dt>Supply</dt>
+            <dd>{allocation_display(@operation)}</dd>
+          </div>
+          <div>
+            <dt>Pool fee</dt>
+            <dd>{pool_fee(argument(@operation, "terms"))}</dd>
+          </div>
+          <div>
+            <dt>Network fee</dt>
+            <dd>Shown in your wallet before confirmation.</dd>
+          </div>
+        </dl>
 
         <%!-- The list styling drops list semantics, so the role is stated. --%>
         <ol class="launch-wallet-steps" role="list" aria-label="Launch progress">
@@ -213,15 +224,21 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           {settled_copy(@operation)}
         </p>
 
-        <details class="launch-wallet-details">
-          <summary>Exact values</summary>
+        <Regent.Primitives.disclosure
+          id={"#{@id}-exact-values"}
+          summary="Exact values"
+          class="launch-wallet-details"
+        >
+          <p>
+            Every launch uses these same terms. Bidding, claiming, and pool opening follow fixed block delays.
+          </p>
           <dl>
             <div :for={{label, value} <- exact_values(@operation)}>
               <dt>{label}</dt>
               <dd class="launch-wallet-mono">{value}</dd>
             </div>
           </dl>
-        </details>
+        </Regent.Primitives.disclosure>
 
         <div class="launch-wallet-controls">
           <button
@@ -679,19 +696,12 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   defp ended_because(_operation), do: ""
 
-  # The founder-frozen terms, in the order a founder meets them. Nobody chooses
-  # any of them, so they are stated rather than offered, and the exact start block
-  # is never inferred: only the fixed delay is promised.
-  defp fixed_terms(operation) do
+  defp allocation_display(operation) do
     terms = argument(operation, "terms")
 
-    [
-      "Bidding opens a fixed delay after your launch transaction is mined, then runs for a fixed number of blocks.",
-      "Claiming opens a short fixed delay after bidding closes, and moving to a pool opens a little after that.",
-      "#{share(terms, "auction_allocation")} of the supply is sold in the auction, #{share(terms, "reserve_allocation")} is kept as the pool reserve, and #{share(terms, "pending_allocation")} stays in escrow until the launch settles.",
-      "The pool fee is #{pool_fee(terms)}.",
-      "Every launch uses these same terms. Nothing here is chosen by you or by us."
-    ]
+    "#{share(terms, "auction_allocation")} auction · " <>
+      "#{share(terms, "reserve_allocation")} pool reserve · " <>
+      "#{share(terms, "pending_allocation")} escrow until settlement"
   end
 
   # The three allocations are the whole supply, so each share is read from the

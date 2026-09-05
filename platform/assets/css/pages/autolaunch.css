@@ -1711,7 +1711,7 @@
   display: grid;
   gap: 0.3rem;
   margin: 0;
-  padding-inline-start: 1.1rem;
+  padding: 0;
   font-size: 0.85rem;
 }
 
@@ -1883,4 +1883,58 @@
 .autolaunch-live-market dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Compact record pages keep exact values readable at narrow widths. */
+.autolaunch-compact-detail,
+.autolaunch-compact-detail > *,
+.autolaunch-compact-detail dl > div {
+  min-width: 0;
+}
+
+.autolaunch-compact-detail h1,
+.autolaunch-compact-detail h3,
+.autolaunch-compact-detail dd {
+  overflow-wrap: anywhere;
+}
+
+.autolaunch-compact-detail dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.75rem 1.25rem;
+  margin-block: 0.75rem;
+}
+
+.autolaunch-compact-detail dt {
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+
+.autolaunch-compact-detail dd {
+  margin: 0.15rem 0 0;
+}
+
+.autolaunch-compact-detail h2 {
+  margin-block: 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.autolaunch-compact-detail .autolaunch-empty {
+  padding: 0.75rem;
+}
+
+#portfolio-refresh {
+  margin-top: 0.75rem;
+}
+
+.autolaunch-refresh-status {
+  display: inline;
+  margin-inline-start: 0.5rem;
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+
+.autolaunch-compact-detail .rg-disclosure > summary,
+.launch-wallet-details > summary {
+  padding-inline: 1rem;
 }

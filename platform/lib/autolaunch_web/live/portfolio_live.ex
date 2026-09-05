@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(:refreshed_at, nil)
      |> assign(:status, :ready)
      |> assign(:positions, [])
      |> assign(:returnable_positions, [])
@@ -17,17 +18,40 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  def handle_event("refresh", _params, socket), do: {:noreply, load_signed_in_holdings(socket)}
+  def handle_event("refresh", _params, socket) do
+    socket = load_signed_in_holdings(socket)
+
+    {:noreply,
+     assign(socket, :refreshed_at, if(socket.assigns.status == :ready, do: DateTime.utc_now()))}
+  end
 
   def render(assigns) do
-    ~H"""
-    <button type="button" class="shell-sr-only" phx-click="refresh">Refresh</button>
+    {history, current} =
+      Enum.split_with(assigns.positions, &(&1.status in ["claimed", "exited", "returned"]))
 
-    <section id="autolaunch-holdings" class="autolaunch-page">
+    assigns =
+      assign(assigns,
+        history: history,
+        current: Enum.sort_by(current, &(&1.status != "returnable"))
+      )
+
+    ~H"""
+    <section id="autolaunch-holdings" class="autolaunch-page autolaunch-compact-detail">
       <header class="autolaunch-heading">
         <p class="autolaunch-kicker">Autolaunch · Portfolio</p>
         <h1>Your portfolio</h1>
-        <p>Review bid positions and launch tokens connected to your verified wallets.</p>
+        <p>Bids and tokens from your verified wallets.</p>
+        <Regent.Primitives.button
+          :if={@account_control.kind != :sign_in}
+          id="portfolio-refresh"
+          variant="secondary"
+          phx-click="refresh"
+        >
+          Refresh
+        </Regent.Primitives.button>
+        <p :if={@refreshed_at} role="status" class="autolaunch-refresh-status">
+          Updated {Calendar.strftime(@refreshed_at, "%H:%M:%S UTC")}
+        </p>
       </header>
 
       <p :if={@account_control.kind == :sign_in} class="autolaunch-empty">
@@ -59,70 +83,18 @@ defmodule AutolaunchWeb.PortfolioLive do
           <h2 id="autolaunch-bid-positions-title">Bid positions</h2>
           <p :if={@positions == []} class="autolaunch-empty">
             Bids from your verified wallets will appear here.
+            <.link navigate="/auctions">Explore auctions</.link>
           </p>
-          <ol :if={@positions != []} class="autolaunch-record-list">
-            <li :for={position <- @positions} id={"autolaunch-bid-#{position.bid_id}"}>
-              <article>
-                <p class="autolaunch-kicker">
-                  {display_status(position.status)}
-                </p>
-                <h3>{bid_title(position)}</h3>
-                <dl>
-                  <div>
-                    <dt>Bid amount</dt><dd>{display_text(position.amount)}</dd>
-                  </div>
-                  <div>
-                    <dt>Maximum price</dt><dd>{display_text(position.max_price)}</dd>
-                  </div>
-                  <div>
-                    <dt>Current price</dt>
-                    <dd>{display_text(position.current_clearing_price)}</dd>
-                  </div>
-                  <div>
-                    <dt>Estimated tokens</dt>
-                    <dd>{display_text(position.estimated_tokens_if_end_now)}</dd>
-                  </div>
-                  <div>
-                    <dt>Wallet</dt><dd>{position.owner_address}</dd>
-                  </div>
-                  <div>
-                    <dt>Updated</dt><dd>{display_time(position.updated_at)}</dd>
-                  </div>
-                </dl>
-                <p :if={position.status == "returnable"}>
-                  This position can be returned. No return is started from this page.
-                </p>
-                <.link navigate={"/auctions/#{position.auction_id}"}>
-                  View auction
-                </.link>
-              </article>
-            </li>
-          </ol>
+          <p :if={@positions != [] && @current == []}>No active bids.</p>
+          <.position_list :if={@current != []} positions={@current} />
         </section>
 
         <section
-          id="autolaunch-returnable-positions"
-          aria-labelledby="autolaunch-returnable-positions-title"
+          :if={@claimed_token_positions != []}
+          id="autolaunch-held-tokens"
+          aria-labelledby="autolaunch-held-tokens-title"
         >
-          <h2 id="autolaunch-returnable-positions-title">Ready to return</h2>
-          <p :if={@returnable_positions == []} class="autolaunch-empty">
-            No positions are returnable.
-          </p>
-          <ul :if={@returnable_positions != []}>
-            <li :for={position <- @returnable_positions}>
-              {bid_title(position)} · {display_text(position.amount)}
-            </li>
-          </ul>
-          <p :if={@returnable_positions != []}>
-            Returns are display-only here. This page never opens a wallet or starts a transaction.
-          </p>
-        </section>
-
-        <section id="autolaunch-held-tokens" aria-labelledby="autolaunch-held-tokens-title">
           <h2 id="autolaunch-held-tokens-title">Held launch tokens</h2>
-          <p :if={@claimed_token_positions == []} class="autolaunch-empty">
-            Claimed launch tokens will appear here.
-          </p>
           <ol :if={@claimed_token_positions != []} class="autolaunch-record-list">
             <li :for={position <- @claimed_token_positions}>
               <% presentation = position_token_presentation(position) %>
@@ -133,8 +105,58 @@ defmodule AutolaunchWeb.PortfolioLive do
             </li>
           </ol>
         </section>
+        <Regent.Primitives.disclosure
+          :if={@history != []}
+          id="portfolio-history"
+          summary={"Past bids · #{length(@history)}"}
+        >
+          <.position_list positions={@history} />
+        </Regent.Primitives.disclosure>
       </div>
     </section>
+    """
+  end
+
+  attr :positions, :list, required: true
+
+  defp position_list(assigns) do
+    ~H"""
+    <ol class="autolaunch-record-list">
+      <li :for={position <- @positions} id={"autolaunch-bid-#{position.bid_id}"}>
+        <article>
+          <p class="autolaunch-kicker">
+            {display_status(position.status)}
+          </p>
+          <h3>{bid_title(position)}</h3>
+          <dl>
+            <div>
+              <dt>Bid amount</dt><dd>{display_text(position.amount)}</dd>
+            </div>
+            <div>
+              <dt>Maximum price</dt><dd>{display_text(position.max_price)}</dd>
+            </div>
+            <div>
+              <dt>Current price</dt>
+              <dd>{display_text(position.current_clearing_price)}</dd>
+            </div>
+            <div>
+              <dt>Estimated tokens</dt>
+              <dd>{display_text(position.estimated_tokens_if_end_now)}</dd>
+            </div>
+            <div>
+              <dt>Wallet</dt><dd>{position.owner_address}</dd>
+            </div>
+            <div>
+              <dt>Updated</dt><dd>{display_time(position.updated_at)}</dd>
+            </div>
+          </dl>
+
+          <.link navigate={"/auctions/#{position.auction_id}"}>
+            {if position.status == "returnable", do: "View return options", else: "View auction"}
+          </.link>
+        </article>
+      </li>
+    </ol>
     """
   end
 

@@ -22,54 +22,16 @@ defmodule AutolaunchWeb.LaunchLive do
     <article
       :if={@page_status == :ready && @page_record}
       id="autolaunch-launch-detail"
-      class="autolaunch-page"
+      class="autolaunch-page autolaunch-compact-detail"
     >
       <header class="autolaunch-heading">
         <p class="autolaunch-kicker">Autolaunch · Launch</p>
         <h1>{launch_label(@page_record)}</h1>
-        <p>Review this launch's recorded progress, identities, and published addresses.</p>
+        <p>
+          <Regent.Primitives.status>{display_action(@page_record.status)}</Regent.Primitives.status>
+          · Chain {@page_record.chain_id}
+        </p>
       </header>
-
-      <.treasury_security report={report(@page_record)} surface="launch-detail" />
-
-      <section aria-labelledby="launch-progress-title">
-        <h2 id="launch-progress-title">Progress</h2>
-        <dl>
-          <div>
-            <dt>Status</dt><dd>{display_action(@page_record.status)}</dd>
-          </div>
-          <div>
-            <dt>Current step</dt><dd>{display_action(@page_record.step)}</dd>
-          </div>
-          <div>
-            <dt>Chain</dt><dd>{@page_record.chain_id}</dd>
-          </div>
-          <div>
-            <dt>Launch ID</dt><dd>{@page_record.job_id}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section aria-labelledby="launch-identity-title">
-        <h2 id="launch-identity-title">Agent and token</h2>
-        <dl>
-          <div>
-            <dt>Agent</dt><dd>{launch_agent(@page_record)}</dd>
-          </div>
-          <div>
-            <dt>Agent ID</dt><dd>{@page_record.agent_id}</dd>
-          </div>
-          <div>
-            <dt>Token name</dt><dd>{@page_record.token_name}</dd>
-          </div>
-          <div>
-            <dt>Token symbol</dt><dd>{@page_record.token_symbol}</dd>
-          </div>
-          <div>
-            <dt>Launch wallet</dt><dd>{display_text(@page_record.agent_safe_address)}</dd>
-          </div>
-        </dl>
-      </section>
 
       <section aria-labelledby="launch-auction-title">
         <h2 id="launch-auction-title">Linked auction</h2>
@@ -81,7 +43,30 @@ defmodule AutolaunchWeb.LaunchLive do
         </.link>
       </section>
 
-      <section aria-labelledby="launch-addresses-title">
+      <.treasury_security report={report(@page_record)} surface="launch-detail" />
+
+      <Regent.Primitives.disclosure id="launch-addresses" summary="Addresses and identity">
+        <section aria-labelledby="launch-identity-title">
+          <h2 id="launch-identity-title">Agent and token</h2>
+          <dl>
+            <div>
+              <dt>Agent</dt><dd>{launch_agent(@page_record)}</dd>
+            </div>
+            <div>
+              <dt>Agent ID</dt><dd>{@page_record.agent_id}</dd>
+            </div>
+            <div>
+              <dt>Token name</dt><dd>{@page_record.token_name}</dd>
+            </div>
+            <div>
+              <dt>Token symbol</dt><dd>{@page_record.token_symbol}</dd>
+            </div>
+            <div>
+              <dt>Launch wallet</dt><dd>{display_text(@page_record.agent_safe_address)}</dd>
+            </div>
+          </dl>
+        </section>
+
         <h2 id="launch-addresses-title">Published addresses</h2>
         <dl>
           <div>
@@ -98,9 +83,20 @@ defmodule AutolaunchWeb.LaunchLive do
             <dd>{display_text(@page_record.revenue_share_splitter_address)}</dd>
           </div>
         </dl>
-      </section>
+      </Regent.Primitives.disclosure>
 
-      <section aria-labelledby="launch-times-title">
+      <Regent.Primitives.disclosure id="launch-history" summary="History">
+        <section aria-labelledby="launch-progress-title">
+          <h2 id="launch-progress-title">Progress</h2>
+          <dl>
+            <div>
+              <dt>Current step</dt><dd>{display_action(@page_record.step)}</dd>
+            </div>
+            <div>
+              <dt>Launch ID</dt><dd>{@page_record.job_id}</dd>
+            </div>
+          </dl>
+        </section>
         <h2 id="launch-times-title">Timeline</h2>
         <dl>
           <div>
@@ -116,7 +112,7 @@ defmodule AutolaunchWeb.LaunchLive do
             <dt>Last updated</dt><dd>{display_time(@page_record.updated_at)}</dd>
           </div>
         </dl>
-      </section>
+      </Regent.Primitives.disclosure>
     </article>
 
     <section
