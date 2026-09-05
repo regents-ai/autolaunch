@@ -16,6 +16,7 @@ import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {XConnections} from "./hooks/x_connections"
+import {installPublicTools} from "./public_tools"
 
 const hooks = {
   ...colocatedHooks,
@@ -42,6 +43,7 @@ holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()
+installPublicTools()
 
 // Exposed for the browser console: liveSocket.enableDebug(), enableLatencySim().
 window.liveSocket = liveSocket
