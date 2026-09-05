@@ -1,0 +1,31 @@
+[
+  {
+    "type": "function",
+    "name": "approve",
+    "stateMutability": "nonpayable",
+    "notice": "Uniswap/permit2 cc56ad0f3439c502c246fc5cfcc3db92bb8b7219 src/interfaces/IAllowanceTransfer.sol:123 declares it; src/AllowanceTransfer.sol:26-31 stores the amount and expiration, and src/libraries/Allowance.sol:38-39 treats a zero expiration as the current block only.",
+    "inputs": [
+      {"name": "token", "type": "address"},
+      {"name": "spender", "type": "address"},
+      {"name": "amount", "type": "uint160"},
+      {"name": "expiration", "type": "uint48"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "allowance",
+    "stateMutability": "view",
+    "notice": "Uniswap/permit2 cc56ad0f3439c502c246fc5cfcc3db92bb8b7219 src/interfaces/IAllowanceTransfer.sol:111-114 declares it over the owner, token and spender ordering src/AllowanceTransfer.sol:23 stores.",
+    "inputs": [
+      {"name": "user", "type": "address"},
+      {"name": "token", "type": "address"},
+      {"name": "spender", "type": "address"}
+    ],
+    "outputs": [
+      {"name": "amount", "type": "uint160"},
+      {"name": "expiration", "type": "uint48"},
+      {"name": "nonce", "type": "uint48"}
+    ]
+  }
+]

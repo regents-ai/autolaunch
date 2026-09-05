@@ -1,0 +1,114 @@
+[
+  {
+    "type": "function",
+    "name": "factory",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:174 declares the only account that may bind the hook or create a distribution, fixed at construction.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "address"}]
+  },
+  {
+    "type": "function",
+    "name": "hook",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:189 declares the one authentic fee hook, zero until lines 284-299 bind it and permanent after; lines 673-679 refuse it, the factory and this strategy as a launch treasury alongside PoolManager, PositionManager and live staking.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "address"}]
+  },
+  {
+    "type": "function",
+    "name": "START_DELAY_BLOCKS",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:75; line 329 starts every auction exactly this many blocks after its initializing block.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint64"}]
+  },
+  {
+    "type": "function",
+    "name": "AUCTION_DURATION_BLOCKS",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:78; line 330 ends every auction exactly this many blocks after it starts.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint64"}]
+  },
+  {
+    "type": "function",
+    "name": "CLAIM_DELAY_BLOCKS",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:81; line 362 sets the claim block exactly this many blocks after the auction end.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint64"}]
+  },
+  {
+    "type": "function",
+    "name": "MIGRATION_DELAY_BLOCKS",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:84; line 363 sets migration eligibility exactly this many blocks after the auction end.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint64"}]
+  },
+  {
+    "type": "function",
+    "name": "FLOOR_PRICE_Q96",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:87 is the frozen Q96 auction floor price, passed unchanged at line 347.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint256"}]
+  },
+  {
+    "type": "function",
+    "name": "BID_TICK_Q96",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:90 is the frozen Q96 bid tick spacing, passed unchanged at line 345.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint256"}]
+  },
+  {
+    "type": "function",
+    "name": "AUCTION_ALLOCATION",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:66 is the exact 10% the auction sells, delivered at lines 390-392.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint128"}]
+  },
+  {
+    "type": "function",
+    "name": "RESERVE_ALLOCATION",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:69 is the exact 5% this strategy custodies as one launch's isolated LP reserve, recorded at line 365.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint128"}]
+  },
+  {
+    "type": "function",
+    "name": "PENDING_ALLOCATION",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:63 is the exact 85% the launch escrow custodies while the launch is pending.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint256"}]
+  },
+  {
+    "type": "function",
+    "name": "POOL_FEE",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:109 is the only static LP fee an official pool carries, 0.30%.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint24"}]
+  },
+  {
+    "type": "function",
+    "name": "POOL_TICK_SPACING",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:112 is the only tick spacing an official pool carries; it is a signed int24 returned in a sign-extended word.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "int24"}]
+  },
+  {
+    "type": "function",
+    "name": "MAX_REACHABLE_RAISE",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/strategy/RegentLBPStrategy.sol:132 is the largest REGENT raise the fixed 10-billion-SUBJECT auction can reach; line 321 refuses zero and anything above it.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint128"}]
+  }
+]

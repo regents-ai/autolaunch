@@ -1,0 +1,302 @@
+openapi: 3.1.0
+info:
+  title: Autolaunch API
+  version: 1.0.0
+paths:
+  /api/v1/auctions:
+    get:
+      operationId: listAuctions
+      security: []
+      parameters:
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [all, biddable, live, failed_minimum, graduated]
+            default: all
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest]
+            default: newest
+        - name: limit
+          in: query
+          description: Values outside the admitted range are clamped to the nearest boundary.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+      x-pagination: none
+      responses:
+        "200":
+          description: Public Autolaunch auctions
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionListEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "500": {$ref: "#/components/responses/InternalError"}
+  /api/v1/auctions/{id}:
+    get:
+      operationId: getAuction
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Public Autolaunch auction
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
+  /api/v1/auctions/{id}/bid-quote:
+    post:
+      operationId: quoteAuctionBid
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/AuctionId"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuctionBidRequest"}
+      responses:
+        "200":
+          description: Quote from the stored auction snapshot
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionBidQuoteEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /api/v1/tokens:
+    get:
+      operationId: listTokens
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          description: Values outside the admitted range are clamped to the nearest boundary.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+      x-pagination: none
+      responses:
+        "200":
+          description: Public Autolaunch tokens, newest graduation first
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TokenListEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "500": {$ref: "#/components/responses/InternalError"}
+  /api/v1/treasury-security/{address}:
+    get:
+      operationId: getTreasurySecurity
+      security: []
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema: {type: string, pattern: '^0x[0-9a-fA-F]{40}$'}
+      responses:
+        "200":
+          description: Newest stored treasury observation; this read never calls a provider
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TreasurySecurityEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
+components:
+  parameters:
+    AuctionId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    InvalidQuery:
+      description: Request query parameters are invalid
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            invalidQuery:
+              value: {error: {code: invalid_request, message: The query parameters are invalid.}}
+    NotFound:
+      description: The requested public record was not found
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NotFoundApiError"}
+          examples:
+            notFound:
+              value: {error: {code: not_found, message: The requested record was not found.}}
+    InternalError:
+      description: The request could not be completed
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            internalError:
+              value: {error: {code: internal_error, message: The request could not be completed.}}
+  schemas:
+    AuctionBidRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, max_price]
+      properties:
+        amount: {type: string, pattern: '^\d+(?:\.\d+)?$'}
+        max_price: {type: string, pattern: '^\d+(?:\.\d+)?$'}
+    AuctionBidQuoteEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - auction_id
+            - amount
+            - max_price
+            - quote_token
+            - current_clearing_price
+            - projected_clearing_price
+            - would_be_active_now
+            - status_band
+            - estimated_tokens_if_end_now
+            - warnings
+          properties:
+            auction_id: {type: string, format: uuid}
+            amount: {type: string}
+            max_price: {type: string}
+            quote_token:
+              type: object
+              additionalProperties: false
+              required: [address, symbol, decimals]
+              properties:
+                address: {type: [string, "null"]}
+                symbol: {type: [string, "null"]}
+                decimals: {type: [integer, "null"], minimum: 0, maximum: 36}
+            current_clearing_price: {type: string}
+            projected_clearing_price: {type: string}
+            would_be_active_now: {type: boolean}
+            status_band: {type: string, enum: [active, borderline, inactive]}
+            estimated_tokens_if_end_now: {type: string}
+            warnings: {type: array, items: {type: string}}
+    AuctionListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/Auction"}
+    AuctionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/Auction"}
+    Auction:
+      type: object
+      additionalProperties: false
+      required: [id, title, summary, featured, state, opened_at, treasury_security]
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string}
+        summary: {type: [string, "null"]}
+        featured: {type: boolean}
+        state: {type: string, enum: [created, active, graduated, failed]}
+        opened_at: {type: [string, "null"], format: date-time}
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
+    TokenListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/Token"}
+    Token:
+      type: object
+      additionalProperties: false
+      required: [id, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, treasury_security]
+      properties:
+        id: {type: string, format: uuid}
+        auction_id: {type: string, format: uuid}
+        subject_id: {type: [string, "null"]}
+        name: {type: string}
+        symbol: {type: string}
+        summary: {type: [string, "null"]}
+        graduated_at: {type: string, format: date-time}
+        top_rank: {type: [integer, "null"], minimum: 1}
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
+    TreasurySecurityEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/TreasurySecurity"}
+    TreasurySecurity:
+      type: object
+      additionalProperties: false
+      required: [id, address, chain_id, classification, verification_state, verification_reason, downgrade_state, configuration_fingerprint, source_block_number, source_block_hash, observed_at, safe, evidence]
+      properties:
+        id: {type: string, format: uuid}
+        address: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        chain_id: {type: integer, enum: [8453]}
+        classification: {type: string, enum: [supported_safe, safe_1_of_1, eoa, delegated_eoa, unknown_contract, split, unsupported]}
+        verification_state: {type: string, enum: [awaiting_current_chain_confirmation]}
+        verification_reason: {type: string, enum: [projector_refresh_not_integrated]}
+        downgrade_state: {type: string, enum: [none, downgraded]}
+        configuration_fingerprint: {type: string, pattern: '^0x[0-9a-f]{64}$'}
+        source_block_number: {type: integer, minimum: 0}
+        source_block_hash: {type: string, pattern: '^0x[0-9a-f]{64}$'}
+        observed_at: {type: string, format: date-time}
+        safe: {type: [object, "null"], additionalProperties: true}
+        evidence:
+          type: object
+          additionalProperties: false
+          required: [usdc, regent, outbound]
+          properties:
+            usdc: {type: [object, "null"], additionalProperties: true}
+            regent: {type: [object, "null"], additionalProperties: true}
+            outbound: {type: [object, "null"], additionalProperties: true}
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: string, enum: [invalid_request, internal_error]}
+            message: {type: string}
+    NotFoundApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: {type: string, enum: [not_found]}
+            message: {type: string}

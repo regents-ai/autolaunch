@@ -1,0 +1,73 @@
+defmodule Autolaunch.Contracts.TreasurySecurityEvidenceTest do
+  use ExUnit.Case, async: true
+
+  @manifest Path.expand("../../../contracts/treasury-security-evidence.yaml", __DIR__)
+  @abi Path.expand("../../../contracts/abi/safe-v1.json", __DIR__)
+
+  test "THE_PINNED_SAFE_MANIFEST_NAMES_EXACT_BASE_EVIDENCE_AND_ABI_BYTES" do
+    manifest = YamlElixir.read_from_file!(@manifest)
+    abi_sha = :crypto.hash(:sha256, File.read!(@abi)) |> Base.encode16(case: :lower)
+
+    assert manifest == %{
+             "schema_version" => 1,
+             "chain_id" => 8453,
+             "source" => %{
+               "package" => "@safe-global/safe-deployments",
+               "version" => "1.37.54",
+               "asset_version" => "1.4.1",
+               "generated_at_safe_block" => %{
+                 "number" => 50_538_420,
+                 "hash" => "0x48443001d296a14a51694ecba9c59a64383e0f414862359c0c72131f9e89f8af"
+               }
+             },
+             "safe" => %{
+               "singleton" => %{
+                 "address" => "0x41675c099f32341bf84bfc5382af534df5c7461a",
+                 "version" => "1.4.1",
+                 "code_keccak256" =>
+                   "0x1fe2df852ba3299d6534ef416eefa406e56ced995bca886ab7a553e6d0c5e1c4"
+               },
+               "proxy_factory" => %{
+                 "address" => "0x4e1dcf7ad4e460cfd30791ccc4f9c8a4f820ec67",
+                 "code_keccak256" =>
+                   "0x50c3cdc4074750a7a974204a716c999edd37482f907608d960b2b025ee0b3317",
+                 "proxy_creation_code_keccak256" =>
+                   "0x1856e0ee08399d74e0ea0b03adca210aeade6f748969ac023cdcb4dd62dcaf5f"
+               },
+               "proxy_runtime" => %{
+                 "factory_created_proxy" => "0x28fdac6c7b06bb095b9f4fa5a65a552bb8e38f51",
+                 "creation_transaction" =>
+                   "0xb3b50601312a9a06f7241ba25d05e7b52c785462b3e5d7ac60aaa22a7b7195d9",
+                 "creation_block_number" => 50_538_413,
+                 "runtime_keccak256" =>
+                   "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c"
+               },
+               "admitted_fallback_handlers" => [
+                 "0x0000000000000000000000000000000000000000",
+                 "0xfd0732dc9e303f09fcef3a7388ad10a83459ec99"
+               ],
+               "compatibility_fallback_handler" => %{
+                 "address" => "0xfd0732dc9e303f09fcef3a7388ad10a83459ec99",
+                 "code_keccak256" =>
+                   "0x7c6007a5d711cea8dfd5d91f5940ec29c7f200fe511eb1fc1397b367af3c42f9"
+               },
+               "abi" => %{
+                 "path" => "contracts/abi/safe-v1.json",
+                 "sha256" => "2900f65059b2a0610f81058eb067ea00d86af27b6992e86ac9d7c2a6a3a52171"
+               },
+               "storage_slots" => %{
+                 "guard" => "0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c7",
+                 "fallback_handler" =>
+                   "0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d4"
+               }
+             },
+             "tokens" => %{
+               "usdc" => "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+               "regent" => "0x6f89bca4ea5931edfcb09786267b251dee752b07"
+             },
+             "splits" => %{"admitted_contracts" => []}
+           }
+
+    assert abi_sha == "2900f65059b2a0610f81058eb067ea00d86af27b6992e86ac9d7c2a6a3a52171"
+  end
+end

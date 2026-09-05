@@ -1,0 +1,146 @@
+[
+  {
+    "type": "function",
+    "name": "stake",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:189-200 stakes SUBJECT for msg.sender only, effective immediately, and line 197 records that caller's latest stake block.",
+    "inputs": [
+      {"name": "amount", "type": "uint256"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "unstake",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:208-222 returns staked SUBJECT principal to msg.sender only; line 213 requires a later block than that caller's own latest stake, and there is no lastStakeBlock getter.",
+    "inputs": [
+      {"name": "amount", "type": "uint256"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "claim",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:225-228 settles one recognized asset for msg.sender only; a zero balance is a no-op that emits nothing.",
+    "inputs": [
+      {"name": "token", "type": "address"}
+    ],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "claimAll",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:231-236 settles exactly usdc, regent and subject for msg.sender only; each zero balance is a no-op that emits nothing.",
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "type": "function",
+    "name": "subject",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:65 declares the launch's own SUBJECT binding, fixed at initialization.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "usdc",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:59 declares the USDC binding, fixed at initialization.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "regent",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:62 declares the REGENT binding, fixed at initialization.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "treasury",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:74 declares the immutable launch treasury, which line 405 pays the whole remainder of every net to.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "totalStaked",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:77 declares total SUBJECT principal staked across all accounts; line 391 divides each net by it over the complete supply declared at line 56, and line 392 leaves the treasury the exact remainder.",
+    "inputs": [],
+    "outputs": [
+      {"name": "", "type": "uint256"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "stakedOf",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:80 declares SUBJECT principal staked by one account.",
+    "inputs": [
+      {"name": "account", "type": "address"}
+    ],
+    "outputs": [
+      {"name": "amount", "type": "uint256"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "claimable",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:300-302 returns the whole units of one token an account may claim right now.",
+    "inputs": [
+      {"name": "token", "type": "address"},
+      {"name": "account", "type": "address"}
+    ],
+    "outputs": [
+      {"name": "whole", "type": "uint256"}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Staked",
+    "anonymous": false,
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:112 declares it; line 199 emits it for msg.sender with the staked amount.",
+    "inputs": [
+      {"name": "account", "type": "address", "indexed": true},
+      {"name": "amount", "type": "uint256", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Unstaked",
+    "anonymous": false,
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:113 declares it; line 220 emits it for msg.sender with the unstaked amount.",
+    "inputs": [
+      {"name": "account", "type": "address", "indexed": true},
+      {"name": "amount", "type": "uint256", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Claimed",
+    "anonymous": false,
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/revenue/SubjectSplitterV1.sol:114 declares it; line 375 emits it only for a positive amount.",
+    "inputs": [
+      {"name": "account", "type": "address", "indexed": true},
+      {"name": "token", "type": "address", "indexed": true},
+      {"name": "amount", "type": "uint256", "indexed": false}
+    ]
+  }
+]

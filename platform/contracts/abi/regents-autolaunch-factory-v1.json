@@ -1,0 +1,111 @@
+[
+  {
+    "type": "function",
+    "name": "launch",
+    "stateMutability": "nonpayable",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:228-256 creates one launch from the exact eight-field LaunchParams declared at lines 97-106.",
+    "inputs": [
+      {
+        "name": "params",
+        "type": "tuple",
+        "components": [
+          {"name": "name", "type": "string"},
+          {"name": "symbol", "type": "string"},
+          {"name": "description", "type": "string"},
+          {"name": "website", "type": "string"},
+          {"name": "image", "type": "string"},
+          {"name": "treasury", "type": "address"},
+          {"name": "requiredRegentRaised", "type": "uint128"},
+          {"name": "expectedLaunchFee", "type": "uint256"}
+        ]
+      }
+    ],
+    "outputs": [
+      {"name": "launchId", "type": "uint256"},
+      {"name": "subject", "type": "address"},
+      {"name": "auction", "type": "address"},
+      {"name": "escrow", "type": "address"}
+    ]
+  },
+  {
+    "type": "function",
+    "name": "launchFee",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:130 declares the REGENT a launch currently costs; line 235 refuses any expectedLaunchFee that is not exactly it.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "uint256"}]
+  },
+  {
+    "type": "function",
+    "name": "launchesPaused",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:133 declares whether new launches are admitted; line 232 is the only thing it gates.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "bool"}]
+  },
+  {
+    "type": "function",
+    "name": "strategy",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:121 declares the one shared strategy this factory deployed in its own constructor and is permanently bound to.",
+    "inputs": [],
+    "outputs": [{"name": "", "type": "address"}]
+  },
+  {
+    "type": "function",
+    "name": "launches",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:304-306 returns one recorded Launch, declared at lines 109-115, or an all-zero record for an unknown id.",
+    "inputs": [{"name": "launchId", "type": "uint256"}],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "components": [
+          {"name": "launcher", "type": "address"},
+          {"name": "subject", "type": "address"},
+          {"name": "auction", "type": "address"},
+          {"name": "escrow", "type": "address"},
+          {"name": "treasury", "type": "address"}
+        ]
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "launchIdOfSubject",
+    "stateMutability": "view",
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:136 declares the launch a SUBJECT belongs to; ids start at one, so zero means this factory never created it.",
+    "inputs": [{"name": "subject", "type": "address"}],
+    "outputs": [{"name": "launchId", "type": "uint256"}]
+  },
+  {
+    "type": "event",
+    "name": "LaunchCreated",
+    "anonymous": false,
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:140-150, emitted exactly once per launch at lines 408-418 with the identities and fixed schedule read back from the strategy.",
+    "inputs": [
+      {"name": "launchId", "type": "uint256", "indexed": true},
+      {"name": "launcher", "type": "address", "indexed": true},
+      {"name": "subject", "type": "address", "indexed": true},
+      {"name": "auction", "type": "address", "indexed": false},
+      {"name": "escrow", "type": "address", "indexed": false},
+      {"name": "treasury", "type": "address", "indexed": false},
+      {"name": "requiredRegentRaised", "type": "uint128", "indexed": false},
+      {"name": "startBlock", "type": "uint64", "indexed": false},
+      {"name": "endBlock", "type": "uint64", "indexed": false}
+    ]
+  },
+  {
+    "type": "event",
+    "name": "LaunchFeeCollected",
+    "anonymous": false,
+    "notice": "Regent autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131 src/factory/RegentsAutolaunchFactoryV1.sol:152, emitted at line 333 only by a positive fee; lines 320-321 require an exact allowance and line 322 returns before this for a zero fee.",
+    "inputs": [
+      {"name": "launchId", "type": "uint256", "indexed": true},
+      {"name": "payer", "type": "address", "indexed": true},
+      {"name": "regentSafe", "type": "address", "indexed": false},
+      {"name": "amount", "type": "uint256", "indexed": false}
+    ]
+  }
+]

@@ -1,0 +1,85 @@
+.account-control {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.account-control__signed-in {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.account-control__label {
+  max-width: 10rem;
+  overflow: hidden;
+  color: var(--color-fg);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-control__sign-in,
+.account-control__sign-out,
+.account-control__portfolio {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font: inherit;
+  text-decoration: none;
+}
+
+.account-control__sign-in {
+  font-weight: var(--font-weight-semibold);
+}
+
+.account-control__status {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 5;
+  min-width: 12rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-fg);
+}
+
+.x-oauth-result {
+  min-height: 100dvh;
+  margin: 0;
+  padding: var(--space-6);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family-sans);
+}
+
+.x-oauth-result a {
+  color: var(--glass-text-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .account-control__sign-in,
+  .account-control__sign-out,
+  .account-control__portfolio {
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+
+  .account-control__sign-in:hover,
+  .account-control__sign-out:hover,
+  .account-control__portfolio:hover {
+    background: color-mix(in oklab, var(--color-fg) 6%, var(--color-bg));
+  }
+}
+
+@media (max-width: 40rem) {
+  .account-control__label {
+    max-width: 6.5rem;
+  }
+}
