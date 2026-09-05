@@ -1,22 +1,23 @@
 *
-!autolaunch-web/assets/**
-!autolaunch-web/config/**
-!autolaunch-web/contracts/**
-!autolaunch-web/deps/**
-!autolaunch-web/lib/**
-!autolaunch-web/priv/**
-!autolaunch-web/rel/**
-!autolaunch-web/mix.exs
-!autolaunch-web/mix.lock
-!autolaunch-web/package.json
-!autolaunch-web/package-lock.json
+!platform/assets/**
+!platform/config/**
+!platform/contracts/**
+!platform/deps/**
+!platform/lib/**
+!platform/priv/**
+!platform/rel/**
+!platform/mix.exs
+!platform/mix.lock
+!platform/package.json
+!platform/package-lock.json
 # The RegentUI source enters as narrowly as the build uses it: the project file
-# and modules Mix compiles, and the stylesheets autolaunch-web/assets/css/app.css
+# and modules Mix compiles, and the stylesheets platform/assets/css/app.css
 # imports. Its own tests, lockfile, tooling files, digested priv/static output
 # and JavaScript are not build inputs and stay out.
 !design-system/regent_ui/mix.exs
 !design-system/regent_ui/lib/**
 !design-system/regent_ui/assets/css/**
+!design-system/regent_ui/assets/images/**
 !elixir-utils/privy/**
 !mix-cache/**
 !npm-cache/**
@@ -28,9 +29,9 @@
 # source rather than output: priv/static holds the JavaScript clients the
 # asset build resolves through package main entries, and priv/templates is
 # where Phoenix copies its generator templates during its own compile.
-autolaunch-web/deps/**/priv/**
-!autolaunch-web/deps/**/priv/static/**
-!autolaunch-web/deps/**/priv/templates/**
+platform/deps/**/priv/**
+!platform/deps/**/priv/static/**
+!platform/deps/**/priv/templates/**
 
 # The copied source trees must never carry runtime environment files.
 **/.env

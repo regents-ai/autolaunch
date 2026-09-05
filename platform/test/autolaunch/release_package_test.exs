@@ -46,29 +46,29 @@ defmodule Autolaunch.ReleasePackageTest do
     # the declared allowlist. A real context carries one bundler executable; the
     # rules admit either architecture's name.
     write_files(context, [
-      {"autolaunch-web/lib/app.ex", "defmodule App do\nend\n"},
-      {"autolaunch-web/config/config.exs", "import Config\n"},
-      {"autolaunch-web/assets/js/app.ts", "export const app = 1\n"},
-      {"autolaunch-web/contracts/api-contract.openapiv3.yaml", "openapi: 3.1.0\n"},
-      {"autolaunch-web/rel/overlays/bin/migrate", "#!/bin/sh\n"},
-      {"autolaunch-web/priv/static/app.css", "body{}\n"},
-      {"autolaunch-web/mix.exs", "defmodule App.MixProject do\nend\n"},
-      {"autolaunch-web/mix.lock", "%{}\n"},
-      {"autolaunch-web/package.json", "{}\n"},
-      {"autolaunch-web/package-lock.json", "{}\n"},
-      {"autolaunch-web/deps/dependency/lib/dependency.ex", "defmodule Dependency do\nend\n"},
-      {"autolaunch-web/deps/dependency/priv/static/dependency.js", "export const dep = 1\n"},
-      {"autolaunch-web/deps/dependency/priv/templates/generator.eex", "<%= @thing %>\n"},
-      {"autolaunch-web/deps/dependency/priv/host_listener", "host build output\n"},
-      {"autolaunch-web/deps/dependency/priv/nif.so", "host build output\n"},
-      {"autolaunch-web/test/app_test.exs", "defmodule AppTest do\nend\n"},
-      {"autolaunch-web/docs/guide.md", "# guide\n"},
-      {"autolaunch-web/README.md", "# readme\n"},
-      {"autolaunch-web/.env", "SECRET=nope\n"},
-      {"autolaunch-web/.env.example", "SECRET=\n"},
-      {"autolaunch-web/.env.production", "SECRET=nope\n"},
-      {"autolaunch-web/.envrc", "export SECRET=nope\n"},
-      {"autolaunch-web/config/.env", "SECRET=nope\n"},
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/config/config.exs", "import Config\n"},
+      {"platform/assets/js/app.ts", "export const app = 1\n"},
+      {"platform/contracts/api-contract.openapiv3.yaml", "openapi: 3.1.0\n"},
+      {"platform/rel/overlays/bin/migrate", "#!/bin/sh\n"},
+      {"platform/priv/static/app.css", "body{}\n"},
+      {"platform/mix.exs", "defmodule App.MixProject do\nend\n"},
+      {"platform/mix.lock", "%{}\n"},
+      {"platform/package.json", "{}\n"},
+      {"platform/package-lock.json", "{}\n"},
+      {"platform/deps/dependency/lib/dependency.ex", "defmodule Dependency do\nend\n"},
+      {"platform/deps/dependency/priv/static/dependency.js", "export const dep = 1\n"},
+      {"platform/deps/dependency/priv/templates/generator.eex", "<%= @thing %>\n"},
+      {"platform/deps/dependency/priv/host_listener", "host build output\n"},
+      {"platform/deps/dependency/priv/nif.so", "host build output\n"},
+      {"platform/test/app_test.exs", "defmodule AppTest do\nend\n"},
+      {"platform/docs/guide.md", "# guide\n"},
+      {"platform/README.md", "# readme\n"},
+      {"platform/.env", "SECRET=nope\n"},
+      {"platform/.env.example", "SECRET=\n"},
+      {"platform/.env.production", "SECRET=nope\n"},
+      {"platform/.envrc", "export SECRET=nope\n"},
+      {"platform/config/.env", "SECRET=nope\n"},
       {"elixir-utils/privy/lib/privy.ex", "defmodule Privy do\nend\n"},
       {"elixir-utils/unrelated/lib/unrelated.ex", "defmodule Unrelated do\nend\n"},
       {"design-system/regent_ui/mix.exs", "defmodule RegentUi.MixProject do\nend\n"},
@@ -113,19 +113,19 @@ defmodule Autolaunch.ReleasePackageTest do
     assert status == 0, out
 
     assert admitted_files(output) == [
-             "autolaunch-web/assets/js/app.ts",
-             "autolaunch-web/config/config.exs",
-             "autolaunch-web/contracts/api-contract.openapiv3.yaml",
-             "autolaunch-web/deps/dependency/lib/dependency.ex",
-             "autolaunch-web/deps/dependency/priv/static/dependency.js",
-             "autolaunch-web/deps/dependency/priv/templates/generator.eex",
-             "autolaunch-web/lib/app.ex",
-             "autolaunch-web/mix.exs",
-             "autolaunch-web/mix.lock",
-             "autolaunch-web/package-lock.json",
-             "autolaunch-web/package.json",
-             "autolaunch-web/priv/static/app.css",
-             "autolaunch-web/rel/overlays/bin/migrate",
+             "platform/assets/js/app.ts",
+             "platform/config/config.exs",
+             "platform/contracts/api-contract.openapiv3.yaml",
+             "platform/deps/dependency/lib/dependency.ex",
+             "platform/deps/dependency/priv/static/dependency.js",
+             "platform/deps/dependency/priv/templates/generator.eex",
+             "platform/lib/app.ex",
+             "platform/mix.exs",
+             "platform/mix.lock",
+             "platform/package-lock.json",
+             "platform/package.json",
+             "platform/priv/static/app.css",
+             "platform/rel/overlays/bin/migrate",
              "design-system/regent_ui/assets/css/regent.css",
              "design-system/regent_ui/lib/regent_ui.ex",
              "design-system/regent_ui/mix.exs",
@@ -218,7 +218,7 @@ defmodule Autolaunch.ReleasePackageTest do
     dirty = temporary_directory("context-guard-dirty")
 
     write_files(dirty, [
-      {"autolaunch-web/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
       {"mix-cache/x/.envrc.local", "export SECRET=nope\n"}
     ])
 
@@ -233,8 +233,8 @@ defmodule Autolaunch.ReleasePackageTest do
     odd_case = temporary_directory("context-guard-odd-case")
 
     write_files(odd_case, [
-      {"autolaunch-web/lib/app.ex", "defmodule App do\nend\n"},
-      {"autolaunch-web/.ENV", "SECRET=nope\n"}
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/.ENV", "SECRET=nope\n"}
     ])
 
     {out, status} = run_guard(scan, refusal, odd_case)
@@ -245,8 +245,8 @@ defmodule Autolaunch.ReleasePackageTest do
     clean = temporary_directory("context-guard-clean")
 
     write_files(clean, [
-      {"autolaunch-web/lib/app.ex", "defmodule App do\nend\n"},
-      {"autolaunch-web/environment.md", "# not a secrets file\n"},
+      {"platform/lib/app.ex", "defmodule App do\nend\n"},
+      {"platform/environment.md", "# not a secrets file\n"},
       {"mix-cache/archives/hex", "hex archive\n"}
     ])
 
@@ -325,7 +325,7 @@ defmodule Autolaunch.ReleasePackageTest do
     path =
       Path.join(
         System.tmp_dir!(),
-        "autolaunch-web-#{prefix}-#{System.unique_integer([:positive])}"
+        "platform-#{prefix}-#{System.unique_integer([:positive])}"
       )
 
     on_exit(fn -> File.rm_rf!(path) end)

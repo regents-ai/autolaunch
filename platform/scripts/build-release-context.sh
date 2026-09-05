@@ -3,7 +3,7 @@
 # Assemble the parent build context that Dockerfile.dockerignore describes.
 #
 #   <context>/
-#     autolaunch-web/          this checkout
+#     platform/          this checkout
 #     design-system/regent_ui/ the sibling source mix.exs resolves by path
 #     elixir-utils/privy/      the sibling source mix.exs resolves by path
 #     mix-cache/               Mix, Hex and rebar3, extracted from the sealed archive
@@ -52,7 +52,7 @@ destination="$1"
 arch="$2"
 supply="$3"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-siblings="$(cd -- "$repo_root/.." && pwd)"
+siblings="${REGENT_DEPS_ROOT:-$(cd -- "$repo_root/../.." && pwd)}"
 privy_source="$siblings/elixir-utils/privy"
 regent_ui_source="$siblings/design-system/regent_ui"
 
@@ -138,7 +138,7 @@ mkdir -p "$(dirname -- "$destination")"
 staging="$(mktemp -d "${destination%/}.staging.XXXXXX")"
 trap 'chmod -R u+w "$staging" 2>/dev/null || true; rm -rf -- "$staging"' EXIT
 
-mkdir -p "$staging/autolaunch-web" "$staging/elixir-utils/privy" \
+mkdir -p "$staging/platform" "$staging/elixir-utils/privy" \
   "$staging/design-system/regent_ui" "$staging/npm-cache"
 
 # The checkouts enter whole, minus their own build output and anything shaped
@@ -152,7 +152,7 @@ mkdir -p "$staging/autolaunch-web" "$staging/elixir-utils/privy" \
 env_filters=(--exclude '.env*')
 
 rsync -a "${env_filters[@]}" --exclude '.git' --exclude '_build/' \
-  --exclude 'node_modules/' "$repo_root/" "$staging/autolaunch-web/"
+  --exclude 'node_modules/' "$repo_root/" "$staging/platform/"
 rsync -a "${env_filters[@]}" --exclude '.git' \
   "$privy_source/" "$staging/elixir-utils/privy/"
 rsync -a "${env_filters[@]}" --exclude '.git' --exclude '_build/' \

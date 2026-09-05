@@ -1,4 +1,22 @@
-# Regents Autolaunch Contracts
+# Autolaunch
+
+The autolaunch.sh monorepo owns these components:
+
+| Component | Location | Checks |
+| --- | --- | --- |
+| Frozen Autolaunch V1 contracts | Existing root `src/`, `bin/`, `requirements/` | `bin/gate.sh` |
+| Phoenix/Ash website | [platform/](platform/README.md) | `cd platform && mix precommit` |
+| Revenue routing contracts | [revenue-mesh/](revenue-mesh/README.md) | `cd revenue-mesh && forge build --offline && forge test --offline` |
+
+The contract project stays at the Git root because its existing gates bind paths
+and historical Git objects. Do not weaken those checks to rearrange directories.
+The web app's `platform/contracts/` contains runtime API/ABI/manifests, distinct from
+root Solidity. Shared libraries stay separate; set `REGENT_DEPS_ROOT` in worktrees.
+Stage web Docker builds through `platform/scripts/build-release-context.sh` and
+use the resulting context. Internal release names and external repository/service
+identities remain unchanged. No deployment or value movement is authorized here.
+
+## Regents Autolaunch Contracts
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![Solidity 0.8.26](https://img.shields.io/badge/solidity-0.8.26-lightgrey)](https://soliditylang.org)

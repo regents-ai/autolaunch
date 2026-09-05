@@ -53,8 +53,8 @@ defmodule Autolaunch.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
-      {:regent_privy, path: "../elixir-utils/privy"},
-      {:regent_ui, path: "../design-system/regent_ui"},
+      {:regent_privy, path: Path.join(System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__)), "elixir-utils/privy")},
+      {:regent_ui, path: Path.join(System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__)), "design-system/regent_ui")},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
@@ -71,7 +71,7 @@ defmodule Autolaunch.MixProject do
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
-      {:credo_ash, path: "../elixir-utils/credo_ash", only: [:dev, :test], runtime: false},
+      {:credo_ash, path: Path.join(System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__)), "elixir-utils/credo_ash"), only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false}
     ]
   end
