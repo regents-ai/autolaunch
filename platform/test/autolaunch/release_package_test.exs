@@ -86,6 +86,10 @@ defmodule Autolaunch.ReleasePackageTest do
       {"npm-cache/_cacache/content", "cache payload\n"},
       {"esbuild-linux-arm64", "bundler\n"},
       {"esbuild-linux-x64", "bundler\n"},
+      {"regents/identity/lib/profile.ex", "fixture"},
+      {"regents/identity/.env", "private fixture"},
+      {"design-system/regent_ui/assets/js/profile.mjs", "export {}"},
+      {"design-system/regent_ui/priv/static/images/autolaunch-dark.svg", "<svg/>"},
       {"stray.txt", "outside the allowlist\n"}
     ])
 
@@ -112,213 +116,115 @@ defmodule Autolaunch.ReleasePackageTest do
 
     assert status == 0, out
 
-    assert admitted_files(output) == [
-             "platform/assets/js/app.ts",
-             "platform/config/config.exs",
-             "platform/contracts/api-contract.openapiv3.yaml",
-             "platform/deps/dependency/lib/dependency.ex",
-             "platform/deps/dependency/priv/static/dependency.js",
-             "platform/deps/dependency/priv/templates/generator.eex",
-             "platform/lib/app.ex",
-             "platform/mix.exs",
-             "platform/mix.lock",
-             "platform/package-lock.json",
-             "platform/package.json",
-             "platform/priv/static/app.css",
-             "platform/rel/overlays/bin/migrate",
-             "design-system/regent_ui/assets/css/regent.css",
-             "design-system/regent_ui/lib/regent_ui.ex",
-             "design-system/regent_ui/mix.exs",
-             "elixir-utils/privy/lib/privy.ex",
-             "esbuild-linux-arm64",
-             "esbuild-linux-x64",
-             "mix-cache/archives/hex",
-             "npm-cache/_cacache/content"
-           ]
+    assert admitted_files(output) ==
+             Enum.sort([
+               "platform/assets/js/app.ts",
+               "platform/config/config.exs",
+               "platform/contracts/api-contract.openapiv3.yaml",
+               "platform/lib/app.ex",
+               "platform/mix.exs",
+               "platform/mix.lock",
+               "platform/package-lock.json",
+               "platform/package.json",
+               "platform/priv/static/app.css",
+               "platform/rel/overlays/bin/migrate",
+               "design-system/regent_ui/assets/css/regent.css",
+               "design-system/regent_ui/assets/js/regent.ts",
+               "design-system/regent_ui/lib/regent_ui.ex",
+               "design-system/regent_ui/mix.exs",
+               "elixir-utils/privy/lib/privy.ex",
+               "regents/identity/lib/profile.ex",
+               "design-system/regent_ui/assets/js/profile.mjs",
+               "design-system/regent_ui/priv/static/images/autolaunch-dark.svg"
+             ])
   end
 
-  # The three CTX-ENV cases below execute the exact filter list and the exact
-  # guard the context script defines, lifted from its own source rather than
-  # transcribed. What they do not prove is that a full run of the script
-  # publishes a clean context: the script verifies its sealed supply before it
-  # assembles anything, and no sealed supply for this repository exists yet, so
-  # nothing here runs the script end to end.
-
-  test "CTX-ENV the script's env filters keep every env-shaped file out of a copy" do
-    filters = env_filters()
-
-    assert filters != [],
-           "an empty filter list would expand to nothing and copy the env files"
-
-    source = temporary_directory("context-filter-source")
-    destination = temporary_directory("context-filter-destination")
+  test "context assembly excludes private files and host output and refuses existing destinations" do
+    fixture = temporary_directory("assembly")
+    source = Path.join(fixture, "platform")
+    destination = Path.join(fixture, "context")
 
     write_files(source, [
-      {".env", "SECRET=nope\n"},
-      {".env.local", "SECRET=nope\n"},
-      {".env.production", "SECRET=nope\n"},
-      {".env.example", "SECRET=\n"},
-      {".envrc", "export SECRET=nope\n"},
-      {".envrc.local", "export SECRET=nope\n"},
-      {"config/.env", "SECRET=nope\n"},
-      {"a/b/.env", "SECRET=nope\n"},
-      {"lib/app.ex", "defmodule App do\nend\n"},
-      {"config/config.exs", "import Config\n"},
-      {"a/b/keep.txt", "keep me\n"},
-      {"environment.md", "# not a secrets file\n"}
+      {"mix.exs", "fixture"},
+      {"mix.lock", "%{}"},
+      {"package-lock.json", "{}"},
+      {"Dockerfile", "FROM scratch"},
+      {"Dockerfile.dockerignore", "*"},
+      {"lib/app.ex", "fixture"},
+      {".env", "private fixture"},
+      {"config/.ENV.local", "private fixture"},
+      {"deps/host/priv/native.so", "host output"},
+      {"node_modules/host.js", "host output"},
+      {"_build/native.so", "host output"}
     ])
 
-    File.mkdir_p!(destination)
+    script = Path.join(source, "scripts/build-release-context.sh")
+    File.mkdir_p!(Path.dirname(script))
+    File.cp!(@context_script, script)
 
-    {out, status} =
-      System.cmd("rsync", ["-a"] ++ filters ++ ["#{source}/", "#{destination}/"],
-        stderr_to_stdout: true
-      )
+    env =
+      for {name, directory} <- [{"PRIVY", "privy"}, {"IDENTITY", "identity"}, {"UI", "ui"}],
+          reduce: [] do
+        result ->
+          package = Path.join(fixture, directory)
 
-    assert status == 0, out
+          write_files(package, [
+            {"mix.exs", "fixture"},
+            {"lib/package.ex", directory},
+            {".envrc", "private fixture"},
+            {"_build/native.so", "host output"}
+          ])
 
-    assert admitted_files(destination) == [
-             "a/b/keep.txt",
-             "config/config.exs",
-             "environment.md",
-             "lib/app.ex"
-           ]
-  end
+          [
+            {"REGENT_#{name}_PATH", package},
+            {"REGENT_#{name}_REVISION", String.duplicate("a", 40)} | result
+          ]
+      end
 
-  test "CTX-ENV every source-tree copy takes the env filters" do
-    lines = script_lines()
+    File.ln_s!(Path.join(source, "lib/app.ex"), Path.join(source, "external-link"))
 
-    assert Enum.count(lines, &String.starts_with?(&1, "env_filters=(")) == 1,
-           "the filter list must be defined exactly once"
+    {output, status} =
+      System.cmd("bash", [script, destination, "arm64"], env: env, stderr_to_stdout: true)
 
-    rsync_calls =
-      lines
-      |> join_continuations()
-      |> Enum.filter(&String.starts_with?(&1, "rsync "))
+    assert status == 0, output
+    files = admitted_files(destination)
 
-    assert length(rsync_calls) == 4
-
-    {filtered, unfiltered} =
-      Enum.split_with(rsync_calls, &String.contains?(&1, ~s("${env_filters[@]}")))
-
-    for source <- [~s("$repo_root/"), ~s("$privy_source/"), ~s("$regent_ui_source/")] do
-      assert Enum.count(filtered, &String.contains?(&1, source)) == 1,
-             "the copy of #{source} must take the env filters"
+    for expected <- [
+          "platform/lib/app.ex",
+          "elixir-utils/privy/lib/package.ex",
+          "regents/identity/lib/package.ex",
+          "design-system/regent_ui/lib/package.ex",
+          "BUILD-INPUTS.txt"
+        ] do
+      assert expected in files
     end
 
-    assert length(filtered) == 3
+    refute Enum.any?(files, fn path ->
+             String.contains?(String.downcase(path), ".env") or
+               String.contains?(path, ["node_modules/", "_build/", "deps/", "external-link"])
+           end)
 
-    assert [npm_cache_copy] = unfiltered
-    assert String.contains?(npm_cache_copy, "npm-cache")
-  end
+    before = Map.new(files, fn path -> {path, File.read!(Path.join(destination, path))} end)
 
-  test "CTX-ENV the script's guard refuses a staging tree carrying an env-shaped file" do
-    {scan, refusal} = context_guard()
+    {output, status} =
+      System.cmd("bash", [script, destination, "arm64"], env: env, stderr_to_stdout: true)
 
-    dirty = temporary_directory("context-guard-dirty")
+    assert status != 0
+    assert output =~ "destination already exists"
 
-    write_files(dirty, [
-      {"platform/lib/app.ex", "defmodule App do\nend\n"},
-      {"mix-cache/x/.envrc.local", "export SECRET=nope\n"}
-    ])
+    assert before ==
+             Map.new(admitted_files(destination), fn path ->
+               {path, File.read!(Path.join(destination, path))}
+             end)
 
-    {out, status} = run_guard(scan, refusal, dirty)
-
-    assert status == 1
-    assert out =~ "mix-cache/x/.envrc.local"
-
-    # The copy filters are case-sensitive and rsync offers no portable way to
-    # change that, so an oddly cased name reaches the staging tree; the guard is
-    # the only thing standing between it and an upload.
-    odd_case = temporary_directory("context-guard-odd-case")
-
-    write_files(odd_case, [
-      {"platform/lib/app.ex", "defmodule App do\nend\n"},
-      {"platform/.ENV", "SECRET=nope\n"}
-    ])
-
-    {out, status} = run_guard(scan, refusal, odd_case)
-
-    assert status == 1
-    assert out =~ ".ENV"
-
-    clean = temporary_directory("context-guard-clean")
-
-    write_files(clean, [
-      {"platform/lib/app.ex", "defmodule App do\nend\n"},
-      {"platform/environment.md", "# not a secrets file\n"},
-      {"mix-cache/archives/hex", "hex archive\n"}
-    ])
-
-    assert run_guard(scan, refusal, clean) == {"", 0}
-  end
-
-  defp script_lines do
-    @context_script
-    |> File.read!()
-    |> String.split("\n")
-  end
-
-  defp join_continuations(lines) do
-    lines
-    |> Enum.join("\n")
-    |> String.replace(~r/\\\n\s*/, " ")
-    |> String.split("\n")
-  end
-
-  # Runs the script's own `env_filters=(...)` line and reports the arguments it
-  # produces, so the copy under test receives exactly what the script passes.
-  defp env_filters do
-    [definition] = Enum.filter(script_lines(), &String.starts_with?(&1, "env_filters=("))
-
-    {out, status} =
-      System.cmd(
-        "bash",
-        ["-c", "set -u\n" <> definition <> "\nprintf '%s\\0' \"${env_filters[@]}\""],
+    {output, status} =
+      System.cmd("bash", [script, Path.join(source, "recursive"), "arm64"],
+        env: env,
         stderr_to_stdout: true
       )
 
-    assert status == 0, out
-
-    String.split(out, <<0>>, trim: true)
-  end
-
-  # The guard is the `offender=` scan and the refusal on the line right after it.
-  # Where it sits is half of what makes it a guard: it has to run after the
-  # sealed archive is unpacked, so it sees those files, and before the previous
-  # destination is removed, so a refusal leaves that context in place.
-  defp context_guard do
-    lines = script_lines()
-
-    [index] = script_line_indexes(lines, &String.starts_with?(&1, "offender="))
-    [unpack] = script_line_indexes(lines, &String.starts_with?(&1, "tar -xf "))
-    [delete] = script_line_indexes(lines, &String.contains?(&1, ~s(rm -rf -- "$destination")))
-
-    assert index > unpack, "the scan must run after the sealed archive is unpacked"
-    assert index < delete, "the scan must run before the previous destination is removed"
-
-    refusal = Enum.at(lines, index + 1)
-
-    assert String.starts_with?(refusal, ~s([ -z "$offender" ] ||)),
-           "the refusal must follow the scan immediately"
-
-    {Enum.at(lines, index), refusal}
-  end
-
-  defp script_line_indexes(lines, matches?) do
-    for {line, index} <- Enum.with_index(lines), matches?.(String.trim(line)), do: index
-  end
-
-  defp run_guard(scan, refusal, staging) do
-    preamble = """
-    set -euo pipefail
-    die() { printf '%s\\n' "$*"; exit 1; }
-    staging='#{staging}'
-    """
-
-    System.cmd("bash", ["-c", preamble <> scan <> "\n" <> refusal <> "\n"],
-      stderr_to_stdout: true
-    )
+    assert status != 0
+    assert output =~ "outside every source tree"
   end
 
   defp temporary_directory(prefix) do

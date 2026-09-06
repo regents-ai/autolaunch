@@ -56,7 +56,12 @@ defmodule AutolaunchWeb.BuybackLiveTest do
   } do
     {:ok, view, html} = subject_live(conn, account, subject)
 
-    assert has_element?(view, "#subject-settlement-history", "Pending buyback")
+    assert has_element?(
+             view,
+             ~s(section[aria-labelledby="subject-revenue-title"]),
+             "Pending buyback"
+           )
+
     assert html =~ "11000000"
 
     for selector <- [

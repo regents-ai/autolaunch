@@ -8,14 +8,11 @@ FROM native AS assets
 ENV npm_config_nodedir=/usr/local
 WORKDIR /workspace/platform
 COPY --from=node /usr/local /usr/local
-COPY npm-cache/_cacache /root/.npm/_cacache
 COPY platform/package.json platform/package-lock.json ./
-RUN npm ci --offline --omit=dev --ignore-scripts --no-audit --no-fund
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
-# The C toolchain in this stage is what builds the SAT solver Ash resolves its
-# policies with; the rest of the dependency tree is pure Elixir. The bundler is
-# the standalone esbuild executable the context carries; Node is present so the
-# asset stage can install the browser packages the Privy bridge needs.
+# Compile native dependencies for the selected Linux architecture. Resolve
+# dependencies from mix.lock; no host build output or sealed cache is required.
 FROM native AS build
 
 ENV MIX_ENV=prod
@@ -28,17 +25,13 @@ COPY --from=assets /usr/local/bin/node /usr/local/bin/node
 COPY --from=assets /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
-COPY mix-cache /root/.mix
-# The context carries exactly one bundler executable, the one for the target
-# it was assembled for, and Mix looks it up by that architecture-specific name.
-COPY esbuild-linux-* _build/
-COPY platform/deps deps
+RUN mix local.hex --force && mix local.rebar --force
 COPY platform/mix.exs platform/mix.lock ./
 COPY elixir-utils/privy /workspace/elixir-utils/privy
 COPY regents/identity /workspace/regents/identity
 COPY design-system/regent_ui /workspace/design-system/regent_ui
 COPY platform/config config
-RUN mix deps.compile
+RUN mix deps.get --only prod --check-locked && mix deps.compile
 
 COPY platform/lib lib
 COPY platform/priv priv

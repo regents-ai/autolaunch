@@ -22,12 +22,15 @@ From a directory containing sibling product repositories, acquire the shared lib
 ```sh
 git clone https://github.com/regents-ai/design-system.git
 git clone https://github.com/regents-ai/elixir-utils.git
+git clone https://github.com/regents-ai/regents.git
 ```
 
 The expected layout is `<workspace>/<product>/platform`,
-`<workspace>/design-system/regent_ui` and `<workspace>/elixir-utils/`.
+`<workspace>/design-system/regent_ui`, `<workspace>/elixir-utils/` and
+`<workspace>/regents/identity`.
 From this component directory, `REGENT_DEPS_ROOT` may point at `<workspace>` when
-it is elsewhere. Record both shared repository commit IDs with check results;
+it is elsewhere. Individual packages may instead be selected with `REGENT_UI_PATH`,
+`REGENT_PRIVY_PATH` and `REGENT_IDENTITY_PATH`. Record all three repository commit IDs with check results;
 release builds and isolated agent worktrees must use their selected immutable
 revisions, rather than updating sibling checkouts during verification.
 Do not clone recursive Solidity submodules for a web-only change.
@@ -119,52 +122,26 @@ to sign. Nothing else may build a transaction.
 > disagree about, without applying anything. Confirm the target and its secrets before
 > running a deploy.
 
-The image is built from `Dockerfile`, whose parent build context is assembled offline by
-`scripts/build-release-context.sh` from a sealed supply directory. The Fly configuration lives
-in `fly.toml` (`autolaunch-sh`) and `fly.staging.toml` (`autolaunch-staging`).
+The image is built from `Dockerfile`. The context contains the application and
+three selected shared packages; Docker installs `mix.lock` and `package-lock.json`
+dependencies for the target Linux architecture. Host caches and native binaries
+are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
+`fly.staging.toml` (`autolaunch-staging`).
 
-The image build installs browser packages from a sealed npm cache (`npm ci --offline`) and
-bundles them with the standalone esbuild executable the context carries. The first release
-must pack that cache against this repository's `package-lock.json`, record
-`package_lock_sha256` in `SUPPLY-MANIFEST.txt`, and stage `npm-cache/` in the supply
-directory — this ticket does not seal a cache or build a Docker image.
+Run the assembler through the prepared worktree runner so package paths and exact
+revisions come from the selected dependency manifest:
 
-### The sealed supply directory
-
-`scripts/build-release-context.sh <destination> <arch> <supply-directory>` reads these files
-from the supply directory:
-
-```text
-SUPPLY-MANIFEST.txt   the digests below, one `key=value` per line
-MIX-CACHE.tar         the Mix, Hex and rebar3 caches, packed under a mix-cache/ prefix
-npm-cache/            the sealed npm content cache (staged as npm-cache/_cacache/)
-esbuild-linux-arm64   the bundler executable, for an arm64 build
-esbuild-linux-x64     the bundler executable, for an amd64 build
+```sh
+regentctl worktree-run autolaunch <ticket> -- bash scripts/build-release-context.sh /absolute/new-context arm64
+docker build --platform linux/arm64 -f /absolute/new-context/Dockerfile -t autolaunch-candidate /absolute/new-context
 ```
 
-The first three are always required and the script refuses without them. The two esbuild lines
-are one per architecture: a run reads only the executable for the architecture it is building
-for, and checks only that one's digest, so a supply directory serving a single architecture
-needs only that one file.
-
-`SUPPLY-MANIFEST.txt` must carry the Mix and npm keys below and, for each architecture the
-directory serves, that architecture's pair of esbuild keys.
-
-| Key | What it is held to |
-| --- | --- |
-| `package_lock_sha256` | The SHA-256 of the `package-lock.json` this npm cache was packed for. Checked against this repository's `package-lock.json`. |
-| `mix_lock_sha256` | The SHA-256 of the `mix.lock` this cache was packed for. Checked against this repository's `mix.lock`. |
-| `mix_cache_sha256` | The SHA-256 of `MIX-CACHE.tar`. |
-| `esbuild-linux-arm64.sha256` | The SHA-256 of `esbuild-linux-arm64`. Read for an `arm64` build. |
-| `esbuild-linux-arm64.file` | The `file(1)` description of that executable. Must name `ARM aarch64`. |
-| `esbuild-linux-x64.sha256` | The SHA-256 of `esbuild-linux-x64`. Read for an `amd64` build. |
-| `esbuild-linux-x64.file` | The `file(1)` description of that executable. Must name `x86-64`. |
-
-No supply directory for this repository exists yet. The sealed archives kept for the platform
-describe themselves in a different manifest shape and carry neither `mix_lock_sha256` nor
-`mix_cache_sha256`, so the script refuses them at the first key it looks for, with
-`manifest <path> has no mix_lock_sha256`. Packing the first Autolaunch supply directory is
-the first task of the deployment unit (U8 in the site plan).
+Use `amd64` for an x86 Linux image. Assembly is local and does not need a sealed
+supply directory; the image build needs network access for locked packages and
+build tools. `BUILD-INPUTS.txt` records shared revisions and lockfile hashes.
+Existing destinations are refused, so interruption or a repeated command cannot
+remove an earlier context. Build and run the exact image before release; local
+source tests alone do not verify Linux native dependencies or production sign-in.
 
 ### Environment
 
