@@ -61,6 +61,35 @@ defmodule Autolaunch.Auction do
       prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
+    read :page_public do
+      argument :mode, :string,
+        default: "all",
+        constraints: [match: ~r/\A(all|biddable|live|failed_minimum|graduated)\z/]
+
+      argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
+      pagination keyset?: true, required?: true, default_limit: 50, max_page_size: 50
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare build(load: [:treasury_security_report])
+
+      prepare fn query, _context ->
+        query =
+          case Ash.Query.get_argument(query, :mode) do
+            mode when mode in ["live", "biddable"] -> Ash.Query.filter(query, state == :active)
+            "failed_minimum" -> Ash.Query.filter(query, state == :failed)
+            "graduated" -> Ash.Query.filter(query, state == :graduated)
+            "all" -> query
+          end
+
+        case Ash.Query.get_argument(query, :sort) do
+          "oldest" ->
+            Ash.Query.sort(query, opened_at: :asc, inserted_at: :asc, id: :asc)
+
+          "newest" ->
+            Ash.Query.sort(query, opened_at: :desc_nils_last, inserted_at: :desc, id: :asc)
+        end
+      end
+    end
+
     read :recent_public do
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
 
@@ -249,6 +278,7 @@ defmodule Autolaunch.Auction do
     policy action([
              :read,
              :list_public,
+             :page_public,
              :recent_public,
              :featured_public,
              :active_launchpad,

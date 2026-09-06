@@ -137,6 +137,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
       "autolaunch_auctions",
       "List public Autolaunch auctions. Returns stored public data, not a live chain read.",
       {
+        after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same mode and sort. Cursors expire after 24 hours."},
         mode: {type: "string", enum: ["all", "biddable", "live", "failed_minimum", "graduated"]},
         sort: {type: "string", enum: ["newest", "oldest"]},
         limit: {
@@ -160,6 +161,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
       "autolaunch_tokens",
       "List public graduated Autolaunch tokens.",
       {
+        after: {type: "string", description: "Pass pagination.next_cursor unchanged to read the next page. Cursors expire after 24 hours."},
         limit: {
           type: "integer", minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER,
           description: "Safe integer; the API clamps it to 1–100. Defaults to 100.",

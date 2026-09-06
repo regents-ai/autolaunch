@@ -18,12 +18,14 @@ test("all five public commands match existing WebMCP requests and domain results
   const cases = [
     ["autolaunch_auctions", {}, ["auctions", "list"]],
     ...["all", "biddable", "live", "failed_minimum", "graduated"].map(mode => ["autolaunch_auctions", {mode, sort: "oldest", limit: 999}, ["auctions", "list", "--mode", mode, "--sort", "oldest", "--limit", "999"]]),
+    ["autolaunch_auctions", {after: "cursor+/資料=="}, ["auctions", "list", "--after", "cursor+/資料=="]],
+    ["autolaunch_tokens", {after: "cursor+/資料=="}, ["tokens", "list", "--after", "cursor+/資料=="]],
     ["autolaunch_auction", {id}, ["auction", id]],
     ["autolaunch_tokens", {limit: 0}, ["tokens", "list", "--limit", "0"]],
     ["autolaunch_treasury", {address}, ["treasury", "security", address]],
     ["autolaunch_bid_quote", {id, amount: " 12.12345678901234567890123456789 ", max_price: "0003.000"}, ["bids", "quote", "--auction", id, "--amount", " 12.12345678901234567890123456789 ", "--max-price", "0003.000"]],
   ];
-  const body = {data: {id, summary: "資料🌳", amount: "12.12345678901234567890123456789", warnings: ["auction_not_biddable"], treasury_security: {classification: "supported_safe", verification_state: "awaiting_current_chain_confirmation", verification_reason: "projector_refresh_not_integrated"}}};
+  const body = {pagination: {has_more: true, next_cursor: "cursor+/資料=="}, data: {id, summary: "資料🌳", amount: "12.12345678901234567890123456789", warnings: ["auction_not_biddable"], treasury_security: {classification: "supported_safe", verification_state: "awaiting_current_chain_confirmation", verification_reason: "projector_refresh_not_integrated"}}};
   for (const [name, input, args] of cases) {
     api.respond({status: 200, body});
     const browser = await registered.find(tool => tool.name === name).execute(input, {signal: new AbortController().signal});

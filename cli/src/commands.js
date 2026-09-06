@@ -23,10 +23,10 @@ export const commands = [
     request: (_args, values) => profileTarget("update", values)},
   {
     command: "auctions list", operation_id: "listAuctions", webmcp: "autolaunch_auctions",
-    method: "GET", path: "/api/v1/auctions", flags: ["mode", "sort", "limit"],
-    description: "List stored public auctions. Defaults to 50, capped at 50; no pagination. Modes: all, biddable, live, failed_minimum, graduated. Sort: newest or oldest.",
-    authority: "public", effect: "read", pagination: "none",
-    request: (_args, values) => listQuery("/api/v1/auctions", values, ["mode", "sort", "limit"]),
+    method: "GET", path: "/api/v1/auctions", flags: ["mode", "sort", "limit", "after"],
+    description: "List stored public auctions. Defaults to 50, capped at 50; follow pagination.next_cursor with --after (24-hour expiry). Modes: all, biddable, live, failed_minimum, graduated. Sort: newest or oldest.",
+    authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
+    request: (_args, values) => listQuery("/api/v1/auctions", values, ["mode", "sort", "limit", "after"]),
   },
   {
     command: "auction <id>", operation_id: "getAuction", webmcp: "autolaunch_auction",
@@ -45,10 +45,10 @@ export const commands = [
   },
   {
     command: "tokens list", operation_id: "listTokens", webmcp: "autolaunch_tokens",
-    method: "GET", path: "/api/v1/tokens", flags: ["limit"],
-    description: "List graduated tokens, newest first. Defaults to 100, capped at 100; no pagination.",
-    authority: "public", effect: "read", pagination: "none",
-    request: (_args, values) => listQuery("/api/v1/tokens", values, ["limit"]),
+    method: "GET", path: "/api/v1/tokens", flags: ["limit", "after"],
+    description: "List graduated tokens, newest first. Defaults to 100, capped at 100; follow pagination.next_cursor with --after (24-hour expiry).",
+    authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
+    request: (_args, values) => listQuery("/api/v1/tokens", values, ["limit", "after"]),
   },
   {
     command: "treasury security <address>", operation_id: "getTreasurySecurity", webmcp: "autolaunch_treasury",

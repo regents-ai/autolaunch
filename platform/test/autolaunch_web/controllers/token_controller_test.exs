@@ -1,24 +1,27 @@
 defmodule AutolaunchWeb.TokenControllerTest do
   use AutolaunchWeb.ConnCase, async: false
 
-  alias Autolaunch.Actors.System
   alias Autolaunch
+  alias Autolaunch.Actors.System
   alias Autolaunch.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias Autolaunch.TestSupport
 
   defmodule RecordingAutolaunch do
-    def list_public_tokens(limit, actor: nil) do
+    def page_public_tokens(actor: nil, page: [limit: limit]) do
       send(self(), {:list_public_tokens, limit})
-      {:ok, []}
+      {:ok, %Ash.Page.Keyset{results: [], more?: false}}
     end
   end
 
   defmodule FailingAutolaunch do
-    def list_public_tokens(_limit, actor: nil), do: {:error, {:sentinel, "private details"}}
+    def page_public_tokens(actor: nil, page: _), do: {:error, {:sentinel, "private details"}}
   end
 
   test "GET routes an empty public token list", %{conn: conn} do
-    assert conn |> get("/api/v1/tokens") |> json_response(200) == %{"data" => []}
+    assert conn |> get("/api/v1/tokens") |> json_response(200) == %{
+             "data" => [],
+             "pagination" => %{"has_more" => false, "next_cursor" => nil}
+           }
 
     assert Enum.any?(AutolaunchWeb.Router.__routes__(), fn route ->
              route.verb == :get and route.path == "/api/v1/tokens" and
@@ -117,13 +120,19 @@ defmodule AutolaunchWeb.TokenControllerTest do
 
     assert injected
            |> get("/api/v1/tokens?limit=0")
-           |> json_response(200) == %{"data" => []}
+           |> json_response(200) == %{
+             "data" => [],
+             "pagination" => %{"has_more" => false, "next_cursor" => nil}
+           }
 
     assert_received {:list_public_tokens, 1}
 
     assert injected
            |> get("/api/v1/tokens?limit=101")
-           |> json_response(200) == %{"data" => []}
+           |> json_response(200) == %{
+             "data" => [],
+             "pagination" => %{"has_more" => false, "next_cursor" => nil}
+           }
 
     assert_received {:list_public_tokens, 100}
 
@@ -182,6 +191,36 @@ defmodule AutolaunchWeb.TokenControllerTest do
       |> json_response(200)
 
     assert anonymous == credentialed
+  end
+
+  test "token continuation reaches beyond 100 tied graduations", %{conn: conn} do
+    now = DateTime.utc_now()
+
+    records =
+      for n <- 1..103 do
+        auction = auction!()
+
+        TestSupport.project_token(
+          auction_id: auction.id,
+          name: "Token #{n}",
+          symbol: "T#{n}",
+          graduated_at: now
+        )
+      end
+
+    first = conn |> get("/api/v1/tokens") |> json_response(200)
+    assert length(first["data"]) == 100
+
+    second =
+      conn
+      |> get("/api/v1/tokens", %{"after" => first["pagination"]["next_cursor"]})
+      |> json_response(200)
+
+    ids = Enum.map(first["data"] ++ second["data"], & &1["id"])
+    assert length(ids) == 103
+    assert MapSet.new(ids) == MapSet.new(records, & &1.id)
+    refute second["pagination"]["has_more"]
+    assert conn |> get("/api/v1/tokens?after=invalid") |> json_response(400)
   end
 
   defp auction! do

@@ -59,4 +59,39 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     assert html =~ ~s(href="https://x.com/alice")
     assert html =~ ~s(href="https://x.com/alicedao")
   end
+
+  test "browse continuation and expired-link recovery", %{conn: conn} do
+    for n <- 1..27, do: TestSupport.project_auction(title: "Browse #{n}", state: :active)
+    {:ok, view, _} = live(conn, "/auctions")
+    render_async(view)
+
+    assert Enum.count(
+             view
+             |> element(".home-coin-grid")
+             |> render()
+             |> LazyHTML.from_fragment()
+             |> LazyHTML.query(".launchpad-card")
+           ) == 24
+
+    view |> element("nav[aria-label='Browse pages'] a", "Next page") |> render_click()
+    render_async(view)
+
+    assert Enum.count(
+             view
+             |> element(".home-coin-grid")
+             |> render()
+             |> LazyHTML.from_fragment()
+             |> LazyHTML.query(".launchpad-card")
+           ) == 3
+
+    assert has_element?(view, "a", "Back to newest")
+    refute has_element?(view, "nav a", "Next page")
+    render_patch(view, "/auctions?after=invalid")
+    render_async(view)
+    assert render(view) =~ "expired or is invalid"
+    refute has_element?(view, ".home-coin-grid")
+    view |> element("a", "Back to newest") |> render_click()
+    render_async(view)
+    assert has_element?(view, ".home-coin-grid")
+  end
 end

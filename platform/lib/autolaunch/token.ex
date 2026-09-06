@@ -30,6 +30,16 @@ defmodule Autolaunch.Token do
               )
     end
 
+    read :page_public do
+      pagination keyset?: true, required?: true, default_limit: 100, max_page_size: 100
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+
+      prepare build(
+                sort: [graduated_at: :desc, id: :asc],
+                load: [:treasury_security_report, :auction]
+              )
+    end
+
     read :top_public do
       filter expr(not is_nil(top_rank))
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
@@ -139,6 +149,7 @@ defmodule Autolaunch.Token do
     policy action([
              :read,
              :list_public,
+             :page_public,
              :top_public,
              :recently_graduated_public,
              :graduated_launchpad,

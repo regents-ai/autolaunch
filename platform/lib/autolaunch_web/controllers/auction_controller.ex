@@ -6,15 +6,19 @@ defmodule AutolaunchWeb.AuctionController do
 
   @modes ~w(all biddable live failed_minimum graduated)
   @sorts ~w(newest oldest)
-  @query_parameters ~w(mode sort limit)
+  @query_parameters ~w(mode sort limit after)
 
   def index(conn, params) do
     autolaunch = conn.private[:auction_controller_autolaunch] || Autolaunch
 
     with {:ok, mode, sort, limit} <- list_options(params),
-         {:ok, auctions} <-
-           autolaunch.list_public_auctions(mode, sort, limit, actor: nil) do
-      json(conn, %{data: Enum.map(auctions, &public_auction/1)})
+         scope = {:auctions, mode, sort},
+         {:ok, page_opts} <- AutolaunchWeb.PublicPage.options(params["after"], scope, limit),
+         {:ok, page} <- autolaunch.page_public_auctions(mode, sort, actor: nil, page: page_opts) do
+      json(conn, %{
+        data: Enum.map(page.results, &public_auction/1),
+        pagination: AutolaunchWeb.PublicPage.metadata(page, scope)
+      })
     else
       {:error, :invalid_query} -> invalid_request(conn)
       {:error, _error} -> internal_error(conn)

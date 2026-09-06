@@ -8,8 +8,12 @@ defmodule AutolaunchWeb.TokenController do
     autolaunch = conn.private[:token_controller_autolaunch] || Autolaunch
 
     with {:ok, limit} <- list_limit(params),
-         {:ok, tokens} <- autolaunch.list_public_tokens(limit, actor: nil) do
-      json(conn, %{data: Enum.map(tokens, &public_token/1)})
+         {:ok, page_opts} <- AutolaunchWeb.PublicPage.options(params["after"], :tokens, limit),
+         {:ok, page} <- autolaunch.page_public_tokens(actor: nil, page: page_opts) do
+      json(conn, %{
+        data: Enum.map(page.results, &public_token/1),
+        pagination: AutolaunchWeb.PublicPage.metadata(page, :tokens)
+      })
     else
       {:error, :invalid_query} -> invalid_request(conn)
       {:error, _error} -> internal_error(conn)
@@ -17,7 +21,7 @@ defmodule AutolaunchWeb.TokenController do
   end
 
   defp list_limit(params) do
-    with true <- Enum.all?(Map.keys(params), &(&1 == "limit")),
+    with true <- Enum.all?(Map.keys(params), &(&1 in ~w(limit after))),
          {:ok, limit} <- parse_limit(Map.get(params, "limit")) do
       {:ok, limit}
     else

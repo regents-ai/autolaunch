@@ -41,6 +41,9 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   attr :records, :map, required: true
   attr :creators, :map, required: true
 
+  attr :pagination, :map, required: true
+  attr :cursor, :string, default: nil
+
   def collection(assigns) do
     assigns =
       assign(assigns,
@@ -48,8 +51,8 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         copy:
           if(
             assigns.kind == :auctions,
-            do: "Discover live raises, compare auction state, and open one to place a bid.",
-            else: "Explore tokens that completed an auction and graduated to liquidity."
+            do: "Live and recent auctions.",
+            else: "Graduated launch tokens."
           ),
         empty_title: if(assigns.kind == :auctions, do: "No auctions yet", else: "No tokens yet"),
         empty_copy:
@@ -75,12 +78,25 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         :if={@records.ok? && @records.result == []}
         class="autolaunch-empty autolaunch-market-empty"
       >
-        <p class="autolaunch-kicker">Be first</p>
-        <h2>{@empty_title}</h2>
-        <p>{@empty_copy}</p>
-        <.link href={@empty_path}>{@empty_action} <span aria-hidden="true">→</span></.link>
+        <p :if={!@cursor} class="autolaunch-kicker">Be first</p>
+        <h2>{if @cursor, do: "No more records on this page", else: @empty_title}</h2>
+        <p :if={!@cursor}>{@empty_copy}</p>
+        <.link :if={!@cursor} href={@empty_path}>{@empty_action} <span aria-hidden="true">→</span></.link>
       </section>
-      <.empty_state :if={@records.failed} copy="Public records are unavailable right now." />
+      <p :if={@records.loading} role="status">Loading…</p>
+      <Regent.Primitives.notice :if={@records.failed} role="alert">
+        <p>
+          {if @records.failed == {:error, :invalid_query},
+            do: "This page link has expired or is invalid.",
+            else: "Public records are unavailable right now."}
+        </p>
+        <Regent.Primitives.button
+          :if={@records.failed != {:error, :invalid_query}}
+          phx-click="retry"
+          variant="secondary"
+        >Retry</Regent.Primitives.button>
+        <.link :if={@cursor} patch={"/#{@kind}"}>Back to newest</.link>
+      </Regent.Primitives.notice>
       <div :if={@records.ok? && @records.result != []} class="home-coin-grid">
         <div :for={record <- @records.result}>
           <.autolaunch_market_card
@@ -95,6 +111,17 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
           />
         </div>
       </div>
+      <nav
+        :if={@pagination.ok? && (@cursor || @pagination.result.has_more)}
+        aria-label="Browse pages"
+        class="autolaunch-heading"
+      >
+        <.link :if={@cursor} patch={"/#{@kind}"}>Back to newest</.link>
+        <.link
+          :if={@pagination.result.has_more}
+          patch={"/#{@kind}?" <> URI.encode_query(%{"after" => @pagination.result.next_cursor})}
+        >Next page <span aria-hidden="true">→</span></.link>
+      </nav>
     </section>
     """
   end

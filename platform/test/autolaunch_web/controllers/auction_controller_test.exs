@@ -1,27 +1,30 @@
 defmodule AutolaunchWeb.AuctionControllerTest do
   use AutolaunchWeb.ConnCase, async: false
 
-  alias Autolaunch.Actors.System
   alias Autolaunch
+  alias Autolaunch.Actors.System
   alias Autolaunch.TestAutolaunchTreasuryChainClient, as: TreasuryClient
   alias Autolaunch.TestSupport
 
   defmodule RecordingAutolaunch do
-    def list_public_auctions(mode, sort, limit, actor: nil) do
+    def page_public_auctions(mode, sort, actor: nil, page: [limit: limit]) do
       send(self(), {:list_public_auctions, mode, sort, limit})
-      {:ok, []}
+      {:ok, %Ash.Page.Keyset{results: [], more?: false}}
     end
   end
 
   defmodule FailingAutolaunch do
-    def list_public_auctions(_mode, _sort, _limit, actor: nil),
+    def page_public_auctions(_mode, _sort, actor: nil, page: _),
       do: {:error, {:sentinel, "private details"}}
 
     def get_public_auction(_id, actor: nil), do: {:error, {:sentinel, "private details"}}
   end
 
   test "GET routes expose empty list, detail, and missing envelopes", %{conn: conn} do
-    assert conn |> get("/api/v1/auctions") |> json_response(200) == %{"data" => []}
+    assert conn |> get("/api/v1/auctions") |> json_response(200) == %{
+             "data" => [],
+             "pagination" => %{"has_more" => false, "next_cursor" => nil}
+           }
 
     missing_id = Ash.UUID.generate()
 
@@ -134,13 +137,19 @@ defmodule AutolaunchWeb.AuctionControllerTest do
 
     assert injected
            |> get("/api/v1/auctions?mode=graduated&sort=oldest&limit=0")
-           |> json_response(200) == %{"data" => []}
+           |> json_response(200) == %{
+             "data" => [],
+             "pagination" => %{"has_more" => false, "next_cursor" => nil}
+           }
 
     assert_received {:list_public_auctions, "graduated", "oldest", 1}
 
     assert injected
            |> get("/api/v1/auctions?limit=51")
-           |> json_response(200) == %{"data" => []}
+           |> json_response(200) == %{
+             "data" => [],
+             "pagination" => %{"has_more" => false, "next_cursor" => nil}
+           }
 
     assert_received {:list_public_auctions, "all", "newest", 50}
 
@@ -203,6 +212,84 @@ defmodule AutolaunchWeb.AuctionControllerTest do
            |> json_response(404) == %{
              "error" => %{"code" => "not_found", "message" => "Auction not found."}
            }
+  end
+
+  test "continuation crosses the cap, ties and null dates without gaps", %{conn: conn} do
+    now = DateTime.utc_now()
+    records = for n <- 1..55, do: auction!("Page #{n}", :active, if(n > 51, do: nil, else: now))
+
+    for sort <- ["newest", "oldest"] do
+      path = "/api/v1/auctions?mode=live&sort=#{sort}"
+      first = conn |> get(path) |> json_response(200)
+      assert length(first["data"]) == 50
+      cursor = first["pagination"]["next_cursor"]
+      assert first["pagination"]["has_more"]
+
+      second =
+        conn |> get(path <> "&" <> URI.encode_query(%{"after" => cursor})) |> json_response(200)
+
+      ids = Enum.map(first["data"] ++ second["data"], & &1["id"])
+      assert length(ids) == 55
+      assert MapSet.new(ids) == MapSet.new(records, & &1.id)
+      assert second["pagination"] == %{"has_more" => false, "next_cursor" => nil}
+      assert conn |> get("/api/v1/tokens", %{"after" => cursor}) |> json_response(400)
+
+      assert conn
+             |> get("/api/v1/auctions", %{"after" => cursor, "mode" => "graduated"})
+             |> json_response(400)
+    end
+
+    for cursor <- ["garbage", "", String.duplicate("x", 4097)] do
+      assert conn |> get("/api/v1/auctions", %{"after" => cursor}) |> json_response(400)
+    end
+  end
+
+  test "a newer auction between pages does not shift the continuation", %{conn: conn} do
+    now = DateTime.utc_now()
+    older = auction!("Older page", :active, DateTime.add(now, -60))
+    first = auction!("First page", :active, now)
+    page = conn |> get("/api/v1/auctions?limit=1") |> json_response(200)
+    assert hd(page["data"])["id"] == first.id
+    auction!("New arrival", :active, DateTime.add(now, 60))
+
+    second =
+      conn
+      |> get("/api/v1/auctions", %{"limit" => "1", "after" => page["pagination"]["next_cursor"]})
+      |> json_response(200)
+
+    assert Enum.map(second["data"], & &1["id"]) == [older.id]
+    refute second["pagination"]["has_more"]
+  end
+
+  test "null boundary dates continue in either direction and expired cursors fail", %{conn: conn} do
+    records =
+      for n <- 1..4,
+          do: auction!("Boundary #{n}", :active, if(n <= 2, do: nil, else: DateTime.utc_now()))
+
+    for sort <- ["newest", "oldest"] do
+      params = %{"sort" => sort, "limit" => "1"}
+
+      {ids, _} =
+        Enum.reduce(1..4, {[], params}, fn _, {ids, params} ->
+          body = conn |> get("/api/v1/auctions", params) |> json_response(200)
+
+          {[hd(body["data"])["id"] | ids],
+           Map.put(params, "after", body["pagination"]["next_cursor"])}
+        end)
+
+      assert MapSet.new(ids) == MapSet.new(records, & &1.id)
+      assert length(Enum.uniq(ids)) == 4
+    end
+
+    expired =
+      Phoenix.Token.sign(
+        AutolaunchWeb.Endpoint,
+        "public-listings-v1",
+        {{:auctions, "all", "newest"}, "unused"},
+        signed_at: Elixir.System.system_time(:second) - 86_401
+      )
+
+    assert conn |> get("/api/v1/auctions", %{"after" => expired}) |> json_response(400)
   end
 
   defp auction!(title, state, opened_at) do

@@ -196,7 +196,11 @@ paths:
             minimum: 1
             maximum: 50
             default: 50
-      x-pagination: none
+        - name: after
+          in: query
+          description: Opaque next_cursor from the preceding page. Keep the same filters and sort. Expires after 24 hours; restart the listing on 400. New records ahead of the cursor appear when restarting; this is not a frozen snapshot.
+          schema: {type: string, maxLength: 4096}
+      x-pagination: keyset
       responses:
         "200":
           description: Public Autolaunch auctions
@@ -255,7 +259,11 @@ paths:
             minimum: 1
             maximum: 100
             default: 100
-      x-pagination: none
+        - name: after
+          in: query
+          description: Opaque next_cursor from the preceding page. Keep the same filters and sort. Expires after 24 hours; restart the listing on 400. New records ahead of the cursor appear when restarting; this is not a frozen snapshot.
+          schema: {type: string, maxLength: 4096}
+      x-pagination: keyset
       responses:
         "200":
           description: Public Autolaunch tokens, newest graduation first
@@ -367,11 +375,19 @@ components:
             status_band: {type: string, enum: [active, borderline, inactive]}
             estimated_tokens_if_end_now: {type: string}
             warnings: {type: array, items: {type: string}}
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [has_more, next_cursor]
+      properties:
+        has_more: {type: boolean}
+        next_cursor: {type: [string, "null"]}
     AuctionListEnvelope:
       type: object
       additionalProperties: false
-      required: [data]
+      required: [data, pagination]
       properties:
+        pagination: {$ref: "#/components/schemas/Pagination"}
         data:
           type: array
           items: {$ref: "#/components/schemas/Auction"}
@@ -399,8 +415,9 @@ components:
     TokenListEnvelope:
       type: object
       additionalProperties: false
-      required: [data]
+      required: [data, pagination]
       properties:
+        pagination: {$ref: "#/components/schemas/Pagination"}
         data:
           type: array
           items: {$ref: "#/components/schemas/Token"}

@@ -9,9 +9,9 @@ There is no older `navigator.modelContext` fallback.
 
 | Tool | Input | Existing HTTP contract |
 | --- | --- | --- |
-| `autolaunch_auctions` | Optional `mode`, `sort`, integer `limit` | `GET /api/v1/auctions` |
+| `autolaunch_auctions` | Optional `mode`, `sort`, integer `limit`, `after` | `GET /api/v1/auctions` |
 | `autolaunch_auction` | Auction UUID `id` | `GET /api/v1/auctions/:id` |
-| `autolaunch_tokens` | Optional integer `limit` | `GET /api/v1/tokens` |
+| `autolaunch_tokens` | Optional integer `limit`, `after` | `GET /api/v1/tokens` |
 | `autolaunch_treasury` | Treasury `address` | `GET /api/v1/treasury-security/:address` |
 | `autolaunch_bid_quote` | Auction UUID `id`, decimal strings `amount`, `max_price` | `POST /api/v1/auctions/:id/bid-quote` |
 
@@ -38,8 +38,8 @@ response also includes `status`. Network exception details are not returned.
 
 Tools read stored public projections with credentials omitted, same-origin mode,
 and redirects refused. Quote POSTs calculate estimates; they do not prepare bids,
-open wallets, submit transactions, or fetch chain data. No private account data,
-portfolio operations, pagination, or new API endpoints are exposed. Tool results
+open wallets, submit transactions, or fetch chain data. No private account data or
+portfolio operations are exposed by these public tools. Tool results
 are marked read-only and untrusted, since public titles and summaries may contain
 user-authored text. Output does not depend on which visual disclosures are open.
 
@@ -78,3 +78,13 @@ real local HTTP routes. This proves the UI adapter and HTTP integration, not nat
 browser-agent discovery or permissions. Native API availability is reported
 separately. Frontend tests cover duplicate installation, rejected/late registration,
 malformed input, path normalization, network/API failures, and cancellation races.
+
+## Complete listings
+
+Auction and token responses include `pagination.has_more` and `pagination.next_cursor`.
+Pass `next_cursor` unchanged as `after` with the same mode/sort to continue. The CLI
+uses `--after`; the website has Next page and Back to newest links. Auction pages
+retain the existing 50-row cap and token pages the 100-row cap. Cursors expire after
+24 hours; a 400 means restart the listing. Ordering includes an ID tie-breaker and
+handles nullable auction dates. New arrivals ahead of the cursor appear on restart;
+continuation is not a frozen database snapshot.

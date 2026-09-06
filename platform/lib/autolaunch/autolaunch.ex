@@ -63,6 +63,7 @@ defmodule Autolaunch do
 
     resource Autolaunch.Auction do
       define :list_auctions, action: :list_public
+      define :page_public_auctions, action: :page_public, args: [:mode, :sort]
       define :list_recent_auctions, action: :recent_public
       define :list_featured_auctions, action: :featured_public
 
@@ -145,6 +146,7 @@ defmodule Autolaunch do
 
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public
+      define :page_public_tokens, action: :page_public
       define :list_top_tokens, action: :top_public
       define :list_recently_graduated_tokens, action: :recently_graduated_public
 
