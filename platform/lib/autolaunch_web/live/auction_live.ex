@@ -9,25 +9,22 @@ defmodule AutolaunchWeb.AuctionLive do
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
 
-  def mount(%{"auction_id" => id}, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:record_id, id)
-     |> assign_market()
-     |> assign_async(:page, fn -> load_auction_page(id) end)}
+  def mount(_params, _session, socket), do: {:ok, assign_market(socket)}
+
+  # The identifier is read here so a patch to another auction reloads the page
+  # instead of keeping the previous record on screen.
+  def handle_params(%{"auction_id" => id}, _uri, socket) do
+    {:noreply, socket |> assign(:record_id, id) |> load_page(reset: true)}
   end
 
-  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+  def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
 
   def handle_info({:autolaunch_market_updated, %{generation: generation}}, socket) do
-    id = socket.assigns.record_id
-    current = socket.assigns.market.generation
-
-    if generation > current do
+    if generation > socket.assigns.market.generation do
       {:noreply,
        socket
        |> assign(:market, LabMarketFeed.snapshot())
-       |> assign_async(:page, fn -> load_auction_page(id) end)}
+       |> load_page(reset: false)}
     else
       {:noreply, socket}
     end
@@ -40,7 +37,7 @@ defmodule AutolaunchWeb.AuctionLive do
       assign(assigns,
         local_lab?: Lab.enabled?(),
         page_record: page_record(assigns.page),
-        page_status: page_status(assigns.page, :empty),
+        page_status: page_status(assigns.page, :error),
         creator_connections: page_connections(assigns.page)
       )
 
@@ -105,6 +102,8 @@ defmodule AutolaunchWeb.AuctionLive do
       <div :if={@local_lab?} id="autolaunch-lab-position"></div>
     </article>
 
+    <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
+
     <section
       :if={@page_status == :empty}
       id="autolaunch-auction-detail"
@@ -114,7 +113,24 @@ defmodule AutolaunchWeb.AuctionLive do
       <p>No public auction exists at {@record_id}.</p>
       <.link navigate="/auctions">Return to Auctions</.link>
     </section>
+
+    <section
+      :if={@page_status == :error}
+      id="autolaunch-auction-detail"
+      class="autolaunch-page autolaunch-empty"
+      role="alert"
+    >
+      <h1>Auction unavailable</h1>
+      <p>This auction could not be loaded right now.</p>
+      <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
+      <.link navigate="/auctions">Return to Auctions</.link>
+    </section>
     """
+  end
+
+  defp load_page(socket, reset: reset) do
+    id = socket.assigns.record_id
+    assign_async(socket, :page, fn -> load_auction_page(id) end, reset: reset)
   end
 
   defp assign_market(socket) do

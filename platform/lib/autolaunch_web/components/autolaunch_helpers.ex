@@ -324,7 +324,9 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   def page_record(_page), do: nil
 
   def page_status(%{ok?: true, result: %{status: status}}, _on_failed), do: status
-  def page_status(%{failed: true}, on_failed), do: on_failed
+
+  # A failed async carries its `{:error, reason}` or `{:exit, reason}` tag; it is never `true`.
+  def page_status(%{failed: failed}, on_failed) when not is_nil(failed), do: on_failed
   def page_status(_page, _on_failed), do: :loading
 
   def page_connections(%{ok?: true, result: %{creator_connections: connections}}),
@@ -335,19 +337,19 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   def page_list(%{ok?: true, result: result}, key), do: Map.get(result, key, [])
   def page_list(_page, _key), do: []
 
-  def load_auction_page(id) do
-    case Autolaunch.get_public_auction(id) do
-      {:ok, nil} -> {:ok, %{page: empty_detail()}}
-      {:ok, record} -> {:ok, %{page: ready_detail(record)}}
-      {:error, _reason} -> {:ok, %{page: empty_detail()}}
-    end
-  end
+  def load_auction_page(id), do: load_detail(id, &Autolaunch.get_public_auction/1)
 
-  def load_token_page(id) do
-    case Autolaunch.get_public_token(id) do
-      {:ok, nil} -> {:ok, %{page: empty_detail()}}
-      {:ok, record} -> {:ok, %{page: ready_detail(record)}}
-      {:error, _reason} -> {:ok, %{page: empty_detail()}}
+  def load_token_page(id), do: load_detail(id, &Autolaunch.get_public_token/1)
+
+  # An identifier that is not a UUID can never name a record, so it is missing rather
+  # than unavailable; only a failed read of a well-formed identifier is an outage.
+  defp load_detail(id, read) do
+    with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
+         {:ok, record} <- read.(uuid) do
+      {:ok, %{page: if(record, do: ready_detail(record), else: empty_detail())}}
+    else
+      :error -> {:ok, %{page: empty_detail()}}
+      {:error, _reason} -> {:error, :unavailable}
     end
   end
 

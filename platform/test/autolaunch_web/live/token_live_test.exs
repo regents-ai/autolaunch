@@ -1,16 +1,67 @@
 defmodule AutolaunchWeb.TokenLiveTest do
   use AutolaunchWeb.ConnCase, async: false
 
+  alias Autolaunch.Repo
   alias Autolaunch.TestSupport
 
   test "token detail keeps its identifier and an honest not-found state", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/tokens/token-42")
-    html = render_async(view)
+    for id <- ["token-42", Ecto.UUID.generate()] do
+      {:ok, view, _html} = live(conn, "/tokens/#{id}")
+      html = render_async(view)
 
-    assert has_element?(view, "#autolaunch-token-detail")
-    assert html =~ "Token not found"
-    assert html =~ "No public token exists"
-    assert html =~ ~s(href="/tokens")
+      assert has_element?(view, "#autolaunch-token-detail")
+      assert html =~ "Token not found"
+      assert html =~ "No public token exists at #{id}."
+      assert html =~ ~s(href="/tokens")
+      refute html =~ "Retry"
+    end
+  end
+
+  @tag :capture_log
+  test "an unavailable token read offers Retry instead of not found, then recovers", %{
+    conn: conn
+  } do
+    auction =
+      TestSupport.project_auction(
+        title: "Recovering token launch",
+        summary: "Back after the outage.",
+        symbol: "RCV",
+        state: :graduated
+      )
+
+    token =
+      TestSupport.project_token(
+        auction_id: auction.id,
+        name: "Recovering Token",
+        symbol: "RCV",
+        subject_id: "subject:recovering-token-detail",
+        graduated_at: DateTime.utc_now()
+      )
+
+    # The sandbox savepoints each statement, so renaming the table inside the test
+    # transaction is a real failed read that the test can undo.
+    Repo.query!("ALTER TABLE tokens RENAME TO tokens_unavailable")
+    {:ok, view, _html} = live(conn, "/tokens/#{token.id}")
+    html = render_async(view, 5_000)
+
+    assert has_element?(view, "#autolaunch-token-detail[role=alert]", "Token unavailable")
+    assert html =~ "This token could not be loaded right now."
+    refute html =~ "not found"
+    refute html =~ "Recovering token launch"
+    refute html =~ "Postgrex"
+    refute html =~ "undefined_table"
+
+    retry = element(view, "#autolaunch-token-detail button", "Retry")
+    assert render_click(retry) =~ "Loading…"
+    assert render_async(view, 5_000) =~ "Token unavailable"
+
+    Repo.query!("ALTER TABLE tokens_unavailable RENAME TO tokens")
+    render_click(element(view, "#autolaunch-token-detail button", "Retry"))
+    html = render_async(view, 5_000)
+
+    assert html =~ "Recovering token launch · RCV"
+    assert html =~ "Back after the outage."
+    refute html =~ "Token unavailable"
   end
 
   test "a listed token detail uses auction presentation and hides a nil-creator row", %{
