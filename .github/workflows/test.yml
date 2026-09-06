@@ -2,7 +2,25 @@ name: gate
 
 on:
   push:
+    paths:
+      - "**"
+      - "!cli/**"
+      - "!platform/**"
+      - "!docs/**"
+      - "docs/security/**"
+      - "docs/audit/**"
+      - "!README.md"
+      - "!AGENTS.md"
   pull_request:
+    paths:
+      - "**"
+      - "!cli/**"
+      - "!platform/**"
+      - "!docs/**"
+      - "docs/security/**"
+      - "docs/audit/**"
+      - "!README.md"
+      - "!AGENTS.md"
 
 # The only check this workflow runs is bin/gate.sh. Every step before it materializes pinned
 # material over the network so the gate itself can stay offline and fail closed. Every

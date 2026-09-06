@@ -1,0 +1,34 @@
+name: CLI
+
+on:
+  push:
+    paths:
+      - "cli/**"
+      - "platform/assets/js/public_tools.ts"
+      - "platform/contracts/api-contract.openapiv3.yaml"
+      - ".github/workflows/cli.yml"
+  pull_request:
+    paths:
+      - "cli/**"
+      - "platform/assets/js/public_tools.ts"
+      - "platform/contracts/api-contract.openapiv3.yaml"
+      - ".github/workflows/cli.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # The CLI uses only Node built-ins; these checks need no install or submodules.
+      - run: npm run check
+      - run: npm run test:parity
+      - run: npm run check:contract
