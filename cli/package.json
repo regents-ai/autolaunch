@@ -25,8 +25,8 @@
     "directory": "cli"
   },
   "scripts": {
-    "build": "node --check bin/autolaunch.js && node --check src/cli.js && node --check src/commands.js",
-    "test": "node --test test/cli.test.js",
+    "build": "node --check bin/autolaunch.js && node --check src/cli.js && node --check src/commands.js && node --check src/profile.js",
+    "test": "node --test test/cli.test.js test/private-profile.test.js",
     "test:parity": "node --test test/parity.test.js",
     "check": "npm run build && npm test",
     "prepack": "npm run build",

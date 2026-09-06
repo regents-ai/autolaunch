@@ -23,6 +23,7 @@ defmodule AutolaunchWeb.Components.AccountControl do
       <div :if={@account_control.kind == :signed_in} class="account-control__signed-in">
         <span class="account-control__label">{@account_control.label}</span>
         <.link href="/portfolio" class="account-control__portfolio">Portfolio</.link>
+        <.link href="/profile" class="account-control__portfolio">Profile</.link>
         <button type="button" class="account-control__sign-out" data-account-target="sign-out">
           Sign out
         </button>

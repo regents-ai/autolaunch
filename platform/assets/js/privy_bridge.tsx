@@ -1,3 +1,5 @@
+import {createProfileClient, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
+import {createXLinkIntent} from "../vendor/regent_identity/x_link_intent.mjs"
 import {
   PrivyProvider,
   type PrivyEvents,
@@ -423,6 +425,7 @@ export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
 }
 
 type PrivyLoginCallbackOptions = {
+  allowAutomatic?: boolean
   completeLogin: () => Promise<void>
   loginOpen: {current: boolean}
   showFailure: () => void
@@ -437,6 +440,7 @@ type PrivyLoginCallbackOptions = {
 // settled — says so rather than rejecting into nothing. Both outcomes close
 // the modal, so both release the guard for the next click.
 export function createPrivyLoginCallbacks({
+  allowAutomatic = true,
   completeLogin,
   loginOpen,
   showFailure,
@@ -445,29 +449,33 @@ export function createPrivyLoginCallbacks({
     onComplete: () => {
       const opened = loginOpen.current
       loginOpen.current = false
+      if (!opened && !allowAutomatic) return
       void completeLogin().catch(() => {
         if (opened) showFailure()
       })
     },
     onError: () => {
+      const opened = loginOpen.current
       loginOpen.current = false
-      showFailure()
+      if (opened) showFailure()
     },
   } satisfies PrivyEvents["login"]
 }
 
 type AccountBridgeProps = {
-  mode: "ordinary" | "sign-out-only"
+  mode: "ordinary" | "sign-out-only" | "profile-only"
   providerState?: PrivyBridgeProviderState
   publishRequestHandler: (
     requestHandler: PrivyBridgeHandle["request"],
     identityHandler: NonNullable<PrivyBridgeHandle["identity"]>,
     finishSignOutOnly: () => void,
     ready: boolean,
+    profileHandler: ProfileAction,
   ) => void
 }
 
 export type PrivyBridgeProviderState = {
+  userId?: string
   appId: string
   authenticated: boolean
   getAccessToken: () => Promise<string | null>
@@ -518,20 +526,28 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     () =>
       createPrivyLoginCallbacks({
         completeLogin: completeExplicitLogin,
+        allowAutomatic: mode !== "profile-only",
         loginOpen,
         showFailure: () => showAccountAuthFailure("sign-in"),
       }),
-    [completeExplicitLogin],
+    [completeExplicitLogin, mode],
   )
   const {login} = useLogin(loginCallbacks)
   // The published handler outlives every render, so the click it answers reads
   // the provider of the latest committed render — never one React started and
   // discarded — which is why this is written after the commit and before the
   // effect that publishes the handler.
-  const provider = React.useRef({authenticated, login, logout})
+  const subject = providerState?.userId ?? privy.user?.id ?? null
+  const provider = React.useRef({authenticated, login, logout, ready, subject})
+  const profileGeneration = React.useRef(0)
   React.useEffect(() => {
-    provider.current = {authenticated, login, logout}
-  }, [authenticated, login, logout])
+    const changed = provider.current.authenticated !== authenticated || provider.current.subject !== subject
+    provider.current = {authenticated, login, logout, ready, subject}
+    if (changed) {
+      profileGeneration.current += 1
+      window.dispatchEvent(new Event("regent:profile-identity"))
+    }
+  }, [authenticated, login, logout, ready, subject])
   const signInRequest = React.useMemo(
     () =>
       createSignInRequest({
@@ -548,8 +564,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   // explicit recovery still holds the pair the server refused.
   const completeAutomaticLogin = React.useCallback(
     () =>
-      signOutOnly || signInRequest.recovering() ? Promise.resolve() : completeExplicitLogin(),
-    [completeExplicitLogin, signInRequest, signOutOnly],
+      signOutOnly || mode === "profile-only" || signInRequest.recovering() ? Promise.resolve() : completeExplicitLogin(),
+    [completeExplicitLogin, signInRequest, signOutOnly, mode],
   )
   const tokenCallbacks = React.useMemo(
     () => createPrivyTokenCallbacks(completeAutomaticLogin),
@@ -566,6 +582,32 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
     [getAccessToken, providerState?.getIdentityToken],
   )
   acquireTokensRef.current = acquireTokens
+  const profileFor = React.useCallback((expectedSubject?: string) => createProfileClient({
+    async acquireProof({signal}) {
+      while (!provider.current.ready || (expectedSubject && provider.current.subject !== expectedSubject)) {
+        signal.throwIfAborted()
+        await new Promise(resolve => setTimeout(resolve, 25))
+      }
+      const state = provider.current
+      if (!state.authenticated || !state.subject || (expectedSubject && expectedSubject !== state.subject) ||
+          (signOutOnly && signOutOnlyState.current !== "terminal")) return null
+      const generation = profileGeneration.current
+      const tokens = await acquireTokensRef.current()
+      return {...tokens, subject: state.subject, isCurrent: () =>
+        provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
+    },
+  }), [signOutOnly])
+  const profileHandler = React.useMemo(() => profileFor(), [profileFor])
+  const profileIntent = React.useCallback(() => {
+    const appId = providerState?.appId ?? document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content ?? ""
+    let storage: Storage | null = null
+    try { storage = window.sessionStorage } catch {}
+    return createXLinkIntent(storage, appId)
+  }, [providerState?.appId])
+  const profileLinkNonce = React.useRef<string | null>(null)
+  const notifyProfileLink = React.useCallback((ok: boolean) => {
+    window.dispatchEvent(new CustomEvent("regent:profile-link", {detail: {ok}}))
+  }, [])
   const notifyIdentityState = React.useCallback((error: string | null) => {
     window.dispatchEvent(
       new CustomEvent("autolaunch:identity-state", {detail: {error}}),
@@ -577,10 +619,20 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   }, [acquireTokens, notifyIdentityState])
   const linkCallbacks = React.useMemo(
     () => ({
-      onSuccess: () => void refreshIdentitySession().catch(() => notifyIdentityState("failed")),
-      onError: () => notifyIdentityState("failed"),
+      onSuccess: (payload: Parameters<NonNullable<PrivyEvents["linkAccount"]["onSuccess"]>>[0]) => {
+        const expected = profileIntent().claim(payload)
+        if (expected) {
+          void profileFor(expected)("sync").then(result => notifyProfileLink(result.ok))
+        }
+        void refreshIdentitySession().catch(() => notifyIdentityState("failed"))
+      },
+      onError: () => {
+        profileIntent().cancel(profileLinkNonce.current)
+        notifyProfileLink(false)
+        notifyIdentityState("failed")
+      },
     }),
-    [notifyIdentityState, refreshIdentitySession],
+    [notifyIdentityState, refreshIdentitySession, profileIntent, profileFor, notifyProfileLink],
   )
   const {linkTwitter, linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
@@ -683,7 +735,16 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const ordinaryIdentityHandler = React.useMemo(
     () =>
       createIdentityRequestHandler({
-        linkX: linkTwitter,
+        linkX: () => {
+          const currentSubject = provider.current.subject
+          if (!currentSubject || !provider.current.authenticated) throw new Error("authentication_required")
+          const nonce = profileIntent().begin(currentSubject)
+          profileLinkNonce.current = nonce
+          Promise.resolve(linkTwitter()).catch(() => {
+            profileIntent().cancel(nonce)
+            notifyProfileLink(false)
+          })
+        },
         linkGithub,
         linkFarcaster,
         unlinkOAuth: async (provider, subject) => {
@@ -698,6 +759,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
       linkFarcaster,
       linkGithub,
       linkTwitter,
+      profileIntent,
+      notifyProfileLink,
       refreshIdentitySession,
       unlinkFarcasterAccount,
       unlinkOAuth,
@@ -727,8 +790,8 @@ function AccountBridge({mode, providerState, publishRequestHandler}: AccountBrid
   const finishSignOutOnly = signOutOnlyBridge.finish
 
   React.useEffect(
-    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready),
-    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler],
+    () => publishRequestHandler(requestHandler, identityHandler, finishSignOutOnly, ready, profileHandler),
+    [finishSignOutOnly, identityHandler, publishRequestHandler, ready, requestHandler, profileHandler],
   )
 
   return null
@@ -750,8 +813,12 @@ export function startPrivyBridge(
     let currentRequestHandler: PrivyBridgeHandle["request"] | null = null
     let currentIdentityHandler: PrivyBridgeHandle["identity"] | null = null
     let currentFinishSignOutOnly: (() => void) | null = null
+    let currentProfileHandler: ProfileAction | null = null
     let resolved = false
     const handle: PrivyBridgeHandle = {
+      profile(...args) {
+        return currentProfileHandler ? currentProfileHandler(...args) : Promise.reject(new Error("Profile is unavailable"))
+      },
       request(request) {
         return currentRequestHandler
           ? currentRequestHandler(request)
@@ -771,7 +838,9 @@ export function startPrivyBridge(
       identityHandler,
       finishSignOutOnly,
       ready,
+      profileHandler,
     ) => {
+      currentProfileHandler = profileHandler
       currentRequestHandler = requestHandler
       currentIdentityHandler = identityHandler
       currentFinishSignOutOnly = finishSignOutOnly

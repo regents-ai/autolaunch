@@ -57,3 +57,7 @@ For optional checks against the real local Ash API, seed only an isolated databa
 ## Related products
 
 See the [product directory](https://github.com/regents-ai/autolaunch-contracts#related-products) for the other Regent CLIs and sites.
+
+## Shared personal profile
+
+Private `profile get`, `profile sync`, and `profile update` are available with paired Privy proof from an approved credential provider. See [the private profile contract](docs/private-profile.md). They use the same API as browser WebMCP and do not obtain a session or grant payment authority.

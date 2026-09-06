@@ -1,3 +1,5 @@
+import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
+import {installSharedProfile} from "./shared_profile"
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
 
 export type IdentityProvider = "x" | "github" | "farcaster"
@@ -9,13 +11,14 @@ export type IdentityRequest = {
 }
 
 export type PrivyBridgeHandle = {
+  profile?: ProfileAction
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
   finishSignOutOnly?: () => void
 }
 
 export type PrivyBridgeStartupOptions = {
-  mode?: "ordinary" | "sign-out-only"
+  mode?: "ordinary" | "sign-out-only" | "profile-only"
 }
 
 export type PrivyBridgeModule = {
@@ -598,13 +601,15 @@ export function createLazyAuthLoader(
     return attempt
   }
 
-  const prepare = (): Promise<void> => {
+  const prepare = (profileOnly = false): Promise<void> => {
     const attempt = importer()
       .then(module => {
         if (typeof module.startPrivyBridge !== "function") {
           throw new Error("Privy bridge module is invalid")
         }
-        return startupOptions.mode
+        return profileOnly && !startupOptions.mode
+          ? module.startPrivyBridge({mode: "profile-only"})
+          : startupOptions.mode
           ? module.startPrivyBridge(startupOptions)
           : module.startPrivyBridge()
       })
@@ -662,6 +667,16 @@ export function createLazyAuthLoader(
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
+    async profile(...args: Parameters<ProfileAction>): ReturnType<ProfileAction> {
+      if (state === "handoff-preterminal") {
+        return {ok: false, status: null, error: {code: "authentication_required", outcome_unknown: false}}
+      }
+      return loadProfileAction(async () => {
+        if (!handle) await (preparing ?? prepare(true))
+        if (!handle?.profile) throw new Error("Profile bridge is unavailable")
+        return handle.profile
+      }, ...args)
+    },
     finishHandoff(): void {
       if (state !== "handoff-preterminal") return
       state = "handoff-terminal"
@@ -693,6 +708,7 @@ export function installAccountAuthLazyLoader(
     importer ?? createBrowserPrivyBridgeImporter({bridgeSource: bridgeSource ?? null}),
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
+  const stopProfile = installSharedProfile(documentRoot, loader)
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -792,6 +808,7 @@ export function installAccountAuthLazyLoader(
     reconcileSignedInStartup()
   }
   return () => {
+    stopProfile()
     documentRoot.removeEventListener("click", onClick)
     documentRoot.removeEventListener("autolaunch:identity-request", onIdentityRequest)
   }

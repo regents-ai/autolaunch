@@ -183,3 +183,20 @@ whose role is unset or unknown. What it does not yet check is which hosts a role
 the two Fly applications and their database hostnames do not exist until they are created, so
 the per-role host allowlist is an obligation of the deployment unit and is not in this
 repository yet.
+
+## Shared private profile
+
+`/profile` uses the shared Regent UI and Regents-owned Ash identity domain.
+The private `/api/v1/profile` contract provides `GET`, `PATCH`, and `POST /sync`;
+the product CLI and browser WebMCP use the same actions and response schema.
+Personal X verification comes from signed Privy evidence. Product sessions,
+permissions and existing payout identities remain product-owned.
+
+Resolve `REGENT_IDENTITY_PATH`, `REGENT_PRIVY_PATH` and `REGENT_UI_PATH` to the
+recorded dependency snapshots for isolated work. Run `mix assets.build` after
+changing a shared package. All deployments must use one Privy application and
+one PostgreSQL destination before profiles can be shared between sites.
+Regents owns the explicit identity migration; consumers do not run it on startup.
+Do not repoint existing databases or replay migration histories: legacy identity
+mappings, schema collisions and a recovery copy require a separate verified cutover.
+See the identity package README and CLI private-profile contract for proof handling.

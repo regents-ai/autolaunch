@@ -53,8 +53,9 @@ arch="$2"
 supply="$3"
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 siblings="${REGENT_DEPS_ROOT:-$(cd -- "$repo_root/../.." && pwd)}"
-privy_source="$siblings/elixir-utils/privy"
-regent_ui_source="$siblings/design-system/regent_ui"
+privy_source="${REGENT_PRIVY_PATH:-$siblings/elixir-utils/privy}"
+identity_source="${REGENT_IDENTITY_PATH:-$siblings/regents/identity}"
+regent_ui_source="${REGENT_UI_PATH:-$siblings/design-system/regent_ui}"
 
 # The machine name is what the manifest is held to, so a supply that names the
 # wrong architecture is refused rather than staged.
@@ -73,7 +74,7 @@ esac
 manifest="$supply/SUPPLY-MANIFEST.txt"
 
 for required in "$manifest" "$supply/MIX-CACHE.tar" "$supply/npm-cache" \
-  "$privy_source" "$regent_ui_source"; do
+  "$privy_source" "$identity_source" "$regent_ui_source"; do
   [ -e "$required" ] || die "missing supply input: $required"
 done
 
@@ -138,8 +139,8 @@ mkdir -p "$(dirname -- "$destination")"
 staging="$(mktemp -d "${destination%/}.staging.XXXXXX")"
 trap 'chmod -R u+w "$staging" 2>/dev/null || true; rm -rf -- "$staging"' EXIT
 
-mkdir -p "$staging/platform" "$staging/elixir-utils/privy" \
-  "$staging/design-system/regent_ui" "$staging/npm-cache"
+mkdir -p "$staging/regents/identity" "$staging/platform" "$staging/elixir-utils/privy" \
+  "$staging/design-system/regent_ui" "$staging/regents/identity" "$staging/npm-cache"
 
 # The checkouts enter whole, minus their own build output and anything shaped
 # like a secrets file. This script excludes those itself, so the assembled
@@ -158,6 +159,10 @@ rsync -a "${env_filters[@]}" --exclude '.git' \
 rsync -a "${env_filters[@]}" --exclude '.git' --exclude '_build/' \
   --exclude 'deps/' --exclude 'node_modules/' \
   "$regent_ui_source/" "$staging/design-system/regent_ui/"
+
+rsync -a "${env_filters[@]}" --exclude '.git' --exclude '_build/' \
+  --exclude 'deps/' --exclude 'node_modules/' \
+  "$identity_source/" "$staging/regents/identity/"
 
 # The sealed npm directory is the cache payload itself, so it lands one level
 # down: npm resolves its content under <cache>/_cacache.

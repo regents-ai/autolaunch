@@ -1,3 +1,4 @@
+import {requestProfile, ProfileInputError} from "./profile.js";
 import {parseArgs} from "node:util";
 
 export class UsageError extends Error {}
@@ -115,14 +116,15 @@ export async function run({product, version, defaultOrigin, commands, notes, arg
     }
     const timeoutMs = values["timeout-ms"] === undefined ? 30000 : Number(values["timeout-ms"]);
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000) throw new UsageError("--timeout-ms must be an integer from 1 to 300000.");
-    const base = origin(values["base-url"] ?? process.env[`${product.toUpperCase()}_BASE_URL`] ?? defaultOrigin);
+    const privateProfile = command.authority === "privy-proof-pair";
+    const base = origin(values["base-url"] ?? (privateProfile ? defaultOrigin : process.env[`${product.toUpperCase()}_BASE_URL`] ?? defaultOrigin));
     const target = command.request(positionals, values);
-    const result = await request(base, target, timeoutMs);
+    const result = privateProfile ? await requestProfile(base, target, timeoutMs) : await request(base, target, timeoutMs);
     if (!result.ok) process.exitCode = result.error?.code === "aborted" ? 130 : 1;
     return result;
   } catch (error) {
-    process.exitCode = error instanceof UsageError ? 2 : 1;
-    return {ok: false, error: {code: error instanceof UsageError ? "invalid_input" : "internal_error",
-      message: error instanceof UsageError ? error.message : "The command could not be completed."}};
+    process.exitCode = (error instanceof UsageError || error instanceof ProfileInputError) ? 2 : 1;
+    return {ok: false, error: {code: (error instanceof UsageError || error instanceof ProfileInputError) ? "invalid_input" : "internal_error",
+      message: (error instanceof UsageError || error instanceof ProfileInputError) ? error.message : "The command could not be completed."}};
   }
 }

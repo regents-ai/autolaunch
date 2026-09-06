@@ -24,6 +24,11 @@ defmodule AutolaunchWeb.Router do
     get "/healthz", HealthController, :show
   end
 
+  scope "/api/v1" do
+    pipe_through :api
+    forward "/profile", RegentIdentity.HTTP, otp_app: :autolaunch
+  end
+
   scope "/api/v1", AutolaunchWeb do
     pipe_through :api
 
@@ -37,6 +42,7 @@ defmodule AutolaunchWeb.Router do
   scope "/", AutolaunchWeb do
     pipe_through :browser
 
+    get "/profile", SharedProfileController, :show
     live "/", HomeLive, :home
 
     get "/auth/csrf", PrivySessionController, :csrf

@@ -1431,3 +1431,15 @@ describe("Privy session bridge", () => {
     ).toBe(expected)
   })
 })
+
+
+it("profile-only provider bootstrap never establishes a session, but explicit sign-in can", async () => {
+  const completeLogin = vi.fn(async () => {})
+  const loginOpen = {current: false}
+  const callbacks = createPrivyLoginCallbacks({completeLogin, loginOpen, allowAutomatic: false, showFailure: vi.fn()})
+  callbacks.onComplete?.({} as never)
+  expect(completeLogin).not.toHaveBeenCalled()
+  loginOpen.current = true
+  callbacks.onComplete?.({} as never)
+  expect(completeLogin).toHaveBeenCalledTimes(1)
+})

@@ -17,6 +17,7 @@
 !design-system/regent_ui/mix.exs
 !design-system/regent_ui/lib/**
 !design-system/regent_ui/assets/css/**
+!design-system/regent_ui/assets/js/**
 !design-system/regent_ui/assets/images/**
 !elixir-utils/privy/**
 !mix-cache/**
@@ -37,3 +38,10 @@ platform/deps/**/priv/**
 **/.env
 **/.env.*
 **/.envrc
+
+!regents/
+!regents/identity/
+!regents/identity/**
+regents/identity/**/.env*
+regents/identity/**/_build/
+regents/identity/**/deps/

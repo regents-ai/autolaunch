@@ -55,8 +55,12 @@ defmodule Autolaunch.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
-      {:regent_privy, path: Path.join(shared, "elixir-utils/privy")},
-      {:regent_ui, path: Path.join(shared, "design-system/regent_ui")},
+      {:regent_privy,
+       path: System.get_env("REGENT_PRIVY_PATH", Path.join(shared, "elixir-utils/privy"))},
+      {:regent_identity,
+       path: System.get_env("REGENT_IDENTITY_PATH", Path.join(shared, "regents/identity"))},
+      {:regent_ui,
+       path: System.get_env("REGENT_UI_PATH", Path.join(shared, "design-system/regent_ui"))},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
@@ -99,11 +103,13 @@ defmodule Autolaunch.MixProject do
       "assets.build": [
         "compile",
         "regent_ui.assets",
+        "regent_identity.assets",
         "esbuild autolaunch",
         "esbuild autolaunch_crown"
       ],
       "assets.deploy": [
         "regent_ui.assets",
+        "regent_identity.assets",
         "esbuild autolaunch --minify",
         "esbuild autolaunch_crown --minify",
         "phx.digest"

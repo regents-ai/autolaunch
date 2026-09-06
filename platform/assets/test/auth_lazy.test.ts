@@ -1074,3 +1074,16 @@ describe("lazy browser authentication", () => {
     expect(finishSignOutOnly).toHaveBeenCalledOnce()
   })
 })
+
+
+it("a private profile read uses passive startup and leaves explicit account actions available", async () => {
+  const request = vi.fn(async () => {})
+  const profile = vi.fn(async () => ({ok: true, status: 200, body: {profile: {profile_id: "one"}}}))
+  const startPrivyBridge = vi.fn(async () => ({request, profile}))
+  const loader = createLazyAuthLoader(async () => ({startPrivyBridge}))
+  await loader.profile("get")
+  expect(startPrivyBridge).toHaveBeenCalledWith({mode: "profile-only"})
+  expect(request).not.toHaveBeenCalled()
+  await loader.request("sign-in")
+  expect(request).toHaveBeenCalledWith("sign-in")
+})
