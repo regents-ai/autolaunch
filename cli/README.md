@@ -7,6 +7,8 @@ The standalone `autolaunch` command for public Autolaunch API operations. Node.j
 These are local release candidates. Registry publication and package-name availability are not verified.
 
 ```sh
+# From the monorepo root:
+cd cli
 npm run check
 npm pack
 npm install --global ./regentslabs-autolaunch-cli-0.1.0.tgz
@@ -51,3 +53,7 @@ The checks create disposable local servers and install directories and clean up 
 The platform owns `platform/contracts/api-contract.openapiv3.yaml`; its reviewed copy ships as `docs/api-contract.openapiv3.yaml`. Run `npm run check:contract` in the monorepo to detect drift. The standalone build never requires the platform.
 
 For optional checks against the real local Ash API, seed only an isolated database with `platform/test/browser/support/seed_public_tools.exs`, start its loopback server, then run `node scripts/test-public-api-fixture.mjs http://127.0.0.1:<port>`. This preserves the earlier product comparison; invalid CLI integers are checked locally, and invalid decimal/address values still exercise API refusals. The script never seeds a database itself.
+
+## Related products
+
+See the [product directory](https://github.com/regents-ai/autolaunch-contracts#related-products) for the other Regent CLIs and sites.

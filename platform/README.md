@@ -2,22 +2,40 @@
 
 [![Elixir 1.19](https://img.shields.io/badge/elixir-1.19-lightgrey)](https://elixir-lang.org)
 [![Phoenix 1.8](https://img.shields.io/badge/phoenix-1.8-lightgrey)](https://www.phoenixframework.org)
-[![Ash 3.29](https://img.shields.io/badge/ash-3.29-lightgrey)](https://ash-hq.org)
+[Ash](https://ash-hq.org)
 [![PostgreSQL 14](https://img.shields.io/badge/postgres-14-lightgrey)](https://www.postgresql.org)
 
 Autolaunch is the Regents Labs site at autolaunch.sh: the place where a token auction is
 created, bid on, and followed. It is a Phoenix, LiveView and Ash application with its own
-PostgreSQL database, deployed separately from the rest of the platform.
+PostgreSQL repository. The application is released separately from the other products.
 
-> [!NOTE]
-> This is the repository scaffold. It carries the application skeleton, the check suite, and
-> the deployment package. The Autolaunch domain, sign-in, pages, and chain reads arrive in the
-> units that follow, and the home page here is a placeholder they replace.
+The checkout implements auction/token pages, launch and bid flows, Privy sign-in,
+portfolio views, a public JSON API and matching browser-tool adapters. See the
+[public API/WebMCP contract](docs/public-webmcp.md) and [CLI](../cli/README.md).
+An implemented route does not establish a deployed or activated mainnet launch;
+the contract gates and release configuration remain authoritative.
+
+## Shared dependencies
+
+From a directory containing sibling product repositories, acquire the shared libraries:
+
+```sh
+git clone https://github.com/regents-ai/design-system.git
+git clone https://github.com/regents-ai/elixir-utils.git
+```
+
+The expected layout is `<workspace>/<product>/platform`,
+`<workspace>/design-system/regent_ui` and `<workspace>/elixir-utils/`.
+From this component directory, `REGENT_DEPS_ROOT` may point at `<workspace>` when
+it is elsewhere. Record both shared repository commit IDs with check results;
+release builds and isolated agent worktrees must use their selected immutable
+revisions, rather than updating sibling checkouts during verification.
+Do not clone recursive Solidity submodules for a web-only change.
 
 ## Quickstart
 
 You need Erlang, Elixir, Node, and PostgreSQL at the versions pinned in `.tool-versions`, and
-Foundry's `cast` on the path for the chain work later units add.
+Foundry's `cast` for checks that exercise chain tooling. Run the following from `platform/`.
 
 ```bash
 mix setup
@@ -25,7 +43,7 @@ mix phx.server
 ```
 
 The site is then at `http://localhost:4050`. `mix setup` fetches dependencies, runs
-`npm ci` against the repository-root lockfile (React, Privy, and the TypeScript
+`npm ci` against the platform lockfile (React, Privy, and the TypeScript
 tooling the browser bundle needs), creates the `autolaunch_dev` database on loopback
 PostgreSQL, and builds the assets. A clean checkout can run `npm ci` on its own
 before `npm run typecheck` or `npm test`.
@@ -36,7 +54,7 @@ before `npm run typecheck` or `npm test`.
 lib/autolaunch/         Ash domains, the repository, the database configuration and the
                         release commands
 lib/autolaunch_web/     Endpoint, router, layouts, controllers
-contracts/              The OpenAPI contract; the chain-contract manifest joins it later
+contracts/              The OpenAPI contract; the chain-contract manifest and runtime ABIs
 config/                 Compile-time and runtime configuration
 assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
@@ -47,7 +65,7 @@ rel/                    Release overlays: the migrate and pending-migrations com
 
 ## Checks
 
-All three repository acceptance commands must pass before a change is proposed:
+Use the checks appropriate to the changed component. The full platform gate is:
 
 ```bash
 mix precommit
@@ -80,7 +98,7 @@ These paths carry the boundary between the site and money. A change to any of th
 protected change: it needs its own review and is never edited as a side effect of other work.
 
 ```text
-contracts/chain-contracts.yaml  the chain-contract manifest, once it lands
+contracts/chain-contracts.yaml  the chain-contract manifest
 priv/repo/migrations/           applied schema history, never rewritten
 lib/autolaunch/accounts/        identity and sign-in
 lib/autolaunch/chain/           chain reads and the addresses they use

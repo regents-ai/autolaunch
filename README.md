@@ -1,20 +1,52 @@
 # Autolaunch
 
-The autolaunch.sh monorepo owns these components:
+Launch and follow token auctions on Base. Autolaunch combines a Phoenix/Ash
+website, a standalone CLI and the contracts that define each auction and its
+revenue distribution.
+
+[Website](https://autolaunch.sh) · [CLI](cli/README.md) · [API and WebMCP](platform/docs/public-webmcp.md) · [Star on GitHub](https://github.com/regents-ai/autolaunch-contracts)
+
+## Start here
+
+- **Browse or build the website:** [platform setup and checks](platform/README.md).
+- **Use an agent or terminal:** the [CLI](cli/README.md) exposes public auction,
+  token and quote operations as JSON. These commands do not sign or submit a bid.
+- **Review the contracts:** start with [SPEC.md](SPEC.md) and the
+  [audit guide](docs/audit/README.md). Contract release status is independent of
+  whether the website renders successfully.
+
+The website and public CLI are implemented in this checkout. The CLI package is a
+local release candidate; registry publication is not implied. Production activation,
+private profile adoption and database cutover have separate verification requirements.
 
 | Component | Location | Checks |
 | --- | --- | --- |
-| Frozen Autolaunch V1 contracts | Existing root `src/`, `bin/`, `requirements/` | `bin/gate.sh` |
-| Phoenix/Ash website | [platform/](platform/README.md) | `cd platform && mix precommit` |
-| Revenue routing contracts | [revenue-mesh/](revenue-mesh/README.md) | `cd revenue-mesh && forge build --offline && forge test --offline` |
+| Phoenix/Ash website and API | [platform/](platform/README.md) | `cd platform && mix precommit` |
+| Standalone public CLI | [cli/](cli/README.md) | `cd cli && npm run check` |
+| Frozen V1 auction contracts | Root `src/`, `bin/`, `requirements/` | `bin/gate.sh` |
+| Revenue routing contracts | [revenue-mesh/](revenue-mesh/README.md) | `cd revenue-mesh && forge test --offline` |
 
-The contract project stays at the Git root because its existing gates bind paths
-and historical Git objects. Do not weaken those checks to rearrange directories.
-The web app's `platform/contracts/` contains runtime API/ABI/manifests, distinct from
-root Solidity. Shared libraries stay separate; set `REGENT_DEPS_ROOT` in worktrees.
-Stage web Docker builds through `platform/scripts/build-release-context.sh` and
-use the resulting context. Internal release names and external repository/service
-identities remain unchanged. No deployment or value movement is authorized here.
+The V1 project retains its root paths because its existing verification binds those
+paths and historical Git objects. `platform/contracts/` contains runtime ABIs and
+manifests. For web work, install only the platform dependencies; contract dependency
+hydration belongs to contract work. Shared libraries remain independent repositories.
+
+## Related products
+
+| Product | Use it for | Website | Source |
+| --- | --- | --- | --- |
+| Regents | Agent identity, operations, staking and redemption | [regents.sh](https://regents.sh) | [Regents](https://github.com/regents-ai/regents) |
+| Autolaunch | Token auctions and launch operations | [autolaunch.sh](https://autolaunch.sh) | [Autolaunch](https://github.com/regents-ai/autolaunch-contracts) |
+| Patchbay | Agent tool reports and bounded WebMCP repair | [patchbay.help](https://patchbay.help) | [Patchbay](https://github.com/regents-ai/patchbay) |
+| Techtree | Controlled Skill evaluations and verifiable results | [techtree.sh](https://techtree.sh) | [Techtree](https://github.com/regents-ai/techtree) |
+
+Each product owns its API, CLI and authorization. A login, payment or published
+result on one product does not grant permissions on another. Shared presentation
+lives in [design-system](https://github.com/regents-ai/design-system); common Elixir
+libraries live in [elixir-utils](https://github.com/regents-ai/elixir-utils).
+
+<details>
+<summary>Contract specification, verification and deployment gates</summary>
 
 ## Regents Autolaunch Contracts
 
@@ -51,33 +83,6 @@ audit gates pass.
 > `bin/gate.sh`, materializing the pinned toolchain over the network first so the gate itself
 > stays offline. Until a hosted run has been observed and reviewed, a local `bin/gate.sh` is
 > the whole evidence, and no CI-green claim is made anywhere in this repository.
-
-## Where this sits
-
-```text
-  client surfaces
-    ios                               mobile app, wallet, action signing
-    regents-cli                       operator control surface
-    regents-techtree-hermes-plugin    Hermes mission-control tab
-                    │
-                    ▼
-  platform
-    ash-platform                      Phoenix, LiveView, Ash: web, API, product domains
-                    │
-                    ▼
-  services and chain
-    siwa-server                       agent request signing, nonce and replay state
-    media-web                         hosted card images and video
-    fly-sentinel                      operator health checks
-    regent-contracts                  canonical Solidity, ABIs, deployment records
-    autolaunch-contracts              frozen Autolaunch V1 Solidity   ◀ this repository
-
-  shared libraries and standalone tools
-    elixir-utils                      SIWA, ENS, XMTP, cache, Credo checks
-    design-system                     tokens and regent_ui components
-    python-cli                        offline Techtree skill-tree inspection
-    videocontrol                      video project and timeline workflows
-```
 
 ## The three gates
 
@@ -369,23 +374,8 @@ the control surface at block `50754918`, all byte-identical to the prior packet,
 held them and simulated the exact script against a read-only fork with nothing broadcast. Status
 stays mainnet NO-GO.
 
-## The other repositories
-
-| Repository | What it is | What it deliberately does not do |
-| --- | --- | --- |
-| `ash-platform` | The Phoenix, LiveView, and Ash application: public web pages, the HTTP API, product domains, human identity, billing, and the Techtree and Autolaunch product areas. | It does not hold Solidity source or user signing keys; wallet actions remain browser-signed. |
-| `design-system` | The shared Regent visual language: the style guide, design tokens, logos, fonts, and the `regent_ui` Phoenix component library. | Shared components never own product workflow state, authorisation decisions, money movement, or product database behaviour. |
-| `elixir-utils` | A collection of standalone Elixir libraries used across the family: SIWA, ENS, XMTP, a cache, agentbook helpers, and the in-house `credo_ash` lint checks. | Each package is a library only; none of them runs a service or holds product behaviour. |
-| `fly-sentinel` | A small Phoenix service that reports Fly.io observability and operator preview checks. | It observes and reports; it does not deploy, scale, or change any other application. |
-| `ios` | The Expo and React Native mobile app: the mobile wallet, action signing, and mobile Regent records. | It consumes the platform HTTP contracts and owns no server-side product logic. |
-| `media-web` | A standalone Phoenix service that serves hosted Regents card images and video files from `media.regents.sh`. | It only serves bytes over HTTP; it holds no identity, database, or product logic. |
-| `python-cli` | The installable `regents-techtree` Python package, whose shipped surface is a deterministic offline inspection of one champion/challenger skill-tree pair. | It does not evaluate or execute an agent, and it makes no network calls once its locked dependencies are installed. |
-| `regent-contracts` | The canonical home for Regent Solidity source, Foundry tests, deployment scripts, verified deployment records, ABIs, and the chain-contract manifest. | It holds no HTTP or CLI contracts, Ash resources, workflow logic, UI, or projection workers. |
-| `regents-cli` | The operator control surface: the `regents` command line tool, its generated bindings, and its local runtime. | It drives the platform over published contracts and owns no product database or on-chain authority. |
-| `regents-techtree-hermes-plugin` | The Hermes plugin that presents Techtree mission control across Forge, Techtree Verify, and Uplift. | It is presentation only: no second task store, no private Verify database, no identity model, no payment system, and no Hermes runtime of its own. |
-| `siwa-server` | The shared Sign-In With Anything service for signed agent requests, nonce and replay state, and internal keyring endpoints. | It owns no product data or product authorization policy. |
-| `videocontrol` | A separate product: video project workflows, timeline editing, preview rendering, and Codex plugin media control. | It shares the house style but no runtime, database, or contract with the Regent platform. |
-
 ## License
 
 MIT — see [LICENSE](LICENSE). Dependencies under `lib/` keep their own licenses.
+
+</details>

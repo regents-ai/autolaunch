@@ -15,3 +15,7 @@ Own autolaunch.sh and its product contracts in this monorepo.
   boundaries. Every wallet-button press reaches the wallet. Never read `.env`,
   `.env.local` or `.envrc`; no publishing, production access or deployment without
   applicable founder authority.
+
+For product orientation and related Regent products, see [README.md](README.md).
+The public agent entry point is [platform/priv/static/llms.txt](platform/priv/static/llms.txt);
+keep its advertised commands consistent with the owning CLI and HTTP contracts.
