@@ -1,5 +1,15 @@
 import Config
 
+database_schema = System.get_env("AUTOLAUNCH_DB_SCHEMA", "public")
+
+unless database_schema in ["public", "autolaunch_app"] do
+  raise "AUTOLAUNCH_DB_SCHEMA must be public or autolaunch_app"
+end
+
+config :autolaunch, Autolaunch.Repo,
+  default_prefix: database_schema,
+  migration_default_prefix: database_schema
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration

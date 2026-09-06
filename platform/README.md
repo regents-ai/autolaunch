@@ -15,6 +15,21 @@ portfolio views, a public JSON API and matching browser-tool adapters. See the
 An implemented route does not establish a deployed or activated mainnet launch;
 the contract gates and release configuration remain authoritative.
 
+## Shared database namespace
+
+`AUTOLAUNCH_DB_SCHEMA` defaults to `public` for ordinary development and tests.
+The shared-database cutover selects `autolaunch_app` after importing a complete
+schema and its migration ledger. With no existing Autolaunch source tables,
+initialize the historical migrations in an isolated staging database first, then
+relocate and preserve that whole schema. Regents' historical `autolaunch` schema
+remains separate.
+
+The release migration and status commands preserve this selection when switching
+to `DATABASE_DIRECT_URL`. They read the selected ledger; migration refuses missing
+historical entries. Do not run unprefixed `mix ecto.*` commands against the shared
+database or regenerate migrations without reconciling the imported snapshot baseline.
+Runtime grants, production cutover and contract activation remain separate work.
+
 ## Shared dependencies
 
 From a directory containing sibling product repositories, acquire the shared libraries:

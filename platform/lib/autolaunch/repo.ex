@@ -3,6 +3,14 @@ defmodule Autolaunch.Repo do
     otp_app: :autolaunch
 
   @impl true
+  def default_prefix do
+    Application.get_env(:autolaunch, __MODULE__, []) |> Keyword.get(:default_prefix, "public")
+  end
+
+  @impl true
+  def default_options(_operation), do: [prefix: default_prefix()]
+
+  @impl true
   def installed_extensions do
     ["ash-functions"]
   end

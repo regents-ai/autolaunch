@@ -2,10 +2,15 @@ defmodule Autolaunch.Release do
   @moduledoc false
 
   @app :autolaunch
+  @imported_through 20_260_904_001_517
   @missing_migration_table_error "no schema_migrations table: the database has never been migrated"
 
   def migration_config! do
     Autolaunch.DatabaseConfig.release_config!()
+    |> Keyword.merge(
+      default_prefix: Autolaunch.Repo.default_prefix(),
+      migration_default_prefix: Autolaunch.Repo.default_prefix()
+    )
   end
 
   def migrate do
@@ -13,7 +18,8 @@ defmodule Autolaunch.Release do
     Application.put_env(@app, Autolaunch.Repo, migration_config!())
 
     Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
-      Ecto.Migrator.run(repo, migrations_path(), :up, all: true)
+      require_imported_history!(repo)
+      Ecto.Migrator.run(repo, migrations_path(), :up, all: true, prefix: repo.default_prefix())
     end)
   end
 
@@ -55,7 +61,11 @@ defmodule Autolaunch.Release do
 
   defp read_migration_status(repo, path) do
     {:ok,
-     Ecto.Migrator.migrations(repo, [path], skip_table_creation: true, migration_lock: false)}
+     Ecto.Migrator.migrations(repo, [path],
+       prefix: repo.default_prefix(),
+       skip_table_creation: true,
+       migration_lock: false
+     )}
   rescue
     error in Postgrex.Error ->
       if undefined_migration_table?(error, migration_source(repo)) do
@@ -100,6 +110,21 @@ defmodule Autolaunch.Release do
   end
 
   defp migration_source(repo), do: repo.config()[:migration_source] || "schema_migrations"
+
+  defp require_imported_history!(repo) do
+    if repo.default_prefix() != "public" do
+      incomplete? =
+        repo
+        |> migration_status(migrations_path())
+        |> Enum.any?(fn {status, version, _name} ->
+          status == :down and version <= @imported_through
+        end)
+
+      if incomplete? do
+        raise "Import the complete Autolaunch schema and migration history before migrating"
+      end
+    end
+  end
 
   defp load_app do
     case Application.load(@app) do

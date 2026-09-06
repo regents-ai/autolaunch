@@ -503,7 +503,7 @@ defmodule Autolaunch.Indexer.Ledger do
     # column is built above, so no change or validation is being skipped, and
     # these rows are only ever written from inside this module.
     Repo.insert_all(resource, rows,
-      prefix: AshPostgres.DataLayer.Info.schema(resource),
+      prefix: AshPostgres.DataLayer.Info.schema(resource) || Repo.default_prefix(),
       on_conflict: :nothing,
       conflict_target: conflict_target
     )
