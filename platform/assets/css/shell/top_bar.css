@@ -1,10 +1,12 @@
 .shell-top {
+  position: relative;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: 3.5rem;
   padding: var(--space-2) var(--space-4);
-  background: var(--color-surface);
+  background: color-mix(in oklab, var(--color-surface) 78%, transparent);
   border-block-end: 1px solid var(--color-border);
 }
 
@@ -25,12 +27,14 @@
 
 .shell-search__input {
   width: 100%;
+  max-width: 42rem;
   min-width: 0;
   min-height: 2.75rem;
-  padding: var(--space-2) var(--space-3);
+  margin-inline: auto;
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-bg) 70%, transparent);
   color: var(--color-fg);
   font-size: 1rem;
 }

@@ -62,4 +62,37 @@ defmodule AutolaunchWeb.TokenLiveTest do
     assert has_element?(hidden_view, "#autolaunch-token-detail", "Token not found")
     refute hidden_html =~ "Hidden Token"
   end
+
+  test "a listed token detail shows verified profile and company X", %{conn: conn} do
+    account = TestSupport.register_creator!()
+
+    auction =
+      TestSupport.project_auction(
+        title: "Linked token",
+        summary: "A public research launch.",
+        symbol: "LNK",
+        state: :graduated,
+        creator_human_account_id: account.id
+      )
+
+    token =
+      TestSupport.project_token(
+        auction_id: auction.id,
+        name: "Linked Token",
+        symbol: "LNK",
+        subject_id: "subject:linked-token-detail",
+        graduated_at: DateTime.utc_now()
+      )
+
+    TestSupport.verify_x!(account, :profile, username: "alice")
+    TestSupport.verify_x!(account, :company, username: "alicedao")
+
+    {:ok, view, _html} = live(conn, "/tokens/#{token.id}")
+    html = render_async(view)
+
+    assert html =~ "@alice"
+    assert html =~ "@alicedao"
+    assert html =~ ~s(href="https://x.com/alice")
+    assert html =~ ~s(href="https://x.com/alicedao")
+  end
 end

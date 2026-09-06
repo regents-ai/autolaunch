@@ -234,13 +234,28 @@
   white-space: nowrap;
 }
 
+.launchpad-card__metric {
+  color: var(--color-fg);
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.launchpad-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  color: var(--color-fg-muted);
+  font-size: 0.78rem;
+}
+
 .launchpad-card__title > span,
-.launchpad-card__body p,
+.launchpad-card__summary,
 .launchpad-card__body dt {
   color: var(--color-fg-muted);
 }
 
-.launchpad-card__body p {
+.launchpad-card__summary {
   display: -webkit-box;
   min-height: 2.8em;
   overflow: hidden;
@@ -598,9 +613,9 @@
     padding: 0.75rem;
   }
 
-  .launchpad-card__body p,
-  .launchpad-card__body dl,
-  .launchpad-card__socials {
+  .launchpad-card__summary,
+  .launchpad-card__meta,
+  .launchpad-card__body dl {
     display: none;
   }
 

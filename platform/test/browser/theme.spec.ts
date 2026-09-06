@@ -19,7 +19,7 @@ for (const theme of [DARK, LIGHT]) {
 
       await expect(page.locator("html")).toHaveAttribute("data-brand", "autolaunch")
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme.scheme)
-      await expect(page.locator("body")).toHaveCSS("background-color", theme.background)
+      await expect(page.locator("html")).toHaveCSS("background-color", theme.background)
       await expect(page.locator("body")).toHaveCSS("color", theme.text)
     })
   })
@@ -32,11 +32,11 @@ test.describe("a reader who changes the system theme", () => {
     await page.goto("/")
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", LIGHT.scheme)
-    await expect(page.locator("body")).toHaveCSS("background-color", LIGHT.background)
+    await expect(page.locator("html")).toHaveCSS("background-color", LIGHT.background)
 
     await page.emulateMedia({colorScheme: DARK.scheme})
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", DARK.scheme)
-    await expect(page.locator("body")).toHaveCSS("background-color", DARK.background)
+    await expect(page.locator("html")).toHaveCSS("background-color", DARK.background)
   })
 })

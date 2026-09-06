@@ -2,6 +2,9 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.MarketCard
+  import AutolaunchWeb.Components.TokenLinks, only: [regent_market_links: 1]
+
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
   alias Autolaunch.Lab
@@ -10,13 +13,33 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def read_index(reader) do
     case reader.() do
-      {:ok, records} -> {:ok, %{records: records}}
-      {:error, _reason} -> {:error, :unavailable}
+      {:ok, records} ->
+        {:ok, %{records: records, creators: creator_connections_for(records)}}
+
+      {:error, _reason} ->
+        {:error, :unavailable}
     end
   end
 
+  def creator_connections_for(records) when is_list(records) do
+    ids =
+      records
+      |> Enum.map(&creator_id/1)
+      |> Enum.filter(&is_integer/1)
+      |> Enum.uniq()
+
+    case XOAuth.public_for_humans(ids) do
+      {:ok, connections} -> group_x_connections(connections)
+      {:error, _reason} -> %{}
+    end
+  end
+
+  def grouped_connections(%{ok?: true, result: grouped}) when is_map(grouped), do: grouped
+  def grouped_connections(_creators), do: %{}
+
   attr :kind, :atom, required: true, values: [:auctions, :tokens]
   attr :records, :map, required: true
+  attr :creators, :map, required: true
 
   def collection(assigns) do
     assigns =
@@ -46,6 +69,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <p class="autolaunch-kicker">Browse the market</p>
         <h1>{@title}</h1>
         <p>{@copy}</p>
+        <.regent_market_links :if={@kind == :auctions} />
       </header>
       <section
         :if={@records.ok? && @records.result == []}
@@ -57,13 +81,20 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <.link href={@empty_path}>{@empty_action} <span aria-hidden="true">→</span></.link>
       </section>
       <.empty_state :if={@records.failed} copy="Public records are unavailable right now." />
-      <.market_feed
-        :if={@records.ok? && @records.result != []}
-        title={@title}
-        kind={collection_record_kind(@kind)}
-        records={@records.result}
-        empty_copy=""
-      />
+      <div :if={@records.ok? && @records.result != []} class="home-coin-grid">
+        <div :for={record <- @records.result}>
+          <.autolaunch_market_card
+            kind={collection_record_kind(@kind)}
+            record={record}
+            creator_connections={connections_for(record, grouped_connections(@creators))}
+          />
+          <.treasury_security
+            :if={!Lab.enabled?()}
+            report={report(record)}
+            surface={"overview-#{@kind}-#{record.id}"}
+          />
+        </div>
+      </div>
     </section>
     """
   end
@@ -428,23 +459,8 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       settlements: []
     }
 
-  defp creator_connections(record) do
-    case creator_id(record) do
-      id when is_integer(id) ->
-        case XOAuth.public_for_humans([id]) do
-          {:ok, connections} ->
-            connections
-            |> group_x_connections()
-            |> Map.get(id, %{})
-
-          {:error, _reason} ->
-            %{}
-        end
-
-      _missing ->
-        %{}
-    end
-  end
+  defp creator_connections(record),
+    do: connections_for(record, creator_connections_for(List.wrap(record)))
 
   defp creator_id(%{creator_human_account_id: id}), do: id
   defp creator_id(%{auction: %{creator_human_account_id: id}}), do: id

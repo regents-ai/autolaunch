@@ -2,6 +2,15 @@
  * has any components. html and body already take their ground, their text and
  * their family from regent.css, so nothing here repeats that. */
 
+html[data-brand="autolaunch"] {
+  background-color: var(--color-bg);
+
+}
+
+html[data-brand="autolaunch"] body {
+  background: transparent;
+}
+
 h1,
 h2,
 h3,
@@ -29,7 +38,7 @@ a {
 }
 
 :focus-visible {
-  outline: 2px solid var(--glass-text-accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 

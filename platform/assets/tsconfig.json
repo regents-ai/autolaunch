@@ -9,5 +9,6 @@
     "types": ["vitest/globals"],
     "noEmit": true
   },
-  "include": ["js/**/*.ts", "js/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"]
+  "include": ["js/**/*.ts", "js/**/*.tsx", "js/**/*.d.ts", "test/**/*.ts", "test/**/*.tsx"],
+  "exclude": ["js/optics/**"]
 }

@@ -27,4 +27,5 @@ declare module "node:zlib" {
 
 interface Window {
   liveSocket: import("phoenix_live_view").LiveSocket
+  AutolaunchOptics?: Record<string, unknown>
 }

@@ -90,7 +90,13 @@ config :esbuild,
     args:
       ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+    env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
+  ],
+  autolaunch_crown: [
+    args:
+      ~w(js/crown_island.js --bundle --format=iife --target=es2022 --outdir=../priv/static/assets/js --alias:@=.),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Mix.Project.deps_path(), Mix.Project.build_path()]}
   ]
 
 # Configure Elixir's Logger

@@ -3,102 +3,113 @@ defmodule AutolaunchWeb.HomeLive do
 
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.AutolaunchHelpers, only: [empty_market_copy: 2]
+  import AutolaunchWeb.Components.AutolaunchHelpers,
+    only: [
+      connections_for: 2,
+      creator_connections_for: 1,
+      empty_market_copy: 2,
+      grouped_connections: 1
+    ]
+
   import AutolaunchWeb.Components.MarketCard
+  import AutolaunchWeb.Components.TokenLinks, only: [regent_market_links: 1]
 
   def mount(_params, _session, socket), do: {:ok, socket}
 
   def handle_params(params, _uri, socket) do
     query = normalize_query(params["q"])
-    auction_filter = auction_filter(params["auctions"])
+    market_view = market_view(params)
 
     {:noreply,
      socket
      |> assign(:search_query, query)
-     |> assign(:auction_filter, auction_filter)
-     |> assign_async([:auctions, :tokens], fn -> load_sections(query, auction_filter) end)}
+     |> assign(:market_view, market_view)
+     |> assign(:listing_kind, listing_kind(market_view))
+     |> assign_async([:listings, :creators], fn -> load_listings(query, market_view) end)}
   end
 
   def render(assigns) do
     ~H"""
     <main class="home-page launchpad-home">
-      <section class="home-create" aria-labelledby="home-create-title">
-        <h1 id="home-create-title">Create an auction</h1>
-        <.link navigate={~p"/create"} class="home-create__action">Create an auction</.link>
-      </section>
-
-      <nav class="home-filters" aria-label="Market filters">
-        <div class="home-filters__group">
-          <p>Auctions</p>
+      <header class="home-explore">
+        <div
+          id="autolaunch-crown"
+          class="home-crown"
+          phx-hook="Optics"
+          phx-update="ignore"
+          data-optics-kind="crown"
+          data-optics-source={~p"/assets/js/crown_island.js"}
+          data-crown-variant="4"
+          aria-hidden="true"
+        >
+          <canvas
+            id="autolaunch-crown-canvas"
+            class="home-crown__canvas"
+            data-optics-canvas
+            data-crown-variant="4"
+          ></canvas>
+        </div>
+        <p class="home-explore__kicker">Autolaunch</p>
+        <h1 id="home-explore-title">Explore coins</h1>
+        <nav class="home-filters" aria-label="Market filters">
           <.link
             patch={home_path(@search_query, :active)}
             class="home-chip"
-            aria-current={if @auction_filter == :active, do: "true"}
+            aria-current={if @market_view == :active, do: "true"}
           >
             Active
           </.link>
           <.link
             patch={home_path(@search_query, :new)}
             class="home-chip"
-            aria-current={if @auction_filter == :new, do: "true"}
+            aria-current={if @market_view == :new, do: "true"}
           >
             New
           </.link>
-        </div>
-        <div class="home-filters__group">
-          <p>Tokens</p>
           <.link
-            patch={home_path(@search_query, @auction_filter)}
+            patch={home_path(@search_query, :tokens)}
             class="home-chip"
-            aria-current="true"
+            aria-current={if @market_view == :tokens, do: "true"}
           >
-            New
+            Tokens
           </.link>
-        </div>
-      </nav>
+          <.link navigate={~p"/create"} class="home-chip home-chip--create">Create</.link>
+        </nav>
+        <.regent_market_links />
+      </header>
 
-      <section id="home-auctions" class="launchpad-section" aria-labelledby="home-auctions-title">
-        <header>
-          <h2 id="home-auctions-title">{if @auction_filter == :new, do: "New auctions", else: "Active auctions"}</h2>
-        </header>
-        <p :if={@auctions.ok? && @auctions.result == []} class="launchpad-section__empty">
-          {empty_market_copy(@search_query, "No auctions yet.")}
+      <section id="home-market" class="home-market" aria-labelledby="home-explore-title">
+        <p :if={@listings.ok? && @listings.result == []} class="home-market__empty">
+          {empty_copy(@search_query, @market_view)}
         </p>
-        <div :if={@auctions.ok? && @auctions.result != []} class="launchpad-card-grid">
+        <div :if={@listings.ok? && @listings.result != []} class="home-coin-grid">
           <.autolaunch_market_card
-            :for={auction <- @auctions.result}
-            kind={:auction}
-            record={auction}
+            :for={record <- @listings.result}
+            kind={@listing_kind}
+            record={record}
+            creator_connections={connections_for(record, grouped_connections(@creators))}
           />
-        </div>
-      </section>
-
-      <section id="home-tokens" class="launchpad-section" aria-labelledby="home-tokens-title">
-        <header>
-          <h2 id="home-tokens-title">Tokens</h2>
-        </header>
-        <p :if={@tokens.ok? && @tokens.result == []} class="launchpad-section__empty">
-          {empty_market_copy(@search_query, "No tokens yet.")}
-        </p>
-        <div :if={@tokens.ok? && @tokens.result != []} class="launchpad-card-grid">
-          <.autolaunch_market_card :for={token <- @tokens.result} kind={:token} record={token} />
         </div>
       </section>
     </main>
     """
   end
 
-  defp load_sections(query, auction_filter) do
-    {:ok,
-     %{
-       auctions: read_list(fn -> list_auctions(query, auction_filter) end),
-       tokens: read_list(fn -> Autolaunch.list_graduated_launchpad_tokens(query) end)
-     }}
+  defp load_listings(query, market_view) do
+    records = read_list(fn -> list_records(query, market_view) end)
+    {:ok, %{listings: records, creators: creator_connections_for(records)}}
   end
 
-  defp list_auctions(query, :active), do: Autolaunch.list_active_launchpad_auctions(query)
-  defp list_auctions("", :new), do: Autolaunch.list_recent_auctions()
-  defp list_auctions(query, :new), do: Autolaunch.list_explore_launchpad_auctions(query)
+  defp list_records(query, :tokens), do: Autolaunch.list_graduated_launchpad_tokens(query)
+  defp list_records(query, :active), do: Autolaunch.list_active_launchpad_auctions(query)
+  defp list_records("", :new), do: Autolaunch.list_recent_auctions()
+  defp list_records(query, :new), do: Autolaunch.list_explore_launchpad_auctions(query)
+
+  defp listing_kind(:tokens), do: :token
+  defp listing_kind(_view), do: :auction
+
+  defp empty_copy(query, :tokens), do: empty_market_copy(query, "No tokens yet.")
+  defp empty_copy(query, _view), do: empty_market_copy(query, "No auctions yet.")
 
   defp read_list(reader) do
     case reader.() do
@@ -107,8 +118,10 @@ defmodule AutolaunchWeb.HomeLive do
     end
   end
 
-  defp auction_filter("new"), do: :new
-  defp auction_filter(_value), do: :active
+  defp market_view(%{"view" => "tokens"}), do: :tokens
+  defp market_view(%{"view" => "new"}), do: :new
+  defp market_view(%{"auctions" => "new"}), do: :new
+  defp market_view(_params), do: :active
 
   defp normalize_query(query) when is_binary(query) do
     query
@@ -120,17 +133,21 @@ defmodule AutolaunchWeb.HomeLive do
 
   defp normalize_query(_query), do: ""
 
-  defp home_path(query, filter) do
+  defp home_path(query, view) do
     params =
       []
       |> maybe_put("q", query)
-      |> maybe_put("auctions", if(filter == :new, do: "new"))
+      |> maybe_put("view", view_param(view))
 
     case params do
       [] -> "/"
       params -> "/?" <> URI.encode_query(params)
     end
   end
+
+  defp view_param(:new), do: "new"
+  defp view_param(:tokens), do: "tokens"
+  defp view_param(:active), do: nil
 
   defp maybe_put(params, _key, value) when value in [nil, ""], do: params
   defp maybe_put(params, key, value), do: params ++ [{key, value}]

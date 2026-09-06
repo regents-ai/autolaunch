@@ -52,6 +52,8 @@ defmodule AutolaunchWeb.BidLiveTest do
 
     assert has_element?(view, "#{@panel}[phx-hook='AutolaunchBidWallet']")
     assert has_element?(view, ".bid-wallet dd", "100")
+    assert has_element?(view, "#regent-buy", "Buy REGENT")
+    assert has_element?(view, "#regent-chart", "View REGENT Chart")
 
     view
     |> form("#autolaunch-bid-form", %{amount: "12.5", max_price: "3"})
@@ -129,9 +131,12 @@ defmodule AutolaunchWeb.BidLiveTest do
     Application.delete_env(:autolaunch, :autolaunch_bid_chain_client)
     view = mount_bidder(conn, auction)
 
-    assert render(view) =~ "Bidding is not open on this auction yet."
+    html = render(view)
+    assert html =~ "Bidding is not open on this auction yet."
     refute has_element?(view, "#autolaunch-bid-form")
-    refute render(view) =~ "Confirm in wallet"
+    refute html =~ "Confirm in wallet"
+    assert has_element?(view, "#regent-buy", "Buy REGENT")
+    assert has_element?(view, "#regent-chart", "View REGENT Chart")
   end
 
   test "ONE_SENDABLE_STEP: the browser is handed only the step the server just claimed", %{

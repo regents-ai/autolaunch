@@ -19,7 +19,7 @@ defmodule AutolaunchWeb do
 
   def static_paths,
     do:
-      ~w(assets api-contract.openapiv3.yaml apple-touch-icon.png favicon.svg favicon-32.png favicon-192.png robots.txt llms.txt)
+      ~w(assets images fonts api-contract.openapiv3.yaml apple-touch-icon.png favicon.svg favicon-32.png favicon-192.png robots.txt llms.txt)
 
   def router do
     quote do
@@ -52,7 +52,7 @@ defmodule AutolaunchWeb do
     quote do
       use Phoenix.LiveView, layout: {AutolaunchWeb.Layouts, :app}
 
-      on_mount({AutolaunchWeb.Live.Session, :shell})
+      on_mount {AutolaunchWeb.Live.Session, :shell}
 
       unquote(html_helpers())
     end

@@ -35,6 +35,8 @@
 }
 
 .account-control__sign-in {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
   font-weight: var(--font-weight-semibold);
 }
 

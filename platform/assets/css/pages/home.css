@@ -1,81 +1,157 @@
 .home-page {
+  position: relative;
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
 }
 
-.home-create {
+.home-crown {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 0;
+  width: min(42vw, 28rem);
+  height: 100%;
+  min-height: 12rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.home-crown[data-optics-ready="true"] {
+  opacity: 1;
+}
+
+.home-crown__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.home-explore,
+.home-market {
+  position: relative;
+  z-index: 1;
+}
+
+.home-explore {
+  position: relative;
   display: grid;
   justify-items: start;
   gap: var(--space-4);
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  padding-inline-end: min(42vw, 28rem);
+  min-height: 12rem;
 }
 
-.home-create h1 {
+.home-explore__kicker {
   margin: 0;
+  color: var(--color-accent);
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.home-create__action {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: var(--color-fg-on-accent);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
+.home-explore h1 {
+  margin: 0;
+  color: var(--color-fg);
+  font-family: var(--font-family-title, "Iowan Old Style", Palatino, Georgia, serif);
+  font-size: clamp(2.4rem, 6vw, 4.4rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 
 .home-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
-.home-filters__group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   gap: var(--space-2);
-}
-
-.home-filters__group p {
-  margin: 0;
-  color: var(--color-fg-muted);
 }
 
 .home-chip {
   display: inline-flex;
   align-items: center;
   min-height: 2.25rem;
-  padding: var(--space-1) var(--space-3);
+  padding: 0.35rem 0.85rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-surface) 72%, transparent);
   color: var(--color-fg);
+  font-family: var(--font-family-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
   text-decoration: none;
 }
 
-.home-chip[aria-current="true"] {
+.home-chip[aria-current="true"],
+.home-chip--create {
   border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-fg-on-accent);
   font-weight: var(--font-weight-semibold);
 }
 
+.home-market {
+  min-width: 0;
+}
+
+.home-market__empty {
+  min-height: 8rem;
+  margin: 0;
+  padding: 2.5rem 1rem;
+  color: var(--color-fg-muted);
+  text-align: center;
+}
+
+.home-coin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(12.5rem, 100%), 1fr));
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.home-coin-grid .launchpad-card {
+  border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--color-surface) 82%, transparent);
+}
+
+.home-coin-grid .launchpad-card__socials {
+  padding: 0 0.75rem 0.75rem;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .home-create__action:hover {
-    background: var(--color-accent-hover);
-  }
-
   .home-chip:hover {
-    background: color-mix(in oklab, var(--color-fg) 6%, var(--color-surface));
+    background: color-mix(in oklab, var(--color-fg) 8%, var(--color-surface));
   }
 
-  .home-chip[aria-current="true"]:hover {
+  .home-chip[aria-current="true"]:hover,
+  .home-chip--create:hover {
     background: var(--color-accent-hover);
+    color: var(--color-fg-on-accent);
+  }
+}
+
+@media (max-width: 48rem) {
+  .home-explore {
+    padding-inline-end: 0;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 40rem) {
+  .home-coin-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 25rem) {
+  .home-coin-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-crown {
+    transition: none;
   }
 }

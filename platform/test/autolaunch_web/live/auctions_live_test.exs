@@ -12,6 +12,14 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     assert html =~ "No auctions yet"
     assert html =~ "Start the first launch and it will appear here for bidders."
     assert html =~ ~s(href="/create")
+    assert html =~ ~s(id="regent-buy")
+    assert html =~ ~s(href="#{AutolaunchWeb.Components.TokenLinks.buy()}")
+    assert html =~ "Buy REGENT"
+    assert html =~ ~s(id="regent-chart")
+    assert html =~ ~s(href="#{AutolaunchWeb.Components.TokenLinks.chart()}")
+    assert html =~ "View REGENT Chart"
+    assert html =~ ~s(target="_blank")
+    assert html =~ ~s(rel="noopener noreferrer")
   end
 
   test "the listed auctions index shows a site-created row and hides a nil-creator row", %{
@@ -28,5 +36,27 @@ defmodule AutolaunchWeb.AuctionsLiveTest do
     assert html =~ ~s(href="/auctions/#{visible.id}")
     refute html =~ hidden_id
     refute html =~ "Hidden"
+  end
+
+  test "verified profile and company X appear on the auctions index", %{conn: conn} do
+    account = TestSupport.register_creator!()
+
+    TestSupport.project_auction(
+      title: "Linked launch",
+      state: :active,
+      creator_human_account_id: account.id
+    )
+
+    TestSupport.verify_x!(account, :profile, username: "alice")
+    TestSupport.verify_x!(account, :company, username: "alicedao")
+
+    {:ok, view, _html} = live(conn, ~p"/auctions")
+    html = render_async(view)
+
+    assert html =~ "Linked launch"
+    assert html =~ "@alice"
+    assert html =~ "@alicedao"
+    assert html =~ ~s(href="https://x.com/alice")
+    assert html =~ ~s(href="https://x.com/alicedao")
   end
 end

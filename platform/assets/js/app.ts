@@ -16,6 +16,7 @@ import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {XConnections} from "./hooks/x_connections"
+import {Optics} from "./optics_controller.js"
 import {installPublicTools} from "./public_tools"
 
 const hooks = {
@@ -24,6 +25,7 @@ const hooks = {
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchSubjectWallet,
+  Optics,
   XConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

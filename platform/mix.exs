@@ -40,6 +40,8 @@ defmodule Autolaunch.MixProject do
   #
   # Type `mix help deps` for examples and options.
   defp deps do
+    shared = System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__))
+
     [
       {:phoenix, "~> 1.8.9"},
       {:phoenix_ecto, "~> 4.5"},
@@ -53,18 +55,8 @@ defmodule Autolaunch.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.2", only: [:dev, :test], runtime: false},
-      {:regent_privy,
-       path:
-         Path.join(
-           System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__)),
-           "elixir-utils/privy"
-         )},
-      {:regent_ui,
-       path:
-         Path.join(
-           System.get_env("REGENT_DEPS_ROOT", Path.expand("../..", __DIR__)),
-           "design-system/regent_ui"
-         )},
+      {:regent_privy, path: Path.join(shared, "elixir-utils/privy")},
+      {:regent_ui, path: Path.join(shared, "design-system/regent_ui")},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
@@ -104,9 +96,16 @@ defmodule Autolaunch.MixProject do
       setup: ["deps.get", "cmd npm ci", "ash.setup", "assets.setup", "assets.build"],
       test: ["ash.setup --quiet", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
-      "assets.build": ["compile", "esbuild autolaunch"],
+      "assets.build": [
+        "compile",
+        "regent_ui.assets",
+        "esbuild autolaunch",
+        "esbuild autolaunch_crown"
+      ],
       "assets.deploy": [
+        "regent_ui.assets",
         "esbuild autolaunch --minify",
+        "esbuild autolaunch_crown --minify",
         "phx.digest"
       ],
       "test.external": ["test --only external"],

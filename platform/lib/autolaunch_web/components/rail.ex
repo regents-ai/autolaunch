@@ -4,11 +4,11 @@ defmodule AutolaunchWeb.Components.Rail do
 
   @items [
     %{id: :home, label: "Home", path: "/", icon: :home},
-    %{id: :create, label: "Create", path: "/create", icon: :create},
     %{id: :auctions, label: "Auctions", path: "/auctions", icon: :auctions},
     %{id: :tokens, label: "Tokens", path: "/tokens", icon: :tokens},
     %{id: :portfolio, label: "Portfolio", path: "/portfolio", icon: :portfolio},
-    %{id: :regent, label: "REGENT", path: "/regent", icon: :regent}
+    %{id: :regent, label: "REGENT", path: "/regent", icon: :regent},
+    %{id: :create, label: "Create", path: "/create", icon: :create}
   ]
 
   attr :current_path, :string, required: true

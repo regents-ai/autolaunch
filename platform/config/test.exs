@@ -1,12 +1,14 @@
 import Config
+
+browser_port = String.to_integer(System.get_env("PORT", "4050"))
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # We don't run a server during test. The Playwright suite asks for one by
 # setting AUTOLAUNCH_BROWSER_TEST.
 config :autolaunch, AutolaunchWeb.Endpoint,
-  url: [host: "127.0.0.1", port: 4050],
-  http: [ip: {127, 0, 0, 1}, port: 4050],
-  check_origin: ["http://127.0.0.1:4050"],
+  url: [host: "127.0.0.1", port: browser_port],
+  http: [ip: {127, 0, 0, 1}, port: browser_port],
+  check_origin: ["http://127.0.0.1:#{browser_port}"],
   secret_key_base: "dE279MxKIvZfbwjSpb4wz+TRnO8doR91/kD/kxxXO9FIFvDeVF132xDj2X5J2/x5",
   server: System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1"
 

@@ -51,15 +51,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <h3>{@view.name}</h3>
         <span :if={present?(@view.symbol)}>${@view.symbol}</span>
       </div>
-      <p>{@view.description}</p>
-      <dl>
-        <div :if={present?(@view.metric)}>
-          <dt>{@view.metric_label}</dt><dd>{@view.metric}</dd>
-        </div>
-        <div :if={present?(@view.address)}>
-          <dt>Contract</dt><dd>{short_address(@view.address)}</dd>
-        </div>
-      </dl>
+      <p class="launchpad-card__metric">{present(@view.metric, "No price yet")}</p>
+      <p :if={present?(@view.creator) or present?(@view.age)} class="launchpad-card__meta">
+        <span :if={present?(@view.creator)}>{@view.creator}</span>
+        <span :if={present?(@view.age)}>{@view.age}</span>
+      </p>
+      <p class="launchpad-card__summary">{@view.description}</p>
     </div>
     """
   end
@@ -92,6 +89,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric: suffix(values["required_regent_raised"], " REGENT"),
       address: nil,
       path: nil,
+      creator: creator_name(connections),
+      age: nil,
       connections: connection_list(connections)
     }
   end
@@ -107,6 +106,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric: auction.current_clearing_price,
       address: auction.auction_address,
       path: "/auctions/#{auction.id}",
+      creator: creator_name(connections),
+      age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
       connections: connection_list(connections)
     }
   end
@@ -124,6 +125,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric: present(token.price_quote, "No price yet"),
       address: presentation.auction_address,
       path: "/tokens/#{token.id}",
+      creator: creator_name(connections),
+      age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections)
     }
   end
@@ -142,14 +145,33 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp verified?(_connection), do: false
 
+  defp creator_name(connections) do
+    connections
+    |> connection_list()
+    |> List.first()
+    |> case do
+      %{username: username} -> "@" <> username
+      _ -> nil
+    end
+  end
+
+  defp relative_age(%DateTime{} = at) do
+    seconds = DateTime.diff(DateTime.utc_now(), at, :second) |> max(0)
+
+    cond do
+      seconds < 60 -> "#{seconds}s"
+      seconds < 3_600 -> "#{div(seconds, 60)}m"
+      seconds < 86_400 -> "#{div(seconds, 3_600)}h"
+      true -> "#{div(seconds, 86_400)}d"
+    end
+  end
+
+  defp relative_age(_at), do: nil
+
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
   defp present(value, fallback), do: if(present?(value), do: value, else: fallback)
   defp suffix(value, suffix), do: if(present?(value), do: value <> suffix, else: nil)
 
-  defp short_address(value) when is_binary(value) and byte_size(value) == 42,
-    do: String.slice(value, 0, 6) <> "…" <> String.slice(value, -4, 4)
-
-  defp short_address(value), do: value
   defp role_label(:profile), do: "Creator"
   defp role_label(:company), do: "Company"
 end

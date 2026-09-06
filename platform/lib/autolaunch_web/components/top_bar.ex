@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.Components.TopBar do
           class="shell-search__input"
           type="search"
           name="q"
-          placeholder="Search auctions and tokens"
+          placeholder="Search for coins and users..."
           autocomplete="off"
         />
       </form>

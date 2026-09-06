@@ -21,8 +21,14 @@ defmodule AutolaunchWeb.RegentLiveTest do
     # The first render always carries the loading state; the live view may
     # already hold the facts by the time a query reaches it.
     assert html =~ "Reading the token."
+    assert has_element?(view, "#regent-buy", "Buy REGENT")
+    assert has_element?(view, "#regent-chart", "View REGENT Chart")
     assert has_element?(view, "#regent-stake", "Stake REGENT")
     assert has_element?(view, "#regent-redeem", "Redeem")
+    assert html =~ ~s(href="#{AutolaunchWeb.Components.TokenLinks.buy()}")
+    assert html =~ ~s(href="#{AutolaunchWeb.Components.TokenLinks.chart()}")
+    assert html =~ ~s(target="_blank")
+    assert html =~ ~s(rel="noopener noreferrer")
 
     render_async(view)
 
@@ -35,6 +41,8 @@ defmodule AutolaunchWeb.RegentLiveTest do
     assert has_element?(view, "#regent-total-staked", "250000 REGENT")
     assert has_element?(view, "#regent-block", "Read at block 32")
     assert has_element?(view, "main", "Every Autolaunch auction is quoted in REGENT.")
+    assert has_element?(view, "#regent-buy", "Buy REGENT")
+    assert has_element?(view, "#regent-chart", "View REGENT Chart")
     assert has_element?(view, "#regent-stake", "Stake REGENT")
     assert has_element?(view, "#regent-redeem", "Redeem")
   end
@@ -54,6 +62,8 @@ defmodule AutolaunchWeb.RegentLiveTest do
            )
 
     refute has_element?(view, "#regent-facts")
+    assert has_element?(view, "#regent-buy", "Buy REGENT")
+    assert has_element?(view, "#regent-chart", "View REGENT Chart")
     assert has_element?(view, "#regent-stake", "Stake REGENT")
     assert has_element?(view, "#regent-redeem", "Redeem")
     assert has_element?(view, "main", "Every Autolaunch auction is quoted in REGENT.")

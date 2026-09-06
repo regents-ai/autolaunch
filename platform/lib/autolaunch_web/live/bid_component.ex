@@ -14,6 +14,8 @@ defmodule AutolaunchWeb.BidComponent do
 
   use AutolaunchWeb, :live_component
 
+  import AutolaunchWeb.Components.TokenLinks, only: [regent_market_links: 1]
+
   alias Autolaunch
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidActions, Lab}
@@ -62,6 +64,7 @@ defmodule AutolaunchWeb.BidComponent do
       <header class="bid-heading">
         <h2>Place a bid</h2>
         <p>Bid REGENT for this launch. Your wallet confirms every step.</p>
+        <.regent_market_links />
       </header>
 
       <.notice :if={@notice} notice={@notice} />

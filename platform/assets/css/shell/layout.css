@@ -28,12 +28,16 @@
 }
 
 .shell-main {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
 }
 
 .shell-content {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   max-width: 100%;
   padding: var(--space-4);

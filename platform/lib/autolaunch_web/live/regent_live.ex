@@ -56,6 +56,22 @@ defmodule AutolaunchWeb.RegentLive do
       <p>Every Autolaunch auction is quoted in REGENT.</p>
 
       <nav class="regent-links">
+        <a
+          id="regent-buy"
+          href={AutolaunchWeb.Components.TokenLinks.buy()}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Buy REGENT <span aria-hidden="true">↗</span>
+        </a>
+        <a
+          id="regent-chart"
+          href={AutolaunchWeb.Components.TokenLinks.chart()}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View REGENT Chart <span aria-hidden="true">↗</span>
+        </a>
         <.link id="regent-stake" href="https://regents.sh/stake">Stake REGENT</.link>
         <.link id="regent-redeem" href="https://regents.sh/redeem">Redeem</.link>
       </nav>

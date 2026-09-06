@@ -2,7 +2,7 @@ defmodule Autolaunch.TestSupport do
   @moduledoc false
 
   alias Autolaunch.Accounts
-  alias Autolaunch.Actors.System
+  alias Autolaunch.Actors.{Human, System}
 
   @doc "Projects one Auction through `project_lab_auction` as the system actor."
   def project_auction(opts \\ []) do
@@ -154,6 +154,40 @@ defmodule Autolaunch.TestSupport do
       wallet,
       [wallet],
       actor: %System{}
+    )
+  end
+
+  @doc "Completes one verified profile or company X connection for a Human account."
+  def verify_x!(account, role, opts) do
+    opts = Map.new(opts)
+    username = Map.fetch!(opts, :username)
+    actor = %Human{human_account_id: account.id}
+
+    connection =
+      Accounts.begin_x_connection_attempt!(
+        %{
+          role: role,
+          attempt_state: "state-#{Ash.UUID.generate()}",
+          attempt_verifier: "verifier-#{Ash.UUID.generate()}",
+          attempt_generation: Ash.UUID.generate(),
+          attempt_expires_at: DateTime.add(DateTime.utc_now(), 600, :second),
+          intent_sequence: 1,
+          intent_generation: Ash.UUID.generate()
+        },
+        actor: actor
+      )
+
+    Accounts.complete_x_connection_attempt!(
+      connection,
+      %{
+        x_user_id: Map.get(opts, :x_user_id, "x-#{role}-#{account.id}"),
+        username: username,
+        display_name: Map.get(opts, :display_name, username),
+        avatar_url: Map.get(opts, :avatar_url),
+        verified_at: Map.get(opts, :verified_at, DateTime.utc_now()),
+        next_generation: Ash.UUID.generate()
+      },
+      actor: actor
     )
   end
 end

@@ -1,4 +1,5 @@
-@import "../../../design-system/regent_ui/assets/css/regent.css";
+@import "../vendor/regent_ui/regent.css";
+@import "../vendor/regent_ui/primitives.css";
 @import "./tokens/autolaunch.css";
 @import "./base.css";
 @import "./shell/layout.css";

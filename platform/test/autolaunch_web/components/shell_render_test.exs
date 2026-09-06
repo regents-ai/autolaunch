@@ -48,7 +48,7 @@ defmodule AutolaunchWeb.Components.ShellRenderTest do
     assert html =~ ~s(action="/")
     assert html =~ ~s(method="get")
     assert html =~ ~s(name="q")
-    assert html =~ "Search auctions and tokens"
+    assert html =~ "Search for coins and users..."
   end
 
   test "signed-out account control carries the auth_lazy sign-in contract" do
