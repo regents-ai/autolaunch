@@ -29,15 +29,20 @@ for git_context in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
 done
 unset git_context_value
 
+# The V1 project is the contracts/v1 component of the Autolaunch repository. The script root is
+# proved to be exactly that directory under the Git top level. Nothing is discovered from the
+# layout: a repository rooted at the component, a copy of this tree at the top level, or any other
+# directory is rejected here, before Git is consulted for anything else.
+component=contracts/v1
 cd "$(dirname "$0")/.."
 physical_root=$(pwd -P)
 git_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-    printf 'GATE FAIL: the physical script root is not a Git worktree\n' >&2
+    printf 'GATE FAIL: the physical script root is not inside a Git worktree\n' >&2
     exit 1
 }
 git_root=$(cd "$git_root" && pwd -P)
-[ "$git_root" = "$physical_root" ] || {
-    printf 'GATE FAIL: Git top level does not equal the physical script root\n' >&2
+[ "$git_root/$component" = "$physical_root" ] || {
+    printf 'GATE FAIL: the physical script root is not %s under the Git top level\n' "$component" >&2
     exit 1
 }
 cd "$physical_root"
@@ -65,6 +70,7 @@ slither_config=slither.config.json
 checker=bin/check-requirements.py
 freezer=bin/freeze-artifacts.py
 tooling_test=test/tooling/provider_output_scan_test.py
+component_root_test=test/tooling/component_root_test.py
 
 generated=reports/generated
 receipt_final="$generated/dependency-receipt.txt"
@@ -112,12 +118,17 @@ trap 'cleanup_unpublished_receipt; exit 1' HUP INT TERM
 # hidden index flags, and force every recursive submodule to expose ordinary and ignored dirt.
 # Generated Foundry/report roots are the only worktree-state exclusions.
 repository_snapshot() {
-    python3 - <<'PYTHON'
+    python3 - "$component" <<'PYTHON'
 import hashlib
 import os
 import stat
 import subprocess
 import sys
+
+# The proof covers the whole repository that contains the current directory, from its Git top
+# level. Only the named component's generated roots are excluded from worktree state.
+component = sys.argv[1]
+os.chdir(subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True, capture_output=True, text=True).stdout.rstrip("\n"))
 
 
 def run(args, cwd=".", text=False):
@@ -218,14 +229,17 @@ ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], tex
 if ordinary:
     problems.extend(ordinary.rstrip("\n").splitlines())
 
-scratch = (
-    b"reports/generated/",
-    b"cache/",
-    b"cache-fork/",
-    b"out/",
-    b"out-fork/",
-    b"artifacts/",
-    b"broadcast/",
+scratch = tuple(
+    component.encode() + b"/" + root
+    for root in (
+        b"reports/generated/",
+        b"cache/",
+        b"cache-fork/",
+        b"out/",
+        b"out-fork/",
+        b"artifacts/",
+        b"broadcast/",
+    )
 )
 ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
 for path in ignored:
@@ -321,9 +335,9 @@ section "Required material and tools"
 # ---------------------------------------------------------------------------
 
 for required_file in "$frozen" "$ledger" "$manifest" "$bindings" "$dispositions" \
-    "$threat_model" "$gas_doc" "$slither_config" "$checker" "$freezer" "$tooling_test" \
+    "$threat_model" "$gas_doc" "$slither_config" "$checker" "$freezer" "$tooling_test" "$component_root_test" \
     src/bindings/FrozenIdentity.sol \
-    SPEC.md .gitmodules foundry.toml reports/frozen/c4-runtime-baseline.json; do
+    SPEC.md "$git_root/.gitmodules" foundry.toml reports/frozen/c4-runtime-baseline.json; do
     [ -f "$required_file" ] || fail "required repository file is missing: $required_file"
 done
 
@@ -500,6 +514,16 @@ section "Provider-output scan tooling"
 python3 "$tooling_test"
 
 # ---------------------------------------------------------------------------
+section "Component-root tooling"
+# ---------------------------------------------------------------------------
+
+# The three gates refuse every script root except contracts/v1 under the Git top level, and the
+# checker reads the shared top-level .gitmodules as component-relative paths. Both boundaries are
+# shell and Python control flow around Git, so they are proved here against copies of the real
+# scripts in throwaway repositories. A failure is a gate failure.
+python3 "$component_root_test"
+
+# ---------------------------------------------------------------------------
 section "Provider-secret scan"
 # ---------------------------------------------------------------------------
 
@@ -508,7 +532,8 @@ section "Provider-secret scan"
 # integrity proof below.
 tested_commit=$(git rev-parse HEAD)
 tested_tree=$(git rev-parse 'HEAD^{tree}')
-tested_src=$(git rev-parse 'HEAD:src')
+# The receipt's src identity is this component's src/ tree, read at its one canonical path.
+tested_src=$(git rev-parse "HEAD:$component/src")
 {
     printf 'offline-tested-commit %s\n' "$tested_commit"
     printf 'offline-tested-tree %s\n' "$tested_tree"
@@ -530,7 +555,7 @@ require_clean_repository
     fail "tracked repository bytes changed during the offline gate"
 [ "$(git rev-parse HEAD)" = "$tested_commit" ] || fail "HEAD changed during the offline gate"
 [ "$(git rev-parse 'HEAD^{tree}')" = "$tested_tree" ] || fail "the tested tree changed during the offline gate"
-[ "$(git rev-parse 'HEAD:src')" = "$tested_src" ] || fail "the tested src tree changed during the offline gate"
+[ "$(git rev-parse "HEAD:$component/src")" = "$tested_src" ] || fail "the tested src tree changed during the offline gate"
 checker_cache=$(python3 -c 'import importlib.util; print(importlib.util.cache_from_source("bin/check-requirements.py"))')
 [ ! -e "$checker_cache" ] || fail "the offline gate left executable checker bytecode: $checker_cache"
 

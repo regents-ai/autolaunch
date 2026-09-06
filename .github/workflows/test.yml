@@ -3,33 +3,35 @@ name: gate
 on:
   push:
     paths:
-      - "**"
-      - "!cli/**"
-      - "!platform/**"
-      - "!docs/**"
-      - "docs/security/**"
-      - "docs/audit/**"
-      - "!README.md"
-      - "!AGENTS.md"
+      - "contracts/v1/**"
+      - "!contracts/v1/README.md"
+      - ".gitmodules"
+      - ".gitignore"
+      - ".github/workflows/test.yml"
   pull_request:
     paths:
-      - "**"
-      - "!cli/**"
-      - "!platform/**"
-      - "!docs/**"
-      - "docs/security/**"
-      - "docs/audit/**"
-      - "!README.md"
-      - "!AGENTS.md"
+      - "contracts/v1/**"
+      - "!contracts/v1/README.md"
+      - ".gitmodules"
+      - ".gitignore"
+      - ".github/workflows/test.yml"
 
-# The only check this workflow runs is bin/gate.sh. Every step before it materializes pinned
-# material over the network so the gate itself can stay offline and fail closed. Every
-# version comes from requirements/frozen-identity.json, never from a literal repeated here.
+# The only check this workflow runs is contracts/v1/bin/gate.sh, from contracts/v1. Every step
+# before it materializes pinned material over the network so the gate itself can stay offline
+# and fail closed. Every version comes from requirements/frozen-identity.json, never from a
+# literal repeated here.
 jobs:
   gate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/v1
     steps:
+      # Full history: the required gate's freezer proves the C4 baseline provenance by reading
+      # the capture commit and its parent as Git objects, which a depth-1 checkout lacks.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Read the frozen identity
         id: frozen
@@ -50,7 +52,8 @@ jobs:
           set -eu
           # The rewrite is required: one pinned upstream declares an SSH remote for
           # OpenZeppelin, which cannot be fetched here. Recursion is required: the frozen
-          # closure includes every nested gitlink, not only the root submodules.
+          # closure includes every nested gitlink, not only the root submodules. The
+          # submodules are declared in the top-level .gitmodules and live under this directory.
           git -c url."https://github.com/".insteadOf="git@github.com:" \
               submodule update --init --recursive
           git submodule status --recursive | wc -l

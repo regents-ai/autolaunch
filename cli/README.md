@@ -56,7 +56,7 @@ For optional checks against the real local Ash API, seed only an isolated databa
 
 ## Related products
 
-See the [product directory](https://github.com/regents-ai/autolaunch-contracts#related-products) for the other Regent CLIs and sites.
+See the [product directory](https://github.com/regents-ai/autolaunch#related-products) for the other Regent CLIs and sites.
 
 ## Shared personal profile
 

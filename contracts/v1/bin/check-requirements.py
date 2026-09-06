@@ -54,6 +54,14 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 
+# --- component root ----------------------------------------------------------
+
+# The V1 project is the contracts/v1 component of the Autolaunch repository. bin/gate.sh proves
+# the script root is exactly that directory and runs this checker from it. Every frozen path here
+# is component-relative; the one shared file read from outside the component, the top-level
+# .gitmodules, declares repository-relative paths and is mapped through this prefix.
+COMPONENT_PREFIX = "contracts/v1/"
+
 # --- ledger vocabulary -------------------------------------------------------
 
 GATES = ("hermetic", "invariant", "fork", "deployment")
@@ -368,6 +376,34 @@ def parse_manifest(path: Path) -> dict:
     return {"scalars": scalars, "bindings": bindings, "admission": admission}
 
 
+def component_toplevel(problems: Problems) -> str | None:
+    """Return the Git top level after proving this process runs from the component root."""
+    prefix = git("rev-parse", "--show-prefix")
+    toplevel = git("rev-parse", "--show-toplevel")
+    if prefix is None or toplevel is None:
+        problems.add("cannot resolve the current directory against a Git top level")
+        return None
+    if prefix != COMPONENT_PREFIX:
+        problems.add(f"this checker runs at Git prefix [{prefix}], not the {COMPONENT_PREFIX} component")
+        return None
+    return toplevel
+
+
+def component_relative(paths: list[str], problems: Problems, source: str) -> list[str]:
+    """Map repository-relative paths to component-relative ones.
+
+    A path outside the component is reported, never dropped: the shared top-level .gitmodules
+    may declare only this component's frozen root set until a reviewed change says otherwise.
+    """
+    inside: list[str] = []
+    for path in paths:
+        if path.startswith(COMPONENT_PREFIX):
+            inside.append(path[len(COMPONENT_PREFIX):])
+        else:
+            problems.add(f"{source} names a path outside {COMPONENT_PREFIX}: {path}")
+    return inside
+
+
 def walk_closure(problems: Problems) -> list[tuple[str, str, str, str]]:
     """Enumerate the complete recursive gitlink closure from committed Git trees.
 
@@ -473,7 +509,11 @@ def check_recursive_closure(frozen: dict, problems: Problems) -> None:
     # repository above it report its child as modified, so one root walk reaches all of it.
     roots = list(frozen["root_submodules"])
     for line in (git("status", "--porcelain") or "").splitlines():
+        # Porcelain paths are repository-relative; the frozen roots are component-relative.
         entry = line[3:].split(" -> ")[-1].strip().strip('"')
+        if not entry.startswith(COMPONENT_PREFIX):
+            continue
+        entry = entry[len(COMPONENT_PREFIX):]
         if any(entry == root or entry.startswith(f"{root}/") for root in roots):
             name_dirty_submodule(entry, problems)
 
@@ -565,10 +605,21 @@ def preflight(args: argparse.Namespace) -> int:
             "each at the gitlink its own parent records",
         )
 
-    declared_roots = git("config", "--file", ".gitmodules", "--get-regexp", r"\.path$")
-    root_paths = sorted(line.split()[1] for line in (declared_roots or "").splitlines() if line.strip())
+    # The declaration lives in the shared top-level .gitmodules and names repository-relative
+    # paths; the frozen root set is component-relative. The two are compared through the one
+    # canonical prefix, and a declaration outside the component is itself a failure.
+    toplevel = component_toplevel(problems)
+    declared_roots = (
+        git("config", "--file", f"{toplevel}/.gitmodules", "--get-regexp", r"\.path$") if toplevel else None
+    )
+    declared = [line.split()[1] for line in (declared_roots or "").splitlines() if line.strip()]
+    root_paths = sorted(component_relative(declared, problems, "the top-level .gitmodules"))
     if problems.expect(".gitmodules root submodule set", sorted(frozen["root_submodules"]), root_paths):
-        record("DEP-008", f".gitmodules declares exactly the frozen root set: {', '.join(root_paths)}")
+        record(
+            "DEP-008",
+            f"the top-level .gitmodules declares exactly the frozen root set under {COMPONENT_PREFIX}: "
+            + ", ".join(root_paths),
+        )
 
     # --- tool identity --------------------------------------------------------
     tools = dict(

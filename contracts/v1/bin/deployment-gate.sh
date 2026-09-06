@@ -53,6 +53,11 @@ for git_context in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
 done
 unset git_context_value
 
+# The V1 project is the contracts/v1 component of the Autolaunch repository. The script root is
+# proved to be exactly that directory under the Git top level. Nothing is discovered from the
+# layout: a repository rooted at the component, a copy of this tree at the top level, or any other
+# directory is rejected here, before Git is consulted for anything else.
+component=contracts/v1
 cd "$(dirname "$0")/.."
 physical_root=$(pwd -P)
 command -v git >/dev/null 2>&1 || {
@@ -60,12 +65,12 @@ command -v git >/dev/null 2>&1 || {
     exit 1
 }
 git_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-    printf 'DEPLOYMENT GATE FAIL: the physical script root is not a Git worktree\n' >&2
+    printf 'DEPLOYMENT GATE FAIL: the physical script root is not inside a Git worktree\n' >&2
     exit 1
 }
 git_root=$(cd "$git_root" && pwd -P)
-[ "$git_root" = "$physical_root" ] || {
-    printf 'DEPLOYMENT GATE FAIL: Git top level does not equal the physical script root\n' >&2
+[ "$git_root/$component" = "$physical_root" ] || {
+    printf 'DEPLOYMENT GATE FAIL: the physical script root is not %s under the Git top level\n' "$component" >&2
     exit 1
 }
 cd "$physical_root"
@@ -89,6 +94,11 @@ PRODUCTION_AUTHORITY_SRC_TREE=91a741e417b75706a4071f7bdac2c5e13548c0fc
 # Filled with the exact clean B' commit only after the founder's fork check writes a successful
 # receipt for it. A preparation run cannot proceed while this sentinel remains.
 FORK_EVIDENCE_COMMIT=ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa
+# Both authorities predate the contracts/v1 layout and carry src/ at the root of their own trees.
+# They are historical Git objects read at their recorded path for evidence verification only; the
+# candidate checkout is always read at $component/src.
+PRODUCTION_AUTHORITY_SRC_PATH=src
+FORK_EVIDENCE_SRC_PATH=src
 
 # The discard port. Nothing listens on it, so the dead-endpoint regression is deterministic.
 DEAD_ENDPOINT=http://127.0.0.1:9
@@ -189,11 +199,11 @@ verify_source_authority() {
     [ "$found_tree" = "$PRODUCTION_AUTHORITY_TREE" ] ||
         fail "production authority tree mismatch: expected $PRODUCTION_AUTHORITY_TREE, found $found_tree"
 
-    found_src=$(git rev-parse "$PRODUCTION_AUTHORITY_COMMIT:src")
+    found_src=$(git rev-parse "$PRODUCTION_AUTHORITY_COMMIT:$PRODUCTION_AUTHORITY_SRC_PATH")
     [ "$found_src" = "$recorded_src" ] ||
         fail "production source tree mismatch: recorded $recorded_src, found $found_src"
 
-    checkout_src=$(git rev-parse 'HEAD:src')
+    checkout_src=$(git rev-parse "HEAD:$component/src")
     [ "$checkout_src" = "$recorded_src" ] ||
         fail "candidate source tree mismatch: recorded $recorded_src, found $checkout_src"
 }
@@ -204,13 +214,17 @@ verify_source_authority() {
 # be clean before this function is called.
 verify_fork_receipt() {
     receipt_path=$1
+    # The fork evidence commit is read at its own recorded src path. A caller naming another commit
+    # names that commit's src path with it; the regressions below name this checkout's component.
     expected_commit=${2:-$FORK_EVIDENCE_COMMIT}
+    expected_src_path=${3:-$FORK_EVIDENCE_SRC_PATH}
+    [ $# -ne 2 ] || fail "verify_fork_receipt: a caller-named commit needs its src path"
 
     [ -e "$receipt_path" ] || fail "the successful fork-check receipt is absent: $receipt_path"
     git cat-file -e "$expected_commit^{commit}" 2>/dev/null ||
         fail "the renderer's fork evidence authority is not a commit in this repository: $expected_commit"
     expected_tree=$(git rev-parse "$expected_commit^{tree}")
-    expected_src=$(git rev-parse "$expected_commit:src")
+    expected_src=$(git rev-parse "$expected_commit:$expected_src_path")
 
     python3 - "$receipt_path" "$expected_commit" "$expected_tree" "$expected_src" \
         "$physical_root" "$fork_pinned_report" "$fork_later_report" "$fork_test_list" \
@@ -580,12 +594,17 @@ section() {
 # Git status is not the filesystem authority. This also compares tracked bytes directly, rejects
 # hidden index flags and forces ignored recursive submodule dirt into the result.
 repository_snapshot() {
-    python3 - <<'PYTHON'
+    python3 - "$component" <<'PYTHON'
 import hashlib
 import os
 import stat
 import subprocess
 import sys
+
+# The proof covers the whole repository that contains the current directory, from its Git top
+# level. Only the named component's generated roots are excluded from worktree state.
+component = sys.argv[1]
+os.chdir(subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True, capture_output=True, text=True).stdout.rstrip("\n"))
 
 
 def run(args, cwd=".", text=False):
@@ -685,14 +704,17 @@ problems = []
 ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True)
 if ordinary:
     problems.extend(ordinary.rstrip("\n").splitlines())
-scratch_roots = (
-    b"reports/generated/",
-    b"cache/",
-    b"cache-fork/",
-    b"out/",
-    b"out-fork/",
-    b"artifacts/",
-    b"broadcast/",
+scratch_roots = tuple(
+    component.encode() + b"/" + root
+    for root in (
+        b"reports/generated/",
+        b"cache/",
+        b"cache-fork/",
+        b"out/",
+        b"out-fork/",
+        b"artifacts/",
+        b"broadcast/",
+    )
 )
 ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
 for path in ignored:
@@ -869,6 +891,11 @@ That address is founder input. Nothing here may choose, derive, or invent one."
         ;;
     --selftest-stale-source)
         section "Stale-source regression"
+        # First the exact authority: the production commit read at its recorded src path and this
+        # checkout read at $component/src must carry one src tree. Then a stale recorded tree.
+        verify_source_authority "$PRODUCTION_AUTHORITY_SRC_TREE"
+        printf 'the production authority at %s and this checkout at %s/src carry one src tree\n' \
+            "$PRODUCTION_AUTHORITY_SRC_PATH" "$component"
         stale_source=0000000000000000000000000000000000000000
         selftest_status=0
         selftest_output=$(verify_source_authority "$stale_source" 2>&1) || selftest_status=$?
@@ -896,7 +923,7 @@ That address is founder input. Nothing here may choose, derive, or invent one."
         mkdir -p "$generated"
 
         absent_status=0
-        absent_output=$(verify_fork_receipt "$generated/absent-fork-check-receipt.json" "$(git rev-parse HEAD)" 2>&1) || absent_status=$?
+        absent_output=$(verify_fork_receipt "$generated/absent-fork-check-receipt.json" "$(git rev-parse HEAD)" "$component/src" 2>&1) || absent_status=$?
         printf '%s\n' "$absent_output"
         [ "$absent_status" -ne 0 ] || fail "an absent fork-check receipt exited 0"
         case "$absent_output" in
@@ -925,7 +952,7 @@ document = {
 open(sys.argv[1], "w", encoding="utf-8").write(json.dumps(document, indent=2, sort_keys=True) + "\n")
 PYTHON
         stale_status=0
-        stale_output=$(verify_fork_receipt "$stale_receipt" "$(git rev-parse HEAD)" 2>&1) || stale_status=$?
+        stale_output=$(verify_fork_receipt "$stale_receipt" "$(git rev-parse HEAD)" "$component/src" 2>&1) || stale_status=$?
         printf '%s\n' "$stale_output"
         [ "$stale_status" -ne 0 ] || fail "a stale fork-check receipt exited 0"
         case "$stale_output" in
@@ -947,7 +974,7 @@ PYTHON
         mkdir -p "$generated" reports/generated/fork
         current_commit=$(git rev-parse HEAD)
         current_tree=$(git rev-parse 'HEAD^{tree}')
-        current_src=$(git rev-parse 'HEAD:src')
+        current_src=$(git rev-parse "HEAD:$component/src")
 
         valid_receipt="$generated/valid-fork-check-receipt.json"
         python3 - "$valid_receipt" "$current_commit" "$current_tree" "$current_src" \
@@ -1018,7 +1045,7 @@ receipt = {
 }
 open(receipt_path, "w", encoding="utf-8").write(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
 PYTHON
-        valid_output=$(verify_fork_receipt "$valid_receipt" "$current_commit" 2>&1) ||
+        valid_output=$(verify_fork_receipt "$valid_receipt" "$current_commit" "$component/src" 2>&1) ||
             fail "a structurally valid retained-report fixture did not reconcile"
         printf '%s\n' "$valid_output"
         case "$valid_output" in
@@ -1049,7 +1076,7 @@ receipt["reports"]["pinned"]["sha256"] = hashlib.sha256(open(report_path, "rb").
 open(receipt_path, "w", encoding="utf-8").write(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
 PYTHON
         omitted_status=0
-        omitted_output=$(verify_fork_receipt "$valid_receipt" "$current_commit" 2>&1) || omitted_status=$?
+        omitted_output=$(verify_fork_receipt "$valid_receipt" "$current_commit" "$component/src" 2>&1) || omitted_status=$?
         printf '%s\n' "$omitted_output"
         [ "$omitted_status" -ne 0 ] || fail "an omitted DEP-050 verdict key exited 0"
         case "$omitted_output" in
@@ -1120,7 +1147,7 @@ document = {
 open(path, "w", encoding="utf-8").write(json.dumps(document, indent=2, sort_keys=True) + "\n")
 PYTHON
             path_status=0
-            path_output=$(verify_fork_receipt "$candidate_receipt" "$current_commit" 2>&1) || path_status=$?
+            path_output=$(verify_fork_receipt "$candidate_receipt" "$current_commit" "$component/src" 2>&1) || path_status=$?
             printf '%s\n' "$path_output"
             [ "$path_status" -ne 0 ] || fail "$case_name receipt path exited 0"
             case "$path_output" in
@@ -1257,7 +1284,7 @@ initial_repository_identity=$repository_identity
 
 candidate_commit=$(git rev-parse HEAD)
 candidate_tree=$(git rev-parse 'HEAD^{tree}')
-candidate_src_tree=$(git rev-parse 'HEAD:src')
+candidate_src_tree=$(git rev-parse "HEAD:$component/src")
 printf 'candidate commit: %s\n' "$candidate_commit"
 printf 'candidate tree:   %s\n' "$candidate_tree"
 printf 'candidate src:    %s\n' "$candidate_src_tree"
@@ -2023,7 +2050,7 @@ require_clean_worktree
     fail "tracked repository bytes changed during the deployment gate"
 [ "$(git rev-parse HEAD)" = "$candidate_commit" ] || fail "HEAD changed during the deployment gate"
 [ "$(git rev-parse 'HEAD^{tree}')" = "$candidate_tree" ] || fail "the candidate tree changed during the deployment gate"
-[ "$(git rev-parse 'HEAD:src')" = "$candidate_src_tree" ] || fail "the candidate src tree changed during the deployment gate"
+[ "$(git rev-parse "HEAD:$component/src")" = "$candidate_src_tree" ] || fail "the candidate src tree changed during the deployment gate"
 
 # ---------------------------------------------------------------------------
 section "Gate report"

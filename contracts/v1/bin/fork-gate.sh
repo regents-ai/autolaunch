@@ -57,6 +57,11 @@ for git_context in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
 done
 unset git_context_value
 
+# The V1 project is the contracts/v1 component of the Autolaunch repository. The script root is
+# proved to be exactly that directory under the Git top level. Nothing is discovered from the
+# layout: a repository rooted at the component, a copy of this tree at the top level, or any other
+# directory is rejected here, before Git is consulted for anything else.
+component=contracts/v1
 cd "$(dirname "$0")/.."
 physical_root=$(pwd -P)
 command -v git >/dev/null 2>&1 || {
@@ -64,12 +69,12 @@ command -v git >/dev/null 2>&1 || {
     exit 1
 }
 git_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-    printf 'FORK GATE FAIL: the physical script root is not a Git worktree\n' >&2
+    printf 'FORK GATE FAIL: the physical script root is not inside a Git worktree\n' >&2
     exit 1
 }
 git_root=$(cd "$git_root" && pwd -P)
-[ "$git_root" = "$physical_root" ] || {
-    printf 'FORK GATE FAIL: Git top level does not equal the physical script root\n' >&2
+[ "$git_root/$component" = "$physical_root" ] || {
+    printf 'FORK GATE FAIL: the physical script root is not %s under the Git top level\n' "$component" >&2
     exit 1
 }
 cd "$physical_root"
@@ -137,8 +142,8 @@ assert_physical_git_identity() {
     found_root=$(git rev-parse --show-toplevel 2>/dev/null) ||
         fail "the physical script root is no longer a Git worktree"
     found_root=$(cd "$found_root" && pwd -P)
-    [ "$found_root" = "$physical_root" ] ||
-        fail "Git top level no longer equals the physical script root"
+    [ "$found_root/$component" = "$physical_root" ] ||
+        fail "Git no longer resolves the physical script root as $component under its top level"
     [ "$(pwd -P)" = "$physical_root" ] ||
         fail "the execution directory no longer equals the physical script root"
 }
@@ -178,12 +183,17 @@ committed_state() {
 # Check evidence names one exact physical Git object. Ordinary status is only one input: direct
 # tracked-byte comparison, hidden index flags and recursive ignored submodule dirt also fail.
 repository_snapshot() {
-    python3 - <<'PYTHON'
+    python3 - "$component" <<'PYTHON'
 import hashlib
 import os
 import stat
 import subprocess
 import sys
+
+# The proof covers the whole repository that contains the current directory, from its Git top
+# level. Only the named component's generated roots are excluded from worktree state.
+component = sys.argv[1]
+os.chdir(subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True, capture_output=True, text=True).stdout.rstrip("\n"))
 
 
 def run(args, cwd=".", text=False):
@@ -283,14 +293,17 @@ problems = []
 ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True)
 if ordinary:
     problems.extend(ordinary.rstrip("\n").splitlines())
-scratch_roots = (
-    b"reports/generated/",
-    b"cache/",
-    b"cache-fork/",
-    b"out/",
-    b"out-fork/",
-    b"artifacts/",
-    b"broadcast/",
+scratch_roots = tuple(
+    component.encode() + b"/" + root
+    for root in (
+        b"reports/generated/",
+        b"cache/",
+        b"cache-fork/",
+        b"out/",
+        b"out-fork/",
+        b"artifacts/",
+        b"broadcast/",
+    )
 )
 ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
 for path in ignored:
@@ -419,6 +432,32 @@ probe_base_chain_id() {
     esac
     [ "$observed" = "$CHAIN_ID" ] || fail "$PROBE_REFUSAL (it answered chain $observed)"
     printf 'the configured %s alias answers a read-only chain-id probe with exactly %s\n' "$RPC_ALIAS" "$CHAIN_ID"
+}
+
+# The recorded production authority predates the contracts/v1 layout and carries src/ at the root
+# of its own tree. It is read there, as a historical Git object, for this verification only; the
+# checkout is always read at $component/src, and the two must be one tree identity.
+RECORDED_AUTHORITY_SRC_PATH=src
+verify_named_source_authority() {
+    identity=$(python3 -c 'import json,sys
+record = json.load(open(sys.argv[1], encoding="utf-8"))["source_authority"]
+print(record["production_authority_commit"], record["production_source_tree"])' "$observations")
+    recorded_commit=${identity% *}
+    recorded_src_tree=${identity#* }
+
+    git cat-file -e "${recorded_commit}^{commit}" 2>/dev/null ||
+        fail "the record names production authority commit $recorded_commit, which is not an object in this repository"
+    authority_src_tree=$(git rev-parse "${recorded_commit}:$RECORDED_AUTHORITY_SRC_PATH")
+    [ "$authority_src_tree" = "$recorded_src_tree" ] ||
+        fail "the record names production source tree $recorded_src_tree, but commit $recorded_commit carries $authority_src_tree at $RECORDED_AUTHORITY_SRC_PATH"
+
+    [ "$checkout_src_tree" = "$recorded_src_tree" ] ||
+        fail "this checkout's $component/src tree is $checkout_src_tree, not the $recorded_src_tree the record was observed against"
+
+    printf 'tested commit: %s\n' "$checkout_commit"
+    printf 'tested tree:   %s\n' "$checkout_tree"
+    printf 'tested src:    %s\n' "$checkout_src_tree"
+    printf 'the record names production authority %s carrying that exact src/ tree at %s\n' "$recorded_commit" "$RECORDED_AUTHORITY_SRC_PATH"
 }
 
 mode=${1:-check}
@@ -672,7 +711,7 @@ case "$mode" in
         } >"$stale_dependency_receipt"
         current_commit=$(git rev-parse HEAD)
         current_tree=$(git rev-parse 'HEAD^{tree}')
-        current_src=$(git rev-parse 'HEAD:src')
+        current_src=$(git rev-parse "HEAD:$component/src")
         selftest_status=0
         selftest_output=$(verify_offline_receipt_identity "$stale_dependency_receipt" \
             "$current_commit" "$current_tree" "$current_src" 2>&1) || selftest_status=$?
@@ -688,6 +727,39 @@ case "$mode" in
         rm -rf "$generated"
         printf '\nthe cross-commit dependency receipt failed closed and printed no FORK GATE PASS\n'
         printf 'STALE-DEPENDENCY-RECEIPT REGRESSION PASS\n'
+        exit 0
+        ;;
+    selftest-source-authority)
+        # The record's authority commit is read at its own recorded src path and this checkout at
+        # $component/src; the two trees must be one identity, and a checkout carrying another src
+        # tree must stop at that comparison. No provider is reached.
+        section "Named source-authority regression"
+        [ -f "$observations" ] || fail "the committed fork observation record is absent: $observations"
+        checkout_commit=$(git rev-parse HEAD)
+        checkout_tree=$(git rev-parse 'HEAD^{tree}')
+        checkout_src_tree=$(git rev-parse "HEAD:$component/src")
+        verify_named_source_authority
+
+        selftest_status=0
+        selftest_output=$(
+            (
+                checkout_src_tree=0000000000000000000000000000000000000000
+                verify_named_source_authority
+            ) 2>&1
+        ) || selftest_status=$?
+        printf '%s\n' "$selftest_output"
+        [ "$selftest_status" -ne 0 ] || fail "a checkout carrying another src tree exited 0; the authority boundary does not hold"
+        case "$selftest_output" in
+            *"not the $recorded_src_tree the record was observed against"*) : ;;
+            *) fail "the other-src run stopped outside the checkout comparison" ;;
+        esac
+        case "$selftest_output" in
+            *'FORK GATE PASS'*) fail "a checkout carrying another src tree printed this gate's pass marker" ;;
+        esac
+
+        printf '\nthe recorded authority was read at %s, this checkout at %s/src, and another src tree failed closed\n' \
+            "$RECORDED_AUTHORITY_SRC_PATH" "$component"
+        printf 'SOURCE-AUTHORITY REGRESSION PASS\n'
         exit 0
         ;;
     selftest-git-context)
@@ -719,7 +791,7 @@ case "$mode" in
         sandbox="$physical_root/$generated/replacement-ref-selftest"
         source_repo="$physical_root/$generated/replacement-ref-source"
         rm -rf "$generated"
-        mkdir -p "$sandbox/bin" "$source_repo"
+        mkdir -p "$sandbox/$component/bin" "$source_repo"
         cleanup_replacement_ref_selftest() {
             rm -rf "$sandbox" "$source_repo"
         }
@@ -736,14 +808,14 @@ case "$mode" in
             git add dependency.txt
             git -c user.name=Regent -c user.email=regent.invalid commit -qm second
         )
-        cp "$physical_root/bin/gate.sh" "$sandbox/bin/gate.sh"
-        cp "$physical_root/bin/fork-gate.sh" "$sandbox/bin/fork-gate.sh"
-        cp "$physical_root/bin/deployment-gate.sh" "$sandbox/bin/deployment-gate.sh"
+        cp "$physical_root/bin/gate.sh" "$sandbox/$component/bin/gate.sh"
+        cp "$physical_root/bin/fork-gate.sh" "$sandbox/$component/bin/fork-gate.sh"
+        cp "$physical_root/bin/deployment-gate.sh" "$sandbox/$component/bin/deployment-gate.sh"
         (
             cd "$sandbox"
             git init -q
             printf 'first\n' >root.txt
-            git add bin root.txt
+            git add "$component" root.txt
             git -c user.name=Regent -c user.email=regent.invalid commit -qm first
             printf 'second\n' >root.txt
             git add root.txt
@@ -757,7 +829,7 @@ case "$mode" in
             for gate_script in gate.sh fork-gate.sh deployment-gate.sh; do
                 selftest_status=0
                 selftest_output=$(
-                    cd "$sandbox"
+                    cd "$sandbox/$component"
                     GIT_NO_REPLACE_OBJECTS=0 "./bin/$gate_script" check 2>&1
                 ) || selftest_status=$?
                 printf '%s\n' "$selftest_output"
@@ -770,7 +842,7 @@ case "$mode" in
                 case "$selftest_output" in
                     *'GATE PASS'*) fail "$replacement_case replacement ref printed a gate pass marker in $gate_script" ;;
                 esac
-                [ ! -e "$sandbox/reports" ] ||
+                [ ! -e "$sandbox/$component/reports" ] ||
                     fail "$replacement_case replacement ref left a gate receipt path through $gate_script"
             done
         }
@@ -919,7 +991,7 @@ case "$mode" in
         printf 'SUBMODULE BYTE-INTEGRITY REGRESSION PASS\n'
         exit 0
         ;;
-    *) fail "unknown mode '$mode'; use discover, check, selftest-dead-endpoint, selftest-dirty-worktree, selftest-python-cache-worktree, selftest-hidden-worktree, selftest-stale-dependency-receipt, selftest-git-context, selftest-replacement-refs, selftest-post-render-receipt, selftest-fork-clean-build, or selftest-submodule-byte-integrity" ;;
+    *) fail "unknown mode '$mode'; use discover, check, selftest-dead-endpoint, selftest-dirty-worktree, selftest-python-cache-worktree, selftest-hidden-worktree, selftest-stale-dependency-receipt, selftest-source-authority, selftest-git-context, selftest-replacement-refs, selftest-post-render-receipt, selftest-fork-clean-build, or selftest-submodule-byte-integrity" ;;
 esac
 export FOUNDRY_PROFILE
 
@@ -944,7 +1016,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3 is not on PATH"
     fail "the offline gate's dependency receipt is absent; run bin/gate.sh on this tree first"
 checkout_commit=$(git rev-parse HEAD)
 checkout_tree=$(git rev-parse 'HEAD^{tree}')
-checkout_src_tree=$(git rev-parse 'HEAD:src')
+checkout_src_tree=$(git rev-parse "HEAD:$component/src")
 verify_offline_receipt_identity "$offline_receipt" "$checkout_commit" "$checkout_tree" "$checkout_src_tree" ||
     fail "the offline dependency receipt does not bind this checkout"
 
@@ -1034,25 +1106,7 @@ section "Evidence identity"
 # reviewed record is only self-describing prose: it would compare live Base against numbers taken
 # from some other source tree without anything noticing.
 if [ -f "$observations" ]; then
-    identity=$(python3 -c 'import json,sys
-record = json.load(open(sys.argv[1], encoding="utf-8"))["source_authority"]
-print(record["production_authority_commit"], record["production_source_tree"])' "$observations")
-    recorded_commit=${identity% *}
-    recorded_src_tree=${identity#* }
-
-    git cat-file -e "${recorded_commit}^{commit}" 2>/dev/null ||
-        fail "the record names production authority commit $recorded_commit, which is not an object in this repository"
-    authority_src_tree=$(git rev-parse "${recorded_commit}:src")
-    [ "$authority_src_tree" = "$recorded_src_tree" ] ||
-        fail "the record names production source tree $recorded_src_tree, but commit $recorded_commit carries $authority_src_tree"
-
-    [ "$checkout_src_tree" = "$recorded_src_tree" ] ||
-        fail "this checkout's src/ tree is $checkout_src_tree, not the $recorded_src_tree the record was observed against"
-
-    printf 'tested commit: %s\n' "$checkout_commit"
-    printf 'tested tree:   %s\n' "$checkout_tree"
-    printf 'tested src:    %s\n' "$checkout_src_tree"
-    printf 'the record names production authority %s carrying that exact src/ tree\n' "$recorded_commit"
+    verify_named_source_authority
 else
     printf 'no observation record is installed yet, so there is no named source authority to prove\n'
 fi
@@ -1498,7 +1552,7 @@ assert_physical_git_identity
 require_clean_worktree
 [ "$(git rev-parse HEAD)" = "$checkout_commit" ] || fail "HEAD changed during the fork check"
 [ "$(git rev-parse 'HEAD^{tree}')" = "$checkout_tree" ] || fail "the tested tree changed during the fork check"
-[ "$(git rev-parse 'HEAD:src')" = "$checkout_src_tree" ] || fail "the tested src tree changed during the fork check"
+[ "$(git rev-parse "HEAD:$component/src")" = "$checkout_src_tree" ] || fail "the tested src tree changed during the fork check"
 mv "$check_receipt_tmp" "$check_receipt"
 printf 'fork-check receipt: %s\n' "$check_receipt"
 

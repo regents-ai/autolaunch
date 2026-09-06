@@ -2,12 +2,12 @@
 
 > Token auctions, launch operations and market reads on Base.
 
-[Website](https://autolaunch.sh) · [Source](https://github.com/regents-ai/autolaunch-contracts)
+[Website](https://autolaunch.sh) · [Source](https://github.com/regents-ai/autolaunch)
 
 ## Public reads and quotes
 
-- [CLI source and local installation](https://github.com/regents-ai/autolaunch-contracts/blob/main/cli/README.md): `autolaunch commands list --json` discovers supported operations without a network call.
-- [Public API and WebMCP contract](https://github.com/regents-ai/autolaunch-contracts/blob/main/platform/docs/public-webmcp.md).
+- [CLI source and local installation](https://github.com/regents-ai/autolaunch/blob/main/cli/README.md): `autolaunch commands list --json` discovers supported operations without a network call.
+- [Public API and WebMCP contract](https://github.com/regents-ai/autolaunch/blob/main/platform/docs/public-webmcp.md).
 - [HTTP schema](https://autolaunch.sh/api-contract.openapiv3.yaml).
 
 The standalone CLI supports auction lists/details, bid quotes, token lists and

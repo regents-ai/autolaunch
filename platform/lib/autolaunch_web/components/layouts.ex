@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.Layouts do
   def product_links(assigns) do
     ~H"""
     <footer aria-label="Project links" class="product-links">
-      <a href="https://github.com/regents-ai/autolaunch-contracts" rel="noopener noreferrer">Star on GitHub</a>
+      <a href="https://github.com/regents-ai/autolaunch" rel="noopener noreferrer">Star on GitHub</a>
       <a href="/llms.txt">For agents</a>
       <details>
         <summary>Regents Labs</summary>
