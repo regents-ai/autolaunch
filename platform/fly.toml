@@ -11,6 +11,7 @@ primary_region = "iad"
   PORT = "4000"
   PHX_HOST = "autolaunch.sh"
   AUTOLAUNCH_DEPLOYMENT_ROLE = "production"
+  AUTOLAUNCH_DB_SCHEMA = "autolaunch_app"
 
 [http_service]
   internal_port = 4000

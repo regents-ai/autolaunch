@@ -1,0 +1,19 @@
+{
+  "shared_packages": {
+    "regent_privy": {
+      "repository": "https://github.com/regents-ai/elixir-utils",
+      "revision": "2acd99a9d93ebad093bd5155489ead274f95a682",
+      "path": "privy"
+    },
+    "regent_identity": {
+      "repository": "https://github.com/regents-ai/regents",
+      "revision": "e5badd5b397aab6bd52e4c3b2e7556920370e522",
+      "path": "identity"
+    },
+    "regent_ui": {
+      "repository": "https://github.com/regents-ai/design-system",
+      "revision": "4c6dc42cde958f5168f541a8ccefadfbc61a4d51",
+      "path": "regent_ui"
+    }
+  }
+}
