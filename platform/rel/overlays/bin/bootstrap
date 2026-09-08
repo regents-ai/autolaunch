@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+AUTOLAUNCH_RELEASE_COMMAND=bootstrap exec "$(dirname "$0")/autolaunch" eval 'Autolaunch.Release.bootstrap()'

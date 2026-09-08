@@ -87,14 +87,6 @@ defmodule Autolaunch.DatabaseConfig do
       options =
         options
         |> Keyword.put(:port, 5432)
-        |> Keyword.put(:ssl,
-          verify: :verify_peer,
-          cacerts: :public_key.cacerts_get(),
-          server_name_indication: String.to_charlist(host),
-          customize_hostname_check: [
-            match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
-          ]
-        )
 
       if fly_mpg_pgbouncer_host?(host),
         do: Keyword.put(options, :prepare, :unnamed),

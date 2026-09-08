@@ -97,7 +97,7 @@ end
 # The release sets this on its migration commands, and only on those, so the
 # migration boot can take a direct connection while the web boot takes the
 # pooled one.
-migrating? = System.get_env("AUTOLAUNCH_RELEASE_COMMAND") == "migrate"
+migrating? = System.get_env("AUTOLAUNCH_RELEASE_COMMAND") in ["migrate", "bootstrap"]
 
 database_config =
   if config_env() == :prod and migrating? do

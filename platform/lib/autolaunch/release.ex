@@ -24,6 +24,43 @@ defmodule Autolaunch.Release do
   end
 
   @doc """
+  Initializes a specifically approved empty product database.
+
+  Historical migrations first run in an empty `public` schema because their
+  generated foreign keys name that schema explicitly. The resulting tables,
+  sequences and honest migration ledger are then moved together into the
+  configured product schema. This command refuses an initialized destination.
+  """
+  def bootstrap do
+    load_app()
+    config = migration_config!()
+    target_prefix = Keyword.fetch!(config, :default_prefix)
+
+    unless target_prefix == "autolaunch_app" do
+      raise "Autolaunch bootstrap requires AUTOLAUNCH_DB_SCHEMA=autolaunch_app"
+    end
+
+    public_config =
+      config
+      |> Keyword.put(:default_prefix, "public")
+      |> Keyword.put(:migration_default_prefix, "public")
+
+    Application.put_env(@app, Autolaunch.Repo, public_config)
+
+    Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
+      require_empty_bootstrap_destination!(repo, target_prefix)
+      Ecto.Migrator.run(repo, migrations_path(), :up, all: true, prefix: "public")
+      move_bootstrapped_product!(repo, target_prefix)
+    end)
+
+    Application.put_env(@app, Autolaunch.Repo, config)
+
+    Ecto.Migrator.with_repo(Autolaunch.Repo, fn repo ->
+      RegentIdentity.Migrator.up(repo)
+    end)
+  end
+
+  @doc """
   Lists what a deployed database and the release disagree about.
 
   Prints every migration the release carries that the database has not applied
@@ -124,6 +161,68 @@ defmodule Autolaunch.Release do
         raise "Import the complete Autolaunch schema and migration history before migrating"
       end
     end
+  end
+
+  defp require_empty_bootstrap_destination!(repo, target_prefix) do
+    expected_database = System.fetch_env!("AUTOLAUNCH_BOOTSTRAP_DATABASE")
+    %{rows: [[actual_database]]} = repo.query!("SELECT current_database()", [])
+
+    unless actual_database == expected_database do
+      raise "Autolaunch bootstrap database does not match AUTOLAUNCH_BOOTSTRAP_DATABASE"
+    end
+
+    %{rows: [[public_tables]]} =
+      repo.query!(
+        """
+        SELECT count(*)
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+        """,
+        []
+      )
+
+    %{rows: [[target_objects]]} =
+      repo.query!(
+        """
+        SELECT count(*)
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = $1 AND c.relkind IN ('r', 'p', 'S', 'v', 'm', 'f')
+        """,
+        [target_prefix]
+      )
+
+    if public_tables != 0 or target_objects != 0 do
+      raise "Autolaunch bootstrap requires empty public and autolaunch_app product schemas"
+    end
+  end
+
+  defp move_bootstrapped_product!(repo, target_prefix) do
+    repo.transaction(fn ->
+      repo.query!("CREATE SCHEMA \"#{target_prefix}\"", [])
+      move_relations!(repo, target_prefix, ["r", "p"])
+      move_relations!(repo, target_prefix, ["S"])
+    end)
+  end
+
+  defp move_relations!(repo, target_prefix, kinds) do
+    %{rows: rows} =
+      repo.query!(
+        """
+        SELECT c.relname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = ANY($1)
+        ORDER BY c.relname
+        """,
+        [kinds]
+      )
+
+    Enum.each(rows, fn [name] ->
+      kind = if "S" in kinds, do: "SEQUENCE", else: "TABLE"
+      repo.query!("ALTER #{kind} \"public\".\"#{name}\" SET SCHEMA \"#{target_prefix}\"", [])
+    end)
   end
 
   defp load_app do
