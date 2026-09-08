@@ -1,14 +1,46 @@
 import Config
 
 browser_port = String.to_integer(System.get_env("PORT", "4050"))
+
+# Several test servers can share one local PostgreSQL, which admits a fixed
+# number of connections; a long-lived lab site asks for a small pool.
+pool_size = String.to_integer(System.get_env("AUTOLAUNCH_DB_POOL_SIZE", "10"))
+
+if pool_size < 1 do
+  raise "AUTOLAUNCH_DB_POOL_SIZE must be a positive integer"
+end
+
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
+
+# A local-lab site may take real Privy sign-ins. Then the production verifier
+# checks each token pair against the configured public app id and public
+# verification key (runtime.exs reads both), and the site is served at
+# http://localhost:PORT, the loopback origin the Privy application admits.
+# Nothing else in the test environment changes: the fixture verifier stays
+# in force for ExUnit and for the Playwright server.
+lab_auth = System.get_env("AUTOLAUNCH_LAB_AUTH")
+
+unless lab_auth in [nil, "", "privy"] do
+  raise "AUTOLAUNCH_LAB_AUTH must be privy or unset"
+end
+
+lab_privy? = lab_auth == "privy"
+
+# Explicit real sign-in never falls back to the fixture verifier: asked for
+# without a lab config, the boot stops here instead of starting a site whose
+# notice would promise Privy while its verifier accepts fixture tokens.
+if lab_privy? and System.get_env("AUTOLAUNCH_LAB_CONFIG") in [nil, ""] do
+  raise "AUTOLAUNCH_LAB_AUTH=privy needs AUTOLAUNCH_LAB_CONFIG"
+end
 
 # We don't run a server during test. The Playwright suite asks for one by
 # setting AUTOLAUNCH_BROWSER_TEST.
 config :autolaunch, AutolaunchWeb.Endpoint,
-  url: [host: "127.0.0.1", port: browser_port],
+  url: [host: if(lab_privy?, do: "localhost", else: "127.0.0.1"), port: browser_port],
   http: [ip: {127, 0, 0, 1}, port: browser_port],
-  check_origin: ["http://127.0.0.1:#{browser_port}"],
+  check_origin:
+    ["http://127.0.0.1:#{browser_port}"] ++
+      if(lab_privy?, do: ["http://localhost:#{browser_port}"], else: []),
   secret_key_base: "dE279MxKIvZfbwjSpb4wz+TRnO8doR91/kD/kxxXO9FIFvDeVF132xDj2X5J2/x5",
   server: System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1"
 
@@ -18,7 +50,7 @@ config :autolaunch, Autolaunch.Repo,
   hostname: "127.0.0.1",
   port: 5432,
   database: "autolaunch#{System.get_env("MIX_TEST_PARTITION")}_test",
-  pool_size: 10,
+  pool_size: pool_size,
   # A case that sends two callers at one row shares one sandboxed connection
   # between them, so the second caller waits while the first one holds it. The
   # sandbox drops a waiting caller once it has waited longer than twice
@@ -38,7 +70,9 @@ config :autolaunch, Autolaunch.Repo,
 
 config :ash, :missed_notifications, :ignore
 
-config :autolaunch, :privy_verifier, Autolaunch.TestPrivyVerifier
+config :autolaunch,
+       :privy_verifier,
+       if(lab_privy?, do: Autolaunch.Privy, else: Autolaunch.TestPrivyVerifier)
 
 config :autolaunch,
        :autolaunch_treasury_chain_client,
@@ -57,7 +91,12 @@ config :autolaunch,
 # The subject-wallet and launch browser proofs need a Base answer without a
 # provider, a wallet or a chain call. Ordinary ExUnit cases install and restore
 # these clients themselves, so only the Playwright server process selects them.
-if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
+# A server given a local lab config skips these three: launch and bid then
+# resolve to their lab clients and answer from the fork, subject-wallet
+# preparation stays unavailable (no lab client exists for it), and the
+# treasury fixture selected above remains in force.
+if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and
+     System.get_env("AUTOLAUNCH_LAB_CONFIG") in [nil, ""] do
   config :autolaunch,
          :autolaunch_subject_wallet_chain_client,
          Autolaunch.TestAutolaunchSubjectWalletChainClient

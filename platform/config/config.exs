@@ -9,6 +9,10 @@ import Config
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]
 
+# Count codepoints consistently with PostgreSQL; a grapheme may contain unbounded
+# combining marks (CVE-2026-82752). Required by Ash 3.33 and shared identity resources.
+config :ash, default_string_length_count: :codepoints
+
 # These enable behaviors that will become the default in the next major
 # version of Ash. Setting them now opts your application into the new
 # behavior and ensures a seamless upgrade. See the backwards compatibility
@@ -87,7 +91,7 @@ config :autolaunch, AutolaunchWeb.Endpoint,
 
 # Configure esbuild (the version is required)
 config :esbuild,
-  version: "0.25.4",
+  version: "0.28.2",
   autolaunch: [
     args:
       ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),

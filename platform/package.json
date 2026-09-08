@@ -5,25 +5,27 @@
   "scripts": {
     "assets:build": "mix assets.build",
     "typecheck": "tsc --project assets/tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:browser": "npm run assets:build && playwright test",
-    "test:budgets": "vitest run --config vitest.budgets.config.ts"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@privy-io/react-auth": "3.34.0",
-    "@solana-program/system": "0.12.2",
-    "@solana-program/token": "0.14.0",
-    "@solana/kit": "6.10.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "vgpu": "0.3.1",
-    "viem": "2.55.1"
+    "@privy-io/react-auth": "3.40.0",
+    "@solana-program/system": "0.14.1",
+    "@solana-program/token": "0.16.1",
+    "@solana/kit": "8.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "vgpu": "0.4.0",
+    "viem": "2.56.3"
+  },
+  "overrides": {
+    "axios@^1.0.0": "1.20.0",
+    "ws@^8.0.0": "8.21.3"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
+    "@playwright/test": "1.63.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
     "typescript": "7.0.2",
-    "vitest": "4.1.10"
+    "vitest": "5.0.0"
   }
 }
