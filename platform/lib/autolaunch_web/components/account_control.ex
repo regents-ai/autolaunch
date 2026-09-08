@@ -11,22 +11,30 @@ defmodule AutolaunchWeb.Components.AccountControl do
       class="account-control"
       data-account-kind={@account_control.kind}
     >
-      <button
+      <Regent.Primitives.button
         :if={@account_control.kind == :sign_in}
         type="button"
         class="account-control__sign-in"
         data-account-target="sign-in"
+        disabled={Autolaunch.Prelaunch.read_only?()}
+        title={if Autolaunch.Prelaunch.read_only?(), do: "Accounts are unavailable during prelaunch"}
       >
         Sign in
-      </button>
+      </Regent.Primitives.button>
 
       <div :if={@account_control.kind == :signed_in} class="account-control__signed-in">
         <span class="account-control__label">{@account_control.label}</span>
         <.link href="/portfolio" class="account-control__portfolio">Portfolio</.link>
         <.link href="/profile" class="account-control__portfolio">Profile</.link>
-        <button type="button" class="account-control__sign-out" data-account-target="sign-out">
+        <Regent.Primitives.button
+          type="button"
+          class="account-control__sign-out"
+          data-account-target="sign-out"
+          disabled={Autolaunch.Prelaunch.read_only?()}
+          variant="secondary"
+        >
           Sign out
-        </button>
+        </Regent.Primitives.button>
       </div>
 
       <p

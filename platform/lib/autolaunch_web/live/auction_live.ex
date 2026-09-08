@@ -55,51 +55,95 @@ defmodule AutolaunchWeb.AuctionLive do
       class="autolaunch-page"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">
-          <%= if @local_lab? do %>
-            Local Base fork · test assets · no mainnet value
-          <% else %>
-            Autolaunch · Auction
-          <% end %>
-        </p>
-        <h1>{record_label(:auction, @page_record)}</h1>
-        <p>{record_summary(:auction, @page_record) || record_fallback(:auction)}</p>
+        <.link navigate="/auctions" class="market-back">← Auctions</.link>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1>
+        </Regent.Structure.section_bar>
       </header>
-      <.autolaunch_market_card
-        kind={:auction}
-        record={@page_record}
-        creator_connections={@creator_connections}
-        linked={false}
-        class="launchpad-card--detail"
-      />
-      <.treasury_security
-        :if={!@local_lab?}
-        report={report(@page_record)}
-        surface="auction-detail"
-      />
-      <dl :if={@local_lab? && @market_snapshot} class="autolaunch-live-market">
-        <div>
-          <dt>Local block</dt><dd>{@market_snapshot.block_number}</dd>
-        </div>
-        <div>
-          <dt>REGENT raised</dt><dd>{@market_snapshot.currency_raised}</dd>
-        </div>
-        <div>
-          <dt>Tokens remaining</dt><dd>{@market_snapshot.remaining_supply}</dd>
-        </div>
-        <div>
-          <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
-        </div>
-      </dl>
-      <.live_component
-        module={AutolaunchWeb.BidComponent}
-        id="autolaunch-bid"
-        auction={@page_record}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
-      <div :if={@local_lab?} id="autolaunch-lab-position"></div>
+      <div class="market-detail-layout">
+        <section class="market-detail-summary" aria-label="Auction information">
+          <.detail_card
+            kind={:auction}
+            record={@page_record}
+            creator_connections={@creator_connections}
+          />
+          <.exact_price
+            id="auction-exact-price"
+            summary="Exact clearing price"
+            amount={@page_record.current_clearing_price}
+            unit={@page_record.quote_token_symbol}
+          />
+          <.treasury_security
+            :if={!@local_lab?}
+            report={report(@page_record)}
+            surface="auction-detail"
+          />
+          <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
+          <dl :if={@local_lab? && @market_snapshot} class="autolaunch-live-market">
+            <div>
+              <dt>Local block</dt><dd>{@market_snapshot.block_number}</dd>
+            </div>
+            <div>
+              <dt>REGENT raised</dt><dd>
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={@market_snapshot.currency_raised}
+                  fallback="—"
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Tokens remaining</dt><dd>
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={@market_snapshot.remaining_supply}
+                  fallback="—"
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
+            </div>
+          </dl>
+          <Regent.Primitives.disclosure
+            :if={@local_lab? && @market_snapshot}
+            id="auction-exact-market-amounts"
+            summary="Exact market amounts"
+          >
+            <dl class="autolaunch-live-market">
+              <div>
+                <dt>REGENT raised</dt><dd class="autolaunch-exact-value">
+                  {@market_snapshot.currency_raised}
+                </dd>
+              </div>
+              <div>
+                <dt>Tokens remaining</dt><dd class="autolaunch-exact-value">
+                  {@market_snapshot.remaining_supply}
+                </dd>
+              </div>
+            </dl>
+          </Regent.Primitives.disclosure>
+        </section>
+        <aside class="market-detail-action" aria-label="Bid on this auction">
+          <section
+            :if={Autolaunch.Prelaunch.read_only?()}
+            class="prelaunch-actions"
+            aria-label="Bidding unavailable"
+          >
+            <h2>Place a bid</h2>
+            <p>Bidding will be available after contract deployment.</p>
+            <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
+          </section>
+          <.live_component
+            :if={!Autolaunch.Prelaunch.read_only?()}
+            module={AutolaunchWeb.BidComponent}
+            id="autolaunch-bid"
+            auction={@page_record}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+          <div :if={@local_lab?} id="autolaunch-lab-position"></div>
+        </aside>
+      </div>
     </article>
 
     <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
@@ -109,7 +153,9 @@ defmodule AutolaunchWeb.AuctionLive do
       id="autolaunch-auction-detail"
       class="autolaunch-page autolaunch-empty"
     >
-      <h1>Auction not found</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Auction not found</h1>
+      </Regent.Structure.section_bar>
       <p>No public auction exists at {@record_id}.</p>
       <.link navigate="/auctions">Return to Auctions</.link>
     </section>
@@ -120,7 +166,9 @@ defmodule AutolaunchWeb.AuctionLive do
       class="autolaunch-page autolaunch-empty"
       role="alert"
     >
-      <h1>Auction unavailable</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Auction unavailable</h1>
+      </Regent.Structure.section_bar>
       <p>This auction could not be loaded right now.</p>
       <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
       <.link navigate="/auctions">Return to Auctions</.link>

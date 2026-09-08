@@ -15,6 +15,7 @@ import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
+import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
 import {installPublicTools} from "./public_tools"
@@ -27,6 +28,7 @@ const hooks = {
   AutolaunchSubjectWallet,
   Optics,
   XConnections,
+  HomeSearch,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 
@@ -43,8 +45,11 @@ const liveSocket = new LiveSocket("/live", Socket, {
 // this application calls, so the transport entry point is named at the cast.
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
-installAccountAuthLazyLoader()
-installCrossTabCsrf()
+installStaticMarketSearch()
+if (document.documentElement.dataset.prelaunchReadOnly !== "true") {
+  installAccountAuthLazyLoader()
+  installCrossTabCsrf()
+}
 installPublicTools()
 
 // Exposed for the browser console: liveSocket.enableDebug(), enableLatencySim().

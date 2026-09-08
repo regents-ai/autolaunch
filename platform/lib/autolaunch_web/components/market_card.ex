@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   use Phoenix.Component
 
   alias Autolaunch.Token
+  alias AutolaunchWeb.TokenDisplay
 
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
   attr :record, :map, required: true
@@ -37,27 +38,160 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
+  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :record, :map, required: true
+  attr :creator_connections, :map, default: %{}
+
+  def explore_card(assigns) do
+    assigns =
+      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
+
+    ~H"""
+    <article class="home-coin">
+      <.link navigate={@view.path} class="home-coin__main">
+        <div class="home-coin__art">
+          <img
+            :if={present?(@view.image)}
+            src={@view.image}
+            alt={"#{@view.name} token"}
+            loading="lazy"
+            decoding="async"
+            width="400"
+            height="400"
+          />
+          <span :if={!present?(@view.image)} class="home-coin__fallback" aria-label="No token image">{String.first(
+            @view.name || "?"
+          )}</span>
+        </div>
+        <h2 class="home-coin__name">{@view.name}</h2>
+        <p class="home-coin__symbol">${@view.symbol}</p>
+        <div class="home-coin__metric">
+          <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /><span>{@view.metric_label}</span>
+        </div>
+      </.link>
+      <div class="home-coin__meta">
+        <a
+          :if={@view.connections != []}
+          href={"https://x.com/#{URI.encode_www_form(hd(@view.connections).username)}"}
+          target="_blank"
+          rel="noopener noreferrer"
+        >{@view.creator}</a>
+        <span :if={@view.connections == []}>Creator unavailable</span>
+        <span :if={@view.age} class="home-coin__age">{@view.age}</span>
+        <span class="home-coin__status">{@view.status}</span>
+      </div>
+      <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
+    </article>
+    """
+  end
+
+  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :record, :map, required: true
+  attr :creator_connections, :map, default: %{}
+
+  def explore_row(assigns) do
+    assigns =
+      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
+
+    ~H"""
+    <tr>
+      <td>
+        <.link navigate={@view.path} class="home-table__coin">
+          <img
+            :if={present?(@view.image)}
+            src={@view.image}
+            alt=""
+            width="48"
+            height="48"
+            loading="lazy"
+          />
+          <span :if={!present?(@view.image)} class="home-table__fallback" aria-hidden="true">{String.first(
+            @view.name || "?"
+          )}</span>
+          <span><strong>{@view.name}</strong><small>${@view.symbol}</small></span>
+        </.link>
+      </td>
+      <td><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></td>
+      <td>
+        <a
+          :if={@view.connections != []}
+          href={"https://x.com/#{URI.encode_www_form(hd(@view.connections).username)}"}
+          target="_blank"
+          rel="noopener noreferrer"
+        >{@view.creator}</a><span :if={@view.connections == []}>—</span>
+      </td>
+      <td>{@view.age || "—"}</td><td>{@view.status}</td>
+    </tr>
+    """
+  end
+
+  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :record, :map, required: true
+  attr :creator_connections, :map, default: %{}
+
+  def detail_card(assigns) do
+    assigns =
+      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
+
+    ~H"""
+    <section class="market-identity" aria-label="Coin overview">
+      <div class="market-identity__image">
+        <img
+          :if={present?(@view.image)}
+          src={@view.image}
+          alt={"#{@view.name} token"}
+          width="400"
+          height="400"
+          decoding="async"
+        />
+        <span :if={!present?(@view.image)} aria-label="No token image">{String.first(
+          @view.name || "?"
+        )}</span>
+      </div>
+      <div class="market-identity__body">
+        <p class="market-identity__symbol">${@view.symbol}</p>
+        <div class="market-identity__meta">
+          <span>{@view.status}</span><span :if={@view.age}>{@view.age} ago</span>
+        </div>
+        <div class="market-identity__price">
+          <span>{@view.metric_label}</span><TokenDisplay.price
+            amount={@view.metric.amount}
+            unit={@view.metric.unit}
+          />
+        </div>
+        <p :if={present?(@view.description)} class="market-identity__description">
+          {@view.description}
+        </p>
+        <.card_socials connections={@view.connections} />
+      </div>
+    </section>
+    """
+  end
+
   attr :view, :map, required: true
 
   defp card_contents(assigns) do
     ~H"""
-    <div class="launchpad-card__media">
-      <img :if={present?(@view.image)} src={@view.image} alt={"#{@view.name} token"} />
-      <span :if={!present?(@view.image)} aria-hidden="true">R</span>
-      <small>{@view.status}</small>
-    </div>
-    <div class="launchpad-card__body">
-      <div class="launchpad-card__title">
-        <h3>{@view.name}</h3>
-        <span :if={present?(@view.symbol)}>${@view.symbol}</span>
-      </div>
-      <p class="launchpad-card__metric">{present(@view.metric, "No price yet")}</p>
-      <p :if={present?(@view.creator) or present?(@view.age)} class="launchpad-card__meta">
-        <span :if={present?(@view.creator)}>{@view.creator}</span>
-        <span :if={present?(@view.age)}>{@view.age}</span>
-      </p>
-      <p class="launchpad-card__summary">{@view.description}</p>
-    </div>
+    <Regent.Structure.capability_card
+      title={@view.name}
+      description={@view.description}
+      index={Enum.join(Enum.filter([@view.status, present(@view.symbol, nil)], & &1), " · ")}
+      image_src={present(@view.image, nil)}
+      image_alt={"#{@view.name} token"}
+      class="launchpad-card__feature"
+    >
+      <:media><span class="launchpad-card__placeholder" aria-hidden="true">R</span></:media>
+      <:actions>
+        <p class="launchpad-card__metric">
+          <span class="autolaunch-micro">{@view.metric_label}</span>
+          <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} />
+        </p>
+        <p :if={present?(@view.creator) or present?(@view.age)} class="launchpad-card__meta">
+          <span :if={present?(@view.creator)}>{@view.creator}</span>
+          <span :if={present?(@view.age)}>{@view.age}</span>
+        </p>
+      </:actions>
+    </Regent.Structure.capability_card>
     """
   end
 
@@ -86,7 +220,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: values["image"],
       status: "Preview",
       metric_label: "Raise target",
-      metric: suffix(values["required_regent_raised"], " REGENT"),
+      metric: metric(values["required_regent_raised"], "REGENT"),
       address: nil,
       path: nil,
       creator: creator_name(connections),
@@ -103,7 +237,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: auction.image,
       status: auction.state |> to_string() |> String.capitalize(),
       metric_label: "Clearing price",
-      metric: auction.current_clearing_price,
+      metric: metric(auction.current_clearing_price, auction.quote_token_symbol),
       address: auction.auction_address,
       path: "/auctions/#{auction.id}",
       creator: creator_name(connections),
@@ -122,7 +256,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: presentation.image,
       status: "Graduated",
       metric_label: "Price",
-      metric: present(token.price_quote, "No price yet"),
+      metric: metric(token.price_quote, nil),
       address: presentation.auction_address,
       path: "/tokens/#{token.id}",
       creator: creator_name(connections),
@@ -130,6 +264,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
       connections: connection_list(connections)
     }
   end
+
+  # The stored figure travels untouched; only its on-screen form is shortened.
+  defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 
   defp connection_list(connections) when is_map(connections) do
     [:profile, :company]
@@ -170,7 +307,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
   defp present(value, fallback), do: if(present?(value), do: value, else: fallback)
-  defp suffix(value, suffix), do: if(present?(value), do: value <> suffix, else: nil)
 
   defp role_label(:profile), do: "Creator"
   defp role_label(:company), do: "Company"

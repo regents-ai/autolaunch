@@ -95,7 +95,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     <section id="autolaunch-create" class="autolaunch-page launchpad-create">
       <header class="launchpad-create__header">
         <p class="autolaunch-kicker">Autolaunch · Create</p>
-        <h1>Launch an auction</h1>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">Launch an auction</h1>
+        </Regent.Structure.section_bar>
         <p>
           Add the public token details, choose the treasury, then review the exact transactions.
           Draft changes save privately to your account. Your wallet remains in control.
@@ -121,12 +123,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             id="launch-token-details"
             phx-change="autosave_launch_token_details"
             phx-submit="autosave_launch_token_details"
-            class="launchpad-form-section"
+            class="launchpad-form-section rg-panel rg-panel--surface rg-field"
           >
             <header>
               <div>
                 <p class="autolaunch-kicker">Public identity</p>
-                <h2 id="launch-draft-title">Token details</h2>
+                <Regent.Structure.section_bar>
+                  <h2 class="rg-section-bar__label" id="launch-draft-title">Token details</h2>
+                </Regent.Structure.section_bar>
               </div>
               <span>{stage_status(@token_complete?)}</span>
             </header>
@@ -179,7 +183,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           <form
             id="launch-image-url"
             phx-submit="fetch_image_url"
-            class="launchpad-upload__url"
+            class="launchpad-upload__url rg-field"
           >
             <label for="launch-image-url-input">Paste an image link</label>
             <div class="launchpad-upload__url-row">
@@ -190,7 +194,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 autocomplete="off"
                 placeholder="https://"
               />
-              <button type="submit">Use this link</button>
+              <Regent.Primitives.button type="submit">Use this link</Regent.Primitives.button>
             </div>
           </form>
 
@@ -206,14 +210,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             phx-hook="AutolaunchLaunchDraft"
             phx-change="autosave_launch_treasury"
             phx-submit="autosave_launch_treasury"
-            class="launchpad-form-section"
+            class="launchpad-form-section rg-panel rg-panel--surface rg-field"
             data-saved-drafts={if(@active_draft, do: "1", else: "0")}
             data-draft-errors={to_string(@draft_errors != %{})}
           >
             <header>
               <div>
                 <p class="autolaunch-kicker">Proceeds</p>
-                <h2>Treasury</h2>
+                <Regent.Structure.section_bar>
+                  <h2 class="rg-section-bar__label">Treasury</h2>
+                </Regent.Structure.section_bar>
               </div>
               <span>{stage_status(@treasury_complete?)}</span>
             </header>
@@ -233,11 +239,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             />
           </form>
 
-          <section id="launch-transactions" class="launchpad-form-section launchpad-transactions">
+          <section
+            id="launch-transactions"
+            class="launchpad-form-section launchpad-transactions rg-panel rg-panel--surface"
+          >
             <header>
               <div>
                 <p class="autolaunch-kicker">Wallet review</p>
-                <h2>Launch transactions</h2>
+                <Regent.Structure.section_bar>
+                  <h2 class="rg-section-bar__label">Launch transactions</h2>
+                </Regent.Structure.section_bar>
               </div>
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
@@ -254,9 +265,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-            <button :if={!@launch_ready?} type="button" disabled>
+            <Regent.Primitives.button :if={!@launch_ready?} type="button" disabled>
               Complete token details and treasury
-            </button>
+            </Regent.Primitives.button>
           </section>
 
           <p
@@ -268,10 +279,15 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           </p>
         </div>
 
-        <aside class="launchpad-create__preview" aria-label="Live launch preview">
+        <aside
+          class="launchpad-create__preview rg-panel rg-support-panel"
+          aria-label="Live launch preview"
+        >
           <div>
             <p class="autolaunch-kicker">Live preview</p>
-            <h2>Your auction</h2>
+            <Regent.Structure.section_bar>
+              <h2 class="rg-section-bar__label">Your auction</h2>
+            </Regent.Structure.section_bar>
           </div>
           <.autolaunch_market_card
             kind={:draft}
@@ -326,8 +342,10 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         />
         <span>Use existing Safe</span>
       </label>
-      <details>
-        <summary>Advanced, high-risk treasury choices</summary>
+      <Regent.Primitives.disclosure
+        id={"#{@form_id}-advanced-custody"}
+        summary="Advanced, high-risk treasury choices"
+      >
         <label>
           <input
             type="radio"
@@ -358,7 +376,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">
           {@error}
         </p>
-      </details>
+      </Regent.Primitives.disclosure>
     </fieldset>
     """
   end
@@ -377,11 +395,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       assign(assigns, id: id, described_by: described_by(id, assigns.hint, assigns.error))
 
     ~H"""
-    <div class={[
-      "autolaunch-draft-field",
-      @field.kind == :long_text && "autolaunch-draft-field--wide"
-    ]}>
-      <label for={@id}>{@field.label}</label>
+    <Regent.Primitives.field
+      id={@id}
+      label={@field.label}
+      class={[
+        "autolaunch-draft-field",
+        @field.kind == :long_text && "autolaunch-draft-field--wide"
+      ]}
+    >
       <textarea
         :if={@field.kind == :long_text}
         id={@id}
@@ -402,7 +423,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       />
       <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
-    </div>
+    </Regent.Primitives.field>
     """
   end
 

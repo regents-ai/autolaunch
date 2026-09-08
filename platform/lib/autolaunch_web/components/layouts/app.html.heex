@@ -1,11 +1,18 @@
-<div class="shell">
+<Regent.Structure.frame class="shell">
   <a class="shell-skip" href="#shell-content">Skip to content</a>
-  <.rail current_path={@current_path} />
-  <div class="shell-main">
-    <.top_bar account_control={@account_control} />
-    <div id="shell-content" class="shell-content" tabindex="-1">
-      {@inner_content}
+  <Regent.Structure.row class="shell-body">
+    <:rail_content><.rail current_path={@current_path} /></:rail_content>
+    <div class="shell-main">
+      <.top_bar
+        account_control={@account_control}
+        search_query={@search_query}
+        home?={@current_path == "/"}
+        market_options={Map.get(assigns, :market_options) || %{}}
+      />
+      <div id="shell-content" class="shell-content" tabindex="-1">
+        {@inner_content}
+      </div>
       <.product_links />
     </div>
-  </div>
-</div>
+  </Regent.Structure.row>
+</Regent.Structure.frame>

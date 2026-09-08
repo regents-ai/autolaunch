@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.SubjectLive do
   def render(assigns) do
     assigns =
       assign(assigns,
+        local_lab?: Lab.enabled?(),
         page_record: page_record(assigns.page),
         page_status: page_status(assigns.page, :error),
         tokens: page_list(assigns.page, :tokens),
@@ -25,21 +26,31 @@ defmodule AutolaunchWeb.SubjectLive do
       )
 
     ~H"""
+    <p :if={@page_status == :loading} class="autolaunch-loading" role="status">Loading subject…</p>
     <article
       :if={@page_status == :ready && @page_record}
       id="autolaunch-subject-detail"
       class="autolaunch-page autolaunch-compact-detail"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Autolaunch · Subject</p>
-        <h1>{subject_label(@page_record)}</h1>
+        <.link navigate="/subjects" class="market-back">← Subjects</.link>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">{subject_label(@page_record)}</h1>
+        </Regent.Structure.section_bar>
         <p>{display_text(@page_record.subject_kind)} · Chain {@page_record.chain_id}</p>
       </header>
 
-      <.treasury_security report={report(@page_record)} surface="subject-detail" />
+      <.treasury_security
+        :if={!@local_lab?}
+        report={report(@page_record)}
+        surface="subject-detail"
+      />
+      <.lab_treasury_unavailable :if={@local_lab?} surface="subject-detail" />
 
-      <section aria-labelledby="subject-revenue-title">
-        <h2 id="subject-revenue-title">Revenue</h2>
+      <section class="autolaunch-record-section" aria-labelledby="subject-revenue-title">
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="subject-revenue-title">Revenue</h2>
+        </Regent.Structure.section_bar>
         <dl>
           <div>
             <dt>Starting protocol share</dt>
@@ -65,7 +76,10 @@ defmodule AutolaunchWeb.SubjectLive do
       </section>
 
       <.live_component
-        :if={@page_record.chain_id != Lab.chain_id()}
+        :if={
+          !Autolaunch.Prelaunch.read_only?() && !@local_lab? &&
+            @page_record.chain_id != Lab.chain_id()
+        }
         module={AutolaunchWeb.SubjectWalletComponent}
         id="autolaunch-subject-wallet"
         subject={@page_record}
@@ -73,9 +87,31 @@ defmodule AutolaunchWeb.SubjectLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
+      <section :if={Autolaunch.Prelaunch.read_only?()} class="prelaunch-actions">
+        <h2>Staking and payments</h2>
+        <p>Wallet actions will be available after contract deployment.</p>
+        <Regent.Primitives.button disabled>Stake</Regent.Primitives.button>
+        <Regent.Primitives.button disabled variant="secondary">Make a payment</Regent.Primitives.button>
+      </section>
+      <section
+        :if={!Autolaunch.Prelaunch.read_only?() && @local_lab?}
+        id="autolaunch-subject-wallet-unavailable"
+        class="autolaunch-empty"
+        role="status"
+      >
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label">Staking and payments</h2>
+        </Regent.Structure.section_bar>
+        <p>
+          Not available on the local Base fork. Only launches and bids run against the fork, so
+          this subject's wallet actions stay off rather than reaching Base mainnet.
+        </p>
+      </section>
 
       <section id="subject-related-tokens" aria-labelledby="subject-related-tokens-title">
-        <h2 id="subject-related-tokens-title">Related tokens</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="subject-related-tokens-title">Related tokens</h2>
+        </Regent.Structure.section_bar>
         <p :if={@tokens == []} class="autolaunch-empty">No related tokens yet.</p>
         <ol :if={@tokens != []} class="autolaunch-record-list">
           <li :for={token <- @tokens}>
@@ -89,7 +125,9 @@ defmodule AutolaunchWeb.SubjectLive do
       </section>
 
       <section id="subject-recent-actions" aria-labelledby="subject-recent-actions-title">
-        <h2 id="subject-recent-actions-title">Recent actions</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="subject-recent-actions-title">Recent actions</h2>
+        </Regent.Structure.section_bar>
         <.subject_action_list
           actions={@actions}
           empty_copy="No subject actions yet."
@@ -98,7 +136,11 @@ defmodule AutolaunchWeb.SubjectLive do
       </section>
 
       <Regent.Primitives.disclosure id="subject-addresses" summary="Addresses">
-        <h2 id="subject-addresses-title">Linked token and addresses</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="subject-addresses-title">
+            Linked token and addresses
+          </h2>
+        </Regent.Structure.section_bar>
         <dl>
           <div>
             <dt>Subject ID</dt><dd>{@page_record.subject_id}</dd>
@@ -124,8 +166,10 @@ defmodule AutolaunchWeb.SubjectLive do
         </dl>
       </Regent.Primitives.disclosure>
 
-      <section aria-labelledby="subject-settlement-title">
-        <h2 id="subject-settlement-title">Settlement history</h2>
+      <section class="autolaunch-record-section" aria-labelledby="subject-settlement-title">
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="subject-settlement-title">Settlement history</h2>
+        </Regent.Structure.section_bar>
         <p :for={{status, count} <- Enum.sort(Enum.frequencies_by(@settlements, & &1.status))}>
           {count} · {display_text(status)}
         </p>
@@ -147,7 +191,9 @@ defmodule AutolaunchWeb.SubjectLive do
       id="autolaunch-subject-detail"
       class="autolaunch-page autolaunch-empty"
     >
-      <h1>Subject not found</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Subject not found</h1>
+      </Regent.Structure.section_bar>
       <p>No public subject exists at {@record_id}.</p>
       <.link navigate="/subjects">Return to Subjects</.link>
     </section>
@@ -158,7 +204,9 @@ defmodule AutolaunchWeb.SubjectLive do
       class="autolaunch-page autolaunch-empty"
       role="alert"
     >
-      <h1>Subject unavailable</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Subject unavailable</h1>
+      </Regent.Structure.section_bar>
       <p>This subject could not be loaded right now.</p>
       <.link navigate="/subjects">Return to Subjects</.link>
     </section>

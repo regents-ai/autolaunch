@@ -34,6 +34,8 @@ defmodule AutolaunchWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  plug AutolaunchWeb.Prelaunch
+
   plug Plug.Parsers,
     body_reader: {RegentIdentity.BodyReader, :read_body, []},
     parsers: [:urlencoded, :multipart, :json],

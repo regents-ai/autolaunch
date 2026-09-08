@@ -16,10 +16,12 @@ defmodule AutolaunchWeb.SubjectsLive do
     ~H"""
     <section id="autolaunch-subjects" class="autolaunch-page">
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Autolaunch</p>
-        <h1>Subjects</h1>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">Subjects</h1>
+        </Regent.Structure.section_bar>
         <p>Browse the people and projects that share launch revenue.</p>
       </header>
+      <p :if={@records.loading} class="autolaunch-loading" role="status">Loading subjects…</p>
       <.empty_state
         :if={@records.ok? && @records.result == []}
         copy="No public subjects yet."

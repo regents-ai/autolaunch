@@ -18,16 +18,40 @@ defmodule AutolaunchWeb.Components.Rail do
 
     ~H"""
     <nav class="shell-rail" aria-label="Site">
+      <a class="shell-wordmark" href="/">Autolaunch</a>
       <ul class="shell-rail__list">
         <li :for={item <- @items} class={item_class(item)}>
+          <details :if={item.id == :create} id="rail-create-menu" class="shell-create-menu">
+            <summary class="shell-rail__link rg-button rg-button--primary" aria-label="Create options">
+              <span class="shell-rail__content"><.icon name={:create} /><span class="shell-rail__label">Create</span><span
+                aria-hidden="true"
+                class="shell-create-chevron"
+              >⌄</span></span>
+            </summary>
+            <div class="shell-create-options">
+              <Regent.Primitives.button
+                disabled
+                variant="secondary"
+                title="Available after contract deployment"
+              >Agent Revshare</Regent.Primitives.button>
+              <Regent.Primitives.button
+                disabled
+                variant="secondary"
+                title="Available after contract deployment"
+              >Onchain Stock Pair</Regent.Primitives.button>
+            </div>
+          </details>
           <.link
+            :if={item.id != :create}
             href={item.path}
-            class="shell-rail__link"
+            class={["shell-rail__link", item.id == :create && "rg-button rg-button--primary"]}
             aria-current={if active?(@current_path, item.path), do: "page"}
             aria-label={item.label}
           >
-            <.icon name={item.icon} />
-            <span class="shell-rail__label">{item.label}</span>
+            <span class={["shell-rail__content", item.id == :create && "rg-button__label"]}>
+              <.icon name={item.icon} />
+              <span class="shell-rail__label">{item.label}</span>
+            </span>
           </.link>
         </li>
       </ul>

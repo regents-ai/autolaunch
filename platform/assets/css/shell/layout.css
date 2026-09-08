@@ -1,75 +1,15 @@
-.shell {
-  box-sizing: border-box;
-  min-width: 0;
-  min-height: 100dvh;
-  display: grid;
-  grid-template: minmax(0, 1fr) / auto minmax(0, 1fr);
-}
-
-.shell *,
-.shell *::before,
-.shell *::after {
-  box-sizing: border-box;
-}
-
-.shell-skip {
-  position: absolute;
-  inset-inline-start: var(--space-3);
-  top: var(--space-3);
-  z-index: 8;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  color: var(--color-fg);
-  transform: translateY(-160%);
-}
-
-.shell-skip:focus {
-  transform: none;
-}
-
-.shell-main {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.shell-content {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  max-width: 100%;
-  padding: var(--space-4);
-}
-
-.shell-content > main {
-  padding: 0;
-}
-
-.shell-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-@media (max-width: 40rem) {
-  .shell {
-    grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .shell-content {
-    padding: var(--space-3);
-  }
-
-  .shell-rail {
-    grid-row: 3;
-  }
-}
+/* One continuous sheet: the rail and gutter tracks belong to Structure.row. */
+.shell { min-height: 100dvh; }
+.shell-body { min-height: 100dvh; }
+.shell-main { min-width: 0; display: flex; flex-direction: column; }
+.shell-content { min-width: 0; max-width: 100%; flex: 1; padding: var(--rg-panel-padding); }
+.shell-content > main { padding: 0; }
+.shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 20; padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
+.shell-skip:focus { transform: none; }
+.product-links { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); margin: 0; font-size: .875rem; }
+.product-links .rg-disclosure { flex: 1 1 14rem; }
+.product-links__related { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.autolaunch-profile-page { display: grid; gap: var(--space-4); }
+.autolaunch-profile-page .rg-profile { width: 100%; max-width: 48rem; margin: 0; }
+.autolaunch-error { min-height: 60dvh; display: grid; align-content: center; gap: var(--space-4); }
+.autolaunch-error .rg-button { justify-self: start; }

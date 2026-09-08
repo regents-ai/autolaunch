@@ -33,7 +33,8 @@ defmodule Autolaunch.Application do
   # The Base log ledger is optional and starts after the repository it writes
   # to. A dedicated nonempty endpoint is the only thing that turns it on.
   defp autolaunch_indexer_child do
-    with true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
+    with false <- Autolaunch.Prelaunch.read_only?(),
+         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
          endpoint when is_binary(endpoint) and endpoint != "" <-
            Application.get_env(:autolaunch, :autolaunch_indexer_rpc_url) do
       {Autolaunch.DurableWork.Runner,
@@ -46,9 +47,9 @@ defmodule Autolaunch.Application do
   end
 
   defp autolaunch_lab_market_feed_child do
-    with true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
+    with false <- Autolaunch.Prelaunch.read_only?(),
+         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
          true <- Application.get_env(:autolaunch, :autolaunch_lab_enabled, false),
-         true <- Application.get_env(:autolaunch, :autolaunch_lab_acceptance_verified, false),
          {:ok, _config} <- Autolaunch.Lab.current() do
       Autolaunch.LabMarketFeed
     else

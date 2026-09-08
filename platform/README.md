@@ -15,6 +15,28 @@ portfolio views, a public JSON API and matching browser-tool adapters. See the
 An implemented route does not establish a deployed or activated mainnet launch;
 the contract gates and release configuration remain authoritative.
 
+## Prelaunch read-only mode
+
+The website defaults to a read-only preview before contract deployment. Explore,
+public records, search, filters and the public read APIs remain available. The
+existing bid-quote POST is a read-only calculation and remains available too.
+
+- Create expands two disabled planned options: Agent Revshare and Onchain Stock Pair.
+- Creation, bids, payments, staking and account changes are disabled in the UI.
+- `/create` and its descendants return 404 before a draft can mount. Auth callbacks,
+  session/account APIs and other write-method requests are refused server-side.
+- Existing browser sessions are not adopted, write-capable LiveComponents are not
+  mounted, and auth/identity browser integrations are not initialized.
+- The indexer and local market projection workers do not start in this mode. Stored
+  public listings remain readable; the database itself is not changed or locked.
+
+`Autolaunch.Prelaunch.read_only?/0` is fail-closed: missing or malformed configuration
+keeps the site read-only. Only an explicit `config :autolaunch, prelaunch_read_only: false`
+and a full application restart enable writes. Do not enable this before contract
+addresses, chain configuration and real user journeys have been accepted. The two
+planned sidebar options remain disabled independently; contract deployment does not
+implement those products automatically. Deployment and migrations are separate approvals.
+
 ## Shared database namespace
 
 `AUTOLAUNCH_DB_SCHEMA` defaults to `public` for ordinary development and tests.
@@ -110,6 +132,14 @@ machine: every writer and every working tree gives it its own value, an undersco
 a short id, so that the runs use separate databases. `MIX_TEST_PARTITION=_regent_uiq_2` gives
 the database `autolaunch_regent_uiq_2_test`.
 
+## Local Base-fork lab
+
+The site can run against an isolated Anvil fork of Base (chain 31337) that carries a locally
+deployed copy of the contract graph, so the create, launch, auction and bid flow can be tried
+with test assets and no mainnet value. The controller, the environment the site needs, the
+run commands, how to switch on real Privy sign-in for the lab site, and the restart and
+recovery rules are in [docs/local-base-lab.md](docs/local-base-lab.md).
+
 ## Protected paths
 
 These paths carry the boundary between the site and money. A change to any of them is a
@@ -143,11 +173,16 @@ dependencies for the target Linux architecture. Host caches and native binaries
 are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
 `fly.staging.toml` (`autolaunch-staging`).
 
-Run the assembler through the prepared worktree runner so package paths and exact
-revisions come from the selected dependency manifest:
+Run the assembler from `platform/` with package paths set to the selected
+checkouts and each corresponding revision set to that checkout's exact commit.
+Use clean dependency checkouts when preparing a release:
+
+- `REGENT_PRIVY_PATH` and `REGENT_PRIVY_REVISION`: `elixir-utils/privy` and its repository commit.
+- `REGENT_IDENTITY_PATH` and `REGENT_IDENTITY_REVISION`: `regents/identity` and its repository commit.
+- `REGENT_UI_PATH` and `REGENT_UI_REVISION`: `design-system/regent_ui` and its repository commit.
 
 ```sh
-regentctl worktree-run autolaunch <ticket> -- bash scripts/build-release-context.sh /absolute/new-context arm64
+bash scripts/build-release-context.sh /absolute/new-context arm64
 docker build --platform linux/arm64 -f /absolute/new-context/Dockerfile -t autolaunch-candidate /absolute/new-context
 ```
 

@@ -34,28 +34,23 @@ defmodule AutolaunchWeb.TokenLive do
       class="autolaunch-page"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">
-          <%= if @local_lab? do %>
-            Local Base fork · test assets · no mainnet value
-          <% else %>
-            Autolaunch · Token
-          <% end %>
-        </p>
-        <h1>{record_label(:token, @page_record)}</h1>
-        <p>{record_summary(:token, @page_record) || record_fallback(:token)}</p>
+        <.link navigate="/tokens" class="market-back">← Tokens</.link>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">{record_label(:token, @page_record)}</h1>
+        </Regent.Structure.section_bar>
       </header>
-      <.autolaunch_market_card
+      <.detail_card
         kind={:token}
         record={@page_record}
         creator_connections={@creator_connections}
-        linked={false}
-        class="launchpad-card--detail"
       />
+      <.exact_price id="token-exact-price" summary="Exact price" amount={@page_record.price_quote} />
       <.treasury_security
         :if={!@local_lab?}
         report={report(@page_record)}
         surface="token-detail"
       />
+      <.lab_treasury_unavailable :if={@local_lab?} surface="token-detail" />
     </article>
 
     <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
@@ -65,7 +60,9 @@ defmodule AutolaunchWeb.TokenLive do
       id="autolaunch-token-detail"
       class="autolaunch-page autolaunch-empty"
     >
-      <h1>Token not found</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Token not found</h1>
+      </Regent.Structure.section_bar>
       <p>No public token exists at {@record_id}.</p>
       <.link navigate="/tokens">Return to Tokens</.link>
     </section>
@@ -76,7 +73,9 @@ defmodule AutolaunchWeb.TokenLive do
       class="autolaunch-page autolaunch-empty"
       role="alert"
     >
-      <h1>Token unavailable</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Token unavailable</h1>
+      </Regent.Structure.section_bar>
       <p>This token could not be loaded right now.</p>
       <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
       <.link navigate="/tokens">Return to Tokens</.link>

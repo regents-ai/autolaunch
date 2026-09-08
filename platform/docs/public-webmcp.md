@@ -52,7 +52,7 @@ Each execution also observes the agent's cancellation signal.
 ## Verification
 
 Use the prepared worktree environment and its isolated local database. Run the
-relevant controller tests and `mix assets.build` through `regentctl worktree-run`.
+relevant controller tests and `mix assets.build` from `platform/` with the selected dependency paths.
 The focused frontend checks are:
 
 ```sh

@@ -1,4 +1,4 @@
-@import "../vendor/regent_ui/regent.css";
+@import "../vendor/regent_ui/design_system_tokens.css";
 @import "../vendor/regent_ui/primitives.css";
 @import "./tokens/autolaunch.css";
 @import "./base.css";
@@ -10,20 +10,14 @@
 @import "./pages/autolaunch.css";
 @import "./pages/home.css";
 
-/* Source and product discovery; disclosure links remain in the document. */
-.product-links {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.75rem 1.5rem;
-  padding: 1.25rem;
-  margin: 1rem auto;
-  max-width: 72rem;
-  font-size: 0.875rem;
+.autolaunch-prelaunch-notice { margin: 0; padding: 10px 16px; text-align: center; background: var(--color-fg); color: var(--color-surface); font-size: .8125rem; line-height: 1.5; }
+.prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
+.prelaunch-actions h2, .prelaunch-actions p { margin: 0; }
+.prelaunch-actions p { color: var(--color-fg-muted); font-size: .875rem; }
+html[data-prelaunch-read-only="true"] .rg-button:disabled {
+  --rg-button-fill: color-mix(in srgb, var(--color-fg) 12%, var(--color-surface));
+  --rg-button-ink: var(--color-fg-muted);
+  background: var(--rg-button-fill); color: var(--rg-button-ink); border: 1px solid var(--hairline-strong); opacity: 1; cursor: not-allowed;
 }
-.product-links__related {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding-top: 0.75rem;
-}
+html[data-prelaunch-read-only="true"] .rg-button:disabled::before,
+html[data-prelaunch-read-only="true"] .rg-button:disabled::after { display: none; }

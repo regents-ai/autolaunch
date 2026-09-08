@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.Router do
   use AutolaunchWeb, :router
 
   pipeline :browser do
-    plug :accepts, ["html"]
+    plug :accepts, ["html", "json"]
     plug :fetch_session
     plug :enforce_session_authority
     plug :fetch_live_flash
@@ -16,7 +16,11 @@ defmodule AutolaunchWeb.Router do
   end
 
   def enforce_session_authority(conn, _opts) do
-    AutolaunchWeb.PrivySessionController.enforce_authority(conn)
+    if Autolaunch.Prelaunch.read_only?() do
+      conn |> assign(:current_lineage, nil) |> assign(:current_human_account, nil)
+    else
+      AutolaunchWeb.PrivySessionController.enforce_authority(conn)
+    end
   end
 
   scope "/", AutolaunchWeb do

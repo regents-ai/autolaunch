@@ -52,6 +52,7 @@ defmodule AutolaunchWeb do
     quote do
       use Phoenix.LiveView, layout: {AutolaunchWeb.Layouts, :app}
 
+      on_mount {AutolaunchWeb.Prelaunch, :default}
       on_mount {AutolaunchWeb.Live.Session, :shell}
 
       unquote(html_helpers())

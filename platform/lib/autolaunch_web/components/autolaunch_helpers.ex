@@ -58,7 +58,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         empty_copy:
           if(
             assigns.kind == :auctions,
-            do: "Start the first launch and it will appear here for bidders.",
+            do:
+              if(Autolaunch.Prelaunch.read_only?(),
+                do: "Auctions will appear here after contract deployment.",
+                else: "Start the first launch and it will appear here for bidders."
+              ),
             else: "Tokens appear here after their auction graduates."
           ),
         empty_action:
@@ -67,23 +71,48 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       )
 
     ~H"""
-    <section id={"autolaunch-#{@kind}"} class="autolaunch-page">
+    <section id={"autolaunch-#{@kind}"} class="autolaunch-page market-explore">
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Browse the market</p>
-        <h1>{@title}</h1>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">{@title}</h1>
+        </Regent.Structure.section_bar>
         <p>{@copy}</p>
-        <.regent_market_links :if={@kind == :auctions} />
+        <nav class="market-route-tabs" aria-label="Market collections">
+          <.link navigate="/auctions" aria-current={if @kind == :auctions, do: "page"}>Auctions</.link>
+          <.link navigate="/tokens" aria-current={if @kind == :tokens, do: "page"}>Tokens</.link>
+          <.link navigate="/" class="market-route-tabs__explore">Explore all</.link>
+        </nav>
       </header>
       <section
         :if={@records.ok? && @records.result == []}
         class="autolaunch-empty autolaunch-market-empty"
       >
         <p :if={!@cursor} class="autolaunch-kicker">Be first</p>
-        <h2>{if @cursor, do: "No more records on this page", else: @empty_title}</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label">
+            {if @cursor, do: "No more records on this page", else: @empty_title}
+          </h2>
+        </Regent.Structure.section_bar>
         <p :if={!@cursor}>{@empty_copy}</p>
-        <.link :if={!@cursor} href={@empty_path}>{@empty_action} <span aria-hidden="true">→</span></.link>
+        <Regent.Primitives.button
+          :if={!@cursor && @kind == :auctions && Autolaunch.Prelaunch.read_only?()}
+          disabled
+          title="Available after contract deployment"
+        >{@empty_action}</Regent.Primitives.button>
+        <.link
+          :if={!@cursor && !(@kind == :auctions && Autolaunch.Prelaunch.read_only?())}
+          href={@empty_path}
+          class="rg-button rg-button--primary"
+        ><span class="rg-button__label">{@empty_action}
+        <span aria-hidden="true">→</span></span></.link>
       </section>
-      <p :if={@records.loading} role="status">Loading…</p>
+      <div :if={@records.loading} class="home-coin-grid" aria-hidden="true">
+        <div :for={index <- 1..6} id={"#{@kind}-loading-#{index}"} class="home-skeleton">
+          <div class="home-skeleton__image"></div><div class="home-skeleton__line"></div><div class="home-skeleton__line home-skeleton__line--short">
+          </div>
+        </div>
+      </div>
+      <p :if={@records.loading} class="visually-hidden" role="status">Loading {@title}</p>
       <Regent.Primitives.notice :if={@records.failed} role="alert">
         <p>
           {if @records.failed == {:error, :invalid_query},
@@ -99,7 +128,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       </Regent.Primitives.notice>
       <div :if={@records.ok? && @records.result != []} class="home-coin-grid">
         <div :for={record <- @records.result}>
-          <.autolaunch_market_card
+          <.explore_card
             kind={collection_record_kind(@kind)}
             record={record}
             creator_connections={connections_for(record, grouped_connections(@creators))}
@@ -114,7 +143,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       <nav
         :if={@pagination.ok? && (@cursor || @pagination.result.has_more)}
         aria-label="Browse pages"
-        class="autolaunch-heading"
+        class="market-pagination"
       >
         <.link :if={@cursor} patch={"/#{@kind}"}>Back to newest</.link>
         <.link
@@ -122,6 +151,10 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
           patch={"/#{@kind}?" <> URI.encode_query(%{"after" => @pagination.result.next_cursor})}
         >Next page <span aria-hidden="true">→</span></.link>
       </nav>
+      <details :if={@kind == :auctions} class="market-secondary-links">
+        <summary>REGENT market links</summary>
+        <.regent_market_links />
+      </details>
     </section>
     """
   end
@@ -194,6 +227,37 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     </aside>
     """
   end
+
+  attr :surface, :string, required: true
+
+  # A local-fork site has no treasury evidence to show: the fixture the lab
+  # runs on is not a chain observation, so the page says so instead.
+  def lab_treasury_unavailable(assigns) do
+    ~H"""
+    <aside id={"treasury-security-#{@surface}"} class="treasury-security" role="status">
+      <h3>Treasury security</h3>
+      <p class="treasury-security--warning">
+        Treasury verification is not available on the local Base fork. Custody is unverified here.
+      </p>
+    </aside>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :summary, :string, required: true
+  attr :amount, :string, default: nil
+  attr :unit, :string, default: nil
+
+  # The stored figure, unshortened, for anyone who needs every digit.
+  def exact_price(assigns) do
+    ~H"""
+    <Regent.Primitives.disclosure :if={present?(@amount)} id={@id} summary={@summary}>
+      <p class="autolaunch-exact-value">{@amount}{if present?(@unit), do: " #{@unit}"}</p>
+    </Regent.Primitives.disclosure>
+    """
+  end
+
+  defp present?(value), do: is_binary(value) and String.trim(value) != ""
 
   attr :copy, :string, required: true
 

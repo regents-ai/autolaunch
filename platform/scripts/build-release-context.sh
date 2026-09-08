@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble source selected by regentctl worktree-run. Docker installs locked
+# Assemble explicitly selected source checkouts. Docker installs locked
 # Linux dependencies itself; host caches and native binaries never enter.
 set -euo pipefail
 
@@ -10,9 +10,9 @@ arch="$2"
 case "$arch" in arm64|amd64) ;; *) die 'arch must be arm64 or amd64' ;; esac
 [ ! -e "$destination" ] && [ ! -L "$destination" ] || die 'destination already exists; choose a new directory'
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-privy_source="${REGENT_PRIVY_PATH:?run through the prepared worktree runner}"
-identity_source="${REGENT_IDENTITY_PATH:?run through the prepared worktree runner}"
-regent_ui_source="${REGENT_UI_PATH:?run through the prepared worktree runner}"
+privy_source="${REGENT_PRIVY_PATH:?set the selected package checkout path}"
+identity_source="${REGENT_IDENTITY_PATH:?set the selected package checkout path}"
+regent_ui_source="${REGENT_UI_PATH:?set the selected package checkout path}"
 for source in "$privy_source" "$identity_source" "$regent_ui_source"; do
   [ -f "$source/mix.exs" ] || die "missing selected package: $source"
 done

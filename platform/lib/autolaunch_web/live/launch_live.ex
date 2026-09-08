@@ -19,22 +19,27 @@ defmodule AutolaunchWeb.LaunchLive do
       )
 
     ~H"""
+    <p :if={@page_status == :loading} class="autolaunch-loading" role="status">Loading launch…</p>
     <article
       :if={@page_status == :ready && @page_record}
       id="autolaunch-launch-detail"
       class="autolaunch-page autolaunch-compact-detail"
     >
       <header class="autolaunch-heading">
-        <p class="autolaunch-kicker">Autolaunch · Launch</p>
-        <h1>{launch_label(@page_record)}</h1>
+        <.link navigate="/launches" class="market-back">← Launches</.link>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">{launch_label(@page_record)}</h1>
+        </Regent.Structure.section_bar>
         <p>
           <Regent.Primitives.status>{display_action(@page_record.status)}</Regent.Primitives.status>
           · Chain {@page_record.chain_id}
         </p>
       </header>
 
-      <section aria-labelledby="launch-auction-title">
-        <h2 id="launch-auction-title">Linked auction</h2>
+      <section class="autolaunch-record-section" aria-labelledby="launch-auction-title">
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="launch-auction-title">Linked auction</h2>
+        </Regent.Structure.section_bar>
         <p :if={is_nil(@page_record.auction_id)} class="autolaunch-empty">
           No auction is linked yet.
         </p>
@@ -46,8 +51,10 @@ defmodule AutolaunchWeb.LaunchLive do
       <.treasury_security report={report(@page_record)} surface="launch-detail" />
 
       <Regent.Primitives.disclosure id="launch-addresses" summary="Addresses and identity">
-        <section aria-labelledby="launch-identity-title">
-          <h2 id="launch-identity-title">Agent and token</h2>
+        <section class="autolaunch-record-section" aria-labelledby="launch-identity-title">
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="launch-identity-title">Agent and token</h2>
+          </Regent.Structure.section_bar>
           <dl>
             <div>
               <dt>Agent</dt><dd>{launch_agent(@page_record)}</dd>
@@ -67,7 +74,9 @@ defmodule AutolaunchWeb.LaunchLive do
           </dl>
         </section>
 
-        <h2 id="launch-addresses-title">Published addresses</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="launch-addresses-title">Published addresses</h2>
+        </Regent.Structure.section_bar>
         <dl>
           <div>
             <dt>Auction</dt><dd>{display_text(@page_record.auction_address)}</dd>
@@ -86,8 +95,10 @@ defmodule AutolaunchWeb.LaunchLive do
       </Regent.Primitives.disclosure>
 
       <Regent.Primitives.disclosure id="launch-history" summary="History">
-        <section aria-labelledby="launch-progress-title">
-          <h2 id="launch-progress-title">Progress</h2>
+        <section class="autolaunch-record-section" aria-labelledby="launch-progress-title">
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="launch-progress-title">Progress</h2>
+          </Regent.Structure.section_bar>
           <dl>
             <div>
               <dt>Current step</dt><dd>{display_action(@page_record.step)}</dd>
@@ -97,7 +108,9 @@ defmodule AutolaunchWeb.LaunchLive do
             </div>
           </dl>
         </section>
-        <h2 id="launch-times-title">Timeline</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label" id="launch-times-title">Timeline</h2>
+        </Regent.Structure.section_bar>
         <dl>
           <div>
             <dt>Started</dt><dd>{display_time(@page_record.started_at)}</dd>
@@ -120,7 +133,9 @@ defmodule AutolaunchWeb.LaunchLive do
       id="autolaunch-launch-detail"
       class="autolaunch-page autolaunch-empty"
     >
-      <h1>Launch not found</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Launch not found</h1>
+      </Regent.Structure.section_bar>
       <p>No public launch exists at {@record_id}.</p>
       <.link navigate="/launches">Return to Launches</.link>
     </section>
@@ -131,7 +146,9 @@ defmodule AutolaunchWeb.LaunchLive do
       class="autolaunch-page autolaunch-empty"
       role="alert"
     >
-      <h1>Launch unavailable</h1>
+      <Regent.Structure.section_bar>
+        <h1 class="rg-section-bar__label">Launch unavailable</h1>
+      </Regent.Structure.section_bar>
       <p>This launch could not be loaded right now.</p>
       <.link navigate="/launches">Return to Launches</.link>
     </section>

@@ -1,52 +1,22 @@
-/* The base layer: the colour the palette owes to what a page renders before it
- * has any components. html and body already take their ground, their text and
- * their family from regent.css, so nothing here repeats that. */
-
-html[data-brand="autolaunch"] {
-  background-color: var(--color-bg);
-
-}
-
-html[data-brand="autolaunch"] body {
-  background: transparent;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  color: var(--color-fg);
-  font-weight: var(--font-weight-semibold);
-}
-
-a {
-  color: var(--glass-text-accent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.2em;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  a {
-    transition: color var(--duration-fast) ease;
-  }
-
-  a:hover {
-    color: var(--color-accent-hover);
-  }
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
-
-::selection {
-  background-color: var(--color-accent-secondary);
-  color: var(--color-fg-on-accent);
-}
-
-main {
-  padding: var(--space-4);
-}
+/* Product document reset. Palettes and genuine bundled faces belong to Regent UI. */
+*, *::before, *::after { box-sizing: border-box; }
+html { min-height: 100%; background: var(--color-bg); color: var(--color-fg); }
+body { margin: 0; min-height: 100dvh; background: var(--color-bg); font-family: var(--font-family-ui); font-size: 1rem; line-height: 1.5; }
+button, input, select, textarea { font: inherit; font-family: var(--font-family-ui); }
+strong, b { font-weight: 600; }
+:where(h1, h2, h3, h4, h5, h6, summary) { font-family: var(--font-family-title); font-weight: 400; font-synthesis: none; color: inherit; overflow-wrap: anywhere; }
+h1 { font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.08; }
+h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); line-height: 1.2; }
+h3 { font-size: 1.25rem; line-height: 1.3; }
+:where(a) { color: var(--rg-local-ink, var(--color-link)); text-decoration-thickness: 1px; text-underline-offset: .2em; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; }
+::selection { background: var(--color-accent); color: var(--color-fg-on-accent); }
+:where(main, section, article, header, footer, nav, form, fieldset, figure, dl, dd) { min-width: 0; }
+:where(p, dd, code, a, label, legend) { overflow-wrap: anywhere; }
+:where(img, canvas, svg) { max-width: 100%; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+/* Screen-reader-only values retain every exact digit. */
+.visually-hidden, .shell-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (forced-colors: active) { :focus-visible { outline-color: Highlight; } }
