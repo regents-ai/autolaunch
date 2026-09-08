@@ -171,8 +171,13 @@ Run the exact candidate image once in the migration app, then deploy that same d
 the serving app:
 
 ```sh
-fly machine run registry.fly.io/autolaunch-sh@sha256:<digest> /app/bin/migrate \
-  --app autolaunch-sh-migrations --config fly.migrations.toml --region iad --rm
+fly machine run registry.fly.io/autolaunch-sh:<revision-tag> /app/bin/migrate \
+  --app autolaunch-sh-migrations \
+  --region iad \
+  --vm-memory 1024 \
+  --env AUTOLAUNCH_DEPLOYMENT_ROLE=production \
+  --env AUTOLAUNCH_DB_SCHEMA=autolaunch_app \
+  --rm
 fly deploy --app autolaunch-sh --config fly.toml \
   --image registry.fly.io/autolaunch-sh@sha256:<digest> --ha=false
 ```
