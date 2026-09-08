@@ -22,8 +22,6 @@ defmodule Autolaunch.Accounts.HumanAccount do
       filter expr(id == ^arg(:id))
     end
 
-    read :public_comment_author
-
     create :register_verified do
       accept []
       argument :privy_did, :string, allow_nil?: false
@@ -57,10 +55,6 @@ defmodule Autolaunch.Accounts.HumanAccount do
   policies do
     policy action([:by_privy_did, :register_verified, :refresh_verified]) do
       authorize_if Autolaunch.Checks.SystemActor
-    end
-
-    policy action(:public_comment_author) do
-      authorize_if always()
     end
 
     policy action([:read_self, :set_display_name, :set_avatar]) do

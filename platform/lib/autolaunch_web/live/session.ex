@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.Live.Session do
 
   alias Autolaunch.AccessContext
   alias Autolaunch.Accounts.SessionAuthority
+  alias AutolaunchWeb.Components.TopBar
 
   @public_root "/"
 
@@ -40,8 +41,12 @@ defmodule AutolaunchWeb.Live.Session do
     {:cont,
      socket
      |> assign_shell_control(session)
-     |> attach_hook(:current_path, :handle_params, fn _params, uri, socket ->
-       {:cont, Phoenix.Component.assign(socket, :current_path, path_of(uri))}
+     |> attach_hook(:shell_location, :handle_params, fn params, uri, socket ->
+       {:cont,
+        Phoenix.Component.assign(socket,
+          current_path: path_of(uri),
+          search_query: TopBar.normalize_query(params["q"])
+        )}
      end)}
   end
 
@@ -51,10 +56,10 @@ defmodule AutolaunchWeb.Live.Session do
   def on_mount(:load_human, _params, session, socket) do
     socket = Phoenix.Component.assign(socket, :session_lease, nil)
 
-    if connected?(socket) do
-      connected(socket, session, get_connect_info(socket, :session))
-    else
-      {:cont, assign_principal(socket, disconnected_account(session))}
+    cond do
+      Autolaunch.Prelaunch.read_only?() -> {:cont, assign_principal(socket, nil)}
+      connected?(socket) -> connected(socket, session, get_connect_info(socket, :session))
+      true -> {:cont, assign_principal(socket, disconnected_account(session))}
     end
   end
 
@@ -126,8 +131,12 @@ defmodule AutolaunchWeb.Live.Session do
   defp rendered_topic(lineage), do: %{"render_topic" => SessionAuthority.topic(lineage)}
 
   defp disconnected_account(session) do
-    {_lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
-    account
+    if Autolaunch.Prelaunch.read_only?() do
+      nil
+    else
+      {_lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
+      account
+    end
   end
 
   defp local_route(path, ""), do: path
@@ -149,6 +158,7 @@ defmodule AutolaunchWeb.Live.Session do
 
     Phoenix.Component.assign(socket,
       current_path: "/",
+      search_query: "",
       account_control: AccessContext.account_control(access_context)
     )
   end

@@ -17,7 +17,10 @@ defmodule Autolaunch.ImageFetch.Address do
   def public?({hextet, _, _, _, _, _, _, _}) when hextet in 0xFE80..0xFEBF, do: false
   def public?({hextet, _, _, _, _, _, _, _}) when hextet in 0xFC00..0xFDFF, do: false
   def public?({hextet, _, _, _, _, _, _, _}) when hextet in 0xFF00..0xFFFF, do: false
-  def public?({0, 0, 0, 0, 0, 0xFFFF, hi, lo}), do: public?(mapped_ipv4(hi, lo))
+
+  def public?({0, 0, 0, 0, 0, embed, hi, lo}) when embed in [0, 0xFFFF],
+    do: public?(mapped_ipv4(hi, lo))
+
   def public?({_, _, _, _, _, _, _, _}), do: true
   def public?(_other), do: false
 

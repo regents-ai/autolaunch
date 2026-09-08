@@ -213,7 +213,11 @@ defmodule Autolaunch.SubjectWalletActions do
   """
   @spec start_new(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def start_new(subject_id, action_id, opts),
-    do: write(subject_id, action_id, opts, transition(:close_submission_unknown, @unresolved))
+    do:
+      write(subject_id, action_id, opts, fn _account, operation ->
+        action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
+        SubjectWalletOperations.update(operation, action, %{reason: @unresolved})
+      end)
 
   @doc """
   The account's open operation for this subject, recovered under its current lease.
@@ -253,6 +257,7 @@ defmodule Autolaunch.SubjectWalletActions do
       :action_transaction_hash,
       :terminal_at
     ])
+    |> Autolaunch.WalletAttempts.decorate(operation, :subject)
   end
 
   @doc "The reviewed sequence, in order, as the progress list renders it."
@@ -499,6 +504,12 @@ defmodule Autolaunch.SubjectWalletActions do
 
   defp receiver_address(%{receiver: %{address: address}}), do: address
   defp receiver_address(_none), do: nil
+
+  def press_evidence(operation) do
+    if Envelope.valid?(operation.envelope, resource: @resource),
+      do: :ok,
+      else: unavailable(:subject_wallet_preparation_unavailable)
+  end
 
   # Operations
 

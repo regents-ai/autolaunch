@@ -30,12 +30,25 @@ defmodule Autolaunch.LaunchRpcClient do
 
   @impl true
   def verify(envelope, step, hash) do
+    with {:ok, result} <- verify_with_evidence(envelope, step, hash),
+         do: {:ok, Map.delete(result, :receipt)}
+  end
+
+  def verify_with_evidence(envelope, step, hash) do
     %{"to" => to, "data" => data} = step(envelope, step)
 
     with {:ok, block} <- Rpc.safe_block(@rpc_opts),
-         {:ok, settled} <-
-           Rpc.canonical_outcome(hash, envelope["expected_signer"], to, data, block, @rpc_opts),
-         do: settled(settled, envelope, step)
+         {:ok, evidence} <-
+           Rpc.canonical_outcome_evidence(
+             hash,
+             envelope["expected_signer"],
+             to,
+             data,
+             block,
+             @rpc_opts
+           ),
+         {:ok, result} <- settled(evidence.outcome, envelope, step),
+         do: {:ok, Map.put(result, :receipt, evidence.receipt)}
   end
 
   defp settled(:pending, _envelope, _step), do: {:ok, %{outcome: :pending}}

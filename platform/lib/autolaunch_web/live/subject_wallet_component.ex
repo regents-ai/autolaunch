@@ -8,8 +8,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   does not hold shows no balances and can neither review nor send.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
-  server's own read of that exact hash, and a claimed step is never offered a
-  second send.
+  server's own read of that exact hash. Each distinct press is independent;
+  recovery reports prior outcomes and never sends again automatically.
   """
 
   use AutolaunchWeb, :live_component
@@ -85,9 +85,14 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
+  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
+    {:ok, AutolaunchWeb.WalletPressComponent.consume(socket, lease, result)}
+  end
+
   def update(assigns, socket) do
     {:ok,
      socket
+     |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:state, fn -> nil end)
@@ -96,6 +101,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
      |> assign_new(:amount, fn -> "" end)
      |> assign_new(:note, fn -> "" end)
      |> assign_new(:notice, fn -> nil end)
+     |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
      |> assign(assets: @assets, action_list: @actions)}
   end
@@ -105,12 +111,15 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     ~H"""
     <section
       id={@id}
-      class="subject-wallet"
+      class="subject-wallet rg-panel rg-panel--surface"
+      data-wallet-scope={AutolaunchWeb.WalletPressComponent.scope(assigns)}
       phx-hook="AutolaunchSubjectWallet"
       phx-target={@myself}
     >
       <header class="subject-wallet-heading">
-        <h2>Your wallet on this subject</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label">Your wallet on this subject</h2>
+        </Regent.Structure.section_bar>
         <p>
           Stake, claim, and pay from the wallet you have selected. Your wallet confirms every step.
         </p>
@@ -119,12 +128,12 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
       <.notice :if={@notice} notice={@notice} />
 
       <p :if={!@authenticated} class="subject-wallet-empty">
-        <button type="button" data-account-target="sign-in">Sign in to continue</button>
+        <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to continue</Regent.Primitives.button>
       </p>
 
       <div :if={@authenticated && !@wallet} class="subject-wallet-empty">
         <p>Choose the wallet you want to use here.</p>
-        <button type="button" data-subject-wallet-connect>Connect or switch wallet</button>
+        <Regent.Primitives.button type="button" data-subject-wallet-connect>Connect or switch wallet</Regent.Primitives.button>
       </div>
 
       <div :if={@authenticated && @wallet && @state} class="subject-wallet-body">
@@ -146,7 +155,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         <div :if={!@operation} class="subject-wallet-choose">
           <%!-- A small selector, not a tab widget: each button switches the one form below. --%>
           <div class="subject-wallet-actions" role="group" aria-label="Choose an action">
-            <button
+            <Regent.Primitives.button
               :for={action <- @action_list}
               type="button"
               id={"#{@id}-action-#{action.kind}"}
@@ -155,9 +164,10 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
               phx-click="select_subject_action"
               phx-value-kind={action.kind}
               phx-target={@myself}
+              variant="secondary"
             >
               {action.label}
-            </button>
+            </Regent.Primitives.button>
           </div>
 
           <form
@@ -166,7 +176,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             phx-submit="review_subject_action"
             phx-target={@myself}
           >
-            <div :if={asset_kind?(@kind)} class="subject-wallet-field">
+            <div :if={asset_kind?(@kind)} class="subject-wallet-field rg-field">
               <label for={"#{@id}-asset"}>Asset</label>
               <select id={"#{@id}-asset"} name="asset">
                 <option :for={asset <- @assets} value={asset.id} selected={asset.id == @asset}>
@@ -175,7 +185,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
               </select>
             </div>
 
-            <div :if={amount_kind?(@kind)} class="subject-wallet-field">
+            <div :if={amount_kind?(@kind)} class="subject-wallet-field rg-field">
               <label for={"#{@id}-amount"}>Amount</label>
               <div class="subject-wallet-amount">
                 <input
@@ -186,13 +196,18 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
                   autocomplete="off"
                   placeholder="0.0"
                 />
-                <button type="button" phx-click="fill_subject_amount" phx-target={@myself}>
+                <Regent.Primitives.button
+                  type="button"
+                  phx-click="fill_subject_amount"
+                  phx-target={@myself}
+                  variant="secondary"
+                >
                   Max
-                </button>
+                </Regent.Primitives.button>
               </div>
             </div>
 
-            <div :if={@kind == :set_note} class="subject-wallet-field">
+            <div :if={@kind == :set_note} class="subject-wallet-field rg-field">
               <label for={"#{@id}-note"}>Label</label>
               <input
                 id={"#{@id}-note"}
@@ -224,9 +239,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
               )}
             </p>
 
-            <button class="subject-wallet-primary" type="submit" disabled={!ready?(assigns)}>
+            <Regent.Primitives.button
+              class="subject-wallet-primary"
+              type="submit"
+              disabled={!ready?(assigns)}
+            >
               Review {String.downcase(verb(@kind))}
-            </button>
+            </Regent.Primitives.button>
           </form>
         </div>
 
@@ -303,60 +322,108 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             {settled_copy(@operation.state)}
           </p>
 
-          <button
+          <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-subject-wallet-send={@operation.action_id}
+            data-wallet-step={@operation.step}
             data-subject-wallet-signer={@operation.signer}
           >
             Confirm in wallet
-          </button>
+          </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
             This action belongs to another wallet. Switch back to it to finish.
           </p>
-          <button
+          <Regent.Primitives.button
             :if={@operation.state == :submitted}
             type="button"
             phx-click="check_subject_wallet_step"
             phx-value-action-id={@operation.action_id}
             phx-target={@myself}
+            variant="secondary"
           >
             Check again
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state == :prepared && !started?(@operation)}
             type="button"
             phx-click="cancel_subject_wallet_review"
             phx-value-action-id={@operation.action_id}
             phx-target={@myself}
+            variant="secondary"
           >
             Cancel
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state in [:dispatched, :submitted]}
             type="button"
             phx-click="start_new_subject_wallet_action"
             phx-value-action-id={@operation.action_id}
             phx-target={@myself}
+            variant="secondary"
           >
             Start something else
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.terminal_at}
             type="button"
             phx-click="clear_subject_wallet_action"
             phx-target={@myself}
+            variant="secondary"
           >
             Do something else
-          </button>
+          </Regent.Primitives.button>
         </section>
       </div>
+      <AutolaunchWeb.WalletPressComponent.history
+        :if={AutolaunchWeb.WalletPressComponent.scope(assigns)}
+        history={@wallet_press_history}
+        target={@myself}
+      />
     </section>
     """
   end
 
   # The wallet Privy has selected, whenever it changes.
   @impl true
+  def handle_event("wallet_press_dispatch", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.dispatch(
+         socket,
+         :subject,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_report", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.report(
+         socket,
+         :subject,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_verify", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.verify(
+         socket,
+         :subject,
+         params,
+         opts(socket),
+         __MODULE__
+       )}
+
+  def handle_event("wallet_press_restore", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.restore(socket, :subject, params, opts(socket))}
+
   def handle_event("subject_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -403,15 +470,16 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   # The bound row goes on screen before Base is asked anything, so a read that
   # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event(
-        "subject_wallet_submitted",
-        %{"action_id" => action_id, "step" => step, "transaction_hash" => hash},
-        socket
-      ) do
-    case wallet_step(step) do
-      nil -> {:noreply, socket}
-      step -> submitted(socket, action_id, step, hash)
-    end
+  def handle_event("subject_wallet_submitted", params, socket) do
+    {:noreply,
+     AutolaunchWeb.WalletPressComponent.legacy_report(
+       socket,
+       :subject,
+       params,
+       opts(socket),
+       __MODULE__,
+       "autolaunch-subject-wallet:hash-durable"
+     )}
   end
 
   def handle_event("check_subject_wallet_step", %{"action-id" => action_id}, socket),
@@ -505,25 +573,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     """
   end
 
-  defp submitted(socket, action_id, step, hash) do
-    subject_id = socket.assigns.subject.subject_id
-
-    case Autolaunch.bind_subject_wallet_hash(subject_id, action_id, step, hash, opts(socket)) do
-      {:ok, %{operation: bound}} = result ->
-        socket = settled(result, socket)
-
-        socket =
-          subject_id
-          |> Autolaunch.verify_subject_wallet_step(action_id, opts(socket))
-          |> settled(socket)
-
-        {:noreply, acknowledged(socket, bound, step)}
-
-      refused ->
-        {:noreply, settled(refused, socket)}
-    end
-  end
-
   # The closed sets this card maps a browser value through. Nothing here builds
   # an atom from what the browser sent: a value outside the set has no meaning
   # and is answered with nothing rather than with an error.
@@ -535,10 +584,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   defp action_kind("sweep"), do: :sweep
   defp action_kind("set_note"), do: :set_note
   defp action_kind(_unknown), do: nil
-
-  defp wallet_step("approval"), do: :approval
-  defp wallet_step("action"), do: :action
-  defp wallet_step(_unknown), do: nil
 
   defp asset_key(id), do: Enum.find_value(@assets, &(&1.id == id && &1.key))
 
@@ -565,20 +610,13 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   # The one acknowledgement the browser waits for before it drops its own copy of
   # a reported hash: this exact hash is durable on this exact step.
-  defp acknowledged(socket, operation, step),
-    do:
-      push_event(socket, "autolaunch-subject-wallet:hash-durable", %{
-        action_id: operation.action_id,
-        step: Atom.to_string(step),
-        transaction_hash: SubjectWalletActions.step_hash(operation, step)
-      })
-
   # The whole reviewed sequence, so the browser can check that what it is asked to
   # send really belongs to the operation it is holding.
   defp published(%{assigns: %{operation: nil}} = socket), do: cleared(socket)
 
   defp published(%{assigns: %{operation: operation}} = socket) do
     push_event(socket, "autolaunch-subject-wallet:operation", %{
+      component_id: socket.assigns.id,
       action_id: operation.action_id,
       subject_id: operation.subject_id,
       signer: operation.signer,
@@ -769,7 +807,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   defp settled_copy(:reverted), do: "This transaction reverted on Base. Nothing moved."
   defp settled_copy(:unverified), do: "This transaction did not record the action you reviewed."
   defp settled_copy(:not_sent), do: "Your wallet declined this. Nothing was sent."
-  defp settled_copy(:cancelled), do: "This review was cancelled. Nothing was sent."
+  defp settled_copy(:cancelled), do: AutolaunchWeb.WalletPressComponent.withdrawal_copy()
   defp settled_copy(:expired), do: "This review expired before it was sent. Nothing was sent."
 
   defp settled_copy(:submission_unknown),

@@ -16,6 +16,7 @@ defmodule Autolaunch.Chain.Envelope do
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)
     require_calldata!(data)
+    data = String.downcase(data)
     signer = normalize_address!(signer)
     {to, resource, contract_name} = identity!(opts)
     to = normalize_address!(to)
@@ -45,7 +46,7 @@ defmodule Autolaunch.Chain.Envelope do
       chain_id: chain_id,
       to: to,
       value: value,
-      data: String.downcase(data),
+      data: data,
       expected_signer: signer,
       prepared_at: DateTime.to_iso8601(prepared_at),
       preparation_nonce: preparation_nonce,
@@ -55,7 +56,7 @@ defmodule Autolaunch.Chain.Envelope do
       arguments: Keyword.get(opts, :arguments, %{}),
       metadata: %{
         contract_name: contract_name,
-        calldata_sha256: sha256(String.downcase(data)),
+        calldata_sha256: sha256(data),
         lab: lab_binding
       }
     }

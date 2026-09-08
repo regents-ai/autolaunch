@@ -65,6 +65,10 @@ defmodule Autolaunch.SubjectWalletOperation do
   actions do
     defaults [:read]
 
+    update :project_wallet_confirmation do
+      accept [:step, :state, :terminal_at, :result]
+    end
+
     read :open do
       get? true
       argument :human_account_id, :integer, allow_nil?: false

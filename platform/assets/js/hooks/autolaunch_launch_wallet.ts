@@ -1,3 +1,4 @@
+import {installWalletPresses} from "./wallet_presses"
 import type {Hook} from "../hook_composition"
 import {
   activeEthereumWallet,
@@ -29,125 +30,38 @@ type LaunchWalletHook = Hook & {
   el: HTMLElement
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload: unknown): void
+  removePressListener?: ReturnType<typeof installWalletPresses>
   publishActiveWallet?: () => void
 }
 
 export const AutolaunchLaunchWallet: Hook = {
   mounted(this: LaunchWalletHook) {
-    let operation: LaunchOperation | null = null
-
     const push = (event: string, payload: unknown) => this.pushEventTo(this.el, event, payload)
-    const failed = (reason: FailureReason) => push("launch_failed", {reason})
-
-    // Privy's selection is what this surface reads, so every change is
-    // republished and the server decides what that wallet is allowed to see.
-    this.publishActiveWallet = () =>
-      push("launch_active_wallet", {address: activeEthereumWallet()?.address ?? null})
+    this.publishActiveWallet = () => push("launch_active_wallet", {address: activeEthereumWallet()?.address ?? null})
     window.addEventListener("autolaunch:wallet-state", this.publishActiveWallet)
     this.publishActiveWallet()
-
     if (stored(sessionStorage, pendingKey)) push("restore_launch_operation", {})
-
-    // A callback lost to a reload, a reconnect or a reauthentication: the hash is
-    // replayed until the server says that exact hash is durable. Nothing is
-    // resent, because a hash is all this ever reports.
-    const retained = retainedHash(sessionStorage)
-    if (retained) push("launch_submitted", retained)
-
-    // A pushed event reaches every hook in this LiveView, and a founder with
-    // several saved drafts has one card each. Only the card an event names may
-    // act on it, or one dispatch would open every other card's wallet too.
-    const mine = (payload: unknown) => addressedTo(payload) === this.el.id
-
+    // Explicit legacy-only report; it can never be assigned to a new press.
+    this.handleEvent("autolaunch-launch:hash-durable", payload => releaseHash(payload, sessionStorage))
+    const legacy = retainedHash(sessionStorage)
+    if (legacy) push("launch_submitted", legacy)
+    this.removePressListener = installWalletPresses<LaunchOperation>(this, {
+      prefix: "autolaunch-launch", selector: "[data-launch-wallet-send]", connect: "[data-launch-wallet-connect]",
+      send: (operation, step, started, resolveWallet) => sendLaunchStep(operation,
+        sendableStep(operation, operation.action_id, step), resolveWallet, started),
+    })
     this.handleEvent("autolaunch-launch:operation", payload => {
-      if (!mine(payload)) return
-      operation = payload as LaunchOperation
-      rememberOperation(operation, sessionStorage)
-    })
-
-    this.handleEvent("autolaunch-launch:cleared", payload => {
-      if (!mine(payload)) return
-      operation = null
-      forget(sessionStorage, pendingKey)
-    })
-
-    this.handleEvent("autolaunch-launch:hash-durable", durable => {
-      if (mine(durable)) releaseHash(durable, sessionStorage)
-    })
-
-    // A claim is only asked for once the wallet in front of the customer really
-    // is the reviewed signer. A negative preflight asks for nothing at all.
-    this.el.addEventListener("click", async event => {
-      const target = (event.target as HTMLElement | null) ?? null
-
-      if (target?.closest("[data-launch-wallet-connect]")) {
-        window.dispatchEvent(new CustomEvent("autolaunch:wallet-connect"))
-        return
-      }
-
-      const confirm = target?.closest<HTMLElement>("[data-launch-wallet-send]")
-      const actionId = confirm?.dataset.launchWalletSend
-      const signer = confirm?.dataset.launchWalletSigner
-      if (!actionId || !signer) return
-
-      if (await activeSigner(signer)) push("sign_launch_step", {"action-id": actionId})
-      else failed("wallet_unavailable")
-    })
-
-    this.handleEvent("autolaunch-launch:send", async payload => {
-      if (!mine(payload)) return
-
-      const {action_id: actionId, step: stepName} = payload as {action_id: string; step: string}
-      const held = operation
-      if (!held) return
-
-      // The claim is already durable, so a failure below the send marker is proof
-      // the wallet was never asked for anything: the exact step is released and
-      // the same review stays sendable.
-      let sendStarted = false
-      const notStarted = () => push("launch_dispatch_not_started", {action_id: actionId})
-
-      try {
-        const step = sendableStep(held, actionId, stepName)
-        if (!(await activeWalletForSigner(held.signer))) {
-          notStarted()
-          return
-        }
-
-        const hash = await sendLaunchStep(
-          held,
-          step,
-          activeEthereumWallet,
-          () => (sendStarted = true),
-        )
-
-        // Retained synchronously, before the one callback: a reload between the
-        // send and the report must not lose the only record of this hash. The
-        // browser then reports it once and stops; it never decides an outcome.
-        const reported = {action_id: actionId, step: step.step, transaction_hash: hash}
-        retainHash(reported, sessionStorage)
-        push("launch_submitted", reported)
-      } catch (error) {
-        if (!sendStarted) {
-          notStarted()
-          return
-        }
-
-        // A rejection of the transaction request itself, reported unconditionally:
-        // browser state is evidence, never authority. The database refuses to
-        // close a step once a hash is bound, so withholding this would only
-        // strand a claim the server can no longer end.
-        if (userRejected(error)) {
-          push("launch_rejected", {action_id: actionId, code: 4001})
-          return
-        }
-
-        failed("send_unconfirmed")
-      }
+      const op = payload as LaunchOperation & {component_id?: string}
+      if (!op.component_id || op.component_id === this.el.id) rememberOperation(op, sessionStorage)
     })
   },
 
+  updated(this: LaunchWalletHook) {
+    this.removePressListener?.checkScope()
+  },
+
   destroyed(this: LaunchWalletHook) {
+    this.removePressListener?.()
     if (this.publishActiveWallet) {
       window.removeEventListener("autolaunch:wallet-state", this.publishActiveWallet)
     }

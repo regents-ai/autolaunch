@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.XOAuthController do
     |> no_store()
     |> put_resp_header(
       "content-security-policy",
-      "default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+      "default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'"
     )
     |> put_root_layout(false)
     |> render(:callback,
@@ -93,20 +93,29 @@ defmodule AutolaunchWeb.XOAuthHTML do
         </script>
       </head>
       <body class="x-oauth-result">
-        <main
-          id="x-oauth-result"
-          data-origin={@origin}
-          data-status={@status}
-          data-role={@role || ""}
-          data-generation={@generation || ""}
-        >
-          <p>
-            {if @status == "connected",
-              do: "X account connected.",
-              else: "X connection could not be completed."}
-          </p>
-          <p><a href="/">Back to Autolaunch</a></p>
-        </main>
+        <Regent.Structure.frame class="x-oauth-sheet">
+          <Regent.Structure.row rail={false}>
+            <Regent.Structure.panel class="rg-inset">
+              <main
+                id="x-oauth-result"
+                data-origin={@origin}
+                data-status={@status}
+                data-role={@role || ""}
+                data-generation={@generation || ""}
+              >
+                <h1>X connection</h1>
+                <p>
+                  {if @status == "connected",
+                    do: "X account connected.",
+                    else: "X connection could not be completed."}
+                </p>
+                <p>
+                  <a href="/" class="rg-button rg-button--primary"><span class="rg-button__label">Back to Autolaunch</span></a>
+                </p>
+              </main>
+            </Regent.Structure.panel>
+          </Regent.Structure.row>
+        </Regent.Structure.frame>
         <script>
           (() => {
             const result = document.getElementById("x-oauth-result");

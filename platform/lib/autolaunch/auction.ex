@@ -61,6 +61,39 @@ defmodule Autolaunch.Auction do
       prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
     end
 
+    read :home_market do
+      argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
+      argument :view, :string, default: "active", constraints: [match: ~r/\A(active|new)\z/]
+
+      argument :state, :string,
+        default: "all",
+        constraints: [match: ~r/\A(all|created|active|failed)\z/]
+
+      argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
+      pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
+      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+
+      prepare fn query, _context ->
+        states =
+          if query.arguments.view == "active",
+            do: [:created, :active],
+            else: [:created, :active, :failed]
+
+        states =
+          Enum.filter(
+            states,
+            &(query.arguments.state == "all" or Atom.to_string(&1) == query.arguments.state)
+          )
+
+        direction = if query.arguments.sort == "oldest", do: :asc, else: :desc
+
+        query
+        |> market_query(states, nil)
+        |> Ash.Query.unset([:sort, :limit])
+        |> Ash.Query.sort([{:inserted_at, direction}, {:id, :asc}])
+      end
+    end
+
     read :page_public do
       argument :mode, :string,
         default: "all",
@@ -91,6 +124,7 @@ defmodule Autolaunch.Auction do
     end
 
     read :recent_public do
+      filter expr(state in [:created, :active, :failed])
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
 
       prepare build(
@@ -279,6 +313,7 @@ defmodule Autolaunch.Auction do
              :read,
              :list_public,
              :page_public,
+             :home_market,
              :recent_public,
              :featured_public,
              :active_launchpad,

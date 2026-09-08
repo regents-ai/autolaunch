@@ -38,9 +38,25 @@ defmodule Autolaunch.LabBidChainClient do
              opts
            ),
          [permit2_amount, permit2_expiration, _nonce] <- permit2_words,
-         {:ok, prev_tick_price_q96} <- predecessor(config, auction, max_price, block, opts) do
+         {:ok, spacing} <- call_uint(config, auction, "tickSpacing()", [], block, opts),
+         {:ok, floor} <- call_uint(config, auction, "floorPrice()", [], block, opts),
+         {:ok, [clearing, _raised, _mps_per_price, _mps, _prev, _next]} <-
+           call_words(config, auction, "checkpoint()", [], 6, block, opts),
+         {:ok, cap} <- call_uint(config, auction, "MAX_BID_PRICE()", [], block, opts),
+         limits <- %{
+           tick_spacing_q96: spacing,
+           floor_price_q96: floor,
+           clearing_price_q96: clearing,
+           max_bid_price_q96: cap
+         },
+         {:ok, aligned} <- aligned_price(max_price, limits),
+         {:ok, prev_tick_price_q96} <- predecessor(config, auction, aligned, block, opts) do
       {:ok,
        %{
+         tick_spacing_q96: spacing,
+         floor_price_q96: floor,
+         clearing_price_q96: clearing,
+         max_bid_price_q96: cap,
          auction: auction,
          currency: currency,
          regent_balance: regent_balance,
@@ -63,6 +79,11 @@ defmodule Autolaunch.LabBidChainClient do
 
   @impl true
   def verify(envelope, step, hash) do
+    with {:ok, result} <- verify_with_evidence(envelope, step, hash),
+         do: {:ok, Map.delete(result, :receipt)}
+  end
+
+  def verify_with_evidence(envelope, step, hash) do
     with true <-
            Envelope.valid_for_confirmation?(envelope,
              resource: "autolaunch_auction",
@@ -71,13 +92,17 @@ defmodule Autolaunch.LabBidChainClient do
          true <- Lab.binding_matches?(envelope["metadata"]["lab"], [:regent, :permit2]),
          {:ok, config} <- Lab.current(),
          current <- current_step(envelope, step),
-         {:ok, outcome} <- LabRpc.canonical_outcome(config, envelope, current, hash) do
-      settled(outcome, envelope, step, config)
+         {:ok, evidence} <- LabRpc.canonical_outcome_evidence(config, envelope, current, hash),
+         {:ok, result} <- settled(evidence.outcome, envelope, step, config) do
+      {:ok, Map.put(result, :receipt, evidence.receipt)}
     else
       false -> {:error, :lab_config_changed}
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp aligned_price(nil, _limits), do: {:ok, nil}
+  defp aligned_price(price, limits), do: Autolaunch.BidPrice.align(price, limits)
 
   defp predecessor(config, auction, max_price, block, opts) when is_integer(max_price) do
     with {:ok, floor} <- call_uint(config, auction, "floorPrice()", [], block, opts),
@@ -190,7 +215,7 @@ defmodule Autolaunch.LabBidChainClient do
          onchain_bid_id: id,
          result: %{
            "onchain_bid_id" => id,
-           "current_clearing_price" => Autolaunch.Chain.Rpc.format_units(clearing_price, 18),
+           "current_clearing_price" => Lab.format_price(clearing_price),
            "local_block_hash" => block.hash
          }
        }}

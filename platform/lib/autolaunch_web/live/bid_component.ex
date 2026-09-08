@@ -32,6 +32,8 @@ defmodule AutolaunchWeb.BidComponent do
     amount_above_balance: "That is more REGENT than this wallet holds.",
     invalid_amount: "Enter a REGENT amount with up to eighteen decimal places.",
     invalid_price: "Enter a maximum price above zero.",
+    price_below_admissible_tick:
+      "Your maximum does not reach an allowed tick above the auction clearing price.",
     invalid_decimal: "Enter a maximum price above zero.",
     submitted_hash_conflict: "This step already has a transaction.",
     submitted_step_mismatch: "That transaction is not the step this bid is waiting for."
@@ -44,9 +46,14 @@ defmodule AutolaunchWeb.BidComponent do
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
+  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
+    {:ok, AutolaunchWeb.WalletPressComponent.consume(socket, lease, result)}
+  end
+
   def update(assigns, socket) do
     {:ok,
      socket
+     |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:balance, fn -> nil end)
@@ -54,15 +61,24 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:max_price, fn -> "" end)
      |> assign_new(:estimate, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
+     |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <section id={@id} class="bid-panel" phx-hook="AutolaunchBidWallet" phx-target={@myself}>
+    <section
+      id={@id}
+      class="bid-panel rg-panel rg-panel--surface"
+      data-wallet-scope={AutolaunchWeb.WalletPressComponent.scope(assigns)}
+      phx-hook="AutolaunchBidWallet"
+      phx-target={@myself}
+    >
       <header class="bid-heading">
-        <h2>Place a bid</h2>
+        <Regent.Structure.section_bar>
+          <h2 class="rg-section-bar__label">Place a bid</h2>
+        </Regent.Structure.section_bar>
         <p>Bid REGENT for this launch. Your wallet confirms every step.</p>
         <.regent_market_links />
       </header>
@@ -70,12 +86,12 @@ defmodule AutolaunchWeb.BidComponent do
       <.notice :if={@notice} notice={@notice} />
 
       <p :if={!@authenticated} class="bid-empty">
-        <button type="button" data-account-target="sign-in">Sign in to bid</button>
+        <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to bid</Regent.Primitives.button>
       </p>
 
       <div :if={@authenticated && !@wallet} class="bid-empty">
         <p>Choose the wallet you want to bid from.</p>
-        <button type="button" data-bid-connect>Connect or switch wallet</button>
+        <Regent.Primitives.button type="button" data-bid-connect>Connect or switch wallet</Regent.Primitives.button>
       </div>
 
       <div :if={@authenticated && @wallet} class="bid-body">
@@ -91,6 +107,7 @@ defmodule AutolaunchWeb.BidComponent do
         <form
           :if={!@operation && @balance}
           id={"#{@id}-form"}
+          class="rg-field"
           phx-change="bid_form_changed"
           phx-submit="review_bid"
           phx-target={@myself}
@@ -105,7 +122,12 @@ defmodule AutolaunchWeb.BidComponent do
               autocomplete="off"
               placeholder="0.0"
             />
-            <button type="button" phx-click="fill_bid_amount" phx-target={@myself}>Max</button>
+            <Regent.Primitives.button
+              type="button"
+              phx-click="fill_bid_amount"
+              phx-target={@myself}
+              variant="secondary"
+            >Max</Regent.Primitives.button>
           </div>
 
           <label for={"#{@id}-max-price"}>Maximum price</label>
@@ -122,9 +144,13 @@ defmodule AutolaunchWeb.BidComponent do
             You would receive about {@estimate} tokens if the auction ended now.
           </p>
 
-          <button class="bid-primary" type="submit" disabled={@amount == "" or @max_price == ""}>
+          <Regent.Primitives.button
+            class="bid-primary"
+            type="submit"
+            disabled={@amount == "" or @max_price == ""}
+          >
             Review bid
-          </button>
+          </Regent.Primitives.button>
         </form>
 
         <section :if={@operation} id={"#{@id}-review"} class="bid-review" aria-label="Bid review">
@@ -133,7 +159,12 @@ defmodule AutolaunchWeb.BidComponent do
               <dt>Amount</dt><dd>{argument(@operation, "amount")} REGENT</dd>
             </div>
             <div>
-              <dt>Maximum price</dt><dd>{argument(@operation, "max_price")}</dd>
+              <dt>Effective tick price</dt><dd>{argument(@operation, "max_price")}</dd>
+            </div>
+            <div>
+              <dt>Requested maximum</dt><dd>
+                {argument(@operation, "requested_max_price") || argument(@operation, "max_price")}
+              </dd>
             </div>
             <div>
               <dt>Network</dt><dd>{network_name(@operation)}</dd>
@@ -159,60 +190,88 @@ defmodule AutolaunchWeb.BidComponent do
             {settled_copy(@operation)}
           </p>
 
-          <button
+          <Regent.Primitives.button
             :if={sendable?(@operation, @wallet)}
             type="button"
             data-bid-send={@operation.action_id}
+            data-wallet-step={@operation.step}
             data-bid-signer={@operation.signer}
           >
             Confirm in wallet
-          </button>
+          </Regent.Primitives.button>
           <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
             This bid belongs to another wallet. Switch back to it to finish.
           </p>
-          <button
+          <Regent.Primitives.button
             :if={@operation.state == :submitted}
             type="button"
             phx-click="check_bid_step"
             phx-value-action-id={@operation.action_id}
             phx-target={@myself}
+            variant="secondary"
           >
             Check again
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state == :prepared && !started?(@operation)}
             type="button"
             phx-click="cancel_bid_review"
             phx-value-action-id={@operation.action_id}
             phx-target={@myself}
+            variant="secondary"
           >
             Cancel
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.state in [:dispatched, :submitted]}
             type="button"
             phx-click="start_new_bid"
             phx-value-action-id={@operation.action_id}
             phx-target={@myself}
+            variant="secondary"
           >
             Start a new bid
-          </button>
-          <button
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
             :if={@operation.terminal_at}
             type="button"
             phx-click="clear_bid"
             phx-target={@myself}
+            variant="secondary"
           >
             Place another bid
-          </button>
+          </Regent.Primitives.button>
         </section>
       </div>
+      <AutolaunchWeb.WalletPressComponent.history
+        :if={AutolaunchWeb.WalletPressComponent.scope(assigns)}
+        history={@wallet_press_history}
+        target={@myself}
+      />
     </section>
     """
   end
 
   # The wallet Privy has selected, whenever it changes.
   @impl true
+  def handle_event("wallet_press_dispatch", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.dispatch(socket, :bid, params, opts(socket), __MODULE__)}
+
+  def handle_event("wallet_press_report", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.report(socket, :bid, params, opts(socket), __MODULE__)}
+
+  def handle_event("wallet_press_verify", params, socket),
+    do:
+      {:noreply,
+       AutolaunchWeb.WalletPressComponent.verify(socket, :bid, params, opts(socket), __MODULE__)}
+
+  def handle_event("wallet_press_restore", params, socket),
+    do: {:noreply, AutolaunchWeb.WalletPressComponent.restore(socket, :bid, params, opts(socket))}
+
   def handle_event("bid_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -243,20 +302,16 @@ defmodule AutolaunchWeb.BidComponent do
 
   # The bound row goes on screen before Base is asked anything, so a read that
   # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event(
-        "bid_submitted",
-        %{"action_id" => action_id, "step" => step, "transaction_hash" => hash},
-        socket
-      ) do
-    case Autolaunch.bind_bid_hash(action_id, step, hash, opts(socket)) do
-      {:ok, %{operation: bound}} = result ->
-        socket = settled(result, socket)
-        socket = action_id |> Autolaunch.verify_bid_step(opts(socket)) |> settled(socket)
-        {:noreply, acknowledged(socket, bound, step)}
-
-      refused ->
-        {:noreply, settled(refused, socket)}
-    end
+  def handle_event("bid_submitted", params, socket) do
+    {:noreply,
+     AutolaunchWeb.WalletPressComponent.legacy_report(
+       socket,
+       :bid,
+       params,
+       opts(socket),
+       __MODULE__,
+       "autolaunch-bid:hash-durable"
+     )}
   end
 
   def handle_event("check_bid_step", %{"action-id" => action_id}, socket),
@@ -352,20 +407,13 @@ defmodule AutolaunchWeb.BidComponent do
 
   # The one acknowledgement the browser waits for before it drops its own copy
   # of a reported hash: this exact hash is durable on this exact step.
-  defp acknowledged(socket, operation, step),
-    do:
-      push_event(socket, "autolaunch-bid:hash-durable", %{
-        action_id: operation.action_id,
-        step: step,
-        transaction_hash: BidActions.step_hash(operation, step)
-      })
-
   # The whole reviewed sequence, so the browser can check that what it is asked
   # to send really belongs to the operation it is holding.
   defp published(%{assigns: %{operation: nil}} = socket), do: cleared(socket)
 
   defp published(%{assigns: %{operation: operation}} = socket) do
     push_event(socket, "autolaunch-bid:operation", %{
+      component_id: socket.assigns.id,
       action_id: operation.action_id,
       signer: operation.signer,
       chain_id: operation.envelope["chain_id"],

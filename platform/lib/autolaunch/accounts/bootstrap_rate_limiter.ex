@@ -62,7 +62,7 @@ defmodule Autolaunch.Accounts.BootstrapRateLimiter do
   end
 
   defp reset_expired(table, key, old_bucket, count, bucket, limit) do
-    replacement = [{{key, old_bucket, count}, [], [{{key, bucket, 1}}]}]
+    replacement = [{{key, old_bucket, count}, [], [{:const, {key, bucket, 1}}]}]
 
     if :ets.select_replace(table, replacement) == 1,
       do: :ok,

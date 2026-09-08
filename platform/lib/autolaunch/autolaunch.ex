@@ -10,6 +10,8 @@ defmodule Autolaunch do
   @subject_wallet_operation Module.concat(__MODULE__, "SubjectWalletOperation")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
   resources do
+    resource Module.concat(__MODULE__, "WalletAttempt")
+
     resource Autolaunch.LaunchDraft do
       define :create_launch_draft, action: :create_for_owner
       define :list_my_launch_drafts, action: :mine
@@ -329,6 +331,20 @@ defmodule Autolaunch do
     to: Autolaunch.SubjectWalletActions,
     as: :open_operation
 
+  defdelegate dispatch_wallet_press(kind, action_id, step, press_id, signer, opts),
+    to: Autolaunch.WalletAttempts,
+    as: :dispatch
+
+  defdelegate report_wallet_press(kind, action_id, press_id, report, opts),
+    to: Autolaunch.WalletAttempts,
+    as: :report
+
+  defdelegate verify_wallet_press(kind, action_id, press_id, opts),
+    to: Autolaunch.WalletAttempts,
+    as: :verify
+
+  defdelegate wallet_presses(kind, action_id, opts), to: Autolaunch.WalletAttempts, as: :list
+
   # The C4 direct-wallet launch lane. `LaunchActions` proves the active Privy
   # wallet against the account the mounted lease locks before anything private is
   # read or anything durable moves, so these stay thin pass-throughs and the
@@ -392,7 +408,15 @@ defmodule Autolaunch do
       |> Ash.Query.filter(human_account_id == ^human_account_id and state == :chain_verified)
       |> Ash.read()
 
-    auction_count + in_flight_count(operations, actor)
+    attempts =
+      Autolaunch.WalletAttempt
+      |> Ash.Query.filter(
+        not is_nil(launch_operation_id) and step == :launch and state == :confirmed
+      )
+      |> Ash.Query.filter(launch_operation.human_account_id == ^human_account_id)
+      |> Ash.read!(actor: actor)
+
+    auction_count + in_flight_count(operations ++ attempts, actor)
   end
 
   defp in_flight_count(operations, actor) do
@@ -400,6 +424,7 @@ defmodule Autolaunch do
       operations
       |> Enum.map(&result_auction_address/1)
       |> Enum.reject(&is_nil/1)
+      |> Enum.uniq_by(&String.downcase/1)
 
     projected = projected_auction_addresses(addresses, actor)
 

@@ -30,6 +30,22 @@ defmodule Autolaunch.Token do
               )
     end
 
+    read :home_market do
+      argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
+      argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
+      pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+
+      prepare fn query, _context ->
+        direction = if query.arguments.sort == "oldest", do: :asc, else: :desc
+
+        query
+        |> launchpad_query(nil)
+        |> Ash.Query.unset([:sort, :limit])
+        |> Ash.Query.sort([{:graduated_at, direction}, {:id, :asc}])
+      end
+    end
+
     read :page_public do
       pagination keyset?: true, required?: true, default_limit: 100, max_page_size: 100
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
@@ -150,6 +166,7 @@ defmodule Autolaunch.Token do
              :read,
              :list_public,
              :page_public,
+             :home_market,
              :top_public,
              :recently_graduated_public,
              :graduated_launchpad,

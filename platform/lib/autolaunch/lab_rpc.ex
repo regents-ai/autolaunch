@@ -91,12 +91,17 @@ defmodule Autolaunch.LabRpc do
   end
 
   def canonical_outcome(config, envelope, step, hash) do
+    with {:ok, evidence} <- canonical_outcome_evidence(config, envelope, step, hash),
+         do: {:ok, evidence.outcome}
+  end
+
+  def canonical_outcome_evidence(config, envelope, step, hash) do
     with {:ok, current} <- Lab.current(),
          true <- current.rpc_url == config.rpc_url,
          true <- current.chain_id == config.chain_id,
          opts <- opts(current),
          {:ok, block} <- Rpc.latest_block(opts) do
-      Rpc.canonical_outcome(
+      Rpc.canonical_outcome_evidence(
         hash,
         envelope["expected_signer"],
         step["to"],

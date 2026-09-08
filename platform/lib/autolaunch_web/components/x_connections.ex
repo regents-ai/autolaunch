@@ -84,17 +84,23 @@ defmodule AutolaunchWeb.Components.XConnections do
       </div>
 
       <div class="x-connections__actions">
-        <button type="button" data-x-connect-role={@role} disabled={!@enabled}>
+        <Regent.Primitives.button
+          type="button"
+          data-x-connect-role={@role}
+          disabled={!@enabled}
+          variant="secondary"
+        >
           {if connected?(@connection), do: "Change", else: "Connect"}
-        </button>
-        <button
+        </Regent.Primitives.button>
+        <Regent.Primitives.button
           :if={connected?(@connection)}
           type="button"
           class="x-connections__disconnect"
           data-x-disconnect-role={@role}
+          variant="secondary"
         >
           Disconnect
-        </button>
+        </Regent.Primitives.button>
       </div>
     </li>
     """
