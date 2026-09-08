@@ -1,0 +1,14 @@
+app = "autolaunch-sh-migrations"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  AUTOLAUNCH_DEPLOYMENT_ROLE = "production"
+  AUTOLAUNCH_DB_SCHEMA = "autolaunch_app"
+
+# This app has no service and no standing machine. It holds only the direct
+# migration credential; each migration is an explicit, disposable machine run.
+[[vm]]
+  memory_mb = 1024

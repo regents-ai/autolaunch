@@ -159,13 +159,28 @@ to sign. Nothing else may build a transaction.
 ## Deployment
 
 > [!WARNING]
-> Deploying runs `/app/bin/migrate` as its release command, so a deploy writes database
-> migrations. Every deployment must name its venue in `AUTOLAUNCH_DEPLOYMENT_ROLE`
+> Database migrations run from the separate `autolaunch-sh-migrations` Fly app, never
+> from a serving machine. Every deployment and migration must name its venue in `AUTOLAUNCH_DEPLOYMENT_ROLE`
 > (`production` or `staging`); boot stops before any database URL is read if it does not.
 > Production boot also fails unless `PHX_HOST` and a 64-byte `SECRET_KEY_BASE` are set.
 > `/app/bin/pending-migrations` reports what a deployed database and the release image
 > disagree about, without applying anything. Confirm the target and its secrets before
 > running a deploy.
+
+Run the exact candidate image once in the migration app, then deploy that same digest to
+the serving app:
+
+```sh
+fly machine run registry.fly.io/autolaunch-sh@sha256:<digest> /app/bin/migrate \
+  --app autolaunch-sh-migrations --config fly.migrations.toml --region iad --rm
+fly deploy --app autolaunch-sh --config fly.toml \
+  --image registry.fly.io/autolaunch-sh@sha256:<digest> --ha=false
+```
+
+`autolaunch-sh-migrations` has no service or standing machine and holds only
+`DATABASE_DIRECT_URL`. `autolaunch-sh` must not hold that secret. The serving app holds
+`DATABASE_URL`, `BASE_READ_RPC_URL`, `PHX_HOST`, and `SECRET_KEY_BASE`; the migration app
+does not.
 
 The image is built from `Dockerfile`. The context contains the application and
 three selected shared packages; Docker installs `mix.lock` and `package-lock.json`
@@ -198,11 +213,11 @@ source tests alone do not verify Linux native dependencies or production sign-in
 | Variable | Required | What it is for |
 | --- | --- | --- |
 | `AUTOLAUNCH_DEPLOYMENT_ROLE` | Always | The venue: `production` or `staging`. |
-| `DATABASE_URL` | Always | The pooled PostgreSQL URL the web boot connects with. |
-| `DATABASE_DIRECT_URL` | Always | The direct PostgreSQL URL the migrate command connects with. |
-| `SECRET_KEY_BASE` | Always | At least 64 bytes. |
-| `PHX_HOST` | Always | The public hostname the site generates URLs for. |
-| `BASE_READ_RPC_URL` | Always | The Base endpoint the site reads one canonical `safe` block through. |
+| `DATABASE_URL` | Serving app only | The PostgreSQL URL the web boot connects with. |
+| `DATABASE_DIRECT_URL` | Migration app only | The direct PostgreSQL URL the migrate command connects with. Never install it on the serving app. |
+| `SECRET_KEY_BASE` | Serving app only | At least 64 bytes. |
+| `PHX_HOST` | Serving app only | The public hostname the site generates URLs for. |
+| `BASE_READ_RPC_URL` | Serving app only | The Base endpoint the site reads one canonical `safe` block through. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 
 `Autolaunch.DatabaseConfig` checks the shape of both database URLs and refuses a deployment

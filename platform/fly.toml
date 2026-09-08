@@ -4,9 +4,6 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
-[deploy]
-  release_command = "/app/bin/migrate"
-
 [env]
   PORT = "4000"
   PHX_HOST = "autolaunch.sh"
