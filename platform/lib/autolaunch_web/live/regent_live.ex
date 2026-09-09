@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.RegentLive do
       </header>
 
       <p :if={@local_lab?} id="regent-scope" class="regent-scope" role="note">
-        Public Base mainnet data and links. The test REGENT on this local fork is separate and is
+        Public Base mainnet data and links. The test REGENT on this fork is separate and is
         not bought, staked or redeemed here.
       </p>
 

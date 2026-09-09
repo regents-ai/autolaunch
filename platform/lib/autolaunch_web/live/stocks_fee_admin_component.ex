@@ -28,12 +28,12 @@ defmodule AutolaunchWeb.StocksFeeAdminComponent do
     not_fee_administrator: "Only this launch's fee administrator can do that.",
     not_proposed_administrator: "Only the wallet the administrator proposed can accept the role.",
     chain_unavailable:
-      "The local lab could not be read just now. Check that it is still running.",
+      "The Base fork could not be read just now. Check that it is still running.",
     stocks_unavailable: "Stock launches are not open on this site.",
     launch_not_found: "This auction is not a stock launch the launchpad knows.",
     auction_not_found: "This auction is no longer available.",
     auction_unavailable: "This auction could not be read just now.",
-    lab_config_changed: "The local lab changed since this review. Review it again.",
+    lab_config_changed: "The fork changed since this review. Review it again.",
     submitted_hash_conflict: "This step already has a transaction.",
     submitted_step_mismatch: "That transaction is not the step this action is waiting for.",
     operation_not_found: "That action is no longer open."
@@ -203,7 +203,7 @@ defmodule AutolaunchWeb.StocksFeeAdminComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>Local Base fork · chain 31337</dd>
+            <dd>{Autolaunch.ChainMode.label()} · chain 31337</dd>
           </div>
         </dl>
         <p class="launch-wallet-risk">{@operation.envelope["risk_copy"]}</p>
@@ -509,15 +509,15 @@ defmodule AutolaunchWeb.StocksFeeAdminComponent do
 
   defp confirmed_copy(%{kind: :configure_subject, result: result}),
     do:
-      "Verified on the local fork: the subject lane is now #{lane(result["splitter"])} (configuration version #{result["version"]}). " <>
+      "Verified on the fork: the subject lane is now #{lane(result["splitter"])} (configuration version #{result["version"]}). " <>
         FeeAdminActions.future_only_copy()
 
   defp confirmed_copy(%{kind: :propose_administrator, result: result}),
     do:
-      "Verified on the local fork: #{result["proposed_administrator"]} can now accept the administrator role. Nothing changes until it does."
+      "Verified on the fork: #{result["proposed_administrator"]} can now accept the administrator role. Nothing changes until it does."
 
   defp confirmed_copy(%{kind: :accept_administrator, result: result}),
-    do: "Verified on the local fork: #{result["administrator"]} is now the fee administrator."
+    do: "Verified on the fork: #{result["administrator"]} is now the fee administrator."
 
   defp settled_copy(%{state: :reverted}),
     do:

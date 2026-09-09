@@ -3,13 +3,16 @@
 The lab is the current site running against an isolated Anvil fork of Base (chain 31337)
 that carries a locally deployed copy of the contract graph, so the launch, auction and bid
 flow can be tried with test assets. Only those two paths, launch and bid, read from and send
-to the fork; the site refuses a fork endpoint that is not a loopback URL answering as chain
-31337. Everything else on a lab site is labelled rather than switched: the REGENT facts panel and
+to the fork; in the default chain mode (`AUTOLAUNCH_CHAIN_MODE=base`, see
+[fork-preview.md](fork-preview.md) for the hosted `fork` mode) the site refuses a fork
+endpoint that is not a loopback URL answering as chain 31337. Everything else on a lab site
+is labelled rather than switched: the REGENT facts panel and
 the Buy, Chart, Stake and Redeem links say they are public Base mainnet, subject staking and
 payments show an explicit unavailable state, and treasury evidence is reported as unavailable
 instead of drawn from the test fixture. Every page of a lab site carries the line "Local Base
 fork · test assets · no mainnet value · launches and bids only", ending in "sign in with
-Privy" when real sign-in is configured (below) and "sign-in unavailable" otherwise.
+Privy" when real sign-in is configured (below) and "sign-in unavailable" otherwise
+(`Autolaunch.ChainMode.label/0` names the fork; a hosted preview reads "Preview on a Base fork").
 
 ## Pieces
 
@@ -17,7 +20,7 @@ Privy" when real sign-in is configured (below) and "sign-in unavailable" otherwi
 | --- | --- | --- |
 | Controller | `contracts/v1/bin/local-base-lab.py`, run from `contracts/v1` | Starts Anvil as a fork of Base, deploys the graph, funds wallets, mines to auction milestones, reports status, stops Anvil |
 | Run record | `contracts/v1/reports/generated/local-base-lab/state.json` | Anvil PID, RPC URL, head block at start, local addresses; ignored by Git |
-| Site config | `contracts/v1/reports/generated/local-base-lab/site-config.json` | `rpc_url`, `chain_id`, thirteen `addresses`, nine `abis`; the file `AUTOLAUNCH_LAB_CONFIG` names |
+| Site config | `contracts/v1/reports/generated/local-base-lab/site-config.json` | `rpc_url`, `chain_id`, thirteen `addresses`, nine `abis`; the file `AUTOLAUNCH_LAB_CONFIG` names. An optional `public_rpc_url` (`https://` only) is the door wallets add as chain 31337; without it wallets are given the loopback `rpc_url` |
 | Site integration | `Autolaunch.Lab`, `Autolaunch.LabMarketFeed`, `Autolaunch.LabProjection`, `Autolaunch.LabBidChainClient` | Validates the config, reads the fork every second, projects launched auctions into the database, verifies bids against the fork |
 
 ## Starting a fresh lab
@@ -76,14 +79,14 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
     AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
     PRIVY_APP_ID=browser-test-public-id \
     AUTOLAUNCH_LAB_CONFIG=/absolute/path/to/contracts/v1/reports/generated/local-base-lab/site-config.json \
-    AUTOLAUNCH_ACCEPTANCE_RUN_ID=<run label> \
+    AUTOLAUNCH_FORK_RUN_ID=<run label> \
     mix phx.server
 ```
 
 | Variable | Meaning |
 | --- | --- |
-| `AUTOLAUNCH_LAB_CONFIG` | Absolute path of `site-config.json`; development and test only |
-| `AUTOLAUNCH_ACCEPTANCE_RUN_ID` | A label for this run, required alongside the config |
+| `AUTOLAUNCH_LAB_CONFIG` | Absolute path of `site-config.json`; development and test only in `base` chain mode, required in `fork` chain mode |
+| `AUTOLAUNCH_FORK_RUN_ID` | A label for this run, required alongside the config; it travels in every envelope's lab binding |
 | `PORT` | The port to serve on (test default 4050) |
 | `AUTOLAUNCH_DB_POOL_SIZE` | Database connections for this site (default 10); a long-lived lab site should ask for a few, such as 3, because several test servers share one local PostgreSQL |
 | `AUTOLAUNCH_BROWSER_TEST=1` | Test environment only: serve HTTP and use a plain connection pool instead of the sandbox |

@@ -1,0 +1,21 @@
+# The fork preview image: the exact production release image plus the two fork
+# configuration files the site reads in fork chain mode. The production
+# Dockerfile is untouched; this one adds a single layer on top of an image it
+# already built, so the release, its ERTS and its assets are byte-identical.
+#
+# Build context: a directory holding `Dockerfile.preview` and a `fork/`
+# directory with `site-config.json` and `stocks-site-config.json` written by
+# the fork host for this image (docs/fork-preview.md names their keys, and the
+# `agent_lab_config` inside the Stocks file must read /app/fork/site-config.json).
+#
+#   docker build -f Dockerfile.preview \
+#     --build-arg AUTOLAUNCH_IMAGE=registry.fly.io/autolaunch-sh@sha256:<digest> \
+#     -t autolaunch-preview-candidate /absolute/preview-context
+#
+# The two files carry the fork's private RPC door and its public one; the
+# private door must never be published outside the image and the Fly private
+# network that answers it.
+ARG AUTOLAUNCH_IMAGE
+FROM ${AUTOLAUNCH_IMAGE}
+
+COPY --chown=app:app fork /app/fork

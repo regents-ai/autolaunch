@@ -643,13 +643,14 @@ defmodule AutolaunchWeb.BidComponent do
   defp usdc_bids?(_auction), do: false
 
   defp confirmed_copy(%{envelope: %{"chain_id" => 31_337}} = operation),
-    do: "Local bid #{operation.onchain_bid_id} was verified. Test assets have no mainnet value."
+    do:
+      "Bid #{operation.onchain_bid_id} was verified on the fork. Test assets have no mainnet value."
 
   defp confirmed_copy(operation),
     do: "Bid #{operation.onchain_bid_id} is on Base. Your position appears once it is read back."
 
   defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => 31_337}}),
-    do: "This local test transaction reverted."
+    do: "This test transaction reverted."
 
   defp settled_copy(%{state: :reverted}), do: "This transaction reverted on Base."
 
@@ -657,7 +658,7 @@ defmodule AutolaunchWeb.BidComponent do
     do: "This transaction did not record the bid you reviewed."
 
   defp network_name(%{envelope: %{"chain_id" => 31_337}}),
-    do: "Local Base fork · chain 31337"
+    do: "#{Autolaunch.ChainMode.label()} · chain 31337"
 
   defp network_name(_operation), do: "Base"
 
@@ -677,7 +678,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp copy(:chain_unavailable) do
     if Lab.enabled?(),
-      do: "The local lab could not be read just now. Check that it is still running.",
+      do: "The Base fork could not be read just now. Check that it is still running.",
       else: Map.fetch!(@copy, :chain_unavailable)
   end
 

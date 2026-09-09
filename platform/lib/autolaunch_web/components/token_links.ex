@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.Components.TokenLinks do
         View REGENT Chart{mainnet_suffix(@local_lab?)} <span aria-hidden="true">↗</span>
       </a>
       <p :if={@local_lab?} class="regent-token-links__note">
-        Both open public Base mainnet. This local fork's test REGENT cannot be bought there.
+        Both open public Base mainnet. This fork's test REGENT cannot be bought there.
       </p>
     </nav>
     """

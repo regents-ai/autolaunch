@@ -103,7 +103,7 @@ defmodule AutolaunchWeb.SubjectLive do
           <h2 class="rg-section-bar__label">Staking and payments</h2>
         </Regent.Structure.section_bar>
         <p>
-          Not available on the local Base fork. Only launches and bids run against the fork, so
+          Not available on this Base fork. Only launches and bids run against the fork, so
           this subject's wallet actions stay off rather than reaching Base mainnet.
         </p>
       </section>

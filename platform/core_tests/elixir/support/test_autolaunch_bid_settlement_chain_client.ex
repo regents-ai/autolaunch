@@ -49,6 +49,7 @@ defmodule Autolaunch.TestAutolaunchBidSettlementChainClient do
     do: %{
       run_id: "fixture",
       rpc_url: "http://127.0.0.1:8545",
+      public_rpc_url: "http://127.0.0.1:8545",
       chain_id: 31_337,
       addresses: %{"regent" => Autolaunch.BidFixture.regent()}
     }

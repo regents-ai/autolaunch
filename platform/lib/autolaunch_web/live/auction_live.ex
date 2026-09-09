@@ -117,7 +117,7 @@ defmodule AutolaunchWeb.AuctionLive do
           <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
           <dl :if={@local_lab? && @market_snapshot} class="autolaunch-live-market">
             <div>
-              <dt>Local block</dt><dd>{@market_snapshot.block_number}</dd>
+              <dt>Fork block</dt><dd>{@market_snapshot.block_number}</dd>
             </div>
             <div>
               <dt>{@page_record.quote_token_symbol} raised</dt><dd>

@@ -66,7 +66,9 @@ graph, admits the fixture routes, and writes
 }
 ```
 
-Addresses are lowercase. The website refuses a file whose `rpc_url` is not a loopback URL answering
+Addresses are lowercase. The website refuses a file whose `rpc_url` is not an admitted door for
+the chain mode (loopback in `base` mode; `Autolaunch.LabRpcUrl` and [fork-preview.md](fork-preview.md)
+for `fork` mode, where `public_rpc_url` is required as well and must equal the Agent lab's) answering
 as chain 31337, whose `agent_lab_config` differs from the Agent lab it runs with, whose repeated
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
 `cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, whose `stocks`
@@ -86,14 +88,16 @@ written against are pinned at `platform/contracts/abi/stocks-*.json` (regenerate
 `platform/contracts/chain-contracts.yaml` under `stocks_local_lab`.
 
 Environment: `AUTOLAUNCH_STOCKS_LAB_CONFIG=/abs/path/stocks-site-config.json` alongside the
-Agent lab variables. Development and test only; production refuses it.
+Agent lab variables. Development and test only in `base` chain mode; production admits it only
+with `AUTOLAUNCH_CHAIN_MODE=fork`, where it is required.
 
 ## Faucet
 
-Lab sites only, rendered as a "Test funds" panel on `/create/stocks` and on auction pages for a
-signed-in account whose selected wallet the account holds. `Autolaunch.Stocks.Faucet` performs
-one fork transaction per press using `anvil_impersonateAccount` on the RPC URL of a validated lab
-configuration (loopback only) and refuses on a read-only site or without a lab:
+Fork sites only (local lab or hosted preview), rendered as a "Test funds" panel on `/create/stocks`
+and on auction pages for a signed-in account whose selected wallet the account holds.
+`Autolaunch.Stocks.Faucet` performs one fork transaction per press using `anvil_impersonateAccount`
+on the site's own `rpc_url` of a validated lab configuration (the private door; never the public
+one) and refuses on a read-only site or without a lab:
 
 - "Get 1,000 test REGENT": needs only the Agent lab; `transfer(wallet, 1000e18)` from the
   governance Safe's forked REGENT balance.
@@ -107,7 +111,11 @@ configuration (loopback only) and refuses on a read-only site or without a lab:
 
 The holder's ETH is topped up on the fork when it cannot pay gas. Every press sends; the RPC's
 own error text is reported on failure, the receipt is awaited, and the wallet's new balance is
-shown. Nothing here signs with the user's wallet or touches mainnet. The `erc20` ABI in the
+shown. With `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS` above zero (the default is 3600 in `fork` chain
+mode and 0 on a local lab) one asset goes to one wallet at most once per window: the buttons stay
+enabled, every press performs the check, and a press inside the window reports "That test asset
+was already sent to this wallet recently; try again after HH:MM UTC." The check and the record
+(`Autolaunch.Stocks.FaucetGrant`, table `faucet_grants`) share the transaction that sends the grant. Nothing here signs with the user's wallet or touches mainnet. The `erc20` ABI in the
 configuration must declare `approve`, `transfer`, `balanceOf`, `allowance`, `decimals` and the
 `Approval` event; `mint` calldata is built from its fixed signature.
 
@@ -120,7 +128,7 @@ stock execution; not reachable on Anvil), `release-admitted`. Nothing below is
 `contracts/stocks/README.md` blocks admission until the founder confirms it.
 
 The settlement rows were exercised on 9 September 2026 from a site on port 4070 (partition `_settle_lab`,
-`AUTOLAUNCH_ACCEPTANCE_RUN_ID=settle-2026-09-10`) against the same fork, with the graph at launchpad
+`AUTOLAUNCH_FORK_RUN_ID=settle-2026-09-10`) against the same fork, with the graph at launchpad
 `0x9079d5be…76bd`; the transaction hashes are in each row. The earlier `integrated-local` rows were exercised on 9 September 2026 against the recovered Agent lab
 fork (`http://127.0.0.1:58737`, chain 31337) with the Stocks graph deployed by
 `contracts/stocks/bin/local-stocks-lab.py deploy` (launchpad `0xd0e57e59…3067`, hook
@@ -207,7 +215,7 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test REGENT_DEPS_ROOT=/Users/
   MIX_TEST_PARTITION=_stocks_lab2 AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
   AUTOLAUNCH_LAB_CONFIG=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/site-config.json \
   AUTOLAUNCH_STOCKS_LAB_CONFIG=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/stocks-site-config.json \
-  AUTOLAUNCH_ACCEPTANCE_RUN_ID=stocks-2026-09-09 PORT=4060 PRIVY_APP_ID=browser-test-public-id \
+  AUTOLAUNCH_FORK_RUN_ID=stocks-2026-09-09 PORT=4060 PRIVY_APP_ID=browser-test-public-id \
   sh -c 'mix ash.setup && mix run --no-start --no-halt /Users/sean/Documents/regent/artifacts/autolaunch-stocks-lab/serve.exs'
 ```
 

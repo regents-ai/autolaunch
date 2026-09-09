@@ -58,7 +58,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @withdrawn "review withdrawn"
   @lapsed "the reviewed launch expired before it was sent"
   @unresolved "account started a new launch while this one was unresolved"
-  @reverted "verified revert on the local fork"
+  @reverted "verified revert on the fork"
   @contradicted "canonical receipt contradicts the reviewed launch"
   @paused "launches were paused after this review"
   @moved "the reviewed launchpad binding changed"
@@ -428,11 +428,11 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp risk_copy(0),
     do:
-      "Your wallet creates this launch on a local Base fork with test assets and no mainnet value. The launch fee is zero."
+      "Your wallet creates this launch on a Base fork with test assets and no mainnet value. The launch fee is zero."
 
   defp risk_copy(fee),
     do:
-      "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a local Base fork. The fee goes to REGENT staking and is not refunded. Test assets have no mainnet value."
+      "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a Base fork. The fee goes to REGENT staking and is not refunded. Test assets have no mainnet value."
 
   defp regent_units(amount), do: Rpc.format_units(amount, @regent_decimals)
 

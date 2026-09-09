@@ -174,7 +174,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               {@draft_errors["stock_address"]}
             </p>
             <p :if={@stock} class="autolaunch-draft-hint">
-              {@stock.symbol} uses {@stock.decimals} decimal places on this site's local lab.
+              {@stock.symbol} uses {@stock.decimals} decimal places on this site's Base fork.
             </p>
 
             <Regent.Primitives.field

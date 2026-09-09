@@ -36,7 +36,7 @@ defmodule Autolaunch.BidSettlementActions do
   @withdrawn "review withdrawn"
   @lapsed "the reviewed settlement expired before it was sent"
   @unresolved "account started a new settlement while this one was unresolved"
-  @reverted "verified revert on the local fork"
+  @reverted "verified revert on the fork"
   @contradicted "canonical receipt contradicts the reviewed settlement"
 
   @transient [
@@ -296,7 +296,7 @@ defmodule Autolaunch.BidSettlementActions do
         &is_nil/1
       )
 
-    "Your wallet signs a transaction that #{Enum.join(parts, ", then one that ")} on a local Base fork. Test assets have no mainnet value."
+    "Your wallet signs a transaction that #{Enum.join(parts, ", then one that ")} on a Base fork. Test assets have no mainnet value."
   end
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()

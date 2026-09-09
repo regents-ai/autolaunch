@@ -129,7 +129,7 @@ defmodule AutolaunchWeb.HomeLive do
         </div>
         <span class="home-network" title="The network these listings belong to">
           <span aria-hidden="true" class="home-network__dot"></span>
-          {if @local_lab, do: "Base local fork · test assets", else: "Base"}
+          {if @local_lab, do: "#{Autolaunch.ChainMode.label()} · test assets", else: "Base"}
         </span>
       </header>
 

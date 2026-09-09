@@ -41,14 +41,14 @@ defmodule AutolaunchWeb.TestFundsComponent do
     >
       <header>
         <div>
-          <p class="autolaunch-kicker">Local lab</p>
+          <p class="autolaunch-kicker">{Autolaunch.ChainMode.label()}</p>
           <Regent.Structure.section_bar>
             <h2 class="rg-section-bar__label">Test funds</h2>
           </Regent.Structure.section_bar>
         </div>
       </header>
       <p>
-        Test assets on the local fork only; they have no mainnet value. Funds go to the
+        Test assets on this Base fork only; they have no mainnet value. Funds go to the
         receiving wallet shown below.
       </p>
       <p :if={!@wallet} class="autolaunch-draft-hint">

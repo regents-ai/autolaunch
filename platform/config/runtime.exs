@@ -68,21 +68,39 @@ x_oauth_client_id =
 
 config :autolaunch, :x_oauth_client_id, x_oauth_client_id
 
+# Which chain this build runs against: `base` (real Base, the default) or
+# `fork` (a hosted Base fork carrying the lab contract graph, for a public
+# preview). Fork mode is admitted in every environment, production included;
+# it requires both lab configurations below, serves with writes open, and
+# keeps the Base log ledger off exactly as a lab does.
+chain_mode = Autolaunch.ChainMode.parse!(System.get_env("AUTOLAUNCH_CHAIN_MODE"))
+config :autolaunch, :chain_mode, chain_mode
+
+if chain_mode == :fork do
+  config :autolaunch, :prelaunch_read_only, false
+end
+
 autolaunch_lab_path = System.get_env("AUTOLAUNCH_LAB_CONFIG")
 
 autolaunch_lab =
-  case {config_env(), autolaunch_lab_path} do
-    {_env, nil} ->
+  case {chain_mode, config_env(), autolaunch_lab_path} do
+    {:fork, _env, path} when path in [nil, ""] ->
+      raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_LAB_CONFIG"
+
+    {:fork, _env, path} ->
+      Autolaunch.Lab.load!(path, :fork)
+
+    {:base, _env, nil} ->
       nil
 
-    {_env, ""} ->
+    {:base, _env, ""} ->
       nil
 
-    {:prod, _path} ->
+    {:base, :prod, _path} ->
       raise "AUTOLAUNCH_LAB_CONFIG is development/test only"
 
-    {env, path} when env in [:dev, :test] ->
-      Autolaunch.Lab.load!(path)
+    {:base, env, path} when env in [:dev, :test] ->
+      Autolaunch.Lab.load!(path, :base)
   end
 
 config :autolaunch, :autolaunch_lab_enabled, not is_nil(autolaunch_lab)
@@ -91,26 +109,29 @@ config :autolaunch, :autolaunch_lab_config_path, autolaunch_lab && autolaunch_la
 if autolaunch_lab do
   config :autolaunch,
          :autolaunch_lab_run_id,
-         System.fetch_env!("AUTOLAUNCH_ACCEPTANCE_RUN_ID")
+         System.fetch_env!("AUTOLAUNCH_FORK_RUN_ID")
 end
 
 # The Stocks lab extends a running Agent lab and is refused without one.
 autolaunch_stocks_lab =
-  case {config_env(), System.get_env("AUTOLAUNCH_STOCKS_LAB_CONFIG")} do
-    {_env, nil} ->
+  case {chain_mode, config_env(), System.get_env("AUTOLAUNCH_STOCKS_LAB_CONFIG")} do
+    {:fork, _env, path} when path in [nil, ""] ->
+      raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_STOCKS_LAB_CONFIG"
+
+    {:base, _env, nil} ->
       nil
 
-    {_env, ""} ->
+    {:base, _env, ""} ->
       nil
 
-    {:prod, _path} ->
+    {:base, :prod, _path} ->
       raise "AUTOLAUNCH_STOCKS_LAB_CONFIG is development/test only"
 
-    {_env, _path} when is_nil(autolaunch_lab) ->
+    {:base, _env, _path} when is_nil(autolaunch_lab) ->
       raise "AUTOLAUNCH_STOCKS_LAB_CONFIG needs AUTOLAUNCH_LAB_CONFIG"
 
-    {env, path} when env in [:dev, :test] ->
-      loaded = Autolaunch.Stocks.Lab.load!(path)
+    {mode, _env, path} ->
+      loaded = Autolaunch.Stocks.Lab.load!(path, mode)
 
       if loaded.agent_lab_config != autolaunch_lab.path do
         raise "AUTOLAUNCH_STOCKS_LAB_CONFIG names a different Agent lab than AUTOLAUNCH_LAB_CONFIG"
@@ -124,6 +145,16 @@ config :autolaunch, :autolaunch_stocks_lab_enabled, not is_nil(autolaunch_stocks
 config :autolaunch,
        :autolaunch_stocks_lab_config_path,
        autolaunch_stocks_lab && autolaunch_stocks_lab.path
+
+# Test funds: at most one grant per wallet and asset within this many seconds;
+# `0` is no cooldown. Unset means an hour on a public fork preview and none
+# on a local lab.
+config :autolaunch,
+       :faucet_cooldown_seconds,
+       Autolaunch.ChainMode.faucet_cooldown_seconds!(
+         chain_mode,
+         System.get_env("AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS")
+       )
 
 # The release sets this on its migration commands, and only on those, so the
 # migration boot can take a direct connection while the web boot takes the

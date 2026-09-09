@@ -4,13 +4,14 @@ defmodule Autolaunch.Stocks.Lab do
   `contracts/stocks/bin/local-stocks-lab.py deploy`.
 
   It extends a running Agent lab and is refused unless it names the very Agent
-  lab configuration this site runs with, answers on a loopback RPC as chain
-  31337, and declares every function and event the site prepares against.
-  Development and test only; production never loads it.
+  lab configuration this site runs with, answers on the same admitted RPC
+  doors as chain 31337 (`Autolaunch.LabRpcUrl`), and declares every function
+  and event the site prepares against. Production loads it only in fork mode
+  (`Autolaunch.ChainMode`).
   """
 
   alias Autolaunch.Chain.Address
-  alias Autolaunch.Lab
+  alias Autolaunch.{ChainMode, Lab, LabRpcUrl}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @chain_id 31_337
@@ -38,6 +39,7 @@ defmodule Autolaunch.Stocks.Lab do
   @type t :: %{
           path: String.t(),
           rpc_url: String.t(),
+          public_rpc_url: String.t(),
           chain_id: pos_integer(),
           agent_lab_config: String.t(),
           addresses: %{required(String.t()) => String.t()},
@@ -57,6 +59,7 @@ defmodule Autolaunch.Stocks.Lab do
            Application.fetch_env!(:autolaunch, :autolaunch_stocks_lab_config_path) |> load(),
          true <- config.agent_lab_config == agent.path || {:error, :agent_lab_mismatch},
          true <- config.rpc_url == agent.rpc_url || {:error, :agent_lab_mismatch},
+         true <- config.public_rpc_url == agent.public_rpc_url || {:error, :agent_lab_mismatch},
          true <- same_agent_addresses?(config, agent) || {:error, :agent_lab_mismatch} do
       {:ok, Map.put(config, :run_id, agent.run_id)}
     end
@@ -69,20 +72,23 @@ defmodule Autolaunch.Stocks.Lab do
     end
   end
 
-  def load!(path) do
-    case load(path) do
+  def load!(path, mode \\ ChainMode.mode()) do
+    case load(path, mode) do
       {:ok, config} -> config
       {:error, reason} -> raise "Autolaunch Stocks lab configuration is invalid: #{reason}"
     end
   end
 
-  def load(path) when is_binary(path) do
+  def load(path, mode \\ ChainMode.mode())
+
+  def load(path, mode) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
-         # Founder-supplied dev/test startup input; this path never comes from an HTTP request.
+         # Founder-supplied startup input; this path never comes from an HTTP request.
          # sobelow_skip ["Traversal.FileModule"]
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- literal_loopback(decoded["rpc_url"]),
+         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"], mode),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url, mode),
          @chain_id <- decoded["chain_id"],
          {:ok, agent_lab_config} <- absolute(decoded["agent_lab_config"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
@@ -94,6 +100,7 @@ defmodule Autolaunch.Stocks.Lab do
        %{
          path: path,
          rpc_url: rpc_url,
+         public_rpc_url: public_rpc_url,
          chain_id: @chain_id,
          agent_lab_config: agent_lab_config,
          addresses: addresses,
@@ -110,14 +117,26 @@ defmodule Autolaunch.Stocks.Lab do
     end
   end
 
-  def load(_path), do: {:error, :absolute_path_required}
+  def load(_path, _mode), do: {:error, :absolute_path_required}
 
-  @doc "The lab binding an envelope carries: the exact addresses a review depends on."
-  def binding(%{run_id: run_id, rpc_url: rpc_url, chain_id: chain_id, addresses: addresses}, keys)
+  @doc """
+  The lab binding an envelope carries: the exact addresses a review depends on,
+  with the public RPC door as its `rpc_url`. The site's own door never leaves
+  the server.
+  """
+  def binding(
+        %{
+          run_id: run_id,
+          public_rpc_url: public_rpc_url,
+          chain_id: chain_id,
+          addresses: addresses
+        },
+        keys
+      )
       when is_list(keys) do
     %{
       "run_id" => run_id,
-      "rpc_url" => rpc_url,
+      "rpc_url" => public_rpc_url,
       "chain_id" => chain_id,
       "addresses" => Map.take(addresses, Enum.map(keys, &to_string/1))
     }
@@ -179,27 +198,6 @@ defmodule Autolaunch.Stocks.Lab do
       end
     )
   end
-
-  defp literal_loopback(value) when is_binary(value) do
-    with {:ok,
-          %URI{
-            scheme: "http",
-            host: "127.0.0.1",
-            port: port,
-            path: path,
-            query: nil,
-            fragment: nil,
-            userinfo: nil
-          }} <- URI.new(value),
-         true <- is_integer(port) and port in 1..65_535,
-         true <- path in [nil, ""] do
-      {:ok, "http://127.0.0.1:#{port}"}
-    else
-      _ -> {:error, :non_loopback_rpc}
-    end
-  end
-
-  defp literal_loopback(_value), do: {:error, :non_loopback_rpc}
 
   defp absolute(value) when is_binary(value) do
     if Path.type(value) == :absolute, do: {:ok, value}, else: {:error, :invalid_agent_lab_config}

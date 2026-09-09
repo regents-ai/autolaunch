@@ -8,16 +8,26 @@ defmodule AutolaunchWeb.Layouts do
 
   embed_templates("layouts/*")
 
-  @doc "The one line every page of a local Base-fork site carries."
+  @doc """
+  The one line every page of a Base-fork site carries: "Local Base fork …" on
+  a lab, "Preview on a Base fork …" on a hosted fork preview.
+  """
   def lab_notice(assigns) do
-    assigns = assign(assigns, :sign_in, sign_in_state())
+    assigns =
+      assigns
+      |> assign(:sign_in, sign_in_state())
+      |> assign(:fork_label, Autolaunch.ChainMode.label())
+      |> assign(:preview?, Autolaunch.ChainMode.fork?())
 
     ~H"""
     <p :if={Autolaunch.Prelaunch.read_only?()} class="autolaunch-prelaunch-notice" role="status">
       Prelaunch · Read-only preview · Creation, accounts and wallet actions open after contract deployment.
     </p>
     <p :if={Autolaunch.Lab.enabled?()} class="autolaunch-lab-warning" role="status">
-      Local Base fork · test assets · no mainnet value<span :if={!Autolaunch.Prelaunch.read_only?()}> · launches and bids only · {@sign_in}</span>
+      {@fork_label} · test assets · no mainnet value<span :if={!Autolaunch.Prelaunch.read_only?()}><span :if={
+        !@preview?
+      }> · launches and bids only</span>
+      · {@sign_in}</span>
     </p>
     """
   end

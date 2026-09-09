@@ -620,7 +620,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   defp production_report(_draft), do: nil
 
   defp network_name(%{envelope: %{"chain_id" => 31_337}}),
-    do: "Local Base fork · chain 31337"
+    do: "#{Autolaunch.ChainMode.label()} · chain 31337"
 
   defp network_name(_operation), do: "Base"
 
@@ -682,15 +682,14 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   # evidence for. It deliberately promises no more than that: canonical public
   # confirmation is the finalized projection, not this.
   defp verified_copy(%{envelope: %{"chain_id" => 31_337}}),
-    do:
-      "The local test transaction and launch record were verified. Test assets have no mainnet value."
+    do: "The test transaction and launch record were verified. Test assets have no mainnet value."
 
   defp verified_copy(_operation),
     do:
       "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
 
   defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => 31_337}}),
-    do: "This local test transaction reverted. Nothing was created."
+    do: "This test transaction reverted. Nothing was created."
 
   defp settled_copy(%{state: :reverted}),
     do: "This transaction reverted on Base. Nothing was created."
@@ -712,7 +711,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   defp settled_copy(%{state: :invalidated, envelope: %{"chain_id" => 31_337}} = operation),
     do:
-      "The local lab changed before the launch was sent." <>
+      "The fork changed before the launch was sent." <>
         left_behind(operation) <> ended_because(operation)
 
   defp settled_copy(%{state: :invalidated} = operation),
@@ -804,13 +803,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   defp copy(:chain_unavailable) do
     if Lab.enabled?(),
-      do: "The local lab could not be read just now. Check that it is still running.",
+      do: "The Base fork could not be read just now. Check that it is still running.",
       else: Map.fetch!(@copy, :chain_unavailable)
   end
 
   defp copy(:launch_snapshot_incomplete) do
     if Lab.enabled?(),
-      do: "The local lab returned an incomplete answer. Check that it is still running.",
+      do: "The Base fork returned an incomplete answer. Check that it is still running.",
       else: Map.fetch!(@copy, :launch_snapshot_incomplete)
   end
 

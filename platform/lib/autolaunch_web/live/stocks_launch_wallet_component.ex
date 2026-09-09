@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     wrong_signer: "Switch back to a wallet on this account to continue.",
     invalid_address: "Switch back to a wallet on this account to continue.",
     chain_unavailable:
-      "The local lab could not be read just now. Check that it is still running.",
+      "The Base fork could not be read just now. Check that it is still running.",
     stocks_unavailable: "Stock launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
     insufficient_regent: "This wallet holds less REGENT than the launch fee.",
@@ -191,7 +191,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>Local Base fork · chain 31337</dd>
+            <dd>{Autolaunch.ChainMode.label()} · chain 31337</dd>
           </div>
           <div>
             <dt>Transactions</dt>
@@ -217,7 +217,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
         <section :if={@operation.state == :chain_verified} class="launch-wallet-settled" role="status">
           <p>
-            The local test transaction and launch record were verified. Test assets have no mainnet value.
+            The test transaction and launch record were verified. Test assets have no mainnet value.
           </p>
           <p>
             <.link navigate={"/auctions/#{Autolaunch.LabProjection.auction_id(@operation.result["auction"])}"}>
@@ -506,7 +506,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp current_state(:submission_unknown), do: "Unresolved"
 
   defp settled_copy(%{state: :reverted}),
-    do: "This local test transaction reverted. Nothing was created."
+    do: "This test transaction reverted. Nothing was created."
 
   defp settled_copy(%{state: :unverified}),
     do: "This transaction did not record the launch you reviewed."
@@ -524,7 +524,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   defp settled_copy(%{state: :invalidated, reason: reason} = operation),
     do:
-      "The local lab changed before the launch was sent." <>
+      "The fork changed before the launch was sent." <>
         left_behind(operation) <> " Review it again: #{reason}."
 
   # A review that ends after its allowance correction was already sent leaves

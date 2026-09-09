@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     position_not_on_chain: "This bid has no on-chain record to settle.",
     bid_not_found: "The auction has no record of this bid.",
     chain_unavailable:
-      "The local lab could not be read just now. Check that it is still running.",
+      "The Base fork could not be read just now. Check that it is still running.",
     auction_not_started: "Bidding has not started on this auction.",
     auction_not_ended: "Bidding has not ended on this auction.",
     already_exited: "This bid has already been returned.",
@@ -44,7 +44,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     submitted_hash_conflict: "This step already has a transaction.",
     submitted_step_mismatch: "That transaction is not the step this settlement is waiting for.",
     settlement_operation_not_found: "That settlement is no longer open.",
-    lab_config_changed: "The local lab changed since this review. Review it again."
+    lab_config_changed: "The fork changed since this review. Review it again."
   }
 
   @generic "That did not go through. Try again in a moment."
@@ -174,7 +174,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>Local Base fork · chain 31337</dd>
+            <dd>{Autolaunch.ChainMode.label()} · chain 31337</dd>
           </div>
         </dl>
         <p class="bid-notice">{@operation.envelope["risk_copy"]}</p>
@@ -475,9 +475,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp confirmed_copy(%{result: %{"currency_refunded_units" => refunded}} = operation),
     do: "#{refunded} #{argument(operation, "currency_symbol")} was returned to your wallet."
 
-  defp confirmed_copy(_operation), do: "This settlement was verified on the local fork."
+  defp confirmed_copy(_operation), do: "This settlement was verified on the fork."
 
-  defp settled_copy(%{state: :reverted}), do: "This local test transaction reverted."
+  defp settled_copy(%{state: :reverted}), do: "This test transaction reverted."
 
   defp settled_copy(%{state: :unverified}),
     do: "This transaction did not record the settlement you reviewed."

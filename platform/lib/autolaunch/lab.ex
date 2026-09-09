@@ -2,6 +2,7 @@ defmodule Autolaunch.Lab do
   @moduledoc false
 
   alias Autolaunch.Chain.Address
+  alias Autolaunch.{ChainMode, LabRpcUrl}
 
   @chain_id 31_337
   # 1 / 2^96 = 5^96 / 10^96, so a Q96 price is an exact 96-place decimal.
@@ -27,6 +28,7 @@ defmodule Autolaunch.Lab do
           path: String.t(),
           run_id: String.t(),
           rpc_url: String.t(),
+          public_rpc_url: String.t(),
           chain_id: pos_integer(),
           addresses: %{required(String.t()) => String.t()},
           abis: %{required(String.t()) => [map()]}
@@ -60,20 +62,30 @@ defmodule Autolaunch.Lab do
     end
   end
 
-  def load!(path) do
-    case load(path) do
+  def load!(path, mode \\ ChainMode.mode()) do
+    case load(path, mode) do
       {:ok, config} -> config
       {:error, reason} -> raise "Autolaunch lab configuration is invalid: #{reason}"
     end
   end
 
-  def load(path) when is_binary(path) do
+  @doc """
+  Reads and validates `site-config.json` for a chain mode.
+
+  `rpc_url` is the site's own door and must be admitted for the mode
+  (`Autolaunch.LabRpcUrl.admitted/2`); `public_rpc_url` is the door wallets
+  add and is required in fork mode (`Autolaunch.LabRpcUrl.public/3`).
+  """
+  def load(path, mode \\ ChainMode.mode())
+
+  def load(path, mode) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
-         # Founder-supplied dev/test startup input; this path never comes from an HTTP request.
+         # Founder-supplied startup input; this path never comes from an HTTP request.
          # sobelow_skip ["Traversal.FileModule"]
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- literal_loopback(decoded["rpc_url"]),
+         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"], mode),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url, mode),
          @chain_id <- decoded["chain_id"],
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
@@ -82,6 +94,7 @@ defmodule Autolaunch.Lab do
        %{
          path: path,
          rpc_url: rpc_url,
+         public_rpc_url: public_rpc_url,
          chain_id: @chain_id,
          addresses: addresses,
          abis: abis
@@ -95,13 +108,26 @@ defmodule Autolaunch.Lab do
     end
   end
 
-  def load(_path), do: {:error, :absolute_path_required}
+  def load(_path, _mode), do: {:error, :absolute_path_required}
 
-  def binding(%{run_id: run_id, rpc_url: rpc_url, chain_id: chain_id, addresses: addresses}, keys)
+  @doc """
+  The lab binding an envelope carries to the browser. Its `rpc_url` is the
+  public door, the one a wallet adds as chain 31337; the site's own `rpc_url`
+  never leaves the server.
+  """
+  def binding(
+        %{
+          run_id: run_id,
+          public_rpc_url: public_rpc_url,
+          chain_id: chain_id,
+          addresses: addresses
+        },
+        keys
+      )
       when is_list(keys) do
     %{
       "run_id" => run_id,
-      "rpc_url" => rpc_url,
+      "rpc_url" => public_rpc_url,
       "chain_id" => chain_id,
       "addresses" => Map.take(addresses, Enum.map(keys, &to_string/1))
     }
@@ -112,6 +138,7 @@ defmodule Autolaunch.Lab do
       run_id: run_id,
       path: config.path,
       rpc_url: config.rpc_url,
+      public_rpc_url: config.public_rpc_url,
       chain_id: config.chain_id,
       addresses: config.addresses,
       abis: config.abis
@@ -140,27 +167,6 @@ defmodule Autolaunch.Lab do
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
   def chain_id, do: @chain_id
-
-  defp literal_loopback(value) when is_binary(value) do
-    with {:ok,
-          %URI{
-            scheme: "http",
-            host: "127.0.0.1",
-            port: port,
-            path: path,
-            query: nil,
-            fragment: nil,
-            userinfo: nil
-          }} <- URI.new(value),
-         true <- is_integer(port) and port in 1..65_535,
-         true <- path in [nil, ""] do
-      {:ok, "http://127.0.0.1:#{port}"}
-    else
-      _ -> {:error, :non_loopback_rpc}
-    end
-  end
-
-  defp literal_loopback(_value), do: {:error, :non_loopback_rpc}
 
   defp exact_addresses(addresses) when is_map(addresses) do
     with true <- Enum.sort(Map.keys(addresses)) == Enum.sort(@address_keys),

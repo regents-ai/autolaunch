@@ -237,7 +237,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     <aside id={"treasury-security-#{@surface}"} class="treasury-security" role="status">
       <h3>Treasury security</h3>
       <p class="treasury-security--warning">
-        Treasury verification is not available on the local Base fork. Custody is unverified here.
+        Treasury verification is not available on this Base fork. Custody is unverified here.
       </p>
     </aside>
     """

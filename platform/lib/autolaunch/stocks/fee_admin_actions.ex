@@ -34,11 +34,11 @@ defmodule Autolaunch.Stocks.FeeAdminActions do
 
   @risk %{
     configure_subject:
-      "Your wallet changes where this pool's subject revenue lane sends 1% of currency-side volume from every future trade on the local Base fork. #{@future_only} Test assets have no mainnet value.",
+      "Your wallet changes where this pool's subject revenue lane sends 1% of currency-side volume from every future trade on the Base fork. #{@future_only} Test assets have no mainnet value.",
     propose_administrator:
-      "Your wallet names another wallet as the next fee administrator of this launch. Nothing changes until that wallet accepts. Local Base fork; test assets have no mainnet value.",
+      "Your wallet names another wallet as the next fee administrator of this launch. Nothing changes until that wallet accepts. Base fork; test assets have no mainnet value.",
     accept_administrator:
-      "Your wallet becomes this launch's fee administrator, the only account that can turn its subject revenue lane on, off or onto another destination. Local Base fork; test assets have no mainnet value."
+      "Your wallet becomes this launch's fee administrator, the only account that can turn its subject revenue lane on, off or onto another destination. Base fork; test assets have no mainnet value."
   }
 
   @replaced "replaced by a newer review"
@@ -46,7 +46,7 @@ defmodule Autolaunch.Stocks.FeeAdminActions do
   @withdrawn "review withdrawn"
   @lapsed "the reviewed action expired before it was sent"
   @unresolved "account started a new action while this one was unresolved"
-  @reverted "verified revert on the local fork"
+  @reverted "verified revert on the fork"
   @contradicted "canonical receipt contradicts the reviewed action"
 
   @transient [

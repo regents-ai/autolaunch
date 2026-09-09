@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
               rel="noopener noreferrer"
             >View Chart</a>
             <p :if={@local_lab?} class="regent-token-menu__note">
-              Public Base mainnet, not this local fork’s test REGENT.
+              Public Base mainnet, not this fork’s test REGENT.
             </p>
           </nav>
         </div>

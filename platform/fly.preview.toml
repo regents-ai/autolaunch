@@ -1,0 +1,41 @@
+# The public fork preview: the production release running in fork chain mode
+# against a hosted Base fork, on its own database. Built from Dockerfile.preview,
+# which adds the two fork configuration files to the production image. See
+# docs/fork-preview.md.
+app = "autolaunch-preview"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.preview"
+
+# The production release image the preview layer is added to. Name the exact
+# accepted digest; `fly deploy --image <preview digest>` bypasses this block
+# when the preview image was built and pushed beforehand.
+[build.args]
+  AUTOLAUNCH_IMAGE = "registry.fly.io/autolaunch-sh@sha256:REPLACE_WITH_ACCEPTED_DIGEST"
+
+[env]
+  PORT = "4000"
+  PHX_HOST = "preview.autolaunch.sh"
+  AUTOLAUNCH_DEPLOYMENT_ROLE = "staging"
+  AUTOLAUNCH_DB_SCHEMA = "autolaunch_app"
+  AUTOLAUNCH_CHAIN_MODE = "fork"
+  AUTOLAUNCH_LAB_CONFIG = "/app/fork/site-config.json"
+  AUTOLAUNCH_STOCKS_LAB_CONFIG = "/app/fork/stocks-site-config.json"
+  AUTOLAUNCH_FORK_RUN_ID = "preview"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+
+# BEAM release + migrations OOM at Fly's 256MB default.
+[[vm]]
+  memory_mb = 1024
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "10s"
+  method = "GET"
+  path = "/healthz"
+  protocol = "http"
+  timeout = "2s"

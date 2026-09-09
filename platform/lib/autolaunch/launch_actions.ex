@@ -371,11 +371,11 @@ defmodule Autolaunch.LaunchActions do
 
   defp risk_copy(0, %{lab_binding: _binding}),
     do:
-      "Your wallet creates this launch on a local Base fork with test assets and no mainnet value. The launch fee is zero."
+      "Your wallet creates this launch on a Base fork with test assets and no mainnet value. The launch fee is zero."
 
   defp risk_copy(fee, %{lab_binding: _binding}),
     do:
-      "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a local Base fork. Test assets have no mainnet value."
+      "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a Base fork. Test assets have no mainnet value."
 
   defp risk_copy(0, _snapshot),
     do:

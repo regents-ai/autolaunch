@@ -7,13 +7,18 @@ defmodule Autolaunch.Stocks.Faucet do
   enough; the launch-fee grant needs the Stocks lab's configured amount), STOCK
   is minted by the fixture token, and USDC moves from the forked holder the
   Stocks lab names. Every press sends; the RPC's own error text is reported when
-  it fails. The RPC URL only ever comes from a validated lab configuration,
-  which admits loopback alone, and a read-only site refuses.
+  it fails. The RPC URL only ever comes from a validated lab configuration's
+  own door (`Autolaunch.LabRpcUrl.admitted/2`), and a read-only site refuses.
+
+  With a cooldown configured (`:faucet_cooldown_seconds`, from
+  `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS`), one asset goes to one wallet at most
+  once per window (`Autolaunch.Stocks.FaucetCooldown`); a press inside the
+  window is refused with the time the next one opens. `0` is no cooldown.
   """
 
   alias Autolaunch.Chain.{Address, Rpc}
   alias Autolaunch.{Lab, LabAbi, Prelaunch}
-  alias Autolaunch.Stocks.Amounts
+  alias Autolaunch.Stocks.{Amounts, FaucetCooldown}
   alias Autolaunch.Stocks.Lab, as: StocksLab
 
   @regent_amount 1_000 * Integer.pow(10, 18)
@@ -52,7 +57,7 @@ defmodule Autolaunch.Stocks.Faucet do
 
   @doc "1,000 test REGENT from the governance Safe's forked balance."
   @spec regent(String.t()) :: {:ok, grant()} | {:error, String.t()}
-  def regent(wallet), do: regent_grant(wallet, {:ok, @regent_amount})
+  def regent(wallet), do: regent_grant(wallet, {:ok, @regent_amount}, "regent")
 
   @doc "The Stocks lab's configured launch-fee REGENT from the governance Safe's forked balance."
   @spec regent_launch_fee(String.t()) :: {:ok, grant()} | {:error, String.t()}
@@ -66,10 +71,10 @@ defmodule Autolaunch.Stocks.Faucet do
         error -> error
       end
 
-    regent_grant(wallet, amount)
+    regent_grant(wallet, amount, "regent_launch_fee")
   end
 
-  defp regent_grant(wallet, amount) do
+  defp regent_grant(wallet, amount, asset) do
     with :ok <- admitted(),
          {:ok, wallet} <- address(wallet),
          {:ok, amount} <- amount,
@@ -80,6 +85,7 @@ defmodule Autolaunch.Stocks.Faucet do
         token: Lab.address!(config, :regent),
         data: transfer_calldata(wallet, amount),
         wallet: wallet,
+        asset: asset,
         symbol: "REGENT",
         amount: amount,
         decimals: 18
@@ -102,6 +108,7 @@ defmodule Autolaunch.Stocks.Faucet do
         token: stock.address,
         data: mint_calldata(wallet, amount),
         wallet: wallet,
+        asset: stock.address,
         symbol: stock.symbol,
         amount: amount,
         decimals: stock.decimals
@@ -123,6 +130,7 @@ defmodule Autolaunch.Stocks.Faucet do
         token: StocksLab.address!(config, :usdc),
         data: transfer_calldata(wallet, amount),
         wallet: wallet,
+        asset: "usdc",
         symbol: "USDC",
         amount: amount,
         decimals: 6
@@ -144,8 +152,19 @@ defmodule Autolaunch.Stocks.Faucet do
     end
   end
 
+  # A press sends at once without a cooldown; with one, `FaucetCooldown` sends
+  # inside the transaction that checks and records the grant.
+  defp grant(%{wallet: wallet, asset: asset} = order) do
+    FaucetCooldown.grant(
+      wallet,
+      asset,
+      Application.fetch_env!(:autolaunch, :faucet_cooldown_seconds),
+      fn -> send_grant(order) end
+    )
+  end
+
   # One impersonated transaction, then its receipt, then the wallet's new balance.
-  defp grant(%{rpc: rpc, holder: holder, token: token, data: data, wallet: wallet} = order) do
+  defp send_grant(%{rpc: rpc, holder: holder, token: token, data: data, wallet: wallet} = order) do
     # Anvil answers `anvil_impersonateAccount` with a null result; only an error
     # refuses the impersonation.
     with :ok <- fund_gas(rpc, holder),
@@ -233,7 +252,8 @@ defmodule Autolaunch.Stocks.Faucet do
     do: value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0")
 
   # A JSON-RPC caller that keeps the node's own error message. The URL is the
-  # validated loopback URL of a lab configuration and nothing else.
+  # validated own door of a lab configuration and nothing else; it is never
+  # part of a reported message.
   defp rpc(rpc_url) do
     fn method, params ->
       request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
@@ -259,20 +279,20 @@ defmodule Autolaunch.Stocks.Faucet do
   end
 
   defp admitted do
-    if available?(), do: :ok, else: {:error, "Test funds are only available on a local lab site."}
+    if available?(), do: :ok, else: {:error, "Test funds are not available on this site."}
   end
 
   defp agent_lab do
     case Lab.current() do
       {:ok, config} -> {:ok, config}
-      {:error, reason} -> {:error, "The local lab is not available: #{reason}."}
+      {:error, reason} -> {:error, "The fork is not available: #{reason}."}
     end
   end
 
   defp stocks_lab do
     case StocksLab.current() do
       {:ok, config} -> {:ok, config}
-      {:error, reason} -> {:error, "The Stocks lab is not available: #{reason}."}
+      {:error, reason} -> {:error, "Stock test funds are not available: #{reason}."}
     end
   end
 

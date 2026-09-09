@@ -191,6 +191,10 @@ defmodule Autolaunch do
     # under a session lease, so it carries no code interface.
     resource Autolaunch.Stocks.FeeAdminOperation
 
+    # The test-funds cooldown ledger, written only by `Stocks.Faucet` inside
+    # the transaction that sends a grant.
+    resource Autolaunch.Stocks.FaucetGrant
+
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public
       define :page_public_tokens, action: :page_public

@@ -714,7 +714,7 @@ defmodule Autolaunch.BidActions do
 
   defp claim(account, operation, :changed, _treasury_result) do
     with :ok <- signer_matches(account, operation.signer),
-         do: update(operation, :cancel, %{reason: "the reviewed local lab changed"})
+         do: update(operation, :cancel, %{reason: "the reviewed fork changed"})
   end
 
   defp claim(account, operation, :current, {:error, _reason}) do

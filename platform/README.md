@@ -37,6 +37,18 @@ addresses, chain configuration and real user journeys have been accepted. The tw
 planned sidebar options remain disabled independently; contract deployment does not
 implement those products automatically. Deployment and migrations are separate approvals.
 
+## Chain mode
+
+`AUTOLAUNCH_CHAIN_MODE` selects the chain a build runs against (`Autolaunch.ChainMode`):
+
+| Value | What it is |
+| --- | --- |
+| `base` (default when unset) | Real Base. Exactly the behaviour above: production is read-only until the explicit configuration change, and the lab configurations are refused in production. |
+| `fork` | A hosted Base fork (chain 31337) carrying the lab contract graph, for a public preview with test assets and no mainnet value. Admitted in every environment, production included. Both lab configurations are required, `prelaunch_read_only` resolves to `false` without any script, the Base log ledger stays off, both lab market feeds run, and the test-funds faucet applies a per-wallet, per-asset cooldown. |
+
+Any other value stops the boot. The fork mode's two RPC doors, its environment, its
+faucet cooldown and how a preview image is built are in [docs/fork-preview.md](docs/fork-preview.md).
+
 ## Shared database namespace
 
 `AUTOLAUNCH_DB_SCHEMA` defaults to `public` for ordinary development and tests.
@@ -142,9 +154,11 @@ recovery rules are in [docs/local-base-lab.md](docs/local-base-lab.md).
 
 The Stocks lab extends that fork with the Stocks launchpad, fixture stock tokens and routes.
 Set `AUTOLAUNCH_STOCKS_LAB_CONFIG=/abs/path/stocks-site-config.json` alongside the Agent lab
-variables (development and test only; it is refused without `AUTOLAUNCH_LAB_CONFIG` and must
-name the same Agent lab). This turns on `/create/stocks`, USDC bids on Stocks auctions, the
-Stocks market feed and the test-funds panel. Details are in [docs/stocks.md](docs/stocks.md).
+variables (development and test only in `base` chain mode; it is refused without
+`AUTOLAUNCH_LAB_CONFIG` and must name the same Agent lab). This turns on `/create/stocks`, USDC
+bids on Stocks auctions, the Stocks market feed and the test-funds panel. Details are in
+[docs/stocks.md](docs/stocks.md). The same two files, with the fork's private and public RPC
+doors, drive a hosted preview in `fork` chain mode ([docs/fork-preview.md](docs/fork-preview.md)).
 
 ## Protected paths
 
@@ -197,7 +211,8 @@ The image is built from `Dockerfile`. The context contains the application and
 three selected shared packages; Docker installs `mix.lock` and `package-lock.json`
 dependencies for the target Linux architecture. Host caches and native binaries
 are excluded. The Fly configurations remain `fly.toml` (`autolaunch-sh`) and
-`fly.staging.toml` (`autolaunch-staging`).
+`fly.staging.toml` (`autolaunch-staging`); `fly.preview.toml` (`autolaunch-preview`) and
+`Dockerfile.preview` describe the fork preview ([docs/fork-preview.md](docs/fork-preview.md)).
 
 Run the assembler from `platform/` with package paths set to the selected
 checkouts and each corresponding revision set to that checkout's exact commit.
@@ -230,6 +245,7 @@ source tests alone do not verify Linux native dependencies or production sign-in
 | `PHX_HOST` | Serving app only | The public hostname the site generates URLs for. |
 | `BASE_READ_RPC_URL` | Serving app only | The Base endpoint the site reads one canonical `safe` block through. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
+| `AUTOLAUNCH_CHAIN_MODE` | Optional | `base` (default) or `fork`; see "Chain mode" above and [docs/fork-preview.md](docs/fork-preview.md) for the variables fork mode adds. |
 
 `Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
 serving credentials must target `regents_prod` on `regents-platform-prod`, using
