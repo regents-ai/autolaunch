@@ -15,6 +15,7 @@ defmodule Autolaunch.WalletAttempt do
       reference :launch_operation, on_delete: :restrict
       reference :subject_wallet_operation, on_delete: :restrict
       reference :stock_launch_operation, on_delete: :restrict
+      reference :stock_fee_admin_operation, on_delete: :restrict
     end
 
     custom_indexes do
@@ -22,13 +23,14 @@ defmodule Autolaunch.WalletAttempt do
       index [:launch_operation_id, :inserted_at]
       index [:subject_wallet_operation_id, :inserted_at]
       index [:stock_launch_operation_id, :inserted_at]
+      index [:stock_fee_admin_operation_id, :inserted_at]
       index [:transaction_hash, :step, :state]
     end
 
     check_constraints do
       check_constraint :step, "wallet_attempt_parent_step",
         check:
-          "(bid_operation_id IS NOT NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND step IN ('token_approval','permit2_approval','bid','usdc_approval','usdc_bid')) OR (bid_operation_id IS NULL AND launch_operation_id IS NOT NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND step IN ('approval','launch')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NOT NULL AND stock_launch_operation_id IS NULL AND step IN ('approval','action')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NOT NULL AND step = 'launch')"
+          "(bid_operation_id IS NOT NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('token_approval','permit2_approval','bid','usdc_approval','usdc_bid')) OR (bid_operation_id IS NULL AND launch_operation_id IS NOT NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('approval','launch')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NOT NULL AND stock_launch_operation_id IS NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('approval','action')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NOT NULL AND stock_fee_admin_operation_id IS NULL AND step = 'launch') OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND stock_fee_admin_operation_id IS NOT NULL AND step = 'action')"
     end
   end
 
@@ -42,6 +44,7 @@ defmodule Autolaunch.WalletAttempt do
         :launch_operation_id,
         :subject_wallet_operation_id,
         :stock_launch_operation_id,
+        :stock_fee_admin_operation_id,
         :step,
         :envelope,
         :legacy,
@@ -110,5 +113,6 @@ defmodule Autolaunch.WalletAttempt do
     belongs_to :launch_operation, Autolaunch.LaunchOperation
     belongs_to :subject_wallet_operation, Autolaunch.SubjectWalletOperation
     belongs_to :stock_launch_operation, Autolaunch.Stocks.LaunchOperation
+    belongs_to :stock_fee_admin_operation, Autolaunch.Stocks.FeeAdminOperation
   end
 end

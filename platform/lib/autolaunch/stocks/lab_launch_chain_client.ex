@@ -39,7 +39,7 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
          {:ok, [admitted, decimals, route]} <-
            launchpad_words(config, "stockAdmission(address)", [stock], 3, block, opts),
          {:ok, route} <- Abi.word_address(route) |> allow_zero(route),
-         {:ok, subject} <- subject_state(config, candidate, block, opts) do
+         {:ok, subject} <- splitter_state(config, candidate, block, opts) do
       {:ok,
        %{
          launchpad: Lab.address!(config, :launchpad),
@@ -86,13 +86,19 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
     end
   end
 
-  # Subject lane evidence that does not depend on the launchpad's own
-  # `subjectConfig`: the candidate names a subject, the Agent strategy names that
-  # subject's auction, and the strategy's distribution record for that auction
-  # names the candidate as its splitter.
-  defp subject_state(_config, nil, _block, _opts), do: {:ok, :off}
+  @doc """
+  Whether a candidate subject splitter is authentic: `:off` for no candidate,
+  `:verified` when the candidate names a subject, the Agent strategy names that
+  subject's auction, and the strategy's distribution record for that auction
+  names the candidate as its splitter; `:unverified` otherwise. This is the same
+  rule the launchpad enforces, answered before a wallet is asked. The fee
+  administration lane reuses it for a retargeted lane.
+  """
+  @spec splitter_state(map(), String.t() | nil, map(), keyword()) ::
+          {:ok, :off | :verified | :unverified} | {:error, atom()}
+  def splitter_state(_config, nil, _block, _opts), do: {:ok, :off}
 
-  defp subject_state(config, candidate, block, opts) do
+  def splitter_state(config, candidate, block, opts) do
     strategy = Lab.address!(config, :agent_strategy)
 
     with :ok <- LabRpc.ensure_contract(candidate, block, opts),

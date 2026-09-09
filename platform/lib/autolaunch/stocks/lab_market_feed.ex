@@ -267,8 +267,11 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     if auction.state == state and auction.current_clearing_price == price do
       {:ok, nil}
     else
-      with {:ok, _row} <-
+      # A graduation projects the public token row at once, so the pool page
+      # exists as soon as the auction row says the launch graduated.
+      with {:ok, row} <-
              Autolaunch.refresh_lab_market_auction(auction, state, price, actor: @actor),
+           :ok <- LabProjection.project_graduated_token(row),
            do: {:ok, auction.id}
     end
   end

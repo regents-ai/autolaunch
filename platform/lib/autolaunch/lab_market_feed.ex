@@ -695,9 +695,14 @@ defmodule Autolaunch.LabMarketFeed do
       end
     end
 
+    # A launch the feed sees graduate becomes a public token in the same
+    # transaction, so its pool page exists as soon as the auction says so.
     defp refresh_changed_snapshot(auction, state, price, actor, changed) do
-      case Autolaunch.refresh_lab_market_auction(auction, state, price, actor: actor) do
-        {:ok, _auction} -> {:cont, {:ok, [auction.id | changed]}}
+      with {:ok, refreshed} <-
+             Autolaunch.refresh_lab_market_auction(auction, state, price, actor: actor),
+           :ok <- Autolaunch.LabProjection.project_graduated_token(refreshed) do
+        {:cont, {:ok, [auction.id | changed]}}
+      else
         {:error, reason} -> rollback(reason)
       end
     end

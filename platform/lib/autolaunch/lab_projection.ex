@@ -100,6 +100,38 @@ defmodule Autolaunch.LabProjection do
     end)
   end
 
+  @doc """
+  Projects the `Token` row of an auction the market feed has just seen graduate.
+
+  An Agent token keeps the subject the launch projection recorded; a Stocks
+  token has no Agent subject. The upsert is replay-safe on the auction, so a
+  later position readback that projects the same token changes nothing here.
+  """
+  def project_graduated_token(%Auction{state: :graduated} = auction) do
+    with {:ok, subject_id} <- token_subject(auction),
+         {:ok, token} <- read_token(auction.id),
+         {:ok, _token} <-
+           create(Token, :project_lab, %{
+             auction_id: auction.id,
+             subject_id: subject_id,
+             name: auction.title,
+             symbol: auction.token_symbol,
+             summary: auction.summary,
+             graduated_at: if(token, do: token.graduated_at, else: DateTime.utc_now()),
+             treasury_address: auction.treasury_address
+           }) do
+      :ok
+    end
+  end
+
+  def project_graduated_token(_auction), do: :ok
+
+  defp token_subject(%Auction{kind: :stocks}), do: {:ok, nil}
+
+  defp token_subject(%Auction{kind: :agent, id: auction_id}) do
+    with {:ok, launch} <- read_launch(auction_id), do: {:ok, launch.agent_id}
+  end
+
   def auction_id(address) when is_binary(address), do: stable_uuid("auction:" <> address)
 
   @doc false

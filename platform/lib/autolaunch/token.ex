@@ -118,6 +118,14 @@ defmodule Autolaunch.Token do
       prepare build(load: [:treasury_security_report, :auction])
     end
 
+    # The graduated auction page links to its token's pool from here.
+    read :public_by_auction do
+      get? true
+      argument :auction_id, :uuid, allow_nil?: false
+      filter expr(auction_id == ^arg(:auction_id))
+      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+    end
+
     read :latest_price_for_subject do
       get? true
 
@@ -173,6 +181,7 @@ defmodule Autolaunch.Token do
              :explore_launchpad,
              :for_subject,
              :public_by_id,
+             :public_by_auction,
              :latest_price_for_subject
            ]) do
       authorize_if always()

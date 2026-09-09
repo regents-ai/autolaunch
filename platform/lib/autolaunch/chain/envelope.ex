@@ -10,11 +10,13 @@ defmodule Autolaunch.Chain.Envelope do
     autolaunch_subject_wallet
     autolaunch_launch
     autolaunch_stocks_launch
+    autolaunch_stocks_fee_admin
     autolaunch_lab_position
   )
   @lab_resources ~w(
     autolaunch_launch
     autolaunch_stocks_launch
+    autolaunch_stocks_fee_admin
     autolaunch_auction
     autolaunch_bid
     autolaunch_lab_position

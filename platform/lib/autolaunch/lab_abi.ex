@@ -3,6 +3,8 @@ defmodule Autolaunch.LabAbi do
 
   alias Autolaunch.Chain.{Abi, Address}
 
+  @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)"
+
   @required %{
     "factory" => [
       f:
@@ -71,6 +73,10 @@ defmodule Autolaunch.LabAbi do
       f: {"approve(address,address,uint160,uint48)", "nonpayable", []},
       f: {"allowance(address,address,address)", "view", ["uint160", "uint48", "uint48"]}
     ],
+    # The pool page reads the frozen fee hook's settled swap fees for a pool.
+    "hook" => [
+      e: {@swap_fee_settled, [true, true, true, false, false, false]}
+    ],
     "token" => [
       f: {"approve(address,uint256)", "nonpayable", ["bool"]},
       f: {"balanceOf(address)", "view", ["uint256"]},
@@ -95,6 +101,8 @@ defmodule Autolaunch.LabAbi do
 
   @doc false
   def requirements, do: @required
+
+  def swap_fee_settled_signature, do: @swap_fee_settled
 
   def validate(abis, required \\ @required)
 

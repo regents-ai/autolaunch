@@ -12,6 +12,7 @@ import {
   type PinnedSocket,
 } from "./auth_lazy"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
+import {AutolaunchFeeAdminWallet} from "./hooks/autolaunch_fee_admin_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchTestFunds, AutolaunchZonedStart} from "./hooks/autolaunch_stocks"
@@ -25,6 +26,7 @@ import {installRegentTokenMenu} from "./regent_token_menu"
 const hooks = {
   ...colocatedHooks,
   AutolaunchBidWallet,
+  AutolaunchFeeAdminWallet,
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchSubjectWallet,

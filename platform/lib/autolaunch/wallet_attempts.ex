@@ -10,9 +10,10 @@ defmodule Autolaunch.WalletAttempts do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Address, Envelope, Rpc}
+  alias Autolaunch.Stocks.FeeAdminOperation, as: StocksFeeAdminOperation
   alias Autolaunch.Stocks.LaunchOperation, as: StocksLaunchOperation
   @system %System{}
-  @kinds [:bid, :launch, :subject, :stocks_launch]
+  @kinds [:bid, :launch, :subject, :stocks_launch, :stocks_fee_admin]
 
   def dispatch(kind, action_id, step, press_id, signer, opts)
       when kind in @kinds and is_binary(action_id) and (is_binary(step) or is_atom(step)) and
@@ -135,6 +136,7 @@ defmodule Autolaunch.WalletAttempts do
       {:launch, :launch} -> :launch_transaction_hash
       {:stocks_launch, :launch} -> :launch_transaction_hash
       {:subject, :action} -> :action_transaction_hash
+      {:stocks_fee_admin, :action} -> :action_transaction_hash
       {_, :approval} -> :approval_transaction_hash
     end
   end
@@ -463,23 +465,28 @@ defmodule Autolaunch.WalletAttempts do
   defp view(:launch, op), do: Autolaunch.LaunchActions.presented(op)
   defp view(:subject, op), do: Autolaunch.SubjectWalletActions.presented(op)
   defp view(:stocks_launch, op), do: Autolaunch.Stocks.LaunchActions.presented(op)
+  defp view(:stocks_fee_admin, op), do: Autolaunch.Stocks.FeeAdminActions.presented(op)
 
   defp resource(:bid), do: BidOperation
   defp resource(:launch), do: LaunchOperation
   defp resource(:subject), do: SubjectWalletOperation
   defp resource(:stocks_launch), do: StocksLaunchOperation
+  defp resource(:stocks_fee_admin), do: StocksFeeAdminOperation
   defp foreign_key(:bid), do: :bid_operation_id
   defp foreign_key(:launch), do: :launch_operation_id
   defp foreign_key(:subject), do: :subject_wallet_operation_id
   defp foreign_key(:stocks_launch), do: :stock_launch_operation_id
+  defp foreign_key(:stocks_fee_admin), do: :stock_fee_admin_operation_id
   defp actions(:bid), do: Autolaunch.BidActions
   defp actions(:launch), do: Autolaunch.LaunchActions
   defp actions(:subject), do: Autolaunch.SubjectWalletActions
   defp actions(:stocks_launch), do: Autolaunch.Stocks.LaunchActions
+  defp actions(:stocks_fee_admin), do: Autolaunch.Stocks.FeeAdminActions
   defp client(:bid), do: Autolaunch.ChainClient.module()
   defp client(:launch), do: Autolaunch.LaunchChainClient.module()
   defp client(:subject), do: Autolaunch.SubjectWalletChainClient.module()
   defp client(:stocks_launch), do: Autolaunch.Stocks.LabLaunchChainClient
+  defp client(:stocks_fee_admin), do: Autolaunch.Stocks.FeeAdminChainClient
 
   defp unavailable(reason),
     do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: WalletAttempt, reason: reason)}
