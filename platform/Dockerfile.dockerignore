@@ -18,6 +18,7 @@
 !design-system/regent_ui/assets/js/**
 !design-system/regent_ui/assets/images/**
 !design-system/regent_ui/priv/static/images/**
+!design-system/regent_ui/priv/static/fonts/**
 !elixir-utils/privy/**
 
 # The copied source trees must never carry runtime environment files.

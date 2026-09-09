@@ -3,6 +3,10 @@ defmodule Autolaunch.DatabaseConfig do
 
   @deployment_role_variable "AUTOLAUNCH_DEPLOYMENT_ROLE"
   @deployment_role_error ~s(AUTOLAUNCH_DEPLOYMENT_ROLE must be set to "production" or "staging")
+  @production_hosts [
+    "direct.dzx6qo6xqzvojpv5.flympg.net",
+    "pgbouncer.dzx6qo6xqzvojpv5.flympg.net"
+  ]
 
   def runtime_config!(environment, getenv \\ &System.get_env/1)
 
@@ -10,7 +14,22 @@ defmodule Autolaunch.DatabaseConfig do
 
   def runtime_config!(:prod, getenv) do
     require_deployment_role!(getenv)
+
+    if getenv.("DATABASE_DIRECT_URL") not in [nil, ""] do
+      raise "DATABASE_DIRECT_URL belongs in the isolated migration app, not the serving app"
+    end
+
     database_url!(getenv, "DATABASE_URL")
+    |> require_runtime_target!(getenv)
+    |> put_web_parameters()
+    |> Keyword.merge(
+      max_lifetime: 480_000..540_000,
+      idle_interval: 15_000,
+      backoff_type: :rand_exp,
+      connect_timeout: 5_000,
+      handshake_timeout: 5_000,
+      show_sensitive_data_on_connection_error: false
+    )
   end
 
   def runtime_config!(:dev, getenv), do: local_config(getenv)
@@ -19,7 +38,49 @@ defmodule Autolaunch.DatabaseConfig do
 
   def release_config!(getenv \\ &System.get_env/1) do
     require_deployment_role!(getenv)
-    database_url!(getenv, "DATABASE_DIRECT_URL")
+    options = database_url!(getenv, "DATABASE_DIRECT_URL")
+    host = URI.parse(options[:url]).host
+
+    if fly_mpg_pgbouncer_host?(host) do
+      raise "DATABASE_DIRECT_URL must use the direct endpoint for migration session locks"
+    end
+
+    options
+  end
+
+  defp require_runtime_target!(options, getenv) do
+    if getenv.(@deployment_role_variable) == "production" do
+      parsed = Ecto.Repo.Supervisor.parse_url(options[:url])
+
+      unless String.downcase(parsed[:hostname]) in @production_hosts and
+               parsed[:database] == "regents_prod" and
+               parsed[:username] == "autolaunch-runtime" do
+        raise "Autolaunch production must use regents_prod on its approved cluster with the runtime login"
+      end
+    end
+
+    options
+  end
+
+  # PgBouncer does not generally accept arbitrary PostgreSQL startup GUCs or
+  # preserve them across transaction-pooled server assignments. Keep those
+  # session limits on the direct connection; do not change shared pooler policy.
+  defp put_web_parameters(options) do
+    parameters = [application_name: "autolaunch-web"]
+
+    parameters =
+      if fly_mpg_pgbouncer_host?(URI.parse(options[:url]).host) do
+        parameters
+      else
+        parameters ++
+          [
+            statement_timeout: "15000",
+            lock_timeout: "5000",
+            idle_in_transaction_session_timeout: "15000"
+          ]
+      end
+
+    Keyword.put(options, :parameters, parameters)
   end
 
   # Deployments say which venue they are. There is no default: an unset or

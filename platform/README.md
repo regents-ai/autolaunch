@@ -225,11 +225,29 @@ source tests alone do not verify Linux native dependencies or production sign-in
 | `BASE_READ_RPC_URL` | Serving app only | The Base endpoint the site reads one canonical `safe` block through. |
 | `PORT` | Optional | The HTTP port; 4000 by default. |
 
-`Autolaunch.DatabaseConfig` checks the shape of both database URLs and refuses a deployment
-whose role is unset or unknown. What it does not yet check is which hosts a role may point at:
-the two Fly applications and their database hostnames do not exist until they are created, so
-the per-role host allowlist is an obligation of the deployment unit and is not in this
-repository yet.
+`Autolaunch.DatabaseConfig` refuses an unset or unknown deployment role. Production
+serving credentials must target `regents_prod` on `regents-platform-prod`, using
+`autolaunch-runtime`; wrong-cluster, wrong-database and administrative runtime logins
+fail before connecting. `DATABASE_DIRECT_URL` on the serving process is also a boot
+error. Migration execution remains separate and rejects the PgBouncer endpoint,
+because migrations use session-level advisory locks.
+
+The serving connection currently uses the direct endpoint with Ecto's bounded
+client pool. TLS verifies both the certificate chain and hostname. Connections
+rotate after a randomized 8–9 minute lifetime once idle, with 15-second idle
+checks, exponential reconnect backoff, and bounded TCP/TLS handshakes. Serving
+sessions identify themselves as `autolaunch-web`; statement, lock and
+idle-in-transaction timeouts are separate from migration settings. These limits
+do not authorize retrying an interrupted write transaction. PgBouncer connections
+do not send these arbitrary startup session settings: transaction-pooled server
+settings require a separate provider/pooler review before switching endpoints.
+
+`/healthz` is database readiness, not a process-only heartbeat: it checks access
+to the configured auction relation without reading rows. An unavailable database,
+missing relation or exhausted query deadline returns HTTP 503 with no internal
+error details. The response is not cacheable. Fly's existing health check uses
+this route. Prelaunch write, authentication, indexer and automation gates remain
+unchanged.
 
 ## Shared private profile
 
