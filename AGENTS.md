@@ -12,7 +12,9 @@ Own autolaunch.sh and its product contracts in this monorepo.
 - `platform/` is the Phoenix/Ash website; run Mix/npm from there. Its `contracts/`
   folder contains runtime manifests and ABIs, not the root Solidity sources.
 - `contracts/revenue-mesh/` is a separate Foundry component with no external
-  dependencies; verify it from its own directory. `contracts/README.md` is the map.
+  dependencies; verify it from its own directory. `contracts/stocks/` is the Stocks
+  launch component; it exports pinned dependencies with its `bootstrap-deps.py` and
+  never edits `contracts/v1/`. `contracts/README.md` is the map.
 - `plugins/` holds no implementation yet; its README points at the CLI and WebMCP
   contract a plugin would wrap. Do not imply a published plugin.
 - Follow Control's `regent-workflow` and one integrating owner. Verify the changed
