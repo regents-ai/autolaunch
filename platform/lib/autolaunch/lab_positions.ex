@@ -66,7 +66,37 @@ defmodule Autolaunch.LabPositions do
     end)
   end
 
-  defp write(%{position: position, status: status} = reading) do
+  # The feed's reading was taken before this write, and a wallet verification
+  # may have recorded the same settlement meanwhile. The row is re-read under a
+  # lock inside the write transaction and its recorded amounts are kept; only a
+  # status the chain now contradicts is corrected.
+  defp write(%{position: stale, status: status} = reading) do
+    Autolaunch.Repo.transaction(fn ->
+      with {:ok, position} <- locked(stale.bid_id),
+           false <- position.status == status,
+           {:ok, bid} <- upsert(position, status, reading) do
+        bid
+      else
+        true -> stale
+        {:error, reason} -> Autolaunch.Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp locked(bid_id) do
+    Bid
+    # System projection of the fork's own record; no actor.
+    |> Ash.Query.for_read(:mine, %{}, domain: @domain, authorize?: false)
+    |> Ash.Query.filter(bid_id == ^bid_id)
+    |> Ash.Query.lock(:for_update)
+    |> Ash.read_one(domain: @domain, authorize?: false)
+    |> case do
+      {:ok, nil} -> {:error, :bid_not_found}
+      other -> other
+    end
+  end
+
+  defp upsert(position, status, reading) do
     Bid
     |> Ash.Changeset.for_create(
       :project_lab,
