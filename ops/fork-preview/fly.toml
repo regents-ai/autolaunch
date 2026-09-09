@@ -1,0 +1,60 @@
+app = "autolaunch-fork-preview"
+primary_region = "iad"
+
+# Anvil dumps its state on SIGTERM; give it time to finish before the machine is killed.
+kill_signal = "SIGTERM"
+kill_timeout = "120s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  FORK_BLOCK_TIME = "2"
+  FORK_DATA_DIR = "/data"
+
+# Secrets (set with `fly secrets set`, never in this file):
+#   FORK_UPSTREAM_RPC_URL  paid Base mainnet JSON-RPC URL used as the fork's upstream
+
+[[mounts]]
+  source = "fork_state"
+  destination = "/data"
+  initial_size = "10gb"
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory_mb = 2048
+
+# One machine, always on: the chain lives in its memory and on the volume.
+[[services]]
+  protocol = "tcp"
+  internal_port = 8545
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 400
+    soft_limit = 300
+
+  [[services.tcp_checks]]
+    grace_period = "60s"
+    interval = "15s"
+    timeout = "2s"
+
+  # The proxy answers GET /healthz with 200 only when Anvil answers eth_chainId as 31337.
+  [[services.http_checks]]
+    grace_period = "60s"
+    interval = "15s"
+    timeout = "5s"
+    method = "GET"
+    path = "/healthz"
+    protocol = "http"
+
+# Port 8547 (the private, unfiltered door) has no [[services]] entry on purpose: it is bound to the
+# machine's private 6PN address and reachable only as http://autolaunch-fork-preview.internal:8547
+# from apps in the same Fly organisation, or through `fly proxy 8547:8547 -a autolaunch-fork-preview`.

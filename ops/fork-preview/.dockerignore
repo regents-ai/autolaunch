@@ -1,0 +1,4 @@
+generated/
+README.md
+fly.toml
+*.test.mjs
