@@ -7,8 +7,10 @@ private door) and writes them into `<generated>/fork/` with:
 
   rpc_url          the PRIVATE door as the website reaches it on Fly's private network
   public_rpc_url   the PUBLIC door visitors' wallets use (https)
-  agent_lab_config (stocks file only) the absolute path of the fork `site-config.json` beside it,
-                   because the website checks that the two documents belong together
+  agent_lab_config (stocks file only) the path the website will read the fork `site-config.json`
+                   from once the two files are copied into its image (default `/app/fork`, the
+                   folder `platform/Dockerfile.preview` copies to), because the website checks that
+                   the two documents belong together
 
 Every other key is copied unchanged.
 """
@@ -74,7 +76,7 @@ def require_url(value: str, label: str, schemes: set[str]) -> str:
     return value
 
 
-def rewrite(generated: Path, rpc_url: str, public_rpc_url: str) -> dict[str, Path]:
+def rewrite(generated: Path, rpc_url: str, public_rpc_url: str, mount_dir: str) -> dict[str, Path]:
     agent = load_object(generated / AGENT_NAME)
     stocks = load_object(generated / STOCKS_NAME)
     for name, document in ((AGENT_NAME, agent), (STOCKS_NAME, stocks)):
@@ -96,7 +98,7 @@ def rewrite(generated: Path, rpc_url: str, public_rpc_url: str) -> dict[str, Pat
     fork_stocks = dict(stocks)
     fork_stocks["rpc_url"] = rpc_url
     fork_stocks["public_rpc_url"] = public_rpc_url
-    fork_stocks["agent_lab_config"] = str(agent_out)
+    fork_stocks["agent_lab_config"] = mount_dir.rstrip("/") + "/" + AGENT_NAME
 
     atomic_write_json(agent_out, fork_agent)
     atomic_write_json(stocks_out, fork_stocks)
@@ -125,6 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--generated", default=str(DEFAULT_GENERATED), help=f"folder holding the loopback documents (default {DEFAULT_GENERATED})")
     parser.add_argument("--rpc-url", default=os.environ.get("FORK_INTERNAL_RPC_URL", f"http://{app}.internal:8547"), help="private door URL the website uses (env FORK_INTERNAL_RPC_URL)")
+    parser.add_argument("--mount-dir", default=os.environ.get("FORK_CONFIG_MOUNT_DIR", "/app/fork"), help="folder the website image holds both documents in (env FORK_CONFIG_MOUNT_DIR)")
     parser.add_argument("--public-rpc-url", default=os.environ.get("FORK_PUBLIC_RPC_URL", f"https://{app}.fly.dev"), help="public door URL for wallets (env FORK_PUBLIC_RPC_URL)")
     return parser
 
@@ -134,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         rpc_url = require_url(args.rpc_url, "--rpc-url", {"http", "https"})
         public_rpc_url = require_url(args.public_rpc_url, "--public-rpc-url", {"https"})
-        paths = rewrite(Path(args.generated).resolve(), rpc_url, public_rpc_url)
+        paths = rewrite(Path(args.generated).resolve(), rpc_url, public_rpc_url, args.mount_dir)
         print(json.dumps(summary(paths), indent=2, sort_keys=True))
         return 0
     except ConfigError as exc:

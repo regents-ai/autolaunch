@@ -177,10 +177,12 @@ Run from the repository root unless a step says otherwise.
 
    They are the lab controllers' documents with `rpc_url` set to the private door
    `http://autolaunch-fork-preview.internal:8547`, one extra key `public_rpc_url` set to
-   `https://autolaunch-fork-preview.fly.dev`, and (Stocks file) `agent_lab_config` pointing at
-   the fork `site-config.json` beside it. Every other key (`chain_id`, `addresses`, `abis`,
-   `faucet`, `stocks`, the two fee strings) is copied unchanged. `FORK_INTERNAL_RPC_URL` and
-   `FORK_PUBLIC_RPC_URL` override the two URLs; `FORK_APP` renames the app everywhere.
+   `https://autolaunch-fork-preview.fly.dev`, and (Stocks file) `agent_lab_config` set to
+   `/app/fork/site-config.json`, where `platform/Dockerfile.preview` copies both files (the website
+   checks that the two documents name the same Agent lab). Every other key (`chain_id`,
+   `addresses`, `abis`, `faucet`, `stocks`, the two fee strings) is copied unchanged.
+   `FORK_INTERNAL_RPC_URL` and `FORK_PUBLIC_RPC_URL` override the two URLs, `FORK_CONFIG_MOUNT_DIR`
+   the in-image folder; `FORK_APP` renames the app everywhere.
 
 7. Day to day, with `fly proxy` open:
 
