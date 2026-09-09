@@ -56,6 +56,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         <kbd class="home-search__shortcut" aria-hidden="true">⌘ K</kbd>
         <button type="submit" class="visually-hidden">Search</button>
       </form>
+      <AutolaunchWeb.Components.RegentLinks.header_links />
       <div class="home-top__actions">
         <Regent.Primitives.button
           :if={Autolaunch.Prelaunch.read_only?()}

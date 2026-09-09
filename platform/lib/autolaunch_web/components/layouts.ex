@@ -30,19 +30,12 @@ defmodule AutolaunchWeb.Layouts do
       else: "sign-in unavailable"
   end
 
-  @doc "Product and source discovery without loading a browser integration."
+  @doc "The minimal Regents Labs footer."
   def product_links(assigns) do
     ~H"""
-    <footer aria-label="Project links" class="product-links">
-      <a href="https://github.com/regents-ai/autolaunch" rel="noopener noreferrer">Star on GitHub</a>
-      <a href="/llms.txt">For agents</a>
-      <Regent.Primitives.disclosure id="product-related-links" summary="Regents Labs">
-        <nav aria-label="Related products" class="product-links__related">
-          <a href="https://regents.sh">Regents</a>
-          <a href="https://patchbay.help">Patchbay</a>
-          <a href="https://techtree.sh">Techtree</a>
-        </nav>
-      </Regent.Primitives.disclosure>
+    <footer class="regent-footer">
+      <AutolaunchWeb.Components.RegentLinks.social_links />
+      <p>© 2026 Regents Labs</p>
     </footer>
     """
   end
