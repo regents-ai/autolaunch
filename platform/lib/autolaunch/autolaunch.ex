@@ -54,7 +54,12 @@ defmodule Autolaunch do
 
       define :get_my_launch_draft_image_for_reuse,
         action: :mine_for_reuse,
-        args: [:launch_draft_id],
+        args: [:launch_draft_id, :digest],
+        not_found_error?: false
+
+      define :get_my_launch_draft_image_by_id,
+        action: :mine_by_id,
+        args: [:launch_draft_id, :id],
         not_found_error?: false
 
       define :get_public_launch_draft_image,

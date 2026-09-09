@@ -60,15 +60,29 @@ defmodule Autolaunch.LaunchDraftImage do
                human_account_id == ^actor(:human_account_id) and
                  launch_draft_id == ^arg(:launch_draft_id)
              )
+
+      filter expr(launch_draft.launch_draft_image_id == id)
+    end
+
+    read :mine_by_id do
+      get? true
+      argument :launch_draft_id, :uuid, allow_nil?: false
+      argument :id, :uuid, allow_nil?: false
+
+      filter expr(
+               human_account_id == ^actor(:human_account_id) and
+                 launch_draft_id == ^arg(:launch_draft_id) and id == ^arg(:id)
+             )
     end
 
     read :mine_for_reuse do
       get? true
       argument :launch_draft_id, :uuid, allow_nil?: false
+      argument :digest, :string, allow_nil?: false
 
       filter expr(
                human_account_id == ^actor(:human_account_id) and
-                 launch_draft_id == ^arg(:launch_draft_id)
+                 launch_draft_id == ^arg(:launch_draft_id) and digest == ^arg(:digest)
              )
 
       prepare build(
@@ -95,11 +109,11 @@ defmodule Autolaunch.LaunchDraftImage do
   end
 
   policies do
-    policy action([:store_for_owner, :read, :mine, :mine_for_reuse]) do
+    policy action([:store_for_owner, :read, :mine, :mine_by_id, :mine_for_reuse]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
-    policy action([:read, :mine, :mine_for_reuse]) do
+    policy action([:read, :mine, :mine_by_id, :mine_for_reuse]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 
@@ -151,10 +165,11 @@ defmodule Autolaunch.LaunchDraftImage do
 
     belongs_to :launch_draft, Autolaunch.LaunchDraft do
       allow_nil? false
+      read_action :mine
     end
   end
 
   identities do
-    identity :one_image_per_draft, [:launch_draft_id]
+    identity :one_version_per_draft, [:launch_draft_id, :digest]
   end
 end
