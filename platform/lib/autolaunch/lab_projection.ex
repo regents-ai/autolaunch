@@ -71,6 +71,42 @@ defmodule Autolaunch.LabProjection do
     end
   end
 
+  @doc """
+  Projects one verified settlement step onto the bid position it settled.
+
+  A verified exit records the refund and the fill and leaves the position
+  `claimable` when the reviewed sequence continues with a claim, `returned`
+  otherwise; a verified claim records the tokens delivered and marks it
+  `claimed`.
+  """
+  def project_settlement(%{envelope: envelope}, step, result)
+      when step in [:exit, :claim] and is_map(result) do
+    arguments = envelope["arguments"]
+    claim_next? = Enum.any?(arguments["steps"], &(&1["step"] == "claim"))
+
+    transact(fn ->
+      with {:ok, current} <- read_bid_for_projection(arguments["bid_id"]) do
+        create(Bid, :project_lab, %{
+          bid_id: current.bid_id,
+          auction_id: current.auction_id,
+          owner_address: current.owner_address,
+          amount: current.amount,
+          max_price: current.max_price,
+          current_clearing_price: current.current_clearing_price,
+          estimated_tokens_if_end_now: current.estimated_tokens_if_end_now,
+          status: settled_status(step, result, claim_next?),
+          exited_at: current.exited_at || DateTime.utc_now(),
+          claimed_at: if(step == :claim, do: current.claimed_at || DateTime.utc_now()),
+          auction_address: current.auction_address,
+          onchain_bid_id: current.onchain_bid_id,
+          currency_refunded: result["currency_refunded_units"] || current.currency_refunded,
+          tokens_filled: result["tokens_filled_units"] || current.tokens_filled,
+          tokens_claimed: result["tokens_claimed_units"] || current.tokens_claimed
+        })
+      end
+    end)
+  end
+
   @doc "Applies one verified local position readback without changing production records."
   def project_position(%Bid{} = bid, result) when is_map(result) do
     transact(fn ->
@@ -359,6 +395,13 @@ defmodule Autolaunch.LabProjection do
   defp auction_state(_state, %{"auction_state" => "graduated"}), do: :graduated
   defp auction_state(_state, %{"auction_state" => "failed"}), do: :failed
   defp auction_state(state, _result), do: state
+
+  defp settled_status(:claim, _result, _claim_next?), do: "claimed"
+
+  defp settled_status(:exit, %{"tokens_filled" => filled}, true) when filled != "0",
+    do: "claimable"
+
+  defp settled_status(:exit, _result, _claim_next?), do: "returned"
 
   defp position_status("claimed", _reported), do: "claimed"
   defp position_status(_current, "claimed"), do: "claimed"

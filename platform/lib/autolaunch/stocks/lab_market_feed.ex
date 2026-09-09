@@ -239,7 +239,9 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              StocksLabAbi.launch_record_words(),
              block,
              opts
-           ) do
+           ),
+         market <- %{end_block: end_block, claim_block: claim_block},
+         {:ok, positions} <- positions(config, auction, market, block, opts) do
       {:ok,
        %{
          auction_id: auction.id,
@@ -255,8 +257,28 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          currency_raised: Rpc.format_units(raised, decimals),
          currency_symbol: auction.quote_token_symbol,
          remaining_supply: Rpc.format_units(remaining, @new_decimals),
-         graduated?: graduated?
+         graduated?: graduated?,
+         positions: positions
        }}
+    end
+  end
+
+  # After the end block, every site position of this auction is read back from
+  # the auction's own `bids(bidId)` so its status follows the contract.
+  defp positions(config, auction, market, block, opts) do
+    if block.number >= market.end_block do
+      with {:ok, rows} <- Autolaunch.LabPositions.positions(auction.id) do
+        Autolaunch.LabPositions.read(
+          Lab.abi!(config, :auction),
+          rows,
+          auction.auction_address,
+          market,
+          block,
+          opts
+        )
+      end
+    else
+      {:ok, []}
     end
   end
 
@@ -264,12 +286,19 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     state = join_state(auction.state, snapshot.state)
     price = snapshot.current_clearing_price
 
-    if auction.state == state and auction.current_clearing_price == price do
-      {:ok, nil}
-    else
-      with {:ok, _row} <-
-             Autolaunch.refresh_lab_market_auction(auction, state, price, actor: @actor),
-           do: {:ok, auction.id}
+    with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions) do
+      cond do
+        auction.state != state or auction.current_clearing_price != price ->
+          with {:ok, _row} <-
+                 Autolaunch.refresh_lab_market_auction(auction, state, price, actor: @actor),
+               do: {:ok, auction.id}
+
+        positions_changed? ->
+          {:ok, auction.id}
+
+        true ->
+          {:ok, nil}
+      end
     end
   end
 

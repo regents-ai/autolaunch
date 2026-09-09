@@ -10,12 +10,13 @@ defmodule AutolaunchWeb.AuctionLive do
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
 
-  def mount(_params, _session, socket), do: {:ok, assign_market(socket)}
+  def mount(_params, _session, socket),
+    do: {:ok, socket |> assign_market() |> assign(:my_positions, [])}
 
   # The identifier is read here so a patch to another auction reloads the page
   # instead of keeping the previous record on screen.
   def handle_params(%{"auction_id" => id}, _uri, socket) do
-    {:noreply, socket |> assign(:record_id, id) |> load_page(reset: true)}
+    {:noreply, socket |> assign(:record_id, id) |> assign_positions() |> load_page(reset: true)}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
@@ -26,11 +27,16 @@ defmodule AutolaunchWeb.AuctionLive do
     market = market_snapshot()
 
     if market.generation > socket.assigns.market.generation do
-      {:noreply, socket |> assign(:market, market) |> load_page(reset: false)}
+      {:noreply,
+       socket |> assign(:market, market) |> assign_positions() |> load_page(reset: false)}
     else
       {:noreply, socket}
     end
   end
+
+  # A settlement card verified a step, so the bidder's stored positions changed.
+  def handle_info({:bid_settlement_changed, _position_id}, socket),
+    do: {:noreply, assign_positions(socket)}
 
   def render(assigns) do
     assigns =
@@ -46,6 +52,13 @@ defmodule AutolaunchWeb.AuctionLive do
         assigns,
         :market_snapshot,
         auction_market_snapshot(assigns.market, assigns.page_record)
+      )
+
+    assigns =
+      assign(
+        assigns,
+        :bidding_ended?,
+        bidding_ended?(assigns.page_record, assigns.market_snapshot)
       )
 
     ~H"""
@@ -148,7 +161,7 @@ defmodule AutolaunchWeb.AuctionLive do
             <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
           </section>
           <.live_component
-            :if={!Autolaunch.Prelaunch.read_only?()}
+            :if={!Autolaunch.Prelaunch.read_only?() && !@bidding_ended?}
             module={AutolaunchWeb.BidComponent}
             id="autolaunch-bid"
             auction={@page_record}
@@ -156,6 +169,37 @@ defmodule AutolaunchWeb.AuctionLive do
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
           />
+          <section
+            :if={!Autolaunch.Prelaunch.read_only?() && @bidding_ended?}
+            id="autolaunch-settlement"
+            class="bid-panel rg-panel rg-panel--surface"
+            aria-label="Bidding has ended"
+          >
+            <header class="bid-heading">
+              <Regent.Structure.section_bar>
+                <h2 class="rg-section-bar__label">Bidding has ended</h2>
+              </Regent.Structure.section_bar>
+              <p>{ended_copy(@page_record)}</p>
+            </header>
+            <p :if={@account_control.kind != :signed_in} class="bid-empty">
+              <Regent.Primitives.button type="button" data-account-target="sign-in">
+                Sign in to see your bids
+              </Regent.Primitives.button>
+            </p>
+            <p :if={@account_control.kind == :signed_in && @my_positions == []} class="bid-empty">
+              You placed no bids on this auction from your verified wallets.
+            </p>
+            <.live_component
+              :for={position <- @my_positions}
+              module={AutolaunchWeb.BidSettlementComponent}
+              id={"autolaunch-settlement-#{position.id}"}
+              position={position}
+              market={@market_snapshot}
+              authenticated={@account_control.kind == :signed_in}
+              current_human_id={current_human_id(@access_context)}
+              session_lease={@session_lease}
+            />
+          </section>
           <div :if={@local_lab?} id="autolaunch-lab-position"></div>
           <.live_component
             :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
@@ -202,6 +246,36 @@ defmodule AutolaunchWeb.AuctionLive do
     id = socket.assigns.record_id
     assign_async(socket, :page, fn -> load_auction_page(id) end, reset: reset)
   end
+
+  # The signed-in bidder's own positions on this auction, for settlement once
+  # bidding has ended.
+  defp assign_positions(socket) do
+    with actor when not is_nil(actor) <- human_actor(socket.assigns.access_context),
+         {:ok, uuid} <- Ash.Type.UUID.cast_input(socket.assigns.record_id, []),
+         {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor) do
+      assign(socket, :my_positions, Enum.filter(positions, &(&1.auction_id == uuid)))
+    else
+      _none -> assign(socket, :my_positions, [])
+    end
+  end
+
+  defp bidding_ended?(%{state: state}, _snapshot) when state in [:graduated, :failed], do: true
+
+  defp bidding_ended?(_record, %{block_number: block, end_block: end_block}),
+    do: block >= end_block
+
+  defp bidding_ended?(_record, _snapshot), do: false
+
+  defp ended_copy(%{state: :graduated, quote_token_symbol: symbol}),
+    do:
+      "The auction raised its minimum. Bids above the final price return their unspent #{symbol} and receive tokens; the rest return what was not spent."
+
+  defp ended_copy(%{state: :failed, quote_token_symbol: symbol}),
+    do: "The auction did not raise its minimum. Every bid returns its #{symbol} in full."
+
+  defp ended_copy(%{quote_token_symbol: symbol}),
+    do:
+      "Bids are being settled. Unspent #{symbol} is returned first; tokens follow on a successful auction."
 
   defp assign_market(socket) do
     if connected?(socket) and Lab.enabled?() and Process.whereis(LabMarketFeed) do

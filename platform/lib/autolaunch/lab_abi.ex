@@ -50,8 +50,10 @@ defmodule Autolaunch.LabAbi do
     "auction" => [
       f: {"submitBid(uint256,uint128,address,uint256,bytes)", "payable", ["uint256"]},
       f: {"exitBid(uint256)", "nonpayable", []},
+      f: {"exitPartiallyFilledBid(uint256,uint64,uint64)", "nonpayable", []},
       f: {"claimTokens(uint256)", "nonpayable", []},
       f: {"bids(uint256)", "view", ["(uint64,uint24,uint64,uint256,address,uint256,uint256)"]},
+      f: {"checkpoints(uint64)", "view", ["(uint256,uint256,uint256,uint24,uint64,uint64)"]},
       f: {"startBlock()", "view", ["uint64"]},
       f: {"endBlock()", "view", ["uint64"]},
       f: {"claimBlock()", "view", ["uint64"]},

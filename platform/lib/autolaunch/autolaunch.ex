@@ -148,6 +148,10 @@ defmodule Autolaunch do
     # `SubjectWalletOperations` under a session lease, on the same terms.
     resource @subject_wallet_operation
 
+    # The durable bid settlement (exit and claim after an auction ends) is
+    # written only by `BidSettlementActions` under a session lease.
+    resource Autolaunch.BidSettlementOperation
+
     # Writes stay on LaunchActions; this read is the production projection's match.
     resource @launch_operation do
       define :chain_verified_launch_operation_by_hash,
@@ -261,6 +265,7 @@ defmodule Autolaunch do
     resource Autolaunch.Bid do
       define :list_my_bid_positions, action: :mine
       define :list_my_returnable_bid_positions, action: :returnable_mine
+      define :list_my_claimable_bid_positions, action: :claimable_mine
       define :list_my_claimed_token_positions, action: :claimed_mine
       define :get_my_bid_position, action: :owned_by_bid_id, args: [:bid_id]
 

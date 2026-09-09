@@ -5,6 +5,10 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
 
+  alias AutolaunchWeb.LabMarket
+
+  @history ~w(claimed exited returned)
+
   def mount(_params, _session, socket) do
     {:ok,
      socket
@@ -12,7 +16,9 @@ defmodule AutolaunchWeb.PortfolioLive do
      |> assign(:status, :ready)
      |> assign(:positions, [])
      |> assign(:returnable_positions, [])
+     |> assign(:claimable_positions, [])
      |> assign(:claimed_token_positions, [])
+     |> assign(:market, LabMarket.subscribe(socket))
      |> load_signed_in_holdings()}
   end
 
@@ -25,14 +31,26 @@ defmodule AutolaunchWeb.PortfolioLive do
      assign(socket, :refreshed_at, if(socket.assigns.status == :ready, do: DateTime.utc_now()))}
   end
 
+  # The lab feeds moved: positions may have become returnable or claimable.
+  def handle_info({:autolaunch_market_updated, _update}, socket) do
+    market = LabMarket.snapshot()
+
+    if market.generation > socket.assigns.market.generation,
+      do: {:noreply, socket |> assign(:market, market) |> load_signed_in_holdings()},
+      else: {:noreply, socket}
+  end
+
+  # A settlement card verified a step, so the stored position changed.
+  def handle_info({:bid_settlement_changed, _position_id}, socket),
+    do: {:noreply, load_signed_in_holdings(socket)}
+
   def render(assigns) do
-    {history, current} =
-      Enum.split_with(assigns.positions, &(&1.status in ["claimed", "exited", "returned"]))
+    {history, current} = Enum.split_with(assigns.positions, &(&1.status in @history))
 
     assigns =
       assign(assigns,
         history: history,
-        current: Enum.sort_by(current, &(&1.status != "returnable"))
+        current: Enum.sort_by(current, &(&1.status not in ["returnable", "claimable"]))
       )
 
     ~H"""
@@ -89,6 +107,9 @@ defmodule AutolaunchWeb.PortfolioLive do
             <dt>Returnable</dt><dd>{length(@returnable_positions)}</dd>
           </div>
           <div>
+            <dt>Claimable</dt><dd>{length(@claimable_positions)}</dd>
+          </div>
+          <div>
             <dt>Held launch tokens</dt><dd>{length(@claimed_token_positions)}</dd>
           </div>
         </dl>
@@ -102,7 +123,14 @@ defmodule AutolaunchWeb.PortfolioLive do
             <.link navigate="/auctions">Explore auctions</.link>
           </p>
           <p :if={@positions != [] && @current == []}>No active bids.</p>
-          <.position_list :if={@current != []} positions={@current} />
+          <.position_list
+            :if={@current != []}
+            positions={@current}
+            market={@market}
+            account_control={@account_control}
+            access_context={@access_context}
+            session_lease={@session_lease}
+          />
         </section>
 
         <section
@@ -130,61 +158,41 @@ defmodule AutolaunchWeb.PortfolioLive do
           id="portfolio-history"
           summary={"Past bids · #{length(@history)}"}
         >
-          <.position_list positions={@history} />
+          <.position_list
+            positions={@history}
+            market={@market}
+            account_control={@account_control}
+            access_context={@access_context}
+            session_lease={@session_lease}
+          />
         </Regent.Primitives.disclosure>
       </div>
     </section>
     """
   end
 
-  # Prices are stored with every digit; the list shows a readable, truncated
-  # figure (never rounded up) and keeps the exact value on the element.
-  defp display_decimal(value) when is_binary(value) and value != "",
-    do: Autolaunch.Stocks.Amounts.compact_decimal(value)
-
-  defp display_decimal(value), do: display_text(value)
-
   attr :positions, :list, required: true
+  attr :market, :map, required: true
+  attr :account_control, :map, required: true
+  attr :access_context, :any, required: true
+  attr :session_lease, :any, required: true
 
+  # Every card is the settlement component: it shows the position, the exact
+  # action its auction admits right now, or the reason nothing can be done yet.
   defp position_list(assigns) do
     ~H"""
     <ol class="autolaunch-record-list">
       <li :for={position <- @positions} id={"autolaunch-bid-#{position.bid_id}"}>
-        <article>
-          <p class="autolaunch-kicker">
-            {display_status(position.status)}
-          </p>
-          <h3>{bid_title(position)}</h3>
-          <dl>
-            <div>
-              <dt>Bid amount</dt><dd>{display_text(position.amount)}</dd>
-            </div>
-            <div>
-              <dt>Maximum price</dt>
-              <dd title={position.max_price}>{display_decimal(position.max_price)}</dd>
-            </div>
-            <div>
-              <dt>Current price</dt>
-              <dd title={position.current_clearing_price}>
-                {display_decimal(position.current_clearing_price)}
-              </dd>
-            </div>
-            <div>
-              <dt>Estimated tokens</dt>
-              <dd>{display_text(position.estimated_tokens_if_end_now)}</dd>
-            </div>
-            <div>
-              <dt>Wallet</dt><dd>{position.owner_address}</dd>
-            </div>
-            <div>
-              <dt>Updated</dt><dd>{display_time(position.updated_at)}</dd>
-            </div>
-          </dl>
-
-          <.link navigate={"/auctions/#{position.auction_id}"}>
-            {if position.status == "returnable", do: "View return options", else: "View auction"}
-          </.link>
-        </article>
+        <.live_component
+          module={AutolaunchWeb.BidSettlementComponent}
+          id={"autolaunch-settlement-#{position.id}"}
+          position={position}
+          market={LabMarket.reading(@market, position.auction_address)}
+          authenticated={@account_control.kind == :signed_in}
+          current_human_id={current_human_id(@access_context)}
+          session_lease={@session_lease}
+        />
+        <.link navigate={"/auctions/#{position.auction_id}"}>View auction</.link>
       </li>
     </ol>
     """
@@ -193,26 +201,22 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp load_signed_in_holdings(socket) do
     case human_actor(socket.assigns.access_context) do
       nil ->
-        assign(socket,
-          status: :ready,
-          positions: [],
-          returnable_positions: [],
-          claimed_token_positions: []
-        )
+        assign_holdings(socket, :ready)
 
       actor ->
         case load_holdings(actor) do
           {:ok, holdings} -> assign(socket, holdings)
-          {:error, :unavailable} -> assign_holdings_error(socket)
+          {:error, :unavailable} -> assign_holdings(socket, :error)
         end
     end
   end
 
-  defp assign_holdings_error(socket) do
+  defp assign_holdings(socket, status) do
     assign(socket,
-      status: :error,
+      status: status,
       positions: [],
       returnable_positions: [],
+      claimable_positions: [],
       claimed_token_positions: []
     )
   end

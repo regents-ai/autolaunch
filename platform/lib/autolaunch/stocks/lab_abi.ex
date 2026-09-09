@@ -52,6 +52,7 @@ defmodule Autolaunch.Stocks.LabAbi do
     ],
     "auction" => [
       f: {"submitBid(uint256,uint128,address,uint256,bytes)", "payable", ["uint256"]},
+      f: {"bids(uint256)", "view", ["(uint64,uint24,uint64,uint256,address,uint256,uint256)"]},
       f: {"startBlock()", "view", ["uint64"]},
       f: {"endBlock()", "view", ["uint64"]},
       f: {"claimBlock()", "view", ["uint64"]},

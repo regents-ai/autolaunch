@@ -32,6 +32,15 @@ defmodule Autolaunch.Bid do
               )
     end
 
+    read :claimable_mine do
+      filter expr(status == "claimable")
+
+      prepare build(
+                sort: [updated_at: :desc, inserted_at: :desc, id: :desc],
+                load: [:auction, :token]
+              )
+    end
+
     read :claimed_mine do
       filter expr(status == "claimed")
 
@@ -78,7 +87,10 @@ defmodule Autolaunch.Bid do
         :exited_at,
         :claimed_at,
         :auction_address,
-        :onchain_bid_id
+        :onchain_bid_id,
+        :currency_refunded,
+        :tokens_filled,
+        :tokens_claimed
       ]
 
       change Autolaunch.Bid.Changes.NormalizeOwnerAddress
@@ -96,7 +108,10 @@ defmodule Autolaunch.Bid do
         :exited_at,
         :claimed_at,
         :auction_address,
-        :onchain_bid_id
+        :onchain_bid_id,
+        :currency_refunded,
+        :tokens_filled,
+        :tokens_claimed
       ]
     end
 
@@ -107,11 +122,11 @@ defmodule Autolaunch.Bid do
   end
 
   policies do
-    policy action([:mine, :returnable_mine, :claimed_mine, :owned_by_bid_id]) do
+    policy action([:mine, :returnable_mine, :claimable_mine, :claimed_mine, :owned_by_bid_id]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
-    policy action([:mine, :returnable_mine, :claimed_mine, :owned_by_bid_id]) do
+    policy action([:mine, :returnable_mine, :claimable_mine, :claimed_mine, :owned_by_bid_id]) do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
@@ -179,6 +194,24 @@ defmodule Autolaunch.Bid do
     attribute :onchain_bid_id, :string do
       public? true
       constraints min_length: 1, max_length: 78, trim?: true, match: ~r/\A\d+\z/
+    end
+
+    # Settlement amounts, adopted from the auction's own `BidExited` and
+    # `TokensClaimed` events: the currency returned (in the auction's currency
+    # units), the launch tokens the bid filled, and the tokens claimed.
+    attribute :currency_refunded, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
+    attribute :tokens_filled, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
+    attribute :tokens_claimed, :string do
+      public? true
+      constraints max_length: 100, trim?: true
     end
 
     timestamps()

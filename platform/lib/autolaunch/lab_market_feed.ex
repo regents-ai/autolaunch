@@ -585,23 +585,46 @@ defmodule Autolaunch.LabMarketFeed do
                opts
              ) do
         lifecycle = Enum.at(distribution, 0)
+        market = %{end_block: end_block, claim_block: claim_block}
 
-        {:ok,
-         %{
-           auction_id: auction.id,
-           auction_address: String.downcase(address),
-           state: market_state(auction.state, lifecycle, graduated?, block.number, start_block),
-           current_clearing_price: Lab.format_price(clearing_price),
-           block_number: block.number,
-           block_hash: block.hash,
-           start_block: start_block,
-           end_block: end_block,
-           claim_block: claim_block,
-           currency_raised: Rpc.format_units(currency_raised, 18),
-           remaining_supply: Rpc.format_units(remaining_supply, 18),
-           graduated?: graduated?,
-           pool_id: pool_id(Enum.at(distribution, 16))
-         }}
+        with {:ok, positions} <- positions(config, auction, market, block, opts) do
+          {:ok,
+           %{
+             auction_id: auction.id,
+             auction_address: String.downcase(address),
+             state: market_state(auction.state, lifecycle, graduated?, block.number, start_block),
+             current_clearing_price: Lab.format_price(clearing_price),
+             block_number: block.number,
+             block_hash: block.hash,
+             start_block: start_block,
+             end_block: end_block,
+             claim_block: claim_block,
+             currency_raised: Rpc.format_units(currency_raised, 18),
+             remaining_supply: Rpc.format_units(remaining_supply, 18),
+             graduated?: graduated?,
+             pool_id: pool_id(Enum.at(distribution, 16)),
+             positions: positions
+           }}
+        end
+      end
+    end
+
+    # After the end block, every site position of this auction is read back
+    # from the auction's own `bids(bidId)` so its status follows the contract.
+    defp positions(config, auction, market, block, opts) do
+      if block.number >= market.end_block do
+        with {:ok, rows} <- Autolaunch.LabPositions.positions(auction.id) do
+          Autolaunch.LabPositions.read(
+            Lab.abi!(config, :auction),
+            rows,
+            auction.auction_address,
+            market,
+            block,
+            opts
+          )
+        end
+      else
+        {:ok, []}
       end
     end
 
@@ -688,10 +711,21 @@ defmodule Autolaunch.LabMarketFeed do
       state = join_state(auction.state, snapshot.state)
       price = snapshot.current_clearing_price
 
-      if auction.state == state and auction.current_clearing_price == price do
-        {:cont, {:ok, changed}}
-      else
-        refresh_changed_snapshot(auction, state, price, actor, changed)
+      case Autolaunch.LabPositions.project(snapshot.positions) do
+        {:ok, positions_changed?} ->
+          cond do
+            auction.state != state or auction.current_clearing_price != price ->
+              refresh_changed_snapshot(auction, state, price, actor, changed)
+
+            positions_changed? ->
+              {:cont, {:ok, [auction.id | changed]}}
+
+            true ->
+              {:cont, {:ok, changed}}
+          end
+
+        {:error, reason} ->
+          rollback(reason)
       end
     end
 

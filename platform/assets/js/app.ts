@@ -11,6 +11,7 @@ import {
   installCrossTabCsrf,
   type PinnedSocket,
 } from "./auth_lazy"
+import {AutolaunchBidSettlement} from "./hooks/autolaunch_bid_settlement"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
@@ -24,6 +25,7 @@ import {installRegentTokenMenu} from "./regent_token_menu"
 
 const hooks = {
   ...colocatedHooks,
+  AutolaunchBidSettlement,
   AutolaunchBidWallet,
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,

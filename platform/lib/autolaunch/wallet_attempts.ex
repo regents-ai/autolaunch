@@ -6,13 +6,21 @@ defmodule Autolaunch.WalletAttempts do
   No recovery path sends a transaction. Legacy reports never select a newest press.
   """
   require Ash.Query
-  alias Autolaunch.{WalletAttempt, BidOperation, LaunchOperation, SubjectWalletOperation}
+
+  alias Autolaunch.{
+    BidOperation,
+    BidSettlementOperation,
+    LaunchOperation,
+    SubjectWalletOperation,
+    WalletAttempt
+  }
+
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Address, Envelope, Rpc}
   alias Autolaunch.Stocks.LaunchOperation, as: StocksLaunchOperation
   @system %System{}
-  @kinds [:bid, :launch, :subject, :stocks_launch]
+  @kinds [:bid, :launch, :subject, :stocks_launch, :bid_settlement]
 
   def dispatch(kind, action_id, step, press_id, signer, opts)
       when kind in @kinds and is_binary(action_id) and (is_binary(step) or is_atom(step)) and
@@ -134,6 +142,8 @@ defmodule Autolaunch.WalletAttempts do
       {:bid, :usdc_bid} -> :usdc_bid_transaction_hash
       {:launch, :launch} -> :launch_transaction_hash
       {:stocks_launch, :launch} -> :launch_transaction_hash
+      {:bid_settlement, :exit} -> :exit_transaction_hash
+      {:bid_settlement, :claim} -> :claim_transaction_hash
       {:subject, :action} -> :action_transaction_hash
       {_, :approval} -> :approval_transaction_hash
     end
@@ -351,6 +361,9 @@ defmodule Autolaunch.WalletAttempts do
   defp project(:stocks_launch, op, %{step: :launch}, :confirmed, result),
     do: Autolaunch.Stocks.LabProjection.project_launch(op, result)
 
+  defp project(:bid_settlement, op, %{step: step}, :confirmed, result),
+    do: Autolaunch.LabProjection.project_settlement(op, step, result)
+
   defp project(_, _, _, _, _), do: :ok
 
   # The parent is only a monotonic review/progress summary. A sibling rejection
@@ -365,7 +378,8 @@ defmodule Autolaunch.WalletAttempts do
 
     attrs =
       if next do
-        %{step: String.to_existing_atom(next), state: :prepared}
+        advanced = %{step: String.to_existing_atom(next), state: :prepared}
+        if kind == :bid_settlement, do: merge_result(advanced, kind, op, attempt), else: advanced
       else
         attrs = %{
           state: if(kind in [:launch, :stocks_launch], do: :chain_verified, else: :confirmed),
@@ -374,7 +388,7 @@ defmodule Autolaunch.WalletAttempts do
 
         if kind == :bid,
           do: Map.put(attrs, :onchain_bid_id, attempt.result["onchain_bid_id"]),
-          else: Map.put(attrs, :result, attempt.result)
+          else: merge_result(attrs, kind, op, attempt)
       end
 
     op
@@ -383,6 +397,13 @@ defmodule Autolaunch.WalletAttempts do
   end
 
   defp progress(_, op, _), do: {:ok, op}
+
+  # A settlement keeps every step's verified amounts on the parent row, so the
+  # exit's refund and fill are still there when the claim ends the operation.
+  defp merge_result(attrs, :bid_settlement, op, attempt),
+    do: Map.put(attrs, :result, Map.merge(op.result || %{}, attempt.result))
+
+  defp merge_result(attrs, _kind, _op, attempt), do: Map.put(attrs, :result, attempt.result)
 
   defp update(attempt, attrs),
     do:
@@ -463,23 +484,35 @@ defmodule Autolaunch.WalletAttempts do
   defp view(:launch, op), do: Autolaunch.LaunchActions.presented(op)
   defp view(:subject, op), do: Autolaunch.SubjectWalletActions.presented(op)
   defp view(:stocks_launch, op), do: Autolaunch.Stocks.LaunchActions.presented(op)
+  defp view(:bid_settlement, op), do: Autolaunch.BidSettlementActions.presented(op)
 
   defp resource(:bid), do: BidOperation
   defp resource(:launch), do: LaunchOperation
   defp resource(:subject), do: SubjectWalletOperation
   defp resource(:stocks_launch), do: StocksLaunchOperation
+  defp resource(:bid_settlement), do: BidSettlementOperation
   defp foreign_key(:bid), do: :bid_operation_id
   defp foreign_key(:launch), do: :launch_operation_id
   defp foreign_key(:subject), do: :subject_wallet_operation_id
   defp foreign_key(:stocks_launch), do: :stock_launch_operation_id
+  defp foreign_key(:bid_settlement), do: :bid_settlement_operation_id
   defp actions(:bid), do: Autolaunch.BidActions
   defp actions(:launch), do: Autolaunch.LaunchActions
   defp actions(:subject), do: Autolaunch.SubjectWalletActions
   defp actions(:stocks_launch), do: Autolaunch.Stocks.LaunchActions
+  defp actions(:bid_settlement), do: Autolaunch.BidSettlementActions
   defp client(:bid), do: Autolaunch.ChainClient.module()
   defp client(:launch), do: Autolaunch.LaunchChainClient.module()
   defp client(:subject), do: Autolaunch.SubjectWalletChainClient.module()
   defp client(:stocks_launch), do: Autolaunch.Stocks.LabLaunchChainClient
+
+  defp client(:bid_settlement),
+    do:
+      Application.get_env(
+        :autolaunch,
+        :autolaunch_bid_settlement_chain_client,
+        Autolaunch.LabBidSettlementChainClient
+      )
 
   defp unavailable(reason),
     do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: WalletAttempt, reason: reason)}
