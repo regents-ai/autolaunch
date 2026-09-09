@@ -48,6 +48,8 @@ defmodule AutolaunchWeb.Router do
 
     get "/profile", SharedProfileController, :show
     live "/", HomeLive, :home
+    get "/blog", BlogController, :index
+    get "/blog/:slug", BlogController, :show
 
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/session", PrivySessionController, :create

@@ -1,4 +1,6 @@
 import "../css/app.css"
+import "../vendor/regent_ui/blog.mjs"
+import "./blog_theme"
 
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
@@ -19,6 +21,7 @@ import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
 import {installPublicTools} from "./public_tools"
+import {installRegentTokenMenu} from "./regent_token_menu"
 
 const hooks = {
   ...colocatedHooks,
@@ -46,6 +49,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
 installStaticMarketSearch()
+installRegentTokenMenu()
 if (document.documentElement.dataset.prelaunchReadOnly !== "true") {
   installAccountAuthLazyLoader()
   installCrossTabCsrf()

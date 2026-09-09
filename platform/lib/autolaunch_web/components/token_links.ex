@@ -7,6 +7,9 @@ defmodule AutolaunchWeb.Components.TokenLinks do
 
   @chart "https://dexscreener.com/base/0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
 
+  @doc "The REGENT contract address a visitor copies. Same token the buy link names."
+  def address, do: Abi.regent_address()
+
   def buy, do: "https://app.uniswap.org/explore/tokens/base/#{Abi.regent_address()}"
   def chart, do: @chart
 
