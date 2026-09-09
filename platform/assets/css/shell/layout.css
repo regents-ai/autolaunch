@@ -18,9 +18,19 @@
 .regent-token-menu__content { display: grid; padding: .5rem; background: var(--color-surface); color: var(--color-fg); border: 1px solid var(--hairline); box-shadow: 0 .5rem 1.5rem rgb(0 0 0 / .25); }
 .regent-token-menu__content p { margin: 0; padding: .5rem .625rem; font-family: var(--font-family-title); }
 .regent-token-menu__content .regent-token-menu__note { font-family: var(--font-family-sans); font-size: .75rem; color: var(--color-fg-muted); }
+
+/* The $REGENT heading doubles as the copy-the-contract-address control. */
+.regent-token-menu__copy { position: relative; display: flex; align-items: center; gap: .4rem; width: 100%; margin: 0; padding: .5rem .625rem; background: none; border: 0; color: inherit; font: inherit; font-family: var(--font-family-title); text-align: start; cursor: pointer; }
+.regent-token-menu__copy-icon { display: inline-flex; opacity: .55; transition: opacity .15s ease; }
+.regent-token-menu__copy:hover .regent-token-menu__copy-icon, .regent-token-menu__copy.is-copied .regent-token-menu__copy-icon { opacity: 1; }
+.regent-token-menu__copy-icon svg { width: .95em; height: .95em; }
+.regent-token-menu__glyph { display: inline-flex; }
+.regent-token-menu__glyph--check { color: var(--color-success); }
+.regent-token-menu__toast { position: absolute; inset-block-end: calc(100% - .35rem); inset-inline-start: .625rem; padding: .1rem .4rem; font-family: var(--font-family-ui); font-size: .625rem; letter-spacing: .06em; color: var(--color-success); opacity: 0; transform: translateY(.25rem); transition: opacity .2s ease, transform .2s ease; pointer-events: none; white-space: nowrap; }
+.regent-token-menu__copy.is-copied .regent-token-menu__toast { opacity: 1; transform: translateY(0); }
 .rg-button.regent-token-menu__link { --rg-cut-control: 0px; --rg-p-accent: var(--color-surface); --rg-p-on-accent: var(--color-fg); --rg-button-border-color: transparent; width: 100%; min-height: 2.75rem; padding: .625rem; border-radius: 0; font-size: .875rem; font-weight: 400; white-space: nowrap; justify-content: flex-start; text-align: start; }
 .rg-button.regent-token-menu__link::after { content: none; }
-.regent-token-menu :is(summary, a):focus-visible, .regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.regent-token-menu :is(summary, a, button):focus-visible, .regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 @media (max-width: 55rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
 @media (pointer: coarse) { .regent-social-links a, .regent-token-menu > summary { width: 2.75rem; height: 2.75rem; } }
 .autolaunch-profile-page { display: grid; gap: var(--space-4); }

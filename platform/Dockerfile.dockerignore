@@ -20,6 +20,10 @@
 !design-system/regent_ui/priv/static/images/**
 !design-system/regent_ui/priv/static/fonts/**
 !elixir-utils/privy/**
+!elixir-utils/blog/mix.exs
+!elixir-utils/blog/lib/**
+!elixir-utils/blog/priv/**
+!blog/**
 
 # The copied source trees must never carry runtime environment files.
 **/.env

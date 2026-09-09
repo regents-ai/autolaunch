@@ -10,11 +10,18 @@ defmodule AutolaunchWeb.Components.TopBar do
   attr :search_query, :string, default: ""
 
   attr :home?, :boolean, default: false
+  attr :blog?, :boolean, default: false
   attr :market_options, :map, default: %{}
 
   def top_bar(assigns) do
     ~H"""
-    <header class="shell-top home-top" id="home-top" phx-hook="HomeSearch" data-query={@search_query}>
+    <header
+      class="shell-top home-top"
+      id="home-top"
+      phx-hook="HomeSearch"
+      data-query={@search_query}
+      data-blog-header={if @blog?, do: "true"}
+    >
       <form
         class="home-search"
         action="/"
@@ -58,6 +65,7 @@ defmodule AutolaunchWeb.Components.TopBar do
       </form>
       <AutolaunchWeb.Components.RegentLinks.header_links />
       <div class="home-top__actions">
+        <Regent.ThemeToggle.button :if={@blog?} id="blog-theme-control" data-autolaunch-blog-theme />
         <Regent.Primitives.button
           :if={Autolaunch.Prelaunch.read_only?()}
           disabled

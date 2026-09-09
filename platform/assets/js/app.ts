@@ -1,4 +1,6 @@
 import "../css/app.css"
+import "../vendor/regent_ui/blog.mjs"
+import "./blog_theme"
 
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"

@@ -1,5 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-brand="autolaunch" data-theme="dark" data-prelaunch-read-only={to_string(Autolaunch.Prelaunch.read_only?())}>
+<html
+  lang="en"
+  data-brand="autolaunch"
+  data-theme="dark"
+  data-prelaunch-read-only={to_string(Autolaunch.Prelaunch.read_only?())}
+>
   <head>
     <meta charset="utf-8" />
     <link rel="alternate" type="text/plain" title="Agent guide" href={~p"/llms.txt"} />
@@ -18,8 +23,13 @@
     <meta name="theme-color" content="#0e0e0e" />
     <script>
       ((query) => {
-        const follow = () =>
-          document.documentElement.setAttribute("data-theme", query.matches ? "light" : "dark")
+        const follow = () => {
+          let saved
+          if (location.pathname === "/blog" || location.pathname.startsWith("/blog/")) {
+            try { saved = localStorage.getItem("autolaunch-blog-theme") } catch {}
+          }
+          document.documentElement.setAttribute("data-theme", ["light", "dark"].includes(saved) ? saved : (query.matches ? "light" : "dark"))
+        }
         follow()
         query.addEventListener("change", follow)
       })(window.matchMedia("(prefers-color-scheme: light)"))

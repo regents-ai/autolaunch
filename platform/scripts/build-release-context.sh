@@ -13,15 +13,16 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 privy_source="${REGENT_PRIVY_PATH:?set the selected package checkout path}"
 identity_source="${REGENT_IDENTITY_PATH:?set the selected package checkout path}"
 regent_ui_source="${REGENT_UI_PATH:?set the selected package checkout path}"
-for source in "$privy_source" "$identity_source" "$regent_ui_source"; do
+blog_source="${REGENT_BLOG_PATH:?set the selected blog package checkout path}"
+for source in "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source"; do
   [ -f "$source/mix.exs" ] || die "missing selected package: $source"
 done
-for revision in "${REGENT_PRIVY_REVISION:-}" "${REGENT_IDENTITY_REVISION:-}" "${REGENT_UI_REVISION:-}"; do
+for revision in "${REGENT_PRIVY_REVISION:-}" "${REGENT_IDENTITY_REVISION:-}" "${REGENT_UI_REVISION:-}" "${REGENT_BLOG_REVISION:-}"; do
   [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || die 'each selected package needs its exact revision'
 done
 mkdir -p "$(dirname -- "$destination")"
 destination="$(cd -- "$(dirname -- "$destination")" && pwd)/$(basename -- "$destination")"
-for source in "$repo_root" "$privy_source" "$identity_source" "$regent_ui_source"; do
+for source in "$repo_root" "$privy_source" "$identity_source" "$regent_ui_source" "$blog_source" "$repo_root/../blog"; do
   source="$(cd -- "$source" && pwd)"
   case "$destination" in "$source"|"$source"/*) die 'destination must be outside every source tree' ;; esac
 done
@@ -35,9 +36,13 @@ rsync -a --no-links "${filters[@]}" "$repo_root/" "$staging/platform/"
 rsync -a --no-links "${filters[@]}" "$privy_source/" "$staging/elixir-utils/privy/"
 rsync -a --no-links "${filters[@]}" "$identity_source/" "$staging/regents/identity/"
 rsync -a --no-links "${filters[@]}" "$regent_ui_source/" "$staging/design-system/regent_ui/"
+mkdir -p "$staging/elixir-utils/blog" "$staging/blog"
+rsync -a --no-links "${filters[@]}" "$blog_source/" "$staging/elixir-utils/blog/"
+rsync -a --no-links "${filters[@]}" "$repo_root/../blog/" "$staging/blog/"
 install -m 0644 "$repo_root/Dockerfile" "$staging/Dockerfile"
 install -m 0644 "$repo_root/Dockerfile.dockerignore" "$staging/Dockerfile.dockerignore"
 printf 'arch=%s\nregent_privy=%s\nregent_identity=%s\nregent_ui=%s\n' "$arch" "$REGENT_PRIVY_REVISION" "$REGENT_IDENTITY_REVISION" "$REGENT_UI_REVISION" > "$staging/BUILD-INPUTS.txt"
+printf 'regent_blog=%s\n' "$REGENT_BLOG_REVISION" >> "$staging/BUILD-INPUTS.txt"
 (cd "$staging" && shasum -a 256 platform/mix.lock platform/package-lock.json) >> "$staging/BUILD-INPUTS.txt"
 # An atomic rename publishes only a complete context. Existing destinations
 # are never removed, so interruption and retries cannot destroy unrelated work.

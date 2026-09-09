@@ -28,12 +28,14 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 RUN mix local.hex --force && mix local.rebar --force
 COPY platform/mix.exs platform/mix.lock ./
 COPY elixir-utils/privy /workspace/elixir-utils/privy
+COPY elixir-utils/blog /workspace/elixir-utils/blog
 COPY regents/identity /workspace/regents/identity
 COPY design-system/regent_ui /workspace/design-system/regent_ui
 COPY platform/config config
 RUN mix deps.get --only prod --check-locked && mix deps.compile
 
 COPY platform/lib lib
+COPY blog /workspace/blog
 COPY platform/priv priv
 COPY platform/rel rel
 COPY platform/assets assets

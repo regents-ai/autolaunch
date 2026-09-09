@@ -7,6 +7,7 @@
         account_control={@account_control}
         search_query={@search_query}
         home?={@current_path == "/"}
+        blog?={assigns[:blog_page] == true}
         market_options={Map.get(assigns, :market_options) || %{}}
       />
       <div id="shell-content" class="shell-content" tabindex="-1">
