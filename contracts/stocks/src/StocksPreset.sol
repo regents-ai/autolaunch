@@ -64,6 +64,16 @@ library StocksPreset {
     uint256 internal constant BID_TICK_DIVISOR = 100;
 
     // -------------------------------------------------------------------------
+    // launch fee
+    // -------------------------------------------------------------------------
+
+    /// @notice Founder decision: a launch costs 100,000 REGENT, pulled from the launcher at creation
+    ///         and funded into the live REGENT staking contract as staker rewards
+    ///         (`fundRegentRewards`). It is never refunded, whatever the auction's outcome. The
+    ///         launchpad is born at this value; governance may change it with `setLaunchFee`.
+    uint256 internal constant LAUNCH_FEE_REGENT = 100_000e18;
+
+    // -------------------------------------------------------------------------
     // official pool
     // -------------------------------------------------------------------------
 

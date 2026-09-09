@@ -10,8 +10,8 @@ lab runs it, and the evidence index.
 
 | Surface | Path | Notes |
 | --- | --- | --- |
-| Stocks create | `/create/stocks` | Signed-in; one private Stocks draft per account (`stock_launch_drafts`), independent of the Agent draft. Three autosaving sections (token details, stock and auction terms, subject revenue and administrator), the fixed-terms list, then the wallet step. The "Create" menu in the rail links here when the site is not read-only. |
-| Wallet step | `/create/stocks` | `Autolaunch.Stocks.LaunchActions` reviews the draft against the fork and writes one `launch(LaunchParams)` envelope (`stock_launch_operations`, one open per account). Review shows the derived start block and estimated close, the exact executable floor (largest multiple of 100 not above the entered price, at least 2^32+1), the required raise in the stock's base units, and the subject lane (zero address when off). Verification decodes `StockLaunchCreated`, checks it against `launches(id)` and `launchIdOfAuction`, stores `new_token`, `auction`, `launch_id` and projects the `Auction` row (`kind: :stocks`). |
+| Stocks create | `/create/stocks` | Signed-in; one private Stocks draft per account (`stock_launch_drafts`), independent of the Agent draft. Three autosaving sections (token details, stock and auction terms, subject revenue and administrator), the fixed-terms list (which states the 100,000 REGENT launch fee, paid to REGENT staking as rewards and not refunded), then the wallet step. One stock launch in progress per account: while the account has a Stocks `Auction` in state `created` or `active`, the page shows "You already have a stock launch in progress. One at a time for now." and hides the review button; `Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit` refuses `prepare` with code `active_stocks_launch_exists` (site rule, not a contract rule; the Agent limit is separate and untouched). The "Create" menu in the rail links here when the site is not read-only. |
+| Wallet step | `/create/stocks` | `Autolaunch.Stocks.LaunchActions` reviews the draft against the fork and writes one immutable envelope of at most two steps (`stock_launch_operations`, one open per account): an `approval` step `approve(launchpad, fee)` on REGENT whenever the signer's allowance to the launchpad is not exactly `launchFee()` (higher included; the launchpad requires exact equality), then the `launch(LaunchParams)` step with `expectedLaunchFee = fee` as the twelfth tuple word. The snapshot reads `launchFee()`, the signer's REGENT balance and allowance; a balance below the fee refuses review with "This wallet holds less REGENT than the launch fee." Review shows the fee ("100,000 REGENT, paid to REGENT staking as rewards, not refunded if the minimum is not raised"), the derived start block and estimated close, the exact executable floor (largest multiple of 100 not above the entered price, at least 2^32+1), the required raise in the stock's base units, and the subject lane (zero address when off). The approval is verified by the `Approval` log and the allowance read back equal to the fee, then the row advances to the launch step. Launch verification decodes `StockLaunchCreated` and `StockLaunchFeeCollected` (payer = signer, amount = reviewed fee; absent only when the fee is zero), checks against `launches(id)` and `launchIdOfAuction`, stores `new_token`, `auction`, `launch_id`, `launch_fee` and projects the `Auction` row (`kind: :stocks`). |
 | Auction list and detail | `/auctions`, `/auctions/:address`, `/api/v1/auctions` | Shared with Agent. `Auction.kind` is `:agent` or `:stocks`; the quote token fields carry the real currency (address, symbol, decimals) and the detail page states them. |
 | Bid | auction page | Two forms side by side, never auto-switched: "Bid with STOCK" (allowance to Permit2, Permit2 allowance to the auction, `submitBid`) and, on Stocks auctions with the Stocks lab running, "Bid with USDC" (exact USDC allowance to the adapter, then `bidWithUsdc` with `minStockOut` = route estimate less 1% and a 15-minute deadline). Amounts and prices use the auction's own currency decimals. |
 | Market feed | background | `Autolaunch.Stocks.LabMarketFeed` polls the fork every second, projects every `launches(id)` whose launcher is a wallet a site account holds into an `Auction` row, and refreshes state and clearing price of Stocks auctions from the auction contract and the launchpad lifecycle. |
@@ -50,6 +50,7 @@ graph, admits the fixture routes, and writes
   "faucet": {
     "regent_holder": "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e",
     "regent_amount": "1000000000000000000000",
+    "regent_launch_fee_amount": "500000000000000000000000",
     "stock_amount_units": "100",
     "usdc_holder": "0x…",
     "usdc_amount": "1000000000"
@@ -67,8 +68,12 @@ as chain 31337, whose `agent_lab_config` differs from the Agent lab it runs with
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
 `cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, whose `stocks`
 entries are not in `Autolaunch.Stocks.Assets`, or whose ABI set lacks a function or event the site
-prepares against (`Autolaunch.Stocks.LabAbi.requirements/0`). The interface ABIs the site was
-written against are pinned at `platform/contracts/abi/stocks-*.json` and registered in
+prepares against (`Autolaunch.Stocks.LabAbi.requirements/0`; for the launchpad that now includes
+`launchFee()`, `setLaunchFee(uint256)`, `StockLaunchFeeCollected` and `LaunchFeeUpdated`).
+`faucet.regent_launch_fee_amount` is optional: when present it must be a decimal string of REGENT
+base units, and the faucet then offers it as the launch-fee grant. The interface ABIs the site was
+written against are pinned at `platform/contracts/abi/stocks-*.json` (regenerated from
+`contracts/stocks/src/interfaces` with solc 0.8.26) and registered in
 `platform/contracts/chain-contracts.yaml` under `stocks_local_lab`.
 
 Environment: `AUTOLAUNCH_STOCKS_LAB_CONFIG=/abs/path/stocks-site-config.json` alongside the
@@ -83,6 +88,10 @@ configuration (loopback only) and refuses on a read-only site or without a lab:
 
 - "Get 1,000 test REGENT": needs only the Agent lab; `transfer(wallet, 1000e18)` from the
   governance Safe's forked REGENT balance.
+- "Get 500,000 test REGENT (launch fee)": rendered only when the Stocks lab configuration carries
+  `faucet.regent_launch_fee_amount`; `transfer(wallet, regent_launch_fee_amount)` from the same
+  governance Safe balance. The button's number is the configured amount in whole REGENT, so it
+  follows the configuration rather than this page.
 - "Get test STOCK" (one button per admitted stock): `mint(wallet, stock_amount_units × 10^decimals)`
   on the fixture token, sent from the governance Safe.
 - "Get 1,000 test USDC": `transfer(wallet, usdc_amount)` from `faucet.usdc_holder`.
@@ -116,6 +125,8 @@ binding the hash and verifying through the same server code the wallet card call
 | P03 pinned CCA, ~24 h schedule | unit-proven | `StocksPreset.t.sol`: 13 steps sum to 43,200 blocks and exactly 1e7 mps; fork lifecycle uses the real CCA factory. Block count PROVISIONAL. |
 | P04 exact 80/20 | integrated-local | Launch #2 on the fork: `auction_inventory` 800,000,000e18, `migration_reserve` 200,000,000e18 read back from `StockLaunchCreated` by the site's verifier. |
 | P05 no creator allocation, vesting, treasury | unit-proven | `LaunchParams` has no such fields; the review rejects injected ones (`launch_actions_test.exs`). |
+| STK fee: 100,000 REGENT launch fee, exact allowance, funded into staking | unit-proven | `launch_actions_test.exs`: the twelfth tuple word is `expectedLaunchFee`; allowance 0 → approval then launch; allowance equal to the fee → launch only; allowance above the fee → approval (corrected down to exactly the fee) then launch; a balance below the fee is refused (`insufficient_regent`). Verification of `StockLaunchFeeCollected` and the `advance` transition are implemented against the interface and await the redeployed lab (`implemented-unverified` on the fork). |
+| STK one-active rule (site) | unit-proven | `launch_draft_test.exs`: a `created` Stocks auction of the account refuses `prepare` with `active_stocks_launch_exists`, never counts for another account, and a graduated auction frees the slot. |
 | P07 direct STOCK bid and USDC→STOCK bid | integrated-local | Direct: token approval → Permit2 → `submitBid` confirmed (`onchain_bid_id` 1, 2.5 AAPLc; then 20 AAPLc). USDC: `approve(adapter)` → `bidWithUsdc` confirmed (`StockBidPlaced`, owner = signer, 50 USDC → 0.2173913 AAPLc). Both visible on `/portfolio`. |
 | P08/P09/P10/P11 hook lanes and attribution | unit-proven + fork | `StocksFeeHook.t.sol` (17 tests: four swap forms × both orderings × subject on/off, conservation, bucket attribution by configuration version); fork lifecycle settles the REGENT bucket into the real `LIVE_STAKING` and a subject bucket into a real Agent splitter. Hook permission set differs from the brief's afterSwap-only wording, see "Open decisions". |
 | P12 conversion outside swaps | unit-proven | `settle` is executor-only and the only path out; a failing settle reverts only itself. |
@@ -124,21 +135,29 @@ binding the hash and verifying through the same server code the wallet card call
 | STK-00 decision record | blocked | No Stocks decision record exists in this repository or the workspace; PROVISIONAL values are listed in `contracts/stocks/README.md`. |
 | STK-01..09 contracts | unit-proven + fork | `forge test --fuzz-runs 64`: 68 passed; `FOUNDRY_PROFILE=fork forge test --fork-url http://127.0.0.1:58737`: 3 passed; Slither: no medium/high. `contracts/stocks/SECURITY.md` maps invariants to tests. |
 | STK-10 Stocks draft (AT11) | unit-proven | `core_tests/elixir/autolaunch/stocks/launch_draft_test.exs`: another account can neither read nor update a draft. |
-| STK-11 review envelope (AT09) | integrated-local | `launch_actions_test.exs` for the exact tuple; on the fork the prepared 772-byte calldata created launch #2 (`StockLaunchCreated` decoded, `launches(2)` and `launchIdOfAuction` cross-checked, `chain_verified`). |
+| STK-11 review envelope (AT09) | integrated-local (11-field tuple) / unit-proven (12-field tuple) | `launch_actions_test.exs` for the exact tuple; on the fork the prepared 772-byte calldata of the earlier 11-field tuple created launch #2 (`StockLaunchCreated` decoded, `launches(2)` and `launchIdOfAuction` cross-checked, `chain_verified`). The 12-field tuple with `expectedLaunchFee` and the approval step have not yet been sent on the fork; that needs the redeployed launchpad and a migrated lab partition. |
 | STK-11 subject lane off (AT06, §5.1) | unit-proven | Disabling the lane leaves the zero address in the params and no splitter bytes in the calldata. |
 | STK-12 `/create/stocks` | integrated-local | `stocks_create_live_test.exs` (autosave; stock change clears amounts) plus a headless-browser pass over `/create/stocks`, `/auctions`, `/auctions/:id`, `/portfolio` on the lab site. |
 | STK-13 market feed and listing | integrated-local | The feed projected launch #2 into an `Auction` row (`kind: stocks`, AAPLc, 8 decimals) within seconds and moved it `created → active` at the start block; `/api/v1/auctions` lists it with `quote_token`. |
+| Launch fee (STK-05, decision 5) | integrated-local | Launch #1 on the third deployment: two steps (REGENT `approve(launchpad, 100,000)` then `launch` with `expectedLaunchFee`), both sent from the signer and verified by the site; `launch_fee` decoded from `StockLaunchFeeCollected`; the real staking contract's `totalFundedRegent` rose by exactly 100,000 REGENT and the launchpad holds 0 REGENT. A second review by the same account was refused with `active_stocks_launch_exists`. |
 | STK-14 faucet | integrated-local | REGENT (+1,000 from the Safe's forked balance), AAPLc (+100 fixture mint) and USDC (+1,000 from the Morpho holder) each landed in one press with the new balance read back. |
 | Migration (STK-05 on the fork, observed by the site) | integrated-local | Launch #1 on the redeployed graph: 22.71739129 AAPLc raised across the three site bids; `advance --to migration` then `migrate --launch 1` → `Graduated`. `lpStockUsed` 2,271,739,129 = the whole raise (all net STOCK locked; <25% sold so the full-range position took it all and no one-sided position was needed), `lpNewUsed` ≈ 2.27M NEW, LP NFT 3017409 owned by `0x…dEaD`, 995,456,521.74 unsold NEW retired to `0x…dEaD`, launchpad holds 0 NEW and 0 STOCK. The site's feed moved the auction to `graduated` and `/api/v1/auctions` reports it. Bid claims after graduation are not yet exposed in the portfolio (see remaining work). |
 | AT04, AT48 real stock assets | blocked | Base-native stock tokens carry `0xef` code Anvil cannot execute; the lab uses fixture ERC-20s at the exact catalog addresses. Issuer transfer policy, Permit2 behaviour and the real acquisition route are unproven. |
 | AT47 manual review | pending | Founder review in a real browser with Privy sign-in; see the handoff for the run command. |
 
-### Open decisions for the founder
+### Founder decisions (9 September 2026)
 
-1. Every PROVISIONAL preset value (supply, decimals, 43,200-block duration, start-lead bounds, LP fee 0.30% / spacing 60, one-sided STOCK position width, rounding-residue destination).
-2. Hook permission set: the hook uses `beforeSwap` + `afterSwap` with return deltas so the STOCK-side fee is charged on all four swap forms; STOCK-specified swaps that a price limit cuts short revert (`PartialFillNotSupported`) rather than under-charging. The brief's afterSwap-only wording cannot charge STOCK on two of the four forms.
-3. Whether the Agent one-auction-per-account limit should also apply to Stocks launches (not applied today).
-4. Whether public listing of Stocks auctions launched outside this site (CLI or another front end) should be ingested with truthful provenance (AT43); today only launches this site verified are listed.
+1. The PROVISIONAL preset values are accepted, on the basis that the step schedule keeps ~30% of the
+   auction supply in the final block as Agent's does (verified: 29.88%, `StocksPreset.t.sol`).
+2. Hook permission set accepted (`beforeSwap` + `afterSwap` with return deltas).
+3. One Stocks launch in progress per account, as a site rule (`ActiveLaunchLimit`); the contracts admit
+   any launcher. Agent's own limit now counts only Agent auctions, so the two modes do not block each
+   other.
+4. Only launches this website verified are listed, for now.
+5. Launch fees: a Stocks launch costs 100,000 REGENT, pulled at creation and funded into REGENT
+   staking as staker rewards, never refunded. The Agent factory's fee is set to 500,000 REGENT by
+   governance (`setLaunchFee`) rather than by editing the frozen V1 source; the lab applies the same
+   call. Recorded in `contracts/README.md`.
 
 ### Remaining work
 

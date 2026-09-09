@@ -122,7 +122,7 @@ abstract contract StocksFixture is Test, DeployPermit2 {
         deployPermit2();
         _constructAt(
             StocksBindings.LIVE_STAKING,
-            abi.encodePacked(type(MockLiveStaking).creationCode, abi.encode(StocksBindings.USDC))
+            abi.encodePacked(type(MockLiveStaking).creationCode, abi.encode(StocksBindings.USDC, StocksBindings.REGENT))
         );
         _constructAt(
             StocksBindings.POOL_MANAGER, abi.encodePacked(type(PoolManager).creationCode, abi.encode(address(this)))
@@ -176,6 +176,9 @@ abstract contract StocksFixture is Test, DeployPermit2 {
         launchpad.unpauseLaunches();
         hook.setExecutor(executor);
         vm.stopPrank();
+
+        // Enough REGENT for every launch a test makes; the fee itself is approved per launch.
+        regent.mint(launcher, 100 * StocksPreset.LAUNCH_FEE_REGENT);
     }
 
     function _fundRoute(FixtureStockRoute route, FixtureStockToken stock) internal {
@@ -206,6 +209,8 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     // launches
     // -------------------------------------------------------------------------
 
+    /// @dev Reads `launchpad.launchFee()` (an external call): build the params before arming a prank,
+    ///      `expectRevert` or `expectEmit`, never as the guarded call's argument.
     function _params(address stock) internal view returns (IStocksLaunchpadV1.LaunchParams memory params) {
         params = IStocksLaunchpadV1.LaunchParams({
             name: "New One",
@@ -218,14 +223,22 @@ abstract contract StocksFixture is Test, DeployPermit2 {
             floorPriceQ96: FLOOR_PRICE_Q96,
             requiredStockRaised: 100e8,
             feeAdministrator: feeAdministrator,
-            subjectSplitter: address(0)
+            subjectSplitter: address(0),
+            expectedLaunchFee: launchpad.launchFee()
         });
+    }
+
+    /// @dev The exact-allowance discipline a wallet follows: approve precisely the reviewed fee.
+    function _approveFee(address who, IStocksLaunchpadV1.LaunchParams memory params) internal {
+        vm.prank(who);
+        regent.approve(address(launchpad), params.expectedLaunchFee);
     }
 
     function _launchAs(address who, IStocksLaunchpadV1.LaunchParams memory params)
         internal
         returns (Launched memory launched)
     {
+        _approveFee(who, params);
         vm.prank(who);
         (uint256 launchId, address newToken, address auction) = launchpad.launch(params);
         launched = Launched({

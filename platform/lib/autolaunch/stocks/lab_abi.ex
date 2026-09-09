@@ -3,11 +3,12 @@ defmodule Autolaunch.Stocks.LabAbi do
 
   alias Autolaunch.LabAbi
 
-  @launch_params "(string,string,string,string,string,address,uint64,uint256,uint128,address,address)"
+  @launch_params "(string,string,string,string,string,address,uint64,uint256,uint128,address,address,uint256)"
   @launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint128)"
   @launch_record_words 20
 
   @launch_created "StockLaunchCreated(uint256,address,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)"
+  @fee_collected "StockLaunchFeeCollected(uint256,address,address,uint256)"
   @bid_placed "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
 
   # Everything the site prepares against or decodes. A missing entry refuses the
@@ -19,6 +20,8 @@ defmodule Autolaunch.Stocks.LabAbi do
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
       f: {"nextLaunchId()", "view", ["uint256"]},
       f: {"launchesPaused()", "view", ["bool"]},
+      f: {"launchFee()", "view", ["uint256"]},
+      f: {"setLaunchFee(uint256)", "nonpayable", []},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
       f:
         {"subjectConfig(uint256)", "view", ["uint32", "address", "uint16", "address", "address"]},
@@ -26,7 +29,9 @@ defmodule Autolaunch.Stocks.LabAbi do
       f: {"hook()", "view", ["address"]},
       e:
         {@launch_created,
-         [true, true, true, false, false, false, false, false, false, false, false, false]}
+         [true, true, true, false, false, false, false, false, false, false, false, false]},
+      e: {@fee_collected, [true, true, true, false]},
+      e: {"LaunchFeeUpdated(uint256,uint256)", [false, false]}
     ],
     "bid_adapter" => [
       f:
@@ -78,6 +83,7 @@ defmodule Autolaunch.Stocks.LabAbi do
   def launch_record_words, do: @launch_record_words
   def launch_signature, do: "launch(#{@launch_params})"
   def launch_created_signature, do: @launch_created
+  def fee_collected_signature, do: @fee_collected
   def bid_placed_signature, do: @bid_placed
   def validate(abis), do: LabAbi.validate(abis, @required)
 end

@@ -104,6 +104,26 @@ defmodule Autolaunch.Stocks.Amounts do
     end
   end
 
+  @doc """
+  A plain decimal with its whole part grouped in thousands for reading:
+  "100000" reads as "100,000"; digits after the point are kept exactly.
+  """
+  def grouped(value) when is_binary(value) do
+    case String.split(value, ".", parts: 2) do
+      [whole] -> group_thousands(whole)
+      [whole, fraction] -> group_thousands(whole) <> "." <> fraction
+    end
+  end
+
+  defp group_thousands(digits) do
+    digits
+    |> String.reverse()
+    |> String.graphemes()
+    |> Enum.chunk_every(3)
+    |> Enum.map_join(",", &Enum.join/1)
+    |> String.reverse()
+  end
+
   defp decimal_ratio(value) when is_binary(value) and byte_size(value) <= @max_input_bytes do
     if Regex.match?(~r/\A[0-9]+(?:\.[0-9]+)?\z/, value) do
       case String.split(value, ".", parts: 2) do

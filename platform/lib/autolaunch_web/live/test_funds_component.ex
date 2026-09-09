@@ -11,7 +11,7 @@ defmodule AutolaunchWeb.TestFundsComponent do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Chain.Address
-  alias Autolaunch.Stocks.Faucet
+  alias Autolaunch.Stocks.{Amounts, Faucet}
 
   def available?, do: Faucet.available?()
 
@@ -25,7 +25,8 @@ defmodule AutolaunchWeb.TestFundsComponent do
      socket
      |> assign_new(:wallet, fn -> primary_wallet(socket) end)
      |> assign_new(:outcome, fn -> nil end)
-     |> assign(:stocks, Faucet.stocks())}
+     |> assign(:stocks, Faucet.stocks())
+     |> assign(:launch_fee_grant, Faucet.launch_fee_grant())}
   end
 
   @impl true
@@ -65,6 +66,16 @@ defmodule AutolaunchWeb.TestFundsComponent do
           variant="secondary"
         >
           Get 1,000 test REGENT
+        </Regent.Primitives.button>
+        <Regent.Primitives.button
+          :if={@launch_fee_grant}
+          type="button"
+          phx-click="grant"
+          phx-value-kind="regent_launch_fee"
+          phx-target={@myself}
+          variant="secondary"
+        >
+          Get {Amounts.grouped(@launch_fee_grant)} test REGENT (launch fee)
         </Regent.Primitives.button>
         <Regent.Primitives.button
           :for={stock <- @stocks}
@@ -127,6 +138,7 @@ defmodule AutolaunchWeb.TestFundsComponent do
 
   defp grant(_kind, nil, _stock), do: {:error, "Choose a wallet on this account first."}
   defp grant("regent", wallet, _stock), do: Faucet.regent(wallet)
+  defp grant("regent_launch_fee", wallet, _stock), do: Faucet.regent_launch_fee(wallet)
   defp grant("stock", wallet, stock) when is_binary(stock), do: Faucet.stock(wallet, stock)
   defp grant("usdc", wallet, _stock), do: Faucet.usdc(wallet)
   defp grant(_kind, _wallet, _stock), do: {:error, "That test asset is not available."}

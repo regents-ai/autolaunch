@@ -18,6 +18,8 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   @actor %System{}
   @domain Autolaunch
 
+  @hash_attributes %{approval: :approval_transaction_hash, launch: :launch_transaction_hash}
+
   @type lease :: %{lineage: String.t(), account_id: integer()}
 
   @spec transact(lease(), (Ash.Resource.record() -> {:ok, term()} | {:error, term()})) ::
@@ -71,18 +73,38 @@ defmodule Autolaunch.Stocks.LaunchOperations do
     |> Ash.update(actor: @actor)
   end
 
-  @doc "Binds the first valid hash of the one `launch` step; an exact replay is a no-op."
-  @spec bind(Ash.Resource.record(), :launch, String.t()) ::
+  @doc """
+  Binds the first valid hash for the step the browser was actually sent.
+
+  An exact replay is a no-op, a different hash is refused rather than
+  overwriting the submitted identity, and a hash recovered after the operation
+  ended attaches without reopening it. The step travels with the hash and has to
+  be the one the row is on, so a callback delayed past an advance can never land
+  in the other step's column.
+  """
+  @spec bind(Ash.Resource.record(), :approval | :launch, String.t()) ::
           {:ok, Ash.Resource.record()} | {:error, term()}
-  def bind(%{launch_transaction_hash: hash} = operation, :launch, hash), do: {:ok, operation}
+  def bind(operation, step, hash) do
+    attribute = Map.fetch!(@hash_attributes, step)
 
-  def bind(%{launch_transaction_hash: nil} = operation, :launch, hash),
-    do: update(operation, bind_action(operation), %{launch_transaction_hash: hash})
+    case Map.fetch!(operation, attribute) do
+      ^hash -> {:ok, operation}
+      nil -> bind_step(operation, step, attribute, hash)
+      _different -> unavailable(:submitted_hash_conflict)
+    end
+  end
 
-  def bind(_operation, :launch, _hash), do: unavailable(:submitted_hash_conflict)
+  defp bind_step(%{step: step} = operation, step, attribute, hash),
+    do: update(operation, bind_action(operation), %{attribute => hash})
+
+  defp bind_step(_operation, _step, _attribute, _hash), do: unavailable(:submitted_step_mismatch)
 
   defp bind_action(%{terminal_at: nil}), do: :bind_hash
   defp bind_action(_terminal), do: :attach_late_hash
+
+  @doc "The hash bound for one step of an operation, or `nil`."
+  @spec hash(map(), :approval | :launch) :: String.t() | nil
+  def hash(operation, step), do: Map.get(operation, Map.fetch!(@hash_attributes, step))
 
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}
   def signer_matches(%{wallet_addresses: wallets}, signer) do

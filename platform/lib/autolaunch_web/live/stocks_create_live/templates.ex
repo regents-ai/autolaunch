@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   import AutolaunchWeb.Components.StockCurrencySelect
 
   alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
+  alias Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
 
   @new_decimals 18
   @address_hint "0x followed by exactly 40 hexadecimal characters."
@@ -64,6 +65,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :draft_errors, :map, required: true
   attr :draft_notice, :map, default: nil
   attr :stocks_lab, :map, default: nil
+  attr :active_stocks_launch, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
@@ -95,10 +97,14 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         </Regent.Structure.section_bar>
         <p>
           Describe the new token, choose the Base stock token bidders pay with, set the start and
-          the prices, then review the one transaction your wallet sends. Draft changes save
+          the prices, then review the exact transactions your wallet sends. Draft changes save
           privately to your account.
         </p>
       </header>
+
+      <p :if={@active_stocks_launch} class="launchpad-limit" role="status">
+        {ActiveLaunchLimit.message()}
+      </p>
 
       <p :if={@status == :error} class="autolaunch-empty">
         Your draft could not be loaded. Refresh and try again.
@@ -350,14 +356,17 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               <div>
                 <p class="autolaunch-kicker">Wallet review</p>
                 <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label">Launch transaction</h2>
+                  <h2 class="rg-section-bar__label">Launch transactions</h2>
                 </Regent.Structure.section_bar>
               </div>
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
             <p>
-              The review shows the exact start block, executable floor price and minimum raise before
-              anything is submitted. There is no launch fee and no approval step.
+              The review shows the exact start block, executable floor price, minimum raise and
+              launch fee before anything is submitted. The launch fee is 100,000 REGENT, paid to
+              REGENT staking as rewards and not refunded if the minimum is not raised. Your wallet
+              first allows exactly that fee to be taken when it has not already, then creates the
+              launch.
             </p>
             <.live_component
               :if={@launch_ready? && @draft}
@@ -365,6 +374,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
               draft={@draft}
               authenticated
+              active_stocks_launch={@active_stocks_launch}
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />

@@ -36,6 +36,7 @@ import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {IAgentStrategyMinimal} from "./interfaces/IAgentStrategyMinimal.sol";
 import {IERC20Minimal} from "./interfaces/IERC20Minimal.sol";
+import {IRegentRevenueStakingMinimal} from "./interfaces/IRegentRevenueStakingMinimal.sol";
 import {IStockRoute} from "./interfaces/IStockRoute.sol";
 import {IStocksLaunchpadV1} from "./interfaces/IStocksLaunchpadV1.sol";
 import {ISubjectSplitterMinimal} from "./interfaces/ISubjectSplitterMinimal.sol";
@@ -59,13 +60,18 @@ import {StocksPreset} from "./StocksPreset.sol";
 ///      graduation actually funds so nothing already sitting at the shared PositionManager is touched.
 ///      Stocks departs from Agent in what it does with STOCK the full range cannot pair: Agent sends it
 ///      to a treasury, Stocks locks it in a second, one-sided STOCK position (brief P13).
+///
+///      A launch costs `launchFee` REGENT (born at `StocksPreset.LAUNCH_FEE_REGENT`). The fee is pulled
+///      from the launcher with the exact-allowance discipline of the frozen Agent factory's
+///      `_collectLaunchFee`, funded straight into the live REGENT staking contract as staker rewards
+///      (`fundRegentRewards`) in the same transaction, and never refunded.
 contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     using SafeTransferLib for address;
     using PoolIdLibrary for PoolKey;
 
-    /// @notice The runtime code hash the pinned UERC20 factory must present, as the frozen Agent
-    ///         factory demands it (`RegentsAutolaunchFactoryV1.UERC20_FACTORY_RUNTIME_CODE_HASH`).
-    bytes32 public constant UERC20_FACTORY_RUNTIME_CODE_HASH =
+    /// @dev The runtime code hash the pinned UERC20 factory must present, as the frozen Agent factory
+    ///      demands it (`RegentsAutolaunchFactoryV1.UERC20_FACTORY_RUNTIME_CODE_HASH`).
+    bytes32 internal constant UERC20_FACTORY_RUNTIME_CODE_HASH =
         0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f;
 
     struct Admission {
@@ -91,11 +97,12 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         uint128 stockOnlyStock;
     }
 
-    /// @notice The pinned UERC20 factory every NEW is created by.
-    address public immutable uerc20Factory;
-
-    /// @notice The deployed Agent strategy that is the provenance authority for subject splitters.
-    address public immutable agentStrategy;
+    /// @dev The pinned UERC20 factory every NEW is created by, and the deployed Agent strategy that is
+    ///      the provenance authority for subject splitters. Both are constructor arguments; the lab
+    ///      records them in its run documents. Neither has a getter: the runtime sits within about a
+    ///      hundred bytes of the EIP-170 size limit, so only the cross-component interface is exposed.
+    address internal immutable uerc20Factory;
+    address internal immutable agentStrategy;
 
     /// @notice The one official-pool hook, mined and deployed by this constructor.
     address public immutable override hook;
@@ -104,6 +111,9 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
 
     /// @notice Born paused; only governance opens launches.
     bool public override launchesPaused = true;
+
+    /// @notice The REGENT a launch costs right now. Born at the founder-decided preset value.
+    uint256 public override launchFee = StocksPreset.LAUNCH_FEE_REGENT;
 
     mapping(address stock => Admission) private _admissions;
     mapping(uint256 launchId => Launch) private _launches;
@@ -150,6 +160,8 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
     error AllowanceNotConsumed(address spender, uint256 remaining);
     error StaleSubjectVersion(uint32 current, uint32 expected);
+    error StaleLaunchFee(uint256 current, uint256 expected);
+    error LaunchFeeAllowanceMismatch(uint256 expected, uint256 found);
 
     /// @param hookSalt The pre-mined CREATE2 salt giving the hook the exact permission bits v4
     ///        encodes in a hook address. Not stored; a wrong salt simply fails construction.
@@ -201,7 +213,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         }
 
         uint256 tickSpacing = bidTickSpacingFor(params.floorPriceQ96);
-        uint256 reachable = maxReachableRaise(tickSpacing);
+        uint256 reachable = _maxReachableRaise(tickSpacing);
         if (params.requiredStockRaised == 0 || params.requiredStockRaised > reachable) {
             revert UnreachableRequiredRaise(params.requiredStockRaised, reachable);
         }
@@ -212,6 +224,10 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
 
         launchId = nextLaunchId;
         nextLaunchId = launchId + 1;
+
+        // The fee is the first value to move: nothing of the launch exists yet, so a refused fee
+        // costs the launcher only gas, and a launch never exists without its fee having been funded.
+        _collectAndFundLaunchFee(launchId, params.expectedLaunchFee);
 
         newToken = _createNew(params, launchId);
 
@@ -374,6 +390,15 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         emit LaunchesUnpaused();
     }
 
+    /// @inheritdoc IStocksLaunchpadV1
+    /// @dev Zero is valid. A launcher who reviewed the previous fee is refused with `StaleLaunchFee`
+    ///      rather than charged the new one.
+    function setLaunchFee(uint256 newFee) external override onlyGovernance {
+        uint256 previousFee = launchFee;
+        launchFee = newFee;
+        emit LaunchFeeUpdated(previousFee, newFee);
+    }
+
     // -------------------------------------------------------------------------
     // reads
     // -------------------------------------------------------------------------
@@ -419,16 +444,16 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         if (tickSpacing < ConstantsLib.MIN_TICK_SPACING) revert TickSpacingTooSmall(tickSpacing);
     }
 
-    /// @notice The largest STOCK raise the fixed inventory can settle on for a bid grid: the
-    ///         inventory at the highest on-grid price the pinned CCA admits.
-    function maxReachableRaise(uint256 tickSpacing) public pure returns (uint256) {
+    /// @dev The largest STOCK raise the fixed inventory can settle on for a bid grid: the inventory at
+    ///      the highest on-grid price the pinned CCA admits.
+    function _maxReachableRaise(uint256 tickSpacing) private pure returns (uint256) {
         uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
         uint256 onGrid = maxBidPrice - (maxBidPrice % tickSpacing);
         return FullMath.mulDiv(StocksPreset.AUCTION_INVENTORY, onGrid, FixedPoint96.Q96);
     }
 
-    /// @notice The official pool key one launch graduates into.
-    function poolKeyOf(address newToken, address stock) public view returns (PoolKey memory key) {
+    /// @dev The official pool key one launch graduates into.
+    function _poolKeyOf(address newToken, address stock) private view returns (PoolKey memory key) {
         bool stockIsCurrency0 = stock < newToken;
         key = PoolKey({
             currency0: Currency.wrap(stockIsCurrency0 ? stock : newToken),
@@ -442,6 +467,44 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     // -------------------------------------------------------------------------
     // internals: creation
     // -------------------------------------------------------------------------
+
+    /// @dev The launch fee, with the frozen Agent factory's `_collectLaunchFee` discipline and one
+    ///      more hop: the REGENT passes through this contract only for the duration of the call and is
+    ///      funded into the live staking contract as staker rewards before anything of the launch is
+    ///      created. The fee the launcher reviewed must be the current one, and the launcher's
+    ///      allowance must equal it exactly, so no standing spend authority is ever left behind; a zero
+    ///      fee moves nothing, funds nothing (the live contract refuses a zero amount) and still
+    ///      requires a zero allowance. Every leg is proved by balance delta and both temporary
+    ///      allowances are proved back at zero. This contract's absolute REGENT balance is deliberately
+    ///      never asserted, only its delta: an unrelated gift must not be able to brick launches.
+    function _collectAndFundLaunchFee(uint256 launchId, uint256 expectedFee) private {
+        uint256 fee = launchFee;
+        if (fee != expectedFee) revert StaleLaunchFee(fee, expectedFee);
+
+        address regent = StocksBindings.REGENT;
+        uint256 allowed = IERC20Minimal(regent).allowance(msg.sender, address(this));
+        if (allowed != fee) revert LaunchFeeAllowanceMismatch(fee, allowed);
+        if (fee == 0) return;
+
+        uint256 held = regent.balanceOf(address(this));
+        regent.safeTransferFrom(msg.sender, address(this), fee);
+        uint256 pulled = regent.balanceOf(address(this)) - held;
+        if (pulled != fee) revert InexactTransfer(fee, pulled);
+        uint256 remaining = IERC20Minimal(regent).allowance(msg.sender, address(this));
+        if (remaining != 0) revert AllowanceNotConsumed(address(this), remaining);
+
+        address staking = StocksBindings.LIVE_STAKING;
+        regent.safeApprove(staking, fee);
+        uint256 received = IRegentRevenueStakingMinimal(staking).fundRegentRewards(fee);
+        if (received != fee) revert InexactTransfer(fee, received);
+        // The fee must have left in full: this contract's REGENT balance is back where it started.
+        uint256 afterFunding = regent.balanceOf(address(this));
+        if (afterFunding != held) revert InexactTransfer(held, afterFunding);
+        remaining = IERC20Minimal(regent).allowance(address(this), staking);
+        if (remaining != 0) revert AllowanceNotConsumed(staking, remaining);
+
+        emit StockLaunchFeeCollected(launchId, msg.sender, staking, fee);
+    }
 
     /// @dev Exactly `S0` of NEW, minted once, to this contract, by the pinned UERC20 factory.
     function _createNew(LaunchParams calldata params, uint256 launchId) private returns (address newToken) {
@@ -550,7 +613,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
 
         record.lifecycle = Lifecycle.Graduated;
 
-        PoolKey memory key = poolKeyOf(newToken, stock);
+        PoolKey memory key = _poolKeyOf(newToken, stock);
         bytes32 poolId = StocksFeeHookV1(hook).registerPool(key, stock, newToken, _subjects[launchId].splitter);
 
         uint256 stockBefore = stock.balanceOf(address(this));

@@ -276,13 +276,16 @@ contracts:
         contract_name: IStocksLaunchpadV1
         target: stocks_lab_launchpad_address
         abi_path: abi/stocks-launchpad-v1.json
-        abi_sha256: de260f924e504e645b8928783732e96fbb858dc1d69170a16c7dc2254fc25694
+        abi_sha256: 707e0a4c1107f0c73debbf37015ed128c6eee8101232d92e5845e0fd695663da
         interface_note: >-
           launch takes one LaunchParams tuple (name, symbol, description, website, image, stock,
           startBlock uint64, floorPriceQ96 uint256, requiredStockRaised uint128, feeAdministrator,
-          subjectSplitter) and nothing else. No fee, no allowance and no creator allocation.
+          subjectSplitter, expectedLaunchFee uint256) and nothing else. expectedLaunchFee must equal
+          launchFee() and the launcher's REGENT allowance to the launchpad must equal it exactly;
+          the fee is funded into REGENT staking and never refunded. No creator allocation.
         confirmation_event_signatures:
           - StockLaunchCreated(uint256,address,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)
+          - StockLaunchFeeCollected(uint256,address,address,uint256)
         reads:
           - id: stock_admission
             signature: stockAdmission(address)
@@ -290,6 +293,8 @@ contracts:
             signature: launches(uint256)
           - id: launches_paused
             signature: launchesPaused()
+          - id: launch_fee
+            signature: launchFee()
           - id: bid_tick_spacing_for
             signature: bidTickSpacingFor(uint256)
           - id: subject_config

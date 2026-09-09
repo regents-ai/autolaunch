@@ -3,10 +3,15 @@ pragma solidity 0.8.26;
 
 import {MockERC20} from "./MockERC20.sol";
 
-/// @notice The live REGENT staking `depositUSDC` shape at the hook's boundary: pull the approved USDC,
-///         measure what arrived, return it. Switches reproduce the failure shapes `settle` must refuse.
+/// @notice The live REGENT staking surface at this component's two boundaries: `depositUSDC` (the
+///         hook's REGENT bucket: pull the approved USDC, measure what arrived, return it) and
+///         `fundRegentRewards` (the launch fee: pull exactly `amount` of the stake token from the
+///         caller, revert on any shortfall, count it in `totalFundedRegent`, return it), shaped like
+///         `RegentRevenueStaking`. Switches reproduce the failure shapes `settle` and `launch` must
+///         refuse.
 contract MockLiveStaking {
     address public immutable usdc;
+    address public immutable stakeToken;
 
     bool public paused;
     bool public pullsPartially;
@@ -18,10 +23,17 @@ contract MockLiveStaking {
     bytes32 public lastSourceRef;
     address public lastCaller;
 
-    error Paused();
+    uint256 public totalFundedRegent;
+    uint256 public fundCalls;
+    address public lastFunder;
 
-    constructor(address usdc_) {
+    error Paused();
+    error AmountZero();
+    error ShortfallOnPull(uint256 expected, uint256 received);
+
+    constructor(address usdc_, address stakeToken_) {
         usdc = usdc_;
+        stakeToken = stakeToken_;
     }
 
     function setPaused(bool value) external {
@@ -47,6 +59,22 @@ contract MockLiveStaking {
         lastSourceTag = sourceTag;
         lastSourceRef = sourceRef;
         lastCaller = msg.sender;
+        if (reportsWrongAmount) received = amount + 1;
+    }
+
+    /// @dev Mirrors `RegentRevenueStaking.fundRegentRewards` / `_pullExactStakeToken`: permissionless,
+    ///      refuses zero and a paused contract, pulls exactly `amount` from the caller (the token's own
+    ///      allowance and balance checks make a shortfall revert), and counts what arrived.
+    function fundRegentRewards(uint256 amount) external returns (uint256 received) {
+        if (paused) revert Paused();
+        if (amount == 0) revert AmountZero();
+        uint256 before = MockERC20(stakeToken).balanceOf(address(this));
+        MockERC20(stakeToken).transferFrom(msg.sender, address(this), amount);
+        received = MockERC20(stakeToken).balanceOf(address(this)) - before;
+        if (received != amount) revert ShortfallOnPull(amount, received);
+        totalFundedRegent += received;
+        fundCalls += 1;
+        lastFunder = msg.sender;
         if (reportsWrongAmount) received = amount + 1;
     }
 }

@@ -37,6 +37,11 @@ interface IStocksLaunchpadV1 {
         ///      `SubjectSplitterV1` recorded by the bound Agent strategy; it becomes the active
         ///      subject destination at 100 bps.
         address subjectSplitter;
+        /// @dev The REGENT launch fee the launcher reviewed. Must equal the current `launchFee()`,
+        ///      and the launcher's REGENT allowance to the launchpad must equal it exactly. The fee
+        ///      is pulled at creation and funded into REGENT staking as staker rewards
+        ///      (`fundRegentRewards`); it is never refunded, whatever the auction's outcome.
+        uint256 expectedLaunchFee;
     }
 
     enum Lifecycle {
@@ -106,6 +111,12 @@ interface IStocksLaunchpadV1 {
 
     event StockLaunchRetired(uint256 indexed launchId, address indexed auction, uint256 newRetired);
 
+    /// @notice The launch fee one creation paid, funded into REGENT staking rewards.
+    event StockLaunchFeeCollected(
+        uint256 indexed launchId, address indexed payer, address indexed staking, uint256 amount
+    );
+    event LaunchFeeUpdated(uint256 previousFee, uint256 newFee);
+
     /// @notice Subject lane configuration change. `version` is monotonic per launch, starting at 1
     ///         for the configuration recorded at creation.
     event SubjectConfigured(
@@ -154,6 +165,8 @@ interface IStocksLaunchpadV1 {
     function revokeStock(address stock) external;
     function pauseLaunches() external;
     function unpauseLaunches() external;
+    /// @notice Set the REGENT a new launch costs. Zero is a valid fee.
+    function setLaunchFee(uint256 newFee) external;
 
     // -------------------------------------------------------------------------
     // reads
@@ -164,6 +177,8 @@ interface IStocksLaunchpadV1 {
     function launchIdOfToken(address newToken) external view returns (uint256);
     function nextLaunchId() external view returns (uint256);
     function launchesPaused() external view returns (bool);
+    /// @notice The REGENT a launch currently costs; born at the preset's 100,000 REGENT.
+    function launchFee() external view returns (uint256);
     /// @notice Whether STOCK may be used for a new launch right now, and its recorded decimals.
     function stockAdmission(address stock) external view returns (bool admitted, uint8 decimals, address route);
     /// @notice Current subject lane configuration of a launch.

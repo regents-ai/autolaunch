@@ -4,7 +4,8 @@
 Modelled on `contracts/v1/bin/local-base-lab.py`. It reads that controller's run record to find the
 loopback Anvil node and the deployed Agent graph, installs the fixture stock tokens at the catalog
 addresses, deploys the Stocks graph as an impersonated deployer, admits every fixture route from the
-impersonated Governance Safe, funds the routes, and writes `stocks-site-config.json` next to the
+impersonated Governance Safe, funds the routes, sets the Agent factory's launch fee to the lab's
+500,000 REGENT from the same impersonated Safe, and writes `stocks-site-config.json` next to the
 Agent lab's `site-config.json`. It never writes the Agent run record and never mutates anything but
 the local chain and its own two generated documents.
 
@@ -49,6 +50,11 @@ GOVERNANCE_SAFE = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
 
 # A dedicated impersonated lab deployer: no key exists, Anvil signs for it.
 STOCKS_LAB_DEPLOYER = "0x5700000000000000000000000000000000000001"
+# Founder decision for the lab: the frozen Agent factory's launch fee is set to 500,000 REGENT from the
+# impersonated Governance Safe. The Stocks launchpad is born at its own preset fee (100,000 REGENT).
+AGENT_LAUNCH_FEE_REGENT = 500_000
+# One faucet grant that covers either launch fee.
+FAUCET_LAUNCH_FEE_REGENT = 500_000 * 10**18
 # Morpho Blue on Base holds a large forked USDC balance; overridable with --usdc-holder.
 DEFAULT_USDC_HOLDER = "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb"
 
@@ -523,6 +529,23 @@ def admit_routes(lab: Lab, graph: Mapping[str, str]) -> None:
             raise LabError("launchpad remained paused")
 
 
+def set_agent_launch_fee(lab: Lab, amount_regent: int) -> int:
+    """Set the frozen Agent factory's launch fee from the impersonated Governance Safe when it differs.
+
+    Returns the fee the factory reports afterwards, in REGENT base units. The Agent sources and the
+    Agent run record are untouched: this is one governance call on the fork the Safe could make on Base.
+    """
+    target = amount_regent * 10**18
+    current = call_uint(lab.client, lab.agent_factory, "launchFee()")
+    if current != target:
+        with impersonated(lab.client, GOVERNANCE_SAFE):
+            send_and_wait(lab.client, GOVERNANCE_SAFE, lab.agent_factory, selector("setLaunchFee(uint256)") + abi_uint(target))
+    found = call_uint(lab.client, lab.agent_factory, "launchFee()")
+    if found != target:
+        raise LabError(f"Agent factory launchFee readback is {found}, expected {target}")
+    return found
+
+
 def fund_routes(lab: Lab, graph: Mapping[str, str], usdc_holder: str, route_stock: int, route_usdc: int) -> None:
     with impersonated(lab.client, STOCKS_LAB_DEPLOYER), impersonated(lab.client, usdc_holder):
         for symbol, stock in CATALOG:
@@ -537,7 +560,15 @@ def fund_routes(lab: Lab, graph: Mapping[str, str], usdc_holder: str, route_stoc
                 raise LabError(f"route {symbol} did not receive USDC")
 
 
-def write_documents(lab: Lab, graph: Mapping[str, str], abis: Mapping[str, Any], usdc_holder: str, faucet: Mapping[str, str]) -> None:
+def write_documents(
+    lab: Lab,
+    graph: Mapping[str, str],
+    abis: Mapping[str, Any],
+    usdc_holder: str,
+    faucet: Mapping[str, str],
+    stocks_launch_fee: int,
+    agent_launch_fee: int,
+) -> None:
     addresses = {
         "launchpad": graph["launchpad"],
         "hook": graph["hook"],
@@ -587,6 +618,8 @@ def write_documents(lab: Lab, graph: Mapping[str, str], abis: Mapping[str, Any],
             "chain_id": LOCAL_CHAIN_ID,
             "agent_lab_config": str(lab.agent_lab_dir / AGENT_SITE_CONFIG_NAME),
             "addresses": addresses,
+            "stocks_launch_fee_regent": str(stocks_launch_fee),
+            "agent_launch_fee_regent": str(agent_launch_fee),
             "faucet": dict(faucet),
             "stocks": stocks,
             "abis": dict(abis),
@@ -616,6 +649,8 @@ def command_deploy(args: argparse.Namespace) -> None:
                 raise LabError(f"deployed {label} has no runtime code")
         admit_routes(lab, graph)
         fund_routes(lab, graph, usdc_holder, route_stock, route_usdc)
+        agent_launch_fee = set_agent_launch_fee(lab, AGENT_LAUNCH_FEE_REGENT)
+        stocks_launch_fee = call_uint(lab.client, graph["launchpad"], "launchFee()")
     except BaseException as exc:
         # A half-installed graph is worse than none: roll the chain back to before the fixtures.
         with contextlib.suppress(LabError):
@@ -624,12 +659,39 @@ def command_deploy(args: argparse.Namespace) -> None:
     faucet = {
         "regent_holder": GOVERNANCE_SAFE,
         "regent_amount": str(1_000 * 10**18),
+        "regent_launch_fee_amount": str(FAUCET_LAUNCH_FEE_REGENT),
         "stock_amount_units": "100",
         "usdc_holder": usdc_holder,
         "usdc_amount": str(1_000 * 10**6),
     }
-    write_documents(lab, graph, load_abis(root), usdc_holder, faucet)
-    print(json.dumps({"rpc_url": lab.client.url, "stocks_site_config": str(lab.config_path), "addresses": {k: v for k, v in graph.items() if k != "hook_salt"}}, indent=2, sort_keys=True))
+    write_documents(lab, graph, load_abis(root), usdc_holder, faucet, stocks_launch_fee, agent_launch_fee)
+    print(
+        json.dumps(
+            {
+                "rpc_url": lab.client.url,
+                "stocks_site_config": str(lab.config_path),
+                "addresses": {k: v for k, v in graph.items() if k != "hook_salt"},
+                "stocks_launch_fee_regent": str(stocks_launch_fee),
+                "agent_launch_fee_regent": str(agent_launch_fee),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+def command_set_agent_fee(args: argparse.Namespace) -> None:
+    lab = Lab(Path(args.agent_lab_dir), args.rpc_url)
+    amount_regent = int(args.amount)
+    if amount_regent < 0:
+        raise LabError("--amount must be a whole, non-negative number of REGENT")
+    before = call_uint(lab.client, lab.agent_factory, "launchFee()")
+    after = set_agent_launch_fee(lab, amount_regent)
+    if lab.config_path.exists():
+        config = load_json(lab.config_path)
+        config["agent_launch_fee_regent"] = str(after)
+        atomic_write_json(lab.config_path, config)
+    print(json.dumps({"agent_factory": lab.agent_factory, "launch_fee_before": str(before), "launch_fee_after": str(after)}, sort_keys=True))
 
 
 # -----------------------------------------------------------------------------
@@ -654,6 +716,9 @@ def command_fund(args: argparse.Namespace) -> None:
         lab.client.mutate("anvil_setBalance", [wallet, quantity(wallet_gas)])
     if args.regent:
         amount = parse_token_amount(args.regent, 18)
+        safe_balance = balance_of(lab.client, REGENT, GOVERNANCE_SAFE)
+        if safe_balance < amount:
+            raise LabError(f"the Governance Safe holds {safe_balance} REGENT base units, fewer than the {amount} requested")
         before = balance_of(lab.client, REGENT, wallet)
         with impersonated(lab.client, GOVERNANCE_SAFE):
             result["regent_tx"] = send_and_wait(lab.client, GOVERNANCE_SAFE, REGENT, selector("transfer(address,uint256)") + abi_address(wallet) + abi_uint(amount))
@@ -752,6 +817,8 @@ def command_status(args: argparse.Namespace) -> None:
         "addresses": state["addresses"],
         "launches_paused": call_uint(lab.client, launchpad, "launchesPaused()") == 1,
         "next_launch_id": call_uint(lab.client, launchpad, "nextLaunchId()"),
+        "stocks_launch_fee_regent": str(call_uint(lab.client, launchpad, "launchFee()")),
+        "agent_launch_fee_regent": str(call_uint(lab.client, lab.agent_factory, "launchFee()")),
         "executor": call_address(lab.client, hook, "executor()"),
         "stocks": stocks,
     }
@@ -831,9 +898,13 @@ def build_parser() -> argparse.ArgumentParser:
     deploy.add_argument("--force", action="store_true", help="deploy again even if a Stocks graph is recorded")
     deploy.set_defaults(handler=command_deploy)
 
+    set_agent_fee = commands.add_parser("set-agent-fee", help="set the Agent factory's launch fee from the impersonated Governance Safe")
+    set_agent_fee.add_argument("--amount", default=str(AGENT_LAUNCH_FEE_REGENT), help=f"whole REGENT (default: {AGENT_LAUNCH_FEE_REGENT})")
+    set_agent_fee.set_defaults(handler=command_set_agent_fee)
+
     fund = commands.add_parser("fund", help="fund a wallet with gas, REGENT, fixture STOCK and/or USDC")
     fund.add_argument("wallet")
-    fund.add_argument("--regent", help="REGENT amount in whole tokens")
+    fund.add_argument("--regent", help="REGENT amount in whole tokens (e.g. 600000 covers one Agent and one Stocks launch fee)")
     fund.add_argument("--stock", help="catalog symbol, e.g. AAPLc")
     fund.add_argument("--amount", help="STOCK amount in whole shares (with --stock)")
     fund.add_argument("--usdc", help="USDC amount in whole USDC")

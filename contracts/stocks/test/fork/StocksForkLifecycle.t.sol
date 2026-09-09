@@ -60,6 +60,12 @@ interface IAgentStrategy is IAgentStrategyMinimal {
     function MIGRATION_DELAY_BLOCKS() external view returns (uint64);
 }
 
+/// @dev The live REGENT staking contract's reward-funding read surface, as deployed on Base.
+interface ILiveStaking {
+    function stakeToken() external view returns (address);
+    function totalFundedRegent() external view returns (uint256);
+}
+
 /// @notice One complete Stocks lifecycle against the live local Base fork: the real pinned CCA
 ///         factory, PoolManager, PositionManager, Permit2, USDC and REGENT staking, the Agent graph
 ///         the lab deployed, and a fixture STOCK installed at the real AAPLc address. Nothing here is
@@ -82,6 +88,8 @@ contract StocksForkLifecycleTest is Test {
     FixtureStockRoute internal route;
     FixtureStockToken internal stock = FixtureStockToken(ForkAddresses.AAPLC);
     IERC20 internal usdc = IERC20(StocksBindings.USDC);
+    IERC20 internal regent = IERC20(StocksBindings.REGENT);
+    ILiveStaking internal liveStaking = ILiveStaking(StocksBindings.LIVE_STAKING);
     PoolSwapTest internal swapRouter;
 
     address internal governance = StocksBindings.GOVERNANCE_AND_REGENT_SAFE;
@@ -124,11 +132,75 @@ contract StocksForkLifecycleTest is Test {
         vm.prank(ForkAddresses.USDC_HOLDER);
         usdc.transfer(address(route), 5_000_000e6);
 
+        // The live staking contract's stake token is REGENT: the launch fee lands where it must.
+        assertEq(liveStaking.stakeToken(), StocksBindings.REGENT, "live staking stakes REGENT");
+
         vm.startPrank(governance);
         launchpad.admitStock(ForkAddresses.AAPLC, address(route));
         hook.setExecutor(address(this));
         launchpad.unpauseLaunches();
+        // The Governance and REGENT Safe holds the forked REGENT supply; it funds the launcher's fees.
+        regent.transfer(launcher, 10 * StocksPreset.LAUNCH_FEE_REGENT);
         vm.stopPrank();
+    }
+
+    // -------------------------------------------------------------------------
+    // launch fee against the real live staking contract
+    // -------------------------------------------------------------------------
+
+    function test_fork_launch_fee_is_funded_into_the_real_live_staking_as_rewards() public {
+        uint256 fee = launchpad.launchFee();
+        assertEq(fee, StocksPreset.LAUNCH_FEE_REGENT);
+        uint256 launcherBefore = regent.balanceOf(launcher);
+        uint256 launchpadBefore = regent.balanceOf(address(launchpad));
+        uint256 stakingBefore = regent.balanceOf(StocksBindings.LIVE_STAKING);
+        uint256 fundedBefore = liveStaking.totalFundedRegent();
+
+        IStocksLaunchpadV1.LaunchParams memory params = _launchParams(address(0));
+        uint256 launchId = launchpad.nextLaunchId();
+        vm.prank(launcher);
+        regent.approve(address(launchpad), fee);
+        vm.expectEmit(true, true, true, true, address(launchpad));
+        emit IStocksLaunchpadV1.StockLaunchFeeCollected(launchId, launcher, StocksBindings.LIVE_STAKING, fee);
+        vm.prank(launcher);
+        (uint256 created,, address auctionAddress) = launchpad.launch(params);
+        assertEq(created, launchId);
+        IContinuousClearingAuction auction = IContinuousClearingAuction(auctionAddress);
+
+        assertEq(launcherBefore - regent.balanceOf(launcher), fee, "exactly the fee left the launcher");
+        assertEq(regent.balanceOf(address(launchpad)), launchpadBefore, "the launchpad keeps none of it");
+        assertEq(regent.balanceOf(StocksBindings.LIVE_STAKING) - stakingBefore, fee, "real staking holds the fee");
+        assertEq(liveStaking.totalFundedRegent() - fundedBefore, fee, "real staking counts it as staker rewards");
+        assertEq(regent.allowance(launcher, address(launchpad)), 0);
+        assertEq(regent.allowance(address(launchpad), StocksBindings.LIVE_STAKING), 0);
+
+        // A stale or inexact fee is refused before anything moves.
+        params = _launchParams(address(0));
+        params.expectedLaunchFee = fee - 1;
+        vm.prank(launcher);
+        regent.approve(address(launchpad), fee);
+        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.StaleLaunchFee.selector, fee, fee - 1));
+        vm.prank(launcher);
+        launchpad.launch(params);
+        params.expectedLaunchFee = fee;
+        vm.prank(launcher);
+        regent.approve(address(launchpad), fee + 1);
+        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.LaunchFeeAllowanceMismatch.selector, fee, fee + 1));
+        vm.prank(launcher);
+        launchpad.launch(params);
+        vm.prank(launcher);
+        regent.approve(address(launchpad), 0);
+
+        // The fee stays with stakers whatever happens to the launch: a failed minimum refunds bidders
+        // through the CCA and returns nothing to the launcher.
+        vm.roll(auction.startBlock());
+        _bidDirect(auction, bidderDirect, 10e8, _bidPrice(1));
+        vm.roll(uint256(auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
+        launchpad.migrate(launchId);
+        assertEq(uint8(launchpad.launches(launchId).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Failed));
+        assertEq(liveStaking.totalFundedRegent() - fundedBefore, fee, "still funded after a failed minimum");
+        assertEq(regent.balanceOf(launcher), launcherBefore - fee, "nothing came back");
+        assertEq(regent.balanceOf(address(launchpad)), launchpadBefore);
     }
 
     // -------------------------------------------------------------------------
@@ -162,7 +234,8 @@ contract StocksForkLifecycleTest is Test {
 
         IStocksLaunchpadV1.Launch memory record = launchpad.launches(launchId);
         assertEq(uint8(record.lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Graduated));
-        PoolKey memory key = launchpad.poolKeyOf(newToken, ForkAddresses.AAPLC);
+        PoolKey memory key = _poolKey(newToken);
+        assertEq(PoolId.unwrap(key.toId()), record.poolId, "the derived key is the registered pool");
         (uint160 sqrtPriceX96,,,) = IPoolManager(StocksBindings.POOL_MANAGER).getSlot0(PoolId.wrap(record.poolId));
         assertEq(sqrtPriceX96, record.finalSqrtPriceX96, "real PoolManager initialized at the clearing price");
         assertGt(IPoolManager(StocksBindings.POOL_MANAGER).getLiquidity(PoolId.wrap(record.poolId)), 0);
@@ -272,7 +345,8 @@ contract StocksForkLifecycleTest is Test {
         _approveRouter(bidderDirect, newToken);
         stock.mint(bidderDirect, 1_000e8);
         bool stockIs0 = ForkAddresses.AAPLC < newToken;
-        PoolKey memory key = launchpad.poolKeyOf(newToken, ForkAddresses.AAPLC);
+        PoolKey memory key = _poolKey(newToken);
+        assertEq(PoolId.unwrap(key.toId()), record.poolId, "the derived key is the registered pool");
         vm.prank(bidderDirect);
         swapRouter.swap(
             key,
@@ -364,11 +438,8 @@ contract StocksForkLifecycleTest is Test {
         return sqrtPriceX96 / FixedPoint96.Q96 + 1;
     }
 
-    function _launch(address splitter)
-        private
-        returns (uint256 launchId, address newToken, IContinuousClearingAuction auction)
-    {
-        IStocksLaunchpadV1.LaunchParams memory params = IStocksLaunchpadV1.LaunchParams({
+    function _launchParams(address splitter) private view returns (IStocksLaunchpadV1.LaunchParams memory) {
+        return IStocksLaunchpadV1.LaunchParams({
             name: string.concat("Fork New ", vm.toString(launchpad.nextLaunchId())),
             symbol: "FNEW",
             description: "Fork lifecycle",
@@ -379,12 +450,36 @@ contract StocksForkLifecycleTest is Test {
             floorPriceQ96: FLOOR_PRICE_Q96,
             requiredStockRaised: 100e8,
             feeAdministrator: feeAdministrator,
-            subjectSplitter: splitter
+            subjectSplitter: splitter,
+            expectedLaunchFee: launchpad.launchFee()
         });
+    }
+
+    /// @dev A launch the way a wallet makes it: approve exactly the reviewed fee, then `launch`.
+    function _launch(address splitter)
+        private
+        returns (uint256 launchId, address newToken, IContinuousClearingAuction auction)
+    {
+        IStocksLaunchpadV1.LaunchParams memory params = _launchParams(splitter);
         address auctionAddress;
-        vm.prank(launcher);
+        vm.startPrank(launcher);
+        regent.approve(address(launchpad), params.expectedLaunchFee);
         (launchId, newToken, auctionAddress) = launchpad.launch(params);
+        vm.stopPrank();
         auction = IContinuousClearingAuction(auctionAddress);
+    }
+
+    /// @dev The official pool key, as `StocksLaunchpadV1._poolKeyOf` derives it; checked against the
+    ///      registered `record.poolId` where it is used.
+    function _poolKey(address newToken) private view returns (PoolKey memory) {
+        bool stockIs0 = ForkAddresses.AAPLC < newToken;
+        return PoolKey({
+            currency0: Currency.wrap(stockIs0 ? ForkAddresses.AAPLC : newToken),
+            currency1: Currency.wrap(stockIs0 ? newToken : ForkAddresses.AAPLC),
+            fee: StocksPreset.POOL_FEE,
+            tickSpacing: StocksPreset.POOL_TICK_SPACING,
+            hooks: IHooks(address(hook))
+        });
     }
 
     function _bidPrice(uint256 ticks) private pure returns (uint256) {
@@ -414,7 +509,6 @@ contract StocksForkLifecycleTest is Test {
     function _graduateAnAgentLaunch() private returns (address splitter, address auction) {
         IAgentFactory factory = IAgentFactory(ForkAddresses.AGENT_FACTORY);
         IAgentStrategy strategy = IAgentStrategy(ForkAddresses.AGENT_STRATEGY);
-        IERC20 regent = IERC20(StocksBindings.REGENT);
         assertFalse(factory.launchesPaused(), "Agent factory open on the lab");
 
         address agentLauncher = makeAddr("agent-launcher");

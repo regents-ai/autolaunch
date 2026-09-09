@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   @moduledoc """
-  The wallet step of a Stocks launch: one review, one transaction.
+  The wallet step of a Stocks launch: one review, then at most two transactions
+  (the exact launch-fee allowance when it is needed, then the launch itself).
 
   The wallet Privy has selected drives everything here and its address is proved
   against the mounted lease before any private fact is read. The browser reports
@@ -12,6 +13,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.{Amounts, LaunchActions}
+  alias Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
   alias AutolaunchWeb.WalletPressComponent
 
   @copy %{
@@ -24,6 +26,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       "The local lab could not be read just now. Check that it is still running.",
     stocks_unavailable: "Stock launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
+    insufficient_regent: "This wallet holds less REGENT than the launch fee.",
+    active_stocks_launch_exists: ActiveLaunchLimit.message(),
     stock_not_admitted: "This stock token is not admitted for launches right now.",
     subject_splitter_unrecognised:
       "The subject revenue address is not a recognised Agent revenue address. Check it on the draft.",
@@ -47,6 +51,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     launch_draft_unavailable: "This draft could not be read just now.",
     launch_step_moved: "This launch moved on while you were looking. Check it again.",
     submitted_hash_conflict: "This step already has a transaction.",
+    submitted_step_mismatch: "That transaction is not the step this launch is waiting for.",
     launch_operation_not_found: "That launch is no longer open."
   }
 
@@ -65,7 +70,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
-     |> assign_new(:operation, fn -> nil end)}
+     |> assign_new(:operation, fn -> nil end)
+     |> assign_new(:active_stocks_launch, fn -> false end)}
   end
 
   @impl true
@@ -93,9 +99,13 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         </Regent.Primitives.button>
       </div>
 
-      <div :if={@wallet && !@operation} class="launch-wallet-open">
+      <p :if={@wallet && !@operation && @active_stocks_launch} class="launchpad-limit" role="status">
+        {ActiveLaunchLimit.message()}
+      </p>
+
+      <div :if={@wallet && !@operation && !@active_stocks_launch} class="launch-wallet-open">
         <p class="launch-wallet-hint">
-          Launching from {short(@wallet)}. One transaction; your wallet confirms it.
+          Launching from {short(@wallet)}. Your wallet confirms every step.
         </p>
         <Regent.Primitives.button
           class="launch-wallet-primary"
@@ -172,6 +182,10 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             <dd class="launch-wallet-mono">{argument(@operation, "fee_administrator")}</dd>
           </div>
           <div>
+            <dt>Launch fee</dt>
+            <dd>{fee_display(@operation)}</dd>
+          </div>
+          <div>
             <dt>Wallet</dt>
             <dd class="launch-wallet-mono">{short(@operation.signer)}</dd>
           </div>
@@ -181,7 +195,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           </div>
           <div>
             <dt>Transactions</dt>
-            <dd>One transaction, no fee</dd>
+            <dd>{step_count(@operation)}</dd>
           </div>
         </dl>
 
@@ -189,8 +203,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
         <ol class="launch-wallet-steps" role="list" aria-label="Launch progress">
           <li :for={step <- LaunchActions.steps(@operation)} data-step={step["step"]}>
-            <span>Create the launch</span>
-            <span class="launch-wallet-step-state">{current_state(@operation.state)}</span>
+            <span>{step_label(step["step"])}</span>
+            <span class="launch-wallet-step-state">{step_state(@operation, step["step"])}</span>
             <span
               :if={LaunchActions.step_hash(@operation, step["step"])}
               class="launch-wallet-mono"
@@ -446,7 +460,38 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   defp sendable?(_operation, _wallet), do: false
 
-  defp started?(operation), do: not is_nil(LaunchActions.step_hash(operation, :launch))
+  defp started?(operation),
+    do:
+      Enum.any?(
+        LaunchActions.steps(operation),
+        &LaunchActions.step_hash(operation, &1["step"])
+      )
+
+  defp step_count(operation) do
+    case length(LaunchActions.steps(operation)) do
+      1 -> "One transaction"
+      2 -> "Two transactions"
+    end
+  end
+
+  defp step_label("approval"), do: "Allow the launch fee to be taken"
+  defp step_label("launch"), do: "Create the launch"
+
+  # Where the sequence has got to, read from the operation's own step and state.
+  defp step_state(%{step: step} = operation, step_name) do
+    cond do
+      Atom.to_string(step) == step_name -> current_state(operation.state)
+      LaunchActions.step_hash(operation, step_name) -> "Verified"
+      true -> "Waiting"
+    end
+  end
+
+  defp fee_display(operation) do
+    case argument(operation, "expected_launch_fee") do
+      "0" -> "None right now"
+      fee -> LaunchActions.launch_fee_copy(fee)
+    end
+  end
 
   defp current_state(:prepared), do: "Ready"
   defp current_state(:dispatched), do: "In your wallet"
@@ -469,15 +514,27 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp settled_copy(%{state: :submission_unknown}),
     do: "This one is still unresolved. Check your wallet activity before you try it again."
 
-  defp settled_copy(%{state: :not_sent}), do: "Your wallet declined this. Nothing was sent."
+  defp settled_copy(%{state: :not_sent} = operation),
+    do: "Your wallet declined this." <> left_behind(operation)
+
   defp settled_copy(%{state: :cancelled}), do: WalletPressComponent.withdrawal_copy()
 
-  defp settled_copy(%{state: :expired}),
-    do: "This review expired before the launch was sent. Nothing was sent."
+  defp settled_copy(%{state: :expired} = operation),
+    do: "This review expired before the launch was sent." <> left_behind(operation)
 
-  defp settled_copy(%{state: :invalidated, reason: reason}),
+  defp settled_copy(%{state: :invalidated, reason: reason} = operation),
     do:
-      "The local lab changed before the launch was sent. Nothing was sent. Review it again: #{reason}."
+      "The local lab changed before the launch was sent." <>
+        left_behind(operation) <> " Review it again: #{reason}."
+
+  # A review that ends after its allowance correction was already sent leaves
+  # that exact allowance standing, so claiming nothing was sent would be false.
+  defp left_behind(operation) do
+    if LaunchActions.step_hash(operation, "approval"),
+      do:
+        " Your REGENT approval was already sent, so that allowance may still be active. A fresh review corrects that allowance exactly.",
+      else: " Nothing was sent."
+  end
 
   defp exact_values(operation) do
     [
@@ -493,6 +550,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       {"Required raise (base units)", argument(operation, "required_stock_raised")},
       {"Fee administrator", argument(operation, "fee_administrator")},
       {"Subject splitter", argument(operation, "subject_splitter")},
+      {"Launch fee (atomic)", argument(operation, "expected_launch_fee_atomic")},
+      {"REGENT", argument(operation, "regent")},
       {"Reviewed block",
        "#{argument(operation, "block_number")} · #{argument(operation, "block_hash")}"},
       {"Calldata digest", operation.envelope["metadata"]["calldata_sha256"]}

@@ -148,6 +148,11 @@
             "name": "subjectSplitter",
             "type": "address",
             "internalType": "address"
+          },
+          {
+            "name": "expectedLaunchFee",
+            "type": "uint256",
+            "internalType": "uint256"
           }
         ]
       }
@@ -170,6 +175,19 @@
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "launchFee",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -409,6 +427,19 @@
   },
   {
     "type": "function",
+    "name": "setLaunchFee",
+    "inputs": [
+      {
+        "name": "newFee",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "stockAdmission",
     "inputs": [
       {
@@ -534,6 +565,25 @@
   },
   {
     "type": "event",
+    "name": "LaunchFeeUpdated",
+    "inputs": [
+      {
+        "name": "previousFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "LaunchesPaused",
     "inputs": [],
     "anonymous": false
@@ -635,6 +685,37 @@
       },
       {
         "name": "migrationReserve",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "StockLaunchFeeCollected",
+    "inputs": [
+      {
+        "name": "launchId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "payer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "staking",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"

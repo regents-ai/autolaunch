@@ -2,14 +2,17 @@ defmodule Autolaunch.Stocks.LaunchOperation do
   @moduledoc """
   One durable direct-wallet Stocks launch the server owns before any wallet opens.
 
-  The reviewed sequence is immutable and lives in `envelope`: exactly one
-  `launch` call to the Stocks launchpad. There is no fee and no allowance step.
-  `state` says how far that one transaction has got.
+  The reviewed sequence is immutable and lives in `envelope`: at most an exact
+  REGENT allowance correction for the launch fee, then the one `launch` call to
+  the Stocks launchpad it enables. `step` says which of those two transactions
+  is wallet-capable right now and `state` says how far that one has got.
 
   The database decides every race exactly as for the Agent launch: `action_id`
-  is unique, the launch hash is unique, and a partial identity over
-  `terminal_at IS NULL` allows one open Stocks launch per human account.
-  `chain_verified` means this server proved its own receipt evidence.
+  is unique, each hash column is unique, and a partial identity over
+  `terminal_at IS NULL` allows one open Stocks launch per human account. The
+  site also allows one Stocks auction in progress per account
+  (`Validations.ActiveLaunchLimit`). `chain_verified` means this server proved
+  its own receipt evidence.
   """
 
   use Ash.Resource,
@@ -18,7 +21,8 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @steps [:launch]
+  @steps [:approval, :launch]
+  @hashes [:approval_transaction_hash, :launch_transaction_hash]
   @states [
     :prepared,
     :dispatched,
@@ -45,6 +49,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     identity_wheres_to_sql one_open_per_account: "terminal_at IS NULL"
 
     identity_index_names unique_action_id: "stock_launch_operations_action_id_index",
+                         unique_approval_hash: "stock_launch_operations_approval_hash_index",
                          unique_hash: "stock_launch_operations_hash_index",
                          one_open_per_account: "stock_launch_operations_one_open_index"
   end
@@ -79,6 +84,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false
       argument :launch_draft_id, :uuid, allow_nil?: false
+      validate Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
       change set_attribute(:human_account_id, arg(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
     end
@@ -90,17 +96,31 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       change set_attribute(:state, :dispatched)
     end
 
+    # The boundary derives which column from the row's own `step`, so a hash can
+    # only ever land on the step that was claimed.
     update :bind_hash do
-      accept [:launch_transaction_hash]
+      accept @hashes
       require_atomic? false
       validate attribute_equals(:state, :dispatched)
       change set_attribute(:state, :submitted)
+    end
+
+    # The allowance correction is verified, so the launch it enables becomes
+    # sendable. The approval's own hash stays exactly where it is.
+    update :advance do
+      accept [:result]
+      require_atomic? false
+      validate attribute_equals(:state, :submitted)
+      validate attribute_equals(:step, :approval)
+      change set_attribute(:step, :launch)
+      change set_attribute(:state, :prepared)
     end
 
     update :record_chain_verified do
       accept [:result]
       require_atomic? false
       validate attribute_equals(:state, :submitted)
+      validate attribute_equals(:step, :launch)
       change set_attribute(:state, :chain_verified)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
@@ -169,7 +189,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     end
 
     update :attach_late_hash do
-      accept [:launch_transaction_hash]
+      accept @hashes
       require_atomic? false
       validate present(:terminal_at)
     end
@@ -194,14 +214,15 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       allow_nil?: false,
       constraints: [min_length: 42, max_length: 42]
 
-    attribute :step, :atom, allow_nil?: false, default: :launch, constraints: [one_of: @steps]
+    attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
-    attribute :launch_transaction_hash, :string,
-      sensitive?: true,
-      constraints: [min_length: 66, max_length: 66]
+    for hash <- @hashes do
+      attribute hash, :string, sensitive?: true, constraints: [min_length: 66, max_length: 66]
+    end
 
-    # Adopted from the verified `StockLaunchCreated`, never guessed before mining.
+    # Adopted from the verified `StockLaunchCreated` and `StockLaunchFeeCollected`,
+    # never guessed before mining.
     attribute :result, :map, default: %{}
 
     attribute :reason, :string, constraints: [max_length: 120]
@@ -222,6 +243,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
 
   identities do
     identity :unique_action_id, [:action_id]
+    identity :unique_approval_hash, [:approval_transaction_hash]
     identity :unique_hash, [:launch_transaction_hash]
 
     identity :one_open_per_account, [:human_account_id] do

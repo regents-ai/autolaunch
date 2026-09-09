@@ -22,7 +22,11 @@ B20-verified or release-admitted). No public-chain deployment exists.
 - No function anywhere can move LP principal, the reserve, or bidder funds: the launchpad has no
   transfer, sweep, rescue or approve surface for NEW or STOCK; both position NFTs are minted to the
   dead address; bidder STOCK sits only in the CCA and leaves only through the CCA's own `exitBid`/
-  `claimTokens`.
+  `claimTokens`. REGENT touches the launchpad only as the launch fee in transit within `launch`; the
+  launchpad's REGENT delta is proved zero before the call goes on.
+- The launchpad exposes the cross-component interface (`IStocksLaunchpadV1`) and nothing else: no
+  helper views, no binding getters. Its runtime is within about a hundred bytes of the EIP-170 limit
+  (24,576); any addition must be paid for in size.
 - Hook callbacks are authenticated three ways: `onlyPoolManager` (BaseHook), the registered pool
   record, and `beforeInitialize`'s `sender == launchpad`.
 
@@ -50,6 +54,7 @@ proves all 16 (ordering × form × subject) cases.
 | 5 | The hook only accrues; `settle` is the only path out, executor-only, per bucket, via the admitted route, with `minUsdcOut`; a failing settle reverts only itself | `_afterSwap` only `take`s to itself and increments buckets; `settle` debits first, measures deltas, requires `received == usdcOut` and allowance zero | `StocksFeeHookTest.test_settle_regent_bucket_*`, `test_settle_subject_bucket_*`, `test_settle_guards`, `test_settle_refuses_a_misbehaving_staking_or_splitter_and_reverts_only_itself` (swaps still work while settlement fails), `test_settle_re_credits_route_residue`; fork: REGENT bucket into the real live staking, subject bucket into a real Agent splitter |
 | 6 | Each accrual belongs to `(poolId, destination)` at swap time; disabling the subject lane charges nothing afterwards and never re-attributes old buckets | `PoolRecord.subject` is read per swap; `setSubject` only changes future accruals | `test_buckets_are_attributed_at_swap_time_and_never_redirected`, `test_accrual_event_names_the_destination_in_effect`, `StocksLaunchpadMigrateTest.test_configureSubject_after_graduation_reaches_the_hook` |
 | 7 | The adapter uses invocation deltas only, restores every allowance to zero, bids as `owner = msg.sender` | `bidWithUsdc`: before/after balances, exact allowance consumption, ERC-20 and Permit2 allowances asserted zero, residue returned | `StockBidAdapterTest.*` (owner, exact pull, larger allowance consumed exactly, foreign auction, deadline, zero output, `minStockOut`, donated balances untouched, residue returned, atomic reverts); fork: adapter path with the real Permit2 |
+| 8 | The launch fee is collected exactly and funded exactly into REGENT staking as staker rewards, before NEW or the auction exist, and is never refunded: `expectedLaunchFee == launchFee()` (`StaleLaunchFee`), launcher allowance `== fee` exactly (`LaunchFeeAllowanceMismatch`; zero fee moves nothing and still requires zero allowance), pull proved by the launchpad's delta, launcher allowance back at zero, `fundRegentRewards` `received == fee`, launchpad REGENT delta zero afterwards, staking allowance back at zero | `_collectAndFundLaunchFee`, called from `launch` before `_createNew`; `setLaunchFee` is `onlyGovernance`; no path in `migrate`, `_graduate` or `_retire` touches REGENT | `StocksLaunchpadLaunchTest.test_launch_collects_the_exact_fee_and_funds_it_into_staking` (deltas, `totalFundedRegent`, both allowances zero, event), `test_launch_refuses_a_stale_fee_before_anything_moves`, `test_launch_refuses_an_allowance_below_or_above_the_fee`, `test_launch_refuses_a_launcher_who_cannot_pay`, `test_launch_refuses_a_staking_that_does_not_take_the_whole_fee` (wrong `received`, paused staking; whole launch rolls back), `test_zero_fee_moves_nothing_and_still_requires_a_zero_allowance`, `test_launch_fee_changes_apply_to_later_launches_only`, `test_launch_fee_is_never_refunded` (staking keeps both fees through a failed-minimum `migrate` and a graduation), `test_launch_is_atomic_when_the_auction_creation_fails` (fee rolls back with the launch), `test_governance_only_mutators` (`setLaunchFee`), `test_launch_fee_is_born_at_the_preset`, `StocksPresetTest.test_launch_fee_is_the_founder_decided_hundred_thousand_regent`; fork: `test_fork_launch_fee_is_funded_into_the_real_live_staking_as_rewards` against the real live staking's `stakeToken()` and `totalFundedRegent()` delta, with a stale fee and an inexact allowance refused and the fee retained through a failed minimum |
 
 ### Additional proofs
 
@@ -72,5 +77,7 @@ proves all 16 (ordering × form × subject) cases.
   a guarantee about a different planner or tick spacing. Per-tick liquidity is not checked in code:
   the CCA's own maximum bid price keeps each position's liquidity under 2^107, and the spacing-60 cap is
   about 2^113 (observed: ~2^61 to ~2^68 per position at the fixture prices).
-- `depositUSDC` on the live staking contract is permissionless on the fork at block 50984591; the
-  fork proof records that, not a guarantee about future upgrades.
+- `depositUSDC` and `fundRegentRewards` on the live staking contract are permissionless on the fork
+  at block 50984591 (`fundRegentRewards` is also `whenNotPaused`: a paused staking contract makes
+  `launch` revert until governance sets a zero fee or staking resumes); the fork proof records that,
+  not a guarantee about future upgrades.

@@ -2,16 +2,18 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @moduledoc """
   The one boundary between a creator's wallet and the Stocks launchpad.
 
-  Preparation reads the fork once and writes the whole reviewed transaction as a
-  single immutable envelope: exactly one `launch(LaunchParams)` call. No fee, no
-  allowance. Every durable write after that runs inside
-  `SessionAuthority.transact_lease/3` against the account that callback locked,
-  as the Agent launch lane does.
+  Preparation reads the fork once and writes the whole reviewed sequence as a
+  single immutable envelope: at most an exact REGENT allowance correction for the
+  launch fee, then the one `launch(LaunchParams)` call it enables, exactly as
+  the Agent launch lane does. Every durable write after that runs inside
+  `SessionAuthority.transact_lease/3` against the account that callback locked.
 
   The review derives the executable values from the saved draft and the chain:
   the first bidding block from the zoned start and the current fork block, the
   executable floor price as the largest multiple of 100 not above the entered
-  price, and the required raise in the admitted STOCK's own base units.
+  price, the required raise in the admitted STOCK's own base units, and the
+  launch fee the launchpad charges right now, which the tuple carries as
+  `expectedLaunchFee` so a fee that moves reverts rather than overcharges.
   """
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -36,6 +38,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   # Preset terms the review states back, from contracts/stocks/README.md.
   @new_decimals 18
+  @regent_decimals 18
   @auction_duration_blocks 43_200
   @claim_delay_blocks 64
   @migration_delay_blocks 128
@@ -61,6 +64,9 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @moved "the reviewed launchpad binding changed"
   @revoked "this stock token is no longer admitted"
   @subject_moved "the subject revenue address is no longer recognised"
+  @stale_fee "the launch fee changed after this review"
+  @short "this wallet no longer holds the launch fee"
+  @allowance_moved "the REGENT allowance changed after this review"
 
   @transient [
     :chain_unavailable,
@@ -68,11 +74,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
     :invalid_block_header,
     :transaction_missing
   ]
-  @identity [:state, :step, :envelope, :launch_transaction_hash]
+  @identity [:state, :step, :envelope, :approval_transaction_hash, :launch_transaction_hash]
+
+  @launch_fee_copy "paid to REGENT staking as rewards, not refunded if the minimum is not raised"
 
   @doc "The fixed terms every Stocks launch uses, for the review page."
   def terms do
     [
+      {"Launch fee", "100,000 REGENT, #{@launch_fee_copy}"},
       {"Token decimals", Integer.to_string(@new_decimals)},
       {"Initial supply", "1,000,000,000 NEW"},
       {"Sold at auction", "800,000,000 NEW (80%)"},
@@ -88,9 +97,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Pool fee", "0.30%"},
       {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
       {"Pool liquidity", "Locked forever at 0x…dEaD"},
-      {"If the minimum is not raised", "Every bid is refundable through the auction"}
+      {"If the minimum is not raised",
+       "Every bid is refundable through the auction; the launch fee is not refunded"}
     ]
   end
+
+  @doc "The launch fee sentence the wallet card states for one reviewed fee, in whole REGENT."
+  def launch_fee_copy(fee_units) when is_binary(fee_units),
+    do: "#{Amounts.grouped(fee_units)} REGENT, #{@launch_fee_copy}"
 
   @spec wallet_state(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def wallet_state(address, opts) do
@@ -110,7 +124,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft),
          {:ok, config} <- stocks_lab(),
-         {:ok, snapshot} <- snapshot(fields),
+         {:ok, snapshot} <- snapshot(Map.put(fields, :signer, signer)),
          {:ok, executable} <- executable(fields, snapshot, config),
          {:ok, operation} <-
            open(lease, draft, signer, review(draft, fields, executable, signer, snapshot, config)) do
@@ -118,7 +132,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  @doc "Claims the one step's dispatch after the fork is read again and compared to the review."
+  @doc "Claims the current step's dispatch after the fork is read again and compared to the review."
   @spec claim_dispatch(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def claim_dispatch(action_id, address, opts) do
     with {:ok, _actor} <- human(opts),
@@ -130,11 +144,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
+  @doc "Binds the first valid hash for the step the browser was actually sent."
   @spec bind_hash(String.t(), atom(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def bind_hash(action_id, :launch, hash, opts) do
+  def bind_hash(action_id, step, hash, opts) when step in [:approval, :launch] do
     with {:ok, hash} <- canonical_hash(hash) do
       write(action_id, opts, fn _account, operation ->
-        LaunchOperations.bind(operation, :launch, hash)
+        LaunchOperations.bind(operation, step, hash)
       end)
     end
   end
@@ -189,16 +204,21 @@ defmodule Autolaunch.Stocks.LaunchActions do
       :envelope,
       :result,
       :reason,
+      :approval_transaction_hash,
       :launch_transaction_hash,
       :terminal_at
     ])
     |> Autolaunch.WalletAttempts.decorate(operation, :stocks_launch)
   end
 
+  @doc "The reviewed sequence, in order, as the progress list renders it."
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
+  def step_hash(operation, step) when step in [:approval, "approval"],
+    do: LaunchOperations.hash(operation, :approval)
+
   def step_hash(operation, step) when step in [:launch, "launch"],
-    do: Map.get(operation, :launch_transaction_hash)
+    do: LaunchOperations.hash(operation, :launch)
 
   def step_hash(_operation, _unknown), do: nil
 
@@ -215,8 +235,9 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @doc """
   Everything the chain will execute, derived from the saved draft, the admitted
-  STOCK's decimals and the current fork block. Exposed so the review page and the
-  envelope test can state exactly the same numbers.
+  STOCK's decimals, the launchpad's current fee and the current fork block.
+  Exposed so the review page and the envelope test can state exactly the same
+  numbers.
   """
   def executable(fields, snapshot, _config) do
     with :ok <- admitted(snapshot),
@@ -233,6 +254,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
          required_stock_raised: required,
          stock_decimals: snapshot.admission.decimals,
          subject_splitter: fields.subject_splitter || @zero_address,
+         launch_fee: snapshot.fee,
          estimated_end_at:
            DateTime.add(fields.start_at, @auction_duration_blocks * @seconds_per_block, :second)
        }}
@@ -286,13 +308,17 @@ defmodule Autolaunch.Stocks.LaunchActions do
   defp admitted(%{paused: true}), do: unavailable(:launches_paused)
   defp admitted(%{admission: %{admitted: false}}), do: unavailable(:stock_not_admitted)
   defp admitted(%{subject: :unverified}), do: unavailable(:subject_splitter_unrecognised)
+
+  defp admitted(%{balance: balance, fee: fee}) when balance < fee,
+    do: unavailable(:insufficient_regent)
+
   defp admitted(_snapshot), do: :ok
 
   # Reviews
 
   defp review(draft, fields, executable, signer, snapshot, config) do
-    data = launch_data(fields, executable, config)
-    steps = [%{"step" => "launch", "to" => snapshot.launchpad, "data" => data}]
+    steps = reviewed_steps(fields, executable, snapshot, config)
+    data = steps |> List.last() |> Map.fetch!("data")
 
     @action
     |> Envelope.new(signer, data,
@@ -301,8 +327,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
       contract_name: @contract_name,
       chain_id: Lab.chain_id(),
       lab_binding: snapshot.lab_binding,
-      risk_copy:
-        "Your wallet creates this launch on a local Base fork with test assets and no mainnet value. There is no launch fee.",
+      risk_copy: risk_copy(snapshot.fee),
       arguments: %{
         "draft_id" => draft.id,
         "name" => fields.name,
@@ -330,6 +355,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "fee_administrator" => fields.fee_administrator,
         "subject_enabled" => fields.subject_splitter != nil,
         "subject_splitter" => executable.subject_splitter,
+        "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
+        "expected_launch_fee" => regent_units(snapshot.fee),
+        "allowance_atomic" => Integer.to_string(snapshot.allowance),
+        "regent" => snapshot.regent,
         "launchpad" => snapshot.launchpad,
         "hook" => snapshot.hook,
         "route" => snapshot.admission.route,
@@ -341,6 +370,40 @@ defmodule Autolaunch.Stocks.LaunchActions do
       }
     )
     |> stored()
+  end
+
+  @doc """
+  The reviewed sequence: the exact allowance correction when the standing
+  allowance is not already the fee, then the one `launch` call it enables.
+
+  The launchpad requires the allowance to equal the fee exactly, zero included,
+  so an allowance that is higher is corrected down just as a lower one is
+  corrected up. There is no additive approval and no unlimited approval.
+  """
+  def reviewed_steps(fields, executable, snapshot, config) do
+    approval_step(snapshot, config) ++
+      [
+        %{
+          "step" => "launch",
+          "to" => snapshot.launchpad,
+          "data" => launch_data(fields, executable, config)
+        }
+      ]
+  end
+
+  defp approval_step(%{allowance: fee, fee: fee}, _config), do: []
+
+  defp approval_step(%{regent: regent, launchpad: launchpad, fee: fee}, config) do
+    [
+      %{
+        "step" => "approval",
+        "to" => regent,
+        "data" =>
+          LabAbi.encode(Lab.abi!(config, :erc20), "approve(address,uint256)", [launchpad, fee]),
+        "amount" => Integer.to_string(fee),
+        "spender" => launchpad
+      }
+    ]
   end
 
   @doc "The exact `launch(LaunchParams)` calldata for reviewed fields and executable values."
@@ -357,10 +420,21 @@ defmodule Autolaunch.Stocks.LaunchActions do
         executable.floor_price_q96,
         executable.required_stock_raised,
         fields.fee_administrator,
-        executable.subject_splitter
+        executable.subject_splitter,
+        executable.launch_fee
       ]
     ])
   end
+
+  defp risk_copy(0),
+    do:
+      "Your wallet creates this launch on a local Base fork with test assets and no mainnet value. The launch fee is zero."
+
+  defp risk_copy(fee),
+    do:
+      "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a local Base fork. The fee goes to REGENT staking and is not refunded. Test assets have no mainnet value."
+
+  defp regent_units(amount), do: Rpc.format_units(amount, @regent_decimals)
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 
@@ -435,8 +509,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  defp snapshot(%{stock: stock, subject_splitter: candidate}) do
-    case LabLaunchChainClient.snapshot(%{stock: stock, subject_splitter: candidate}) do
+  defp snapshot(%{stock: stock, subject_splitter: candidate, signer: signer}) do
+    case LabLaunchChainClient.snapshot(%{
+           stock: stock,
+           subject_splitter: candidate,
+           signer: signer
+         }) do
       {:ok, snapshot} -> {:ok, snapshot}
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)
@@ -447,7 +525,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
     %{
       stock: argument(operation, "stock"),
       subject_splitter:
-        if(argument(operation, "subject_enabled"), do: argument(operation, "subject_splitter"))
+        if(argument(operation, "subject_enabled"), do: argument(operation, "subject_splitter")),
+      signer: operation.signer
     }
   end
 
@@ -463,11 +542,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
                launch_draft_id: draft.id,
                envelope: envelope,
                signer: signer,
-               step: :launch
+               step: first_step(envelope)
              }),
            do: {:ok, presented(operation)}
     end)
   end
+
+  defp first_step(envelope),
+    do: envelope["arguments"]["steps"] |> hd() |> Map.fetch!("step") |> String.to_existing_atom()
 
   defp release_undispatched(account_id) do
     case LaunchOperations.open(account_id, true) do
@@ -510,12 +592,19 @@ defmodule Autolaunch.Stocks.LaunchActions do
     if identity(operation) == identity(candidate), do: :ok, else: unavailable(:launch_step_moved)
   end
 
-  defp still_reviewed(operation, fresh) do
+  # Everything the review promised about the fork, checked against the fork's
+  # answer right now. The allowance rule differs by step on purpose: the
+  # correction is still the exact correction it was reviewed as, while the launch
+  # is only ever handed over on an allowance that equals the fee exactly.
+  defp still_reviewed(%{step: step} = operation, fresh) do
     cond do
       fresh.paused ->
         {:changed, @paused}
 
       not Address.equal?(fresh.launchpad, argument(operation, "launchpad")) ->
+        {:changed, @moved}
+
+      not Address.equal?(fresh.regent, argument(operation, "regent")) ->
         {:changed, @moved}
 
       not fresh.admission.admitted ->
@@ -527,10 +616,24 @@ defmodule Autolaunch.Stocks.LaunchActions do
       fresh.subject == :unverified ->
         {:changed, @subject_moved}
 
+      fresh.fee != atomic(operation, "expected_launch_fee_atomic") ->
+        {:changed, @stale_fee}
+
+      fresh.balance < fresh.fee ->
+        {:changed, @short}
+
+      not allowance_ready?(step, fresh, operation) ->
+        {:changed, @allowance_moved}
+
       true ->
         :ok
     end
   end
+
+  defp allowance_ready?(:approval, fresh, operation),
+    do: fresh.allowance == atomic(operation, "allowance_atomic")
+
+  defp allowance_ready?(:launch, fresh, _operation), do: fresh.allowance == fresh.fee
 
   defp valid_envelope?(operation) do
     Envelope.valid?(operation.envelope,
@@ -556,11 +659,9 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
 
   defp read_chain(%{state: :submitted} = candidate) do
-    case LabLaunchChainClient.verify(
-           candidate.envelope,
-           :launch,
-           candidate.launch_transaction_hash
-         ) do
+    hash = LaunchOperations.hash(candidate, candidate.step)
+
+    case LabLaunchChainClient.verify(candidate.envelope, candidate.step, hash) do
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       result -> result
     end
@@ -578,12 +679,15 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp identity(operation), do: Map.take(operation, @identity)
 
-  defp record(operation, %{outcome: :confirmed} = outcome) do
-    result = outcome[:result] || %{}
+  # A verified allowance correction makes the launch sendable; the approval's own
+  # hash stays exactly where it is.
+  defp record(%{step: :approval} = operation, %{outcome: :confirmed} = outcome),
+    do: LaunchOperations.update(operation, :advance, %{result: merged(operation, outcome)})
 
-    with :ok <- LabProjection.project_launch(operation, result) do
+  defp record(operation, %{outcome: :confirmed} = outcome) do
+    with :ok <- LabProjection.project_launch(operation, outcome[:result] || %{}) do
       LaunchOperations.update(operation, :record_chain_verified, %{
-        result: Map.merge(operation.result || %{}, result)
+        result: merged(operation, outcome)
       })
     end
   end
@@ -595,6 +699,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
     do: LaunchOperations.update(operation, :record_unverified, %{reason: @contradicted})
 
   defp record(operation, _unresolved), do: {:ok, operation}
+
+  defp merged(%{result: result}, outcome), do: Map.merge(result || %{}, outcome[:result] || %{})
 
   defp expire_lapsed(%{state: :prepared, envelope: %{"expires_at" => expires_at}} = operation) do
     {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
@@ -687,6 +793,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
   defp refusable(result), do: result
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
+
+  defp atomic(operation, key), do: operation |> argument(key) |> String.to_integer()
 
   defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

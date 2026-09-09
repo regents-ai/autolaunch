@@ -41,6 +41,14 @@ contract StocksPresetTest is Test {
         (uint24 terminalMps, uint40 terminalDelta) = _step(steps, steps.length - 8);
         assertEq(terminalDelta, 1, "terminal step is a single block");
         assertEq(terminalMps, 2_988_024, "terminal step carries the remainder");
+        // ~29.88% of the inventory is released in the final block, the same shape as Agent's pinned
+        // schedule (2,988,006 mps in its terminal block).
+        assertEq(uint256(terminalMps) * 10_000 / ConstantsLib.MPS, 2_988, "terminal block releases 29.88%");
+    }
+
+    function test_launch_fee_is_the_founder_decided_hundred_thousand_regent() public pure {
+        assertEq(StocksPreset.LAUNCH_FEE_REGENT, 100_000e18);
+        assertEq(StocksPreset.LAUNCH_FEE_REGENT, 100_000 * 10 ** 18, "18-decimal REGENT");
     }
 
     function test_twelve_scheduled_steps_each_release_about_five_point_eight_percent() public pure {

@@ -435,7 +435,7 @@ defmodule Autolaunch do
     auction_count =
       Autolaunch.Auction
       |> Ash.Query.for_read(:read, %{}, actor: actor)
-      |> Ash.Query.filter(creator_human_account_id == ^human_account_id)
+      |> Ash.Query.filter(creator_human_account_id == ^human_account_id and kind == :agent)
       |> Ash.count!()
 
     {:ok, operations} =
@@ -453,6 +453,19 @@ defmodule Autolaunch do
       |> Ash.read!(actor: actor)
 
     auction_count + in_flight_count(operations ++ attempts, actor)
+  end
+
+  # The Stocks site rule: one stock auction in progress per account. A Stocks
+  # `Auction` this account created that has not yet graduated or failed counts.
+  @spec active_stocks_auctions_by(integer()) :: non_neg_integer()
+  def active_stocks_auctions_by(human_account_id) when is_integer(human_account_id) do
+    Autolaunch.Auction
+    |> Ash.Query.for_read(:read, %{}, actor: %Autolaunch.Actors.System{})
+    |> Ash.Query.filter(
+      creator_human_account_id == ^human_account_id and kind == :stocks and
+        state in [:created, :active]
+    )
+    |> Ash.count!()
   end
 
   defp in_flight_count(operations, actor) do

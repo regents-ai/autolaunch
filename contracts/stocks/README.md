@@ -59,7 +59,7 @@ because the same pinned dependency imposes it.
 | Official pool tick spacing | 60 | PROVISIONAL |
 | REGENT hook lane | 100 bps of realized STOCK-side amount, floored | Brief P08 |
 | Subject hook lane | 0 or 100 bps, off by default | Brief P09/P10 |
-| Launch fee | none | Brief §1.1: no inherited Agent fee |
+| Launch fee | 100,000 REGENT (`LAUNCH_FEE_REGENT`), pulled from the launcher at `launch` and funded into the live REGENT staking contract as staker rewards (`fundRegentRewards`); never refunded; governance may change it with `setLaunchFee` (zero valid) | Founder decision |
 | Creator allocation, vesting, treasury | none | Brief P05 |
 | Unsold NEW after graduation | transferred to `0x…dEaD` ("retired"; supply is not reduced because UERC20 has no burn) | Brief P13; mechanism labelled |
 | Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; PROVISIONAL |
@@ -135,6 +135,13 @@ pool's whole output for STOCK-output swaps; each lane is one percent of it, floo
    lane charges nothing afterwards and never re-attributes old buckets.
 7. The adapter uses invocation balance deltas only, restores every allowance to zero, and bids as
    `owner = msg.sender`.
+8. The launch fee is collected exactly and funded exactly, and never comes back. `launch` refuses a
+   `expectedLaunchFee` that is not the current `launchFee()` and a REGENT allowance that is not exactly
+   the fee (a zero fee moves nothing and still requires a zero allowance); it pulls the fee into the
+   launchpad, proves the delta, funds it into `LIVE_STAKING.fundRegentRewards` in the same
+   transaction, proves `received == fee`, proves its own REGENT delta is zero afterwards and both
+   allowances are back at zero, all before NEW or the auction exist. Nothing in `migrate` or anywhere
+   else can return it.
 
 ## Verification
 
@@ -155,9 +162,17 @@ run and writes `stocks-site-config.json` (and its own `stocks-state.json`) next 
 `site-config.json`; the website reads the config through `AUTOLAUNCH_STOCKS_LAB_CONFIG`. It never
 writes the Agent run record. `--agent-lab-dir` points it at a run in another checkout.
 
+`deploy` also sets the frozen Agent factory's launch fee to the lab's 500,000 REGENT from the
+impersonated Governance Safe (one governance call on the fork; the Agent sources and run record are
+untouched) and records both fees in the config: `stocks_launch_fee_regent` (read from the launchpad,
+100,000 REGENT) and `agent_launch_fee_regent`, in base units. `faucet.regent_launch_fee_amount`
+(500,000 REGENT) is one grant that covers either fee. `fund --regent 600000` covers one Agent and one
+Stocks launch fee plus bids; the controller checks the Safe's balance first.
+
 ```sh
-python3 bin/local-stocks-lab.py [--agent-lab-dir DIR] deploy            # fixtures, graph, admission, funding, config
-python3 bin/local-stocks-lab.py fund WALLET --regent 1000 --stock AAPLc --amount 100 --usdc 1000
+python3 bin/local-stocks-lab.py [--agent-lab-dir DIR] deploy            # fixtures, graph, admission, funding, Agent fee, config
+python3 bin/local-stocks-lab.py set-agent-fee [--amount 500000]         # Agent factory launchFee, from the impersonated Safe
+python3 bin/local-stocks-lab.py fund WALLET --regent 600000 --stock AAPLc --amount 100 --usdc 1000
 python3 bin/local-stocks-lab.py status [--launch ID] [--auction ADDR]
 python3 bin/local-stocks-lab.py advance --auction ADDR --to start|end|claim|migration
 python3 bin/local-stocks-lab.py migrate --launch ID
@@ -165,5 +180,5 @@ python3 bin/local-stocks-lab.py settle --pool-id 0x… --destination ADDR --amou
 ```
 
 The lab deployer (`0x5700…0001`) and the hook executor are the same impersonated address; the
-Governance Safe is impersonated for admission and unpausing; USDC comes from a forked holder
+Governance Safe is impersonated for admission, unpausing, the Agent fee and REGENT funding; USDC comes from a forked holder
 (Morpho Blue by default, `--usdc-holder` to change). Nothing in the lab is B20-verified.
