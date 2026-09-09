@@ -13,6 +13,7 @@ import {
 } from "./auth_lazy"
 import {AutolaunchBidSettlement} from "./hooks/autolaunch_bid_settlement"
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
+import {AutolaunchFeeAdminWallet} from "./hooks/autolaunch_fee_admin_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchTestFunds, AutolaunchZonedStart} from "./hooks/autolaunch_stocks"
@@ -27,6 +28,7 @@ const hooks = {
   ...colocatedHooks,
   AutolaunchBidSettlement,
   AutolaunchBidWallet,
+  AutolaunchFeeAdminWallet,
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchSubjectWallet,

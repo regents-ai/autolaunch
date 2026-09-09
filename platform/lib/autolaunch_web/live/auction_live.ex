@@ -50,8 +50,8 @@ defmodule AutolaunchWeb.AuctionLive do
     assigns =
       assign(
         assigns,
-        :market_snapshot,
-        auction_market_snapshot(assigns.market, assigns.page_record)
+        market_snapshot: auction_market_snapshot(assigns.market, assigns.page_record),
+        graduated_token: page_token(assigns.page)
       )
 
     assigns =
@@ -101,6 +101,14 @@ defmodule AutolaunchWeb.AuctionLive do
               <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
             </div>
           </dl>
+          <p
+            :if={@page_record.state == :graduated && @graduated_token}
+            id="auction-pool-link"
+            class="autolaunch-live-market"
+          >
+            This auction graduated into its pool.
+            <.link navigate={"/tokens/#{@graduated_token.id}#pool"}>View the pool and fee lanes</.link>
+          </p>
           <.treasury_security
             :if={!@local_lab?}
             report={report(@page_record)}
@@ -244,7 +252,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp load_page(socket, reset: reset) do
     id = socket.assigns.record_id
-    assign_async(socket, :page, fn -> load_auction_page(id) end, reset: reset)
+    assign_async(socket, :page, fn -> load_auction_page_with_token(id) end, reset: reset)
   end
 
   # The signed-in bidder's own positions on this auction, for settlement once
@@ -276,6 +284,26 @@ defmodule AutolaunchWeb.AuctionLive do
   defp ended_copy(%{quote_token_symbol: symbol}),
     do:
       "Bids are being settled. Unspent #{symbol} is returned first; tokens follow on a successful auction."
+
+  # A graduated auction's token row, when it exists, so the page can point at
+  # the pool that auction graduated into.
+  defp load_auction_page_with_token(id) do
+    with {:ok, %{page: page}} <- load_auction_page(id) do
+      {:ok, %{page: Map.put(page, :token, graduated_token(page.record))}}
+    end
+  end
+
+  defp graduated_token(%{state: :graduated, id: auction_id}) do
+    case Autolaunch.get_public_token_by_auction(auction_id) do
+      {:ok, token} -> token
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp graduated_token(_record), do: nil
+
+  defp page_token(%{ok?: true, result: %{token: token}}), do: token
+  defp page_token(_page), do: nil
 
   defp assign_market(socket) do
     if connected?(socket) and Lab.enabled?() and Process.whereis(LabMarketFeed) do

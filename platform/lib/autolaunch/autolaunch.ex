@@ -186,6 +186,11 @@ defmodule Autolaunch do
         not_found_error?: false
     end
 
+    # The Stocks fee-administration lane (subject lane on/off/retarget and the
+    # administrator hand-over) is written only by `Stocks.FeeAdminActions`
+    # under a session lease, so it carries no code interface.
+    resource Autolaunch.Stocks.FeeAdminOperation
+
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public
       define :page_public_tokens, action: :page_public
@@ -203,6 +208,11 @@ defmodule Autolaunch do
       define :get_public_token,
         action: :public_by_id,
         args: [:id],
+        not_found_error?: false
+
+      define :get_public_token_by_auction,
+        action: :public_by_auction,
+        args: [:auction_id],
         not_found_error?: false
 
       define :project_lab_token, action: :project_lab

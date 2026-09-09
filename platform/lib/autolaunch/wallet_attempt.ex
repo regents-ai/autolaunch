@@ -16,6 +16,7 @@ defmodule Autolaunch.WalletAttempt do
       reference :subject_wallet_operation, on_delete: :restrict
       reference :stock_launch_operation, on_delete: :restrict
       reference :bid_settlement_operation, on_delete: :restrict
+      reference :stock_fee_admin_operation, on_delete: :restrict
     end
 
     custom_indexes do
@@ -24,13 +25,14 @@ defmodule Autolaunch.WalletAttempt do
       index [:subject_wallet_operation_id, :inserted_at]
       index [:stock_launch_operation_id, :inserted_at]
       index [:bid_settlement_operation_id, :inserted_at]
+      index [:stock_fee_admin_operation_id, :inserted_at]
       index [:transaction_hash, :step, :state]
     end
 
     check_constraints do
       check_constraint :step, "wallet_attempt_parent_step",
         check:
-          "(bid_operation_id IS NOT NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NULL AND step IN ('token_approval','permit2_approval','bid','usdc_approval','usdc_bid')) OR (bid_operation_id IS NULL AND launch_operation_id IS NOT NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NULL AND step IN ('approval','launch')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NOT NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NULL AND step IN ('approval','action')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NOT NULL AND bid_settlement_operation_id IS NULL AND step = 'launch') OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NOT NULL AND step IN ('exit','claim'))"
+          "(bid_operation_id IS NOT NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('token_approval','permit2_approval','bid','usdc_approval','usdc_bid')) OR (bid_operation_id IS NULL AND launch_operation_id IS NOT NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('approval','launch')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NOT NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('approval','action')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NOT NULL AND bid_settlement_operation_id IS NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('approval','launch')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NOT NULL AND stock_fee_admin_operation_id IS NULL AND step IN ('exit','claim')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND bid_settlement_operation_id IS NULL AND stock_fee_admin_operation_id IS NOT NULL AND step = 'action')"
     end
   end
 
@@ -45,6 +47,7 @@ defmodule Autolaunch.WalletAttempt do
         :subject_wallet_operation_id,
         :stock_launch_operation_id,
         :bid_settlement_operation_id,
+        :stock_fee_admin_operation_id,
         :step,
         :envelope,
         :legacy,
@@ -116,5 +119,6 @@ defmodule Autolaunch.WalletAttempt do
     belongs_to :subject_wallet_operation, Autolaunch.SubjectWalletOperation
     belongs_to :stock_launch_operation, Autolaunch.Stocks.LaunchOperation
     belongs_to :bid_settlement_operation, Autolaunch.BidSettlementOperation
+    belongs_to :stock_fee_admin_operation, Autolaunch.Stocks.FeeAdminOperation
   end
 end
