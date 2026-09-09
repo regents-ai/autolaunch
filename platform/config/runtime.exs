@@ -94,6 +94,37 @@ if autolaunch_lab do
          System.fetch_env!("AUTOLAUNCH_ACCEPTANCE_RUN_ID")
 end
 
+# The Stocks lab extends a running Agent lab and is refused without one.
+autolaunch_stocks_lab =
+  case {config_env(), System.get_env("AUTOLAUNCH_STOCKS_LAB_CONFIG")} do
+    {_env, nil} ->
+      nil
+
+    {_env, ""} ->
+      nil
+
+    {:prod, _path} ->
+      raise "AUTOLAUNCH_STOCKS_LAB_CONFIG is development/test only"
+
+    {_env, _path} when is_nil(autolaunch_lab) ->
+      raise "AUTOLAUNCH_STOCKS_LAB_CONFIG needs AUTOLAUNCH_LAB_CONFIG"
+
+    {env, path} when env in [:dev, :test] ->
+      loaded = Autolaunch.Stocks.Lab.load!(path)
+
+      if loaded.agent_lab_config != autolaunch_lab.path do
+        raise "AUTOLAUNCH_STOCKS_LAB_CONFIG names a different Agent lab than AUTOLAUNCH_LAB_CONFIG"
+      end
+
+      loaded
+  end
+
+config :autolaunch, :autolaunch_stocks_lab_enabled, not is_nil(autolaunch_stocks_lab)
+
+config :autolaunch,
+       :autolaunch_stocks_lab_config_path,
+       autolaunch_stocks_lab && autolaunch_stocks_lab.path
+
 # The release sets this on its migration commands, and only on those, so the
 # migration boot can take a direct connection while the web boot takes the
 # pooled one.

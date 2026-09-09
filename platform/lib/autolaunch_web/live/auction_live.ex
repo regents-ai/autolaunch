@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
+  alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
 
   def mount(_params, _session, socket), do: {:ok, assign_market(socket)}
 
@@ -19,18 +20,17 @@ defmodule AutolaunchWeb.AuctionLive do
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
 
-  def handle_info({:autolaunch_market_updated, %{generation: generation}}, socket) do
-    if generation > socket.assigns.market.generation do
-      {:noreply,
-       socket
-       |> assign(:market, LabMarketFeed.snapshot())
-       |> load_page(reset: false)}
+  # Either feed may have moved; the combined reading decides whether the page
+  # has anything new to show.
+  def handle_info({:autolaunch_market_updated, _update}, socket) do
+    market = market_snapshot()
+
+    if market.generation > socket.assigns.market.generation do
+      {:noreply, socket |> assign(:market, market) |> load_page(reset: false)}
     else
       {:noreply, socket}
     end
   end
-
-  def handle_info({:autolaunch_market_updated, _update}, socket), do: {:noreply, socket}
 
   def render(assigns) do
     assigns =
@@ -73,6 +73,21 @@ defmodule AutolaunchWeb.AuctionLive do
             amount={@page_record.current_clearing_price}
             unit={@page_record.quote_token_symbol}
           />
+          <dl class="autolaunch-live-market" aria-label="Auction currency">
+            <div>
+              <dt>Bids are paid in</dt>
+              <dd>
+                {@page_record.quote_token_symbol}
+                <span :if={@page_record.quote_token_decimals}>
+                  · {@page_record.quote_token_decimals} decimal places
+                </span>
+              </dd>
+            </div>
+            <div :if={@page_record.quote_token_address}>
+              <dt>Currency address</dt>
+              <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
+            </div>
+          </dl>
           <.treasury_security
             :if={!@local_lab?}
             report={report(@page_record)}
@@ -84,7 +99,7 @@ defmodule AutolaunchWeb.AuctionLive do
               <dt>Local block</dt><dd>{@market_snapshot.block_number}</dd>
             </div>
             <div>
-              <dt>REGENT raised</dt><dd>
+              <dt>{@page_record.quote_token_symbol} raised</dt><dd>
                 <AutolaunchWeb.TokenDisplay.price
                   amount={@market_snapshot.currency_raised}
                   fallback="—"
@@ -110,7 +125,7 @@ defmodule AutolaunchWeb.AuctionLive do
           >
             <dl class="autolaunch-live-market">
               <div>
-                <dt>REGENT raised</dt><dd class="autolaunch-exact-value">
+                <dt>{@page_record.quote_token_symbol} raised</dt><dd class="autolaunch-exact-value">
                   {@market_snapshot.currency_raised}
                 </dd>
               </div>
@@ -142,6 +157,13 @@ defmodule AutolaunchWeb.AuctionLive do
             session_lease={@session_lease}
           />
           <div :if={@local_lab?} id="autolaunch-lab-position"></div>
+          <.live_component
+            :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
+            module={AutolaunchWeb.TestFundsComponent}
+            id="autolaunch-test-funds"
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
         </aside>
       </div>
     </article>
@@ -184,9 +206,29 @@ defmodule AutolaunchWeb.AuctionLive do
   defp assign_market(socket) do
     if connected?(socket) and Lab.enabled?() and Process.whereis(LabMarketFeed) do
       Phoenix.PubSub.subscribe(Autolaunch.PubSub, LabMarketFeed.topic())
-      assign(socket, :market, LabMarketFeed.snapshot())
+      assign(socket, :market, market_snapshot())
     else
       assign(socket, :market, empty_market())
+    end
+  end
+
+  # Both feeds publish on one topic; their per-auction readings are disjoint,
+  # and one generation counter has to move whenever either does.
+  defp market_snapshot do
+    agent = LabMarketFeed.snapshot()
+
+    case Process.whereis(StocksMarketFeed) do
+      nil ->
+        agent
+
+      _pid ->
+        stocks = StocksMarketFeed.snapshot()
+
+        %{
+          agent
+          | generation: agent.generation + stocks.generation,
+            auctions: Map.merge(agent.auctions, stocks.auctions)
+        }
     end
   end
 end

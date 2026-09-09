@@ -361,20 +361,22 @@ components:
             auction_id: {type: string, format: uuid}
             amount: {type: string}
             max_price: {type: string}
-            quote_token:
-              type: object
-              additionalProperties: false
-              required: [address, symbol, decimals]
-              properties:
-                address: {type: [string, "null"]}
-                symbol: {type: [string, "null"]}
-                decimals: {type: [integer, "null"], minimum: 0, maximum: 36}
+            quote_token: {$ref: "#/components/schemas/QuoteToken"}
             current_clearing_price: {type: string}
             projected_clearing_price: {type: string}
             would_be_active_now: {type: boolean}
             status_band: {type: string, enum: [active, borderline, inactive]}
             estimated_tokens_if_end_now: {type: string}
             warnings: {type: array, items: {type: string}}
+    QuoteToken:
+      description: The token bids are paid in. REGENT for agent auctions; the admitted Base stock token for stocks auctions.
+      type: object
+      additionalProperties: false
+      required: [address, symbol, decimals]
+      properties:
+        address: {type: [string, "null"]}
+        symbol: {type: [string, "null"]}
+        decimals: {type: [integer, "null"], minimum: 0, maximum: 36}
     Pagination:
       type: object
       additionalProperties: false
@@ -400,14 +402,16 @@ components:
     Auction:
       type: object
       additionalProperties: false
-      required: [id, title, summary, featured, state, opened_at, treasury_security]
+      required: [id, title, summary, featured, kind, state, opened_at, quote_token, treasury_security]
       properties:
         id: {type: string, format: uuid}
         title: {type: string}
         summary: {type: [string, "null"]}
         featured: {type: boolean}
+        kind: {type: string, enum: [agent, stocks]}
         state: {type: string, enum: [created, active, graduated, failed]}
         opened_at: {type: [string, "null"], format: date-time}
+        quote_token: {$ref: "#/components/schemas/QuoteToken"}
         treasury_security:
           oneOf:
             - {$ref: "#/components/schemas/TreasurySecurity"}

@@ -38,7 +38,7 @@ The default origin is `https://autolaunch.sh`. Override with `AUTOLAUNCH_BASE_UR
 
 ## Capability boundaries
 
-This package supports all five current public JSON operations. Auction/token lists return `pagination.has_more` and `pagination.next_cursor`; pass the cursor unchanged with `--after` and retain the same filters and sort. Each page contains at most 50 auctions or 100 tokens. Cursors expire after 24 hours; restart on an invalid cursor. New arrivals appear when restarting the list. Stored treasury observations are not current chain verification. Quotes retain exact decimal strings and warnings, including closed-auction warnings. They never submit a bid.
+This package supports all five current public JSON operations. Auction/token lists return `pagination.has_more` and `pagination.next_cursor`; pass the cursor unchanged with `--after` and retain the same filters and sort. Each page contains at most 50 auctions or 100 tokens. Cursors expire after 24 hours; restart on an invalid cursor. New arrivals appear when restarting the list. Every auction names its `kind` (`agent` or `stocks`) and the `quote_token` bids are paid in (REGENT for agent auctions, an admitted Base stock token for stocks auctions); amounts and prices in quotes are in that token. Stored treasury observations are not current chain verification. Quotes retain exact decimal strings and warnings, including closed-auction warnings. They never submit a bid.
 
 The old Regents CLI also contains private launch, chat, portfolio, and chain administration commands. Most old HTTP routes are absent from the current Autolaunch server. Those commands are not moved here or advertised as working replacements. Only the five verified public operations are superseded by this package.
 

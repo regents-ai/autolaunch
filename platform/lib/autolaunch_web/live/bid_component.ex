@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidActions, Lab}
+  alias Autolaunch.Stocks.Lab, as: StocksLab
 
   @chain_id 8453
 
@@ -28,10 +29,15 @@ defmodule AutolaunchWeb.BidComponent do
     wrong_signer: "Switch back to a wallet on this account to continue.",
     session_unavailable: "Sign in again to continue.",
     auction_not_biddable: "This auction is not taking bids.",
-    auction_currency_is_not_regent: "This auction does not take REGENT.",
-    amount_above_balance: "That is more REGENT than this wallet holds.",
-    invalid_amount: "Enter a REGENT amount with up to eighteen decimal places.",
+    auction_currency_changed:
+      "This auction's currency does not match its record. Bidding is paused here.",
+    amount_above_balance: "That is more than this wallet holds.",
+    invalid_amount: "Enter an amount with no more decimal places than the currency allows.",
     invalid_price: "Enter a maximum price above zero.",
+    stock_not_admitted: "This stock token is not admitted for USDC bids right now.",
+    usdc_bids_unavailable: "USDC bids are not available on this auction.",
+    usdc_route_unavailable:
+      "The USDC route did not return a usable estimate. Try a different amount.",
     price_below_admissible_tick:
       "Your maximum does not reach an allowed tick above the auction clearing price.",
     invalid_decimal: "Enter a maximum price above zero.",
@@ -59,7 +65,10 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:balance, fn -> nil end)
      |> assign_new(:amount, fn -> "" end)
      |> assign_new(:max_price, fn -> "" end)
+     |> assign_new(:usdc_amount, fn -> "" end)
+     |> assign_new(:usdc_max_price, fn -> "" end)
      |> assign_new(:estimate, fn -> nil end)
+     |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)}
@@ -79,8 +88,8 @@ defmodule AutolaunchWeb.BidComponent do
         <Regent.Structure.section_bar>
           <h2 class="rg-section-bar__label">Place a bid</h2>
         </Regent.Structure.section_bar>
-        <p>Bid REGENT for this launch. Your wallet confirms every step.</p>
-        <.regent_market_links />
+        <p>Bid {@auction.quote_token_symbol} for this launch. Your wallet confirms every step.</p>
+        <.regent_market_links :if={@auction.kind == :agent} />
       </header>
 
       <.notice :if={@notice} notice={@notice} />
@@ -100,7 +109,7 @@ defmodule AutolaunchWeb.BidComponent do
             <dt>Wallet</dt><dd class="bid-mono">{short(@wallet)}</dd>
           </div>
           <div>
-            <dt>REGENT</dt><dd>{balance(@balance)}</dd>
+            <dt>{@auction.quote_token_symbol}</dt><dd>{balance(@balance, @auction)}</dd>
           </div>
         </dl>
 
@@ -111,8 +120,10 @@ defmodule AutolaunchWeb.BidComponent do
           phx-change="bid_form_changed"
           phx-submit="review_bid"
           phx-target={@myself}
+          aria-label={"Bid with #{@auction.quote_token_symbol}"}
         >
-          <label for={"#{@id}-amount"}>Amount</label>
+          <h3>Bid with {@auction.quote_token_symbol}</h3>
+          <label for={"#{@id}-amount"}>Amount in {@auction.quote_token_symbol}</label>
           <div class="bid-amount">
             <input
               id={"#{@id}-amount"}
@@ -130,7 +141,7 @@ defmodule AutolaunchWeb.BidComponent do
             >Max</Regent.Primitives.button>
           </div>
 
-          <label for={"#{@id}-max-price"}>Maximum price</label>
+          <label for={"#{@id}-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
           <input
             id={"#{@id}-max-price"}
             name="max_price"
@@ -153,13 +164,75 @@ defmodule AutolaunchWeb.BidComponent do
           </Regent.Primitives.button>
         </form>
 
+        <form
+          :if={!@operation && @balance && @usdc_bids?}
+          id={"#{@id}-usdc-form"}
+          class="rg-field"
+          phx-change="usdc_bid_form_changed"
+          phx-submit="review_usdc_bid"
+          phx-target={@myself}
+          aria-label="Bid with USDC"
+        >
+          <h3>Bid with USDC</h3>
+          <p class="autolaunch-draft-hint">
+            One transaction buys {@auction.quote_token_symbol} with your USDC and places the bid.
+            The review shows the estimated {@auction.quote_token_symbol} and the least the bid will accept, 1% below the estimate.
+          </p>
+          <label for={"#{@id}-usdc-amount"}>Amount in USDC</label>
+          <input
+            id={"#{@id}-usdc-amount"}
+            name="usdc_amount"
+            value={@usdc_amount}
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="0.0"
+          />
+          <label for={"#{@id}-usdc-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
+          <input
+            id={"#{@id}-usdc-max-price"}
+            name="max_price"
+            value={@usdc_max_price}
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="0.0"
+          />
+          <Regent.Primitives.button
+            class="bid-primary"
+            type="submit"
+            disabled={@usdc_amount == "" or @usdc_max_price == ""}
+          >
+            Review USDC bid
+          </Regent.Primitives.button>
+        </form>
+
         <section :if={@operation} id={"#{@id}-review"} class="bid-review" aria-label="Bid review">
           <dl>
-            <div>
-              <dt>Amount</dt><dd>{argument(@operation, "amount")} REGENT</dd>
+            <div :if={argument(@operation, "amount")}>
+              <dt>Amount</dt><dd>
+                {argument(@operation, "amount")} {argument(@operation, "currency_symbol")}
+              </dd>
+            </div>
+            <div :if={argument(@operation, "usdc_amount")}>
+              <dt>USDC spent</dt><dd>{argument(@operation, "usdc_amount")} USDC</dd>
+            </div>
+            <div :if={argument(@operation, "stock_quote")}>
+              <dt>Estimated {argument(@operation, "currency_symbol")}</dt>
+              <dd>{argument(@operation, "stock_quote")} (estimate, not binding)</dd>
+            </div>
+            <div :if={argument(@operation, "min_stock_out")}>
+              <dt>Least accepted</dt>
+              <dd>
+                {argument(@operation, "min_stock_out")} {argument(@operation, "currency_symbol")} · 1% below the estimate
+              </dd>
+            </div>
+            <div :if={argument(@operation, "deadline")}>
+              <dt>Valid until</dt><dd>{deadline(argument(@operation, "deadline"))}</dd>
             </div>
             <div>
-              <dt>Effective tick price</dt><dd>{argument(@operation, "max_price")}</dd>
+              <dt>Effective tick price</dt>
+              <dd>
+                {argument(@operation, "max_price")} {argument(@operation, "currency_symbol")} per token
+              </dd>
             </div>
             <div>
               <dt>Requested maximum</dt><dd>
@@ -174,7 +247,7 @@ defmodule AutolaunchWeb.BidComponent do
           <%!-- The list styling drops list semantics, so the role is stated. --%>
           <ol class="bid-steps" role="list" aria-label="Bid progress">
             <li :for={step <- BidActions.steps(@operation)} data-step={step["step"]}>
-              <span>{step_label(step["step"])}</span>
+              <span>{step_label(step["step"], argument(@operation, "currency_symbol"))}</span>
               <span class="bid-step-state">{step_state(@operation, step["step"])}</span>
               <.transaction
                 hash={BidActions.step_hash(@operation, step["step"])}
@@ -283,7 +356,7 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_event("fill_bid_amount", _params, socket) do
     {:noreply,
      socket
-     |> assign(amount: balance(socket.assigns.balance), notice: nil)
+     |> assign(amount: balance(socket.assigns.balance, socket.assigns.auction), notice: nil)
      |> assign_estimate()}
   end
 
@@ -292,6 +365,24 @@ defmodule AutolaunchWeb.BidComponent do
      socket.assigns.auction.id
      |> Autolaunch.prepare_bid(socket.assigns.wallet, amount, max_price, opts(socket))
      |> settled(assign(socket, amount: amount, max_price: max_price))}
+  end
+
+  def handle_event(
+        "usdc_bid_form_changed",
+        %{"usdc_amount" => amount, "max_price" => price},
+        socket
+      ),
+      do: {:noreply, assign(socket, usdc_amount: amount, usdc_max_price: price, notice: nil)}
+
+  def handle_event(
+        "review_usdc_bid",
+        %{"usdc_amount" => amount, "max_price" => max_price},
+        socket
+      ) do
+    {:noreply,
+     socket.assigns.auction.id
+     |> Autolaunch.prepare_usdc_bid(socket.assigns.wallet, amount, max_price, opts(socket))
+     |> settled(assign(socket, usdc_amount: amount, usdc_max_price: max_price))}
   end
 
   # The browser's preflight is necessary input, never authority: the locked
@@ -338,7 +429,16 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_event("clear_bid", _params, socket),
     do:
       {:noreply,
-       socket |> assign(operation: nil, amount: "", max_price: "", estimate: nil) |> cleared()}
+       socket
+       |> assign(
+         operation: nil,
+         amount: "",
+         max_price: "",
+         usdc_amount: "",
+         usdc_max_price: "",
+         estimate: nil
+       )
+       |> cleared()}
 
   # Browser storage only prompts a restore; the owning account's row supplies
   # every fact. No row means the stored hint is stale, and saying so is what
@@ -524,9 +624,23 @@ defmodule AutolaunchWeb.BidComponent do
   defp current_state(:expired), do: "Expired"
   defp current_state(:submission_unknown), do: "Unresolved"
 
-  defp step_label("token_approval"), do: "Allow REGENT to be spent"
-  defp step_label("permit2_approval"), do: "Allow this auction to draw REGENT"
-  defp step_label("bid"), do: "Place the bid"
+  defp step_label("token_approval", symbol), do: "Allow #{symbol} to be spent"
+  defp step_label("permit2_approval", symbol), do: "Allow this auction to draw #{symbol}"
+  defp step_label("bid", _symbol), do: "Place the bid"
+  defp step_label("usdc_approval", _symbol), do: "Allow USDC to be spent"
+  defp step_label("usdc_bid", symbol), do: "Buy #{symbol} with USDC and place the bid"
+
+  defp deadline(unix) when is_binary(unix) do
+    unix
+    |> String.to_integer()
+    |> DateTime.from_unix!()
+    |> Calendar.strftime("%Y-%m-%d %H:%M UTC")
+  end
+
+  # USDC bids exist only for Stocks auctions, and only where the Stocks lab that
+  # names the adapter is running.
+  defp usdc_bids?(%{kind: :stocks}), do: StocksLab.enabled?()
+  defp usdc_bids?(_auction), do: false
 
   defp confirmed_copy(%{envelope: %{"chain_id" => 31_337}} = operation),
     do: "Local bid #{operation.onchain_bid_id} was verified. Test assets have no mainnet value."
@@ -578,8 +692,10 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
 
-  defp balance(nil), do: "—"
-  defp balance(atomic), do: atomic |> String.to_integer() |> Autolaunch.bid_amount_units()
+  defp balance(nil, _auction), do: "—"
+
+  defp balance(atomic, %{quote_token_decimals: decimals}),
+    do: atomic |> String.to_integer() |> Autolaunch.bid_amount_units(decimals)
 
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"

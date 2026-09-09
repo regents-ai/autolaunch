@@ -10,8 +10,9 @@ defmodule Autolaunch.WalletAttempts do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Address, Envelope, Rpc}
+  alias Autolaunch.Stocks.LaunchOperation, as: StocksLaunchOperation
   @system %System{}
-  @kinds [:bid, :launch, :subject]
+  @kinds [:bid, :launch, :subject, :stocks_launch]
 
   def dispatch(kind, action_id, step, press_id, signer, opts)
       when kind in @kinds and is_binary(action_id) and (is_binary(step) or is_atom(step)) and
@@ -129,7 +130,10 @@ defmodule Autolaunch.WalletAttempts do
       {:bid, :token_approval} -> :token_approval_transaction_hash
       {:bid, :permit2_approval} -> :permit2_approval_transaction_hash
       {:bid, :bid} -> :bid_transaction_hash
+      {:bid, :usdc_approval} -> :usdc_approval_transaction_hash
+      {:bid, :usdc_bid} -> :usdc_bid_transaction_hash
       {:launch, :launch} -> :launch_transaction_hash
+      {:stocks_launch, :launch} -> :launch_transaction_hash
       {:subject, :action} -> :action_transaction_hash
       {_, :approval} -> :approval_transaction_hash
     end
@@ -341,6 +345,12 @@ defmodule Autolaunch.WalletAttempts do
   defp project(:launch, op, %{step: :launch}, :confirmed, result),
     do: Autolaunch.LabProjection.project_launch(op, result)
 
+  defp project(:bid, op, %{step: :usdc_bid}, :confirmed, result),
+    do: Autolaunch.LabProjection.project_bid(op, result)
+
+  defp project(:stocks_launch, op, %{step: :launch}, :confirmed, result),
+    do: Autolaunch.Stocks.LabProjection.project_launch(op, result)
+
   defp project(_, _, _, _, _), do: :ok
 
   # The parent is only a monotonic review/progress summary. A sibling rejection
@@ -358,7 +368,7 @@ defmodule Autolaunch.WalletAttempts do
         %{step: String.to_existing_atom(next), state: :prepared}
       else
         attrs = %{
-          state: if(kind == :launch, do: :chain_verified, else: :confirmed),
+          state: if(kind in [:launch, :stocks_launch], do: :chain_verified, else: :confirmed),
           terminal_at: DateTime.utc_now()
         }
 
@@ -452,19 +462,24 @@ defmodule Autolaunch.WalletAttempts do
   defp view(:bid, op), do: Autolaunch.BidActions.view(op)
   defp view(:launch, op), do: Autolaunch.LaunchActions.presented(op)
   defp view(:subject, op), do: Autolaunch.SubjectWalletActions.presented(op)
+  defp view(:stocks_launch, op), do: Autolaunch.Stocks.LaunchActions.presented(op)
 
   defp resource(:bid), do: BidOperation
   defp resource(:launch), do: LaunchOperation
   defp resource(:subject), do: SubjectWalletOperation
+  defp resource(:stocks_launch), do: StocksLaunchOperation
   defp foreign_key(:bid), do: :bid_operation_id
   defp foreign_key(:launch), do: :launch_operation_id
   defp foreign_key(:subject), do: :subject_wallet_operation_id
+  defp foreign_key(:stocks_launch), do: :stock_launch_operation_id
   defp actions(:bid), do: Autolaunch.BidActions
   defp actions(:launch), do: Autolaunch.LaunchActions
   defp actions(:subject), do: Autolaunch.SubjectWalletActions
+  defp actions(:stocks_launch), do: Autolaunch.Stocks.LaunchActions
   defp client(:bid), do: Autolaunch.ChainClient.module()
   defp client(:launch), do: Autolaunch.LaunchChainClient.module()
   defp client(:subject), do: Autolaunch.SubjectWalletChainClient.module()
+  defp client(:stocks_launch), do: Autolaunch.Stocks.LabLaunchChainClient
 
   defp unavailable(reason),
     do: {:error, Ash.Error.Invalid.Unavailable.exception(resource: WalletAttempt, reason: reason)}

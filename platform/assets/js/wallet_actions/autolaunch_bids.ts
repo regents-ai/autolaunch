@@ -10,7 +10,7 @@ import {
   type WalletResolver,
 } from "./autolaunch_network"
 
-export type BidStepName = "token_approval" | "permit2_approval" | "bid"
+export type BidStepName = "token_approval" | "permit2_approval" | "bid" | "usdc_approval" | "usdc_bid"
 
 export type BidStep = {
   step: BidStepName

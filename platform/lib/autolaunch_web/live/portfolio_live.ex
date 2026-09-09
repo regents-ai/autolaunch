@@ -137,6 +137,13 @@ defmodule AutolaunchWeb.PortfolioLive do
     """
   end
 
+  # Prices are stored with every digit; the list shows a readable, truncated
+  # figure (never rounded up) and keeps the exact value on the element.
+  defp display_decimal(value) when is_binary(value) and value != "",
+    do: Autolaunch.Stocks.Amounts.compact_decimal(value)
+
+  defp display_decimal(value), do: display_text(value)
+
   attr :positions, :list, required: true
 
   defp position_list(assigns) do
@@ -153,11 +160,14 @@ defmodule AutolaunchWeb.PortfolioLive do
               <dt>Bid amount</dt><dd>{display_text(position.amount)}</dd>
             </div>
             <div>
-              <dt>Maximum price</dt><dd>{display_text(position.max_price)}</dd>
+              <dt>Maximum price</dt>
+              <dd title={position.max_price}>{display_decimal(position.max_price)}</dd>
             </div>
             <div>
               <dt>Current price</dt>
-              <dd>{display_text(position.current_clearing_price)}</dd>
+              <dd title={position.current_clearing_price}>
+                {display_decimal(position.current_clearing_price)}
+              </dd>
             </div>
             <div>
               <dt>Estimated tokens</dt>

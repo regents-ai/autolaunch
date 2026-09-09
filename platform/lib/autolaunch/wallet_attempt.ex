@@ -14,19 +14,21 @@ defmodule Autolaunch.WalletAttempt do
       reference :bid_operation, on_delete: :restrict
       reference :launch_operation, on_delete: :restrict
       reference :subject_wallet_operation, on_delete: :restrict
+      reference :stock_launch_operation, on_delete: :restrict
     end
 
     custom_indexes do
       index [:bid_operation_id, :inserted_at]
       index [:launch_operation_id, :inserted_at]
       index [:subject_wallet_operation_id, :inserted_at]
+      index [:stock_launch_operation_id, :inserted_at]
       index [:transaction_hash, :step, :state]
     end
 
     check_constraints do
       check_constraint :step, "wallet_attempt_parent_step",
         check:
-          "(bid_operation_id IS NOT NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND step IN ('token_approval','permit2_approval','bid')) OR (bid_operation_id IS NULL AND launch_operation_id IS NOT NULL AND subject_wallet_operation_id IS NULL AND step IN ('approval','launch')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NOT NULL AND step IN ('approval','action'))"
+          "(bid_operation_id IS NOT NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND step IN ('token_approval','permit2_approval','bid','usdc_approval','usdc_bid')) OR (bid_operation_id IS NULL AND launch_operation_id IS NOT NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NULL AND step IN ('approval','launch')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NOT NULL AND stock_launch_operation_id IS NULL AND step IN ('approval','action')) OR (bid_operation_id IS NULL AND launch_operation_id IS NULL AND subject_wallet_operation_id IS NULL AND stock_launch_operation_id IS NOT NULL AND step = 'launch')"
     end
   end
 
@@ -39,6 +41,7 @@ defmodule Autolaunch.WalletAttempt do
         :bid_operation_id,
         :launch_operation_id,
         :subject_wallet_operation_id,
+        :stock_launch_operation_id,
         :step,
         :envelope,
         :legacy,
@@ -64,7 +67,16 @@ defmodule Autolaunch.WalletAttempt do
     attribute :step, :atom,
       allow_nil?: false,
       constraints: [
-        one_of: [:token_approval, :permit2_approval, :bid, :approval, :launch, :action]
+        one_of: [
+          :token_approval,
+          :permit2_approval,
+          :bid,
+          :usdc_approval,
+          :usdc_bid,
+          :approval,
+          :launch,
+          :action
+        ]
       ]
 
     attribute :envelope, :map, allow_nil?: false, sensitive?: true
@@ -97,5 +109,6 @@ defmodule Autolaunch.WalletAttempt do
     belongs_to :bid_operation, Autolaunch.BidOperation
     belongs_to :launch_operation, Autolaunch.LaunchOperation
     belongs_to :subject_wallet_operation, Autolaunch.SubjectWalletOperation
+    belongs_to :stock_launch_operation, Autolaunch.Stocks.LaunchOperation
   end
 end

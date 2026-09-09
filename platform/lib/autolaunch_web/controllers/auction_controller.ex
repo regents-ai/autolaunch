@@ -86,8 +86,14 @@ defmodule AutolaunchWeb.AuctionController do
       title: auction.title,
       summary: auction.summary,
       featured: auction.featured,
+      kind: to_string(auction.kind),
       state: to_string(auction.state),
       opened_at: iso8601(auction.opened_at),
+      quote_token: %{
+        address: auction.quote_token_address,
+        symbol: auction.quote_token_symbol,
+        decimals: auction.quote_token_decimals
+      },
       treasury_security: TreasurySecurity.public_view(loaded_report(auction))
     }
   end

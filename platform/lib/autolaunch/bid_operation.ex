@@ -21,7 +21,9 @@ defmodule Autolaunch.BidOperation do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @steps [:token_approval, :permit2_approval, :bid]
+  # A direct bid needs at most the two allowances and the bid itself; a USDC bid
+  # needs the exact USDC allowance to the adapter and the adapter call.
+  @steps [:token_approval, :permit2_approval, :bid, :usdc_approval, :usdc_bid]
   @states [
     :prepared,
     :dispatched,
@@ -38,7 +40,9 @@ defmodule Autolaunch.BidOperation do
   @hashes [
     :token_approval_transaction_hash,
     :permit2_approval_transaction_hash,
-    :bid_transaction_hash
+    :bid_transaction_hash,
+    :usdc_approval_transaction_hash,
+    :usdc_bid_transaction_hash
   ]
 
   postgres do
@@ -98,7 +102,7 @@ defmodule Autolaunch.BidOperation do
       accept [:onchain_bid_id]
       require_atomic? false
       validate attribute_equals(:state, :submitted)
-      validate attribute_equals(:step, :bid)
+      validate attribute_in(:step, [:bid, :usdc_bid])
       validate present(:onchain_bid_id)
       change set_attribute(:state, :confirmed)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)

@@ -11,6 +11,7 @@ defmodule Autolaunch.Auction do
   require Ash.Query
 
   @projection_accept [
+    :kind,
     :title,
     :summary,
     :token_symbol,
@@ -29,6 +30,7 @@ defmodule Autolaunch.Auction do
   ]
 
   @projection_upsert [
+    :kind,
     :title,
     :summary,
     :token_symbol,
@@ -172,7 +174,23 @@ defmodule Autolaunch.Auction do
     end
 
     read :watchable_lab do
-      filter expr(not is_nil(auction_address))
+      filter expr(not is_nil(auction_address) and kind == :agent)
+      prepare build(sort: [id: :asc])
+
+      prepare fn query, _context ->
+        Ash.Query.after_action(query, fn _query, records ->
+          {:ok,
+           records
+           |> Enum.filter(fn record ->
+             record.id == LabProjection.auction_id(record.auction_address)
+           end)
+           |> Enum.take(257)}
+        end)
+      end
+    end
+
+    read :watchable_stocks_lab do
+      filter expr(not is_nil(auction_address) and kind == :stocks)
       prepare build(sort: [id: :asc])
 
       prepare fn query, _context ->
@@ -260,6 +278,16 @@ defmodule Autolaunch.Auction do
       run fn input, context -> BidActions.prepare(input, context) end
     end
 
+    # A USDC bid on a Stocks auction: the adapter buys the stock through the
+    # admitted route and bids as the caller, inside one transaction.
+    action :prepare_usdc_bid, :map do
+      argument :auction_id, :uuid, allow_nil?: false
+      argument :expected_signer, :string, allow_nil?: false
+      argument :usdc_amount, :string, allow_nil?: false
+      argument :max_price, :string, allow_nil?: false
+      run fn input, context -> BidActions.prepare_usdc(input, context) end
+    end
+
     action :claim_bid_dispatch, :map do
       argument :action_id, :string, allow_nil?: false
       run fn input, context -> BidActions.claim_dispatch(input, context) end
@@ -272,7 +300,9 @@ defmodule Autolaunch.Auction do
 
       argument :step, :atom,
         allow_nil?: false,
-        constraints: [one_of: [:token_approval, :permit2_approval, :bid]]
+        constraints: [
+          one_of: [:token_approval, :permit2_approval, :bid, :usdc_approval, :usdc_bid]
+        ]
 
       argument :transaction_hash, :string, allow_nil?: false
       run fn input, context -> BidActions.bind_hash(input, context) end
@@ -327,6 +357,7 @@ defmodule Autolaunch.Auction do
              :project_lab,
              :project_launch,
              :watchable_lab,
+             :watchable_stocks_lab,
              :lab_by_id_for_update,
              :refresh_lab_market
            ]) do
@@ -344,6 +375,7 @@ defmodule Autolaunch.Auction do
     policy action([
              :bid_position,
              :prepare_bid,
+             :prepare_usdc_bid,
              :claim_bid_dispatch,
              :bind_bid_hash,
              :verify_bid_step,
@@ -390,6 +422,16 @@ defmodule Autolaunch.Auction do
       allow_nil? false
       public? true
       default false
+    end
+
+    # Which launch mode created this auction. Agent auctions raise REGENT;
+    # Stocks auctions raise the admitted Base stock token named by the quote
+    # token fields.
+    attribute :kind, :atom do
+      allow_nil? false
+      public? true
+      default :agent
+      constraints one_of: [:agent, :stocks]
     end
 
     attribute :state, :atom do

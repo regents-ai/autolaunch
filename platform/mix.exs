@@ -72,6 +72,8 @@ defmodule Autolaunch.MixProject do
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
       {:decimal, "== 3.1.1"},
+      # IANA zones for the Stocks auction start; compiled in, nothing fetched at runtime.
+      {:tz, "~> 0.28"},
       {:req, "== 0.7.4"},
       {:yaml_elixir, "== 2.12.2"},
       {:vix, "== 0.41.0"},

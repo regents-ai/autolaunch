@@ -5,23 +5,35 @@ defmodule Autolaunch.LabBidChainClient do
 
   alias Autolaunch.Chain.{Abi, Address, Envelope}
   alias Autolaunch.{Lab, LabAbi, LabRpc}
+  alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @max_tick_walk 256
   @max_uint256 Integer.pow(2, 256) - 1
 
+  # The auction's own `currency()` is the token every balance and allowance is
+  # read from: REGENT for an Agent auction, the admitted stock for a Stocks one.
   @impl true
   def snapshot(%{auction: auction, signer: signer, max_price_q96: max_price}) do
     with {:ok, auction} <- Address.normalize(auction),
          {:ok, config, block, opts} <- LabRpc.current([:regent, :permit2]),
          :ok <- LabRpc.ensure_contract(auction, block, opts),
          {:ok, currency} <- call_address(config, auction, "currency()", [], block, opts),
-         true <- Address.equal?(currency, Lab.address!(config, :regent)),
-         {:ok, regent_balance} <-
-           LabRpc.uint(config, :regent, "balanceOf(address)", [signer], block, opts),
-         {:ok, token_allowance} <-
-           LabRpc.uint(
+         {:ok, currency_balance} <-
+           LabRpc.call_uint(
              config,
-             :regent,
+             currency,
+             "token",
+             "balanceOf(address)",
+             [signer],
+             block,
+             opts
+           ),
+         {:ok, token_allowance} <-
+           LabRpc.call_uint(
+             config,
+             currency,
+             "token",
              "allowance(address,address)",
              [signer, Lab.address!(config, :permit2)],
              block,
@@ -59,7 +71,7 @@ defmodule Autolaunch.LabBidChainClient do
          max_bid_price_q96: cap,
          auction: auction,
          currency: currency,
-         regent_balance: regent_balance,
+         currency_balance: currency_balance,
          token_allowance: token_allowance,
          permit2_amount: permit2_amount,
          permit2_expiration: permit2_expiration,
@@ -70,8 +82,80 @@ defmodule Autolaunch.LabBidChainClient do
          lab_binding: Lab.binding(config, [:regent, :permit2])
        }}
     else
-      false -> {:error, :auction_currency_is_not_regent}
       :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
+      _other -> {:error, :invalid_chain_response}
+    end
+  end
+
+  @doc """
+  The USDC side of a Stocks bid: the wallet's USDC and its allowance to the bid
+  adapter, and the admitted route's estimate of the STOCK `usdc_amount` buys.
+  """
+  def usdc_snapshot(%{stock: stock, signer: signer, usdc_amount: usdc_amount}) do
+    with {:ok, config} <- StocksLab.current(),
+         opts <- StocksLab.rpc_opts(config),
+         {:ok, block} <- Autolaunch.Chain.Rpc.latest_block(opts),
+         usdc <- StocksLab.address!(config, :usdc),
+         adapter <- StocksLab.address!(config, :bid_adapter),
+         launchpad <- StocksLab.address!(config, :launchpad),
+         :ok <- LabRpc.ensure_contract(adapter, block, opts),
+         {:ok, [admitted, _decimals, route_word]} <-
+           Autolaunch.Chain.Rpc.call_words(
+             launchpad,
+             LabAbi.encode(StocksLab.abi!(config, :launchpad), "stockAdmission(address)", [stock]),
+             block,
+             3,
+             opts
+           ),
+         true <- admitted != 0,
+         {:ok, route} <- Abi.word_address(route_word),
+         {:ok, usdc_balance} <-
+           Autolaunch.Chain.Rpc.call_uint(
+             usdc,
+             LabAbi.encode(StocksLab.abi!(config, :erc20), "balanceOf(address)", [signer]),
+             block,
+             opts
+           ),
+         {:ok, usdc_allowance} <-
+           Autolaunch.Chain.Rpc.call_uint(
+             usdc,
+             LabAbi.encode(StocksLab.abi!(config, :erc20), "allowance(address,address)", [
+               signer,
+               adapter
+             ]),
+             block,
+             opts
+           ),
+         {:ok, stock_quote} <-
+           Autolaunch.Chain.Rpc.call_uint(
+             route,
+             LabAbi.encode(
+               StocksLab.abi!(config, :route),
+               "quoteExactIn(address,address,uint256)",
+               [
+                 usdc,
+                 stock,
+                 usdc_amount
+               ]
+             ),
+             block,
+             opts
+           ) do
+      {:ok,
+       %{
+         usdc: usdc,
+         adapter: adapter,
+         route: route,
+         usdc_balance: usdc_balance,
+         usdc_allowance: usdc_allowance,
+         stock_quote: stock_quote,
+         block: block
+       }}
+    else
+      false -> {:error, :stock_not_admitted}
+      :error -> {:error, :invalid_chain_response}
+      {:error, :stocks_lab_disabled} -> {:error, :usdc_bids_unavailable}
       {:error, reason} -> {:error, reason}
       _other -> {:error, :invalid_chain_response}
     end
@@ -137,21 +221,23 @@ defmodule Autolaunch.LabBidChainClient do
   defp settled({:success, logs}, envelope, :token_approval, config) do
     step = current_step(envelope, :token_approval)
     amount = String.to_integer(step["amount"])
+    currency = envelope["arguments"]["currency"]
 
     with {:ok, block} <- LabRpc.block_from_logs(logs),
          true <-
            Abi.approval_recorded?(
              logs,
-             Lab.address!(config, :regent),
+             currency,
              envelope["expected_signer"],
              Lab.address!(config, :permit2),
              amount
            ),
          opts <- LabRpc.opts(config),
          {:ok, allowance} <-
-           LabRpc.uint(
+           LabRpc.call_uint(
              config,
-             :regent,
+             currency,
+             "token",
              "allowance(address,address)",
              [envelope["expected_signer"], Lab.address!(config, :permit2)],
              block,
@@ -160,6 +246,79 @@ defmodule Autolaunch.LabBidChainClient do
       {:ok, %{outcome: if(allowance == amount, do: :confirmed, else: :unverified)}}
     else
       false -> {:ok, %{outcome: :unverified}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # The exact USDC allowance to the adapter, recorded and standing.
+  defp settled({:success, logs}, envelope, :usdc_approval, config) do
+    step = current_step(envelope, :usdc_approval)
+    amount = String.to_integer(step["amount"])
+    usdc = envelope["arguments"]["usdc"]
+    adapter = envelope["arguments"]["adapter"]
+
+    with {:ok, block} <- LabRpc.block_from_logs(logs),
+         true <- Abi.approval_recorded?(logs, usdc, envelope["expected_signer"], adapter, amount),
+         opts <- LabRpc.opts(config),
+         {:ok, allowance} <-
+           LabRpc.call_uint(
+             config,
+             usdc,
+             "token",
+             "allowance(address,address)",
+             [envelope["expected_signer"], adapter],
+             block,
+             opts
+           ) do
+      {:ok, %{outcome: if(allowance == amount, do: :confirmed, else: :unverified)}}
+    else
+      false -> {:ok, %{outcome: :unverified}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Only the adapter's own `StockBidPlaced` for this auction and this owner
+  # confirms a USDC bid; its bid id and committed STOCK are adopted from it.
+  defp settled({:success, logs}, envelope, :usdc_bid, config) do
+    arguments = envelope["arguments"]
+
+    with {:ok, stocks} <- StocksLab.current(),
+         {:ok, block} <- LabRpc.block_from_logs(logs),
+         {:ok, {[auction_word, owner_word, bid_id], [usdc_spent, stock_committed, price]}} <-
+           LabAbi.event_words(
+             StocksLab.abi!(stocks, :bid_adapter),
+             StocksLabAbi.bid_placed_signature(),
+             logs,
+             arguments["adapter"]
+           ),
+         {:ok, auction} <- Abi.word_address(auction_word),
+         {:ok, owner} <- Abi.word_address(owner_word),
+         true <- Address.equal?(auction, arguments["auction_address"]),
+         true <- Address.equal?(owner, envelope["expected_signer"]),
+         true <- price == integer(envelope, "max_price_q96"),
+         true <- usdc_spent == integer(envelope, "usdc_amount_atomic"),
+         opts <- LabRpc.opts(config),
+         {:ok, clearing_price} <-
+           call_uint(config, arguments["auction_address"], "clearingPrice()", [], block, opts) do
+      id = Integer.to_string(bid_id)
+      decimals = String.to_integer(arguments["currency_decimals"])
+
+      {:ok,
+       %{
+         outcome: :confirmed,
+         onchain_bid_id: id,
+         result: %{
+           "onchain_bid_id" => id,
+           "amount" => Autolaunch.Chain.Rpc.format_units(stock_committed, decimals),
+           "stock_committed_atomic" => Integer.to_string(stock_committed),
+           "current_clearing_price" =>
+             Autolaunch.Stocks.Amounts.format_cca_price(clearing_price, decimals, 18),
+           "local_block_hash" => block.hash
+         }
+       }}
+    else
+      false -> {:ok, %{outcome: :unverified}}
+      :error -> {:ok, %{outcome: :unverified}}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -208,6 +367,7 @@ defmodule Autolaunch.LabBidChainClient do
          {:ok, clearing_price} <-
            call_uint(config, envelope["to"], "clearingPrice()", [], block, opts) do
       id = Integer.to_string(bid_id)
+      decimals = String.to_integer(envelope["arguments"]["currency_decimals"])
 
       {:ok,
        %{
@@ -215,7 +375,9 @@ defmodule Autolaunch.LabBidChainClient do
          onchain_bid_id: id,
          result: %{
            "onchain_bid_id" => id,
-           "current_clearing_price" => Lab.format_price(clearing_price),
+           "amount" => envelope["arguments"]["amount"],
+           "current_clearing_price" =>
+             Autolaunch.Stocks.Amounts.format_cca_price(clearing_price, decimals, 18),
            "local_block_hash" => block.hash
          }
        }}

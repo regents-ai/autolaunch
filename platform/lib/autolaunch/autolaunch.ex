@@ -105,6 +105,7 @@ defmodule Autolaunch do
         args: [:treasury_security_report_id]
 
       define :list_lab_market_auctions, action: :watchable_lab
+      define :list_stocks_lab_market_auctions, action: :watchable_stocks_lab
 
       define :get_lab_market_auction_for_update,
         action: :lab_by_id_for_update,
@@ -120,6 +121,10 @@ defmodule Autolaunch do
       define :prepare_bid,
         action: :prepare_bid,
         args: [:auction_id, :expected_signer, :amount, :max_price]
+
+      define :prepare_usdc_bid,
+        action: :prepare_usdc_bid,
+        args: [:auction_id, :expected_signer, :usdc_amount, :max_price]
 
       define :claim_bid_dispatch, action: :claim_bid_dispatch, args: [:action_id]
       define :bind_bid_hash, action: :bind_bid_hash, args: [:action_id, :step, :transaction_hash]
@@ -148,6 +153,32 @@ defmodule Autolaunch do
       define :chain_verified_launch_operation_by_hash,
         action: :chain_verified_by_launch_hash,
         args: [:launch_transaction_hash],
+        not_found_error?: false
+    end
+
+    # The Stocks launch lane: one private draft per account and the durable
+    # single-transaction operation `Autolaunch.Stocks.LaunchActions` owns.
+    resource Autolaunch.Stocks.LaunchDraft do
+      define :create_stocks_launch_draft, action: :create_for_owner
+
+      define :get_my_stocks_launch_draft,
+        action: :mine_account_owned,
+        not_found_error?: false
+
+      define :get_my_stocks_launch_draft_by_id,
+        action: :mine_by_id,
+        args: [:id],
+        not_found_error?: false
+
+      define :autosave_stocks_token_details, action: :autosave_token_details
+      define :autosave_stocks_terms, action: :autosave_terms
+      define :autosave_stocks_revenue, action: :autosave_revenue
+    end
+
+    resource Autolaunch.Stocks.LaunchOperation do
+      define :get_verified_stocks_launch_by_auction,
+        action: :chain_verified_by_auction,
+        args: [:auction_address],
         not_found_error?: false
     end
 
@@ -289,8 +320,8 @@ defmodule Autolaunch do
 
   # The two bidder rules a presenter needs, owned here so the page and the named
   # preparation action can only ever answer the same way.
-  defdelegate parse_bid_amount(value), to: Autolaunch.BidActions, as: :atomic_amount
-  defdelegate bid_amount_units(amount), to: Autolaunch.BidActions, as: :units
+  defdelegate parse_bid_amount(value, decimals), to: Autolaunch.BidActions, as: :atomic_amount
+  defdelegate bid_amount_units(amount, decimals), to: Autolaunch.BidActions, as: :units
 
   # The clean-V1 subject wallet lane. `SubjectWalletActions` proves the active
   # Privy wallet against the account the mounted lease locks before anything

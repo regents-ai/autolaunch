@@ -35,10 +35,16 @@ defmodule AutolaunchWeb.Components.Rail do
                 title="Available after contract deployment"
               >Agent Revshare</Regent.Primitives.button>
               <Regent.Primitives.button
+                :if={Autolaunch.Prelaunch.read_only?()}
                 disabled
                 variant="secondary"
                 title="Available after contract deployment"
-              >Onchain Stock Pair</Regent.Primitives.button>
+              >Stocks</Regent.Primitives.button>
+              <.link
+                :if={!Autolaunch.Prelaunch.read_only?()}
+                navigate="/create/stocks"
+                class="rg-button rg-button--secondary"
+              >Stocks</.link>
             </div>
           </details>
           <.link

@@ -19,7 +19,7 @@ function wholeReport(value: unknown): Report | null {
   const {component_id, action_id, press_id, step, transaction_hash, outcome} = value
   if (typeof component_id !== "string" || !/^[a-zA-Z0-9_:-]{1,200}$/.test(component_id) ||
       !actionId(action_id) || !uuid(press_id) || typeof step !== "string" ||
-      !["token_approval", "permit2_approval", "bid", "approval", "launch", "action"].includes(step)) return null
+      !["token_approval", "permit2_approval", "bid", "usdc_approval", "usdc_bid", "approval", "launch", "action"].includes(step)) return null
   const base = {component_id, action_id, press_id, step}
   if (typeof transaction_hash === "string" && /^0x[0-9a-f]{64}$/i.test(transaction_hash) && outcome === undefined)
     return {...base, transaction_hash}

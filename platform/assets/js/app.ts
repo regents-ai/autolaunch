@@ -14,6 +14,7 @@ import {
 import {AutolaunchBidWallet} from "./hooks/autolaunch_bid_wallet"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
+import {AutolaunchTestFunds, AutolaunchZonedStart} from "./hooks/autolaunch_stocks"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {XConnections} from "./hooks/x_connections"
@@ -27,6 +28,8 @@ const hooks = {
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchSubjectWallet,
+  AutolaunchTestFunds,
+  AutolaunchZonedStart,
   Optics,
   XConnections,
   HomeSearch,

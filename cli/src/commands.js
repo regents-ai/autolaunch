@@ -24,14 +24,14 @@ export const commands = [
   {
     command: "auctions list", operation_id: "listAuctions", webmcp: "autolaunch_auctions",
     method: "GET", path: "/api/v1/auctions", flags: ["mode", "sort", "limit", "after"],
-    description: "List stored public auctions. Defaults to 50, capped at 50; follow pagination.next_cursor with --after (24-hour expiry). Modes: all, biddable, live, failed_minimum, graduated. Sort: newest or oldest.",
+    description: "List stored public auctions with their kind and quote_token. Defaults to 50, capped at 50; follow pagination.next_cursor with --after (24-hour expiry). Modes: all, biddable, live, failed_minimum, graduated. Sort: newest or oldest.",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
     request: (_args, values) => listQuery("/api/v1/auctions", values, ["mode", "sort", "limit", "after"]),
   },
   {
     command: "auction <id>", operation_id: "getAuction", webmcp: "autolaunch_auction",
     method: "GET", path: "/api/v1/auctions/{id}", flags: [],
-    description: "Read an auction by exact UUID, including its stored treasury report.", authority: "public", effect: "read",
+    description: "Read an auction by exact UUID, including its kind (agent or stocks), the quote_token bids are paid in, and its stored treasury report.", authority: "public", effect: "read",
     request: args => ({path: `/api/v1/auctions/${pathSegment(args[1])}`}),
   },
   {

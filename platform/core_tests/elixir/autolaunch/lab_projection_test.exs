@@ -206,6 +206,7 @@ defmodule Autolaunch.LabProjectionTest do
         },
         "arguments" => %{
           "auction_id" => auction_id,
+          "auction_address" => @auction,
           "amount" => "100",
           "max_price" => "2.5"
         }
@@ -216,6 +217,7 @@ defmodule Autolaunch.LabProjectionTest do
   defp bid_result do
     %{
       "onchain_bid_id" => "9",
+      "amount" => "100",
       "current_clearing_price" => "1"
     }
   end

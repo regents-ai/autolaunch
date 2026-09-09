@@ -9,9 +9,16 @@ defmodule Autolaunch.Chain.Envelope do
     autolaunch_bid
     autolaunch_subject_wallet
     autolaunch_launch
+    autolaunch_stocks_launch
     autolaunch_lab_position
   )
-  @lab_resources ~w(autolaunch_launch autolaunch_auction autolaunch_bid autolaunch_lab_position)
+  @lab_resources ~w(
+    autolaunch_launch
+    autolaunch_stocks_launch
+    autolaunch_auction
+    autolaunch_bid
+    autolaunch_lab_position
+  )
 
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)

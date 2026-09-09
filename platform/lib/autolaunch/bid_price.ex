@@ -2,9 +2,15 @@ defmodule Autolaunch.BidPrice do
   @moduledoc "Exact zero-based auction tick arithmetic; never raises the user's maximum."
   @uint256_max Integer.pow(2, 256) - 1
 
-  def decimal(q96),
+  @doc """
+  The decimal a Q96 price names in whole currency per whole NEW token.
+
+  Q96 is currency base units per NEW base unit; NEW always has eighteen
+  decimals, the currency has `currency_decimals`.
+  """
+  def decimal(q96, currency_decimals),
     do:
-      Decimal.new(1, q96 * Integer.pow(5, 96), -96)
+      Decimal.new(1, q96 * Integer.pow(5, 96) * Integer.pow(10, 18), -(96 + currency_decimals))
       |> Decimal.normalize()
       |> Decimal.to_string(:normal)
 

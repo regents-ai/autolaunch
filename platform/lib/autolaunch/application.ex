@@ -22,6 +22,7 @@ defmodule Autolaunch.Application do
       autolaunch_indexer_child(),
       {Phoenix.PubSub, name: Autolaunch.PubSub},
       autolaunch_lab_market_feed_child(),
+      autolaunch_stocks_lab_market_feed_child(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -52,6 +53,18 @@ defmodule Autolaunch.Application do
          true <- Application.get_env(:autolaunch, :autolaunch_lab_enabled, false),
          {:ok, _config} <- Autolaunch.Lab.current() do
       Autolaunch.LabMarketFeed
+    else
+      _disabled -> nil
+    end
+  end
+
+  # The Stocks feed runs only when the Stocks lab extends a running Agent lab.
+  defp autolaunch_stocks_lab_market_feed_child do
+    with false <- Autolaunch.Prelaunch.read_only?(),
+         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
+         true <- Autolaunch.Stocks.Lab.enabled?(),
+         {:ok, _config} <- Autolaunch.Stocks.Lab.current() do
+      Autolaunch.Stocks.LabMarketFeed
     else
       _disabled -> nil
     end

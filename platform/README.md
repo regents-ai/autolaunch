@@ -140,6 +140,12 @@ with test assets and no mainnet value. The controller, the environment the site 
 run commands, how to switch on real Privy sign-in for the lab site, and the restart and
 recovery rules are in [docs/local-base-lab.md](docs/local-base-lab.md).
 
+The Stocks lab extends that fork with the Stocks launchpad, fixture stock tokens and routes.
+Set `AUTOLAUNCH_STOCKS_LAB_CONFIG=/abs/path/stocks-site-config.json` alongside the Agent lab
+variables (development and test only; it is refused without `AUTOLAUNCH_LAB_CONFIG` and must
+name the same Agent lab). This turns on `/create/stocks`, USDC bids on Stocks auctions, the
+Stocks market feed and the test-funds panel. Details are in [docs/stocks.md](docs/stocks.md).
+
 ## Protected paths
 
 These paths carry the boundary between the site and money. A change to any of them is a

@@ -260,3 +260,69 @@ contracts:
             signature: totalStaked()
             selector: "0x817b1cd2"
     validation_command: mix test test/autolaunch/chain/manifest_test.exs
+  - id: stocks_local_lab
+    chain_target: base-mainnet
+    authority: interface_only
+    deployment_status: local_lab_only
+    admission: disabled
+    source_note: >-
+      Autolaunch Stocks. The ABIs below are compiled from the fixed interfaces at
+      contracts/stocks/src/interfaces with solc 0.8.26 and carry no deployment. The website
+      reads the deployed local-lab ABIs from stocks-site-config.json and validates them against
+      these interface shapes; no mainnet address exists for any of them.
+    admitted_prepared_actions: []
+    reviewed_action_evidence:
+      - contract_id: stocks_launchpad_v1
+        contract_name: IStocksLaunchpadV1
+        target: stocks_lab_launchpad_address
+        abi_path: abi/stocks-launchpad-v1.json
+        abi_sha256: de260f924e504e645b8928783732e96fbb858dc1d69170a16c7dc2254fc25694
+        interface_note: >-
+          launch takes one LaunchParams tuple (name, symbol, description, website, image, stock,
+          startBlock uint64, floorPriceQ96 uint256, requiredStockRaised uint128, feeAdministrator,
+          subjectSplitter) and nothing else. No fee, no allowance and no creator allocation.
+        confirmation_event_signatures:
+          - StockLaunchCreated(uint256,address,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)
+        reads:
+          - id: stock_admission
+            signature: stockAdmission(address)
+          - id: launches
+            signature: launches(uint256)
+          - id: launches_paused
+            signature: launchesPaused()
+          - id: bid_tick_spacing_for
+            signature: bidTickSpacingFor(uint256)
+          - id: subject_config
+            signature: subjectConfig(uint256)
+        action_ids:
+          - launch
+      - contract_id: stock_bid_adapter_v1
+        contract_name: IStockBidAdapterV1
+        target: stocks_lab_bid_adapter_address
+        abi_path: abi/stocks-bid-adapter-v1.json
+        abi_sha256: 913a4cf530af8f5a39183ee6800d054cd3490ebfde10e4f854e389578d71666d
+        interface_note: >-
+          bidWithUsdc(auction, usdcAmount, minStockOut, maxPriceQ96, prevTickPriceQ96, deadline)
+          pulls exactly usdcAmount through a standard ERC-20 allowance to the adapter and bids as
+          owner = msg.sender. The only USDC allowance a bid prepares is that exact amount.
+        confirmation_event_signatures:
+          - StockBidPlaced(address,address,uint256,uint256,uint128,uint256)
+        action_ids:
+          - bid_with_usdc
+      - contract_id: stock_route
+        contract_name: IStockRoute
+        target: launchpad_admitted_route_for_stock
+        abi_path: abi/stock-route.json
+        abi_sha256: 461b1c0990927cfee560b71700d60c15dd700c8d5551c3904e52f741e5de260f
+        interface_note: quoteExactIn is a read-only estimate for review copy and never binding.
+        reads:
+          - id: quote_exact_in
+            signature: quoteExactIn(address,address,uint256)
+        action_ids: []
+      - contract_id: stocks_fee_hook_v1
+        contract_name: IStocksFeeHookV1
+        target: stocks_lab_hook_address
+        abi_path: abi/stocks-fee-hook-v1.json
+        abi_sha256: 6f13251ad750b3ab182ac001badd359ea450ce5d8ddc9a31e551123ae4569405
+        interface_note: Accrual-only hook fee lanes; the website reads and never calls settle.
+        action_ids: []

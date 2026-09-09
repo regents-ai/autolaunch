@@ -47,19 +47,22 @@ defmodule Autolaunch.LabProjection do
   def project_bid(%{envelope: envelope}, result) when is_map(result) do
     if lab_envelope?(envelope) do
       arguments = envelope["arguments"]
-      bid_id = bid_identity(envelope["to"], result["onchain_bid_id"])
+      auction_address = arguments["auction_address"]
+      bid_id = bid_identity(auction_address, result["onchain_bid_id"])
 
+      # The committed amount comes from the verified result: the reviewed amount
+      # for a direct bid, the adapter's reported STOCK for a USDC bid.
       transact(fn ->
         create(Bid, :project_lab, %{
           bid_id: bid_id,
           auction_id: arguments["auction_id"],
           owner_address: envelope["expected_signer"],
-          amount: arguments["amount"],
+          amount: result["amount"],
           max_price: arguments["max_price"],
           current_clearing_price: result["current_clearing_price"] || "0",
           estimated_tokens_if_end_now: nil,
           status: "active",
-          auction_address: envelope["to"],
+          auction_address: auction_address,
           onchain_bid_id: result["onchain_bid_id"]
         })
       end)

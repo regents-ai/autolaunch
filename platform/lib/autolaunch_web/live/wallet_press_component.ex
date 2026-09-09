@@ -5,27 +5,44 @@ defmodule AutolaunchWeb.WalletPressComponent do
 
   # Generation refresh does not change a mounted owning scope. Lineage/account
   # replacement or loss does; no previous private review may survive that cutover.
-  def scope(%{authenticated: true, current_human_id: id,
-              session_lease: %{lineage: lineage, account_id: id}})
+  def scope(%{
+        authenticated: true,
+        current_human_id: id,
+        session_lease: %{lineage: lineage, account_id: id}
+      })
       when is_integer(id) and is_binary(lineage),
       do: Autolaunch.Accounts.SessionAuthority.topic(lineage) <> ":" <> to_string(id)
 
   def scope(_assigns), do: nil
 
   def withdrawal_copy,
-    do: "This review was cancelled. Previously issued wallet presses may still complete; check their recorded outcomes. No new presses can start from this review."
+    do:
+      "This review was cancelled. Previously issued wallet presses may still complete; check their recorded outcomes. No new presses can start from this review."
 
   def update_scope(socket, incoming) do
     next = Map.merge(socket.assigns, incoming)
+
     if scope(socket.assigns) != scope(next) or is_nil(scope(next)),
       do: clear_private(socket),
       else: socket
   end
 
   defp clear_private(socket) do
-    assign(socket, wallet_press_history: %{}, operation: nil, wallet: nil,
-      balance: nil, state: nil, amount: "", max_price: "", estimate: nil,
-      note: "", notice: nil, fresh_treasury_report_id: nil)
+    assign(socket,
+      wallet_press_history: %{},
+      operation: nil,
+      wallet: nil,
+      balance: nil,
+      state: nil,
+      amount: "",
+      max_price: "",
+      usdc_amount: "",
+      usdc_max_price: "",
+      estimate: nil,
+      note: "",
+      notice: nil,
+      fresh_treasury_report_id: nil
+    )
   end
 
   def dispatch(socket, kind, params, opts, component) do
@@ -125,8 +142,12 @@ defmodule AutolaunchWeb.WalletPressComponent do
 
   def consume(socket, lease, result) do
     cond do
-      socket.assigns[:session_lease] != lease -> socket
-      current_authority?(socket.assigns) -> completed(socket, result)
+      socket.assigns[:session_lease] != lease ->
+        socket
+
+      current_authority?(socket.assigns) ->
+        completed(socket, result)
+
       true ->
         socket
         |> clear_private()
@@ -135,8 +156,11 @@ defmodule AutolaunchWeb.WalletPressComponent do
     end
   end
 
-  defp current_authority?(%{authenticated: true, current_human_id: id,
-                           session_lease: %{lineage: lineage, account_id: id}}) do
+  defp current_authority?(%{
+         authenticated: true,
+         current_human_id: id,
+         session_lease: %{lineage: lineage, account_id: id}
+       }) do
     match?(%{id: ^id}, Autolaunch.Accounts.SessionAuthority.leased_account(lineage, id))
   end
 
@@ -159,11 +183,14 @@ defmodule AutolaunchWeb.WalletPressComponent do
 
   defp apply_result(socket, {:ok, %{operation: operation}}) do
     previous = Map.get(socket.assigns[:wallet_press_history] || %{}, operation.action_id)
+
     previous =
       case socket.assigns[:operation] do
         %{action_id: id} = current when id == operation.action_id ->
           merge_observation(previous, current)
-        _ -> previous
+
+        _ ->
+          previous
       end
 
     operation = merge_observation(previous, operation)

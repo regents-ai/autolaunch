@@ -80,6 +80,7 @@ defmodule Autolaunch.LabAbi do
   }
 
   @uint256_max Integer.pow(2, 256) - 1
+  @zero_address "0x" <> String.duplicate("0", 40)
 
   @doc false
   def required_signatures do
@@ -95,8 +96,10 @@ defmodule Autolaunch.LabAbi do
   @doc false
   def requirements, do: @required
 
-  def validate(abis) when is_map(abis) do
-    Enum.reduce_while(@required, :ok, fn {contract, requirements}, :ok ->
+  def validate(abis, required \\ @required)
+
+  def validate(abis, required) when is_map(abis) and is_map(required) do
+    Enum.reduce_while(required, :ok, fn {contract, requirements}, :ok ->
       abi = Map.get(abis, contract, [])
 
       case Enum.find(requirements, &(not requirement_declared?(abi, &1))) do
@@ -106,7 +109,7 @@ defmodule Autolaunch.LabAbi do
     end)
   end
 
-  def validate(_abis), do: {:error, :invalid_abis}
+  def validate(_abis, _required), do: {:error, :invalid_abis}
 
   def declared?(abi, signature) when is_list(abi) and is_binary(signature) do
     Enum.any?(abi, &(canonical_signature(&1) == signature))
@@ -238,6 +241,10 @@ defmodule Autolaunch.LabAbi do
 
   defp encode_static(%{"type" => "tuple", "components" => components}, value),
     do: encode_sequence(components, tuple_values!(components, value))
+
+  # The zero address is not an account and `Address` refuses it everywhere else;
+  # here it is the exact "no subject splitter" word the Stocks launch takes.
+  defp encode_static(%{"type" => "address"}, @zero_address), do: String.duplicate("0", 64)
 
   defp encode_static(%{"type" => "address"}, value) do
     case Address.normalize(value) do

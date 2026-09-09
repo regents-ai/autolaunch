@@ -151,7 +151,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_auction",
-      "Read one public Autolaunch auction by UUID, including its stored treasury report when available.",
+      "Read one public Autolaunch auction by UUID: its kind (agent or stocks), the quote_token bids are paid in, and its stored treasury report when available.",
       {id},
       ["id"],
       input => ({path: `/api/v1/auctions/${pathValue(input.id)}`}),

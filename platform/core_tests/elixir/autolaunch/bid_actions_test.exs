@@ -16,10 +16,10 @@ defmodule Autolaunch.BidActionsTest do
     install(currency: @other)
 
     assert {:error, error} = Autolaunch.prepare_bid(auction.id, wallet, "12.5", "3", opts)
-    assert refusal(error) == :auction_currency_is_not_regent
+    assert refusal(error) == :auction_currency_changed
 
     assert {:error, error} = Autolaunch.bid_position(auction.id, wallet, opts)
-    assert refusal(error) == :auction_currency_is_not_regent
+    assert refusal(error) == :auction_currency_changed
   end
 
   test "ACTIVE_WALLET_IS_THE_SIGNER: an unlinked wallet exposes nothing and prepares nothing", %{
@@ -152,14 +152,15 @@ defmodule Autolaunch.BidActionsTest do
 
     assert {:error, _} = Autolaunch.BidPrice.align(Integer.pow(2, 256), limits)
     assert {:error, _} = Autolaunch.BidPrice.align(40, %{limits | tick_spacing_q96: 0})
-    assert {:error, _} = Autolaunch.BidActions.price_q96(String.duplicate("9", 100))
-    exact = Autolaunch.BidPrice.decimal(30)
-    assert {:ok, 30} = Autolaunch.BidActions.price_q96(exact)
+    assert {:error, _} = Autolaunch.BidActions.price_q96(String.duplicate("9", 100), 18)
+    exact = Autolaunch.BidPrice.decimal(30, 18)
+    assert {:ok, 30} = Autolaunch.BidActions.price_q96(exact, 18)
 
     assert {:ok, 29} =
              Autolaunch.BidActions.price_q96(
                Decimal.new(1, 30 * Integer.pow(5, 96) - 1, -96)
-               |> Decimal.to_string(:normal)
+               |> Decimal.to_string(:normal),
+               18
              )
   end
 

@@ -35,6 +35,10 @@ config :ash,
   many_to_many_destroy_destination_on_match?: true,
   known_types: [AshPostgres.Timestamptz, AshPostgres.TimestamptzUsec]
 
+# Zoned Stocks start times resolve through the bundled IANA table; nothing is
+# fetched at runtime.
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 config :spark,
   formatter: [
     remove_parens?: true,
