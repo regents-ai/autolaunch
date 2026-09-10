@@ -13,17 +13,11 @@ defmodule AutolaunchWeb.Plugs.LaunchImage do
   # persisted content type is constrained to PNG, JPEG, or WebP at ingestion.
   # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   @impl true
-  def call(
-        %Plug.Conn{
-          method: "GET",
-          path_info: ["images", id, digest]
-        } = conn,
-        _options
-      ) do
+  def call(%Plug.Conn{method: "GET", path_info: [lane, id, digest]} = conn, _options)
+      when lane in ["images", "stock-images"] do
     with {:ok, _uuid} <- Ecto.UUID.cast(id),
          true <- Regex.match?(@digest, digest),
-         {:ok, image} when not is_nil(image) <-
-           Autolaunch.get_public_launch_draft_image(id, digest, actor: nil) do
+         {:ok, image} when not is_nil(image) <- fetch_image(lane, id, digest) do
       conn
       |> put_resp_content_type(image.content_type)
       |> put_resp_header("content-length", Integer.to_string(image.byte_size))
@@ -38,6 +32,12 @@ defmodule AutolaunchWeb.Plugs.LaunchImage do
   end
 
   def call(conn, _options), do: conn
+
+  defp fetch_image("images", id, digest),
+    do: Autolaunch.get_public_launch_draft_image(id, digest, actor: nil)
+
+  defp fetch_image("stock-images", id, digest),
+    do: Autolaunch.get_public_stock_launch_draft_image(id, digest, actor: nil)
 
   defp not_found(conn) do
     conn

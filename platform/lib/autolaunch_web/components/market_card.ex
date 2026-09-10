@@ -219,8 +219,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
       description: present(values["description"], "Your launch description will appear here."),
       image: values["image"],
       status: "Preview",
-      metric_label: "Raise target",
-      metric: metric(values["required_regent_raised"], "REGENT"),
+      metric_label: present(values["preview_metric_label"], "Raise target"),
+      metric:
+        metric(
+          values["required_regent_raised"],
+          present(values["preview_metric_unit"], "REGENT")
+        ),
       address: nil,
       path: nil,
       creator: creator_name(connections),

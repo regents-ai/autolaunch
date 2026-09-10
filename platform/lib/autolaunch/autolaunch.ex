@@ -174,9 +174,47 @@ defmodule Autolaunch do
         args: [:id],
         not_found_error?: false
 
+      define :get_my_stocks_launch_draft_for_update,
+        action: :mine_by_id_for_update,
+        args: [:id],
+        not_found_error?: false
+
       define :autosave_stocks_token_details, action: :autosave_token_details
       define :autosave_stocks_terms, action: :autosave_terms
       define :autosave_stocks_revenue, action: :autosave_revenue
+
+      define :attach_stocks_launch_draft_image,
+        action: :attach_image,
+        args: [:stock_launch_draft_image_id]
+    end
+
+    # The Stocks image lane mirrors the Agent one: immutable uploaded bytes the
+    # public `/stock-images/...` endpoint serves only to a caller holding the
+    # content-addressed URL.
+    resource Autolaunch.Stocks.LaunchDraftImage do
+      define :create_stock_launch_draft_image,
+        action: :store_for_owner,
+        args: [:bytes, :content_type, :original_filename, :stock_launch_draft_id]
+
+      define :get_my_stock_launch_draft_image,
+        action: :mine,
+        args: [:stock_launch_draft_id],
+        not_found_error?: false
+
+      define :get_my_stock_launch_draft_image_for_reuse,
+        action: :mine_for_reuse,
+        args: [:stock_launch_draft_id, :digest],
+        not_found_error?: false
+
+      define :get_my_stock_launch_draft_image_by_id,
+        action: :mine_by_id,
+        args: [:stock_launch_draft_id, :id],
+        not_found_error?: false
+
+      define :get_public_stock_launch_draft_image,
+        action: :public_by_id_and_digest,
+        args: [:id, :digest],
+        not_found_error?: false
     end
 
     resource Autolaunch.Stocks.LaunchOperation do

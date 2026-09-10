@@ -201,12 +201,25 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
 
   # AT06 / §5.1: switching the subject lane off leaves no splitter in the params.
   test "disabling the subject lane removes the splitter from the executable params" do
+    draft_id = Ecto.UUID.generate()
+
+    image = %Autolaunch.Stocks.LaunchDraftImage{
+      id: Ecto.UUID.generate(),
+      digest: String.duplicate("ab", 32),
+      human_account_id: 1,
+      stock_launch_draft_id: draft_id
+    }
+
     draft = %{
+      id: draft_id,
+      human_account_id: 1,
       name: "Apple Pair",
       symbol: "APLP",
       description: "A test launch",
       website: "https://example.com",
-      image: "https://example.com/i.png",
+      image: Autolaunch.Stocks.LaunchDraftImageStorage.public_url(image),
+      stock_launch_draft_image_id: image.id,
+      stock_launch_draft_image: image,
       stock_chain_id: 8453,
       stock_address: "0xb200000000000000000000C2e324d24d7eEcd1fb",
       start_at: ~U[2026-09-10 12:00:00Z],

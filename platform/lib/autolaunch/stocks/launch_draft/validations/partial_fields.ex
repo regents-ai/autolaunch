@@ -12,7 +12,6 @@ defmodule Autolaunch.Stocks.LaunchDraft.Validations.PartialFields do
     symbol: 16,
     description: 512,
     website: 256,
-    image: 256,
     stock_address: 42,
     start_timezone: 64,
     minimum_raise: 128,

@@ -14,19 +14,39 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Autolaunch.Chain.Address
-  alias Autolaunch.Stocks.{Amounts, Assets}
+  alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
-  @token_fields [:name, :symbol, :description, :website, :image]
+  @token_fields [:name, :symbol, :description, :website]
   @terms_fields [:stock_address, :start_at, :start_timezone, :minimum_raise, :floor_price]
   @revenue_fields [:subject_enabled, :subject_splitter, :fee_administrator]
 
-  @metadata_limits [name: 64, symbol: 16, description: 512, website: 256, image: 256]
+  @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
 
   @doc "Whether the public token identity is complete."
   def token_details_complete?(draft) do
     Enum.all?(@metadata_limits, fn {field, limit} -> within?(Map.get(draft, field), limit) end) and
-      https_url?(Map.get(draft, :image))
+      image_complete?(draft)
   end
+
+  @doc "Whether this draft carries the only image shape its provenance permits."
+  def image_complete?(%{
+        id: draft_id,
+        human_account_id: human_account_id,
+        stock_launch_draft_image_id: image_id,
+        stock_launch_draft_image: %LaunchDraftImage{} = owned_image,
+        image: image
+      })
+      when is_binary(draft_id) and is_integer(human_account_id) and is_binary(image_id) and
+             is_binary(image) do
+    owned_image.id == image_id and
+      owned_image.human_account_id == human_account_id and
+      owned_image.stock_launch_draft_id == draft_id and
+      owned_image.digest =~ ~r/\A[0-9a-f]{64}\z/ and
+      image == LaunchDraftImageStorage.public_url(owned_image) and
+      byte_size(image) <= 256
+  end
+
+  def image_complete?(_draft), do: false
 
   @doc "Whether the currency, schedule and amounts are complete and exact."
   def terms_complete?(draft) do
@@ -52,15 +72,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
 
-  defp https_url?(value) when is_binary(value) do
-    match?(
-      {:ok, %URI{scheme: "https", host: host}} when is_binary(host) and host != "",
-      URI.new(value)
-    )
-  end
-
-  defp https_url?(_value), do: false
-
   @doc "Whether `value` names an IANA zone the bundled table knows."
   def timezone?(value) when is_binary(value),
     do: match?({:ok, _}, DateTime.now(value))
@@ -78,8 +89,13 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     table "stock_launch_drafts"
     repo Autolaunch.Repo
 
+    custom_indexes do
+      index [:stock_launch_draft_image_id]
+    end
+
     references do
       reference :human_account, on_delete: :restrict
+      reference :stock_launch_draft_image, on_delete: :restrict
     end
   end
 
@@ -96,12 +112,22 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     read :mine_account_owned do
       get? true
       filter expr(human_account_id == ^actor(:human_account_id))
+      prepare build(load: [:stock_launch_draft_image])
     end
 
     read :mine_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
       filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+      prepare build(load: [:stock_launch_draft_image])
+    end
+
+    read :mine_by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+      prepare build(load: [:stock_launch_draft_image])
+      prepare fn query, _context -> Ash.Query.lock(query, :for_update) end
     end
 
     update :autosave_token_details do
@@ -126,6 +152,12 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       require_atomic? false
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
     end
+
+    update :attach_image do
+      argument :stock_launch_draft_image_id, :uuid, allow_nil?: false
+      require_atomic? false
+      change Autolaunch.Stocks.LaunchDraft.Changes.AttachOwnedImage
+    end
   end
 
   policies do
@@ -133,9 +165,11 @@ defmodule Autolaunch.Stocks.LaunchDraft do
              :create_for_owner,
              :mine_account_owned,
              :mine_by_id,
+             :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_terms,
-             :autosave_revenue
+             :autosave_revenue,
+             :attach_image
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
@@ -143,9 +177,11 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     policy action([
              :mine_account_owned,
              :mine_by_id,
+             :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_terms,
-             :autosave_revenue
+             :autosave_revenue,
+             :attach_image
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
@@ -178,6 +214,10 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     belongs_to :human_account, Autolaunch.Accounts.HumanAccount do
       allow_nil? false
       attribute_type :integer
+    end
+
+    belongs_to :stock_launch_draft_image, Autolaunch.Stocks.LaunchDraftImage do
+      allow_nil? true
     end
   end
 

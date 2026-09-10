@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.StockCurrencySelect
 
   alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
@@ -14,17 +15,11 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     %{param: "name", label: "Name", kind: :text, hint: "Up to 64 bytes."},
     %{param: "symbol", label: "Symbol", kind: :text, hint: "Up to 16 bytes."},
     %{param: "description", label: "Description", kind: :long_text, hint: "Up to 512 bytes."},
-    %{param: "website", label: "Website", kind: :text, hint: "A link readers can open."},
-    %{
-      param: "image",
-      label: "Image link",
-      kind: :text,
-      hint: "An https link to a PNG, JPEG or WebP image, up to 256 bytes."
-    }
+    %{param: "website", label: "Website", kind: :text, hint: "A link readers can open."}
   ]
 
   @sections %{
-    "autosave_stocks_token_details" => ~w(name symbol description website image),
+    "autosave_stocks_token_details" => ~w(name symbol description website),
     "autosave_stocks_terms" =>
       ~w(stock_address start_local start_timezone minimum_raise floor_price),
     "autosave_stocks_revenue" => ~w(subject_enabled subject_splitter fee_administrator)
@@ -64,6 +59,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :draft_values, :map, required: true
   attr :draft_errors, :map, required: true
   attr :draft_notice, :map, default: nil
+  attr :image_notice, :map, default: nil
+  attr :stocks_image_upload, :map, default: nil
   attr :stocks_lab, :map, default: nil
   attr :active_stocks_launch, :boolean, default: false
   attr :current_human_id, :integer, default: nil
@@ -140,13 +137,71 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 error={@draft_errors[field.param]}
               />
             </div>
-            <img
-              :if={@draft_values["image"] =~ ~r/\Ahttps:\/\//}
-              class="autolaunch-image-preview"
-              src={@draft_values["image"]}
-              alt="Token image"
-            />
+
+            <div class="autolaunch-draft-field autolaunch-draft-field--wide launchpad-upload">
+              <label for="stocks-image-upload">Token image</label>
+              <p class="autolaunch-draft-hint">
+                PNG, JPEG, or WebP · maximum 2 MB · replace with a file or image link.
+                <strong>Recommended: 400 × 400 px</strong>
+              </p>
+              <div class="launchpad-upload__control">
+                <img
+                  :if={is_binary(@draft_values["image"]) && @draft_values["image"] != ""}
+                  class="autolaunch-image-preview"
+                  src={@draft_values["image"]}
+                  alt="Saved token image"
+                />
+                <.live_file_input
+                  :if={@stocks_image_upload}
+                  upload={@stocks_image_upload}
+                  id="stocks-image-upload"
+                />
+              </div>
+              <div :for={entry <- (@stocks_image_upload && @stocks_image_upload.entries) || []}>
+                <.live_img_preview entry={entry} class="autolaunch-image-preview" />
+                <p>{entry.client_name} · {upload_progress(entry.progress)}</p>
+              </div>
+              <p
+                :for={error <- (@stocks_image_upload && upload_errors(@stocks_image_upload)) || []}
+                class="autolaunch-draft-error"
+                role="alert"
+              >
+                {upload_error(error)}
+              </p>
+            </div>
           </form>
+
+          <form
+            id="stocks-image-url"
+            phx-submit="stocks_fetch_image_url"
+            class="launchpad-upload__url rg-field"
+          >
+            <label for="stocks-image-url-input">Paste an image link</label>
+            <div class="launchpad-upload__url-row">
+              <input
+                type="text"
+                id="stocks-image-url-input"
+                name="url"
+                autocomplete="off"
+                aria-describedby="stocks-image-notice"
+                placeholder="https://"
+              />
+              <Regent.Primitives.button type="submit" phx-disable-with="Fetching…">Use this link</Regent.Primitives.button>
+            </div>
+          </form>
+
+          <p
+            id="stocks-image-notice"
+            role="status"
+            aria-live="polite"
+            class={
+              if @image_notice && @image_notice.tone == :error,
+                do: "autolaunch-draft-error",
+                else: "autolaunch-draft-hint"
+            }
+          >
+            {if @image_notice, do: @image_notice.message}
+          </p>
 
           <form
             id="stocks-terms"
@@ -400,11 +455,33 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
           </p>
         </div>
 
-        <aside class="launchpad-create__preview rg-panel rg-support-panel" aria-label="Launch summary">
+        <aside
+          class="launchpad-create__preview rg-panel rg-support-panel"
+          aria-label="Live launch preview"
+        >
+          <div>
+            <p class="autolaunch-kicker">Live preview</p>
+            <Regent.Structure.section_bar>
+              <h2 class="rg-section-bar__label">Your auction</h2>
+            </Regent.Structure.section_bar>
+          </div>
+          <.autolaunch_market_card
+            kind={:draft}
+            record={
+              Map.merge(@draft_values, %{
+                "required_regent_raised" => @draft_values["minimum_raise"],
+                "preview_metric_unit" => if(@stock, do: @stock.symbol, else: ""),
+                "preview_metric_label" => "Minimum raise"
+              })
+            }
+            preview
+          />
+          <p>Auctions and graduated tokens use this same public identity.</p>
+
           <div>
             <p class="autolaunch-kicker">Summary</p>
             <Regent.Structure.section_bar>
-              <h2 class="rg-section-bar__label">Your auction</h2>
+              <h2 class="rg-section-bar__label">Terms</h2>
             </Regent.Structure.section_bar>
           </div>
           <dl class="launch-wallet-terms">
@@ -526,4 +603,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp stage_status(true), do: "Complete"
   defp stage_status(_incomplete), do: "In progress"
+
+  defp upload_progress(progress), do: "#{progress}%"
+  defp upload_error(:too_large), do: "Choose an image no larger than 2 MB."
+  defp upload_error(:not_accepted), do: "Choose a PNG, JPEG, or WebP image."
+  defp upload_error(:too_many_files), do: "Choose one image."
+  defp upload_error(_error), do: "That image could not be uploaded."
 end

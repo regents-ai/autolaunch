@@ -87,11 +87,22 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     |> form("#stocks-token-details",
       stock_draft: %{
         description: "Pair",
-        website: "https://example.com",
-        image: "https://example.com/i.png"
+        website: "https://example.com"
       }
     )
     |> render_change()
+
+    # The image a launch carries is always one the site stored and serves.
+    {:ok, draft_for_image} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
+
+    {:ok, %{draft: _attached}} =
+      Autolaunch.Stocks.LaunchDraftImageStorage.store_and_attach(
+        draft_for_image,
+        File.read!("core_tests/elixir/support/fixtures/launch-draft.png"),
+        "image/png",
+        "launch.png",
+        actor
+      )
 
     # Switching the lane on reveals its address field; the next save fills it.
     view
