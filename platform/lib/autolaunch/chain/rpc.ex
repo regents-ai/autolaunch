@@ -146,7 +146,9 @@ defmodule Autolaunch.Chain.Rpc do
 
     case client.post(rpc_url,
            json: request,
-           connect_options: [timeout: 3_000],
+           # Fly private-network names (.internal) publish only AAAA records;
+           # inet6 makes Mint try IPv6 first and still fall back to IPv4.
+           connect_options: [timeout: 3_000, transport_opts: [inet6: true]],
            pool_timeout: 3_000,
            receive_timeout: @timeout,
            retry: false

@@ -337,6 +337,7 @@ defmodule Autolaunch.LabBidSettlementChainClient do
 
     case client.post(config.rpc_url,
            json: request,
+           connect_options: [transport_opts: [inet6: true]],
            receive_timeout: @simulate_timeout,
            retry: false
          ) do
