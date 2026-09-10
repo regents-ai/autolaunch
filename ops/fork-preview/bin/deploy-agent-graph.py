@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import shlex
 import sys
 from pathlib import Path
@@ -26,7 +27,9 @@ if sys.version_info < (3, 12):
     raise SystemExit("Python 3.12+ is required")
 
 OPS_ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY_ROOT = OPS_ROOT.parents[1]
+# The frozen V1 project whose controller and hydrated dependencies deploy the graph. A worktree
+# whose nested submodules are not materialized can name a hydrated checkout with FORK_V1_ROOT.
+REPOSITORY_ROOT = Path(os.environ.get("FORK_V1_ROOT", OPS_ROOT.parents[1])).resolve()
 AGENT_LAB_CONTROLLER = REPOSITORY_ROOT / "contracts" / "v1" / "bin" / "local-base-lab.py"
 DEFAULT_OUT = OPS_ROOT / "generated"
 DEFAULT_RPC_URL = "http://127.0.0.1:8547"
