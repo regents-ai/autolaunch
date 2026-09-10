@@ -12,7 +12,7 @@ primary_region = "iad"
 # accepted digest; `fly deploy --image <preview digest>` bypasses this block
 # when the preview image was built and pushed beforehand.
 [build.args]
-  AUTOLAUNCH_IMAGE = "registry.fly.io/autolaunch-sh@sha256:REPLACE_WITH_ACCEPTED_DIGEST"
+  AUTOLAUNCH_IMAGE = "registry.fly.io/autolaunch-preview:deployment-01M265EMN9KNN5R9RQ57MXZQBT"
 
 [env]
   PORT = "4000"
