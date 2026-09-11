@@ -300,6 +300,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEventFields(
             STRATEGY, "LaunchRetired", "address indexed auction|address indexed subject|uint128 reserveReturned"
         );
+        _assertEventFields(STRATEGY, "MinimumRegentRaisedChanged", "uint128 previousMinimum|uint128 newMinimum");
 
         _assertEventFields(
             HOOK, "PoolRegistered", "bytes32 indexed poolId|address indexed splitter|address indexed subject"
@@ -486,7 +487,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     ///      Each clone is the real one this graph created through its real production caller.
     function test_ABI_008_CloneInitializersRunExactlyOnce() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
         strategy.migrate(address(launched.auction));
         RegentLBPStrategy.Distribution memory d = _distribution(launched);
 
@@ -865,7 +866,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     }
 
     function _strategyEvents() private pure returns (FrozenEvent[] memory events) {
-        events = new FrozenEvent[](4);
+        events = new FrozenEvent[](5);
         events[0] = FrozenEvent(RegentLBPStrategy.HookBound.selector, "HookBound(address)", 1);
         events[1] = FrozenEvent(
             RegentLBPStrategy.DistributionCreated.selector,
@@ -877,6 +878,9 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             RegentLBPStrategy.LaunchGraduated.selector,
             "LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128)",
             3
+        );
+        events[4] = FrozenEvent(
+            RegentLBPStrategy.MinimumRegentRaisedChanged.selector, "MinimumRegentRaisedChanged(uint128,uint128)", 0
         );
     }
 

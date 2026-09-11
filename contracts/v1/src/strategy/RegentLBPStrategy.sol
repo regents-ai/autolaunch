@@ -131,6 +131,18 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     ///      settles on exactly this raise and graduates.
     uint128 public constant MAX_REACHABLE_RAISE = 658_201_822_928_399_999_999_999_581_824_872_526;
 
+    /// @notice The lowest required raise a new launch may name, in REGENT base units. Born at
+    ///         10,000,000 REGENT: exactly the whole `AUCTION_ALLOCATION` sold at `FLOOR_PRICE_Q96`,
+    ///         so a launch graduates only when its complete auction inventory clears at or above
+    ///         the floor. Never zero, so it is also the only lower bound on a required raise.
+    /// @dev Only the Governance and Regent Safe changes it, and only for launches initialized
+    ///      afterwards: an existing auction keeps the required raise recorded at initialization.
+    uint128 public minimumRegentRaised = 10_000_000e18;
+
+    event MinimumRegentRaisedChanged(uint128 previousMinimum, uint128 newMinimum);
+    error NotGovernance(address caller);
+    error RequiredRaiseBelowMinimum(uint128 requested, uint128 minimum);
+
     /// @notice The only lifecycle a recorded launch can occupy.
     enum Lifecycle {
         None,
@@ -277,6 +289,16 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         _;
     }
 
+    /// @notice Set the lowest required raise future launches may name. Governance and Regent
+    ///         Safe only; zero and anything above `MAX_REACHABLE_RAISE` are refused.
+    function setMinimumRegentRaised(uint128 minimum) external {
+        if (msg.sender != BaseBindings.GOVERNANCE_AND_REGENT_SAFE) revert NotGovernance(msg.sender);
+        if (minimum == 0 || minimum > MAX_REACHABLE_RAISE) revert UnreachableRequiredRaise(minimum);
+        uint128 previous = minimumRegentRaised;
+        minimumRegentRaised = minimum;
+        emit MinimumRegentRaisedChanged(previous, minimum);
+    }
+
     /// @notice Bind the one authentic `RegentFeeHook`. Factory only, once ever.
     /// @dev Authenticity is the hook's own immutable bindings — it must already point back at this
     ///      strategy and at the frozen Base PoolManager — not a runtime-code fingerprint, so the hook
@@ -318,8 +340,11 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
 
         (address subject, address treasury) = _authenticateEscrow(params.escrow);
         _requireAdmissibleTreasury(treasury);
-        if (params.requiredRegentRaised == 0 || params.requiredRegentRaised > MAX_REACHABLE_RAISE) {
+        if (params.requiredRegentRaised > MAX_REACHABLE_RAISE) {
             revert UnreachableRequiredRaise(params.requiredRegentRaised);
+        }
+        if (params.requiredRegentRaised < minimumRegentRaised) {
+            revert RequiredRaiseBelowMinimum(params.requiredRegentRaised, minimumRegentRaised);
         }
 
         address auctionFactory = BaseBindings.CCA_FACTORY;

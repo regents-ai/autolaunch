@@ -64,6 +64,10 @@ abstract contract AutolaunchFixture is Test {
     uint256 internal constant AUCTION_ALLOCATION = 10_000_000_000e18;
     uint256 internal constant RESERVE_ALLOCATION = 5_000_000_000e18;
     uint256 internal constant INITIAL_LAUNCH_FEE = 1_000_000e18;
+    /// @dev The strategy's initial governance floor on a required raise: the whole auction
+    ///      allocation sold at the fixed floor price. A launch at this raise graduates only by
+    ///      selling out, so a single bid of exactly this amount is the smallest graduating bid.
+    uint128 internal constant MINIMUM_RAISE = 10_000_000e18;
 
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -217,7 +221,8 @@ abstract contract AutolaunchFixture is Test {
     // launches
     // -------------------------------------------------------------------------
 
-    /// @notice The default launch parameters: a valid launch of every field's smallest useful shape.
+    /// @notice The default launch parameters: a valid launch of every field's smallest useful shape,
+    ///         at the governance floor on the required raise.
     function _params() internal view returns (RegentsAutolaunchFactoryV1.LaunchParams memory params) {
         params = RegentsAutolaunchFactoryV1.LaunchParams({
             name: "Subject One",
@@ -226,9 +231,16 @@ abstract contract AutolaunchFixture is Test {
             website: "https://regents.sh",
             image: "ipfs://image",
             treasury: treasury,
-            requiredRegentRaised: 1_000e18,
+            requiredRegentRaised: MINIMUM_RAISE,
             expectedLaunchFee: INITIAL_LAUNCH_FEE
         });
+    }
+
+    /// @notice Lower the strategy's raise floor, as only the Regent Safe can, so a later launch may
+    ///         name a raise that graduates without selling its whole allocation.
+    function _lowerMinimumRaise(uint128 minimum) internal {
+        vm.prank(governance);
+        strategy.setMinimumRegentRaised(minimum);
     }
 
     /// @notice Approve exactly the fee and launch as `who`, the way a connected wallet does.
@@ -314,7 +326,9 @@ abstract contract AutolaunchFixture is Test {
         vm.roll(uint256(launched.auction.endBlock()) + strategy.MIGRATION_DELAY_BLOCKS());
     }
 
-    /// @dev One economically successful launch: a single bid comfortably above the required raise.
+    /// @dev One economically successful launch: a single bid above the floor that meets the required
+    ///      raise. At the governance floor the whole allocation must sell, so the bid clears at the
+    ///      floor price and the raise is the bid itself.
     function _bidToGraduation(Launched memory launched, uint128 amount) internal {
         _bidToGraduationAt(launched, amount, 10);
     }

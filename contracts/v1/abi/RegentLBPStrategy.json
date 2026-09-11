@@ -457,6 +457,19 @@
     },
     {
       "type": "function",
+      "name": "minimumRegentRaised",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "poolKeyOf",
       "inputs": [
         {
@@ -513,6 +526,19 @@
         }
       ],
       "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setMinimumRegentRaised",
+      "inputs": [
+        {
+          "name": "minimum",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
     },
     {
       "type": "function",
@@ -680,6 +706,25 @@
         },
         {
           "name": "reserveReturned",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "MinimumRegentRaisedChanged",
+      "inputs": [
+        {
+          "name": "previousMinimum",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "newMinimum",
           "type": "uint128",
           "indexed": false,
           "internalType": "uint128"
@@ -888,6 +933,17 @@
     },
     {
       "type": "error",
+      "name": "NotGovernance",
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
       "name": "PriceIsZero",
       "inputs": [
         {
@@ -937,6 +993,22 @@
           "name": "treasury",
           "type": "address",
           "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "RequiredRaiseBelowMinimum",
+      "inputs": [
+        {
+          "name": "requested",
+          "type": "uint128",
+          "internalType": "uint128"
+        },
+        {
+          "name": "minimum",
+          "type": "uint128",
+          "internalType": "uint128"
         }
       ]
     },
@@ -1050,8 +1122,10 @@
     "hook()": "7f5a7c7b",
     "initializeDistribution((uint256,address,uint128))": "d7750ed5",
     "migrate(address)": "ce5494bb",
+    "minimumRegentRaised()": "4c33ffab",
     "poolKeyOf(address)": "8652edf9",
     "receiverImplementation()": "112e335c",
+    "setMinimumRegentRaised(uint128)": "16277ab2",
     "splitterImplementation()": "e63db9b2"
   }
 }

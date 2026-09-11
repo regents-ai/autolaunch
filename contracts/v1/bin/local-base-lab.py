@@ -242,7 +242,9 @@ class RpcClient:
             }
         ).encode()
         request = urllib.request.Request(
-            self.url, data=payload, headers={"Content-Type": "application/json"}
+            self.url,
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": "Regent-local-base-lab/1.0"},
         )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:

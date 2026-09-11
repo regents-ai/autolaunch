@@ -612,3 +612,33 @@ pinned-header lifecycle and the focused later-header identity, proxy, controller
 subset passed; the reviewed observation is committed and the compare-only check left it unchanged.
 Control binds the exact final evidence commit and tree. No provider write, signature, broadcast,
 deployment, or value movement occurred.
+
+## 9. `autolaunch-minimum-raise` — a governance floor on the required raise
+
+One founder-directed change to the strategy's admission of a launch: a required raise must now be at
+least a governance-set minimum, born at 10,000,000 REGENT. The result stays **mainnet NO-GO**.
+
+### 9.1 What changed and why
+
+The founder's launch terms require every Revshare launch to raise at least ten million REGENT, and
+require that minimum to be adjustable by the Governance and Regent Safe. The strategy therefore gains
+`minimumRegentRaised`, `setMinimumRegentRaised(uint128)` (Safe only; zero and anything above
+`MAX_REACHABLE_RAISE` refused as unreachable), the event `MinimumRegentRaisedChanged`, and the errors
+`NotGovernance` and `RequiredRaiseBelowMinimum`. Initialization refuses a required raise below the
+current minimum before any reserve moves; a later change never touches an existing auction.
+
+Ten million REGENT is exactly the whole ten-billion auction allocation at the fixed floor price, so a
+launch at the floor graduates only by selling out. Every fixture that used to launch at a thousand
+REGENT and graduate on a two-thousand-REGENT bid now launches at the floor and graduates on a single
+bid of exactly the floor, which clears at the floor price as before. The two claims whose evidence
+needs a graduated auction with a real unsold remainder — `MIG-008` and `MIG-009` — lower the floor
+first, as only the Safe can, and say so.
+
+### 9.2 Corrections to claims
+
+| Claim | What was wrong | What this change did |
+| --- | --- | --- |
+| `FAC-023` | The lower end of the admitted raise interval was one wei. | Statement and selector rewritten around the floor: zero and one wei below the minimum are refused as `RequiredRaiseBelowMinimum`, the minimum is admitted, and the smallest reachable graduated outcome — a single bid of the floor at either bid-price endpoint, both orderings — sells out, clears at the one price where that raise buys the whole allocation (`79228162514264337593543951`, one Q96 unit above the rounded-down floor constant), and has its exact LP consumption asserted in each ordering. The earlier `FAC-023` correction's "clears at the fixed floor" wording described a one-wei raise; at the floor raise the CCA settles on the exact sell-out price, not on the rounded-down constant. |
+| `STR-013` | The zero-raise rejection was `UnreachableRequiredRaise(0)`. | Zero is now refused as below the minimum, which is never zero; the unreachable-ceiling half is unchanged. |
+| `STR-020` | New. | Owns the governance floor: Safe-only authority and bounds, the inclusive floor at initialization, and the terms an existing auction keeps across a change. |
+

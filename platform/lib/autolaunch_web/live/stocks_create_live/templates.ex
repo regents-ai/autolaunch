@@ -86,19 +86,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       assign(assigns, :floor_echo, floor_echo(assigns.draft_values["floor_price"], assigns.stock))
 
     ~H"""
-    <section id="autolaunch-stocks-create" class="autolaunch-page launchpad-create">
-      <header class="launchpad-create__header">
-        <p class="autolaunch-kicker">Autolaunch · Create · Stocks</p>
-        <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">Launch a stock-paired auction</h1>
-        </Regent.Structure.section_bar>
-        <p>
-          Describe the new token, choose the Base stock token bidders pay with, set the start and
-          the prices, then review the exact transactions your wallet sends. Draft changes save
-          privately to your account.
-        </p>
-      </header>
-
+    <section id="autolaunch-stocks-create">
       <p :if={@active_stocks_launch} class="launchpad-limit" role="status">
         {ActiveLaunchLimit.message()}
       </p>

@@ -195,6 +195,7 @@ defmodule Autolaunch.LaunchFixture do
       strategy: Map.get(overrides, :strategy, @strategy),
       strategy_factory: Map.get(overrides, :strategy_factory, @factory),
       fee: Map.get(overrides, :fee, 1_000_000 * @unit),
+      minimum_regent_raised: Map.get(overrides, :minimum_regent_raised, 10_000_000 * @unit),
       paused: Map.get(overrides, :paused, false),
       balance: Map.get(overrides, :balance, 5_000_000 * @unit),
       allowance: Map.get(overrides, :allowance, 0),

@@ -6,6 +6,7 @@ import {ConditionalVestingEscrowV1} from "../../src/escrow/ConditionalVestingEsc
 import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
 import {RegentFeeHook} from "../../src/hook/RegentFeeHook.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
+import {RegentsAutolaunchFactoryV1} from "../../src/factory/RegentsAutolaunchFactoryV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
 import {LBPInitializationParams} from "liquidity-launcher/src/interfaces/ILBPInitializer.sol";
 import {TokenPricing} from "liquidity-launcher/src/libraries/TokenPricing.sol";
@@ -41,7 +42,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         strategy.migrate(outsider);
 
         _rollToStart(launched);
-        _bid(launched, bidder, 2_000e18, _bidPrice(10));
+        _bid(launched, bidder, MINIMUM_RAISE, _bidPrice(10));
 
         // Eligibility is the auction's end plus the fixed migration delay, and not one block sooner.
         uint64 migrationBlock = _distribution(launched).migrationBlock;
@@ -87,7 +88,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     ///      permanently bound to, and every one of its six bindings is this launch's own.
     function test_MIG_003_DeploysTheSplitterClone() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
 
         uint64 nonceBefore = vm.getNonce(address(strategy));
         strategy.migrate(address(launched.auction));
@@ -118,7 +119,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         PoolId poolId = _poolId(launched);
         assertEq(hook.splitterOf(poolId), address(0), "the pool was registered before graduation");
 
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
         strategy.migrate(address(launched.auction));
 
         address splitter = _distribution(launched).splitter;
@@ -144,7 +145,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     ///         the price that auction settled on.
     function test_MIG_005_InitializesThePoolAtTheExactFinalPrice() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
 
         uint256 strategyRegentBefore = regent.balanceOf(address(strategy));
         strategy.migrate(address(launched.auction));
@@ -176,7 +177,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     ///         address, so nobody can ever withdraw the official liquidity.
     function test_MIG_006_MintsOneFullRangePositionToTheDeadAddress() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
 
         uint256 nextTokenIdBefore = positionManager.nextTokenId();
         strategy.migrate(address(launched.auction));
@@ -215,9 +216,12 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
 
     /// @notice `MIG-008`: SUBJECT the position did not consume returns to this launch's escrow.
     function test_MIG_008_UnusedSubjectReserveGoesToEscrow() public {
-        // A small raise, so the raise and not the reserve limits the position and the SUBJECT
-        // residue is large.
-        Launched memory launched = _defaultLaunch();
+        // A raise small enough that it, not the reserve, limits the position and the SUBJECT
+        // residue is large. Only a lowered floor admits one.
+        _lowerMinimumRaise(1_000e18);
+        RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
+        params.requiredRegentRaised = 1_000e18;
+        Launched memory launched = _launchAs(launcher, params);
         _bidToGraduation(launched, 2_000e18);
 
         uint256 escrowBefore = launched.subject.balanceOf(address(launched.escrow));
@@ -239,7 +243,12 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     /// @notice `MIG-009`: a graduated auction's unsold SUBJECT is swept into escrow, exactly once,
     ///         and the auction is left holding none of it.
     function test_MIG_009_UnsoldSubjectIsSweptIntoEscrow() public {
-        Launched memory launched = _defaultLaunch();
+        // At the governance floor a graduated auction has sold out, so the unsold remainder this
+        // sweep exists for is only reachable under a floor governance has lowered.
+        _lowerMinimumRaise(1_000e18);
+        RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
+        params.requiredRegentRaised = 1_000e18;
+        Launched memory launched = _launchAs(launcher, params);
         _bidToGraduation(launched, 2_000e18);
 
         uint256 escrowBefore = launched.subject.balanceOf(address(launched.escrow));
@@ -286,7 +295,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     ///         treasury as both beneficiary and note editor.
     function test_MIG_010_DeploysTheCanonicalZeroReferralReceiver() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
         strategy.migrate(address(launched.auction));
 
         RegentLBPStrategy.Distribution memory d = _distribution(launched);
@@ -307,7 +316,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     ///         escrow inventory, releasing only to the immutable treasury.
     function test_MIG_011_ActivatesVestingFromTheGraduationTimestamp() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
 
         vm.warp(1_700_000_000);
         strategy.migrate(address(launched.auction));
@@ -335,7 +344,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     ///         and announced once, with each recorded address actually existing.
     function test_MIG_012_RecordsGraduationAtomically() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
 
         vm.recordLogs();
         strategy.migrate(address(launched.auction));
@@ -442,7 +451,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     ///         one managed position.
     function test_MIG_014_OfficialPoolIsStaticThirtyBipsTickSpacingSixty() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
         uint256 nextTokenIdBefore = positionManager.nextTokenId();
         strategy.migrate(address(launched.auction));
 
@@ -537,7 +546,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
     function _assertPoolKeyDerivation(bool subjectBelowRegent) private {
         uint256 snap = vm.snapshotState();
         Launched memory launched = _launchSorted(subjectBelowRegent, _params());
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
         strategy.migrate(address(launched.auction));
 
         PoolKey memory key = strategy.poolKeyOf(address(launched.subject));

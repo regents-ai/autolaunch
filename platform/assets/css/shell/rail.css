@@ -5,7 +5,7 @@
 .shell-rail__item { min-width: 0; border-bottom: 1px solid var(--rg-page-rule); }
 :where(.shell-rail__link) { display: flex; min-height: 3rem; padding: var(--space-1); color: inherit; text-decoration: none; border-left: 3px solid transparent; }
 .shell-rail__content { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
-.shell-rail__link[aria-current="page"] { border-left-color: currentColor; font-weight: 600; text-decoration: underline; }
+.shell-rail__link[aria-current="page"]:not(.rg-button) { border-left-color: currentColor; font-weight: 600; text-decoration: underline; }
 .shell-rail__item--create { margin-top: var(--space-3); border: 0; }
 .shell-rail__item--create .rg-button { width: 100%; }
 .shell-rail__icon { flex: 0 0 24px; }
@@ -16,21 +16,3 @@
  .shell-rail__item--create { margin: 0; }
 }
 @media (max-width: 35rem) { .shell-rail__list { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-
-.shell-create-menu > summary { list-style: none; cursor: pointer; }
-.shell-create-menu > summary::-webkit-details-marker { display: none; }
-.shell-create-menu > summary .shell-rail__content { width: 100%; }
-.shell-create-menu > summary .shell-rail__label { white-space: nowrap; overflow-wrap: normal; }
-.shell-create-chevron { margin-left: auto; transition: transform .15s ease; }
-.shell-create-menu[open] .shell-create-chevron { transform: rotate(180deg); }
-.shell-create-options { display: grid; gap: 8px; padding-top: 12px; }
-.shell-create-options .rg-button { white-space: normal; font-size: .8125rem; text-align: left; justify-content: flex-start; min-height: 44px; }
-@media (prefers-reduced-motion: no-preference) {
-  .shell-create-menu[open] .shell-create-options { animation: create-options-in .15s ease-out; }
-  @keyframes create-options-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-}
-@media (prefers-reduced-motion: reduce) { .shell-create-chevron { transition: none; } }
-@media (max-width: 35rem) {
-  .shell-create-menu > summary { padding-inline: 8px; }
-  .shell-create-menu > summary .shell-rail__content { gap: 6px; }
-}

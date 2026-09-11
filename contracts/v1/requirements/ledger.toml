@@ -31,7 +31,9 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1", "regent-839.7", "regent-alv1.13"]
+# `autolaunch-minimum-raise` is the founder-directed governance floor on the required raise; the
+# former ticket workflow is retired, so the change is named after itself.
+activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1", "regent-839.7", "regent-alv1.13", "autolaunch-minimum-raise"]
 
 # `fork` is activated only with the separately discovered, independently reviewed, and
 # committed Base observation record. The compare-only gate must execute every mapped fork
@@ -881,15 +883,18 @@ selectors = ["test_FAC_022_SimultaneousLaunchesShareOneStrategyAndHookAndStayIso
 id = "FAC-023"
 # C5 correction. The C4 statement admitted the interval without saying what a launch at
 # either end actually settles on, which let the maximum *bid* price be read as a clearing
-# price. It is not: a one-wei raise is met by the first admitted bid and clears at the fixed
-# floor, and the recorded LP consumption at that clearing price is the real evidence.
-statement = "The required raise is nonzero and mathematically reachable for every admitted launch: one wei is admitted and, when met, graduates at the fixed floor clearing price rather than at any bid maximum, the exact MAX_REACHABLE_RAISE boundary is admitted, and the one-wei extreme asserts the exact LP amounts the position consumed."
+# price. It is not: a raise met exactly clears at the fixed floor, and the recorded LP
+# consumption at that clearing price is the real evidence.
+# autolaunch-minimum-raise correction. The lower end is no longer one wei but the strategy's
+# governance minimum, so the smallest admitted launch is the floor and the smallest reachable
+# graduated outcome is a sell-out at the floor price.
+statement = "The required raise is at least the strategy's governance minimum and mathematically reachable for every admitted launch: zero and one wei below the minimum are refused as below it, the minimum itself is admitted and, when met by a single bid of exactly the minimum at any admitted price, sells the whole allocation and graduates at the one price where that raise buys the whole allocation, one Q96 unit above the rounded-down floor constant and never a bid maximum, the exact MAX_REACHABLE_RAISE boundary is admitted, and the floor extreme asserts the exact LP amounts the position consumed in each ordering."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_FAC_023_RequiredRaiseIsNonzeroAndReachable"]
+selectors = ["test_FAC_023_RequiredRaiseMeetsTheFloorAndIsReachable"]
 
 [[requirement]]
 id = "FAC-024"
@@ -1266,6 +1271,19 @@ selectors = [
     "test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists",
     "test_STR_019_AdmissibleTreasuryClassesAreAccepted",
     "test_STR_019_NextCloneTreasuryStallsMigrationUntilAnInterveningGraduationMovesTheNonce",
+]
+
+[[requirement]]
+id = "STR-020"
+statement = "RegentLBPStrategy holds one governance-set lower bound on the required raise, minimumRegentRaised, born at exactly 10,000,000 REGENT. Only the Governance and Regent Safe changes it, through setMinimumRegentRaised(uint128); zero and any value above MAX_REACHABLE_RAISE are refused as unreachable, any other caller is refused, and every change emits the exact previous and new minimum. Initialization refuses a required raise below the current minimum and admits the minimum itself, and a later change leaves every existing auction's recorded required raise untouched."
+owner = "autolaunch-minimum-raise"
+contract = "RegentLBPStrategy"
+evidence_class = "solidity-hermetic"
+gate = "hermetic"
+status = "active"
+selectors = [
+    "test_STR_020_MinimumIsGovernanceOnlyAndBounded",
+    "test_STR_020_FloorIsInclusiveAndExistingAuctionsKeepTheirTerms",
 ]
 
 # ---------------------------------------------------------------------------

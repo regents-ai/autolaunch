@@ -47,6 +47,7 @@ defmodule AutolaunchWeb.Router do
     pipe_through :browser
 
     get "/profile", SharedProfileController, :show
+    get "/create/stocks", CreateRedirectController, :stocks
     live "/", HomeLive, :home
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
@@ -64,7 +65,6 @@ defmodule AutolaunchWeb.Router do
       session: {AutolaunchWeb.Live.Session, :render_context, []},
       on_mount: [{AutolaunchWeb.Live.Session, :load_human}] do
       live "/create", CreateLive, :create
-      live "/create/stocks", StocksCreateLive, :create
       live "/auctions", AuctionsLive, :index
       live "/auctions/:auction_id", AuctionLive, :show
       live "/tokens", TokensLive, :index

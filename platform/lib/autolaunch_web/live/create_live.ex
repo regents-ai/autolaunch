@@ -14,7 +14,13 @@ defmodule AutolaunchWeb.CreateLive do
   # A signed-out visitor stays on this route: the page explains the sign-in
   # requirement, and a completed sign-in reloads the same document, so the
   # visitor returns to Create without any redirect parameter to validate.
+  def mount(%{"kind" => "stocks"} = params, session, socket) do
+    AutolaunchWeb.StocksCreateLive.mount(params, session, assign(socket, launch_kind: :stocks))
+  end
+
   def mount(_params, _session, socket) do
+    socket = assign(socket, launch_kind: :revshare)
+
     case human_actor(socket) do
       nil ->
         {:ok, assign(socket, status: :sign_in_required)}
@@ -31,11 +37,21 @@ defmodule AutolaunchWeb.CreateLive do
           )
           |> assign_defaults(actor)
 
-        {:ok, if(connected?(socket), do: load_create(socket, actor), else: socket)}
+        {:ok,
+         if connected?(socket) do
+           socket
+           |> load_create(actor)
+           |> start_async(:minimum_raise, fn -> Autolaunch.LaunchActions.minimum_raise() end)
+         else
+           socket
+         end}
     end
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  def handle_event(event, params, %{assigns: %{launch_kind: :stocks}} = socket),
+    do: AutolaunchWeb.StocksCreateLive.handle_event(event, params, socket)
 
   # The anonymous entry has no draft or upload state. Client events are not
   # proof of ownership and must not enter handlers requiring that state.
@@ -90,6 +106,15 @@ defmodule AutolaunchWeb.CreateLive do
     {:noreply, assign(socket, x_connections: load_x_connections(account(socket)))}
   end
 
+  def handle_async(name, result, %{assigns: %{launch_kind: :stocks}} = socket),
+    do: AutolaunchWeb.StocksCreateLive.handle_async(name, result, socket)
+
+  def handle_async(:minimum_raise, {:ok, {:ok, amount}}, socket),
+    do: {:noreply, assign(socket, minimum_raise: amount)}
+
+  def handle_async(:minimum_raise, _unavailable, socket),
+    do: {:noreply, assign(socket, minimum_raise: nil)}
+
   def handle_async({:fetch_image_url, request_id}, result, socket) do
     if socket.assigns.image_request == request_id do
       finish_image_fetch(result, assign(socket, image_request: nil))
@@ -98,13 +123,57 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
-  def render(%{status: :sign_in_required} = assigns) do
+  def render(assigns) do
+    ~H"""
+    <div class="autolaunch-page launchpad-create">
+      <header class="launchpad-create__header">
+        <p class="autolaunch-kicker">Autolaunch · Create</p>
+        <Regent.Structure.section_bar>
+          <h1 class="rg-section-bar__label">Launch a token</h1>
+        </Regent.Structure.section_bar>
+        <nav class="launchpad-create__kinds" aria-label="Launch type">
+          <.link
+            href="/create"
+            class={kind_class(@launch_kind == :revshare)}
+            aria-current={if @launch_kind == :revshare, do: "page"}
+          >Launch Revshare Token</.link>
+          <.link
+            href="/create?kind=stocks"
+            class={kind_class(@launch_kind == :stocks)}
+            aria-current={if @launch_kind == :stocks, do: "page"}
+          >Launch Onchain Stock Pair</.link>
+        </nav>
+        <details>
+          <summary>Which launch is right for me?</summary>
+          <p>
+            <strong>Launch Revshare Token.</strong>
+            Best for agent services and x402 endpoints which will make USDC over the long-term.
+            Read the docs about creating a durable service for one <.link href="/blog/durable-agent-services">here</.link>.
+          </p>
+          <p>
+            <strong>Launch Onchain Stock Pair.</strong>
+            Best for a fast and fair launch of a new token and trading pool for a memecoin &amp; onchain stock.
+          </p>
+        </details>
+      </header>
+      <%= if @launch_kind == :stocks do %>
+        {AutolaunchWeb.StocksCreateLive.render(assigns)}
+      <% else %>
+        {render_revshare(assigns)}
+      <% end %>
+    </div>
+    """
+  end
+
+  defp kind_class(selected?),
+    do: ["rg-button", if(selected?, do: "rg-button--primary", else: "rg-button--secondary")]
+
+  defp render_revshare(%{status: :sign_in_required} = assigns) do
     ~H"""
     <main class="launchpad-create">
       <section id="autolaunch-create-sign-in" class="autolaunch-empty launchpad-create__sign-in">
-        <p class="autolaunch-kicker">Autolaunch · Create</p>
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">Sign in to launch an auction</h1>
+          <h2 class="rg-section-bar__label">Sign in to launch an auction</h2>
         </Regent.Structure.section_bar>
         <p>
           A launch starts as a private draft saved to your account, so Create needs you signed
@@ -122,7 +191,7 @@ defmodule AutolaunchWeb.CreateLive do
     """
   end
 
-  def render(assigns) do
+  defp render_revshare(assigns) do
     assigns = assign(assigns, :launch_image_upload, assigns.uploads[:launch_image])
     Templates.create(assigns)
   end
@@ -276,6 +345,7 @@ defmodule AutolaunchWeb.CreateLive do
       draft_notice: nil,
       image_notice: nil,
       image_request: nil,
+      minimum_raise: nil,
       x_connections: [],
       x_oauth_enabled: XOAuth.enabled?(),
       auction_limit_reached: auction_limit_reached?(actor),

@@ -68,7 +68,7 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         Launched memory loser = _launchAs(launcher, _params());
 
         _rollToStart(winner);
-        _bid(winner, bidder, 2_000e18, _bidPrice(10));
+        _bid(winner, bidder, MINIMUM_RAISE, _bidPrice(10));
 
         vm.prank(governance);
         factory.pauseLaunches();
@@ -171,7 +171,7 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
     ///         factory pause has no reach into them at all.
     function test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, 2_000e18);
+        _bidToGraduation(launched, MINIMUM_RAISE);
         strategy.migrate(address(launched.auction));
         SubjectSplitterV1 splitter = SubjectSplitterV1(_distribution(launched).splitter);
 

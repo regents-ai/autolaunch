@@ -34,6 +34,7 @@ defmodule Autolaunch.LabAbi do
       f: {"POOL_FEE()", "view", ["uint24"]},
       f: {"POOL_TICK_SPACING()", "view", ["int24"]},
       f: {"MAX_REACHABLE_RAISE()", "view", ["uint128"]},
+      f: {"minimumRegentRaised()", "view", ["uint128"]},
       f: {"auctionOfSubject(address)", "view", ["address"]},
       f:
         {"distribution(address)", "view",

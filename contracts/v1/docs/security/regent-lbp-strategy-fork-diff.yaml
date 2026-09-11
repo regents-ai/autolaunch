@@ -231,7 +231,7 @@ deliberate_additions:
       raise would silently shrink the pool.
     evidence: [STR-011]
 
-  - behaviour: `requiredRegentRaised` must be non-zero and no greater than `MAX_REACHABLE_RAISE`,
+  - behaviour: `requiredRegentRaised` must be no greater than `MAX_REACHABLE_RAISE`,
       which is `AUCTION_ALLOCATION` at the highest price the fixed auction actually admits, not at
       the raw `MaxBidPriceLib.maxBidPrice(AUCTION_ALLOCATION)` structural ceiling. That ceiling is
       not a multiple of `BID_TICK_Q96`, and the pinned `TickStorage` admits a bid only at an exact
@@ -242,6 +242,18 @@ deliberate_additions:
       assumed: a real pinned auction opened at exactly `MAX_REACHABLE_RAISE` settles on exactly
       that raise from one on-grid bid and graduates.
     evidence: [STR-013, STR-014]
+
+  - behaviour: `requiredRegentRaised` must be at least `minimumRegentRaised`, a governance-set floor
+      born at 10,000,000 REGENT — `AUCTION_ALLOCATION` sold at `FLOOR_PRICE_Q96` — that only the
+      Governance and Regent Safe changes through `setMinimumRegentRaised(uint128)`, never to zero
+      and never above `MAX_REACHABLE_RAISE`. A change applies to later initializations only; an
+      existing auction keeps the required raise recorded at initialization.
+    reason: The founder's launch terms require every Revshare launch to raise at least ten million
+      REGENT, which at the fixed floor price is the whole auction allocation, so a launch at the
+      floor graduates only by selling out. The bound is a governance parameter rather than a
+      constant so the Safe can move it without a redeployment, and it is a floor on initialization
+      alone so no later change can retire or re-price an auction bidders already committed to.
+    evidence: [STR-020, FAC-023]
 
   - behaviour: The launch treasury is admitted once, at initialization, against a closed refusal set
       of exactly six shared-system destinations: the bound factory, this strategy, the bound hook,

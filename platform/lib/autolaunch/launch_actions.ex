@@ -267,6 +267,16 @@ defmodule Autolaunch.LaunchActions do
   @spec terms() :: [String.t()]
   def terms, do: Enum.map(LaunchAbi.terms(), &Atom.to_string/1)
 
+  @doc "The currently enforced lower bound, expressed in REGENT for the draft form."
+  def minimum_raise do
+    if Lab.enabled?() do
+      with {:ok, amount} <- Autolaunch.LabLaunchChainClient.minimum_raise(),
+           do: {:ok, regent_units(amount)}
+    else
+      unavailable(:launch_preparation_unavailable)
+    end
+  end
+
   # The exact decimal rendering of an atomic REGENT amount.
   defp regent_units(amount), do: Rpc.format_units(amount, @regent_decimals)
 
@@ -356,6 +366,8 @@ defmodule Autolaunch.LaunchActions do
       "treasury_security" => treasury_binding(treasury_report),
       "required_regent_raised" => draft.required_regent_raised,
       "required_regent_raised_atomic" => Integer.to_string(fields.required_regent_raised),
+      "minimum_regent_raised_atomic" => Integer.to_string(snapshot.minimum_regent_raised),
+      "minimum_regent_raised" => regent_units(snapshot.minimum_regent_raised),
       "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
       "expected_launch_fee" => regent_units(snapshot.fee),
       "allowance_atomic" => Integer.to_string(snapshot.allowance),
@@ -499,6 +511,8 @@ defmodule Autolaunch.LaunchActions do
     with %{factory: factory, strategy: strategy, strategy_factory: bound} <- snapshot,
          %{fee: fee, allowance: allowance, balance: balance, hook: hook} <- snapshot,
          %{paused: paused, terms: terms, block: block} <- snapshot,
+         %{minimum_regent_raised: minimum} <- snapshot,
+         true <- is_integer(minimum) and minimum > 0,
          true <-
            Enum.all?([factory, strategy, bound, hook], &match?({:ok, _}, Address.normalize(&1))),
          true <- Enum.all?([fee, allowance, balance], &(is_integer(&1) and &1 >= 0)),
@@ -506,7 +520,9 @@ defmodule Autolaunch.LaunchActions do
          true <- match?(%{number: number, hash: _} when is_integer(number), block),
          true <- Enum.sort(Map.keys(terms)) == Enum.sort(LaunchAbi.terms()),
          true <- Enum.all?(Map.values(terms), &is_integer/1) do
-      {:ok, snapshot}
+      if minimum <= terms.max_reachable_raise,
+        do: {:ok, snapshot},
+        else: unavailable(:launch_snapshot_incomplete)
     else
       _partial -> unavailable(:launch_snapshot_incomplete)
     end
@@ -515,17 +531,35 @@ defmodule Autolaunch.LaunchActions do
   # Every reason a launch is refused before a durable review can exist at all.
   defp reviewable(fields, snapshot) do
     cond do
-      not accepted_regent?(snapshot) -> unavailable(:regent_address_mismatch)
-      snapshot.paused -> unavailable(:launches_paused)
-      snapshot.balance < snapshot.fee -> unavailable(:insufficient_regent)
-      refused_treasury?(fields.treasury, snapshot) -> unavailable(:launch_treasury_refused)
+      not accepted_regent?(snapshot) ->
+        unavailable(:regent_address_mismatch)
+
+      snapshot.paused ->
+        unavailable(:launches_paused)
+
+      snapshot.balance < snapshot.fee ->
+        unavailable(:insufficient_regent)
+
+      refused_treasury?(fields.treasury, snapshot) ->
+        unavailable(:launch_treasury_refused)
+
+      fields.required_regent_raised < snapshot.minimum_regent_raised ->
+        unavailable(:required_raise_below_minimum)
+
       # Two separate ceilings: the reviewed strategy's own reachable maximum,
       # which is a chain-supplied value, and the structural limit of the
       # `uint128` field the tuple carries it in.
-      fields.required_regent_raised > snapshot.terms.max_reachable_raise -> excessive()
-      fields.required_regent_raised > LaunchAbi.uint128_max() -> excessive()
-      not same?(snapshot.strategy_factory, snapshot.factory) -> unavailable(:strategy_not_bound)
-      true -> :ok
+      fields.required_regent_raised > snapshot.terms.max_reachable_raise ->
+        excessive()
+
+      fields.required_regent_raised > LaunchAbi.uint128_max() ->
+        excessive()
+
+      not same?(snapshot.strategy_factory, snapshot.factory) ->
+        unavailable(:strategy_not_bound)
+
+      true ->
+        :ok
     end
   end
 
@@ -686,6 +720,9 @@ defmodule Autolaunch.LaunchActions do
 
       fresh.fee != atomic(operation, "expected_launch_fee_atomic") ->
         {:changed, @stale_fee}
+
+      atomic(operation, "required_regent_raised_atomic") < fresh.minimum_regent_raised ->
+        {:changed, "the minimum raise increased above this draft's required raise"}
 
       fresh.balance < fresh.fee ->
         {:changed, @short}

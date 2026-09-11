@@ -36,6 +36,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
     required_raise_unreachable:
       "This required raise is higher than an auction can reach. Lower it on this draft and try again.",
+    required_raise_below_minimum:
+      "This required raise is below the current minimum for new launches. Increase it on your draft and review again.",
     strategy_not_bound:
       "This launch factory and its strategy do not match. Nothing was prepared.",
     launch_metadata_incomplete:
@@ -161,6 +163,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           <div>
             <dt>Required raise</dt>
             <dd>{argument(@operation, "required_regent_raised")} REGENT</dd>
+          </div>
+          <div>
+            <dt>Minimum at review</dt>
+            <dd>{argument(@operation, "minimum_regent_raised")} REGENT</dd>
           </div>
           <div>
             <dt>Launch fee</dt>

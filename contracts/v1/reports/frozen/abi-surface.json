@@ -171,8 +171,10 @@
         "0x10202c54 bindHook(address)",
         "0x112e335c receiverImplementation()",
         "0x14ec99b0 FLOOR_PRICE_Q96()",
+        "0x16277ab2 setMinimumRegentRaised(uint128)",
         "0x48bd92bb START_DELAY_BLOCKS()",
         "0x4a9923ac CLAIM_DELAY_BLOCKS()",
+        "0x4c33ffab minimumRegentRaised()",
         "0x4ca8ff5a escrowImplementation()",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x56586874 AUCTION_DURATION_BLOCKS()",
@@ -196,6 +198,7 @@
       ],
       "mutating_functions": [
         "0x10202c54 bindHook(address)",
+        "0x16277ab2 setMinimumRegentRaised(uint128)",
         "0xce5494bb migrate(address)",
         "0xd7750ed5 initializeDistribution((uint256,address,uint128))"
       ],
@@ -205,6 +208,7 @@
         "0x14ec99b0 FLOOR_PRICE_Q96()",
         "0x48bd92bb START_DELAY_BLOCKS()",
         "0x4a9923ac CLAIM_DELAY_BLOCKS()",
+        "0x4c33ffab minimumRegentRaised()",
         "0x4ca8ff5a escrowImplementation()",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x56586874 AUCTION_DURATION_BLOCKS()",
@@ -228,7 +232,8 @@
         "0x05bde07b44fed03322a53e3b8a39453530a1cefc5cb470dfe66355fbb27a8784 LaunchRetired(address,address,uint128) indexed=2",
         "0x22a226df6ec984fbff8a5635682b83b8c0c5ef200e674e367f1f60220854426b LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128) indexed=3",
         "0x3ffca04b410a3e894f1a96e386c5d29bfb1b8d48859f387f78e0297c9bb9fd5e HookBound(address) indexed=1",
-        "0x566466ea7ae73d52bd167b2206711db30050990222dc4524b58c437c86fb7b5f DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128) indexed=3"
+        "0x566466ea7ae73d52bd167b2206711db30050990222dc4524b58c437c86fb7b5f DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128) indexed=3",
+        "0xab01fe01438687d753d5f03079718075cdc79f8ef2473d4d83ae9ea4f178c78f MinimumRegentRaisedChanged(uint128,uint128) indexed=0"
       ],
       "event_fields": {
         "DistributionCreated": [
@@ -260,6 +265,10 @@
           "address indexed auction",
           "address indexed subject",
           "uint128 reserveReturned"
+        ],
+        "MinimumRegentRaisedChanged": [
+          "uint128 previousMinimum",
+          "uint128 newMinimum"
         ]
       },
       "errors": [
@@ -277,6 +286,7 @@
         "0x8d7fc6f2 EscrowStrategyMismatch(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
         "0x962d77b1 UnreachableRequiredRaise(uint128)",
+        "0x988d1f03 NotGovernance(address)",
         "0x98e8cdf6 HookNotBound()",
         "0x9e172b1d ImplementationHasNoCode(address)",
         "0xa30fa418 RefusedTreasury(address)",
@@ -291,6 +301,7 @@
         "0xde2d0a30 NoFullRangePosition()",
         "0xea279344 NotAuthenticEscrow(address)",
         "0xf76d3855 HookAlreadyBound(address)",
+        "0xfc6b4cc4 RequiredRaiseBelowMinimum(uint128,uint128)",
         "0xfd21a132 AuctionBindingMismatch(uint256,uint256,uint256)"
       ],
       "input_structs": {

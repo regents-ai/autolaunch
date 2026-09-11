@@ -25,6 +25,7 @@ defmodule Autolaunch.LabLaunchChainClient do
   def snapshot(%{signer: signer}) do
     with {:ok, config, block, opts} <- LabRpc.current([:factory, :strategy, :regent]),
          {:ok, fee} <- LabRpc.uint(config, :factory, "launchFee()", [], block, opts),
+         {:ok, minimum} <- minimum_raise(config, block, opts),
          {:ok, paused} <- LabRpc.bool(config, :factory, "launchesPaused()", [], block, opts),
          {:ok, strategy} <- LabRpc.address(config, :factory, "strategy()", [], block, opts),
          true <- Address.equal?(strategy, Lab.address!(config, :strategy)),
@@ -50,6 +51,7 @@ defmodule Autolaunch.LabLaunchChainClient do
          strategy: strategy,
          strategy_factory: strategy_factory,
          fee: fee,
+         minimum_regent_raised: minimum,
          allowance: allowance,
          balance: balance,
          hook: hook,
@@ -65,6 +67,14 @@ defmodule Autolaunch.LabLaunchChainClient do
       _other -> {:error, :invalid_chain_response}
     end
   end
+
+  def minimum_raise do
+    with {:ok, config, block, opts} <- LabRpc.current([:strategy]),
+         do: minimum_raise(config, block, opts)
+  end
+
+  defp minimum_raise(config, block, opts),
+    do: LabRpc.uint(config, :strategy, "minimumRegentRaised()", [], block, opts)
 
   @impl true
   def verify(envelope, step, hash) do

@@ -104,7 +104,9 @@ Rules:
 
 ## 5. Auction, strategy, escrow, and migration
 
-Fixed auction configuration: duration 86,401 blocks; claim delay 64 blocks; migration eligibility end plus 128 blocks; frozen 104-byte, 13-step schedule; floor Q96 `79_228_162_514_264_337_593_543_900`; bid tick Q96 `792_281_625_142_643_375_935_439`; nonzero mathematically reachable required raise; auction protocol fee 0%.
+Fixed auction configuration: duration 86,401 blocks; claim delay 64 blocks; migration eligibility end plus 128 blocks; frozen 104-byte, 13-step schedule; floor Q96 `79_228_162_514_264_337_593_543_900`; bid tick Q96 `792_281_625_142_643_375_935_439`; required raise at or above the strategy's governance minimum and mathematically reachable; auction protocol fee 0%.
+
+The strategy holds one governance-set lower bound on the required raise, `minimumRegentRaised`, born at exactly 10,000,000 REGENT: the whole 10 billion auction allocation sold at the floor price, so a launch at that raise graduates only by selling out. Only the Governance and Regent Safe changes it, through `setMinimumRegentRaised(uint128)`, to a nonzero value no greater than `MAX_REACHABLE_RAISE`, and every change emits the previous and new minimum. A change applies only to launches initialized afterwards; an existing auction keeps the required raise recorded at its initialization. A required raise below the current minimum is refused at initialization, before any reserve moves.
 
 The shared strategy receives one irreversible binding to the factory and hook. Only that factory initializes distributions. Anyone may call `migrate(auction)`. Technical failure is an ordinary EVM revert: no retry counter, retry mode, alternate pool, recovery migration, or committed technical-failure state.
 
@@ -195,7 +197,7 @@ Required groups:
 | IDs | Claim classes |
 | --- | --- |
 | `DEP-*` | Compiler and full recursive gitlink pins; chain ID; every external address, exact runtime code hash, proxy status, relevant getter, zero CCA controller, and clone implementation and runtime hashes. |
-| `FAC-*` | Governance-only fee and pause; pause scope; fee-update and fee-collection events; exact positive and zero fee allowances plus cleanup; stale-fee and complete-launch rollback; metadata bounds; sequential IDs; duplicate names; no user salts; launcher provenance; fixed start; reachable raise; and complete launch. |
+| `FAC-*` | Governance-only fee and pause; pause scope; fee-update and fee-collection events; exact positive and zero fee allowances plus cleanup; stale-fee and complete-launch rollback; metadata bounds; sequential IDs; duplicate names; no user salts; launcher provenance; fixed start; floored, reachable raise; and complete launch. |
 | `TOK-*` | Exactly 100B supply; 18 decimals; Autolaunch factory creator; immutable metadata; and no public mint, owner, tax, blacklist, upgrade, or administrative burn. |
 | `STR-*` | Only the canonical factory initializes; unknown auctions are rejected; exact 10/5/85 transfer; per-auction reserve isolation; permissionless migration; exact CCA parameters; the closed launch-time treasury refusal and admission set; final-price conversion in both currency orderings; one-shot finalization; and no committed retry state. |
 | `ESC-*` | One-time initialization; exact 85% pending custody; no pending release; strategy-only resolution; success starts 365-day linear vesting to the fixed treasury beneficiary; failure retires exactly 100B; and late failed SUBJECT goes only to the dead address. |

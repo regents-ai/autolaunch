@@ -28,7 +28,7 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
     ///         the same state the failed one started from.
     function test_STR_004_TechnicalFailureIsAnOrdinaryRevertWithNoRetryState() public {
         Launch memory launch = _defaultLaunch();
-        _bidToGraduation(launch, 2_000e18);
+        _bidToGraduation(launch, MINIMUM_RAISE);
 
         Ledger memory before = _ledger(launch);
 
@@ -166,8 +166,8 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
     /// @notice No dependency callback can enter a second mutation, in either entry point.
     function test_STR_004_ReentrantDependencyCannotEnterASecondMutation() public {
         Launch memory launch = _defaultLaunch();
-        Launch memory other = _newLaunch(SUBJECT_HIGH, 2, 1_000e18);
-        _bidToGraduation(launch, 2_000e18);
+        Launch memory other = _newLaunch(SUBJECT_HIGH, 2, MINIMUM_RAISE);
+        _bidToGraduation(launch, MINIMUM_RAISE);
 
         // A SUBJECT that calls back into `migrate` while a graduation transfer is in flight.
         launch.subject
@@ -194,7 +194,7 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
         third.resetMovements();
         third.arm(1, StagedERC20.Fault.Reenter);
 
-        factory.initialize(SUBJECT_LOW_ALT, escrow, 3, 1_000e18);
+        factory.initialize(SUBJECT_LOW_ALT, escrow, 3, MINIMUM_RAISE);
 
         assertEq(third.reentryAttempts(), 1, "the token did attempt to re-enter initialization");
         assertFalse(third.lastReentrySucceeded(), "and the re-entrant call was refused");
@@ -244,7 +244,7 @@ contract RegentLBPStrategyRollbackTest is StrategyFixture {
     ///         migration that cannot afford the auction's tick iteration reverts and remembers
     ///         nothing; permissionless upstream iteration then makes a fresh migration affordable.
     function test_STR_004_CheckpointExhaustionIsResolvedUpstreamNotByRetryState() public {
-        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, 1_000e18);
+        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, MINIMUM_RAISE);
         _rollToStart(launch);
 
         // Every bid lands in one block, so the auction never gets to advance its clearing price

@@ -22,11 +22,11 @@ contract AutolaunchFailureTest is AutolaunchFixture {
     /// @notice `FAIL-001`: an auction that raises less than its required raise fails.
     function test_FAIL_001_UnmetRaiseResolvesAsFailed() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.requiredRegentRaised = 10_000e18;
+        params.requiredRegentRaised = MINIMUM_RAISE;
         Launched memory launched = _launchAs(launcher, params);
 
         _rollToStart(launched);
-        _bid(launched, bidder, 9_999e18, _bidPrice(10));
+        _bid(launched, bidder, MINIMUM_RAISE - 1e18, _bidPrice(10));
         _rollToMigration(launched);
 
         strategy.migrate(address(launched.auction));
@@ -65,18 +65,20 @@ contract AutolaunchFailureTest is AutolaunchFixture {
     /// @notice `FAIL-003`: several genuine bids that together fall short still fail.
     function test_FAIL_003_PartialBidsBelowTheRaiseResolveAsFailed() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.requiredRegentRaised = 30_000e18;
+        params.requiredRegentRaised = 3 * MINIMUM_RAISE;
         Launched memory launched = _launchAs(launcher, params);
 
         _rollToStart(launched);
-        _bid(launched, bidder, 9_000e18, _bidPrice(10));
-        _bid(launched, outsider, 9_000e18, _bidPrice(11));
-        _bid(launched, launcher, 9_000e18, _bidPrice(12));
+        _bid(launched, bidder, 3_000_000e18, _bidPrice(10));
+        _bid(launched, outsider, 3_000_000e18, _bidPrice(11));
+        _bid(launched, launcher, 3_000_000e18, _bidPrice(12));
         _rollToMigration(launched);
 
         strategy.migrate(address(launched.auction));
 
-        assertEq(uint256(launched.auction.currencyRaised()), 27_000e18, "the partial raise is not the sum of the bids");
+        assertEq(
+            uint256(launched.auction.currencyRaised()), 9_000_000e18, "the partial raise is not the sum of the bids"
+        );
         assertEq(
             uint8(_distribution(launched).lifecycle),
             uint8(RegentLBPStrategy.Lifecycle.Failed),
@@ -145,16 +147,16 @@ contract AutolaunchFailureTest is AutolaunchFixture {
     ///         be made whole from the CCA afterwards.
     function test_FAIL_006_BidderRefundsSurviveRetirement() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.requiredRegentRaised = 100_000e18;
+        params.requiredRegentRaised = 10 * MINIMUM_RAISE;
         Launched memory launched = _launchAs(launcher, params);
 
         _rollToStart(launched);
-        uint256 firstBid = _bid(launched, bidder, 4_000e18, _bidPrice(10));
-        uint256 secondBid = _bid(launched, outsider, 6_000e18, _bidPrice(11));
+        uint256 firstBid = _bid(launched, bidder, 3_000_000e18, _bidPrice(10));
+        uint256 secondBid = _bid(launched, outsider, 6_000_000e18, _bidPrice(11));
         _rollToMigration(launched);
 
         uint256 auctionRegent = regent.balanceOf(address(launched.auction));
-        assertEq(auctionRegent, 10_000e18, "the auction is not holding both bids");
+        assertEq(auctionRegent, 9_000_000e18, "the auction is not holding both bids");
 
         strategy.migrate(address(launched.auction));
 
@@ -167,8 +169,8 @@ contract AutolaunchFailureTest is AutolaunchFixture {
         vm.prank(outsider);
         launched.auction.exitBid(secondBid);
 
-        assertEq(regent.balanceOf(bidder), 4_000e18, "the first bidder was not fully refunded");
-        assertEq(regent.balanceOf(outsider), 6_000e18, "the second bidder was not fully refunded");
+        assertEq(regent.balanceOf(bidder), 3_000_000e18, "the first bidder was not fully refunded");
+        assertEq(regent.balanceOf(outsider), 6_000_000e18, "the second bidder was not fully refunded");
         assertEq(regent.balanceOf(address(launched.auction)), 0, "the auction kept bidder REGENT");
         assertEq(launched.subject.balanceOf(bidder), 0, "a failed auction delivered SUBJECT");
     }

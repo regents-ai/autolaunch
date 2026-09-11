@@ -135,7 +135,7 @@ contract LifecycleHandler is CommonBase, StdUtils {
         if (block.number < auction.startBlock() || block.number >= auction.endBlock()) return;
         if (strategy.distribution(auctions[index]).lifecycle != RegentLBPStrategy.Lifecycle.Active) return;
 
-        uint128 bidAmount = uint128(bound(amount, 1e18, 5_000e18));
+        uint128 bidAmount = uint128(bound(amount, 1_000_000e18, 5_000_000e18));
 
         // The pinned CCA refuses a bid at or below the live clearing price, so the bid is placed
         // strictly above it, on the frozen tick grid. Checkpointing first is the same permissionless

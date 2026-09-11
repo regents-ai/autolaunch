@@ -54,8 +54,8 @@ contract AutolaunchTreasuryCollisionTest is AutolaunchFixture {
 
         // Both auctions were created in the same block, so one window carries both.
         _rollToStart(stalled);
-        uint256 stalledBid = _bid(stalled, bidder, 20_000e18, _bidPrice(10));
-        _bid(intervening, bidder, 20_000e18, _bidPrice(10));
+        uint256 stalledBid = _bid(stalled, bidder, MINIMUM_RAISE, _bidPrice(10));
+        _bid(intervening, bidder, MINIMUM_RAISE, _bidPrice(10));
         _rollToMigration(intervening);
 
         // -- the stall -------------------------------------------------------
@@ -81,7 +81,11 @@ contract AutolaunchTreasuryCollisionTest is AutolaunchFixture {
         assertEq(hook.splitterOf(_poolId(stalled)), address(0), "a stalled launch registered a pool");
         assertGt(regent.balanceOf(address(stalled.auction)), 0, "the raised REGENT left the CCA");
         assertEq(stalled.subject.balanceOf(address(strategy)), reserveHeld, "the isolated reserve moved");
-        assertGt(stalled.auction.remainingSupply(), 0, "this auction sold out, so there is no unsold SUBJECT");
+        assertEq(
+            stalled.subject.balanceOf(address(stalled.auction)),
+            AUCTION_ALLOCATION,
+            "the stalled auction's SUBJECT inventory moved"
+        );
         assertEq(contested.code.length, 0, "the rolled-back clone survived at the contested address");
 
         // An immediate retry targets exactly the same address, because the nonce rolled back too.

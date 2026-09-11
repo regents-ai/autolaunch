@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0A0A0A"/>
+  <defs>
+    <g id="c">
+      <path d="M0,0 L13,-13 L49,-13 L36,0 Z" fill="#FFFFFF" stroke="#B3B3AC" stroke-width="0.8"/>
+      <path d="M36,0 L49,-13 L49,23 L36,36 Z" fill="#C6C6C0" stroke="#B3B3AC" stroke-width="0.8"/>
+      <rect width="36" height="36" fill="#F2F2EF" stroke="#B3B3AC" stroke-width="0.8"/>
+    </g>
+  </defs>
+  <g transform="translate(165.03,268.38) scale(2.1092)">
+    <use href="#c" x="14" y="176"/>
+    <use href="#c" x="50" y="176"/>
+    <use href="#c" x="86" y="176"/>
+    <use href="#c" x="122" y="176"/>
+    <use href="#c" x="158" y="176"/>
+    <use href="#c" x="194" y="176"/>
+    <use href="#c" x="14" y="140"/>
+    <use href="#c" x="14" y="104"/>
+    <use href="#c" x="86" y="104"/>
+    <use href="#c" x="122" y="104"/>
+    <use href="#c" x="14" y="68"/>
+    <use href="#c" x="158" y="68"/>
+    <use href="#c" x="194" y="68"/>
+    <use href="#c" x="14" y="32"/>
+    <use href="#c" x="230" y="32"/>
+    <use href="#c" x="266" y="32"/>
+  </g>
+</svg>

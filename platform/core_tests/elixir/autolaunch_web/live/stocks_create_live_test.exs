@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
       conn
       |> Phoenix.ConnTest.init_test_session(session)
       |> connects_with(session)
-      |> live("/create/stocks")
+      |> live("/create?kind=stocks")
 
     view
     |> form("#stocks-token-details", stock_draft: %{name: "Apple Pair", symbol: "APLP"})

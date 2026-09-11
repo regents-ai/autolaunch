@@ -1,7 +1,7 @@
 {
   "authority": "SPEC.md",
   "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs. src/bindings/FrozenIdentity.sol and src/bindings/BaseBindings.sol are the compiled copies; test/bindings/ proves the compiled copies equal this file.",
-  "spec_sha256": "db40de19e07be50573528b23817f3ea2b3c81a19ed2d145e11eca19b5ff00ee5",
+  "spec_sha256": "caea0bf9eb48f6a5f69616666de56cb81fb0fcabeeb9afa4e212de550dc8d479",
   "chain": {
     "name": "base-mainnet",
     "id": 8453
@@ -113,7 +113,7 @@
       },
       {
         "key": "src/strategy/RegentLBPStrategy.sol:RegentLBPStrategy",
-        "reason": "DistributionParams and Distribution lose their recoveryAdmin field, RecoveryAdminHasNoCode(address) is deleted, the splitter initializer call loses its seventh argument, one private launch-time treasury admission refusing exactly six shared-system addresses is added between escrow authentication and auction creation, both per-launch clones stay on the pinned upstream ordinary LibClone.clone, and the pinned planner's two CONTRACT_BALANCE settlement amounts are replaced with the exact amounts this graduation funds. regent-alv1.16 calls the bound factory's exact canonical-receiver registration callback only after receiver initialization, vesting activation and the complete terminal distribution write, and before LaunchGraduated. STR-004, STR-019, FAC-024, MIG-003, MIG-010, MIG-012, MIG-013 and MIG-022 carry the behaviour."
+        "reason": "DistributionParams and Distribution lose their recoveryAdmin field, RecoveryAdminHasNoCode(address) is deleted, the splitter initializer call loses its seventh argument, one private launch-time treasury admission refusing exactly six shared-system addresses is added between escrow authentication and auction creation, both per-launch clones stay on the pinned upstream ordinary LibClone.clone, and the pinned planner's two CONTRACT_BALANCE settlement amounts are replaced with the exact amounts this graduation funds. regent-alv1.16 calls the bound factory's exact canonical-receiver registration callback only after receiver initialization, vesting activation and the complete terminal distribution write, and before LaunchGraduated. STR-004, STR-019, FAC-024, MIG-003, MIG-010, MIG-012, MIG-013 and MIG-022 carry the behaviour. autolaunch-minimum-raise adds the governance floor minimumRegentRaised (born at 10_000_000e18), setMinimumRegentRaised(uint128) for the Governance and Regent Safe alone, MinimumRegentRaisedChanged, NotGovernance and RequiredRaiseBelowMinimum, and refuses a required raise below the current minimum at initialization; STR-020 and FAC-023 carry the behaviour."
       },
       {
         "key": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",

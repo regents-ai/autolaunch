@@ -131,9 +131,8 @@ defmodule AutolaunchWeb.StocksCreateLive do
         id="autolaunch-stocks-create-sign-in"
         class="autolaunch-empty launchpad-create__sign-in"
       >
-        <p class="autolaunch-kicker">Autolaunch · Create · Stocks</p>
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">Sign in to launch a stock-paired auction</h1>
+          <h2 class="rg-section-bar__label">Sign in to launch a stock-paired auction</h2>
         </Regent.Structure.section_bar>
         <p>
           A launch starts as a private draft saved to your account, so Create needs you signed

@@ -80,6 +80,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
+  attr :minimum_raise, :string, default: nil
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -93,18 +94,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       |> assign(:draft_x_connections, Map.new(assigns.x_connections, &{&1.role, &1}))
 
     ~H"""
-    <section id="autolaunch-create" class="autolaunch-page launchpad-create">
-      <header class="launchpad-create__header">
-        <p class="autolaunch-kicker">Autolaunch · Create</p>
-        <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">Launch an auction</h1>
-        </Regent.Structure.section_bar>
-        <p>
-          Add the public token details, choose the treasury, then review the exact transactions.
-          Draft changes save privately to your account. Your wallet remains in control.
-        </p>
-      </header>
-
+    <section id="autolaunch-create">
       <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
         You already have an auction. One auction per account for now.
       </p>
@@ -141,7 +131,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 :for={field <- token_detail_fields()}
                 field={field}
                 form_id="launch-token-details"
-                hint={field.hint}
+                hint={field_hint(field, @minimum_raise)}
                 value={@draft_values[field.param]}
                 error={@draft_errors[field.param]}
                 autosave
@@ -453,6 +443,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   end
 
   defp token_detail_fields, do: @token_detail_fields
+
+  defp field_hint(%{key: :required_regent_raised}, nil),
+    do: "The current minimum must be verified before launching."
+
+  defp field_hint(%{key: :required_regent_raised}, minimum),
+    do: "Minimum #{minimum} REGENT. Checked again before launching."
+
+  defp field_hint(field, _minimum), do: field.hint
   defp treasury_field, do: @treasury_field
 
   defp stage_status(true), do: "Complete"
