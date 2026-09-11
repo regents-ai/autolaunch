@@ -3,11 +3,12 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
   The one fork boundary a Stocks launch has: one snapshot before review, one
   read after the hash.
 
-  `snapshot/1` answers at one latest block: the launchpad's pause state and
-  launch fee, the signer's REGENT balance and allowance to the launchpad, the
-  admission record of the chosen STOCK, and, when a subject lane is requested,
-  whether the candidate splitter is the one the Agent strategy recorded for its
-  own subject. `verify/3` reads the allowance back for the approval step, and
+  `snapshot/1` answers at one latest block: the launchpad's pause state, launch
+  fee and USDC minimum raise, the signer's REGENT balance and allowance to the
+  launchpad, the admission record of the chosen STOCK with that minimum quoted
+  into the STOCK through the admitted route, and, when a subject lane is
+  requested, whether the candidate splitter is the one the Agent strategy
+  recorded for its own subject. `verify/3` reads the allowance back for the approval step, and
   for the launch step decodes the launchpad's `StockLaunchCreated` and
   `StockLaunchFeeCollected` from the canonical receipt and checks them against
   the reviewed arguments and the launchpad's own record.
@@ -21,6 +22,7 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
   @binding_keys [:launchpad, :hook, :bid_adapter, :agent_strategy, :usdc, :permit2, :regent]
   @subject_selector "0x0a59a98c"
   @splitter_index 14
+  @usdc_decimals 6
 
   def binding_keys, do: @binding_keys
 
@@ -34,11 +36,14 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
          :ok <- LabRpc.ensure_contract(Lab.address!(config, :regent), block, opts),
          {:ok, paused} <- launchpad_bool(config, "launchesPaused()", [], block, opts),
          {:ok, fee} <- launchpad_uint(config, "launchFee()", [], block, opts),
+         {:ok, minimum} <- launchpad_uint(config, "minimumRaiseUsdc()", [], block, opts),
          {:ok, balance} <- regent_uint(config, "balanceOf(address)", [signer], block, opts),
          {:ok, allowance} <- allowance(config, signer, block, opts),
          {:ok, [admitted, decimals, route]} <-
            launchpad_words(config, "stockAdmission(address)", [stock], 3, block, opts),
          {:ok, route} <- Abi.word_address(route) |> allow_zero(route),
+         {:ok, required} <-
+           quoted_minimum(config, admitted != 0, route, stock, minimum, block, opts),
          {:ok, subject} <- splitter_state(config, candidate, block, opts) do
       {:ok,
        %{
@@ -47,13 +52,34 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
          regent: Lab.address!(config, :regent),
          paused: paused,
          fee: fee,
+         minimum_raise_usdc: minimum,
          balance: balance,
          allowance: allowance,
          block: Map.put(block, :timestamp, header.timestamp),
-         admission: %{admitted: admitted != 0, decimals: decimals, route: route},
+         admission: %{
+           admitted: admitted != 0,
+           decimals: decimals,
+           route: route,
+           required_stock_raised: required
+         },
          subject: subject,
          lab_binding: Lab.binding(config, @binding_keys)
        }}
+    else
+      :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
+      _other -> {:error, :invalid_chain_response}
+    end
+  end
+
+  @doc "The launchpad's current USDC minimum raise, in whole USDC, for page copy."
+  @spec minimum_raise_usdc() :: {:ok, String.t()} | {:error, atom()}
+  def minimum_raise_usdc do
+    with {:ok, config} <- Lab.current(),
+         opts <- Lab.rpc_opts(config),
+         {:ok, block} <- Rpc.latest_block(opts),
+         {:ok, minimum} <- launchpad_uint(config, "minimumRaiseUsdc()", [], block, opts) do
+      {:ok, Rpc.format_units(minimum, @usdc_decimals)}
     else
       :error -> {:error, :invalid_chain_response}
       {:error, reason} -> {:error, reason}
@@ -168,7 +194,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
          true <- Address.equal?(event.fee_administrator, arguments["fee_administrator"]),
          true <- event.start_block == integer(arguments, "start_block"),
          true <- event.floor_price_q96 == integer(arguments, "floor_price_q96"),
-         true <- event.required_stock_raised == integer(arguments, "required_stock_raised"),
          {:ok, fee} <-
            fee_collected(logs, config, event.launch_id, envelope["expected_signer"]),
          true <- fee == integer(arguments, "expected_launch_fee_atomic"),
@@ -197,6 +222,7 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
            "fee_administrator" => event.fee_administrator,
            "start_block" => Integer.to_string(event.start_block),
            "end_block" => Integer.to_string(event.end_block),
+           "required_stock_raised" => Integer.to_string(event.required_stock_raised),
            "auction_inventory" => Integer.to_string(event.auction_inventory),
            "migration_reserve" => Integer.to_string(event.migration_reserve),
            "launch_fee" => Integer.to_string(fee),
@@ -327,6 +353,24 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
     Rpc.call_bool(
       Lab.address!(config, :launchpad),
       LabAbi.encode(Lab.abi!(config, :launchpad), signature, arguments),
+      block,
+      opts
+    )
+  end
+
+  # The launchpad derives the required raise from the same quote at launch, so
+  # the review states the STOCK amount the minimum is worth right now. A STOCK
+  # that is not admitted has no route to quote through.
+  defp quoted_minimum(_config, false, _route, _stock, _minimum, _block, _opts), do: {:ok, nil}
+
+  defp quoted_minimum(config, true, route, stock, minimum, block, opts) do
+    Rpc.call_uint(
+      route,
+      LabAbi.encode(
+        Lab.abi!(config, :route),
+        "quoteExactIn(address,address,uint256)",
+        [Lab.address!(config, :usdc), stock, minimum]
+      ),
       block,
       opts
     )

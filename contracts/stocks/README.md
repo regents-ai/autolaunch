@@ -60,6 +60,7 @@ because the same pinned dependency imposes it.
 | REGENT hook lane | 100 bps of realized STOCK-side amount, floored | Brief P08 |
 | Subject hook lane | 0 or 100 bps, off by default | Brief P09/P10 |
 | Launch fee | 100,000 REGENT (`LAUNCH_FEE_REGENT`), pulled from the launcher at `launch` and funded into the live REGENT staking contract as staker rewards (`fundRegentRewards`); never refunded; governance may change it with `setLaunchFee` (zero valid) | Founder decision |
+| Minimum raise | 1,000 USDC (`MINIMUM_RAISE_USDC`), quoted into the STOCK through the admitted route at `launch` and recorded as the auction's `requiredStockRaised`; the launcher does not choose it; governance may change it with `setMinimumRaiseUsdc` (zero refused); a recorded auction keeps its STOCK raise | Founder decision |
 | Creator allocation, vesting, treasury | none | Brief P05 |
 | Unsold NEW after graduation | transferred to `0x…dEaD` ("retired"; supply is not reduced because UERC20 has no burn) | Brief P13; mechanism labelled |
 | Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; PROVISIONAL |

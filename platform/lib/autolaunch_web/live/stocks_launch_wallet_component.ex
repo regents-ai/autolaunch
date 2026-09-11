@@ -36,9 +36,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     start_missing: "Choose a start date and time on the draft.",
     floor_price_too_low: "The floor price is too low to be used. Raise it on the draft.",
     floor_price_missing: "Enter a floor price on the draft.",
-    minimum_raise_missing: "Enter a minimum raise on the draft.",
-    minimum_raise_unrepresentable:
-      "The minimum raise has more decimal places than this stock token supports.",
+    minimum_raise_unquotable:
+      "This stock's price could not be read to set the minimum raise. Try again in a moment.",
     amount_not_representable: "An amount has more decimal places than this stock token supports.",
     invalid_decimal: "An amount on the draft is not a plain decimal number.",
     price_out_of_range: "The floor price cannot be used. Check it on the draft.",
@@ -156,7 +155,15 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           </div>
           <div>
             <dt>Minimum raise</dt>
-            <dd>{argument(@operation, "minimum_raise")} {argument(@operation, "stock_symbol")}</dd>
+            <dd>
+              {Amounts.grouped(argument(@operation, "minimum_raise_usdc"))} USDC worth of {argument(
+                @operation,
+                "stock_symbol"
+              )}, about {Amounts.compact_decimal(argument(@operation, "required_stock_raised_units"))} {argument(
+                @operation,
+                "stock_symbol"
+              )} at today's price. The exact amount is set from the price when the launch is created.
+            </dd>
           </div>
           <div>
             <dt>Floor price</dt>
@@ -547,7 +554,9 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
        "#{argument(operation, "floor_price_executable")} #{argument(operation, "stock_symbol")} per token"},
       {"Floor price (Q96)", argument(operation, "floor_price_q96")},
       {"Bid tick spacing (Q96)", argument(operation, "tick_spacing_q96")},
-      {"Required raise (base units)", argument(operation, "required_stock_raised")},
+      {"Minimum raise (USDC base units)", argument(operation, "minimum_raise_usdc_atomic")},
+      {"Minimum raise quoted at review (base units)",
+       argument(operation, "required_stock_raised")},
       {"Fee administrator", argument(operation, "fee_administrator")},
       {"Subject splitter", argument(operation, "subject_splitter")},
       {"Launch fee (atomic)", argument(operation, "expected_launch_fee_atomic")},

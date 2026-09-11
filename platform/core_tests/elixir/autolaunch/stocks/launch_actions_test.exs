@@ -43,8 +43,6 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     stock_symbol: "AAPLc",
     start_at: ~U[2026-09-10 12:00:00Z],
     start_timezone: "Etc/UTC",
-    # 1,234.56789012 AAPLc in 8 decimals: 123_456_789_012 base units.
-    minimum_raise: "1234.56789012",
     # 1.25 AAPLc per NEW: 1.25e8 / 1e18 * 2^96 = 2^96 / 8e9, not a multiple of 100.
     floor_price: "1.25",
     fee_administrator: @admin,
@@ -53,14 +51,21 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
 
   # The fork answered at 12:00 less 1,001 seconds, so the start is 501 blocks
   # away: ceil(1001 / 2). The signer holds the fee and has approved nothing yet.
+  # The launchpad's 1,000 USDC minimum is worth 4.34782608 AAPLc at $230 a share.
   @snapshot %{
     launchpad: @launchpad,
     regent: @regent,
     paused: false,
     fee: @fee,
+    minimum_raise_usdc: 1_000_000_000,
     balance: @fee,
     allowance: 0,
-    admission: %{admitted: true, decimals: 8, route: "0x6666666666666666666666666666666666666666"},
+    admission: %{
+      admitted: true,
+      decimals: 8,
+      route: "0x6666666666666666666666666666666666666666",
+      required_stock_raised: 434_782_608
+    },
     subject: :verified,
     block: %{
       number: 1_000_000,
@@ -83,19 +88,21 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     assert executable.tick_spacing_q96 == div(executable.floor_price_q96, 100)
     assert executable.start_block == 1_000_000 + 501
     assert executable.end_block == 1_000_000 + 501 + 43_200
-    assert executable.required_stock_raised == 123_456_789_012
+    assert executable.minimum_raise_usdc == 1_000_000_000
+    assert executable.required_stock_raised == 434_782_608
     assert executable.subject_splitter == @splitter
     assert executable.launch_fee == @fee
 
     data = LaunchActions.launch_data(@fields, executable, @config)
 
     signature =
-      "launch((string,string,string,string,string,address,uint64,uint256,uint128,address,address,uint256))"
+      "launch((string,string,string,string,string,address,uint64,uint256,address,address,uint256))"
 
     assert String.starts_with?(data, LabAbi.selector(signature))
     {:ok, words} = LabAbi.decode_words("0x" <> String.slice(data, 10..-1//1))
 
-    # One dynamic tuple: its offset, then the tuple head of twelve words.
+    # One dynamic tuple: its offset, then the tuple head of eleven words. The
+    # required raise is not in the calldata: the launchpad quotes it at launch.
     assert Enum.at(words, 0) == 32
 
     [
@@ -107,18 +114,16 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
       stock,
       start_block,
       floor,
-      required,
       admin,
       splitter,
       expected_fee
     ] =
-      Enum.slice(words, 1, 12)
+      Enum.slice(words, 1, 11)
 
-    assert [name, symbol, description, website, image] == [384, 448, 512, 576, 640]
+    assert [name, symbol, description, website, image] == [352, 416, 480, 544, 608]
     assert {:ok, @stock} == Abi.word_address(stock)
     assert start_block == 1_000_501
     assert floor == executable.floor_price_q96
-    assert required == 123_456_789_012
     assert {:ok, @admin} == Abi.word_address(admin)
     assert {:ok, @splitter} == Abi.word_address(splitter)
     assert expected_fee == @fee
@@ -191,10 +196,25 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
                @config
              )
 
-    assert {:error, %{reason: :amount_not_representable}} =
+    # A route that values the minimum at nothing, or beyond a uint128, is
+    # refused here as the launchpad would refuse it.
+    assert {:error, %{reason: :minimum_raise_unquotable}} =
              LaunchActions.executable(
-               %{@fields | minimum_raise: "1.000000001"},
-               @snapshot,
+               @fields,
+               %{@snapshot | admission: %{@snapshot.admission | required_stock_raised: 0}},
+               @config
+             )
+
+    assert {:error, %{reason: :minimum_raise_unquotable}} =
+             LaunchActions.executable(
+               @fields,
+               %{
+                 @snapshot
+                 | admission: %{
+                     @snapshot.admission
+                     | required_stock_raised: Integer.pow(2, 128)
+                   }
+               },
                @config
              )
   end
@@ -224,7 +244,6 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
       stock_address: "0xb200000000000000000000C2e324d24d7eEcd1fb",
       start_at: ~U[2026-09-10 12:00:00Z],
       start_timezone: "Europe/Amsterdam",
-      minimum_raise: "1000",
       floor_price: "1.25",
       fee_administrator: @admin,
       subject_enabled: true,
@@ -246,7 +265,7 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
         "0x" <> String.slice(LaunchActions.launch_data(fields, executable, @config), 10..-1//1)
       )
 
-    assert Enum.at(words, 11) == 0
+    assert Enum.at(words, 10) == 0
 
     refute String.contains?(
              LaunchActions.launch_data(fields, executable, @config),

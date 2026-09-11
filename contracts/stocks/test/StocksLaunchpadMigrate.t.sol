@@ -299,7 +299,7 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
     function test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca() public {
         Launched memory l = _launch(STOCK_LOW);
         _rollToStart(l);
-        uint128 bidAmount = 10e8; // below the 100e8 required raise
+        uint128 bidAmount = REQUIRED_RAISE - 1; // one base unit below the quoted required raise
         uint256 bidId = _bidDirect(l, bidder, bidAmount, _bidPrice(1));
         assertEq(FixtureStockToken(l.stock).balanceOf(bidder), 0);
         assertEq(FixtureStockToken(l.stock).balanceOf(address(l.auction)), bidAmount);

@@ -3,7 +3,7 @@ defmodule Autolaunch.Stocks.LabAbi do
 
   alias Autolaunch.LabAbi
 
-  @launch_params "(string,string,string,string,string,address,uint64,uint256,uint128,address,address,uint256)"
+  @launch_params "(string,string,string,string,string,address,uint64,uint256,address,address,uint256)"
   @launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint128)"
   @launch_record_words 20
 
@@ -28,6 +28,8 @@ defmodule Autolaunch.Stocks.LabAbi do
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"launchFee()", "view", ["uint256"]},
       f: {"setLaunchFee(uint256)", "nonpayable", []},
+      f: {"minimumRaiseUsdc()", "view", ["uint256"]},
+      f: {"setMinimumRaiseUsdc(uint256)", "nonpayable", []},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
       f:
         {"subjectConfig(uint256)", "view", ["uint32", "address", "uint16", "address", "address"]},
@@ -44,6 +46,7 @@ defmodule Autolaunch.Stocks.LabAbi do
          [true, true, false, false, false, false, false, false, false, false, false, false]},
       e: {@fee_collected, [true, true, true, false]},
       e: {"LaunchFeeUpdated(uint256,uint256)", [false, false]},
+      e: {"MinimumRaiseUsdcUpdated(uint256,uint256)", [false, false]},
       e: {@subject_configured, [true, true, true, false, false]},
       e: {@administrator_transfer_started, [true, true, true]},
       e: {@administrator_transferred, [true, true, true]}

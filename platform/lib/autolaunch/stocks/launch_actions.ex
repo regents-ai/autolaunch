@@ -11,9 +11,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
   The review derives the executable values from the saved draft and the chain:
   the first bidding block from the zoned start and the current fork block, the
   executable floor price as the largest multiple of 100 not above the entered
-  price, the required raise in the admitted STOCK's own base units, and the
-  launch fee the launchpad charges right now, which the tuple carries as
-  `expectedLaunchFee` so a fee that moves reverts rather than overcharges.
+  price, the launchpad's USDC minimum raise quoted into the admitted STOCK so
+  the review can state what it is worth today, and the launch fee the launchpad
+  charges right now, which the tuple carries as `expectedLaunchFee` so a fee
+  that moves reverts rather than overcharges. The launchpad quotes the minimum
+  again when the launch is created, and that quote is the auction's required
+  raise.
   """
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -39,6 +42,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   # Preset terms the review states back, from contracts/stocks/README.md.
   @new_decimals 18
   @regent_decimals 18
+  @usdc_decimals 6
   @auction_duration_blocks 43_200
   @claim_delay_blocks 64
   @migration_delay_blocks 128
@@ -65,6 +69,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @revoked "this stock token is no longer admitted"
   @subject_moved "the subject revenue address is no longer recognised"
   @stale_fee "the launch fee changed after this review"
+  @minimum_moved "the minimum raise changed after this review"
   @short "this wallet no longer holds the launch fee"
   @allowance_moved "the REGENT allowance changed after this review"
 
@@ -235,7 +240,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @doc """
   Everything the chain will execute, derived from the saved draft, the admitted
-  STOCK's decimals, the launchpad's current fee and the current fork block.
+  STOCK's decimals, the launchpad's current fee and minimum raise, the STOCK
+  that minimum is worth through the admitted route, and the current fork block.
   Exposed so the review page and the envelope test can state exactly the same
   numbers.
   """
@@ -243,7 +249,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
     with :ok <- admitted(snapshot),
          {:ok, start_block} <- start_block(fields.start_at, snapshot.block),
          {:ok, floor} <- floor_price(fields.floor_price, snapshot.admission.decimals),
-         {:ok, required} <- required_raise(fields.minimum_raise, snapshot.admission.decimals) do
+         {:ok, required} <- quoted_raise(snapshot.admission.required_stock_raised) do
       {:ok,
        %{
          start_block: start_block,
@@ -251,6 +257,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
          floor_price_q96: floor.executable,
          floor_price_evidence: floor,
          tick_spacing_q96: div(floor.executable, @tick_divisor),
+         minimum_raise_usdc: snapshot.minimum_raise_usdc,
          required_stock_raised: required,
          stock_decimals: snapshot.admission.decimals,
          subject_splitter: fields.subject_splitter || @zero_address,
@@ -297,10 +304,9 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  defp required_raise(value, decimals) do
-    with {:ok, raw} <- Amounts.parse_units(value, decimals) |> refusable(),
-         do: bounded(raw, @uint128_max, :minimum_raise_unrepresentable)
-  end
+  # The launchpad refuses a launch whose quoted minimum is nothing or more than
+  # a uint128 holds; the review refuses the same quote first.
+  defp quoted_raise(quote), do: bounded(quote, @uint128_max, :minimum_raise_unquotable)
 
   defp bounded(value, max, _reason) when value > 0 and value <= max, do: {:ok, value}
   defp bounded(_value, _max, reason), do: unavailable(reason)
@@ -343,8 +349,11 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "start_block" => Integer.to_string(executable.start_block),
         "end_block" => Integer.to_string(executable.end_block),
         "estimated_end_at" => DateTime.to_iso8601(executable.estimated_end_at),
-        "minimum_raise" => draft.minimum_raise,
+        "minimum_raise_usdc_atomic" => Integer.to_string(executable.minimum_raise_usdc),
+        "minimum_raise_usdc" => Rpc.format_units(executable.minimum_raise_usdc, @usdc_decimals),
         "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
+        "required_stock_raised_units" =>
+          Rpc.format_units(executable.required_stock_raised, executable.stock_decimals),
         "floor_price_entered" => draft.floor_price,
         "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
         "floor_price_executable" => executable.floor_price_evidence.executable_stock_per_new,
@@ -418,7 +427,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
         fields.stock,
         executable.start_block,
         executable.floor_price_q96,
-        executable.required_stock_raised,
         fields.fee_administrator,
         executable.subject_splitter,
         executable.launch_fee
@@ -461,7 +469,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
          {:ok, stock} <- address(asset.address, :stock_invalid),
          %DateTime{} = start_at <- draft.start_at || unavailable(:start_missing),
          true <- LaunchDraft.timezone?(draft.start_timezone) || unavailable(:start_missing),
-         true <- is_binary(draft.minimum_raise) || unavailable(:minimum_raise_missing),
          true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing),
          {:ok, fee_administrator} <- address(draft.fee_administrator, :fee_administrator_invalid),
          {:ok, subject_splitter} <- subject_splitter(draft) do
@@ -476,7 +483,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
          stock_symbol: asset.symbol,
          start_at: start_at,
          start_timezone: draft.start_timezone,
-         minimum_raise: draft.minimum_raise,
          floor_price: draft.floor_price,
          fee_administrator: fee_administrator,
          subject_splitter: subject_splitter
@@ -618,6 +624,9 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
       fresh.fee != atomic(operation, "expected_launch_fee_atomic") ->
         {:changed, @stale_fee}
+
+      fresh.minimum_raise_usdc != atomic(operation, "minimum_raise_usdc_atomic") ->
+        {:changed, @minimum_moved}
 
       fresh.balance < fresh.fee ->
         {:changed, @short}

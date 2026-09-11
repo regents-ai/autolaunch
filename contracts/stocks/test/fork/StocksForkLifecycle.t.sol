@@ -448,7 +448,6 @@ contract StocksForkLifecycleTest is Test {
             stock: ForkAddresses.AAPLC,
             startBlock: uint64(block.number) + StocksPreset.MIN_START_LEAD_BLOCKS,
             floorPriceQ96: FLOOR_PRICE_Q96,
-            requiredStockRaised: 100e8,
             feeAdministrator: feeAdministrator,
             subjectSplitter: splitter,
             expectedLaunchFee: launchpad.launchFee()

@@ -12,7 +12,9 @@ pragma solidity 0.8.26;
 ///      with `platform/contracts/abi/stocks-*.json` and the platform ABI validation.
 interface IStocksLaunchpadV1 {
     /// @notice Everything a launcher supplies. Supply, decimals, allocations, schedule shape,
-    ///         claim/migration delays, LP fee, hook rates and custody policy are fixed by the preset.
+    ///         claim/migration delays, LP fee, hook rates, custody policy and the required raise are
+    ///         fixed by the preset and governance: the raise is `minimumRaiseUsdc()` converted into
+    ///         STOCK through the admitted route's quote at creation.
     /// @dev `treasury`, creator allocation, vesting and any Agent identity are deliberately absent.
     struct LaunchParams {
         string name;
@@ -28,8 +30,6 @@ interface IStocksLaunchpadV1 {
         /// @dev Q96 STOCK base units per NEW base unit, the CCA floor. Bid tick spacing is derived
         ///      deterministically from it (see `bidTickSpacingFor`).
         uint256 floorPriceQ96;
-        /// @dev Minimum STOCK (base units) the auction must raise to graduate.
-        uint128 requiredStockRaised;
         /// @dev The account allowed to enable, disable or retarget the optional subject lane later.
         ///      Required even when the subject lane starts disabled. Has no other power.
         address feeAdministrator;
@@ -116,6 +116,9 @@ interface IStocksLaunchpadV1 {
         uint256 indexed launchId, address indexed payer, address indexed staking, uint256 amount
     );
     event LaunchFeeUpdated(uint256 previousFee, uint256 newFee);
+    /// @notice The USDC-denominated minimum raise changed; launches created afterwards convert the
+    ///         new value. Existing auctions keep the STOCK raise recorded at their creation.
+    event MinimumRaiseUsdcUpdated(uint256 previousMinimum, uint256 newMinimum);
 
     /// @notice Subject lane configuration change. `version` is monotonic per launch, starting at 1
     ///         for the configuration recorded at creation.
@@ -167,6 +170,8 @@ interface IStocksLaunchpadV1 {
     function unpauseLaunches() external;
     /// @notice Set the REGENT a new launch costs. Zero is a valid fee.
     function setLaunchFee(uint256 newFee) external;
+    /// @notice Set the USDC (base units) every later launch must raise in STOCK terms. Zero is refused.
+    function setMinimumRaiseUsdc(uint256 newMinimum) external;
 
     // -------------------------------------------------------------------------
     // reads
@@ -179,6 +184,9 @@ interface IStocksLaunchpadV1 {
     function launchesPaused() external view returns (bool);
     /// @notice The REGENT a launch currently costs; born at the preset's 100,000 REGENT.
     function launchFee() external view returns (uint256);
+    /// @notice The USDC (base units) a new launch must raise, converted into STOCK at creation through
+    ///         the admitted route's quote; born at the preset's 1,000 USDC.
+    function minimumRaiseUsdc() external view returns (uint256);
     /// @notice Whether STOCK may be used for a new launch right now, and its recorded decimals.
     function stockAdmission(address stock) external view returns (bool admitted, uint8 decimals, address route);
     /// @notice Current subject lane configuration of a launch.

@@ -70,7 +70,7 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(uint8(record.lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Active));
         assertEq(record.launcher, launcher);
         assertEq(record.feeAdministrator, feeAdministrator);
-        assertEq(record.requiredStockRaised, 100e8);
+        assertEq(record.requiredStockRaised, REQUIRED_RAISE);
     }
 
     function test_launch_emits_creation_and_initial_subject_configuration() public {
@@ -203,25 +203,47 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertGe(floorHundredths, ConstantsLib.MIN_TICK_SPACING);
     }
 
-    function test_required_raise_must_be_nonzero_and_reachable() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        // The largest raise the fixed inventory can settle on: the inventory at the highest on-grid
-        // price the pinned CCA admits (`StocksLaunchpadV1._maxReachableRaise`).
+    function test_required_raise_is_the_governance_usdc_minimum_quoted_into_stock() public {
+        assertEq(launchpad.minimumRaiseUsdc(), StocksPreset.MINIMUM_RAISE_USDC);
+        assertEq(launchpad.minimumRaiseUsdc(), 1_000e6);
+
+        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotGovernance.selector, launcher));
+        vm.prank(launcher);
+        launchpad.setMinimumRaiseUsdc(1);
+        vm.expectRevert(StocksLaunchpadV1.ZeroMinimumRaise.selector);
+        vm.prank(governance);
+        launchpad.setMinimumRaiseUsdc(0);
+
+        // A launch records the route's quote of the minimum, never a launcher-chosen amount.
+        Launched memory earlier = _launch(STOCK_LOW);
+        assertEq(_record(earlier).requiredStockRaised, REQUIRED_RAISE);
+
+        vm.expectEmit(false, false, false, true, address(launchpad));
+        emit IStocksLaunchpadV1.MinimumRaiseUsdcUpdated(1_000e6, 2_300e6);
+        vm.prank(governance);
+        launchpad.setMinimumRaiseUsdc(2_300e6);
+        assertEq(launchpad.minimumRaiseUsdc(), 2_300e6);
+
+        // The existing auction keeps its terms; the next launch converts the new minimum: ten shares.
+        assertEq(_record(earlier).requiredStockRaised, REQUIRED_RAISE);
+        Launched memory later = _launch(STOCK_HIGH);
+        assertEq(_record(later).requiredStockRaised, 10e8);
+
+        // A minimum whose quote the fixed inventory cannot settle on is refused at creation: the
+        // largest admissible raise is the inventory at the highest on-grid price the pinned CCA
+        // admits (`StocksLaunchpadV1._maxReachableRaise`), capped at what the auction can carry.
         uint256 tickSpacing = launchpad.bidTickSpacingFor(FLOOR_PRICE_Q96);
         uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
         uint256 reachable =
             FullMath.mulDiv(StocksPreset.AUCTION_INVENTORY, maxBidPrice - (maxBidPrice % tickSpacing), FixedPoint96.Q96);
-        assertGt(reachable, 0);
-
-        params.requiredStockRaised = 0;
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.UnreachableRequiredRaise.selector, 0, reachable));
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        params.requiredStockRaised = type(uint128).max;
-        vm.expectRevert(
-            abi.encodeWithSelector(StocksLaunchpadV1.UnreachableRequiredRaise.selector, type(uint128).max, reachable)
-        );
+        if (reachable > type(uint128).max) reachable = type(uint128).max;
+        uint256 excessive = reachable * USDC_PER_SHARE / 1e8 + USDC_PER_SHARE;
+        vm.prank(governance);
+        launchpad.setMinimumRaiseUsdc(excessive);
+        uint256 quoted = routeLow.quoteExactIn(StocksBindings.USDC, STOCK_LOW, excessive);
+        assertGt(quoted, reachable);
+        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
+        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.UnreachableRequiredRaise.selector, quoted, reachable));
         vm.prank(launcher);
         launchpad.launch(params);
     }
@@ -272,14 +294,14 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
     }
 
     function test_launch_is_atomic_when_the_auction_creation_fails() public {
-        // A floor at the very top of the CCA's admissible range passes every launchpad check (a raise
-        // of one unit is reachable) but makes `floor + tick > MAX_BID_PRICE` inside the pinned CCA
-        // constructor, so the auction factory reverts after NEW was already created. Nothing of the
-        // launch survives: no record, no id consumed, no token index, and no NEW token code.
+        // A floor at the very top of the CCA's admissible range passes every launchpad check (the
+        // quoted raise is far below what the inventory settles on at that floor) but makes
+        // `floor + tick > MAX_BID_PRICE` inside the pinned CCA constructor, so the auction factory
+        // reverts after NEW was already created. Nothing of the launch survives: no record, no id
+        // consumed, no token index, and no NEW token code.
         IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
         uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
         params.floorPriceQ96 = (maxBidPrice / 100) * 100;
-        params.requiredStockRaised = 1;
         uint256 nextBefore = launchpad.nextLaunchId();
         address predictedNew = uerc20Factory.getUERC20Address(
             params.name, params.symbol, StocksPreset.NEW_DECIMALS, address(launchpad), bytes32(nextBefore)
@@ -482,7 +504,7 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         uint256 launcherAfterFees = regent.balanceOf(launcher);
 
         _rollToStart(failed);
-        _bidDirect(failed, bidder, 10e8, _bidPrice(1)); // below the required raise
+        _bidDirect(failed, bidder, REQUIRED_RAISE - 1, _bidPrice(1)); // below the required raise
         _rollToMigration(failed);
         launchpad.migrate(failed.launchId);
         assertEq(uint8(_record(failed).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Failed));

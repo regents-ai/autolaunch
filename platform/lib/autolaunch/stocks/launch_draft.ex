@@ -3,8 +3,9 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   One private Stocks launch draft per human account, independent of the Agent draft.
 
   Every section autosaves partial text. Completeness is decided here in one
-  place, and a change of auction currency clears the two amounts that were
-  entered in the old currency so a review can never mix them.
+  place, and a change of auction currency clears the floor price that was
+  entered in the old currency so a review can never mix them. The minimum raise
+  is the launchpad's own USDC minimum, so no draft carries one.
   """
 
   use Ash.Resource,
@@ -17,7 +18,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
   @token_fields [:name, :symbol, :description, :website]
-  @terms_fields [:stock_address, :start_at, :start_timezone, :minimum_raise, :floor_price]
+  @terms_fields [:stock_address, :start_at, :start_timezone, :floor_price]
   @revenue_fields [:subject_enabled, :subject_splitter, :fee_administrator]
 
   @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
@@ -48,12 +49,12 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   def image_complete?(_draft), do: false
 
-  @doc "Whether the currency, schedule and amounts are complete and exact."
+  @doc "Whether the currency, schedule and floor price are complete and exact."
   def terms_complete?(draft) do
     match?({:ok, _stock}, Assets.fetch(draft.stock_chain_id, draft.stock_address || "")) and
       match?(%DateTime{}, draft.start_at) and
       timezone?(draft.start_timezone) and
-      decimal_amount?(draft.minimum_raise) and decimal_amount?(draft.floor_price)
+      decimal_amount?(draft.floor_price)
   end
 
   @doc "Whether the revenue lane and administrator are complete."
@@ -139,12 +140,12 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     # The start arrives as the wall-clock text the creator typed plus the IANA
     # zone it was typed in; the exact UTC instant is derived here, once.
     update :autosave_terms do
-      accept [:stock_address, :start_timezone, :minimum_raise, :floor_price]
+      accept [:stock_address, :start_timezone, :floor_price]
       argument :start_local, :string, constraints: [allow_empty?: true, max_length: 32]
       require_atomic? false
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
       change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStartAt
-      change Autolaunch.Stocks.LaunchDraft.Changes.ClearAmountsOnStockChange
+      change Autolaunch.Stocks.LaunchDraft.Changes.ClearFloorPriceOnStockChange
     end
 
     update :autosave_revenue do
@@ -200,7 +201,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     attribute :stock_chain_id, :integer, allow_nil?: false, default: 8453
     attribute :start_at, :utc_datetime
     attribute :start_timezone, :string
-    attribute :minimum_raise, :string
     attribute :floor_price, :string
 
     attribute :subject_enabled, :boolean, allow_nil?: false, default: false

@@ -1,23 +1,23 @@
-defmodule Autolaunch.Stocks.LaunchDraft.Changes.ClearAmountsOnStockChange do
+defmodule Autolaunch.Stocks.LaunchDraft.Changes.ClearFloorPriceOnStockChange do
   @moduledoc false
   use Ash.Resource.Change
 
   alias Autolaunch.Chain.Address
 
-  # The minimum raise and floor price are denominated in the chosen STOCK, so a
-  # different currency makes the amounts entered under the old one meaningless:
-  # each is cleared unless this same save is entering it afresh.
+  # The floor price is denominated in the chosen STOCK, so a different currency
+  # makes the price entered under the old one meaningless: it is cleared unless
+  # this same save is entering it afresh.
   @impl true
   def change(changeset, _opts, _context) do
     if Ash.Changeset.changing_attribute?(changeset, :stock_address) and
          not same_stock?(changeset.data.stock_address, next_stock(changeset)) do
-      Enum.reduce([:minimum_raise, :floor_price], changeset, &clear_stale/2)
+      clear_stale(changeset, :floor_price)
     else
       changeset
     end
   end
 
-  defp clear_stale(field, changeset) do
+  defp clear_stale(changeset, field) do
     if Ash.Changeset.changing_attribute?(changeset, field),
       do: changeset,
       else: Ash.Changeset.force_change_attribute(changeset, field, nil)

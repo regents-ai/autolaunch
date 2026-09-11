@@ -20,13 +20,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   @sections %{
     "autosave_stocks_token_details" => ~w(name symbol description website),
-    "autosave_stocks_terms" =>
-      ~w(stock_address start_local start_timezone minimum_raise floor_price),
+    "autosave_stocks_terms" => ~w(stock_address start_local start_timezone floor_price),
     "autosave_stocks_revenue" => ~w(subject_enabled subject_splitter fee_administrator)
   }
 
   @stored_params ~w(name symbol description website image stock_address start_local
-    start_timezone minimum_raise floor_price subject_enabled subject_splitter fee_administrator)
+    start_timezone floor_price subject_enabled subject_splitter fee_administrator)
 
   def section_params(event), do: Map.fetch!(@sections, event)
   def draft_field_params, do: @stored_params
@@ -263,21 +262,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             <.draft_field
               field={
                 %{
-                  param: "minimum_raise",
-                  label: "Minimum raise in #{symbol(@stock)}",
-                  kind: :text,
-                  hint:
-                    "Digits and one decimal point. The auction refunds every bid if this is not reached."
-                }
-              }
-              form_id="stocks-terms"
-              value={@draft_values["minimum_raise"]}
-              error={@draft_errors["minimum_raise"]}
-            />
-
-            <.draft_field
-              field={
-                %{
                   param: "floor_price",
                   label: "Floor price in #{symbol(@stock)} per token",
                   kind: :text,
@@ -310,6 +294,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </Regent.Primitives.disclosure>
             <p :if={!@floor_echo && @draft_values["floor_price"] != ""} class="autolaunch-draft-hint">
               The exact executable floor is shown at review, from the stock token's recorded decimals.
+            </p>
+            <p id="stocks-terms-minimum-raise" class="autolaunch-draft-hint">
+              Minimum raise: {minimum_raise_copy(@minimum_raise_usdc, @stock)}. The auction refunds every bid if
+              it is not reached.
             </p>
           </form>
 
@@ -457,8 +445,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             kind={:draft}
             record={
               Map.merge(@draft_values, %{
-                "required_regent_raised" => @draft_values["minimum_raise"],
-                "preview_metric_unit" => if(@stock, do: @stock.symbol, else: ""),
+                "required_regent_raised" => blank(@minimum_raise_usdc),
+                "preview_metric_unit" => "USDC",
                 "preview_metric_label" => "Minimum raise"
               })
             }
@@ -487,7 +475,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </div>
             <div>
               <dt>Minimum raise</dt>
-              <dd>{blank(@draft_values["minimum_raise"])} {symbol(@stock)}</dd>
+              <dd>{minimum_raise_copy(@minimum_raise_usdc, @stock)}</dd>
             </div>
             <div>
               <dt>Floor price</dt>
@@ -582,6 +570,13 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         nil
     end
   end
+
+  # The launchpad's USDC minimum, worded for the chosen stock; the exact STOCK
+  # amount comes from the price when the launch is created.
+  defp minimum_raise_copy(nil, _stock), do: blank(nil)
+
+  defp minimum_raise_copy(usdc, stock),
+    do: "#{Amounts.grouped(usdc)} USDC worth of #{symbol(stock)}, converted at launch"
 
   defp symbol(nil), do: "the stock token"
   defp symbol(%{symbol: symbol}), do: symbol

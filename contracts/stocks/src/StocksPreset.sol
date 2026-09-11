@@ -74,6 +74,17 @@ library StocksPreset {
     uint256 internal constant LAUNCH_FEE_REGENT = 100_000e18;
 
     // -------------------------------------------------------------------------
+    // minimum raise
+    // -------------------------------------------------------------------------
+
+    /// @notice Founder decision: a stock-pair auction graduates only by raising at least 1,000 USDC
+    ///         worth of its STOCK. No launcher chooses the raise: at creation the launchpad converts
+    ///         this USDC amount into the STOCK-denominated required raise through the admitted
+    ///         route's live quote and records that STOCK amount on the auction. The launchpad is
+    ///         born at this value; governance may change it with `setMinimumRaiseUsdc`.
+    uint256 internal constant MINIMUM_RAISE_USDC = 1_000e6;
+
+    // -------------------------------------------------------------------------
     // official pool
     // -------------------------------------------------------------------------
 

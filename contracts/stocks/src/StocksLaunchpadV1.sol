@@ -114,6 +114,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
 
     /// @notice The REGENT a launch costs right now. Born at the founder-decided preset value.
     uint256 public override launchFee = StocksPreset.LAUNCH_FEE_REGENT;
+    uint256 public override minimumRaiseUsdc = StocksPreset.MINIMUM_RAISE_USDC;
 
     mapping(address stock => Admission) private _admissions;
     mapping(uint256 launchId => Launch) private _launches;
@@ -139,7 +140,8 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     error FloorPriceTooLow(uint256 floorPriceQ96);
     error FloorPriceNotOnGrid(uint256 floorPriceQ96);
     error TickSpacingTooSmall(uint256 tickSpacingQ96);
-    error UnreachableRequiredRaise(uint128 requiredStockRaised, uint256 maximum);
+    error UnreachableRequiredRaise(uint256 requiredStockRaised, uint256 maximum);
+    error ZeroMinimumRaise();
     error SplitterHasNoCode(address splitter);
     error InauthenticSplitter(address splitter);
     error ProtocolFeeControllerNotZero(address controller);
@@ -202,7 +204,8 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         _requireBytes(3, bytes(params.website).length, StocksPreset.MAX_WEBSITE_BYTES);
         _requireBytes(4, bytes(params.image).length, StocksPreset.MAX_IMAGE_BYTES);
 
-        if (!_admissions[params.stock].admitted) revert StockNotAdmitted(params.stock);
+        Admission storage admission = _admissions[params.stock];
+        if (!admission.admitted) revert StockNotAdmitted(params.stock);
         if (params.feeAdministrator == address(0)) revert ZeroAddress();
         if (params.subjectSplitter != address(0)) _requireAuthenticSplitter(params.subjectSplitter);
 
@@ -213,10 +216,15 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         }
 
         uint256 tickSpacing = bidTickSpacingFor(params.floorPriceQ96);
+        // The required raise is governance's USDC minimum converted into STOCK by the admitted route's
+        // quote at this block: the launcher never chooses it. It must be a nonzero amount the fixed
+        // inventory can actually settle on and one the pinned CCA can carry (a uint128).
         uint256 reachable = _maxReachableRaise(tickSpacing);
-        if (params.requiredStockRaised == 0 || params.requiredStockRaised > reachable) {
-            revert UnreachableRequiredRaise(params.requiredStockRaised, reachable);
-        }
+        if (reachable > type(uint128).max) reachable = type(uint128).max;
+        uint256 required =
+            IStockRoute(admission.route).quoteExactIn(StocksBindings.USDC, params.stock, minimumRaiseUsdc);
+        if (required == 0 || required > reachable) revert UnreachableRequiredRaise(required, reachable);
+        uint128 requiredStockRaised = uint128(required);
 
         address controller =
             address(IContinuousClearingAuctionFactory(StocksBindings.CCA_FACTORY).protocolFeeController());
@@ -232,7 +240,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         newToken = _createNew(params, launchId);
 
         uint64 endBlock = params.startBlock + StocksPreset.AUCTION_DURATION_BLOCKS;
-        auction = _createAuction(newToken, params, launchId, endBlock, tickSpacing);
+        auction = _createAuction(newToken, params, launchId, endBlock, tickSpacing, requiredStockRaised);
 
         Launch storage record = _launches[launchId];
         record.launcher = msg.sender;
@@ -244,7 +252,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         record.endBlock = endBlock;
         record.claimBlock = endBlock + StocksPreset.CLAIM_DELAY_BLOCKS;
         record.migrationBlock = endBlock + StocksPreset.MIGRATION_DELAY_BLOCKS;
-        record.requiredStockRaised = params.requiredStockRaised;
+        record.requiredStockRaised = requiredStockRaised;
         record.floorPriceQ96 = params.floorPriceQ96;
         record.lifecycle = Lifecycle.Active;
         launchIdOfAuction[auction] = launchId;
@@ -264,7 +272,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
             params.startBlock,
             endBlock,
             params.floorPriceQ96,
-            params.requiredStockRaised,
+            requiredStockRaised,
             StocksPreset.AUCTION_INVENTORY,
             StocksPreset.MIGRATION_RESERVE
         );
@@ -397,6 +405,15 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         uint256 previousFee = launchFee;
         launchFee = newFee;
         emit LaunchFeeUpdated(previousFee, newFee);
+    }
+
+    /// @inheritdoc IStocksLaunchpadV1
+    /// @dev Applies to launches created afterwards only; a recorded auction keeps its STOCK raise.
+    function setMinimumRaiseUsdc(uint256 newMinimum) external override onlyGovernance {
+        if (newMinimum == 0) revert ZeroMinimumRaise();
+        uint256 previousMinimum = minimumRaiseUsdc;
+        minimumRaiseUsdc = newMinimum;
+        emit MinimumRaiseUsdcUpdated(previousMinimum, newMinimum);
     }
 
     // -------------------------------------------------------------------------
@@ -538,7 +555,8 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         LaunchParams calldata params,
         uint256 launchId,
         uint64 endBlock,
-        uint256 tickSpacing
+        uint256 tickSpacing,
+        uint128 requiredStockRaised
     ) private returns (address auction) {
         auction = address(
             IContinuousClearingAuctionFactory(StocksBindings.CCA_FACTORY)
@@ -556,7 +574,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
                             tickSpacing: tickSpacing,
                             validationHook: address(0),
                             floorPrice: params.floorPriceQ96,
-                            requiredCurrencyRaised: params.requiredStockRaised,
+                            requiredCurrencyRaised: requiredStockRaised,
                             auctionStepsData: StocksPreset.AUCTION_STEPS
                         })
                     ),

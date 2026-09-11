@@ -59,6 +59,10 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     /// @dev Fixture price: 230 USDC per whole share, 8-decimal shares, 6-decimal USDC.
     uint256 internal constant USDC_PER_SHARE = 230_000000;
 
+    /// @dev The STOCK raise every fixture launch records: the preset's 1,000 USDC minimum quoted through
+    ///      the fixture route at 230 USDC per share, 4.34782608 shares in eight-decimal base units.
+    uint128 internal constant REQUIRED_RAISE = uint128(StocksPreset.MINIMUM_RAISE_USDC * 1e8 / USDC_PER_SHARE);
+
     /// @dev A STOCK-per-NEW floor: 1e-6 share per NEW, in base units 1e8 * 1e-6 / 1e18 = 1e-16,
     ///      times 2^96 and rounded to the bid grid. Comfortably above `MIN_FLOOR_PRICE`.
     uint256 internal constant FLOOR_PRICE_Q96 = 7_922_816_251_400;
@@ -221,7 +225,6 @@ abstract contract StocksFixture is Test, DeployPermit2 {
             stock: stock,
             startBlock: uint64(block.number) + StocksPreset.MIN_START_LEAD_BLOCKS,
             floorPriceQ96: FLOOR_PRICE_Q96,
-            requiredStockRaised: 100e8,
             feeAdministrator: feeAdministrator,
             subjectSplitter: address(0),
             expectedLaunchFee: launchpad.launchFee()

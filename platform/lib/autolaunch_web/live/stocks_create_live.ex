@@ -36,11 +36,21 @@ defmodule AutolaunchWeb.StocksCreateLive do
             image_request: nil,
             current_human_id: actor.human_account_id,
             stocks_lab: stocks_lab(),
+            minimum_raise_usdc: nil,
             active_stocks_launch: active_stocks_launch?(actor),
             status: :loading
           )
 
-        {:ok, if(connected?(socket), do: load_draft(socket, actor), else: socket)}
+        {:ok,
+         if connected?(socket) do
+           socket
+           |> load_draft(actor)
+           |> start_async(:minimum_raise_usdc, fn ->
+             Stocks.LabLaunchChainClient.minimum_raise_usdc()
+           end)
+         else
+           socket
+         end}
     end
   end
 
@@ -115,6 +125,14 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The launchpad's USDC minimum raise, read once for the page's copy; a read
+  # that fails leaves the amount blank and the page otherwise usable.
+  def handle_async(:minimum_raise_usdc, {:ok, {:ok, units}}, socket),
+    do: {:noreply, assign(socket, minimum_raise_usdc: units)}
+
+  def handle_async(:minimum_raise_usdc, _unavailable, socket),
+    do: {:noreply, assign(socket, minimum_raise_usdc: nil)}
 
   def handle_async({:fetch_image_url, request_id}, result, socket) do
     if socket.assigns.image_request == request_id do

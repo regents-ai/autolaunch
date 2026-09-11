@@ -135,11 +135,6 @@
             "internalType": "uint256"
           },
           {
-            "name": "requiredStockRaised",
-            "type": "uint128",
-            "internalType": "uint128"
-          },
-          {
             "name": "feeAdministrator",
             "type": "address",
             "internalType": "address"
@@ -376,6 +371,19 @@
   },
   {
     "type": "function",
+    "name": "minimumRaiseUsdc",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "nextLaunchId",
     "inputs": [],
     "outputs": [
@@ -431,6 +439,19 @@
     "inputs": [
       {
         "name": "newFee",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setMinimumRaiseUsdc",
+    "inputs": [
+      {
+        "name": "newMinimum",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -592,6 +613,25 @@
     "type": "event",
     "name": "LaunchesUnpaused",
     "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MinimumRaiseUsdcUpdated",
+    "inputs": [
+      {
+        "name": "previousMinimum",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newMinimum",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
     "anonymous": false
   },
   {
