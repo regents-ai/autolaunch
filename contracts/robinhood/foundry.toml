@@ -1,0 +1,33 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+# The Robinhood component builds against the exact dependency snapshot the Stocks component
+# exported (contracts/stocks/lib, pinned by contracts/stocks/dependencies.json). It exports nothing
+# of its own and never fetches.
+libs = ["../stocks/lib"]
+allow_paths = ["../stocks"]
+
+# Same build identity as contracts/v1 and contracts/stocks: Solidity 0.8.26, Cancun, optimizer 200,
+# via-IR, bytecode metadata disabled, offline.
+solc = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+offline = true
+ffi = false
+fs_permissions = []
+
+[profile.default.fuzz]
+runs = 64
+seed = "0x524f42494e484f4f44"
+max_test_rejects = 65536
+fail_on_revert = true
+
+[lint]
+ignore = ["test/**/*.sol", "script/**/*.sol"]
+exclude_lints = ["screaming-snake-case-immutable", "mixed-case-function", "unwrapped-modifier-logic"]
