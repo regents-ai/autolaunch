@@ -35,5 +35,9 @@
 @media (pointer: coarse) { .regent-social-links a, .regent-token-menu > summary { width: 2.75rem; height: 2.75rem; } }
 .autolaunch-profile-page { display: grid; gap: var(--space-4); }
 .autolaunch-profile-page .rg-profile { width: 100%; max-width: 48rem; margin: 0; }
+.autolaunch-settings { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-1) var(--space-3); margin: 0; }
+.autolaunch-settings dt { color: var(--color-fg-muted); }
+.autolaunch-settings dd { margin: 0; overflow-wrap: anywhere; }
+.autolaunch-settings__leave { justify-self: start; }
 .autolaunch-error { min-height: 60dvh; display: grid; align-content: center; gap: var(--space-4); }
 .autolaunch-error .rg-button { justify-self: start; }

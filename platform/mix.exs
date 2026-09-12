@@ -102,8 +102,15 @@ defmodule Autolaunch.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "cmd npm ci", "ash.setup", "assets.setup", "assets.build"],
-      test: ["ash.setup --quiet", "test"],
+      setup: [
+        "deps.get",
+        "cmd npm ci",
+        "ash.setup",
+        "autolaunch.identity.migrate",
+        "assets.setup",
+        "assets.build"
+      ],
+      test: ["ash.setup --quiet", "autolaunch.identity.migrate", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
       "assets.build": [
         "compile",

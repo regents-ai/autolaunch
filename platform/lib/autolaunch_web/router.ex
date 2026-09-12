@@ -47,6 +47,7 @@ defmodule AutolaunchWeb.Router do
     pipe_through :browser
 
     get "/profile", SharedProfileController, :show
+    get "/settings", SettingsController, :show
     get "/create/stocks", CreateRedirectController, :stocks
     live "/", HomeLive, :home
     get "/blog", BlogController, :index

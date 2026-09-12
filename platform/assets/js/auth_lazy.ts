@@ -769,6 +769,10 @@ export function installAccountAuthLazyLoader(
 
     if (accountTarget === "sign-in") request("sign-in")
     if (accountTarget === "sign-out") signOut()
+
+    // The account menu closes when the press lands anywhere outside it.
+    const menu = documentRoot.querySelector<HTMLDetailsElement>("#account-control [data-account-menu]")
+    if (menu?.open && !(target && menu.contains(target))) menu.open = false
   }
   const onIdentityRequest = (event: Event) => {
     if (!(event instanceof CustomEvent) || !isIdentityRequest(event.detail)) return

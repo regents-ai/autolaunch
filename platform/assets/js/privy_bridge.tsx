@@ -391,6 +391,23 @@ export function createProviderSessionReconciler({
 const showsSignOutControl = () =>
   document.querySelector("#account-control [data-account-target='sign-out']") !== null
 
+// The header avatar carries the selected wallet's own logo, the way a
+// marketplace shows which extension is signed in. Only a URL logo is shown;
+// a wallet without one leaves the badge hidden.
+const showWalletBadge = (meta: {name: string; icon?: unknown} | undefined) => {
+  const badge = document.querySelector<HTMLImageElement>("#account-control [data-account-wallet-badge]")
+  if (!badge) return
+  const icon = typeof meta?.icon === "string" ? meta.icon : null
+  if (icon) {
+    badge.src = icon
+    badge.title = meta?.name ?? ""
+  } else {
+    badge.removeAttribute("src")
+    badge.title = ""
+  }
+  badge.hidden = icon === null
+}
+
 type PrivySessionCompletionOptions = {
   acquireTokens: () => Promise<PrivyTokenPair>
   fetcher?: typeof fetch
@@ -738,6 +755,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     const active = entries.find(([address]) => address === selected)
     replaceConnectedEthereumWallets(entries)
     replaceActiveEthereumWallet(active ? {address: active[0], provider: active[1]} : null)
+    showWalletBadge(active ? eligibleActiveWallet(activeWallet, wallets)?.meta : undefined)
     window.dispatchEvent(new CustomEvent("autolaunch:wallet-state"))
   }, [activeWallet, ready, reconcileProviderSession, wallets, walletsReady, isAvailable])
 
