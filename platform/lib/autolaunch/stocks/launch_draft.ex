@@ -1,6 +1,6 @@
 defmodule Autolaunch.Stocks.LaunchDraft do
   @moduledoc """
-  One private Stocks launch draft per human account, independent of the Agent draft.
+  One private Stocks launch draft per human account and chain, independent of the Agent draft.
 
   Every section autosaves partial text. Completeness is decided here in one
   place, and a change of auction currency clears the floor price that was
@@ -15,6 +15,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     authorizers: [Ash.Policy.Authorizer]
 
   alias Autolaunch.Chain.Address
+  alias Autolaunch.LaunchChain
   alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
   @token_fields [:name, :symbol, :description, :website]
@@ -102,17 +103,18 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   actions do
     create :create_for_owner do
-      accept []
+      accept [:chain]
       change Autolaunch.LaunchDraft.Changes.AssignOwner
       upsert? true
-      upsert_identity :one_stocks_draft_per_human
+      upsert_identity :one_stocks_draft_per_human_and_chain
       upsert_fields []
       return_skipped_upsert? true
     end
 
     read :mine_account_owned do
       get? true
-      filter expr(human_account_id == ^actor(:human_account_id))
+      argument :chain, :atom, allow_nil?: false, constraints: [one_of: LaunchChain.chains()]
+      filter expr(human_account_id == ^actor(:human_account_id) and chain == ^arg(:chain))
       prepare build(load: [:stock_launch_draft_image])
     end
 
@@ -191,6 +193,13 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   attributes do
     uuid_primary_key :id
 
+    attribute :chain, :atom do
+      allow_nil? false
+      public? true
+      default :base
+      constraints one_of: LaunchChain.chains()
+    end
+
     attribute :name, :string, allow_nil?: false, default: "", constraints: [allow_empty?: true]
     attribute :symbol, :string, allow_nil?: false, default: "", constraints: [allow_empty?: true]
     attribute :description, :string
@@ -222,6 +231,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   end
 
   identities do
-    identity :one_stocks_draft_per_human, [:human_account_id]
+    identity :one_stocks_draft_per_human_and_chain, [:human_account_id, :chain]
   end
 end

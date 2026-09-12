@@ -15,7 +15,7 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
              Autolaunch.autosave_stocks_token_details(draft, %{"name" => "Mine"}, actor: owner)
 
     assert {:ok, nil} = Autolaunch.get_my_stocks_launch_draft_by_id(draft.id, actor: other)
-    assert {:ok, nil} = Autolaunch.get_my_stocks_launch_draft(actor: other)
+    assert {:ok, nil} = Autolaunch.get_my_stocks_launch_draft(:base, actor: other)
 
     assert {:error, %Ash.Error.Forbidden{}} =
              Autolaunch.autosave_stocks_token_details(draft, %{"name" => "Stolen"}, actor: other)

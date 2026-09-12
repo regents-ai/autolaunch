@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.StockCurrencySelect
 
+  alias Autolaunch.{LaunchChain, Robinhood}
   alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
   alias Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
 
@@ -61,6 +62,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :image_notice, :map, default: nil
   attr :stocks_image_upload, :map, default: nil
   attr :stocks_lab, :map, default: nil
+  attr :minimum_raise, :string, default: nil
+  attr :launch_chain, :atom, required: true
   attr :active_stocks_launch, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
@@ -80,6 +83,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:subject_enabled?, assigns.draft_values["subject_enabled"] == "true")
       |> assign(:token_fields, @token_fields)
       |> assign(:address_hint, @address_hint)
+      |> assign(:raise_currency, LaunchChain.raise_currency(assigns.launch_chain))
+      |> assign(:fixed_terms, fixed_terms(assigns.launch_chain))
 
     assigns =
       assign(assigns, :floor_echo, floor_echo(assigns.draft_values["floor_price"], assigns.stock))
@@ -296,7 +301,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               The exact executable floor is shown at review, from the stock token's recorded decimals.
             </p>
             <p id="stocks-terms-minimum-raise" class="autolaunch-draft-hint">
-              Minimum raise: {minimum_raise_copy(@minimum_raise_usdc, @stock)}. The auction refunds every bid if
+              Minimum raise: {minimum_raise_copy(@minimum_raise, @raise_currency, @stock)}. The auction refunds every bid if
               it is not reached.
             </p>
           </form>
@@ -372,7 +377,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               </div>
             </header>
             <dl class="launch-wallet-terms">
-              <div :for={{label, value} <- LaunchActions.terms()}>
+              <div :for={{label, value} <- @fixed_terms}>
                 <dt>{label}</dt>
                 <dd>{value}</dd>
               </div>
@@ -392,15 +397,19 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               </div>
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
-            <p>
+            <p :if={@launch_chain == :base}>
               The review shows the exact start block, executable floor price, minimum raise and
               launch fee before anything is submitted. The launch fee is 100,000 REGENT, paid to
               REGENT staking as rewards and not refunded if the minimum is not raised. Your wallet
               first allows exactly that fee to be taken when it has not already, then creates the
               launch.
             </p>
+            <p :if={@launch_chain == :robinhood} id="stocks-robinhood-pending" role="status">
+              The Robinhood launchpad is not live yet. Your draft is saved to your account and
+              will be ready to launch here when it opens.
+            </p>
             <.live_component
-              :if={@launch_ready? && @draft}
+              :if={@launch_chain == :base && @launch_ready? && @draft}
               module={AutolaunchWeb.StocksLaunchWalletComponent}
               id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
               draft={@draft}
@@ -409,13 +418,17 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-            <Regent.Primitives.button :if={!@launch_ready?} type="button" disabled>
+            <Regent.Primitives.button
+              :if={@launch_chain == :base && !@launch_ready?}
+              type="button"
+              disabled
+            >
               Complete every section above
             </Regent.Primitives.button>
           </section>
 
           <.live_component
-            :if={AutolaunchWeb.TestFundsComponent.available?()}
+            :if={@launch_chain == :base && AutolaunchWeb.TestFundsComponent.available?()}
             module={AutolaunchWeb.TestFundsComponent}
             id="autolaunch-test-funds"
             current_human_id={@current_human_id}
@@ -445,8 +458,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             kind={:draft}
             record={
               Map.merge(@draft_values, %{
-                "required_regent_raised" => blank(@minimum_raise_usdc),
-                "preview_metric_unit" => "USDC",
+                "required_regent_raised" => blank(@minimum_raise),
+                "preview_metric_unit" => @raise_currency,
                 "preview_metric_label" => "Minimum raise"
               })
             }
@@ -475,7 +488,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </div>
             <div>
               <dt>Minimum raise</dt>
-              <dd>{minimum_raise_copy(@minimum_raise_usdc, @stock)}</dd>
+              <dd>{minimum_raise_copy(@minimum_raise, @raise_currency, @stock)}</dd>
             </div>
             <div>
               <dt>Floor price</dt>
@@ -571,12 +584,15 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     end
   end
 
-  # The launchpad's USDC minimum, worded for the chosen stock; the exact STOCK
-  # amount comes from the price when the launch is created.
-  defp minimum_raise_copy(nil, _stock), do: blank(nil)
+  # The launchpad's minimum in its auction currency, worded for the chosen
+  # stock; the exact STOCK amount comes from the price when the launch is created.
+  defp minimum_raise_copy(nil, _currency, _stock), do: blank(nil)
 
-  defp minimum_raise_copy(usdc, stock),
-    do: "#{Amounts.grouped(usdc)} USDC worth of #{symbol(stock)}, converted at launch"
+  defp minimum_raise_copy(units, currency, stock),
+    do: "#{Amounts.grouped(units)} #{currency} worth of #{symbol(stock)}, converted at launch"
+
+  defp fixed_terms(:base), do: LaunchActions.terms()
+  defp fixed_terms(:robinhood), do: Robinhood.stock_terms()
 
   defp symbol(nil), do: "the stock token"
   defp symbol(%{symbol: symbol}), do: symbol

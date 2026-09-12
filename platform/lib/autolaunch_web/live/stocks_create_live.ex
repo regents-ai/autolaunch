@@ -4,7 +4,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Stocks
+  alias Autolaunch.{Robinhood, Stocks}
   alias Autolaunch.Stocks.LaunchDraftImageStorage
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
 
@@ -36,7 +36,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
             image_request: nil,
             current_human_id: actor.human_account_id,
             stocks_lab: stocks_lab(),
-            minimum_raise_usdc: nil,
+            minimum_raise: nil,
             active_stocks_launch: active_stocks_launch?(actor),
             status: :loading
           )
@@ -45,9 +45,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
          if connected?(socket) do
            socket
            |> load_draft(actor)
-           |> start_async(:minimum_raise_usdc, fn ->
-             Stocks.LabLaunchChainClient.minimum_raise_usdc()
-           end)
+           |> assign_minimum_raise(socket.assigns.launch_chain)
          else
            socket
          end}
@@ -55,6 +53,17 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  # Base publishes its USDC minimum on the launchpad; the Robinhood launchpad is
+  # not live yet, so its preset USDG minimum stands in until a chain client reads it.
+  defp assign_minimum_raise(socket, :base),
+    do:
+      start_async(socket, :minimum_raise, fn ->
+        Stocks.LabLaunchChainClient.minimum_raise_usdc()
+      end)
+
+  defp assign_minimum_raise(socket, :robinhood),
+    do: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg(:stocks))
 
   # Client events are not proof of ownership; the anonymous entry has no draft.
   def handle_event(_event, _params, %{assigns: %{status: :sign_in_required}} = socket),
@@ -70,7 +79,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     values = Map.take(params["stock_draft"] || %{}, Templates.section_params(event))
 
     with %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
+         {:ok, draft} <- current_or_new_draft(actor, socket.assigns.launch_chain),
          {:ok, saved} <- autosave(event, draft, values, actor) do
       {:noreply,
        socket
@@ -100,7 +109,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     url = params |> Map.get("url", "") |> to_string() |> String.trim()
 
     with %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor) do
+         {:ok, draft} <- current_or_new_draft(actor, socket.assigns.launch_chain) do
       request_id = make_ref()
       socket = cancel_image_fetch(socket)
 
@@ -128,11 +137,11 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   # The launchpad's USDC minimum raise, read once for the page's copy; a read
   # that fails leaves the amount blank and the page otherwise usable.
-  def handle_async(:minimum_raise_usdc, {:ok, {:ok, units}}, socket),
-    do: {:noreply, assign(socket, minimum_raise_usdc: units)}
+  def handle_async(:minimum_raise, {:ok, {:ok, units}}, socket),
+    do: {:noreply, assign(socket, minimum_raise: units)}
 
-  def handle_async(:minimum_raise_usdc, _unavailable, socket),
-    do: {:noreply, assign(socket, minimum_raise_usdc: nil)}
+  def handle_async(:minimum_raise, _unavailable, socket),
+    do: {:noreply, assign(socket, minimum_raise: nil)}
 
   def handle_async({:fetch_image_url, request_id}, result, socket) do
     if socket.assigns.image_request == request_id do
@@ -197,7 +206,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     with bytes when is_binary(bytes) <-
            consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
          %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
+         {:ok, draft} <- current_or_new_draft(actor, socket.assigns.launch_chain),
          {:ok, stored} <-
            LaunchDraftImageStorage.store_and_attach(
              draft,
@@ -267,7 +276,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
     do: {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
 
   defp load_draft(socket, actor) do
-    case current_or_new_draft(actor) do
+    case current_or_new_draft(actor, socket.assigns.launch_chain) do
       {:ok, draft} ->
         socket
         |> assign_draft(draft)
@@ -290,9 +299,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
     )
   end
 
-  defp current_or_new_draft(actor) do
-    case Autolaunch.get_my_stocks_launch_draft(actor: actor) do
-      {:ok, nil} -> Autolaunch.create_stocks_launch_draft(%{}, actor: actor)
+  defp current_or_new_draft(actor, chain) do
+    case Autolaunch.get_my_stocks_launch_draft(chain, actor: actor) do
+      {:ok, nil} -> Autolaunch.create_stocks_launch_draft(%{chain: chain}, actor: actor)
       other -> other
     end
   end

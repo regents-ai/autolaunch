@@ -5,8 +5,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.LaunchDraftImageStorage
-  alias Autolaunch.Limits
+  alias Autolaunch.{LaunchChain, LaunchDraftImageStorage, Limits, Robinhood}
   alias AutolaunchWeb.Live.CreateLive.Templates
 
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
@@ -15,11 +14,19 @@ defmodule AutolaunchWeb.CreateLive do
   # requirement, and a completed sign-in reloads the same document, so the
   # visitor returns to Create without any redirect parameter to validate.
   def mount(%{"kind" => "stocks"} = params, session, socket) do
-    AutolaunchWeb.StocksCreateLive.mount(params, session, assign(socket, launch_kind: :stocks))
+    AutolaunchWeb.StocksCreateLive.mount(
+      params,
+      session,
+      assign(socket, launch_kind: :stocks, launch_chain: LaunchChain.from_param(params["chain"]))
+    )
   end
 
-  def mount(_params, _session, socket) do
-    socket = assign(socket, launch_kind: :revshare)
+  def mount(params, _session, socket) do
+    socket =
+      assign(socket,
+        launch_kind: :revshare,
+        launch_chain: LaunchChain.from_param(params["chain"])
+      )
 
     case human_actor(socket) do
       nil ->
@@ -41,7 +48,7 @@ defmodule AutolaunchWeb.CreateLive do
          if connected?(socket) do
            socket
            |> load_create(actor)
-           |> start_async(:minimum_raise, fn -> Autolaunch.LaunchActions.minimum_raise() end)
+           |> assign_minimum_raise(socket.assigns.launch_chain)
          else
            socket
          end}
@@ -49,6 +56,14 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  # Base publishes its minimum on the launchpad; the Robinhood launchpad is not
+  # live yet, so its preset minimum stands in until a chain client reads it.
+  defp assign_minimum_raise(socket, :base),
+    do: start_async(socket, :minimum_raise, fn -> Autolaunch.LaunchActions.minimum_raise() end)
+
+  defp assign_minimum_raise(socket, :robinhood),
+    do: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg(:revshare))
 
   def handle_event(event, params, %{assigns: %{launch_kind: :stocks}} = socket),
     do: AutolaunchWeb.StocksCreateLive.handle_event(event, params, socket)
@@ -78,7 +93,7 @@ defmodule AutolaunchWeb.CreateLive do
     actor = human_actor(socket)
 
     with %Human{} = actor <- actor,
-         {:ok, draft} <- current_or_new_draft(actor) do
+         {:ok, draft} <- current_or_new_draft(actor, socket.assigns.launch_chain) do
       request_id = make_ref()
       socket = cancel_image_fetch(socket)
 
@@ -131,14 +146,22 @@ defmodule AutolaunchWeb.CreateLive do
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">Launch a token</h1>
         </Regent.Structure.section_bar>
+        <nav class="launchpad-create__kinds" aria-label="Launch chain">
+          <.link
+            :for={chain <- LaunchChain.chains()}
+            href={create_path(chain, @launch_kind)}
+            class={kind_class(@launch_chain == chain)}
+            aria-current={if @launch_chain == chain, do: "page"}
+          >Launch on {LaunchChain.label(chain)}</.link>
+        </nav>
         <nav class="launchpad-create__kinds" aria-label="Launch type">
           <.link
-            href="/create"
+            href={create_path(@launch_chain, :revshare)}
             class={kind_class(@launch_kind == :revshare)}
             aria-current={if @launch_kind == :revshare, do: "page"}
           >Launch Revshare Token</.link>
           <.link
-            href="/create?kind=stocks"
+            href={create_path(@launch_chain, :stocks)}
             class={kind_class(@launch_kind == :stocks)}
             aria-current={if @launch_kind == :stocks, do: "page"}
           >Launch Onchain Stock Pair</.link>
@@ -167,6 +190,18 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp kind_class(selected?),
     do: ["rg-button", if(selected?, do: "rg-button--primary", else: "rg-button--secondary")]
+
+  # Base and Revshare are the page's defaults, so only the other choices name
+  # themselves in the address.
+  defp create_path(chain, kind) do
+    query =
+      Enum.reject([chain: chain != :base && "robinhood", kind: kind != :revshare && "stocks"], fn
+        {_key, false} -> true
+        _pair -> false
+      end)
+
+    if query == [], do: "/create", else: "/create?" <> URI.encode_query(query)
+  end
 
   defp render_revshare(%{status: :sign_in_required} = assigns) do
     ~H"""
@@ -204,10 +239,12 @@ defmodule AutolaunchWeb.CreateLive do
 
     values = Map.take(submitted, params)
 
+    chain = socket.assigns.launch_chain
+
     with %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
+         {:ok, draft} <- current_or_new_draft(actor, chain),
          {:ok, _saved} <- autosave_draft(event, draft, values, actor),
-         {:ok, reloaded} <- reload_draft(actor) do
+         {:ok, reloaded} <- reload_draft(actor, chain) do
       {:noreply,
        socket
        |> assign_loaded_draft(reloaded, actor)
@@ -253,7 +290,7 @@ defmodule AutolaunchWeb.CreateLive do
     with bytes when is_binary(bytes) <-
            consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
          %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor),
+         {:ok, draft} <- current_or_new_draft(actor, socket.assigns.launch_chain),
          {:ok, stored} <-
            LaunchDraftImageStorage.store_and_attach(
              draft,
@@ -323,7 +360,7 @@ defmodule AutolaunchWeb.CreateLive do
     do: {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
 
   defp load_create(socket, actor) do
-    case current_or_new_draft(actor) do
+    case current_or_new_draft(actor, socket.assigns.launch_chain) do
       {:ok, draft} ->
         socket
         |> assign_loaded_draft(draft, actor)
@@ -364,16 +401,16 @@ defmodule AutolaunchWeb.CreateLive do
     )
   end
 
-  defp current_or_new_draft(actor) do
-    case Autolaunch.get_my_account_launch_draft(actor: actor) do
-      {:ok, nil} -> Autolaunch.create_launch_draft(%{}, actor: actor)
+  defp current_or_new_draft(actor, chain) do
+    case Autolaunch.get_my_account_launch_draft(chain, actor: actor) do
+      {:ok, nil} -> Autolaunch.create_launch_draft(%{chain: chain}, actor: actor)
       {:ok, draft} -> {:ok, draft}
       {:error, error} -> {:error, error}
     end
   end
 
-  defp reload_draft(actor) do
-    case Autolaunch.get_my_account_launch_draft(actor: actor) do
+  defp reload_draft(actor, chain) do
+    case Autolaunch.get_my_account_launch_draft(chain, actor: actor) do
       {:ok, nil} -> {:error, :image_unavailable}
       other -> other
     end

@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.XConnections
 
-  alias Autolaunch.LaunchDraft
+  alias Autolaunch.{LaunchChain, LaunchDraft}
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
@@ -23,11 +23,13 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     %{
       key: :required_regent_raised,
       param: "required_regent_raised",
-      label: "Required raise in REGENT",
+      label: "Required raise",
       kind: :text,
-      hint: "Digits only, with at most 18 decimal places."
+      hint: nil
     }
   ]
+
+  @raise_currency %{base: "REGENT", robinhood: "USDG"}
 
   @treasury_field %{
     key: :treasury,
@@ -81,6 +83,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
   attr :minimum_raise, :string, default: nil
+  attr :launch_chain, :atom, required: true
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -92,6 +95,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       |> assign(:treasury_complete?, draft && LaunchDraft.treasury_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
       |> assign(:draft_x_connections, Map.new(assigns.x_connections, &{&1.role, &1}))
+      |> assign(:raise_currency, Map.fetch!(@raise_currency, assigns.launch_chain))
 
     ~H"""
     <section id="autolaunch-create">
@@ -128,10 +132,10 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
             <div class="launchpad-form-grid">
               <.draft_field
-                :for={field <- token_detail_fields()}
+                :for={field <- token_detail_fields(@raise_currency)}
                 field={field}
                 form_id="launch-token-details"
-                hint={field_hint(field, @minimum_raise)}
+                hint={field_hint(field, @minimum_raise, @raise_currency)}
                 value={@draft_values[field.param]}
                 error={@draft_errors[field.param]}
                 autosave
@@ -230,6 +234,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             </header>
             <.custody_path
               form_id="launch-treasury-details"
+              chain={@launch_chain}
               path={@draft_values["treasury_path"]}
               acknowledgement={@draft_values["eoa_acknowledgement"]}
               error={@draft_errors["eoa_acknowledgement"]}
@@ -257,12 +262,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               </div>
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
-            <p>
+            <p :if={@launch_chain == :base}>
               The wallet component shows the exact REGENT fee and transaction sequence before
               anything is submitted.
             </p>
+            <p :if={@launch_chain == :robinhood} id="launch-robinhood-pending" role="status">
+              The Robinhood launchpad is not live yet. Your draft is saved to your account and
+              will be ready to launch here when it opens.
+            </p>
             <.live_component
-              :if={@launch_ready? && @active_draft}
+              :if={@launch_chain == :base && @launch_ready? && @active_draft}
               module={AutolaunchWeb.LaunchWalletComponent}
               id={"autolaunch-launch-wallet-#{@active_draft.id}"}
               draft={@active_draft}
@@ -270,7 +279,11 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-            <Regent.Primitives.button :if={!@launch_ready?} type="button" disabled>
+            <Regent.Primitives.button
+              :if={@launch_chain == :base && !@launch_ready?}
+              type="button"
+              disabled
+            >
               Complete token details and treasury
             </Regent.Primitives.button>
           </section>
@@ -296,7 +309,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
           </div>
           <.autolaunch_market_card
             kind={:draft}
-            record={@draft_values}
+            record={Map.put(@draft_values, "preview_metric_unit", @raise_currency)}
             creator_connections={@draft_x_connections}
             preview
           />
@@ -308,6 +321,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   end
 
   attr :form_id, :string, required: true
+  attr :chain, :atom, required: true
   attr :path, :string, default: "safe"
   attr :acknowledgement, :string, default: ""
   attr :error, :string, default: nil
@@ -318,6 +332,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     assigns =
       assign(assigns,
         id: id,
+        chain_label: LaunchChain.label(assigns.chain),
         warning_copy: @eoa_acknowledgement,
         described_by:
           Enum.join(
@@ -329,8 +344,9 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     ~H"""
     <fieldset class="autolaunch-custody-path">
       <legend>Choose treasury custody</legend>
-      <strong>Create a 2-of-3 Safe on Base</strong>
+      <strong>Create a 2-of-3 Safe on {@chain_label}</strong>
       <a
+        :if={@chain == :base}
         href="https://app.safe.global/new-safe/create?chain=base"
         target="_blank"
         rel="noopener noreferrer"
@@ -442,15 +458,20 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     """
   end
 
-  defp token_detail_fields, do: @token_detail_fields
+  defp token_detail_fields(currency) do
+    Enum.map(@token_detail_fields, fn
+      %{key: :required_regent_raised} = field -> %{field | label: "Required raise in #{currency}"}
+      field -> field
+    end)
+  end
 
-  defp field_hint(%{key: :required_regent_raised}, nil),
+  defp field_hint(%{key: :required_regent_raised}, nil, _currency),
     do: "The current minimum must be verified before launching."
 
-  defp field_hint(%{key: :required_regent_raised}, minimum),
-    do: "Minimum #{minimum} REGENT. Checked again before launching."
+  defp field_hint(%{key: :required_regent_raised}, minimum, currency),
+    do: "Minimum #{minimum} #{currency}. Checked again before launching."
 
-  defp field_hint(field, _minimum), do: field.hint
+  defp field_hint(field, _minimum, _currency), do: field.hint
   defp treasury_field, do: @treasury_field
 
   defp stage_status(true), do: "Complete"

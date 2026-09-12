@@ -18,6 +18,7 @@ defmodule Autolaunch do
 
       define :get_my_account_launch_draft,
         action: :mine_account_owned,
+        args: [:chain],
         not_found_error?: false
 
       define :get_my_launch_draft,
@@ -167,6 +168,7 @@ defmodule Autolaunch do
 
       define :get_my_stocks_launch_draft,
         action: :mine_account_owned,
+        args: [:chain],
         not_found_error?: false
 
       define :get_my_stocks_launch_draft_by_id,

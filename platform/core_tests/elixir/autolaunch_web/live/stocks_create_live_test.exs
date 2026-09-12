@@ -52,7 +52,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     |> render_change()
 
     actor = %Human{human_account_id: account.id}
-    {:ok, draft} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
+    {:ok, draft} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
     assert draft.name == "Apple Pair"
     assert draft.symbol == "APLP"
     assert draft.stock_address == @aapl
@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
       )
       |> render_change()
 
-    {:ok, changed} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
+    {:ok, changed} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
     assert changed.stock_address == @amzn
     assert changed.floor_price == nil
     assert changed.start_at == ~U[2026-09-10 12:00:00Z]
@@ -89,7 +89,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     |> render_change()
 
     # The image a launch carries is always one the site stored and serves.
-    {:ok, draft_for_image} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
+    {:ok, draft_for_image} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
 
     {:ok, %{draft: _attached}} =
       Autolaunch.Stocks.LaunchDraftImageStorage.store_and_attach(
@@ -115,7 +115,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
       )
       |> render_change()
 
-    {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(actor: actor)
+    {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
     assert Autolaunch.Stocks.LaunchDraft.launch_ready?(complete)
     assert html =~ ~s(id="autolaunch-stocks-launch-wallet-#{complete.id}")
     assert html =~ "Connect or switch wallet"
