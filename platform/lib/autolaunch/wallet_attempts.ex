@@ -21,7 +21,15 @@ defmodule Autolaunch.WalletAttempts do
   alias Autolaunch.Stocks.FeeAdminOperation, as: StocksFeeAdminOperation
   alias Autolaunch.Stocks.LaunchOperation, as: StocksLaunchOperation
   @system %System{}
-  @kinds [:bid, :launch, :subject, :stocks_launch, :bid_settlement, :stocks_fee_admin]
+  @kinds [
+    :bid,
+    :launch,
+    :subject,
+    :stocks_launch,
+    :robinhood_launch,
+    :bid_settlement,
+    :stocks_fee_admin
+  ]
 
   def dispatch(kind, action_id, step, press_id, signer, opts)
       when kind in @kinds and is_binary(action_id) and (is_binary(step) or is_atom(step)) and
@@ -143,6 +151,7 @@ defmodule Autolaunch.WalletAttempts do
       {:bid, :usdc_bid} -> :usdc_bid_transaction_hash
       {:launch, :launch} -> :launch_transaction_hash
       {:stocks_launch, :launch} -> :launch_transaction_hash
+      {:robinhood_launch, :launch} -> :launch_transaction_hash
       {:bid_settlement, :exit} -> :exit_transaction_hash
       {:bid_settlement, :claim} -> :claim_transaction_hash
       {:subject, :action} -> :action_transaction_hash
@@ -384,7 +393,11 @@ defmodule Autolaunch.WalletAttempts do
         if kind == :bid_settlement, do: merge_result(advanced, kind, op, attempt), else: advanced
       else
         attrs = %{
-          state: if(kind in [:launch, :stocks_launch], do: :chain_verified, else: :confirmed),
+          state:
+            if(kind in [:launch, :stocks_launch, :robinhood_launch],
+              do: :chain_verified,
+              else: :confirmed
+            ),
           terminal_at: DateTime.utc_now()
         }
 
@@ -486,6 +499,7 @@ defmodule Autolaunch.WalletAttempts do
   defp view(:launch, op), do: Autolaunch.LaunchActions.presented(op)
   defp view(:subject, op), do: Autolaunch.SubjectWalletActions.presented(op)
   defp view(:stocks_launch, op), do: Autolaunch.Stocks.LaunchActions.presented(op)
+  defp view(:robinhood_launch, op), do: Autolaunch.Robinhood.LaunchActions.presented(op)
   defp view(:bid_settlement, op), do: Autolaunch.BidSettlementActions.presented(op)
   defp view(:stocks_fee_admin, op), do: Autolaunch.Stocks.FeeAdminActions.presented(op)
 
@@ -493,24 +507,28 @@ defmodule Autolaunch.WalletAttempts do
   defp resource(:launch), do: LaunchOperation
   defp resource(:subject), do: SubjectWalletOperation
   defp resource(:stocks_launch), do: StocksLaunchOperation
+  defp resource(:robinhood_launch), do: LaunchOperation
   defp resource(:bid_settlement), do: BidSettlementOperation
   defp resource(:stocks_fee_admin), do: StocksFeeAdminOperation
   defp foreign_key(:bid), do: :bid_operation_id
   defp foreign_key(:launch), do: :launch_operation_id
   defp foreign_key(:subject), do: :subject_wallet_operation_id
   defp foreign_key(:stocks_launch), do: :stock_launch_operation_id
+  defp foreign_key(:robinhood_launch), do: :launch_operation_id
   defp foreign_key(:bid_settlement), do: :bid_settlement_operation_id
   defp foreign_key(:stocks_fee_admin), do: :stock_fee_admin_operation_id
   defp actions(:bid), do: Autolaunch.BidActions
   defp actions(:launch), do: Autolaunch.LaunchActions
   defp actions(:subject), do: Autolaunch.SubjectWalletActions
   defp actions(:stocks_launch), do: Autolaunch.Stocks.LaunchActions
+  defp actions(:robinhood_launch), do: Autolaunch.Robinhood.LaunchActions
   defp actions(:bid_settlement), do: Autolaunch.BidSettlementActions
   defp actions(:stocks_fee_admin), do: Autolaunch.Stocks.FeeAdminActions
   defp client(:bid), do: Autolaunch.ChainClient.module()
   defp client(:launch), do: Autolaunch.LaunchChainClient.module()
   defp client(:subject), do: Autolaunch.SubjectWalletChainClient.module()
   defp client(:stocks_launch), do: Autolaunch.Stocks.LabLaunchChainClient
+  defp client(:robinhood_launch), do: Autolaunch.Robinhood.LaunchChainClient
   defp client(:stocks_fee_admin), do: Autolaunch.Stocks.FeeAdminChainClient
 
   defp client(:bid_settlement),

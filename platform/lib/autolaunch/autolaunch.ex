@@ -484,23 +484,21 @@ defmodule Autolaunch do
     to: Autolaunch.LaunchActions,
     as: :open_operation
 
-  # Two Ash.count/read queries under the system actor: LaunchOperation is
-  # system-only, and the in-flight window is "chain_verified with no Auction
-  # row yet". Lab projection names that address on result["auction"].
-  @spec auctions_prepared_by(integer()) :: non_neg_integer()
-  def auctions_prepared_by(human_account_id) when is_integer(human_account_id) do
+  # The site rule: one auction per account on each chain. Queries run under the
+  # system actor: LaunchOperation is system-only, and the in-flight window is
+  # "chain_verified with no Auction row yet". Lab projection names that address
+  # on result["auction"]. Only Base launches are projected to Auction rows.
+  @spec auctions_prepared_by(integer(), :base | :robinhood) :: non_neg_integer()
+  def auctions_prepared_by(human_account_id, chain)
+      when is_integer(human_account_id) and chain in [:base, :robinhood] do
     actor = %Autolaunch.Actors.System{}
-
-    auction_count =
-      Autolaunch.Auction
-      |> Ash.Query.for_read(:read, %{}, actor: actor)
-      |> Ash.Query.filter(creator_human_account_id == ^human_account_id and kind == :agent)
-      |> Ash.count!()
 
     {:ok, operations} =
       @launch_operation
       |> Ash.Query.for_read(:read, %{}, actor: actor)
-      |> Ash.Query.filter(human_account_id == ^human_account_id and state == :chain_verified)
+      |> Ash.Query.filter(
+        human_account_id == ^human_account_id and state == :chain_verified and chain == ^chain
+      )
       |> Ash.read()
 
     attempts =
@@ -508,11 +506,24 @@ defmodule Autolaunch do
       |> Ash.Query.filter(
         not is_nil(launch_operation_id) and step == :launch and state == :confirmed
       )
-      |> Ash.Query.filter(launch_operation.human_account_id == ^human_account_id)
+      |> Ash.Query.filter(
+        launch_operation.human_account_id == ^human_account_id and
+          launch_operation.chain == ^chain
+      )
       |> Ash.read!(actor: actor)
 
-    auction_count + in_flight_count(operations ++ attempts, actor)
+    projected_auction_count(human_account_id, chain, actor) +
+      in_flight_count(operations ++ attempts, chain, actor)
   end
+
+  defp projected_auction_count(human_account_id, :base, actor) do
+    Autolaunch.Auction
+    |> Ash.Query.for_read(:read, %{}, actor: actor)
+    |> Ash.Query.filter(creator_human_account_id == ^human_account_id and kind == :agent)
+    |> Ash.count!()
+  end
+
+  defp projected_auction_count(_human_account_id, :robinhood, _actor), do: 0
 
   # The Stocks site rule: one stock auction in progress per account. A Stocks
   # `Auction` this account created that has not yet graduated or failed counts.
@@ -527,14 +538,16 @@ defmodule Autolaunch do
     |> Ash.count!()
   end
 
-  defp in_flight_count(operations, actor) do
+  # Auction rows exist only for Base, so only a Base address can already be
+  # projected. The same address on Robinhood is a different auction and counts.
+  defp in_flight_count(operations, chain, actor) do
     addresses =
       operations
       |> Enum.map(&result_auction_address/1)
       |> Enum.reject(&is_nil/1)
       |> Enum.uniq_by(&String.downcase/1)
 
-    projected = projected_auction_addresses(addresses, actor)
+    projected = projected_auction_addresses(addresses, chain, actor)
 
     Enum.count(addresses, fn address ->
       not MapSet.member?(projected, String.downcase(address))
@@ -550,9 +563,10 @@ defmodule Autolaunch do
 
   defp result_auction_address(_operation), do: nil
 
-  defp projected_auction_addresses([], _actor), do: MapSet.new()
+  defp projected_auction_addresses([], _chain, _actor), do: MapSet.new()
+  defp projected_auction_addresses(_addresses, :robinhood, _actor), do: MapSet.new()
 
-  defp projected_auction_addresses(addresses, actor) do
+  defp projected_auction_addresses(addresses, :base, actor) do
     lowered = Enum.map(addresses, &String.downcase/1)
 
     Autolaunch.Auction

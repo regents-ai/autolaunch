@@ -403,13 +403,11 @@ defmodule Autolaunch.LaunchActions do
   # account does not hold is never even named.
   defp owned_draft(draft_id, actor) do
     case Autolaunch.get_my_launch_draft(draft_id, actor: actor) do
-      {:ok, draft} -> found(draft)
+      {:ok, %{chain: :base} = draft} -> {:ok, draft}
+      {:ok, _missing_or_other_chain} -> unavailable(:launch_draft_not_found)
       {:error, _reason} -> unavailable(:launch_draft_unavailable)
     end
   end
-
-  defp found(nil), do: unavailable(:launch_draft_not_found)
-  defp found(draft), do: {:ok, draft}
 
   # Everything the factory itself requires of a saved draft. A row written before
   # the nonempty rule, or one carrying an amount this factory cannot hold, is
@@ -590,6 +588,7 @@ defmodule Autolaunch.LaunchActions do
              LaunchOperations.create(account, %{
                action_id: envelope["action_id"],
                launch_draft_id: draft.id,
+               chain: draft.chain,
                envelope: envelope,
                signer: signer,
                step: first_step(envelope)

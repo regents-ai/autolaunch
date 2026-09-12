@@ -96,11 +96,12 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
       |> assign(:draft_x_connections, Map.new(assigns.x_connections, &{&1.role, &1}))
       |> assign(:raise_currency, Map.fetch!(@raise_currency, assigns.launch_chain))
+      |> assign(:robinhood_live?, Autolaunch.Robinhood.Lab.enabled?())
 
     ~H"""
     <section id="autolaunch-create">
       <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
-        You already have an auction. One auction per account for now.
+        You already have an auction on this chain. One auction per chain for now.
       </p>
 
       <.empty_state
@@ -263,10 +264,16 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
             <p :if={@launch_chain == :base}>
-              The wallet component shows the exact REGENT fee and transaction sequence before
-              anything is submitted.
+              You will see the exact REGENT fee and every transaction before anything is sent.
             </p>
-            <p :if={@launch_chain == :robinhood} id="launch-robinhood-pending" role="status">
+            <p :if={@launch_chain == :robinhood && @robinhood_live?}>
+              You will see the exact USDG fee and every transaction before anything is sent.
+            </p>
+            <p
+              :if={@launch_chain == :robinhood && !@robinhood_live?}
+              id="launch-robinhood-pending"
+              role="status"
+            >
               The Robinhood launchpad is not live yet. Your draft is saved to your account and
               will be ready to launch here when it opens.
             </p>
@@ -279,8 +286,17 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
+            <.live_component
+              :if={@launch_chain == :robinhood && @robinhood_live? && @launch_ready? && @active_draft}
+              module={AutolaunchWeb.RobinhoodLaunchWalletComponent}
+              id={"autolaunch-robinhood-launch-wallet-#{@active_draft.id}"}
+              draft={@active_draft}
+              authenticated
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+            />
             <Regent.Primitives.button
-              :if={@launch_chain == :base && !@launch_ready?}
+              :if={(@launch_chain == :base || @robinhood_live?) && !@launch_ready?}
               type="button"
               disabled
             >

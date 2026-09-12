@@ -57,13 +57,19 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
-  # Base publishes its minimum on the launchpad; the Robinhood launchpad is not
-  # live yet, so its preset minimum stands in until a chain client reads it.
+  # Each launchpad publishes its minimum on chain. The Robinhood launchpad is
+  # read from the local Robinhood lab; without one its preset minimum stands in.
   defp assign_minimum_raise(socket, :base),
     do: start_async(socket, :minimum_raise, fn -> Autolaunch.LaunchActions.minimum_raise() end)
 
-  defp assign_minimum_raise(socket, :robinhood),
-    do: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg(:revshare))
+  defp assign_minimum_raise(socket, :robinhood) do
+    if Robinhood.Lab.enabled?(),
+      do:
+        start_async(socket, :minimum_raise, fn ->
+          Robinhood.LaunchChainClient.minimum_raise_usdg()
+        end),
+      else: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg(:revshare))
+  end
 
   def handle_event(event, params, %{assigns: %{launch_kind: :stocks}} = socket),
     do: AutolaunchWeb.StocksCreateLive.handle_event(event, params, socket)
@@ -146,38 +152,41 @@ defmodule AutolaunchWeb.CreateLive do
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">Launch a token</h1>
         </Regent.Structure.section_bar>
-        <nav class="launchpad-create__kinds" aria-label="Launch chain">
-          <.link
-            :for={chain <- LaunchChain.chains()}
-            href={create_path(chain, @launch_kind)}
-            class={kind_class(@launch_chain == chain)}
-            aria-current={if @launch_chain == chain, do: "page"}
-          >Launch on {LaunchChain.label(chain)}</.link>
-        </nav>
-        <nav class="launchpad-create__kinds" aria-label="Launch type">
-          <.link
-            href={create_path(@launch_chain, :revshare)}
-            class={kind_class(@launch_kind == :revshare)}
-            aria-current={if @launch_kind == :revshare, do: "page"}
-          >Launch Revshare Token</.link>
-          <.link
-            href={create_path(@launch_chain, :stocks)}
-            class={kind_class(@launch_kind == :stocks)}
-            aria-current={if @launch_kind == :stocks, do: "page"}
-          >Launch Onchain Stock Pair</.link>
-        </nav>
-        <details>
-          <summary>Which launch is right for me?</summary>
-          <p>
-            <strong>Launch Revshare Token.</strong>
-            Best for agent services and x402 endpoints which will make USDC over the long-term.
-            Read the docs about creating a durable service for one <.link href="/blog/durable-agent-services">here</.link>.
+        <div class="launchpad-create__choices">
+          <nav class="launchpad-create__choice" aria-label="Choose blockchain">
+            <p class="autolaunch-kicker">Choose blockchain</p>
+            <div class="launchpad-create__kinds">
+              <.link
+                :for={chain <- LaunchChain.chains()}
+                href={create_path(chain, @launch_kind)}
+                class={kind_class(@launch_chain == chain)}
+                aria-current={if @launch_chain == chain, do: "page"}
+              >{LaunchChain.label(chain)}</.link>
+            </div>
+          </nav>
+          <nav class="launchpad-create__choice" aria-label="Choose token type">
+            <p class="autolaunch-kicker">Choose token type</p>
+            <div class="launchpad-create__kinds">
+              <.link
+                href={create_path(@launch_chain, :revshare)}
+                class={kind_class(@launch_kind == :revshare)}
+                aria-current={if @launch_kind == :revshare, do: "page"}
+              >Revshare token</.link>
+              <.link
+                href={create_path(@launch_chain, :stocks)}
+                class={kind_class(@launch_kind == :stocks)}
+                aria-current={if @launch_kind == :stocks, do: "page"}
+              >Onchain stock pair</.link>
+            </div>
+          </nav>
+          <p class="launchpad-create__choice-summary" role="status">
+            <strong>{choice_title(@launch_chain, @launch_kind)}.</strong>
+            {choice_summary(@launch_chain, @launch_kind)}
+            <.link :if={@launch_kind == :revshare} href="/blog/durable-agent-services">
+              Read about building a durable service for one.
+            </.link>
           </p>
-          <p>
-            <strong>Launch Onchain Stock Pair.</strong>
-            Best for a fast and fair launch of a new token and trading pool for a memecoin &amp; onchain stock.
-          </p>
-        </details>
+        </div>
       </header>
       <%= if @launch_kind == :stocks do %>
         {AutolaunchWeb.StocksCreateLive.render(assigns)}
@@ -190,6 +199,27 @@ defmodule AutolaunchWeb.CreateLive do
 
   defp kind_class(selected?),
     do: ["rg-button", if(selected?, do: "rg-button--primary", else: "rg-button--secondary")]
+
+  defp choice_title(chain, :revshare), do: "Revshare token on #{LaunchChain.label(chain)}"
+  defp choice_title(chain, :stocks), do: "Onchain stock pair on #{LaunchChain.label(chain)}"
+
+  # What each of the four launches does and which tokens it needs. Amounts are
+  # left to the form, which reads the live minimum from each launchpad.
+  defp choice_summary(:base, :revshare),
+    do:
+      "Best for agent services and x402 endpoints that will earn USDC over the long term. Bidders pay in REGENT; the raise and its minimum are set in REGENT and the launch fee, when there is one, is paid in REGENT from your wallet."
+
+  defp choice_summary(:base, :stocks),
+    do:
+      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDC; the raise and its minimum are set in USDC and the launch fee is paid in REGENT from your wallet."
+
+  defp choice_summary(:robinhood, :revshare),
+    do:
+      "Best for agent services and x402 endpoints that will earn USDG over the long term. Bidders pay in USDG; the raise and its minimum are set in USDG and the launch fee, when there is one, is paid in USDG from your wallet."
+
+  defp choice_summary(:robinhood, :stocks),
+    do:
+      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDG; the raise and its minimum are set in USDG and there is no launch fee. Not live yet: your draft is saved until it opens."
 
   # Base and Revshare are the page's defaults, so only the other choices name
   # themselves in the address.
@@ -385,7 +415,7 @@ defmodule AutolaunchWeb.CreateLive do
       minimum_raise: nil,
       x_connections: [],
       x_oauth_enabled: XOAuth.enabled?(),
-      auction_limit_reached: auction_limit_reached?(actor),
+      auction_limit_reached: auction_limit_reached?(actor, socket.assigns.launch_chain),
       current_human_id: actor.human_account_id,
       status: :loading
     )
@@ -395,7 +425,7 @@ defmodule AutolaunchWeb.CreateLive do
     assign(socket,
       launch_drafts: [draft],
       draft_values: Templates.draft_values(draft),
-      auction_limit_reached: auction_limit_reached?(actor),
+      auction_limit_reached: auction_limit_reached?(actor, draft.chain),
       current_human_id: actor.human_account_id,
       status: :ready
     )
@@ -425,11 +455,11 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
-  defp auction_limit_reached?(%Human{human_account_id: id}) do
-    Autolaunch.auctions_prepared_by(id) >= Limits.auctions_per_account()
+  defp auction_limit_reached?(%Human{human_account_id: id}, chain) do
+    Autolaunch.auctions_prepared_by(id, chain) >= Limits.auctions_per_account()
   end
 
-  defp auction_limit_reached?(_actor), do: false
+  defp auction_limit_reached?(_actor, _chain), do: false
 
   defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
     params = Templates.draft_field_params()

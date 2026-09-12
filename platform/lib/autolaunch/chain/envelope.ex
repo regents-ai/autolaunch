@@ -12,6 +12,7 @@ defmodule Autolaunch.Chain.Envelope do
     autolaunch_stocks_launch
     autolaunch_stocks_fee_admin
     autolaunch_lab_position
+    autolaunch_robinhood_launch
   )
   @lab_resources ~w(
     autolaunch_launch
@@ -21,6 +22,7 @@ defmodule Autolaunch.Chain.Envelope do
     autolaunch_bid
     autolaunch_lab_position
   )
+  @robinhood_lab_resources ~w(autolaunch_robinhood_launch)
 
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)
@@ -268,6 +270,10 @@ defmodule Autolaunch.Chain.Envelope do
        when resource in @lab_resources and is_map(binding),
        do: :ok
 
+  defp require_network_context!(resource, 31_338, binding)
+       when resource in @robinhood_lab_resources and is_map(binding),
+       do: :ok
+
   defp require_network_context!(_resource, _chain_id, _binding),
     do: raise(ArgumentError, "invalid network context")
 
@@ -277,6 +283,7 @@ defmodule Autolaunch.Chain.Envelope do
     case field(envelope, :chain_id) do
       8453 -> is_nil(binding)
       31_337 -> field(envelope, :resource) in @lab_resources and is_map(binding)
+      31_338 -> field(envelope, :resource) in @robinhood_lab_resources and is_map(binding)
       _other -> false
     end
   end

@@ -2,7 +2,6 @@ import {getAddress, type Hash, type Hex} from "viem"
 import {describe, expect, it, vi} from "vitest"
 
 import {
-  autolaunchLabChainId,
   labNetwork,
   sendLabTransaction,
   type AutolaunchLabBinding,
@@ -20,7 +19,7 @@ function binding(overrides: Partial<AutolaunchLabBinding> = {}): AutolaunchLabBi
   return {
     run_id: "acceptance-run-1",
     rpc_url: "http://127.0.0.1:8545",
-    chain_id: autolaunchLabChainId,
+    chain_id: 31_337,
     addresses: {factory: target.toLowerCase()},
     ...overrides,
   }
@@ -29,7 +28,7 @@ function binding(overrides: Partial<AutolaunchLabBinding> = {}): AutolaunchLabBi
 function operation(overrides: Record<string, unknown> = {}) {
   return {
     signer: wallet,
-    chain_id: autolaunchLabChainId,
+    chain_id: 31_337,
     lab: binding(),
     lab_anchor: {block_number: 123, block_hash: blockHash},
     ...overrides,
@@ -43,13 +42,13 @@ function selected(provider: EthereumProvider, address: string = wallet) {
 describe("the wallet-facing RPC door admits loopback and https only", () => {
   it("names the local lab for a loopback door and the preview for an https door", () => {
     expect(labNetwork(operation())).toEqual({
-      chainId: autolaunchLabChainId,
+      chainId: 31_337,
       rpcUrl: "http://127.0.0.1:8545",
       chainName: "Autolaunch Local Lab",
     })
 
     expect(labNetwork(operation({lab: binding({rpc_url: "https://fork.example.test/rpc"})}))).toEqual({
-      chainId: autolaunchLabChainId,
+      chainId: 31_337,
       rpcUrl: "https://fork.example.test/rpc",
       chainName: "Autolaunch preview (Base fork)",
     })

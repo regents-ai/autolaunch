@@ -146,6 +146,21 @@ config :autolaunch,
        :autolaunch_stocks_lab_config_path,
        autolaunch_stocks_lab && autolaunch_stocks_lab.path
 
+# The Robinhood lab is its own blank local chain (31338), development and test only.
+autolaunch_robinhood_lab =
+  case {config_env(), System.get_env("AUTOLAUNCH_ROBINHOOD_LAB_CONFIG")} do
+    {_env, nil} -> nil
+    {_env, ""} -> nil
+    {:prod, _path} -> raise "AUTOLAUNCH_ROBINHOOD_LAB_CONFIG is development/test only"
+    {_env, path} -> Autolaunch.Robinhood.Lab.load!(path)
+  end
+
+config :autolaunch, :autolaunch_robinhood_lab_enabled, not is_nil(autolaunch_robinhood_lab)
+
+config :autolaunch,
+       :autolaunch_robinhood_lab_config_path,
+       autolaunch_robinhood_lab && autolaunch_robinhood_lab.path
+
 # Test funds: at most one grant per wallet and asset within this many seconds;
 # `0` is no cooldown. Unset means an hour on a public fork preview and none
 # on a local lab.

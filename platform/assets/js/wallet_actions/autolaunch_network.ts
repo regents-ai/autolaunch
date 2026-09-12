@@ -2,7 +2,9 @@ import {getAddress, type Address, type Hash, type Hex} from "viem"
 
 import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
-export const autolaunchLabChainId = 31_337
+// The Base fork lab and the blank Robinhood lab; a binding's chain id decides which.
+export const autolaunchLabChainIds = [31_337, 31_338] as const
+export type AutolaunchLabChainId = (typeof autolaunchLabChainIds)[number]
 
 export type AutolaunchLabBinding = {
   run_id: string
@@ -27,7 +29,7 @@ export type AutolaunchTransaction = {
   data: Hex
 }
 
-type LabNetwork = {chainId: typeof autolaunchLabChainId; rpcUrl: string; chainName: string}
+type LabNetwork = {chainId: AutolaunchLabChainId; rpcUrl: string; chainName: string}
 export type WalletResolver = () => SelectedWallet | null
 
 export function labNetwork(operation: AutolaunchNetworkOperation): LabNetwork | null {
@@ -36,7 +38,7 @@ export function labNetwork(operation: AutolaunchNetworkOperation): LabNetwork | 
     return null
   }
 
-  if (operation.chain_id !== autolaunchLabChainId) {
+  if (!labChainId(operation.chain_id)) {
     throw new Error("A fork action cannot use Base.")
   }
 
@@ -46,16 +48,20 @@ export function labNetwork(operation: AutolaunchNetworkOperation): LabNetwork | 
     Object.keys(binding).sort().join(",") !== "addresses,chain_id,rpc_url,run_id" ||
     typeof binding.run_id !== "string" ||
     binding.run_id.trim() === "" ||
-    binding.chain_id !== autolaunchLabChainId ||
+    binding.chain_id !== operation.chain_id ||
     !labAddresses(binding.addresses)
   ) {
     throw new Error("The fork network binding changed.")
   }
 
-  const chainName = labChainName(binding.rpc_url)
+  const chainName = labChainName(operation.chain_id, binding.rpc_url)
   if (chainName === null) throw new Error("The fork network binding changed.")
 
-  return {chainId: autolaunchLabChainId, rpcUrl: binding.rpc_url, chainName}
+  return {chainId: operation.chain_id, rpcUrl: binding.rpc_url, chainName}
+}
+
+function labChainId(value: number): value is AutolaunchLabChainId {
+  return (autolaunchLabChainIds as readonly number[]).includes(value)
 }
 
 /**
@@ -236,12 +242,14 @@ async function providerChainId(provider: EthereumProvider): Promise<number> {
 
 /**
  * The wallet-facing RPC door and the chain name the wallet prompt shows for
- * it. A loopback `http://127.0.0.1:PORT` is the local lab; an `https://` URL
- * without credentials, query or fragment is a hosted fork preview. Any other
- * `http://` URL is refused: the site's own private door never reaches a wallet.
+ * it. A loopback `http://127.0.0.1:PORT` is a local lab; an `https://` URL
+ * without credentials, query or fragment is a hosted Base fork preview. Any
+ * other `http://` URL is refused: the site's own private door never reaches a
+ * wallet. The Robinhood lab only ever runs locally.
  */
-function labChainName(value: unknown): string | null {
+function labChainName(chainId: AutolaunchLabChainId, value: unknown): string | null {
   if (typeof value !== "string") return null
+  if (chainId === 31_338) return literalLoopbackRpc(value) ? "Robinhood Local Lab" : null
   if (literalLoopbackRpc(value)) return "Autolaunch Local Lab"
   if (publicHttpsRpc(value)) return "Autolaunch preview (Base fork)"
   return null
