@@ -405,6 +405,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     do: assign(socket, notice: notice(:error, refusal(error)))
 
   defp published(%{assigns: %{operation: operation}} = socket) do
+    send(self(), {:launch_review, :open})
+
     addressed(socket, "autolaunch-launch:operation", %{
       action_id: operation.action_id,
       signer: operation.signer,

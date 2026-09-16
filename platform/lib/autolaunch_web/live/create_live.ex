@@ -233,6 +233,11 @@ defmodule AutolaunchWeb.CreateLive do
     if query == [], do: "/create", else: "/create?" <> URI.encode_query(query)
   end
 
+  # A launch card opened its review, so a saved-draft note no longer describes
+  # what this page is doing and comes down.
+  def handle_info({:launch_review, :open}, socket),
+    do: {:noreply, assign(socket, draft_notice: nil)}
+
   defp render_revshare(%{status: :sign_in_required} = assigns) do
     ~H"""
     <main class="launchpad-create">
@@ -280,10 +285,7 @@ defmodule AutolaunchWeb.CreateLive do
        |> assign_loaded_draft(reloaded, actor)
        |> assign(
          draft_errors: %{},
-         draft_notice: %{
-           tone: :success,
-           message: "Saved to your account. Nothing has been published and no money has moved."
-         }
+         draft_notice: %{tone: :success, message: "Saved to your account."}
        )}
     else
       error ->
