@@ -2,10 +2,10 @@ defmodule Autolaunch.Indexer.Chain do
   @moduledoc """
   The exact public evidence this ledger will accept from a JSON-RPC provider.
 
-  Nothing reaches a row before it is normalized here: the chain is Base mainnet,
-  a header carries a well-formed hash, parent hash and nonnegative height, and a
-  log carries a canonical emitter, topic set and payload. Anything else is
-  malformed and advances nothing.
+  Nothing reaches a row before it is normalized here: the provider answers for
+  the chain it was configured as, a header carries a well-formed hash, parent
+  hash and nonnegative height, and a log carries a canonical emitter, topic set
+  and payload. Anything else is malformed and advances nothing.
 
   The ingest edge is the provider's `safe` head, never `latest`, and finality is
   a separately obtained `finalized` header rather than a depth guess.
@@ -14,15 +14,11 @@ defmodule Autolaunch.Indexer.Chain do
   alias Autolaunch.Chain.Address
   alias Autolaunch.Indexer.Rpc
 
-  @chain_id 8453
-
-  @spec chain_id() :: pos_integer()
-  def chain_id, do: @chain_id
-
-  @spec verify_chain() :: :ok | {:error, atom()}
-  def verify_chain do
-    case Rpc.request("eth_chainId", []) do
-      {:ok, result} -> base_mainnet(quantity(result))
+  @doc "Whether the provider configured for `chain_id` answers as that chain."
+  @spec verify_chain(pos_integer()) :: :ok | {:error, atom()}
+  def verify_chain(chain_id) do
+    case Rpc.request(chain_id, "eth_chainId", []) do
+      {:ok, result} -> expected(quantity(result), chain_id)
       {:error, reason} -> {:error, reason}
     end
   end
@@ -36,9 +32,11 @@ defmodule Autolaunch.Indexer.Chain do
   end
 
   @doc "The header at a provider tag or an exact height."
-  @spec header(String.t() | non_neg_integer()) :: {:ok, map()} | {:error, atom()}
-  def header(tag) when tag in ["safe", "finalized"], do: block_by_number(tag)
-  def header(number) when is_integer(number), do: block_by_number(hex(number))
+  @spec header(pos_integer(), String.t() | non_neg_integer()) :: {:ok, map()} | {:error, atom()}
+  def header(chain_id, tag) when tag in ["safe", "finalized"], do: block_by_number(chain_id, tag)
+
+  def header(chain_id, number) when is_integer(number),
+    do: block_by_number(chain_id, hex(number))
 
   @doc """
   Every header in a contiguous inclusive range, in ascending height order.
@@ -46,11 +44,12 @@ defmodule Autolaunch.Indexer.Chain do
   The first failure ends the range: a pass that cannot complete must not spend
   the rest of its request budget discovering that.
   """
-  @spec headers(non_neg_integer(), non_neg_integer()) :: {:ok, [map()]} | {:error, atom()}
-  def headers(from, to) do
+  @spec headers(pos_integer(), non_neg_integer(), non_neg_integer()) ::
+          {:ok, [map()]} | {:error, atom()}
+  def headers(chain_id, from, to) do
     from..to//1
     |> Enum.reduce_while({:ok, []}, fn number, {:ok, headers} ->
-      case header(number) do
+      case header(chain_id, number) do
         {:ok, header} -> {:cont, {:ok, [header | headers]}}
         error -> {:halt, error}
       end
@@ -59,21 +58,21 @@ defmodule Autolaunch.Indexer.Chain do
   end
 
   @doc "Every log the admitted addresses emitted inside a contiguous range."
-  @spec logs(non_neg_integer(), non_neg_integer(), [String.t()]) ::
+  @spec logs(pos_integer(), non_neg_integer(), non_neg_integer(), [String.t()]) ::
           {:ok, [map()]} | {:error, atom()}
-  def logs(from, to, addresses) do
-    "eth_getLogs"
-    |> Rpc.request([
+  def logs(chain_id, from, to, addresses) do
+    chain_id
+    |> Rpc.request("eth_getLogs", [
       %{"fromBlock" => hex(from), "toBlock" => hex(to), "address" => addresses}
     ])
     |> normalize_logs()
   end
 
-  defp base_mainnet({:ok, @chain_id}), do: :ok
-  defp base_mainnet(_other), do: {:error, :wrong_chain}
+  defp expected({:ok, chain_id}, chain_id), do: :ok
+  defp expected(_other, _chain_id), do: {:error, :wrong_chain}
 
-  defp block_by_number(block) do
-    case Rpc.request("eth_getBlockByNumber", [block, false]) do
+  defp block_by_number(chain_id, block) do
+    case Rpc.request(chain_id, "eth_getBlockByNumber", [block, false]) do
       {:ok, result} -> normalize_header(result)
       {:error, reason} -> {:error, reason}
     end

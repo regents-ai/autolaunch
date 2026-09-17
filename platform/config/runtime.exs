@@ -183,23 +183,70 @@ database_config =
     Autolaunch.DatabaseConfig.runtime_config!(config_env())
   end
 
-# The Base log ledger reads its own dedicated endpoint, separate from the
-# simple-read RPC. The test environment owns this setting outright so a shell
-# that exports one cannot start an indexer under a test run. When a lab config
-# path is set the ledger stays off, as source runtime.exs:120-123.
-lab_configured? =
-  case System.get_env("AUTOLAUNCH_LAB_CONFIG") do
-    value when is_binary(value) and value != "" -> true
-    _missing -> false
+# The log ledger follows one chain per dedicated endpoint, separate from the
+# simple-read RPC: Base through AUTOLAUNCH_INDEXER_RPC_URL, watching the factory
+# the evidence manifest admits from AUTOLAUNCH_INDEXER_FACTORY_START_BLOCK, and
+# Robinhood through AUTOLAUNCH_ROBINHOOD_INDEXER_RPC_URL with its chain id,
+# launchpad address and start block named beside it. The test environment owns
+# this setting outright so a shell that exports an endpoint cannot start an
+# indexer under a test run, and a local lab run keeps the ledger off.
+block_env! = fn name ->
+  case name |> System.fetch_env!() |> Integer.parse() do
+    {block, ""} when block >= 0 -> block
+    _malformed -> raise "#{name} must be a nonnegative block number"
+  end
+end
+
+chain_env! = fn name ->
+  case name |> System.fetch_env!() |> Integer.parse() do
+    {chain_id, ""} when chain_id > 0 -> chain_id
+    _malformed -> raise "#{name} must be a positive chain id"
+  end
+end
+
+indexer_chain = fn url_name, chain_id, sources ->
+  case System.get_env(url_name) do
+    url when is_binary(url) and url != "" ->
+      [%{chain_id: chain_id.(), rpc_url: url, sources: sources.()}]
+
+    _unset ->
+      []
+  end
+end
+
+indexer_chains =
+  if config_env() == :test or autolaunch_lab do
+    []
+  else
+    indexer_chain.("AUTOLAUNCH_INDEXER_RPC_URL", fn -> 8453 end, fn ->
+      case Autolaunch.Chain.Abi.factory_address() do
+        {:ok, address} ->
+          [
+            %{
+              address: address,
+              start_block: block_env!.("AUTOLAUNCH_INDEXER_FACTORY_START_BLOCK")
+            }
+          ]
+
+        :none ->
+          []
+      end
+    end) ++
+      indexer_chain.(
+        "AUTOLAUNCH_ROBINHOOD_INDEXER_RPC_URL",
+        fn -> chain_env!.("AUTOLAUNCH_ROBINHOOD_CHAIN_ID") end,
+        fn ->
+          [
+            %{
+              address: System.fetch_env!("AUTOLAUNCH_ROBINHOOD_FACTORY_ADDRESS"),
+              start_block: block_env!.("AUTOLAUNCH_ROBINHOOD_FACTORY_START_BLOCK")
+            }
+          ]
+        end
+      )
   end
 
-if lab_configured? do
-  config :autolaunch, :autolaunch_indexer_rpc_url, nil
-else
-  config :autolaunch,
-         :autolaunch_indexer_rpc_url,
-         if(config_env() == :test, do: nil, else: System.get_env("AUTOLAUNCH_INDEXER_RPC_URL"))
-end
+config :autolaunch, :autolaunch_indexer_chains, indexer_chains
 
 if database_config do
   config :autolaunch, :database_startup_enabled, true

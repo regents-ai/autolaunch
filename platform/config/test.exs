@@ -80,9 +80,9 @@ config :autolaunch,
 
 config :autolaunch, :database_startup_enabled, true
 
-# The Base log ledger never runs under test: the tests drive its handler
-# directly against a fake endpoint, and nothing in the shell can turn it on.
-config :autolaunch, :autolaunch_indexer_rpc_url, nil
+# The log ledger never runs under test: the tests drive its handler directly
+# against a fake endpoint, and nothing in the shell can turn it on.
+config :autolaunch, :autolaunch_indexer_chains, []
 
 config :autolaunch,
        :autolaunch_indexer_http_client,

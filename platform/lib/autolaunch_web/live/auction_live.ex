@@ -6,20 +6,52 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
 
+  alias Autolaunch.AuctionFire
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
 
   def mount(_params, _session, socket),
-    do: {:ok, socket |> assign_market() |> assign(:my_positions, [])}
+    do: {:ok, socket |> assign_market() |> assign(my_positions: [], fire_allowed_at: nil)}
 
   # The identifier is read here so a patch to another auction reloads the page
   # instead of keeping the previous record on screen.
   def handle_params(%{"auction_id" => id}, _uri, socket) do
-    {:noreply, socket |> assign(:record_id, id) |> assign_positions() |> load_page(reset: true)}
+    {:noreply,
+     socket
+     |> follow_fire(id)
+     |> assign(:record_id, id)
+     |> assign_positions()
+     |> load_page(reset: true)}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
+
+  # One flame per page every two seconds. An earlier click, a click before the
+  # auction loaded, or a point outside the page lights nothing and starts no
+  # cooldown.
+  def handle_event("fire", point, socket) do
+    now = System.monotonic_time(:millisecond)
+    allowed_at = socket.assigns.fire_allowed_at
+
+    with record when not is_nil(record) <- page_record(socket.assigns.page),
+         true <- is_nil(allowed_at) or now >= allowed_at,
+         :ok <- AuctionFire.light(socket.assigns.record_id, point) do
+      {:noreply, assign(socket, :fire_allowed_at, now + AuctionFire.cooldown_ms())}
+    else
+      _not_lit -> {:noreply, socket}
+    end
+  end
+
+  # A flame for the auction on screen reaches the page; one queued for an
+  # auction this page has left is dropped.
+  def handle_info({:auction_fire, auction_id, point}, socket) do
+    if auction_id == socket.assigns.record_id do
+      {:noreply, push_event(socket, "auction-fire", Map.put(point, :auction, auction_id))}
+    else
+      {:noreply, socket}
+    end
+  end
 
   # Either feed may have moved; the combined reading decides whether the page
   # has anything new to show.
@@ -66,6 +98,8 @@ defmodule AutolaunchWeb.AuctionLive do
       :if={@page_status == :ready && @page_record}
       id="autolaunch-auction-detail"
       class="autolaunch-page"
+      phx-hook="AutolaunchFire"
+      data-auction-id={@record_id}
     >
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
@@ -253,6 +287,26 @@ defmodule AutolaunchWeb.AuctionLive do
   defp load_page(socket, reset: reset) do
     id = socket.assigns.record_id
     assign_async(socket, :page, fn -> load_auction_page_with_token(id) end, reset: reset)
+  end
+
+  # Flames travel per auction: the page follows one auction at a time, and a
+  # patch to the same auction keeps the one subscription it already has.
+  defp follow_fire(socket, id) do
+    if connected?(socket) do
+      case socket.assigns[:record_id] do
+        ^id ->
+          :ok
+
+        nil ->
+          AuctionFire.subscribe(id)
+
+        previous ->
+          AuctionFire.unsubscribe(previous)
+          AuctionFire.subscribe(id)
+      end
+    end
+
+    socket
   end
 
   # The signed-in bidder's own positions on this auction, for settlement once

@@ -86,10 +86,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
        |> assign_draft(saved)
        |> assign(
          draft_errors: %{},
-         draft_notice: %{
-           tone: :success,
-           message: "Saved to your account. Nothing has been published and no money has moved."
-         }
+         draft_notice: %{tone: :success, message: "Saved to your account."}
        )}
     else
       error ->

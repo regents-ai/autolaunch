@@ -1,3 +1,5 @@
+@import "./token_swap.css";
+
 /* Real records, draft forms and wallet reviews on a ruled sheet.
    Regent primitives own control skins, boundaries, local ink and motion. */
 .autolaunch-page, .launchpad-create { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--space-4); width: 100%; min-width: 0; }
@@ -39,6 +41,10 @@
 :where(.autolaunch-compact-detail, .bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dl > div { min-width: 0; padding: var(--space-2); border-bottom: 1px solid var(--hairline); }
 :where(.autolaunch-compact-detail, .bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dt { color: var(--rg-local-ink, var(--color-fg-muted)); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
 :where(.autolaunch-compact-detail, .bid-panel, .subject-wallet, .launch-wallet, .treasury-security) dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
+/* The launch review reads label above value; the value carries the weight. */
+.launch-wallet-review dt { font-size: .6875rem; }
+.launch-wallet-review dd { margin-top: var(--space-1); font-size: 1.0625rem; font-weight: 600; color: var(--color-fg); line-height: 1.35; }
+.launch-wallet-review dd .launch-wallet-mono { font-size: .9375rem; font-weight: 400; }
 /* Public identity, treasury risk copy, validation and live preview remain present. */
 .launchpad-create__workspace { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,.7fr); gap: 24px; align-items: start; }
 .launchpad-create__form-column { display: grid; gap: var(--space-4); min-width: 0; }
@@ -54,6 +60,7 @@
 .autolaunch-draft-hint, .autolaunch-draft-error { margin: 0; font-size: .8125rem; }
 .autolaunch-draft-hint { color: var(--color-fg-muted); }
 .autolaunch-draft-error { color: var(--color-error); }
+.autolaunch-draft-note { margin: 0 0 var(--space-1); font-size: .8125rem; }
 .launchpad-upload { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
 .launchpad-upload__control { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .launchpad-upload__control input { min-width: 0; max-width: 100%; }
@@ -68,6 +75,8 @@
 .autolaunch-custody-path label { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); }
 .autolaunch-custody-path .rg-disclosure-body { display: grid; gap: var(--space-2); }
 .autolaunch-custody-warning, .treasury-security--warning { color: var(--color-warning); }
+.autolaunch-custody-path textarea.autolaunch-custody-ack--matched { border-color: var(--color-success); color: var(--color-success); }
+.autolaunch-custody-ack-matched { margin: 0; color: var(--color-success); font-weight: 600; }
 .x-connections { display: grid; gap: var(--space-3); border-block: 1px solid var(--hairline); }
 .x-connections > header p { margin-bottom: 0; }
 .x-connections > ul { display: grid; margin: 0; padding: 0; list-style: none; }
@@ -165,3 +174,10 @@
 .launchpad-create__choice-summary strong { color: var(--color-fg); }
 .launchpad-create__kinds { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
 .launchpad-create__kinds .rg-button { white-space: normal; text-align: center; }
+
+/* Shared flames on an auction page: a fixed layer no pointer can reach. */
+.auction-fire { position: fixed; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; }
+.auction-fire__flame { position: absolute; font-size: 1.75rem; line-height: 1; opacity: 1; transform: translate(-50%, -50%); transition: opacity .5s ease; animation: auction-fire-rise 2s ease-out forwards; }
+.auction-fire__flame--fading { opacity: 0; }
+.auction-fire__flame--still { animation: none; transition: none; }
+@keyframes auction-fire-rise { from { transform: translate(-50%, -30%) scale(.6); } to { transform: translate(-50%, -90%) scale(1); } }

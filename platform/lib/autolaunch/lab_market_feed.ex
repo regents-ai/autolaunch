@@ -511,7 +511,8 @@ defmodule Autolaunch.LabMarketFeed do
     end
 
     def snapshots(head, capacity, attempted_addresses) do
-      with {:ok, auctions} <- Autolaunch.list_lab_market_auctions(actor: %SystemActor{}),
+      with {:ok, auctions} <-
+             Autolaunch.list_lab_market_auctions(Lab.chain_id(), actor: %SystemActor{}),
            true <- length(auctions) <= capacity do
         observed_addresses = MapSet.new(auctions, &String.downcase(&1.auction_address))
 

@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Stocks.{Amounts, LaunchActions}
+  alias Autolaunch.Stocks.{Amounts, Lab, LaunchActions}
   alias Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
   alias AutolaunchWeb.WalletPressComponent
 
@@ -58,8 +58,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
-  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket),
-    do: {:ok, WalletPressComponent.consume(socket, lease, result)}
+  # A press result may verify the launch, so the auction link follows it.
+  def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
+    socket = WalletPressComponent.consume(socket, lease, result)
+    {:ok, adopt_operation(socket, socket.assigns.operation)}
+  end
 
   def update(assigns, socket) do
     {:ok,
@@ -70,6 +73,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
+     |> assign_new(:auction_path, fn -> nil end)
      |> assign_new(:active_stocks_launch, fn -> false end)}
   end
 
@@ -227,9 +231,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             The test transaction and launch record were verified. Test assets have no mainnet value.
           </p>
           <p>
-            <.link navigate={"/auctions/#{Autolaunch.LabProjection.auction_id(@operation.result["auction"])}"}>
-              Open the auction
-            </.link>
+            <.link :if={@auction_path} navigate={@auction_path}>Open the auction</.link>
             · Token <span class="launch-wallet-mono">{@operation.result["new_token"]}</span>
             · Auction <span class="launch-wallet-mono">{@operation.result["auction"]}</span>
           </p>
@@ -378,7 +380,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     do: {:noreply, action_id |> LaunchActions.start_new(opts(socket)) |> settled(socket)}
 
   def handle_event("clear_launch", _params, socket),
-    do: {:noreply, socket |> assign(operation: nil, notice: nil) |> cleared()}
+    do: {:noreply, socket |> adopt_operation(nil) |> assign(notice: nil) |> cleared()}
 
   def handle_event("restore_launch_operation", _params, socket) do
     case LaunchActions.open_operation(opts(socket)) do
@@ -394,17 +396,19 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   defp settled({:ok, %{operation: %{launch_draft_id: draft_id} = operation}}, socket) do
     if draft_id == socket.assigns.draft.id,
-      do: socket |> assign(operation: operation, notice: nil) |> published(),
-      else: socket |> assign(operation: nil, notice: nil) |> cleared()
+      do: socket |> adopt_operation(operation) |> assign(notice: nil) |> published(),
+      else: socket |> adopt_operation(nil) |> assign(notice: nil) |> cleared()
   end
 
   defp settled({:ok, %{operation: nil}}, socket),
-    do: socket |> assign(operation: nil) |> cleared()
+    do: socket |> adopt_operation(nil) |> cleared()
 
   defp settled({:error, error}, socket),
     do: assign(socket, notice: notice(:error, refusal(error)))
 
   defp published(%{assigns: %{operation: operation}} = socket) do
+    send(self(), {:launch_review, :open})
+
     addressed(socket, "autolaunch-launch:operation", %{
       action_id: operation.action_id,
       signer: operation.signer,
@@ -452,6 +456,18 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   defp refused(socket, address, reason),
     do: assign(socket, wallet: address, notice: notice(:info, reason))
+
+  # A verified launch links to the auction row its verification projected, found
+  # by the chain and address the chain reported.
+  defp adopt_operation(socket, %{state: :chain_verified, result: %{"auction" => address}} = op) do
+    {:ok, auction} =
+      Autolaunch.get_auction_by_chain_address(Lab.chain_id(), address, actor: actor(socket))
+
+    assign(socket, operation: op, auction_path: auction && "/auctions/#{auction.id}")
+  end
+
+  defp adopt_operation(socket, operation),
+    do: assign(socket, operation: operation, auction_path: nil)
 
   defp opts(socket),
     do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]

@@ -2,10 +2,11 @@ defmodule Autolaunch.Indexer.Rpc do
   @moduledoc """
   The indexer's own JSON-RPC transport, and the redaction boundary around it.
 
-  The endpoint is dedicated to this indexer and separate from the simple-read
-  RPC. It never reaches a result, an error, a row or a log line: a failure is
-  reported as the method plus a small error class, so a URL carrying a provider
-  key cannot escape through a crash report or a captured log.
+  Each chain has its own endpoint, dedicated to this indexer and separate from
+  the simple-read RPC. It never reaches a result, an error, a row or a log line:
+  a failure is reported as the method plus a small error class, so a URL
+  carrying a provider key cannot escape through a crash report or a captured
+  log.
 
   A reply counts only as this exchange's own answer: JSON-RPC 2.0, the id that
   was sent, and a result member. Nothing is retried and no redirect is followed,
@@ -18,6 +19,8 @@ defmodule Autolaunch.Indexer.Rpc do
   """
 
   require Logger
+
+  alias Autolaunch.Indexer.Chains
 
   @id 1
   @deadline_ms 15_000
@@ -32,9 +35,9 @@ defmodule Autolaunch.Indexer.Rpc do
   def max_request_ms,
     do: Application.get_env(:autolaunch, :autolaunch_indexer_deadline_ms, @deadline_ms)
 
-  @spec request(String.t(), list()) :: {:ok, term()} | {:error, :chain_unavailable}
-  def request(method, params) do
-    case attempted(method, params) do
+  @spec request(pos_integer(), String.t(), list()) :: {:ok, term()} | {:error, :chain_unavailable}
+  def request(chain_id, method, params) do
+    case attempted(chain_id, method, params) do
       {:ok, response} -> answered(method, response)
       {:error, class} -> failed(method, class)
     end
@@ -44,9 +47,11 @@ defmodule Autolaunch.Indexer.Rpc do
   # outcome before answering, so neither an exit reason nor a crash report can
   # carry the key-bearing endpoint past this boundary. An attempt still running
   # at the deadline is killed rather than left to answer into a later pass.
-  defp attempted(method, params) do
+  defp attempted(chain_id, method, params) do
     owner = self()
-    {pid, ref} = spawn_monitor(fn -> send(owner, {:answer, self(), redacted(method, params)}) end)
+
+    {pid, ref} =
+      spawn_monitor(fn -> send(owner, {:answer, self(), redacted(chain_id, method, params)}) end)
 
     receive do
       {:answer, ^pid, answer} -> settled(ref, answer)
@@ -67,8 +72,8 @@ defmodule Autolaunch.Indexer.Rpc do
     {:error, :timeout}
   end
 
-  defp redacted(method, params) do
-    case post(method, params) do
+  defp redacted(chain_id, method, params) do
+    case post(chain_id, method, params) do
       {:ok, response} -> {:ok, response}
       {:error, reason} -> {:error, class(reason)}
     end
@@ -76,8 +81,8 @@ defmodule Autolaunch.Indexer.Rpc do
     error -> {:error, class(error)}
   end
 
-  defp post(method, params) do
-    client().post(url(),
+  defp post(chain_id, method, params) do
+    client().post(Chains.rpc_url!(chain_id),
       json: %{jsonrpc: "2.0", id: @id, method: method, params: params},
       redirect: false,
       retry: false
@@ -109,5 +114,4 @@ defmodule Autolaunch.Indexer.Rpc do
   defp class(_reason), do: :transport
 
   defp client, do: Application.get_env(:autolaunch, :autolaunch_indexer_http_client, Req)
-  defp url, do: Application.fetch_env!(:autolaunch, :autolaunch_indexer_rpc_url)
 end

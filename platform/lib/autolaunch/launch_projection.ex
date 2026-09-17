@@ -120,7 +120,7 @@ defmodule Autolaunch.LaunchProjection do
   defp persist_auction(event, operation, arguments) do
     attrs =
       LabProjection.auction_attrs(arguments, %{
-        projection_id: LabProjection.auction_id(event.auction),
+        chain_id: @chain_id,
         creator_human_account_id: operation.human_account_id,
         state: :active,
         auction_address: event.auction,

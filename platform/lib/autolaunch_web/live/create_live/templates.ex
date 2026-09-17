@@ -243,6 +243,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             <.draft_field
               field={treasury_field()}
               form_id="launch-treasury-details"
+              note={custody_note(@draft_values["treasury_path"])}
               hint={treasury_field().hint}
               value={@draft_values["treasury"]}
               error={@draft_errors["treasury"]}
@@ -336,6 +337,17 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     """
   end
 
+  # Names the custody choice above the address field so the two read as one
+  # decision. Naming a path is not verification of the address.
+  defp custody_note(path) when path in [nil, "", "safe", :safe],
+    do: "Treasury type: 2-of-3 Safe. Paste the Safe address below."
+
+  defp custody_note(path) when path in ["contract", :contract],
+    do: "Treasury type: existing contract or distribution destination. Never verified."
+
+  defp custody_note(path) when path in ["eoa", :eoa],
+    do: "Treasury type: single-key EOA. Never verified."
+
   attr :form_id, :string, required: true
   attr :chain, :atom, required: true
   attr :path, :string, default: "safe"
@@ -350,6 +362,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         id: id,
         chain_label: LaunchChain.label(assigns.chain),
         warning_copy: @eoa_acknowledgement,
+        acknowledged?:
+          assigns.path in ["eoa", :eoa] and assigns.acknowledgement == @eoa_acknowledgement,
         described_by:
           Enum.join(
             ["#{id}-warning", assigns.error && "#{id}-error"] |> Enum.filter(& &1),
@@ -382,6 +396,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       <Regent.Primitives.disclosure
         id={"#{@form_id}-advanced-custody"}
         summary="Advanced, high-risk treasury choices"
+        open={@path in ["contract", :contract, "eoa", :eoa]}
       >
         <label>
           <input
@@ -406,10 +421,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         <textarea
           id={@id}
           name="launch_draft[eoa_acknowledgement]"
+          class={@acknowledged? && "autolaunch-custody-ack--matched"}
           autocomplete="off"
           aria-invalid={@error && "true"}
           aria-describedby={@described_by}
         >{@acknowledgement}</textarea>
+        <p :if={@acknowledged?} class="autolaunch-custody-ack-matched" role="status">
+          <span aria-hidden="true">✓</span> Warning typed exactly. Risk acknowledged.
+        </p>
         <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">
           {@error}
         </p>
@@ -420,6 +439,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   attr :field, :map, required: true
   attr :form_id, :string, required: true
+  attr :note, :string, default: nil
   attr :hint, :string, default: nil
   attr :value, :string, default: nil
   attr :error, :string, default: nil
@@ -448,6 +468,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         aria-describedby={@described_by}
         phx-debounce={@autosave && "400"}
       >{@value}</textarea>
+      <p :if={@note} class="autolaunch-draft-note">{@note}</p>
       <input
         :if={@field.kind == :text}
         type="text"

@@ -7,7 +7,6 @@ defmodule Autolaunch.Auction do
     primary_read_warning?: false
 
   alias Autolaunch.{BidActions, TreasurySecurity}
-  alias Autolaunch.LabProjection
   require Ash.Query
 
   @projection_accept [
@@ -26,7 +25,8 @@ defmodule Autolaunch.Auction do
     :quote_token_symbol,
     :quote_token_decimals,
     :current_clearing_price,
-    :treasury_address
+    :treasury_address,
+    :chain_id
   ]
 
   @projection_upsert [
@@ -173,68 +173,45 @@ defmodule Autolaunch.Auction do
       prepare build(load: [:treasury_security_report])
     end
 
-    read :watchable_lab do
-      filter expr(not is_nil(auction_address) and kind == :agent)
-      prepare build(sort: [id: :asc])
+    read :by_chain_address do
+      get? true
+      argument :chain_id, :integer, allow_nil?: false
+      argument :auction_address, :string, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and auction_address == ^arg(:auction_address))
+    end
 
-      prepare fn query, _context ->
-        Ash.Query.after_action(query, fn _query, records ->
-          {:ok,
-           records
-           |> Enum.filter(fn record ->
-             record.id == LabProjection.auction_id(record.auction_address)
-           end)
-           |> Enum.take(257)}
-        end)
-      end
+    # The market feeds read one more row than they can watch, so an overflow
+    # is detected rather than silently truncated.
+    read :watchable_lab do
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(kind == :agent and chain_id == ^arg(:chain_id))
+      prepare build(sort: [id: :asc], limit: 257)
     end
 
     read :watchable_stocks_lab do
-      filter expr(not is_nil(auction_address) and kind == :stocks)
-      prepare build(sort: [id: :asc])
-
-      prepare fn query, _context ->
-        Ash.Query.after_action(query, fn _query, records ->
-          {:ok,
-           records
-           |> Enum.filter(fn record ->
-             record.id == LabProjection.auction_id(record.auction_address)
-           end)
-           |> Enum.take(257)}
-        end)
-      end
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(kind == :stocks and chain_id == ^arg(:chain_id))
+      prepare build(sort: [id: :asc], limit: 257)
     end
 
     read :lab_by_id_for_update do
       get? true
       argument :id, :uuid, allow_nil?: false
-      filter expr(id == ^arg(:id) and not is_nil(auction_address))
-
-      prepare fn query, _context ->
-        query
-        |> Ash.Query.lock(:for_update)
-        |> Ash.Query.after_action(fn _query, records ->
-          {:ok,
-           Enum.filter(records, fn record ->
-             record.id == LabProjection.auction_id(record.auction_address)
-           end)}
-        end)
-      end
+      filter expr(id == ^arg(:id))
+      prepare build(lock: :for_update)
     end
 
     create :project_lab do
-      argument :projection_id, :uuid, allow_nil?: false
       accept @projection_accept
-      change set_attribute(:id, arg(:projection_id))
       upsert? true
+      upsert_identity :chain_auction
       upsert_fields @projection_upsert
     end
 
     create :project_launch do
-      argument :projection_id, :uuid, allow_nil?: false
       accept @projection_accept
-      change set_attribute(:id, arg(:projection_id))
       upsert? true
+      upsert_identity :chain_auction
       upsert_fields @projection_upsert
     end
 
@@ -348,7 +325,8 @@ defmodule Autolaunch.Auction do
              :featured_public,
              :active_launchpad,
              :explore_launchpad,
-             :public_by_id
+             :public_by_id,
+             :by_chain_address
            ]) do
       authorize_if always()
     end
@@ -445,8 +423,17 @@ defmodule Autolaunch.Auction do
       public? true
     end
 
+    # One auction contract on one chain is one row; the same address on
+    # another chain is another auction.
+    attribute :chain_id, :integer do
+      public? true
+      allow_nil? false
+      constraints min: 1
+    end
+
     attribute :auction_address, :string do
       public? true
+      allow_nil? false
       constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
     end
 
@@ -531,5 +518,9 @@ defmodule Autolaunch.Auction do
        |> String.replace("\\", "\\\\")
        |> String.replace("%", "\\%")
        |> String.replace("_", "\\_")) <> "%"
+  end
+
+  identities do
+    identity :chain_auction, [:chain_id, :auction_address]
   end
 end

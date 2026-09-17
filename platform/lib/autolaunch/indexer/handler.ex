@@ -1,11 +1,17 @@
 defmodule Autolaunch.Indexer.Handler do
   @moduledoc """
-  The one durable-work item that moves the Base ledger forward.
+  The one durable-work item that moves one chain's ledger forward.
 
-  `poll/2` is pure: it names the chain and nothing else, so every database and
+  Each configured chain has its own runner whose context is the chain id.
+  `poll/2` is pure: it names that chain and nothing else, so every database and
   provider read happens in the runner's monitored handler process and a failure
-  advances nothing rather than taking the runner, the repository or the
-  application supervisor with it.
+  on one chain advances nothing and takes neither the runner, another chain, the
+  repository nor the application supervisor with it.
+
+  Every pass first re-states the chain's configured sources, which is the same
+  fact twice for an admitted address and the admission for a new one, so a
+  ledger that was never opened for a chain opens on the first pass and a
+  restored one catches up without keeping any state in this process.
 
   One bounded contiguous range is planned from the exact cursor the lease was
   granted at and fetched outside the row lock, then committed only if that same
@@ -20,7 +26,7 @@ defmodule Autolaunch.Indexer.Handler do
 
   require Logger
 
-  alias Autolaunch.Indexer.{Chain, Ledger, Rpc}
+  alias Autolaunch.Indexer.{Chain, Chains, Ledger, Rpc}
 
   # One bound serves the ingest range, the reorg walk and the finality batch, so
   # no handler pass can issue an unbounded number of provider calls or updates.
@@ -55,22 +61,29 @@ defmodule Autolaunch.Indexer.Handler do
   @spec lease_ms() :: pos_integer()
   def lease_ms, do: max_requests() * Rpc.max_request_ms() + @commit_margin_ms
 
-  @doc "Admits one watched address and the block it becomes interesting at."
-  @spec admit_source(String.t(), non_neg_integer()) ::
-          {:ok, Ash.Resource.record()} | {:error, term()}
-  def admit_source(address, start_block),
-    do: Ledger.admit_source(Chain.chain_id(), address, start_block)
-
   @impl true
-  def poll(_context, 0), do: []
-  def poll(_context, _capacity), do: [Chain.chain_id()]
+  def poll(_chain_id, 0), do: []
+  def poll(chain_id, _capacity), do: [chain_id]
 
   @impl true
   def handle(_context, chain_id) do
-    case Ledger.acquire(chain_id, lease_ms()) do
-      {:ok, lease} -> reported(leased(lease), chain_id)
+    with :ok <- admitted(chain_id),
+         {:ok, lease} <- Ledger.acquire(chain_id, lease_ms()) do
+      reported(leased(lease), chain_id)
+    else
       {:error, reason} -> reported({:error, reason}, chain_id)
     end
+  end
+
+  defp admitted(chain_id) do
+    chain_id
+    |> Chains.sources!()
+    |> Enum.reduce_while(:ok, fn source, :ok ->
+      case Ledger.admit_source(chain_id, source.address, source.start_block) do
+        {:ok, _source} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
   end
 
   defp leased(lease) do
@@ -80,9 +93,9 @@ defmodule Autolaunch.Indexer.Handler do
   end
 
   defp advance(lease) do
-    with :ok <- Chain.verify_chain(),
-         {:ok, safe} <- Chain.header("safe"),
-         {:ok, finality} <- Chain.header("finalized"),
+    with :ok <- Chain.verify_chain(lease.chain_id),
+         {:ok, safe} <- Chain.header(lease.chain_id, "safe"),
+         {:ok, finality} <- Chain.header(lease.chain_id, "finalized"),
          :ok <- ordered(finality, safe),
          do: plan(lease, safe, finality)
   end
@@ -105,11 +118,11 @@ defmodule Autolaunch.Indexer.Handler do
     sources = Ledger.sources(lease.chain_id)
 
     with {:ok, first} <- opening(lease, from, floor_block(sources)),
-         {:ok, rest} <- Chain.headers(from + 1, to),
+         {:ok, rest} <- Chain.headers(lease.chain_id, from + 1, to),
          headers = [first | rest],
          :ok <- contiguous(headers, from),
          :ok <- tipped(List.last(headers), safe),
-         {:ok, logs} <- Chain.logs(from, to, Enum.map(sources, & &1.address)),
+         {:ok, logs} <- Chain.logs(lease.chain_id, from, to, Enum.map(sources, & &1.address)),
          :ok <- emitted(logs, headers, sources) do
       Ledger.commit(lease, {:range, headers, logs, finality}, @bound)
     else
@@ -122,7 +135,7 @@ defmodule Autolaunch.Indexer.Handler do
   # chain still agree, so it is fetched and linked before the rest of the range
   # or any log is asked for.
   defp opening(lease, from, floor) do
-    with {:ok, %{number: ^from} = header} <- Chain.header(from),
+    with {:ok, %{number: ^from} = header} <- Chain.header(lease.chain_id, from),
          :ok <- linked(lease, header, floor) do
       {:ok, header}
     else
@@ -157,8 +170,11 @@ defmodule Autolaunch.Indexer.Handler do
 
   defp ancestor(chain_id, height, floor) do
     case Ledger.canonical_block(chain_id, height) do
-      %{block_hash: stored} -> compared(chain_id, height, floor, stored, Chain.header(height))
-      nil -> ancestor(chain_id, height - 1, floor)
+      %{block_hash: stored} ->
+        compared(chain_id, height, floor, stored, Chain.header(chain_id, height))
+
+      nil ->
+        ancestor(chain_id, height - 1, floor)
     end
   end
 
