@@ -172,3 +172,10 @@
 .launchpad-create__choice-summary strong { color: var(--color-fg); }
 .launchpad-create__kinds { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
 .launchpad-create__kinds .rg-button { white-space: normal; text-align: center; }
+
+/* Shared flames on an auction page: a fixed layer no pointer can reach. */
+.auction-fire { position: fixed; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; }
+.auction-fire__flame { position: absolute; font-size: 1.75rem; line-height: 1; opacity: 1; transform: translate(-50%, -50%); transition: opacity .5s ease; animation: auction-fire-rise 2s ease-out forwards; }
+.auction-fire__flame--fading { opacity: 0; }
+.auction-fire__flame--still { animation: none; transition: none; }
+@keyframes auction-fire-rise { from { transform: translate(-50%, -30%) scale(.6); } to { transform: translate(-50%, -90%) scale(1); } }
