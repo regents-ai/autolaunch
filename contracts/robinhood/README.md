@@ -94,7 +94,7 @@ uv run --no-project python bin/local-robinhood-lab.py stop
 `pool_manager`, `position_manager`, `cca_factory`, `uerc20_factory`, `permit2`, `admin_safe`),
 `stocks` (one entry per fixture: `symbol`, `name`, `address`, `decimals`, `route`,
 `usdg_per_share`, `fixture`, `launch_admission`) and `abis` (`launchpad`, `stocks_launchpad`,
-`bid_adapter`, `stock_route`, `erc20`). Every stock entry is read back from the chain after
+`bid_adapter`, `stock_route`, `auction`, `erc20`). Every stock entry is read back from the chain after
 deployment, including its admission on the Stocks launchpad; the controller carries no catalog of
 its own. Nothing proven against the fixture stocks or routes is evidence about a real stock market.
 

@@ -49,6 +49,7 @@ ABI_ARTIFACTS = {
     "stocks_launchpad": Path("out/RobinhoodStocksLaunchpadV1.sol/RobinhoodStocksLaunchpadV1.json"),
     "bid_adapter": Path("out/RobinhoodStockBidAdapterV1.sol/RobinhoodStockBidAdapterV1.json"),
     "stock_route": Path("out/FixtureUsdgStockRoute.sol/FixtureUsdgStockRoute.json"),
+    "auction": Path("out/ContinuousClearingAuction.sol/ContinuousClearingAuction.json"),
     "erc20": Path("out/mocks/MockERC20.sol/MockERC20.json"),
 }
 GRAPH_LABELS = {

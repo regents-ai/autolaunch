@@ -12,6 +12,9 @@ defmodule Autolaunch.Robinhood.LabAbi do
   @launch_created "RevshareLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint128,uint128)"
   @stock_launch_created "StockLaunchCreated(uint256,address,address,address,address,address,uint64,uint64,uint256,uint128,uint128,uint128)"
   @stock_bid_placed "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
+  @bid_submitted "BidSubmitted(uint256,address,uint256,uint128)"
+  @bid_record "(uint64,uint24,uint64,uint256,address,uint256,uint256)"
+  @checkpoint "(uint256,uint256,uint256,uint24,uint64,uint64)"
 
   # Everything the site prepares against or decodes. A missing entry refuses the
   # whole configuration rather than failing later inside a review.
@@ -52,6 +55,23 @@ defmodule Autolaunch.Robinhood.LabAbi do
     "stock_route" => [
       f: {"quoteExactIn(address,address,uint256)", "view", ["uint256"]}
     ],
+    # The Continuous Clearing Auction the Stocks launchpad creates; only what
+    # the bid reader reads.
+    "auction" => [
+      f: {"currency()", "view", ["address"]},
+      f: {"floorPrice()", "view", ["uint256"]},
+      f: {"tickSpacing()", "view", ["uint256"]},
+      f: {"clearingPrice()", "view", ["uint256"]},
+      f: {"MAX_BID_PRICE()", "view", ["uint256"]},
+      f: {"checkpoint()", "nonpayable", [@checkpoint]},
+      f: {"startBlock()", "view", ["uint64"]},
+      f: {"endBlock()", "view", ["uint64"]},
+      f: {"claimBlock()", "view", ["uint64"]},
+      f: {"isGraduated()", "view", ["bool"]},
+      f: {"ticks(uint256)", "view", ["(uint256,uint256)"]},
+      f: {"bids(uint256)", "view", [@bid_record]},
+      e: {@bid_submitted, [true, true, false, false]}
+    ],
     "erc20" => [
       f: {"approve(address,uint256)", "nonpayable", ["bool"]},
       f: {"balanceOf(address)", "view", ["uint256"]},
@@ -67,5 +87,6 @@ defmodule Autolaunch.Robinhood.LabAbi do
   def stocks_launch_signature, do: "launch(#{@stocks_launch_params})"
   def stock_launch_created_signature, do: @stock_launch_created
   def stock_bid_placed_signature, do: @stock_bid_placed
+  def bid_submitted_signature, do: @bid_submitted
   def validate(abis), do: LabAbi.validate(abis, @required)
 end

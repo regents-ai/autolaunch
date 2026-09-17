@@ -19,7 +19,7 @@ defmodule Autolaunch.Robinhood.Lab do
     launchpad hook stocks_launchpad stocks_hook bid_adapter usdg inbox hook_factory
     pool_manager position_manager cca_factory uerc20_factory permit2 admin_safe
   )
-  @abi_keys ~w(launchpad stocks_launchpad bid_adapter stock_route erc20)
+  @abi_keys ~w(launchpad stocks_launchpad bid_adapter stock_route auction erc20)
   @stock_keys ~w(symbol name address decimals route usdg_per_share fixture launch_admission)
   @stock_decimals 8
   # The only admission the lab controller writes: a mintable fixture admitted on
