@@ -1,3 +1,5 @@
+@import "./token_swap.css";
+
 /* Real records, draft forms and wallet reviews on a ruled sheet.
    Regent primitives own control skins, boundaries, local ink and motion. */
 .autolaunch-page, .launchpad-create { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--space-4); width: 100%; min-width: 0; }
