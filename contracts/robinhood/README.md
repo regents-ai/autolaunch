@@ -28,7 +28,10 @@ FOUNDRY_OFFLINE=true forge build --sizes
 FOUNDRY_OFFLINE=true forge test
 ```
 
-Libraries resolve from `../stocks/lib`; the package installs nothing of its own.
+Libraries resolve from `../stocks/lib`; the package installs nothing of its own. forge 1.4's lint
+pre-pass cannot follow those `../stocks/lib` imports and fails a build that touched any file, while
+the compiler resolves them; add `FOUNDRY_LINT_LINT_ON_BUILD=false` when that happens (the lab
+controller always does).
 
 ## What the founder must supply before any deployment
 
@@ -64,3 +67,38 @@ decimals, matching cross-bindings). None is known at build time.
 9. USDG is assumed six-decimal and the assumption is enforced at construction of every contract that reads it.
 10. Base receiver attribution is Base-Safe-attested; the deposit itself is permissionless with a surplus sweep.
 11. The position planner lives in a linked library and the hook creation code in a factory so both launchpads stay under the EIP-170 limit.
+
+## The local lab
+
+`bin/local-robinhood-lab.py` boots a blank Anvil chain (id 31338), installs Permit2's runtime at its
+canonical address, and runs `script/DeployRobinhoodLab.s.sol` from Anvil's first unlocked account,
+which stands in for the admin Safe and the hook executor. The script deploys a mintable USDG double,
+the pinned PoolManager, CCA factory, PositionManager and UERC20 factory, the inbox, the hook
+factory, the Revshare launchpad, the Stocks launchpad, the USDG bid adapter, and thirteen mintable
+fixture stocks (the Base lab's symbols and fixture prices) each with a `FixtureUsdgStockRoute`
+holding one million shares and one billion USDG, admitted on the Stocks launchpad. Both launchpads
+are unpaused; the Stocks launch fee is zero and its minimum raise is the preset's 1,000 USDG.
+
+```bash
+uv run --no-project python bin/local-robinhood-lab.py start
+uv run --no-project python bin/local-robinhood-lab.py fund 0xWALLET --usdg 100000 --stock AAPLc --shares 1000
+uv run --no-project python bin/local-robinhood-lab.py status [--kind stocks|revshare] [--launch ID] [--auction 0x…]
+uv run --no-project python bin/local-robinhood-lab.py advance 0xAUCTION --to start|end|claim|migration [--kind …]
+uv run --no-project python bin/local-robinhood-lab.py migrate ID [--kind …]
+uv run --no-project python bin/local-robinhood-lab.py stop
+```
+
+`start` writes `reports/generated/local-robinhood-lab/site-config.json` for the platform
+(`AUTOLAUNCH_ROBINHOOD_LAB_CONFIG`): `rpc_url`, `chain_id`, `run_id`, `addresses` (`launchpad`,
+`hook`, `stocks_launchpad`, `stocks_hook`, `bid_adapter`, `usdg`, `inbox`, `hook_factory`,
+`pool_manager`, `position_manager`, `cca_factory`, `uerc20_factory`, `permit2`, `admin_safe`),
+`stocks` (one entry per fixture: `symbol`, `name`, `address`, `decimals`, `route`,
+`usdg_per_share`, `fixture`, `launch_admission`) and `abis` (`launchpad`, `stocks_launchpad`,
+`bid_adapter`, `stock_route`, `erc20`). Every stock entry is read back from the chain after
+deployment, including its admission on the Stocks launchpad; the controller carries no catalog of
+its own. Nothing proven against the fixture stocks or routes is evidence about a real stock market.
+
+`state.json` records the Anvil process, its loopback port and the chain's genesis hash. Before
+`fund`, `advance`, `migrate` or `stop` touches the endpoint, the controller proves the recorded
+process is alive, is Anvil, is the one process listening on that port, and that the chain there
+carries the recorded genesis hash and both launchpads; any mismatch refuses without acting.
