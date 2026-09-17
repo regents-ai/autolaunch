@@ -105,6 +105,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     create :create_for_owner do
       accept [:chain]
       change Autolaunch.LaunchDraft.Changes.AssignOwner
+      change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
       upsert? true
       upsert_identity :one_stocks_draft_per_human_and_chain
       upsert_fields []
@@ -207,7 +208,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     attribute :image, :string
 
     attribute :stock_address, :string
-    attribute :stock_chain_id, :integer, allow_nil?: false, default: 8453
+    attribute :stock_chain_id, :integer, allow_nil?: false
     attribute :start_at, :utc_datetime
     attribute :start_timezone, :string
     attribute :floor_price, :string
