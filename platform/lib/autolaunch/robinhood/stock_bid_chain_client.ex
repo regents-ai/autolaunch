@@ -14,12 +14,6 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   for the bid step decodes the adapter's `StockBidPlaced` and the auction's
   `BidSubmitted` from the canonical receipt and checks them against the
   reviewed arguments and the auction's own bid record.
-
-  `verify/3` names the resource `autolaunch_robinhood_bid`. Until
-  `Autolaunch.Chain.Envelope` lists that resource among its Robinhood lab
-  resources, no envelope can be built for it and `verify/3` refuses every
-  envelope with `:lab_config_changed`; that registration lands with the action
-  module that prepares the envelope.
   """
 
   alias Autolaunch.BidPrice

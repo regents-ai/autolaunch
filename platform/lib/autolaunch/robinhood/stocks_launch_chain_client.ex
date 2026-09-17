@@ -12,12 +12,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
   launch step decodes the launchpad's `StockLaunchCreated` from the canonical
   receipt and checks it against the reviewed arguments and the launchpad's own
   record.
-
-  `verify/3` names the resource `autolaunch_robinhood_stocks_launch`. Until
-  `Autolaunch.Chain.Envelope` lists that resource among its Robinhood lab
-  resources, no envelope can be built for it and `verify/3` refuses every
-  envelope with `:lab_config_changed`; that registration lands with the action
-  module that prepares the envelope.
   """
 
   alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
