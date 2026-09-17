@@ -15,11 +15,12 @@ defmodule Autolaunch.IndexerCase do
 
   require Ash.Query
 
-  alias Autolaunch.Indexer.{Block, Cursor, Handler, Log, Source}
+  alias Autolaunch.Indexer.{Block, Cursor, Handler, Ledger, Log, Source}
   alias Autolaunch.Repo
   alias Autolaunch.TestAutolaunchIndexerChainClient, as: Endpoint
 
   @chain_id 8453
+  @chain %{chain_id: @chain_id, rpc_url: "http://indexer.invalid", sources: []}
   @ledger_tables [Log, Block, Source, Cursor]
 
   using do
@@ -33,7 +34,16 @@ defmodule Autolaunch.IndexerCase do
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     clear_ledger()
     on_exit(&clear_ledger/0)
+    configure_chain()
     :ok
+  end
+
+  # The handler admits the chain's configured sources on every pass; the tests
+  # admit theirs explicitly, so the configured set stays empty.
+  defp configure_chain do
+    configured = Application.fetch_env!(:autolaunch, :autolaunch_indexer_chains)
+    Application.put_env(:autolaunch, :autolaunch_indexer_chains, [@chain])
+    on_exit(fn -> Application.put_env(:autolaunch, :autolaunch_indexer_chains, configured) end)
   end
 
   @doc "Runs `attempt` on a real connection whose writes other connections can see."
@@ -93,9 +103,9 @@ defmodule Autolaunch.IndexerCase do
 
   ## Driving the handler
 
-  @doc "Admits one watched address at `start_block` through its private action."
+  @doc "Admits one watched address at `start_block` on the Base ledger."
   def admit(address, start_block),
-    do: unboxed(fn -> Handler.admit_source(address, start_block) end)
+    do: unboxed(fn -> Ledger.admit_source(@chain_id, address, start_block) end)
 
   @doc "One durable-work pass, exactly as the runner would dispatch it."
   def pass, do: unboxed(fn -> Handler.handle(nil, @chain_id) end)

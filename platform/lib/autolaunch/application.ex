@@ -19,8 +19,8 @@ defmodule Autolaunch.Application do
       AutolaunchWeb.Telemetry,
       {Autolaunch.Accounts.BootstrapRateLimiter, []},
       Autolaunch.Repo,
-      autolaunch_indexer_child(),
       {Phoenix.PubSub, name: Autolaunch.PubSub},
+      autolaunch_indexer_children(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
@@ -28,23 +28,32 @@ defmodule Autolaunch.Application do
       # Start to serve requests, typically the last entry
       AutolaunchWeb.Endpoint
     ]
+    |> List.flatten()
     |> Enum.reject(&is_nil/1)
   end
 
-  # The Base log ledger is optional and starts after the repository it writes
-  # to. A dedicated nonempty endpoint is the only thing that turns it on.
-  defp autolaunch_indexer_child do
+  # The log ledger is optional and starts after the repository it writes to and
+  # the notifier it will publish through. Each configured chain gets its own
+  # runner, so one chain's endpoint failing leaves the others and the site
+  # running; a malformed chain list refuses to boot.
+  defp autolaunch_indexer_children do
     with false <- Autolaunch.Prelaunch.read_only?(),
-         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
-         endpoint when is_binary(endpoint) and endpoint != "" <-
-           Application.get_env(:autolaunch, :autolaunch_indexer_rpc_url) do
-      {Autolaunch.DurableWork.Runner,
-       handler: Module.concat(Autolaunch.Indexer, "Handler"),
-       poll_interval_ms: 2_000,
-       max_in_flight: 1}
+         true <- Application.get_env(:autolaunch, :database_startup_enabled, false) do
+      Enum.map(Autolaunch.Indexer.Chains.configured(), &autolaunch_indexer_child/1)
     else
-      _disabled -> nil
+      _disabled -> []
     end
+  end
+
+  defp autolaunch_indexer_child(%{chain_id: chain_id}) do
+    Supervisor.child_spec(
+      {Autolaunch.DurableWork.Runner,
+       handler: Autolaunch.Indexer.Handler,
+       context: chain_id,
+       poll_interval_ms: 2_000,
+       max_in_flight: 1},
+      id: {Autolaunch.Indexer, chain_id}
+    )
   end
 
   defp autolaunch_lab_market_feed_child do
