@@ -26,7 +26,6 @@ defmodule Autolaunch.LabProjection do
       )
       when is_map(lab) and is_map(result) do
     arguments = envelope["arguments"]
-    auction_id = auction_id(result["auction"])
     subject_id = subject_identity(result["subject"])
 
     transact(fn ->
@@ -34,7 +33,6 @@ defmodule Autolaunch.LabProjection do
         envelope,
         arguments,
         result,
-        auction_id,
         subject_id,
         Map.get(operation, :human_account_id)
       )
@@ -168,8 +166,6 @@ defmodule Autolaunch.LabProjection do
     with {:ok, launch} <- read_launch(auction_id), do: {:ok, launch.agent_id}
   end
 
-  def auction_id(address) when is_binary(address), do: stable_uuid("auction:" <> address)
-
   @doc false
   def auction_attrs(arguments, overrides) when is_map(arguments) and is_map(overrides) do
     Map.merge(
@@ -202,7 +198,7 @@ defmodule Autolaunch.LabProjection do
   defp project_auction_state(auction_id, result) do
     with {:ok, auction} <- read_auction(auction_id, true) do
       create(Auction, :project_lab, %{
-        projection_id: auction.id,
+        chain_id: auction.chain_id,
         title: auction.title,
         summary: auction.summary,
         token_symbol: auction.token_symbol,
@@ -353,20 +349,13 @@ defmodule Autolaunch.LabProjection do
   defp transaction_value({:ok, value}), do: value
   defp transaction_value({:error, error}), do: Ash.DataLayer.rollback(Auction, error)
 
-  defp project_launch_records(
-         envelope,
-         arguments,
-         result,
-         auction_id,
-         subject_id,
-         human_account_id
-       ) do
+  defp project_launch_records(envelope, arguments, result, subject_id, human_account_id) do
     with {:ok, auction} <-
            create(
              Auction,
              :project_lab,
              auction_attrs(arguments, %{
-               projection_id: auction_id,
+               chain_id: @chain_id,
                creator_human_account_id: human_account_id,
                state: :active,
                auction_address: result["auction"],
@@ -404,14 +393,6 @@ defmodule Autolaunch.LabProjection do
            }) do
       {:ok, auction}
     end
-  end
-
-  defp stable_uuid(value) do
-    value
-    |> String.downcase()
-    |> then(&:crypto.hash(:sha256, &1))
-    |> binary_part(0, 16)
-    |> Ecto.UUID.load!()
   end
 
   defp lab_envelope?(%{"chain_id" => @chain_id, "metadata" => %{"lab" => lab}})

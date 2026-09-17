@@ -113,7 +113,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          opts <- Lab.rpc_opts(config, "autolaunch stocks market feed"),
          {:ok, block} <- Rpc.latest_block(opts),
          {:ok, projected} <- project_launches(config, block, opts),
-         {:ok, auctions} <- Autolaunch.list_stocks_lab_market_auctions(actor: @actor),
+         {:ok, auctions} <-
+           Autolaunch.list_stocks_lab_market_auctions(config.chain_id, actor: @actor),
          {:ok, snapshots, changed} <- refresh_auctions(config, block, opts, auctions) do
       {:ok, %{head: block, snapshots: snapshots, changed: projected ++ changed}}
     end
@@ -142,13 +143,12 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              opts
            ),
          {:ok, launch} <- launch_record(record),
-         auction_id <- LabProjection.auction_id(launch.auction),
-         {:ok, nil} <- existing(auction_id),
+         {:ok, nil} <- existing(config.chain_id, launch.auction),
          {:ok, %{id: account_id}} <- creator(launch.auction),
          %{} = lab_stock <- Lab.stock(config, launch.stock) || :unknown_stock,
          {:ok, name} <- erc20_string(launch.new_token, "name()", block, opts),
          {:ok, symbol} <- erc20_string(launch.new_token, "symbol()", block, opts),
-         :ok <-
+         {:ok, auction} <-
            StocksProjection.project_observed(%{
              auction_address: launch.auction,
              creator_human_account_id: account_id,
@@ -163,7 +163,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              state: :created,
              treasury_address: Lab.address!(config, :launchpad)
            }) do
-      {:ok, auction_id}
+      {:ok, auction.id}
     else
       {:error, reason} -> {:error, reason}
       _skipped -> {:ok, nil}
@@ -182,12 +182,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
 
   defp launch_record(_record), do: :error
 
-  defp existing(auction_id) do
-    Autolaunch.Auction
-    |> Ash.Query.for_read(:read, %{}, actor: @actor)
-    |> Ash.Query.filter(id == ^auction_id)
-    |> Ash.read_one(actor: @actor)
-    |> case do
+  defp existing(chain_id, auction_address) do
+    case Autolaunch.get_auction_by_chain_address(chain_id, auction_address, actor: @actor) do
       {:ok, nil} -> {:ok, nil}
       {:ok, _row} -> {:ok, :exists}
       {:error, reason} -> {:error, reason}
