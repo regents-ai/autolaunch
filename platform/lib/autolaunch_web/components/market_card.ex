@@ -185,7 +185,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           :if={@trade_path}
           navigate={@trade_path}
           class="rg-button rg-button--primary market-identity__trade"
-        ><span class="rg-button__label">Trade {@view.name}
+        ><span class="rg-button__label">Trade {@view.symbol}
         <span class="market-identity__trade-arrow" aria-hidden="true">→</span></span></.link>
         <p
           :if={!@trade_path && present?(@view.description)}
