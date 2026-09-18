@@ -37,11 +37,11 @@ defmodule Autolaunch.SwapActions do
   # Price protection: how far below today's quote the trade may settle, in
   # hundredths of a percent. The trader chooses between 1% and 10%.
   @protection_range 100..1_000
+  # The router refuses the swap once this many seconds have passed since the review.
   @deadline_seconds 900
   # The quoter negates the amount as an int128, so an input stays below 2^127.
   @max_input Integer.pow(2, 127) - 1
   @uint128_max Integer.pow(2, 128) - 1
-  @max_header_seconds 253_402_300_799 - @deadline_seconds
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
   @transfer_topic "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
@@ -345,7 +345,6 @@ defmodule Autolaunch.SwapActions do
              )
            ),
          {:ok, permit2} <- Permit2Abi.decode_allowance(permit2_words) |> decoded(),
-         {:ok, header} <- block_header(block, rpc),
          {:ok, quote} <- quote(trade, amount_in, block, rpc) do
       {:ok,
        %{
@@ -353,8 +352,7 @@ defmodule Autolaunch.SwapActions do
          token_allowance: token_allowance,
          permit2: permit2,
          quote: quote,
-         block: block,
-         timestamp: header.timestamp
+         block: block
        }}
     end
   end
@@ -393,7 +391,7 @@ defmodule Autolaunch.SwapActions do
 
   defp build(trade, signer, limits, snapshot, pool, venue) do
     %{amount_in: amount_in, min_out: min_out, protection: protection} = limits
-    deadline = snapshot.timestamp + @deadline_seconds
+    deadline = System.os_time(:second) + @deadline_seconds
     steps = reviewed_steps(trade, amount_in, min_out, deadline, snapshot)
     data = steps |> List.last() |> Map.fetch!("data")
 
@@ -574,22 +572,6 @@ defmodule Autolaunch.SwapActions do
   defp downcased(_topics), do: []
 
   defp topic_address("0x" <> hex), do: "0x" <> String.pad_leading(String.downcase(hex), 64, "0")
-
-  # The header of the snapshot block itself, by hash, so the deadline is
-  # counted from the same block every read above was pinned to.
-  defp block_header(%{hash: hash}, rpc) do
-    with {:ok, %{"hash" => header_hash, "timestamp" => "0x" <> hex}}
-         when is_binary(header_hash) and is_binary(hex) <-
-           Rpc.request("eth_getBlockByHash", [hash, false], rpc),
-         true <- String.downcase(header_hash) == hash,
-         true <- Regex.match?(~r/^[0-9a-f]+$/i, hex),
-         {timestamp, ""} when timestamp in 0..@max_header_seconds <- Integer.parse(hex, 16) do
-      {:ok, %{timestamp: timestamp}}
-    else
-      {:error, reason} -> chain({:error, reason})
-      _other -> unavailable(:invalid_chain_response)
-    end
-  end
 
   defp units(amount, %{decimals: decimals}), do: Rpc.format_units(amount, decimals)
   defp compact(value, significant), do: Amounts.compact_decimal(value, significant)
