@@ -444,6 +444,19 @@
     },
     {
       "type": "function",
+      "name": "lpLocker",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract RevstakeLPLocker"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "migrate",
       "inputs": [
         {
@@ -1121,6 +1134,7 @@
     "factory()": "c45a0155",
     "hook()": "7f5a7c7b",
     "initializeDistribution((uint256,address,uint128))": "d7750ed5",
+    "lpLocker()": "03fc2013",
     "migrate(address)": "ce5494bb",
     "minimumRegentRaised()": "4c33ffab",
     "poolKeyOf(address)": "8652edf9",

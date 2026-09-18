@@ -154,7 +154,8 @@ statement about this candidate, and this packet makes none.
 7. **the frozen release surface** — `bin/freeze-artifacts.py check` regenerates every committed ABI,
    surface, size and manifest document from these artifacts and compares byte for byte, then proves
    that exactly the `src/**` contracts the frozen `final_source_delta` record names differ from the
-   pre-edit C4 baseline, that each of them really differs, and that every other one still matches;
+   pre-edit C4 baseline, that each of them really differs, that every other one still matches, and
+   that a contract the baseline does not record is named with a reason in that record's `added` list;
 8. `forge test --list --json` and `forge test --json -vv`, reconciled as multisets;
 9. ledger reconciliation: every due claim maps to an executed selector, and every gate-dependency
    claim additionally needs the gate's own verified receipt;

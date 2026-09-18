@@ -6,6 +6,7 @@ import {ConditionalVestingEscrowV1} from "../../src/escrow/ConditionalVestingEsc
 import {RegentsAutolaunchFactoryV1} from "../../src/factory/RegentsAutolaunchFactoryV1.sol";
 import {RegentFeeHook} from "../../src/hook/RegentFeeHook.sol";
 import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
+import {RevstakeLPLocker} from "../../src/revenue/RevstakeLPLocker.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
@@ -58,6 +59,7 @@ contract AutolaunchDeployableSizesTest is AutolaunchFixture {
         _assertRuntime(3, "ConditionalVestingEscrowV1", address(escrowImplementation));
         _assertRuntime(4, "SubjectSplitterV1", address(splitterImplementation));
         _assertRuntime(5, "PaymentReceiverV1", address(receiverImplementation));
+        _assertRuntime(6, "RevstakeLPLocker", address(strategy.lpLocker()));
 
         // The pinned UERC20 factory the ceremony also deploys, and the per-launch SUBJECT build
         // the pinned factory deploys inside every launch. Both are recorded as deployment-pending
@@ -147,6 +149,9 @@ contract AutolaunchDeployableSizesTest is AutolaunchFixture {
         _assertInitcode(3, "ConditionalVestingEscrowV1", type(ConditionalVestingEscrowV1).creationCode.length, 0);
         _assertInitcode(4, "SubjectSplitterV1", type(SubjectSplitterV1).creationCode.length, 0);
         _assertInitcode(5, "PaymentReceiverV1", type(PaymentReceiverV1).creationCode.length, 0);
+        _assertInitcode(
+            6, "RevstakeLPLocker", type(RevstakeLPLocker).creationCode.length, abi.encode(address(strategy)).length
+        );
 
         // The pinned dependency builds. The UERC20 factory takes no constructor arguments, and a
         // per-launch UERC20's are encoded by that factory rather than by any deployment packet, so

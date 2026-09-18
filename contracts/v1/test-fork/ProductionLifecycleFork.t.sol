@@ -423,11 +423,11 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
         );
         assertEq(hook.splitterOf(d.poolId), d.splitter, "the pool is not registered to this launch's splitter");
 
-        // Exactly one full-range position, owned forever by the dead address.
+        // Exactly one full-range position, owned forever by the fee-only locker.
         assertEq(
             IERC721(BaseBindings.POSITION_MANAGER).ownerOf(d.lpTokenId),
-            BaseBindings.DEAD_ADDRESS,
-            "the managed LP NFT is not owned by the dead address"
+            address(strategy.lpLocker()),
+            "the managed LP NFT is not owned by the permanent locker"
         );
         assertGt(
             IPositionManager(BaseBindings.POSITION_MANAGER).getPositionLiquidity(d.lpTokenId),

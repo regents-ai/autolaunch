@@ -22,7 +22,8 @@
     "RegentFeeHook",
     "ConditionalVestingEscrowV1",
     "SubjectSplitterV1",
-    "PaymentReceiverV1"
+    "PaymentReceiverV1",
+    "RevstakeLPLocker"
   ],
   "contracts": {
     "RegentsAutolaunchFactoryV1": {
@@ -33,9 +34,9 @@
       "runtime_sha256": "0108a34e86f5a04671c253b13b5852dfeb631dcaebaa93b1207ff0f277b4beac",
       "runtime_immutable_references": 3,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 34858,
-      "creation_keccak256": "0xd9d68dc0368101817c4377c21786f9f604527fd4300c0efe66199f215ab096ee",
-      "creation_sha256": "384fb92964d1ffc5e182ed38901754cc4d7d83fedf24c1a98bbd5d3f3120be03",
+      "creation_bytes": 38964,
+      "creation_keccak256": "0x0feae88b15d90d2b78a50655f92c724d6aca765c99b5b4209afbe97e06fc67b6",
+      "creation_sha256": "278a8ad1573a3a38809e21c4838a719af328d9c91f4314c1c2a008e288a018d3",
       "constructor": [
         "address uerc20Factory_",
         "address escrowImplementation_",
@@ -52,14 +53,14 @@
     "RegentLBPStrategy": {
       "source": "src/strategy/RegentLBPStrategy.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 19821,
-      "runtime_keccak256": "0x55a56a8dd4b85a1a366ee399e2d70fddd6a0a53f00651d8e78ed3dd58a91da7a",
-      "runtime_sha256": "99c853f53b49f527ed88042ebb94bae25520a90e48ab6e00e1cd93f207384da6",
-      "runtime_immutable_references": 5,
+      "runtime_bytes": 20201,
+      "runtime_keccak256": "0x207725d88041e00eaebd9b83a95fcd88756e1299dedc69606304e849b29b1fdf",
+      "runtime_sha256": "3ef0a4cde31ad246d9b5e2e83c85bc4a88a509d3be30b300c7f842630c8c46e6",
+      "runtime_immutable_references": 6,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 20372,
-      "creation_keccak256": "0x87158d01154287c88500d470f46913d0f0a640ef2c099ce04714b97f482719b4",
-      "creation_sha256": "0d5567bf4c4ac4dea3a57898f2784fad1b409ed31f69586f95d9001149c66ed7",
+      "creation_bytes": 24478,
+      "creation_keccak256": "0x5e16201070204dad970cfeb09379e798f847ad3f3d919ed7890a1cda5fde9b18",
+      "creation_sha256": "ada3e990881ca5d87e56ea062943933d7fa4af56e67ac7757b5bcf0105939728",
       "constructor": [
         "address factory_",
         "address escrowImplementation_",
@@ -142,6 +143,26 @@
       "creation_sha256": "c1ed987bc10a51b3c5927017de756498af8c3edd5d371f347cb78e0211b30667",
       "constructor": [],
       "abi_file": "abi/PaymentReceiverV1.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
+    "RevstakeLPLocker": {
+      "source": "src/revenue/RevstakeLPLocker.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 3474,
+      "runtime_keccak256": "0x079d3b5464ea14138cf5abb12b26802cca43012e653f47ac07050d5cc2fe8490",
+      "runtime_sha256": "47f9361fb24f66fab4b34062120d3b39b7ea628bd207ac680eb7f2ac76c037a3",
+      "runtime_immutable_references": 1,
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3628,
+      "creation_keccak256": "0xfa6b6756061362ff6003f0eca2734df0c4615da380d5d9bf78bb1dbf7f4f41ed",
+      "creation_sha256": "560acf6dde6ca0c49fc5540e6cd2a8cd934f2ce6b3e7b00075c08779a62fb6cb",
+      "constructor": [
+        "address strategy_"
+      ],
+      "abi_file": "abi/RevstakeLPLocker.json",
       "deployment": {
         "address": null,
         "status": "deployment_pending"

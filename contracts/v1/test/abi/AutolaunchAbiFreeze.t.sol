@@ -6,6 +6,7 @@ import {ConditionalVestingEscrowV1} from "../../src/escrow/ConditionalVestingEsc
 import {RegentsAutolaunchFactoryV1} from "../../src/factory/RegentsAutolaunchFactoryV1.sol";
 import {RegentFeeHook} from "../../src/hook/RegentFeeHook.sol";
 import {PaymentReceiverV1} from "../../src/revenue/PaymentReceiverV1.sol";
+import {RevstakeLPLocker} from "../../src/revenue/RevstakeLPLocker.sol";
 import {SubjectSplitterV1} from "../../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../../src/strategy/RegentLBPStrategy.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
@@ -29,6 +30,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     string internal constant ESCROW = "ConditionalVestingEscrowV1";
     string internal constant SPLITTER = "SubjectSplitterV1";
     string internal constant RECEIVER = "PaymentReceiverV1";
+    string internal constant LOCKER = "RevstakeLPLocker";
 
     function setUp() public {
         _loadFrozenSurface();
@@ -266,6 +268,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEvents(ESCROW, _escrowEvents());
         _assertEvents(SPLITTER, _splitterEvents());
         _assertEvents(RECEIVER, _receiverEvents());
+        _assertEvents(LOCKER, _lockerEvents());
 
         _assertEventFields(
             FACTORY,
@@ -355,6 +358,15 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEventFields(RECEIVER, "ReceiverNoteUpdated", "bytes32 previousNote|bytes32 newNote");
         _assertEventFields(
             RECEIVER, "UnsupportedTokenRecovered", "address indexed token|address indexed treasury|uint256 amount"
+        );
+
+        _assertEventFields(
+            LOCKER,
+            "FeesDeposited",
+            "uint256 indexed tokenId|address indexed splitter|address currency0|address currency1|uint256 amount0|uint256 amount1"
+        );
+        _assertEventFields(
+            LOCKER, "PositionLocked", "uint256 indexed tokenId|bytes32 indexed poolId|address indexed splitter"
         );
     }
 
@@ -556,7 +568,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             "recoverMigration"
         ];
 
-        string[6] memory contractNames = [FACTORY, STRATEGY, HOOK, ESCROW, SPLITTER, RECEIVER];
+        string[7] memory contractNames = [FACTORY, STRATEGY, HOOK, ESCROW, SPLITTER, RECEIVER, LOCKER];
         for (uint256 c; c < contractNames.length; ++c) {
             string[] memory functions = _frozenStrings(contractNames[c], "functions");
             for (uint256 i; i < obsolete.length; ++i) {
@@ -567,13 +579,14 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             }
         }
 
-        address[6] memory runtimes = [
+        address[7] memory runtimes = [
             address(factory),
             address(strategy),
             address(hook),
             address(escrowImplementation),
             address(splitterImplementation),
-            address(receiverImplementation)
+            address(receiverImplementation),
+            address(strategy.lpLocker())
         ];
         string[4] memory obsoleteSignatures =
             ["setSafe(address)", "registerIdentity(address,bytes32)", "flushFees(address)", "retryMigration(address)"];
@@ -628,7 +641,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         string memory getterLine = _functionLine(bytes4(keccak256("recoveryAdmin()")), "recoveryAdmin()");
 
         string memory manifest = vm.readFile(MANIFEST_PATH);
-        string[6] memory contractNames = [FACTORY, STRATEGY, HOOK, ESCROW, SPLITTER, RECEIVER];
+        string[7] memory contractNames = [FACTORY, STRATEGY, HOOK, ESCROW, SPLITTER, RECEIVER, LOCKER];
 
         for (uint256 c; c < contractNames.length; ++c) {
             string memory name = contractNames[c];
@@ -693,7 +706,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         string memory manifest = vm.readFile(MANIFEST_PATH);
 
         // Nothing in this repository is deployed. Every Regent address is null.
-        string[6] memory allowlist = [FACTORY, STRATEGY, HOOK, ESCROW, SPLITTER, RECEIVER];
+        string[7] memory allowlist = [FACTORY, STRATEGY, HOOK, ESCROW, SPLITTER, RECEIVER, LOCKER];
         for (uint256 i; i < allowlist.length; ++i) {
             assertEq(
                 vm.parseJsonString(manifest, string.concat(".contracts.", allowlist[i], ".deployment.status")),
@@ -745,8 +758,9 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
 
         // The final-source-delta record is closed and reasoned. `bin/freeze-artifacts.py check` is
         // what compares bytes; this is the independent Solidity side of the same claim — the record
-        // names exactly the five production contracts the successor sequence moved, and nothing
-        // else. The escrow remains byte-identical to the C4 capture.
+        // names exactly the five production contracts the successor sequence moved and exactly the
+        // one contract written after the capture, and nothing else. The escrow remains
+        // byte-identical to the C4 capture.
         string memory frozenIdentity = vm.readFile("requirements/frozen-identity.json");
         string[5] memory changed = [
             "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
@@ -771,6 +785,20 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         assertFalse(
             vm.keyExistsJson(frozenIdentity, ".final_source_delta.changed[5]"),
             "the final-source-delta record names a sixth contract"
+        );
+        assertEq(
+            vm.parseJsonString(frozenIdentity, ".final_source_delta.added[0].key"),
+            "src/revenue/RevstakeLPLocker.sol:RevstakeLPLocker",
+            "the final-source-delta record names another added contract"
+        );
+        assertGt(
+            bytes(vm.parseJsonString(frozenIdentity, ".final_source_delta.added[0].reason")).length,
+            0,
+            "the added final-source-delta entry carries no reason"
+        );
+        assertFalse(
+            vm.keyExistsJson(frozenIdentity, ".final_source_delta.added[1]"),
+            "the final-source-delta record names a second added contract"
         );
     }
 
@@ -956,5 +984,13 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         );
         events[4] = FrozenEvent(PaymentReceiverV1.ForcedEthRecovered.selector, "ForcedEthRecovered(address,uint256)", 1);
         events[5] = FrozenEvent(Initializable.Initialized.selector, "Initialized(uint64)", 0);
+    }
+
+    function _lockerEvents() private pure returns (FrozenEvent[] memory events) {
+        events = new FrozenEvent[](2);
+        events[0] = FrozenEvent(RevstakeLPLocker.PositionLocked.selector, "PositionLocked(uint256,bytes32,address)", 3);
+        events[1] = FrozenEvent(
+            RevstakeLPLocker.FeesDeposited.selector, "FeesDeposited(uint256,address,address,address,uint256,uint256)", 2
+        );
     }
 }
