@@ -1,5 +1,5 @@
 defmodule Autolaunch.LaunchDraft do
-  alias Autolaunch.{LaunchChain, LaunchDraftImage, LaunchDraftImageStorage}
+  alias Autolaunch.{LaunchDraftImage, LaunchDraftImageStorage}
 
   use Ash.Resource,
     otp_app: :autolaunch,
@@ -88,12 +88,12 @@ defmodule Autolaunch.LaunchDraft do
 
   actions do
     create :create_for_owner do
-      accept [:chain | @account_clean_v1_fields]
+      accept @account_clean_v1_fields
       change Autolaunch.LaunchDraft.Changes.EnsurePartialDefaults
       validate Autolaunch.LaunchDraft.Validations.PartialFields
       change Autolaunch.LaunchDraft.Changes.AssignOwner
       upsert? true
-      upsert_identity :one_account_owned_draft_per_human_and_chain
+      upsert_identity :one_account_owned_draft_per_human
       upsert_fields []
       return_skipped_upsert? true
     end
@@ -112,8 +112,7 @@ defmodule Autolaunch.LaunchDraft do
 
     read :mine_account_owned do
       get? true
-      argument :chain, :atom, allow_nil?: false, constraints: [one_of: LaunchChain.chains()]
-      filter expr(human_account_id == ^actor(:human_account_id) and chain == ^arg(:chain))
+      filter expr(human_account_id == ^actor(:human_account_id))
       prepare build(load: [:launch_draft_image])
     end
 
@@ -187,13 +186,6 @@ defmodule Autolaunch.LaunchDraft do
   attributes do
     uuid_primary_key :id
 
-    attribute :chain, :atom do
-      allow_nil? false
-      public? true
-      default :base
-      constraints one_of: LaunchChain.chains()
-    end
-
     attribute :name, :string do
       source :token_name
       allow_nil? false
@@ -247,6 +239,6 @@ defmodule Autolaunch.LaunchDraft do
   end
 
   identities do
-    identity :one_account_owned_draft_per_human_and_chain, [:human_account_id, :chain]
+    identity :one_account_owned_draft_per_human, [:human_account_id]
   end
 end

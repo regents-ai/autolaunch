@@ -2,16 +2,13 @@ defmodule Autolaunch.Robinhood do
   @moduledoc """
   Stand-in Robinhood launchpad terms, mirroring `contracts/robinhood/src/RobinhoodPreset.sol`.
 
-  The Robinhood launchpads are not deployed, so nothing here is read from a
+  The Robinhood stocks launchpad is not deployed, so nothing here is read from a
   chain yet; a chain client replaces these values once the founder supplies
   the Robinhood bindings.
   """
 
-  @minimum_raise_usdg %{revshare: "5000", stocks: "1000"}
-
-  @doc "The launchpad's USDG minimum raise for one launch kind, in whole USDG."
-  def minimum_raise_usdg(kind) when kind in [:revshare, :stocks],
-    do: Map.fetch!(@minimum_raise_usdg, kind)
+  @doc "The stocks launchpad's USDG minimum raise, in whole USDG."
+  def minimum_raise_usdg, do: "1000"
 
   @doc "The fixed terms every Robinhood stock launch uses, worded for the create page."
   def stock_terms do

@@ -99,7 +99,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     ~H"""
     <section id="autolaunch-create">
       <p :if={@auction_limit_reached} class="launchpad-limit" role="status">
-        You already have an auction on this chain. One auction per chain for now.
+        You already have an auction. One auction per account for now.
       </p>
 
       <.empty_state

@@ -403,8 +403,8 @@ defmodule Autolaunch.LaunchActions do
   # account does not hold is never even named.
   defp owned_draft(draft_id, actor) do
     case Autolaunch.get_my_launch_draft(draft_id, actor: actor) do
-      {:ok, %{chain: :base} = draft} -> {:ok, draft}
-      {:ok, _missing_or_other_chain} -> unavailable(:launch_draft_not_found)
+      {:ok, nil} -> unavailable(:launch_draft_not_found)
+      {:ok, draft} -> {:ok, draft}
       {:error, _reason} -> unavailable(:launch_draft_unavailable)
     end
   end
@@ -588,7 +588,6 @@ defmodule Autolaunch.LaunchActions do
              LaunchOperations.create(account, %{
                action_id: envelope["action_id"],
                launch_draft_id: draft.id,
-               chain: draft.chain,
                envelope: envelope,
                signer: signer,
                step: first_step(envelope)

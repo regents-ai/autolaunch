@@ -63,7 +63,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
       end)
 
   defp assign_minimum_raise(socket, :robinhood),
-    do: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg(:stocks))
+    do: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg())
 
   # Client events are not proof of ownership; the anonymous entry has no draft.
   def handle_event(_event, _params, %{assigns: %{status: :sign_in_required}} = socket),

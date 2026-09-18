@@ -4,21 +4,20 @@ defmodule Autolaunch.LaunchOperation.Validations.AuctionLimit do
 
   @impl true
   def validate(changeset, _opts, _context) do
-    case {Ash.Changeset.get_argument(changeset, :human_account_id),
-          Ash.Changeset.get_attribute(changeset, :chain)} do
-      {id, chain} when is_integer(id) and is_atom(chain) -> check_limit(id, chain)
+    case Ash.Changeset.get_argument(changeset, :human_account_id) do
+      id when is_integer(id) -> check_limit(id)
       _ -> :ok
     end
   end
 
-  defp check_limit(id, chain) do
-    n = Autolaunch.auctions_prepared_by(id, chain)
+  defp check_limit(id) do
+    n = Autolaunch.auctions_prepared_by(id)
 
     if n >= Autolaunch.Limits.auctions_per_account() do
       {:error,
        Ash.Error.Changes.InvalidArgument.exception(
          field: :human_account_id,
-         message: "You already have an auction on this chain. One auction per chain for now.",
+         message: "You already have an auction. One auction per account for now.",
          value: n,
          vars: [code: :auction_limit_reached]
        )}

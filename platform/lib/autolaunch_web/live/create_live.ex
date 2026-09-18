@@ -86,7 +86,7 @@ defmodule AutolaunchWeb.CreateLive do
     actor = human_actor(socket)
 
     with %Human{} = actor <- actor,
-         {:ok, draft} <- current_or_new_draft(actor, socket.assigns.launch_chain) do
+         {:ok, draft} <- current_or_new_draft(actor) do
       request_id = make_ref()
       socket = cancel_image_fetch(socket)
 
@@ -266,12 +266,10 @@ defmodule AutolaunchWeb.CreateLive do
 
     values = Map.take(submitted, params)
 
-    chain = socket.assigns.launch_chain
-
     with %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor, chain),
+         {:ok, draft} <- current_or_new_draft(actor),
          {:ok, _saved} <- autosave_draft(event, draft, values, actor),
-         {:ok, reloaded} <- reload_draft(actor, chain) do
+         {:ok, reloaded} <- reload_draft(actor) do
       {:noreply,
        socket
        |> assign_loaded_draft(reloaded, actor)
@@ -314,7 +312,7 @@ defmodule AutolaunchWeb.CreateLive do
     with bytes when is_binary(bytes) <-
            consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
          %Human{} = actor <- human_actor(socket),
-         {:ok, draft} <- current_or_new_draft(actor, socket.assigns.launch_chain),
+         {:ok, draft} <- current_or_new_draft(actor),
          {:ok, stored} <-
            LaunchDraftImageStorage.store_and_attach(
              draft,
@@ -384,7 +382,7 @@ defmodule AutolaunchWeb.CreateLive do
     do: {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
 
   defp load_create(socket, actor) do
-    case current_or_new_draft(actor, socket.assigns.launch_chain) do
+    case current_or_new_draft(actor) do
       {:ok, draft} ->
         socket
         |> assign_loaded_draft(draft, actor)
@@ -409,7 +407,7 @@ defmodule AutolaunchWeb.CreateLive do
       minimum_raise: nil,
       x_connections: [],
       x_oauth_enabled: XOAuth.enabled?(),
-      auction_limit_reached: auction_limit_reached?(actor, socket.assigns.launch_chain),
+      auction_limit_reached: auction_limit_reached?(actor),
       current_human_id: actor.human_account_id,
       status: :loading
     )
@@ -419,22 +417,22 @@ defmodule AutolaunchWeb.CreateLive do
     assign(socket,
       launch_drafts: [draft],
       draft_values: Templates.draft_values(draft),
-      auction_limit_reached: auction_limit_reached?(actor, draft.chain),
+      auction_limit_reached: auction_limit_reached?(actor),
       current_human_id: actor.human_account_id,
       status: :ready
     )
   end
 
-  defp current_or_new_draft(actor, chain) do
-    case Autolaunch.get_my_account_launch_draft(chain, actor: actor) do
-      {:ok, nil} -> Autolaunch.create_launch_draft(%{chain: chain}, actor: actor)
+  defp current_or_new_draft(actor) do
+    case Autolaunch.get_my_account_launch_draft(actor: actor) do
+      {:ok, nil} -> Autolaunch.create_launch_draft(%{}, actor: actor)
       {:ok, draft} -> {:ok, draft}
       {:error, error} -> {:error, error}
     end
   end
 
-  defp reload_draft(actor, chain) do
-    case Autolaunch.get_my_account_launch_draft(chain, actor: actor) do
+  defp reload_draft(actor) do
+    case Autolaunch.get_my_account_launch_draft(actor: actor) do
       {:ok, nil} -> {:error, :image_unavailable}
       other -> other
     end
@@ -449,11 +447,11 @@ defmodule AutolaunchWeb.CreateLive do
     end
   end
 
-  defp auction_limit_reached?(%Human{human_account_id: id}, chain) do
-    Autolaunch.auctions_prepared_by(id, chain) >= Limits.auctions_per_account()
+  defp auction_limit_reached?(%Human{human_account_id: id}) do
+    Autolaunch.auctions_prepared_by(id) >= Limits.auctions_per_account()
   end
 
-  defp auction_limit_reached?(_actor, _chain), do: false
+  defp auction_limit_reached?(_actor), do: false
 
   defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}}) do
     params = Templates.draft_field_params()

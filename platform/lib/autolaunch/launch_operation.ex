@@ -87,7 +87,7 @@ defmodule Autolaunch.LaunchOperation do
     end
 
     create :prepare do
-      accept [:action_id, :envelope, :signer, :step, :chain]
+      accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false
       argument :launch_draft_id, :uuid, allow_nil?: false
       validate Autolaunch.LaunchOperation.Validations.AuctionLimit
@@ -237,14 +237,6 @@ defmodule Autolaunch.LaunchOperation do
 
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
-
-    # The chain the reviewed draft launches on; the site's one-auction rule
-    # counts per chain. Operations recorded before Robinhood existed are Base.
-    attribute :chain, :atom do
-      allow_nil? false
-      default :base
-      constraints one_of: Autolaunch.LaunchChain.chains()
-    end
 
     for hash <- @hashes do
       attribute hash, :string, sensitive?: true, constraints: [min_length: 66, max_length: 66]
