@@ -132,18 +132,78 @@ defmodule Autolaunch.SwapActions do
 
   @doc """
   Today's quote for an amount, for anyone looking at the form: what the pool
-  would pay out after its fees. It reads only public pool facts and binds
-  nothing; the review is what a wallet signs.
+  would pay out after its fees, and the token's price in the pool's currency
+  that payout implies. It reads only public pool facts and binds nothing; the
+  review is what a wallet signs.
   """
-  @spec estimate(map()) :: {:ok, String.t()} | {:error, term()}
+  @spec estimate(map()) :: {:ok, %{received: String.t(), rate: String.t()}} | {:error, term()}
   def estimate(%{auction: auction, direction: direction, amount: amount})
       when direction in [:buy, :sell] do
     with {:ok, pool} <- pool(auction),
          {:ok, venue} <- venue(pool.kind),
          trade <- trade(pool, direction),
          {:ok, amount_in} <- amount_in(amount, trade.sell.decimals),
-         {:ok, quote} <- quote(trade, amount_in, pool.block, venue.rpc),
-         do: {:ok, compact(units(quote, trade.buy))}
+         {:ok, quote} <- quote(trade, amount_in, pool.block, venue.rpc) do
+      {:ok,
+       %{
+         received: compact(units(quote, trade.buy), 8),
+         rate: rate(trade, amount_in, quote, pool)
+       }}
+    end
+  end
+
+  @doc """
+  What a wallet holds of the pool's two sides, for the form's balance lines.
+  A public read of public balances; nothing is bound to it.
+  """
+  @spec balances(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def balances(auction, address) do
+    with {:ok, holder} <- address(address),
+         {:ok, pool} <- pool(auction),
+         {:ok, venue} <- venue(pool.kind),
+         {:ok, token} <- balance(pool.token, holder, pool.block, venue.rpc),
+         {:ok, currency} <- balance(pool.currency, holder, pool.block, venue.rpc),
+         do: {:ok, %{token: token, currency: currency}}
+  end
+
+  defp balance(asset, holder, block, rpc) do
+    with {:ok, atomic} <-
+           chain(
+             Rpc.call_uint(asset.address, Abi.encode_erc20("balance_of", [holder]), block, rpc)
+           ),
+         do:
+           {:ok, %{atomic: atomic, decimals: asset.decimals, shown: held(atomic, asset.decimals)}}
+  end
+
+  # A balance line: cut, never rounded up, to four decimal places.
+  defp held(atomic, decimals) do
+    atomic
+    |> Decimal.new()
+    |> Decimal.div(Decimal.new(Integer.pow(10, decimals)))
+    |> Decimal.round(4, :down)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+  end
+
+  @doc "A whole-percent share of a balance from `balances/2`, as the exact amount to type."
+  @spec portion(%{atomic: non_neg_integer(), decimals: non_neg_integer()}, 1..100) :: String.t()
+  def portion(%{atomic: atomic, decimals: decimals}, percent) when percent in 1..100,
+    do: Rpc.format_units(div(atomic * percent, 100), decimals)
+
+  # The token's price in the pool's currency, whichever way the trade runs.
+  defp rate(trade, amount_in, quote, pool) do
+    {token_atomic, currency_atomic} =
+      if trade.direction == :buy, do: {quote, amount_in}, else: {amount_in, quote}
+
+    price =
+      currency_atomic
+      |> Decimal.new()
+      |> Decimal.div(Decimal.new(Integer.pow(10, pool.currency.decimals)))
+      |> Decimal.div(Decimal.div(token_atomic, Integer.pow(10, pool.token.decimals)))
+      |> Decimal.normalize()
+      |> Decimal.to_string(:normal)
+
+    "1 #{pool.token.symbol} = #{compact(price, 6)} #{pool.currency.symbol}"
   end
 
   @doc """
@@ -375,22 +435,16 @@ defmodule Autolaunch.SwapActions do
     %{envelope: envelope, steps: steps, review: review(trade, limits, snapshot)}
   end
 
+  # The few figures the form shows beside the wallet steps.
   defp review(trade, %{amount_in: amount_in, min_out: min_out, protection: protection}, snapshot) do
-    [
-      ["You pay", "#{units(amount_in, trade.sell)} #{trade.sell.symbol}"],
-      [
-        "You receive about",
-        "#{compact(units(snapshot.quote, trade.buy))} #{trade.buy.symbol}, after the pool's fees"
-      ],
-      [
-        "Lowest #{trade.buy.symbol} you accept",
-        "#{compact(units(min_out, trade.buy))} #{trade.buy.symbol}, at most #{protection_percent(protection)}% below today's quote"
-      ],
-      [
-        "Must be included by",
-        "#{block_time(snapshot.timestamp + @deadline_seconds)}, about #{div(@deadline_seconds, 60)} minutes after this review"
-      ]
-    ]
+    %{
+      pay: units(amount_in, trade.sell),
+      sell_symbol: trade.sell.symbol,
+      receive: compact(units(snapshot.quote, trade.buy), 8),
+      minimum: compact(units(min_out, trade.buy), 8),
+      buy_symbol: trade.buy.symbol,
+      protection: protection_percent(protection)
+    }
   end
 
   defp risk_copy(trade, amount_in) do
@@ -490,7 +544,13 @@ defmodule Autolaunch.SwapActions do
       outcome: :confirmed,
       result: %{
         "received_atomic" => Integer.to_string(received),
-        "received_units" => Rpc.format_units(received, arguments["buy_decimals"]),
+        "received_units" => compact(Rpc.format_units(received, arguments["buy_decimals"]), 8),
+        "paid_units" =>
+          Rpc.format_units(
+            String.to_integer(arguments["amount_in_atomic"]),
+            arguments["sell_decimals"]
+          ),
+        "sell_symbol" => arguments["sell_symbol"],
         "buy_symbol" => arguments["buy_symbol"]
       }
     }
@@ -532,10 +592,7 @@ defmodule Autolaunch.SwapActions do
   end
 
   defp units(amount, %{decimals: decimals}), do: Rpc.format_units(amount, decimals)
-  defp compact(value), do: Amounts.compact_decimal(value)
-
-  defp block_time(unix),
-    do: unix |> DateTime.from_unix!() |> Calendar.strftime("%Y-%m-%d %H:%M:%S UTC")
+  defp compact(value, significant), do: Amounts.compact_decimal(value, significant)
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 

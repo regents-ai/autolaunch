@@ -1,12 +1,13 @@
 defmodule AutolaunchWeb.SwapComponent do
   @moduledoc """
-  The trade form shared by the token page and the listing dialogs: an amount, a
-  live quote, a price-protection option, then one review and the wallet steps
-  it names.
+  The swap form shared by the token page and the listing dialogs. Everything
+  happens on the one form: an amount, a live quote, a max-slippage setting
+  behind the gear, then a panel over the form that walks the wallet through the
+  swap and closes itself when the swap lands.
 
-  Nothing is stored. The quote is a public read; the review lives on this page
-  only, the browser reports a hash and stops, and every outcome on screen is
-  the server's own read of that hash.
+  Nothing is stored. The quote and the balances are public reads; the review
+  lives on this page only, the browser reports a hash and stops, and every
+  outcome on screen is the server's own read of that hash.
   """
   use AutolaunchWeb, :live_component
 
@@ -14,35 +15,39 @@ defmodule AutolaunchWeb.SwapComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.SwapActions
+  alias Phoenix.LiveView.JS
 
   @default_protection "1"
+  # A sent step is read again on its own this often, this many times, before
+  # the form offers the read as a button instead.
+  @recheck_ms 2_000
+  @recheck_limit 90
 
   @copy %{
-    authentication_required: "Sign in to trade from your wallet.",
+    authentication_required: "Sign in to swap from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
     wrong_signer:
       "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
-    invalid_address: "Connect the wallet you signed in with, then review the trade again.",
+    invalid_address: "Connect the wallet you signed in with, then try again.",
     chain_unavailable: "The pool could not be read just now. Try again in a moment.",
     invalid_chain_response: "The pool gave an incomplete answer. Try again in a moment.",
     lab_config_changed: "The network changed while this was prepared. Try again.",
-    lab_contract_missing: "Trading is not available for this token yet.",
-    swap_unavailable: "Trading is not available for this token yet.",
+    lab_contract_missing: "Swapping is not available for this token yet.",
+    swap_unavailable: "Swapping is not available for this token yet.",
     quote_unavailable: "The pool cannot fill this amount right now. Try a smaller amount.",
     amount_required: "Enter an amount above zero.",
     invalid_amount: "Enter an amount above zero.",
     invalid_decimal: "Enter an amount above zero.",
     amount_not_representable: "That amount has more decimal places than this token supports.",
-    amount_too_large: "That amount is too large to trade at once.",
+    amount_too_large: "That amount is too large to swap at once.",
     amount_above_balance: "This wallet holds less than that.",
-    protection_out_of_range: "Price protection is a number from 1 to 10.",
-    envelope_invalid: "This review is out of date. Review the trade again.",
+    protection_out_of_range: "Max slippage is a number from 1 to 10.",
+    envelope_invalid: "This swap is out of date. Close it and review again.",
     invalid_hash: "That transaction could not be read. Check your wallet activity."
   }
 
   @generic "That did not go through. Try again in a moment."
-  @unheld [:wrong_signer, :session_unavailable, :session_lease_required]
   @steps %{
     "token_approval" => :token_approval,
     "permit2_approval" => :permit2_approval,
@@ -71,9 +76,11 @@ defmodule AutolaunchWeb.SwapComponent do
           protection_error: nil,
           options_open: false,
           wallet: nil,
+          balances: nil,
           notice: nil,
           review: nil,
           sent: %{},
+          swapped: nil,
           revision: Map.get(socket.assigns, :revision, -1) + 1
         )
       end
@@ -94,133 +101,65 @@ defmodule AutolaunchWeb.SwapComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id={@id} phx-hook="AutolaunchReviewedSteps" phx-target={@myself}>
-      <p
-        :if={@notice}
-        class="launch-wallet-notice"
-        role={if @notice.tone == :error, do: "alert", else: "status"}
-      >
-        {@notice.message}
-      </p>
-
-      <.swap_form
-        :if={@entry_symbol && !@review}
-        id={"#{@id}-form-#{@revision}"}
-        sell_symbol={sell(assigns)}
-        buy_symbol={buy(assigns)}
-        sell_image={if @direction == :sell, do: @token_view.image}
-        buy_image={if @direction == :buy, do: @token_view.image}
-        amount={@amount}
-        estimated_output={@estimate}
-        error={@error}
-        protection={@protection}
-        protection_error={@protection_error}
-        options_open={@options_open}
-        options_event="toggle_options"
-        action_label="Review trade"
-        action_enabled={!@read_only?}
-        disabled_reason={if @read_only?, do: "Trading opens after launch."}
-        change_event={"form-#{@revision}"}
-        submit_event="review_trade"
-        reverse_event="reverse"
+    <div
+      id={@id}
+      class="token-swap"
+      phx-hook="AutolaunchReviewedSteps"
+      phx-target={@myself}
+      phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+    >
+      <.swap_done
+        :if={@swapped}
+        id={"#{@id}-swapped"}
+        swapped={@swapped}
+        dismiss_event="dismiss_swapped"
         target={@myself}
       />
 
-      <p :if={@entry_symbol && !@review && !@authenticated} class="bid-empty">
-        <Regent.Primitives.button type="button" variant="secondary" data-account-target="sign-in">
-          Sign in to trade
-        </Regent.Primitives.button>
-      </p>
-      <p :if={@entry_symbol && !@review && @authenticated && !@wallet} class="bid-empty">
-        <Regent.Primitives.button type="button" variant="secondary" data-wallet-connect>
-          Connect or switch wallet
-        </Regent.Primitives.button>
-      </p>
+      <div :if={@entry_symbol} class="token-swap__stack">
+        <.swap_form
+          id={"#{@id}-form-#{@revision}"}
+          sell_symbol={sell(assigns)}
+          buy_symbol={buy(assigns)}
+          sell_image={if @direction == :sell, do: @token_view.image}
+          buy_image={if @direction == :buy, do: @token_view.image}
+          amount={@amount}
+          estimated_output={@estimate && @estimate.received}
+          rate={@estimate && @estimate.rate}
+          sell_balance={held(@balances, sold(@direction))}
+          buy_balance={held(@balances, bought(@direction))}
+          error={@error || if(is_nil(@review), do: @notice)}
+          protection={@protection}
+          protection_error={@protection_error}
+          options_open={@options_open}
+          inert={!is_nil(@review)}
+          action={action(assigns)}
+          change_event={"form-#{@revision}"}
+          submit_event="review_swap"
+          reverse_event="reverse"
+          options_event="toggle_options"
+          fill_event="fill"
+          target={@myself}
+        />
 
-      <section
-        :if={@review}
-        id={"#{@id}-review"}
-        class="launch-wallet-review"
-        aria-label="Trade review"
-      >
-        <h3>Review this trade</h3>
-        <dl>
-          <div :for={[label, value] <- @review.review}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-          <div>
-            <dt>Wallet</dt>
-            <dd class="launch-wallet-mono">{short(@review.envelope["expected_signer"])}</dd>
-          </div>
-          <div>
-            <dt>Transactions</dt>
-            <dd>{step_count(@review.steps)}</dd>
-          </div>
-        </dl>
+        <.swap_review
+          :if={@review}
+          id={"#{@id}-review"}
+          review={@review.review}
+          sell_image={if @direction == :sell, do: @token_view.image}
+          buy_image={if @direction == :buy, do: @token_view.image}
+          steps={steps(@review, @sent)}
+          next_step={next_step(@review, @sent)}
+          stalled={stalled(@sent)}
+          notice={@notice}
+          close_event="close_review"
+          check_event="check_step"
+          target={@myself}
+        />
+      </div>
 
-        <p class="launch-wallet-risk">{@review.envelope["risk_copy"]}</p>
-
-        <ol class="launch-wallet-steps" role="list" aria-label="Trade progress">
-          <li :for={step <- @review.steps} data-step={step["step"]}>
-            <span>{step_label(step["step"], @review)}</span>
-            <span class="launch-wallet-step-state">{step_state(@sent[step["step"]])}</span>
-            <span :if={@sent[step["step"]]} class="launch-wallet-mono" data-local-transaction-hash>
-              {short_hash(@sent[step["step"]].hash)}
-            </span>
-          </li>
-        </ol>
-
-        <p :if={traded(@sent)} class="launch-wallet-settled" role="status">
-          Trade complete. You received {traded(@sent)["received_units"]} {traded(@sent)[
-            "buy_symbol"
-          ]}.
-        </p>
-
-        <Regent.Primitives.disclosure
-          id={"#{@id}-exact-values"}
-          summary="Exact values"
-          class="launch-wallet-details"
-        >
-          <dl>
-            <div :for={{label, value} <- exact_values(@review)}>
-              <dt>{label}</dt>
-              <dd class="launch-wallet-mono">{value}</dd>
-            </div>
-          </dl>
-        </Regent.Primitives.disclosure>
-
-        <div class="launch-wallet-controls">
-          <Regent.Primitives.button
-            :if={next_step(@review.steps, @sent)}
-            type="button"
-            data-reviewed-step={next_step(@review.steps, @sent)}
-          >
-            {step_label(next_step(@review.steps, @sent), @review)}
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :for={{name, %{outcome: :pending}} <- @sent}
-            type="button"
-            phx-click="check_step"
-            phx-value-step={name}
-            phx-target={@myself}
-            variant="secondary"
-          >
-            Check again
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            type="button"
-            phx-click="clear_review"
-            phx-target={@myself}
-            variant="secondary"
-          >
-            {if traded(@sent), do: "Done", else: "Start over"}
-          </Regent.Primitives.button>
-        </div>
-      </section>
-
-      <p :if={!@entry_symbol} class="token-swap__notice" role="status">
-        Trading is not available for this token yet.
+      <p :if={!@entry_symbol} class="token-swap__rate" role="status">
+        Swapping is not available for this token yet.
       </p>
     </div>
     """
@@ -251,7 +190,32 @@ defmodule AutolaunchWeb.SwapComponent do
      )}
   end
 
-  def handle_event("review_trade", params, socket) do
+  def handle_event("fill", %{"percent" => percent}, socket)
+      when percent in ["25", "50", "75", "100"] do
+    case socket.assigns.balances do
+      %{} = balances ->
+        amount =
+          SwapActions.portion(
+            Map.fetch!(balances, sold(socket.assigns.direction)),
+            String.to_integer(percent)
+          )
+
+        {:noreply,
+         socket
+         |> assign(
+           amount: amount,
+           error: nil,
+           notice: nil,
+           revision: socket.assigns.revision + 1
+         )
+         |> estimated()}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("review_swap", params, socket) do
     socket = entered(socket, params)
 
     request = %{
@@ -263,40 +227,41 @@ defmodule AutolaunchWeb.SwapComponent do
 
     case SwapActions.prepare(request, socket.assigns.wallet, opts(socket)) do
       {:ok, review} ->
-        {:noreply, socket |> assign(review: review, sent: %{}, notice: nil) |> published()}
+        {:noreply,
+         socket
+         |> assign(review: review, sent: %{}, notice: nil, swapped: nil, options_open: false)
+         |> published()}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: notice(:error, refusal(error)))}
+        {:noreply, assign(socket, notice: copy(refusal(error)))}
     end
   end
 
   def handle_event("step_sent", %{"step" => name, "transaction_hash" => hash}, socket)
       when is_map_key(@steps, name) and is_binary(hash),
-      do: {:noreply, checked(socket, name, hash)}
+      do: {:noreply, checked(socket, name, hash, 0)}
 
   def handle_event("check_step", %{"step" => name}, socket) do
     case socket.assigns.sent[name] do
-      %{hash: hash} -> {:noreply, checked(socket, name, hash)}
+      %{hash: hash} -> {:noreply, checked(socket, name, hash, 0)}
       nil -> {:noreply, socket}
     end
   end
 
   def handle_event("step_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
+    do: {:noreply, assign(socket, notice: wallet_failure_copy(reason))}
 
-  # "Start over" keeps the entered amount to adjust; a finished trade starts a fresh form.
-  def handle_event("clear_review", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(if traded(socket.assigns.sent), do: [amount: "", estimate: nil], else: [])
-     |> assign(review: nil, sent: %{}, notice: nil, revision: socket.assigns.revision + 1)
-     |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})}
-  end
+  # Closing keeps the entered amount to adjust.
+  def handle_event("close_review", _params, socket),
+    do: {:noreply, socket |> assign(notice: nil) |> closed()}
+
+  def handle_event("dismiss_swapped", _params, socket),
+    do: {:noreply, assign(socket, swapped: nil)}
 
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
-  # The quote is read off the page's own process, and an answer for an amount or
-  # direction the form has since left is dropped.
+  # Reads run off the page's own process, and an answer for a form, wallet or
+  # sent step the page has since left is dropped.
   @impl true
   def handle_async(:estimate, {:ok, {asked, result}}, socket) do
     if asked == asked(socket) do
@@ -309,8 +274,20 @@ defmodule AutolaunchWeb.SwapComponent do
     end
   end
 
-  def handle_async(:estimate, {:exit, _reason}, socket),
-    do: {:noreply, assign(socket, estimate: nil)}
+  def handle_async(:balances, {:ok, {wallet, {:ok, balances}}}, socket) do
+    if wallet == socket.assigns.wallet,
+      do: {:noreply, assign(socket, balances: balances)},
+      else: {:noreply, socket}
+  end
+
+  def handle_async({:recheck, name}, {:ok, {hash, attempts, read}}, socket) do
+    case socket.assigns.sent[name] do
+      %{hash: ^hash} -> {:noreply, read(socket, name, hash, attempts, read)}
+      _left -> {:noreply, socket}
+    end
+  end
+
+  def handle_async(_read, _unavailable, socket), do: {:noreply, socket}
 
   defp entered(socket, params) do
     amount = params |> Map.get("amount", socket.assigns.amount) |> limited()
@@ -322,7 +299,7 @@ defmodule AutolaunchWeb.SwapComponent do
         else: "Enter an amount using digits and a decimal point."
 
     socket
-    |> assign(amount: amount, error: error)
+    |> assign(amount: amount, error: error, notice: nil)
     |> protected(String.trim(protection))
   end
 
@@ -333,10 +310,7 @@ defmodule AutolaunchWeb.SwapComponent do
   defp protected(socket, typed) do
     case SwapActions.protection(typed) do
       {:ok, bps} ->
-        assign(socket,
-          protection: SwapActions.protection_percent(bps),
-          protection_error: nil
-        )
+        assign(socket, protection: SwapActions.protection_percent(bps), protection_error: nil)
 
       {:error, _out_of_range} ->
         assign(socket,
@@ -365,23 +339,73 @@ defmodule AutolaunchWeb.SwapComponent do
       revision: socket.assigns.revision
     }
 
+  defp balanced(%{assigns: %{wallet: wallet, entry_symbol: symbol}} = socket)
+       when is_binary(wallet) and is_binary(symbol) do
+    auction = socket.assigns.token.auction
+    start_async(socket, :balances, fn -> {wallet, SwapActions.balances(auction, wallet)} end)
+  end
+
+  defp balanced(socket), do: assign(socket, balances: nil)
+
   # The server reads the reported hash itself; the browser's word is only the hash.
-  defp checked(%{assigns: %{review: %{envelope: envelope}}} = socket, name, hash) do
-    case SwapActions.verify(envelope, Map.fetch!(@steps, name), hash, opts(socket)) do
-      {:ok, %{outcome: outcome} = read} ->
-        entry = %{hash: hash, outcome: outcome, result: Map.get(read, :result)}
+  defp checked(%{assigns: %{review: %{envelope: envelope}}} = socket, name, hash, attempts) do
+    read = SwapActions.verify(envelope, Map.fetch!(@steps, name), hash, opts(socket))
+    read(socket, name, hash, attempts, read)
+  end
 
-        assign(socket,
-          sent: Map.put(socket.assigns.sent, name, entry),
-          notice: outcome_notice(outcome)
-        )
+  defp checked(socket, _name, _hash, _attempts), do: socket
 
-      {:error, error} ->
-        assign(socket, notice: notice(:error, refusal(error)))
+  defp read(socket, "swap", _hash, _attempts, {:ok, %{outcome: :confirmed, result: result}}) do
+    socket
+    |> assign(amount: "", estimate: nil, notice: nil, swapped: result)
+    |> closed()
+    |> balanced()
+  end
+
+  defp read(socket, name, hash, attempts, {:ok, %{outcome: outcome}}) do
+    socket
+    |> assign(
+      sent: Map.put(socket.assigns.sent, name, sent(hash, outcome, attempts)),
+      notice: if(outcome == :reverted, do: reverted_copy(name))
+    )
+    |> rechecked(name)
+  end
+
+  # A read that failed is not an answer about the step; it is read again.
+  defp read(socket, name, hash, attempts, {:error, error}) do
+    socket
+    |> assign(
+      sent: Map.put(socket.assigns.sent, name, sent(hash, :pending, attempts)),
+      notice: if(attempts == 0, do: copy(refusal(error)))
+    )
+    |> rechecked(name)
+  end
+
+  defp sent(hash, outcome, attempts), do: %{hash: hash, outcome: outcome, attempts: attempts}
+
+  # Nothing waits on this: it only saves the person pressing "check again"
+  # while the network includes what the wallet already sent.
+  defp rechecked(%{assigns: %{review: %{envelope: envelope}}} = socket, name) do
+    case socket.assigns.sent[name] do
+      %{outcome: :pending, hash: hash, attempts: attempts} when attempts < @recheck_limit ->
+        step = Map.fetch!(@steps, name)
+        opts = opts(socket)
+
+        start_async(socket, {:recheck, name}, fn ->
+          Process.sleep(@recheck_ms)
+          {hash, attempts + 1, SwapActions.verify(envelope, step, hash, opts)}
+        end)
+
+      _settled ->
+        socket
     end
   end
 
-  defp checked(socket, _name, _hash), do: socket
+  defp closed(socket) do
+    socket
+    |> assign(review: nil, sent: %{}, revision: socket.assigns.revision + 1)
+    |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
+  end
 
   defp published(%{assigns: %{review: %{envelope: envelope, steps: steps}}} = socket) do
     push_event(socket, "reviewed-steps:review", %{
@@ -399,20 +423,16 @@ defmodule AutolaunchWeb.SwapComponent do
 
   # The wallet is only what the browser reports; every read that matters proves
   # it against the session again. A review belongs to the wallet it was made for.
-  defp adopt(socket, nil), do: assign(socket, wallet: nil) |> reviewed_for_wallet()
+  defp adopt(socket, nil),
+    do: socket |> assign(wallet: nil) |> reviewed_for_wallet() |> balanced()
 
   defp adopt(socket, address) when is_binary(address),
-    do: assign(socket, wallet: String.downcase(address)) |> reviewed_for_wallet()
+    do: socket |> assign(wallet: String.downcase(address)) |> reviewed_for_wallet() |> balanced()
 
   defp adopt(socket, _other), do: socket
 
   defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
-    if String.downcase(envelope["expected_signer"]) == wallet,
-      do: socket,
-      else:
-        socket
-        |> assign(review: nil, sent: %{})
-        |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
+    if String.downcase(envelope["expected_signer"]) == wallet, do: socket, else: closed(socket)
   end
 
   defp reviewed_for_wallet(socket), do: socket
@@ -425,72 +445,61 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp actor(_socket), do: nil
 
+  defp action(%{read_only?: true}), do: :closed
+  defp action(%{authenticated: false}), do: :sign_in
+  defp action(%{wallet: nil}), do: :connect_wallet
+  defp action(%{amount: amount, error: nil}) when amount != "", do: :review
+  defp action(_assigns), do: :enter_amount
+
   defp sell(%{direction: :buy, entry_symbol: symbol}), do: symbol
   defp sell(%{token_view: %{symbol: symbol}}), do: symbol
   defp buy(%{direction: :buy, token_view: %{symbol: symbol}}), do: symbol
   defp buy(%{entry_symbol: symbol}), do: symbol
 
-  defp traded(sent) do
-    case sent["swap"] do
-      %{outcome: :confirmed, result: result} -> result
-      _other -> nil
-    end
+  defp sold(:buy), do: :currency
+  defp sold(:sell), do: :token
+  defp bought(:buy), do: :token
+  defp bought(:sell), do: :currency
+
+  defp held(nil, _side), do: nil
+  defp held(balances, side), do: Map.fetch!(balances, side).shown
+
+  defp steps(review, sent) do
+    Enum.map(review.steps, fn %{"step" => name} ->
+      %{name: name, label: step_label(name, review), state: step_state(sent[name])}
+    end)
   end
 
   # One button at a time: the first step the wallet has not sent yet, or one
   # that reverted. A sent step moves the button on at once; nothing waits for
   # the network before the next press can reach the wallet.
-  defp next_step(steps, sent) do
-    Enum.find_value(steps, fn %{"step" => name} ->
-      if match?(%{outcome: outcome} when outcome in [:pending, :confirmed], sent[name]),
-        do: nil,
-        else: name
-    end)
+  defp next_step(review, sent) do
+    Enum.find(steps(review, sent), &(&1.state in [:ready, :reverted]))
   end
 
-  defp step_count([_one]), do: "One transaction"
-  defp step_count([_one, _two]), do: "Two transactions"
-  defp step_count([_one, _two, _three]), do: "Three transactions"
+  defp stalled(sent) do
+    for {name, %{outcome: :pending, attempts: attempts}} <- sent,
+        attempts >= @recheck_limit,
+        do: name
+  end
 
-  defp step_label("token_approval", review),
-    do: "Allow #{review.envelope["arguments"]["sell_symbol"]} to be used for trades"
+  defp step_label("token_approval", review), do: "Approve #{review.review.sell_symbol}"
 
   defp step_label("permit2_approval", review),
-    do: "Allow this trade to spend your #{review.envelope["arguments"]["sell_symbol"]}"
+    do: "Allow #{review.review.sell_symbol} for this swap"
 
-  defp step_label("swap", _review), do: "Trade"
+  defp step_label("swap", _review), do: "Confirm swap"
 
-  defp step_state(nil), do: "Ready"
-  defp step_state(%{outcome: :pending}), do: "Sent"
-  defp step_state(%{outcome: :confirmed}), do: "Verified"
-  defp step_state(%{outcome: :reverted}), do: "Reverted"
+  defp step_state(nil), do: :ready
+  defp step_state(%{outcome: :pending}), do: :sent
+  defp step_state(%{outcome: :confirmed}), do: :done
+  defp step_state(%{outcome: :reverted}), do: :reverted
 
-  defp outcome_notice(:pending),
-    do: %{tone: :info, message: "Sent. Waiting for the network to include it."}
+  defp reverted_copy("swap"),
+    do:
+      "The swap did not go through and nothing was swapped. The price may have moved: close this and review again."
 
-  defp outcome_notice(:confirmed), do: nil
-
-  defp outcome_notice(:reverted),
-    do: %{
-      tone: :error,
-      message:
-        "That transaction reverted. Nothing was traded by it. If the price moved, review the trade again."
-    }
-
-  defp exact_values(review) do
-    arguments = review.envelope["arguments"]
-
-    [
-      {"Pool", arguments["pool_id"]},
-      {"Router", arguments["router"]},
-      {"You pay (base units)", arguments["amount_in_atomic"]},
-      {"Quote (base units)", arguments["quote_atomic"]},
-      {"Lowest accepted (base units)", arguments["min_out_atomic"]},
-      {"Deadline (Unix seconds)", arguments["deadline"]},
-      {"Reviewed block", "#{arguments["block_number"]} · #{arguments["block_hash"]}"},
-      {"Calldata digest", review.envelope["metadata"]["calldata_sha256"]}
-    ]
-  end
+  defp reverted_copy(_approval), do: "That step did not go through. Try it again."
 
   defp wallet_failure_copy("wallet_unavailable"),
     do: "Open the wallet you signed in with, then try again. Nothing was sent."
@@ -506,10 +515,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp wallet_failure_copy(_unknown), do: @generic
 
-  defp notice(tone, reason) when reason in @unheld,
-    do: %{tone: tone, message: Map.fetch!(@copy, reason)}
-
-  defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
+  defp copy(reason), do: Map.get(@copy, reason, @generic)
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
   defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
@@ -518,12 +524,6 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   defp unavailable(_other), do: nil
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_hash("0x" <> hash),
-    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 
   defp entry_symbol(%{kind: :agent, chain_id: chain_id, quote_token_symbol: "REGENT"}) do
     if base_chain?(chain_id), do: "REGENT"

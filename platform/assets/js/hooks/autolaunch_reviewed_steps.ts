@@ -68,7 +68,7 @@ export const AutolaunchReviewedSteps: Hook = {
       }
 
       const name = target?.closest<HTMLElement>("[data-reviewed-step]")?.dataset.reviewedStep
-      if (name) void send(this.review ?? null, name, push)
+      if (name) void send(this.el, this.review ?? null, name, push)
     }
     this.el.addEventListener("click", this.clicked)
   },
@@ -82,14 +82,18 @@ export const AutolaunchReviewedSteps: Hook = {
 }
 
 // Every press reaches the wallet. The hash is reported and nothing is read
-// afterwards: the server owns every question about what that hash did.
+// afterwards: the server owns every question about what that hash did. While a
+// press is with the wallet the panel is only marked, never locked.
 async function send(
+  el: HTMLElement,
   review: Review | null,
   name: string,
   push: (event: string, payload: unknown) => void,
 ): Promise<void> {
   const step = review?.steps.find(candidate => candidate.step === name)
   let started = false
+
+  el.dataset.awaitingWallet = name
 
   try {
     if (!review || !step) throw new Error("This step is not part of the review.")
@@ -106,6 +110,8 @@ async function send(
     push("step_sent", {step: name, transaction_hash})
   } catch (error) {
     push("step_failed", {step: name, reason: failure(started, error)})
+  } finally {
+    if (el.dataset.awaitingWallet === name) delete el.dataset.awaitingWallet
   }
 }
 
