@@ -7,30 +7,19 @@ import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {MockERC20} from "autolaunch-stocks-test/mocks/MockERC20.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
 import {IRobinhoodLaunchpadBase} from "../src/interfaces/IRobinhoodLaunchpadBase.sol";
-import {IRobinhoodRevshareLaunchpadV1} from "../src/interfaces/IRobinhoodRevshareLaunchpadV1.sol";
 import {IRobinhoodStocksLaunchpadV1} from "../src/interfaces/IRobinhoodStocksLaunchpadV1.sol";
 import {RobinhoodLaunchpadBase} from "../src/RobinhoodLaunchpadBase.sol";
-import {RobinhoodPreset} from "../src/RobinhoodPreset.sol";
-import {RobinhoodRevshareLaunchpadV1} from "../src/RobinhoodRevshareLaunchpadV1.sol";
+import {RobinhoodMemestockSplitterV1} from "../src/RobinhoodMemestockSplitterV1.sol";
 import {RobinhoodStocksLaunchpadV1} from "../src/RobinhoodStocksLaunchpadV1.sol";
-import {RobinhoodSubjectSplitterV1} from "../src/RobinhoodSubjectSplitterV1.sol";
 import {RobinhoodFixture} from "./RobinhoodFixture.sol";
 
 interface IERC721Owner {
     function ownerOf(uint256 tokenId) external view returns (address);
 }
 
-contract SplitterStub {
-    address public immutable subject;
-
-    constructor(address subject_) {
-        subject = subject_;
-    }
-}
-
-/// @notice Both launchpads end to end: Safe-only minimums and fees, the USDG launch fee into the inbox,
-///         creation, graduation into the official pool, retirement, the revenue-share splitter and
-///         vesting, and splitter provenance for stock-pair launches.
+/// @notice The launchpad end to end: the Safe-only minimum and fee, the USDG launch fee into the inbox,
+///         creation, graduation into the official pool with the launch's own splitter and both
+///         positions locked in the fee-only locker, and retirement.
 contract RobinhoodLaunchpadsTest is RobinhoodFixture {
     using StateLibrary for IPoolManager;
 
@@ -42,17 +31,13 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
     // Safe surface
     // -------------------------------------------------------------------------
 
-    function test_minimum_raises_are_born_at_the_founder_values_and_safe_settable() public {
+    function test_minimum_raise_is_born_at_the_founder_value_and_safe_settable() public {
         assertEq(stocks.minimumRaiseUsdg(), 1_000e6);
-        assertEq(revshare.minimumRaiseUsdg(), 5_000e6);
         assertEq(stocks.adminSafe(), safe);
-        assertEq(revshare.adminSafe(), safe);
 
         vm.startPrank(outsider);
         vm.expectRevert(abi.encodeWithSelector(RobinhoodLaunchpadBase.NotSafe.selector, outsider));
         stocks.setMinimumRaiseUsdg(2_000e6);
-        vm.expectRevert(abi.encodeWithSelector(RobinhoodLaunchpadBase.NotSafe.selector, outsider));
-        revshare.setMinimumRaiseUsdg(2_000e6);
         vm.expectRevert(abi.encodeWithSelector(RobinhoodLaunchpadBase.NotSafe.selector, outsider));
         stocks.setLaunchFee(1);
         vm.expectRevert(abi.encodeWithSelector(RobinhoodLaunchpadBase.NotSafe.selector, outsider));
@@ -62,13 +47,9 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         vm.startPrank(safe);
         vm.expectRevert(RobinhoodStocksLaunchpadV1.ZeroMinimumRaise.selector);
         stocks.setMinimumRaiseUsdg(0);
-        vm.expectRevert(RobinhoodRevshareLaunchpadV1.ZeroMinimumRaise.selector);
-        revshare.setMinimumRaiseUsdg(0);
         stocks.setMinimumRaiseUsdg(2_000e6);
-        revshare.setMinimumRaiseUsdg(7_000e6);
         vm.stopPrank();
         assertEq(stocks.minimumRaiseUsdg(), 2_000e6);
-        assertEq(revshare.minimumRaiseUsdg(), 7_000e6);
     }
 
     function test_launch_fee_is_usdg_deposited_into_the_inbox_with_exact_allowance() public {
@@ -114,6 +95,7 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         IRobinhoodLaunchpadBase.Launch memory record = stocks.launches(l.launchId);
         assertEq(record.requiredRaise, STOCK_REQUIRED_RAISE);
         assertEq(record.currency, STOCK_LOW);
+        assertEq(record.splitter, address(0));
         assertEq(l.auction.currency(), STOCK_LOW);
         assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), StocksPreset.MIGRATION_RESERVE);
         assertEq(MockERC20(l.newToken).balanceOf(address(l.auction)), StocksPreset.AUCTION_INVENTORY);
@@ -130,7 +112,18 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         stocks.admitStock(USDG_ADDRESS, address(routeLow));
     }
 
-    function test_stock_graduation_locks_both_positions_and_credits_dust_to_the_protocol_bucket() public {
+    function test_the_launchpad_deploys_its_own_locker_and_splitter_implementation() public view {
+        assertEq(locker.launchpad(), address(stocks));
+        assertEq(locker.positionManager(), address(positionManager));
+
+        RobinhoodMemestockSplitterV1 implementation = RobinhoodMemestockSplitterV1(stocks.splitterImplementation());
+        assertEq(implementation.usdg(), USDG_ADDRESS);
+        assertEq(implementation.inbox(), address(inbox));
+        assertEq(implementation.adminSafe(), safe);
+        assertEq(implementation.memestock(), address(0));
+    }
+
+    function test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker() public {
         Launched memory l = _launchStock(STOCK_HIGH);
         uint256 nextTokenId = positionManager.nextTokenId();
         _graduateStock(l);
@@ -139,10 +132,23 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         assertEq(uint8(record.lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Graduated));
         assertEq(record.poolId, _poolId(l, address(stocksHook)));
         assertEq(record.lpTokenId, nextTokenId);
-        assertEq(IERC721Owner(address(positionManager)).ownerOf(nextTokenId), DEAD);
+
+        RobinhoodMemestockSplitterV1 splitter = RobinhoodMemestockSplitterV1(record.splitter);
+        assertTrue(address(splitter) != address(0) && address(splitter) != stocks.splitterImplementation());
+        assertEq(splitter.dollar(), USDG_ADDRESS);
+        assertEq(splitter.memestock(), l.newToken);
+        assertEq(splitter.stock(), STOCK_HIGH);
+        assertEq(splitter.protocolTreasury(), safe);
+        assertEq(stocksHook.pool(record.poolId).splitter, address(splitter));
+        vm.expectRevert();
+        splitter.initialize(l.newToken, STOCK_HIGH);
+
+        assertEq(IERC721Owner(address(positionManager)).ownerOf(nextTokenId), address(locker));
+        assertEq(locker.splitterOf(nextTokenId), address(splitter));
         IRobinhoodStocksLaunchpadV1.StockRecord memory stockRecord = stocks.stockRecords(l.launchId);
         assertEq(stockRecord.stockOnlyTokenId, nextTokenId + 1);
-        assertEq(IERC721Owner(address(positionManager)).ownerOf(nextTokenId + 1), DEAD);
+        assertEq(IERC721Owner(address(positionManager)).ownerOf(nextTokenId + 1), address(locker));
+        assertEq(locker.splitterOf(nextTokenId + 1), address(splitter));
         assertGt(stockRecord.stockOnlyStock, 0);
 
         (uint160 sqrtPriceX96,,,) = IPoolManager(address(poolManager)).getSlot0(PoolId.wrap(record.poolId));
@@ -150,7 +156,22 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         assertEq(MockERC20(l.newToken).balanceOf(address(stocks)), 0);
         assertEq(MockERC20(l.newToken).balanceOf(DEAD), record.retiredNew);
         assertEq(stockHigh.balanceOf(address(stocks)), 0);
-        assertEq(stocksHook.accrued(record.poolId, address(inbox)), stockHigh.balanceOf(address(stocksHook)));
+        (uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(record.poolId);
+        assertEq(stakerLane, 0);
+        assertEq(protocolLane, stockHigh.balanceOf(address(stocksHook)));
+    }
+
+    function test_each_graduation_gets_its_own_splitter() public {
+        Launched memory first = _launchStock(STOCK_LOW);
+        _graduateStock(first);
+        Launched memory second = _launchStock(STOCK_HIGH);
+        _graduateStock(second);
+
+        address firstSplitter = stocks.launches(first.launchId).splitter;
+        address secondSplitter = stocks.launches(second.launchId).splitter;
+        assertTrue(firstSplitter != secondSplitter);
+        assertEq(RobinhoodMemestockSplitterV1(firstSplitter).stock(), STOCK_LOW);
+        assertEq(RobinhoodMemestockSplitterV1(secondSplitter).stock(), STOCK_HIGH);
     }
 
     function test_stock_launch_that_misses_the_raise_retires_every_new() public {
@@ -162,6 +183,7 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         assertEq(record.retiredNew, StocksPreset.INITIAL_SUPPLY);
         assertEq(MockERC20(l.newToken).balanceOf(DEAD), StocksPreset.INITIAL_SUPPLY);
         assertEq(record.poolId, bytes32(0));
+        assertEq(record.splitter, address(0));
     }
 
     function test_migration_waits_for_the_migration_block() public {
@@ -175,132 +197,5 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
             )
         );
         stocks.migrate(l.launchId);
-    }
-
-    function test_only_a_splitter_this_system_created_is_accepted_as_a_subject() public {
-        Launched memory rev = _launchRevshare();
-        _graduateRevshare(rev);
-        address authentic = revshare.splitterOf(rev.newToken);
-        assertTrue(authentic != address(0));
-
-        SplitterStub stub = new SplitterStub(rev.newToken);
-        IRobinhoodStocksLaunchpadV1.LaunchParams memory params = _stockParams(STOCK_LOW);
-        params.subjectSplitter = address(stub);
-        vm.prank(launcher);
-        vm.expectRevert(abi.encodeWithSelector(RobinhoodStocksLaunchpadV1.InauthenticSplitter.selector, address(stub)));
-        stocks.launch(params);
-
-        params.subjectSplitter = authentic;
-        Launched memory l = _launchStockAs(launcher, params);
-        (uint32 version, address splitter, uint16 subjectBps, address administrator,) = stocks.subjectConfig(l.launchId);
-        assertEq(version, 1);
-        assertEq(splitter, authentic);
-        assertEq(subjectBps, RobinhoodPreset.SUBJECT_LANE_BPS);
-        assertEq(administrator, feeAdministrator);
-
-        vm.prank(outsider);
-        vm.expectRevert(abi.encodeWithSelector(RobinhoodStocksLaunchpadV1.NotFeeAdministrator.selector, outsider));
-        stocks.configureSubject(l.launchId, address(0), 1);
-        vm.prank(feeAdministrator);
-        stocks.configureSubject(l.launchId, address(0), 1);
-        (version, splitter, subjectBps,,) = stocks.subjectConfig(l.launchId);
-        assertEq(version, 2);
-        assertEq(splitter, address(0));
-        assertEq(subjectBps, 0);
-    }
-
-    // -------------------------------------------------------------------------
-    // revenue-share launches
-    // -------------------------------------------------------------------------
-
-    function test_revshare_launch_enforces_the_minimum_raise_and_treasury_admission() public {
-        IRobinhoodRevshareLaunchpadV1.LaunchParams memory params = _revshareParams();
-        params.requiredUsdgRaised = REVSHARE_REQUIRED_RAISE - 1;
-        vm.prank(launcher);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                RobinhoodRevshareLaunchpadV1.RequiredRaiseBelowMinimum.selector,
-                REVSHARE_REQUIRED_RAISE - 1,
-                REVSHARE_REQUIRED_RAISE
-            )
-        );
-        revshare.launch(params);
-
-        params = _revshareParams();
-        params.treasury = address(inbox);
-        vm.prank(launcher);
-        vm.expectRevert(abi.encodeWithSelector(RobinhoodRevshareLaunchpadV1.RefusedTreasury.selector, address(inbox)));
-        revshare.launch(params);
-
-        Launched memory l = _launchRevshare();
-        assertEq(l.auction.currency(), USDG_ADDRESS);
-        assertEq(MockERC20(l.newToken).totalSupply(), RobinhoodPreset.REVSHARE_TOTAL_SUPPLY);
-        assertEq(MockERC20(l.newToken).balanceOf(address(l.auction)), RobinhoodPreset.REVSHARE_AUCTION_INVENTORY);
-        assertEq(
-            MockERC20(l.newToken).balanceOf(address(revshare)),
-            RobinhoodPreset.REVSHARE_TREASURY_ALLOCATION + RobinhoodPreset.REVSHARE_MIGRATION_RESERVE
-        );
-    }
-
-    function test_revshare_graduation_creates_the_splitter_locks_the_full_range_and_starts_vesting() public {
-        Launched memory l = _launchRevshare();
-        uint256 nextTokenId = positionManager.nextTokenId();
-        _graduateRevshare(l);
-
-        IRobinhoodLaunchpadBase.Launch memory record = revshare.launches(l.launchId);
-        assertEq(uint8(record.lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Graduated));
-        assertEq(record.lpTokenId, nextTokenId);
-        assertEq(positionManager.nextTokenId(), nextTokenId + 1);
-        assertEq(IERC721Owner(address(positionManager)).ownerOf(nextTokenId), DEAD);
-
-        IRobinhoodRevshareLaunchpadV1.RevshareRecord memory rev = revshare.revshareRecords(l.launchId);
-        RobinhoodSubjectSplitterV1 splitter = RobinhoodSubjectSplitterV1(rev.splitter);
-        assertEq(revshare.splitterOf(l.newToken), rev.splitter);
-        assertEq(splitter.subject(), l.newToken);
-        assertEq(splitter.usdg(), USDG_ADDRESS);
-        assertEq(splitter.inbox(), address(inbox));
-        assertEq(splitter.treasury(), treasury);
-        assertEq(revshareHook.pool(record.poolId).subject, rev.splitter);
-
-        // Everything not sold and not paired vests; the launchpad holds exactly that much NEW.
-        assertEq(rev.vestingStart, block.timestamp);
-        assertEq(rev.vestingTotal, MockERC20(l.newToken).balanceOf(address(revshare)));
-        assertGt(rev.vestingTotal, RobinhoodPreset.REVSHARE_TREASURY_ALLOCATION);
-        // The USDG the full range could not pair went to the treasury; nothing stayed behind.
-        assertEq(usdg.balanceOf(address(revshare)), 0);
-        assertEq(usdg.balanceOf(treasury) + record.lpCurrencyUsed, 10_000e6);
-    }
-
-    function test_vesting_is_linear_and_released_to_the_treasury_only() public {
-        Launched memory l = _launchRevshare();
-        _graduateRevshare(l);
-        uint256 total = revshare.revshareRecords(l.launchId).vestingTotal;
-
-        vm.expectRevert(abi.encodeWithSelector(RobinhoodRevshareLaunchpadV1.NothingToRelease.selector, l.launchId));
-        revshare.release(l.launchId);
-
-        vm.warp(block.timestamp + RobinhoodPreset.REVSHARE_VESTING_DURATION / 4);
-        assertEq(revshare.releasable(l.launchId), total / 4);
-        vm.prank(outsider);
-        uint256 released = revshare.release(l.launchId);
-        assertEq(released, total / 4);
-        assertEq(MockERC20(l.newToken).balanceOf(treasury), total / 4);
-
-        vm.warp(block.timestamp + RobinhoodPreset.REVSHARE_VESTING_DURATION);
-        revshare.release(l.launchId);
-        assertEq(MockERC20(l.newToken).balanceOf(treasury), total);
-        assertEq(MockERC20(l.newToken).balanceOf(address(revshare)), 0);
-        assertEq(revshare.releasable(l.launchId), 0);
-    }
-
-    function test_revshare_failure_retires_everything_and_creates_no_splitter() public {
-        Launched memory l = _launchRevshare();
-        _bidToMigration(l, REVSHARE_REQUIRED_RAISE - 1);
-        revshare.migrate(l.launchId);
-        assertEq(uint8(revshare.launches(l.launchId).lifecycle), uint8(IRobinhoodLaunchpadBase.Lifecycle.Failed));
-        assertEq(MockERC20(l.newToken).balanceOf(DEAD), RobinhoodPreset.REVSHARE_TOTAL_SUPPLY);
-        assertEq(revshare.splitterOf(l.newToken), address(0));
-        assertEq(revshare.revshareRecords(l.launchId).vestingTotal, 0);
-        assertEq(usdg.balanceOf(address(revshare)), 0);
     }
 }

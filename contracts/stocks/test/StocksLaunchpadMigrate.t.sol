@@ -17,6 +17,7 @@ import {Actions} from "@uniswap/v4-periphery/src/libraries/Actions.sol";
 import {PositionInfo} from "@uniswap/v4-periphery/src/libraries/PositionInfoLibrary.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
+import {MemestockSplitterV1} from "../src/MemestockSplitterV1.sol";
 import {StocksBindings} from "../src/StocksBindings.sol";
 import {StocksFeeHookV1} from "../src/StocksFeeHookV1.sol";
 import {StocksLaunchpadV1} from "../src/StocksLaunchpadV1.sol";
@@ -25,9 +26,10 @@ import {FixtureStockToken} from "../src/fixtures/FixtureStockToken.sol";
 import {IStocksLaunchpadV1} from "../src/interfaces/IStocksLaunchpadV1.sol";
 import {StocksFixture} from "./StocksFixture.sol";
 
-/// @notice Rules 3 and 4: graduation locks the whole reserve and all net STOCK in two positions at the
-///         dead address (full range, then one-sided STOCK for what the full range could not pair),
-///         routes only the rounding remainder as the preset says and retires unsold NEW; failure
+/// @notice Rules 3 and 4: graduation creates the launch's memestock splitter, locks the whole reserve
+///         and all net STOCK in two positions held by the fee-only locker (full range, then one-sided
+///         STOCK for what the full range could not pair), routes only the rounding remainder as the
+///         preset says and retires unsold NEW; failure
 ///         retires the inventory and never touches bidder STOCK, whose refunds go through the CCA alone.
 contract StocksLaunchpadMigrateTest is StocksFixture {
     using StateLibrary for IPoolManager;
@@ -111,7 +113,7 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
 
         // STOCK conservation: raised == placed + dust; dust is bounded rounding, in the REGENT bucket
         // and held by the hook.
-        uint256 dust = hook.accrued(poolId, hook.REGENT_DESTINATION());
+        (uint256 dust,) = hook.accrued(poolId);
         assertEq(placed + dust, lbp.currencyRaised, "raised == placed + dust");
         assertLe(
             dust,
@@ -159,7 +161,17 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         StocksFeeHookV1.PoolRecord memory pool = hook.pool(poolId);
         assertEq(pool.stock, l.stock);
         assertEq(pool.newToken, l.newToken);
-        assertEq(pool.subject, address(0));
+        assertEq(pool.splitter, record.splitter);
+
+        // The launch's own splitter: a fresh clone bound to exactly this NEW and this STOCK.
+        MemestockSplitterV1 created = MemestockSplitterV1(record.splitter);
+        assertGt(record.splitter.code.length, 0, "splitter deployed");
+        assertEq(created.memestock(), l.newToken);
+        assertEq(created.stock(), l.stock);
+        assertEq(created.dollar(), StocksBindings.USDC);
+        assertEq(created.totalStaked(), 0);
+        vm.expectRevert();
+        created.initialize(l.newToken, l.stock);
     }
 
     /// @dev Both locked positions: owner, pool, geometry, liquidity. Returns how many were minted.
@@ -173,7 +185,8 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         int24 maxUsable = TickMath.maxUsableTick(spacing);
 
         assertEq(record.lpTokenId, nextTokenId, "the full range is minted first");
-        assertEq(IERC721(address(positionManager)).ownerOf(record.lpTokenId), StocksBindings.DEAD_ADDRESS, "full range to dead");
+        assertEq(IERC721(address(positionManager)).ownerOf(record.lpTokenId), address(locker), "full range to the locker");
+        assertEq(locker.splitterOf(record.lpTokenId), record.splitter, "full range registered");
         (PoolKey memory fullKey, PositionInfo fullInfo) = positionManager.getPoolAndPositionInfo(record.lpTokenId);
         assertEq(PoolId.unwrap(fullKey.toId()), record.poolId);
         assertEq(fullInfo.tickLower(), minUsable);
@@ -188,8 +201,9 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
 
         assertEq(record.lpStockOnlyTokenId, record.lpTokenId + 1, "the one-sided position is minted second");
         assertEq(
-            IERC721(address(positionManager)).ownerOf(record.lpStockOnlyTokenId), StocksBindings.DEAD_ADDRESS, "one-sided to dead"
+            IERC721(address(positionManager)).ownerOf(record.lpStockOnlyTokenId), address(locker), "one-sided to the locker"
         );
+        assertEq(locker.splitterOf(record.lpStockOnlyTokenId), record.splitter, "one-sided registered");
         (PoolKey memory sideKey, PositionInfo sideInfo) = positionManager.getPoolAndPositionInfo(record.lpStockOnlyTokenId);
         assertEq(PoolId.unwrap(sideKey.toId()), record.poolId);
         assertGt(positionManager.getPositionLiquidity(record.lpStockOnlyTokenId), 0);
@@ -228,25 +242,14 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         return sqrtPriceX96 / Q96 + 1;
     }
 
-    function test_graduation_registers_the_subject_lane_recorded_at_launch() public {
-        Launched memory l = _launchWithSubject(STOCK_LOW);
-        _graduate(l, 1_000e8);
-        assertEq(hook.pool(_poolId(l)).subject, address(splitter));
-    }
-
-    function test_configureSubject_after_graduation_reaches_the_hook() public {
-        Launched memory l = _launch(STOCK_LOW);
-        _graduate(l, 1_000e8);
-        bytes32 poolId = _poolId(l);
-        assertEq(hook.pool(poolId).subject, address(0));
-
-        vm.prank(feeAdministrator);
-        launchpad.configureSubject(l.launchId, address(splitter), 1);
-        assertEq(hook.pool(poolId).subject, address(splitter));
-
-        vm.prank(feeAdministrator);
-        launchpad.configureSubject(l.launchId, address(0), 2);
-        assertEq(hook.pool(poolId).subject, address(0));
+    function test_each_graduation_gets_its_own_splitter() public {
+        Launched memory first = _launch(STOCK_LOW);
+        _graduate(first, 1_000e8);
+        Launched memory second = _launch(STOCK_HIGH);
+        _graduate(second, 1_000e8);
+        assertNotEq(_record(first).splitter, _record(second).splitter);
+        assertNotEq(_record(first).splitter, launchpad.splitterImplementation());
+        assertEq(_splitter(second).memestock(), second.newToken);
     }
 
     function test_graduation_emits_the_record() public {

@@ -19,17 +19,16 @@ import {RobinhoodFeeHookFactory} from "../src/RobinhoodFeeHookFactory.sol";
 import {RobinhoodFeeHookV1} from "../src/RobinhoodFeeHookV1.sol";
 import {RobinhoodLaunchpadBase} from "../src/RobinhoodLaunchpadBase.sol";
 import {RobinhoodProtocolRevenueInboxV1} from "../src/RobinhoodProtocolRevenueInboxV1.sol";
-import {RobinhoodRevshareLaunchpadV1} from "../src/RobinhoodRevshareLaunchpadV1.sol";
 import {RobinhoodStockBidAdapterV1} from "../src/RobinhoodStockBidAdapterV1.sol";
 import {RobinhoodStocksLaunchpadV1} from "../src/RobinhoodStocksLaunchpadV1.sol";
 
 /// @title DeployRobinhoodLab
-/// @notice Deploys both Robinhood launch graphs onto a blank local Anvil chain: a mintable USDG
+/// @notice Deploys the Robinhood launch graph onto a blank local Anvil chain: a mintable USDG
 ///         double, the real PoolManager, CCA factory, PositionManager and UERC20 factory from their
-///         pinned sources, the protocol revenue inbox, the hook factory, the Revshare launchpad and
-///         the Stocks launchpad (each mines and deploys its own hook), the USDG bid adapter, and one
-///         mintable fixture stock with a fixed-price USDG route per catalog entry, admitted on the
-///         Stocks launchpad. The unlocked deployer stands in for the admin safe and the hook executor.
+///         pinned sources, the protocol revenue inbox, the hook factory, the Stocks launchpad (which
+///         mines and deploys its own hook, LP locker and splitter implementation), the USDG bid
+///         adapter, and one mintable fixture stock with a fixed-price USDG route per catalog entry,
+///         admitted on the launchpad. The unlocked deployer stands in for the admin safe and the hook executor.
 /// @dev LAB ONLY: refuses any chain but the local Robinhood lab (31338). Permit2 cannot be compiled
 ///      under this build (it pins solc 0.8.17), so `bin/local-robinhood-lab.py` installs its runtime
 ///      code at the canonical address with `anvil_setCode` before this script runs. Every deployed
@@ -94,17 +93,8 @@ contract DeployRobinhoodLab is Script {
         });
 
         address predictedLaunchpad = vm.computeCreateAddress(deployer, vm.getNonce(deployer));
-        (address predictedHook, bytes32 hookSalt) = _mineHookSalt(bindings, predictedLaunchpad);
-        RobinhoodRevshareLaunchpadV1 revshare = new RobinhoodRevshareLaunchpadV1(bindings, hookSalt);
-        if (address(revshare) != predictedLaunchpad) {
-            revert LaunchpadAddressMismatch(predictedLaunchpad, address(revshare));
-        }
-        if (revshare.hook() != predictedHook) revert HookAddressMismatch(predictedHook, revshare.hook());
-        revshare.unpauseLaunches();
-
-        predictedLaunchpad = vm.computeCreateAddress(deployer, vm.getNonce(deployer));
         (address predictedStocksHook, bytes32 stocksHookSalt) = _mineHookSalt(bindings, predictedLaunchpad);
-        RobinhoodStocksLaunchpadV1 stocks = new RobinhoodStocksLaunchpadV1(bindings, address(revshare), stocksHookSalt);
+        RobinhoodStocksLaunchpadV1 stocks = new RobinhoodStocksLaunchpadV1(bindings, stocksHookSalt);
         if (address(stocks) != predictedLaunchpad) {
             revert LaunchpadAddressMismatch(predictedLaunchpad, address(stocks));
         }
@@ -128,12 +118,11 @@ contract DeployRobinhoodLab is Script {
         stocks.unpauseLaunches();
         vm.stopBroadcast();
 
-        console2.log("REGENT_ROBINHOOD_LAB_HOOK_SALT:", vm.toString(hookSalt));
-        console2.log("REGENT_ROBINHOOD_LAB_LAUNCHPAD:", address(revshare));
-        console2.log("REGENT_ROBINHOOD_LAB_HOOK:", revshare.hook());
         console2.log("REGENT_ROBINHOOD_LAB_STOCKS_HOOK_SALT:", vm.toString(stocksHookSalt));
         console2.log("REGENT_ROBINHOOD_LAB_STOCKS_LAUNCHPAD:", address(stocks));
         console2.log("REGENT_ROBINHOOD_LAB_STOCKS_HOOK:", stocks.hook());
+        console2.log("REGENT_ROBINHOOD_LAB_STOCKS_LOCKER:", stocks.locker());
+        console2.log("REGENT_ROBINHOOD_LAB_STOCKS_SPLITTER_IMPLEMENTATION:", stocks.splitterImplementation());
         console2.log("REGENT_ROBINHOOD_LAB_BID_ADAPTER:", address(adapter));
         console2.log("REGENT_ROBINHOOD_LAB_USDG:", address(usdg));
         console2.log("REGENT_ROBINHOOD_LAB_INBOX:", address(inbox));

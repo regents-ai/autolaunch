@@ -96,8 +96,8 @@ library StocksPreset {
     /// @notice Brief P08: each hook lane is `feeBase / LANE_DIVISOR`, floored per lane.
     uint256 internal constant LANE_DIVISOR = 100;
     uint16 internal constant REGENT_LANE_BPS = 100;
-    /// @notice Brief P09/P10: the subject lane is either off or exactly this.
-    uint16 internal constant SUBJECT_LANE_BPS = 100;
+    /// @notice Founder decision: every launch's memestock stakers always earn exactly this lane.
+    uint16 internal constant STAKER_LANE_BPS = 100;
 
     // -------------------------------------------------------------------------
     // metadata caps (same shape as the Agent factory; bytes, inclusive, each nonempty)
@@ -120,12 +120,13 @@ library StocksPreset {
     // PROVISIONAL: awaiting founder decision record (failed-minimum retirement)
     bool internal constant RETIRE_FAILED_INVENTORY = true;
 
-    /// @notice Brief P13 "all-net-STOCK liquidity": graduation locks two positions at the dead
-    ///         address. The full-range position takes the whole reserve and the STOCK it pairs with
+    /// @notice Brief P13 "all-net-STOCK liquidity": graduation locks two positions in the fee-only
+    ///         `MemestockLPLocker`, whose LP fees go to the launch's memestock stakers. The full-range
+    ///         position takes the whole reserve and the STOCK it pairs with
     ///         at the clearing price; the one-sided STOCK position takes every remaining unit of net
     ///         STOCK. Only the rounding remainder below one unit of liquidity, bounded by
     ///         `sqrt(clearingPrice)` base units and zero at every realistic price, accrues to the
-    ///         REGENT bucket of the pool's hook. See README "Money and custody rules" 3.
+    ///         REGENT lane of the pool's hook. See README "Money and custody rules" 3.
     // PROVISIONAL: awaiting founder decision record (the destination of the rounding remainder)
     bool internal constant LP_STOCK_DUST_TO_REGENT_BUCKET = true;
 

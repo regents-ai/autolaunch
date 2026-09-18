@@ -2,45 +2,38 @@
 pragma solidity 0.8.26;
 
 /// @title IRobinhoodFeeHookV1
-/// @notice The official-pool hook of one Robinhood launchpad. Every registered pool pairs NEW with its
-///         fee currency: USDG for a revenue-share launch, the admitted STOCK for a stock-pair launch.
-///         The hook charges fee-currency lanes on every swap and only accrues them: 100 bps to the
-///         mandatory protocol bucket and, when a subject splitter is active for the pool at that
-///         moment, 100 bps to that splitter's bucket. Deposits happen outside swaps through `settle`:
-///         a USDG bucket is deposited as it is, a STOCK bucket is first converted to USDG through the
-///         launchpad's admitted route.
-/// @dev Fee base: the realized fee-currency amount of the swap, floored per lane. Every accrual is
-///      attributed to the destination in effect when it accrued; later administration never
-///      redirects an existing bucket.
+/// @notice The official NEW/STOCK pool hook of the Robinhood launchpad. It charges STOCK-side hook
+///         fees on every swap of a registered pool and only accrues them: 100 bps to the protocol lane
+///         and 100 bps to the staker lane of the pool's memestock splitter. Both lanes are always on
+///         and the splitter is fixed when the pool is registered. Conversion and downstream deposits
+///         happen outside swaps. Nothing in a swap calls a splitter, a route or the inbox.
+/// @dev Fee base: the realized STOCK amount of the swap (the trader's STOCK debit for STOCK-input
+///      swaps, the pool's STOCK output before hook charges for STOCK-output swaps), floored per lane.
 interface IRobinhoodFeeHookV1 {
-    /// @notice A bucket is (poolId, destination). The protocol lane's destination is the inbox
-    ///         (`PROTOCOL_DESTINATION`); a subject lane's destination is the splitter that was active.
-    event HookFeeAccrued(
-        bytes32 indexed poolId, address indexed destination, uint256 feeBase, uint256 protocolLane, uint256 subjectLane
-    );
-    /// @notice Fee currency from one bucket was converted (STOCK) or taken as is (USDG) and deposited.
-    event BucketSettled(
-        bytes32 indexed poolId,
-        address indexed destination,
-        uint256 feeTokenConsumed,
-        uint256 usdgDeposited,
-        bytes32 sourceRef
-    );
+    event HookFeeAccrued(bytes32 indexed poolId, uint256 feeBase, uint256 protocolLane, uint256 stakerLane);
+    /// @notice STOCK from the protocol lane was converted and the resulting USDG deposited into the inbox.
+    event ProtocolLaneSettled(bytes32 indexed poolId, uint256 stockConverted, uint256 usdgDeposited);
+    /// @notice The whole staker lane was deposited, in STOCK, into the pool's memestock splitter.
+    event StakerLaneSettled(bytes32 indexed poolId, address indexed splitter, uint256 stockDeposited);
 
-    function PROTOCOL_DESTINATION() external view returns (address);
     function launchpad() external view returns (address);
     function usdg() external view returns (address);
     function inbox() external view returns (address);
-    function accrued(bytes32 poolId, address destination) external view returns (uint256);
-    function settled(bytes32 poolId, address destination)
+    /// @notice STOCK accrued and not yet settled for one pool, per lane.
+    function accrued(bytes32 poolId) external view returns (uint256 protocolLane, uint256 stakerLane);
+    /// @notice Lifetime totals for one pool: protocol-lane STOCK converted and USDG deposited, and STOCK
+    ///         deposited into the splitter.
+    function settled(bytes32 poolId)
         external
         view
-        returns (uint256 feeTokenConsumed, uint256 usdgDeposited);
+        returns (uint256 stockConverted, uint256 usdgDeposited, uint256 stockDepositedToStakers);
 
-    /// @notice Deposit `amount` of one bucket. USDG buckets: anyone may call, the amount is deposited
-    ///         unchanged. STOCK buckets: executor only, the amount is converted through the admitted
-    ///         route and at least `minUsdgOut` must come out. Protocol bucket -> inbox `deposit`,
-    ///         subject bucket -> that splitter's `depositRecognizedRevenue(USDG, ...)`. A failure here
-    ///         reverts only this call; swaps and other buckets are unaffected.
-    function settle(bytes32 poolId, address destination, uint256 amount, uint256 minUsdgOut) external;
+    /// @notice Convert `stockAmount` of the protocol lane through the launchpad's admitted route for that
+    ///         STOCK and deposit the USDG into the protocol revenue inbox (`deposit`). Executor only. A failure
+    ///         here reverts only this call; swaps and the staker lane are unaffected.
+    function settleProtocolLane(bytes32 poolId, uint256 stockAmount, uint256 minUsdgOut) external;
+
+    /// @notice Deposit the whole staker lane, in STOCK, into the pool's memestock splitter
+    ///         (`depositRecognizedRevenue`). Anyone may call.
+    function settleStakerLane(bytes32 poolId) external returns (uint256 stockDeposited);
 }

@@ -23,25 +23,24 @@ import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {DeployPermit2} from "permit2/test/utils/DeployPermit2.sol";
 import {UERC20Factory} from "uerc20-factory/factories/UERC20Factory.sol";
+import {MemestockLPLocker} from "autolaunch-stocks/MemestockLPLocker.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
 import {MockERC20} from "autolaunch-stocks-test/mocks/MockERC20.sol";
 import {FixtureUsdgStockRoute} from "../src/fixtures/FixtureUsdgStockRoute.sol";
 import {IRobinhoodLaunchpadBase} from "../src/interfaces/IRobinhoodLaunchpadBase.sol";
-import {IRobinhoodRevshareLaunchpadV1} from "../src/interfaces/IRobinhoodRevshareLaunchpadV1.sol";
 import {IRobinhoodStocksLaunchpadV1} from "../src/interfaces/IRobinhoodStocksLaunchpadV1.sol";
 import {RobinhoodFeeHookFactory} from "../src/RobinhoodFeeHookFactory.sol";
 import {RobinhoodFeeHookV1} from "../src/RobinhoodFeeHookV1.sol";
 import {RobinhoodLaunchpadBase} from "../src/RobinhoodLaunchpadBase.sol";
+import {RobinhoodMemestockSplitterV1} from "../src/RobinhoodMemestockSplitterV1.sol";
 import {RobinhoodPreset} from "../src/RobinhoodPreset.sol";
 import {RobinhoodProtocolRevenueInboxV1} from "../src/RobinhoodProtocolRevenueInboxV1.sol";
-import {RobinhoodRevshareLaunchpadV1} from "../src/RobinhoodRevshareLaunchpadV1.sol";
 import {RobinhoodStockBidAdapterV1} from "../src/RobinhoodStockBidAdapterV1.sol";
 import {RobinhoodStocksLaunchpadV1} from "../src/RobinhoodStocksLaunchpadV1.sol";
-import {RobinhoodSubjectSplitterV1} from "../src/RobinhoodSubjectSplitterV1.sol";
 
 /// @notice The hermetic Robinhood harness: the real PoolManager, PositionManager, CCA factory, UERC20
 ///         factory and Permit2 constructed from their pinned sources, the whole Robinhood graph
-///         (inbox, both launchpads with their hooks, bid adapter, fixture routes) reached only
+///         (inbox, the launchpad with its hook, locker and splitters, bid adapter, fixture routes) reached only
 ///         through its production callers. USDG and the two STOCKs are mintable doubles.
 abstract contract RobinhoodFixture is Test, DeployPermit2 {
     using PoolIdLibrary for PoolKey;
@@ -63,7 +62,6 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
     uint256 internal constant USDG_PER_SHARE = 230_000000;
     uint128 internal constant STOCK_REQUIRED_RAISE =
         uint128(RobinhoodPreset.MINIMUM_RAISE_USDG_STOCKS * 1e8 / USDG_PER_SHARE);
-    uint128 internal constant REVSHARE_REQUIRED_RAISE = uint128(RobinhoodPreset.MINIMUM_RAISE_USDG_REVSHARE);
 
     /// @dev A currency-per-NEW floor of 1e-16 base units per base unit, times 2^96, on the bid grid.
     uint256 internal constant FLOOR_PRICE_Q96 = 7_922_816_251_400;
@@ -77,10 +75,9 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
 
     RobinhoodProtocolRevenueInboxV1 internal inbox;
     RobinhoodFeeHookFactory internal hookFactory;
-    RobinhoodRevshareLaunchpadV1 internal revshare;
     RobinhoodStocksLaunchpadV1 internal stocks;
-    RobinhoodFeeHookV1 internal revshareHook;
     RobinhoodFeeHookV1 internal stocksHook;
+    MemestockLPLocker internal locker;
     RobinhoodStockBidAdapterV1 internal adapter;
 
     UERC20Factory internal uerc20Factory;
@@ -97,8 +94,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
 
     address internal safe = makeAddr("robinhood-safe");
     address internal launcher = makeAddr("launcher");
-    address internal treasury = makeAddr("treasury");
-    address internal feeAdministrator = makeAddr("fee-administrator");
+    address internal staker = makeAddr("staker");
     address internal bidder = makeAddr("bidder");
     address internal trader = makeAddr("trader");
     address internal outsider = makeAddr("outsider");
@@ -142,14 +138,10 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
         hookFactory = new RobinhoodFeeHookFactory(address(poolManager));
 
         address predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
-        revshare = new RobinhoodRevshareLaunchpadV1(_bindings(), _mineHookSalt(predicted));
-        require(address(revshare) == predicted, "RobinhoodFixture: revshare prediction");
-        revshareHook = RobinhoodFeeHookV1(revshare.hook());
-
-        predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
-        stocks = new RobinhoodStocksLaunchpadV1(_bindings(), address(revshare), _mineHookSalt(predicted));
+        stocks = new RobinhoodStocksLaunchpadV1(_bindings(), _mineHookSalt(predicted));
         require(address(stocks) == predicted, "RobinhoodFixture: stocks prediction");
         stocksHook = RobinhoodFeeHookV1(stocks.hook());
+        locker = MemestockLPLocker(stocks.locker());
         adapter = new RobinhoodStockBidAdapterV1(address(stocks), PERMIT2);
 
         routeLow = new FixtureUsdgStockRoute(STOCK_LOW, USDG_ADDRESS, USDG_PER_SHARE);
@@ -161,7 +153,6 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
         stocks.admitStock(STOCK_LOW, address(routeLow));
         stocks.admitStock(STOCK_HIGH, address(routeHigh));
         stocks.unpauseLaunches();
-        revshare.unpauseLaunches();
         stocksHook.setExecutor(executor);
         vm.stopPrank();
     }
@@ -221,18 +212,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
 
     /// @dev Reads `launchFee()` (an external call): build params before arming a prank or expectRevert.
     function _stockParams(address stock) internal view returns (IRobinhoodStocksLaunchpadV1.LaunchParams memory) {
-        return IRobinhoodStocksLaunchpadV1.LaunchParams({
-            core: _core(stocks.launchFee()),
-            stock: stock,
-            feeAdministrator: feeAdministrator,
-            subjectSplitter: address(0)
-        });
-    }
-
-    function _revshareParams() internal view returns (IRobinhoodRevshareLaunchpadV1.LaunchParams memory) {
-        return IRobinhoodRevshareLaunchpadV1.LaunchParams({
-            core: _core(revshare.launchFee()), treasury: treasury, requiredUsdgRaised: REVSHARE_REQUIRED_RAISE
-        });
+        return IRobinhoodStocksLaunchpadV1.LaunchParams({core: _core(stocks.launchFee()), stock: stock});
     }
 
     /// @dev The exact-allowance discipline a wallet follows: approve precisely the reviewed fee.
@@ -256,22 +236,6 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
 
     function _launchStock(address stock) internal returns (Launched memory) {
         return _launchStockAs(launcher, _stockParams(stock));
-    }
-
-    function _launchRevshareAs(address who, IRobinhoodRevshareLaunchpadV1.LaunchParams memory params)
-        internal
-        returns (Launched memory launched)
-    {
-        _approveFee(who, address(revshare), params.core.expectedLaunchFee);
-        vm.prank(who);
-        (uint256 launchId, address newToken, address auction) = revshare.launch(params);
-        launched = Launched({
-            launchId: launchId, newToken: newToken, currency: USDG_ADDRESS, auction: IContinuousClearingAuction(auction)
-        });
-    }
-
-    function _launchRevshare() internal returns (Launched memory) {
-        return _launchRevshareAs(launcher, _revshareParams());
     }
 
     // -------------------------------------------------------------------------
@@ -317,12 +281,6 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
         stocks.migrate(launched.launchId);
     }
 
-    /// @dev 10,000 USDG, twice the minimum raise.
-    function _graduateRevshare(Launched memory launched) internal returns (uint256 bidId) {
-        bidId = _bidToMigration(launched, 10_000e6);
-        revshare.migrate(launched.launchId);
-    }
-
     /// @dev The bidder settles its bid through the CCA alone and hands the NEW it bought to `to`.
     function _claimNewTo(Launched memory launched, uint256 bidId, address to) internal returns (uint256 claimed) {
         vm.startPrank(bidder);
@@ -330,6 +288,26 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
         launched.auction.claimTokens(bidId);
         claimed = MockERC20(launched.newToken).balanceOf(bidder);
         MockERC20(launched.newToken).transfer(to, claimed);
+        vm.stopPrank();
+    }
+
+    // -------------------------------------------------------------------------
+    // staking
+    // -------------------------------------------------------------------------
+
+    function _splitter(Launched memory launched) internal view returns (RobinhoodMemestockSplitterV1) {
+        return RobinhoodMemestockSplitterV1(stocks.launches(launched.launchId).splitter);
+    }
+
+    /// @dev A graduated market whose whole auction purchase is staked by `staker`.
+    function _graduatedStakedMarket(address stock) internal returns (Launched memory launched, uint256 staked) {
+        launched = _launchStock(stock);
+        uint256 bidId = _graduateStock(launched);
+        staked = _claimNewTo(launched, bidId, staker);
+        RobinhoodMemestockSplitterV1 splitter = _splitter(launched);
+        vm.startPrank(staker);
+        MockERC20(launched.newToken).approve(address(splitter), staked);
+        splitter.stake(staked);
         vm.stopPrank();
     }
 
@@ -365,7 +343,21 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
         internal
         returns (BalanceDelta delta)
     {
-        bool zeroForOne = launched.currency < launched.newToken;
+        return _swapExactIn(launched, hook, launched.currency < launched.newToken, amountIn);
+    }
+
+    /// @dev An exact-input swap of `amountIn` of NEW back into the pool currency by the trader.
+    function _swapNewIn(Launched memory launched, address hook, uint256 amountIn)
+        internal
+        returns (BalanceDelta delta)
+    {
+        return _swapExactIn(launched, hook, launched.newToken < launched.currency, amountIn);
+    }
+
+    function _swapExactIn(Launched memory launched, address hook, bool zeroForOne, uint256 amountIn)
+        private
+        returns (BalanceDelta delta)
+    {
         vm.prank(trader);
         delta = swapRouter.swap(
             _poolKey(launched, hook),
