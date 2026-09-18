@@ -4,8 +4,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   The wallet Privy has selected drives everything here. Its address arrives as
   untrusted browser input and is proved against the mounted lease before any
-  private fact is read or any durable write happens, so a wallet this account
-  does not hold shows no balances and can neither review nor send.
+  private fact is read or any durable write happens, so any wallet other than
+  the signed-in one shows no balances and can neither review nor send.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
   server's own read of that exact hash. Each distinct press is independent;
@@ -44,8 +44,10 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     authentication_required: "Sign in to use your wallet here.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch back to a wallet on this account to continue.",
-    invalid_address: "Switch back to a wallet on this account to continue.",
+    wrong_signer:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    invalid_address:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     subject_not_found: "This subject is no longer available.",
     subject_unavailable: "This subject could not be read just now.",
@@ -80,8 +82,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   @generic "That did not go through. Try again in a moment."
 
-  # The refusals that mean this browser is not offering a wallet this account
-  # holds, so no private fact and no control belongs on screen.
+  # The refusals that mean this browser is not offering the signed-in
+  # wallet, so no private fact and no control belongs on screen.
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
@@ -680,8 +682,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     end
   end
 
-  # Membership is a session fact and a balance is a chain fact. A wallet this
-  # account does not hold is not adopted at all; one it does hold stays on screen
+  # Membership is a session fact and a balance is a chain fact. Any wallet but
+  # the signed-in one is not adopted at all; the signed-in one stays on screen
   # with the reason its state could not be read.
   defp refused(socket, _address, reason) when reason in @unheld,
     do: assign(socket, wallet: nil, state: nil, notice: notice(:error, reason))

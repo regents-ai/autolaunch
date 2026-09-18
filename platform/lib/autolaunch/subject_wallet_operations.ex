@@ -124,10 +124,10 @@ defmodule Autolaunch.SubjectWalletOperations do
   @spec hash(map(), :approval | :action) :: String.t() | nil
   def hash(operation, step), do: Map.get(operation, Map.fetch!(@hash_attributes, step))
 
-  @doc "The account really holds this wallet right now, proved inside the locked transaction."
+  @doc "The signer is the account's signed-in wallet right now, proved inside the locked transaction."
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}
-  def signer_matches(%{wallet_addresses: wallets}, signer) do
-    if Enum.any?(wallets || [], &Address.equal?(&1, signer)),
+  def signer_matches(%{wallet_address: wallet}, signer) do
+    if Address.equal?(wallet, signer),
       do: :ok,
       else: unavailable(:wrong_signer)
   end

@@ -4,8 +4,8 @@ defmodule AutolaunchWeb.BidComponent do
 
   The wallet Privy has selected drives everything here. Its address arrives as
   untrusted browser input and is proved against the mounted lease before any
-  private fact is read or any durable write happens, so a wallet this account
-  does not hold shows a balance of nothing and can neither review nor send.
+  private fact is read or any durable write happens, so any wallet other than
+  the signed-in one shows a balance of nothing and can neither review nor send.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
   server's own read of that exact hash, and a claimed step is never offered a
@@ -26,7 +26,8 @@ defmodule AutolaunchWeb.BidComponent do
   @copy %{
     bid_preparation_unavailable: "Bidding is not open on this auction yet.",
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
-    wrong_signer: "Switch back to a wallet on this account to continue.",
+    wrong_signer:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
     session_unavailable: "Sign in again to continue.",
     auction_not_biddable: "This auction is not taking bids.",
     auction_currency_changed:
@@ -47,8 +48,8 @@ defmodule AutolaunchWeb.BidComponent do
 
   @generic "That did not go through. Try again in a moment."
 
-  # The refusals that mean this browser is not offering a wallet this account
-  # holds, so no private fact and no control belongs on screen.
+  # The refusals that mean this browser is not offering the signed-in
+  # wallet, so no private fact and no control belongs on screen.
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
 
   @impl true
@@ -568,8 +569,8 @@ defmodule AutolaunchWeb.BidComponent do
     end
   end
 
-  # Membership is a session fact and a balance is a chain fact. A wallet this
-  # account does not hold is not adopted at all; one it does hold stays on
+  # Membership is a session fact and a balance is a chain fact. Any wallet but
+  # the signed-in one is not adopted at all; the signed-in one stays on
   # screen with the reason its position could not be read.
   defp refused(socket, _address, reason) when reason in @unheld,
     do: assign(socket, wallet: nil, balance: nil, notice: notice(:error, reason))

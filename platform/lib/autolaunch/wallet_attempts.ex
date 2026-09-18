@@ -43,7 +43,7 @@ defmodule Autolaunch.WalletAttempts do
         with {:ok, op} <- parent(kind, account.id, action_id, true),
              :ok <- eligible(op, step, signer),
              true <- op.envelope == candidate.envelope,
-             true <- Enum.any?(account.wallet_addresses || [], &Address.equal?(&1, signer)),
+             true <- Address.equal?(account.wallet_address, signer),
              {:ok, existing} <- fetch(kind, op, press_id, true) do
           case existing do
             nil ->

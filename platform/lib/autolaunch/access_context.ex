@@ -27,7 +27,7 @@ defmodule Autolaunch.AccessContext do
       profile_path: nil,
       settings_path: "/settings",
       avatar_data_uri: PublicIdentity.avatar_data_uri(account),
-      wallet_address: account.wallet_address || List.first(account.wallet_addresses || [])
+      wallet_address: account.wallet_address
     }
   end
 end

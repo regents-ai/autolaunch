@@ -598,8 +598,8 @@ defmodule Autolaunch.BidSettlementActions do
 
   defp signer_matches(nil, _signer), do: unavailable(:session_unavailable)
 
-  defp signer_matches(%{wallet_addresses: wallets}, signer) do
-    if Enum.any?(wallets || [], &Address.equal?(&1, signer)),
+  defp signer_matches(%{wallet_address: wallet}, signer) do
+    if Address.equal?(wallet, signer),
       do: :ok,
       else: unavailable(:wrong_signer)
   end

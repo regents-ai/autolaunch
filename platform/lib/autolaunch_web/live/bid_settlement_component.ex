@@ -23,9 +23,12 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     authentication_required: "Sign in to settle this bid.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch back to the wallet that placed this bid to continue.",
-    invalid_address: "Switch back to the wallet that placed this bid to continue.",
-    not_your_bid: "This bid was placed from a wallet this account does not hold.",
+    wrong_signer:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    invalid_address:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    not_your_bid:
+      "This bid was placed from a different wallet. Sign in with that wallet to settle it.",
     position_not_on_chain: "This bid has no on-chain record to settle.",
     bid_not_found: "The auction has no record of this bid.",
     chain_unavailable:

@@ -96,8 +96,8 @@ defmodule Autolaunch.Stocks.FeeAdminOperations do
   defp bind_action(_terminal), do: :attach_late_hash
 
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}
-  def signer_matches(%{wallet_addresses: wallets}, signer) do
-    if Enum.any?(wallets || [], &Address.equal?(&1, signer)),
+  def signer_matches(%{wallet_address: wallet}, signer) do
+    if Address.equal?(wallet, signer),
       do: :ok,
       else: unavailable(:wrong_signer)
   end

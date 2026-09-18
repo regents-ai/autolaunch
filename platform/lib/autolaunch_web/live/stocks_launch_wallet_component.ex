@@ -20,8 +20,10 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     authentication_required: "Sign in to launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch back to a wallet on this account to continue.",
-    invalid_address: "Switch back to a wallet on this account to continue.",
+    wrong_signer:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
+    invalid_address:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
     chain_unavailable:
       "The Base fork could not be read just now. Check that it is still running.",
     stocks_unavailable: "Stock launches are not open on this site.",

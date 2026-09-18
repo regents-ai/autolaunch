@@ -20,7 +20,8 @@ defmodule AutolaunchWeb.StocksFeeAdminComponent do
     authentication_required: "Sign in to administer this launch from your wallet.",
     session_unavailable: "Sign in again to continue.",
     session_lease_required: "Sign in again to continue.",
-    wrong_signer: "Switch back to a wallet on this account to continue.",
+    wrong_signer:
+      "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
     invalid_address: "That is not a usable address.",
     subject_splitter_invalid: "The revenue address is not a usable address.",
     subject_splitter_unrecognised:

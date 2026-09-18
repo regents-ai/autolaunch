@@ -174,14 +174,9 @@ defmodule Autolaunch.Accounts.VerifiedSession do
       |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
       |> Enum.uniq()
 
-    case addresses do
-      [] ->
-        {:error, :missing_linked_wallet}
-
-      addresses ->
-        primary = if primary in addresses, do: primary, else: hd(addresses)
-        {:ok, primary, addresses}
-    end
+    if primary in addresses,
+      do: {:ok, primary, addresses},
+      else: {:error, :missing_linked_wallet}
   end
 
   defp linked_wallet_evidence(_verified), do: {:error, :missing_linked_wallet}
