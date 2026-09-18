@@ -340,19 +340,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   def launch_agent(%{agent_name: value}) when is_binary(value) and value != "", do: value
   def launch_agent(%{agent_id: value}), do: value
 
-  def bid_title(%{token: %Token{}} = position) do
-    presentation = position_token_presentation(position)
-    "#{presentation.name} · #{presentation.symbol}"
-  end
-
-  def bid_title(%{auction: %{title: title}}), do: title
-  def bid_title(%{bid_id: bid_id}), do: "Bid #{bid_id}"
-
-  def position_token_presentation(%{token: %Token{} = token, auction: %{title: _} = auction}),
-    do: token |> Map.put(:auction, auction) |> Token.presentation()
-
-  def position_token_presentation(%{token: %Token{} = token}), do: Token.presentation(token)
-
   def display_status(value) do
     value
     |> display_action()
@@ -448,15 +435,13 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   def load_holdings(%Human{} = actor) do
     with {:ok, positions} <- Autolaunch.list_my_bid_positions(actor: actor),
          {:ok, returnable} <- Autolaunch.list_my_returnable_bid_positions(actor: actor),
-         {:ok, claimable} <- Autolaunch.list_my_claimable_bid_positions(actor: actor),
-         {:ok, claimed} <- Autolaunch.list_my_claimed_token_positions(actor: actor) do
+         {:ok, claimable} <- Autolaunch.list_my_claimable_bid_positions(actor: actor) do
       {:ok,
        %{
          status: :ready,
          positions: positions,
          returnable_positions: returnable,
-         claimable_positions: claimable,
-         claimed_token_positions: Enum.filter(claimed, & &1.token)
+         claimable_positions: claimable
        }}
     else
       _error -> {:error, :unavailable}

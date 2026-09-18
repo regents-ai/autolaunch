@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
 
+  alias Autolaunch.TokenHoldings
   alias AutolaunchWeb.LabMarket
 
   @history ~w(claimed exited returned)
@@ -17,7 +18,7 @@ defmodule AutolaunchWeb.PortfolioLive do
      |> assign(:positions, [])
      |> assign(:returnable_positions, [])
      |> assign(:claimable_positions, [])
-     |> assign(:claimed_token_positions, [])
+     |> assign(:token_holdings, :loading)
      |> assign(:market, LabMarket.subscribe(socket))
      |> load_signed_in_holdings()}
   end
@@ -31,7 +32,8 @@ defmodule AutolaunchWeb.PortfolioLive do
      assign(socket, :refreshed_at, if(socket.assigns.status == :ready, do: DateTime.utc_now()))}
   end
 
-  # The lab feeds moved: positions may have become returnable or claimable.
+  # The lab feeds moved: positions may have become returnable or claimable,
+  # and a trade may have changed what the wallets hold.
   def handle_info({:autolaunch_market_updated, _update}, socket) do
     market = LabMarket.snapshot()
 
@@ -43,6 +45,12 @@ defmodule AutolaunchWeb.PortfolioLive do
   # A settlement card verified a step, so the stored position changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, load_signed_in_holdings(socket)}
+
+  def handle_async(:token_holdings, {:ok, {:ok, holdings}}, socket),
+    do: {:noreply, assign(socket, :token_holdings, holdings)}
+
+  def handle_async(:token_holdings, _failed, socket),
+    do: {:noreply, assign(socket, :token_holdings, :error)}
 
   def render(assigns) do
     {history, current} = Enum.split_with(assigns.positions, &(&1.status in @history))
@@ -110,9 +118,34 @@ defmodule AutolaunchWeb.PortfolioLive do
             <dt>Claimable</dt><dd>{length(@claimable_positions)}</dd>
           </div>
           <div>
-            <dt>Held launch tokens</dt><dd>{length(@claimed_token_positions)}</dd>
+            <dt>Tokens held</dt>
+            <dd>{if is_list(@token_holdings), do: length(@token_holdings), else: "–"}</dd>
           </div>
         </dl>
+
+        <section id="autolaunch-held-tokens" aria-labelledby="autolaunch-held-tokens-title">
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="autolaunch-held-tokens-title">Tokens</h2>
+          </Regent.Structure.section_bar>
+          <p :if={@token_holdings == :loading} class="autolaunch-empty" role="status">
+            Reading your wallets…
+          </p>
+          <p :if={@token_holdings == :error} class="autolaunch-empty" role="alert">
+            Your token balances are unavailable right now.
+          </p>
+          <p :if={@token_holdings == []} class="autolaunch-empty">
+            Tokens held by your verified wallets will appear here.
+            <.link navigate="/tokens">Explore tokens</.link>
+          </p>
+          <ol :if={is_list(@token_holdings) && @token_holdings != []} class="autolaunch-record-list">
+            <li :for={holding <- @token_holdings}>
+              <.link navigate={"/tokens/#{holding.token.id}"}>
+                <strong>{holding.presentation.name} · {holding.presentation.symbol}</strong>
+                <span>{holding.held} {holding.presentation.symbol}</span>
+              </.link>
+            </li>
+          </ol>
+        </section>
 
         <section id="autolaunch-bid-positions" aria-labelledby="autolaunch-bid-positions-title">
           <Regent.Structure.section_bar>
@@ -133,26 +166,6 @@ defmodule AutolaunchWeb.PortfolioLive do
           />
         </section>
 
-        <section
-          :if={@claimed_token_positions != []}
-          id="autolaunch-held-tokens"
-          aria-labelledby="autolaunch-held-tokens-title"
-        >
-          <Regent.Structure.section_bar>
-            <h2 class="rg-section-bar__label" id="autolaunch-held-tokens-title">
-              Held launch tokens
-            </h2>
-          </Regent.Structure.section_bar>
-          <ol :if={@claimed_token_positions != []} class="autolaunch-record-list">
-            <li :for={position <- @claimed_token_positions}>
-              <% presentation = position_token_presentation(position) %>
-              <.link navigate={"/tokens/#{position.token.id}"}>
-                <strong>{presentation.name} · {presentation.symbol}</strong>
-                <span>Claimed from {bid_title(position)}</span>
-              </.link>
-            </li>
-          </ol>
-        </section>
         <Regent.Primitives.disclosure
           :if={@history != []}
           id="portfolio-history"
@@ -204,6 +217,8 @@ defmodule AutolaunchWeb.PortfolioLive do
         assign_holdings(socket, :ready)
 
       actor ->
+        socket = read_token_holdings(socket, actor)
+
         case load_holdings(actor) do
           {:ok, holdings} -> assign(socket, holdings)
           {:error, :unavailable} -> assign_holdings(socket, :error)
@@ -211,13 +226,22 @@ defmodule AutolaunchWeb.PortfolioLive do
     end
   end
 
+  # Wallet balances come from the chain, so they arrive after the page.
+  defp read_token_holdings(socket, actor) do
+    if connected?(socket),
+      do:
+        socket
+        |> assign(:token_holdings, :loading)
+        |> start_async(:token_holdings, fn -> TokenHoldings.read(actor) end),
+      else: socket
+  end
+
   defp assign_holdings(socket, status) do
     assign(socket,
       status: status,
       positions: [],
       returnable_positions: [],
-      claimable_positions: [],
-      claimed_token_positions: []
+      claimable_positions: []
     )
   end
 end

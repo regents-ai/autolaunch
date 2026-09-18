@@ -41,15 +41,6 @@ defmodule Autolaunch.Bid do
               )
     end
 
-    read :claimed_mine do
-      filter expr(status == "claimed")
-
-      prepare build(
-                sort: [claimed_at: :desc_nils_last, inserted_at: :desc, id: :desc],
-                load: [:auction, :token]
-              )
-    end
-
     read :owned_by_bid_id do
       get? true
       argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
@@ -122,11 +113,11 @@ defmodule Autolaunch.Bid do
   end
 
   policies do
-    policy action([:mine, :returnable_mine, :claimable_mine, :claimed_mine, :owned_by_bid_id]) do
+    policy action([:mine, :returnable_mine, :claimable_mine, :owned_by_bid_id]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
 
-    policy action([:mine, :returnable_mine, :claimable_mine, :claimed_mine, :owned_by_bid_id]) do
+    policy action([:mine, :returnable_mine, :claimable_mine, :owned_by_bid_id]) do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 

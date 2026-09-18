@@ -50,6 +50,50 @@ defmodule Autolaunch.Pool do
 
   def dead_address, do: @dead
 
+  @doc """
+  The graduated token's contract, for reads that need nothing else from the
+  pool: the strategy's `distribution` names it for an agent launch, the
+  launchpad's `launches` record for a Stocks launch.
+  """
+  @spec token_address(map(), map(), Rpc.block(), keyword()) ::
+          {:ok, String.t()} | {:error, atom()}
+  def token_address(%{kind: :agent} = auction, config, block, opts) do
+    with {:ok, words} <-
+           LabRpc.words(
+             config,
+             :strategy,
+             "distribution(address)",
+             [auction.auction_address],
+             @distribution_words,
+             block,
+             opts
+           ),
+         {:ok, distribution} <- agent_distribution(words),
+         do: {:ok, distribution.subject}
+  end
+
+  def token_address(%{kind: :stocks} = auction, config, block, opts) do
+    with {:ok, launch_id} <-
+           launchpad_uint(
+             config,
+             "launchIdOfAuction(address)",
+             [auction.auction_address],
+             block,
+             opts
+           ),
+         {:ok, words} <-
+           launchpad_words(
+             config,
+             "launches(uint256)",
+             [launch_id],
+             StocksLabAbi.launch_record_words(),
+             block,
+             opts
+           ),
+         {:ok, launch} <- stocks_launch(words),
+         do: {:ok, launch.new_token}
+  end
+
   # Agent
 
   defp read_agent(auction) do
