@@ -49,7 +49,13 @@ defmodule AutolaunchWeb.Router do
     get "/profile", SharedProfileController, :show
     get "/settings", SettingsController, :show
     get "/create/stocks", CreateRedirectController, :stocks
-    live "/", HomeLive, :home
+
+    live_session :public_root,
+      session: {AutolaunchWeb.Live.Session, :render_context, []},
+      on_mount: [{AutolaunchWeb.Live.Session, :public_human}] do
+      live "/", HomeLive, :home
+    end
+
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
 

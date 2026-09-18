@@ -78,7 +78,6 @@
 }
 .token-swap__options-panel[hidden] { display: none; }
 .token-swap__options-panel input { width: 100%; max-width: 8rem; }
-a.token-swap__submit { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .token-swap__submit { width: 100%; min-height: 3.5rem; margin-top: var(--space-1); }
 .token-swap__notice { margin: 0; }
 .token-swap > .token-swap__notice, .token-swap__rate { margin-block: var(--space-3) 0; }

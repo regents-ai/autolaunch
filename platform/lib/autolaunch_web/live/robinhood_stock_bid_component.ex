@@ -494,6 +494,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp wallet_failure_copy("wallet_unavailable"),
     do: "Open the wallet you signed in with, then try again. Nothing was sent."
 
+  defp wallet_failure_copy("network_mismatch"),
+    do:
+      "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent."
+
   defp wallet_failure_copy("wallet_declined"), do: "Your wallet declined this. Nothing was sent."
 
   defp wallet_failure_copy("send_unconfirmed"),

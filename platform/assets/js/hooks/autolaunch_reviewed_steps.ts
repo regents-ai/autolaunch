@@ -4,6 +4,7 @@ import type {Hook} from "../hook_composition"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {userRejected} from "../wallet_actions/autolaunch_launch"
 import {
+  LabNetworkMismatch,
   sendLabTransaction,
   type AutolaunchLabAnchor,
   type AutolaunchLabBinding,
@@ -23,8 +24,12 @@ type Review = {
   steps: {step: string; to: Address; data: Hex}[]
 }
 
-// `wallet_unavailable` is the only reason that proves nothing was sent.
-type FailureReason = "wallet_unavailable" | "wallet_declined" | "send_unconfirmed"
+// `wallet_unavailable` and `network_mismatch` are the reasons that prove nothing was sent.
+type FailureReason =
+  | "wallet_unavailable"
+  | "network_mismatch"
+  | "wallet_declined"
+  | "send_unconfirmed"
 
 type ReviewedStepsHook = Hook & {
   el: HTMLElement
@@ -105,6 +110,6 @@ async function send(
 }
 
 function failure(started: boolean, error: unknown): FailureReason {
-  if (!started) return "wallet_unavailable"
+  if (!started) return error instanceof LabNetworkMismatch ? "network_mismatch" : "wallet_unavailable"
   return userRejected(error) ? "wallet_declined" : "send_unconfirmed"
 }

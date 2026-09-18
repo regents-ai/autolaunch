@@ -35,8 +35,8 @@ defmodule AutolaunchWeb.Live.Session do
   # The product shell needs a path and an account control on every LiveView,
   # including the public root, which stays outside :load_human so a refused
   # handshake can land there. :shell runs from the live_view macro first and
-  # presents what the cookie already proves; :load_human then replaces that
-  # control when the page is inside the product session.
+  # presents what the cookie already proves; :load_human, or :public_human on
+  # the root, then replaces that control with what the mount proved.
   def on_mount(:shell, _params, session, socket) do
     {:cont,
      socket
@@ -62,6 +62,37 @@ defmodule AutolaunchWeb.Live.Session do
       true -> {:cont, assign_principal(socket, disconnected_account(session))}
     end
   end
+
+  # The public root reads the same proof as the product session and grants the
+  # same lease, but it never refuses a mount: anything short of an exactly
+  # current claim for the lineage the page was rendered for is a guest, so a
+  # handshake refused elsewhere can always land here.
+  def on_mount(:public_human, _params, session, socket) do
+    socket = Phoenix.Component.assign(socket, :session_lease, nil)
+
+    cond do
+      Autolaunch.Prelaunch.read_only?() ->
+        {:cont, assign_principal(socket, nil)}
+
+      connected?(socket) ->
+        {:cont, admit_or_guest(socket, session, get_connect_info(socket, :session))}
+
+      true ->
+        {:cont, assign_principal(socket, disconnected_account(session))}
+    end
+  end
+
+  defp admit_or_guest(socket, %{"render_topic" => rendered}, handshake) do
+    with %{lineage: lineage, generation: generation} = claim <- SessionAuthority.claim(handshake),
+         {^lineage, account} <- SessionAuthority.resolve(claim),
+         ^rendered <- SessionAuthority.topic(lineage) do
+      hold(socket, lineage, generation, account)
+    else
+      _guest -> assign_principal(socket, nil)
+    end
+  end
+
+  defp admit_or_guest(socket, _static, _handshake), do: assign_principal(socket, nil)
 
   # The cookie the socket connected with is the only authority, and a mount that
   # cannot honour it is refused there and then rather than left to a later hook.
@@ -151,8 +182,8 @@ defmodule AutolaunchWeb.Live.Session do
     )
   end
 
-  # Home is outside the product session, so this only presents what the cookie
-  # can already prove. It never refuses a mount; :load_human still owns that.
+  # This only presents what the cookie can already prove and never refuses a
+  # mount; :load_human still owns that.
   defp assign_shell_control(socket, session) do
     access_context = access_context(disconnected_account(session))
 

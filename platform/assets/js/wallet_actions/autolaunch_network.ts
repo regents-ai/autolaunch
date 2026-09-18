@@ -29,6 +29,13 @@ export type AutolaunchTransaction = {
   data: Hex
 }
 
+/**
+ * The wallet answered, but for another network: its copy of this chain id
+ * points somewhere other than the fork the action was reviewed on. Nothing was
+ * sent, and only the wallet's own network settings can fix it.
+ */
+export class LabNetworkMismatch extends Error {}
+
 type LabNetwork = {chainId: AutolaunchLabChainId; rpcUrl: string; chainName: string}
 export type WalletResolver = () => SelectedWallet | null
 
@@ -96,7 +103,7 @@ export async function sendLabTransaction(
       (await providerChainId(provider)) !== network.chainId ||
       !(await anchoredToLab(provider, anchor))
     ) {
-      throw new Error("The selected wallet is connected to a different fork.")
+      throw new LabNetworkMismatch("The selected wallet is connected to a different fork.")
     }
   }
 
@@ -114,7 +121,7 @@ export async function sendLabTransaction(
   sameSelectedWallet(resolveWallet, selected, operation.signer)
 
   if ((await providerChainId(provider)) !== network.chainId) {
-    throw new Error("Switch to the Autolaunch fork before continuing.")
+    throw new LabNetworkMismatch("Switch to the Autolaunch fork before continuing.")
   }
 
   // This synchronous check cannot open a provider request, so `eth_chainId`
@@ -185,12 +192,17 @@ async function anchoredToLab(
   provider: EthereumProvider,
   anchor: AutolaunchLabAnchor,
 ): Promise<boolean> {
-  const block = await provider.request({
-    method: "eth_getBlockByNumber",
-    params: [`0x${anchor.block_number.toString(16)}`, false],
-  })
+  // A wallet whose network cannot answer for the reviewed block is not on the fork.
+  try {
+    const block = await provider.request({
+      method: "eth_getBlockByNumber",
+      params: [`0x${anchor.block_number.toString(16)}`, false],
+    })
 
-  return plainObject(block) && sameHex(block.hash, anchor.block_hash)
+    return plainObject(block) && sameHex(block.hash, anchor.block_hash)
+  } catch {
+    return false
+  }
 }
 
 async function switchToLab(provider: EthereumProvider, network: LabNetwork): Promise<void> {
@@ -214,7 +226,7 @@ async function refreshLab(provider: EthereumProvider, network: LabNetwork): Prom
       params: [{chainId: `0x${network.chainId.toString(16)}`}],
     })
   } catch {
-    throw new Error("The selected wallet could not connect to the current fork.")
+    throw new LabNetworkMismatch("The selected wallet could not connect to the current fork.")
   }
 }
 

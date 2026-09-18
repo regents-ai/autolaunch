@@ -6,8 +6,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   Nothing is stored. The quote is a public read; the review lives on this page
   only, the browser reports a hash and stops, and every outcome on screen is
-  the server's own read of that hash. A page with no account session (the home
-  page) shows the quote and sends the trade to the token page.
+  the server's own read of that hash.
   """
   use AutolaunchWeb, :live_component
 
@@ -85,7 +84,6 @@ defmodule AutolaunchWeb.SwapComponent do
      |> assign_new(:authenticated, fn -> false end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
-     |> assign_new(:continue_path, fn -> nil end)
      |> assign(
        token_view: Autolaunch.Token.presentation(assigns.token),
        entry_symbol: entry_symbol(auction),
@@ -119,8 +117,7 @@ defmodule AutolaunchWeb.SwapComponent do
         protection_error={@protection_error}
         options_open={@options_open}
         options_event="toggle_options"
-        action_label={if @continue_path, do: "Trade on the token page", else: "Review trade"}
-        action_href={@continue_path}
+        action_label="Review trade"
         action_enabled={!@read_only?}
         disabled_reason={if @read_only?, do: "Trading opens after launch."}
         change_event={"form-#{@revision}"}
@@ -129,15 +126,12 @@ defmodule AutolaunchWeb.SwapComponent do
         target={@myself}
       />
 
-      <p :if={@entry_symbol && !@review && !@continue_path && !@authenticated} class="bid-empty">
+      <p :if={@entry_symbol && !@review && !@authenticated} class="bid-empty">
         <Regent.Primitives.button type="button" variant="secondary" data-account-target="sign-in">
           Sign in to trade
         </Regent.Primitives.button>
       </p>
-      <p
-        :if={@entry_symbol && !@review && !@continue_path && @authenticated && !@wallet}
-        class="bid-empty"
-      >
+      <p :if={@entry_symbol && !@review && @authenticated && !@wallet} class="bid-empty">
         <Regent.Primitives.button type="button" variant="secondary" data-wallet-connect>
           Connect or switch wallet
         </Regent.Primitives.button>
@@ -198,15 +192,11 @@ defmodule AutolaunchWeb.SwapComponent do
 
         <div class="launch-wallet-controls">
           <Regent.Primitives.button
-            :for={step <- @review.steps}
-            :if={!traded(@sent)}
+            :if={next_step(@review.steps, @sent)}
             type="button"
-            data-reviewed-step={step["step"]}
-            variant={
-              if step["step"] == next_step(@review.steps, @sent), do: "primary", else: "secondary"
-            }
+            data-reviewed-step={next_step(@review.steps, @sent)}
           >
-            {step_label(step["step"], @review)}
+            {step_label(next_step(@review.steps, @sent), @review)}
           </Regent.Primitives.button>
           <Regent.Primitives.button
             :for={{name, %{outcome: :pending}} <- @sent}
@@ -447,9 +437,14 @@ defmodule AutolaunchWeb.SwapComponent do
     end
   end
 
+  # One button at a time: the first step the wallet has not sent yet, or one
+  # that reverted. A sent step moves the button on at once; nothing waits for
+  # the network before the next press can reach the wallet.
   defp next_step(steps, sent) do
     Enum.find_value(steps, fn %{"step" => name} ->
-      if match?(%{outcome: :confirmed}, sent[name]), do: nil, else: name
+      if match?(%{outcome: outcome} when outcome in [:pending, :confirmed], sent[name]),
+        do: nil,
+        else: name
     end)
   end
 
@@ -499,6 +494,10 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp wallet_failure_copy("wallet_unavailable"),
     do: "Open the wallet you signed in with, then try again. Nothing was sent."
+
+  defp wallet_failure_copy("network_mismatch"),
+    do:
+      "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent."
 
   defp wallet_failure_copy("wallet_declined"), do: "Your wallet declined this. Nothing was sent."
 

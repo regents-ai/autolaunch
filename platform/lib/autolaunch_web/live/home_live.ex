@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.HomeLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [connections_for: 2, creator_connections_for: 1]
+    only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1, explore_row: 1]
   import AutolaunchWeb.Components.SwapModal
@@ -335,7 +335,9 @@ defmodule AutolaunchWeb.HomeLive do
         :if={@trade_token}
         id={"home-trade-#{@trade_token.id}"}
         token={@trade_token}
-        continue_path={~p"/tokens/#{@trade_token.id}"}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
       />
     </main>
     """

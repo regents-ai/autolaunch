@@ -21,7 +21,6 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :slippage, :string, default: nil
   attr :network_fee, :string, default: nil
   attr :fee_lines, :list, default: []
-  attr :action_href, :string, default: nil
   attr :protection, :string, default: nil
   attr :protection_error, :string, default: nil
   attr :options_open, :boolean, default: false
@@ -154,15 +153,7 @@ defmodule AutolaunchWeb.Components.SwapForm do
           <span :if={@estimated_output} class="token-swap__hint">Estimated after swap fees</span>
         </div>
 
-        <.link
-          :if={@action_href}
-          navigate={@action_href}
-          class="rg-button rg-button--primary token-swap__submit"
-        >
-          <span class="rg-button__label">{@action_label}</span>
-        </.link>
         <Regent.Primitives.button
-          :if={!@action_href}
           type="submit"
           class="token-swap__submit"
           disabled={!@action_enabled}
