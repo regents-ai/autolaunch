@@ -216,6 +216,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               id="stocks-terms-stock_address"
               name="stock_draft[stock_address]"
               value={@draft_values["stock_address"]}
+              chain={@launch_chain}
             />
             <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
               {@draft_errors["stock_address"]}

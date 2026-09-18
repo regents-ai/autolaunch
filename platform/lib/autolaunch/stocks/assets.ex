@@ -76,10 +76,6 @@ defmodule Autolaunch.Stocks.Assets do
   @doc "`{symbol, address}` pairs for a selector, in catalog order."
   def options(chain), do: chain |> all() |> Enum.map(&{&1.symbol, &1.address})
 
-  # The Base selector's list; the create page switches to `options(chain)` and
-  # this clause goes with it.
-  def options, do: @assets
-
   def oracle_registry, do: %{chain_id: @base_chain_id, address: @oracle_registry}
 
   def fetch(@base_chain_id, address) when is_binary(address), do: find(:base, address)

@@ -6,13 +6,18 @@ defmodule AutolaunchWeb.Components.StockCurrencySelect do
   attr :name, :string, default: "stock_draft[stock_token_address]"
   attr :value, :string, default: ""
   attr :disabled, :boolean, default: false
+  attr :chain, :atom, required: true
 
   def stock_currency_select(assigns) do
-    assigns = assign(assigns, :options, Autolaunch.Stocks.Assets.options())
+    assigns =
+      assigns
+      |> assign(:options, Autolaunch.Stocks.Assets.options(assigns.chain))
+      |> assign(:chain_label, Autolaunch.LaunchChain.label(assigns.chain))
+      |> assign(:dollar, Autolaunch.LaunchChain.raise_currency(assigns.chain))
 
     ~H"""
     <div>
-      <label for={@id}>Auction currency · Base stock token</label>
+      <label for={@id}>Auction currency · {@chain_label} stock token</label>
       <select id={@id} name={@name} required disabled={@disabled} aria-describedby={@id <> "-help"}>
         <option value="" selected={@value == ""}>Choose a stock token</option>
         <option :for={{symbol, address} <- @options} value={address} selected={@value == address}>
@@ -20,7 +25,7 @@ defmodule AutolaunchWeb.Components.StockCurrencySelect do
         </option>
       </select>
       <p id={@id <> "-help"}>
-        Bids and refunds use the selected stock token. USDC is converted before bidding.
+        Bids and refunds use the selected stock token. {@dollar} is converted before bidding.
         These assets are listed for selection, not yet admitted for launch execution.
         Asset transfer policies and execution availability require separate verification.
       </p>
