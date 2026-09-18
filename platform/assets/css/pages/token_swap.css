@@ -85,7 +85,19 @@
   text-transform: none;
   letter-spacing: normal;
 }
-.token-swap__portions { display: flex; gap: .25rem; }
+/* The shortcuts stay out of the way until the card is pointed at or typed in. */
+.token-swap__portions {
+  display: flex;
+  gap: .25rem;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity .12s ease, visibility .12s;
+}
+.token-swap__leg:hover .token-swap__portions,
+.token-swap__leg:focus-within .token-swap__portions {
+  visibility: visible;
+  opacity: 1;
+}
 .token-swap__portions button {
   min-height: 1.75rem;
   padding: 0 .5rem;
