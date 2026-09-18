@@ -335,6 +335,7 @@ defmodule AutolaunchWeb.HomeLive do
         :if={@trade_token}
         id={"home-trade-#{@trade_token.id}"}
         token={@trade_token}
+        continue_path={~p"/tokens/#{@trade_token.id}"}
       />
     </main>
     """

@@ -168,6 +168,11 @@ defmodule Autolaunch.LabAbi do
     selector(signature) <> encode_sequence(inputs, arguments)
   end
 
+  @doc "Plain `abi.encode` of values against declared input types, with no selector."
+  def encode_values(inputs, values)
+      when is_list(inputs) and is_list(values) and length(inputs) == length(values),
+      do: "0x" <> encode_sequence(inputs, values)
+
   def selector(signature), do: String.slice(Abi.topic0(signature), 0, 10)
   def topic(signature), do: Abi.topic0(signature)
 
@@ -228,7 +233,7 @@ defmodule Autolaunch.LabAbi do
   defp dynamic?(%{"type" => "tuple", "components" => components}),
     do: Enum.any?(components, &dynamic?/1)
 
-  defp dynamic?(_type), do: false
+  defp dynamic?(%{"type" => type}), do: String.ends_with?(type, "[]")
 
   defp head_size(type), do: if(dynamic?(type), do: 32, else: static_size(type))
 
@@ -249,6 +254,15 @@ defmodule Autolaunch.LabAbi do
 
   defp encode_dynamic(%{"type" => "tuple", "components" => components}, value),
     do: encode_sequence(components, tuple_values!(components, value))
+
+  # A dynamic array: its length, then its elements as one sequence.
+  defp encode_dynamic(%{"type" => type} = entry, values) when is_list(values) do
+    if not String.ends_with?(type, "[]"), do: raise(ArgumentError, "invalid array")
+    element = %{entry | "type" => String.replace_suffix(type, "[]", "")}
+
+    word(length(values)) <>
+      encode_sequence(List.duplicate(element, length(values)), values)
+  end
 
   defp encode_static(%{"type" => "tuple", "components" => components}, value),
     do: encode_sequence(components, tuple_values!(components, value))
@@ -274,6 +288,16 @@ defmodule Autolaunch.LabAbi do
     if bits in 8..256//8 and value < Integer.pow(2, bits),
       do: word(value),
       else: raise(ArgumentError, "unsigned integer is out of range")
+  end
+
+  # Two's complement in the full word, as the ABI states a signed integer.
+  defp encode_static(%{"type" => "int" <> width}, value) when is_integer(value) do
+    bits = if(width == "", do: 256, else: String.to_integer(width))
+    bound = Integer.pow(2, bits - 1)
+
+    if bits in 8..256//8 and value >= -bound and value < bound,
+      do: word(Integer.mod(value, @uint256_max + 1)),
+      else: raise(ArgumentError, "signed integer is out of range")
   end
 
   defp encode_static(%{"type" => "bytes" <> width}, "0x" <> hex) when width != "" do

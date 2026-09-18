@@ -21,6 +21,11 @@ defmodule AutolaunchWeb.Components.SwapForm do
   attr :slippage, :string, default: nil
   attr :network_fee, :string, default: nil
   attr :fee_lines, :list, default: []
+  attr :action_href, :string, default: nil
+  attr :protection, :string, default: nil
+  attr :protection_error, :string, default: nil
+  attr :options_open, :boolean, default: false
+  attr :options_event, :string, default: nil
   attr :change_event, :string, required: true
   attr :submit_event, :string, required: true
   attr :reverse_event, :string, required: true
@@ -44,6 +49,56 @@ defmodule AutolaunchWeb.Components.SwapForm do
         phx-submit={@submit_event}
         phx-target={@target}
       >
+        <div :if={@protection} class="token-swap__options">
+          <Regent.Primitives.button
+            type="button"
+            variant="quiet"
+            phx-click={@options_event}
+            phx-target={@target}
+            aria-expanded={to_string(@options_open)}
+            aria-controls={@id <> "-options"}
+            aria-label="Trade options"
+            title="Trade options"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+              <path
+                d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M10 14v6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </Regent.Primitives.button>
+        </div>
+        <div
+          :if={@protection}
+          id={@id <> "-options"}
+          class="token-swap__options-panel"
+          hidden={!@options_open}
+        >
+          <Regent.Primitives.field
+            :let={field}
+            id={@id <> "-protection"}
+            label="Price protection (%)"
+            errors={if @protection_error, do: [@protection_error], else: []}
+          >
+            <input
+              id={field.id}
+              name="protection"
+              type="text"
+              value={@protection}
+              inputmode="decimal"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby={field.described_by}
+              aria-invalid={field.aria_invalid}
+              phx-debounce="blur"
+            />
+            <:hint>
+              From 1 to 10. The trade is cancelled if the price moves against you by more than this.
+            </:hint>
+          </Regent.Primitives.field>
+        </div>
         <div class="token-swap__leg">
           <Regent.Primitives.field
             :let={field}
@@ -99,7 +154,15 @@ defmodule AutolaunchWeb.Components.SwapForm do
           <span :if={@estimated_output} class="token-swap__hint">Estimated after swap fees</span>
         </div>
 
+        <.link
+          :if={@action_href}
+          navigate={@action_href}
+          class="rg-button rg-button--primary token-swap__submit"
+        >
+          <span class="rg-button__label">{@action_label}</span>
+        </.link>
         <Regent.Primitives.button
+          :if={!@action_href}
           type="submit"
           class="token-swap__submit"
           disabled={!@action_enabled}

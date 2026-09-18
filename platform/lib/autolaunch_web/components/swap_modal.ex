@@ -4,6 +4,10 @@ defmodule AutolaunchWeb.Components.SwapModal do
 
   attr :id, :string, required: true
   attr :token, :map, required: true
+  attr :authenticated, :boolean, default: false
+  attr :current_human_id, :integer, default: nil
+  attr :session_lease, :map, default: nil
+  attr :continue_path, :string, default: nil
 
   def swap_modal(assigns) do
     assigns = assign(assigns, :presentation, Autolaunch.Token.presentation(assigns.token))
@@ -27,6 +31,10 @@ defmodule AutolaunchWeb.Components.SwapModal do
         module={AutolaunchWeb.SwapComponent}
         id={@id <> "-input"}
         token={@token}
+        authenticated={@authenticated}
+        current_human_id={@current_human_id}
+        session_lease={@session_lease}
+        continue_path={@continue_path}
       />
     </dialog>
     """

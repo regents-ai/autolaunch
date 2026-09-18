@@ -55,6 +55,9 @@ defmodule AutolaunchWeb.TokenLive do
         module={AutolaunchWeb.SwapComponent}
         id={"token-trade-#{@page_record.id}"}
         token={@page_record}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
       />
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
         <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token graduated from</.link>

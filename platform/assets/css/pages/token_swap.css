@@ -69,6 +69,16 @@
 }
 .token-swap__direction { display: flex; justify-content: center; margin-block: -1.5rem; z-index: 1; }
 .token-swap__direction .rg-button { min-width: 44px; min-height: 44px; padding: .5rem; }
+.token-swap__options { display: flex; justify-content: flex-end; }
+.token-swap__options .rg-button { min-width: 44px; min-height: 44px; padding: .5rem; }
+.token-swap__options-panel {
+  padding: var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface);
+}
+.token-swap__options-panel[hidden] { display: none; }
+.token-swap__options-panel input { width: 100%; max-width: 8rem; }
+a.token-swap__submit { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .token-swap__submit { width: 100%; min-height: 3.5rem; margin-top: var(--space-1); }
 .token-swap__notice { margin: 0; }
 .token-swap > .token-swap__notice, .token-swap__rate { margin-block: var(--space-3) 0; }

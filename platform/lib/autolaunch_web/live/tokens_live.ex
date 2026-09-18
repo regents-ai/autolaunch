@@ -68,6 +68,9 @@ defmodule AutolaunchWeb.TokensLive do
       :if={@trade_token}
       id={"tokens-trade-#{@trade_token.id}"}
       token={@trade_token}
+      authenticated={@account_control.kind == :signed_in}
+      current_human_id={current_human_id(@access_context)}
+      session_lease={@session_lease}
     />
     """
   end
