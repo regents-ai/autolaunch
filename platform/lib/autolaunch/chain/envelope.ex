@@ -12,7 +12,8 @@ defmodule Autolaunch.Chain.Envelope do
     autolaunch_stocks_launch
     autolaunch_stocks_fee_admin
     autolaunch_lab_position
-    autolaunch_robinhood_launch
+    autolaunch_robinhood_stocks_launch
+    autolaunch_robinhood_bid
   )
   @lab_resources ~w(
     autolaunch_launch
@@ -22,7 +23,10 @@ defmodule Autolaunch.Chain.Envelope do
     autolaunch_bid
     autolaunch_lab_position
   )
-  @robinhood_lab_resources ~w(autolaunch_robinhood_launch)
+  @robinhood_lab_resources ~w(
+    autolaunch_robinhood_stocks_launch
+    autolaunch_robinhood_bid
+  )
 
   def new(action, signer, data, opts \\ []) do
     require_nonempty!(action, :action)
