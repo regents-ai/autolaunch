@@ -31,6 +31,7 @@ defmodule AutolaunchWeb.PrivySessionController do
     with {:ok, pair} <- session_pair(conn),
          {:ok, verified} <- verifier().verify_session_pair(pair),
          {:ok, account, identity_conflicts} <- establish(verified) do
+      sync_shared_profile(verified)
       bind(conn, account, identity_conflicts)
     else
       {:error, {stage, reason}} -> refuse(conn, stage, reason)
@@ -168,6 +169,18 @@ defmodule AutolaunchWeb.PrivySessionController do
   end
 
   defp account_evidence(reason), do: {:error, {:account_evidence, reason}}
+
+  # The shared profile every Regent site reads is created or refreshed by the
+  # evidence that just signed the account in. The shared library refuses evidence
+  # older than what another site already recorded, which is no reason to refuse
+  # this sign-in, so the refusal is noted without its detail and the account
+  # still binds.
+  defp sync_shared_profile(verified) do
+    case RegentIdentity.sync(verified) do
+      {:ok, _profile} -> :ok
+      {:error, _refusal} -> Logger.debug("shared profile not synchronized at sign-in")
+    end
+  end
 
   # Both values are fixed atoms from the classification contract, and the
   # development formatter drops metadata, so they belong in the message itself.

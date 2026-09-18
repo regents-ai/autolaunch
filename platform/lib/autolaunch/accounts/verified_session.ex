@@ -6,7 +6,7 @@ defmodule Autolaunch.Accounts.VerifiedSession do
 
   @social_providers [:x, :github, :farcaster]
 
-  def establish(%Autolaunch.VerifiedPrivyIdentity{privy_user_id: did} = verified)
+  def establish(%RegentPrivy.Session{privy_user_id: did} = verified)
       when is_binary(did) and did != "" do
     actor = %System{}
 

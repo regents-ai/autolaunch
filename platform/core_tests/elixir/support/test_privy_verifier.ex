@@ -2,6 +2,8 @@ defmodule Autolaunch.TestPrivyVerifier do
   @moduledoc false
 
   @identity_suffix "-identity"
+  @app_id "autolaunch-fixture"
+  @lifetime_seconds 3600
 
   @doc """
   The identity token deterministically paired with `access_token`.
@@ -29,61 +31,56 @@ defmodule Autolaunch.TestPrivyVerifier do
   defp paired({:error, reason}, _matched), do: {:error, {:access_verification, reason}}
 
   def verify_access_token("valid") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "browser-session",
-       privy_user_id: "did:privy:verified",
-       wallet_address: "0x1111111111111111111111111111111111111111",
-       wallet_addresses: ["0x1111111111111111111111111111111111111111"]
-     }}
+    session(
+      session_id: "browser-session",
+      privy_user_id: "did:privy:verified",
+      wallet_address: "0x1111111111111111111111111111111111111111",
+      wallet_addresses: ["0x1111111111111111111111111111111111111111"]
+    )
   end
 
   def verify_access_token("no-wallet") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "browser-session",
-       privy_user_id: "did:privy:verified",
-       wallet_address: nil,
-       wallet_addresses: []
-     }}
+    session(
+      session_id: "browser-session",
+      privy_user_id: "did:privy:verified",
+      wallet_address: nil,
+      wallet_addresses: []
+    )
   end
 
   def verify_access_token("changed-wallet") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "browser-session",
-       privy_user_id: "did:privy:verified",
-       wallet_address: "0x2222222222222222222222222222222222222222",
-       wallet_addresses: ["0x2222222222222222222222222222222222222222"]
-     }}
+    session(
+      session_id: "browser-session",
+      privy_user_id: "did:privy:verified",
+      wallet_address: "0x2222222222222222222222222222222222222222",
+      wallet_addresses: ["0x2222222222222222222222222222222222222222"]
+    )
   end
 
   def verify_access_token("other-account") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "other-browser-session",
-       privy_user_id: "did:privy:other",
-       wallet_address: "0x3333333333333333333333333333333333333333",
-       wallet_addresses: ["0x3333333333333333333333333333333333333333"]
-     }}
+    session(
+      session_id: "other-browser-session",
+      privy_user_id: "did:privy:other",
+      wallet_address: "0x3333333333333333333333333333333333333333",
+      wallet_addresses: ["0x3333333333333333333333333333333333333333"]
+    )
   end
 
   def verify_access_token("conflicting-social") do
-    {:ok,
-     %Autolaunch.VerifiedPrivyIdentity{
-       session_id: "conflicting-social-session",
-       privy_user_id: "did:privy:conflicting-social",
-       wallet_address: "0x5555555555555555555555555555555555555555",
-       wallet_addresses: ["0x5555555555555555555555555555555555555555"],
-       linked_socials: [
-         %{
-           provider: :x,
-           subject: "shared-x-subject",
-           username: "other",
-           display_name: nil
-         }
-       ]
-     }}
+    session(
+      session_id: "conflicting-social-session",
+      privy_user_id: "did:privy:conflicting-social",
+      wallet_address: "0x5555555555555555555555555555555555555555",
+      wallet_addresses: ["0x5555555555555555555555555555555555555555"],
+      linked_socials: [
+        %{
+          provider: :x,
+          subject: "shared-x-subject",
+          username: "other",
+          display_name: nil
+        }
+      ]
+    )
   end
 
   # The access token is well-formed for this app but its own verification is
@@ -92,4 +89,15 @@ defmodule Autolaunch.TestPrivyVerifier do
   def verify_access_token("stale-access"), do: {:error, :token_verification_failed}
 
   def verify_access_token(_token), do: {:error, :invalid_token}
+
+  # Evidence issued now, so the shared profile accepts it as the freshest proof.
+  defp session(fields) do
+    now = System.system_time(:second)
+
+    {:ok,
+     struct!(
+       RegentPrivy.Session,
+       Keyword.merge(fields, app_id: @app_id, issued_at: now, expires_at: now + @lifetime_seconds)
+     )}
+  end
 end

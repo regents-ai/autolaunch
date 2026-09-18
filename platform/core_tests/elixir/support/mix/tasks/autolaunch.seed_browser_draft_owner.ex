@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Autolaunch.SeedBrowserDraftOwner do
   defp fixture_identity! do
     case Autolaunch.TestPrivyVerifier.verify_access_token(@fixture_token) do
       {:ok,
-       %Autolaunch.VerifiedPrivyIdentity{
+       %RegentPrivy.Session{
          privy_user_id: privy_user_id,
          wallet_address: wallet_address,
          wallet_addresses: [wallet_address]
