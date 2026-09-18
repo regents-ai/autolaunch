@@ -21,6 +21,7 @@ import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
 import {AutolaunchTestFunds, AutolaunchZonedStart} from "./hooks/autolaunch_stocks"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
+import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
@@ -36,6 +37,7 @@ const hooks = {
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
   AutolaunchSubjectWallet,
+  AutolaunchSwapDialog,
   AutolaunchTestFunds,
   AutolaunchZonedStart,
   Optics,

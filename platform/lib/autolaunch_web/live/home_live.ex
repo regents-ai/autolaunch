@@ -6,12 +6,14 @@ defmodule AutolaunchWeb.HomeLive do
     only: [connections_for: 2, creator_connections_for: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1, explore_row: 1]
+  import AutolaunchWeb.Components.SwapModal
   alias Autolaunch.HomeMarket
 
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
        market_options: nil,
+       trade_token: nil,
        records: [],
        creators: %{},
        market_loading: true,
@@ -26,7 +28,7 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_params(params, _uri, socket) do
     options = HomeMarket.options(params)
     previous = socket.assigns.market_options
-    socket = assign(socket, market_options: options, search_query: options.q)
+    socket = assign(socket, market_options: options, search_query: options.q, trade_token: nil)
 
     if previous && Map.drop(previous, [:display]) == Map.drop(options, [:display]) do
       {:noreply, socket}
@@ -55,6 +57,26 @@ defmodule AutolaunchWeb.HomeLive do
       do: {:noreply, load_market(socket, true)}
 
   def handle_event("load-more", _params, socket), do: {:noreply, socket}
+
+  def handle_event("open_trade", %{"token-id" => id}, socket) do
+    token =
+      if socket.assigns.market_options.view == "tokens" && !socket.assigns.market_loading do
+        Enum.find(socket.assigns.records, &(&1.id == id))
+      end
+
+    {:noreply, assign(socket, :trade_token, token)}
+  end
+
+  def handle_event("open_trade", _params, socket), do: {:noreply, socket}
+
+  def handle_event("close_trade", %{"token_id" => id}, socket) do
+    case socket.assigns.trade_token do
+      %{id: ^id} -> {:noreply, assign(socket, :trade_token, nil)}
+      _other -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_trade", _params, socket), do: {:noreply, socket}
 
   def handle_event("retry", _params, socket),
     do: {:noreply, load_market(socket, socket.assigns.market_append)}
@@ -94,7 +116,12 @@ defmodule AutolaunchWeb.HomeLive do
         else: assign(socket, records: [], creators: %{}, has_more: false, next_cursor: nil)
 
     socket
-    |> assign(market_loading: true, market_failed: false, market_append: append?)
+    |> assign(
+      market_loading: true,
+      market_failed: false,
+      market_append: append?,
+      trade_token: nil
+    )
     |> start_async(:home_market, fn ->
       with {:ok, page} <- HomeMarket.read(options, cursor) do
         {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
@@ -215,6 +242,7 @@ defmodule AutolaunchWeb.HomeLive do
             kind={@kind}
             record={record}
             creator_connections={connections_for(record, @creators)}
+            trade_event={if @kind == :token, do: "open_trade"}
           />
         </div>
         <div :if={@records != [] && @market_options.display == "table"} class="home-table-scroll">
@@ -227,6 +255,7 @@ defmodule AutolaunchWeb.HomeLive do
                 <th scope="col">Coin</th><th scope="col">
                   {if @kind == :token, do: "Price", else: "Clearing price"}
                 </th><th scope="col">Creator</th><th scope="col">Age</th><th scope="col">Status</th>
+                <th :if={@kind == :token} scope="col"><span class="visually-hidden">Trade</span></th>
               </tr>
             </thead>
             <tbody>
@@ -235,6 +264,7 @@ defmodule AutolaunchWeb.HomeLive do
                 kind={@kind}
                 record={record}
                 creator_connections={connections_for(record, @creators)}
+                trade_event={if @kind == :token, do: "open_trade"}
               />
             </tbody>
           </table>
@@ -301,6 +331,11 @@ defmodule AutolaunchWeb.HomeLive do
             do: " · All results loaded"}
         </p>
       </section>
+      <.swap_modal
+        :if={@trade_token}
+        id={"home-trade-#{@trade_token.id}"}
+        token={@trade_token}
+      />
     </main>
     """
   end

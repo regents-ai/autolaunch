@@ -41,6 +41,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
+  attr :trade_event, :string, default: nil
 
   def explore_card(assigns) do
     assigns =
@@ -81,6 +82,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <span class="home-coin__status">{@view.status}</span>
       </div>
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
+      <div :if={@kind == :token && @trade_event} class="token-swap-entry">
+        <Regent.Primitives.button
+          variant="secondary"
+          phx-click={@trade_event}
+          phx-value-token-id={@record.id}
+          aria-label={"Trade #{@view.name}"}
+        >Trade</Regent.Primitives.button>
+      </div>
     </article>
     """
   end
@@ -88,6 +97,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
+  attr :trade_event, :string, default: nil
 
   def explore_row(assigns) do
     assigns =
@@ -121,6 +131,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
         >{@view.creator}</a><span :if={@view.connections == []}>—</span>
       </td>
       <td>{@view.age || "—"}</td><td>{@view.status}</td>
+      <td :if={@kind == :token && @trade_event}>
+        <Regent.Primitives.button
+          variant="secondary"
+          phx-click={@trade_event}
+          phx-value-token-id={@record.id}
+          aria-label={"Trade #{@view.name}"}
+        >Trade</Regent.Primitives.button>
+      </td>
     </tr>
     """
   end

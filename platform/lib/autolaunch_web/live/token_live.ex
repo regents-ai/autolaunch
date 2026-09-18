@@ -51,6 +51,11 @@ defmodule AutolaunchWeb.TokenLive do
         creator_connections={@creator_connections}
       />
       <.exact_price id="token-exact-price" summary="Exact price" amount={@page_record.price_quote} />
+      <.live_component
+        module={AutolaunchWeb.SwapComponent}
+        id={"token-trade-#{@page_record.id}"}
+        token={@page_record}
+      />
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
         <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token graduated from</.link>
       </p>

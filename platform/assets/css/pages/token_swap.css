@@ -78,3 +78,21 @@
 .token-swap__details dt { color: var(--color-fg-muted); }
 .token-swap__details dd { margin: 0; overflow-wrap: anywhere; }
 .token-swap__details p { font-size: .875rem; }
+.token-swap-entry { padding: var(--space-2); }
+.token-swap-modal {
+  width: min(38rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  overflow-y: auto;
+}
+.token-swap-modal::backdrop { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
+.token-swap-modal__header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.token-swap-modal__header h2 { margin: 0; font-size: 1.25rem; }
+.token-swap-modal .token-swap { max-width: none; }
+@media (max-width: 480px) {
+  .token-swap-modal { padding: var(--space-2); }
+}

@@ -43,6 +43,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   attr :pagination, :map, required: true
   attr :cursor, :string, default: nil
+  attr :trade_event, :string, default: nil
 
   def collection(assigns) do
     assigns =
@@ -132,6 +133,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
             kind={collection_record_kind(@kind)}
             record={record}
             creator_connections={connections_for(record, grouped_connections(@creators))}
+            trade_event={if @kind == :tokens, do: @trade_event}
           />
           <.treasury_security
             :if={!Lab.enabled?()}
