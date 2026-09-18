@@ -28,30 +28,35 @@ import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import {ActionConstants} from "@uniswap/v4-periphery/src/libraries/ActionConstants.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {SafeCastLib} from "solady/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {IUERC20Factory} from "uerc20-factory/interfaces/IUERC20Factory.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
-import {IAgentStrategyMinimal} from "./interfaces/IAgentStrategyMinimal.sol";
 import {IERC20Minimal} from "./interfaces/IERC20Minimal.sol";
 import {IRegentRevenueStakingMinimal} from "./interfaces/IRegentRevenueStakingMinimal.sol";
 import {IStockRoute} from "./interfaces/IStockRoute.sol";
 import {IStocksLaunchpadV1} from "./interfaces/IStocksLaunchpadV1.sol";
-import {ISubjectSplitterMinimal} from "./interfaces/ISubjectSplitterMinimal.sol";
+import {MemestockLPLocker} from "./MemestockLPLocker.sol";
+import {MemestockSplitterV1} from "./MemestockSplitterV1.sol";
 import {StocksBindings} from "./StocksBindings.sol";
 import {StocksFeeHookV1} from "./StocksFeeHookV1.sol";
 import {StocksPreset} from "./StocksPreset.sol";
 
 /// @title StocksLaunchpadV1
-/// @notice Admission, creation, custody, migration and subject administration of Autolaunch Stocks.
+/// @notice Admission, creation, custody and migration of Autolaunch Stocks.
 /// @dev One launch mints exactly `S0` of a new UERC20 (NEW) to this contract, sells the 80% inventory
 ///      through a pinned Continuous Clearing Auction denominated in one admitted STOCK, custodies the
 ///      20% reserve, and after the auction either graduates into two locked NEW/STOCK positions or
 ///      retires the inventory. Every economic term comes from `StocksPreset`; a launcher supplies
-///      metadata, the STOCK, the start block, the floor price, the required raise and the subject-lane
-///      configuration, nothing else.
+///      metadata, the STOCK, the start block and the floor price, nothing else, and keeps no authority
+///      over the launch afterwards.
+///
+///      Graduation creates the launch's own memestock splitter, the fixed destination of the hook's
+///      staker lane, and mints both positions to the permanent fee-only locker, which deposits their
+///      LP fees into that same splitter. No principal path exists.
 ///
 ///      The CCA creation, `_graduate`, `_mintLockedPositions` and `_exactlyFundedPlan` mirror the
 ///      frozen Agent `RegentLBPStrategy` technique: the auction is read back field by field before any
@@ -80,14 +85,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         address route;
     }
 
-    struct SubjectConfig {
-        uint32 version;
-        uint16 subjectBps;
-        address splitter;
-        address proposedAdministrator;
-    }
-
-    /// @dev What one graduation locked at the dead address.
+    /// @dev What one graduation locked in the locker.
     struct LockedLiquidity {
         uint256 fullRangeTokenId;
         uint128 fullRangeStock;
@@ -97,12 +95,15 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         uint128 stockOnlyStock;
     }
 
-    /// @dev The pinned UERC20 factory every NEW is created by, and the deployed Agent strategy that is
-    ///      the provenance authority for subject splitters. Both are constructor arguments; the lab
-    ///      records them in its run documents. Neither has a getter: the runtime sits within about a
-    ///      hundred bytes of the EIP-170 size limit, so only the cross-component interface is exposed.
+    /// @dev The pinned UERC20 factory every NEW is created by. A constructor argument; the lab records
+    ///      it in its run documents.
     address internal immutable uerc20Factory;
-    address internal immutable agentStrategy;
+
+    /// @notice The clone target of every launch's memestock splitter, deployed by this constructor.
+    address public immutable override splitterImplementation;
+
+    /// @notice The permanent fee-only custodian of every graduated position, deployed by this constructor.
+    address public immutable override locker;
 
     /// @notice The one official-pool hook, mined and deployed by this constructor.
     address public immutable override hook;
@@ -118,7 +119,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
 
     mapping(address stock => Admission) private _admissions;
     mapping(uint256 launchId => Launch) private _launches;
-    mapping(uint256 launchId => SubjectConfig) private _subjects;
     mapping(address auction => uint256 launchId) public override launchIdOfAuction;
     mapping(address newToken => uint256 launchId) public override launchIdOfToken;
 
@@ -126,8 +126,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     error ZeroAddress();
     error NoCode(address account);
     error NotGovernance(address caller);
-    error NotFeeAdministrator(address caller);
-    error NotProposedAdministrator(address caller);
     error LaunchesAlreadyPaused();
     error LaunchesNotPaused();
     error LaunchesArePaused();
@@ -142,8 +140,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     error TickSpacingTooSmall(uint256 tickSpacingQ96);
     error UnreachableRequiredRaise(uint256 requiredStockRaised, uint256 maximum);
     error ZeroMinimumRaise();
-    error SplitterHasNoCode(address splitter);
-    error InauthenticSplitter(address splitter);
     error ProtocolFeeControllerNotZero(address controller);
     error TokenHasNoCode(address token);
     error TokenCreatorMismatch(address found);
@@ -161,21 +157,19 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     error UnexpectedStockOnlyPositionCount(uint256 found);
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
     error AllowanceNotConsumed(address spender, uint256 remaining);
-    error StaleSubjectVersion(uint32 current, uint32 expected);
     error StaleLaunchFee(uint256 current, uint256 expected);
     error LaunchFeeAllowanceMismatch(uint256 expected, uint256 found);
 
     /// @param hookSalt The pre-mined CREATE2 salt giving the hook the exact permission bits v4
     ///        encodes in a hook address. Not stored; a wrong salt simply fails construction.
-    constructor(address uerc20Factory_, address agentStrategy_, bytes32 hookSalt) {
+    constructor(address uerc20Factory_, bytes32 hookSalt) {
         _requireRuntimeCodeHash(uerc20Factory_, UERC20_FACTORY_RUNTIME_CODE_HASH);
-        if (agentStrategy_ == address(0)) revert ZeroAddress();
-        if (agentStrategy_.code.length == 0) revert NoCode(agentStrategy_);
 
         // The zero address has no code and therefore cannot carry the required runtime hash.
         // slither-disable-next-line missing-zero-check
         uerc20Factory = uerc20Factory_;
-        agentStrategy = agentStrategy_;
+        splitterImplementation = address(new MemestockSplitterV1());
+        locker = address(new MemestockLPLocker(address(this), StocksBindings.POSITION_MANAGER));
         hook = address(new StocksFeeHookV1{salt: hookSalt}(IPoolManager(StocksBindings.POOL_MANAGER), address(this)));
     }
 
@@ -206,8 +200,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
 
         Admission storage admission = _admissions[params.stock];
         if (!admission.admitted) revert StockNotAdmitted(params.stock);
-        if (params.feeAdministrator == address(0)) revert ZeroAddress();
-        if (params.subjectSplitter != address(0)) _requireAuthenticSplitter(params.subjectSplitter);
 
         uint256 earliest = block.number + StocksPreset.MIN_START_LEAD_BLOCKS;
         uint256 latest = block.number + StocksPreset.MAX_START_LEAD_BLOCKS;
@@ -247,7 +239,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         record.newToken = newToken;
         record.stock = params.stock;
         record.auction = auction;
-        record.feeAdministrator = params.feeAdministrator;
         record.startBlock = params.startBlock;
         record.endBlock = endBlock;
         record.claimBlock = endBlock + StocksPreset.CLAIM_DELAY_BLOCKS;
@@ -258,17 +249,12 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         launchIdOfAuction[auction] = launchId;
         launchIdOfToken[newToken] = launchId;
 
-        uint16 subjectBps = params.subjectSplitter == address(0) ? 0 : StocksPreset.SUBJECT_LANE_BPS;
-        _subjects[launchId] =
-            SubjectConfig({version: 1, subjectBps: subjectBps, splitter: params.subjectSplitter, proposedAdministrator: address(0)});
-
         emit StockLaunchCreated(
             launchId,
             msg.sender,
             newToken,
             params.stock,
             auction,
-            params.feeAdministrator,
             params.startBlock,
             endBlock,
             params.floorPriceQ96,
@@ -276,8 +262,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
             StocksPreset.AUCTION_INVENTORY,
             StocksPreset.MIGRATION_RESERVE
         );
-        emit SubjectConfigured(launchId, 1, params.subjectSplitter, subjectBps, params.feeAdministrator);
-
         // Custody: exactly the inventory leaves for the auction and exactly the reserve stays.
         uint256 auctionHeld = newToken.balanceOf(auction);
         newToken.safeTransfer(auction, StocksPreset.AUCTION_INVENTORY);
@@ -306,54 +290,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         } else {
             _retire(launchId, record);
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // fee administration
-    // -------------------------------------------------------------------------
-
-    /// @inheritdoc IStocksLaunchpadV1
-    function configureSubject(uint256 launchId, address splitter, uint32 expectedVersion) external override {
-        Launch storage record = _launches[launchId];
-        if (record.auction == address(0)) revert UnknownLaunch(launchId);
-        if (msg.sender != record.feeAdministrator) revert NotFeeAdministrator(msg.sender);
-
-        SubjectConfig storage config = _subjects[launchId];
-        if (config.version != expectedVersion) revert StaleSubjectVersion(config.version, expectedVersion);
-        if (splitter != address(0)) _requireAuthenticSplitter(splitter);
-
-        uint32 version = config.version + 1;
-        uint16 subjectBps = splitter == address(0) ? 0 : StocksPreset.SUBJECT_LANE_BPS;
-        config.version = version;
-        config.splitter = splitter;
-        config.subjectBps = subjectBps;
-
-        emit SubjectConfigured(launchId, version, splitter, subjectBps, msg.sender);
-
-        if (record.poolId != bytes32(0)) StocksFeeHookV1(hook).setSubject(record.poolId, splitter);
-    }
-
-    /// @inheritdoc IStocksLaunchpadV1
-    function proposeFeeAdministrator(uint256 launchId, address proposed) external override {
-        Launch storage record = _launches[launchId];
-        if (record.auction == address(0)) revert UnknownLaunch(launchId);
-        if (msg.sender != record.feeAdministrator) revert NotFeeAdministrator(msg.sender);
-        _subjects[launchId].proposedAdministrator = proposed;
-        emit FeeAdministratorTransferStarted(launchId, msg.sender, proposed);
-    }
-
-    /// @inheritdoc IStocksLaunchpadV1
-    function acceptFeeAdministrator(uint256 launchId) external override {
-        Launch storage record = _launches[launchId];
-        if (record.auction == address(0)) revert UnknownLaunch(launchId);
-        SubjectConfig storage config = _subjects[launchId];
-        if (msg.sender == address(0) || msg.sender != config.proposedAdministrator) {
-            revert NotProposedAdministrator(msg.sender);
-        }
-        address previous = record.feeAdministrator;
-        record.feeAdministrator = msg.sender;
-        config.proposedAdministrator = address(0);
-        emit FeeAdministratorTransferred(launchId, previous, msg.sender);
     }
 
     // -------------------------------------------------------------------------
@@ -434,23 +370,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     {
         Admission storage admission = _admissions[stock];
         return (admission.admitted, admission.decimals, admission.route);
-    }
-
-    /// @inheritdoc IStocksLaunchpadV1
-    function subjectConfig(uint256 launchId)
-        external
-        view
-        override
-        returns (uint32 version, address splitter, uint16 subjectBps, address administrator, address proposedAdministrator)
-    {
-        SubjectConfig storage config = _subjects[launchId];
-        return (
-            config.version,
-            config.splitter,
-            config.subjectBps,
-            _launches[launchId].feeAdministrator,
-            config.proposedAdministrator
-        );
     }
 
     /// @inheritdoc IStocksLaunchpadV1
@@ -631,8 +550,15 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
 
         record.lifecycle = Lifecycle.Graduated;
 
+        // The launch's own splitter: the fixed destination of the hook's staker lane and of both
+        // locked positions' LP fees. It exists only for a launch that graduated.
+        address splitter = LibClone.clone(splitterImplementation);
+        MemestockSplitterV1(splitter).initialize(newToken, stock);
+        record.splitter = splitter;
+        emit MemestockSplitterCreated(launchId, newToken, stock, splitter);
+
         PoolKey memory key = _poolKeyOf(newToken, stock);
-        bytes32 poolId = StocksFeeHookV1(hook).registerPool(key, stock, newToken, _subjects[launchId].splitter);
+        bytes32 poolId = StocksFeeHookV1(hook).registerPool(key, stock, newToken, splitter);
 
         uint256 stockBefore = stock.balanceOf(address(this));
         IContinuousClearingAuction(auction).sweepCurrency();
@@ -650,6 +576,8 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         LockedLiquidity memory locked = _mintLockedPositions(
             key, sqrtPriceX96, stockIsCurrency0, stock, newToken, SafeCastLib.toUint128(raised), StocksPreset.MIGRATION_RESERVE
         );
+        MemestockLPLocker(locker).register(locked.fullRangeTokenId, key, splitter);
+        if (locked.stockOnlyTokenId != 0) MemestockLPLocker(locker).register(locked.stockOnlyTokenId, key, splitter);
 
         // Only this launch's own STOCK delta moves on. Anything unrelated already held here stays.
         // After both positions this is the rounding remainder below one unit of liquidity.
@@ -691,8 +619,8 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         );
     }
 
-    /// @dev The two locked positions, planned by the pinned planner and minted straight to the dead
-    ///      address in one PositionManager call. First the full range from the whole reserve and the
+    /// @dev The two locked positions, planned by the pinned planner and minted straight to the locker
+    ///      in one PositionManager call. First the full range from the whole reserve and the
     ///      STOCK it pairs with at the initial price; then every remaining unit of STOCK as a one-sided
     ///      position on the STOCK side of the book (`StocksPreset` geometry). The planner's implicit
     ///      full-range fallback in the second plan has no NEW budget and therefore no liquidity, so the
@@ -715,7 +643,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
             sqrtPriceX96,
             StocksPreset.POOL_TICK_SPACING,
             _currencyAmounts(stockIsCurrency0, stockBudget, reserve),
-            StocksBindings.DEAD_ADDRESS
+            locker
         );
         if (fullRange.length != 1) revert NoFullRangePosition();
         (locked.fullRangeStock, locked.fullRangeNew) = _stockAndNew(stockIsCurrency0, fullRange[0]);
@@ -726,7 +654,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
             sqrtPriceX96,
             StocksPreset.POOL_TICK_SPACING,
             _currencyAmounts(stockIsCurrency0, stockBudget - locked.fullRangeStock, 0),
-            StocksBindings.DEAD_ADDRESS
+            locker
         );
         if (stockOnly.length > 1) revert UnexpectedStockOnlyPositionCount(stockOnly.length);
 
@@ -759,7 +687,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     }
 
     /// @dev The one-sided STOCK position as the pinned planner reads it: offsets from the initial tick
-    ///      (`StocksPreset` geometry), the whole budget, the default (dead) recipient.
+    ///      (`StocksPreset` geometry), the whole budget, the default (locker) recipient.
     function _stockOnlyDefinition(bool stockIsCurrency0)
         private
         pure
@@ -815,16 +743,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     // -------------------------------------------------------------------------
     // internals: checks
     // -------------------------------------------------------------------------
-
-    /// @dev A nonzero splitter must be the one the bound Agent strategy recorded for its own subject.
-    function _requireAuthenticSplitter(address splitter) private view {
-        if (splitter.code.length == 0) revert SplitterHasNoCode(splitter);
-        address subject = ISubjectSplitterMinimal(splitter).subject();
-        address auction = IAgentStrategyMinimal(agentStrategy).auctionOfSubject(subject);
-        if (auction == address(0)) revert InauthenticSplitter(splitter);
-        address recorded = IAgentStrategyMinimal(agentStrategy).distribution(auction).splitter;
-        if (recorded != splitter) revert InauthenticSplitter(splitter);
-    }
 
     function _requireRuntimeCodeHash(address account, bytes32 expected) private view {
         bytes32 found = account.codehash;

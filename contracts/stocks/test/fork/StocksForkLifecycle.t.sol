@@ -22,43 +22,17 @@ import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
+import {MemestockLPLocker} from "../../src/MemestockLPLocker.sol";
+import {MemestockSplitterV1} from "../../src/MemestockSplitterV1.sol";
 import {StockBidAdapterV1} from "../../src/StockBidAdapterV1.sol";
 import {StocksBindings} from "../../src/StocksBindings.sol";
 import {StocksFeeHookV1} from "../../src/StocksFeeHookV1.sol";
 import {StocksLaunchpadV1} from "../../src/StocksLaunchpadV1.sol";
 import {StocksPreset} from "../../src/StocksPreset.sol";
 import {FixtureStockToken} from "../../src/fixtures/FixtureStockToken.sol";
-import {IAgentStrategyMinimal} from "../../src/interfaces/IAgentStrategyMinimal.sol";
 import {IStocksLaunchpadV1} from "../../src/interfaces/IStocksLaunchpadV1.sol";
 import {FixtureStockRoute} from "../../src/routes/FixtureStockRoute.sol";
 import {ForkAddresses} from "./ForkAddresses.sol";
-
-/// @dev The frozen Agent factory's launch surface, as deployed on the fork.
-interface IAgentFactory {
-    struct LaunchParams {
-        string name;
-        string symbol;
-        string description;
-        string website;
-        string image;
-        address treasury;
-        uint128 requiredRegentRaised;
-        uint256 expectedLaunchFee;
-    }
-
-    function launch(LaunchParams calldata params)
-        external
-        returns (uint256 launchId, address subject, address auction, address escrow);
-    function launchFee() external view returns (uint256);
-    function launchesPaused() external view returns (bool);
-}
-
-interface IAgentStrategy is IAgentStrategyMinimal {
-    function migrate(address auction) external;
-    function FLOOR_PRICE_Q96() external view returns (uint256);
-    function BID_TICK_Q96() external view returns (uint256);
-    function MIGRATION_DELAY_BLOCKS() external view returns (uint64);
-}
 
 /// @dev The live REGENT staking contract's reward-funding read surface, as deployed on Base.
 interface ILiveStaking {
@@ -67,7 +41,7 @@ interface ILiveStaking {
 }
 
 /// @notice One complete Stocks lifecycle against the live local Base fork: the real pinned CCA
-///         factory, PoolManager, PositionManager, Permit2, USDC and REGENT staking, the Agent graph
+///         factory, PoolManager, PositionManager, Permit2, USDC and REGENT staking, the UERC20 factory
 ///         the lab deployed, and a fixture STOCK installed at the real AAPLc address. Nothing here is
 ///         B20-verified: the fixture replaces the `0xef` code Anvil cannot execute.
 contract StocksForkLifecycleTest is Test {
@@ -94,7 +68,6 @@ contract StocksForkLifecycleTest is Test {
 
     address internal governance = StocksBindings.GOVERNANCE_AND_REGENT_SAFE;
     address internal launcher = makeAddr("stocks-launcher");
-    address internal feeAdministrator = makeAddr("stocks-fee-admin");
     address internal bidderDirect = makeAddr("bidder-direct");
     address internal bidderUsdc = makeAddr("bidder-usdc");
 
@@ -106,8 +79,7 @@ contract StocksForkLifecycleTest is Test {
         _requireCode(StocksBindings.PERMIT2, "Permit2");
         _requireCode(StocksBindings.USDC, "USDC");
         _requireCode(StocksBindings.LIVE_STAKING, "live staking");
-        _requireCode(ForkAddresses.AGENT_STRATEGY, "Agent strategy (restart the Agent lab and update ForkAddresses)");
-        _requireCode(ForkAddresses.UERC20_FACTORY, "UERC20 factory");
+        _requireCode(ForkAddresses.UERC20_FACTORY, "UERC20 factory (restart the Agent lab and update ForkAddresses)");
 
         // The real AAPLc carries one byte of `0xef` code on a fresh fork; once the lab controller has
         // run, the fixture is already there. Either way this suite installs its own copy.
@@ -122,7 +94,7 @@ contract StocksForkLifecycleTest is Test {
         (, salt) = HookMiner.find(
             predicted, HOOK_FLAGS, type(StocksFeeHookV1).creationCode, abi.encode(StocksBindings.POOL_MANAGER, predicted)
         );
-        launchpad = new StocksLaunchpadV1(ForkAddresses.UERC20_FACTORY, ForkAddresses.AGENT_STRATEGY, salt);
+        launchpad = new StocksLaunchpadV1(ForkAddresses.UERC20_FACTORY, salt);
         hook = StocksFeeHookV1(launchpad.hook());
         adapter = new StockBidAdapterV1(address(launchpad));
         route = new FixtureStockRoute(ForkAddresses.AAPLC, USDC_PER_SHARE);
@@ -156,7 +128,7 @@ contract StocksForkLifecycleTest is Test {
         uint256 stakingBefore = regent.balanceOf(StocksBindings.LIVE_STAKING);
         uint256 fundedBefore = liveStaking.totalFundedRegent();
 
-        IStocksLaunchpadV1.LaunchParams memory params = _launchParams(address(0));
+        IStocksLaunchpadV1.LaunchParams memory params = _launchParams();
         uint256 launchId = launchpad.nextLaunchId();
         vm.prank(launcher);
         regent.approve(address(launchpad), fee);
@@ -175,7 +147,7 @@ contract StocksForkLifecycleTest is Test {
         assertEq(regent.allowance(address(launchpad), StocksBindings.LIVE_STAKING), 0);
 
         // A stale or inexact fee is refused before anything moves.
-        params = _launchParams(address(0));
+        params = _launchParams();
         params.expectedLaunchFee = fee - 1;
         vm.prank(launcher);
         regent.approve(address(launchpad), fee);
@@ -207,8 +179,8 @@ contract StocksForkLifecycleTest is Test {
     // graduated lifecycle
     // -------------------------------------------------------------------------
 
-    function test_fork_full_lifecycle_graduates_and_settles_the_regent_bucket_into_live_staking() public {
-        (uint256 launchId, address newToken, IContinuousClearingAuction auction) = _launch(address(0));
+    function test_fork_full_lifecycle_graduates_and_settles_the_regent_lane_into_live_staking() public {
+        (uint256 launchId, address newToken, IContinuousClearingAuction auction) = _launch();
         vm.roll(auction.startBlock());
 
         // Bid one: direct STOCK through the real Permit2, owner = bidder.
@@ -259,7 +231,7 @@ contract StocksForkLifecycleTest is Test {
         _approveRouter(bidderDirect, newToken);
         stock.mint(bidderDirect, 1_000e8);
         bool stockIs0 = ForkAddresses.AAPLC < newToken;
-        uint256 regentBefore = hook.accrued(record.poolId, hook.REGENT_DESTINATION());
+        (uint256 regentBefore, uint256 stakerBefore) = hook.accrued(record.poolId);
         uint256 stockBefore = stock.balanceOf(bidderDirect);
         vm.prank(bidderDirect);
         swapRouter.swap(
@@ -269,9 +241,11 @@ contract StocksForkLifecycleTest is Test {
             ""
         );
         assertEq(stockBefore - stock.balanceOf(bidderDirect), 50e8, "exact STOCK input");
-        assertEq(hook.accrued(record.poolId, hook.REGENT_DESTINATION()) - regentBefore, 50e8 / 100, "one lane");
+        (uint256 regentLane, uint256 stakerLane) = hook.accrued(record.poolId);
+        assertEq(regentLane - regentBefore, 50e8 / 100, "one REGENT lane");
+        assertEq(stakerLane - stakerBefore, 50e8 / 100, "one staker lane");
 
-        regentBefore = hook.accrued(record.poolId, hook.REGENT_DESTINATION());
+        regentBefore = regentLane;
         vm.prank(bidderDirect);
         swapRouter.swap(
             key,
@@ -279,18 +253,19 @@ contract StocksForkLifecycleTest is Test {
             PoolSwapTest.TestSettings(false, false),
             ""
         );
-        assertGt(hook.accrued(record.poolId, hook.REGENT_DESTINATION()), regentBefore, "STOCK output charged");
+        (regentLane,) = hook.accrued(record.poolId);
+        assertGt(regentLane, regentBefore, "STOCK output charged");
 
-        // Settle the REGENT bucket through the fixture route into the real live staking contract. The
-        // bucket holds only swap fees: the graduation locked the whole raise and left no dust.
-        uint256 accruedBefore = hook.accrued(record.poolId, hook.REGENT_DESTINATION());
+        // Settle the REGENT lane through the fixture route into the real live staking contract.
+        uint256 accruedBefore = regentLane;
         uint256 amount = accruedBefore / 2;
         uint256 expectedUsdc = amount * USDC_PER_SHARE / 1e8;
         uint256 stakingBefore = usdc.balanceOf(StocksBindings.LIVE_STAKING);
-        hook.settle(record.poolId, hook.REGENT_DESTINATION(), amount, expectedUsdc);
+        hook.settleRegentLane(record.poolId, amount, expectedUsdc);
         assertEq(usdc.balanceOf(StocksBindings.LIVE_STAKING) - stakingBefore, expectedUsdc, "live staking received USDC");
-        assertEq(hook.accrued(record.poolId, hook.REGENT_DESTINATION()), accruedBefore - amount);
-        (uint256 converted, uint256 deposited) = hook.settled(record.poolId, hook.REGENT_DESTINATION());
+        (regentLane,) = hook.accrued(record.poolId);
+        assertEq(regentLane, accruedBefore - amount);
+        (uint256 converted, uint256 deposited,) = hook.settled(record.poolId);
         assertEq(converted, amount);
         assertEq(deposited, expectedUsdc);
         assertEq(usdc.balanceOf(address(hook)), 0);
@@ -302,7 +277,7 @@ contract StocksForkLifecycleTest is Test {
     // -------------------------------------------------------------------------
 
     function test_fork_failed_minimum_retires_and_refunds_through_the_cca() public {
-        (uint256 launchId, address newToken, IContinuousClearingAuction auction) = _launch(address(0));
+        (uint256 launchId, address newToken, IContinuousClearingAuction auction) = _launch();
         vm.roll(auction.startBlock());
         uint256 bidId = _bidDirect(auction, bidderDirect, 10e8, _bidPrice(1));
         vm.roll(uint256(auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
@@ -320,66 +295,105 @@ contract StocksForkLifecycleTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // subject lane against a real Agent splitter
+    // memestock staking against the real PositionManager and live staking
     // -------------------------------------------------------------------------
 
-    function test_fork_subject_lane_settles_into_a_real_agent_splitter() public {
-        (address splitter, address agentAuction) = _graduateAnAgentLaunch();
-        (uint256 launchId, address newToken, IContinuousClearingAuction auction) = _launch(splitter);
-        (, address recorded, uint16 bps,,) = launchpad.subjectConfig(launchId);
-        assertEq(recorded, splitter);
-        assertEq(bps, 100);
-
+    function test_fork_stakers_receive_the_staker_lane_and_the_locked_positions_fees() public {
+        (uint256 launchId, address newToken, IContinuousClearingAuction auction) = _launch();
         vm.roll(auction.startBlock());
         uint256 bidId = _bidDirect(auction, bidderDirect, 300e8, _bidPrice(10));
         vm.roll(uint256(auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
         launchpad.migrate(launchId);
         IStocksLaunchpadV1.Launch memory record = launchpad.launches(launchId);
-        assertEq(hook.pool(record.poolId).subject, splitter);
+        MemestockSplitterV1 splitter = MemestockSplitterV1(record.splitter);
+        MemestockLPLocker locker = MemestockLPLocker(launchpad.locker());
+        assertEq(hook.pool(record.poolId).splitter, record.splitter);
+        assertEq(splitter.memestock(), newToken);
+        assertEq(splitter.stock(), ForkAddresses.AAPLC);
         _assertAllNetStockLocked(record, auction.lbpInitializationParams().currencyRaised, newToken);
 
-        vm.prank(bidderDirect);
+        // The bidder claims its NEW and stakes half of it.
+        vm.startPrank(bidderDirect);
         auction.exitBid(bidId);
-        vm.prank(bidderDirect);
         auction.claimTokens(bidId);
+        uint256 staked = IERC20(newToken).balanceOf(bidderDirect) / 2;
+        IERC20(newToken).approve(record.splitter, staked);
+        splitter.stake(staked);
+        vm.stopPrank();
+
+        // One swap each way so both pool currencies earn LP fees.
         _approveRouter(bidderDirect, newToken);
         stock.mint(bidderDirect, 1_000e8);
         bool stockIs0 = ForkAddresses.AAPLC < newToken;
         PoolKey memory key = _poolKey(newToken);
-        assertEq(PoolId.unwrap(key.toId()), record.poolId, "the derived key is the registered pool");
-        vm.prank(bidderDirect);
+        vm.startPrank(bidderDirect);
         swapRouter.swap(
             key,
             SwapParams(stockIs0, -int256(100e8), stockIs0 ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1),
             PoolSwapTest.TestSettings(false, false),
             ""
         );
-        assertEq(hook.accrued(record.poolId, splitter), 1e8, "subject lane accrued");
-
-        uint256 expectedUsdc = 1e8 * USDC_PER_SHARE / 1e8;
-        address treasury = IAgentStrategy(ForkAddresses.AGENT_STRATEGY).distribution(agentAuction).treasury;
-        uint256 splitterBefore = usdc.balanceOf(splitter);
-        uint256 treasuryBefore = usdc.balanceOf(treasury);
-        uint256 stakingBefore = usdc.balanceOf(StocksBindings.LIVE_STAKING);
-        hook.settle(record.poolId, splitter, 1e8, expectedUsdc);
-        // The real splitter skims exactly 2% of a recognized USDC inflow into live staking; with no
-        // stakers the remaining 98% goes to the launch treasury as the pinned splitter defines.
-        uint256 skim = expectedUsdc * 200 / 10_000;
-        assertEq(usdc.balanceOf(StocksBindings.LIVE_STAKING) - stakingBefore, skim, "splitter skim reached live staking");
-        assertEq(
-            (usdc.balanceOf(splitter) - splitterBefore) + (usdc.balanceOf(treasury) - treasuryBefore),
-            expectedUsdc - skim,
-            "the rest is the splitter's recognized revenue"
+        swapRouter.swap(
+            key,
+            SwapParams(!stockIs0, -int256(1e22), !stockIs0 ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1),
+            PoolSwapTest.TestSettings(false, false),
+            ""
         );
-        assertEq(hook.accrued(record.poolId, splitter), 0);
-        assertEq(usdc.allowance(address(hook), splitter), 0);
+        vm.stopPrank();
+
+        // Anyone settles the staker lane: STOCK in kind, 2% to the Safe, the rest to the staker.
+        (, uint256 stakerLane) = hook.accrued(record.poolId);
+        assertGt(stakerLane, 1e8, "staker lane accrued on both swaps");
+        uint256 safeStockBefore = stock.balanceOf(governance);
+        assertEq(hook.settleStakerLane(record.poolId), stakerLane);
+        uint256 laneSkim = stakerLane * 200 / 10_000;
+        assertEq(stock.balanceOf(governance) - safeStockBefore, laneSkim, "2% of the lane to the Safe");
+        assertEq(stock.allowance(address(hook), record.splitter), 0);
+
+        // Anyone collects the locked positions' LP fees into the same splitter, both currencies.
+        uint256 splitterStockBefore = stock.balanceOf(record.splitter);
+        uint256 splitterNewBefore = IERC20(newToken).balanceOf(record.splitter);
+        (uint256 full0, uint256 full1) = locker.collect(record.lpTokenId);
+        (uint256 side0, uint256 side1) = locker.collect(record.lpStockOnlyTokenId);
+        uint256 stockFees = stockIs0 ? full0 + side0 : full1 + side1;
+        uint256 newFees = stockIs0 ? full1 + side1 : full0 + side0;
+        assertGt(stockFees, 0, "LP fees in STOCK");
+        assertGt(newFees, 0, "LP fees in NEW");
+        assertEq(stock.balanceOf(address(locker)), 0, "the locker keeps nothing");
+        assertEq(IERC20(newToken).balanceOf(address(locker)), 0);
+        assertApproxEqAbs(stock.balanceOf(record.splitter) - splitterStockBefore, stockFees - stockFees * 200 / 10_000, 2);
+        assertApproxEqAbs(
+            IERC20(newToken).balanceOf(record.splitter) - splitterNewBefore, newFees - newFees * 200 / 10_000, 2
+        );
+        IERC721 nft = IERC721(StocksBindings.POSITION_MANAGER);
+        assertEq(nft.ownerOf(record.lpTokenId), address(locker), "collection never moves the position");
+
+        // The sole staker claims everything recognized, in kind.
+        uint256 stockBalance = stock.balanceOf(bidderDirect);
+        uint256 newBalance = IERC20(newToken).balanceOf(bidderDirect);
+        vm.prank(bidderDirect);
+        splitter.claimAll();
+        assertApproxEqAbs(
+            stock.balanceOf(bidderDirect) - stockBalance, (stakerLane - laneSkim) + (stockFees - stockFees * 200 / 10_000), 4
+        );
+        assertApproxEqAbs(IERC20(newToken).balanceOf(bidderDirect) - newBalance, newFees - newFees * 200 / 10_000, 2);
+
+        // USDC revenue: 2% goes straight into the real live staking contract.
+        vm.startPrank(ForkAddresses.USDC_HOLDER);
+        usdc.approve(record.splitter, 1_000e6);
+        uint256 stakingBefore = usdc.balanceOf(StocksBindings.LIVE_STAKING);
+        splitter.depositRecognizedRevenue(StocksBindings.USDC, 1_000e6, bytes32("fork"));
+        vm.stopPrank();
+        assertEq(usdc.balanceOf(StocksBindings.LIVE_STAKING) - stakingBefore, 20e6, "USDC share reached live staking");
+        assertEq(usdc.allowance(record.splitter, StocksBindings.LIVE_STAKING), 0);
+        assertApproxEqAbs(splitter.claimable(StocksBindings.USDC, bidderDirect), 980e6, 1);
     }
 
     // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
 
-    /// @dev Brief P13 on the real PositionManager: both positions locked at the dead address, minted
+    /// @dev Brief P13 on the real PositionManager: both positions held by the fee-only locker, minted
     ///      back to back; the one-sided position sits on the STOCK side adjacent to the initial tick;
     ///      placed STOCK + dust == raise with dust inside the rounding bound; when more than a quarter
     ///      sold (every graduated lifecycle here) the whole reserve is placed up to rounding.
@@ -392,13 +406,13 @@ contract StocksForkLifecycleTest is Test {
         int24 spacing = StocksPreset.POOL_TICK_SPACING;
         bool stockIs0 = ForkAddresses.AAPLC < newToken;
 
-        assertEq(nft.ownerOf(record.lpTokenId), StocksBindings.DEAD_ADDRESS, "full range to dead");
+        assertEq(nft.ownerOf(record.lpTokenId), launchpad.locker(), "full range to the locker");
         (, PositionInfo fullInfo) = positions.getPoolAndPositionInfo(record.lpTokenId);
         assertEq(fullInfo.tickLower(), TickMath.minUsableTick(spacing));
         assertEq(fullInfo.tickUpper(), TickMath.maxUsableTick(spacing));
 
         assertEq(record.lpStockOnlyTokenId, record.lpTokenId + 1, "one-sided position minted second");
-        assertEq(nft.ownerOf(record.lpStockOnlyTokenId), StocksBindings.DEAD_ADDRESS, "one-sided to dead");
+        assertEq(nft.ownerOf(record.lpStockOnlyTokenId), launchpad.locker(), "one-sided to the locker");
         assertGt(positions.getPositionLiquidity(record.lpStockOnlyTokenId), 0);
         (PoolKey memory sideKey, PositionInfo sideInfo) = positions.getPoolAndPositionInfo(record.lpStockOnlyTokenId);
         assertEq(PoolId.unwrap(sideKey.toId()), record.poolId);
@@ -412,7 +426,7 @@ contract StocksForkLifecycleTest is Test {
             assertEq(sideInfo.tickUpper(), floored);
         }
 
-        uint256 dust = hook.accrued(record.poolId, hook.REGENT_DESTINATION());
+        (uint256 dust,) = hook.accrued(record.poolId);
         assertEq(uint256(record.lpStockUsed) + record.lpStockOnlyUsed + dust, raised, "raised == placed + dust");
         assertLe(dust, _roundingBound(stockIs0, record.finalSqrtPriceX96, raised - record.lpStockUsed), "dust bounded");
         assertGt(record.lpStockOnlyUsed, 0, "the remainder is locked, not routed");
@@ -438,7 +452,7 @@ contract StocksForkLifecycleTest is Test {
         return sqrtPriceX96 / FixedPoint96.Q96 + 1;
     }
 
-    function _launchParams(address splitter) private view returns (IStocksLaunchpadV1.LaunchParams memory) {
+    function _launchParams() private view returns (IStocksLaunchpadV1.LaunchParams memory) {
         return IStocksLaunchpadV1.LaunchParams({
             name: string.concat("Fork New ", vm.toString(launchpad.nextLaunchId())),
             symbol: "FNEW",
@@ -448,18 +462,16 @@ contract StocksForkLifecycleTest is Test {
             stock: ForkAddresses.AAPLC,
             startBlock: uint64(block.number) + StocksPreset.MIN_START_LEAD_BLOCKS,
             floorPriceQ96: FLOOR_PRICE_Q96,
-            feeAdministrator: feeAdministrator,
-            subjectSplitter: splitter,
             expectedLaunchFee: launchpad.launchFee()
         });
     }
 
     /// @dev A launch the way a wallet makes it: approve exactly the reviewed fee, then `launch`.
-    function _launch(address splitter)
+    function _launch()
         private
         returns (uint256 launchId, address newToken, IContinuousClearingAuction auction)
     {
-        IStocksLaunchpadV1.LaunchParams memory params = _launchParams(splitter);
+        IStocksLaunchpadV1.LaunchParams memory params = _launchParams();
         address auctionAddress;
         vm.startPrank(launcher);
         regent.approve(address(launchpad), params.expectedLaunchFee);
@@ -502,54 +514,6 @@ contract StocksForkLifecycleTest is Test {
         stock.approve(address(swapRouter), type(uint256).max);
         IERC20(newToken).approve(address(swapRouter), type(uint256).max);
         vm.stopPrank();
-    }
-
-    /// @dev Drives one real Agent launch on the fork to graduation and returns its authentic splitter.
-    function _graduateAnAgentLaunch() private returns (address splitter, address auction) {
-        IAgentFactory factory = IAgentFactory(ForkAddresses.AGENT_FACTORY);
-        IAgentStrategy strategy = IAgentStrategy(ForkAddresses.AGENT_STRATEGY);
-        assertFalse(factory.launchesPaused(), "Agent factory open on the lab");
-
-        address agentLauncher = makeAddr("agent-launcher");
-        address agentBidder = makeAddr("agent-bidder");
-        uint256 fee = factory.launchFee();
-        vm.startPrank(governance);
-        regent.transfer(agentLauncher, fee);
-        regent.transfer(agentBidder, 100_000e18);
-        vm.stopPrank();
-
-        vm.startPrank(agentLauncher);
-        regent.approve(ForkAddresses.AGENT_FACTORY, fee);
-        address subject;
-        (, subject, auction,) = factory.launch(
-            IAgentFactory.LaunchParams({
-                name: "Fork Agent Subject",
-                symbol: "FAS",
-                description: "Agent launch for the Stocks subject lane proof",
-                website: "https://autolaunch.sh",
-                image: "ipfs://image",
-                treasury: makeAddr("agent-treasury"),
-                requiredRegentRaised: 1_000e18,
-                expectedLaunchFee: fee
-            })
-        );
-        vm.stopPrank();
-
-        IContinuousClearingAuction agentAuction = IContinuousClearingAuction(auction);
-        vm.roll(agentAuction.startBlock());
-        uint256 price = strategy.FLOOR_PRICE_Q96() + 10 * strategy.BID_TICK_Q96();
-        vm.startPrank(agentBidder);
-        regent.approve(StocksBindings.PERMIT2, 100_000e18);
-        IAllowanceTransfer(StocksBindings.PERMIT2)
-            .approve(StocksBindings.REGENT, auction, uint160(100_000e18), type(uint48).max);
-        agentAuction.submitBid(price, 100_000e18, agentBidder, strategy.FLOOR_PRICE_Q96(), "");
-        vm.stopPrank();
-
-        vm.roll(uint256(agentAuction.endBlock()) + strategy.MIGRATION_DELAY_BLOCKS());
-        strategy.migrate(auction);
-        splitter = strategy.distribution(auction).splitter;
-        assertNotEq(splitter, address(0), "Agent launch graduated with a splitter");
-        assertEq(strategy.auctionOfSubject(subject), auction);
     }
 
     function _requireCode(address account, string memory label) private view {

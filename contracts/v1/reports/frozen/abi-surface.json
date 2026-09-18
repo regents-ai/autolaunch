@@ -167,6 +167,7 @@
         "address receiverImplementation_"
       ],
       "functions": [
+        "0x03fc2013 lpLocker()",
         "0x0e0651f3 escrowCloneCodehash()",
         "0x10202c54 bindHook(address)",
         "0x112e335c receiverImplementation()",
@@ -203,6 +204,7 @@
         "0xd7750ed5 initializeDistribution((uint256,address,uint128))"
       ],
       "view_functions": [
+        "0x03fc2013 lpLocker()",
         "0x0e0651f3 escrowCloneCodehash()",
         "0x112e335c receiverImplementation()",
         "0x14ec99b0 FLOOR_PRICE_Q96()",
@@ -896,6 +898,68 @@
         "0xf92ee8a9 InvalidInitialization()"
       ],
       "input_structs": {},
+      "return_structs": {}
+    },
+    "RevstakeLPLocker": {
+      "source": "src/revenue/RevstakeLPLocker.sol",
+      "constructor": [
+        "address strategy_"
+      ],
+      "functions": [
+        "0x954fec30 splitterOf(uint256)",
+        "0xa70df9a8 register(uint256,(address,address,uint24,int24,address),address)",
+        "0xa8c62e76 strategy()",
+        "0xce3f865f collect(uint256)"
+      ],
+      "mutating_functions": [
+        "0xa70df9a8 register(uint256,(address,address,uint24,int24,address),address)",
+        "0xce3f865f collect(uint256)"
+      ],
+      "view_functions": [
+        "0x954fec30 splitterOf(uint256)",
+        "0xa8c62e76 strategy()"
+      ],
+      "events": [
+        "0x480a3b36f8147f38608ad2e1a43629af8b6430a6fe53ad2535ad89b18a2747a2 PositionLocked(uint256,bytes32,address) indexed=3",
+        "0xb011059a564bb7099a17c005fa077a76ae70e9f0549d582d2b1ed930a7028b45 FeesDeposited(uint256,address,address,address,uint256,uint256) indexed=2"
+      ],
+      "event_fields": {
+        "FeesDeposited": [
+          "uint256 indexed tokenId",
+          "address indexed splitter",
+          "address currency0",
+          "address currency1",
+          "uint256 amount0",
+          "uint256 amount1"
+        ],
+        "PositionLocked": [
+          "uint256 indexed tokenId",
+          "bytes32 indexed poolId",
+          "address indexed splitter"
+        ]
+      },
+      "errors": [
+        "0x0912702a BalanceNotRestored(address,uint256,uint256)",
+        "0x3c4d173a NotStrategy(address)",
+        "0x442aad05 ZeroStrategy()",
+        "0x4dfbbff3 EmptyPosition()",
+        "0x5f328026 PositionNotOwned(uint256)",
+        "0x6da93ed5 SplitterMismatch()",
+        "0x7daf6f15 UnregisteredPosition(uint256)",
+        "0xab143c06 Reentrancy()",
+        "0xbf05020a AllowanceNotCleared(address,uint256)",
+        "0xe4b67674 AlreadyRegistered(uint256)",
+        "0xeab28cb4 PoolMismatch()"
+      ],
+      "input_structs": {
+        "register_expectedKey": [
+          "address currency0",
+          "address currency1",
+          "uint24 fee",
+          "int24 tickSpacing",
+          "address hooks"
+        ]
+      },
       "return_structs": {}
     }
   },

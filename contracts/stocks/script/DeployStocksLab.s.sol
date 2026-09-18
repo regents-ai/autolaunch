@@ -30,7 +30,6 @@ contract DeployStocksLab is Script {
 
     string internal constant DEPLOYER_ENV = "REGENT_STOCKS_LAB_DEPLOYER";
     string internal constant UERC20_FACTORY_ENV = "REGENT_STOCKS_LAB_UERC20_FACTORY";
-    string internal constant AGENT_STRATEGY_ENV = "REGENT_STOCKS_LAB_AGENT_STRATEGY";
 
     error WrongChain(uint256 expected, uint256 found);
     error FixtureNotInstalled(address stock);
@@ -41,7 +40,6 @@ contract DeployStocksLab is Script {
         if (block.chainid != LOCAL_CHAIN_ID) revert WrongChain(LOCAL_CHAIN_ID, block.chainid);
         address deployer = vm.envAddress(DEPLOYER_ENV);
         address uerc20Factory = vm.envAddress(UERC20_FACTORY_ENV);
-        address agentStrategy = vm.envAddress(AGENT_STRATEGY_ENV);
 
         FixtureStockCatalog.Entry[13] memory catalog = FixtureStockCatalog.entries();
         for (uint256 i; i < catalog.length; ++i) {
@@ -57,7 +55,7 @@ contract DeployStocksLab is Script {
         );
 
         vm.startBroadcast(deployer);
-        StocksLaunchpadV1 launchpad = new StocksLaunchpadV1(uerc20Factory, agentStrategy, hookSalt);
+        StocksLaunchpadV1 launchpad = new StocksLaunchpadV1(uerc20Factory, hookSalt);
         if (address(launchpad) != predictedLaunchpad) revert LaunchpadAddressMismatch(predictedLaunchpad, address(launchpad));
         if (launchpad.hook() != predictedHook) revert HookAddressMismatch(predictedHook, launchpad.hook());
 
@@ -72,6 +70,8 @@ contract DeployStocksLab is Script {
         console2.log("REGENT_STOCKS_LAB_HOOK_SALT:", vm.toString(hookSalt));
         console2.log("REGENT_STOCKS_LAB_LAUNCHPAD:", address(launchpad));
         console2.log("REGENT_STOCKS_LAB_HOOK:", launchpad.hook());
+        console2.log("REGENT_STOCKS_LAB_LOCKER:", launchpad.locker());
+        console2.log("REGENT_STOCKS_LAB_SPLITTER_IMPLEMENTATION:", launchpad.splitterImplementation());
         console2.log("REGENT_STOCKS_LAB_BID_ADAPTER:", address(adapter));
         for (uint256 i; i < catalog.length; ++i) {
             console2.log(string.concat("REGENT_STOCKS_LAB_ROUTE_", _upper(catalog[i].symbol), ":"), routes[i]);

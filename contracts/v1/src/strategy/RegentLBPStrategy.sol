@@ -5,6 +5,7 @@ import {BaseBindings} from "../bindings/BaseBindings.sol";
 import {ConditionalVestingEscrowV1} from "../escrow/ConditionalVestingEscrowV1.sol";
 import {RegentFeeHook} from "../hook/RegentFeeHook.sol";
 import {PaymentReceiverV1} from "../revenue/PaymentReceiverV1.sol";
+import {RevstakeLPLocker} from "../revenue/RevstakeLPLocker.sol";
 import {SubjectSplitterV1} from "../revenue/SubjectSplitterV1.sol";
 import {
     AuctionParameters,
@@ -194,6 +195,9 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     /// @notice The permanent `PaymentReceiverV1` clone target every canonical receiver is cloned from.
     address public immutable receiverImplementation;
 
+    /// @notice The immutable fee-only owner of every launch-funded LP position.
+    RevstakeLPLocker public immutable lpLocker;
+
     /// @notice The runtime code hash an authentic escrow clone of `escrowImplementation` must present.
     bytes32 public immutable escrowCloneCodehash;
 
@@ -279,6 +283,7 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         splitterImplementation = splitterImplementation_;
         // slither-disable-next-line missing-zero-check
         receiverImplementation = receiverImplementation_;
+        lpLocker = new RevstakeLPLocker(address(this));
         escrowCloneCodehash = keccak256(
             abi.encodePacked(hex"3d3d3d3d363d3d37363d73", escrowImplementation_, hex"5af43d3d93803e602a57fd5bf3")
         );
@@ -526,6 +531,7 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         (uint128 lpRegentUsed, uint128 lpSubjectUsed, uint256 lpTokenId) = _mintFullRangePosition(
             key, sqrtPriceX96, regentIsCurrency0, subject, SafeCastLib.toUint128(raised), d.reserve
         );
+        lpLocker.register(lpTokenId, key, splitter);
 
         // Only this launch's own delta leaves. Unrelated REGENT already held by the shared strategy is
         // preserved by construction, because `regentBefore` is subtracted out.
@@ -566,7 +572,7 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
     }
 
     /// @dev Resolves exactly one full-range position from the raised REGENT and the recorded reserve,
-    ///      mints its NFT straight to the dead address, and returns the amounts the position actually
+    ///      mints its NFT straight to the permanent fee-only locker, and returns the amounts the position actually
     ///      consumed — never the offered maxima. This launch's own plan dust returns here through
     ///      `TAKE_PAIR`, and nothing else does: the two settlement amounts are rewritten from the
     ///      pinned planner's `CONTRACT_BALANCE` sentinel to the exact two amounts this launch
@@ -588,7 +594,7 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
             CurrencyAmounts({
                 amount0: regentIsCurrency0 ? regentBudget : reserve, amount1: regentIsCurrency0 ? reserve : regentBudget
             }),
-            BaseBindings.DEAD_ADDRESS
+            address(lpLocker)
         );
         if (positions.length != 1) revert NoFullRangePosition();
 
@@ -679,15 +685,16 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         if (existing != address(0)) revert SubjectAlreadyLaunched(subject, existing);
     }
 
-    /// @dev The exact, closed launch-time treasury refusal: the six shared-system destinations a
+    /// @dev The exact, closed launch-time treasury refusal: the seven shared-system destinations a
     ///      launch's payouts must never land on — this factory, this strategy, the bound hook, the
-    ///      frozen PoolManager, the frozen PositionManager and the frozen live staking contract.
+    ///      frozen PoolManager, the frozen PositionManager, the frozen live staking contract and
+    ///      the LP locker. A splitter treasury payout back to the locker would prevent fee forwarding.
     ///      Sending a launch's payouts to any of them would either strand them in an account with no
     ///      path back out or feed them into accounting that was never told about them.
     ///
     ///      Nothing else is judged. There is no `code.length` test, no `codehash` fingerprint, no
     ///      interface probe, no registry, no generalized denylist, and no predicted-address rule; the
-    ///      list is six exact addresses and it never widens with the protocol. The dead address, an
+    ///      list is seven exact addresses. The dead address, an
     ///      ordinary EOA, an arbitrary contract, a live CCA auction, the Governance and Regent Safe,
     ///      an already-deployed Autolaunch escrow, splitter or receiver, and an address a later
     ///      ordinary-CREATE clone of this strategy will occupy are all admitted.
@@ -707,7 +714,7 @@ contract RegentLBPStrategy is ReentrancyGuardTransient {
         if (
             treasury == factory || treasury == address(this) || treasury == hook
                 || treasury == BaseBindings.POOL_MANAGER || treasury == BaseBindings.POSITION_MANAGER
-                || treasury == BaseBindings.LIVE_STAKING
+                || treasury == BaseBindings.LIVE_STAKING || treasury == address(lpLocker)
         ) revert RefusedTreasury(treasury);
     }
 

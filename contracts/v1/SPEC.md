@@ -5,6 +5,8 @@
 **Implementation repository:** `repos/autolaunch-contracts`  
 **Release posture:** local implementation and proof only; mainnet remains NO-GO
 
+**Revstake amendment:** launch-owned LP fees are collected in kind through a permanent fee-only locker. Revstake token creation is Base-only; Robinhood permits only memestock auction creation. The existing hook lanes, three splitter assets, 2% skim and total-supply-coverage formula are unchanged.
+
 This specification supersedes the prior Autolaunch Safe/ERC-8004/registry contract graph for new V1 work. The historical `regent-contracts` implementation and its evidence remain read-only references. The live global REGENT Stake and Redeem contracts and product flow are not replaced.
 
 ## 1. Required outcome
@@ -18,7 +20,7 @@ Failed auction
 → bidder refunds preserved
 
 Graduated auction
-→ final-price v4 pool + dead full-range LP NFT
+→ final-price v4 pool + permanently locked full-range LP NFT
 → vesting + splitter + canonical receiver
 ```
 
@@ -96,7 +98,7 @@ Rules:
 - IDs are sequential; internal salts derive only from the ID; duplicate names and symbols are allowed.
 - Metadata is nonempty and byte-bounded: name 64, symbol 16, description 512, website 256, image 256.
 - Treasury is immutable and launcher-chosen. There is no recovery admin and no recovery authority anywhere in the system.
-- Launch-time treasury admission lives only in `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction is created. It refuses exactly six addresses: the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, and the frozen live staking contract. Every other treasury is admitted. There is no code-length rule, no codehash fingerprint, no interface probe, no registry, no generalized denylist, and no predicted-address rule.
+- Launch-time treasury admission lives only in `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction is created. It refuses exactly seven addresses: the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking contract, and the strategy's immutable LP locker. Every other treasury is admitted. There is no code-length rule, no codehash fingerprint, no interface probe, no registry, no generalized denylist, and no predicted-address rule.
 - Each launch's splitter and canonical receiver are deployed with ordinary CREATE clones, so each address follows from the shared strategy's nonce at graduation and from nothing any caller chose. The factory records every successfully initialized custom receiver and, through the immutable-strategy-only callback, the canonical receiver after the strategy has written the complete graduated distribution. `launchIdOfPaymentReceiver(address)` is a non-enumerable provenance lookup where zero means unknown; it does not make a receiver canonical. `LaunchGraduated` and the strategy record remain the only canonical account of what a launch deployed.
 - An admitted treasury may be an already-deployed Autolaunch artifact of another launch, and then delivers this launch's payouts into that artifact's ordinary accounting. An admitted treasury may also collide with an address the strategy's current nonce would later produce; that graduation's clone initializer reverts, the whole migration rolls back including the nonce advance, and the launch stalls — with its raised REGENT still in the CCA, its escrow still pending, its reserve and unsold SUBJECT unmoved, no pool or vesting begun, and CCA exit and claim rights intact — until any other launch's graduation moves the nonce past the collision. Both are accepted launcher-selected destination behaviour; refusing either would require enumerating launches that do not exist yet.
 - Launcher provenance gives no authority. A later failed auction does not refund the fee.
@@ -125,7 +127,7 @@ Graduation is atomic:
 3. deploy the splitter as an ordinary clone;
 4. register the PoolId once in the hook;
 5. sweep REGENT and initialize at the exact CCA final price;
-6. mint one full-range LP position to the dead address;
+6. mint one full-range LP position to the permanent fee-only locker and register its fixed splitter;
 7. send unused REGENT to immutable treasury;
 8. send unused SUBJECT reserve to escrow;
 9. sweep successful-auction unsold SUBJECT into escrow;
@@ -137,7 +139,11 @@ Graduation is atomic:
 
 Steps 3 and 10 are ordinary CREATE clone deployments from the shared strategy, so each address is whatever that strategy's nonce produced at graduation; nothing about either address is caller-selected, derived in advance, or published.
 
-The official pool is static 0.30%, tick spacing 60, with one managed full-range position whose NFT is sent to the dead address. Third parties may add independent positions.
+The official pool is static 0.30%, tick spacing 60, with one managed full-range position whose NFT is owned forever by `RevstakeLPLocker`. Third parties may add, remove, transfer and collect from their independent positions normally; only the launch-owned position's fee entitlement enters Revstake.
+
+The strategy constructs one immutable shared locker before any launch, as its nonce-1 CREATE child. Only that strategy can register a position, once, after the mint; registration proves locker ownership, nonzero position liquidity, the exact pool key, and the splitter SUBJECT/REGENT/Regent Safe bindings. No registration overwrite or unregistration exists. `collect(uint256 tokenId)` is permissionless and nonreentrant. It executes only PositionManager `DECREASE_LIQUIDITY` with liquidity exactly zero, followed by `TAKE_PAIR` to the locker itself, with no caller-controlled hook data. It deposits each nonzero, newly collected currency balance delta through that position's fixed splitter's `depositRecognizedRevenue`, using the position ID as the revenue reference. Both deposits receive the existing 2% skim and ordinary in-kind allocation. Nothing is converted and no caller receives a reward. A zero-fee collection succeeds without a zero deposit. Collection and both deposits are atomic; no attributable inventory or allowance remains. Unsolicited balances are isolated from every collection and deliberately have no recovery path.
+
+The locker has no withdrawal, NFT transfer, approval/permit, administrator, upgrade, arbitrary execution, recipient setter, or liquidity-changing function. Its only ERC20 approvals are exact, immediately consumed approvals to the registered splitter. Anyone calling `collect` can cause recognition but cannot redirect proceeds or touch principal. USDC agent revenue retains the existing receiver/splitter path; it does not pass through this locker. Historical dead-address positions cannot be recovered by the new locker. Existing frozen deployment packets do not describe this new graph and must not be reused for deployment.
 
 The PositionManager is shared with every other v4 user, so graduation settles only the exact two amounts it transfers there for its own mint. REGENT and SUBJECT already held at the PositionManager are never settled, never become the launch's credit, and never reach its treasury or escrow.
 
@@ -204,7 +210,7 @@ Required groups:
 | `HOK-*` | Realized unspecified-currency fee measurement after swap; exact permission bits and callback authority; all four trade forms and both currency orderings; independent 1% rounding; partial, zero, and sub-threshold fills; synchronous in-kind settlement; exact wallet limits; zero retained inventory or allowance; and atomic failure rollback. |
 | `SPL-*` | Exactly three supported assets; initialization bound to the exact complete SUBJECT supply; exact 2% skim and destinations; fixed total-supply coverage of the net; immediate treasury delivery of the uncovered remainder, coverage rounding included, and of the whole net at zero stake; immediate stake and accrual with every value exit a later block on; stake and unstake snapshots; caller-only claims; fixed three-token `claimAll`; one protected remainder per token; principal protection; direct deposits and surplus recognition; permissionless whole-balance recovery; unsupported-token recovery exclusions; and forced-ETH behavior. |
 | `RCV-*` | Canonical and custom creation; referral boundaries, flooring, beneficiary, and referral-before-splitter ordering; atomic pay and sweep; supported-token validation; note defaults, editor, and event; immutable beneficiary, splitter, and referral; and recovery fixed to treasury. |
-| `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT at the dead address; actual LP consumption; separate residues; exact PositionManager funding with foreign balances preserved; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
+| `MIG-*` | Graduation ordering; write-once PoolId; exact final price in both currency orders; static 0.30% and tick 60; one full-range NFT in the permanent fee-only locker; actual LP consumption; separate residues; exact PositionManager funding with foreign balances preserved; active vesting; migration-dependency reentrancy rejection; and complete rollback after every external call. |
 | `FAIL-*` | Unmet raise, zero bids, partial bidding, full failed inventory return, exact dead-address delta, bidder refunds, no graduated infrastructure, and repeated-finalization rejection. |
 | `INV-*` | Total-supply conservation; splitter solvency; SUBJECT principal and protected-remainder conservation; no cross-launch reserve use; no unexplained factory, strategy, or hook balances; immutable lifecycle; receiver conservation; and hook conservation. |
 | `GAS-*` | Every runtime and initcode limit plus the complete direct-wallet launch, successful migration, and failed migration at or below 14M under maximum metadata, worst valid raise/inventory, cold external state, intrinsic gas, and calldata gas. Complete-transaction claims require the fork gate. |

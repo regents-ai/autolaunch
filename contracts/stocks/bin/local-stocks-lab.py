@@ -85,11 +85,13 @@ STOCKS_SITE_CONFIG_NAME = "stocks-site-config.json"
 DOTENV_NAMES = (".env", ".env.local", ".envrc")
 ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 GRAPH_LOG_RE = re.compile(r"REGENT_STOCKS_LAB_([A-Z0-9_]+)\s*:?\s*(0x[0-9a-fA-F]+)")
-FIXED_GRAPH_LABELS = {"hook_salt", "launchpad", "hook", "bid_adapter"}
+FIXED_GRAPH_LABELS = {"hook_salt", "launchpad", "hook", "locker", "splitter_implementation", "bid_adapter"}
 
 ABI_ARTIFACTS = {
     "launchpad": "out/StocksLaunchpadV1.sol/StocksLaunchpadV1.json",
     "hook": "out/StocksFeeHookV1.sol/StocksFeeHookV1.json",
+    "locker": "out/MemestockLPLocker.sol/MemestockLPLocker.json",
+    "splitter": "out/MemestockSplitterV1.sol/MemestockSplitterV1.json",
     "bid_adapter": "out/StockBidAdapterV1.sol/StockBidAdapterV1.json",
     "route": "out/FixtureStockRoute.sol/FixtureStockRoute.json",
     "auction": "out/ContinuousClearingAuction.sol/ContinuousClearingAuction.json",
@@ -438,7 +440,7 @@ def parse_deployment_graph(output: str) -> dict[str, str]:
     return graph
 
 
-def deploy_graph(root: Path, client: RpcClient, deployer: str, uerc20_factory: str, agent_strategy: str) -> dict[str, str]:
+def deploy_graph(root: Path, client: RpcClient, deployer: str, uerc20_factory: str) -> dict[str, str]:
     output = run_checked(
         [
             "forge", "script", DEPLOY_SCRIPT, "--rpc-url", client.url, "--broadcast", "--unlocked",
@@ -449,7 +451,6 @@ def deploy_graph(root: Path, client: RpcClient, deployer: str, uerc20_factory: s
             {
                 "REGENT_STOCKS_LAB_DEPLOYER": deployer,
                 "REGENT_STOCKS_LAB_UERC20_FACTORY": uerc20_factory,
-                "REGENT_STOCKS_LAB_AGENT_STRATEGY": agent_strategy,
             }
         ),
     )
@@ -474,7 +475,6 @@ class Lab:
         addresses = self.agent_config.get("addresses", {})
         try:
             self.uerc20_factory = normalize_address(addresses["uerc20_factory"], "uerc20_factory")
-            self.agent_strategy = normalize_address(addresses["strategy"], "strategy")
             self.agent_factory = normalize_address(addresses["factory"], "factory")
         except KeyError as exc:
             raise LabError("Agent site-config.json omits required addresses") from exc
@@ -572,6 +572,8 @@ def write_documents(
     addresses = {
         "launchpad": graph["launchpad"],
         "hook": graph["hook"],
+        "locker": graph["locker"],
+        "splitter_implementation": graph["splitter_implementation"],
         "bid_adapter": graph["bid_adapter"],
         "usdc": USDC,
         "regent": REGENT,
@@ -582,7 +584,6 @@ def write_documents(
         "live_staking": LIVE_STAKING,
         "governance_safe": GOVERNANCE_SAFE,
         "agent_factory": lab.agent_factory,
-        "agent_strategy": lab.agent_strategy,
     }
     stocks = [
         {
@@ -643,7 +644,7 @@ def command_deploy(args: argparse.Namespace) -> None:
     try:
         install_fixtures(lab, fixture_runtime(root))
         with impersonated(lab.client, STOCKS_LAB_DEPLOYER, gas_wei=10**20):
-            graph = deploy_graph(root, lab.client, STOCKS_LAB_DEPLOYER, lab.uerc20_factory, lab.agent_strategy)
+            graph = deploy_graph(root, lab.client, STOCKS_LAB_DEPLOYER, lab.uerc20_factory)
         for label, address in graph.items():
             if label != "hook_salt" and runtime_code(lab.client, address) == "0x":
                 raise LabError(f"deployed {label} has no runtime code")
@@ -695,7 +696,7 @@ def command_set_agent_fee(args: argparse.Namespace) -> None:
 
 
 # -----------------------------------------------------------------------------
-# fund, status, advance, migrate, settle
+# fund, status, advance, migrate, settle, collect
 # -----------------------------------------------------------------------------
 
 
@@ -749,7 +750,7 @@ def command_fund(args: argparse.Namespace) -> None:
 
 
 LAUNCH_FIELDS = (
-    "launcher", "newToken", "stock", "auction", "feeAdministrator", "startBlock", "endBlock", "claimBlock",
+    "launcher", "newToken", "stock", "auction", "splitter", "startBlock", "endBlock", "claimBlock",
     "migrationBlock", "requiredStockRaised", "floorPriceQ96", "lifecycle", "poolId", "finalSqrtPriceX96",
     "lpTokenId", "lpStockUsed", "lpNewUsed", "retiredNew", "lpStockOnlyTokenId", "lpStockOnlyUsed",
 )
@@ -762,7 +763,7 @@ def launch_record(client: RpcClient, launchpad: str, launch_id: int) -> dict[str
         raise LabError("launches(uint256) returned the wrong ABI length")
     record: dict[str, Any] = {}
     for name, value in zip(LAUNCH_FIELDS, values):
-        if name in {"launcher", "newToken", "stock", "auction", "feeAdministrator"}:
+        if name in {"launcher", "newToken", "stock", "auction", "splitter"}:
             record[name] = decode_address_word(value)
         elif name == "lifecycle":
             record[name] = LIFECYCLES[value] if value < len(LIFECYCLES) else value
@@ -862,22 +863,45 @@ def command_migrate(args: argparse.Namespace) -> None:
     print(json.dumps({"launch": args.launch, "transaction_hash": transaction_hash, "before": before["lifecycle"], "after": after["lifecycle"], "record": after}, indent=2, sort_keys=True))
 
 
-def command_settle(args: argparse.Namespace) -> None:
+def hook_lanes(client: RpcClient, hook: str, pool_id: str) -> dict[str, int]:
+    regent_lane, staker_lane = words(rpc_call(client, hook, selector("accrued(bytes32)") + abi_bytes32(pool_id)))
+    converted, deposited, to_stakers = words(rpc_call(client, hook, selector("settled(bytes32)") + abi_bytes32(pool_id)))
+    return {
+        "accrued_regent_lane": regent_lane,
+        "accrued_staker_lane": staker_lane,
+        "settled_stock_converted": converted,
+        "settled_usdc_deposited": deposited,
+        "settled_stock_to_stakers": to_stakers,
+    }
+
+
+def command_settle_regent(args: argparse.Namespace) -> None:
     lab = Lab(Path(args.agent_lab_dir), args.rpc_url)
-    state = lab.load_state()
-    hook = state["addresses"]["hook"]
-    destination = normalize_address(args.destination, "destination")
-    amount = int(args.amount)
-    min_usdc = int(args.min_usdc)
-    accrued_before = call_uint(lab.client, hook, "accrued(bytes32,address)", abi_bytes32(args.pool_id), abi_address(destination))
+    hook = lab.load_state()["addresses"]["hook"]
+    before = hook_lanes(lab.client, hook, args.pool_id)
     with impersonated(lab.client, STOCKS_LAB_DEPLOYER):
         transaction_hash = send_and_wait(
             lab.client, STOCKS_LAB_DEPLOYER, hook,
-            selector("settle(bytes32,address,uint256,uint256)") + abi_bytes32(args.pool_id) + abi_address(destination) + abi_uint(amount) + abi_uint(min_usdc),
+            selector("settleRegentLane(bytes32,uint256,uint256)") + abi_bytes32(args.pool_id) + abi_uint(int(args.amount)) + abi_uint(int(args.min_usdc)),
         )
-    accrued_after = call_uint(lab.client, hook, "accrued(bytes32,address)", abi_bytes32(args.pool_id), abi_address(destination))
-    converted, deposited = words(rpc_call(lab.client, hook, selector("settled(bytes32,address)") + abi_bytes32(args.pool_id) + abi_address(destination)))
-    print(json.dumps({"transaction_hash": transaction_hash, "accrued_before": accrued_before, "accrued_after": accrued_after, "settled_stock": converted, "settled_usdc": deposited}, sort_keys=True))
+    print(json.dumps({"transaction_hash": transaction_hash, "before": before, "after": hook_lanes(lab.client, hook, args.pool_id)}, sort_keys=True))
+
+
+def command_settle_stakers(args: argparse.Namespace) -> None:
+    lab = Lab(Path(args.agent_lab_dir), args.rpc_url)
+    hook = lab.load_state()["addresses"]["hook"]
+    before = hook_lanes(lab.client, hook, args.pool_id)
+    with impersonated(lab.client, STOCKS_LAB_DEPLOYER):
+        transaction_hash = send_and_wait(lab.client, STOCKS_LAB_DEPLOYER, hook, selector("settleStakerLane(bytes32)") + abi_bytes32(args.pool_id))
+    print(json.dumps({"transaction_hash": transaction_hash, "before": before, "after": hook_lanes(lab.client, hook, args.pool_id)}, sort_keys=True))
+
+
+def command_collect(args: argparse.Namespace) -> None:
+    lab = Lab(Path(args.agent_lab_dir), args.rpc_url)
+    locker = lab.load_state()["addresses"]["locker"]
+    with impersonated(lab.client, STOCKS_LAB_DEPLOYER):
+        transaction_hash = send_and_wait(lab.client, STOCKS_LAB_DEPLOYER, locker, selector("collect(uint256)") + abi_uint(args.token_id))
+    print(json.dumps({"transaction_hash": transaction_hash, "token_id": args.token_id}, sort_keys=True))
 
 
 # -----------------------------------------------------------------------------
@@ -925,12 +949,19 @@ def build_parser() -> argparse.ArgumentParser:
     migrate.add_argument("--launch", type=int, required=True)
     migrate.set_defaults(handler=command_migrate)
 
-    settle = commands.add_parser("settle", help="settle one hook bucket as the lab executor")
-    settle.add_argument("--pool-id", required=True)
-    settle.add_argument("--destination", required=True, help="REGENT token address for the REGENT bucket, or a splitter")
-    settle.add_argument("--amount", required=True, help="STOCK base units")
-    settle.add_argument("--min-usdc", default="1", help="minimum USDC base units out")
-    settle.set_defaults(handler=command_settle)
+    settle_regent = commands.add_parser("settle-regent", help="convert REGENT-lane STOCK to USDC and deposit it into REGENT staking, as the lab executor")
+    settle_regent.add_argument("--pool-id", required=True)
+    settle_regent.add_argument("--amount", required=True, help="STOCK base units")
+    settle_regent.add_argument("--min-usdc", default="1", help="minimum USDC base units out")
+    settle_regent.set_defaults(handler=command_settle_regent)
+
+    settle_stakers = commands.add_parser("settle-stakers", help="deposit the whole staker lane, in STOCK, into the launch's splitter")
+    settle_stakers.add_argument("--pool-id", required=True)
+    settle_stakers.set_defaults(handler=command_settle_stakers)
+
+    collect = commands.add_parser("collect", help="collect one locked position's LP fees into the launch's splitter")
+    collect.add_argument("--token-id", type=int, required=True)
+    collect.set_defaults(handler=command_collect)
     return parser
 
 

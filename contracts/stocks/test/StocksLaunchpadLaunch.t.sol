@@ -14,12 +14,11 @@ import {StocksPreset} from "../src/StocksPreset.sol";
 import {FixtureStockRoute} from "../src/routes/FixtureStockRoute.sol";
 import {IStocksLaunchpadV1} from "../src/interfaces/IStocksLaunchpadV1.sol";
 import {MockLiveStaking} from "./mocks/MockLiveStaking.sol";
-import {MockSplitter} from "./mocks/MockSplitter.sol";
 import {StocksFixture} from "./StocksFixture.sol";
 
 /// @notice Rule 1 (exact minting and custody), rule 2 (canonical auction bindings), rule 8 (the exact,
-///         non-refundable launch fee funded into staking), admission, pause scope, launch validation
-///         and the subject-lane administration surface.
+///         non-refundable launch fee funded into staking), admission, pause scope and launch
+///         validation.
 contract StocksLaunchpadLaunchTest is StocksFixture {
     function setUp() public {
         _deployStocks();
@@ -69,32 +68,8 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(record.migrationBlock, record.endBlock + StocksPreset.MIGRATION_DELAY_BLOCKS);
         assertEq(uint8(record.lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Active));
         assertEq(record.launcher, launcher);
-        assertEq(record.feeAdministrator, feeAdministrator);
+        assertEq(record.splitter, address(0), "the splitter is created at graduation");
         assertEq(record.requiredStockRaised, REQUIRED_RAISE);
-    }
-
-    function test_launch_emits_creation_and_initial_subject_configuration() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        _approveFee(launcher, params);
-        vm.expectEmit(true, false, false, true, address(launchpad));
-        emit IStocksLaunchpadV1.SubjectConfigured(1, 1, address(0), 0, feeAdministrator);
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        (uint32 version, address splitterOf, uint16 bps, address admin, address proposed) = launchpad.subjectConfig(1);
-        assertEq(version, 1);
-        assertEq(splitterOf, address(0));
-        assertEq(bps, 0);
-        assertEq(admin, feeAdministrator);
-        assertEq(proposed, address(0));
-    }
-
-    function test_launch_with_authentic_splitter_records_the_subject_lane() public {
-        Launched memory l = _launchWithSubject(STOCK_HIGH);
-        (uint32 version, address splitterOf, uint16 bps,,) = launchpad.subjectConfig(l.launchId);
-        assertEq(version, 1);
-        assertEq(splitterOf, address(splitter));
-        assertEq(bps, StocksPreset.SUBJECT_LANE_BPS);
     }
 
     function test_both_pool_orderings_are_reachable() public {
@@ -244,37 +219,6 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertGt(quoted, reachable);
         IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
         vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.UnreachableRequiredRaise.selector, quoted, reachable));
-        vm.prank(launcher);
-        launchpad.launch(params);
-    }
-
-    function test_fee_administrator_is_required() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        params.feeAdministrator = address(0);
-        vm.expectRevert(StocksLaunchpadV1.ZeroAddress.selector);
-        vm.prank(launcher);
-        launchpad.launch(params);
-    }
-
-    function test_inauthentic_splitters_are_refused() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-
-        params.subjectSplitter = makeAddr("codeless");
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.SplitterHasNoCode.selector, params.subjectSplitter));
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        // A splitter whose subject the Agent strategy never launched.
-        MockSplitter stray = new MockSplitter(makeAddr("stray-subject"), StocksBindings.REGENT);
-        params.subjectSplitter = address(stray);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.InauthenticSplitter.selector, address(stray)));
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        // A splitter claiming a launched subject but not the one the strategy recorded.
-        MockSplitter impostor = new MockSplitter(agentSubject, StocksBindings.REGENT);
-        params.subjectSplitter = address(impostor);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.InauthenticSplitter.selector, address(impostor)));
         vm.prank(launcher);
         launchpad.launch(params);
     }
@@ -547,10 +491,12 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
 
     function test_a_fresh_launchpad_is_born_paused() public {
         bytes32 salt = _mineHookSalt(vm.computeCreateAddress(address(this), vm.getNonce(address(this))));
-        StocksLaunchpadV1 fresh = new StocksLaunchpadV1(address(uerc20Factory), address(agentStrategy), salt);
+        StocksLaunchpadV1 fresh = new StocksLaunchpadV1(address(uerc20Factory), salt);
         assertTrue(fresh.launchesPaused());
         assertEq(fresh.nextLaunchId(), 1);
         assertNotEq(fresh.hook(), launchpad.hook(), "each launchpad mines its own hook");
+        assertNotEq(fresh.locker(), launchpad.locker(), "each launchpad deploys its own locker");
+        assertNotEq(fresh.splitterImplementation(), launchpad.splitterImplementation());
     }
 
     function test_admission_reads_decimals_and_verifies_the_route_bindings() public {
@@ -578,93 +524,5 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.StockNotAdmitted.selector, codeless));
         vm.prank(governance);
         launchpad.revokeStock(codeless);
-    }
-
-    // -------------------------------------------------------------------------
-    // subject administration
-    // -------------------------------------------------------------------------
-
-    function test_configureSubject_is_administrator_only_and_versioned() public {
-        Launched memory l = _launch(STOCK_LOW);
-
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotFeeAdministrator.selector, outsider));
-        vm.prank(outsider);
-        launchpad.configureSubject(l.launchId, address(splitter), 1);
-
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.StaleSubjectVersion.selector, 1, 7));
-        vm.prank(feeAdministrator);
-        launchpad.configureSubject(l.launchId, address(splitter), 7);
-
-        vm.expectEmit(true, true, true, true, address(launchpad));
-        emit IStocksLaunchpadV1.SubjectConfigured(l.launchId, 2, address(splitter), 100, feeAdministrator);
-        vm.prank(feeAdministrator);
-        launchpad.configureSubject(l.launchId, address(splitter), 1);
-
-        (uint32 version, address splitterOf, uint16 bps,,) = launchpad.subjectConfig(l.launchId);
-        assertEq(version, 2);
-        assertEq(splitterOf, address(splitter));
-        assertEq(bps, 100);
-
-        vm.prank(feeAdministrator);
-        launchpad.configureSubject(l.launchId, address(0), 2);
-        (version, splitterOf, bps,,) = launchpad.subjectConfig(l.launchId);
-        assertEq(version, 3);
-        assertEq(splitterOf, address(0));
-        assertEq(bps, 0);
-
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.UnknownLaunch.selector, 99));
-        vm.prank(feeAdministrator);
-        launchpad.configureSubject(99, address(0), 1);
-    }
-
-    function test_fee_administrator_transfer_is_two_step() public {
-        Launched memory l = _launch(STOCK_LOW);
-        address next = makeAddr("next-admin");
-
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotFeeAdministrator.selector, outsider));
-        vm.prank(outsider);
-        launchpad.proposeFeeAdministrator(l.launchId, next);
-
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotProposedAdministrator.selector, next));
-        vm.prank(next);
-        launchpad.acceptFeeAdministrator(l.launchId);
-
-        vm.expectEmit(true, true, true, true, address(launchpad));
-        emit IStocksLaunchpadV1.FeeAdministratorTransferStarted(l.launchId, feeAdministrator, next);
-        vm.prank(feeAdministrator);
-        launchpad.proposeFeeAdministrator(l.launchId, next);
-        (,,, address admin, address proposed) = launchpad.subjectConfig(l.launchId);
-        assertEq(admin, feeAdministrator, "nothing changes until acceptance");
-        assertEq(proposed, next);
-
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotProposedAdministrator.selector, outsider));
-        vm.prank(outsider);
-        launchpad.acceptFeeAdministrator(l.launchId);
-
-        vm.expectEmit(true, true, true, true, address(launchpad));
-        emit IStocksLaunchpadV1.FeeAdministratorTransferred(l.launchId, feeAdministrator, next);
-        vm.prank(next);
-        launchpad.acceptFeeAdministrator(l.launchId);
-        (,,, admin, proposed) = launchpad.subjectConfig(l.launchId);
-        assertEq(admin, next);
-        assertEq(proposed, address(0));
-        assertEq(_record(l).feeAdministrator, next);
-
-        // The previous administrator has no power left; the new one configures.
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotFeeAdministrator.selector, feeAdministrator));
-        vm.prank(feeAdministrator);
-        launchpad.configureSubject(l.launchId, address(splitter), 1);
-        vm.prank(next);
-        launchpad.configureSubject(l.launchId, address(splitter), 1);
-    }
-
-    function test_administrator_cannot_reach_anything_else() public {
-        Launched memory l = _launch(STOCK_LOW);
-        vm.startPrank(feeAdministrator);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotGovernance.selector, feeAdministrator));
-        launchpad.pauseLaunches();
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotGovernance.selector, feeAdministrator));
-        launchpad.revokeStock(l.stock);
-        vm.stopPrank();
     }
 }

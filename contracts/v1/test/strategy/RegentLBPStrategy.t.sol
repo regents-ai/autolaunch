@@ -590,22 +590,23 @@ contract RegentLBPStrategyTest is StrategyFixture {
     // C3-I2 — launch-time treasury admission
     // -------------------------------------------------------------------------
 
-    /// @notice `STR-019`: the closed refusal set is exactly six shared-system destinations, proved
+    /// @notice `STR-019`: the closed refusal set is exactly seven shared-system destinations, proved
     ///         one by one before any auction exists.
     /// @dev Every arm is an exact address: the bound factory, the shared strategy, the bound fee
-    ///      hook, the frozen PoolManager, the frozen PositionManager and the frozen live staking
-    ///      contract. There is no seventh arm, because there is no seventh rule — no `code.length`
-    ///      test, no clone fingerprint, no predicted address. Each arm gets its own SUBJECT and its
+    ///      hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking
+    ///      contract and the immutable LP locker. There is no `code.length` test, no clone
+    ///      fingerprint, no predicted address. Each arm gets its own SUBJECT and its
     ///      own funded escrow, so every refusal is reached through the real authentication path
     ///      rather than short-circuited by a funding failure.
     function test_STR_019_RefusedTreasuryClassesAreRejectedBeforeTheAuctionExists() public {
-        address[6] memory refused = [
+        address[7] memory refused = [
             address(factory),
             address(strategy),
             strategy.hook(),
             BaseBindings.POOL_MANAGER,
             BaseBindings.POSITION_MANAGER,
-            BaseBindings.LIVE_STAKING
+            BaseBindings.LIVE_STAKING,
+            address(strategy.lpLocker())
         ];
 
         for (uint256 i; i < refused.length; ++i) {
@@ -613,7 +614,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         }
     }
 
-    /// @notice `STR-019`: everything outside those six addresses stays admissible, with no code test.
+    /// @notice `STR-019`: everything outside those seven addresses stays admissible, with no code test.
     /// @dev The dead address, an ordinary EOA that has never existed, an arbitrary deployed contract,
     ///      the Governance and Regent Safe, a live CCA auction, and — deliberately — an already
     ///      deployed authentic Autolaunch escrow, splitter and canonical receiver are all accepted.
@@ -623,7 +624,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     ///
     ///      Each clone here is really deployed rather than fingerprinted, so what is proved is that a
     ///      real artifact is admitted — not that some code shape is. Admission is a closed list of
-    ///      six addresses; it is not a registry, a denylist, or a code-length rule.
+    ///      seven addresses; it is not a registry, a denylist, or a code-length rule.
     function test_STR_019_AdmissibleTreasuryClassesAreAccepted() public {
         Launch memory live = _defaultLaunch();
 
@@ -725,10 +726,12 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertGt(sqrtPriceX96, TickMath.MIN_SQRT_PRICE, "inside the v4 range");
         assertLt(sqrtPriceX96, TickMath.MAX_SQRT_PRICE, "inside the v4 range");
 
-        // 6. exactly one full-range LP NFT, owned by the dead address.
+        // 6. exactly one full-range LP NFT, owned by the permanent fee-only locker.
         assertEq(d.lpTokenId, nextTokenIdBefore, "6. the recorded LP token id");
         assertEq(positionManager.nextTokenId(), nextTokenIdBefore + 1, "exactly one NFT minted");
-        assertEq(IERC721Owner(BaseBindings.POSITION_MANAGER).ownerOf(d.lpTokenId), BaseBindings.DEAD_ADDRESS, "dead");
+        assertEq(
+            IERC721Owner(BaseBindings.POSITION_MANAGER).ownerOf(d.lpTokenId), address(strategy.lpLocker()), "locker"
+        );
         (PoolKey memory mintedKey, PositionInfo info) = positionManager.getPoolAndPositionInfo(d.lpTokenId);
         assertEq(PoolId.unwrap(mintedKey.toId()), PoolId.unwrap(d.poolId), "the NFT belongs to the official pool");
         assertEq(info.tickLower(), TickMath.minUsableTick(60), "full-range lower tick");

@@ -234,7 +234,7 @@ selectors = ["test_DEP_015_DeterministicTestPortfolioIsFrozen"]
 # names may differ, each of them must really differ, and every other contract must still match.
 [[requirement]]
 id = "DEP-016"
-statement = "The required gate regenerates every frozen ABI, surface, size and manifest document from the compiled artifacts in check mode and fails on any byte of drift; the historical C4 runtime capture stays byte-identical to the blob its capture commit committed directly on integrated C4; exactly the src/** contracts the frozen final-source-delta record names may differ from that capture and each of them must actually differ; and every other src/** contract's runtime and creation byte strings still equal it exactly. The gate proves which production bytes moved, never why they moved."
+statement = "The required gate regenerates every frozen ABI, surface, size and manifest document from the compiled artifacts in check mode and fails on any byte of drift; the historical C4 runtime capture stays byte-identical to the blob its capture commit committed directly on integrated C4; exactly the src/** contracts the frozen final-source-delta record names may differ from that capture and each of them must actually differ; every other src/** contract the capture records still equals its runtime and creation byte strings exactly; and a src/** contract the capture does not record must be named once, with a reason, in that record's added list. The gate proves which production bytes moved, never why they moved."
 owner = "C5"
 contract = "repository"
 evidence_class = "gate-dependency"
@@ -934,7 +934,7 @@ selectors = ["test_FAC_026_SuccessfulFeeCollectionEmitsTheExactCollectionEvent"]
 # the launch path has. STR-019 owns the refusal set; this owns its atomicity at the factory.
 [[requirement]]
 id = "FAC-028"
-statement = "Each of the six treasuries the strategy refuses at launch rolls the whole attempted launch back together — the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event — and disturbs no existing launch's lifecycle, escrow custody or isolated 5% reserve."
+statement = "Each of the seven treasuries the strategy refuses at launch rolls the whole attempted launch back together — the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event — and disturbs no existing launch's lifecycle, escrow custody or isolated 5% reserve."
 owner = "C6.1"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -1253,7 +1253,7 @@ selectors = [
 
 # regent-alv1.7 addition, corrected by regent-alv1.7.1. The system's one launch-time treasury
 # admission, owned by the strategy and run after the escrow is authenticated and before the auction
-# exists. The refusal set is closed and exact: six shared-system destinations by address, and
+# exists. The refusal set is closed and exact: seven shared-system destinations by address, and
 # nothing else. C6's clone-runtime fingerprint and future-slot rules are deleted along with the
 # CREATE2 machinery they depended on, so an already-deployed escrow, splitter or receiver, and an
 # address a later ordinary-CREATE clone will occupy, are all admitted. The nonce-dependent stall
@@ -1261,7 +1261,7 @@ selectors = [
 # no registry, no generalized denylist and no code-presence requirement.
 [[requirement]]
 id = "STR-019"
-statement = "RegentLBPStrategy.initializeDistribution owns one launch-time treasury admission, run after the escrow is authenticated and before the auction is created. It refuses exactly six addresses — the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, and the frozen live staking contract — and performs no code-length, codehash, interface, registry or predicted-address test of any kind. Every other treasury is admitted, including the dead address, an ordinary EOA, an arbitrary deployed contract, the Governance and Regent Safe, a live CCA auction, an already-deployed Autolaunch escrow, splitter or receiver, and an address the strategy's current CREATE nonce would later produce. A refused treasury reverts before any reserve is pulled and before any auction exists. A treasury that collides with the strategy's next clone address makes that graduation's clone initializer revert, which rolls the whole migration back including the nonce advance, so the launch stalls with its raised REGENT still in the CCA, its escrow still pending, its reserve and unsold SUBJECT unmoved, no pool or vesting begun, and the CCA's own exit and claim rights intact — until any other launch's graduation moves the nonce past the collision, after which the stalled launch migrates normally."
+statement = "RegentLBPStrategy.initializeDistribution owns one launch-time treasury admission, run after the escrow is authenticated and before the auction is created. It refuses exactly seven addresses — the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking contract, and the strategy's immutable LP locker — and performs no code-length, codehash, interface, registry or predicted-address test of any kind. Every other treasury is admitted, including the dead address, an ordinary EOA, an arbitrary deployed contract, the Governance and Regent Safe, a live CCA auction, an already-deployed Autolaunch escrow, splitter or receiver, and an address the strategy's current CREATE nonce would later produce. A refused treasury reverts before any reserve is pulled and before any auction exists. A treasury that collides with the strategy's next clone address makes that graduation's clone initializer revert, which rolls the whole migration back including the nonce advance, so the launch stalls with its raised REGENT still in the CCA, its escrow still pending, its reserve and unsold SUBJECT unmoved, no pool or vesting begun, and the CCA's own exit and claim rights intact — until any other launch's graduation moves the nonce past the collision, after which the stalled launch migrates normally."
 owner = "C6.1"
 contract = "RegentLBPStrategy"
 evidence_class = "solidity-hermetic"
@@ -1962,8 +1962,8 @@ selectors = ["test_RCV_016_NoteEditorIsFixedAtInitialization"]
 
 # ---------------------------------------------------------------------------
 # MIG — graduation ordering; write-once PoolId; exact final price in both
-#       currency orders; static 0.30% and tick 60; one full-range NFT at the
-#       dead address; actual LP consumption; separate residues; canonical
+#       currency orders; static 0.30% and tick 60; one full-range NFT in the
+#       permanent fee-only locker; actual LP consumption; separate residues; canonical
 #       receiver; active vesting; migration-dependency reentrancy rejection;
 #       and complete rollback after every external call
 # ---------------------------------------------------------------------------
@@ -2025,13 +2025,13 @@ selectors = ["test_MIG_005_InitializesThePoolAtTheExactFinalPrice"]
 
 [[requirement]]
 id = "MIG-006"
-statement = "Graduation mints one full-range LP position and sends its NFT to the dead address."
+statement = "Graduation mints one full-range LP position to the strategy's permanent fee-only LP locker and registers its fixed splitter there."
 owner = "C4"
 contract = "migration"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_MIG_006_MintsOneFullRangePositionToTheDeadAddress"]
+selectors = ["test_MIG_006_MintsOneFullRangePositionToThePermanentLocker"]
 
 [[requirement]]
 id = "MIG-007"
@@ -2426,7 +2426,7 @@ selectors = ["invariant_INV_010_NoUnexplainedFactoryStrategyOrHookBalances"]
 
 [[requirement]]
 id = "GAS-001"
-statement = "Every deployable contract's runtime size is within the EIP-170 limit with the recorded margin, and the frozen record carries its exact compiler build and EVM keccak-256 runtime code identity: the six production contracts, the pinned UERC20 factory the ceremony also deploys, the per-launch UERC20 build the pinned factory deploys, the three clone implementations, and the fixed 44-byte clone runtime."
+statement = "Every deployable contract's runtime size is within the EIP-170 limit with the recorded margin, and the frozen record carries its exact compiler build and EVM keccak-256 runtime code identity: the seven production contracts, the pinned UERC20 factory the ceremony also deploys, the per-launch UERC20 build the pinned factory deploys, the three clone implementations, and the fixed 44-byte clone runtime."
 owner = "C5"
 contract = "system"
 evidence_class = "solidity-hermetic"

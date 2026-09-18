@@ -2,11 +2,11 @@
 pragma solidity 0.8.26;
 
 /// @title IRobinhoodLaunchpadBase
-/// @notice The surface every Robinhood launchpad shares: one launch mints a new token (NEW), sells a
-///         fixed inventory through a pinned Continuous Clearing Auction denominated in the launch's
-///         currency (USDG for a revenue-share launch, an admitted STOCK for a stock-pair launch),
-///         custodies the reserve, and after the auction either migrates the raise plus the reserve
-///         into the official NEW/currency Uniswap v4 pool or retires the inventory.
+/// @notice The chain-level surface of the Robinhood launchpad: one launch mints a new token (NEW),
+///         sells a fixed inventory through a pinned Continuous Clearing Auction denominated in the
+///         launch's currency (an admitted STOCK), custodies the reserve, and after the auction either
+///         migrates the raise plus the reserve into the official NEW/currency Uniswap v4 pool, whose
+///         fees belong to the launch's own memestock splitter, or retires the inventory.
 /// @dev Block numbers are the pinned auction's own notion of a block (`BlockNumberish`): the L2
 ///      block on Arbitrum-family chains such as the Robinhood chain, `block.number` elsewhere.
 interface IRobinhoodLaunchpadBase {
@@ -17,7 +17,7 @@ interface IRobinhoodLaunchpadBase {
         Failed
     }
 
-    /// @notice The metadata and terms every launcher supplies, whatever the launch kind.
+    /// @notice The metadata and terms every launcher supplies.
     struct CoreParams {
         string name;
         string symbol;
@@ -51,7 +51,9 @@ interface IRobinhoodLaunchpadBase {
         Lifecycle lifecycle;
         bytes32 poolId;
         uint160 finalSqrtPriceX96;
-        /// @dev The first locked position's token id; a launch kind may lock more, consecutively.
+        /// @dev The launch's own memestock splitter, created at graduation; zero before it.
+        address splitter;
+        /// @dev The first locked position's token id; more may be locked, consecutively.
         uint256 lpTokenId;
         uint128 lpCurrencyUsed;
         uint128 lpNewUsed;
@@ -63,6 +65,10 @@ interface IRobinhoodLaunchpadBase {
     event LaunchesPaused();
     event LaunchesUnpaused();
     event LaunchRetired(uint256 indexed launchId, address indexed auction, uint256 newRetired);
+    /// @notice Graduation created the launch's own memestock splitter.
+    event MemestockSplitterCreated(
+        uint256 indexed launchId, address indexed memestock, address indexed stock, address splitter
+    );
 
     /// @notice Drive a launch past its end to its terminal state. Anyone may call once the migration
     ///         block is reached.
@@ -84,6 +90,8 @@ interface IRobinhoodLaunchpadBase {
     function currentBlock() external view returns (uint256);
 
     function hook() external view returns (address);
+    function splitterImplementation() external view returns (address);
+    function locker() external view returns (address);
     function usdg() external view returns (address);
     function inbox() external view returns (address);
     function adminSafe() external view returns (address);

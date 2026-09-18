@@ -94,7 +94,9 @@ gates, and only those. It runs the external tools and hands every structured com
    compiled runtime and creation byte string against the independently captured pre-edit C4
    baseline in `reports/frozen/c4-runtime-baseline.json`: exactly the contracts the frozen
    `final_source_delta` record names may differ, each of them must really differ, and every other
-   contract must still match byte for byte. It writes `DEP-016`'s verified receipt, so deleting
+   contract the baseline records must still match byte for byte. A contract written after the
+   capture is never inserted into it: the record's `added` list names it with a reason, and any
+   other contract the baseline does not record fails. It writes `DEP-016`'s verified receipt, so deleting
    this step fails the ledger rather than silently stopping the check.
 9. **Tests.** `forge test --list --json` is the authority for which test identities exist;
    `forge test --json -vv` is what ran — `-vv` because Foundry only populates each result's

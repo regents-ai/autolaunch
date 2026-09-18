@@ -15,7 +15,9 @@ Two modes:
          every `src/**` compiled byte string against the independently captured pre-edit C4
          baseline in `reports/frozen/c4-runtime-baseline.json`, allowing exactly the
          contracts the frozen `final_source_delta` record names — each with a written
-         reason, and each of which must really differ — to have moved, and appends its own
+         reason, and each of which must really differ — to have moved, and exactly the
+         contracts that record names as added since the capture to exist beside it, and
+         appends its own
          verified receipt line so deleting the gate's freezer invocation makes the ledger
          reconciliation fail for `DEP-016`.
 
@@ -35,7 +37,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-# The six contracts this repository deploys. This list is the manifest's complete-surface
+# The seven contracts this repository deploys. This list is the manifest's complete-surface
 # allowlist: a production contract that is not named here is not frozen, and a name here
 # that the build does not produce fails closed.
 PRODUCTION_CONTRACTS = (
@@ -45,6 +47,7 @@ PRODUCTION_CONTRACTS = (
     "ConditionalVestingEscrowV1",
     "SubjectSplitterV1",
     "PaymentReceiverV1",
+    "RevstakeLPLocker",
 )
 
 # The three C1 implementations the factory and the strategy clone with Solady's minimal proxy.
@@ -52,7 +55,7 @@ CLONE_TARGETS = ("ConditionalVestingEscrowV1", "SubjectSplitterV1", "PaymentRece
 
 # Contracts the deployment ceremony deploys that this repository does not own. They are pinned
 # dependency builds, but the ceremony still has to deploy them, so their exact build, byte
-# lengths, margins and EVM code identity are frozen here beside the production six.
+# lengths, margins and EVM code identity are frozen here beside the production seven.
 #
 # `runtime_immutables` records how many immutable references the compiler left in the artifact
 # runtime. A contract with none has an artifact runtime that *is* the deployed runtime, so its
@@ -811,6 +814,9 @@ def check_runtime_baseline(
         each with a written reason;
       - every named contract must *actually* differ, so the record cannot quietly authorize more
         movement than really happened and cannot survive as a standing exemption;
+      - a contract written after the capture is named in the record's separate `added` list, with a
+        written reason. It must be absent from C4, present in this build, and named once; the
+        capture is never extended to hold it;
       - every other `src/**` contract's runtime and creation bytes must still equal C4 exactly.
 
     What this proves is which bytes moved. It deliberately does not try to prove *why*: the source
@@ -835,12 +841,29 @@ def check_runtime_baseline(
         }
 
     allowed = {entry["key"]: entry for entry in delta["changed"]}
+    added = {entry["key"]: entry for entry in delta["added"]}
     problems = []
+
+    for label, listed, named in (("changed", delta["changed"], allowed), ("added", delta["added"], added)):
+        if len(listed) != len(named):
+            problems.append(f"the final-source-delta record names a contract twice in its {label} list")
+    for key in sorted(set(allowed) & set(added)):
+        problems.append(f"the final-source-delta record names {key} as both changed and added")
 
     for key in sorted(set(recorded) - set(found)):
         problems.append(f"the C4 baseline records {key}, which this build does not produce")
-    for key in sorted(set(found) - set(recorded)):
-        problems.append(f"this build produces {key}, which the C4 baseline does not record")
+    for key in sorted(set(found) - set(recorded) - set(added)):
+        problems.append(
+            f"this build produces {key}, which the C4 baseline does not record and the "
+            "final-source-delta record does not name as added"
+        )
+    for key in sorted(added):
+        if key in recorded:
+            problems.append(f"the final-source-delta record names {key} as added, but the C4 baseline records it")
+        if key not in found:
+            problems.append(f"the final-source-delta record names {key} as added, which this build does not produce")
+        if not str(added[key].get("reason", "")).strip():
+            problems.append(f"the final-source-delta record gives no reason for adding {key}")
     for key in sorted(allowed):
         if key not in found:
             problems.append(f"the final-source-delta record names {key}, which this build does not produce")
@@ -876,15 +899,21 @@ def check_runtime_baseline(
         raise SystemExit(1)
 
     for name in PRODUCTION_CONTRACTS:
-        if f"{entries[name]['source']}:{name}" not in recorded:
-            raise SystemExit(f"freeze: the C4 baseline does not cover the production contract {name}")
+        key = f"{entries[name]['source']}:{name}"
+        if key not in recorded and key not in added:
+            raise SystemExit(
+                f"freeze: neither the C4 baseline nor the final-source-delta added list covers the "
+                f"production contract {name}"
+            )
 
-    unchanged = len(found) - len(allowed)
+    unchanged = len(recorded) - len(allowed)
     return (
-        f"exactly {len(allowed)} of {len(found)} src/** contracts differ from the C4 "
-        f"{baseline['captured_from_commit'][:12]} capture, each named with a reason in the frozen "
-        f"final-source-delta record ({'; '.join(moved)}), and the other {unchanged} compile to the "
-        "exact runtime and creation byte strings C4 captured"
+        f"exactly {len(allowed)} of the {len(recorded)} src/** contracts the C4 "
+        f"{baseline['captured_from_commit'][:12]} capture records differ from it, each named with a "
+        f"reason in the frozen final-source-delta record ({'; '.join(moved)}), the other {unchanged} "
+        f"compile to the exact runtime and creation byte strings C4 captured, and the src/** contracts "
+        f"the capture does not record, {len(added)} in number, are each named with a reason in that "
+        f"record's added list ({'; '.join(sorted(added))})"
     )
 
 

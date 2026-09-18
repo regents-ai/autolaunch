@@ -15,7 +15,8 @@ interface IStocksLaunchpadV1 {
     ///         claim/migration delays, LP fee, hook rates, custody policy and the required raise are
     ///         fixed by the preset and governance: the raise is `minimumRaiseUsdc()` converted into
     ///         STOCK through the admitted route's quote at creation.
-    /// @dev `treasury`, creator allocation, vesting and any Agent identity are deliberately absent.
+    /// @dev `treasury`, creator allocation, vesting, any Agent identity and any launcher authority over
+    ///      fees are deliberately absent.
     struct LaunchParams {
         string name;
         string symbol;
@@ -30,13 +31,6 @@ interface IStocksLaunchpadV1 {
         /// @dev Q96 STOCK base units per NEW base unit, the CCA floor. Bid tick spacing is derived
         ///      deterministically from it (see `bidTickSpacingFor`).
         uint256 floorPriceQ96;
-        /// @dev The account allowed to enable, disable or retarget the optional subject lane later.
-        ///      Required even when the subject lane starts disabled. Has no other power.
-        address feeAdministrator;
-        /// @dev Zero leaves the subject lane off. Nonzero must be an authentic Agent
-        ///      `SubjectSplitterV1` recorded by the bound Agent strategy; it becomes the active
-        ///      subject destination at 100 bps.
-        address subjectSplitter;
         /// @dev The REGENT launch fee the launcher reviewed. Must equal the current `launchFee()`,
         ///      and the launcher's REGENT allowance to the launchpad must equal it exactly. The fee
         ///      is pulled at creation and funded into REGENT staking as staker rewards
@@ -52,7 +46,8 @@ interface IStocksLaunchpadV1 {
     }
 
     /// @notice One recorded launch. Identity and lifecycle only; the record carries no authority.
-    /// @dev A graduated launch locks two positions at the dead address: `lpTokenId` is the full-range
+    /// @dev `splitter` is the launch's memestock splitter, created at graduation and zero before it. A
+    ///      graduated launch locks two positions in the fee-only locker: `lpTokenId` is the full-range
     ///      position funded by `(lpStockUsed, lpNewUsed)`; `lpStockOnlyTokenId` is the one-sided STOCK
     ///      position holding `lpStockOnlyUsed`, every unit of net STOCK the full range could not pair.
     ///      `lpStockOnlyTokenId` is zero only when that remainder was below one unit of liquidity.
@@ -61,7 +56,7 @@ interface IStocksLaunchpadV1 {
         address newToken;
         address stock;
         address auction;
-        address feeAdministrator;
+        address splitter;
         uint64 startBlock;
         uint64 endBlock;
         uint64 claimBlock;
@@ -85,7 +80,6 @@ interface IStocksLaunchpadV1 {
         address indexed newToken,
         address stock,
         address auction,
-        address feeAdministrator,
         uint64 startBlock,
         uint64 endBlock,
         uint256 floorPriceQ96,
@@ -109,6 +103,13 @@ interface IStocksLaunchpadV1 {
         uint256 unsoldNewRetired
     );
 
+    /// @notice The launch's memestock splitter, created as the first step of its graduation: where
+    ///         MEMESTOCK is staked, the hook's staker lane is deposited and both locked positions' LP
+    ///         fees are recognized.
+    event MemestockSplitterCreated(
+        uint256 indexed launchId, address indexed newToken, address indexed stock, address splitter
+    );
+
     event StockLaunchRetired(uint256 indexed launchId, address indexed auction, uint256 newRetired);
 
     /// @notice The launch fee one creation paid, funded into REGENT staking rewards.
@@ -120,14 +121,6 @@ interface IStocksLaunchpadV1 {
     ///         new value. Existing auctions keep the STOCK raise recorded at their creation.
     event MinimumRaiseUsdcUpdated(uint256 previousMinimum, uint256 newMinimum);
 
-    /// @notice Subject lane configuration change. `version` is monotonic per launch, starting at 1
-    ///         for the configuration recorded at creation.
-    event SubjectConfigured(
-        uint256 indexed launchId, uint32 indexed version, address indexed splitter, uint16 subjectBps, address administrator
-    );
-    event FeeAdministratorTransferStarted(uint256 indexed launchId, address indexed current, address indexed proposed);
-    event FeeAdministratorTransferred(uint256 indexed launchId, address indexed previous, address indexed current);
-
     event StockAdmitted(address indexed stock, uint8 decimals);
     event StockRevoked(address indexed stock);
     event LaunchesPaused();
@@ -137,28 +130,19 @@ interface IStocksLaunchpadV1 {
     // creation
     // -------------------------------------------------------------------------
 
-    /// @notice Create one Stocks launch: NEW, its pinned CCA denominated in STOCK, the 80/20
-    ///         allocation and the initial fee configuration, atomically.
+    /// @notice Create one Stocks launch: NEW, its pinned CCA denominated in STOCK and the 80/20
+    ///         allocation, atomically.
     function launch(LaunchParams calldata params)
         external
         returns (uint256 launchId, address newToken, address auction);
 
     /// @notice Drive a launch past its end to its terminal state. Anyone may call once the
-    ///         migration block is reached. Graduated: initialize the official pool, lock the whole
-    ///         reserve and all net STOCK in two positions (full range, then one-sided STOCK for the
+    ///         migration block is reached. Graduated: create the launch's memestock splitter,
+    ///         initialize the official pool, lock the whole reserve and all net STOCK in the fee-only
+    ///         locker as two positions (full range, then one-sided STOCK for the
     ///         remainder), retire unsold NEW. Failed: retire the reserve and every unsold unit;
     ///         bidders refund through the CCA.
     function migrate(uint256 launchId) external;
-
-    // -------------------------------------------------------------------------
-    // fee administration (subject lane only; the REGENT lane is immutable)
-    // -------------------------------------------------------------------------
-
-    /// @notice Enable, disable (`splitter == address(0)`) or retarget the subject lane for future
-    ///         swaps. `expectedVersion` must equal the current configuration version.
-    function configureSubject(uint256 launchId, address splitter, uint32 expectedVersion) external;
-    function proposeFeeAdministrator(uint256 launchId, address proposed) external;
-    function acceptFeeAdministrator(uint256 launchId) external;
 
     // -------------------------------------------------------------------------
     // governance (frozen Regent Safe only)
@@ -189,12 +173,11 @@ interface IStocksLaunchpadV1 {
     function minimumRaiseUsdc() external view returns (uint256);
     /// @notice Whether STOCK may be used for a new launch right now, and its recorded decimals.
     function stockAdmission(address stock) external view returns (bool admitted, uint8 decimals, address route);
-    /// @notice Current subject lane configuration of a launch.
-    function subjectConfig(uint256 launchId)
-        external
-        view
-        returns (uint32 version, address splitter, uint16 subjectBps, address administrator, address proposedAdministrator);
     /// @notice The bid tick spacing (Q96) the CCA is created with for a floor price.
     function bidTickSpacingFor(uint256 floorPriceQ96) external pure returns (uint256);
     function hook() external view returns (address);
+    /// @notice The clone target every launch's memestock splitter is created from.
+    function splitterImplementation() external view returns (address);
+    /// @notice The permanent fee-only custodian of every graduated position.
+    function locker() external view returns (address);
 }

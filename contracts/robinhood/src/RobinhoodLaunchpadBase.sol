@@ -22,6 +22,7 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {SafeCastLib} from "solady/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
@@ -29,25 +30,28 @@ import {IUERC20Factory} from "uerc20-factory/interfaces/IUERC20Factory.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
+import {MemestockLPLocker} from "autolaunch-stocks/MemestockLPLocker.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
 import {IRobinhoodLaunchpadBase} from "./interfaces/IRobinhoodLaunchpadBase.sol";
 import {IRobinhoodProtocolRevenueInboxV1} from "./interfaces/IRobinhoodProtocolRevenueInboxV1.sol";
 import {RobinhoodFeeHookFactory} from "./RobinhoodFeeHookFactory.sol";
 import {RobinhoodFeeHookV1} from "./RobinhoodFeeHookV1.sol";
+import {RobinhoodMemestockSplitterV1} from "./RobinhoodMemestockSplitterV1.sol";
 import {RobinhoodPreset} from "./RobinhoodPreset.sol";
 import {RobinhoodPositionsLib} from "./libraries/RobinhoodPositionsLib.sol";
 
 /// @title RobinhoodLaunchpadBase
-/// @notice Everything the two Robinhood launch kinds share: bindings, pause and fee governance, the
-///         USDG launch fee, NEW creation, CCA creation and read-back, custody, migration, and the
-///         locked-liquidity technique of the Base Stocks launchpad. A launch kind supplies its terms
-///         (supply split), its locked positions, its subject destination and what it does with the
-///         currency the full range could not pair.
+/// @notice The chain-level machinery of a Robinhood launch: bindings, pause and fee governance, the
+///         USDG launch fee, NEW creation, CCA creation and read-back, custody, migration, the
+///         launch's own memestock splitter and the locked-liquidity technique of the Base Stocks
+///         launchpad. The launchpad on top supplies its terms (supply split), its locked positions
+///         and what it does with the currency the full range could not pair.
 /// @dev Bindings are constructor immutables, each proved to be deployed code and, where it has one,
 ///      to present the expected binding (USDG decimals, the inbox's USDG). Nothing is hard-coded:
 ///      no Robinhood address is known at build time, and a deployment with a wrong binding fails at
 ///      construction rather than at the first launch. The hook is deployed here, through the bound hook
-///      factory, so no launchpad can exist without exactly one hook bound to it.
+///      factory, so no launchpad can exist without exactly one hook bound to it. The splitter clone
+///      target and the fee-only LP locker are deployed here too and carry the same bindings.
 abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTransient, IRobinhoodLaunchpadBase {
     using SafeTransferLib for address;
     using PoolIdLibrary for PoolKey;
@@ -88,6 +92,10 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     address public immutable override inbox;
     address public immutable override adminSafe;
     address public immutable override hook;
+    /// @notice The clone target of every launch's memestock splitter, deployed by this constructor.
+    address public immutable override splitterImplementation;
+    /// @notice The permanent fee-only owner of every launch position, deployed by this constructor.
+    address public immutable override locker;
 
     uint256 public override nextLaunchId = 1;
     /// @notice Born paused; only the Safe opens launches.
@@ -175,6 +183,10 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         _requireHookBinding(bindings.inbox, RobinhoodFeeHookV1(deployed).inbox());
         _requireHookBinding(bindings.poolManager, address(RobinhoodFeeHookV1(deployed).poolManager()));
         hook = deployed;
+
+        splitterImplementation =
+            address(new RobinhoodMemestockSplitterV1(bindings.usdg, bindings.inbox, bindings.adminSafe));
+        locker = address(new MemestockLPLocker(address(this), bindings.positionManager));
     }
 
     modifier onlySafe() {
@@ -189,12 +201,8 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     /// @dev The fixed supply split of this launch kind.
     function _terms() internal pure virtual returns (Terms memory);
 
-    /// @dev The destination of the subject lane the official pool is registered with. Runs at
-    ///      graduation before anything else moves; a kind that creates its splitter here does so now.
-    function _subjectDestination(uint256 launchId, Launch storage record) internal virtual returns (address);
-
-    /// @dev The positions this kind locks at the dead address, from the raised currency and the
-    ///      reserve. The first must be the full range.
+    /// @dev The positions this kind locks in the locker, from the raised currency and the reserve.
+    ///      The first must be the full range.
     function _lockedPositions(
         PoolKey memory key,
         uint160 sqrtPriceX96,
@@ -512,9 +520,15 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
 
         record.lifecycle = Lifecycle.Graduated;
 
-        address subject = _subjectDestination(launchId, record);
+        // The launch's own splitter: the fixed destination of the hook's staker lane and of every
+        // locked position's LP fees.
+        address splitter = LibClone.clone(splitterImplementation);
+        RobinhoodMemestockSplitterV1(splitter).initialize(newToken, currency);
+        record.splitter = splitter;
+        emit MemestockSplitterCreated(launchId, newToken, currency, splitter);
+
         PoolKey memory key = _poolKeyOf(newToken, currency);
-        bytes32 poolId = RobinhoodFeeHookV1(hook).registerPool(key, currency, newToken, subject);
+        bytes32 poolId = RobinhoodFeeHookV1(hook).registerPool(key, currency, newToken, splitter);
 
         uint256 currencyBefore = currency.balanceOf(address(this));
         IContinuousClearingAuction(auction).sweepCurrency();
@@ -537,6 +551,9 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         (uint128 currencyPlaced, uint128 newPlaced) = _placedAmounts(currencyIsCurrency0, positions);
         uint256 firstTokenId =
             _mintPositions(key, positions, currency, newToken, currencyIsCurrency0, currencyPlaced, newPlaced);
+        for (uint256 i = 0; i < positions.length; i++) {
+            MemestockLPLocker(locker).register(firstTokenId + i, key, splitter);
+        }
 
         record.poolId = poolId;
         record.finalSqrtPriceX96 = sqrtPriceX96;
@@ -564,20 +581,20 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     /// @dev The full-range position the pinned planner resolves from a currency budget and the reserve.
     function _fullRangePosition(uint160 sqrtPriceX96, bool currencyIsCurrency0, uint128 currencyBudget, uint128 reserve)
         internal
-        pure
+        view
         returns (Position memory)
     {
-        return RobinhoodPositionsLib.fullRange(sqrtPriceX96, currencyIsCurrency0, currencyBudget, reserve);
+        return RobinhoodPositionsLib.fullRange(sqrtPriceX96, currencyIsCurrency0, currencyBudget, reserve, locker);
     }
 
     /// @dev One position from an explicit definition and a budget; empty when the budget is below one
     ///      unit of liquidity.
     function _definedPosition(uint160 sqrtPriceX96, PositionDefinition memory definition, CurrencyAmounts memory budget)
         internal
-        pure
+        view
         returns (Position[] memory)
     {
-        return RobinhoodPositionsLib.defined(sqrtPriceX96, definition, budget);
+        return RobinhoodPositionsLib.defined(sqrtPriceX96, definition, budget, locker);
     }
 
     function _currencyAmounts(bool currencyIsCurrency0, uint128 currencyAmount, uint128 newAmount)
@@ -610,7 +627,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         }
     }
 
-    /// @dev Mint every position straight to the dead address in one PositionManager call, funded with
+    /// @dev Mint every position straight to the locker in one PositionManager call, funded with
     ///      exactly the two summed amounts, so nothing already sitting at the shared PositionManager is
     ///      settled as this launch's credit. Each position's amounts never exceed the budget it was
     ///      planned from, so the total settled is exactly what this function transfers in.

@@ -5,11 +5,11 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {RobinhoodFeeHookV1} from "./RobinhoodFeeHookV1.sol";
 
 /// @title RobinhoodFeeHookFactory
-/// @notice Deploys one `RobinhoodFeeHookV1` per launchpad at a mined CREATE2 address. A launchpad
+/// @notice Deploys one `RobinhoodFeeHookV1` per launchpad at a mined CREATE2 address. The launchpad
 ///         calls this from its own constructor, so the hook is bound to `msg.sender`, the launchpad
 ///         under construction, and the launchpad reads every binding back before recording it.
-/// @dev The hook's creation code lives here rather than inside each launchpad so that neither
-///      launchpad carries it at runtime (EIP-170). Anyone may call `deploy`; a hook bound to a caller
+/// @dev The hook's creation code lives here rather than inside the launchpad so that the launchpad
+///      does not carry it at runtime (EIP-170). Anyone may call `deploy`; a hook bound to a caller
 ///      that is not a launchpad registers no pool and is inert.
 contract RobinhoodFeeHookFactory {
     address public immutable poolManager;

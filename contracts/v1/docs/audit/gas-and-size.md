@@ -14,14 +14,18 @@ each constructor takes.
 
 | Contract | Runtime (B) | EIP-170 margin | Creation (B) | Constructor args (B) | Initcode (B) | EIP-3860 margin |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `RegentsAutolaunchFactoryV1` | 7,876 | 16,700 | 34,858 | 160 | 35,018 | 14,134 |
-| `RegentLBPStrategy` | 19,821 | 4,755 | 20,372 | 128 | 20,500 | 28,652 |
+| `RegentsAutolaunchFactoryV1` | 7,876 | 16,700 | 38,964 | 160 | 39,124 | 10,028 |
+| `RegentLBPStrategy` | 20,201 | 4,375 | 24,478 | 128 | 24,606 | 24,546 |
 | `RegentFeeHook` | 4,831 | 19,745 | 5,633 | 64 | 5,697 | 43,455 |
 | `ConditionalVestingEscrowV1` | 4,527 | 20,049 | 4,665 | 0 | 4,665 | 44,487 |
 | `SubjectSplitterV1` | 6,289 | 18,287 | 6,427 | 0 | 6,427 | 42,725 |
 | `PaymentReceiverV1` | 3,804 | 20,772 | 3,942 | 0 | 3,942 | 45,210 |
+| `RevstakeLPLocker` | 3,474 | 21,102 | 3,628 | 32 | 3,660 | 45,492 |
 | `UERC20Factory` | 12,682 | 11,894 | 12,708 | n/a | n/a | 36,444 |
 | `UERC20` | 5,550 | 19,026 | 8,126 | n/a | n/a | 41,026 |
+
+`RevstakeLPLocker` is never deployed by the ceremony directly: the strategy's constructor creates it,
+so its creation code is already inside the strategy's and the factory's creation bytes above.
 
 The last two rows are pinned dependency builds rather than Regent contracts. The ceremony deploys
 `UERC20Factory` itself, and the Autolaunch factory constructor admits it by exact runtime code hash;
@@ -34,7 +38,7 @@ and suffix literals in the production strategy's own clone-code-hash computation
 transcribed. `test_GAS_001_*` measures that length on a real clone the factory created, and compares
 its `EXTCODEHASH` against the strategy's own `escrowCloneCodehash`.
 
-The tightest margin in the set is the strategy's 4,755 runtime bytes, comfortably above the 1,000-byte
+The tightest margin in the set is the strategy's 4,375 runtime bytes, comfortably above the 1,000-byte
 headroom the contract-worker rules require when no stricter budget is recorded, and none is.
 
 ### EVM code identity
@@ -50,11 +54,12 @@ admission identity.
 | Contract | Runtime keccak-256 | Is a deployed `EXTCODEHASH` |
 | --- | --- | --- |
 | `RegentsAutolaunchFactoryV1` | `0xc6a3cc79c3a28e75b30cf55091e921773de32f7798d474712f8e1e24f1a021d4` | no — 3 immutables |
-| `RegentLBPStrategy` | `0x55a56a8dd4b85a1a366ee399e2d70fddd6a0a53f00651d8e78ed3dd58a91da7a` | no — 5 immutables |
+| `RegentLBPStrategy` | `0x207725d88041e00eaebd9b83a95fcd88756e1299dedc69606304e849b29b1fdf` | no — 6 immutables |
 | `RegentFeeHook` | `0x23b340c11c9e77999062a2605b37e2de5f9a7fc4c7f28ab96c2277646c083d54` | no — 2 immutables |
 | `ConditionalVestingEscrowV1` | `0x462e3b12b73402b61b3561345880a5b6eeed4f13d2088f156712fe1b293f1545` | yes |
-| `SubjectSplitterV1` | `0x2d357f0664857f6c18885241c1f7c26e87e8100f1c74c32d41509c8c2deabc47` | yes |
-| `PaymentReceiverV1` | `0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573` | yes |
+| `SubjectSplitterV1` | `0x51f75aa1524323c76b393e14aa236909badf323187512949d4356163316f749e` | yes |
+| `PaymentReceiverV1` | `0x98088902bc81f8472949dad00e0670d1427cff0ae1bed025120993c9b0c9dfbc` | yes |
+| `RevstakeLPLocker` | `0x079d3b5464ea14138cf5abb12b26802cca43012e653f47ac07050d5cc2fe8490` | no — 1 immutable |
 | `UERC20Factory` | `0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f` | yes |
 | `UERC20` | `0x6ad37cfdb261cfb8dd1d15659b9b37b09b26f93c080a03d89bcbb46e2e68af53` | no — 4 immutables |
 
@@ -82,23 +87,29 @@ it. Their difference is the callback and nothing else.
 | Measurement | Gas |
 | --- | ---: |
 | controlled charging callback, cold (gas) | 211,857 |
-| controlled charging callback, warm (gas) | 100,058 |
-| production-lane callback, cold pool warm safe (gas) | 192,245 |
-| production-lane callback, warm (gas) | 106,045 |
-| pinned-router production swap, cold total (gas) | 294,457 |
-| pinned-router production swap, warm total (gas) | 166,003 |
-| second supported router, warm sync/settle swap total (gas) | 156,195 |
+| controlled charging callback, warm (gas) | 100,056 |
+| production-lane callback, cold pool warm safe (gas) | 192,265 |
+| production-lane callback, warm (gas) | 106,065 |
+| pinned-router production swap, cold total (gas) | 294,477 |
+| pinned-router production swap, warm total (gas) | 166,024 |
+| second supported router, warm sync/settle swap total (gas) | 156,227 |
 
 The FA-07 Phase-B evidence run re-emitted these seven figures exactly: the expanded one-tick,
 currency-ordering, and raw-delta boundary tests changed no production bytecode and caused no
 `GAS-007` measurement drift.
+
+Six of the seven were re-published on 2026-09-18 from a re-measurement under the pinned toolchain.
+The run at commit `5de2b36`, before the LP locker existed, and the run with the locker both emitted
+the same values, each 2 to 32 gas away from the figure published earlier; the cold controlled
+callback did not move and the hook's bytecode is unchanged. The table above carries what `GAS-007`
+emits now.
 
 ### What each figure is
 
 - **Controlled charging callback, cold — 211,857 gas.** The exact realized lane-boundary difference on a
   completely cold system: the first settlement anywhere pays the first touch of the Regent Safe, of
   the launch splitter, and of the splitter's onward destination.
-- **Production-lane callback, cold pool warm safe — 192,245 gas.** A full one-REGENT swap on a third
+- **Production-lane callback, cold pool warm safe — 192,265 gas.** A full one-REGENT swap on a third
   identically built pool, run after the boundary pair, so the Regent Safe and REGENT's own slots are
   already warm and only that pool's splitter is cold. This is the posture the second and every later
   launch on a live system meets on its own first swap.
@@ -136,7 +147,7 @@ with the production-lane warm figure here to within 0.3%. The cold figures diffe
 a swap total while this measures a lane-boundary differential that isolates the callback and includes
 the cold Safe and splitter touches.
 
-The second router settles the same swap for 156,195 gas, beside the pinned router's 166,003 warm
+The second router settles the same swap for 156,227 gas, beside the pinned router's 166,024 warm
 total. That comparison is **recorded only**: the hook has no router allowlist and charges both
 identically, and there is no admitted relation between two routers' settlement styles to hold either
 of them to. The one absolute gas limit this repository holds anything to is the founder's 14,000,000

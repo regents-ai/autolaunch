@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""The local Robinhood lab: a blank Anvil chain (31338) carrying the Revshare and Stocks graphs.
+"""The local Robinhood lab: a blank Anvil chain (31338) carrying the Stocks graph.
 
 `start` boots Anvil, installs Permit2's runtime at its canonical address, runs
 `script/DeployRobinhoodLab.s.sol` from Anvil's first unlocked account, reads every
 fixture stock and its route back from the chain, and writes
 `reports/generated/local-robinhood-lab/site-config.json` for the site plus
 `state.json` for this controller. `fund` gives a wallet test ETH, USDG and optionally
-fixture STOCK. `status` reports both launchpads and every admitted stock. `advance`
+fixture STOCK. `status` reports the launchpad and every admitted stock. `advance`
 mines to an auction's start, end, claim or migration block; `migrate` graduates or
 fails a launch once its migration block has passed. `stop` ends the recorded Anvil.
 
 Every mutation and `stop` first proves the recorded run is this controller's own: the recorded
 process is alive, is Anvil, is the one process listening on the recorded loopback port, and the
-chain there carries the recorded genesis hash and both launchpads. Chain id 31338 alone identifies
+chain there carries the recorded genesis hash and the launchpad. Chain id 31338 alone identifies
 nothing, because other labs on this machine use it too.
 """
 
@@ -45,20 +45,21 @@ GENERATED = Path("reports/generated/local-robinhood-lab")
 STATE_PATH = GENERATED / "state.json"
 SITE_CONFIG_PATH = GENERATED / "site-config.json"
 ABI_ARTIFACTS = {
-    "launchpad": Path("out/RobinhoodRevshareLaunchpadV1.sol/RobinhoodRevshareLaunchpadV1.json"),
     "stocks_launchpad": Path("out/RobinhoodStocksLaunchpadV1.sol/RobinhoodStocksLaunchpadV1.json"),
+    "stocks_hook": Path("out/RobinhoodFeeHookV1.sol/RobinhoodFeeHookV1.json"),
+    "stocks_locker": Path("out/MemestockLPLocker.sol/MemestockLPLocker.json"),
+    "splitter": Path("out/RobinhoodMemestockSplitterV1.sol/RobinhoodMemestockSplitterV1.json"),
     "bid_adapter": Path("out/RobinhoodStockBidAdapterV1.sol/RobinhoodStockBidAdapterV1.json"),
     "stock_route": Path("out/FixtureUsdgStockRoute.sol/FixtureUsdgStockRoute.json"),
     "auction": Path("out/ContinuousClearingAuction.sol/ContinuousClearingAuction.json"),
     "erc20": Path("out/mocks/MockERC20.sol/MockERC20.json"),
 }
 GRAPH_LABELS = {
-    "hook_salt",
-    "launchpad",
-    "hook",
     "stocks_hook_salt",
     "stocks_launchpad",
     "stocks_hook",
+    "stocks_locker",
+    "stocks_splitter_implementation",
     "bid_adapter",
     "usdg",
     "inbox",
@@ -74,11 +75,10 @@ GRAPH_LOG_RE = re.compile(r"REGENT_ROBINHOOD_LAB_([A-Z0-9_]+)\s*:?\s*(0x[0-9a-fA
 STOCK_LABEL_RE = re.compile(r"^(stock|route)_([a-z0-9]+)$")
 LAUNCH_FIELDS = (
     "launcher", "newToken", "currency", "auction", "startBlock", "endBlock", "claimBlock", "migrationBlock",
-    "requiredRaise", "floorPriceQ96", "lifecycle", "poolId", "finalSqrtPriceX96", "lpTokenId", "lpCurrencyUsed",
+    "requiredRaise", "floorPriceQ96", "lifecycle", "poolId", "finalSqrtPriceX96", "splitter", "lpTokenId", "lpCurrencyUsed",
     "lpNewUsed", "retiredNew",
 )
 LIFECYCLES = ("None", "Active", "Graduated", "Failed")
-LAUNCHPAD_KINDS = {"revshare": "launchpad", "stocks": "stocks_launchpad"}
 MINE_CHUNK_BLOCKS = 200
 ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 DOTENV_NAMES = (".env", ".env.local", ".envrc")
@@ -462,7 +462,7 @@ def launch_record(client: RpcClient, launchpad: str, launch_id: int) -> dict[str
         raise LabError("launches(uint256) returned the wrong ABI length")
     record: dict[str, Any] = {}
     for name, value in zip(LAUNCH_FIELDS, values):
-        if name in {"launcher", "newToken", "currency", "auction"}:
+        if name in {"launcher", "newToken", "currency", "auction", "splitter"}:
             record[name] = decode_address_word(value)
         elif name == "lifecycle":
             record[name] = LIFECYCLES[value]
@@ -503,17 +503,13 @@ def mine_to(client: RpcClient, target: int) -> int:
     return head
 
 
-def launchpad_of(state: Mapping[str, Any], kind: str) -> str:
-    return str(state["addresses"][LAUNCHPAD_KINDS[kind]])
-
-
 def owned_run(state: Mapping[str, Any]) -> RpcClient:
     """The recorded run must be this controller's own loopback Anvil, still alive, still carrying its graph.
 
     Chain id 31338 alone identifies nothing: another lab on this machine runs the same id. The
     recorded process must be alive, must be Anvil, and must be the one process listening on the
-    recorded loopback port; the chain there must carry the recorded genesis hash and both recorded
-    launchpads. Every check fails closed before any mutation or stop touches the endpoint.
+    recorded loopback port; the chain there must carry the recorded genesis hash and the recorded
+    launchpad. Every check fails closed before any mutation or stop touches the endpoint.
     """
     if state.get("status") != "active":
         raise LabError("no active local Robinhood lab; run start")
@@ -529,9 +525,8 @@ def owned_run(state: Mapping[str, Any]) -> RpcClient:
     client.assert_local()
     if genesis_hash(client) != state["genesis_hash"]:
         raise LabError(f"the chain on loopback port {port} is not this run's Anvil instance; refusing to touch it")
-    for label in ("launchpad", "stocks_launchpad"):
-        if client.request("eth_getCode", [state["addresses"][label], "latest"]) == "0x":
-            raise LabError(f"the chain on loopback port {port} does not carry this run's {label}; refusing to touch it")
+    if client.request("eth_getCode", [state["addresses"]["stocks_launchpad"], "latest"]) == "0x":
+        raise LabError(f"the chain on loopback port {port} does not carry this run's launchpad; refusing to touch it")
     return client
 
 
@@ -584,7 +579,6 @@ def command_start(_args: argparse.Namespace) -> None:
                 "genesis_hash": genesis,
                 "deployer": deployer,
                 "executor": deployer,
-                "hook_salt": graph["hook_salt"],
                 "stocks_hook_salt": graph["stocks_hook_salt"],
                 "addresses": addresses,
                 "stocks": stocks,
@@ -666,7 +660,6 @@ def command_status(args: argparse.Namespace) -> None:
         "rpc_url": state["rpc_url"],
         "chain_id": LOCAL_CHAIN_ID,
         "block_number": parse_quantity(client.request("eth_blockNumber")),
-        "revshare": launchpad_status(client, state["addresses"]["launchpad"]),
         "stocks_launchpad": {
             **launchpad_status(client, stocks_launchpad),
             "executor": call_address(client, state["addresses"]["stocks_hook"], "executor()"),
@@ -675,16 +668,16 @@ def command_status(args: argparse.Namespace) -> None:
         "addresses": state["addresses"],
     }
     if args.launch:
-        response["launch"] = launch_record(client, launchpad_of(state, args.kind), args.launch)
+        response["launch"] = launch_record(client, stocks_launchpad, args.launch)
     if args.auction:
-        response["auction"] = auction_timing(client, launchpad_of(state, args.kind), args.auction)
+        response["auction"] = auction_timing(client, stocks_launchpad, args.auction)
     print(json.dumps(response, indent=2, sort_keys=True))
 
 
 def command_advance(args: argparse.Namespace) -> None:
     root = component_root()
     state, client = active_state(root)
-    timing = auction_timing(client, launchpad_of(state, args.kind), args.auction)
+    timing = auction_timing(client, state["addresses"]["stocks_launchpad"], args.auction)
     block_number = mine_to(client, int(timing[args.to]))
     print(json.dumps({"block_number": block_number, "target": args.to, "timing": timing}, indent=2, sort_keys=True))
 
@@ -692,7 +685,7 @@ def command_advance(args: argparse.Namespace) -> None:
 def command_migrate(args: argparse.Namespace) -> None:
     root = component_root()
     state, client = active_state(root)
-    launchpad = launchpad_of(state, args.kind)
+    launchpad = state["addresses"]["stocks_launchpad"]
     before = launch_record(client, launchpad, args.launch)
     transaction_hash = send_and_wait(client, state["deployer"], launchpad, keccak_selector("migrate(uint256)") + abi_uint(args.launch))
     after = launch_record(client, launchpad, args.launch)
@@ -720,26 +713,23 @@ def command_stop(_args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("start", help="boot Anvil on chain 31338 and deploy the Revshare and Stocks graphs").set_defaults(run=command_start)
+    commands.add_parser("start", help="boot Anvil on chain 31338 and deploy the Stocks graph").set_defaults(run=command_start)
     fund = commands.add_parser("fund", help="give a wallet 100 test ETH, minted USDG and optionally fixture STOCK")
     fund.add_argument("wallet")
     fund.add_argument("--usdg", default="100000", help="whole USDG to mint (default 100000)")
     fund.add_argument("--stock", help="catalog symbol of a fixture stock to mint as well")
     fund.add_argument("--shares", default="1000", help="whole shares of --stock to mint (default 1000)")
     fund.set_defaults(run=command_fund)
-    status = commands.add_parser("status", help="report both launchpads and every admitted stock")
-    status.add_argument("--kind", choices=sorted(LAUNCHPAD_KINDS), default="stocks", help="launchpad --launch and --auction refer to")
+    status = commands.add_parser("status", help="report the launchpad and every admitted stock")
     status.add_argument("--launch", type=int, help="also print this launch id's record")
     status.add_argument("--auction", help="also print this auction's block timing")
     status.set_defaults(run=command_status)
     advance = commands.add_parser("advance", help="mine to an auction's start, end, claim or migration block")
     advance.add_argument("auction")
-    advance.add_argument("--kind", choices=sorted(LAUNCHPAD_KINDS), default="stocks", help="launchpad that created the auction")
     advance.add_argument("--to", choices=("start", "end", "claim", "migration"), required=True)
     advance.set_defaults(run=command_advance)
     migrate = commands.add_parser("migrate", help="call migrate(launchId) from the deployer")
     migrate.add_argument("launch", type=int)
-    migrate.add_argument("--kind", choices=sorted(LAUNCHPAD_KINDS), default="stocks", help="launchpad that owns the launch")
     migrate.set_defaults(run=command_migrate)
     commands.add_parser("stop", help="end the recorded Anvil and remove the site config").set_defaults(run=command_stop)
     return parser

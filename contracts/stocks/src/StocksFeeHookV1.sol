@@ -18,17 +18,18 @@ import {IRegentRevenueStakingMinimal} from "./interfaces/IRegentRevenueStakingMi
 import {IStockRoute} from "./interfaces/IStockRoute.sol";
 import {IStocksFeeHookV1} from "./interfaces/IStocksFeeHookV1.sol";
 import {IStocksLaunchpadV1} from "./interfaces/IStocksLaunchpadV1.sol";
-import {ISubjectSplitterMinimal} from "./interfaces/ISubjectSplitterMinimal.sol";
+import {IMemestockSplitterMinimal} from "./interfaces/IMemestockSplitterMinimal.sol";
 import {StocksBindings} from "./StocksBindings.sol";
 import {StocksPreset} from "./StocksPreset.sol";
 
 /// @title StocksFeeHookV1
-/// @notice The one shared Uniswap v4 hook every official NEW/STOCK pool carries. It charges STOCK-side
-///         fees on every swap of a registered pool and only accrues them per `(poolId, destination)`
-///         bucket. Conversion and deposits happen outside swaps through `settle`.
+/// @notice The one shared Uniswap v4 hook every official NEW/STOCK pool carries. It charges two equal
+///         STOCK-side lanes on every swap of a registered pool and only accrues them: the REGENT lane
+///         and the staker lane of the pool's memestock splitter. Conversion and deposits happen outside
+///         swaps through `settleRegentLane` and `settleStakerLane`.
 /// @dev Fee base is the gross realized STOCK amount of the swap: the trader's total STOCK debit
 ///      (including the fee) for STOCK-input swaps, the pool's total STOCK output (before the fee) for
-///      STOCK-output swaps. Each enabled lane is `feeBase / LANE_DIVISOR`, floored independently.
+///      STOCK-output swaps. Each lane is `feeBase / LANE_DIVISOR`, floored independently.
 ///
 ///      v4 lets an after-swap return delta charge only the *unspecified* currency, so the two swap
 ///      forms in which STOCK is unspecified (exact-input NEW->STOCK, exact-output STOCK->NEW) are
@@ -39,8 +40,8 @@ import {StocksPreset} from "./StocksPreset.sol";
 ///      would make that pre-committed fee inexact, so it reverts (`PartialFillNotSupported`) instead
 ///      of over- or under-charging; STOCK-unspecified swaps fill partially as usual.
 ///
-///      Nothing in a swap calls a splitter, a route or REGENT staking. Every accrual is attributed to
-///      the destination in effect when it accrued; later administration never redirects a bucket.
+///      Nothing in a swap calls a splitter, a route or REGENT staking. A pool's splitter is fixed when
+///      the pool is registered; nothing redirects either lane afterwards.
 contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1 {
     using SafeTransferLib for address;
     using PoolIdLibrary for PoolKey;
@@ -49,16 +50,26 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
     struct PoolRecord {
         address stock;
         address newToken;
-        /// @dev The splitter the subject lane currently accrues to; zero means the lane is off.
-        address subject;
+        /// @dev The launch's memestock splitter, the staker lane's only destination.
+        address splitter;
+    }
+
+    /// @dev STOCK accrued and not yet settled, per lane.
+    struct Accrued {
+        uint256 regentLane;
+        uint256 stakerLane;
     }
 
     struct SettledTotals {
         uint256 stockConverted;
         uint256 usdcDeposited;
+        uint256 stockDepositedToStakers;
     }
 
-    /// @notice `sourceTag` the REGENT bucket deposits carry into live staking.
+    /// @dev Both lanes are always charged.
+    uint256 private constant LANES = 2;
+
+    /// @notice `sourceTag` the REGENT lane deposits carry into live staking.
     // forge-lint: disable-next-line(unsafe-typecast)
     bytes32 public constant REGENT_SOURCE_TAG = bytes32("autolaunch-stocks");
 
@@ -68,22 +79,20 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
     bytes32 private constant PENDING_LANE_SLOT = keccak256("autolaunch-stocks.hook.pending-lane");
     bytes32 private constant PENDING_POOL_SLOT = keccak256("autolaunch-stocks.hook.pending-pool");
 
-    /// @notice The only account that may register pools, initialize them, set subject lanes or
-    ///         credit launch dust.
+    /// @notice The only account that may register pools, initialize them or credit launch dust.
     address public immutable override launchpad;
 
-    /// @notice The only account that may `settle`. Governance-set.
+    /// @notice The only account that may `settleRegentLane`. Governance-set.
     address public executor;
 
     mapping(bytes32 poolId => PoolRecord) private _pools;
-    mapping(bytes32 poolId => mapping(address destination => uint256 stock)) private _accrued;
-    mapping(bytes32 poolId => mapping(address destination => SettledTotals)) private _settled;
+    mapping(bytes32 poolId => Accrued) private _accrued;
+    mapping(bytes32 poolId => SettledTotals) private _settled;
 
-    event PoolRegistered(bytes32 indexed poolId, address indexed stock, address indexed newToken, address subject);
-    event SubjectLaneSet(bytes32 indexed poolId, address indexed previous, address indexed current);
+    event PoolRegistered(bytes32 indexed poolId, address indexed stock, address indexed newToken, address splitter);
     event ExecutorSet(address indexed previous, address indexed current);
     /// @notice STOCK the launchpad's graduation could not place in the position, credited to the
-    ///         pool's REGENT bucket.
+    ///         pool's REGENT lane.
     event LaunchDustAccrued(bytes32 indexed poolId, uint256 amount);
 
     error ZeroAddress();
@@ -152,13 +161,14 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
     // launchpad surface
     // -------------------------------------------------------------------------
 
-    /// @notice Bind one exact official `PoolKey` to its STOCK and initial subject destination.
-    ///         Launchpad only, once per pool.
-    function registerPool(PoolKey calldata key, address stock, address newToken, address subject)
+    /// @notice Bind one exact official `PoolKey` to its STOCK and its memestock splitter. Launchpad
+    ///         only, once per pool.
+    function registerPool(PoolKey calldata key, address stock, address newToken, address splitter)
         external
         onlyLaunchpad
         returns (bytes32 poolId)
     {
+        if (splitter == address(0)) revert ZeroAddress();
         if (address(key.hooks) != address(this)) revert ForeignHook(address(key.hooks));
         if (key.fee != StocksPreset.POOL_FEE) revert UnexpectedPoolFee(key.fee);
         if (key.tickSpacing != StocksPreset.POOL_TICK_SPACING) revert UnexpectedTickSpacing(key.tickSpacing);
@@ -173,27 +183,18 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
 
         poolId = PoolId.unwrap(key.toId());
         if (_pools[poolId].stock != address(0)) revert PoolAlreadyRegistered(poolId);
-        _pools[poolId] = PoolRecord({stock: stock, newToken: newToken, subject: subject});
+        _pools[poolId] = PoolRecord({stock: stock, newToken: newToken, splitter: splitter});
 
-        emit PoolRegistered(poolId, stock, newToken, subject);
-    }
-
-    /// @notice Set the destination future subject-lane accruals of a pool belong to. Zero turns the
-    ///         lane off. Launchpad only; existing buckets are untouched.
-    function setSubject(bytes32 poolId, address subject) external onlyLaunchpad {
-        PoolRecord storage record = _requireRegistered(poolId);
-        address previous = record.subject;
-        record.subject = subject;
-        emit SubjectLaneSet(poolId, previous, subject);
+        emit PoolRegistered(poolId, stock, newToken, splitter);
     }
 
     /// @notice Credit STOCK the launchpad's graduation did not place in the position to the pool's
-    ///         REGENT bucket. Launchpad only; the exact amount is pulled inside this call.
+    ///         REGENT lane. Launchpad only; the exact amount is pulled inside this call.
     function creditRegentLane(bytes32 poolId, uint256 amount) external onlyLaunchpad {
         PoolRecord storage record = _requireRegistered(poolId);
         if (amount == 0) revert ZeroAmount();
 
-        _accrued[poolId][REGENT_DESTINATION()] += amount;
+        _accrued[poolId].regentLane += amount;
         emit LaunchDustAccrued(poolId, amount);
 
         address stock = record.stock;
@@ -207,7 +208,7 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
     // governance surface
     // -------------------------------------------------------------------------
 
-    /// @notice Set the account allowed to `settle`. Governance only. Zero disables settlement.
+    /// @notice Set the account allowed to `settleRegentLane`. Governance only. Zero disables it.
     function setExecutor(address executor_) external onlyGovernance {
         address previous = executor;
         // slither-disable-next-line missing-zero-check
@@ -221,16 +222,13 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
 
     /// @inheritdoc IStocksFeeHookV1
     // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
-    function settle(bytes32 poolId, address destination, uint256 stockAmount, uint256 minUsdcOut)
-        external
-        override
-        nonReentrant
-    {
+    function settleRegentLane(bytes32 poolId, uint256 stockAmount, uint256 minUsdcOut) external override nonReentrant {
         if (executor == address(0) || msg.sender != executor) revert NotExecutor(msg.sender);
         if (stockAmount == 0) revert ZeroAmount();
         PoolRecord storage record = _requireRegistered(poolId);
 
-        uint256 available = _accrued[poolId][destination];
+        Accrued storage bucket = _accrued[poolId];
+        uint256 available = bucket.regentLane;
         if (available < stockAmount) revert InsufficientAccrual(available, stockAmount);
 
         address stock = record.stock;
@@ -238,8 +236,8 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
         (,, address route) = IStocksLaunchpadV1(launchpad).stockAdmission(stock);
         if (route == address(0)) revert NoRoute(stock);
 
-        // Effects before interactions: the bucket is debited before any token moves.
-        _accrued[poolId][destination] = available - stockAmount;
+        // Effects before interactions: the lane is debited before any token moves.
+        bucket.regentLane = available - stockAmount;
 
         address usdc = StocksBindings.USDC;
         uint256 stockBefore = stock.balanceOf(address(this));
@@ -254,31 +252,54 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
         uint256 consumed = stockBefore - stockAfter;
         if (consumed > stockAmount) revert InexactTransfer(stockAmount, consumed);
         uint256 residue = stockAmount - consumed;
-        if (residue != 0) _accrued[poolId][destination] += residue;
+        if (residue != 0) bucket.regentLane += residue;
 
         uint256 usdcOut = usdc.balanceOf(address(this)) - usdcBefore;
         if (usdcOut < minUsdcOut || usdcOut == 0) revert InsufficientUsdcOut(minUsdcOut, usdcOut);
 
-        if (destination == REGENT_DESTINATION()) {
-            usdc.safeApprove(StocksBindings.LIVE_STAKING, usdcOut);
-            uint256 received =
-                IRegentRevenueStakingMinimal(StocksBindings.LIVE_STAKING).depositUSDC(usdcOut, REGENT_SOURCE_TAG, poolId);
-            if (received != usdcOut) revert DepositMismatch(usdcOut, received);
-            _requireAllowanceConsumed(usdc, StocksBindings.LIVE_STAKING);
-        } else {
-            usdc.safeApprove(destination, usdcOut);
-            ISubjectSplitterMinimal(destination).depositRecognizedRevenue(usdc, usdcOut, poolId);
-            _requireAllowanceConsumed(usdc, destination);
-        }
+        usdc.safeApprove(StocksBindings.LIVE_STAKING, usdcOut);
+        uint256 received =
+            IRegentRevenueStakingMinimal(StocksBindings.LIVE_STAKING).depositUSDC(usdcOut, REGENT_SOURCE_TAG, poolId);
+        if (received != usdcOut) revert DepositMismatch(usdcOut, received);
+        _requireAllowanceConsumed(usdc, StocksBindings.LIVE_STAKING);
 
         uint256 usdcAfter = usdc.balanceOf(address(this));
         if (usdcAfter != usdcBefore) revert BalanceNotRestored(usdcBefore, usdcAfter);
 
-        SettledTotals storage totals = _settled[poolId][destination];
+        SettledTotals storage totals = _settled[poolId];
         totals.stockConverted += consumed;
         totals.usdcDeposited += usdcOut;
 
-        emit BucketSettled(poolId, destination, consumed, usdcOut, poolId);
+        emit RegentLaneSettled(poolId, consumed, usdcOut);
+    }
+
+    /// @inheritdoc IStocksFeeHookV1
+    /// @dev Permissionless because it decides nothing: the whole staker lane, in STOCK as it accrued,
+    ///      always into the pool's fixed splitter.
+    // slither-disable-next-line reentrancy-no-eth,reentrancy-benign
+    function settleStakerLane(bytes32 poolId) external override nonReentrant returns (uint256 stockDeposited) {
+        PoolRecord storage record = _requireRegistered(poolId);
+
+        Accrued storage bucket = _accrued[poolId];
+        stockDeposited = bucket.stakerLane;
+        if (stockDeposited == 0) revert ZeroAmount();
+
+        // Effects before interactions: the lane is debited before any token moves.
+        bucket.stakerLane = 0;
+        _settled[poolId].stockDepositedToStakers += stockDeposited;
+
+        address stock = record.stock;
+        address splitter = record.splitter;
+        uint256 stockBefore = stock.balanceOf(address(this));
+
+        stock.safeApprove(splitter, stockDeposited);
+        IMemestockSplitterMinimal(splitter).depositRecognizedRevenue(stock, stockDeposited, poolId);
+        _requireAllowanceConsumed(stock, splitter);
+
+        uint256 sent = stockBefore - stock.balanceOf(address(this));
+        if (sent != stockDeposited) revert InexactTransfer(stockDeposited, sent);
+
+        emit StakerLaneSettled(poolId, splitter, stockDeposited);
     }
 
     // -------------------------------------------------------------------------
@@ -286,37 +307,33 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
     // -------------------------------------------------------------------------
 
     /// @inheritdoc IStocksFeeHookV1
-    function REGENT_DESTINATION() public pure override returns (address) {
-        return StocksBindings.REGENT;
+    function accrued(bytes32 poolId) external view override returns (uint256 regentLane, uint256 stakerLane) {
+        Accrued storage bucket = _accrued[poolId];
+        return (bucket.regentLane, bucket.stakerLane);
     }
 
     /// @inheritdoc IStocksFeeHookV1
-    function accrued(bytes32 poolId, address destination) external view override returns (uint256) {
-        return _accrued[poolId][destination];
-    }
-
-    /// @inheritdoc IStocksFeeHookV1
-    function settled(bytes32 poolId, address destination)
+    function settled(bytes32 poolId)
         external
         view
         override
-        returns (uint256 stockConverted, uint256 usdcDeposited)
+        returns (uint256 stockConverted, uint256 usdcDeposited, uint256 stockDepositedToStakers)
     {
-        SettledTotals storage totals = _settled[poolId][destination];
-        return (totals.stockConverted, totals.usdcDeposited);
+        SettledTotals storage totals = _settled[poolId];
+        return (totals.stockConverted, totals.usdcDeposited, totals.stockDepositedToStakers);
     }
 
-    /// @notice The registered record of a pool: its STOCK, its NEW and the current subject destination.
+    /// @notice The registered record of a pool: its STOCK, its NEW and its memestock splitter.
     function pool(bytes32 poolId) external view returns (PoolRecord memory) {
         return _pools[poolId];
     }
 
-    /// @notice The smallest per-lane fee `q` with `q == (net + lanes * q) / LANE_DIVISOR`, so that
-    ///         charging `lanes * q` on top of a net STOCK amount makes each lane exactly one percent,
-    ///         floored, of the gross amount.
-    function grossLane(uint256 net, uint256 lanes) public pure returns (uint256) {
+    /// @notice The smallest per-lane fee `q` with `q == (net + 2 * q) / LANE_DIVISOR`, so that charging
+    ///         both lanes on top of a net STOCK amount makes each lane exactly one percent, floored, of
+    ///         the gross amount.
+    function grossLane(uint256 net) public pure returns (uint256) {
         if (net < StocksPreset.LANE_DIVISOR) return 0;
-        return (net - StocksPreset.LANE_DIVISOR) / (StocksPreset.LANE_DIVISOR - lanes) + 1;
+        return (net - StocksPreset.LANE_DIVISOR) / (StocksPreset.LANE_DIVISOR - LANES) + 1;
     }
 
     // -------------------------------------------------------------------------
@@ -346,19 +363,18 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
         bool stockSpecified = (exactInput == params.zeroForOne) == stockIsCurrency0;
         if (!stockSpecified) return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
 
-        uint256 lanes = record.subject == address(0) ? 1 : 2;
         uint256 requested = _abs(params.amountSpecified);
         // Exact input: the trader's debit is `requested`, so each lane is one percent of it and the
         // core swaps the rest. Exact output: the trader receives `requested`, so the pool outputs the
         // gross amount and each lane is one percent of that gross amount.
-        uint256 lane = exactInput ? requested / StocksPreset.LANE_DIVISOR : grossLane(requested, lanes);
+        uint256 lane = exactInput ? requested / StocksPreset.LANE_DIVISOR : grossLane(requested);
 
         _tstore(PENDING_LANE_SLOT, lane);
         _tstore(PENDING_POOL_SLOT, uint256(poolId));
-        return (BaseHook.beforeSwap.selector, toBeforeSwapDelta(SafeCast.toInt128(lanes * lane), 0), 0);
+        return (BaseHook.beforeSwap.selector, toBeforeSwapDelta(SafeCast.toInt128(LANES * lane), 0), 0);
     }
 
-    /// @dev Takes the fee in STOCK and accrues it per bucket. STOCK-unspecified swaps return the fee
+    /// @dev Takes the fee in STOCK and accrues it to both lanes. STOCK-unspecified swaps return the fee
     ///      as a positive unspecified delta; STOCK-specified swaps already carry it from `beforeSwap`.
     function _afterSwap(address, PoolKey calldata key, SwapParams calldata params, BalanceDelta delta, bytes calldata)
         internal
@@ -367,8 +383,6 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
     {
         bytes32 poolId = PoolId.unwrap(key.toId());
         PoolRecord storage record = _requireRegistered(poolId);
-        address subject = record.subject;
-        uint256 lanes = subject == address(0) ? 1 : 2;
 
         bool exactInput = params.amountSpecified < 0;
         bool stockIsCurrency0 = Currency.unwrap(key.currency0) == record.stock;
@@ -387,32 +401,33 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
             _tstore(PENDING_POOL_SLOT, 0);
 
             uint256 requested = _abs(params.amountSpecified);
-            uint256 fee = lanes * lane;
+            uint256 fee = LANES * lane;
             uint256 expectedRealized = exactInput ? requested - fee : requested + fee;
             if (realized != expectedRealized) revert PartialFillNotSupported(expectedRealized, realized);
             feeBase = exactInput ? requested : requested + fee;
         } else if (stockIsInput) {
-            lane = grossLane(realized, lanes);
-            feeBase = realized + lanes * lane;
-            hookDeltaUnspecified = SafeCast.toInt128(lanes * lane);
+            lane = grossLane(realized);
+            feeBase = realized + LANES * lane;
+            hookDeltaUnspecified = SafeCast.toInt128(LANES * lane);
         } else {
-            // Each lane is floored independently and the same lane is charged `lanes` times: two equal
-            // lanes, never one floored two percent.
+            // Each lane is floored independently and the same lane is charged twice: two equal lanes,
+            // never one floored two percent.
             // slither-disable-next-line divide-before-multiply
             lane = realized / StocksPreset.LANE_DIVISOR;
             feeBase = realized;
-            hookDeltaUnspecified = SafeCast.toInt128(lanes * lane);
+            hookDeltaUnspecified = SafeCast.toInt128(LANES * lane);
         }
 
         if (lane != 0) {
-            _accrued[poolId][REGENT_DESTINATION()] += lane;
-            if (subject != address(0)) _accrued[poolId][subject] += lane;
+            Accrued storage bucket = _accrued[poolId];
+            bucket.regentLane += lane;
+            bucket.stakerLane += lane;
             // slither-disable-next-line divide-before-multiply
-            poolManager.take(Currency.wrap(record.stock), address(this), lanes * lane);
+            poolManager.take(Currency.wrap(record.stock), address(this), LANES * lane);
         }
 
         // slither-disable-next-line reentrancy-events
-        emit HookFeeAccrued(poolId, subject, feeBase, lane, subject == address(0) ? 0 : lane);
+        emit HookFeeAccrued(poolId, feeBase, lane, lane);
         return (BaseHook.afterSwap.selector, hookDeltaUnspecified);
     }
 

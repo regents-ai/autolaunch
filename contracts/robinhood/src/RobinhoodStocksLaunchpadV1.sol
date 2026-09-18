@@ -8,11 +8,9 @@ import {SafeCastLib} from "solady/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
-import {IRobinhoodRevshareLaunchpadV1} from "./interfaces/IRobinhoodRevshareLaunchpadV1.sol";
 import {IRobinhoodStockAdmission} from "./interfaces/IRobinhoodStockAdmission.sol";
 import {IRobinhoodStockRoute} from "./interfaces/IRobinhoodStockRoute.sol";
 import {IRobinhoodStocksLaunchpadV1} from "./interfaces/IRobinhoodStocksLaunchpadV1.sol";
-import {IRobinhoodSubjectSplitterV1} from "./interfaces/IRobinhoodSubjectSplitterV1.sol";
 import {RobinhoodFeeHookV1} from "./RobinhoodFeeHookV1.sol";
 import {RobinhoodLaunchpadBase} from "./RobinhoodLaunchpadBase.sol";
 import {RobinhoodPreset} from "./RobinhoodPreset.sol";
@@ -20,11 +18,12 @@ import {RobinhoodPreset} from "./RobinhoodPreset.sol";
 /// @title RobinhoodStocksLaunchpadV1
 /// @notice The Base Stocks launchpad's rules on the Robinhood chain, with USDG as the dollar: a NEW is
 ///         sold for an admitted STOCK; the required raise is the Safe's USDG minimum converted into
-///         STOCK by the admitted route's quote at creation; graduation locks the full range and a
-///         one-sided STOCK position at the dead address and credits the rounding remainder to the
-///         pool's protocol bucket; the launch fee is USDG, deposited into the protocol revenue inbox.
-/// @dev A subject splitter is authentic only when the bound revenue-share launchpad created it for
-///      its own NEW; the registry read is the whole provenance check.
+///         STOCK by the admitted route's quote at creation; graduation creates the launch's own
+///         memestock splitter, locks the full range and a one-sided STOCK position in the fee-only
+///         locker and credits the rounding remainder to the pool's protocol lane; the launch fee is
+///         USDG, deposited into the protocol revenue inbox.
+/// @dev No launch has an administrator. Both hook lanes are always on and the splitter, created by
+///      this contract at graduation, is their only configuration.
 contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksLaunchpadV1 {
     using SafeTransferLib for address;
 
@@ -34,40 +33,18 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         address route;
     }
 
-    struct SubjectConfig {
-        uint32 version;
-        uint16 subjectBps;
-        address splitter;
-        address proposedAdministrator;
-    }
-
-    address public immutable override revshareLaunchpad;
-
     uint256 public override minimumRaiseUsdg = RobinhoodPreset.MINIMUM_RAISE_USDG_STOCKS;
 
     mapping(address stock => Admission) private _admissions;
     mapping(uint256 launchId => StockRecord) private _stockRecords;
-    mapping(uint256 launchId => SubjectConfig) private _subjects;
 
     error StockNotAdmitted(address stock);
     error StockRefused(address stock);
     error RouteBindingMismatch(address expected, address found);
-    error NotFeeAdministrator(address caller);
-    error NotProposedAdministrator(address caller);
-    error StaleSubjectVersion(uint32 current, uint32 expected);
-    error SplitterHasNoCode(address splitter);
-    error InauthenticSplitter(address splitter);
     error ZeroMinimumRaise();
     error UnexpectedStockOnlyPositionCount(uint256 found);
 
-    constructor(Bindings memory bindings, address revshareLaunchpad_, bytes32 hookSalt)
-        RobinhoodLaunchpadBase(bindings, hookSalt)
-    {
-        _requireContract(revshareLaunchpad_);
-        address revshareUsdg = IRobinhoodRevshareLaunchpadV1(revshareLaunchpad_).usdg();
-        if (revshareUsdg != bindings.usdg) revert InboxBindingMismatch(bindings.usdg, revshareUsdg);
-        revshareLaunchpad = revshareLaunchpad_;
-    }
+    constructor(Bindings memory bindings, bytes32 hookSalt) RobinhoodLaunchpadBase(bindings, hookSalt) {}
 
     // -------------------------------------------------------------------------
     // launcher surface
@@ -83,8 +60,6 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
     {
         Admission storage admission = _admissions[params.stock];
         if (!admission.admitted) revert StockNotAdmitted(params.stock);
-        if (params.feeAdministrator == address(0)) revert ZeroAddress();
-        if (params.subjectSplitter != address(0)) _requireAuthenticSplitter(params.subjectSplitter);
 
         // The required raise is the Safe's USDG minimum converted into STOCK by the admitted route's
         // quote at this block: the launcher never chooses it. The base proves it is reachable.
@@ -93,19 +68,12 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
 
         (launchId, newToken, auction) = _create(params.core, params.stock, requiredStockRaised);
 
-        _stockRecords[launchId].feeAdministrator = params.feeAdministrator;
-        uint16 subjectBps = params.subjectSplitter == address(0) ? 0 : RobinhoodPreset.SUBJECT_LANE_BPS;
-        _subjects[launchId] = SubjectConfig({
-            version: 1, subjectBps: subjectBps, splitter: params.subjectSplitter, proposedAdministrator: address(0)
-        });
-
         emit StockLaunchCreated(
             launchId,
             msg.sender,
             newToken,
             params.stock,
             auction,
-            params.feeAdministrator,
             params.core.startBlock,
             params.core.startBlock + StocksPreset.AUCTION_DURATION_BLOCKS,
             params.core.floorPriceQ96,
@@ -113,53 +81,6 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
             StocksPreset.AUCTION_INVENTORY,
             StocksPreset.MIGRATION_RESERVE
         );
-        emit SubjectConfigured(launchId, 1, params.subjectSplitter, subjectBps, params.feeAdministrator);
-    }
-
-    // -------------------------------------------------------------------------
-    // fee administration
-    // -------------------------------------------------------------------------
-
-    /// @inheritdoc IRobinhoodStocksLaunchpadV1
-    function configureSubject(uint256 launchId, address splitter, uint32 expectedVersion) external override {
-        Launch storage record = _requireLaunch(launchId);
-        if (msg.sender != _stockRecords[launchId].feeAdministrator) revert NotFeeAdministrator(msg.sender);
-
-        SubjectConfig storage config = _subjects[launchId];
-        if (config.version != expectedVersion) revert StaleSubjectVersion(config.version, expectedVersion);
-        if (splitter != address(0)) _requireAuthenticSplitter(splitter);
-
-        uint32 version = config.version + 1;
-        uint16 subjectBps = splitter == address(0) ? 0 : RobinhoodPreset.SUBJECT_LANE_BPS;
-        config.version = version;
-        config.splitter = splitter;
-        config.subjectBps = subjectBps;
-
-        emit SubjectConfigured(launchId, version, splitter, subjectBps, msg.sender);
-
-        if (record.poolId != bytes32(0)) RobinhoodFeeHookV1(hook).setSubject(record.poolId, splitter);
-    }
-
-    /// @inheritdoc IRobinhoodStocksLaunchpadV1
-    function proposeFeeAdministrator(uint256 launchId, address proposed) external override {
-        _requireLaunch(launchId);
-        if (msg.sender != _stockRecords[launchId].feeAdministrator) revert NotFeeAdministrator(msg.sender);
-        _subjects[launchId].proposedAdministrator = proposed;
-        emit FeeAdministratorTransferStarted(launchId, msg.sender, proposed);
-    }
-
-    /// @inheritdoc IRobinhoodStocksLaunchpadV1
-    function acceptFeeAdministrator(uint256 launchId) external override {
-        _requireLaunch(launchId);
-        SubjectConfig storage config = _subjects[launchId];
-        if (msg.sender == address(0) || msg.sender != config.proposedAdministrator) {
-            revert NotProposedAdministrator(msg.sender);
-        }
-        StockRecord storage stockRecord = _stockRecords[launchId];
-        address previous = stockRecord.feeAdministrator;
-        stockRecord.feeAdministrator = msg.sender;
-        config.proposedAdministrator = address(0);
-        emit FeeAdministratorTransferred(launchId, previous, msg.sender);
     }
 
     // -------------------------------------------------------------------------
@@ -219,31 +140,8 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         return _stockRecords[launchId];
     }
 
-    /// @inheritdoc IRobinhoodStocksLaunchpadV1
-    function subjectConfig(uint256 launchId)
-        external
-        view
-        override
-        returns (
-            uint32 version,
-            address splitter,
-            uint16 subjectBps,
-            address administrator,
-            address proposedAdministrator
-        )
-    {
-        SubjectConfig storage config = _subjects[launchId];
-        return (
-            config.version,
-            config.splitter,
-            config.subjectBps,
-            _stockRecords[launchId].feeAdministrator,
-            config.proposedAdministrator
-        );
-    }
-
     // -------------------------------------------------------------------------
-    // kind-specific internals
+    // launch internals
     // -------------------------------------------------------------------------
 
     function _terms() internal pure override returns (Terms memory) {
@@ -252,10 +150,6 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
             auctionInventory: StocksPreset.AUCTION_INVENTORY,
             migrationReserve: StocksPreset.MIGRATION_RESERVE
         });
-    }
-
-    function _subjectDestination(uint256 launchId, Launch storage) internal view override returns (address) {
-        return _subjects[launchId].splitter;
     }
 
     /// @dev First the full range from the whole reserve and the STOCK it pairs with at the initial
@@ -269,7 +163,7 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         bool stockIsCurrency0,
         uint128 stockBudget,
         uint128 reserve
-    ) internal pure override returns (Position[] memory positions) {
+    ) internal view override returns (Position[] memory positions) {
         Position memory fullRange = _fullRangePosition(sqrtPriceX96, stockIsCurrency0, stockBudget, reserve);
         (uint128 fullRangeStock,) = _currencyAndNew(stockIsCurrency0, fullRange);
 
@@ -295,7 +189,7 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
     }
 
     /// @dev The rounding remainder below one unit of liquidity is credited to the pool's protocol
-    ///      bucket; every unit of this launch's NEW still here is retired. No principal path exists.
+    ///      lane; every unit of this launch's NEW still here is retired. No principal path exists.
     function _finishGraduation(
         uint256 launchId,
         Launch storage record,
@@ -339,13 +233,5 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
             stockDust,
             retired
         );
-    }
-
-    /// @dev A nonzero splitter must be the one the bound revenue-share launchpad created for its NEW.
-    function _requireAuthenticSplitter(address splitter) private view {
-        if (splitter.code.length == 0) revert SplitterHasNoCode(splitter);
-        address subject = IRobinhoodSubjectSplitterV1(splitter).subject();
-        address recorded = IRobinhoodRevshareLaunchpadV1(revshareLaunchpad).splitterOf(subject);
-        if (recorded == address(0) || recorded != splitter) revert InauthenticSplitter(splitter);
     }
 }

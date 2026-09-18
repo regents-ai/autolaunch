@@ -4,12 +4,17 @@ Autolaunch Stocks creates a new token, **NEW**, sells 80% of its initial supply 
 pinned Uniswap Continuous Clearing Auction denominated in one admitted Base stock token,
 **STOCK**, and after a successful auction opens the official **NEW/STOCK** Uniswap v4 pool with
 all net STOCK raised plus the 20% migration reserve, locked forever in two positions. Official-pool trading pays
-STOCK-side hook fees: a mandatory 100 bps REGENT lane and an optional 100 bps subject lane.
-Both are converted to USDC and deposited outside ordinary swaps.
+two STOCK-side hook fees on top of the 0.30% LP fee, both always on: a 100 bps REGENT lane, converted
+to USDC and deposited into REGENT staking, and a 100 bps staker lane, deposited as STOCK into the
+launch's own **memestock splitter**. Holders stake NEW (the MEMESTOCK) in that splitter and divide,
+pro rata, everything it recognizes in USDC, MEMESTOCK and STOCK after a 2% protocol share. The two
+locked positions sit in a fee-only locker whose LP fees also flow into the splitter. No launch has a
+creator, an administrator or a treasury.
 
 This is a separate Foundry component. It reuses the frozen `contracts/v1` dependencies at their
 pinned revisions and never modifies them. Nothing here changes the Agent factory, strategy,
-hook, escrow, splitter or receiver.
+hook, escrow, splitter or receiver. The memestock splitter is a separate contract modelled on the
+Agent subject splitter, not a change to it.
 
 ## Status
 
@@ -22,14 +27,17 @@ otherwise. No deployment, funding or public-chain transaction is part of this co
 | --- | --- |
 | `src/interfaces/` | The cross-component ABI. Website, indexer and CLI consume these shapes. |
 | `src/StocksPreset.sol` | Every fixed launch term, in one place, with its provenance label. |
-| `src/StocksLaunchpadV1.sol` | Admission, creation, custody, migration, subject administration. |
-| `src/StocksFeeHookV1.sol` | The official-pool hook: accrual-only fee lanes and out-of-swap settlement. |
+| `src/StocksLaunchpadV1.sol` | Admission, creation, custody, migration; deploys the locker and the splitter implementation, clones one splitter per graduation. |
+| `src/StocksFeeHookV1.sol` | The official-pool hook: two accrual-only fee lanes and out-of-swap settlement. |
+| `src/MemestockSplitterCore.sol` | The shared staking and revenue accounting: three recognized assets, 2% protocol share, pro rata accrual, one-block exit rule, recovery of unsupported tokens. Chain-neutral; the Robinhood splitter inherits it too. |
+| `src/MemestockSplitterV1.sol` | The Base clone target: USDC protocol share into live REGENT staking, MEMESTOCK and STOCK protocol shares to the Governance and REGENT Safe. |
+| `src/MemestockLPLocker.sol` | Permanent fee-only owner of every launch position; anyone may `collect`, the fees always land in the launch's splitter. Shared with the Robinhood launchpad. |
 | `src/StockBidAdapterV1.sol` | Atomic USDC → STOCK → CCA bid owned by the caller. |
 | `src/StocksBindings.sol` | The frozen Base bindings this component compiles against, copied from `contracts/v1`, plus canonical Permit2. |
 | `src/routes/` | `IStockRoute` implementations. `FixtureStockRoute` is lab-only. |
 | `src/fixtures/` | `FixtureStockToken` and `FixtureStockCatalog`: the ERC-20 the local fork installs at the catalog addresses, and the catalog itself. Lab-only. |
-| `test/` | Hermetic suite: real PoolManager, PositionManager, CCA factory, UERC20 factory and Permit2 bytecode at their frozen addresses; USDC, REGENT, live staking, the Agent strategy and the splitter are named doubles. |
-| `test/fork/` | The local Base-fork suite (`FOUNDRY_PROFILE=fork`), against chain truth and the Agent graph the lab deployed. |
+| `test/` | Hermetic suite: real PoolManager, PositionManager, CCA factory, UERC20 factory and Permit2 bytecode at their frozen addresses; USDC, REGENT and live staking are named doubles; the splitter and the locker are the real contracts. |
+| `test/fork/` | The local Base-fork suite (`FOUNDRY_PROFILE=fork`), against chain truth on the lab fork. |
 | `SECURITY.md` | The invariant list and the test that proves each one. |
 | `script/DeployStocksLab.s.sol` | Deploys the graph onto the local Base fork and logs `REGENT_STOCKS_LAB_<NAME>: 0x…` lines. |
 | `bin/local-stocks-lab.py` | Extends a running `contracts/v1/bin/local-base-lab.py` fork with the Stocks graph, fixtures, funding and `stocks-site-config.json`. |
@@ -58,16 +66,18 @@ because the same pinned dependency imposes it.
 | Official pool LP fee | 3000 (0.30%) | PROVISIONAL |
 | Official pool tick spacing | 60 | PROVISIONAL |
 | REGENT hook lane | 100 bps of realized STOCK-side amount, floored | Brief P08 |
-| Subject hook lane | 0 or 100 bps, off by default | Brief P09/P10 |
+| Staker hook lane | 100 bps of realized STOCK-side amount, floored, always on; deposited as STOCK into the launch's splitter by anyone (`settleStakerLane`) | Founder decision 2026-09-18 |
+| Splitter protocol share | 2% (`SKIM_BPS` 200) of every recognized amount in USDC, MEMESTOCK and STOCK; USDC straight into live REGENT staking, MEMESTOCK and STOCK to the Governance and REGENT Safe; the other 98% belongs wholly to stakers | Founder decision 2026-09-18 |
+| Revenue with nothing staked | the whole amount follows the protocol route (USDC into REGENT staking, other assets to the Safe) | Founder decision 2026-09-18 |
 | Launch fee | 100,000 REGENT (`LAUNCH_FEE_REGENT`), pulled from the launcher at `launch` and funded into the live REGENT staking contract as staker rewards (`fundRegentRewards`); never refunded; governance may change it with `setLaunchFee` (zero valid) | Founder decision |
 | Minimum raise | 1,000 USDC (`MINIMUM_RAISE_USDC`), quoted into the STOCK through the admitted route at `launch` and recorded as the auction's `requiredStockRaised`; the launcher does not choose it; governance may change it with `setMinimumRaiseUsdc` (zero refused); a recorded auction keeps its STOCK raise | Founder decision |
 | Creator allocation, vesting, treasury | none | Brief P05 |
 | Unsold NEW after graduation | transferred to `0x…dEaD` ("retired"; supply is not reduced because UERC20 has no burn) | Brief P13; mechanism labelled |
 | Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; PROVISIONAL |
-| Locked liquidity | Two positions, both NFTs to `0x…dEaD`: (1) full range, funded by the whole reserve and the STOCK it pairs at the clearing price; (2) one-sided STOCK, holding every remaining unit of net STOCK | Brief P13 "all-net-STOCK liquidity", exact; see the design note below |
+| Locked liquidity | Two positions, both NFTs to the `MemestockLPLocker`: (1) full range, funded by the whole reserve and the STOCK it pairs at the clearing price; (2) one-sided STOCK, holding every remaining unit of net STOCK | Brief P13 "all-net-STOCK liquidity", exact; see the design note below |
 | One-sided STOCK position geometry | From the tick-spacing boundary adjacent to the initial price out to the last usable tick on the STOCK side of the book (below the price when STOCK is currency1, above it when STOCK is currency0) | PROVISIONAL (the width; the side follows from the price) |
-| LP rounding remainder (STOCK below one unit of liquidity after both positions) | accrued to the REGENT bucket of the pool's hook; proven `< sqrt(clearingPrice)` base units, zero at every fixture price | PROVISIONAL (the destination) |
-| LP custody | both position NFTs minted to `0x…dEaD`; no principal path exists | Brief P13 |
+| LP rounding remainder (STOCK below one unit of liquidity after both positions) | accrued to the REGENT lane of the pool's hook; proven `< sqrt(clearingPrice)` base units, zero at every fixture price | PROVISIONAL (the destination) |
+| LP custody | both position NFTs minted to the launchpad's `MemestockLPLocker` and registered to the launch's splitter, once and forever; the locker can only collect fees (a decrease of exactly zero) and deposit them into that splitter; no principal path exists | Brief P13; founder decision 2026-09-18 (fees to stakers) |
 
 ### Design note on the two positions
 
@@ -88,7 +98,7 @@ positions are minted in one PositionManager call with exact settlement amounts. 
 quarter sells the full range is STOCK-bound, takes the whole raise itself, and the reserve it cannot
 pair is retired with the unsold NEW (`test_graduation_with_less_than_a_quarter_sold_both_orderings`).
 The second position is the first liquidity a NEW seller meets and moves the price down through a
-STOCK-only book; that geometry (and the accrual of the residue to the REGENT bucket) is the
+STOCK-only book; that geometry (and the accrual of the residue to the REGENT lane) is the
 PROVISIONAL part awaiting the founder's decision record.
 
 ## Hook mechanics
@@ -101,7 +111,21 @@ pre-commit their exact fee in `beforeSwap` as a specified-currency delta and rev
 (`PartialFillNotSupported`) if the trader's own price limit cuts the fill short, since the pre-committed
 fee would otherwise be inexact. STOCK-unspecified swaps are charged in `afterSwap` and fill partially
 as usual. The fee base is the gross STOCK amount: the trader's whole debit for STOCK-input swaps, the
-pool's whole output for STOCK-output swaps; each lane is one percent of it, floored.
+pool's whole output for STOCK-output swaps; each lane is one percent of it, floored. Both lanes are
+always charged. `settleRegentLane` (executor only, with `minUsdcOut`) converts REGENT-lane STOCK
+through the admitted route and deposits the USDC into live REGENT staking. `settleStakerLane`
+(anyone) deposits the whole staker lane, as STOCK, into the pool's splitter; it decides nothing, so it
+needs no authority.
+
+## Staking
+
+Each graduation clones one `MemestockSplitterV1` bound to that launch's MEMESTOCK and STOCK. Holders
+`stake` MEMESTOCK, `claim`/`claimAll` what they have earned and `unstake` from the next block on.
+Revenue arrives by `depositRecognizedRevenue` (the hook's staker lane, the locker's LP fees, anyone)
+or is picked up from a plain transfer by `recognizeSurplusRevenue`; staked principal is never counted
+as revenue. Revenue is shared among whoever is staked at the moment it is recognized, and both the
+staker lane and LP fees arrive in lumps when someone settles or collects, so the site should settle
+and collect often. Tokens other than the three recognized assets can be swept to the Safe by anyone.
 
 ## Identity and admission
 
@@ -113,8 +137,8 @@ pool's whole output for STOCK-output swaps; each lane is one percent of it, floo
   addresses with `anvil_setCode`. **This is a fixture. Nothing tested against it is B20-verified.**
   Issuer transfer policy, Permit2 compatibility and the real acquisition route remain open
   admission blockers (acceptance tests AT04, AT48).
-- The Governance and REGENT Safe (`0x9fa1…9a3e`) is the only governance. The fee administrator of
-  a launch can only configure that launch's subject lane and transfer its own role.
+- The Governance and REGENT Safe (`0x9fa1…9a3e`) is the only governance. No launch has an
+  administrator: both lanes and the splitter are fixed by the contracts.
 
 ## Money and custody rules the implementation must prove
 
@@ -123,17 +147,20 @@ pool's whole output for STOCK-output swaps; each lane is one percent of it, floo
 2. CCA `currency == stock`, `tokensRecipient == launchpad`, `fundsRecipient == launchpad`,
    `protocolFeeController == 0`.
 3. `migrate` classifies with the final checkpoint. Graduated: sweep STOCK, sweep unsold NEW, register
-   the pool with the hook, initialize, mint two positions to the dead address in one call — the full
+   the launch's splitter, register the pool and that splitter with the hook, initialize, mint two
+   positions to the locker in one call and register both to the splitter — the full
    range from the whole reserve and the STOCK it pairs, then a one-sided STOCK position from every
    remaining unit of net STOCK — so `lpStockUsed + lpStockOnlyUsed + dust == netStock` with `dust`
    the bounded rounding residue; retire unsold NEW and any reserve the full range could not pair;
    route the residue as the preset says. Failed: retire reserve and swept inventory; never touch
    bidder STOCK.
 4. Bidder refunds and claims go through the CCA and depend on nothing in this component.
-5. The hook only accrues. `settle` is the only path out, executor-only, per bucket, via the admitted
-   route, with `minUsdcOut`; a failing settle reverts only itself.
-6. Each accrual belongs to `(poolId, destination)` at the time of the swap. Disabling the subject
-   lane charges nothing afterwards and never re-attributes old buckets.
+5. The hook only accrues. The REGENT lane leaves only through `settleRegentLane` (executor-only, via
+   the admitted route, with `minUsdcOut`) and the staker lane only through `settleStakerLane` (anyone,
+   whole lane, as STOCK, into the pool's fixed splitter); a failing settlement reverts only itself.
+6. A pool's splitter is fixed when the pool is registered; nothing redirects either lane afterwards.
+   The splitter pays out exactly what it recognized: `gross == protocolShare + stakerShare`, staked
+   principal is never revenue, and the locker can never move liquidity.
 7. The adapter uses invocation balance deltas only, restores every allowance to zero, and bids as
    `owner = msg.sender`.
 8. The launch fee is collected exactly and funded exactly, and never comes back. `launch` refuses a
@@ -155,8 +182,8 @@ FOUNDRY_PROFILE=fork forge test --fork-url http://127.0.0.1:PORT --fuzz-runs 64 
 slither . --config-file slither.config.json --filter-paths "lib/|test/|script/"   # if installed
 ```
 
-`test/fork/ForkAddresses.sol` pins the Agent graph of the lab run it was written against; a restarted
-Agent lab needs those four addresses updated.
+`test/fork/ForkAddresses.sol` pins the lab run it was written against; a restarted lab needs those
+addresses updated.
 
 The fork lab (`bin/local-stocks-lab.py`) requires an active `contracts/v1/bin/local-base-lab.py`
 run and writes `stocks-site-config.json` (and its own `stocks-state.json`) next to that run's
@@ -177,7 +204,9 @@ python3 bin/local-stocks-lab.py fund WALLET --regent 600000 --stock AAPLc --amou
 python3 bin/local-stocks-lab.py status [--launch ID] [--auction ADDR]
 python3 bin/local-stocks-lab.py advance --auction ADDR --to start|end|claim|migration
 python3 bin/local-stocks-lab.py migrate --launch ID
-python3 bin/local-stocks-lab.py settle --pool-id 0x… --destination ADDR --amount UNITS --min-usdc UNITS
+python3 bin/local-stocks-lab.py settle-regent --pool-id 0x… --amount UNITS --min-usdc UNITS
+python3 bin/local-stocks-lab.py settle-stakers --pool-id 0x…
+python3 bin/local-stocks-lab.py collect --token-id ID
 ```
 
 The lab deployer (`0x5700…0001`) and the hook executor are the same impersonated address; the

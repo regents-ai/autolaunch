@@ -173,9 +173,9 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         assertEq(regent.balanceOf(address(strategy)), strategyRegentBefore, "the strategy kept raised REGENT");
     }
 
-    /// @notice `MIG-006`: exactly one full-range position is minted and its NFT goes to the dead
-    ///         address, so nobody can ever withdraw the official liquidity.
-    function test_MIG_006_MintsOneFullRangePositionToTheDeadAddress() public {
+    /// @notice `MIG-006`: exactly one full-range position is minted and its NFT goes to the permanent
+    ///         fee-only locker, so nobody can ever withdraw the official liquidity.
+    function test_MIG_006_MintsOneFullRangePositionToThePermanentLocker() public {
         Launched memory launched = _defaultLaunch();
         _bidToGraduation(launched, MINIMUM_RAISE);
 
@@ -185,7 +185,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         RegentLBPStrategy.Distribution memory d = _distribution(launched);
         assertEq(positionManager.nextTokenId(), nextTokenIdBefore + 1, "graduation minted other than one position");
         assertEq(d.lpTokenId, nextTokenIdBefore, "the recorded token ID is not the minted one");
-        assertEq(IERC721(BaseBindings.POSITION_MANAGER).ownerOf(d.lpTokenId), BaseBindings.DEAD_ADDRESS, "NFT owner");
+        assertEq(IERC721(BaseBindings.POSITION_MANAGER).ownerOf(d.lpTokenId), address(strategy.lpLocker()), "NFT owner");
         assertGt(positionManager.getPositionLiquidity(d.lpTokenId), 0, "the managed position holds no liquidity");
 
         (PoolKey memory key, PositionInfo info) = positionManager.getPoolAndPositionInfo(d.lpTokenId);
@@ -488,7 +488,7 @@ contract AutolaunchGraduationTest is AutolaunchFixture {
         );
         assertEq(
             IERC721(BaseBindings.POSITION_MANAGER).ownerOf(d.lpTokenId),
-            BaseBindings.DEAD_ADDRESS,
+            address(strategy.lpLocker()),
             "the managed NFT changed hands"
         );
         assertEq(

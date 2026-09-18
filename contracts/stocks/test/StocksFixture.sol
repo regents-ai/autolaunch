@@ -24,6 +24,8 @@ import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {DeployPermit2} from "permit2/test/utils/DeployPermit2.sol";
 import {UERC20Factory} from "uerc20-factory/factories/UERC20Factory.sol";
+import {MemestockLPLocker} from "../src/MemestockLPLocker.sol";
+import {MemestockSplitterV1} from "../src/MemestockSplitterV1.sol";
 import {StockBidAdapterV1} from "../src/StockBidAdapterV1.sol";
 import {StocksBindings} from "../src/StocksBindings.sol";
 import {StocksFeeHookV1} from "../src/StocksFeeHookV1.sol";
@@ -32,16 +34,15 @@ import {StocksPreset} from "../src/StocksPreset.sol";
 import {FixtureStockToken} from "../src/fixtures/FixtureStockToken.sol";
 import {IStocksLaunchpadV1} from "../src/interfaces/IStocksLaunchpadV1.sol";
 import {FixtureStockRoute} from "../src/routes/FixtureStockRoute.sol";
-import {MockAgentStrategy} from "./mocks/MockAgentStrategy.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockLiveStaking} from "./mocks/MockLiveStaking.sol";
-import {MockSplitter} from "./mocks/MockSplitter.sol";
 
 /// @notice The hermetic Stocks harness: the real PoolManager, PositionManager, CCA factory and UERC20
 ///         factory constructed from their pinned sources at the frozen Base addresses, the real
 ///         Permit2 bytecode at its canonical address, and the whole Stocks graph reached only through
-///         its production callers. USDC, REGENT, live staking, the Agent strategy and the splitter are
-///         named doubles at their frozen addresses; the fork suite replaces them with chain truth.
+///         its production callers, the real memestock splitter and locker included. USDC, REGENT and
+///         live staking are named doubles at their frozen addresses; the fork suite replaces them with
+///         chain truth.
 abstract contract StocksFixture is Test, DeployPermit2 {
     using StateLibrary for IPoolManager;
     using PoolIdLibrary for PoolKey;
@@ -77,6 +78,7 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     StocksLaunchpadV1 internal launchpad;
     StocksFeeHookV1 internal hook;
     StockBidAdapterV1 internal adapter;
+    MemestockLPLocker internal locker;
     bytes32 internal hookSalt;
 
     UERC20Factory internal uerc20Factory;
@@ -88,10 +90,6 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     MockERC20 internal usdc;
     MockERC20 internal regent;
     MockLiveStaking internal liveStaking;
-    MockAgentStrategy internal agentStrategy;
-    MockSplitter internal splitter;
-    address internal agentSubject = makeAddr("agent-subject");
-    address internal agentAuction = makeAddr("agent-auction");
 
     FixtureStockToken internal stockLow;
     FixtureStockToken internal stockHigh;
@@ -100,7 +98,6 @@ abstract contract StocksFixture is Test, DeployPermit2 {
 
     address internal governance = StocksBindings.GOVERNANCE_AND_REGENT_SAFE;
     address internal launcher = makeAddr("launcher");
-    address internal feeAdministrator = makeAddr("fee-administrator");
     address internal bidder = makeAddr("bidder");
     address internal trader = makeAddr("trader");
     address internal outsider = makeAddr("outsider");
@@ -160,13 +157,10 @@ abstract contract StocksFixture is Test, DeployPermit2 {
         stockHigh = FixtureStockToken(STOCK_HIGH);
 
         uerc20Factory = new UERC20Factory();
-        agentStrategy = new MockAgentStrategy();
-        splitter = new MockSplitter(agentSubject, StocksBindings.REGENT);
-        agentStrategy.record(agentSubject, agentAuction, address(splitter));
-
         hookSalt = _mineHookSalt(vm.computeCreateAddress(address(this), vm.getNonce(address(this))));
-        launchpad = new StocksLaunchpadV1(address(uerc20Factory), address(agentStrategy), hookSalt);
+        launchpad = new StocksLaunchpadV1(address(uerc20Factory), hookSalt);
         hook = StocksFeeHookV1(launchpad.hook());
+        locker = MemestockLPLocker(launchpad.locker());
         adapter = new StockBidAdapterV1(address(launchpad));
 
         routeLow = new FixtureStockRoute(STOCK_LOW, USDC_PER_SHARE);
@@ -225,8 +219,6 @@ abstract contract StocksFixture is Test, DeployPermit2 {
             stock: stock,
             startBlock: uint64(block.number) + StocksPreset.MIN_START_LEAD_BLOCKS,
             floorPriceQ96: FLOOR_PRICE_Q96,
-            feeAdministrator: feeAdministrator,
-            subjectSplitter: address(0),
             expectedLaunchFee: launchpad.launchFee()
         });
     }
@@ -251,12 +243,6 @@ abstract contract StocksFixture is Test, DeployPermit2 {
 
     function _launch(address stock) internal returns (Launched memory) {
         return _launchAs(launcher, _params(stock));
-    }
-
-    function _launchWithSubject(address stock) internal returns (Launched memory) {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(stock);
-        params.subjectSplitter = address(splitter);
-        return _launchAs(launcher, params);
     }
 
     // -------------------------------------------------------------------------
@@ -313,8 +299,8 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     }
 
     /// @dev A graduated pool whose trader holds NEW (from the graduated bid) and STOCK (minted).
-    function _graduatedMarket(address stock, bool subjectOn) internal returns (Launched memory launched) {
-        launched = subjectOn ? _launchWithSubject(stock) : _launch(stock);
+    function _graduatedMarket(address stock) internal returns (Launched memory launched) {
+        launched = _launch(stock);
         // 500 shares buys well under the inventory at the floor, so the bid is fully filled at the floor
         // and exits through the plain `exitBid` path.
         uint256 bidId = _graduate(launched, 500e8);
@@ -324,6 +310,20 @@ abstract contract StocksFixture is Test, DeployPermit2 {
 
     function _record(Launched memory launched) internal view returns (IStocksLaunchpadV1.Launch memory) {
         return launchpad.launches(launched.launchId);
+    }
+
+    /// @dev The launch's memestock splitter; exists only once the launch has graduated.
+    function _splitter(Launched memory launched) internal view returns (MemestockSplitterV1) {
+        return MemestockSplitterV1(_record(launched).splitter);
+    }
+
+    /// @dev `account` stakes `amount` of the launch's NEW it already holds.
+    function _stake(Launched memory launched, address account, uint256 amount) internal {
+        MemestockSplitterV1 splitter = _splitter(launched);
+        vm.startPrank(account);
+        MockERC20(launched.newToken).approve(address(splitter), amount);
+        splitter.stake(amount);
+        vm.stopPrank();
     }
 
     /// @dev Built locally (no external call) so it can sit inside an armed `vm.expectRevert`.
