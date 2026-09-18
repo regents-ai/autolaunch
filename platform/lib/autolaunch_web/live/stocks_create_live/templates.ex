@@ -79,7 +79,11 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:terms_complete?, draft && LaunchDraft.terms_complete?(draft))
       |> assign(:revenue_complete?, draft && LaunchDraft.revenue_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
-      |> assign(:stock, stock_for(assigns.stocks_lab, assigns.draft_values["stock_address"]))
+      |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.enabled?())
+      |> assign(
+        :stock,
+        stock_for(assigns.launch_chain, assigns.stocks_lab, assigns.draft_values["stock_address"])
+      )
       |> assign(:subject_enabled?, assigns.draft_values["subject_enabled"] == "true")
       |> assign(:token_fields, @token_fields)
       |> assign(:address_hint, @address_hint)
@@ -222,10 +226,17 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               {@draft_errors["stock_address"]}
             </p>
             <p :if={@stock} class="autolaunch-draft-hint">
-              {@stock.symbol} uses {@stock.decimals} decimal places on this site's Base fork.
+              {@stock.symbol} uses {@stock.decimals} decimal places on this site's {test_network(
+                @launch_chain
+              )}.
             </p>
 
+            <p :if={@launch_chain == :robinhood} id="stocks-terms-robinhood-start">
+              Bidding opens a fixed short time after you review the launch. The review shows the
+              exact blocks.
+            </p>
             <Regent.Primitives.field
+              :if={@launch_chain == :base}
               id="stocks-terms-start_local"
               label="Bidding opens"
               class="autolaunch-draft-field"
@@ -405,10 +416,28 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               first allows exactly that fee to be taken when it has not already, then creates the
               launch.
             </p>
-            <p :if={@launch_chain == :robinhood} id="stocks-robinhood-pending" role="status">
+            <p :if={@launch_chain == :robinhood && @robinhood_open?}>
+              The review shows the exact start block, executable floor price, minimum raise and
+              launch fee before anything is submitted. When there is a launch fee it is paid in
+              USDG and not refunded if the minimum is not raised. Your wallet first allows exactly
+              that fee to be taken when it has not already, then creates the launch.
+            </p>
+            <p
+              :if={@launch_chain == :robinhood && !@robinhood_open?}
+              id="stocks-robinhood-pending"
+              role="status"
+            >
               The Robinhood launchpad is not live yet. Your draft is saved to your account and
               will be ready to launch here when it opens.
             </p>
+            <.live_component
+              :if={@launch_chain == :robinhood && @robinhood_open? && @launch_ready? && @draft}
+              module={AutolaunchWeb.RobinhoodStocksLaunchComponent}
+              id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
+              draft={@draft}
+              current_human_id={@current_human_id}
+              session_lease={@session_lease}
+            />
             <.live_component
               :if={@launch_chain == :base && @launch_ready? && @draft}
               module={AutolaunchWeb.StocksLaunchWalletComponent}
@@ -420,7 +449,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               session_lease={@session_lease}
             />
             <Regent.Primitives.button
-              :if={@launch_chain == :base && !@launch_ready?}
+              :if={(@launch_chain == :base || @robinhood_open?) && !@launch_ready?}
               type="button"
               disabled
             >
@@ -485,7 +514,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </div>
             <div>
               <dt>Bidding opens</dt>
-              <dd>{blank(@draft_values["start_local"])} {@draft_values["start_timezone"]}</dd>
+              <dd :if={@launch_chain == :base}>
+                {blank(@draft_values["start_local"])} {@draft_values["start_timezone"]}
+              </dd>
+              <dd :if={@launch_chain == :robinhood}>A fixed short time after you review</dd>
             </div>
             <div>
               <dt>Minimum raise</dt>
@@ -562,9 +594,21 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   # The stock as this site's lab admits it, with its recorded decimals. Without
   # a Stocks lab the decimals are only known at review, from the launchpad.
-  defp stock_for(nil, _address), do: nil
-  defp stock_for(_config, address) when address in [nil, ""], do: nil
-  defp stock_for(config, address), do: Autolaunch.Stocks.Lab.stock(config, address)
+  defp stock_for(_chain, _config, address) when address in [nil, ""], do: nil
+  defp stock_for(:base, nil, _address), do: nil
+  defp stock_for(:base, config, address), do: Autolaunch.Stocks.Lab.stock(config, address)
+
+  defp stock_for(:robinhood, _config, address) do
+    case Autolaunch.Robinhood.Lab.current() do
+      {:ok, config} ->
+        config
+        |> Autolaunch.Robinhood.Lab.stocks()
+        |> Enum.find(&Autolaunch.Chain.Address.equal?(&1.address, address))
+
+      {:error, _closed} ->
+        nil
+    end
+  end
 
   defp floor_echo(_value, nil), do: nil
 
@@ -594,6 +638,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp fixed_terms(:base), do: LaunchActions.terms()
   defp fixed_terms(:robinhood), do: Robinhood.stock_terms()
+
+  defp test_network(:base), do: "Base fork"
+  defp test_network(:robinhood), do: "Robinhood test network"
 
   defp symbol(nil), do: "the stock token"
   defp symbol(%{symbol: symbol}), do: symbol

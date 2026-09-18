@@ -215,9 +215,14 @@ defmodule AutolaunchWeb.CreateLive do
     do:
       "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDC; the raise and its minimum are set in USDC and the launch fee is paid in REGENT from your wallet."
 
-  defp choice_summary(:robinhood, :stocks),
-    do:
-      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDG; the raise and its minimum are set in USDG and there is no launch fee. Not live yet: your draft is saved until it opens."
+  defp choice_summary(:robinhood, :stocks) do
+    summary =
+      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDG; the raise and its minimum are set in USDG and the launch fee, when there is one, is paid in USDG from your wallet."
+
+    if Autolaunch.Robinhood.Lab.enabled?(),
+      do: summary,
+      else: summary <> " Not live yet: your draft is saved until it opens."
+  end
 
   # Base and Revstake are the page's defaults, so only the other choices name
   # themselves in the address. Robinhood has one type, so its chain names it.

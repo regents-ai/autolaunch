@@ -50,7 +50,16 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   def image_complete?(_draft), do: false
 
-  @doc "Whether the currency, schedule and floor price are complete and exact."
+  @doc """
+  Whether the currency, schedule and floor price are complete and exact. A
+  Robinhood launch has no schedule to enter: bidding opens a fixed number of
+  blocks after the review.
+  """
+  def terms_complete?(%{chain: :robinhood} = draft) do
+    match?({:ok, _stock}, Assets.fetch(draft.stock_chain_id, draft.stock_address || "")) and
+      decimal_amount?(draft.floor_price)
+  end
+
   def terms_complete?(draft) do
     match?({:ok, _stock}, Assets.fetch(draft.stock_chain_id, draft.stock_address || "")) and
       match?(%DateTime{}, draft.start_at) and

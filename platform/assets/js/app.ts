@@ -19,6 +19,7 @@ import {AutolaunchFeeAdminWallet} from "./hooks/autolaunch_fee_admin_wallet"
 import {AutolaunchFire} from "./hooks/autolaunch_fire"
 import {AutolaunchLaunchDraft} from "./hooks/autolaunch_launch_draft"
 import {AutolaunchLaunchWallet} from "./hooks/autolaunch_launch_wallet"
+import {AutolaunchReviewedSteps} from "./hooks/autolaunch_reviewed_steps"
 import {AutolaunchTestFunds, AutolaunchZonedStart} from "./hooks/autolaunch_stocks"
 import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
@@ -36,6 +37,7 @@ const hooks = {
   AutolaunchFire,
   AutolaunchLaunchDraft,
   AutolaunchLaunchWallet,
+  AutolaunchReviewedSteps,
   AutolaunchSubjectWallet,
   AutolaunchSwapDialog,
   AutolaunchTestFunds,

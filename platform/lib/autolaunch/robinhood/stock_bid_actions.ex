@@ -93,6 +93,8 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   the fields a bid never changes. A malformed log or a record that disagrees
   refuses the whole read rather than dropping an entry. A bid that has since
   exited or been claimed is still listed; its current state is stated as such.
+  The same read states the auction's STOCK and its bidding window, so the page
+  can name the currency and say whether bidding is open before any review.
   """
   @spec bids(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def bids(auction, address, opts) do
@@ -102,10 +104,18 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          {:ok, auction} <- address(auction, :invalid_auction),
          rpc <- Lab.rpc_opts(config),
          {:ok, block} <- chain(Rpc.latest_block(rpc)),
-         {:ok, decimals} <- stock_decimals(auction, block, config, rpc),
+         {:ok, stock, decimals} <- stock_decimals(auction, block, config, rpc),
+         {:ok, asset} <- listed_stock(stock),
+         {:ok, window} <- bidding_window(auction, block, config, rpc),
          {:ok, logs} <- bid_logs(auction, signer, block, rpc),
          {:ok, bids} <- bid_records(logs, auction, signer, decimals, block, config, rpc) do
-      {:ok, %{block: block, bids: bids}}
+      {:ok,
+       %{
+         block: block,
+         bids: bids,
+         stock: %{"address" => stock, "symbol" => asset.symbol},
+         window: window
+       }}
     end
   end
 
@@ -479,7 +489,22 @@ defmodule Autolaunch.Robinhood.StockBidActions do
              rpc
            ),
          true <- decimals in 0..255 do
-      {:ok, decimals}
+      {:ok, stock, decimals}
+    else
+      {:error, reason} -> chain({:error, reason})
+      _malformed -> unavailable(:invalid_chain_response)
+    end
+  end
+
+  # The auction's own first and last bidding blocks at the pinned block.
+  defp bidding_window(auction, block, config, rpc) do
+    abi = Lab.abi!(config, :auction)
+
+    with {:ok, start_block} <-
+           Rpc.call_uint(auction, LabAbi.encode(abi, "startBlock()", []), block, rpc),
+         {:ok, end_block} <-
+           Rpc.call_uint(auction, LabAbi.encode(abi, "endBlock()", []), block, rpc) do
+      {:ok, %{"start_block" => start_block, "end_block" => end_block}}
     else
       {:error, reason} -> chain({:error, reason})
       _malformed -> unavailable(:invalid_chain_response)

@@ -68,6 +68,7 @@ defmodule AutolaunchWeb.Router do
       live "/create", CreateLive, :create
       live "/auctions", AuctionsLive, :index
       live "/auctions/:auction_id", AuctionLive, :show
+      live "/robinhood/auctions/:auction", RobinhoodAuctionLive, :show
       live "/tokens", TokensLive, :index
       live "/tokens/:token_id", TokenLive, :show
       live "/launches", LaunchesLive, :index
