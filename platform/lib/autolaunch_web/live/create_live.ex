@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.CreateLive do
 
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.{LaunchChain, LaunchDraftImageStorage, Limits, Robinhood}
+  alias Autolaunch.{LaunchChain, LaunchDraftImageStorage, Limits}
   alias AutolaunchWeb.Live.CreateLive.Templates
 
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
@@ -13,21 +13,22 @@ defmodule AutolaunchWeb.CreateLive do
   # A signed-out visitor stays on this route: the page explains the sign-in
   # requirement, and a completed sign-in reloads the same document, so the
   # visitor returns to Create without any redirect parameter to validate.
-  def mount(%{"kind" => "stocks"} = params, session, socket) do
-    AutolaunchWeb.StocksCreateLive.mount(
-      params,
-      session,
-      assign(socket, launch_kind: :stocks, launch_chain: LaunchChain.from_param(params["chain"]))
-    )
+  def mount(params, session, socket) do
+    chain = LaunchChain.from_param(params["chain"])
+    kind = launch_kind(chain, params["kind"])
+
+    mount_kind(kind, params, session, assign(socket, launch_kind: kind, launch_chain: chain))
   end
 
-  def mount(params, _session, socket) do
-    socket =
-      assign(socket,
-        launch_kind: :revshare,
-        launch_chain: LaunchChain.from_param(params["chain"])
-      )
+  # Robinhood launches memestock pairs only; Base launches either type.
+  defp launch_kind(:robinhood, _kind), do: :stocks
+  defp launch_kind(:base, "stocks"), do: :stocks
+  defp launch_kind(:base, _kind), do: :revshare
 
+  defp mount_kind(:stocks, params, session, socket),
+    do: AutolaunchWeb.StocksCreateLive.mount(params, session, socket)
+
+  defp mount_kind(:revshare, _params, _session, socket) do
     case human_actor(socket) do
       nil ->
         {:ok, assign(socket, status: :sign_in_required)}
@@ -48,7 +49,7 @@ defmodule AutolaunchWeb.CreateLive do
          if connected?(socket) do
            socket
            |> load_create(actor)
-           |> assign_minimum_raise(socket.assigns.launch_chain)
+           |> start_async(:minimum_raise, fn -> Autolaunch.LaunchActions.minimum_raise() end)
          else
            socket
          end}
@@ -56,20 +57,6 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
-
-  # Each launchpad publishes its minimum on chain. The Robinhood launchpad is
-  # read from the local Robinhood lab; without one its preset minimum stands in.
-  defp assign_minimum_raise(socket, :base),
-    do: start_async(socket, :minimum_raise, fn -> Autolaunch.LaunchActions.minimum_raise() end)
-
-  defp assign_minimum_raise(socket, :robinhood) do
-    if Robinhood.Lab.enabled?(),
-      do:
-        start_async(socket, :minimum_raise, fn ->
-          Robinhood.LaunchChainClient.minimum_raise_usdg()
-        end),
-      else: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg(:revshare))
-  end
 
   def handle_event(event, params, %{assigns: %{launch_kind: :stocks}} = socket),
     do: AutolaunchWeb.StocksCreateLive.handle_event(event, params, socket)
@@ -168,16 +155,31 @@ defmodule AutolaunchWeb.CreateLive do
             <p class="autolaunch-kicker">Choose token type</p>
             <div class="launchpad-create__kinds">
               <.link
-                href={create_path(@launch_chain, :revshare)}
+                :if={@launch_chain == :base}
+                href={create_path(:base, :revshare)}
                 class={kind_class(@launch_kind == :revshare)}
                 aria-current={if @launch_kind == :revshare, do: "page"}
-              >Revshare token</.link>
+              >Revstake token</.link>
+              <Regent.Primitives.button
+                :if={@launch_chain == :robinhood}
+                id="launch-kind-revstake-unavailable"
+                variant="secondary"
+                disabled
+                aria-describedby="launch-kind-robinhood-note"
+              >Revstake token</Regent.Primitives.button>
               <.link
                 href={create_path(@launch_chain, :stocks)}
                 class={kind_class(@launch_kind == :stocks)}
                 aria-current={if @launch_kind == :stocks, do: "page"}
-              >Onchain stock pair</.link>
+              >Memestock pair</.link>
             </div>
+            <p
+              :if={@launch_chain == :robinhood}
+              id="launch-kind-robinhood-note"
+              class="launchpad-create__choice-note"
+            >
+              Robinhood launches memestock pairs only. Revstake tokens launch on Base.
+            </p>
           </nav>
           <p class="launchpad-create__choice-summary" role="status">
             <strong>{choice_title(@launch_chain, @launch_kind)}.</strong>
@@ -200,10 +202,10 @@ defmodule AutolaunchWeb.CreateLive do
   defp kind_class(selected?),
     do: ["rg-button", if(selected?, do: "rg-button--primary", else: "rg-button--secondary")]
 
-  defp choice_title(chain, :revshare), do: "Revshare token on #{LaunchChain.label(chain)}"
-  defp choice_title(chain, :stocks), do: "Onchain stock pair on #{LaunchChain.label(chain)}"
+  defp choice_title(:base, :revshare), do: "Revstake token on Base"
+  defp choice_title(chain, :stocks), do: "Memestock pair on #{LaunchChain.label(chain)}"
 
-  # What each of the four launches does and which tokens it needs. Amounts are
+  # What each of the three launches does and which tokens it needs. Amounts are
   # left to the form, which reads the live minimum from each launchpad.
   defp choice_summary(:base, :revshare),
     do:
@@ -213,25 +215,15 @@ defmodule AutolaunchWeb.CreateLive do
     do:
       "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDC; the raise and its minimum are set in USDC and the launch fee is paid in REGENT from your wallet."
 
-  defp choice_summary(:robinhood, :revshare),
-    do:
-      "Best for agent services and x402 endpoints that will earn USDG over the long term. Bidders pay in USDG; the raise and its minimum are set in USDG and the launch fee, when there is one, is paid in USDG from your wallet."
-
   defp choice_summary(:robinhood, :stocks),
     do:
       "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDG; the raise and its minimum are set in USDG and there is no launch fee. Not live yet: your draft is saved until it opens."
 
-  # Base and Revshare are the page's defaults, so only the other choices name
-  # themselves in the address.
-  defp create_path(chain, kind) do
-    query =
-      Enum.reject([chain: chain != :base && "robinhood", kind: kind != :revshare && "stocks"], fn
-        {_key, false} -> true
-        _pair -> false
-      end)
-
-    if query == [], do: "/create", else: "/create?" <> URI.encode_query(query)
-  end
+  # Base and Revstake are the page's defaults, so only the other choices name
+  # themselves in the address. Robinhood has one type, so its chain names it.
+  defp create_path(:base, :revshare), do: "/create"
+  defp create_path(:base, :stocks), do: "/create?kind=stocks"
+  defp create_path(:robinhood, _kind), do: "/create?chain=robinhood"
 
   # A launch card opened its review, so a saved-draft note no longer describes
   # what this page is doing and comes down.

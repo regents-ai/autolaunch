@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.XConnections
 
-  alias Autolaunch.{LaunchChain, LaunchDraft}
+  alias Autolaunch.LaunchDraft
 
   @address_hint "0x followed by exactly 40 hexadecimal characters."
 
@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     }
   ]
 
-  @raise_currency %{base: "REGENT", robinhood: "USDG"}
+  @raise_currency "REGENT"
 
   @treasury_field %{
     key: :treasury,
@@ -83,7 +83,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
   attr :minimum_raise, :string, default: nil
-  attr :launch_chain, :atom, required: true
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -95,8 +94,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
       |> assign(:treasury_complete?, draft && LaunchDraft.treasury_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
       |> assign(:draft_x_connections, Map.new(assigns.x_connections, &{&1.role, &1}))
-      |> assign(:raise_currency, Map.fetch!(@raise_currency, assigns.launch_chain))
-      |> assign(:robinhood_live?, Autolaunch.Robinhood.Lab.enabled?())
+      |> assign(:raise_currency, @raise_currency)
 
     ~H"""
     <section id="autolaunch-create">
@@ -235,7 +233,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             </header>
             <.custody_path
               form_id="launch-treasury-details"
-              chain={@launch_chain}
               path={@draft_values["treasury_path"]}
               acknowledgement={@draft_values["eoa_acknowledgement"]}
               error={@draft_errors["eoa_acknowledgement"]}
@@ -264,22 +261,11 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               </div>
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
-            <p :if={@launch_chain == :base}>
+            <p>
               You will see the exact REGENT fee and every transaction before anything is sent.
             </p>
-            <p :if={@launch_chain == :robinhood && @robinhood_live?}>
-              You will see the exact USDG fee and every transaction before anything is sent.
-            </p>
-            <p
-              :if={@launch_chain == :robinhood && !@robinhood_live?}
-              id="launch-robinhood-pending"
-              role="status"
-            >
-              The Robinhood launchpad is not live yet. Your draft is saved to your account and
-              will be ready to launch here when it opens.
-            </p>
             <.live_component
-              :if={@launch_chain == :base && @launch_ready? && @active_draft}
+              :if={@launch_ready? && @active_draft}
               module={AutolaunchWeb.LaunchWalletComponent}
               id={"autolaunch-launch-wallet-#{@active_draft.id}"}
               draft={@active_draft}
@@ -287,17 +273,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />
-            <.live_component
-              :if={@launch_chain == :robinhood && @robinhood_live? && @launch_ready? && @active_draft}
-              module={AutolaunchWeb.RobinhoodLaunchWalletComponent}
-              id={"autolaunch-robinhood-launch-wallet-#{@active_draft.id}"}
-              draft={@active_draft}
-              authenticated
-              current_human_id={@current_human_id}
-              session_lease={@session_lease}
-            />
             <Regent.Primitives.button
-              :if={(@launch_chain == :base || @robinhood_live?) && !@launch_ready?}
+              :if={!@launch_ready?}
               type="button"
               disabled
             >
@@ -349,7 +326,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     do: "Treasury type: single-key EOA. Never verified."
 
   attr :form_id, :string, required: true
-  attr :chain, :atom, required: true
   attr :path, :string, default: "safe"
   attr :acknowledgement, :string, default: ""
   attr :error, :string, default: nil
@@ -360,7 +336,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     assigns =
       assign(assigns,
         id: id,
-        chain_label: LaunchChain.label(assigns.chain),
         warning_copy: @eoa_acknowledgement,
         acknowledged?:
           assigns.path in ["eoa", :eoa] and assigns.acknowledgement == @eoa_acknowledgement,
@@ -374,9 +349,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     ~H"""
     <fieldset class="autolaunch-custody-path">
       <legend>Choose treasury custody</legend>
-      <strong>Create a 2-of-3 Safe on {@chain_label}</strong>
+      <strong>Create a 2-of-3 Safe on Base</strong>
       <a
-        :if={@chain == :base}
         href="https://app.safe.global/new-safe/create?chain=base"
         target="_blank"
         rel="noopener noreferrer"
