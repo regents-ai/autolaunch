@@ -113,6 +113,7 @@ defmodule AutolaunchWeb.AuctionLive do
             kind={:auction}
             record={@page_record}
             creator_connections={@creator_connections}
+            trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
           />
           <.exact_price
             id="auction-exact-price"

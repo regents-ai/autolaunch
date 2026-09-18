@@ -147,6 +147,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
 
+  attr :trade_path, :string,
+    default: nil,
+    doc: "set once the coin trades; takes the description's place"
+
   def detail_card(assigns) do
     assigns =
       assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
@@ -177,7 +181,16 @@ defmodule AutolaunchWeb.Components.MarketCard do
             unit={@view.metric.unit}
           />
         </div>
-        <p :if={present?(@view.description)} class="market-identity__description">
+        <.link
+          :if={@trade_path}
+          navigate={@trade_path}
+          class="rg-button rg-button--primary market-identity__trade"
+        ><span class="rg-button__label">Trade {@view.name}
+        <span class="market-identity__trade-arrow" aria-hidden="true">→</span></span></.link>
+        <p
+          :if={!@trade_path && present?(@view.description)}
+          class="market-identity__description"
+        >
           {@view.description}
         </p>
         <.card_socials connections={@view.connections} />
