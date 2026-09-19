@@ -28,6 +28,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"launches(uint256)", "view", [@launch_record]},
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
       f: {"launchIdOfToken(address)", "view", ["uint256"]},
+      f: {"nextLaunchId()", "view", ["uint256"]},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"launchFee()", "view", ["uint256"]},
       f: {"minimumRaiseUsdg()", "view", ["uint256"]},

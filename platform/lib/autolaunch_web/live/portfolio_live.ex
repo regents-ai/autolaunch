@@ -139,9 +139,9 @@ defmodule AutolaunchWeb.PortfolioLive do
           </p>
           <ol :if={is_list(@token_holdings) && @token_holdings != []} class="autolaunch-record-list">
             <li :for={holding <- @token_holdings}>
-              <.link navigate={"/tokens/#{holding.token.id}"}>
-                <strong>{holding.presentation.name} · {holding.presentation.symbol}</strong>
-                <span>{holding.held} {holding.presentation.symbol}</span>
+              <.link navigate={holding.href}>
+                <strong>{holding.name} · {holding.symbol}</strong>
+                <span>{holding.held} {holding.symbol}</span>
               </.link>
             </li>
           </ol>

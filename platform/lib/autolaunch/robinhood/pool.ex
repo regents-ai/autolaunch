@@ -75,6 +75,54 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
+  @doc """
+  Every graduated launch on the lab at one block, newest first: its id, its
+  token and its auction. Launch ids run from 1 to `nextLaunchId() - 1`.
+  """
+  @spec graduated(map(), map(), keyword()) ::
+          {:ok, [%{launch_id: pos_integer(), token: String.t(), auction: String.t()}]}
+          | {:error, atom()}
+  def graduated(config, block, opts) do
+    with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
+      Enum.reduce_while(
+        1..(next_id - 1)//1,
+        {:ok, []},
+        &collect_graduated(&1, &2, config, block, opts)
+      )
+    end
+  end
+
+  defp collect_graduated(launch_id, {:ok, found}, config, block, opts) do
+    case graduated_launch(config, launch_id, block, opts) do
+      {:ok, nil} -> {:cont, {:ok, found}}
+      {:ok, launch} -> {:cont, {:ok, [launch | found]}}
+      error -> {:halt, error}
+    end
+  end
+
+  defp graduated_launch(config, launch_id, block, opts) do
+    with {:ok, words} <-
+           launchpad_words(
+             config,
+             "launches(uint256)",
+             [launch_id],
+             RobinhoodLabAbi.launch_record_words(),
+             block,
+             opts
+           ) do
+      case launch(words) do
+        {:ok, launch} ->
+          {:ok, %{launch_id: launch_id, token: launch.new_token, auction: launch.auction}}
+
+        {:error, :not_graduated} ->
+          {:ok, nil}
+
+        error ->
+          error
+      end
+    end
+  end
+
   defp normalized({:ok, address}), do: {:ok, address}
   defp normalized(:error), do: {:error, :invalid_auction}
 
@@ -84,12 +132,14 @@ defmodule Autolaunch.Robinhood.Pool do
   defp launch(words) do
     with {:ok, new_token} <- Abi.word_address(Enum.at(words, 1)),
          {:ok, stock} <- Abi.word_address(Enum.at(words, 2)),
+         {:ok, auction} <- Abi.word_address(Enum.at(words, 3)),
          @graduated <- Enum.at(words, 10),
          {:ok, splitter} <- Abi.word_address(Enum.at(words, 13)) do
       {:ok,
        %{
          new_token: new_token,
          stock: stock,
+         auction: auction,
          migration_block: Enum.at(words, 7),
          pool_id: bytes32(Enum.at(words, 11)),
          splitter: splitter,
