@@ -1,10 +1,14 @@
 defmodule AutolaunchWeb.StakeComponent do
   @moduledoc """
-  The staking card on a graduated Stocks token page: what the launch's staking
-  contract holds, what this wallet has in it, an amount to stake or unstake,
-  and the three open actions (claim, settle for stakers, collect trading
-  fees). A panel over the card walks the wallet through each reviewed action
-  and closes itself when the chain confirms it.
+  The staking card of a graduated memestock launch, on a Base token page or a
+  Robinhood auction page: what the launch's staking contract holds, what this
+  wallet has in it, an amount to stake or unstake, and the three open actions
+  (claim, settle for stakers, collect trading fees). A panel over the card
+  walks the wallet through each reviewed action and closes itself when the
+  chain confirms it.
+
+  The `launch` assign names the launch: `%{chain: :base, auction: record}` or
+  `%{chain: :robinhood, auction: address}`; `pool` is its current facts.
 
   Nothing is stored. The figures are public reads; the review lives on this
   page only, the browser reports a hash and stops, and every outcome on
@@ -62,11 +66,11 @@ defmodule AutolaunchWeb.StakeComponent do
   @impl true
   def update(assigns, socket) do
     socket =
-      if socket.assigns[:scope] == assigns.token.id do
+      if socket.assigns[:scope] == assigns.launch do
         socket
       else
         assign(socket,
-          scope: assigns.token.id,
+          scope: assigns.launch,
           amount: "",
           error: nil,
           wallet: nil,
@@ -115,7 +119,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
       <h2 id={@id <> "-title"} class="token-stake__title">Stake {@pool.token.symbol}</h2>
       <p class="token-stake__lead">
-        Stakers share this launch's trading fees: 1% of every trade's {@pool.currency.symbol} side plus the locked liquidity's fees, paid in USDC, {@pool.token.symbol} and {@pool.currency.symbol}. Unstake any time after the block you staked in.
+        Stakers share this launch's trading fees: 1% of every trade's {@pool.currency.symbol} side plus the locked liquidity's fees, paid in {@pool.fees.splitter.dollar.symbol}, {@pool.token.symbol} and {@pool.currency.symbol}. Unstake any time after the block you staked in.
       </p>
 
       <dl class="token-stake__facts">
@@ -307,7 +311,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
     request = %{
       kind: Map.fetch!(@kinds, name),
-      auction: socket.assigns.token.auction,
+      launch: socket.assigns.launch,
       amount: socket.assigns.amount
     }
 
@@ -511,7 +515,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp claimable(%{dollar: dollar, token: token, stock: stock}, pool),
     do:
-      "#{dollar.shown} USDC · #{token.shown} #{pool.token.symbol} · #{stock.shown} #{pool.currency.symbol}"
+      "#{dollar.shown} #{pool.fees.splitter.dollar.symbol} · #{token.shown} #{pool.token.symbol} · #{stock.shown} #{pool.currency.symbol}"
 
   defp steps(review, sent) do
     Enum.map(review.steps, fn %{"step" => name} ->
@@ -717,7 +721,7 @@ defmodule AutolaunchWeb.StakeComponent do
        do: "#{amount} #{symbol}"
 
   defp done_line(%{"kind" => "claim"} = result) do
-    "#{result["dollar_units"]} USDC · #{result["token_units"]} #{result["token_symbol"]} · #{result["stock_units"]} #{result["currency_symbol"]}"
+    "#{result["dollar_units"]} #{result["dollar_symbol"]} · #{result["token_units"]} #{result["token_symbol"]} · #{result["stock_units"]} #{result["currency_symbol"]}"
   end
 
   defp done_line(%{"kind" => "settle"} = result),

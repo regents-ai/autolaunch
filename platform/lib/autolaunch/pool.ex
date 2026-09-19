@@ -310,6 +310,7 @@ defmodule Autolaunch.Pool do
       {:ok,
        %{
          kind: :stocks,
+         chain: :base,
          block: block,
          launch_id: launch_id,
          pool_id: launch.pool_id,
@@ -513,7 +514,7 @@ defmodule Autolaunch.Pool do
          total_staked: Rpc.format_units(total_staked, @token_decimals),
          total_staked_atomic: total_staked,
          skim_bps: skim_bps,
-         dollar: dollar
+         dollar: %{address: dollar, symbol: "USDC", decimals: @usdc_decimals}
        }}
     end
   end

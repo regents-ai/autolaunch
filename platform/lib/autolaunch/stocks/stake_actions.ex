@@ -1,7 +1,8 @@
 defmodule Autolaunch.Stocks.StakeActions do
   @moduledoc """
-  The one boundary between a wallet and a graduated Stocks launch's memestake
-  splitter, its fee hook and its LP locker.
+  The one boundary between a wallet and a graduated memestock launch's
+  memestake splitter, its fee hook and its LP locker, on the Base Stocks lab
+  or the Robinhood lab.
 
   Five reviewed actions, each one immutable envelope the wallet signs step by
   step: stake (the exact token allowance to the splitter when it is short, then
@@ -20,6 +21,9 @@ defmodule Autolaunch.Stocks.StakeActions do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
   alias Autolaunch.{LabAbi, Pool}
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.{Amounts, LaunchOperations}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
@@ -49,9 +53,28 @@ defmodule Autolaunch.Stocks.StakeActions do
     :collect_full_range,
     :collect_stock_only
   ]
-  @binding_keys [:launchpad, :hook, :locker]
+  # Where a launch lives: its lab and that lab's event signatures, the keys its
+  # launchpad, hook and locker have in the lab's configuration, and how the
+  # wallet is told about the network.
+  @venues %{
+    base: %{
+      lab: StocksLab,
+      abi: StocksLabAbi,
+      launchpad: :launchpad,
+      hook: :hook,
+      locker: :locker,
+      network: "the local Base fork"
+    },
+    robinhood: %{
+      lab: RobinhoodLab,
+      abi: RobinhoodLabAbi,
+      launchpad: :stocks_launchpad,
+      hook: :stocks_hook,
+      locker: :stocks_locker,
+      network: "the local Robinhood test network"
+    }
+  }
   @token_decimals 18
-  @dollar_decimals 6
   @uint128_max Integer.pow(2, 128) - 1
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
@@ -66,17 +89,19 @@ defmodule Autolaunch.Stocks.StakeActions do
   @spec position(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def position(%{kind: :stocks} = pool, address) do
     splitter = pool.fees.splitter.address
+    dollar = pool.fees.splitter.dollar
+    venue = venue(pool)
 
     with {:ok, holder} <- address(address),
-         {:ok, config} <- stocks_lab(),
-         rpc <- StocksLab.rpc_opts(config),
-         abi <- StocksLab.abi!(config, :splitter),
+         {:ok, config} <- lab(venue),
+         rpc <- venue.lab.rpc_opts(config),
+         abi <- venue.lab.abi!(config, :splitter),
          {:ok, balance} <- erc20(pool.token.address, "balance_of", [holder], pool.block, rpc),
          {:ok, allowance} <-
            erc20(pool.token.address, "allowance", [holder, splitter], pool.block, rpc),
          {:ok, staked} <-
            splitter_uint(splitter, abi, "stakedOf(address)", [holder], pool.block, rpc),
-         {:ok, dollar} <- claimable(splitter, abi, pool.fees.splitter.dollar, holder, pool, rpc),
+         {:ok, dollar_owed} <- claimable(splitter, abi, dollar.address, holder, pool, rpc),
          {:ok, token} <- claimable(splitter, abi, pool.token.address, holder, pool, rpc),
          {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc) do
       {:ok,
@@ -85,7 +110,7 @@ defmodule Autolaunch.Stocks.StakeActions do
          staked: amount(staked, @token_decimals),
          allowance: allowance,
          claimable: %{
-           dollar: amount(dollar, @dollar_decimals),
+           dollar: amount(dollar_owed, dollar.decimals),
            token: amount(token, @token_decimals),
            stock: amount(stock, pool.currency.decimals)
          }
@@ -96,16 +121,17 @@ defmodule Autolaunch.Stocks.StakeActions do
   def position(_pool, _address), do: unavailable(:stake_unavailable)
 
   @doc """
-  Reviews one action on a graduated Stocks auction's splitter for the signed-in
-  wallet. `:stake` and `:unstake` take the amount typed; the other three take
-  nothing.
+  Reviews one action on a graduated launch's splitter for the signed-in
+  wallet. The launch is `%{chain: :base, auction: auction_record}` or
+  `%{chain: :robinhood, auction: auction_address}`. `:stake` and `:unstake`
+  take the amount typed; the other three take nothing.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(%{kind: kind, auction: auction} = request, address, opts) when kind in @kinds do
+  def prepare(%{kind: kind, launch: launch} = request, address, opts) when kind in @kinds do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, actor, opts),
-         {:ok, pool} <- pool(auction),
-         {:ok, config} <- stocks_lab(),
+         {:ok, pool} <- pool(launch),
+         {:ok, config} <- lab(venue(pool)),
          {:ok, wallet} <- position(pool, signer),
          {:ok, amount} <- amount(kind, Map.get(request, :amount), wallet),
          do: {:ok, build(kind, pool, config, signer, wallet, amount)}
@@ -128,12 +154,13 @@ defmodule Autolaunch.Stocks.StakeActions do
          {:ok, signer} <- current_wallet(envelope["expected_signer"], actor, opts),
          {:ok, hash} <- canonical_hash(hash),
          true <- valid_envelope?(envelope) || unavailable(:envelope_invalid),
-         {:ok, config} <- stocks_lab(),
+         {:ok, venue} <- envelope_venue(envelope),
+         {:ok, config} <- lab(venue),
          true <-
-           StocksLab.binding(config, @binding_keys) == envelope["metadata"]["lab"] ||
+           binding(venue, config) == envelope["metadata"]["lab"] ||
              unavailable(:lab_config_changed),
          %{} = sent <- reviewed_step(envelope, step) || unavailable(:unknown_step),
-         rpc <- StocksLab.rpc_opts(config),
+         rpc <- venue.lab.rpc_opts(config),
          {:ok, block} <- chain(Rpc.latest_block(rpc)),
          {:ok, evidence} <-
            chain(
@@ -186,28 +213,42 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp parsed(_value), do: unavailable(:amount_required)
 
-  # The pool
+  # The pool and its venue
 
-  defp pool(auction) do
-    case Pool.read(auction) do
-      {:ok, %{kind: :stocks} = pool} -> {:ok, pool}
-      {:ok, _agent} -> unavailable(:stake_unavailable)
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, _reason} -> unavailable(:stake_unavailable)
-    end
-  end
+  defp pool(%{chain: :base, auction: auction}), do: auction |> Pool.read() |> pooled()
 
-  defp stocks_lab do
-    case StocksLab.current() do
+  defp pool(%{chain: :robinhood, auction: auction}),
+    do: auction |> RobinhoodPool.read() |> pooled()
+
+  defp pooled({:ok, %{kind: :stocks} = pool}), do: {:ok, pool}
+  defp pooled({:ok, _agent}), do: unavailable(:stake_unavailable)
+  defp pooled({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
+  defp pooled({:error, _reason}), do: unavailable(:stake_unavailable)
+
+  defp venue(%{chain: chain}), do: Map.fetch!(@venues, chain)
+
+  # The venue a signed envelope was reviewed on, named in its own arguments.
+  defp envelope_venue(%{"arguments" => %{"chain" => chain}})
+       when chain in ["base", "robinhood"],
+       do: {:ok, Map.fetch!(@venues, String.to_existing_atom(chain))}
+
+  defp envelope_venue(_envelope), do: unavailable(:envelope_invalid)
+
+  defp lab(venue) do
+    case venue.lab.current() do
       {:ok, config} -> {:ok, config}
       {:error, _reason} -> unavailable(:stake_unavailable)
     end
   end
 
+  defp binding(venue, config),
+    do: venue.lab.binding(config, [venue.launchpad, venue.hook, venue.locker])
+
   # The review
 
   defp build(kind, pool, config, signer, wallet, amount) do
-    steps = reviewed_steps(kind, pool, config, wallet, amount)
+    venue = venue(pool)
+    steps = reviewed_steps(kind, pool, venue, config, wallet, amount)
     last = List.last(steps)
 
     envelope =
@@ -217,21 +258,24 @@ defmodule Autolaunch.Stocks.StakeActions do
         to: last["to"],
         resource: @resource,
         contract_name: Map.fetch!(@contract_names, kind),
-        chain_id: StocksLab.chain_id(),
-        lab_binding: StocksLab.binding(config, @binding_keys),
-        risk_copy: risk_copy(kind, pool, amount),
+        chain_id: venue.lab.chain_id(),
+        lab_binding: binding(venue, config),
+        risk_copy: risk_copy(kind, pool, venue, amount),
         arguments: %{
           "kind" => Atom.to_string(kind),
+          "chain" => Atom.to_string(pool.chain),
           "pool_id" => pool.pool_id,
           "splitter" => pool.fees.splitter.address,
           "hook" => pool.hook,
-          "locker" => StocksLab.address!(config, :locker),
+          "locker" => venue.lab.address!(config, venue.locker),
           "token" => pool.token.address,
           "token_symbol" => pool.token.symbol,
           "currency" => pool.currency.address,
           "currency_symbol" => pool.currency.symbol,
           "currency_decimals" => pool.currency.decimals,
-          "dollar" => pool.fees.splitter.dollar,
+          "dollar" => pool.fees.splitter.dollar.address,
+          "dollar_symbol" => pool.fees.splitter.dollar.symbol,
+          "dollar_decimals" => pool.fees.splitter.dollar.decimals,
           "amount_atomic" => amount && Integer.to_string(amount),
           "block_number" => pool.block.number,
           "block_hash" => pool.block.hash,
@@ -266,7 +310,7 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp review(:claim, pool, wallet, _amount) do
     [
-      ["USDC", wallet.claimable.dollar.shown],
+      [pool.fees.splitter.dollar.symbol, wallet.claimable.dollar.shown],
       [pool.token.symbol, wallet.claimable.token.shown],
       [pool.currency.symbol, wallet.claimable.stock.shown]
     ]
@@ -287,56 +331,58 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp uncollected_copy(%{token_amount: token, currency_amount: currency}, pool),
     do: "#{token} #{pool.token.symbol} · #{currency} #{pool.currency.symbol}"
 
-  defp risk_copy(:stake, pool, amount),
+  defp risk_copy(:stake, pool, venue, amount),
     do:
-      "Your wallet stakes #{units(amount, @token_decimals)} #{pool.token.symbol} in this launch's staking contract on the local Base fork with test assets and no mainnet value. You can unstake later; not right after staking."
+      "Your wallet stakes #{units(amount, @token_decimals)} #{pool.token.symbol} in this launch's staking contract on #{venue.network} with test assets and no mainnet value. You can unstake later; not right after staking."
 
-  defp risk_copy(:unstake, pool, amount),
+  defp risk_copy(:unstake, pool, venue, amount),
     do:
-      "Your wallet takes #{units(amount, @token_decimals)} #{pool.token.symbol} back out of this launch's staking contract on the local Base fork with test assets and no mainnet value."
+      "Your wallet takes #{units(amount, @token_decimals)} #{pool.token.symbol} back out of this launch's staking contract on #{venue.network} with test assets and no mainnet value."
 
-  defp risk_copy(:claim, pool, _amount),
+  defp risk_copy(:claim, pool, venue, _amount),
     do:
-      "Your wallet claims every reward this launch's staking contract holds for it, in USDC, #{pool.token.symbol} and #{pool.currency.symbol}, on the local Base fork with test assets and no mainnet value."
+      "Your wallet claims every reward this launch's staking contract holds for it, in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}, on #{venue.network} with test assets and no mainnet value."
 
-  defp risk_copy(:settle, pool, _amount),
+  defp risk_copy(:settle, pool, venue, _amount),
     do:
-      "Your wallet moves the #{pool.currency.symbol} waiting in the stakers' fee lane into this launch's staking contract, for every staker, on the local Base fork with test assets and no mainnet value. Nothing comes to your wallet."
+      "Your wallet moves the #{pool.currency.symbol} waiting in the stakers' fee lane into this launch's staking contract, for every staker, on #{venue.network} with test assets and no mainnet value. Nothing comes to your wallet."
 
-  defp risk_copy(:collect, pool, _amount),
+  defp risk_copy(:collect, pool, venue, _amount),
     do:
-      "Your wallet collects the locked liquidity's trading fees into this launch's staking contract, for every #{pool.token.symbol} staker, on the local Base fork with test assets and no mainnet value. Nothing comes to your wallet."
+      "Your wallet collects the locked liquidity's trading fees into this launch's staking contract, for every #{pool.token.symbol} staker, on #{venue.network} with test assets and no mainnet value. Nothing comes to your wallet."
 
   # The reviewed sequence, one calldata per step, exactly what the wallet sends.
-  defp reviewed_steps(:stake, pool, config, wallet, amount) do
+  defp reviewed_steps(:stake, pool, venue, config, wallet, amount) do
     splitter = pool.fees.splitter.address
 
     approval(pool.token.address, splitter, amount, wallet.allowance) ++
-      [step("stake", splitter, splitter_data(config, "stake(uint256)", [amount]))]
+      [step("stake", splitter, splitter_data(venue, config, "stake(uint256)", [amount]))]
   end
 
-  defp reviewed_steps(:unstake, pool, config, _wallet, amount),
+  defp reviewed_steps(:unstake, pool, venue, config, _wallet, amount),
     do: [
       step(
         "unstake",
         pool.fees.splitter.address,
-        splitter_data(config, "unstake(uint256)", [amount])
+        splitter_data(venue, config, "unstake(uint256)", [amount])
       )
     ]
 
-  defp reviewed_steps(:claim, pool, config, _wallet, _amount),
-    do: [step("claim", pool.fees.splitter.address, splitter_data(config, "claimAll()", []))]
+  defp reviewed_steps(:claim, pool, venue, config, _wallet, _amount),
+    do: [
+      step("claim", pool.fees.splitter.address, splitter_data(venue, config, "claimAll()", []))
+    ]
 
-  defp reviewed_steps(:settle, pool, config, _wallet, _amount) do
-    data =
-      LabAbi.encode(StocksLab.abi!(config, :hook), "settleStakerLane(bytes32)", [pool.pool_id])
+  defp reviewed_steps(:settle, pool, venue, config, _wallet, _amount) do
+    abi = venue.lab.abi!(config, venue.hook)
+    data = LabAbi.encode(abi, "settleStakerLane(bytes32)", [pool.pool_id])
 
     [step("settle", pool.hook, data)]
   end
 
-  defp reviewed_steps(:collect, pool, config, _wallet, _amount) do
-    locker = StocksLab.address!(config, :locker)
-    abi = StocksLab.abi!(config, :locker)
+  defp reviewed_steps(:collect, pool, venue, config, _wallet, _amount) do
+    locker = venue.lab.address!(config, venue.locker)
+    abi = venue.lab.abi!(config, venue.locker)
 
     Enum.map(pool.positions, fn position ->
       step(
@@ -362,8 +408,8 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp step(name, to, data), do: %{"step" => name, "to" => to, "data" => data}
 
-  defp splitter_data(config, signature, arguments),
-    do: LabAbi.encode(StocksLab.abi!(config, :splitter), signature, arguments)
+  defp splitter_data(venue, config, signature, arguments),
+    do: LabAbi.encode(venue.lab.abi!(config, :splitter), signature, arguments)
 
   # Confirmation
 
@@ -385,10 +431,11 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp outcome({:success, _logs}, _envelope, :token_approval), do: %{outcome: :confirmed}
 
   defp outcome({:success, logs}, envelope, step) do
-    %{outcome: :confirmed, result: result(step, envelope["arguments"], logs)}
+    {:ok, venue} = envelope_venue(envelope)
+    %{outcome: :confirmed, result: result(step, envelope["arguments"], venue, logs)}
   end
 
-  defp result(step, arguments, _logs) when step in [:stake, :unstake] do
+  defp result(step, arguments, _venue, _logs) when step in [:stake, :unstake] do
     %{
       "kind" => Atom.to_string(step),
       "amount_units" => units(String.to_integer(arguments["amount_atomic"]), @token_decimals),
@@ -397,8 +444,8 @@ defmodule Autolaunch.Stocks.StakeActions do
   end
 
   # What the splitter's own claim records paid out, one entry per asset.
-  defp result(:claim, arguments, logs) do
-    paid = emitted(logs, arguments["splitter"], StocksLabAbi.claimed_signature())
+  defp result(:claim, arguments, venue, logs) do
+    paid = emitted(logs, arguments["splitter"], venue.abi.claimed_signature())
 
     per_token =
       Enum.reduce(paid, %{}, fn {[_account, token], [amount]}, sums ->
@@ -407,18 +454,20 @@ defmodule Autolaunch.Stocks.StakeActions do
 
     %{
       "kind" => "claim",
-      "dollar_units" => units(claimed(per_token, arguments["dollar"]), @dollar_decimals),
+      "dollar_units" =>
+        units(claimed(per_token, arguments["dollar"]), arguments["dollar_decimals"]),
       "token_units" => units(claimed(per_token, arguments["token"]), @token_decimals),
       "stock_units" =>
         units(claimed(per_token, arguments["currency"]), arguments["currency_decimals"]),
+      "dollar_symbol" => arguments["dollar_symbol"],
       "token_symbol" => arguments["token_symbol"],
       "currency_symbol" => arguments["currency_symbol"]
     }
   end
 
-  defp result(:settle, arguments, logs) do
+  defp result(:settle, arguments, venue, logs) do
     [{_topics, [amount]}] =
-      emitted(logs, arguments["hook"], StocksLabAbi.staker_lane_settled_signature())
+      emitted(logs, arguments["hook"], venue.abi.staker_lane_settled_signature())
 
     %{
       "kind" => "settle",
@@ -427,10 +476,10 @@ defmodule Autolaunch.Stocks.StakeActions do
     }
   end
 
-  defp result(collect, arguments, logs)
+  defp result(collect, arguments, venue, logs)
        when collect in [:collect_full_range, :collect_stock_only] do
     [{_topics, [currency0, _currency1, amount0, amount1]}] =
-      emitted(logs, arguments["locker"], StocksLabAbi.fees_deposited_signature())
+      emitted(logs, arguments["locker"], venue.abi.fees_deposited_signature())
 
     {:ok, currency0} = Abi.word_address(currency0)
 

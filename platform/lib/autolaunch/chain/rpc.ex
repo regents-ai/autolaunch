@@ -129,6 +129,9 @@ defmodule Autolaunch.Chain.Rpc do
     call(to, data, block, &decode_words(&1, count), opts)
   end
 
+  @doc "One ABI string answer, such as an ERC-20 `name()` or `symbol()`."
+  def call_string(to, data, block, opts \\ []), do: call(to, data, block, &decode_string/1, opts)
+
   def request(method, params, opts \\ []) do
     request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
 
@@ -320,6 +323,14 @@ defmodule Autolaunch.Chain.Rpc do
 
   defp decode_words("0x" <> hex, count) when byte_size(hex) == count * 64 do
     for <<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16)
+  end
+
+  # An ABI string is its offset word, its length word and its UTF-8 bytes.
+  defp decode_string("0x" <> hex) when byte_size(hex) >= 128 do
+    [_offset, length] = decode_words("0x" <> binary_part(hex, 0, 128), 2)
+    {:ok, bytes} = Base.decode16(binary_part(hex, 128, length * 2), case: :mixed)
+    true = String.valid?(bytes)
+    bytes
   end
 
   defp zero_quantity?(value) when value in ["0x0", "0x", "0"], do: true

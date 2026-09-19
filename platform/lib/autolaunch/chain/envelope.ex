@@ -28,6 +28,7 @@ defmodule Autolaunch.Chain.Envelope do
   @robinhood_lab_resources ~w(
     autolaunch_robinhood_stocks_launch
     autolaunch_robinhood_bid
+    autolaunch_stake
   )
 
   def new(action, signer, data, opts \\ []) do

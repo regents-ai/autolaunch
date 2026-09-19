@@ -69,7 +69,7 @@ defmodule AutolaunchWeb.TokenLive do
         :if={@local_lab? && @page_record.auction.kind == :stocks && @pool.ok?}
         module={AutolaunchWeb.StakeComponent}
         id={"token-stake-#{@page_record.id}"}
-        token={@page_record}
+        launch={%{chain: :base, auction: @page_record.auction}}
         pool={@pool.result}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}

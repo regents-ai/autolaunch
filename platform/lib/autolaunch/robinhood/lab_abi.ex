@@ -16,6 +16,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
   @protocol_lane_settled "ProtocolLaneSettled(bytes32,uint256,uint256)"
   @staker_lane_settled "StakerLaneSettled(bytes32,address,uint256)"
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
+  @claimed "Claimed(address,address,uint256)"
   @bid_record "(uint64,uint24,uint64,uint256,address,uint256,uint256)"
   @checkpoint "(uint256,uint256,uint256,uint24,uint64,uint64)"
 
@@ -69,7 +70,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"claimAll()", "nonpayable", []},
       e: {"Staked(address,uint256)", [true, false]},
       e: {"Unstaked(address,uint256)", [true, false]},
-      e: {"Claimed(address,address,uint256)", [true, true, false]}
+      e: {@claimed, [true, true, false]}
     ],
     "bid_adapter" => [
       f:
@@ -104,6 +105,7 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"balanceOf(address)", "view", ["uint256"]},
       f: {"allowance(address,address)", "view", ["uint256"]},
       f: {"decimals()", "view", ["uint8"]},
+      f: {"symbol()", "view", ["string"]},
       e: {"Approval(address,address,uint256)", [true, true, false]}
     ]
   }
@@ -114,5 +116,8 @@ defmodule Autolaunch.Robinhood.LabAbi do
   def splitter_created_signature, do: @splitter_created
   def stock_bid_placed_signature, do: @stock_bid_placed
   def bid_submitted_signature, do: @bid_submitted
+  def staker_lane_settled_signature, do: @staker_lane_settled
+  def fees_deposited_signature, do: @fees_deposited
+  def claimed_signature, do: @claimed
   def validate(abis), do: LabAbi.validate(abis, @required)
 end

@@ -146,8 +146,9 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          {:ok, nil} <- existing(config.chain_id, launch.auction),
          {:ok, %{id: account_id}} <- creator(launch.auction),
          %{} = lab_stock <- Lab.stock(config, launch.stock) || :unknown_stock,
-         {:ok, name} <- erc20_string(launch.new_token, "name()", block, opts),
-         {:ok, symbol} <- erc20_string(launch.new_token, "symbol()", block, opts),
+         {:ok, name} <- Rpc.call_string(launch.new_token, LabAbi.selector("name()"), block, opts),
+         {:ok, symbol} <-
+           Rpc.call_string(launch.new_token, LabAbi.selector("symbol()"), block, opts),
          {:ok, auction} <-
            StocksProjection.project_observed(%{
              auction_address: launch.auction,
@@ -347,35 +348,6 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
         block,
         opts
       )
-
-  # `name()` and `symbol()` return one ABI string: offset, length, bytes.
-  defp erc20_string(token, signature, block, opts) do
-    case Rpc.request(
-           "eth_call",
-           [
-             %{to: token, data: LabAbi.selector(signature)},
-             %{blockHash: block.hash, requireCanonical: true}
-           ],
-           opts
-         ) do
-      {:ok, "0x" <> hex} when byte_size(hex) >= 128 ->
-        with {:ok, [_offset, length | _rest]} <-
-               LabAbi.decode_words("0x" <> binary_part(hex, 0, 128)),
-             true <- byte_size(hex) >= 128 + length * 2,
-             {:ok, bytes} <- Base.decode16(binary_part(hex, 128, length * 2), case: :mixed),
-             true <- String.valid?(bytes) do
-          {:ok, bytes}
-        else
-          _unreadable -> {:error, :invalid_chain_response}
-        end
-
-      {:ok, _other} ->
-        {:error, :invalid_chain_response}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
 
   defp changed_snapshot_ids(previous, current) do
     for {address, snapshot} <- current,
