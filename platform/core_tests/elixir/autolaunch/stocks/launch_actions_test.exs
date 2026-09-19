@@ -26,8 +26,6 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
 
   @config %{abis: %{"launchpad" => @abi, "erc20" => @erc20}}
   @stock "0xb200000000000000000000c2e324d24d7eecd1fb"
-  @admin "0x4444444444444444444444444444444444444444"
-  @splitter "0x5555555555555555555555555555555555555555"
   @launchpad "0x7777777777777777777777777777777777777777"
   @regent "0x6f89bca4ea5931edfcb09786267b251dee752b07"
   @fee 100_000 * Integer.pow(10, 18)
@@ -44,9 +42,7 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     start_at: ~U[2026-09-10 12:00:00Z],
     start_timezone: "Etc/UTC",
     # 1.25 AAPLc per NEW: 1.25e8 / 1e18 * 2^96 = 2^96 / 8e9, not a multiple of 100.
-    floor_price: "1.25",
-    fee_administrator: @admin,
-    subject_splitter: @splitter
+    floor_price: "1.25"
   }
 
   # The fork answered at 12:00 less 1,001 seconds, so the start is 501 blocks
@@ -66,7 +62,6 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
       route: "0x6666666666666666666666666666666666666666",
       required_stock_raised: 434_782_608
     },
-    subject: :verified,
     block: %{
       number: 1_000_000,
       hash: "0x" <> String.duplicate("ab", 32),
@@ -90,42 +85,26 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
     assert executable.end_block == 1_000_000 + 501 + 43_200
     assert executable.minimum_raise_usdc == 1_000_000_000
     assert executable.required_stock_raised == 434_782_608
-    assert executable.subject_splitter == @splitter
     assert executable.launch_fee == @fee
 
     data = LaunchActions.launch_data(@fields, executable, @config)
 
-    signature =
-      "launch((string,string,string,string,string,address,uint64,uint256,address,address,uint256))"
+    signature = "launch((string,string,string,string,string,address,uint64,uint256,uint256))"
 
     assert String.starts_with?(data, LabAbi.selector(signature))
     {:ok, words} = LabAbi.decode_words("0x" <> String.slice(data, 10..-1//1))
 
-    # One dynamic tuple: its offset, then the tuple head of eleven words. The
+    # One dynamic tuple: its offset, then the tuple head of nine words. The
     # required raise is not in the calldata: the launchpad quotes it at launch.
     assert Enum.at(words, 0) == 32
 
-    [
-      name,
-      symbol,
-      description,
-      website,
-      image,
-      stock,
-      start_block,
-      floor,
-      admin,
-      splitter,
-      expected_fee
-    ] =
-      Enum.slice(words, 1, 11)
+    [name, symbol, description, website, image, stock, start_block, floor, expected_fee] =
+      Enum.slice(words, 1, 9)
 
-    assert [name, symbol, description, website, image] == [352, 416, 480, 544, 608]
+    assert [name, symbol, description, website, image] == [288, 352, 416, 480, 544]
     assert {:ok, @stock} == Abi.word_address(stock)
     assert start_block == 1_000_501
     assert floor == executable.floor_price_q96
-    assert {:ok, @admin} == Abi.word_address(admin)
-    assert {:ok, @splitter} == Abi.word_address(splitter)
     assert expected_fee == @fee
 
     # No allowance yet: the exact approval comes first, then the launch.
@@ -217,59 +196,5 @@ defmodule Autolaunch.Stocks.LaunchActionsTest do
                },
                @config
              )
-  end
-
-  # AT06 / §5.1: switching the subject lane off leaves no splitter in the params.
-  test "disabling the subject lane removes the splitter from the executable params" do
-    draft_id = Ecto.UUID.generate()
-
-    image = %Autolaunch.Stocks.LaunchDraftImage{
-      id: Ecto.UUID.generate(),
-      digest: String.duplicate("ab", 32),
-      human_account_id: 1,
-      stock_launch_draft_id: draft_id
-    }
-
-    draft = %{
-      id: draft_id,
-      human_account_id: 1,
-      name: "Apple Pair",
-      symbol: "APLP",
-      description: "A test launch",
-      website: "https://example.com",
-      image: Autolaunch.Stocks.LaunchDraftImageStorage.public_url(image),
-      stock_launch_draft_image_id: image.id,
-      stock_launch_draft_image: image,
-      stock_chain_id: 8453,
-      stock_address: "0xb200000000000000000000C2e324d24d7eEcd1fb",
-      start_at: ~U[2026-09-10 12:00:00Z],
-      start_timezone: "Europe/Amsterdam",
-      floor_price: "1.25",
-      fee_administrator: @admin,
-      subject_enabled: true,
-      subject_splitter: @splitter
-    }
-
-    assert {:ok, %{subject_splitter: @splitter}} = LaunchActions.launchable(draft)
-
-    disabled = %{draft | subject_enabled: false}
-    assert {:ok, %{subject_splitter: nil} = fields} = LaunchActions.launchable(disabled)
-
-    assert {:ok, executable} =
-             LaunchActions.executable(fields, %{@snapshot | subject: :off}, @config)
-
-    assert executable.subject_splitter == "0x" <> String.duplicate("0", 40)
-
-    {:ok, words} =
-      LabAbi.decode_words(
-        "0x" <> String.slice(LaunchActions.launch_data(fields, executable, @config), 10..-1//1)
-      )
-
-    assert Enum.at(words, 10) == 0
-
-    refute String.contains?(
-             LaunchActions.launch_data(fields, executable, @config),
-             String.slice(@splitter, 2..-1//1)
-           )
   end
 end

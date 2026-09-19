@@ -14,74 +14,38 @@
     },
     {
       "allow_nil?": false,
-      "default": "nil",
+      "default": "\"base\"",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "action_id",
+      "source": "chain",
       "type": "text"
     },
     {
       "allow_nil?": false,
-      "default": "nil",
+      "default": "\"\"",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "kind",
+      "source": "name",
       "type": "text"
     },
     {
       "allow_nil?": false,
-      "default": "nil",
+      "default": "\"\"",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "envelope",
-      "type": "map"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "signer",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "\"action\"",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "step",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "\"prepared\"",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "state",
+      "source": "symbol",
       "type": "text"
     },
     {
@@ -93,31 +57,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "action_transaction_hash",
-      "type": "text"
-    },
-    {
-      "allow_nil?": true,
-      "default": "%{}",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "result",
-      "type": "map"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "reason",
+      "source": "description",
       "type": "text"
     },
     {
@@ -129,8 +69,80 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "terminal_at",
-      "type": "utc_datetime_usec"
+      "source": "website",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "image",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "stock_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "stock_chain_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "start_at",
+      "type": "utc_datetime"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "start_timezone",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "floor_price",
+      "type": "text"
     },
     {
       "allow_nil?": false,
@@ -177,7 +189,7 @@
           "global": null,
           "strategy": null
         },
-        "name": "stock_fee_admin_operations_human_account_id_fkey",
+        "name": "stock_launch_drafts_human_account_id_fkey",
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
@@ -190,7 +202,7 @@
       "type": "bigint"
     },
     {
-      "allow_nil?": false,
+      "allow_nil?": true,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -210,31 +222,55 @@
           "global": null,
           "strategy": null
         },
-        "name": "stock_fee_admin_operations_auction_id_fkey",
+        "name": "stock_launch_drafts_stock_launch_draft_image_id_fkey",
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
         "schema": "public",
-        "table": "auctions"
+        "table": "stock_launch_draft_images"
       },
       "scale": null,
       "size": null,
-      "source": "auction_id",
+      "source": "stock_launch_draft_image_id",
       "type": "uuid"
     }
   ],
   "base_filter": null,
   "check_constraints": [],
   "create_table_options": null,
-  "custom_indexes": [],
+  "custom_indexes": [
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "stock_launch_draft_image_id"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "stock_launch_draft_image_id"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    }
+  ],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "7FFAA38FBE2CE545144A159F457E838BD2916C3138CB9ACC382A1E15CD6ABBDE",
+  "hash": "003FC2E69AFE290F177AFA9513A0A72218147D719142AD2BA69BA8E7508019D4",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "stock_fee_admin_operations_one_open_index",
+      "index_name": "stock_launch_drafts_one_stocks_draft_per_human_and_chain_index",
       "keys": [
         {
           "type": "atom",
@@ -242,38 +278,10 @@
         },
         {
           "type": "atom",
-          "value": "auction_id"
+          "value": "chain"
         }
       ],
-      "name": "one_open_per_auction",
-      "nils_distinct?": true,
-      "where": "terminal_at IS NULL"
-    },
-    {
-      "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "stock_fee_admin_operations_hash_index",
-      "keys": [
-        {
-          "type": "atom",
-          "value": "action_transaction_hash"
-        }
-      ],
-      "name": "unique_action_hash",
-      "nils_distinct?": true,
-      "where": null
-    },
-    {
-      "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "stock_fee_admin_operations_action_id_index",
-      "keys": [
-        {
-          "type": "atom",
-          "value": "action_id"
-        }
-      ],
-      "name": "unique_action_id",
+      "name": "one_stocks_draft_per_human_and_chain",
       "nils_distinct?": true,
       "where": null
     }
@@ -285,5 +293,5 @@
   },
   "repo": "Elixir.Autolaunch.Repo",
   "schema": null,
-  "table": "stock_fee_admin_operations"
+  "table": "stock_launch_drafts"
 }

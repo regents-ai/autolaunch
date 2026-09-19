@@ -53,7 +53,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @min_floor_price_q96 Integer.pow(2, 32) + 1
   @uint64_max Integer.pow(2, 64) - 1
   @uint128_max Integer.pow(2, 128) - 1
-  @zero_address "0x" <> String.duplicate("0", 40)
 
   @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
 
@@ -67,7 +66,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @paused "launches were paused after this review"
   @moved "the reviewed launchpad binding changed"
   @revoked "this stock token is no longer admitted"
-  @subject_moved "the subject revenue address is no longer recognised"
   @stale_fee "the launch fee changed after this review"
   @minimum_moved "the minimum raise changed after this review"
   @short "this wallet no longer holds the launch fee"
@@ -98,10 +96,11 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {"Vesting", "None"},
       {"Treasury", "None"},
       {"REGENT revenue lane", "1.00% of stock-side pool volume"},
-      {"Subject revenue lane", "Off, or 1.00% when enabled"},
+      {"Staker revenue lane",
+       "1.00% of stock-side pool volume to the token's stakers, always on"},
       {"Pool fee", "0.30%"},
       {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
-      {"Pool liquidity", "Locked forever at 0x…dEaD"},
+      {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
       {"If the minimum is not raised",
        "Every bid is refundable through the auction; the launch fee is not refunded"}
     ]
@@ -260,7 +259,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
          minimum_raise_usdc: snapshot.minimum_raise_usdc,
          required_stock_raised: required,
          stock_decimals: snapshot.admission.decimals,
-         subject_splitter: fields.subject_splitter || @zero_address,
          launch_fee: snapshot.fee,
          estimated_end_at:
            DateTime.add(fields.start_at, @auction_duration_blocks * @seconds_per_block, :second)
@@ -313,7 +311,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp admitted(%{paused: true}), do: unavailable(:launches_paused)
   defp admitted(%{admission: %{admitted: false}}), do: unavailable(:stock_not_admitted)
-  defp admitted(%{subject: :unverified}), do: unavailable(:subject_splitter_unrecognised)
 
   defp admitted(%{balance: balance, fee: fee}) when balance < fee,
     do: unavailable(:insufficient_regent)
@@ -361,9 +358,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
           executable.floor_price_evidence.adjustment_required or
             executable.floor_price_evidence.candidate_price_q96 != executable.floor_price_q96,
         "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
-        "fee_administrator" => fields.fee_administrator,
-        "subject_enabled" => fields.subject_splitter != nil,
-        "subject_splitter" => executable.subject_splitter,
         "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
         "expected_launch_fee" => regent_units(snapshot.fee),
         "allowance_atomic" => Integer.to_string(snapshot.allowance),
@@ -427,8 +421,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
         fields.stock,
         executable.start_block,
         executable.floor_price_q96,
-        fields.fee_administrator,
-        executable.subject_splitter,
         executable.launch_fee
       ]
     ])
@@ -469,9 +461,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
          {:ok, stock} <- address(asset.address, :stock_invalid),
          %DateTime{} = start_at <- draft.start_at || unavailable(:start_missing),
          true <- LaunchDraft.timezone?(draft.start_timezone) || unavailable(:start_missing),
-         true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing),
-         {:ok, fee_administrator} <- address(draft.fee_administrator, :fee_administrator_invalid),
-         {:ok, subject_splitter} <- subject_splitter(draft) do
+         true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing) do
       {:ok,
        %{
          name: draft.name,
@@ -483,21 +473,12 @@ defmodule Autolaunch.Stocks.LaunchActions do
          stock_symbol: asset.symbol,
          start_at: start_at,
          start_timezone: draft.start_timezone,
-         floor_price: draft.floor_price,
-         fee_administrator: fee_administrator,
-         subject_splitter: subject_splitter
+         floor_price: draft.floor_price
        }}
     else
       {:error, _reason} = error -> error
     end
   end
-
-  # The lane is off unless it was switched on, and then only an address will do.
-  # Disabling the lane leaves no splitter anywhere in the executable params.
-  defp subject_splitter(%{subject_enabled: false}), do: {:ok, nil}
-
-  defp subject_splitter(%{subject_enabled: true, subject_splitter: value}),
-    do: address(value, :subject_splitter_invalid)
 
   defp address(value, reason) do
     case Address.normalize(value) do
@@ -515,12 +496,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  defp snapshot(%{stock: stock, subject_splitter: candidate, signer: signer}) do
-    case LabLaunchChainClient.snapshot(%{
-           stock: stock,
-           subject_splitter: candidate,
-           signer: signer
-         }) do
+  defp snapshot(%{stock: stock, signer: signer}) do
+    case LabLaunchChainClient.snapshot(%{stock: stock, signer: signer}) do
       {:ok, snapshot} -> {:ok, snapshot}
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)
@@ -528,12 +505,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   end
 
   defp reviewed_fields(operation) do
-    %{
-      stock: argument(operation, "stock"),
-      subject_splitter:
-        if(argument(operation, "subject_enabled"), do: argument(operation, "subject_splitter")),
-      signer: operation.signer
-    }
+    %{stock: argument(operation, "stock"), signer: operation.signer}
   end
 
   # Operations
@@ -618,9 +590,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
       Integer.to_string(fresh.admission.decimals) != argument(operation, "stock_decimals") ->
         {:changed, @revoked}
-
-      fresh.subject == :unverified ->
-        {:changed, @subject_moved}
 
       fresh.fee != atomic(operation, "expected_launch_fee_atomic") ->
         {:changed, @stale_fee}

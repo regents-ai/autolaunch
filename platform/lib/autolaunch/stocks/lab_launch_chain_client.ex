@@ -5,13 +5,12 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
 
   `snapshot/1` answers at one latest block: the launchpad's pause state, launch
   fee and USDC minimum raise, the signer's REGENT balance and allowance to the
-  launchpad, the admission record of the chosen STOCK with that minimum quoted
-  into the STOCK through the admitted route, and, when a subject lane is
-  requested, whether the candidate splitter is the one the Agent strategy
-  recorded for its own subject. `verify/3` reads the allowance back for the approval step, and
-  for the launch step decodes the launchpad's `StockLaunchCreated` and
-  `StockLaunchFeeCollected` from the canonical receipt and checks them against
-  the reviewed arguments and the launchpad's own record.
+  launchpad, and the admission record of the chosen STOCK with that minimum
+  quoted into the STOCK through the admitted route. `verify/3` reads the
+  allowance back for the approval step, and for the launch step decodes the
+  launchpad's `StockLaunchCreated` and `StockLaunchFeeCollected` from the
+  canonical receipt and checks them against the reviewed arguments and the
+  launchpad's own record.
   """
 
   alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
@@ -19,15 +18,13 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
   alias Autolaunch.Stocks.Lab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
-  @binding_keys [:launchpad, :hook, :bid_adapter, :agent_strategy, :usdc, :permit2, :regent]
-  @subject_selector "0x0a59a98c"
-  @splitter_index 14
+  @binding_keys [:launchpad, :hook, :bid_adapter, :usdc, :permit2, :regent]
   @usdc_decimals 6
 
   def binding_keys, do: @binding_keys
 
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
-  def snapshot(%{stock: stock, subject_splitter: candidate, signer: signer}) do
+  def snapshot(%{stock: stock, signer: signer}) do
     with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
@@ -43,8 +40,7 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
            launchpad_words(config, "stockAdmission(address)", [stock], 3, block, opts),
          {:ok, route} <- Abi.word_address(route) |> allow_zero(route),
          {:ok, required} <-
-           quoted_minimum(config, admitted != 0, route, stock, minimum, block, opts),
-         {:ok, subject} <- splitter_state(config, candidate, block, opts) do
+           quoted_minimum(config, admitted != 0, route, stock, minimum, block, opts) do
       {:ok,
        %{
          launchpad: Lab.address!(config, :launchpad),
@@ -62,7 +58,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
            route: route,
            required_stock_raised: required
          },
-         subject: subject,
          lab_binding: Lab.binding(config, @binding_keys)
        }}
     else
@@ -112,52 +107,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
     end
   end
 
-  @doc """
-  Whether a candidate subject splitter is authentic: `:off` for no candidate,
-  `:verified` when the candidate names a subject, the Agent strategy names that
-  subject's auction, and the strategy's distribution record for that auction
-  names the candidate as its splitter; `:unverified` otherwise. This is the same
-  rule the launchpad enforces, answered before a wallet is asked. The fee
-  administration lane reuses it for a retargeted lane.
-  """
-  @spec splitter_state(map(), String.t() | nil, map(), keyword()) ::
-          {:ok, :off | :verified | :unverified} | {:error, atom()}
-  def splitter_state(_config, nil, _block, _opts), do: {:ok, :off}
-
-  def splitter_state(config, candidate, block, opts) do
-    strategy = Lab.address!(config, :agent_strategy)
-
-    with :ok <- LabRpc.ensure_contract(candidate, block, opts),
-         {:ok, subject} <- Rpc.call_address(candidate, @subject_selector, block, opts),
-         {:ok, auction} <-
-           Rpc.call_address(
-             strategy,
-             LabAbi.encode(agent_strategy_abi(config), "auctionOfSubject(address)", [subject]),
-             block,
-             opts
-           ),
-         {:ok, words} <-
-           Rpc.call_words(
-             strategy,
-             LabAbi.encode(agent_strategy_abi(config), "distribution(address)", [auction]),
-             block,
-             18,
-             opts
-           ),
-         {:ok, splitter} <- Abi.word_address(Enum.at(words, @splitter_index)) do
-      {:ok, if(Address.equal?(splitter, candidate), do: :verified, else: :unverified)}
-    else
-      {:error, :lab_contract_missing} -> {:ok, :unverified}
-      :error -> {:ok, :unverified}
-      {:error, :invalid_chain_response} -> {:ok, :unverified}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  # The Agent strategy ABI lives in the Agent lab configuration this Stocks lab
-  # extends; the Stocks file repeats only its address.
-  defp agent_strategy_abi(_config), do: Autolaunch.Lab.abi!(Autolaunch.Lab.current!(), :strategy)
-
   defp settled(:pending, _envelope, _step, _config), do: {:ok, %{outcome: :pending}}
   defp settled(:reverted, _envelope, _step, _config), do: {:ok, %{outcome: :reverted}}
 
@@ -191,7 +140,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
          {:ok, event} <- launch_created(logs, config),
          true <- Address.equal?(event.launcher, envelope["expected_signer"]),
          true <- Address.equal?(event.stock, arguments["stock"]),
-         true <- Address.equal?(event.fee_administrator, arguments["fee_administrator"]),
          true <- event.start_block == integer(arguments, "start_block"),
          true <- event.floor_price_q96 == integer(arguments, "floor_price_q96"),
          {:ok, fee} <-
@@ -219,7 +167,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
            "new_token" => event.new_token,
            "auction" => event.auction,
            "stock" => event.stock,
-           "fee_administrator" => event.fee_administrator,
            "start_block" => Integer.to_string(event.start_block),
            "end_block" => Integer.to_string(event.end_block),
            "required_stock_raised" => Integer.to_string(event.required_stock_raised),
@@ -266,22 +213,12 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
              logs,
              Lab.address!(config, :launchpad)
            ),
-         [
-           stock_word,
-           auction_word,
-           admin_word,
-           start_block,
-           end_block,
-           floor,
-           required,
-           inventory,
-           reserve
-         ] <- data,
+         [stock_word, auction_word, start_block, end_block, floor, required, inventory, reserve] <-
+           data,
          {:ok, launcher} <- Abi.word_address(launcher_word),
          {:ok, new_token} <- Abi.word_address(new_token_word),
          {:ok, stock} <- Abi.word_address(stock_word),
-         {:ok, auction} <- Abi.word_address(auction_word),
-         {:ok, fee_administrator} <- Abi.word_address(admin_word) do
+         {:ok, auction} <- Abi.word_address(auction_word) do
       {:ok,
        %{
          launch_id: launch_id,
@@ -289,7 +226,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
          new_token: new_token,
          stock: stock,
          auction: auction,
-         fee_administrator: fee_administrator,
          start_block: start_block,
          end_block: end_block,
          floor_price_q96: floor,
@@ -302,26 +238,24 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
     end
   end
 
-  # `launches(launchId)`: launcher, newToken, stock, auction, feeAdministrator,
-  # startBlock, endBlock, claimBlock, migrationBlock, requiredStockRaised,
-  # floorPriceQ96, lifecycle, ...
+  # `launches(launchId)`: launcher, newToken, stock, auction, splitter (zero
+  # until graduation), startBlock, endBlock, claimBlock, migrationBlock,
+  # requiredStockRaised, floorPriceQ96, lifecycle, ...
   defp record_matches?(
-         [launcher, new_token, stock, auction, admin, start_block, end_block | _rest] = record,
+         [launcher, new_token, stock, auction, _splitter, start_block, end_block | _rest] = record,
          event
        )
        when is_list(record) do
     with {:ok, launcher} <- Abi.word_address(launcher),
          {:ok, new_token} <- Abi.word_address(new_token),
          {:ok, stock} <- Abi.word_address(stock),
-         {:ok, auction} <- Abi.word_address(auction),
-         {:ok, admin} <- Abi.word_address(admin) do
+         {:ok, auction} <- Abi.word_address(auction) do
       Enum.all?(
         [
           {launcher, event.launcher},
           {new_token, event.new_token},
           {stock, event.stock},
-          {auction, event.auction},
-          {admin, event.fee_administrator}
+          {auction, event.auction}
         ],
         fn {left, right} -> Address.equal?(left, right) end
       ) and start_block == event.start_block and end_block == event.end_block and

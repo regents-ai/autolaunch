@@ -139,7 +139,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
   end
 
   # The launch is confirmed only when the launchpad's event names the reviewed
-  # signer, STOCK, fee administrator, start block and floor, and its own record
+  # signer, STOCK, start block and floor, and its own record
   # and auction index agree with that event. The required raise is quoted by the
   # launchpad at execution, not carried in the calldata, so the result reports
   # the actual value rather than judging it against the reviewed quote. The
@@ -153,7 +153,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
          {:ok, event} <- launch_created(logs, config),
          true <- Address.equal?(event.launcher, envelope["expected_signer"]),
          true <- Address.equal?(event.stock, arguments["stock"]),
-         true <- Address.equal?(event.fee_administrator, arguments["fee_administrator"]),
          true <- event.start_block == integer(arguments, "start_block"),
          true <- event.floor_price_q96 == integer(arguments, "floor_price_q96"),
          {:ok, record} <-
@@ -177,7 +176,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
            "new_token" => event.new_token,
            "auction" => event.auction,
            "stock" => event.stock,
-           "fee_administrator" => event.fee_administrator,
            "start_block" => Integer.to_string(event.start_block),
            "end_block" => Integer.to_string(event.end_block),
            "required_stock_raised" => Integer.to_string(event.required_stock_raised),
@@ -201,22 +199,12 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
              logs,
              Lab.address!(config, :stocks_launchpad)
            ),
-         [
-           stock_word,
-           auction_word,
-           admin_word,
-           start_block,
-           end_block,
-           floor,
-           required,
-           inventory,
-           reserve
-         ] <- data,
+         [stock_word, auction_word, start_block, end_block, floor, required, inventory, reserve] <-
+           data,
          {:ok, launcher} <- Abi.word_address(launcher_word),
          {:ok, new_token} <- Abi.word_address(new_token_word),
          {:ok, stock} <- Abi.word_address(stock_word),
-         {:ok, auction} <- Abi.word_address(auction_word),
-         {:ok, fee_administrator} <- Abi.word_address(admin_word) do
+         {:ok, auction} <- Abi.word_address(auction_word) do
       {:ok,
        %{
          launch_id: launch_id,
@@ -224,7 +212,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
          new_token: new_token,
          stock: stock,
          auction: auction,
-         fee_administrator: fee_administrator,
          start_block: start_block,
          end_block: end_block,
          floor_price_q96: floor,
@@ -239,7 +226,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchChainClient do
 
   # `launches(launchId)`: launcher, newToken, currency (the STOCK), auction,
   # startBlock, endBlock, claimBlock, migrationBlock, requiredRaise,
-  # floorPriceQ96, ...
+  # floorPriceQ96, lifecycle, poolId, finalSqrtPriceX96, splitter, ...
   defp record_matches?(
          [launcher, new_token, currency, auction, start_block, end_block | _rest] = record,
          event

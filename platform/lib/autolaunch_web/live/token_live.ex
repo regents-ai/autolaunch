@@ -19,10 +19,12 @@ defmodule AutolaunchWeb.TokenLive do
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
-  def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket)}
+  def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
 
-  # The fee-administration card confirmed a change, so the pool is read again.
-  def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket)}
+  # The staking card confirmed something that moved the pool's figures, so the
+  # pool is read again. The previous figures stay on the page while the fork
+  # answers, so the card that asked keeps its wallet, position and notice.
+  def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket, false)}
 
   def render(assigns) do
     assigns =
@@ -65,10 +67,10 @@ defmodule AutolaunchWeb.TokenLive do
       <.pool_facts :if={@local_lab?} pool={@pool} />
       <.live_component
         :if={@local_lab? && @page_record.auction.kind == :stocks && @pool.ok?}
-        module={AutolaunchWeb.StocksFeeAdminComponent}
-        id="autolaunch-fee-admin"
-        auction={@page_record.auction}
-        config={@pool.result.fees.config}
+        module={AutolaunchWeb.StakeComponent}
+        id={"token-stake-#{@page_record.id}"}
+        token={@page_record}
+        pool={@pool.result}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
@@ -116,19 +118,20 @@ defmodule AutolaunchWeb.TokenLive do
 
     socket
     |> assign_async(:page, fn -> load_token_page(id) end, reset: true)
-    |> load_pool()
+    |> load_pool(true)
   end
 
   # The pool is its own read of the fork: the token record renders as soon as
   # the database answers, and the pool section says when the fork is slow. A
-  # site without the lab has no pool to read.
-  defp load_pool(socket) do
+  # site without the lab has no pool to read. A fresh page starts from nothing;
+  # a re-read keeps the last figures until the new ones arrive.
+  defp load_pool(socket, reset?) do
     if Lab.enabled?(),
-      do: read_pool(socket),
+      do: read_pool(socket, reset?),
       else: assign(socket, :pool, %Phoenix.LiveView.AsyncResult{})
   end
 
-  defp read_pool(socket) do
+  defp read_pool(socket, reset?) do
     id = socket.assigns.record_id
 
     assign_async(
@@ -144,7 +147,7 @@ defmodule AutolaunchWeb.TokenLive do
           {:error, reason} -> {:error, reason}
         end
       end,
-      reset: true
+      reset: reset?
     )
   end
 end

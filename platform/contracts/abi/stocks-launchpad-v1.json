@@ -1,19 +1,6 @@
 [
   {
     "type": "function",
-    "name": "acceptFeeAdministrator",
-    "inputs": [
-      {
-        "name": "launchId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "admitStock",
     "inputs": [
       {
@@ -48,29 +35,6 @@
       }
     ],
     "stateMutability": "pure"
-  },
-  {
-    "type": "function",
-    "name": "configureSubject",
-    "inputs": [
-      {
-        "name": "launchId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "splitter",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "expectedVersion",
-        "type": "uint32",
-        "internalType": "uint32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -133,16 +97,6 @@
             "name": "floorPriceQ96",
             "type": "uint256",
             "internalType": "uint256"
-          },
-          {
-            "name": "feeAdministrator",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "subjectSplitter",
-            "type": "address",
-            "internalType": "address"
           },
           {
             "name": "expectedLaunchFee",
@@ -259,7 +213,7 @@
             "internalType": "address"
           },
           {
-            "name": "feeAdministrator",
+            "name": "splitter",
             "type": "address",
             "internalType": "address"
           },
@@ -358,6 +312,19 @@
   },
   {
     "type": "function",
+    "name": "locker",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "migrate",
     "inputs": [
       {
@@ -404,24 +371,6 @@
   },
   {
     "type": "function",
-    "name": "proposeFeeAdministrator",
-    "inputs": [
-      {
-        "name": "launchId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "proposed",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "revokeStock",
     "inputs": [
       {
@@ -461,6 +410,19 @@
   },
   {
     "type": "function",
+    "name": "splitterImplementation",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "stockAdmission",
     "inputs": [
       {
@@ -490,99 +452,10 @@
   },
   {
     "type": "function",
-    "name": "subjectConfig",
-    "inputs": [
-      {
-        "name": "launchId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "version",
-        "type": "uint32",
-        "internalType": "uint32"
-      },
-      {
-        "name": "splitter",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "subjectBps",
-        "type": "uint16",
-        "internalType": "uint16"
-      },
-      {
-        "name": "administrator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "proposedAdministrator",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "unpauseLaunches",
     "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
-    "name": "FeeAdministratorTransferStarted",
-    "inputs": [
-      {
-        "name": "launchId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "current",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "proposed",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "FeeAdministratorTransferred",
-    "inputs": [
-      {
-        "name": "launchId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "previous",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "current",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
   },
   {
     "type": "event",
@@ -613,6 +486,37 @@
     "type": "event",
     "name": "LaunchesUnpaused",
     "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MemestockSplitterCreated",
+    "inputs": [
+      {
+        "name": "launchId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "newToken",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "stock",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "splitter",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
     "anonymous": false
   },
   {
@@ -683,12 +587,6 @@
       },
       {
         "name": "auction",
-        "type": "address",
-        "indexed": false,
-        "internalType": "address"
-      },
-      {
-        "name": "feeAdministrator",
         "type": "address",
         "indexed": false,
         "internalType": "address"
@@ -875,43 +773,6 @@
         "name": "stock",
         "type": "address",
         "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SubjectConfigured",
-    "inputs": [
-      {
-        "name": "launchId",
-        "type": "uint256",
-        "indexed": true,
-        "internalType": "uint256"
-      },
-      {
-        "name": "version",
-        "type": "uint32",
-        "indexed": true,
-        "internalType": "uint32"
-      },
-      {
-        "name": "splitter",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "subjectBps",
-        "type": "uint16",
-        "indexed": false,
-        "internalType": "uint16"
-      },
-      {
-        "name": "administrator",
-        "type": "address",
-        "indexed": false,
         "internalType": "address"
       }
     ],

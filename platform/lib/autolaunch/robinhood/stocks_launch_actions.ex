@@ -49,8 +49,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @min_floor_price_q96 Integer.pow(2, 32) + 1
   @uint64_max Integer.pow(2, 64) - 1
   @uint128_max Integer.pow(2, 128) - 1
-  @zero_address "0x" <> String.duplicate("0", 40)
-  @launch_record_words 17
   @lifecycles %{0 => "none", 1 => "active", 2 => "graduated", 3 => "failed"}
 
   @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
@@ -75,9 +73,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {"Vesting", "None"},
       {"Treasury", "None"},
       {"Pool pair", "The new token and the stock it was launched against"},
-      {"Subject revenue lane", "Off, or on when a recognised subject address is named"},
+      {"Staker revenue lane", "1% of stock-side volume to the token's stakers, always on"},
       {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
-      {"Pool liquidity", "Locked forever at 0x…dEaD"},
+      {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
       {"If the minimum is not raised",
        "Every bid is refundable through the auction; the launch fee is not refunded"}
     ]
@@ -102,7 +100,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          {:ok, fields} <- launchable(draft),
          {:ok, config} <- robinhood_lab(),
          {:ok, snapshot} <- snapshot(fields.stock, signer),
-         :ok <- authentic_subject(fields.subject_splitter, snapshot.block, config),
          {:ok, executable} <- executable(fields, snapshot),
          do: {:ok, build(draft, fields, executable, signer, snapshot, config)}
   end
@@ -156,9 +153,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          {:ok, asset} <-
            Assets.fetch(draft.stock_chain_id, draft.stock_address || "") |> refusable(),
          {:ok, stock} <- address(asset.address, :stock_invalid),
-         true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing),
-         {:ok, fee_administrator} <- address(draft.fee_administrator, :fee_administrator_invalid),
-         {:ok, subject_splitter} <- subject_splitter(draft) do
+         true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing) do
       {:ok,
        %{
          name: draft.name,
@@ -168,20 +163,12 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          image: draft.image,
          stock: stock,
          stock_symbol: asset.symbol,
-         floor_price: draft.floor_price,
-         fee_administrator: fee_administrator,
-         subject_splitter: subject_splitter
+         floor_price: draft.floor_price
        }}
     else
       {:error, _reason} = error -> error
     end
   end
-
-  # The lane is off unless it was switched on, and then only an address will do.
-  defp subject_splitter(%{subject_enabled: false}), do: {:ok, nil}
-
-  defp subject_splitter(%{subject_enabled: true, subject_splitter: value}),
-    do: address(value, :subject_splitter_invalid)
 
   # Executable values
 
@@ -201,7 +188,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          minimum_raise_usdg: snapshot.minimum_raise_usdg,
          required_stock_raised: required,
          stock_decimals: snapshot.admission.decimals,
-         subject_splitter: fields.subject_splitter || @zero_address,
          launch_fee: snapshot.fee
        }}
     end
@@ -238,31 +224,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     do: {:ok, value}
 
   defp bounded(_value, _max, reason), do: unavailable(reason)
-
-  # A subject splitter is authentic only when the bound revenue-share launchpad
-  # records it for the subject it names, exactly as the launchpad checks before
-  # it creates the launch.
-  defp authentic_subject(nil, _block, _config), do: :ok
-
-  defp authentic_subject(splitter, block, config) do
-    rpc = Lab.rpc_opts(config)
-    revshare = Lab.address!(config, :launchpad)
-
-    with {:ok, subject} <- Rpc.call_address(splitter, LabAbi.selector("subject()"), block, rpc),
-         {:ok, recorded} <-
-           Rpc.call_address(
-             revshare,
-             LabAbi.encode(Lab.abi!(config, :launchpad), "splitterOf(address)", [subject]),
-             block,
-             rpc
-           ),
-         true <- Address.equal?(recorded, splitter) do
-      :ok
-    else
-      {:error, :chain_unavailable} -> unavailable(:chain_unavailable)
-      _other -> unavailable(:subject_splitter_unrecognised)
-    end
-  end
 
   # The review
 
@@ -302,9 +263,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           "floor_price_executable" => executable.floor_price_evidence.executable_stock_per_new,
           "floor_price_adjusted" => floor_adjusted?(executable),
           "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
-          "fee_administrator" => fields.fee_administrator,
-          "subject_enabled" => fields.subject_splitter != nil,
-          "subject_splitter" => executable.subject_splitter,
           "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
           "expected_launch_fee" => usdg_units(snapshot.fee),
           "allowance_atomic" => Integer.to_string(snapshot.allowance),
@@ -340,8 +298,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         "Auction ends",
         "Block #{executable.end_block}, #{estimate(@auction_duration_blocks)} later"
       ],
-      ["Floor price", floor_copy(fields, executable)],
-      ["Subject revenue lane", if(fields.subject_splitter, do: "On", else: "Off")]
+      ["Floor price", floor_copy(fields, executable)]
     ]
   end
 
@@ -405,9 +362,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
             executable.floor_price_q96,
             executable.launch_fee
           ],
-          fields.stock,
-          fields.fee_administrator,
-          executable.subject_splitter
+          fields.stock
         ]
       ]
     )
@@ -498,7 +453,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
                launchpad,
                LabAbi.encode(abi, "launches(uint256)", [created.launch_id]),
                block,
-               @launch_record_words,
+               RobinhoodLabAbi.launch_record_words(),
                rpc
              ),
            {:ok, launch} <- launch_record(created, record) do
@@ -522,7 +477,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
            [
              stock_word,
              auction_word,
-             admin_word,
              start_block,
              end_block,
              floor_price_q96,
@@ -540,8 +494,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          true <- Address.equal?(launcher, signer),
          {:ok, new_token} <- Abi.word_address(new_token_word),
          {:ok, stock} <- Abi.word_address(stock_word),
-         {:ok, auction} <- Abi.word_address(auction_word),
-         {:ok, fee_administrator} <- Abi.word_address(admin_word) do
+         {:ok, auction} <- Abi.word_address(auction_word) do
       {:ok,
        %{
          launch_id: launch_id,
@@ -549,7 +502,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          new_token: new_token,
          stock: stock,
          auction: auction,
-         fee_administrator: fee_administrator,
          start_block: start_block,
          end_block: end_block,
          floor_price_q96: floor_price_q96,
@@ -601,7 +553,6 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          "new_token" => new_token,
          "stock" => stock,
          "auction" => auction,
-         "fee_administrator" => created.fee_administrator,
          "start_block" => Integer.to_string(start_block),
          "end_block" => Integer.to_string(end_block),
          "claim_block" => Integer.to_string(claim_block),

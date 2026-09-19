@@ -18,10 +18,10 @@ defmodule Autolaunch.Stocks.Lab do
   @stock_chain_id 8453
 
   @address_keys ~w(
-    launchpad hook bid_adapter usdc regent permit2 cca_factory pool_manager
-    position_manager live_staking governance_safe agent_factory agent_strategy
+    launchpad hook locker splitter_implementation bid_adapter usdc regent permit2
+    cca_factory pool_manager position_manager live_staking governance_safe agent_factory
   )
-  @abi_keys ~w(launchpad hook bid_adapter route auction erc20 permit2)
+  @abi_keys ~w(launchpad hook locker splitter bid_adapter route auction erc20 permit2)
   @faucet_keys ~w(regent_holder regent_amount stock_amount_units usdc_holder usdc_amount)
   # Present when the lab funds the Stocks launch fee; a decimal string of REGENT base units.
   @optional_faucet_keys ~w(regent_launch_fee_amount)
@@ -185,7 +185,6 @@ defmodule Autolaunch.Stocks.Lab do
     Enum.all?(
       [
         {"agent_factory", "factory"},
-        {"agent_strategy", "strategy"},
         {"regent", "regent"},
         {"permit2", "permit2"},
         {"governance_safe", "governance_safe"},

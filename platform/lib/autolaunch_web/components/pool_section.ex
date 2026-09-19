@@ -106,7 +106,12 @@ defmodule AutolaunchWeb.Components.PoolSection do
               <dt>Owner</dt>
               <dd>
                 <span class="autolaunch-exact-value">{position.owner}</span>
-                <span :if={position.locked?}>Locked forever: nobody holds this address.</span>
+                <span :if={position.locked? && @facts.kind == :agent}>
+                  Locked forever: nobody holds this address.
+                </span>
+                <span :if={position.locked? && @facts.kind == :stocks}>
+                  Locked forever in the fee locker: its trading fees go to stakers.
+                </span>
               </dd>
             </div>
           </dl>
@@ -211,65 +216,79 @@ defmodule AutolaunchWeb.Components.PoolSection do
       <h3>Fee lanes</h3>
       <p>
         Two revenue lanes are charged in {@facts.currency.symbol} on every trade: 1% of
-        currency-side volume for REGENT, always on, and 1% for the subject lane when it is on. {@facts.fees.trades} trades have been charged since graduation.
+        currency-side volume for REGENT and 1% for {@facts.token.symbol} stakers. Both are always on. {@facts.fees.trades} trades have been charged since graduation.
       </p>
-      <dl class="autolaunch-live-market">
-        <div>
-          <dt>REGENT lane</dt>
-          <dd>On · 1%</dd>
-        </div>
-        <div>
-          <dt>Subject lane</dt>
-          <dd :if={@facts.fees.config.splitter}>
-            On · 1% to <span class="autolaunch-exact-value">{@facts.fees.config.splitter}</span>
-          </dd>
-          <dd :if={!@facts.fees.config.splitter}>Off</dd>
-        </div>
-      </dl>
-
-      <h4>Revenue by destination</h4>
       <ol class="autolaunch-record-list pool-buckets">
         <li>
-          <.bucket
-            label="REGENT"
-            bucket={@facts.fees.regent_bucket}
-            currency={@facts.currency.symbol}
-          />
+          <article>
+            <h5>REGENT lane</h5>
+            <dl class="autolaunch-live-market">
+              <div>
+                <dt>Awaiting conversion</dt>
+                <dd>
+                  {Amounts.compact_decimal(@facts.fees.regent.accrued)} {@facts.currency.symbol}
+                </dd>
+              </div>
+              <div>
+                <dt>Converted so far</dt>
+                <dd>
+                  {Amounts.compact_decimal(@facts.fees.regent.settled_currency)} {@facts.currency.symbol}
+                </dd>
+              </div>
+              <div>
+                <dt>Deposited so far</dt>
+                <dd>{Amounts.compact_decimal(@facts.fees.regent.settled_usdc)} USDC</dd>
+              </div>
+            </dl>
+          </article>
         </li>
-        <li :for={bucket <- @facts.fees.subject_buckets}>
-          <.bucket
-            label={
-              if bucket.destination == @facts.fees.config.splitter,
-                do: "Subject lane (current)",
-                else: "Subject lane (earlier destination)"
-            }
-            bucket={bucket}
-            currency={@facts.currency.symbol}
-          />
+        <li>
+          <article>
+            <h5>Staker lane</h5>
+            <dl class="autolaunch-live-market">
+              <div>
+                <dt>Awaiting settlement</dt>
+                <dd>
+                  {Amounts.compact_decimal(@facts.fees.stakers.accrued)} {@facts.currency.symbol}
+                </dd>
+              </div>
+              <div>
+                <dt>Sent to stakers so far</dt>
+                <dd>
+                  {Amounts.compact_decimal(@facts.fees.stakers.settled_currency)} {@facts.currency.symbol}
+                </dd>
+              </div>
+              <div>
+                <dt>Staking contract</dt>
+                <dd class="autolaunch-exact-value">{@facts.fees.splitter.address}</dd>
+              </div>
+            </dl>
+          </article>
         </li>
       </ol>
       <p>
-        Revenue is converted to USDC and deposited by the operator outside trading.
-        Operator account: <span class="autolaunch-exact-value">{@facts.fees.executor}</span>
+        REGENT's share is converted to USDC by the operator outside trading. The stakers' share can
+        be settled by anyone, and the locked liquidity's own trading fees can be collected by anyone;
+        both land in the staking contract for {@facts.token.symbol} stakers.
       </p>
 
-      <h4>Conversions so far</h4>
+      <h4>Settlements so far</h4>
       <p :if={@facts.fees.settlements == []} class="autolaunch-empty">
-        No revenue has been converted yet.
+        Nothing has been settled yet.
       </p>
       <ol :if={@facts.fees.settlements != []} class="autolaunch-record-list">
         <li :for={settlement <- @facts.fees.settlements}>
           <article>
             <dl class="autolaunch-live-market">
               <div>
-                <dt>Destination</dt>
-                <dd class="autolaunch-exact-value">{settlement.destination}</dd>
+                <dt>Lane</dt>
+                <dd>{lane_label(settlement.lane)}</dd>
               </div>
               <div>
-                <dt>Converted</dt>
+                <dt>{if settlement.lane == :regent, do: "Converted", else: "Sent to stakers"}</dt>
                 <dd>{Amounts.compact_decimal(settlement.currency)} {@facts.currency.symbol}</dd>
               </div>
-              <div>
+              <div :if={settlement.usdc}>
                 <dt>Deposited</dt>
                 <dd>{Amounts.compact_decimal(settlement.usdc)} USDC</dd>
               </div>
@@ -289,35 +308,8 @@ defmodule AutolaunchWeb.Components.PoolSection do
     """
   end
 
-  attr :label, :string, required: true
-  attr :bucket, :map, required: true
-  attr :currency, :string, required: true
-
-  defp bucket(assigns) do
-    ~H"""
-    <article>
-      <h5>{@label}</h5>
-      <dl class="autolaunch-live-market">
-        <div>
-          <dt>Destination</dt>
-          <dd class="autolaunch-exact-value">{@bucket.destination}</dd>
-        </div>
-        <div>
-          <dt>Awaiting conversion</dt>
-          <dd>{Amounts.compact_decimal(@bucket.accrued)} {@currency}</dd>
-        </div>
-        <div>
-          <dt>Converted so far</dt>
-          <dd>{Amounts.compact_decimal(@bucket.settled_currency)} {@currency}</dd>
-        </div>
-        <div>
-          <dt>Deposited so far</dt>
-          <dd>{Amounts.compact_decimal(@bucket.settled_usdc)} USDC</dd>
-        </div>
-      </dl>
-    </article>
-    """
-  end
+  defp lane_label(:regent), do: "REGENT"
+  defp lane_label(:stakers), do: "Stakers"
 
   defp price(%{value: value, exact?: true}), do: Amounts.compact_decimal(value)
 

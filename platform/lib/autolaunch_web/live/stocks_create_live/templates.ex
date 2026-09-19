@@ -21,18 +21,16 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   @sections %{
     "autosave_stocks_token_details" => ~w(name symbol description website),
-    "autosave_stocks_terms" => ~w(stock_address start_local start_timezone floor_price),
-    "autosave_stocks_revenue" => ~w(subject_enabled subject_splitter fee_administrator)
+    "autosave_stocks_terms" => ~w(stock_address start_local start_timezone floor_price)
   }
 
   @stored_params ~w(name symbol description website image stock_address start_local
-    start_timezone floor_price subject_enabled subject_splitter fee_administrator)
+    start_timezone floor_price)
 
   def section_params(event), do: Map.fetch!(@sections, event)
   def draft_field_params, do: @stored_params
 
-  def blank_draft_fields,
-    do: @stored_params |> Map.new(&{&1, ""}) |> Map.put("subject_enabled", "false")
+  def blank_draft_fields, do: Map.new(@stored_params, &{&1, ""})
 
   def draft_values(nil), do: blank_draft_fields()
 
@@ -40,7 +38,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     @stored_params
     |> Map.new(fn
       "start_local" -> {"start_local", start_local(draft.start_at, draft.start_timezone)}
-      "subject_enabled" -> {"subject_enabled", to_string(draft.subject_enabled)}
       param -> {param, Map.get(draft, String.to_existing_atom(param)) || ""}
     end)
   end
@@ -77,14 +74,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       assigns
       |> assign(:token_complete?, draft && LaunchDraft.token_details_complete?(draft))
       |> assign(:terms_complete?, draft && LaunchDraft.terms_complete?(draft))
-      |> assign(:revenue_complete?, draft && LaunchDraft.revenue_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
       |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.enabled?())
       |> assign(
         :stock,
         stock_for(assigns.launch_chain, assigns.stocks_lab, assigns.draft_values["stock_address"])
       )
-      |> assign(:subject_enabled?, assigns.draft_values["subject_enabled"] == "true")
       |> assign(:token_fields, @token_fields)
       |> assign(:address_hint, @address_hint)
       |> assign(:raise_currency, LaunchChain.raise_currency(assigns.launch_chain))
@@ -318,67 +313,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             </p>
           </form>
 
-          <form
-            id="stocks-revenue"
-            phx-change="autosave_stocks_revenue"
-            phx-submit="autosave_stocks_revenue"
-            class="launchpad-form-section rg-panel rg-panel--surface rg-field"
-          >
-            <header>
-              <div>
-                <p class="autolaunch-kicker">Revenue and administration</p>
-                <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label">Subject revenue and administrator</h2>
-                </Regent.Structure.section_bar>
-              </div>
-              <span>{stage_status(@revenue_complete?)}</span>
-            </header>
-
-            <input type="hidden" name="stock_draft[subject_enabled]" value="false" />
-            <label class="autolaunch-draft-field">
-              <input
-                type="checkbox"
-                id="stocks-revenue-subject_enabled"
-                name="stock_draft[subject_enabled]"
-                value="true"
-                checked={@subject_enabled?}
-              /> Share 1.00% of stock-side pool volume with an Agent subject
-            </label>
-            <p class="autolaunch-draft-hint">
-              Off by default. The REGENT lane of 1.00% always applies. When on, the address must be
-              an Agent subject revenue address recorded by the Agent strategy.
-            </p>
-            <.draft_field
-              :if={@subject_enabled?}
-              field={
-                %{
-                  param: "subject_splitter",
-                  label: "Subject revenue address",
-                  kind: :text,
-                  hint: @address_hint
-                }
-              }
-              form_id="stocks-revenue"
-              value={@draft_values["subject_splitter"]}
-              error={@draft_errors["subject_splitter"]}
-            />
-            <.draft_field
-              field={
-                %{
-                  param: "fee_administrator",
-                  label: "Fee administrator",
-                  kind: :text,
-                  hint:
-                    "Required. This account can later turn the subject lane on, off or point it elsewhere. It has no other power. " <>
-                      @address_hint
-                }
-              }
-              form_id="stocks-revenue"
-              value={@draft_values["fee_administrator"]}
-              error={@draft_errors["fee_administrator"]}
-            />
-          </form>
-
           <section id="stocks-fixed-terms" class="launchpad-form-section rg-panel rg-panel--surface">
             <header>
               <div>
@@ -530,10 +464,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                   @stock
                 )}
               </dd>
-            </div>
-            <div>
-              <dt>Subject revenue</dt>
-              <dd>{if @subject_enabled?, do: "On", else: "Off"}</dd>
             </div>
           </dl>
         </aside>

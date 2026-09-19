@@ -187,7 +187,6 @@ defmodule Autolaunch do
 
       define :autosave_stocks_token_details, action: :autosave_token_details
       define :autosave_stocks_terms, action: :autosave_terms
-      define :autosave_stocks_revenue, action: :autosave_revenue
 
       define :attach_stocks_launch_draft_image,
         action: :attach_image,
@@ -229,11 +228,6 @@ defmodule Autolaunch do
         args: [:auction_address],
         not_found_error?: false
     end
-
-    # The Stocks fee-administration lane (subject lane on/off/retarget and the
-    # administrator hand-over) is written only by `Stocks.FeeAdminActions`
-    # under a session lease, so it carries no code interface.
-    resource Autolaunch.Stocks.FeeAdminOperation
 
     # The test-funds cooldown ledger, written only by `Stocks.Faucet` inside
     # the transaction that sends a grant.

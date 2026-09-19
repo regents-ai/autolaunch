@@ -100,19 +100,10 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
         actor
       )
 
-    # Switching the lane on reveals its address field; the next save fills it.
-    view
-    |> form("#stocks-revenue", stock_draft: %{subject_enabled: "true"})
-    |> render_change()
-
+    # The page picks the stored image up with its next save.
     html =
       view
-      |> form("#stocks-revenue",
-        stock_draft: %{
-          subject_splitter: "0x5555555555555555555555555555555555555555",
-          fee_administrator: "0x4444444444444444444444444444444444444444"
-        }
-      )
+      |> form("#stocks-terms", stock_draft: %{floor_price: "2"})
       |> render_change()
 
     {:ok, complete} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)

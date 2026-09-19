@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   alias Autolaunch.Stocks.LaunchDraftImageStorage
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
 
-  @autosave_events ~w(autosave_stocks_token_details autosave_stocks_terms autosave_stocks_revenue)
+  @autosave_events ~w(autosave_stocks_token_details autosave_stocks_terms)
 
   # A signed-out visitor stays on this route, exactly as on /create: the page
   # explains the sign-in requirement and a completed sign-in reloads it.
@@ -184,9 +184,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   defp autosave("autosave_stocks_terms", draft, values, actor),
     do: Autolaunch.autosave_stocks_terms(draft, values, actor: actor)
-
-  defp autosave("autosave_stocks_revenue", draft, values, actor),
-    do: Autolaunch.autosave_stocks_revenue(draft, values, actor: actor)
 
   defp handle_stocks_image_progress(:stocks_image, entry, socket) do
     socket = cancel_image_fetch(socket)

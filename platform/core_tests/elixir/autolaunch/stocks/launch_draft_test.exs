@@ -21,13 +21,9 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
              Autolaunch.autosave_stocks_token_details(draft, %{"name" => "Stolen"}, actor: other)
 
     assert {:error, %Ash.Error.Forbidden{}} =
-             Autolaunch.autosave_stocks_revenue(
-               draft,
-               %{"fee_administrator" => "0x2222222222222222222222222222222222222222"},
-               actor: other
-             )
+             Autolaunch.autosave_stocks_terms(draft, %{"floor_price" => "9"}, actor: other)
 
-    assert {:ok, %{name: "Mine", fee_administrator: nil}} =
+    assert {:ok, %{name: "Mine", floor_price: nil}} =
              Autolaunch.get_my_stocks_launch_draft_by_id(draft.id, actor: owner)
 
     # One stock launch in progress per account: a created Stocks auction of the

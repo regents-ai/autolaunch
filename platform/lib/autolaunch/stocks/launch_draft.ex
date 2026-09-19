@@ -14,13 +14,11 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Autolaunch.Chain.Address
   alias Autolaunch.LaunchChain
   alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
   @token_fields [:name, :symbol, :description, :website]
   @terms_fields [:stock_address, :start_at, :start_timezone, :floor_price]
-  @revenue_fields [:subject_enabled, :subject_splitter, :fee_administrator]
 
   @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
 
@@ -67,18 +65,10 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       decimal_amount?(draft.floor_price)
   end
 
-  @doc "Whether the revenue lane and administrator are complete."
-  def revenue_complete?(draft) do
-    address?(draft.fee_administrator) and
-      (draft.subject_enabled == false or address?(draft.subject_splitter))
-  end
-
-  def launch_ready?(draft),
-    do: token_details_complete?(draft) and terms_complete?(draft) and revenue_complete?(draft)
+  def launch_ready?(draft), do: token_details_complete?(draft) and terms_complete?(draft)
 
   def token_fields, do: @token_fields
   def terms_fields, do: @terms_fields
-  def revenue_fields, do: @revenue_fields
 
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
@@ -93,8 +83,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     do: match?({:ok, raw} when raw > 0, Amounts.parse_units(value, 36))
 
   defp decimal_amount?(_value), do: false
-
-  defp address?(value), do: match?({:ok, _}, Address.normalize(value))
 
   postgres do
     table "stock_launch_drafts"
@@ -160,12 +148,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       change Autolaunch.Stocks.LaunchDraft.Changes.ClearFloorPriceOnStockChange
     end
 
-    update :autosave_revenue do
-      accept @revenue_fields
-      require_atomic? false
-      validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
-    end
-
     update :attach_image do
       argument :stock_launch_draft_image_id, :uuid, allow_nil?: false
       require_atomic? false
@@ -181,7 +163,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_terms,
-             :autosave_revenue,
              :attach_image
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
@@ -193,7 +174,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
              :mine_by_id_for_update,
              :autosave_token_details,
              :autosave_terms,
-             :autosave_revenue,
              :attach_image
            ]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
@@ -221,10 +201,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
     attribute :start_at, :utc_datetime
     attribute :start_timezone, :string
     attribute :floor_price, :string
-
-    attribute :subject_enabled, :boolean, allow_nil?: false, default: false
-    attribute :subject_splitter, :string
-    attribute :fee_administrator, :string
 
     timestamps()
   end

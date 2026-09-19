@@ -33,9 +33,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     stock_invalid: "Choose a stock for this launch.",
     floor_price_missing: "Set a floor price on the draft first.",
     floor_price_too_low: "The floor price is too low to use. Raise it on the draft.",
-    fee_administrator_invalid: "The fee administrator is not a usable address.",
-    subject_splitter_unrecognised:
-      "The revenue address is not one this launchpad recognises. Check it on the draft.",
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     launch_draft_not_found: "This draft is no longer available.",
     launch_draft_unavailable: "This draft could not be read just now.",
@@ -114,10 +111,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           <div :for={[label, value] <- @review.review}>
             <dt>{label}</dt>
             <dd>{value}</dd>
-          </div>
-          <div>
-            <dt>Fee administrator</dt>
-            <dd class="launch-wallet-mono">{argument(@review, "fee_administrator")}</dd>
           </div>
           <div>
             <dt>Wallet</dt>

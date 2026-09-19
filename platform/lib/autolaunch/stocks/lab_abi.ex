@@ -3,19 +3,22 @@ defmodule Autolaunch.Stocks.LabAbi do
 
   alias Autolaunch.LabAbi
 
-  @launch_params "(string,string,string,string,string,address,uint64,uint256,address,address,uint256)"
+  @launch_params "(string,string,string,string,string,address,uint64,uint256,uint256)"
   @launch_record "(address,address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,uint256,uint128,uint128,uint256,uint256,uint128)"
   @launch_record_words 20
 
-  @launch_created "StockLaunchCreated(uint256,address,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)"
+  @launch_created "StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)"
   @launch_graduated "StockLaunchGraduated(uint256,address,bytes32,uint160,uint256,uint128,uint128,uint256,uint128,uint256,uint256,uint256)"
+  @splitter_created "MemestockSplitterCreated(uint256,address,address,address)"
   @fee_collected "StockLaunchFeeCollected(uint256,address,address,uint256)"
   @bid_placed "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
-  @subject_configured "SubjectConfigured(uint256,uint32,address,uint16,address)"
-  @administrator_transfer_started "FeeAdministratorTransferStarted(uint256,address,address)"
-  @administrator_transferred "FeeAdministratorTransferred(uint256,address,address)"
-  @hook_fee_accrued "HookFeeAccrued(bytes32,address,uint256,uint256,uint256)"
-  @bucket_settled "BucketSettled(bytes32,address,uint256,uint256,bytes32)"
+  @hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256)"
+  @regent_lane_settled "RegentLaneSettled(bytes32,uint256,uint256)"
+  @staker_lane_settled "StakerLaneSettled(bytes32,address,uint256)"
+  @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
+  @staked "Staked(address,uint256)"
+  @unstaked "Unstaked(address,uint256)"
+  @claimed "Claimed(address,address,uint256)"
 
   # Everything the site prepares against or decodes. A missing entry refuses the
   # whole configuration rather than failing later inside a review.
@@ -24,6 +27,7 @@ defmodule Autolaunch.Stocks.LabAbi do
       f: {"launch(#{@launch_params})", "nonpayable", ["uint256", "address", "address"]},
       f: {"launches(uint256)", "view", [@launch_record]},
       f: {"launchIdOfAuction(address)", "view", ["uint256"]},
+      f: {"launchIdOfToken(address)", "view", ["uint256"]},
       f: {"nextLaunchId()", "view", ["uint256"]},
       f: {"launchesPaused()", "view", ["bool"]},
       f: {"launchFee()", "view", ["uint256"]},
@@ -31,25 +35,20 @@ defmodule Autolaunch.Stocks.LabAbi do
       f: {"minimumRaiseUsdc()", "view", ["uint256"]},
       f: {"setMinimumRaiseUsdc(uint256)", "nonpayable", []},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
-      f:
-        {"subjectConfig(uint256)", "view", ["uint32", "address", "uint16", "address", "address"]},
       f: {"bidTickSpacingFor(uint256)", "pure", ["uint256"]},
       f: {"hook()", "view", ["address"]},
-      f: {"configureSubject(uint256,address,uint32)", "nonpayable", []},
-      f: {"proposeFeeAdministrator(uint256,address)", "nonpayable", []},
-      f: {"acceptFeeAdministrator(uint256)", "nonpayable", []},
+      f: {"locker()", "view", ["address"]},
+      f: {"splitterImplementation()", "view", ["address"]},
       e:
         {@launch_created,
-         [true, true, true, false, false, false, false, false, false, false, false, false]},
+         [true, true, true, false, false, false, false, false, false, false, false]},
       e:
         {@launch_graduated,
          [true, true, false, false, false, false, false, false, false, false, false, false]},
+      e: {@splitter_created, [true, true, true, false]},
       e: {@fee_collected, [true, true, true, false]},
       e: {"LaunchFeeUpdated(uint256,uint256)", [false, false]},
-      e: {"MinimumRaiseUsdcUpdated(uint256,uint256)", [false, false]},
-      e: {@subject_configured, [true, true, true, false, false]},
-      e: {@administrator_transfer_started, [true, true, true]},
-      e: {@administrator_transferred, [true, true, true]}
+      e: {"MinimumRaiseUsdcUpdated(uint256,uint256)", [false, false]}
     ],
     "bid_adapter" => [
       f:
@@ -66,11 +65,34 @@ defmodule Autolaunch.Stocks.LabAbi do
     ],
     "hook" => [
       f: {"launchpad()", "view", ["address"]},
-      f: {"REGENT_DESTINATION()", "pure", ["address"]},
-      f: {"accrued(bytes32,address)", "view", ["uint256"]},
-      f: {"settled(bytes32,address)", "view", ["uint256", "uint256"]},
-      e: {@hook_fee_accrued, [true, true, false, false, false]},
-      e: {@bucket_settled, [true, true, false, false, false]}
+      f: {"accrued(bytes32)", "view", ["uint256", "uint256"]},
+      f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256"]},
+      f: {"settleStakerLane(bytes32)", "nonpayable", ["uint256"]},
+      e: {@hook_fee_accrued, [true, false, false, false]},
+      e: {@regent_lane_settled, [true, false, false]},
+      e: {@staker_lane_settled, [true, true, false]}
+    ],
+    "locker" => [
+      f: {"collect(uint256)", "nonpayable", ["uint256", "uint256"]},
+      f: {"splitterOf(uint256)", "view", ["address"]},
+      e: {"PositionLocked(uint256,bytes32,address)", [true, true, true]},
+      e: {@fees_deposited, [true, true, false, false, false, false]}
+    ],
+    "splitter" => [
+      f: {"memestock()", "view", ["address"]},
+      f: {"stock()", "view", ["address"]},
+      f: {"dollar()", "view", ["address"]},
+      f: {"totalStaked()", "view", ["uint256"]},
+      f: {"stakedOf(address)", "view", ["uint256"]},
+      f: {"claimable(address,address)", "view", ["uint256"]},
+      f: {"SKIM_BPS()", "view", ["uint256"]},
+      f: {"stake(uint256)", "nonpayable", []},
+      f: {"unstake(uint256)", "nonpayable", []},
+      f: {"claim(address)", "nonpayable", []},
+      f: {"claimAll()", "nonpayable", []},
+      e: {@staked, [true, false]},
+      e: {@unstaked, [true, false]},
+      e: {@claimed, [true, true, false]}
     ],
     "auction" => [
       f: {"submitBid(uint256,uint128,address,uint256,bytes)", "payable", ["uint256"]},
@@ -107,12 +129,15 @@ defmodule Autolaunch.Stocks.LabAbi do
   def launch_signature, do: "launch(#{@launch_params})"
   def launch_created_signature, do: @launch_created
   def launch_graduated_signature, do: @launch_graduated
+  def splitter_created_signature, do: @splitter_created
   def fee_collected_signature, do: @fee_collected
   def bid_placed_signature, do: @bid_placed
-  def subject_configured_signature, do: @subject_configured
-  def administrator_transfer_started_signature, do: @administrator_transfer_started
-  def administrator_transferred_signature, do: @administrator_transferred
   def hook_fee_accrued_signature, do: @hook_fee_accrued
-  def bucket_settled_signature, do: @bucket_settled
+  def regent_lane_settled_signature, do: @regent_lane_settled
+  def staker_lane_settled_signature, do: @staker_lane_settled
+  def fees_deposited_signature, do: @fees_deposited
+  def staked_signature, do: @staked
+  def unstaked_signature, do: @unstaked
+  def claimed_signature, do: @claimed
   def validate(abis), do: LabAbi.validate(abis, @required)
 end

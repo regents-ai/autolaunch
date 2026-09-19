@@ -355,7 +355,11 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp checked(socket, _name, _hash, _attempts), do: socket
 
+  # A confirmed swap moved the pool's price, liquidity and fee lanes, so the
+  # page reads the pool again.
   defp read(socket, "swap", _hash, _attempts, {:ok, %{outcome: :confirmed, result: result}}) do
+    send(self(), :reload_pool)
+
     socket
     |> assign(amount: "", estimate: nil, notice: nil, swapped: result)
     |> closed()

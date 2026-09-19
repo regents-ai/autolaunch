@@ -5,10 +5,12 @@ defmodule Autolaunch.Pool do
   Agent launches graduate into a REGENT/SUBJECT pool recorded by the frozen
   strategy (`distribution(auction)`) and charged by the frozen `RegentFeeHook`;
   Stocks launches graduate into a NEW/STOCK pool recorded by the launchpad
-  (`launches(id)`) and charged by `StocksFeeHookV1`. Both are read at one latest
-  block: the pool key and id, the price at graduation, the current pool price
-  and liquidity from the PoolManager's own storage, the locked positions and
-  their owner, the unsold tokens' fate, and the fee lanes with their totals.
+  (`launches(id)`), charged by `StocksFeeHookV1` and locked in the launchpad's
+  LP locker, whose fees flow to the launch's memestake splitter. Both are read
+  at one latest block: the pool key and id, the price at graduation, the
+  current pool price and liquidity from the PoolManager's own storage, the
+  locked positions and their owner, the unsold tokens' fate, and the fee lanes
+  with their totals.
 
   Nothing here writes, signs or caches; every figure is the fork's own answer.
   """
@@ -19,7 +21,6 @@ defmodule Autolaunch.Pool do
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @dead "0x000000000000000000000000000000000000dead"
-  @zero_address "0x" <> String.duplicate("0", 40)
   @token_decimals 18
   @regent_decimals 18
   @usdc_decimals 6
@@ -30,12 +31,9 @@ defmodule Autolaunch.Pool do
   @uniswap_pool_url "https://app.uniswap.org/explore/pools/base/"
 
   # Concrete-contract reads the pinned interface ABIs do not carry: fixed
-  # selectors and topics, exactly as the launch client names `subject()`.
+  # selectors for `extsload(bytes32)` and `ownerOf(uint256)`.
   @extsload_selector "0x1e2eaeaf"
   @owner_of_selector "0x6352211e"
-  @executor_selector "0xc34c08e5"
-  @pool_registered_topic Abi.topic0("PoolRegistered(bytes32,address,address,address)")
-  @subject_lane_set_topic Abi.topic0("SubjectLaneSet(bytes32,address,address)")
 
   @type t :: map()
 
@@ -288,7 +286,6 @@ defmodule Autolaunch.Pool do
              opts
            ),
          {:ok, launch} <- stocks_launch(words),
-         {:ok, subject} <- subject_config(config, launch_id, block, opts),
          decimals <- auction.quote_token_decimals,
          token_is_currency0? <- currency0?(launch.new_token, launch.stock),
          {:ok, graduation_price} <-
@@ -309,7 +306,7 @@ defmodule Autolaunch.Pool do
              opts
            ),
          {:ok, positions} <- stocks_positions(config, launch, decimals, block, opts),
-         {:ok, fees} <- stocks_fees(config, launch, subject, decimals, block, opts) do
+         {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts) do
       {:ok,
        %{
          kind: :stocks,
@@ -352,13 +349,13 @@ defmodule Autolaunch.Pool do
   defp stocks_launch(words) do
     with {:ok, new_token} <- Abi.word_address(Enum.at(words, 1)),
          {:ok, stock} <- Abi.word_address(Enum.at(words, 2)),
-         {:ok, administrator} <- Abi.word_address(Enum.at(words, 4)),
+         {:ok, splitter} <- Abi.word_address(Enum.at(words, 4)),
          2 <- Enum.at(words, 11) do
       {:ok,
        %{
          new_token: new_token,
          stock: stock,
-         administrator: administrator,
+         splitter: splitter,
          migration_block: Enum.at(words, 8),
          pool_id: bytes32(Enum.at(words, 12)),
          final_sqrt_price_x96: Enum.at(words, 13),
@@ -375,168 +372,174 @@ defmodule Autolaunch.Pool do
     end
   end
 
-  @doc "The launchpad's current subject lane configuration of one launch id."
-  def subject_config(config, launch_id, block, opts) do
-    with {:ok, [version, splitter, bps, administrator, proposed]} <-
-           launchpad_words(config, "subjectConfig(uint256)", [launch_id], 5, block, opts),
-         {:ok, administrator} <- Abi.word_address(administrator) do
-      {:ok,
-       %{
-         version: version,
-         splitter: optional_address(splitter),
-         subject_bps: bps,
-         administrator: administrator,
-         proposed_administrator: optional_address(proposed)
-       }}
-    end
-  end
-
+  # Both positions belong to the launchpad's locker, which never releases them
+  # and forwards the fees it collects to the launch's splitter. Each carries
+  # what a collection would deposit right now, simulated on the locker.
   defp stocks_positions(config, launch, decimals, block, opts) do
     manager = StocksLab.address!(config, :position_manager)
+    locker = StocksLab.address!(config, :locker)
 
     with {:ok, owner} <- owner_of(manager, launch.lp_token_id, block, opts),
-         {:ok, one_sided} <- stock_only_position(manager, launch, decimals, block, opts) do
+         {:ok, one_sided} <- stock_only_position(config, launch, decimals, block, opts) do
       {:ok,
        [
          %{
+           key: :full_range,
            label: "Full range",
            token_id: launch.lp_token_id,
            owner: owner,
-           locked?: Address.equal?(owner, @dead),
+           locked?: Address.equal?(owner, locker),
            token_amount: Rpc.format_units(launch.lp_new_used, @token_decimals),
-           currency_amount: Rpc.format_units(launch.lp_stock_used, decimals)
+           currency_amount: Rpc.format_units(launch.lp_stock_used, decimals),
+           uncollected: uncollected(config, launch, launch.lp_token_id, decimals, block, opts)
          }
        ] ++ one_sided}
     end
   end
 
-  defp stock_only_position(_manager, %{lp_stock_only_token_id: 0}, _decimals, _block, _opts),
+  defp stock_only_position(_config, %{lp_stock_only_token_id: 0}, _decimals, _block, _opts),
     do: {:ok, []}
 
-  defp stock_only_position(manager, launch, decimals, block, opts) do
-    with {:ok, owner} <- owner_of(manager, launch.lp_stock_only_token_id, block, opts) do
+  defp stock_only_position(config, launch, decimals, block, opts) do
+    manager = StocksLab.address!(config, :position_manager)
+    locker = StocksLab.address!(config, :locker)
+    token_id = launch.lp_stock_only_token_id
+
+    with {:ok, owner} <- owner_of(manager, token_id, block, opts) do
       {:ok,
        [
          %{
+           key: :stock_only,
            label: "One-sided (currency only)",
-           token_id: launch.lp_stock_only_token_id,
+           token_id: token_id,
            owner: owner,
-           locked?: Address.equal?(owner, @dead),
+           locked?: Address.equal?(owner, locker),
            token_amount: "0",
-           currency_amount: Rpc.format_units(launch.lp_stock_only_used, decimals)
+           currency_amount: Rpc.format_units(launch.lp_stock_only_used, decimals),
+           uncollected: uncollected(config, launch, token_id, decimals, block, opts)
          }
        ]}
     end
   end
 
-  # Every destination that ever held this pool's subject lane, found from the
-  # hook's own registration and lane-change events since graduation, then each
-  # destination's accrued and settled figures read from the hook right now.
-  defp stocks_fees(config, launch, subject, decimals, block, opts) do
+  # `collect` simulated through `eth_call`: the fees a collection would deposit
+  # into the splitter now, or nil when the simulation cannot answer.
+  defp uncollected(config, launch, token_id, decimals, block, opts) do
+    data = LabAbi.encode(StocksLab.abi!(config, :locker), "collect(uint256)", [token_id])
+
+    case Rpc.call_words(StocksLab.address!(config, :locker), data, block, 2, opts) do
+      {:ok, [amount0, amount1]} ->
+        {token, currency} =
+          if currency0?(launch.new_token, launch.stock),
+            do: {amount0, amount1},
+            else: {amount1, amount0}
+
+        %{
+          token_amount: Rpc.format_units(token, @token_decimals),
+          currency_amount: Rpc.format_units(currency, decimals)
+        }
+
+      {:error, _reason} ->
+        nil
+    end
+  end
+
+  # The hook's two lanes for this pool, read from its own storage right now,
+  # plus every accrual and settlement it emitted since graduation, and the
+  # splitter the staker lane and the locker's LP fees flow to.
+  defp stocks_fees(config, launch, decimals, block, opts) do
     hook = StocksLab.address!(config, :hook)
     abi = StocksLab.abi!(config, :hook)
 
-    with {:ok, regent_destination} <-
-           Rpc.call_address(
+    with {:ok, [regent_accrued, staker_accrued]} <-
+           Rpc.call_words(
              hook,
-             LabAbi.encode(abi, "REGENT_DESTINATION()", []),
+             LabAbi.encode(abi, "accrued(bytes32)", [launch.pool_id]),
              block,
+             2,
              opts
            ),
-         {:ok, executor} <- Rpc.call_address(hook, @executor_selector, block, opts),
-         {:ok, logs} <- logs(hook, launch.migration_block, block, [nil, launch.pool_id], opts),
-         destinations <- lane_destinations(logs, subject.splitter),
-         {:ok, subject_buckets} <-
-           buckets(config, hook, abi, launch.pool_id, destinations, decimals, block, opts),
-         {:ok, [regent_bucket]} <-
-           buckets(config, hook, abi, launch.pool_id, [regent_destination], decimals, block, opts) do
+         {:ok, [stock_converted, usdc_deposited, stock_to_stakers]} <-
+           Rpc.call_words(
+             hook,
+             LabAbi.encode(abi, "settled(bytes32)", [launch.pool_id]),
+             block,
+             3,
+             opts
+           ),
+         {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts),
+         {:ok, logs} <- logs(hook, launch.migration_block, block, [nil, launch.pool_id], opts) do
       accrued_topic = LabAbi.topic(StocksLabAbi.hook_fee_accrued_signature())
-      settled_topic = LabAbi.topic(StocksLabAbi.bucket_settled_signature())
+      regent_topic = LabAbi.topic(StocksLabAbi.regent_lane_settled_signature())
+      staker_topic = LabAbi.topic(StocksLabAbi.staker_lane_settled_signature())
 
       {:ok,
        %{
          lane_bps: @lane_bps,
-         config: subject,
-         regent_destination: regent_destination,
-         executor: executor,
-         regent_bucket: regent_bucket,
-         subject_buckets: subject_buckets,
          trades: Enum.count(logs, &(topic_at(&1, 0) == accrued_topic)),
+         regent: %{
+           accrued: Rpc.format_units(regent_accrued, decimals),
+           settled_currency: Rpc.format_units(stock_converted, decimals),
+           settled_usdc: Rpc.format_units(usdc_deposited, @usdc_decimals)
+         },
+         stakers: %{
+           accrued: Rpc.format_units(staker_accrued, decimals),
+           accrued_atomic: staker_accrued,
+           settled_currency: Rpc.format_units(stock_to_stakers, decimals)
+         },
+         splitter: splitter,
          settlements:
            logs
-           |> Enum.filter(&(topic_at(&1, 0) == settled_topic))
-           |> Enum.map(&settlement(&1, decimals))
+           |> Enum.filter(&(topic_at(&1, 0) in [regent_topic, staker_topic]))
+           |> Enum.map(&settlement(&1, regent_topic, decimals))
        }}
     end
   end
 
-  # The splitter registered at graduation, every previous/current pair of a
-  # later lane change, and the one configured now; zero means "off" and is not
-  # a destination.
-  defp lane_destinations(logs, current) do
-    registered =
-      logs
-      |> Enum.filter(&(topic_at(&1, 0) == @pool_registered_topic))
-      |> Enum.map(fn log -> log |> data_words() |> hd() end)
+  # The memestake splitter of a graduated launch: what is staked in it, the
+  # skim it keeps from every unstake, and the dollar it pays out in.
+  defp splitter_facts(config, splitter, block, opts) do
+    abi = StocksLab.abi!(config, :splitter)
 
-    changed =
-      logs
-      |> Enum.filter(&(topic_at(&1, 0) == @subject_lane_set_topic))
-      |> Enum.flat_map(fn log -> [word(topic_at(log, 2)), word(topic_at(log, 3))] end)
-
-    (registered ++ changed)
-    |> Enum.map(&optional_address/1)
-    |> Kernel.++([current])
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq_by(&String.downcase/1)
+    with {:ok, total_staked} <-
+           Rpc.call_uint(splitter, LabAbi.encode(abi, "totalStaked()", []), block, opts),
+         {:ok, skim_bps} <-
+           Rpc.call_uint(splitter, LabAbi.encode(abi, "SKIM_BPS()", []), block, opts),
+         {:ok, dollar} <-
+           Rpc.call_address(splitter, LabAbi.encode(abi, "dollar()", []), block, opts) do
+      {:ok,
+       %{
+         address: splitter,
+         total_staked: Rpc.format_units(total_staked, @token_decimals),
+         total_staked_atomic: total_staked,
+         skim_bps: skim_bps,
+         dollar: dollar
+       }}
+    end
   end
 
-  defp buckets(_config, hook, abi, pool_id, destinations, decimals, block, opts) do
-    Enum.reduce_while(destinations, {:ok, []}, fn destination, {:ok, acc} ->
-      with {:ok, accrued} <-
-             Rpc.call_uint(
-               hook,
-               LabAbi.encode(abi, "accrued(bytes32,address)", [pool_id, destination]),
-               block,
-               opts
-             ),
-           {:ok, [stock_converted, usdc_deposited]} <-
-             Rpc.call_words(
-               hook,
-               LabAbi.encode(abi, "settled(bytes32,address)", [pool_id, destination]),
-               block,
-               2,
-               opts
-             ) do
-        {:cont,
-         {:ok,
-          acc ++
-            [
-              %{
-                destination: destination,
-                accrued: Rpc.format_units(accrued, decimals),
-                accrued_atomic: accrued,
-                settled_currency: Rpc.format_units(stock_converted, decimals),
-                settled_usdc: Rpc.format_units(usdc_deposited, @usdc_decimals)
-              }
-            ]}}
-      else
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
-  end
+  defp settlement(log, regent_topic, decimals) do
+    if topic_at(log, 0) == regent_topic do
+      [stock_converted, usdc_deposited] = data_words(log)
 
-  defp settlement(log, decimals) do
-    [stock_converted, usdc_deposited, _source_ref] = data_words(log)
-    {:ok, destination} = log |> topic_at(2) |> word() |> Abi.word_address()
+      %{
+        lane: :regent,
+        currency: Rpc.format_units(stock_converted, decimals),
+        usdc: Rpc.format_units(usdc_deposited, @usdc_decimals),
+        block: quantity(log["blockNumber"]),
+        transaction_hash: log["transactionHash"]
+      }
+    else
+      [amount] = data_words(log)
 
-    %{
-      destination: destination,
-      currency: Rpc.format_units(stock_converted, decimals),
-      usdc: Rpc.format_units(usdc_deposited, @usdc_decimals),
-      block: quantity(log["blockNumber"]),
-      transaction_hash: log["transactionHash"]
-    }
+      %{
+        lane: :stakers,
+        currency: Rpc.format_units(amount, decimals),
+        usdc: nil,
+        block: quantity(log["blockNumber"]),
+        transaction_hash: log["transactionHash"]
+      }
+    end
   end
 
   # Shared chain reads
@@ -631,18 +634,6 @@ defmodule Autolaunch.Pool do
     {:ok, currency_bytes} = Address.decode(currency)
     token_bytes < currency_bytes
   end
-
-  defp optional_address(0), do: nil
-
-  defp optional_address(word) when is_integer(word) do
-    case Abi.word_address(word) do
-      {:ok, address} -> address
-      :error -> nil
-    end
-  end
-
-  defp optional_address(@zero_address), do: nil
-  defp optional_address(address) when is_binary(address), do: address
 
   defp percent(fee_hundredths_bps) when is_integer(fee_hundredths_bps) do
     # A v4 static fee is in hundredths of a bip: 3_000 is 0.30%.

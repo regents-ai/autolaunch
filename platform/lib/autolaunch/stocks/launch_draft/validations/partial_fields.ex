@@ -14,9 +14,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Validations.PartialFields do
     website: 256,
     stock_address: 42,
     start_timezone: 64,
-    floor_price: 128,
-    subject_splitter: 42,
-    fee_administrator: 42
+    floor_price: 128
   }
 
   @impl true

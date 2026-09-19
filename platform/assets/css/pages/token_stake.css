@@ -1,0 +1,11 @@
+/* The staking card shares the swap card's composition; only its own parts live here. */
+.token-stake { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
+.token-stake__title { margin: 0; font-size: 1.25rem; }
+.token-stake__lead { margin: 0; color: var(--color-fg-muted); font-size: .9375rem; line-height: 1.5; }
+.token-stake__facts { display: grid; gap: var(--space-1); margin: 0 0 var(--space-2); font-size: .9375rem; }
+.token-stake__facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); }
+.token-stake__facts dt { color: var(--color-fg-muted); }
+.token-stake__facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: right; }
+.token-stake__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-2); }
+.token-stake__actions .token-swap__submit { margin-top: 0; }
+.token-stake__actions--open .rg-button { min-height: 2.75rem; }

@@ -276,15 +276,16 @@ contracts:
         contract_name: IStocksLaunchpadV1
         target: stocks_lab_launchpad_address
         abi_path: abi/stocks-launchpad-v1.json
-        abi_sha256: 707e0a4c1107f0c73debbf37015ed128c6eee8101232d92e5845e0fd695663da
+        abi_sha256: a88713cebb2724b452dafdd95eb2c8b5002db031797734220b48731eb0badf08
         interface_note: >-
           launch takes one LaunchParams tuple (name, symbol, description, website, image, stock,
-          startBlock uint64, floorPriceQ96 uint256, requiredStockRaised uint128, feeAdministrator,
-          subjectSplitter, expectedLaunchFee uint256) and nothing else. expectedLaunchFee must equal
-          launchFee() and the launcher's REGENT allowance to the launchpad must equal it exactly;
-          the fee is funded into REGENT staking and never refunded. No creator allocation.
+          startBlock uint64, floorPriceQ96 uint256, expectedLaunchFee uint256) and nothing else.
+          expectedLaunchFee must equal launchFee() and the launcher's REGENT allowance to the
+          launchpad must equal it exactly; the fee is funded into REGENT staking and never
+          refunded. No creator allocation. Graduation clones a memestake splitter per launch
+          (MemestockSplitterCreated) and locks both LP positions in the launchpad's locker.
         confirmation_event_signatures:
-          - StockLaunchCreated(uint256,address,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)
+          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint128,uint256,uint256)
           - StockLaunchFeeCollected(uint256,address,address,uint256)
         reads:
           - id: stock_admission
@@ -297,8 +298,12 @@ contracts:
             signature: launchFee()
           - id: bid_tick_spacing_for
             signature: bidTickSpacingFor(uint256)
-          - id: subject_config
-            signature: subjectConfig(uint256)
+          - id: launch_id_of_token
+            signature: launchIdOfToken(address)
+          - id: locker
+            signature: locker()
+          - id: splitter_implementation
+            signature: splitterImplementation()
         action_ids:
           - launch
       - contract_id: stock_bid_adapter_v1
@@ -328,6 +333,15 @@ contracts:
         contract_name: IStocksFeeHookV1
         target: stocks_lab_hook_address
         abi_path: abi/stocks-fee-hook-v1.json
-        abi_sha256: 6f13251ad750b3ab182ac001badd359ea450ce5d8ddc9a31e551123ae4569405
-        interface_note: Accrual-only hook fee lanes; the website reads and never calls settle.
-        action_ids: []
+        abi_sha256: 088e16110c465b21a43a2ceb2dfa443ab06994dd09f9fed4667d41b9c9830888
+        interface_note: >-
+          Two accrual lanes per pool: REGENT (settled by the executor only) and stakers
+          (settleStakerLane(poolId), callable by anyone, deposits the accrued STOCK into the
+          launch's splitter). The website reads both and prepares settleStakerLane.
+        reads:
+          - id: accrued
+            signature: accrued(bytes32)
+          - id: settled
+            signature: settled(bytes32)
+        action_ids:
+          - settle_staker_lane

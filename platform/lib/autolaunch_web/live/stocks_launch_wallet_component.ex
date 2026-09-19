@@ -31,8 +31,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     insufficient_regent: "This wallet holds less REGENT than the launch fee.",
     active_stocks_launch_exists: ActiveLaunchLimit.message(),
     stock_not_admitted: "This stock token is not admitted for launches right now.",
-    subject_splitter_unrecognised:
-      "The subject revenue address is not a recognised Agent revenue address. Check it on the draft.",
     start_too_soon: "The start must be at least 10 minutes from now. Move it later on the draft.",
     start_too_late: "The start must be within 30 days. Move it earlier on the draft.",
     start_missing: "Choose a start date and time on the draft.",
@@ -46,8 +44,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     stock_invalid: "Choose a stock token on the draft.",
     unsupported_stock: "Choose a stock token on the draft.",
-    fee_administrator_invalid: "The fee administrator is not a usable address.",
-    subject_splitter_invalid: "The subject revenue address is not a usable address.",
     launch_draft_not_found: "This draft is no longer available.",
     launch_draft_unavailable: "This draft could not be read just now.",
     launch_step_moved: "This launch moved on while you were looking. Check it again.",
@@ -182,17 +178,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
                 (rounded down from {argument(@operation, "floor_price_entered")})
               </span>
             </dd>
-          </div>
-          <div>
-            <dt>Subject revenue</dt>
-            <dd :if={argument(@operation, "subject_enabled")} class="launch-wallet-mono">
-              On · {argument(@operation, "subject_splitter")}
-            </dd>
-            <dd :if={!argument(@operation, "subject_enabled")}>Off</dd>
-          </div>
-          <div>
-            <dt>Fee administrator</dt>
-            <dd class="launch-wallet-mono">{argument(@operation, "fee_administrator")}</dd>
           </div>
           <div>
             <dt>Launch fee</dt>
@@ -575,8 +560,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       {"Minimum raise (USDC base units)", argument(operation, "minimum_raise_usdc_atomic")},
       {"Minimum raise quoted at review (base units)",
        argument(operation, "required_stock_raised")},
-      {"Fee administrator", argument(operation, "fee_administrator")},
-      {"Subject splitter", argument(operation, "subject_splitter")},
       {"Launch fee (atomic)", argument(operation, "expected_launch_fee_atomic")},
       {"REGENT", argument(operation, "regent")},
       {"Reviewed block",

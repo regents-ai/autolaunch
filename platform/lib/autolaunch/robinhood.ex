@@ -22,10 +22,11 @@ defmodule Autolaunch.Robinhood do
       {"Vesting", "None"},
       {"Treasury", "None"},
       {"Protocol revenue lane", "1.00% of stock-side pool volume"},
-      {"Subject revenue lane", "Off, or 1.00% when enabled"},
+      {"Staker revenue lane",
+       "1.00% of stock-side pool volume to the token's stakers, always on"},
       {"Pool fee", "0.30%"},
       {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
-      {"Pool liquidity", "Locked forever at 0x…dEaD"},
+      {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
       {"If the minimum is not raised", "Every bid is refundable through the auction"}
     ]
   end
