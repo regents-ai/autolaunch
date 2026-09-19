@@ -45,9 +45,16 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   attr :cursor, :string, default: nil
   attr :trade_event, :string, default: nil
 
+  attr :robinhood, :map,
+    default: Phoenix.LiveView.AsyncResult.ok([]),
+    doc: "the Robinhood auctions listed beside the stored ones"
+
+  attr :robinhood_trade_event, :string, default: nil
+
   def collection(assigns) do
     assigns =
       assign(assigns,
+        listed?: async_list(assigns.records) != [] or async_list(assigns.robinhood) != [],
         title: if(assigns.kind == :auctions, do: "Auctions", else: "Tokens"),
         copy:
           if(
@@ -85,7 +92,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         </nav>
       </header>
       <section
-        :if={@records.ok? && @records.result == []}
+        :if={@records.ok? && !@robinhood.loading && !@listed?}
         class="autolaunch-empty autolaunch-market-empty"
       >
         <p :if={!@cursor} class="autolaunch-kicker">Be first</p>
@@ -107,11 +114,16 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         ><span class="rg-button__label">{@empty_action}
         <span aria-hidden="true">→</span></span></.link>
       </section>
-      <div :if={@records.loading} class="home-coin-grid" aria-hidden="true">
-        <div :for={index <- 1..6} id={"#{@kind}-loading-#{index}"} class="home-skeleton">
-          <div class="home-skeleton__image"></div><div class="home-skeleton__line"></div><div class="home-skeleton__line home-skeleton__line--short">
-          </div>
+      <div
+        :if={@records.loading && @kind == :auctions}
+        class="auction-card-grid"
+        aria-hidden="true"
+      >
+        <div :for={index <- 1..3} id={"auctions-loading-#{index}"} class="auction-card-skeleton">
         </div>
+      </div>
+      <div :if={@records.loading && @kind == :tokens} class="token-table-skeleton" aria-hidden="true">
+        <div :for={index <- 1..6} id={"tokens-loading-#{index}"}></div>
       </div>
       <p :if={@records.loading} class="visually-hidden" role="status">Loading {@title}</p>
       <Regent.Primitives.notice :if={@records.failed} role="alert">
@@ -127,10 +139,19 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         >Retry</Regent.Primitives.button>
         <.link :if={@cursor} patch={"/#{@kind}"}>Back to newest</.link>
       </Regent.Primitives.notice>
-      <div :if={@records.ok? && @records.result != []} class="home-coin-grid">
-        <div :for={record <- @records.result}>
-          <.explore_card
-            kind={collection_record_kind(@kind)}
+      <Regent.Primitives.notice :if={@robinhood.failed} role="alert">
+        <p>Robinhood auctions are unavailable right now.</p>
+      </Regent.Primitives.notice>
+      <div :if={@kind == :auctions && @listed?} class="auction-card-grid">
+        <.auction_card
+          :for={auction <- async_list(@robinhood)}
+          kind={:robinhood_auction}
+          record={auction}
+          trade_event={@robinhood_trade_event}
+        />
+        <div :for={record <- async_list(@records)} class="auction-card-grid__cell">
+          <.auction_card
+            kind={:auction}
             record={record}
             creator_connections={connections_for(record, grouped_connections(@creators))}
             trade_event={@trade_event}
@@ -142,6 +163,14 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
           />
         </div>
       </div>
+      <.explore_table
+        :if={@kind == :tokens && @listed?}
+        kind={:token}
+        records={@records.result}
+        creators={grouped_connections(@creators)}
+        trade_event={@trade_event}
+        treasury={!Lab.enabled?()}
+      />
       <nav
         :if={@pagination.ok? && (@cursor || @pagination.result.has_more)}
         aria-label="Browse pages"
@@ -160,6 +189,57 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     </section>
     """
   end
+
+  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :records, :list, required: true
+  attr :creators, :map, required: true, doc: "creator connections grouped by record"
+  attr :trade_event, :string, default: nil
+  attr :treasury, :boolean, default: false, doc: "show each record's treasury report"
+
+  def explore_table(assigns) do
+    ~H"""
+    <div class="home-table-scroll">
+      <table class="home-table">
+        <caption class="visually-hidden">
+          {if @kind == :token, do: "Graduated tokens", else: "Auctions"}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Coin</th>
+            <th scope="col">{if @kind == :token, do: "Price", else: "Clearing price"}</th>
+            <th scope="col">Creator</th>
+            <th scope="col">Age</th>
+            <th scope="col">{if @kind == :token, do: "Pair", else: "Status"}</th>
+            <th :if={@trade_event} scope="col">
+              {if @kind == :token, do: "Quick buy", else: "Quick bid"}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <%= for record <- @records do %>
+            <.explore_row
+              kind={@kind}
+              record={record}
+              creator_connections={connections_for(record, @creators)}
+              trade_event={@trade_event}
+            />
+            <tr :if={@treasury} class="home-table__note">
+              <td colspan={if @trade_event, do: 6, else: 5}>
+                <.treasury_security
+                  report={report(record)}
+                  surface={"overview-#{@kind}s-#{record.id}"}
+                />
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  defp async_list(%{ok?: true, result: records}) when is_list(records), do: records
+  defp async_list(_async), do: []
 
   attr :title, :string, required: true
   attr :kind, :atom, required: true

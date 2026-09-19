@@ -75,4 +75,40 @@ defmodule AutolaunchWeb.Components.SwapModal do
     </dialog>
     """
   end
+
+  attr :id, :string, required: true
+  attr :auction, :map, required: true, doc: "a listed Robinhood auction"
+  attr :amount, :string, default: nil, doc: "an amount chosen before the panel opened"
+  attr :authenticated, :boolean, default: false
+  attr :current_human_id, :integer, default: nil
+  attr :session_lease, :map, default: nil
+
+  def robinhood_bid_modal(assigns) do
+    ~H"""
+    <dialog
+      id={@id}
+      class="token-swap-modal"
+      phx-hook="AutolaunchSwapDialog"
+      data-record-id={@auction.auction}
+      aria-labelledby={@id <> "-title"}
+      aria-modal="true"
+    >
+      <header class="token-swap-modal__header">
+        <h2 id={@id <> "-title"}>Bid on {@auction.name}</h2>
+        <Regent.Primitives.button variant="quiet" data-close-swap aria-label="Close bid form">
+          Close
+        </Regent.Primitives.button>
+      </header>
+      <.live_component
+        module={AutolaunchWeb.RobinhoodStockBidComponent}
+        id={@id <> "-input"}
+        auction={@auction.auction}
+        preset_amount={@amount}
+        authenticated={@authenticated}
+        current_human_id={@current_human_id}
+        session_lease={@session_lease}
+      />
+    </dialog>
+    """
+  end
 end

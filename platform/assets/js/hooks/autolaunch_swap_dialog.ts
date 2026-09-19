@@ -37,7 +37,7 @@ export const AutolaunchSwapDialog = {
     this.el.addEventListener("cancel", onCancel)
     this.el.addEventListener("click", onClick)
     this.el.showModal()
-    this.el.querySelector<HTMLInputElement>('input[name="amount"]')?.focus({preventScroll: true})
+    this.el.querySelector<HTMLInputElement>('input[name$="amount"]')?.focus({preventScroll: true})
     this.cleanup = () => {
       this.el.removeEventListener("close", onClose)
       this.el.removeEventListener("cancel", onCancel)

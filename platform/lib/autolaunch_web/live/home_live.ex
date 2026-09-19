@@ -3,9 +3,14 @@ defmodule AutolaunchWeb.HomeLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
+    only: [
+      connections_for: 2,
+      creator_connections_for: 1,
+      current_human_id: 1,
+      explore_table: 1
+    ]
 
-  import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1, explore_row: 1]
+  import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1]
   import AutolaunchWeb.Components.SwapModal
   alias Autolaunch.HomeMarket
 
@@ -246,32 +251,13 @@ defmodule AutolaunchWeb.HomeLive do
             trade_event="open_trade"
           />
         </div>
-        <div :if={@records != [] && @market_options.display == "table"} class="home-table-scroll">
-          <table class="home-table">
-            <caption class="visually-hidden">
-              {if @kind == :token, do: "Graduated tokens", else: "Auctions"}
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Coin</th><th scope="col">
-                  {if @kind == :token, do: "Price", else: "Clearing price"}
-                </th><th scope="col">Creator</th><th scope="col">Age</th><th scope="col">Status</th>
-                <th scope="col">
-                  <span class="visually-hidden">{if @kind == :token, do: "Buy", else: "Bid"}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <.explore_row
-                :for={record <- @records}
-                kind={@kind}
-                record={record}
-                creator_connections={connections_for(record, @creators)}
-                trade_event="open_trade"
-              />
-            </tbody>
-          </table>
-        </div>
+        <.explore_table
+          :if={@records != [] && @market_options.display == "table"}
+          kind={@kind}
+          records={@records}
+          creators={@creators}
+          trade_event="open_trade"
+        />
 
         <Regent.Primitives.notice :if={@market_failed} tone="error" class="home-market__error">
           <p>

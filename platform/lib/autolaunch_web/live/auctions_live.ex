@@ -17,9 +17,24 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   def handle_event("open_trade", _params, socket), do: {:noreply, socket}
 
+  def handle_event("open_robinhood_bid", %{"id" => address} = params, socket) do
+    trade =
+      with %{ok?: true, result: auctions} <- socket.assigns.robinhood,
+           %{} = auction <- Enum.find(auctions, &(&1.auction == address)) do
+        %{record: auction, amount: params["amount"]}
+      else
+        _not_listed -> nil
+      end
+
+    {:noreply, assign(socket, :trade, trade)}
+  end
+
+  def handle_event("open_robinhood_bid", _params, socket), do: {:noreply, socket}
+
   def handle_event("close_trade", %{"id" => id}, socket) do
     case socket.assigns.trade do
       %{record: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
+      %{record: %{auction: ^id}} -> {:noreply, assign(socket, :trade, nil)}
       _other -> {:noreply, socket}
     end
   end
@@ -47,7 +62,16 @@ defmodule AutolaunchWeb.AuctionsLive do
       end,
       reset: true
     )
+    |> assign_async(:robinhood, fn -> robinhood_auctions(cursor) end, reset: true)
   end
+
+  # Robinhood auctions carry no opening time to page by, so they lead the first page only.
+  defp robinhood_auctions(nil) do
+    with {:ok, auctions} <- Autolaunch.Robinhood.Auctions.list(),
+         do: {:ok, %{robinhood: auctions}}
+  end
+
+  defp robinhood_auctions(_cursor), do: {:ok, %{robinhood: []}}
 
   def render(assigns) do
     ~H"""
@@ -58,9 +82,20 @@ defmodule AutolaunchWeb.AuctionsLive do
       pagination={@pagination}
       cursor={@cursor}
       trade_event="open_trade"
+      robinhood={@robinhood}
+      robinhood_trade_event="open_robinhood_bid"
+    />
+    <.robinhood_bid_modal
+      :if={match?(%{record: %{launch_id: _}}, @trade)}
+      id={"auctions-robinhood-bid-#{@trade.record.auction}"}
+      auction={@trade.record}
+      amount={@trade.amount}
+      authenticated={@account_control.kind == :signed_in}
+      current_human_id={current_human_id(@access_context)}
+      session_lease={@session_lease}
     />
     <.bid_modal
-      :if={@trade}
+      :if={match?(%{record: %Autolaunch.Auction{}}, @trade)}
       id={"auctions-bid-#{@trade.record.id}"}
       auction={@trade.record}
       amount={@trade.amount}

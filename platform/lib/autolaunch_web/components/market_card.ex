@@ -93,6 +93,89 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
+  attr :kind, :atom, required: true, values: [:auction, :robinhood_auction]
+  attr :record, :map, required: true
+  attr :creator_connections, :map, default: %{}
+  attr :trade_event, :string, default: nil
+
+  @doc "The large auction card of the auctions page: who, where, what state, and how to bid."
+  def auction_card(assigns) do
+    assigns =
+      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
+
+    ~H"""
+    <article class="auction-card" data-state={@view.state}>
+      <.link navigate={@view.path} class="auction-card__main">
+        <header class="auction-card__head">
+          <div class="auction-card__art">
+            <img
+              :if={present?(@view.image)}
+              src={@view.image}
+              alt={"#{@view.name} token"}
+              loading="lazy"
+              decoding="async"
+              width="128"
+              height="128"
+            />
+            <span :if={!present?(@view.image)} aria-label="No token image">{String.first(
+              @view.name || "?"
+            )}</span>
+          </div>
+          <div class="auction-card__title">
+            <h2>{@view.name}</h2>
+            <p>${@view.symbol}</p>
+          </div>
+          <span class="auction-card__state">{@view.status}</span>
+        </header>
+        <p class="auction-card__tags">
+          <span>{@view.chain}</span><span>{@view.launch}</span>
+        </p>
+        <p :if={present?(@view.description)} class="auction-card__description">
+          {@view.description}
+        </p>
+      </.link>
+      <dl class="auction-card__stats">
+        <div>
+          <dt>{@view.metric_label}</dt>
+          <dd><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></dd>
+        </div>
+        <div :if={@view.raised}>
+          <dt>Raised</dt>
+          <dd><TokenDisplay.price amount={@view.raised.amount} unit={@view.raised.unit} /></dd>
+        </div>
+        <div :if={@view.quick}>
+          <dt>Bids in</dt>
+          <dd>{@view.quick.currency}</dd>
+        </div>
+        <div :if={@view.age}>
+          <dt>Opened</dt>
+          <dd>{@view.age} ago</dd>
+        </div>
+        <div :if={@view.connections != []}>
+          <dt>Creator</dt>
+          <dd>
+            <a
+              href={"https://x.com/#{URI.encode_www_form(hd(@view.connections).username)}"}
+              target="_blank"
+              rel="noopener noreferrer"
+            >{@view.creator}</a>
+          </dd>
+        </div>
+      </dl>
+      <.quick_actions
+        :if={@trade_event && @view.quick}
+        event={@trade_event}
+        record_id={@view.record_id}
+        name={@view.name}
+        quick={@view.quick}
+      />
+      <.link :if={!@view.quick} navigate={@view.path} class="auction-card__more">
+        View auction <span aria-hidden="true">→</span>
+      </.link>
+    </article>
+    """
+  end
+
   attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
@@ -121,7 +204,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </.link>
       </td>
       <td><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></td>
-      <td>
+      <td data-label="Creator">
         <a
           :if={@view.connections != []}
           href={"https://x.com/#{URI.encode_www_form(hd(@view.connections).username)}"}
@@ -129,7 +212,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
           rel="noopener noreferrer"
         >{@view.creator}</a><span :if={@view.connections == []}>—</span>
       </td>
-      <td>{@view.age || "—"}</td><td>{@view.status}</td>
+      <td data-label="Age">{@view.age || "—"}</td>
+      <td data-label={if @kind == :token, do: "Pair", else: "Status"}>
+        {if @kind == :token, do: "#{@view.symbol} / #{@view.quick.currency}", else: @view.status}
+      </td>
       <td :if={@trade_event}>
         <.quick_actions
           :if={@view.quick}
@@ -310,7 +396,37 @@ defmodule AutolaunchWeb.Components.MarketCard do
       creator: creator_name(connections),
       age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
       connections: connection_list(connections),
-      quick: auction_quick(auction)
+      quick: auction_quick(auction),
+      record_id: auction.id,
+      state: auction.state,
+      chain: "Base",
+      launch: if(auction.kind == :stocks, do: "Memestock", else: "Revstake"),
+      raised: nil
+    }
+  end
+
+  # A Robinhood auction is read from its chain, which records no image,
+  # description, creator or opening time, so the card shows none.
+  defp view(:robinhood_auction, auction, _connections) do
+    %{
+      name: auction.name,
+      symbol: auction.symbol,
+      description: nil,
+      image: nil,
+      status: auction.state |> to_string() |> String.capitalize(),
+      metric_label: "Clearing price",
+      metric: metric(auction.clearing_price, auction.stock_symbol),
+      address: auction.auction,
+      path: "/robinhood/auctions/#{auction.auction}",
+      creator: nil,
+      age: nil,
+      connections: [],
+      quick: auction_quick(auction, "USDG"),
+      record_id: auction.auction,
+      state: auction.state,
+      chain: "Robinhood",
+      launch: "Memestock",
+      raised: metric(auction.raised, auction.stock_symbol)
     }
   end
 
@@ -335,12 +451,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   # An auction that has ended takes no bids, so its row offers none.
-  defp auction_quick(%{state: state}) when state in [:graduated, :failed], do: nil
+  defp auction_quick(auction), do: auction_quick(auction, BidComponent.bid_currency(auction))
 
-  defp auction_quick(auction) do
+  defp auction_quick(%{state: state}, _currency) when state in [:graduated, :failed], do: nil
+
+  defp auction_quick(_auction, currency) do
     %{
       verb: "Bid",
-      currency: BidComponent.bid_currency(auction),
+      currency: currency,
       unavailable:
         if(Autolaunch.Prelaunch.read_only?(), do: "Available after contract deployment")
     }

@@ -65,7 +65,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:sent, fn -> %{} end)
      |> assign_new(:reading, fn -> nil end)
-     |> assign_new(:usdg_amount, fn -> "" end)
+     |> assign_new(:usdg_amount, fn -> Map.get(assigns, :preset_amount) || "" end)
      |> assign_new(:max_price, fn -> "" end)}
   end
 
