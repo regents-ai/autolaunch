@@ -60,6 +60,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :stocks_image_upload, :map, default: nil
   attr :stocks_lab, :map, default: nil
   attr :minimum_raise, :string, default: nil
+  attr :market, :map, default: %{prices: %{}, venues: []}
   attr :launch_chain, :atom, required: true
   attr :active_stocks_launch, :boolean, default: false
   attr :current_human_id, :integer, default: nil
@@ -216,20 +217,25 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               name="stock_draft[stock_address]"
               value={@draft_values["stock_address"]}
               chain={@launch_chain}
+              prices={@market.prices}
             />
             <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
               {@draft_errors["stock_address"]}
             </p>
-            <p :if={@stock} class="autolaunch-draft-hint">
-              {@stock.symbol} uses {@stock.decimals} decimal places on this site's {test_network(
-                @launch_chain
-              )}.
+            <p
+              :if={@stock && @market.venues != []}
+              id="stocks-terms-buy-at"
+              class="autolaunch-draft-note stocks-buy-at"
+            >
+              Users can buy {@stock.symbol} at
+              <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
+                <span :if={index > 0}>or</span>
+                <a href={venue.url} target="_blank" rel="noopener noreferrer">{venue.name}</a>
+                ({compact_usd(venue.liquidity_usd)} liquidity{venue_note(@launch_chain)})
+              </span>
+              in order to bid on {bid_target(@draft_values["symbol"])}.
             </p>
 
-            <p :if={@launch_chain == :robinhood} id="stocks-terms-robinhood-start">
-              Bidding opens a fixed short time after you review the launch. The review shows the
-              exact blocks.
-            </p>
             <Regent.Primitives.field
               :if={@launch_chain == :base}
               id="stocks-terms-start_local"
@@ -284,33 +290,64 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               value={@draft_values["floor_price"]}
               error={@draft_errors["floor_price"]}
             />
-            <p
-              :if={@floor_echo}
-              id="stocks-terms-floor-echo"
-              class="autolaunch-draft-hint"
-              data-floor-executable={@floor_echo.executable}
-            >
-              Executable floor:
-              <strong>{Amounts.compact_decimal(@floor_echo.executable)} {symbol(@stock)}</strong>
-              per token <span :if={@floor_echo.adjusted?}>(rounded down from what you entered)</span>.
+            <p id="stocks-terms-minimum-raise" class="autolaunch-draft-note">
+              Every stock launch has the same minimum: {minimum_raise_copy(
+                @minimum_raise,
+                @raise_currency,
+                @stock
+              )}. If bids fall short, every bid is refunded.
             </p>
             <Regent.Primitives.disclosure
-              :if={
-                @floor_echo &&
-                  Amounts.compact_decimal(@floor_echo.executable) != @floor_echo.executable
-              }
-              id="stocks-terms-floor-exact"
-              summary="Every digit of the executable floor"
+              id="stocks-terms-more-info"
+              summary="More info"
+              class="stocks-more-info"
             >
-              <p class="autolaunch-exact-value">{@floor_echo.executable} {symbol(@stock)}</p>
+              <p :if={@stock} class="autolaunch-draft-hint">
+                {@stock.symbol} uses {@stock.decimals} decimal places on this site's {test_network(
+                  @launch_chain
+                )}.
+              </p>
+              <p class="autolaunch-draft-hint">
+                Bids and refunds use the selected stock token. {@raise_currency} is converted before bidding.
+                These assets are listed for selection, not yet admitted for launch execution.
+                Asset transfer policies and execution availability require separate verification.
+              </p>
+              <p
+                :if={@launch_chain == :robinhood}
+                id="stocks-terms-robinhood-start"
+                class="autolaunch-draft-hint"
+              >
+                Bidding opens a fixed short time after you review the launch. The review shows the
+                exact blocks.
+              </p>
+              <p
+                :if={@floor_echo}
+                id="stocks-terms-floor-echo"
+                class="autolaunch-draft-hint"
+                data-floor-executable={@floor_echo.executable}
+              >
+                Executable floor:
+                <strong>{Amounts.compact_decimal(@floor_echo.executable)} {symbol(@stock)}</strong>
+                per token <span :if={@floor_echo.adjusted?}>(rounded down from what you entered)</span>.
+              </p>
+              <p
+                :if={
+                  @floor_echo &&
+                    Amounts.compact_decimal(@floor_echo.executable) != @floor_echo.executable
+                }
+                id="stocks-terms-floor-exact"
+                class="autolaunch-draft-hint"
+              >
+                Every digit of the executable floor:
+                <span class="autolaunch-exact-value">{@floor_echo.executable} {symbol(@stock)}</span>
+              </p>
+              <p
+                :if={!@floor_echo && @draft_values["floor_price"] != ""}
+                class="autolaunch-draft-hint"
+              >
+                The exact executable floor is shown at review, from the stock token's recorded decimals.
+              </p>
             </Regent.Primitives.disclosure>
-            <p :if={!@floor_echo && @draft_values["floor_price"] != ""} class="autolaunch-draft-hint">
-              The exact executable floor is shown at review, from the stock token's recorded decimals.
-            </p>
-            <p id="stocks-terms-minimum-raise" class="autolaunch-draft-hint">
-              Minimum raise: {minimum_raise_copy(@minimum_raise, @raise_currency, @stock)}. The auction refunds every bid if
-              it is not reached.
-            </p>
           </form>
 
           <section id="stocks-fixed-terms" class="launchpad-form-section rg-panel rg-panel--surface">
@@ -322,12 +359,14 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 </Regent.Structure.section_bar>
               </div>
             </header>
-            <dl class="launch-wallet-terms">
-              <div :for={{label, value} <- @fixed_terms}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
-              </div>
-            </dl>
+            <table class="stocks-terms-table">
+              <tbody>
+                <tr :for={{label, value} <- @fixed_terms}>
+                  <th scope="row">{label}</th>
+                  <td>{value}</td>
+                </tr>
+              </tbody>
+            </table>
           </section>
 
           <section
@@ -565,6 +604,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp minimum_raise_copy(units, currency, stock),
     do: "#{Amounts.grouped(units)} #{currency} worth of #{symbol(stock)}, converted at launch"
+
+  defp venue_note(:base), do: ""
+  defp venue_note(:robinhood), do: ", the most traded venue"
+
+  defp bid_target(symbol) when symbol in [nil, ""], do: "your token"
+  defp bid_target(symbol), do: symbol
 
   defp fixed_terms(:base), do: LaunchActions.terms()
   defp fixed_terms(:robinhood), do: Robinhood.stock_terms()

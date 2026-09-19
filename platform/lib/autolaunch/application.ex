@@ -20,6 +20,7 @@ defmodule Autolaunch.Application do
       {Autolaunch.Accounts.BootstrapRateLimiter, []},
       Autolaunch.Repo,
       {Phoenix.PubSub, name: Autolaunch.PubSub},
+      Autolaunch.Stocks.MarketData,
       autolaunch_indexer_children(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),

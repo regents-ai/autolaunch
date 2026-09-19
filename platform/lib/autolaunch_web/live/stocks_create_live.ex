@@ -38,6 +38,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
             current_human_id: actor.human_account_id,
             stocks_lab: stocks_lab(),
             minimum_raise: nil,
+            market: %{prices: %{}, venues: []},
             active_stocks_launch: active_stocks_launch?(actor),
             status: :loading
           )
@@ -48,6 +49,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
            |> load_draft(actor)
            |> choose_linked_stock(params["token"], actor)
            |> assign_minimum_raise(socket.assigns.launch_chain)
+           |> assign_market()
          else
            socket
          end}
@@ -66,6 +68,26 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   defp assign_minimum_raise(socket, :robinhood),
     do: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg())
+
+  # The chain's stock prices and the chosen stock's venues are read in the
+  # background: the page renders without them and fills them in when they land.
+  defp assign_market(socket) do
+    chain = socket.assigns.launch_chain
+    stock = chosen_stock(chain, socket.assigns.draft)
+    start_async(socket, :market, fn -> Stocks.MarketData.overview(chain, stock) end)
+  end
+
+  defp chosen_stock(chain, %{stock_address: address}) when is_binary(address) do
+    case Stocks.Assets.named(chain, address) do
+      {:ok, stock} -> stock
+      :error -> nil
+    end
+  end
+
+  defp chosen_stock(_chain, _draft), do: nil
+
+  defp refresh_market(socket, %{stock_address: same}, %{stock_address: same}), do: socket
+  defp refresh_market(socket, _before, _changed), do: assign_market(socket)
 
   # Client events are not proof of ownership; the anonymous entry has no draft.
   def handle_event(_event, _params, %{assigns: %{status: :sign_in_required}} = socket),
@@ -86,6 +108,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
       {:noreply,
        socket
        |> assign_draft(saved)
+       |> refresh_market(draft, saved)
        |> assign(
          draft_errors: %{},
          draft_notice: %{tone: :success, message: "Saved to your account."}
@@ -141,6 +164,9 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   def handle_async(:minimum_raise, _unavailable, socket),
     do: {:noreply, assign(socket, minimum_raise: nil)}
+
+  def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
+  def handle_async(:market, _unavailable, socket), do: {:noreply, socket}
 
   def handle_async({:fetch_image_url, request_id}, result, socket) do
     if socket.assigns.image_request == request_id do

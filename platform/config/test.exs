@@ -88,6 +88,12 @@ config :autolaunch,
        :autolaunch_indexer_http_client,
        Autolaunch.TestAutolaunchIndexerChainClient
 
+# Stock prices and venues are unavailable to ExUnit, so the create page renders
+# without them; a review server reads them from the real chains and DexScreener.
+unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
+  config :autolaunch, :autolaunch_market_http_client, Autolaunch.TestStocksMarketHttpClient
+end
+
 # The subject-wallet and launch browser proofs need a Base answer without a
 # provider, a wallet or a chain call. Ordinary ExUnit cases install and restore
 # these clients themselves, so only the Playwright server process selects them.

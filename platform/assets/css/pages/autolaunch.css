@@ -201,3 +201,29 @@
 .auction-fire__flame--fading { opacity: 0; }
 .auction-fire__flame--still { animation: none; transition: none; }
 @keyframes auction-fire-rise { from { transform: translate(-50%, -30%) scale(.6); } to { transform: translate(-50%, -90%) scale(1); } }
+
+/* Stock picker on the stock launch form: one tile per stock, price from its feed. */
+.stock-picker { margin: 0 0 var(--space-3); padding: 0; border: 0; min-width: 0; }
+.stock-picker > legend { padding: 0; margin-bottom: var(--space-2); font-size: .875rem; font-weight: 600; }
+.stock-picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: var(--space-2); }
+.stock-picker__tile { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--space-2); align-items: center; padding: var(--space-2); border: 1px solid var(--hairline); border-radius: 8px; cursor: pointer; }
+.stock-picker__tile:hover { border-color: var(--hairline-strong); }
+.stock-picker__tile:has(input:checked) { border-color: var(--brand-accent); box-shadow: inset 0 0 0 1px var(--brand-accent); }
+.stock-picker__tile:has(input:focus-visible) { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
+.stock-picker__tile input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.stock-picker__mark { grid-row: 1 / span 2; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 6px; background: color-mix(in oklch, var(--brand-accent) 18%, var(--color-surface)); color: var(--brand-accent); font-family: var(--font-family-title); font-size: .8125rem; letter-spacing: .04em; }
+.stock-picker__symbol { font-family: var(--font-family-mono); font-size: .8125rem; font-weight: 600; }
+.stock-picker__name { grid-column: 2; color: var(--color-fg-muted); font-size: .75rem; }
+.stock-picker__price { grid-column: 1 / -1; margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--hairline); font-family: var(--font-family-mono); font-size: .8125rem; }
+.stocks-buy-at { margin-bottom: var(--space-3); line-height: 1.6; }
+.stocks-buy-at a { color: var(--brand-accent); }
+.stocks-more-info { margin-top: var(--space-3); border-block-end: 0; }
+.stocks-more-info > summary { min-height: 2.75rem; font-size: .875rem; }
+.stocks-more-info .rg-disclosure-body { display: grid; gap: var(--space-2); padding-bottom: var(--space-2); }
+
+/* Fixed terms: label column in the UI face, values in the mono face, one accent rule on top. */
+.stocks-terms-table { width: 100%; border-collapse: collapse; border-top: 2px solid var(--brand-accent); }
+.stocks-terms-table tr + tr { border-top: 1px solid var(--hairline); }
+.stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
+.stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-mono); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 42rem) { .stocks-terms-table th, .stocks-terms-table td { display: block; width: auto; padding: 0; } .stocks-terms-table th { padding-top: var(--space-2); } .stocks-terms-table td { padding-bottom: var(--space-2); } }

@@ -18,19 +18,19 @@ defmodule Autolaunch.Stocks.Assets do
   @base_chain_id 8453
   @oracle_registry "0x3f3E8cf41cdd3b1D118c16471aB0113DfDDd5CaD"
   @assets [
-    {"AAPLc", "0xb200000000000000000000C2e324d24d7eEcd1fb"},
-    {"AMZNc", "0xb200000000000000000000d9192b6B456483C2E8"},
-    {"COINc", "0xb200000000000000000000c85a31389D71F3ecfb"},
-    {"CRCLc", "0xB20000000000000000000019f6E7C675b73C2e4D"},
-    {"GOOGLc", "0xb2000000000000000000002D0BA3164cc74f58B7"},
-    {"INTCc", "0xB2000000000000000000004AFF16039bA04bdFBc"},
-    {"METAc", "0xb2000000000000000000008bC8786B856E61707C"},
-    {"MSFTc", "0xB200000000000000000000Ab99cFa739E253872B"},
-    {"MSTRc", "0xb2000000000000000000004884b426556b92883d"},
-    {"NVDAc", "0xb20000000000000000000078ee7ce2fE4908108C"},
-    {"SNDKc", "0xb200000000000000000000397293Cb8cda9a10c5"},
-    {"SPCXc", "0xb2000000000000000000007b9fcbd005511aCBd5"},
-    {"TSLAc", "0xb2000000000000000000001e800a7f5189430cD0"}
+    {"AAPLc", "Apple", "0xb200000000000000000000C2e324d24d7eEcd1fb"},
+    {"AMZNc", "Amazon", "0xb200000000000000000000d9192b6B456483C2E8"},
+    {"COINc", "Coinbase", "0xb200000000000000000000c85a31389D71F3ecfb"},
+    {"CRCLc", "Circle", "0xB20000000000000000000019f6E7C675b73C2e4D"},
+    {"GOOGLc", "Alphabet", "0xb2000000000000000000002D0BA3164cc74f58B7"},
+    {"INTCc", "Intel", "0xB2000000000000000000004AFF16039bA04bdFBc"},
+    {"METAc", "Meta", "0xb2000000000000000000008bC8786B856E61707C"},
+    {"MSFTc", "Microsoft", "0xB200000000000000000000Ab99cFa739E253872B"},
+    {"MSTRc", "Strategy", "0xb2000000000000000000004884b426556b92883d"},
+    {"NVDAc", "NVIDIA", "0xb20000000000000000000078ee7ce2fE4908108C"},
+    {"SNDKc", "Sandisk", "0xb200000000000000000000397293Cb8cda9a10c5"},
+    {"SPCXc", "SpaceX", "0xb2000000000000000000007b9fcbd005511aCBd5"},
+    {"TSLAc", "Tesla", "0xb2000000000000000000001e800a7f5189430cD0"}
   ]
 
   @doc "The chain id a draft's stock currency lives on, for each launch chain."
@@ -38,10 +38,11 @@ defmodule Autolaunch.Stocks.Assets do
   def chain_id(:robinhood), do: RobinhoodLab.chain_id()
 
   def all(:base) do
-    Enum.map(@assets, fn {symbol, address} ->
+    Enum.map(@assets, fn {symbol, name, address} ->
       %{
         chain_id: @base_chain_id,
         symbol: symbol,
+        name: name,
         address: address,
         catalog_status: :listed,
         launch_admission: :unverified
@@ -72,9 +73,6 @@ defmodule Autolaunch.Stocks.Assets do
         raise "Autolaunch Robinhood lab configuration is invalid: #{reason}"
     end
   end
-
-  @doc "`{symbol, address}` pairs for a selector, in catalog order."
-  def options(chain), do: chain |> all() |> Enum.map(&{&1.symbol, &1.address})
 
   @doc "The listed stock a link names by symbol or address, however it is spelled."
   @spec named(:base | :robinhood, String.t()) :: {:ok, map()} | :error
