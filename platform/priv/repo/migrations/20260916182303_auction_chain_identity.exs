@@ -20,16 +20,20 @@ defmodule Autolaunch.Repo.Migrations.AuctionChainIdentity do
       add :chain_id, :bigint
     end
 
+    # The tables live in the schema the migration runs in, which is not `public`
+    # in production, so the hand-written SQL names it explicitly.
+    schema = ~s("#{prefix()}")
+
     execute """
-    UPDATE auctions AS auction
+    UPDATE #{schema}.auctions AS auction
     SET chain_id = evidence.chain_id
     FROM (
       SELECT lower(result ->> 'auction') AS auction_address,
              min((envelope ->> 'chain_id')::bigint) AS chain_id
       FROM (
-        SELECT result, envelope FROM launch_operations WHERE state = 'chain_verified'
+        SELECT result, envelope FROM #{schema}.launch_operations WHERE state = 'chain_verified'
         UNION ALL
-        SELECT result, envelope FROM stock_launch_operations WHERE state = 'chain_verified'
+        SELECT result, envelope FROM #{schema}.stock_launch_operations WHERE state = 'chain_verified'
       ) AS verified
       WHERE result ? 'auction' AND envelope ? 'chain_id'
       GROUP BY lower(result ->> 'auction')
@@ -43,7 +47,7 @@ defmodule Autolaunch.Repo.Migrations.AuctionChainIdentity do
     %{rows: [[unresolved, ids]]} =
       repo().query!("""
       SELECT count(*), coalesce(string_agg(id::text, ', ' ORDER BY id), '')
-      FROM auctions WHERE chain_id IS NULL
+      FROM #{schema}.auctions WHERE chain_id IS NULL
       """)
 
     if unresolved > 0 do

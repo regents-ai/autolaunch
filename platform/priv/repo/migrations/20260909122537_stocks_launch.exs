@@ -55,7 +55,6 @@ defmodule Autolaunch.Repo.Migrations.StocksLaunch do
             column: :id,
             name: "stock_launch_drafts_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -90,7 +89,6 @@ defmodule Autolaunch.Repo.Migrations.StocksLaunch do
             column: :id,
             name: "stock_launch_operations_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -110,7 +108,6 @@ defmodule Autolaunch.Repo.Migrations.StocksLaunch do
             column: :id,
             name: "stock_launch_operations_launch_draft_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -127,7 +124,6 @@ defmodule Autolaunch.Repo.Migrations.StocksLaunch do
             column: :id,
             name: "wallet_attempts_stock_launch_operation_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           )
     end

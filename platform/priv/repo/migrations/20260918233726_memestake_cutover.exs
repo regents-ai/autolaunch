@@ -60,7 +60,6 @@ defmodule Autolaunch.Repo.Migrations.MemestakeCutover do
             column: :id,
             name: "stock_fee_admin_operations_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -70,7 +69,6 @@ defmodule Autolaunch.Repo.Migrations.MemestakeCutover do
             column: :id,
             name: "stock_fee_admin_operations_auction_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -95,7 +93,6 @@ defmodule Autolaunch.Repo.Migrations.MemestakeCutover do
             column: :id,
             name: "wallet_attempts_stock_fee_admin_operation_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           )
     end

@@ -34,7 +34,6 @@ defmodule Autolaunch.Repo.Migrations.BidSettlement do
             column: :id,
             name: "bid_settlement_operations_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -58,7 +57,6 @@ defmodule Autolaunch.Repo.Migrations.BidSettlement do
             column: :id,
             name: "bid_settlement_operations_bid_position_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -81,7 +79,6 @@ defmodule Autolaunch.Repo.Migrations.BidSettlement do
             column: :id,
             name: "wallet_attempts_bid_settlement_operation_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           )
     end
