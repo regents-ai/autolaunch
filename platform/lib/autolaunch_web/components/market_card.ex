@@ -448,7 +448,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
       creator: creator_name(connections),
       age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections),
-      quick: %{verb: "Buy", currency: SwapComponent.entry_symbol(token.auction), unavailable: nil},
+      quick: %{
+        verb: "Buy",
+        currency: SwapComponent.entry_symbol(token.auction),
+        unavailable: closed_before_deployment()
+      },
       record_id: token.id
     }
   end
@@ -462,10 +466,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
     %{
       verb: "Bid",
       currency: currency,
-      unavailable:
-        if(Autolaunch.Prelaunch.read_only?(), do: "Available after contract deployment")
+      unavailable: closed_before_deployment()
     }
   end
+
+  # Until the contracts are deployed no quick button opens anything.
+  defp closed_before_deployment,
+    do: if(Autolaunch.Prelaunch.read_only?(), do: "Available after contract deployment")
 
   # The stored figure travels untouched; only its on-screen form is shortened.
   defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
