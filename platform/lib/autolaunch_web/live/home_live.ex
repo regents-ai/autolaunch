@@ -7,7 +7,8 @@ defmodule AutolaunchWeb.HomeLive do
       connections_for: 2,
       creator_connections_for: 1,
       current_human_id: 1,
-      explore_table: 1
+      explore_table: 1,
+      opened_robinhood_bid: 3
     ]
 
   import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1]
@@ -21,6 +22,8 @@ defmodule AutolaunchWeb.HomeLive do
        trade: nil,
        records: [],
        creators: %{},
+       robinhood: [],
+       robinhood_failed: false,
        market_loading: true,
        market_failed: false,
        market_append: false,
@@ -75,9 +78,17 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_event("open_trade", _params, socket), do: {:noreply, socket}
 
+  def handle_event("open_robinhood_bid", %{"id" => address} = params, socket),
+    do:
+      {:noreply,
+       assign(socket, :trade, opened_robinhood_bid(socket.assigns.robinhood, address, params))}
+
+  def handle_event("open_robinhood_bid", _params, socket), do: {:noreply, socket}
+
   def handle_event("close_trade", %{"id" => id}, socket) do
     case socket.assigns.trade do
       %{record: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
+      %{record: %{auction: ^id}} -> {:noreply, assign(socket, :trade, nil)}
       _other -> {:noreply, socket}
     end
   end
@@ -112,6 +123,23 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_async(:home_market, _failure, socket),
     do: {:noreply, assign(socket, market_loading: false, market_failed: true)}
 
+  def handle_async(:home_robinhood, {:ok, {:ok, auctions}}, socket),
+    do: {:noreply, assign(socket, robinhood: auctions, robinhood_failed: false)}
+
+  def handle_async(:home_robinhood, _failure, socket),
+    do: {:noreply, assign(socket, robinhood: [], robinhood_failed: true)}
+
+  # Robinhood auctions carry no opening time to page by, so they lead the first page.
+  defp load_robinhood(socket, true), do: socket
+
+  defp load_robinhood(socket, false) do
+    options = socket.assigns.market_options
+
+    socket
+    |> assign(robinhood: [], robinhood_failed: false)
+    |> start_async(:home_robinhood, fn -> HomeMarket.robinhood(options) end)
+  end
+
   defp load_market(socket, append?) do
     options = socket.assigns.market_options
     cursor = if append?, do: socket.assigns.next_cursor
@@ -133,14 +161,14 @@ defmodule AutolaunchWeb.HomeLive do
         {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
       end
     end)
+    |> load_robinhood(append?)
   end
 
   def render(assigns) do
     assigns =
-      assign(
-        assigns,
-        :kind,
-        if(assigns.market_options.view == "tokens", do: :token, else: :auction)
+      assign(assigns,
+        kind: if(assigns.market_options.view == "tokens", do: :token, else: :auction),
+        listed?: assigns.records != [] or assigns.robinhood != []
       )
 
     ~H"""
@@ -231,7 +259,7 @@ defmodule AutolaunchWeb.HomeLive do
         aria-busy={to_string(@market_loading)}
       >
         <div
-          :if={@market_loading && @records == []}
+          :if={@market_loading && !@listed?}
           class="home-coin-grid home-skeletons"
           aria-hidden="true"
         >
@@ -242,7 +270,16 @@ defmodule AutolaunchWeb.HomeLive do
         </div>
         <p :if={@market_loading} class="visually-hidden" role="status">Loading coins</p>
 
-        <div :if={@records != [] && @market_options.display == "grid"} class="home-coin-grid">
+        <Regent.Primitives.notice :if={@robinhood_failed} tone="error" class="home-market__error">
+          <p>Robinhood auctions are unavailable right now.</p>
+        </Regent.Primitives.notice>
+        <div :if={@listed? && @market_options.display == "grid"} class="home-coin-grid">
+          <.explore_card
+            :for={auction <- @robinhood}
+            kind={:robinhood_auction}
+            record={auction}
+            trade_event="open_robinhood_bid"
+          />
           <.explore_card
             :for={record <- @records}
             kind={@kind}
@@ -252,11 +289,13 @@ defmodule AutolaunchWeb.HomeLive do
           />
         </div>
         <.explore_table
-          :if={@records != [] && @market_options.display == "table"}
+          :if={@listed? && @market_options.display == "table"}
           kind={@kind}
           records={@records}
           creators={@creators}
           trade_event="open_trade"
+          robinhood={@robinhood}
+          robinhood_trade_event="open_robinhood_bid"
         />
 
         <Regent.Primitives.notice :if={@market_failed} tone="error" class="home-market__error">
@@ -268,7 +307,7 @@ defmodule AutolaunchWeb.HomeLive do
           <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
         </Regent.Primitives.notice>
         <div
-          :if={!@market_loading && !@market_failed && @records == []}
+          :if={!@market_loading && !@market_failed && !@listed?}
           class="home-empty"
           role="status"
         >
@@ -312,11 +351,13 @@ defmodule AutolaunchWeb.HomeLive do
           >{if @market_loading, do: "Loading…", else: "Load more"}</Regent.Primitives.button>
         </div>
         <p
-          :if={!@market_loading && !@market_failed && @records != []}
+          :if={!@market_loading && !@market_failed && @listed?}
           class="home-result-count"
           role="status"
         >
-          Showing {length(@records)} {if @kind == :token, do: "tokens", else: "auctions"}{if !@has_more,
+          Showing {length(@records) + length(@robinhood)} {if @kind == :token,
+            do: "tokens",
+            else: "auctions"}{if !@has_more,
             do: " · All results loaded"}
         </p>
       </section>
@@ -329,8 +370,17 @@ defmodule AutolaunchWeb.HomeLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
+      <.robinhood_bid_modal
+        :if={match?(%{record: %{launch_id: _}}, @trade)}
+        id={"home-robinhood-bid-#{@trade.record.auction}"}
+        auction={@trade.record}
+        amount={@trade.amount}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
       <.bid_modal
-        :if={@trade && @kind == :auction}
+        :if={match?(%{record: %Autolaunch.Auction{}}, @trade)}
         id={"home-bid-#{@trade.record.id}"}
         auction={@trade.record}
         amount={@trade.amount}

@@ -1,6 +1,7 @@
 defmodule Autolaunch.HomeMarket do
   @moduledoc "Homepage-only public discovery and cursor scope."
   alias Autolaunch.{Auction, Token}
+  alias Autolaunch.Robinhood.Auctions, as: RobinhoodAuctions
   alias AutolaunchWeb.PublicPage
 
   def options(params) do
@@ -50,6 +51,31 @@ defmodule Autolaunch.HomeMarket do
          kind: if(resource == Token, do: :token, else: :auction)
        })}
     end
+  end
+
+  @doc "The Robinhood auctions the same search, state filter and sort order show."
+  def robinhood(%{view: "tokens"}), do: {:ok, []}
+
+  def robinhood(options) do
+    with {:ok, auctions} <- RobinhoodAuctions.list() do
+      shown = Enum.filter(auctions, &(state?(&1, options.state) and matches?(&1, options.q)))
+      {:ok, if(options.sort == "oldest", do: Enum.reverse(shown), else: shown)}
+    end
+  end
+
+  # Home lists auctions that have not graduated; a graduated one is a token.
+  defp state?(auction, "all"), do: auction.state != :graduated
+  defp state?(auction, state), do: to_string(auction.state) == state
+
+  defp matches?(_auction, ""), do: true
+
+  defp matches?(auction, query) do
+    query = String.downcase(query)
+
+    Enum.any?(
+      [auction.name, auction.symbol, auction.auction],
+      &String.contains?(String.downcase(&1), query)
+    )
   end
 
   defp choice(value, choices, fallback), do: if(value in choices, do: value, else: fallback)

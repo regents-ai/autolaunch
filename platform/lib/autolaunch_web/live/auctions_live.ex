@@ -18,15 +18,8 @@ defmodule AutolaunchWeb.AuctionsLive do
   def handle_event("open_trade", _params, socket), do: {:noreply, socket}
 
   def handle_event("open_robinhood_bid", %{"id" => address} = params, socket) do
-    trade =
-      with %{ok?: true, result: auctions} <- socket.assigns.robinhood,
-           %{} = auction <- Enum.find(auctions, &(&1.auction == address)) do
-        %{record: auction, amount: params["amount"]}
-      else
-        _not_listed -> nil
-      end
-
-    {:noreply, assign(socket, :trade, trade)}
+    auctions = List.wrap(socket.assigns.robinhood.result)
+    {:noreply, assign(socket, :trade, opened_robinhood_bid(auctions, address, params))}
   end
 
   def handle_event("open_robinhood_bid", _params, socket), do: {:noreply, socket}

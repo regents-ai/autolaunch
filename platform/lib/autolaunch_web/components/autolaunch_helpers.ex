@@ -195,6 +195,8 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   attr :creators, :map, required: true, doc: "creator connections grouped by record"
   attr :trade_event, :string, default: nil
   attr :treasury, :boolean, default: false, doc: "show each record's treasury report"
+  attr :robinhood, :list, default: [], doc: "Robinhood auctions that lead the rows"
+  attr :robinhood_trade_event, :string, default: nil
 
   def explore_table(assigns) do
     ~H"""
@@ -216,6 +218,12 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
           </tr>
         </thead>
         <tbody>
+          <.explore_row
+            :for={auction <- @robinhood}
+            kind={:robinhood_auction}
+            record={auction}
+            trade_event={@robinhood_trade_event}
+          />
           <%= for record <- @records do %>
             <.explore_row
               kind={@kind}
@@ -417,6 +425,14 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   end
 
   def opened_trade(_records, _id, _params), do: nil
+
+  @doc "The same for a listed Robinhood auction, which its address names."
+  def opened_robinhood_bid(auctions, address, params) when is_list(auctions) do
+    case Enum.find(auctions, &(&1.auction == address)) do
+      nil -> nil
+      auction -> %{record: auction, amount: params["amount"]}
+    end
+  end
 
   def collection_record_kind(:auctions), do: :auction
   def collection_record_kind(:tokens), do: :token

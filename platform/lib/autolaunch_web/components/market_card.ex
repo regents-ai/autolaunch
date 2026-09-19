@@ -38,7 +38,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :kind, :atom, required: true, values: [:auction, :robinhood_auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
@@ -80,12 +80,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <span :if={@view.connections == []}>Creator unavailable</span>
         <span :if={@view.age} class="home-coin__age">{@view.age}</span>
         <span class="home-coin__status">{@view.status}</span>
+        <span :if={@kind == :robinhood_auction} class="home-coin__status">Robinhood</span>
       </div>
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
       <.quick_actions
         :if={@trade_event && @view.quick}
         event={@trade_event}
-        record_id={@record.id}
+        record_id={@view.record_id}
         name={@view.name}
         quick={@view.quick}
       />
@@ -176,7 +177,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :kind, :atom, required: true, values: [:auction, :robinhood_auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
@@ -200,7 +201,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <span :if={!present?(@view.image)} class="home-table__fallback" aria-hidden="true">{String.first(
             @view.name || "?"
           )}</span>
-          <span><strong>{@view.name}</strong><small>${@view.symbol}</small></span>
+          <span><strong>{@view.name}</strong><small>${@view.symbol}{if @kind == :robinhood_auction,
+            do: " · Robinhood"}</small></span>
         </.link>
       </td>
       <td><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></td>
@@ -220,7 +222,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <.quick_actions
           :if={@view.quick}
           event={@trade_event}
-          record_id={@record.id}
+          record_id={@view.record_id}
           name={@view.name}
           quick={@view.quick}
         />
@@ -446,7 +448,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       creator: creator_name(connections),
       age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections),
-      quick: %{verb: "Buy", currency: SwapComponent.entry_symbol(token.auction), unavailable: nil}
+      quick: %{verb: "Buy", currency: SwapComponent.entry_symbol(token.auction), unavailable: nil},
+      record_id: token.id
     }
   end
 
