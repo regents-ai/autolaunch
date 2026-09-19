@@ -4,10 +4,10 @@ pragma solidity 0.8.26;
 /// @title ForkAddresses
 /// @notice The Agent lab addresses the fork suite runs against, copied from the active run's
 ///         `contracts/v1/reports/generated/local-base-lab/site-config.json` (Anvil 1.5.1, chain 31337,
-///         Base fork block 50984591, RPC http://127.0.0.1:58737). Restarting the Agent lab changes
+///         Base fork block 51503693, RPC http://127.0.0.1:49719). Restarting the Agent lab changes
 ///         these; the suite checks each one carries code and fails loudly otherwise.
 library ForkAddresses {
-    address internal constant UERC20_FACTORY = 0x5Cf2bd1d329075aD57a29bFFcaC63E473b65E853;
+    address internal constant UERC20_FACTORY = 0x0Cc07121b250aDFCeE36347602c8F77Dd8c34A57;
 
     /// @notice A large forked USDC holder the lab impersonates (Morpho Blue on Base).
     address internal constant USDC_HOLDER = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;

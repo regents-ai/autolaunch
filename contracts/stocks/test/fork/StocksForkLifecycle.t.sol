@@ -166,7 +166,7 @@ contract StocksForkLifecycleTest is Test {
         // The fee stays with stakers whatever happens to the launch: a failed minimum refunds bidders
         // through the CCA and returns nothing to the launcher.
         vm.roll(auction.startBlock());
-        _bidDirect(auction, bidderDirect, 10e8, _bidPrice(1));
+        _bidDirect(auction, bidderDirect, 1e8, _bidPrice(1));
         vm.roll(uint256(auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
         launchpad.migrate(launchId);
         assertEq(uint8(launchpad.launches(launchId).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Failed));
@@ -279,7 +279,7 @@ contract StocksForkLifecycleTest is Test {
     function test_fork_failed_minimum_retires_and_refunds_through_the_cca() public {
         (uint256 launchId, address newToken, IContinuousClearingAuction auction) = _launch();
         vm.roll(auction.startBlock());
-        uint256 bidId = _bidDirect(auction, bidderDirect, 10e8, _bidPrice(1));
+        uint256 bidId = _bidDirect(auction, bidderDirect, 1e8, _bidPrice(1));
         vm.roll(uint256(auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
 
         uint256 deadBefore = IERC20(newToken).balanceOf(StocksBindings.DEAD_ADDRESS);
@@ -291,7 +291,7 @@ contract StocksForkLifecycleTest is Test {
 
         vm.prank(bidderDirect);
         auction.exitBid(bidId);
-        assertEq(stock.balanceOf(bidderDirect), 10e8, "full refund through the CCA");
+        assertEq(stock.balanceOf(bidderDirect), 1e8, "full refund through the CCA");
     }
 
     // -------------------------------------------------------------------------
@@ -320,6 +320,8 @@ contract StocksForkLifecycleTest is Test {
         IERC20(newToken).approve(record.splitter, staked);
         splitter.stake(staked);
         vm.stopPrank();
+        // Exit and claim are refused in the staking block.
+        vm.roll(block.number + 1);
 
         // One swap each way so both pool currencies earn LP fees.
         _approveRouter(bidderDirect, newToken);
