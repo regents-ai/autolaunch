@@ -1,6 +1,6 @@
 type SwapDialogHook = {
   el: HTMLDialogElement
-  pushEvent(event: string, payload: {token_id: string}): void
+  pushEvent(event: string, payload: {id: string}): void
   cleanup?: () => void
 }
 
@@ -8,7 +8,7 @@ type SwapDialogHook = {
 export const AutolaunchSwapDialog = {
   mounted(this: SwapDialogHook) {
     const opener = document.activeElement
-    const tokenId = this.el.dataset.tokenId!
+    const recordId = this.el.dataset.recordId!
     let closed = false
     const restoreFocus = () => {
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({preventScroll: true})
@@ -17,7 +17,7 @@ export const AutolaunchSwapDialog = {
       if (closed) return
       closed = true
       restoreFocus()
-      this.pushEvent("close_trade", {token_id: tokenId})
+      this.pushEvent("close_trade", {id: recordId})
     }
     const onCancel = (event: Event) => {
       event.preventDefault()

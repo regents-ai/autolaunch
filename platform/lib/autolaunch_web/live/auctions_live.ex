@@ -2,14 +2,29 @@ defmodule AutolaunchWeb.AuctionsLive do
   @moduledoc false
   use AutolaunchWeb, :live_view
   import AutolaunchWeb.Components.AutolaunchHelpers
+  import AutolaunchWeb.Components.SwapModal
 
-  def mount(_params, _session, socket), do: {:ok, socket}
+  def mount(_params, _session, socket), do: {:ok, assign(socket, trade: nil)}
 
   def handle_params(params, _uri, socket) do
-    {:noreply, socket |> assign(:cursor, params["after"]) |> load_page()}
+    {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page()}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
+
+  def handle_event("open_trade", %{"id" => id} = params, socket),
+    do: {:noreply, assign(socket, :trade, opened_trade(socket.assigns.records, id, params))}
+
+  def handle_event("open_trade", _params, socket), do: {:noreply, socket}
+
+  def handle_event("close_trade", %{"id" => id}, socket) do
+    case socket.assigns.trade do
+      %{record: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
+      _other -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_trade", _params, socket), do: {:noreply, socket}
 
   defp load_page(socket) do
     cursor = socket.assigns.cursor
@@ -42,6 +57,16 @@ defmodule AutolaunchWeb.AuctionsLive do
       creators={@creators}
       pagination={@pagination}
       cursor={@cursor}
+      trade_event="open_trade"
+    />
+    <.bid_modal
+      :if={@trade}
+      id={"auctions-bid-#{@trade.record.id}"}
+      auction={@trade.record}
+      amount={@trade.amount}
+      authenticated={@account_control.kind == :signed_in}
+      current_human_id={current_human_id(@access_context)}
+      session_lease={@session_lease}
     />
     """
   end

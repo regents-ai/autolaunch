@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.HomeLive do
     {:ok,
      assign(socket,
        market_options: nil,
-       trade_token: nil,
+       trade: nil,
        records: [],
        creators: %{},
        market_loading: true,
@@ -28,7 +28,7 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_params(params, _uri, socket) do
     options = HomeMarket.options(params)
     previous = socket.assigns.market_options
-    socket = assign(socket, market_options: options, search_query: options.q, trade_token: nil)
+    socket = assign(socket, market_options: options, search_query: options.q, trade: nil)
 
     if previous && Map.drop(previous, [:display]) == Map.drop(options, [:display]) do
       {:noreply, socket}
@@ -58,20 +58,21 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_event("load-more", _params, socket), do: {:noreply, socket}
 
-  def handle_event("open_trade", %{"token-id" => id}, socket) do
-    token =
-      if socket.assigns.market_options.view == "tokens" && !socket.assigns.market_loading do
-        Enum.find(socket.assigns.records, &(&1.id == id))
+  def handle_event("open_trade", %{"id" => id} = params, socket) do
+    trade =
+      case !socket.assigns.market_loading && Enum.find(socket.assigns.records, &(&1.id == id)) do
+        %{} = record -> %{record: record, amount: params["amount"]}
+        _none -> nil
       end
 
-    {:noreply, assign(socket, :trade_token, token)}
+    {:noreply, assign(socket, :trade, trade)}
   end
 
   def handle_event("open_trade", _params, socket), do: {:noreply, socket}
 
-  def handle_event("close_trade", %{"token_id" => id}, socket) do
-    case socket.assigns.trade_token do
-      %{id: ^id} -> {:noreply, assign(socket, :trade_token, nil)}
+  def handle_event("close_trade", %{"id" => id}, socket) do
+    case socket.assigns.trade do
+      %{record: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
       _other -> {:noreply, socket}
     end
   end
@@ -120,7 +121,7 @@ defmodule AutolaunchWeb.HomeLive do
       market_loading: true,
       market_failed: false,
       market_append: append?,
-      trade_token: nil
+      trade: nil
     )
     |> start_async(:home_market, fn ->
       with {:ok, page} <- HomeMarket.read(options, cursor) do
@@ -242,7 +243,7 @@ defmodule AutolaunchWeb.HomeLive do
             kind={@kind}
             record={record}
             creator_connections={connections_for(record, @creators)}
-            trade_event={if @kind == :token, do: "open_trade"}
+            trade_event="open_trade"
           />
         </div>
         <div :if={@records != [] && @market_options.display == "table"} class="home-table-scroll">
@@ -255,7 +256,9 @@ defmodule AutolaunchWeb.HomeLive do
                 <th scope="col">Coin</th><th scope="col">
                   {if @kind == :token, do: "Price", else: "Clearing price"}
                 </th><th scope="col">Creator</th><th scope="col">Age</th><th scope="col">Status</th>
-                <th :if={@kind == :token} scope="col"><span class="visually-hidden">Trade</span></th>
+                <th scope="col">
+                  <span class="visually-hidden">{if @kind == :token, do: "Buy", else: "Bid"}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -264,7 +267,7 @@ defmodule AutolaunchWeb.HomeLive do
                 kind={@kind}
                 record={record}
                 creator_connections={connections_for(record, @creators)}
-                trade_event={if @kind == :token, do: "open_trade"}
+                trade_event="open_trade"
               />
             </tbody>
           </table>
@@ -332,9 +335,19 @@ defmodule AutolaunchWeb.HomeLive do
         </p>
       </section>
       <.swap_modal
-        :if={@trade_token}
-        id={"home-trade-#{@trade_token.id}"}
-        token={@trade_token}
+        :if={@trade && @kind == :token}
+        id={"home-trade-#{@trade.record.id}"}
+        token={@trade.record}
+        amount={@trade.amount}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
+      <.bid_modal
+        :if={@trade && @kind == :auction}
+        id={"home-bid-#{@trade.record.id}"}
+        auction={@trade.record}
+        amount={@trade.amount}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}

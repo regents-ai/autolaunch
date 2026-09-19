@@ -247,7 +247,11 @@
 .token-swap__toast p { margin: .25rem 0 0; color: var(--color-fg-muted); font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .token-swap__toast .rg-button { min-width: 44px; min-height: 44px; margin: -.5rem; padding: .5rem; }
 
-.token-swap-entry { padding: var(--space-2); }
+.market-quick { display: flex; gap: 4px; }
+.market-quick .rg-button { flex: 1 1 0; flex-direction: column; gap: 0; min-width: 0; min-height: 44px; padding: 4px 2px; line-height: 1.15; white-space: nowrap; }
+.market-quick .rg-button small { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: .625rem; letter-spacing: .02em; color: var(--color-fg-muted); }
+.home-coin .market-quick { margin-top: var(--space-2); }
+.home-table .market-quick { justify-content: flex-end; min-width: 15rem; }
 .token-swap-modal {
   width: min(38rem, calc(100% - 2rem));
   max-height: calc(100dvh - 2rem);

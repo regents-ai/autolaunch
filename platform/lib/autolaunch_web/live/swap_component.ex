@@ -62,14 +62,14 @@ defmodule AutolaunchWeb.SwapComponent do
       {assigns.token.id, auction.kind, auction.chain_id, auction.quote_token_address,
        auction.quote_token_symbol}
 
+    fresh? = socket.assigns[:scope] != scope
+
     socket =
-      if socket.assigns[:scope] == scope do
-        socket
-      else
+      if fresh? do
         assign(socket,
           scope: scope,
           direction: :buy,
-          amount: "",
+          amount: Map.get(assigns, :preset_amount) || "",
           error: nil,
           estimate: nil,
           protection: @default_protection,
@@ -83,6 +83,8 @@ defmodule AutolaunchWeb.SwapComponent do
           swapped: nil,
           revision: Map.get(socket.assigns, :revision, -1) + 1
         )
+      else
+        socket
       end
 
     {:ok,
@@ -95,7 +97,8 @@ defmodule AutolaunchWeb.SwapComponent do
        token_view: Autolaunch.Token.presentation(assigns.token),
        entry_symbol: entry_symbol(auction),
        read_only?: Autolaunch.Prelaunch.read_only?()
-     )}
+     )
+     |> then(&if(fresh?, do: estimated(&1), else: &1))}
   end
 
   @impl true
@@ -529,21 +532,22 @@ defmodule AutolaunchWeb.SwapComponent do
   defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   defp unavailable(_other), do: nil
 
-  defp entry_symbol(%{kind: :agent, chain_id: chain_id, quote_token_symbol: "REGENT"}) do
+  @doc "The currency this token's pool is entered with, or `nil` where it cannot be swapped here."
+  def entry_symbol(%{kind: :agent, chain_id: chain_id, quote_token_symbol: "REGENT"}) do
     if base_chain?(chain_id), do: "REGENT"
   end
 
-  defp entry_symbol(%{
-         kind: :stocks,
-         chain_id: chain_id,
-         quote_token_address: address,
-         quote_token_symbol: symbol
-       })
-       when is_binary(address) and address != "" and is_binary(symbol) do
+  def entry_symbol(%{
+        kind: :stocks,
+        chain_id: chain_id,
+        quote_token_address: address,
+        quote_token_symbol: symbol
+      })
+      when is_binary(address) and address != "" and is_binary(symbol) do
     if base_chain?(chain_id) and String.trim(symbol) != "", do: symbol
   end
 
-  defp entry_symbol(_auction), do: nil
+  def entry_symbol(_auction), do: nil
 
   defp base_chain?(chain_id), do: chain_id in [8453, Autolaunch.Lab.chain_id()]
 end

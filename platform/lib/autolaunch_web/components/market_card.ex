@@ -3,7 +3,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   use Phoenix.Component
 
   alias Autolaunch.Token
-  alias AutolaunchWeb.TokenDisplay
+  alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay}
 
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
   attr :record, :map, required: true
@@ -82,14 +82,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <span class="home-coin__status">{@view.status}</span>
       </div>
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
-      <div :if={@kind == :token && @trade_event} class="token-swap-entry">
-        <Regent.Primitives.button
-          variant="secondary"
-          phx-click={@trade_event}
-          phx-value-token-id={@record.id}
-          aria-label={"Trade #{@view.name}"}
-        >Trade</Regent.Primitives.button>
-      </div>
+      <.quick_actions
+        :if={@trade_event && @view.quick}
+        event={@trade_event}
+        record_id={@record.id}
+        name={@view.name}
+        quick={@view.quick}
+      />
     </article>
     """
   end
@@ -131,13 +130,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
         >{@view.creator}</a><span :if={@view.connections == []}>—</span>
       </td>
       <td>{@view.age || "—"}</td><td>{@view.status}</td>
-      <td :if={@kind == :token && @trade_event}>
-        <Regent.Primitives.button
-          variant="secondary"
-          phx-click={@trade_event}
-          phx-value-token-id={@record.id}
-          aria-label={"Trade #{@view.name}"}
-        >Trade</Regent.Primitives.button>
+      <td :if={@trade_event}>
+        <.quick_actions
+          :if={@view.quick}
+          event={@trade_event}
+          record_id={@record.id}
+          name={@view.name}
+          quick={@view.quick}
+        />
       </td>
     </tr>
     """
@@ -196,6 +196,37 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <.card_socials connections={@view.connections} />
       </div>
     </section>
+    """
+  end
+
+  attr :event, :string, required: true
+  attr :record_id, :string, required: true
+  attr :name, :string, required: true
+  attr :quick, :map, required: true
+
+  # Two set amounts and an open-ended button. All three open the same panel;
+  # the amount buttons open it with that amount already entered.
+  defp quick_actions(assigns) do
+    ~H"""
+    <div class="market-quick" role="group" aria-label={"#{@quick.verb} #{@name}"}>
+      <Regent.Primitives.button
+        :for={amount <- if(@quick.currency, do: ["25", "100"], else: [])}
+        variant="secondary"
+        phx-click={@event}
+        phx-value-id={@record_id}
+        phx-value-amount={amount}
+        disabled={@quick.unavailable != nil}
+        title={@quick.unavailable}
+        aria-label={"#{@quick.verb} #{@name} with #{amount} #{@quick.currency}"}
+      >{amount} <small>{@quick.currency}</small></Regent.Primitives.button>
+      <Regent.Primitives.button
+        phx-click={@event}
+        phx-value-id={@record_id}
+        disabled={@quick.unavailable != nil}
+        title={@quick.unavailable}
+        aria-label={"#{@quick.verb} #{@name}"}
+      >{@quick.verb}</Regent.Primitives.button>
+    </div>
     """
   end
 
@@ -260,7 +291,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       path: nil,
       creator: creator_name(connections),
       age: nil,
-      connections: connection_list(connections)
+      connections: connection_list(connections),
+      quick: nil
     }
   end
 
@@ -277,7 +309,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       path: "/auctions/#{auction.id}",
       creator: creator_name(connections),
       age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
-      connections: connection_list(connections)
+      connections: connection_list(connections),
+      quick: auction_quick(auction)
     }
   end
 
@@ -296,7 +329,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
       path: "/tokens/#{token.id}",
       creator: creator_name(connections),
       age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
-      connections: connection_list(connections)
+      connections: connection_list(connections),
+      quick: %{verb: "Buy", currency: SwapComponent.entry_symbol(token.auction), unavailable: nil}
+    }
+  end
+
+  # An auction that has ended takes no bids, so its row offers none.
+  defp auction_quick(%{state: state}) when state in [:graduated, :failed], do: nil
+
+  defp auction_quick(auction) do
+    %{
+      verb: "Bid",
+      currency: BidComponent.bid_currency(auction),
+      unavailable:
+        if(Autolaunch.Prelaunch.read_only?(), do: "Available after contract deployment")
     }
   end
 

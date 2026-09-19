@@ -72,7 +72,8 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
-     |> assign_new(:operation, fn -> nil end)}
+     |> assign_new(:operation, fn -> nil end)
+     |> preset()}
   end
 
   @impl true
@@ -89,7 +90,9 @@ defmodule AutolaunchWeb.BidComponent do
         <Regent.Structure.section_bar>
           <h2 class="rg-section-bar__label">Place a bid</h2>
         </Regent.Structure.section_bar>
-        <p>Bid {@auction.quote_token_symbol} for this launch. Your wallet confirms every step.</p>
+        <p>
+          Bid {if @usdc_bids?, do: "USDC or "}{@auction.quote_token_symbol} for this launch. Your wallet confirms every step.
+        </p>
         <.regent_market_links :if={@auction.kind == :agent} />
       </header>
 
@@ -640,8 +643,22 @@ defmodule AutolaunchWeb.BidComponent do
 
   # USDC bids exist only for Stocks auctions, and only where the Stocks lab that
   # names the adapter is running.
+  @doc "The currency a bidder pays this auction in: USDC where the auction takes it, else its own."
+  def bid_currency(auction),
+    do: if(usdc_bids?(auction), do: "USDC", else: auction.quote_token_symbol)
+
   defp usdc_bids?(%{kind: :stocks}), do: StocksLab.enabled?()
   defp usdc_bids?(_auction), do: false
+
+  # An amount chosen before the panel opened is entered once, in the form that
+  # pays in the auction's bid currency.
+  defp preset(%{assigns: %{preset_amount: amount, auction: auction}} = socket)
+       when is_binary(amount) and not is_map_key(socket.assigns, :preset_entered?) do
+    field = if usdc_bids?(auction), do: :usdc_amount, else: :amount
+    assign(socket, [{field, amount}, {:preset_entered?, true}])
+  end
+
+  defp preset(socket), do: socket
 
   defp confirmed_copy(%{envelope: %{"chain_id" => 31_337}} = operation),
     do:

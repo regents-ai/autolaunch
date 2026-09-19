@@ -133,7 +133,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
             kind={collection_record_kind(@kind)}
             record={record}
             creator_connections={connections_for(record, grouped_connections(@creators))}
-            trade_event={if @kind == :tokens, do: @trade_event}
+            trade_event={@trade_event}
           />
           <.treasury_security
             :if={!Lab.enabled?()}
@@ -324,6 +324,19 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       do: Map.get(auctions, String.downcase(address))
 
   def auction_market_snapshot(_market, _record), do: nil
+
+  @doc """
+  The panel a quick button opens: the listed record it names and the amount it
+  carried, or `nil` when the list is not on screen or holds no such record.
+  """
+  def opened_trade(%{ok?: true, result: records}, id, params) when is_list(records) do
+    case Enum.find(records, &(&1.id == id)) do
+      nil -> nil
+      record -> %{record: record, amount: params["amount"]}
+    end
+  end
+
+  def opened_trade(_records, _id, _params), do: nil
 
   def collection_record_kind(:auctions), do: :auction
   def collection_record_kind(:tokens), do: :token
