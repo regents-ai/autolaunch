@@ -4,13 +4,18 @@ defmodule Autolaunch.TestSupport do
   alias Autolaunch.Accounts
   alias Autolaunch.Actors.{Human, System}
 
-  @doc "Projects one Auction through `project_lab_auction` as the system actor."
+  @doc """
+  Projects one Auction through `project_lab_auction` as the system actor. An
+  auction is one row per chain and contract address, so each projection gets
+  its own address unless the test names one.
+  """
   def project_auction(opts \\ []) do
     opts = Map.new(opts)
 
     Autolaunch.project_lab_auction!(
       %{
-        projection_id: Map.get(opts, :id) || Ash.UUID.generate(),
+        chain_id: Map.get(opts, :chain_id, 31_337),
+        auction_address: Map.get(opts, :address) || unique_address(),
         title: Map.get(opts, :title, "Auction"),
         summary: Map.get(opts, :summary),
         token_symbol: Map.get(opts, :symbol),
@@ -19,7 +24,6 @@ defmodule Autolaunch.TestSupport do
         featured: Map.get(opts, :featured, false),
         state: Map.get(opts, :state, :created),
         opened_at: Map.get(opts, :opened_at),
-        auction_address: Map.get(opts, :address),
         current_clearing_price: Map.get(opts, :current_clearing_price, "1"),
         website: Map.get(opts, :website),
         image: Map.get(opts, :image),
@@ -27,6 +31,14 @@ defmodule Autolaunch.TestSupport do
       },
       actor: %System{}
     )
+  end
+
+  defp unique_address do
+    "0x" <>
+      ([:positive]
+       |> Elixir.System.unique_integer()
+       |> Integer.to_string(16)
+       |> String.pad_leading(40, "0"))
   end
 
   @doc "Projects one Token through `project_lab_token` as the system actor."

@@ -134,9 +134,14 @@ defmodule Autolaunch.BidFixture do
      ]}
   end
 
-  @doc "A live auction whose stored terms name the bound REGENT."
+  @doc """
+  The live auction at the scripted chain's one address, whose stored terms name
+  the bound REGENT. An auction is one row per chain and address, so a second
+  bidder shares it.
+  """
   def auction!(title) do
     Autolaunch.TestSupport.project_auction(
+      address: @auction_address,
       title: title,
       featured: false,
       state: :active,

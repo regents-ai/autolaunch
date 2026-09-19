@@ -37,7 +37,7 @@ defmodule Autolaunch.LabProjectionTest do
     [subject] = all(Subject)
     [launch] = all(LaunchJob)
 
-    assert auction.id == LabProjection.auction_id(@auction)
+    assert auction.chain_id == 31_337
     assert auction.state == :active
     assert auction.auction_address == @auction
     assert auction.treasury_address == @treasury
@@ -67,7 +67,7 @@ defmodule Autolaunch.LabProjectionTest do
 
   test "out-of-order position receipts cannot rewind claimed or graduated chain state" do
     assert :ok = LabProjection.project_launch(launch_operation(), launch_result())
-    auction_id = LabProjection.auction_id(@auction)
+    [%{id: auction_id}] = all(Auction)
     assert :ok = LabProjection.project_bid(bid_operation(auction_id), bid_result())
     [bid] = all(Bid)
 

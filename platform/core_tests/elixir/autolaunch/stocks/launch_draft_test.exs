@@ -32,7 +32,7 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
     auction = "0x" <> String.duplicate("ab", 20)
     account = %{id: owner.human_account_id}
 
-    :ok =
+    {:ok, projected} =
       Autolaunch.Stocks.LabProjection.project_observed(%{
         auction_address: auction,
         creator_human_account_id: owner.human_account_id,
@@ -62,8 +62,7 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
     assert {:error, %Ash.Error.Invalid{errors: [%{vars: [code: :active_stocks_launch_exists]}]}} =
              Autolaunch.Stocks.LaunchOperations.create(account, attributes)
 
-    {:ok, row} =
-      Ash.get(Autolaunch.Auction, Autolaunch.LabProjection.auction_id(auction), actor: %System{})
+    row = Ash.get!(Autolaunch.Auction, projected.id, actor: %System{})
 
     Ash.update!(row, %{state: :graduated}, action: :refresh_lab_market, actor: %System{})
 
