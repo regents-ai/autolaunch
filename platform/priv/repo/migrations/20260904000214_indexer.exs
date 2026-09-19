@@ -100,7 +100,6 @@ defmodule Autolaunch.Repo.Migrations.Indexer do
             column: :id,
             name: "indexer_logs_block_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false

@@ -6,7 +6,6 @@ primary_region = "iad"
 
 [env]
   AUTOLAUNCH_DEPLOYMENT_ROLE = "production"
-  AUTOLAUNCH_DB_SCHEMA = "autolaunch_app"
 
 # This app has no service and no standing machine. It holds only the direct
 # migration credential; each migration is an explicit, disposable machine run.

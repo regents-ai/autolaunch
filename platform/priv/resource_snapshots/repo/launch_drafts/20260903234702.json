@@ -169,7 +169,7 @@
         "on_delete": null,
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "human_accounts"
       },
       "scale": null,
@@ -202,7 +202,7 @@
         "on_delete": null,
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "launch_draft_images"
       },
       "scale": null,

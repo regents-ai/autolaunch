@@ -75,7 +75,6 @@ public Base reads still go to real Base, labelled as such). Fork mode adds:
 | `AUTOLAUNCH_FORK_RUN_ID` | Yes | — | A label for this fork run. It travels in every envelope's lab binding, so a review made against one run never confirms against another. (The same variable labels a local lab run.) |
 | `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS` | No | `3600` in fork mode, `0` in base mode | At most one test-funds grant per wallet and asset within this many seconds; `0` disables the cooldown. Must be a non-negative integer. |
 | `AUTOLAUNCH_DEPLOYMENT_ROLE` | Yes (unchanged) | — | `staging` for a preview. The production database pin (`regents_prod` on the approved cluster with the runtime login) applies only to `production`; with `staging`, `Autolaunch.DatabaseConfig.runtime_config!/2` accepts any valid PostgreSQL URL and still refuses `DATABASE_DIRECT_URL` on the serving app (`core_tests/elixir/autolaunch/database_config_test.exs` covers the staging path). The pin itself is not weakened. |
-| `AUTOLAUNCH_DB_SCHEMA` | Yes for a bootstrapped database | `public` | `autolaunch_app` when the preview database was initialised with `/app/bin/bootstrap`. |
 | `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY` | For sign-in | — | The Privy application the preview hostname is allowed on. Production verifier as on the public site. |
 
 `AUTOLAUNCH_LAB_AUTH` and `AUTOLAUNCH_BROWSER_TEST` are test-environment switches and do not
@@ -131,11 +130,13 @@ No deployment is performed here. Once the fork host exists and has written the t
    The only layer it adds is `COPY fork /app/fork`; the release, ERTS and assets are the
    production image's own.
 4. Prepare the preview database once, on a disposable database of its own, never the
-   production one: run `/app/bin/bootstrap` from a one-off machine with `DATABASE_DIRECT_URL`,
-   `AUTOLAUNCH_DEPLOYMENT_ROLE=staging`, `AUTOLAUNCH_DB_SCHEMA=autolaunch_app` and
-   `AUTOLAUNCH_BOOTSTRAP_DATABASE=<its name>`, as the shared-database section of the README
-   describes. Later schema changes run `/app/bin/migrate` the same way. Neither command runs
-   on a serving machine, and the serving app never holds `DATABASE_DIRECT_URL`.
+   production one: run `/app/bin/migrate` from a one-off machine with `DATABASE_DIRECT_URL`
+   and `AUTOLAUNCH_DEPLOYMENT_ROLE=staging`; it creates the `autolaunch_app` schema and
+   applies every migration, and later schema changes run the same command. The identity
+   tables are installed separately with `RegentIdentity.Migrator.up/1`, the way Regents
+   installs them on the shared database; the preview has no release command for that yet.
+   Neither command runs on a serving machine, and the serving app never holds
+   `DATABASE_DIRECT_URL`.
 5. Deploy with `fly.preview.toml` (app `autolaunch-preview`, `PHX_HOST` placeholder
    `preview.autolaunch.sh`, `AUTOLAUNCH_DEPLOYMENT_ROLE=staging`, `AUTOLAUNCH_CHAIN_MODE=fork`,
    the two `/app/fork/...` paths, `AUTOLAUNCH_FORK_RUN_ID=preview`, the production vm and health
@@ -162,7 +163,7 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test REGENT_DEPS_ROOT=/absolu
   AUTOLAUNCH_LAB_CONFIG=/tmp/fork/site-config.json \
   AUTOLAUNCH_STOCKS_LAB_CONFIG=/tmp/fork/stocks-site-config.json \
   AUTOLAUNCH_FORK_RUN_ID=fork-local PRIVY_APP_ID=browser-test-public-id \
-  sh -c 'mix ash.setup && mix phx.server'
+  sh -c 'mix db.setup && mix phx.server'
 ```
 
 The browser side is not exercised this way (wallets would be pointed at the placeholder

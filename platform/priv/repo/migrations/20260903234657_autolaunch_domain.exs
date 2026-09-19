@@ -37,8 +37,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
           references(:human_accounts,
             column: :id,
             name: "auctions_creator_human_account_id_fkey",
-            type: :bigint,
-            prefix: "public"
+            type: :bigint
           )
 
       add :treasury_security_report_id, :uuid
@@ -71,7 +70,6 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
             column: :id,
             name: "bid_operations_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -124,8 +122,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
           references(:auctions,
             column: :id,
             name: "bids_auction_id_fkey",
-            type: :uuid,
-            prefix: "public"
+            type: :uuid
           ),
           null: false
     end
@@ -159,7 +156,6 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
             column: :id,
             name: "launch_draft_images_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -181,7 +177,6 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
                column: :id,
                name: "launch_draft_images_launch_draft_id_fkey",
                type: :uuid,
-               prefix: "public",
                on_delete: :restrict
              )
     end
@@ -209,8 +204,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
           references(:human_accounts,
             column: :id,
             name: "launch_drafts_human_account_id_fkey",
-            type: :bigint,
-            prefix: "public"
+            type: :bigint
           ),
           null: false
     end
@@ -224,8 +218,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
           references(:launch_draft_images,
             column: :id,
             name: "launch_drafts_launch_draft_image_id_fkey",
-            type: :uuid,
-            prefix: "public"
+            type: :uuid
           )
     end
 
@@ -264,8 +257,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
           references(:auctions,
             column: :id,
             name: "launch_jobs_auction_id_fkey",
-            type: :uuid,
-            prefix: "public"
+            type: :uuid
           )
     end
 
@@ -301,7 +293,6 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
             column: :id,
             name: "launch_operations_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -325,7 +316,6 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
             column: :id,
             name: "launch_operations_launch_draft_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -403,7 +393,6 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
             column: :id,
             name: "subject_wallet_operations_human_account_id_fkey",
             type: :bigint,
-            prefix: "public",
             on_delete: :restrict
           ),
           null: false
@@ -435,8 +424,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
              references(:subjects,
                column: :id,
                name: "payment_links_subject_id_fkey",
-               type: :uuid,
-               prefix: "public"
+               type: :uuid
              )
     end
 
@@ -445,8 +433,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
              references(:subjects,
                column: :id,
                name: "subject_actions_subject_id_fkey",
-               type: :uuid,
-               prefix: "public"
+               type: :uuid
              )
     end
 
@@ -507,8 +494,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
           references(:auctions,
             column: :id,
             name: "tokens_auction_id_fkey",
-            type: :uuid,
-            prefix: "public"
+            type: :uuid
           ),
           null: false
     end
@@ -528,8 +514,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
              references(:treasury_security_reports,
                column: :id,
                name: "auctions_treasury_security_report_id_fkey",
-               type: :uuid,
-               prefix: "public"
+               type: :uuid
              )
     end
 
@@ -538,8 +523,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
              references(:treasury_security_reports,
                column: :id,
                name: "launch_jobs_treasury_security_report_id_fkey",
-               type: :uuid,
-               prefix: "public"
+               type: :uuid
              )
     end
 
@@ -548,8 +532,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
              references(:treasury_security_reports,
                column: :id,
                name: "subjects_treasury_security_report_id_fkey",
-               type: :uuid,
-               prefix: "public"
+               type: :uuid
              )
     end
 
@@ -558,8 +541,7 @@ defmodule Autolaunch.Repo.Migrations.AutolaunchDomain do
              references(:treasury_security_reports,
                column: :id,
                name: "tokens_treasury_security_report_id_fkey",
-               type: :uuid,
-               prefix: "public"
+               type: :uuid
              )
     end
 

@@ -49,20 +49,17 @@ implement those products automatically. Deployment and migrations are separate a
 Any other value stops the boot. The fork mode's two RPC doors, its environment, its
 faucet cooldown and how a preview image is built are in [docs/fork-preview.md](docs/fork-preview.md).
 
-## Shared database namespace
+## Database schema
 
-`AUTOLAUNCH_DB_SCHEMA` defaults to `public` for ordinary development and tests.
-The shared-database cutover selects `autolaunch_app` after importing a complete
-schema and its migration ledger. With no existing Autolaunch source tables,
-initialize the historical migrations in an isolated staging database first, then
-relocate and preserve that whole schema. Regents' historical `autolaunch` schema
-remains separate.
-
-The release migration and status commands preserve this selection when switching
-to `DATABASE_DIRECT_URL`. They read the selected ledger; migration refuses missing
-historical entries. Do not run unprefixed `mix ecto.*` commands against the shared
-database or regenerate migrations without reconciling the imported snapshot baseline.
-Runtime grants, production cutover and contract activation remain separate work.
+Every Autolaunch table, sequence and the migration ledger live in the
+`autolaunch_app` schema of the database, in every environment; the shared
+production database holds other products' tables beside it. Migrations run under
+that prefix and never name a schema themselves. `mix autolaunch.schema.create`
+creates the schema on a freshly created database (the `setup` and `test` aliases
+run it between creating the database and migrating), and the release's
+`/app/bin/migrate` creates it the same way, so a new database needs no separate
+initialisation. Regents' identity tables live in their own schema and are
+installed by `mix autolaunch.identity.migrate` locally.
 
 ## Shared dependencies
 
@@ -196,7 +193,6 @@ fly machine run registry.fly.io/autolaunch-sh:<revision-tag> /app/bin/migrate \
   --region iad \
   --vm-memory 1024 \
   --env AUTOLAUNCH_DEPLOYMENT_ROLE=production \
-  --env AUTOLAUNCH_DB_SCHEMA=autolaunch_app \
   --rm
 fly deploy --app autolaunch-sh --config fly.toml \
   --image registry.fly.io/autolaunch-sh@sha256:<digest> --ha=false

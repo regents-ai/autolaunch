@@ -97,7 +97,6 @@ defmodule Autolaunch.Repo.Migrations.Accounts do
                column: :id,
                name: "x_connections_human_account_id_fkey",
                type: :bigint,
-               prefix: "public",
                on_delete: :delete_all
              )
     end
@@ -108,7 +107,6 @@ defmodule Autolaunch.Repo.Migrations.Accounts do
                column: :id,
                name: "session_authorities_human_account_id_fkey",
                type: :bigint,
-               prefix: "public",
                on_delete: :restrict
              )
     end
@@ -118,8 +116,7 @@ defmodule Autolaunch.Repo.Migrations.Accounts do
              references(:human_accounts,
                column: :id,
                name: "linked_identities_human_account_id_fkey",
-               type: :bigint,
-               prefix: "public"
+               type: :bigint
              )
     end
 

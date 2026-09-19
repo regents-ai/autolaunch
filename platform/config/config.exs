@@ -9,6 +9,11 @@ import Config
 
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]
 
+# Every Autolaunch table lives in this schema, in every environment.
+config :autolaunch, Autolaunch.Repo,
+  default_prefix: "autolaunch_app",
+  migration_default_prefix: "autolaunch_app"
+
 # Count codepoints consistently with PostgreSQL; a grapheme may contain unbounded
 # combining marks (CVE-2026-82752). Required by Ash 3.33 and shared identity resources.
 config :ash, default_string_length_count: :codepoints

@@ -8,6 +8,8 @@ defmodule Autolaunch.Repo.Migrations.WalletAttempts do
   use Ecto.Migration
 
   def up do
+    schema = ~s("#{prefix()}")
+
     create table(:wallet_attempts, primary_key: false) do
       add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
       add :step, :text, null: false
@@ -32,7 +34,6 @@ defmodule Autolaunch.Repo.Migrations.WalletAttempts do
             column: :id,
             name: "wallet_attempts_bid_operation_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           )
 
@@ -41,7 +42,6 @@ defmodule Autolaunch.Repo.Migrations.WalletAttempts do
             column: :id,
             name: "wallet_attempts_launch_operation_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           )
 
@@ -50,7 +50,6 @@ defmodule Autolaunch.Repo.Migrations.WalletAttempts do
             column: :id,
             name: "wallet_attempts_subject_wallet_operation_id_fkey",
             type: :uuid,
-            prefix: "public",
             on_delete: :restrict
           )
     end
@@ -64,71 +63,71 @@ defmodule Autolaunch.Repo.Migrations.WalletAttempts do
     # Additive, replay-safe conversion. These are legacy per-step observations,
     # not invented historical presses. Parent rows/hashes are never rewritten.
     execute("""
-    INSERT INTO wallet_attempts (id, bid_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
+    INSERT INTO #{schema}.wallet_attempts (id, bid_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
     SELECT md5('legacy:bid_operations:token_approval:' || id::text)::uuid, id, 'token_approval', envelope, true,
            CASE WHEN token_approval_transaction_hash IS NULL THEN 'submission_unknown' ELSE 'submitted' END,
            lower(token_approval_transaction_hash), '{"source":"legacy_operation", "dispatch_time":"unknown"}'::jsonb
-    FROM bid_operations
+    FROM #{schema}.bid_operations
     WHERE token_approval_transaction_hash IS NOT NULL OR (step = 'token_approval' AND state IN ('dispatched','submitted','submission_unknown'))
     ON CONFLICT (id) DO NOTHING
     """)
 
     execute("""
-    INSERT INTO wallet_attempts (id, bid_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
+    INSERT INTO #{schema}.wallet_attempts (id, bid_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
     SELECT md5('legacy:bid_operations:permit2_approval:' || id::text)::uuid, id, 'permit2_approval', envelope, true,
            CASE WHEN permit2_approval_transaction_hash IS NULL THEN 'submission_unknown' ELSE 'submitted' END,
            lower(permit2_approval_transaction_hash), '{"source":"legacy_operation", "dispatch_time":"unknown"}'::jsonb
-    FROM bid_operations
+    FROM #{schema}.bid_operations
     WHERE permit2_approval_transaction_hash IS NOT NULL OR (step = 'permit2_approval' AND state IN ('dispatched','submitted','submission_unknown'))
     ON CONFLICT (id) DO NOTHING
     """)
 
     execute("""
-    INSERT INTO wallet_attempts (id, bid_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
+    INSERT INTO #{schema}.wallet_attempts (id, bid_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
     SELECT md5('legacy:bid_operations:bid:' || id::text)::uuid, id, 'bid', envelope, true,
            CASE WHEN bid_transaction_hash IS NULL THEN 'submission_unknown' ELSE 'submitted' END,
            lower(bid_transaction_hash), '{"source":"legacy_operation", "dispatch_time":"unknown"}'::jsonb
-    FROM bid_operations
+    FROM #{schema}.bid_operations
     WHERE bid_transaction_hash IS NOT NULL OR (step = 'bid' AND state IN ('dispatched','submitted','submission_unknown'))
     ON CONFLICT (id) DO NOTHING
     """)
 
     execute("""
-    INSERT INTO wallet_attempts (id, launch_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
+    INSERT INTO #{schema}.wallet_attempts (id, launch_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
     SELECT md5('legacy:launch_operations:approval:' || id::text)::uuid, id, 'approval', envelope, true,
            CASE WHEN approval_transaction_hash IS NULL THEN 'submission_unknown' ELSE 'submitted' END,
            lower(approval_transaction_hash), '{"source":"legacy_operation", "dispatch_time":"unknown"}'::jsonb
-    FROM launch_operations
+    FROM #{schema}.launch_operations
     WHERE approval_transaction_hash IS NOT NULL OR (step = 'approval' AND state IN ('dispatched','submitted','submission_unknown'))
     ON CONFLICT (id) DO NOTHING
     """)
 
     execute("""
-    INSERT INTO wallet_attempts (id, launch_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
+    INSERT INTO #{schema}.wallet_attempts (id, launch_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
     SELECT md5('legacy:launch_operations:launch:' || id::text)::uuid, id, 'launch', envelope, true,
            CASE WHEN launch_transaction_hash IS NULL THEN 'submission_unknown' ELSE 'submitted' END,
            lower(launch_transaction_hash), '{"source":"legacy_operation", "dispatch_time":"unknown"}'::jsonb
-    FROM launch_operations
+    FROM #{schema}.launch_operations
     WHERE launch_transaction_hash IS NOT NULL OR (step = 'launch' AND state IN ('dispatched','submitted','submission_unknown'))
     ON CONFLICT (id) DO NOTHING
     """)
 
     execute("""
-    INSERT INTO wallet_attempts (id, subject_wallet_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
+    INSERT INTO #{schema}.wallet_attempts (id, subject_wallet_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
     SELECT md5('legacy:subject_wallet_operations:approval:' || id::text)::uuid, id, 'approval', envelope, true,
            CASE WHEN approval_transaction_hash IS NULL THEN 'submission_unknown' ELSE 'submitted' END,
            lower(approval_transaction_hash), '{"source":"legacy_operation", "dispatch_time":"unknown"}'::jsonb
-    FROM subject_wallet_operations
+    FROM #{schema}.subject_wallet_operations
     WHERE approval_transaction_hash IS NOT NULL OR (step = 'approval' AND state IN ('dispatched','submitted','submission_unknown'))
     ON CONFLICT (id) DO NOTHING
     """)
 
     execute("""
-    INSERT INTO wallet_attempts (id, subject_wallet_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
+    INSERT INTO #{schema}.wallet_attempts (id, subject_wallet_operation_id, step, envelope, legacy, state, transaction_hash, evidence)
     SELECT md5('legacy:subject_wallet_operations:action:' || id::text)::uuid, id, 'action', envelope, true,
            CASE WHEN action_transaction_hash IS NULL THEN 'submission_unknown' ELSE 'submitted' END,
            lower(action_transaction_hash), '{"source":"legacy_operation", "dispatch_time":"unknown"}'::jsonb
-    FROM subject_wallet_operations
+    FROM #{schema}.subject_wallet_operations
     WHERE action_transaction_hash IS NOT NULL OR (step = 'action' AND state IN ('dispatched','submitted','submission_unknown'))
     ON CONFLICT (id) DO NOTHING
     """)

@@ -193,7 +193,7 @@
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "human_accounts"
       },
       "scale": null,

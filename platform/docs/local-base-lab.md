@@ -60,11 +60,11 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
 Start the site (this example uses the partition `_lab`, so the database is
 `autolaunch_lab_test`). A fresh disposable partition needs its tables as well as the
 database: `mix ecto.create` alone creates an empty database, so prepare a new partition
-with the ordinary Ash setup, scoped to that partition, before the first start:
+with `mix db.setup`, scoped to that partition, before the first start:
 
 ```sh
 env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
-    REGENT_DEPS_ROOT=/absolute/path/to/repos MIX_TEST_PARTITION=_lab mix ash.setup
+    REGENT_DEPS_ROOT=/absolute/path/to/repos MIX_TEST_PARTITION=_lab mix db.setup
 ```
 
 Run it only against a partition of your own. Never drop, recreate or replay migrations on
@@ -148,7 +148,7 @@ failure feedback; passive reconciliation stays silent.
   `--load-state PATH`. Compare block hashes and contract code before stopping the original;
   the recovery in September 2026 matched on every check.
 - **A fresh lab is a fresh database.** After a new `start`, run the site against a new
-  disposable partition prepared with `mix ash.setup` as above, holding no auctions from an
+  disposable partition prepared with `mix db.setup` as above, holding no auctions from an
   earlier fork. Do not drop or migrate the database of an existing run.
 
 ## Limits

@@ -157,7 +157,7 @@
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "bid_operations"
       },
       "scale": null,
@@ -190,7 +190,7 @@
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "launch_operations"
       },
       "scale": null,
@@ -223,7 +223,7 @@
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "subject_wallet_operations"
       },
       "scale": null,
@@ -256,7 +256,7 @@
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "stock_launch_operations"
       },
       "scale": null,
@@ -289,7 +289,7 @@
         "on_delete": "restrict",
         "on_update": null,
         "primary_key?": true,
-        "schema": "public",
+        "schema": "autolaunch_app",
         "table": "stock_fee_admin_operations"
       },
       "scale": null,

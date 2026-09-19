@@ -4,7 +4,7 @@ defmodule Autolaunch.Repo do
 
   @impl true
   def default_prefix do
-    Application.get_env(:autolaunch, __MODULE__, []) |> Keyword.get(:default_prefix, "public")
+    Application.fetch_env!(:autolaunch, __MODULE__) |> Keyword.fetch!(:default_prefix)
   end
 
   @impl true

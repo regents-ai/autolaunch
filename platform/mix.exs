@@ -105,12 +105,19 @@ defmodule Autolaunch.MixProject do
       setup: [
         "deps.get",
         "cmd npm ci",
-        "ash.setup",
-        "autolaunch.identity.migrate",
+        "db.setup",
         "assets.setup",
         "assets.build"
       ],
-      test: ["ash.setup --quiet", "autolaunch.identity.migrate", "test"],
+      "db.setup": [
+        "ash_postgres.create --quiet",
+        "autolaunch.schema.create",
+        # The migration ledger follows only this flag; operations follow the
+        # repo's migration_default_prefix. Both must land in autolaunch_app.
+        "ash_postgres.migrate --quiet --prefix autolaunch_app",
+        "autolaunch.identity.migrate"
+      ],
+      test: ["db.setup", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
       "assets.build": [
         "compile",

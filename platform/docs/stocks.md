@@ -217,7 +217,7 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test REGENT_DEPS_ROOT=/Users/
   AUTOLAUNCH_LAB_CONFIG=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/site-config.json \
   AUTOLAUNCH_STOCKS_LAB_CONFIG=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/stocks-site-config.json \
   AUTOLAUNCH_FORK_RUN_ID=stocks-2026-09-09 PORT=4060 PRIVY_APP_ID=browser-test-public-id \
-  sh -c 'mix ash.setup && mix run --no-start --no-halt /Users/sean/Documents/regent/artifacts/autolaunch-stocks-lab/serve.exs'
+  sh -c 'mix db.setup && mix run --no-start --no-halt /Users/sean/Documents/regent/artifacts/autolaunch-stocks-lab/serve.exs'
 ```
 
 Add `AUTOLAUNCH_LAB_AUTH=privy`, the real `PRIVY_APP_ID` and `PRIVY_VERIFICATION_KEY` (public PEM)

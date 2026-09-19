@@ -15,21 +15,15 @@ defmodule AutolaunchWeb.HealthController do
   # below Fly's two-second health deadline, and no error/connection data leaves
   # this endpoint. A running BEAM alone does not make the application ready.
   defp database_ready? do
-    prefix = Autolaunch.Repo.default_prefix()
-
-    if prefix in ["public", "autolaunch_app"] do
-      case Ecto.Adapters.SQL.query(
-             Autolaunch.Repo,
-             "SELECT 1 FROM \"#{prefix}\".auctions LIMIT 0",
-             [],
-             timeout: 1_000,
-             log: false
-           ) do
-        {:ok, _result} -> true
-        {:error, _error} -> false
-      end
-    else
-      false
+    case Ecto.Adapters.SQL.query(
+           Autolaunch.Repo,
+           "SELECT 1 FROM \"#{Autolaunch.Repo.default_prefix()}\".auctions LIMIT 0",
+           [],
+           timeout: 1_000,
+           log: false
+         ) do
+      {:ok, _result} -> true
+      {:error, _error} -> false
     end
   rescue
     _error -> false
