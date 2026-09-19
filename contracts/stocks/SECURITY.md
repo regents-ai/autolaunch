@@ -38,6 +38,12 @@ B20-verified or release-admitted). No public-chain deployment exists.
   additions must still be weighed in size.
 - Hook callbacks are authenticated three ways: `onlyPoolManager` (BaseHook), the registered pool
   record, and `beforeInitialize`'s `sender == launchpad`.
+- The production route (`AerodromeStockRouteV1`) is pinned at construction to one Slipstream pool
+  (`token0 == USDC`, `token1 == STOCK` read back) and one Chainlink feed, has no owner and no
+  parameter, calls the pool directly with the widest price limit, and bounds every execution by the
+  feed: at most 5% under the feed quote, feed answer positive and at most 7 days old. Its pull
+  callback accepts the pinned pool only; `swapExactIn` is `nonReentrant`; unconsumed input goes back
+  to the recipient in the same call, so the route holds nothing between calls.
 
 ### Hook permission set (deviation from the brief's "afterSwap only")
 
@@ -71,6 +77,7 @@ proves all 8 (ordering × form) cases.
 - Callback authentication: `test_callbacks_are_pool_manager_only`, `test_swaps_on_an_unregistered_pool_with_this_hook_cannot_exist`, `test_registration_validates_the_whole_key`.
 - Authority surface: `test_governance_only_mutators`, `test_launchpad_only_surface`, `test_clone_is_bound_once_to_the_launch_and_has_no_administrator`, `test_bindings_and_the_launchpad_only_write_once_registration`.
 - Splitter provenance: every splitter is a clone the launchpad made inside `migrate` (`test_each_graduation_gets_its_own_splitter`); the hook and the locker accept a splitter only from the launchpad.
+- Route: `AerodromeStockRouteTest.*` (pinned pool and feed with orientation and code checks, feed-price quotes both ways, stopped or non-positive feed refused, output under `minAmountOut` refused, executions more than 5% under the feed refused in both directions and for short fills, executions within 5% accepted, unconsumed input returned, nothing left on the route, reentry from the pool callback refused, callback from anyone but the pool refused); `AerodromeStockRouteForkTest.*` on Base (all ten admitted pool and feed bindings quote and round-trip, live AAPLc swaps both ways land within 1% of the feed, a swap beyond the pool's depth is refused by the bound).
 - Arithmetic: `testFuzz_grossLane_is_the_smallest_fixed_point`, `testFuzz_bidTickSpacingFor_is_one_hundredth_of_an_on_grid_floor`, `StocksPresetTest.test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps`.
 
 ## Known limits (not defects, but not proofs either)
@@ -85,9 +92,20 @@ proves all 8 (ordering × form) cases.
   paid to anyone else.
 
 - The fixture STOCK (`FixtureStockToken`) stands in for Base-native `0xb2…` tokens whose `0xef` code
-  Anvil cannot run. Transfer policy, Permit2 compatibility and the real acquisition route of the live
-  tokens are unproven (AT04, AT48).
-- `FixtureStockRoute` is a fixed-price lab fixture; a production `IStockRoute` is a separate admission.
+  Anvil cannot run. Transfer policy and Permit2 compatibility of the live tokens are unproven
+  (AT04, AT48).
+- `FixtureStockRoute` is a fixed-price lab fixture; the lab and the hermetic suite still use it. The
+  production route is `AerodromeStockRouteV1` (`AerodromeStockRouteTest` hermetically over a v3-
+  semantics pool double; `AerodromeStockRouteForkTest` against Base itself, with the fixture ERC-20
+  installed over the `0xef` precompile so the live pool's liquidity and USDC are real but the stock
+  token's transfer policy is not exercised). Admitting a route is still a governance call.
+- The route's feed bound cuts both ways. The Chainlink feeds hold the last close outside market
+  hours while the pools trade around the clock, so after a move of more than 5% over a weekend or
+  holiday every bid and every REGENT-lane settlement for that stock reverts (`PriceDeviation`) until
+  the feed reopens; the staker lane, which settles in kind, is unaffected. Conversely, within the 5%
+  the caller's `minAmountOut` is the only slippage control. The minimum-raise conversion in `launch`
+  is at the feed price of that moment; the CCA's raise test is in STOCK from then on and does not
+  re-read the dollar.
 - The one-sided STOCK position's width (adjacent tick-spacing boundary out to the last usable tick on
   the STOCK side) and the destination of the rounding residue (REGENT lane) are PROVISIONAL. The
   residue bound is a property of the pinned planner's arithmetic, derived in
