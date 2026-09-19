@@ -68,7 +68,7 @@ because the same pinned dependency imposes it.
 | REGENT hook lane | 100 bps of realized STOCK-side amount, floored | Brief P08 |
 | Staker hook lane | 100 bps of realized STOCK-side amount, floored, always on; deposited as STOCK into the launch's splitter by anyone (`settleStakerLane`) | Founder decision 2026-09-18 |
 | Splitter protocol share | 2% (`SKIM_BPS` 200) of every recognized amount in USDC, MEMESTOCK and STOCK; USDC straight into live REGENT staking, MEMESTOCK and STOCK to the Governance and REGENT Safe; the other 98% belongs wholly to stakers | Founder decision 2026-09-18 |
-| Revenue with nothing staked | the whole amount follows the protocol route (USDC into REGENT staking, other assets to the Safe) | Founder decision 2026-09-18 |
+| Revenue with nothing staked | the whole amount follows the protocol route (USDC into REGENT staking, other assets to the Safe); the rule holds only while `totalStaked == 0`, so any stake placed before a settlement takes the 98% share of that settlement | Founder decision 2026-09-18 |
 | Launch fee | 100,000 REGENT (`LAUNCH_FEE_REGENT`), pulled from the launcher at `launch` and funded into the live REGENT staking contract as staker rewards (`fundRegentRewards`); never refunded; governance may change it with `setLaunchFee` (zero valid) | Founder decision |
 | Minimum raise | 1,000 USDC (`MINIMUM_RAISE_USDC`), quoted into the STOCK through the admitted route at `launch` and recorded as the auction's `requiredStockRaised`; the launcher does not choose it; governance may change it with `setMinimumRaiseUsdc` (zero refused); a recorded auction keeps its STOCK raise | Founder decision |
 | Creator allocation, vesting, treasury | none | Brief P05 |

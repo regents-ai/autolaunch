@@ -86,14 +86,27 @@ proves all 8 (ordering × form) cases.
   locked positions' LP fees arrive in lumps (when someone calls `settleStakerLane` or `collect`). A
   holder can therefore stake just before a large settlement. The one-block exit rule removes the
   same-block version of this; frequent settlement keeps the lumps small. No contract rule removes
-  it entirely.
+  it entirely. The same applies to the "everything to the protocol route while nothing is staked"
+  rule: it holds only until anyone stakes any amount, so a one-unit stake placed just before a
+  settlement of an unstaked market's accrual takes the 98% share of that lump (independent review
+  2026-09-19, L-1).
 - A holder's entitlement can be one base unit short per recognition when the stake does not divide
   the amount evenly; the remainder is carried forward to the next recognition, never lost and never
   paid to anyone else.
 
 - The fixture STOCK (`FixtureStockToken`) stands in for Base-native `0xb2…` tokens whose `0xef` code
   Anvil cannot run. Transfer policy and Permit2 compatibility of the live tokens are unproven
-  (AT04, AT48).
+  (AT04, AT48). Every STOCK recognition transfers the protocol share to the Safe in the same call,
+  and `collect` deposits both currencies of a position together, so a STOCK whose transfer policy
+  refused the Safe would stall `collect` and `settleStakerLane` for every market on that STOCK
+  (funds stay in the hook and the position; nothing is lost) with no recipient change or partial
+  collect available (independent review 2026-09-19, M-1). A live-token observation on 2026-09-19
+  showed ordinary and contract addresses transferring AAPLc around the clock, and a read-only
+  simulation on Base the same day (`eth_call` of `transfer` from each stock's Slipstream pool, two
+  independent RPCs) delivered all ten admittable stocks to the Safe and to a never-used address,
+  while an over-balance control reverted. No recipient allowlist blocks the Safe today; the issuer
+  changing the policy later is not ruled out. Accepted as a known limit (founder decision
+  2026-09-19).
 - `FixtureStockRoute` is a fixed-price lab fixture; the lab and the hermetic suite still use it. The
   production route is `AerodromeStockRouteV1` (`AerodromeStockRouteTest` hermetically over a v3-
   semantics pool double; `AerodromeStockRouteForkTest` against Base itself, with the fixture ERC-20
