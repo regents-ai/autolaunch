@@ -76,6 +76,20 @@ defmodule Autolaunch.Stocks.Assets do
   @doc "`{symbol, address}` pairs for a selector, in catalog order."
   def options(chain), do: chain |> all() |> Enum.map(&{&1.symbol, &1.address})
 
+  @doc "The listed stock a link names by symbol or address, however it is spelled."
+  @spec named(:base | :robinhood, String.t()) :: {:ok, map()} | :error
+  def named(chain, token) when is_binary(token) do
+    wanted = token |> String.trim() |> String.downcase()
+
+    case Enum.find(
+           all(chain),
+           &(wanted in [String.downcase(&1.symbol), String.downcase(&1.address)])
+         ) do
+      nil -> :error
+      asset -> {:ok, asset}
+    end
+  end
+
   def oracle_registry, do: %{chain_id: @base_chain_id, address: @oracle_registry}
 
   def fetch(@base_chain_id, address) when is_binary(address), do: find(:base, address)

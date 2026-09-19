@@ -4,6 +4,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
   use AutolaunchWeb, :live_view
 
   alias Autolaunch.Actors.Human
+  alias Autolaunch.Chain.Address
   alias Autolaunch.{Robinhood, Stocks}
   alias Autolaunch.Stocks.LaunchDraftImageStorage
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
@@ -12,7 +13,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   # A signed-out visitor stays on this route, exactly as on /create: the page
   # explains the sign-in requirement and a completed sign-in reloads it.
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     case human_actor(socket) do
       nil ->
         {:ok, assign(socket, status: :sign_in_required)}
@@ -45,6 +46,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
          if connected?(socket) do
            socket
            |> load_draft(actor)
+           |> choose_linked_stock(params["token"], actor)
            |> assign_minimum_raise(socket.assigns.launch_chain)
          else
            socket
@@ -280,6 +282,25 @@ defmodule AutolaunchWeb.StocksCreateLive do
         assign(socket, status: :error)
     end
   end
+
+  # A link can name the stock (`?token=<symbol or address>`): the choice is
+  # saved to the draft exactly as choosing it in the form would be, and a name
+  # this chain does not list leaves the draft as it was.
+  defp choose_linked_stock(%{assigns: %{draft: %{} = draft}} = socket, token, actor)
+       when is_binary(token) do
+    with {:ok, stock} <- Stocks.Assets.named(socket.assigns.launch_chain, token),
+         false <- Address.equal?(draft.stock_address, stock.address),
+         {:ok, saved} <-
+           Autolaunch.autosave_stocks_terms(draft, %{"stock_address" => stock.address},
+             actor: actor
+           ) do
+      assign_draft(socket, saved)
+    else
+      _unchanged -> socket
+    end
+  end
+
+  defp choose_linked_stock(socket, _token, _actor), do: socket
 
   # The site rule mirrored on the page: one stock auction in progress per account.
   defp active_stocks_launch?(%Human{human_account_id: id}),

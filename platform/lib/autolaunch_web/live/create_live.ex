@@ -15,15 +15,17 @@ defmodule AutolaunchWeb.CreateLive do
   # visitor returns to Create without any redirect parameter to validate.
   def mount(params, session, socket) do
     chain = LaunchChain.from_param(params["chain"])
-    kind = launch_kind(chain, params["kind"])
+    kind = launch_kind(chain, params)
 
     mount_kind(kind, params, session, assign(socket, launch_kind: kind, launch_chain: chain))
   end
 
-  # Robinhood launches memestock pairs only; Base launches either type.
-  defp launch_kind(:robinhood, _kind), do: :stocks
-  defp launch_kind(:base, "stocks"), do: :stocks
-  defp launch_kind(:base, _kind), do: :revshare
+  # Robinhood launches memestock pairs only; Base launches either type, and a
+  # link that names a stock (`token=`) means a memestock pair.
+  defp launch_kind(:robinhood, _params), do: :stocks
+  defp launch_kind(:base, %{"kind" => "stocks"}), do: :stocks
+  defp launch_kind(:base, %{"token" => token}) when is_binary(token) and token != "", do: :stocks
+  defp launch_kind(:base, _params), do: :revshare
 
   defp mount_kind(:stocks, params, session, socket),
     do: AutolaunchWeb.StocksCreateLive.mount(params, session, socket)
