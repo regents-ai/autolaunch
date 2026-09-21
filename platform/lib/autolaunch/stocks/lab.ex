@@ -16,6 +16,7 @@ defmodule Autolaunch.Stocks.Lab do
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @stock_chain_id 8453
+  @test_chain_id 31_337
 
   @address_keys ~w(
     launchpad hook locker splitter_implementation bid_adapter usdc regent permit2
@@ -41,9 +42,8 @@ defmodule Autolaunch.Stocks.Lab do
           rpc_url: String.t(),
           public_rpc_url: String.t(),
           chain_id: pos_integer(),
-          agent_lab_config: String.t(),
           addresses: %{required(String.t()) => String.t()},
-          faucet: %{required(String.t()) => String.t()},
+          faucet: %{required(String.t()) => String.t()} | nil,
           stocks: [stock()],
           abis: %{required(String.t()) => [map()]}
         }
@@ -59,7 +59,6 @@ defmodule Autolaunch.Stocks.Lab do
              {:error, :stocks_deployment_missing},
          {:ok, agent} <- Lab.current(),
          {:ok, config} <- load(path),
-         true <- config.agent_lab_config == agent.path || {:error, :agent_lab_mismatch},
          true <- config.chain_id == agent.chain_id || {:error, :agent_lab_mismatch},
          true <- config.rpc_url == agent.rpc_url || {:error, :agent_lab_mismatch},
          true <- config.public_rpc_url == agent.public_rpc_url || {:error, :agent_lab_mismatch},
@@ -97,9 +96,8 @@ defmodule Autolaunch.Stocks.Lab do
          {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
          {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
          {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
-         {:ok, agent_lab_config} <- absolute(decoded["agent_lab_config"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
-         {:ok, faucet} <- exact_faucet(decoded["faucet"]),
+         {:ok, faucet} <- faucet_section(decoded["faucet"], chain_id),
          {:ok, stocks} <- exact_stocks(decoded["stocks"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
          :ok <- StocksLabAbi.validate(abis) do
@@ -109,7 +107,6 @@ defmodule Autolaunch.Stocks.Lab do
          rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
-         agent_lab_config: agent_lab_config,
          addresses: addresses,
          faucet: faucet,
          stocks: stocks,
@@ -207,12 +204,6 @@ defmodule Autolaunch.Stocks.Lab do
     )
   end
 
-  defp absolute(value) when is_binary(value) do
-    if Path.type(value) == :absolute, do: {:ok, value}, else: {:error, :invalid_agent_lab_config}
-  end
-
-  defp absolute(_value), do: {:error, :invalid_agent_lab_config}
-
   defp exact_addresses(addresses) when is_map(addresses) do
     with true <- Enum.sort(Map.keys(addresses)) == Enum.sort(@address_keys),
          true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end) do
@@ -223,6 +214,11 @@ defmodule Autolaunch.Stocks.Lab do
   end
 
   defp exact_addresses(_addresses), do: {:error, :invalid_addresses}
+
+  # A lab description carries the test-funds faucet; a mainnet description has none.
+  defp faucet_section(faucet, @test_chain_id), do: exact_faucet(faucet)
+  defp faucet_section(nil, _chain_id), do: {:ok, nil}
+  defp faucet_section(_faucet, _chain_id), do: {:error, :invalid_faucet}
 
   defp exact_faucet(faucet) when is_map(faucet) do
     optional = Map.keys(faucet) -- @faucet_keys

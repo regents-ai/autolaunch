@@ -71,7 +71,7 @@ public Base reads still go to real Base, labelled as such). Fork mode adds:
 | --- | --- | --- | --- |
 | `AUTOLAUNCH_CHAIN_MODE` | Yes, `fork` | `base` | Selects the mode. Anything but `base` or `fork` stops the boot. |
 | `AUTOLAUNCH_BASE_DEPLOYMENT` | Yes | — | Absolute path of the Agent fork configuration (`site-config.json`). |
-| `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` | Yes | — | Absolute path of the Stocks fork configuration (`stocks-site-config.json`); its `agent_lab_config` must equal `AUTOLAUNCH_BASE_DEPLOYMENT`. |
+| `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` | Yes | — | Absolute path of the Stocks fork description (`stocks-site-config.json`); its chain id, RPC doors and shared addresses must match the Base description. |
 | `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | Yes | — | A label for this fork run. It travels in every envelope's lab binding, so a review made against one run never confirms against another. (The same variable labels a local lab run.) |
 | `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS` | No | `3600` in fork mode, `0` in base mode | At most one test-funds grant per wallet and asset within this many seconds; `0` disables the cooldown. Must be a non-negative integer. |
 | `AUTOLAUNCH_DEPLOYMENT_ROLE` | Yes (unchanged) | — | `staging` for a preview. The production database pin (`regents_prod` on the approved cluster with the runtime login) applies only to `production`; with `staging`, `Autolaunch.DatabaseConfig.runtime_config!/2` accepts any valid PostgreSQL URL and still refuses `DATABASE_DIRECT_URL` on the serving app (`core_tests/elixir/autolaunch/database_config_test.exs` covers the staging path). The pin itself is not weakened. |
@@ -84,13 +84,11 @@ apply to a production build.
 
 The fork host writes the same two files the lab controllers write
 (`contracts/v1/bin/local-base-lab.py` and `contracts/stocks/bin/local-stocks-lab.py deploy`),
-with three differences:
+with two differences:
 
 - `rpc_url` in both files is the private door (`http://<fork-app>.internal:8545` on Fly, or an
   `https://` URL the host restricts to the site).
 - `public_rpc_url` in both files is the wallet door (`https://…`), identical in both.
-- `agent_lab_config` in the Stocks file is the path the Agent file has inside the image:
-  `/app/fork/site-config.json`.
 
 Everything else (`chain_id` 31337, the address sets, the ABIs, `faucet`, `stocks`) is validated
 exactly as for a lab (`Autolaunch.Lab.load/2`, `Autolaunch.Stocks.Lab.load/2`).

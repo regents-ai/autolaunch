@@ -107,12 +107,7 @@ if base_stocks_deployment_path do
     raise "AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT needs AUTOLAUNCH_BASE_DEPLOYMENT"
   end
 
-  base_stocks_deployment = Autolaunch.Stocks.Lab.load!(base_stocks_deployment_path)
-
-  if base_stocks_deployment.agent_lab_config != base_deployment.path do
-    raise "AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT names a different Base description than AUTOLAUNCH_BASE_DEPLOYMENT"
-  end
-
+  Autolaunch.Stocks.Lab.load!(base_stocks_deployment_path)
   config :autolaunch, :autolaunch_base_stocks_deployment, base_stocks_deployment_path
 end
 

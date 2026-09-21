@@ -303,9 +303,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               class="stocks-more-info"
             >
               <p :if={@stock} class="autolaunch-draft-hint">
-                {@stock.symbol} uses {@stock.decimals} decimal places on this site's {test_network(
-                  @launch_chain
-                )}.
+                {@stock.symbol} uses {@stock.decimals} decimal places on {network_name(@launch_chain)}.
               </p>
               <p class="autolaunch-draft-hint">
                 Bids and refunds use the selected stock token. {@raise_currency} is converted before bidding.
@@ -614,8 +612,15 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp fixed_terms(:base), do: LaunchActions.terms()
   defp fixed_terms(:robinhood), do: Robinhood.stock_terms()
 
-  defp test_network(:base), do: "Base fork"
-  defp test_network(:robinhood), do: "Robinhood test network"
+  defp network_name(:base),
+    do: if(Autolaunch.Lab.test_chain?(), do: "this site's Base fork", else: "Base")
+
+  defp network_name(:robinhood),
+    do:
+      if(Autolaunch.Robinhood.Lab.test_chain?(),
+        do: "this site's Robinhood test network",
+        else: "Robinhood Chain"
+      )
 
   defp symbol(nil), do: "the stock token"
   defp symbol(%{symbol: symbol}), do: symbol

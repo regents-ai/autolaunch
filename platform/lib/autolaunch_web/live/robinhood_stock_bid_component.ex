@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Robinhood.StockBidActions
+  alias Autolaunch.Robinhood.{Lab, StockBidActions}
 
   @copy %{
     authentication_required: "Sign in to bid from your wallet.",
@@ -176,7 +176,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             </div>
             <div>
               <dt>Network</dt>
-              <dd>Robinhood test network · chain {@review.envelope["chain_id"]}</dd>
+              <dd>{network_name(Lab.test_chain?())} · chain {@review.envelope["chain_id"]}</dd>
             </div>
             <div>
               <dt>Transactions</dt>
@@ -201,7 +201,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           </ol>
 
           <p :if={placed?(@sent)} class="launch-wallet-settled" role="status">
-            Your bid was placed and the auction's record of it was verified. Test assets have no real value.
+            Your bid was placed and the auction's record of it was verified.
+            <span :if={Lab.test_chain?()}>Test assets have no real value.</span>
           </p>
 
           <Regent.Primitives.disclosure
@@ -437,6 +438,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp step_count([_one]), do: "One transaction"
   defp step_count([_one, _two]), do: "Two transactions"
+
+  defp network_name(true), do: "Robinhood test network"
+  defp network_name(false), do: "Robinhood Chain"
 
   defp step_label("usdg_approval"), do: "Allow this USDG to be spent"
   defp step_label("usdg_bid"), do: "Place the bid"

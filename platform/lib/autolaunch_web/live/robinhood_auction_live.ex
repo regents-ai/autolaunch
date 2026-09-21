@@ -39,9 +39,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">Robinhood auction</h1>
         </Regent.Structure.section_bar>
-        <p>
-          A memestock pair auction on the Robinhood test network. Test assets have no real value.
-        </p>
+        <p>{network_copy(Lab.test_chain?())}</p>
         <p class="launch-wallet-mono">{@auction}</p>
       </header>
       <.live_component
@@ -103,6 +101,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       reset: reset?
     )
   end
+
+  defp network_copy(true),
+    do: "A memestock pair auction on the Robinhood test network. Test assets have no real value."
+
+  defp network_copy(false), do: "A memestock pair auction on Robinhood Chain."
 
   defp unreadable?(%{failed: nil}), do: false
   defp unreadable?(%{failed: {:error, reason}}) when reason in @not_graduated, do: false

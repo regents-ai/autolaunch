@@ -2,11 +2,11 @@ defmodule Autolaunch.Stocks.Assets do
   @moduledoc """
   The stock currencies a Stocks launch can be drafted against, by chain.
 
-  Base is the founder-selected catalog. Robinhood is whatever the local
-  Robinhood lab admitted at start: mintable fixture stocks with fixture prices,
-  provisional lab data rather than a founder selection. It is empty when the
-  lab is not configured, and a configured lab whose file no longer loads raises
-  rather than answering an empty or Base list.
+  Base is the founder-selected catalog. Robinhood is whatever the Robinhood
+  deployment description lists: on the local lab, mintable fixture stocks with
+  fixture prices. It is empty when no Robinhood description is configured, and
+  a configured description that no longer loads raises rather than answering
+  an empty or Base list.
 
   Neither list is proof of executable contract admission. Issuer policies,
   native B20 support and settlement routes require separate verification.

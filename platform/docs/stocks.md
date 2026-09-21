@@ -37,7 +37,6 @@ graph, admits the fixture routes, and writes
 {
   "rpc_url": "http://127.0.0.1:PORT",
   "chain_id": 31337,
-  "agent_lab_config": "/abs/path/site-config.json",
   "addresses": {
     "launchpad": "0x…", "hook": "0x…", "bid_adapter": "0x…",
     "usdc": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -69,7 +68,7 @@ graph, admits the fixture routes, and writes
 Addresses are lowercase. The website refuses a file whose `rpc_url` is not an admitted door for
 the chain mode (loopback in `base` mode; `Autolaunch.LabRpcUrl` and [fork-preview.md](fork-preview.md)
 for `fork` mode, where `public_rpc_url` is required as well and must equal the Agent lab's) answering
-as chain 31337, whose `agent_lab_config` differs from the Agent lab it runs with, whose repeated
+whose chain id or RPC doors differ from the Base description it runs with, whose repeated
 Agent addresses (`agent_factory`, `agent_strategy`, `regent`, `permit2`, `governance_safe`,
 `cca_factory`, `pool_manager`, `position_manager`) differ from the Agent lab's, whose `stocks`
 entries are not in `Autolaunch.Stocks.Assets`, or whose ABI set lacks a function or event the site
@@ -83,7 +82,8 @@ lab's `hook` ABI has to declare `SwapFeeSettled` (`Autolaunch.LabAbi.requirement
 pinned interfaces do not carry (`executor()`, `PoolRegistered`, `SubjectLaneSet`, the PoolManager's
 `extsload`, the PositionManager's `ownerOf`) use fixed selectors and topics.
 `faucet.regent_launch_fee_amount` is optional: when present it must be a decimal string of REGENT
-base units, and the faucet then offers it as the launch-fee grant. The interface ABIs the site was
+base units, and the faucet then offers it as the launch-fee grant. The `faucet` section belongs to
+chain 31337 only; a description for another chain must not carry one. The interface ABIs the site was
 written against are pinned at `platform/contracts/abi/stocks-*.json` (regenerated from
 `contracts/stocks/src/interfaces` with solc 0.8.26) and registered in
 `platform/contracts/chain-contracts.yaml` under `stocks_local_lab`.
