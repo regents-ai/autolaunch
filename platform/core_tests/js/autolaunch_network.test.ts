@@ -68,6 +68,20 @@ describe("the wallet-facing RPC door admits loopback and https only", () => {
       testChain: false,
     })
 
+    expect(
+      labNetwork(
+        operation({
+          chain_id: 4663,
+          lab: binding({chain_id: 4663, rpc_url: "https://robinhood.example.test/v2/key"}),
+        }),
+      ),
+    ).toEqual({
+      chainId: 4663,
+      rpcUrl: "https://robinhood.example.test/v2/key",
+      chainName: "Robinhood Chain",
+      testChain: false,
+    })
+
     // Base is never reached through a loopback door, and a binding for one
     // chain never sends on another.
     expect(() =>

@@ -257,15 +257,17 @@ async function providerChainId(provider: EthereumProvider): Promise<number> {
 
 /**
  * The chain name the wallet prompt shows for a reviewed chain and its
- * wallet-facing RPC door. Base is reached through an `https://` door without
- * credentials, query or fragment. A loopback `http://127.0.0.1:PORT` is a
- * local lab; an `https://` door on the Base fork chain is a hosted preview.
- * Any other `http://` URL is refused: the site's own private door never
- * reaches a wallet. The Robinhood lab only ever runs locally.
+ * wallet-facing RPC door. Base and Robinhood Chain are reached through an
+ * `https://` door without credentials, query or fragment. A loopback
+ * `http://127.0.0.1:PORT` is a local lab; an `https://` door on the Base fork
+ * chain is a hosted preview. Any other `http://` URL is refused: the site's
+ * own private door never reaches a wallet. The Robinhood lab only ever runs
+ * locally.
  */
 function labChainName(chainId: number, value: unknown): string | null {
   if (typeof value !== "string") return null
   if (chainId === 8453) return publicHttpsRpc(value) ? "Base" : null
+  if (chainId === 4663) return publicHttpsRpc(value) ? "Robinhood Chain" : null
   if (chainId === 31_338) return literalLoopbackRpc(value) ? "Robinhood Local Lab" : null
   if (chainId !== 31_337) return null
   if (literalLoopbackRpc(value)) return "Autolaunch Local Lab"

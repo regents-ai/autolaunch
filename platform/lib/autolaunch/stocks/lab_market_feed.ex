@@ -1,6 +1,7 @@
 defmodule Autolaunch.Stocks.LabMarketFeed do
   @moduledoc """
-  Polls the local fork every second for Stocks launches and their auctions.
+  Polls the Stocks chain for launches and their auctions: every second on a
+  lab, every fifteen seconds on mainnet.
 
   Two things happen per poll. Every `launches(id)` record the launchpad holds is
   projected into an `Auction` row when its launcher is a wallet this site's
@@ -23,7 +24,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   alias Autolaunch.Stocks.LabProjection, as: StocksProjection
 
   @topic "autolaunch:lab_market"
-  @interval 1_000
+  @lab_interval 1_000
+  @mainnet_interval 15_000
   @actor %System{}
   @new_decimals 18
   @lifecycle_index 11
@@ -98,13 +100,16 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
         %{state | generation: generation, head: head, snapshots: snapshots, in_flight: false}
       end
 
-    {:noreply, schedule(state, @interval)}
+    {:noreply, schedule(state, interval())}
   end
 
   def handle_info({:refreshed, {:error, reason}}, state) do
     Logger.debug("stocks lab market feed skipped a poll: #{inspect(reason)}")
-    {:noreply, schedule(%{state | in_flight: false}, @interval)}
+    {:noreply, schedule(%{state | in_flight: false}, interval())}
   end
+
+  defp interval,
+    do: if(Autolaunch.Lab.test_chain?(), do: @lab_interval, else: @mainnet_interval)
 
   # One poll: the launchpad's records, then every known Stocks auction.
   @doc false

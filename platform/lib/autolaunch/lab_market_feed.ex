@@ -7,7 +7,9 @@ defmodule Autolaunch.LabMarketFeed do
 
   @topic "autolaunch:lab_market"
   @capacity 256
-  @initial_delay 1_000
+  # A lab moves every second; a mainnet reading is fresh enough every fifteen.
+  @lab_delay 1_000
+  @mainnet_delay 15_000
   @max_delay 10_000
 
   def topic, do: @topic
@@ -35,7 +37,7 @@ defmodule Autolaunch.LabMarketFeed do
       projector: Keyword.get(options, :projector, Projector),
       pubsub: Keyword.get(options, :pubsub, Autolaunch.PubSub),
       poll?: Keyword.get(options, :poll?, true),
-      delay: Keyword.get(options, :initial_delay, @initial_delay),
+      delay: Keyword.get(options, :initial_delay, initial_delay()),
       generation: 0,
       binding: nil,
       accepted_head: nil,
@@ -456,15 +458,19 @@ defmodule Autolaunch.LabMarketFeed do
   end
 
   defp succeeded(state) do
+    delay = initial_delay()
+
     state
-    |> Map.put(:delay, @initial_delay)
-    |> schedule(@initial_delay)
+    |> Map.put(:delay, delay)
+    |> schedule(delay)
   end
 
   defp failed(state) do
-    delay = min(max(state.delay * 2, 2_000), @max_delay)
+    delay = min(max(state.delay * 2, 2_000), max(@max_delay, initial_delay()))
     state |> Map.put(:delay, delay) |> schedule(delay)
   end
+
+  defp initial_delay, do: if(Autolaunch.Lab.test_chain?(), do: @lab_delay, else: @mainnet_delay)
 
   defp schedule(%{poll?: false} = state, _delay), do: state
 
