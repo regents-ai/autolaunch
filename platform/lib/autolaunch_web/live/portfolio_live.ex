@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
 
+  alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.TokenHoldings
   alias AutolaunchWeb.LabMarket
 
@@ -19,6 +20,7 @@ defmodule AutolaunchWeb.PortfolioLive do
      |> assign(:returnable_positions, [])
      |> assign(:claimable_positions, [])
      |> assign(:token_holdings, :loading)
+     |> assign(:robinhood_positions, :loading)
      |> assign(:market, LabMarket.subscribe(socket))
      |> load_signed_in_holdings()}
   end
@@ -51,6 +53,12 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def handle_async(:token_holdings, _failed, socket),
     do: {:noreply, assign(socket, :token_holdings, :error)}
+
+  def handle_async(:robinhood_positions, {:ok, {:ok, positions}}, socket),
+    do: {:noreply, assign(socket, :robinhood_positions, positions)}
+
+  def handle_async(:robinhood_positions, _failed, socket),
+    do: {:noreply, assign(socket, :robinhood_positions, :error)}
 
   def render(assigns) do
     {history, current} = Enum.split_with(assigns.positions, &(&1.status in @history))
@@ -179,10 +187,70 @@ defmodule AutolaunchWeb.PortfolioLive do
             session_lease={@session_lease}
           />
         </Regent.Primitives.disclosure>
+
+        <section
+          :if={Autolaunch.Robinhood.Lab.configured?()}
+          id="autolaunch-robinhood-bids"
+          aria-labelledby="autolaunch-robinhood-bids-title"
+        >
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="autolaunch-robinhood-bids-title">
+              Robinhood bids
+            </h2>
+          </Regent.Structure.section_bar>
+          <p :if={@robinhood_positions == :loading} class="autolaunch-empty" role="status">
+            Reading your wallets…
+          </p>
+          <p :if={@robinhood_positions == :error} class="autolaunch-empty" role="alert">
+            Your Robinhood bids are unavailable right now.
+          </p>
+          <p :if={@robinhood_positions == []} class="autolaunch-empty">
+            Bids from your verified wallets on Robinhood auctions will appear here.
+            <.link navigate="/auctions">Explore auctions</.link>
+          </p>
+          <ol
+            :if={is_list(@robinhood_positions) && @robinhood_positions != []}
+            class="autolaunch-record-list"
+          >
+            <li
+              :for={position <- @robinhood_positions}
+              id={"autolaunch-robinhood-bid-#{position.auction}-#{position.bid_id}"}
+            >
+              <.link navigate={position.href}>
+                <strong>{position.name} · {position.symbol}</strong>
+                <span>
+                  Bid #{position.bid_id} · {position.committed} {position.stock_symbol} · {standing_copy(
+                    position
+                  )}
+                </span>
+                <span>{short(position.wallet)}</span>
+              </.link>
+            </li>
+          </ol>
+        </section>
       </div>
     </section>
     """
   end
+
+  # What the auction itself says about the bid, in the bidder's words.
+  defp standing_copy(%{standing: :bidding}), do: "In the auction"
+
+  defp standing_copy(%{standing: :refundable, refundable: amount, stock_symbol: symbol}),
+    do: "#{amount} #{symbol} refundable: the auction did not reach its required raise"
+
+  defp standing_copy(%{standing: :ended, stock_symbol: symbol}),
+    do: "Auction ended: what this bid did not spend in #{symbol} has not been returned yet"
+
+  defp standing_copy(%{standing: :returned}), do: "Returned"
+
+  defp standing_copy(%{standing: :filled, claim_block: block}),
+    do: "Filled: tokens can be claimed from block #{block}"
+
+  defp standing_copy(%{standing: :claimable}), do: "Filled: tokens ready to claim"
+
+  defp short("0x" <> address),
+    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 
   attr :positions, :list, required: true
   attr :market, :map, required: true
@@ -226,13 +294,16 @@ defmodule AutolaunchWeb.PortfolioLive do
     end
   end
 
-  # Wallet balances come from the chain, so they arrive after the page.
+  # Wallet balances and Robinhood bids come from the chain, so they arrive
+  # after the page.
   defp read_token_holdings(socket, actor) do
     if connected?(socket),
       do:
         socket
         |> assign(:token_holdings, :loading)
-        |> start_async(:token_holdings, fn -> TokenHoldings.read(actor) end),
+        |> assign(:robinhood_positions, :loading)
+        |> start_async(:token_holdings, fn -> TokenHoldings.read(actor) end)
+        |> start_async(:robinhood_positions, fn -> RobinhoodPositions.read(actor) end),
       else: socket
   end
 

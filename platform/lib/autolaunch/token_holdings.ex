@@ -36,7 +36,7 @@ defmodule Autolaunch.TokenHoldings do
   """
   @spec read(Human.t()) :: {:ok, [holding()]} | {:error, :unavailable}
   def read(%Human{} = actor) do
-    with {:ok, wallets} <- wallets(actor),
+    with {:ok, wallets} <- verified_wallets(actor),
          {:ok, tokens} <- Autolaunch.list_tokens(actor: actor),
          {:ok, base} <- base_holdings(tokens, wallets),
          {:ok, robinhood} <- robinhood_holdings(wallets) do
@@ -46,9 +46,12 @@ defmodule Autolaunch.TokenHoldings do
     end
   end
 
-  # The same wallets that own the account's bids: verified by the current
-  # session, or none at all.
-  defp wallets(actor) do
+  @doc """
+  The same wallets that own the account's bids: verified by the current
+  session, or none at all.
+  """
+  @spec verified_wallets(Human.t()) :: {:ok, [String.t()]} | {:error, term()}
+  def verified_wallets(%Human{} = actor) do
     with {:ok, account} when not is_nil(account) <-
            Accounts.get_human_account(actor.human_account_id, actor: actor),
          true <- VerifiedSession.current?(account) do

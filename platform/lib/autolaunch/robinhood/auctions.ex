@@ -23,8 +23,10 @@ defmodule Autolaunch.Robinhood.Auctions do
           name: String.t(),
           symbol: String.t(),
           stock_symbol: String.t(),
+          stock_decimals: non_neg_integer(),
           state: :created | :active | :graduated | :failed,
           clearing_price: String.t(),
+          clearing_price_q96: non_neg_integer(),
           raised: String.t()
         }
 
@@ -38,7 +40,13 @@ defmodule Autolaunch.Robinhood.Auctions do
     with {:ok, config} <- Lab.current(),
          opts = Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
+         do: at(config, block, opts)
+  end
+
+  @doc "Every auction the launchpad records, newest first, read at the given block."
+  @spec at(map(), map(), keyword()) :: {:ok, [t()]} | {:error, atom()}
+  def at(config, block, opts) do
+    with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
       Enum.reduce_while(
         1..(next_id - 1)//1,
         {:ok, []},
@@ -74,8 +82,10 @@ defmodule Autolaunch.Robinhood.Auctions do
          name: name,
          symbol: symbol,
          stock_symbol: stock.symbol,
+         stock_decimals: stock.decimals,
          state: state,
          clearing_price: Amounts.format_cca_price(clearing, stock.decimals, @token_decimals),
+         clearing_price_q96: clearing,
          raised: Rpc.format_units(raised, stock.decimals)
        }}
     else
