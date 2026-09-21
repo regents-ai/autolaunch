@@ -20,9 +20,9 @@ import {StocksBindings} from "../StocksBindings.sol";
 ///      every `0xb2…` stock pool is, USDC sorting first) and the feed. The route calls the pool
 ///      directly, never a router, and builds every swap itself: the price limit is the extreme of
 ///      the pool's range, so `minAmountOut` and the feed bound are the only price controls.
-///      `quoteExactIn` is the feed price, not the pool price: `StocksLaunchpadV1.launch` uses it
-///      to convert the USDC minimum raise into STOCK, and `swapExactIn` refuses any execution that
-///      delivers less than `MAX_DEVIATION_BPS` under that quote. The route holds nothing between
+///      `quoteExactIn` is the feed price, not the pool price: it is the review quote a caller
+///      compares against, and `swapExactIn` refuses any execution that delivers less than
+///      `MAX_DEVIATION_BPS` under that quote. The route holds nothing between
 ///      calls: whatever `amountIn` the pool did not consume goes back to `recipient` in the call.
 contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
     using SafeTransferLib for address;

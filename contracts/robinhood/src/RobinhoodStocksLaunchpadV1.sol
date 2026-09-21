@@ -4,7 +4,6 @@ pragma solidity 0.8.26;
 import {PositionPlanner} from "liquidity-launcher/src/libraries/PositionPlanner.sol";
 import {Position, PositionDefinition} from "liquidity-launcher/src/types/PositionPlannerTypes.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
-import {SafeCastLib} from "solady/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
@@ -13,15 +12,13 @@ import {IRobinhoodStockRoute} from "./interfaces/IRobinhoodStockRoute.sol";
 import {IRobinhoodStocksLaunchpadV1} from "./interfaces/IRobinhoodStocksLaunchpadV1.sol";
 import {RobinhoodFeeHookV1} from "./RobinhoodFeeHookV1.sol";
 import {RobinhoodLaunchpadBase} from "./RobinhoodLaunchpadBase.sol";
-import {RobinhoodPreset} from "./RobinhoodPreset.sol";
 
 /// @title RobinhoodStocksLaunchpadV1
 /// @notice The Base Stocks launchpad's rules on the Robinhood chain, with USDG as the dollar: a NEW is
-///         sold for an admitted STOCK; the required raise is the Safe's USDG minimum converted into
-///         STOCK by the admitted route's quote at creation; graduation creates the launch's own
-///         memestock splitter, locks the full range and a one-sided STOCK position in the fee-only
-///         locker and credits the rounding remainder to the pool's protocol lane; the launch fee is
-///         USDG, deposited into the protocol revenue inbox.
+///         sold for an admitted STOCK for a required raise the launcher chooses; graduation creates
+///         the launch's own memestock splitter, locks the full range and a one-sided STOCK position
+///         in the fee-only locker and credits the rounding remainder to the pool's protocol lane.
+///         There is no launch fee and no governance minimum raise.
 /// @dev No launch has an administrator. Both hook lanes are always on and the splitter, created by
 ///      this contract at graduation, is their only configuration.
 contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksLaunchpadV1 {
@@ -33,15 +30,12 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         address route;
     }
 
-    uint256 public override minimumRaiseUsdg = RobinhoodPreset.MINIMUM_RAISE_USDG_STOCKS;
-
     mapping(address stock => Admission) private _admissions;
     mapping(uint256 launchId => StockRecord) private _stockRecords;
 
     error StockNotAdmitted(address stock);
     error StockRefused(address stock);
     error RouteBindingMismatch(address expected, address found);
-    error ZeroMinimumRaise();
     error UnexpectedStockOnlyPositionCount(uint256 found);
 
     constructor(Bindings memory bindings, bytes32 hookSalt) RobinhoodLaunchpadBase(bindings, hookSalt) {}
@@ -58,26 +52,22 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         nonReentrant
         returns (uint256 launchId, address newToken, address auction)
     {
-        Admission storage admission = _admissions[params.stock];
-        if (!admission.admitted) revert StockNotAdmitted(params.stock);
+        if (!_admissions[params.stock].admitted) revert StockNotAdmitted(params.stock);
 
-        // The required raise is the Safe's USDG minimum converted into STOCK by the admitted route's
-        // quote at this block: the launcher never chooses it. The base proves it is reachable.
-        uint256 required = IRobinhoodStockRoute(admission.route).quoteExactIn(usdg, params.stock, minimumRaiseUsdg);
-        uint128 requiredStockRaised = SafeCastLib.toUint128(required);
+        // The launcher chooses the STOCK raise; the base proves it is nonzero and reachable.
+        (launchId, newToken, auction) = _create(params.core, params.stock, params.requiredStockRaised);
 
-        (launchId, newToken, auction) = _create(params.core, params.stock, requiredStockRaised);
-
+        Launch storage record = _launches[launchId];
         emit StockLaunchCreated(
             launchId,
             msg.sender,
             newToken,
             params.stock,
             auction,
-            params.core.startBlock,
-            params.core.startBlock + StocksPreset.AUCTION_DURATION_BLOCKS,
+            record.startBlock,
+            record.endBlock,
             params.core.floorPriceQ96,
-            requiredStockRaised,
+            params.requiredStockRaised,
             StocksPreset.AUCTION_INVENTORY,
             StocksPreset.MIGRATION_RESERVE
         );
@@ -109,15 +99,6 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         if (!_admissions[stock].admitted) revert StockNotAdmitted(stock);
         _admissions[stock].admitted = false;
         emit StockRevoked(stock);
-    }
-
-    /// @inheritdoc IRobinhoodStocksLaunchpadV1
-    /// @dev Applies to launches created afterwards only; a recorded auction keeps its STOCK raise.
-    function setMinimumRaiseUsdg(uint256 newMinimum) external override onlySafe {
-        if (newMinimum == 0) revert ZeroMinimumRaise();
-        uint256 previousMinimum = minimumRaiseUsdg;
-        minimumRaiseUsdg = newMinimum;
-        emit MinimumRaiseUsdgUpdated(previousMinimum, newMinimum);
     }
 
     // -------------------------------------------------------------------------

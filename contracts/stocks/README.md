@@ -59,7 +59,7 @@ because the same pinned dependency imposes it.
 | Migration reserve | `S0 / 5` = 200,000,000 × 10^18 | Brief P04, exact |
 | Auction duration | 43,200 blocks (~24 h at Base's 2 s blocks) | Brief P03 "approximately 24 hours"; block count PROVISIONAL |
 | Step schedule | 13 packed steps summing to 43,200 blocks and exactly `MPS = 1e7` | Derived; shape mirrors Agent's pinned schedule, proven by test |
-| Start lead | `MIN_START_LEAD_BLOCKS` 300 (~10 min), `MAX_START_LEAD_BLOCKS` 1,296,000 (~30 days) | PROVISIONAL |
+| Start lead | `START_LEAD_BLOCKS` 300 (ten minutes at 2 s blocks): every auction opens exactly 300 blocks after its creation block; the launcher does not choose it; the opening block is in the launch record and the `StockLaunchCreated` event | Founder decision 2026-09-21 |
 | Claim delay | 64 blocks after end | Same pinned CCA convention as Agent |
 | Migration delay | 128 blocks after end | Same pinned CCA convention as Agent |
 | Bid tick spacing | `floorPriceQ96 / 100`, requiring `floorPriceQ96 % 100 == 0` and the result ≥ CCA `MIN_TICK_SPACING` | Derived; floor ≥ CCA `MIN_FLOOR_PRICE` |
@@ -69,8 +69,8 @@ because the same pinned dependency imposes it.
 | Staker hook lane | 100 bps of realized STOCK-side amount, floored, always on; deposited as STOCK into the launch's splitter by anyone (`settleStakerLane`) | Founder decision 2026-09-18 |
 | Splitter protocol share | 2% (`SKIM_BPS` 200) of every recognized amount in USDC, MEMESTOCK and STOCK; USDC straight into live REGENT staking, MEMESTOCK and STOCK to the Governance and REGENT Safe; the other 98% belongs wholly to stakers | Founder decision 2026-09-18 |
 | Revenue with nothing staked | the whole amount follows the protocol route (USDC into REGENT staking, other assets to the Safe); the rule holds only while `totalStaked == 0`, so any stake placed before a settlement takes the 98% share of that settlement | Founder decision 2026-09-18 |
-| Launch fee | 100,000 REGENT (`LAUNCH_FEE_REGENT`), pulled from the launcher at `launch` and funded into the live REGENT staking contract as staker rewards (`fundRegentRewards`); never refunded; governance may change it with `setLaunchFee` (zero valid) | Founder decision |
-| Minimum raise | 1,000 USDC (`MINIMUM_RAISE_USDC`), quoted into the STOCK through the admitted route at `launch` and recorded as the auction's `requiredStockRaised`; the launcher does not choose it; governance may change it with `setMinimumRaiseUsdc` (zero refused); a recorded auction keeps its STOCK raise | Founder decision |
+| Launch fee | none: a launch costs nothing beyond gas; no REGENT is pulled and the launchpad never holds REGENT | Founder decision 2026-09-21 |
+| Required raise | chosen by the launcher in STOCK base units (`requiredStockRaised`), above zero and at most what the fixed inventory can settle on at the highest on-grid bid price (`UnreachableRequiredRaise` otherwise); no governance minimum; a recorded auction keeps its raise | Founder decision 2026-09-21 |
 | Creator allocation, vesting, treasury | none | Brief P05 |
 | Unsold NEW after graduation | transferred to `0x…dEaD` ("retired"; supply is not reduced because UERC20 has no burn) | Brief P13; mechanism labelled |
 | Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; PROVISIONAL |
@@ -149,8 +149,8 @@ construction to that stock's Aerodrome Slipstream USDC/STOCK pool (factory
 close outside market hours). The route calls the pool directly with no router and no
 caller-supplied calldata, and:
 
-- quotes from the feed, not the pool. `launch` converts the 1,000 USDC minimum raise into STOCK at
-  the feed price at launch time; the CCA's raise test is in STOCK from then on;
+- quotes from the feed, not the pool; `launch` does not quote at all, the required raise is the
+  launcher's STOCK amount and the CCA's raise test is in STOCK;
 - executes on the pool with the widest price limit and refuses any execution that delivers more than
   5% (`MAX_DEVIATION_BPS`) under the feed quote, on top of the caller's own `minAmountOut`;
 - refuses a feed answer that is not positive or is older than 7 days (`MAX_FEED_AGE`);
@@ -201,13 +201,11 @@ AAPLc pool whenever it is run against Base itself.
    principal is never revenue, and the locker can never move liquidity.
 7. The adapter uses invocation balance deltas only, restores every allowance to zero, and bids as
    `owner = msg.sender`.
-8. The launch fee is collected exactly and funded exactly, and never comes back. `launch` refuses a
-   `expectedLaunchFee` that is not the current `launchFee()` and a REGENT allowance that is not exactly
-   the fee (a zero fee moves nothing and still requires a zero allowance); it pulls the fee into the
-   launchpad, proves the delta, funds it into `LIVE_STAKING.fundRegentRewards` in the same
-   transaction, proves `received == fee`, proves its own REGENT delta is zero afterwards and both
-   allowances are back at zero, all before NEW or the auction exist. Nothing in `migrate` or anywhere
-   else can return it.
+8. A launch costs nothing beyond gas and opens on a fixed clock. `launch` pulls no REGENT, needs no
+   allowance and never calls the staking contract at creation, so a paused staking contract cannot
+   stop a launch; the launchpad never holds REGENT. The auction's start block is the creation block
+   plus `START_LEAD_BLOCKS`, its end block that plus `AUCTION_DURATION_BLOCKS`, both read back from
+   the created auction and carried by `StockLaunchCreated`.
 
 ## Verification
 
@@ -230,17 +228,12 @@ run and writes `stocks-site-config.json` (and its own `stocks-state.json`) next 
 `site-config.json`; the website reads the config through `AUTOLAUNCH_STOCKS_LAB_CONFIG`. It never
 writes the Agent run record. `--agent-lab-dir` points it at a run in another checkout.
 
-`deploy` also sets the frozen Agent factory's launch fee to the lab's 500,000 REGENT from the
-impersonated Governance Safe (one governance call on the fork; the Agent sources and run record are
-untouched) and records both fees in the config: `stocks_launch_fee_regent` (read from the launchpad,
-100,000 REGENT) and `agent_launch_fee_regent`, in base units. `faucet.regent_launch_fee_amount`
-(500,000 REGENT) is one grant that covers either fee. `fund --regent 600000` covers one Agent and one
-Stocks launch fee plus bids; the controller checks the Safe's balance first.
+A launch costs nothing on either launchpad, so `fund` grants REGENT only for Revstake bids; the
+controller checks the Safe's balance first.
 
 ```sh
-python3 bin/local-stocks-lab.py [--agent-lab-dir DIR] deploy            # fixtures, graph, admission, funding, Agent fee, config
-python3 bin/local-stocks-lab.py set-agent-fee [--amount 500000]         # Agent factory launchFee, from the impersonated Safe
-python3 bin/local-stocks-lab.py fund WALLET --regent 600000 --stock AAPLc --amount 100 --usdc 1000
+python3 bin/local-stocks-lab.py [--agent-lab-dir DIR] deploy            # fixtures, graph, admission, funding, config
+python3 bin/local-stocks-lab.py fund WALLET --regent 100000 --stock AAPLc --amount 100 --usdc 1000
 python3 bin/local-stocks-lab.py status [--launch ID] [--auction ADDR]
 python3 bin/local-stocks-lab.py advance --auction ADDR --to start|end|claim|migration
 python3 bin/local-stocks-lab.py migrate --launch ID
@@ -250,5 +243,5 @@ python3 bin/local-stocks-lab.py collect --token-id ID
 ```
 
 The lab deployer (`0x5700…0001`) and the hook executor are the same impersonated address; the
-Governance Safe is impersonated for admission, unpausing, the Agent fee and REGENT funding; USDC comes from a forked holder
+Governance Safe is impersonated for admission, unpausing and REGENT funding; USDC comes from a forked holder
 (Morpho Blue by default, `--usdc-holder` to change). Nothing in the lab is B20-verified.

@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 /// @title IRobinhoodProtocolRevenueInboxV1
 /// @notice The one USDG destination of every protocol revenue stream on the Robinhood chain: hook
-///         protocol lanes, splitter skims and launch fees. It collects, it records provenance, and
+///         protocol lanes and splitter skims. It collects, it records provenance, and
 ///         the Robinhood Safe bridges collected USDG to a Base destination in reviewed batches.
 ///         The inbox takes no skim of its own.
 /// @dev Everything that can change is Safe-only and versioned. `baseDestination` carries a version
@@ -22,8 +22,8 @@ interface IRobinhoodProtocolRevenueInboxV1 {
         bytes32 transferRef;
     }
 
-    /// @notice `source` is the depositing contract; `sourceTag` names its kind (hook, splitter,
-    ///         launch fee); `sourceRef` is that source's own reference (pool id, revenue ref, launch id).
+    /// @notice `source` is the depositing contract; `sourceTag` names its kind (hook, splitter);
+    ///         `sourceRef` is that source's own reference (pool id, revenue ref).
     event RevenueCollected(
         address indexed source, bytes32 indexed sourceTag, bytes32 indexed sourceRef, uint256 amount
     );

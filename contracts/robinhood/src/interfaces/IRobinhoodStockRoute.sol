@@ -19,7 +19,7 @@ interface IRobinhoodStockRoute {
         external
         returns (uint256 amountOut);
 
-    /// @notice A read-only estimate. The launchpad converts the USDG minimum raise through it at
-    ///         creation; everywhere else it is review copy and never binding.
+    /// @notice A read-only estimate: review copy for callers, never binding. The launchpad does not
+    ///         read it.
     function quoteExactIn(address tokenIn, address tokenOut, uint256 amountIn) external view returns (uint256 amountOut);
 }

@@ -18,7 +18,7 @@ contract RobinhoodBaseReceiverTest is Test {
 
     function setUp() public {
         usdc = new MockERC20("USD Coin", "USDC", 6);
-        staking = new MockLiveStaking(address(usdc), address(usdc));
+        staking = new MockLiveStaking(address(usdc));
         receiver = new RobinhoodBaseRevenueReceiverV1(address(usdc), address(staking), baseSafe);
     }
 

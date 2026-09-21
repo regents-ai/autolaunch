@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.26;
 
-import {Vm} from "forge-std/Vm.sol";
 import {ConstantsLib} from "continuous-clearing-auction/libraries/ConstantsLib.sol";
 import {MaxBidPriceLib} from "continuous-clearing-auction/libraries/MaxBidPriceLib.sol";
 import {IContinuousClearingAuction} from "continuous-clearing-auction/interfaces/IContinuousClearingAuction.sol";
@@ -13,11 +12,10 @@ import {StocksLaunchpadV1} from "../src/StocksLaunchpadV1.sol";
 import {StocksPreset} from "../src/StocksPreset.sol";
 import {FixtureStockRoute} from "../src/routes/FixtureStockRoute.sol";
 import {IStocksLaunchpadV1} from "../src/interfaces/IStocksLaunchpadV1.sol";
-import {MockLiveStaking} from "./mocks/MockLiveStaking.sol";
 import {StocksFixture} from "./StocksFixture.sol";
 
-/// @notice Rule 1 (exact minting and custody), rule 2 (canonical auction bindings), rule 8 (the exact,
-///         non-refundable launch fee funded into staking), admission, pause scope and launch
+/// @notice Rule 1 (exact minting and custody), rule 2 (canonical auction bindings), rule 8 (a launch
+///         costs nothing and opens ten minutes after creation), admission, pause scope and launch
 ///         validation.
 contract StocksLaunchpadLaunchTest is StocksFixture {
     function setUp() public {
@@ -124,34 +122,50 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(uint8(_record(l).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Graduated));
     }
 
-    function test_launch_start_window() public {
+    function test_auction_opens_exactly_ten_minutes_after_the_creation_block() public {
+        vm.roll(2_345_678);
+        uint64 expectedStart = 2_345_678 + 300;
+        assertEq(StocksPreset.START_LEAD_BLOCKS, 300, "founder decision: ten minutes at 2 s blocks");
         IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        params.startBlock = uint64(block.number) + StocksPreset.MIN_START_LEAD_BLOCKS - 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StocksLaunchpadV1.StartBlockOutOfWindow.selector,
-                params.startBlock,
-                block.number + StocksPreset.MIN_START_LEAD_BLOCKS,
-                block.number + StocksPreset.MAX_START_LEAD_BLOCKS
-            )
+        uint256 launchId = launchpad.nextLaunchId();
+        address predictedNew = uerc20Factory.getUERC20Address(
+            params.name, params.symbol, StocksPreset.NEW_DECIMALS, address(launchpad), bytes32(launchId)
         );
-        vm.prank(launcher);
-        launchpad.launch(params);
 
-        params.startBlock = uint64(block.number) + StocksPreset.MAX_START_LEAD_BLOCKS + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StocksLaunchpadV1.StartBlockOutOfWindow.selector,
-                params.startBlock,
-                block.number + StocksPreset.MIN_START_LEAD_BLOCKS,
-                block.number + StocksPreset.MAX_START_LEAD_BLOCKS
-            )
+        // The start block is the creation block plus the lead, and the launch event carries it so a
+        // wallet can show the exact opening block from the receipt.
+        vm.expectEmit(true, true, true, false, address(launchpad));
+        emit IStocksLaunchpadV1.StockLaunchCreated(
+            launchId,
+            launcher,
+            predictedNew,
+            STOCK_LOW,
+            address(0),
+            expectedStart,
+            expectedStart + StocksPreset.AUCTION_DURATION_BLOCKS,
+            FLOOR_PRICE_Q96,
+            REQUIRED_RAISE,
+            StocksPreset.AUCTION_INVENTORY,
+            StocksPreset.MIGRATION_RESERVE
         );
-        vm.prank(launcher);
-        launchpad.launch(params);
+        Launched memory l = _launchAs(launcher, params);
+        IStocksLaunchpadV1.Launch memory record = _record(l);
+        assertEq(record.startBlock, expectedStart, "record: creation block + 300");
+        assertEq(l.auction.startBlock(), expectedStart, "auction: creation block + 300");
+        assertEq(record.endBlock, expectedStart + StocksPreset.AUCTION_DURATION_BLOCKS);
 
-        params.startBlock = uint64(block.number) + StocksPreset.MAX_START_LEAD_BLOCKS;
-        _launchAs(launcher, params);
+        // Bidding is refused before the opening block and accepted on it.
+        stockLow.mint(bidder, 1e8);
+        vm.roll(expectedStart - 1);
+        vm.expectRevert();
+        vm.prank(bidder);
+        l.auction.submitBid(_bidPrice(1), 1e8, bidder, FLOOR_PRICE_Q96, "");
+        vm.roll(expectedStart);
+        _bidDirect(l, bidder, 1e8, _bidPrice(1));
+
+        // Two launches in the same block open in the same block; a later block opens later.
+        Launched memory sameBlock = _launch(STOCK_HIGH);
+        assertEq(_record(sameBlock).startBlock, expectedStart + 300, "the next creation block sets the next start");
     }
 
     function test_floor_price_rules() public {
@@ -178,49 +192,46 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertGe(floorHundredths, ConstantsLib.MIN_TICK_SPACING);
     }
 
-    function test_required_raise_is_the_governance_usdc_minimum_quoted_into_stock() public {
-        assertEq(launchpad.minimumRaiseUsdc(), StocksPreset.MINIMUM_RAISE_USDC);
-        assertEq(launchpad.minimumRaiseUsdc(), 1_000e6);
+    function test_required_raise_is_chosen_by_the_launcher_above_zero_and_within_reach() public {
+        // Each launch records exactly the STOCK raise its launcher asked for, in that launch alone.
+        Launched memory first = _launch(STOCK_LOW);
+        assertEq(_record(first).requiredStockRaised, REQUIRED_RAISE);
+        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_HIGH);
+        params.requiredStockRaised = 1;
+        Launched memory smallest = _launchAs(launcher, params);
+        assertEq(_record(smallest).requiredStockRaised, 1, "one base unit of STOCK is a valid raise");
+        assertEq(_record(first).requiredStockRaised, REQUIRED_RAISE, "the earlier launch is untouched");
 
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotGovernance.selector, launcher));
-        vm.prank(launcher);
-        launchpad.setMinimumRaiseUsdc(1);
-        vm.expectRevert(StocksLaunchpadV1.ZeroMinimumRaise.selector);
-        vm.prank(governance);
-        launchpad.setMinimumRaiseUsdc(0);
-
-        // A launch records the route's quote of the minimum, never a launcher-chosen amount.
-        Launched memory earlier = _launch(STOCK_LOW);
-        assertEq(_record(earlier).requiredStockRaised, REQUIRED_RAISE);
-
-        vm.expectEmit(false, false, false, true, address(launchpad));
-        emit IStocksLaunchpadV1.MinimumRaiseUsdcUpdated(1_000e6, 2_300e6);
-        vm.prank(governance);
-        launchpad.setMinimumRaiseUsdc(2_300e6);
-        assertEq(launchpad.minimumRaiseUsdc(), 2_300e6);
-
-        // The existing auction keeps its terms; the next launch converts the new minimum: ten shares.
-        assertEq(_record(earlier).requiredStockRaised, REQUIRED_RAISE);
-        Launched memory later = _launch(STOCK_HIGH);
-        assertEq(_record(later).requiredStockRaised, 10e8);
-
-        // A minimum whose quote the fixed inventory cannot settle on is refused at creation: the
-        // largest admissible raise is the inventory at the highest on-grid price the pinned CCA
-        // admits (`StocksLaunchpadV1._maxReachableRaise`), capped at what the auction can carry.
-        uint256 tickSpacing = launchpad.bidTickSpacingFor(FLOOR_PRICE_Q96);
-        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
-        uint256 reachable =
-            FullMath.mulDiv(StocksPreset.AUCTION_INVENTORY, maxBidPrice - (maxBidPrice % tickSpacing), FixedPoint96.Q96);
-        if (reachable > type(uint128).max) reachable = type(uint128).max;
-        uint256 excessive = reachable * USDC_PER_SHARE / 1e8 + USDC_PER_SHARE;
-        vm.prank(governance);
-        launchpad.setMinimumRaiseUsdc(excessive);
-        uint256 quoted = routeLow.quoteExactIn(StocksBindings.USDC, STOCK_LOW, excessive);
-        assertGt(quoted, reachable);
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.UnreachableRequiredRaise.selector, quoted, reachable));
+        // Zero is refused: an auction that graduates on nothing raised is not a launch.
+        params = _params(STOCK_LOW);
+        params.requiredStockRaised = 0;
+        uint256 reachable = _maxReachableRaise();
+        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.UnreachableRequiredRaise.selector, 0, reachable));
         vm.prank(launcher);
         launchpad.launch(params);
+
+        // A raise the fixed inventory cannot settle on is refused: the largest admissible raise is
+        // the inventory at the highest on-grid price the pinned CCA admits
+        // (`StocksLaunchpadV1._maxReachableRaise`), capped at what the auction can carry.
+        params.requiredStockRaised = uint128(reachable) + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(StocksLaunchpadV1.UnreachableRequiredRaise.selector, reachable + 1, reachable)
+        );
+        vm.prank(launcher);
+        launchpad.launch(params);
+
+        params.requiredStockRaised = uint128(reachable);
+        Launched memory largest = _launchAs(launcher, params);
+        assertEq(_record(largest).requiredStockRaised, reachable, "the largest reachable raise is accepted");
+    }
+
+    function _maxReachableRaise() private view returns (uint256 reachable) {
+        uint256 tickSpacing = launchpad.bidTickSpacingFor(FLOOR_PRICE_Q96);
+        uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
+        reachable = FullMath.mulDiv(
+            StocksPreset.AUCTION_INVENTORY, maxBidPrice - (maxBidPrice % tickSpacing), FixedPoint96.Q96
+        );
+        if (reachable > type(uint128).max) reachable = type(uint128).max;
     }
 
     function test_metadata_caps() public {
@@ -250,9 +261,6 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         address predictedNew = uerc20Factory.getUERC20Address(
             params.name, params.symbol, StocksPreset.NEW_DECIMALS, address(launchpad), bytes32(nextBefore)
         );
-        _approveFee(launcher, params);
-        uint256 launcherRegentBefore = regent.balanceOf(launcher);
-        uint256 fundedBefore = liveStaking.totalFundedRegent();
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -268,198 +276,35 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(launchpad.launches(nextBefore).auction, address(0));
         assertEq(launchpad.launchIdOfToken(predictedNew), 0);
         assertEq(predictedNew.code.length, 0, "the NEW creation rolled back with the launch");
-        assertEq(regent.balanceOf(launcher), launcherRegentBefore, "the fee rolled back with the launch");
-        assertEq(liveStaking.totalFundedRegent(), fundedBefore, "nothing reached staking");
-        assertEq(regent.allowance(launcher, address(launchpad)), params.expectedLaunchFee, "allowance untouched");
     }
 
     // -------------------------------------------------------------------------
-    // rule 8: the launch fee
+    // rule 8: a launch costs nothing
     // -------------------------------------------------------------------------
 
-    function test_launch_fee_is_born_at_the_preset() public view {
-        assertEq(launchpad.launchFee(), StocksPreset.LAUNCH_FEE_REGENT);
-        assertEq(StocksPreset.LAUNCH_FEE_REGENT, 100_000e18, "founder decision: 100,000 REGENT");
-    }
-
-    function test_launch_collects_the_exact_fee_and_funds_it_into_staking() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        uint256 fee = params.expectedLaunchFee;
-        uint256 launcherBefore = regent.balanceOf(launcher);
+    function test_launch_costs_no_regent_and_needs_no_allowance() public {
+        address penniless = makeAddr("penniless-launcher");
+        assertEq(regent.balanceOf(penniless), 0);
+        assertEq(regent.allowance(penniless, address(launchpad)), 0);
         uint256 launchpadBefore = regent.balanceOf(address(launchpad));
         uint256 stakingBefore = regent.balanceOf(address(liveStaking));
-        uint256 fundedBefore = liveStaking.totalFundedRegent();
 
-        _approveFee(launcher, params);
-        vm.expectEmit(true, true, true, true, address(launchpad));
-        emit IStocksLaunchpadV1.StockLaunchFeeCollected(1, launcher, StocksBindings.LIVE_STAKING, fee);
-        vm.prank(launcher);
-        launchpad.launch(params);
+        Launched memory l = _launchAs(penniless, _params(STOCK_LOW));
+        assertEq(_record(l).launcher, penniless);
+        assertEq(regent.balanceOf(penniless), 0, "nothing was pulled");
+        assertEq(regent.balanceOf(address(launchpad)), launchpadBefore, "the launchpad holds no REGENT");
+        assertEq(regent.balanceOf(address(liveStaking)), stakingBefore, "staking received nothing");
+        assertEq(liveStaking.depositCalls(), 0, "staking was not called");
 
-        assertEq(launcherBefore - regent.balanceOf(launcher), fee, "exactly the fee left the launcher");
-        assertEq(regent.balanceOf(address(launchpad)), launchpadBefore, "the launchpad keeps none of it");
-        assertEq(regent.balanceOf(address(liveStaking)) - stakingBefore, fee, "staking holds the fee");
-        assertEq(liveStaking.totalFundedRegent() - fundedBefore, fee, "counted as staker rewards");
-        assertEq(liveStaking.fundCalls(), 1);
-        assertEq(liveStaking.lastFunder(), address(launchpad));
-        assertEq(regent.allowance(launcher, address(launchpad)), 0, "launcher allowance consumed");
-        assertEq(regent.allowance(address(launchpad), address(liveStaking)), 0, "staking allowance consumed");
-    }
-
-    function test_launch_refuses_a_stale_fee_before_anything_moves() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        _approveFee(launcher, params);
-        params.expectedLaunchFee = StocksPreset.LAUNCH_FEE_REGENT - 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StocksLaunchpadV1.StaleLaunchFee.selector, StocksPreset.LAUNCH_FEE_REGENT, StocksPreset.LAUNCH_FEE_REGENT - 1
-            )
-        );
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        // Governance lowered the fee after the launcher reviewed it: refused, not charged the new one.
-        params.expectedLaunchFee = StocksPreset.LAUNCH_FEE_REGENT;
-        vm.prank(governance);
-        launchpad.setLaunchFee(1e18);
-        vm.expectRevert(
-            abi.encodeWithSelector(StocksLaunchpadV1.StaleLaunchFee.selector, 1e18, StocksPreset.LAUNCH_FEE_REGENT)
-        );
-        vm.prank(launcher);
-        launchpad.launch(params);
-        assertEq(regent.allowance(launcher, address(launchpad)), StocksPreset.LAUNCH_FEE_REGENT, "nothing consumed");
-        assertEq(liveStaking.totalFundedRegent(), 0);
-        assertEq(launchpad.nextLaunchId(), 1);
-    }
-
-    function test_launch_refuses_an_allowance_below_or_above_the_fee() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        uint256 fee = params.expectedLaunchFee;
-
-        vm.prank(launcher);
-        regent.approve(address(launchpad), fee - 1);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.LaunchFeeAllowanceMismatch.selector, fee, fee - 1));
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        vm.prank(launcher);
-        regent.approve(address(launchpad), fee + 1);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.LaunchFeeAllowanceMismatch.selector, fee, fee + 1));
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        vm.prank(launcher);
-        regent.approve(address(launchpad), type(uint256).max);
-        vm.expectRevert(
-            abi.encodeWithSelector(StocksLaunchpadV1.LaunchFeeAllowanceMismatch.selector, fee, type(uint256).max)
-        );
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        assertEq(launchpad.nextLaunchId(), 1, "no launch consumed an id");
-        assertEq(liveStaking.totalFundedRegent(), 0);
-    }
-
-    function test_launch_refuses_a_launcher_who_cannot_pay() public {
-        address poor = makeAddr("poor-launcher");
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        _approveFee(poor, params);
-        vm.expectRevert();
-        vm.prank(poor);
-        launchpad.launch(params);
-        assertEq(launchpad.nextLaunchId(), 1);
-    }
-
-    function test_launch_refuses_a_staking_that_does_not_take_the_whole_fee() public {
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        uint256 fee = params.expectedLaunchFee;
-        _approveFee(launcher, params);
-
-        liveStaking.setReportsWrongAmount(true);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.InexactTransfer.selector, fee, fee + 1));
-        vm.prank(launcher);
-        launchpad.launch(params);
-        liveStaking.setReportsWrongAmount(false);
-
+        // A paused staking contract cannot stop a launch: the launchpad never calls it at creation.
         liveStaking.setPaused(true);
-        vm.expectRevert(MockLiveStaking.Paused.selector);
-        vm.prank(launcher);
-        launchpad.launch(params);
+        _launchAs(penniless, _params(STOCK_HIGH));
         liveStaking.setPaused(false);
 
-        assertEq(regent.allowance(launcher, address(launchpad)), fee, "the whole launch rolled back");
-        assertEq(regent.balanceOf(address(launchpad)), 0);
-        assertEq(launchpad.nextLaunchId(), 1);
-    }
-
-    function test_zero_fee_moves_nothing_and_still_requires_a_zero_allowance() public {
-        vm.expectEmit(false, false, false, true, address(launchpad));
-        emit IStocksLaunchpadV1.LaunchFeeUpdated(StocksPreset.LAUNCH_FEE_REGENT, 0);
-        vm.prank(governance);
-        launchpad.setLaunchFee(0);
-        assertEq(launchpad.launchFee(), 0);
-
-        IStocksLaunchpadV1.LaunchParams memory params = _params(STOCK_LOW);
-        assertEq(params.expectedLaunchFee, 0);
-
-        vm.prank(launcher);
-        regent.approve(address(launchpad), 1);
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.LaunchFeeAllowanceMismatch.selector, 0, 1));
-        vm.prank(launcher);
-        launchpad.launch(params);
-
-        vm.prank(launcher);
-        regent.approve(address(launchpad), 0);
-        uint256 launcherBefore = regent.balanceOf(launcher);
-        vm.recordLogs();
-        vm.prank(launcher);
-        launchpad.launch(params);
-        assertEq(regent.balanceOf(launcher), launcherBefore, "nothing moved");
-        assertEq(liveStaking.totalFundedRegent(), 0);
-        assertEq(liveStaking.fundCalls(), 0, "staking was not called with zero");
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        for (uint256 i; i < logs.length; ++i) {
-            assertNotEq(logs[i].topics[0], IStocksLaunchpadV1.StockLaunchFeeCollected.selector, "no fee event at zero");
-        }
-    }
-
-    function test_launch_fee_changes_apply_to_later_launches_only() public {
-        Launched memory first = _launch(STOCK_LOW);
-        assertEq(liveStaking.totalFundedRegent(), StocksPreset.LAUNCH_FEE_REGENT);
-
-        vm.prank(governance);
-        launchpad.setLaunchFee(250_000e18);
-        assertEq(launchpad.launchFee(), 250_000e18);
-        Launched memory second = _launch(STOCK_HIGH);
-        assertEq(liveStaking.totalFundedRegent(), StocksPreset.LAUNCH_FEE_REGENT + 250_000e18, "each launch paid its own fee");
-
-        // The existing launch is unaffected by the change.
-        _graduate(first, 1_000e8);
-        _graduate(second, 1_000e8);
-        assertEq(uint8(_record(first).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Graduated));
-        assertEq(uint8(_record(second).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Graduated));
-    }
-
-    function test_launch_fee_is_never_refunded() public {
-        Launched memory failed = _launch(STOCK_LOW);
-        Launched memory graduated = _launch(STOCK_HIGH);
-        uint256 funded = 2 * StocksPreset.LAUNCH_FEE_REGENT;
-        assertEq(liveStaking.totalFundedRegent(), funded);
-        uint256 launcherAfterFees = regent.balanceOf(launcher);
-
-        _rollToStart(failed);
-        _bidDirect(failed, bidder, REQUIRED_RAISE - 1, _bidPrice(1)); // below the required raise
-        _rollToMigration(failed);
-        launchpad.migrate(failed.launchId);
-        assertEq(uint8(_record(failed).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Failed));
-
-        _graduate(graduated, 1_000e8);
-        assertEq(uint8(_record(graduated).lifecycle), uint8(IStocksLaunchpadV1.Lifecycle.Graduated));
-
-        assertEq(liveStaking.totalFundedRegent(), funded, "staking keeps both fees through migrate");
-        assertEq(regent.balanceOf(address(liveStaking)), funded);
-        assertEq(regent.balanceOf(launcher), launcherAfterFees, "the launcher got nothing back");
-        assertEq(regent.balanceOf(address(launchpad)), 0, "the launchpad holds no REGENT");
+        // A launch survives both outcomes with no REGENT anywhere in this component.
+        _graduate(l, 1_000e8);
+        assertEq(regent.balanceOf(address(launchpad)), launchpadBefore);
+        assertEq(regent.balanceOf(address(liveStaking)), stakingBefore);
     }
 
     // -------------------------------------------------------------------------
@@ -476,8 +321,6 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         launchpad.pauseLaunches();
         vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotGovernance.selector, outsider));
         launchpad.unpauseLaunches();
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.NotGovernance.selector, outsider));
-        launchpad.setLaunchFee(0);
         vm.stopPrank();
 
         vm.startPrank(governance);

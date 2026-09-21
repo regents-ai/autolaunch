@@ -37,11 +37,9 @@ library StocksPreset {
     // PROVISIONAL: awaiting founder decision record (the block count; the ~24 h intent is the brief's)
     uint64 internal constant AUCTION_DURATION_BLOCKS = 43_200;
 
-    /// @notice The earliest and latest first bidding block, relative to the launch block.
-    // PROVISIONAL: awaiting founder decision record
-    uint64 internal constant MIN_START_LEAD_BLOCKS = 300;
-    // PROVISIONAL: awaiting founder decision record
-    uint64 internal constant MAX_START_LEAD_BLOCKS = 1_296_000;
+    /// @notice Founder decision (21 September 2026): every auction opens exactly ten minutes after its
+    ///         creation block, 300 blocks at Base's 2-second cadence. The launcher does not choose it.
+    uint64 internal constant START_LEAD_BLOCKS = 300;
 
     /// @notice Same pinned CCA convention as Agent.
     uint64 internal constant CLAIM_DELAY_BLOCKS = 64;
@@ -62,27 +60,6 @@ library StocksPreset {
 
     /// @notice Bid tick spacing is `floorPriceQ96 / BID_TICK_DIVISOR`; the floor must divide exactly.
     uint256 internal constant BID_TICK_DIVISOR = 100;
-
-    // -------------------------------------------------------------------------
-    // launch fee
-    // -------------------------------------------------------------------------
-
-    /// @notice Founder decision: a launch costs 100,000 REGENT, pulled from the launcher at creation
-    ///         and funded into the live REGENT staking contract as staker rewards
-    ///         (`fundRegentRewards`). It is never refunded, whatever the auction's outcome. The
-    ///         launchpad is born at this value; governance may change it with `setLaunchFee`.
-    uint256 internal constant LAUNCH_FEE_REGENT = 100_000e18;
-
-    // -------------------------------------------------------------------------
-    // minimum raise
-    // -------------------------------------------------------------------------
-
-    /// @notice Founder decision: a stock-pair auction graduates only by raising at least 1,000 USDC
-    ///         worth of its STOCK. No launcher chooses the raise: at creation the launchpad converts
-    ///         this USDC amount into the STOCK-denominated required raise through the admitted
-    ///         route's live quote and records that STOCK amount on the auction. The launchpad is
-    ///         born at this value; governance may change it with `setMinimumRaiseUsdc`.
-    uint256 internal constant MINIMUM_RAISE_USDC = 1_000e6;
 
     // -------------------------------------------------------------------------
     // official pool

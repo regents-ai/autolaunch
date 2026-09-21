@@ -60,9 +60,10 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     /// @dev Fixture price: 230 USDC per whole share, 8-decimal shares, 6-decimal USDC.
     uint256 internal constant USDC_PER_SHARE = 230_000000;
 
-    /// @dev The STOCK raise every fixture launch records: the preset's 1,000 USDC minimum quoted through
-    ///      the fixture route at 230 USDC per share, 4.34782608 shares in eight-decimal base units.
-    uint128 internal constant REQUIRED_RAISE = uint128(StocksPreset.MINIMUM_RAISE_USDC * 1e8 / USDC_PER_SHARE);
+    /// @dev The STOCK raise every fixture launch asks for: 1,000 USDC worth at 230 USDC per share,
+    ///      4.34782608 shares in eight-decimal base units. The launcher chooses it; the fixture picks
+    ///      this one so bids of a few shares graduate and one base unit less fails.
+    uint128 internal constant REQUIRED_RAISE = uint128(1_000e6 * 1e8 / USDC_PER_SHARE);
 
     /// @dev A STOCK-per-NEW floor: 1e-6 share per NEW, in base units 1e8 * 1e-6 / 1e18 = 1e-16,
     ///      times 2^96 and rounded to the bid grid. Comfortably above `MIN_FLOOR_PRICE`.
@@ -122,8 +123,7 @@ abstract contract StocksFixture is Test, DeployPermit2 {
 
         deployPermit2();
         _constructAt(
-            StocksBindings.LIVE_STAKING,
-            abi.encodePacked(type(MockLiveStaking).creationCode, abi.encode(StocksBindings.USDC, StocksBindings.REGENT))
+            StocksBindings.LIVE_STAKING, abi.encodePacked(type(MockLiveStaking).creationCode, abi.encode(StocksBindings.USDC))
         );
         _constructAt(
             StocksBindings.POOL_MANAGER, abi.encodePacked(type(PoolManager).creationCode, abi.encode(address(this)))
@@ -174,9 +174,6 @@ abstract contract StocksFixture is Test, DeployPermit2 {
         launchpad.unpauseLaunches();
         hook.setExecutor(executor);
         vm.stopPrank();
-
-        // Enough REGENT for every launch a test makes; the fee itself is approved per launch.
-        regent.mint(launcher, 100 * StocksPreset.LAUNCH_FEE_REGENT);
     }
 
     function _fundRoute(FixtureStockRoute route, FixtureStockToken stock) internal {
@@ -207,9 +204,7 @@ abstract contract StocksFixture is Test, DeployPermit2 {
     // launches
     // -------------------------------------------------------------------------
 
-    /// @dev Reads `launchpad.launchFee()` (an external call): build the params before arming a prank,
-    ///      `expectRevert` or `expectEmit`, never as the guarded call's argument.
-    function _params(address stock) internal view returns (IStocksLaunchpadV1.LaunchParams memory params) {
+    function _params(address stock) internal pure returns (IStocksLaunchpadV1.LaunchParams memory params) {
         params = IStocksLaunchpadV1.LaunchParams({
             name: "New One",
             symbol: "NEW",
@@ -217,23 +212,15 @@ abstract contract StocksFixture is Test, DeployPermit2 {
             website: "https://autolaunch.sh",
             image: "ipfs://image",
             stock: stock,
-            startBlock: uint64(block.number) + StocksPreset.MIN_START_LEAD_BLOCKS,
             floorPriceQ96: FLOOR_PRICE_Q96,
-            expectedLaunchFee: launchpad.launchFee()
+            requiredStockRaised: REQUIRED_RAISE
         });
-    }
-
-    /// @dev The exact-allowance discipline a wallet follows: approve precisely the reviewed fee.
-    function _approveFee(address who, IStocksLaunchpadV1.LaunchParams memory params) internal {
-        vm.prank(who);
-        regent.approve(address(launchpad), params.expectedLaunchFee);
     }
 
     function _launchAs(address who, IStocksLaunchpadV1.LaunchParams memory params)
         internal
         returns (Launched memory launched)
     {
-        _approveFee(who, params);
         vm.prank(who);
         (uint256 launchId, address newToken, address auction) = launchpad.launch(params);
         launched = Launched({

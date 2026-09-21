@@ -46,11 +46,6 @@ contract StocksPresetTest is Test {
         assertEq(uint256(terminalMps) * 10_000 / ConstantsLib.MPS, 2_988, "terminal block releases 29.88%");
     }
 
-    function test_launch_fee_is_the_founder_decided_hundred_thousand_regent() public pure {
-        assertEq(StocksPreset.LAUNCH_FEE_REGENT, 100_000e18);
-        assertEq(StocksPreset.LAUNCH_FEE_REGENT, 100_000 * 10 ** 18, "18-decimal REGENT");
-    }
-
     function test_twelve_scheduled_steps_each_release_about_five_point_eight_percent() public pure {
         bytes memory steps = StocksPreset.AUCTION_STEPS;
         for (uint256 i; i < steps.length - 8; i += 8) {
@@ -65,7 +60,7 @@ contract StocksPresetTest is Test {
         assertEq(StocksPreset.AUCTION_DURATION_BLOCKS, 43_200, "~24 h at 2 s blocks");
         assertEq(StocksPreset.CLAIM_DELAY_BLOCKS, 64);
         assertEq(StocksPreset.MIGRATION_DELAY_BLOCKS, 128);
-        assertLt(StocksPreset.MIN_START_LEAD_BLOCKS, StocksPreset.MAX_START_LEAD_BLOCKS);
+        assertEq(StocksPreset.START_LEAD_BLOCKS, 300, "ten minutes at 2 s blocks");
         assertGt(StocksPreset.MIGRATION_DELAY_BLOCKS, StocksPreset.CLAIM_DELAY_BLOCKS);
     }
 

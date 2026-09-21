@@ -11,10 +11,9 @@ pragma solidity 0.8.26;
 ///      and CLI. Event and function shapes here are consumed off-chain; change them only together
 ///      with `platform/contracts/abi/stocks-*.json` and the platform ABI validation.
 interface IStocksLaunchpadV1 {
-    /// @notice Everything a launcher supplies. Supply, decimals, allocations, schedule shape,
-    ///         claim/migration delays, LP fee, hook rates, custody policy and the required raise are
-    ///         fixed by the preset and governance: the raise is `minimumRaiseUsdc()` converted into
-    ///         STOCK through the admitted route's quote at creation.
+    /// @notice Everything a launcher supplies. Supply, decimals, allocations, schedule (the auction
+    ///         opens `START_LEAD_BLOCKS` after the creation block), claim/migration delays, LP fee,
+    ///         hook rates and custody policy are fixed by the preset. There is no launch fee.
     /// @dev `treasury`, creator allocation, vesting, any Agent identity and any launcher authority over
     ///      fees are deliberately absent.
     struct LaunchParams {
@@ -25,17 +24,13 @@ interface IStocksLaunchpadV1 {
         string image;
         /// @dev Exact admitted STOCK address on Base. Symbols are display metadata, never identity.
         address stock;
-        /// @dev First bidding block. Must satisfy `block.number + MIN_START_LEAD_BLOCKS <= startBlock
-        ///      <= block.number + MAX_START_LEAD_BLOCKS`. The end is `startBlock + AUCTION_DURATION_BLOCKS`.
-        uint64 startBlock;
         /// @dev Q96 STOCK base units per NEW base unit, the CCA floor. Bid tick spacing is derived
         ///      deterministically from it (see `bidTickSpacingFor`).
         uint256 floorPriceQ96;
-        /// @dev The REGENT launch fee the launcher reviewed. Must equal the current `launchFee()`,
-        ///      and the launcher's REGENT allowance to the launchpad must equal it exactly. The fee
-        ///      is pulled at creation and funded into REGENT staking as staker rewards
-        ///      (`fundRegentRewards`); it is never refunded, whatever the auction's outcome.
-        uint256 expectedLaunchFee;
+        /// @dev The STOCK (base units) the auction must raise to graduate, chosen by the launcher.
+        ///      Must be above zero and no more than the fixed inventory can settle on at the highest
+        ///      on-grid price the pinned CCA admits (`UnreachableRequiredRaise` otherwise).
+        uint128 requiredStockRaised;
     }
 
     enum Lifecycle {
@@ -112,15 +107,6 @@ interface IStocksLaunchpadV1 {
 
     event StockLaunchRetired(uint256 indexed launchId, address indexed auction, uint256 newRetired);
 
-    /// @notice The launch fee one creation paid, funded into REGENT staking rewards.
-    event StockLaunchFeeCollected(
-        uint256 indexed launchId, address indexed payer, address indexed staking, uint256 amount
-    );
-    event LaunchFeeUpdated(uint256 previousFee, uint256 newFee);
-    /// @notice The USDC-denominated minimum raise changed; launches created afterwards convert the
-    ///         new value. Existing auctions keep the STOCK raise recorded at their creation.
-    event MinimumRaiseUsdcUpdated(uint256 previousMinimum, uint256 newMinimum);
-
     event StockAdmitted(address indexed stock, uint8 decimals);
     event StockRevoked(address indexed stock);
     event LaunchesPaused();
@@ -152,10 +138,6 @@ interface IStocksLaunchpadV1 {
     function revokeStock(address stock) external;
     function pauseLaunches() external;
     function unpauseLaunches() external;
-    /// @notice Set the REGENT a new launch costs. Zero is a valid fee.
-    function setLaunchFee(uint256 newFee) external;
-    /// @notice Set the USDC (base units) every later launch must raise in STOCK terms. Zero is refused.
-    function setMinimumRaiseUsdc(uint256 newMinimum) external;
 
     // -------------------------------------------------------------------------
     // reads
@@ -166,11 +148,6 @@ interface IStocksLaunchpadV1 {
     function launchIdOfToken(address newToken) external view returns (uint256);
     function nextLaunchId() external view returns (uint256);
     function launchesPaused() external view returns (bool);
-    /// @notice The REGENT a launch currently costs; born at the preset's 100,000 REGENT.
-    function launchFee() external view returns (uint256);
-    /// @notice The USDC (base units) a new launch must raise, converted into STOCK at creation through
-    ///         the admitted route's quote; born at the preset's 1,000 USDC.
-    function minimumRaiseUsdc() external view returns (uint256);
     /// @notice Whether STOCK may be used for a new launch right now, and its recorded decimals.
     function stockAdmission(address stock) external view returns (bool admitted, uint8 decimals, address route);
     /// @notice The bid tick spacing (Q96) the CCA is created with for a floor price.
