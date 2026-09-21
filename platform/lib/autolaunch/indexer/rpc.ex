@@ -2,8 +2,8 @@ defmodule Autolaunch.Indexer.Rpc do
   @moduledoc """
   The indexer's own JSON-RPC transport, and the redaction boundary around it.
 
-  Each chain has its own endpoint, dedicated to this indexer and separate from
-  the simple-read RPC. It never reaches a result, an error, a row or a log line:
+  Each chain's endpoint is its deployment description's own door. It never
+  reaches a result, an error, a row or a log line:
   a failure is reported as the method plus a small error class, so a URL
   carrying a provider key cannot escape through a crash report or a captured
   log.

@@ -4,47 +4,34 @@ defmodule Autolaunch.LaunchProjection do
   require Ash.Query
   alias Autolaunch
   alias Autolaunch.Actors.System
-  alias Autolaunch.Chain.{Abi, Address, LaunchAbi}
-  alias Autolaunch.LabProjection
+  alias Autolaunch.Chain.{Address, LaunchAbi}
+  alias Autolaunch.{Lab, LabProjection}
 
   @actor %System{}
-  @chain_id 8453
 
+  # The ledger only runs against the Base description, so the factory whose
+  # launches these logs may be, the chain they are on and the REGENT they quote
+  # in are the description's own.
   @spec project_logs([struct() | map()]) :: :ok | {:error, term()}
   def project_logs(logs) when is_list(logs) do
-    case factory_address() do
-      :none -> :ok
-      {:ok, factory} -> project_factory_logs(logs, factory)
-    end
-  end
-
-  @spec factory_address() :: {:ok, String.t()} | :none
-  def factory_address do
-    env = Application.get_env(:autolaunch, __MODULE__, [])
-
-    case Keyword.get(env, :factory_address) do
-      nil -> Abi.factory_address()
-      address when is_binary(address) -> {:ok, address}
-    end
-  end
-
-  defp project_factory_logs(logs, factory) do
+    deployment = Lab.current!()
+    factory = Lab.address!(deployment, :factory)
     topic = LaunchAbi.selector(:launch_created)
 
     logs
     |> Enum.filter(&factory_launch_created?(&1, factory, topic))
     |> Enum.reduce_while(:ok, fn log, :ok ->
-      case project_log(log, factory) do
+      case project_log(log, factory, deployment) do
         :ok -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
   end
 
-  defp project_log(log, factory) do
+  defp project_log(log, factory, deployment) do
     with {:ok, event} <- decode_launch_created(log, factory),
-         {:ok, operation} <- matching_operation(field(log, :transaction_hash)) do
-      write_auction(event, operation)
+         {:ok, operation} <- matching_operation(field(log, :transaction_hash), deployment) do
+      write_auction(event, operation, deployment)
     end
   end
 
@@ -75,7 +62,7 @@ defmodule Autolaunch.LaunchProjection do
     end
   end
 
-  defp matching_operation(transaction_hash) when is_binary(transaction_hash) do
+  defp matching_operation(transaction_hash, deployment) when is_binary(transaction_hash) do
     hash = String.downcase(transaction_hash)
 
     with {:ok, attempts} <-
@@ -87,44 +74,50 @@ defmodule Autolaunch.LaunchProjection do
            |> Ash.read(actor: @actor) do
       case attempts do
         [attempt | _] ->
-          accepted_operation({:ok, %{attempt.launch_operation | result: attempt.result}})
+          accepted_operation(
+            {:ok, %{attempt.launch_operation | result: attempt.result}},
+            deployment
+          )
 
         [] ->
-          Autolaunch.chain_verified_launch_operation_by_hash(hash, actor: @actor)
-          |> accepted_operation()
+          hash
+          |> Autolaunch.chain_verified_launch_operation_by_hash(actor: @actor)
+          |> accepted_operation(deployment)
       end
     end
   end
 
-  defp accepted_operation({:ok, %{envelope: envelope} = operation}) do
-    if envelope_chain_id(envelope) == @chain_id, do: {:ok, operation}, else: {:ok, nil}
+  defp accepted_operation({:ok, %{envelope: envelope} = operation}, deployment) do
+    if envelope_chain_id(envelope) == deployment.chain_id,
+      do: {:ok, operation},
+      else: {:ok, nil}
   end
 
-  defp accepted_operation({:ok, nil}), do: {:ok, nil}
-  defp accepted_operation({:error, reason}), do: {:error, reason}
+  defp accepted_operation({:ok, nil}, _deployment), do: {:ok, nil}
+  defp accepted_operation({:error, reason}, _deployment), do: {:error, reason}
 
   defp envelope_chain_id(envelope) when is_map(envelope), do: envelope["chain_id"]
 
-  defp write_auction(_event, nil), do: :ok
+  defp write_auction(_event, nil, _deployment), do: :ok
 
-  defp write_auction(event, %{envelope: %{"arguments" => arguments}} = operation) do
+  defp write_auction(event, %{envelope: %{"arguments" => arguments}} = operation, deployment) do
     recorded = operation.result["auction"]
 
     if Address.equal?(event.auction, recorded) do
-      persist_auction(event, operation, arguments)
+      persist_auction(event, operation, arguments, deployment)
     else
       {:error, {:auction_mismatch, event.auction, recorded}}
     end
   end
 
-  defp persist_auction(event, operation, arguments) do
+  defp persist_auction(event, operation, arguments, deployment) do
     attrs =
       LabProjection.auction_attrs(arguments, %{
-        chain_id: @chain_id,
+        chain_id: deployment.chain_id,
         creator_human_account_id: operation.human_account_id,
         state: :active,
         auction_address: event.auction,
-        quote_token_address: Abi.regent_address(),
+        quote_token_address: Lab.address!(deployment, :regent),
         treasury_address: event.treasury
       })
 

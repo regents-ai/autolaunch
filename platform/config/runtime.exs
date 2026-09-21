@@ -143,69 +143,28 @@ database_config =
     Autolaunch.DatabaseConfig.runtime_config!(config_env())
   end
 
-# The log ledger follows one chain per dedicated endpoint, separate from the
-# simple-read RPC: Base through AUTOLAUNCH_INDEXER_RPC_URL, watching the factory
-# the evidence manifest admits from AUTOLAUNCH_INDEXER_FACTORY_START_BLOCK, and
-# Robinhood through AUTOLAUNCH_ROBINHOOD_INDEXER_RPC_URL with its chain id,
-# launchpad address and start block named beside it. The test environment owns
-# this setting outright so a shell that exports an endpoint cannot start an
-# indexer under a test run.
-block_env! = fn name ->
-  case name |> System.fetch_env!() |> Integer.parse() do
-    {block, ""} when block >= 0 -> block
-    _malformed -> raise "#{name} must be a nonnegative block number"
-  end
-end
-
-chain_env! = fn name ->
-  case name |> System.fetch_env!() |> Integer.parse() do
-    {chain_id, ""} when chain_id > 0 -> chain_id
-    _malformed -> raise "#{name} must be a positive chain id"
-  end
-end
-
-indexer_chain = fn url_name, chain_id, sources ->
-  case System.get_env(url_name) do
-    url when is_binary(url) and url != "" ->
-      [%{chain_id: chain_id.(), rpc_url: url, sources: sources.()}]
-
-    _unset ->
-      []
-  end
-end
-
-# A Base deployment on the test chain (a local lab or a hosted fork) keeps the
-# ledger off; the market feeds read those chains directly.
+# The Base log ledger follows the Base description: its own door, its factory,
+# from the block `start_blocks.factory` names. A description for the test
+# chain (a local lab or a hosted fork) names no start blocks and keeps the
+# ledger off; the market feeds read those chains directly. The test environment
+# owns this setting outright so a shell that exports a description cannot start
+# an indexer under a test run.
 indexer_chains =
-  if config_env() == :test or (base_deployment && base_deployment.chain_id == 31_337) do
-    []
-  else
-    indexer_chain.("AUTOLAUNCH_INDEXER_RPC_URL", fn -> 8453 end, fn ->
-      case Autolaunch.Chain.Abi.factory_address() do
-        {:ok, address} ->
-          [
-            %{
-              address: address,
-              start_block: block_env!.("AUTOLAUNCH_INDEXER_FACTORY_START_BLOCK")
-            }
-          ]
+  case {config_env(), base_deployment} do
+    {:test, _owned_by_test} ->
+      []
 
-        :none ->
-          []
-      end
-    end) ++
-      indexer_chain.(
-        "AUTOLAUNCH_ROBINHOOD_INDEXER_RPC_URL",
-        fn -> chain_env!.("AUTOLAUNCH_ROBINHOOD_CHAIN_ID") end,
-        fn ->
-          [
-            %{
-              address: System.fetch_env!("AUTOLAUNCH_ROBINHOOD_FACTORY_ADDRESS"),
-              start_block: block_env!.("AUTOLAUNCH_ROBINHOOD_FACTORY_START_BLOCK")
-            }
-          ]
-        end
-      )
+    {_env, %{start_blocks: %{"factory" => start_block}} = deployment} ->
+      [
+        %{
+          chain_id: deployment.chain_id,
+          rpc_url: deployment.rpc_url,
+          sources: [%{address: deployment.addresses["factory"], start_block: start_block}]
+        }
+      ]
+
+    {_env, _no_ledger} ->
+      []
   end
 
 config :autolaunch, :autolaunch_indexer_chains, indexer_chains

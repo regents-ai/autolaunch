@@ -7442,5 +7442,8 @@
   },
   "chain_id": 8453,
   "public_rpc_url": "https://base.example.test",
-  "rpc_url": "https://base.example.test/rpc"
+  "rpc_url": "https://base.example.test/rpc",
+  "start_blocks": {
+    "factory": 51000000
+  }
 }

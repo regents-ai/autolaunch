@@ -20,7 +20,7 @@ deployment remains a separate founder approval.
 | Site's own RPC door (`rpc_url`) | Loopback only | Loopback, a private `http://…internal:PORT` URL, or an `https://` URL |
 | Wallet RPC door (`public_rpc_url`) | Optional; wallets are given the loopback `rpc_url` when absent | Required, `https://` only |
 | `prelaunch_read_only` | The fail-closed default (read-only until the explicit configuration change) | `false`, set by `runtime.exs`; no serve script |
-| Base log ledger (indexer) | On when `AUTOLAUNCH_INDEXER_RPC_URL` is set and the Base description is not for chain 31337 | Off (the description is always for chain 31337) |
+| Base log ledger (indexer) | On when the Base description is not for chain 31337: it follows the description's own `rpc_url` and its `factory` from `start_blocks.factory` | Off (the description is always for chain 31337 and names no `start_blocks`) |
 | Lab market feeds | Run when a lab is configured and the site is not read-only | Both run |
 | Faucet cooldown | `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS`, default 0 | `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS`, default 3600 |
 | Every page's notice | "Local Base fork · test assets · no mainnet value · launches and bids only · sign in with Privy" | "Preview on a Base fork · test assets · no mainnet value · sign in with Privy" (or "· sign-in unavailable") |
@@ -91,7 +91,9 @@ with two differences:
 - `public_rpc_url` in both files is the wallet door (`https://…`), identical in both.
 
 Everything else (`chain_id` 31337, the address sets, the ABIs, `faucet`, `stocks`) is validated
-exactly as for a lab (`Autolaunch.Lab.load/2`, `Autolaunch.Stocks.Lab.load/2`).
+exactly as for a lab (`Autolaunch.Lab.load/2`, `Autolaunch.Stocks.Lab.load/2`). A description
+for chain 31337 names no `start_blocks`; only a mainnet description carries them, and the log
+ledger follows its `factory` from `start_blocks.factory`.
 
 ## Faucet cooldown
 

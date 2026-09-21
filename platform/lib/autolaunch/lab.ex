@@ -35,6 +35,8 @@ defmodule Autolaunch.Lab do
     uerc20_factory
   )
   @abi_keys ~w(auction escrow factory hook permit2 receiver splitter strategy token)
+  # The log ledger follows the factory from the block it was deployed in.
+  @ledger_keys ~w(factory)
 
   @type t :: %{
           path: String.t(),
@@ -43,7 +45,8 @@ defmodule Autolaunch.Lab do
           public_rpc_url: String.t(),
           chain_id: pos_integer(),
           addresses: %{required(String.t()) => String.t()},
-          abis: %{required(String.t()) => [map()]}
+          abis: %{required(String.t()) => [map()]},
+          start_blocks: %{required(String.t()) => non_neg_integer()}
         }
 
   @doc "Whether this site was given a Base deployment description."
@@ -88,6 +91,9 @@ defmodule Autolaunch.Lab do
 
   `rpc_url` is the site's own door (`Autolaunch.LabRpcUrl.admitted/1`);
   `public_rpc_url` is the door wallets use (`Autolaunch.LabRpcUrl.public/2`).
+  `start_blocks` names the block each watched contract was deployed in, by
+  the same name as its address; the log ledger follows the factory from
+  there. A test chain keeps the ledger off and names no start blocks.
   """
   def load(path) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
@@ -100,7 +106,8 @@ defmodule Autolaunch.Lab do
          {:ok, chain_id} <- chain_id(decoded["chain_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
-         :ok <- Autolaunch.LabAbi.validate(abis) do
+         :ok <- Autolaunch.LabAbi.validate(abis),
+         {:ok, start_blocks} <- start_blocks(decoded["start_blocks"], chain_id) do
       {:ok,
        %{
          path: path,
@@ -108,7 +115,8 @@ defmodule Autolaunch.Lab do
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
          addresses: addresses,
-         abis: abis
+         abis: abis,
+         start_blocks: start_blocks
        }}
     else
       false -> {:error, :absolute_path_required}
@@ -203,6 +211,21 @@ defmodule Autolaunch.Lab do
   end
 
   defp exact_abis(_abis), do: {:error, :invalid_abis}
+
+  # Named like the addresses, a nonnegative block each, the factory always.
+  defp start_blocks(_blocks, @test_chain_id), do: {:ok, %{}}
+
+  defp start_blocks(blocks, _chain_id) when is_map(blocks) do
+    with [] <- Map.keys(blocks) -- @address_keys,
+         [] <- @ledger_keys -- Map.keys(blocks),
+         true <- Enum.all?(blocks, fn {_key, block} -> is_integer(block) and block >= 0 end) do
+      {:ok, blocks}
+    else
+      _ -> {:error, :invalid_start_blocks}
+    end
+  end
+
+  defp start_blocks(_blocks, _chain_id), do: {:error, :invalid_start_blocks}
 
   defp valid_address?(value), do: match?({:ok, _address}, Address.normalize(value))
 
