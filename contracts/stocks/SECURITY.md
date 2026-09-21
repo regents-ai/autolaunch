@@ -85,7 +85,10 @@ proves all 8 (ordering × form) cases.
 - Revenue is shared among whoever is staked when it is recognized, and both the staker lane and the
   locked positions' LP fees arrive in lumps (when someone calls `settleStakerLane` or `collect`). A
   holder can therefore stake just before a large settlement. The one-block exit rule removes the
-  same-block version of this; frequent settlement keeps the lumps small. No contract rule removes
+  same-block version of this; frequent settlement keeps the lumps small. The rule reads the chain's
+  native `block.number`; on the Robinhood chain (an Arbitrum Orbit rollup) that is the Ethereum
+  block the rollup last observed, so the wait there is until the next Ethereum block, about twelve
+  seconds, not one 0.1-second Robinhood block (verified read-only on chain 4663, 21 September 2026). No contract rule removes
   it entirely. The same applies to the "everything to the protocol route while nothing is staked"
   rule: it holds only until anyone stakes any amount, so a one-unit stake placed just before a
   settlement of an unstaked market's accrual takes the 98% share of that lump (independent review
