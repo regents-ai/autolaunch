@@ -9,7 +9,7 @@ import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionMa
 import {Actions} from "@uniswap/v4-periphery/src/libraries/Actions.sol";
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {IERC20Minimal} from "./interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "./interfaces/IERC20Views.sol";
 import {IMemestockSplitterMinimal} from "./interfaces/IMemestockSplitterMinimal.sol";
 
 /// @title MemestockLPLocker
@@ -127,7 +127,7 @@ contract MemestockLPLocker is ReentrancyGuardTransient {
         if (amount == 0) return;
         token.safeApprove(splitter, amount);
         IMemestockSplitterMinimal(splitter).depositRecognizedRevenue(token, amount, bytes32(tokenId));
-        uint256 remaining = IERC20Minimal(token).allowance(address(this), splitter);
+        uint256 remaining = IERC20Views(token).allowance(address(this), splitter);
         if (remaining != 0) revert AllowanceNotCleared(token, remaining);
     }
 

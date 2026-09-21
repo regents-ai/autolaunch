@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "autolaunch-stocks/interfaces/IERC20Views.sol";
 import {IRegentRevenueStakingMinimal} from "autolaunch-stocks/interfaces/IRegentRevenueStakingMinimal.sol";
 import {IRobinhoodBaseRevenueReceiverV1} from "./interfaces/IRobinhoodBaseRevenueReceiverV1.sol";
 
@@ -97,7 +97,7 @@ contract RobinhoodBaseRevenueReceiverV1 is ReentrancyGuardTransient, IRobinhoodB
         if (reported != amount) revert DepositMismatch(amount, reported);
         uint256 sent = before - usdc.balanceOf(address(this));
         if (sent != amount) revert InexactTransfer(amount, sent);
-        uint256 remaining = IERC20Minimal(usdc).allowance(address(this), staking);
+        uint256 remaining = IERC20Views(usdc).allowance(address(this), staking);
         if (remaining != 0) revert AllowanceNotConsumed(staking, remaining);
         totalDeposited += amount;
     }

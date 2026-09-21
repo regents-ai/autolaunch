@@ -5,7 +5,7 @@ import {PositionPlanner} from "liquidity-launcher/src/libraries/PositionPlanner.
 import {Position, PositionDefinition} from "liquidity-launcher/src/types/PositionPlannerTypes.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "autolaunch-stocks/interfaces/IERC20Views.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
 import {IRobinhoodStockAdmission} from "./interfaces/IRobinhoodStockAdmission.sol";
 import {IRobinhoodStockRoute} from "./interfaces/IRobinhoodStockRoute.sol";
@@ -88,7 +88,7 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         address routeUsdg = IRobinhoodStockRoute(route).usdg();
         if (routeUsdg != usdg) revert RouteBindingMismatch(usdg, routeUsdg);
 
-        uint8 decimals = IERC20Minimal(stock).decimals();
+        uint8 decimals = IERC20Views(stock).decimals();
         _admissions[stock] = Admission({admitted: true, decimals: decimals, route: route});
         emit StockAdmitted(stock, decimals, route);
     }
@@ -183,7 +183,7 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
         if (stockDust != 0) {
             stock.safeApprove(hook, stockDust);
             RobinhoodFeeHookV1(hook).creditProtocolLane(poolId, stockDust);
-            uint256 remaining = IERC20Minimal(stock).allowance(address(this), hook);
+            uint256 remaining = IERC20Views(stock).allowance(address(this), hook);
             if (remaining != 0) revert AllowanceNotConsumed(hook, remaining);
         }
 

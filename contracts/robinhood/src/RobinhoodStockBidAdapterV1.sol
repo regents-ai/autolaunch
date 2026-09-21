@@ -6,7 +6,7 @@ import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol"
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {SafeCastLib} from "solady/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "autolaunch-stocks/interfaces/IERC20Views.sol";
 import {IRobinhoodStockBidAdapterV1} from "./interfaces/IRobinhoodStockBidAdapterV1.sol";
 import {IRobinhoodStockRoute} from "./interfaces/IRobinhoodStockRoute.sol";
 import {IRobinhoodStocksLaunchpadV1} from "./interfaces/IRobinhoodStocksLaunchpadV1.sol";
@@ -92,7 +92,7 @@ contract RobinhoodStockBidAdapterV1 is ReentrancyGuardTransient, IRobinhoodStock
         bidId = IContinuousClearingAuction(auction)
             .submitBid(maxPriceQ96, stockCommitted, msg.sender, prevTickPriceQ96, "");
 
-        uint256 erc20Remaining = IERC20Minimal(stock).allowance(address(this), permit2);
+        uint256 erc20Remaining = IERC20Views(stock).allowance(address(this), permit2);
         if (erc20Remaining != 0) revert AllowanceNotRestored(permit2, erc20Remaining);
         // slither-disable-next-line unused-return
         (uint160 permit2Remaining,,) = IAllowanceTransfer(permit2).allowance(address(this), stock, auction);
@@ -110,14 +110,14 @@ contract RobinhoodStockBidAdapterV1 is ReentrancyGuardTransient, IRobinhoodStock
     ///      allowance consumption; a caller's larger standing allowance is admitted but only this
     ///      amount of it is ever spent.
     function _pullExactUsdg(uint256 usdgAmount, uint256 usdgBefore) private {
-        uint256 allowed = IERC20Minimal(usdg).allowance(msg.sender, address(this));
+        uint256 allowed = IERC20Views(usdg).allowance(msg.sender, address(this));
         if (allowed < usdgAmount) revert InsufficientAllowance(usdgAmount, allowed);
 
         usdg.safeTransferFrom(msg.sender, address(this), usdgAmount);
 
         uint256 received = usdg.balanceOf(address(this)) - usdgBefore;
         if (received != usdgAmount) revert InexactTransfer(usdgAmount, received);
-        uint256 remaining = IERC20Minimal(usdg).allowance(msg.sender, address(this));
+        uint256 remaining = IERC20Views(usdg).allowance(msg.sender, address(this));
         if (remaining != allowed - usdgAmount) revert AllowanceNotConsumedExactly(allowed - usdgAmount, remaining);
     }
 }

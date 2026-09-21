@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "autolaunch-stocks/interfaces/IERC20Views.sol";
 import {MemestockSplitterCore} from "autolaunch-stocks/MemestockSplitterCore.sol";
 import {IRobinhoodProtocolRevenueInboxV1} from "./interfaces/IRobinhoodProtocolRevenueInboxV1.sol";
 
@@ -77,7 +77,7 @@ contract RobinhoodMemestockSplitterV1 is MemestockSplitterCore {
         if (landed != amount) revert InexactTransfer(amount, landed);
 
         token.safeApprove(destination, 0);
-        uint256 residual = IERC20Minimal(token).allowance(address(this), destination);
+        uint256 residual = IERC20Views(token).allowance(address(this), destination);
         if (residual != 0) revert InboxAllowanceNotCleared(residual);
     }
 }

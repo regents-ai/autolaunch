@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "autolaunch-stocks/interfaces/IERC20Views.sol";
 import {IRobinhoodBridgeAdapterV1} from "./interfaces/IRobinhoodBridgeAdapterV1.sol";
 import {IRobinhoodProtocolRevenueInboxV1} from "./interfaces/IRobinhoodProtocolRevenueInboxV1.sol";
 import {RobinhoodPreset} from "./RobinhoodPreset.sol";
@@ -55,7 +55,7 @@ contract RobinhoodProtocolRevenueInboxV1 is ReentrancyGuardTransient, IRobinhood
         _requireBindable(usdg_);
         _requireBindable(adminSafe_);
         if (usdg_.code.length == 0) revert NoCode(usdg_);
-        uint8 decimals = IERC20Minimal(usdg_).decimals();
+        uint8 decimals = IERC20Views(usdg_).decimals();
         if (decimals != RobinhoodPreset.USDG_DECIMALS) {
             revert UnexpectedDecimals(RobinhoodPreset.USDG_DECIMALS, decimals);
         }
@@ -171,7 +171,7 @@ contract RobinhoodProtocolRevenueInboxV1 is ReentrancyGuardTransient, IRobinhood
 
         uint256 sent = held - usdg.balanceOf(address(this));
         if (sent != amountUsdg) revert InexactTransfer(amountUsdg, sent);
-        uint256 remaining = IERC20Minimal(usdg).allowance(address(this), adapter);
+        uint256 remaining = IERC20Views(usdg).allowance(address(this), adapter);
         if (remaining != 0) revert AllowanceNotConsumed(adapter, remaining);
 
         emit RevenueBridgeInitiated(
