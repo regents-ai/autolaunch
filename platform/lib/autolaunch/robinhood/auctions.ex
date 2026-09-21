@@ -31,7 +31,7 @@ defmodule Autolaunch.Robinhood.Auctions do
   @doc "The lab's auctions, newest first; none where Robinhood auctions are not open."
   @spec list() :: {:ok, [t()]} | {:error, atom()}
   def list do
-    if Lab.enabled?(), do: read(), else: {:ok, []}
+    if Lab.configured?(), do: read(), else: {:ok, []}
   end
 
   defp read do

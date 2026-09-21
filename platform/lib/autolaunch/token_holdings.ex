@@ -135,7 +135,7 @@ defmodule Autolaunch.TokenHoldings do
   defp robinhood_holdings([]), do: {:ok, []}
 
   defp robinhood_holdings(wallets) do
-    if RobinhoodLab.enabled?() do
+    if RobinhoodLab.configured?() do
       with {:ok, config} <- RobinhoodLab.current(),
            opts = RobinhoodLab.rpc_opts(config),
            {:ok, block} <- Rpc.latest_block(opts),

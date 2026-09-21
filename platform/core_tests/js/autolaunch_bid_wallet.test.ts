@@ -1,17 +1,9 @@
-import {getAddress, type Address, type Hash, type Hex} from "viem"
+import {getAddress, type Hash, type Hex} from "viem"
 import {describe, expect, it, vi} from "vitest"
 
 import {
-  releaseHash,
-  rememberOperation,
-  retainHash,
-  retainedHash,
-} from "../../assets/js/hooks/autolaunch_bid_wallet"
-import {
   sendBidStep,
   sendableStep,
-  userRejected,
-  type BidClients,
   type BidOperation,
 } from "../../assets/js/wallet_actions/autolaunch_bids"
 
@@ -23,10 +15,10 @@ const permit2 = getAddress("0x000000000022D473030F116dDEE9F6B43aC78BA3")
 const approvalHash = `0x${"cd".repeat(32)}` as Hash
 const blockHash = `0x${"12".repeat(32)}` as Hash
 const lab = {
-  run_id: "acceptance-run-1",
-  rpc_url: "http://127.0.0.1:8545",
-  chain_id: 31_337,
-  addresses: {auction: auction.toLowerCase(), permit2: permit2.toLowerCase()},
+  run_id: "base-2026-09",
+  rpc_url: "https://base.example.test",
+  chain_id: 8453,
+  addresses: {regent: regent.toLowerCase(), permit2: permit2.toLowerCase()},
 }
 
 function operation(overrides: Partial<BidOperation> = {}): BidOperation {
@@ -34,8 +26,8 @@ function operation(overrides: Partial<BidOperation> = {}): BidOperation {
     action_id: "bid",
     signer: wallet,
     chain_id: 8453,
-    lab: null,
-    lab_anchor: null,
+    lab,
+    lab_anchor: {block_number: 30_000_000, block_hash: blockHash},
     terminal: false,
     steps: [
       {step: "token_approval", to: regent, data: "0x095ea7b3ff" as Hex},
@@ -46,56 +38,61 @@ function operation(overrides: Partial<BidOperation> = {}): BidOperation {
   }
 }
 
-const resolver = (provider: {request: (args: {method: string; params?: unknown[]}) => Promise<unknown>}, address: string = wallet) =>
-  () => ({address, provider})
-const factory = (bound: BidClients) => () => bound
+type Answers = Partial<Record<string, (params?: unknown[]) => unknown>>
 
-function clients(overrides: Partial<BidClients> = {}): BidClients {
-  return {
-    addresses: vi.fn(async () => [wallet]),
-    chainId: vi.fn(async () => 8453),
-    switchToBase: vi.fn(async () => undefined),
-    send: vi.fn(async () => approvalHash),
-    ...overrides,
-  }
+// A wallet on Base holding the reviewed signer, with any answer replaced.
+function provider(answers: Answers = {}) {
+  const request = vi.fn(async ({method, params}: {method: string; params?: unknown[]}) => {
+    const answer = answers[method]
+    if (answer) return answer(params)
+    if (method === "eth_chainId") return "0x2105"
+    if (method === "eth_accounts") return [wallet]
+    if (method === "wallet_switchEthereumChain") return null
+    if (method === "eth_sendTransaction") return approvalHash
+    throw new Error(`Unexpected provider method ${method}`)
+  })
+  return {request}
 }
+
+const resolver = (selected: {request: (args: {method: string; params?: unknown[]}) => Promise<unknown>}) =>
+  () => ({address: wallet, provider: selected})
+
+const methods = (selected: {request: {mock: {calls: [{method: string}][]}}}) =>
+  selected.request.mock.calls.map(([request]) => request.method)
 
 describe("the browser sends only the step the server claimed", () => {
 
   it("hands the wallet the exact reviewed bytes and reports the hash once", async () => {
     const held = operation()
     const order: string[] = []
-    const boundary = clients({
-      addresses: vi.fn(async () => {
+    const boundary = provider({
+      eth_accounts: () => {
         order.push("accounts")
         return [wallet]
-      }),
-      chainId: vi.fn(async () => {
+      },
+      eth_chainId: () => {
         order.push("chain")
-        return 8453
-      }),
-      send: vi.fn(async () => {
+        return "0x2105"
+      },
+      eth_sendTransaction: () => {
         order.push("send")
         return approvalHash
-      }),
+      },
     })
     const onSendStarted = vi.fn(() => order.push("send-started"))
 
     const hash = await sendBidStep(
       held,
       sendableStep(held, "bid", "token_approval"),
-      resolver({request: vi.fn()}),
+      resolver(boundary),
       onSendStarted,
-      factory(boundary),
     )
 
     expect(hash).toBe(approvalHash)
     expect(order).toEqual(["chain", "accounts", "chain", "send-started", "send"])
-    expect(boundary.send).toHaveBeenCalledWith({
-      account: wallet,
-      to: regent,
-      data: "0x095ea7b3ff",
-      value: 0n,
+    expect(boundary.request).toHaveBeenCalledWith({
+      method: "eth_sendTransaction",
+      params: [{from: wallet, to: regent, data: "0x095ea7b3ff", value: "0x0"}],
     })
     expect(onSendStarted).toHaveBeenCalledOnce()
   })
@@ -103,35 +100,26 @@ describe("the browser sends only the step the server claimed", () => {
   it("never sends from a wallet other than the reviewed signer", async () => {
     const held = operation()
     const onSendStarted = vi.fn()
+    const boundary = provider({eth_accounts: () => [other]})
 
     await expect(
-      sendBidStep(
-        held,
-        sendableStep(held, "bid", "bid"),
-        resolver({request: vi.fn()}),
-        onSendStarted,
-        factory(clients({addresses: vi.fn(async () => [other])})),
-      ),
-    ).rejects.toThrow("wallet this bid was reviewed for")
+      sendBidStep(held, sendableStep(held, "bid", "bid"), resolver(boundary), onSendStarted),
+    ).rejects.toThrow("wallet this action was reviewed for")
 
     expect(onSendStarted).not.toHaveBeenCalled()
+    expect(methods(boundary)).not.toContain("eth_sendTransaction")
   })
 
   it("never sends while the wallet is on another chain", async () => {
     const held = operation()
-    const boundary = clients({chainId: vi.fn(async () => 1), switchToBase: vi.fn(async () => undefined)})
+    const boundary = provider({eth_chainId: () => "0x1"})
 
     await expect(
-      sendBidStep(
-        held,
-        sendableStep(held, "bid", "bid"),
-        resolver({request: vi.fn()}),
-        vi.fn(),
-        factory(boundary),
-      ),
+      sendBidStep(held, sendableStep(held, "bid", "bid"), resolver(boundary), vi.fn()),
     ).rejects.toThrow("Switch to Base")
 
-    expect(boundary.send).not.toHaveBeenCalled()
+    expect(methods(boundary)).toContain("wallet_switchEthereumChain")
+    expect(methods(boundary)).not.toContain("eth_sendTransaction")
   })
 
 })

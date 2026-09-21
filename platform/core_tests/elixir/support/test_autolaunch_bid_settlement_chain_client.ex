@@ -39,18 +39,13 @@ defmodule Autolaunch.TestAutolaunchBidSettlementChainClient do
        signer: signer,
        bid: Map.put(fixture.bid, :id, bid_id),
        block: %{number: 100, hash: "0x" <> String.duplicate("ab", 32)},
-       lab_binding: Autolaunch.Lab.binding(fake_config(), [:regent])
+       lab_binding:
+         Autolaunch.Lab.binding(
+           Autolaunch.Lab.current!(),
+           Autolaunch.LabBidSettlementChainClient.binding_keys()
+         )
      })}
   end
 
   def verify(_envelope, _step, _hash), do: {:ok, %{outcome: :pending}}
-
-  defp fake_config,
-    do: %{
-      run_id: "fixture",
-      rpc_url: "http://127.0.0.1:8545",
-      public_rpc_url: "http://127.0.0.1:8545",
-      chain_id: 31_337,
-      addresses: %{"regent" => Autolaunch.BidFixture.regent()}
-    }
 end

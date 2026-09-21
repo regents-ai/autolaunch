@@ -6,9 +6,7 @@ defmodule Autolaunch.ChainMode do
 
   `config/runtime.exs` sets `:chain_mode` from `AUTOLAUNCH_CHAIN_MODE`; the
   variable admits exactly `base` (the default when unset) and `fork`. Fork mode
-  requires both lab configurations, admits a private non-loopback RPC for the
-  site's own reads and sends, requires a separate public RPC for wallets, and
-  serves with writes open.
+  requires both Base deployment descriptions and serves with writes open.
   """
 
   @modes [:base, :fork]

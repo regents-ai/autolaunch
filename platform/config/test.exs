@@ -27,11 +27,21 @@ end
 lab_privy? = lab_auth == "privy"
 
 # Explicit real sign-in never falls back to the fixture verifier: asked for
-# without a lab config, the boot stops here instead of starting a site whose
-# notice would promise Privy while its verifier accepts fixture tokens.
-if lab_privy? and System.get_env("AUTOLAUNCH_LAB_CONFIG") in [nil, ""] do
-  raise "AUTOLAUNCH_LAB_AUTH=privy needs AUTOLAUNCH_LAB_CONFIG"
+# without a lab description, the boot stops here instead of starting a site
+# whose notice would promise Privy while its verifier accepts fixture tokens.
+if lab_privy? and System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT") in [nil, ""] do
+  raise "AUTOLAUNCH_LAB_AUTH=privy needs AUTOLAUNCH_BASE_DEPLOYMENT"
 end
+
+# ExUnit runs against a Base deployment description of its own: the scripted
+# chain the test clients answer from, at the addresses their fixtures name.
+# A review server given AUTOLAUNCH_BASE_DEPLOYMENT loads that description
+# instead (runtime.exs).
+config :autolaunch,
+  autolaunch_base_deployment:
+    Path.expand("../core_tests/elixir/fixtures/base-deployment.json", __DIR__),
+  autolaunch_base_deployment_id: "fixture",
+  autolaunch_base_chain_id: 8453
 
 # We don't run a server during test. The Playwright suite asks for one by
 # setting AUTOLAUNCH_BROWSER_TEST.
@@ -97,12 +107,12 @@ end
 # The subject-wallet and launch browser proofs need a Base answer without a
 # provider, a wallet or a chain call. Ordinary ExUnit cases install and restore
 # these clients themselves, so only the Playwright server process selects them.
-# A server given a local lab config skips these three: launch and bid then
-# resolve to their lab clients and answer from the fork, subject-wallet
-# preparation stays unavailable (no lab client exists for it), and the
-# treasury fixture selected above remains in force.
+# A server given a local lab description skips these three: launch and bid
+# then resolve to their lab clients and answer from the lab chain,
+# subject-wallet preparation stays unavailable, and the treasury fixture
+# selected above remains in force.
 if System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" and
-     System.get_env("AUTOLAUNCH_LAB_CONFIG") in [nil, ""] do
+     System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT") in [nil, ""] do
   config :autolaunch,
          :autolaunch_subject_wallet_chain_client,
          Autolaunch.TestAutolaunchSubjectWalletChainClient

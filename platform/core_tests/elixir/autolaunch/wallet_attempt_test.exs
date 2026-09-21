@@ -51,12 +51,12 @@ defmodule Autolaunch.WalletAttemptTest do
 
     bind(ctx, op, a, @hash)
     bind(ctx, op, b, @other)
-    Chain.put(%{outcomes: %{bid: %{outcome: :confirmed, onchain_bid_id: "41"}}})
+    Chain.put(%{outcomes: %{bid: confirmed("41")}})
 
     assert {:ok, %{attempt: %{state: :confirmed}, operation: %{onchain_bid_id: "41"}}} =
              verify(ctx, op, a)
 
-    Chain.put(%{outcomes: %{bid: %{outcome: :confirmed, onchain_bid_id: "42"}}})
+    Chain.put(%{outcomes: %{bid: confirmed("42")}})
 
     assert {:ok,
             %{attempt: %{result: %{"onchain_bid_id" => "42"}}, operation: %{onchain_bid_id: "41"}}} =
@@ -94,7 +94,7 @@ defmodule Autolaunch.WalletAttemptTest do
                ctx.opts
              )
 
-    Chain.put(%{outcomes: %{bid: %{outcome: :confirmed, onchain_bid_id: "8"}}})
+    Chain.put(%{outcomes: %{bid: confirmed("8")}})
     verify(ctx, op, a)
 
     assert {:ok, %{operation: %{state: :confirmed}, attempt: %{state: :not_sent}}} =
@@ -147,6 +147,16 @@ defmodule Autolaunch.WalletAttemptTest do
       Autolaunch.prepare_bid(ctx.auction.id, ctx.wallet, "10", "3", ctx.opts)
 
     op
+  end
+
+  # A receipt-verified bid, as the chain client reports one: the on-chain bid
+  # id and the committed amount the projection records.
+  defp confirmed(bid_id) do
+    %{
+      outcome: :confirmed,
+      onchain_bid_id: bid_id,
+      result: %{"onchain_bid_id" => bid_id, "amount" => "10", "current_clearing_price" => "0"}
+    }
   end
 
   defp press(ctx, op) do

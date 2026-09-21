@@ -60,7 +60,6 @@ defmodule Autolaunch.Application do
   defp autolaunch_lab_market_feed_child do
     with false <- Autolaunch.Prelaunch.read_only?(),
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
-         true <- Application.get_env(:autolaunch, :autolaunch_lab_enabled, false),
          {:ok, _config} <- Autolaunch.Lab.current() do
       Autolaunch.LabMarketFeed
     else
@@ -68,11 +67,10 @@ defmodule Autolaunch.Application do
     end
   end
 
-  # The Stocks feed runs only when the Stocks lab extends a running Agent lab.
+  # The Stocks feed runs only when the Stocks description extends the Base one.
   defp autolaunch_stocks_lab_market_feed_child do
     with false <- Autolaunch.Prelaunch.read_only?(),
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
-         true <- Autolaunch.Stocks.Lab.enabled?(),
          {:ok, _config} <- Autolaunch.Stocks.Lab.current() do
       Autolaunch.Stocks.LabMarketFeed
     else

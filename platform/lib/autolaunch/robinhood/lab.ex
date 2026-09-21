@@ -1,20 +1,23 @@
 defmodule Autolaunch.Robinhood.Lab do
   @moduledoc """
-  The local Robinhood lab configuration: `site-config.json` written by
-  `contracts/robinhood/bin/local-robinhood-lab.py start`.
+  The Robinhood deployment description: `site-config.json` as
+  `contracts/robinhood/bin/local-robinhood-lab.py start` writes it, and as the
+  contracts thread writes it for the Robinhood chain. `AUTOLAUNCH_ROBINHOOD_DEPLOYMENT`
+  names the file.
 
-  It is its own blank Anvil chain (31338) rather than a Base fork, loaded in
-  development and test only, and refused unless it answers on a loopback door,
-  names every address the site depends on, lists every fixture stock the Stocks
-  launchpad admitted, and declares every function and event the site prepares
-  against.
+  It is refused unless it answers on an admitted RPC door
+  (`Autolaunch.LabRpcUrl`), names every address the site depends on, lists
+  every stock the Stocks launchpad admitted, and declares every function and
+  event the site prepares against. Chain 31338 is the local lab, a blank Anvil
+  chain with fixture stocks; `test_chain?/0` is what the lab-only features key
+  off.
   """
 
   alias Autolaunch.Chain.Address
-  alias Autolaunch.LabRpcUrl
+  alias Autolaunch.{Lab, LabRpcUrl}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
 
-  @chain_id 31_338
+  @test_chain_id 31_338
   @address_keys ~w(
     stocks_launchpad stocks_hook stocks_locker stocks_splitter_implementation bid_adapter usdg
     inbox hook_factory pool_manager position_manager cca_factory uerc20_factory permit2 admin_safe
@@ -22,9 +25,6 @@ defmodule Autolaunch.Robinhood.Lab do
   @abi_keys ~w(stocks_launchpad stocks_hook stocks_locker splitter bid_adapter stock_route auction erc20)
   @stock_keys ~w(symbol name address decimals route usdg_per_share fixture launch_admission)
   @stock_decimals 8
-  # The only admission the lab controller writes: a mintable fixture admitted on
-  # the Stocks launchpad by the deployment. Nothing here is a native stock.
-  @fixture_admission "fixture_admitted"
 
   @type stock :: %{
           symbol: String.t(),
@@ -40,6 +40,7 @@ defmodule Autolaunch.Robinhood.Lab do
   @type t :: %{
           path: String.t(),
           rpc_url: String.t(),
+          public_rpc_url: String.t(),
           chain_id: pos_integer(),
           run_id: String.t(),
           addresses: %{required(String.t()) => String.t()},
@@ -47,19 +48,30 @@ defmodule Autolaunch.Robinhood.Lab do
           abis: %{required(String.t()) => [map()]}
         }
 
-  def enabled?,
-    do: Application.get_env(:autolaunch, :autolaunch_robinhood_lab_enabled, false) == true
+  @doc "Whether this site was given a Robinhood deployment description."
+  def configured?,
+    do: is_binary(Application.get_env(:autolaunch, :autolaunch_robinhood_deployment))
+
+  @doc "Whether the Robinhood deployment is the local lab: fixture stocks with no value."
+  def test_chain?, do: chain_id() == @test_chain_id
+
+  @doc "The configured Robinhood deployment's chain id, or `nil` without one."
+  def chain_id, do: Application.get_env(:autolaunch, :autolaunch_robinhood_chain_id)
 
   def current do
-    if enabled?(),
-      do: Application.fetch_env!(:autolaunch, :autolaunch_robinhood_lab_config_path) |> load(),
-      else: {:error, :robinhood_lab_disabled}
+    case Application.get_env(:autolaunch, :autolaunch_robinhood_deployment) do
+      path when is_binary(path) -> load(path)
+      nil -> {:error, :robinhood_deployment_missing}
+    end
   end
 
   def load!(path) do
     case load(path) do
-      {:ok, config} -> config
-      {:error, reason} -> raise "Autolaunch Robinhood lab configuration is invalid: #{reason}"
+      {:ok, config} ->
+        config
+
+      {:error, reason} ->
+        raise "Autolaunch Robinhood deployment description is invalid: #{reason}"
     end
   end
 
@@ -69,8 +81,9 @@ defmodule Autolaunch.Robinhood.Lab do
          # sobelow_skip ["Traversal.FileModule"]
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"], :base),
-         @chain_id <- decoded["chain_id"],
+         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
+         {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
          {:ok, run_id} <- run_id(decoded["run_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, stocks} <- exact_stocks(decoded["stocks"]),
@@ -80,7 +93,8 @@ defmodule Autolaunch.Robinhood.Lab do
        %{
          path: path,
          rpc_url: rpc_url,
-         chain_id: @chain_id,
+         public_rpc_url: public_rpc_url,
+         chain_id: chain_id,
          run_id: run_id,
          addresses: addresses,
          stocks: stocks,
@@ -97,12 +111,24 @@ defmodule Autolaunch.Robinhood.Lab do
 
   def load(_path), do: {:error, :absolute_path_required}
 
-  @doc "The lab binding an envelope carries: the exact addresses a review depends on."
-  def binding(%{run_id: run_id, rpc_url: rpc_url, chain_id: chain_id, addresses: addresses}, keys)
+  @doc """
+  The binding an envelope carries: the exact addresses a review depends on,
+  with the public RPC door as its `rpc_url`. The site's own door never leaves
+  the server.
+  """
+  def binding(
+        %{
+          run_id: run_id,
+          public_rpc_url: public_rpc_url,
+          chain_id: chain_id,
+          addresses: addresses
+        },
+        keys
+      )
       when is_list(keys) do
     %{
       "run_id" => run_id,
-      "rpc_url" => rpc_url,
+      "rpc_url" => public_rpc_url,
       "chain_id" => chain_id,
       "addresses" => Map.take(addresses, Enum.map(keys, &to_string/1))
     }
@@ -119,9 +145,8 @@ defmodule Autolaunch.Robinhood.Lab do
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
-  def chain_id, do: @chain_id
 
-  @doc "The fixture stocks the controller read back from the chain, admitted on the Stocks launchpad."
+  @doc "The stocks the controller read back from the chain, admitted on the Stocks launchpad."
   @spec stocks(t()) :: [stock()]
   def stocks(%{stocks: stocks}), do: stocks
 
@@ -149,10 +174,9 @@ defmodule Autolaunch.Robinhood.Lab do
   defp exact_addresses(_addresses), do: {:error, :invalid_addresses}
 
   # Every entry is exactly what the controller read back from the chain; a
-  # missing field, a stock that is not eight decimals, an admission other than
-  # the fixture one, or a repeated symbol or address refuses the whole
-  # configuration. Addresses are normalized (the zero address refused) before
-  # the duplicate check.
+  # missing field, a stock that is not eight decimals, or a repeated symbol or
+  # address refuses the whole description. Addresses are normalized (the zero
+  # address refused) before the duplicate check.
   defp exact_stocks(stocks) when is_list(stocks) and stocks != [] do
     parsed = Enum.map(stocks, &exact_stock/1)
 
@@ -176,8 +200,8 @@ defmodule Autolaunch.Robinhood.Lab do
          @stock_decimals <- stock["decimals"],
          true <- valid_address?(stock["route"]),
          {:ok, usdg_per_share} <- atomic_amount(stock["usdg_per_share"]),
-         true <- stock["fixture"],
-         @fixture_admission <- stock["launch_admission"] do
+         true <- is_boolean(stock["fixture"]),
+         true <- present?(stock["launch_admission"]) do
       {:ok,
        %{
          symbol: stock["symbol"],
@@ -186,8 +210,8 @@ defmodule Autolaunch.Robinhood.Lab do
          decimals: @stock_decimals,
          route: String.downcase(stock["route"]),
          usdg_per_share: usdg_per_share,
-         fixture: true,
-         launch_admission: @fixture_admission
+         fixture: stock["fixture"],
+         launch_admission: stock["launch_admission"]
        }}
     else
       _ -> :error

@@ -323,8 +323,9 @@ defmodule AutolaunchWeb.Components.PoolSection do
 
   defp failure_copy({:error, :not_graduated}), do: "This launch has not graduated into a pool."
 
-  defp failure_copy({:error, reason}) when reason in [:lab_disabled, :stocks_lab_disabled],
-    do: "Pool details are read from a Base fork, and this site is not running one."
+  defp failure_copy({:error, reason})
+       when reason in [:deployment_missing, :stocks_deployment_missing],
+       do: "Pool details are read from a Base fork, and this site is not running one."
 
   defp failure_copy(_reason),
     do: "The pool could not be read from the Base fork just now."

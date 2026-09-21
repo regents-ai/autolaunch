@@ -15,37 +15,49 @@ defmodule Autolaunch.Chain.EnvelopeTest do
     action: "act"
   ]
 
-  test "chain 31337 is admitted only for a bound Autolaunch lab capability" do
-    binding = %{
-      "rpc_url" => "http://127.0.0.1:49713",
-      "chain_id" => 31_337,
-      "addresses" => %{"factory" => @target}
-    }
+  # A resource prepared against a deployment description carries the
+  # description's binding on whatever chain it names; a subject-wallet resource
+  # is Base only and carries none.
+  test "a deployment-bound resource carries its binding on the chain the description names" do
+    for chain_id <- [8453, 31_337] do
+      binding = %{
+        "rpc_url" => "http://127.0.0.1:49713",
+        "chain_id" => chain_id,
+        "addresses" => %{"factory" => @target}
+      }
 
-    context = [
-      to: @target,
-      resource: "autolaunch_launch",
-      contract_name: "RegentsAutolaunchFactoryV1",
-      risk_copy: "Local lab",
-      chain_id: 31_337,
-      lab_binding: binding
-    ]
+      context = [
+        to: @target,
+        resource: "autolaunch_launch",
+        contract_name: "RegentsAutolaunchFactoryV1",
+        risk_copy: "Review",
+        chain_id: chain_id,
+        lab_binding: binding
+      ]
 
-    envelope = Envelope.new("autolaunch_launch", @signer, @data, context)
+      envelope = Envelope.new("autolaunch_launch", @signer, @data, context)
 
-    assert envelope.chain_id == 31_337
-    assert envelope.metadata.lab == binding
-    assert Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: 31_337)
-    refute Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: 8453)
+      assert envelope.chain_id == chain_id
+      assert envelope.metadata.lab == binding
+      assert Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: chain_id)
+      refute Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: chain_id + 1)
 
-    for invalid <- [
-          Keyword.delete(context, :lab_binding),
-          Keyword.replace!(context, :resource, "autolaunch_subject_wallet"),
-          Keyword.replace!(context, :chain_id, 8453)
-        ] do
-      assert_raise ArgumentError, ~r/network context/, fn ->
-        Envelope.new("autolaunch_launch", @signer, @data, invalid)
+      for invalid <- [
+            Keyword.delete(context, :lab_binding),
+            Keyword.replace!(context, :resource, "autolaunch_subject_wallet")
+          ] do
+        assert_raise ArgumentError, ~r/network context/, fn ->
+          Envelope.new("autolaunch_launch", @signer, @data, invalid)
+        end
       end
+    end
+
+    subject = Envelope.new("autolaunch_subject_wallet", @signer, @data, @context)
+    assert subject.chain_id == 8453
+    assert is_nil(subject.metadata.lab)
+
+    assert_raise ArgumentError, ~r/network context/, fn ->
+      Envelope.new("autolaunch_subject_wallet", @signer, @data, @context ++ [chain_id: 31_337])
     end
   end
 
@@ -99,7 +111,13 @@ defmodule Autolaunch.Chain.EnvelopeTest do
       to: @target,
       resource: "autolaunch_launch",
       contract_name: "RegentsAutolaunchFactoryV1",
-      risk_copy: "Review"
+      risk_copy: "Review",
+      chain_id: 8453,
+      lab_binding: %{
+        "rpc_url" => "https://base.example.test",
+        "chain_id" => 8453,
+        "addresses" => %{"factory" => @target}
+      }
     ]
   end
 

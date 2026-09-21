@@ -8,7 +8,7 @@ defmodule Autolaunch.Stocks.Faucet do
   is minted by the fixture token, and USDC moves from the forked holder the
   Stocks lab names. Every press sends; the RPC's own error text is reported when
   it fails. The RPC URL only ever comes from a validated lab configuration's
-  own door (`Autolaunch.LabRpcUrl.admitted/2`), and a read-only site refuses.
+  own door (`Autolaunch.LabRpcUrl.admitted/1`), and a read-only site refuses.
 
   With a cooldown configured (`:faucet_cooldown_seconds`, from
   `AUTOLAUNCH_FAUCET_COOLDOWN_SECONDS`), one asset goes to one wallet at most
@@ -30,10 +30,8 @@ defmodule Autolaunch.Stocks.Faucet do
 
   @type grant :: %{symbol: String.t(), amount: String.t(), balance: String.t(), hash: String.t()}
 
-  @doc "Whether any lab that can fund a wallet is running on this site."
-  def available? do
-    not Prelaunch.read_only?() and (Lab.enabled?() or StocksLab.enabled?())
-  end
+  @doc "Whether this site runs against a test chain that can fund a wallet."
+  def available?, do: not Prelaunch.read_only?() and Lab.test_chain?()
 
   @doc "The STOCK tokens this lab can mint, for the button list."
   @spec stocks() :: [StocksLab.stock()]

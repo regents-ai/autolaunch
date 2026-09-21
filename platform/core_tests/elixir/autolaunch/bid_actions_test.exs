@@ -112,11 +112,10 @@ defmodule Autolaunch.BidActionsTest do
       assert Decimal.compare(Decimal.new(args["max_price"]), Decimal.new(requested)) == :lt
 
       assert op.envelope["data"] ==
-               Autolaunch.Chain.AuctionAbi.encode_submit_bid(
-                 expected,
-                 Integer.pow(10, 18),
-                 ctx.wallet,
-                 spacing
+               Autolaunch.LabAbi.encode(
+                 Autolaunch.Lab.abi!(Autolaunch.Lab.current!(), :auction),
+                 "submitBid(uint256,uint128,address,uint256,bytes)",
+                 [expected, Integer.pow(10, 18), ctx.wallet, spacing, "0x"]
                )
     end
 

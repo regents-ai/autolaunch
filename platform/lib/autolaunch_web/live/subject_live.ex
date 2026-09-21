@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.SubjectLive do
   def render(assigns) do
     assigns =
       assign(assigns,
-        local_lab?: Lab.enabled?(),
+        local_lab?: Lab.test_chain?(),
         page_record: page_record(assigns.page),
         page_status: page_status(assigns.page, :error),
         tokens: page_list(assigns.page, :tokens),

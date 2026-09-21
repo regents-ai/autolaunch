@@ -80,7 +80,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
-     |> assign(:local_lab?, Lab.enabled?())
+     |> assign(:local_lab?, Lab.test_chain?())
      |> assign(:treasury_report, current_report(assigns.draft))
      |> assign_new(:fresh_treasury_report_id, fn -> nil end)}
   end
@@ -527,8 +527,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     })
   end
 
-  defp lab_anchor(%{"metadata" => %{"lab" => nil}}), do: nil
-
   defp lab_anchor(envelope),
     do: %{
       block_number: envelope["arguments"]["block_number"],
@@ -591,7 +589,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   defp actor(_socket), do: nil
 
   defp current_report(draft) do
-    if Lab.enabled?(), do: nil, else: production_report(draft)
+    if Lab.test_chain?(), do: nil, else: production_report(draft)
   end
 
   defp do_verify_treasury(hashes, socket) do
@@ -812,13 +810,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   defp notice(tone, reason), do: %{tone: tone, message: copy(reason)}
 
   defp copy(:chain_unavailable) do
-    if Lab.enabled?(),
+    if Lab.test_chain?(),
       do: "The Base fork could not be read just now. Check that it is still running.",
       else: Map.fetch!(@copy, :chain_unavailable)
   end
 
   defp copy(:launch_snapshot_incomplete) do
-    if Lab.enabled?(),
+    if Lab.test_chain?(),
       do: "The Base fork returned an incomplete answer. Check that it is still running.",
       else: Map.fetch!(@copy, :launch_snapshot_incomplete)
   end

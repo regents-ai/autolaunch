@@ -271,29 +271,33 @@ defmodule Autolaunch.Chain.Envelope do
 
   defp require_calldata!(_data), do: raise(ArgumentError, "invalid data")
 
-  defp require_network_context!(_resource, 8453, nil), do: :ok
-
-  defp require_network_context!(resource, 31_337, binding)
-       when resource in @lab_resources and is_map(binding),
-       do: :ok
-
-  defp require_network_context!(resource, 31_338, binding)
-       when resource in @robinhood_lab_resources and is_map(binding),
-       do: :ok
-
-  defp require_network_context!(_resource, _chain_id, _binding),
-    do: raise(ArgumentError, "invalid network context")
+  # A resource prepared against a deployment description carries its binding
+  # on whatever chain the description names; the subject-wallet resources are
+  # Base only and carry none.
+  defp require_network_context!(resource, chain_id, binding) do
+    if valid_network_context?(resource, chain_id, binding),
+      do: :ok,
+      else: raise(ArgumentError, "invalid network context")
+  end
 
   defp valid_network_context?(envelope) do
-    binding = field(field(envelope, :metadata), :lab)
+    valid_network_context?(
+      field(envelope, :resource),
+      field(envelope, :chain_id),
+      field(field(envelope, :metadata), :lab)
+    )
+  end
 
-    case field(envelope, :chain_id) do
-      8453 -> is_nil(binding)
-      31_337 -> field(envelope, :resource) in @lab_resources and is_map(binding)
-      31_338 -> field(envelope, :resource) in @robinhood_lab_resources and is_map(binding)
-      _other -> false
+  defp valid_network_context?(resource, chain_id, binding)
+       when is_integer(chain_id) and chain_id > 0 do
+    cond do
+      resource in @lab_resources -> is_map(binding)
+      resource in @robinhood_lab_resources -> is_map(binding)
+      true -> chain_id == 8453 and is_nil(binding)
     end
   end
+
+  defp valid_network_context?(_resource, _chain_id, _binding), do: false
 
   defp preparation_nonce, do: :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
 

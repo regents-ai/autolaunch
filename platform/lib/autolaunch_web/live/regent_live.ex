@@ -10,7 +10,7 @@ defmodule AutolaunchWeb.RegentLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:local_lab?, Lab.enabled?())
+     |> assign(:local_lab?, Lab.test_chain?())
      |> assign_async(:facts, fn ->
        case RegentFacts.read() do
          {:ok, facts} -> {:ok, %{facts: facts}}

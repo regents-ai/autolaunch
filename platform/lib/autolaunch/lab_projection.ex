@@ -15,16 +15,10 @@ defmodule Autolaunch.LabProjection do
 
   @actor %System{}
   @domain Autolaunch
-  @chain_id 31_337
   @regent_decimals 18
 
-  @doc "Projects one receipt-verified local launch as one replay-safe database unit."
-  def project_launch(
-        %{envelope: %{"chain_id" => @chain_id, "metadata" => %{"lab" => lab}} = envelope} =
-          operation,
-        result
-      )
-      when is_map(lab) and is_map(result) do
+  @doc "Projects one receipt-verified launch as one replay-safe database unit."
+  def project_launch(%{envelope: envelope} = operation, result) when is_map(result) do
     arguments = envelope["arguments"]
     subject_id = subject_identity(result["subject"])
 
@@ -39,34 +33,28 @@ defmodule Autolaunch.LabProjection do
     end)
   end
 
-  def project_launch(_operation, _result), do: :ok
-
-  @doc "Projects one receipt-verified local bid and its exact on-chain bid id."
+  @doc "Projects one receipt-verified bid and its exact on-chain bid id."
   def project_bid(%{envelope: envelope}, result) when is_map(result) do
-    if lab_envelope?(envelope) do
-      arguments = envelope["arguments"]
-      auction_address = arguments["auction_address"]
-      bid_id = bid_identity(auction_address, result["onchain_bid_id"])
+    arguments = envelope["arguments"]
+    auction_address = arguments["auction_address"]
+    bid_id = bid_identity(auction_address, result["onchain_bid_id"])
 
-      # The committed amount comes from the verified result: the reviewed amount
-      # for a direct bid, the adapter's reported STOCK for a USDC bid.
-      transact(fn ->
-        create(Bid, :project_lab, %{
-          bid_id: bid_id,
-          auction_id: arguments["auction_id"],
-          owner_address: envelope["expected_signer"],
-          amount: result["amount"],
-          max_price: arguments["max_price"],
-          current_clearing_price: result["current_clearing_price"] || "0",
-          estimated_tokens_if_end_now: nil,
-          status: "active",
-          auction_address: auction_address,
-          onchain_bid_id: result["onchain_bid_id"]
-        })
-      end)
-    else
-      :ok
-    end
+    # The committed amount comes from the verified result: the reviewed amount
+    # for a direct bid, the adapter's reported STOCK for a USDC bid.
+    transact(fn ->
+      create(Bid, :project_lab, %{
+        bid_id: bid_id,
+        auction_id: arguments["auction_id"],
+        owner_address: envelope["expected_signer"],
+        amount: result["amount"],
+        max_price: arguments["max_price"],
+        current_clearing_price: result["current_clearing_price"] || "0",
+        estimated_tokens_if_end_now: nil,
+        status: "active",
+        auction_address: auction_address,
+        onchain_bid_id: result["onchain_bid_id"]
+      })
+    end)
   end
 
   @doc """
@@ -355,7 +343,7 @@ defmodule Autolaunch.LabProjection do
              Auction,
              :project_lab,
              auction_attrs(arguments, %{
-               chain_id: @chain_id,
+               chain_id: envelope["chain_id"],
                creator_human_account_id: human_account_id,
                state: :active,
                auction_address: result["auction"],
@@ -367,7 +355,7 @@ defmodule Autolaunch.LabProjection do
            create(Subject, :project_lab, %{
              subject_id: subject_id,
              subject_kind: "regent",
-             chain_id: @chain_id,
+             chain_id: envelope["chain_id"],
              token_address: result["subject"],
              ingress_address: result["escrow"],
              treasury_address: result["treasury"],
@@ -383,7 +371,7 @@ defmodule Autolaunch.LabProjection do
              agent_name: arguments["name"],
              token_name: arguments["name"],
              token_symbol: arguments["symbol"],
-             chain_id: @chain_id,
+             chain_id: envelope["chain_id"],
              auction_id: auction.id,
              agent_safe_address: result["treasury"],
              auction_address: result["auction"],
@@ -394,12 +382,6 @@ defmodule Autolaunch.LabProjection do
       {:ok, auction}
     end
   end
-
-  defp lab_envelope?(%{"chain_id" => @chain_id, "metadata" => %{"lab" => lab}})
-       when is_map(lab),
-       do: true
-
-  defp lab_envelope?(_envelope), do: false
 
   defp lab_address(envelope, key),
     do: get_in(envelope, ["metadata", "lab", "addresses", key])

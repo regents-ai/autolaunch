@@ -150,9 +150,9 @@ run commands, how to switch on real Privy sign-in for the lab site, and the rest
 recovery rules are in [docs/local-base-lab.md](docs/local-base-lab.md).
 
 The Stocks lab extends that fork with the Stocks launchpad, fixture stock tokens and routes.
-Set `AUTOLAUNCH_STOCKS_LAB_CONFIG=/abs/path/stocks-site-config.json` alongside the Agent lab
-variables (development and test only in `base` chain mode; it is refused without
-`AUTOLAUNCH_LAB_CONFIG` and must name the same Agent lab). This turns on `/create/stocks`, USDC
+Set `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/abs/path/stocks-site-config.json` alongside the Base
+description variables, in every environment (it is refused without `AUTOLAUNCH_BASE_DEPLOYMENT`
+and must name the same Base description). This turns on `/create/stocks`, USDC
 bids on Stocks auctions, the Stocks market feed and the test-funds panel. Details are in
 [docs/stocks.md](docs/stocks.md). The same two files, with the fork's private and public RPC
 doors, drive a hosted preview in `fork` chain mode ([docs/fork-preview.md](docs/fork-preview.md)).

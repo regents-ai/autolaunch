@@ -76,7 +76,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:token_complete?, draft && LaunchDraft.token_details_complete?(draft))
       |> assign(:terms_complete?, draft && LaunchDraft.terms_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
-      |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.enabled?())
+      |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.configured?())
       |> assign(
         :stock,
         stock_for(assigns.launch_chain, assigns.stocks_lab, assigns.draft_values["stock_address"])

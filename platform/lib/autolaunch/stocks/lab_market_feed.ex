@@ -151,6 +151,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
            Rpc.call_string(launch.new_token, LabAbi.selector("symbol()"), block, opts),
          {:ok, auction} <-
            StocksProjection.project_observed(%{
+             chain_id: config.chain_id,
              auction_address: launch.auction,
              creator_human_account_id: account_id,
              title: name,

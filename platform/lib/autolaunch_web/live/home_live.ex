@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.HomeLive do
        market_append: false,
        next_cursor: nil,
        has_more: false,
-       local_lab: Autolaunch.Lab.enabled?()
+       local_lab: Autolaunch.Lab.test_chain?()
      )}
   end
 

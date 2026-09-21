@@ -2,10 +2,16 @@ import {getAddress, type Address, type Hash, type Hex} from "viem"
 
 import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
-// The Base fork lab and the blank Robinhood lab; a binding's chain id decides which.
-export const autolaunchLabChainIds = [31_337, 31_338] as const
-export type AutolaunchLabChainId = (typeof autolaunchLabChainIds)[number]
+// The Base fork lab and the blank Robinhood lab carry test assets; a lab may
+// be reset between a review and a press, so a send on one is anchored to the
+// reviewed block.
+const testChainIds: readonly number[] = [31_337, 31_338]
 
+/**
+ * The deployment description's binding every reviewed action carries: the
+ * deployment label, the RPC door wallets use, the chain and the addresses the
+ * review depends on.
+ */
 export type AutolaunchLabBinding = {
   run_id: string
   rpc_url: string
@@ -15,8 +21,8 @@ export type AutolaunchLabBinding = {
 
 export type AutolaunchNetworkOperation = {
   chain_id: number
-  lab: AutolaunchLabBinding | null
-  lab_anchor: AutolaunchLabAnchor | null
+  lab: AutolaunchLabBinding
+  lab_anchor: AutolaunchLabAnchor
 }
 
 export type AutolaunchLabAnchor = {
@@ -31,51 +37,45 @@ export type AutolaunchTransaction = {
 
 /**
  * The wallet answered, but for another network: its copy of this chain id
- * points somewhere other than the fork the action was reviewed on. Nothing was
- * sent, and only the wallet's own network settings can fix it.
+ * points somewhere other than the chain the action was reviewed on. Nothing
+ * was sent, and only the wallet's own network settings can fix it.
  */
 export class LabNetworkMismatch extends Error {}
 
-type LabNetwork = {chainId: AutolaunchLabChainId; rpcUrl: string; chainName: string}
+type LabNetwork = {chainId: number; rpcUrl: string; chainName: string; testChain: boolean}
 export type WalletResolver = () => SelectedWallet | null
 
-export function labNetwork(operation: AutolaunchNetworkOperation): LabNetwork | null {
-  if (operation.lab === null) {
-    if (operation.chain_id !== 8453) throw new Error("This action is not for Base.")
-    return null
-  }
-
-  if (!labChainId(operation.chain_id)) {
-    throw new Error("A fork action cannot use Base.")
-  }
-
+export function labNetwork(operation: AutolaunchNetworkOperation): LabNetwork {
   const binding = operation.lab
   if (
     !plainObject(binding) ||
     Object.keys(binding).sort().join(",") !== "addresses,chain_id,rpc_url,run_id" ||
     typeof binding.run_id !== "string" ||
     binding.run_id.trim() === "" ||
+    !Number.isSafeInteger(operation.chain_id) ||
+    operation.chain_id <= 0 ||
     binding.chain_id !== operation.chain_id ||
     !labAddresses(binding.addresses)
   ) {
-    throw new Error("The fork network binding changed.")
+    throw new Error("The network binding changed.")
   }
 
   const chainName = labChainName(operation.chain_id, binding.rpc_url)
-  if (chainName === null) throw new Error("The fork network binding changed.")
+  if (chainName === null) throw new Error("The network binding changed.")
 
-  return {chainId: operation.chain_id, rpcUrl: binding.rpc_url, chainName}
-}
-
-function labChainId(value: number): value is AutolaunchLabChainId {
-  return (autolaunchLabChainIds as readonly number[]).includes(value)
+  return {
+    chainId: operation.chain_id,
+    rpcUrl: binding.rpc_url,
+    chainName,
+    testChain: testChainIds.includes(operation.chain_id),
+  }
 }
 
 /**
- * Sends one server-reviewed fork transaction through the selected wallet.
- * Account and chain are read again for every call. The final provider request
- * before the send is always `eth_chainId`, so a wallet that switches back to
- * Base during setup is refused before it sees the transaction.
+ * Sends one server-reviewed transaction through the selected wallet. Account
+ * and chain are read again for every call. The final provider request before
+ * the send is always `eth_chainId`, so a wallet that switches networks during
+ * setup is refused before it sees the transaction.
  */
 export async function sendLabTransaction(
   operation: AutolaunchNetworkOperation & {signer: Address},
@@ -84,7 +84,6 @@ export async function sendLabTransaction(
   onSendStarted: () => void,
 ): Promise<Hash> {
   const network = labNetwork(operation)
-  if (!network) throw new Error("This is not a fork action.")
   const anchor = labAnchor(operation)
   const selected = selectedWallet(resolveWallet, operation.signer)
   const provider = selected.provider
@@ -95,7 +94,7 @@ export async function sendLabTransaction(
 
   sameSelectedWallet(resolveWallet, selected, operation.signer)
 
-  if (!(await anchoredToLab(provider, anchor))) {
+  if (network.testChain && !(await anchoredToLab(provider, anchor))) {
     await refreshLab(provider, network)
     sameSelectedWallet(resolveWallet, selected, operation.signer)
 
@@ -121,7 +120,7 @@ export async function sendLabTransaction(
   sameSelectedWallet(resolveWallet, selected, operation.signer)
 
   if ((await providerChainId(provider)) !== network.chainId) {
-    throw new LabNetworkMismatch("Switch to the Autolaunch fork before continuing.")
+    throw new LabNetworkMismatch(`Switch to ${network.chainName} before continuing.`)
   }
 
   // This synchronous check cannot open a provider request, so `eth_chainId`
@@ -158,7 +157,7 @@ function labAnchor(operation: AutolaunchNetworkOperation): AutolaunchLabAnchor {
     typeof anchor.block_hash !== "string" ||
     !/^0x[0-9a-f]{64}$/.test(anchor.block_hash)
   ) {
-    throw new Error("The fork review anchor changed.")
+    throw new Error("The review anchor changed.")
   }
 
   return anchor as AutolaunchLabAnchor
@@ -237,7 +236,11 @@ function addLabChain(provider: EthereumProvider, network: LabNetwork): Promise<u
       {
         chainId: `0x${network.chainId.toString(16)}`,
         chainName: network.chainName,
-        nativeCurrency: {name: "Test Ether", symbol: "ETH", decimals: 18},
+        nativeCurrency: {
+          name: network.testChain ? "Test Ether" : "Ether",
+          symbol: "ETH",
+          decimals: 18,
+        },
         rpcUrls: [network.rpcUrl],
       },
     ],
@@ -253,15 +256,18 @@ async function providerChainId(provider: EthereumProvider): Promise<number> {
 }
 
 /**
- * The wallet-facing RPC door and the chain name the wallet prompt shows for
- * it. A loopback `http://127.0.0.1:PORT` is a local lab; an `https://` URL
- * without credentials, query or fragment is a hosted Base fork preview. Any
- * other `http://` URL is refused: the site's own private door never reaches a
- * wallet. The Robinhood lab only ever runs locally.
+ * The chain name the wallet prompt shows for a reviewed chain and its
+ * wallet-facing RPC door. Base is reached through an `https://` door without
+ * credentials, query or fragment. A loopback `http://127.0.0.1:PORT` is a
+ * local lab; an `https://` door on the Base fork chain is a hosted preview.
+ * Any other `http://` URL is refused: the site's own private door never
+ * reaches a wallet. The Robinhood lab only ever runs locally.
  */
-function labChainName(chainId: AutolaunchLabChainId, value: unknown): string | null {
+function labChainName(chainId: number, value: unknown): string | null {
   if (typeof value !== "string") return null
+  if (chainId === 8453) return publicHttpsRpc(value) ? "Base" : null
   if (chainId === 31_338) return literalLoopbackRpc(value) ? "Robinhood Local Lab" : null
+  if (chainId !== 31_337) return null
   if (literalLoopbackRpc(value)) return "Autolaunch Local Lab"
   if (publicHttpsRpc(value)) return "Autolaunch preview (Base fork)"
   return null

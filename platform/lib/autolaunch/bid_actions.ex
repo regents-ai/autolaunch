@@ -19,7 +19,7 @@ defmodule Autolaunch.BidActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
 
-  alias Autolaunch.Chain.{Abi, Address, AuctionAbi, Envelope, Permit2Abi, Rpc}
+  alias Autolaunch.Chain.{Address, Envelope, Rpc}
 
   alias Autolaunch.{
     BidOperation,
@@ -28,7 +28,6 @@ defmodule Autolaunch.BidActions do
     LabAbi,
     LabBidChainClient,
     LabProjection,
-    LabRpc,
     TreasurySecurity
   }
 
@@ -42,7 +41,6 @@ defmodule Autolaunch.BidActions do
   @action "submit_bid"
   @usdc_action "bid_with_usdc"
   @usdc_contract_name "StockBidAdapterV1"
-  @risk "Your wallet signs only the steps this bid still needs, then the bid itself."
 
   # A bid amount is denominated in the auction's own currency, whose decimals
   # the stored auction row records: REGENT's eighteen, or the admitted stock's.
@@ -239,7 +237,7 @@ defmodule Autolaunch.BidActions do
 
     with {:ok, lease} <- lease(context),
          {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, lab_status} <- dispatch_lab_status(candidate),
+         {:ok, lab_status} <- current_lab_status(candidate),
          treasury_result <- revalidate_treasury(candidate) do
       transact(
         lease,
@@ -385,7 +383,7 @@ defmodule Autolaunch.BidActions do
             to: address,
             resource: @resource,
             contract_name: @contract_name,
-            risk_copy: risk_copy(snapshot),
+            risk_copy: risk_copy(),
             arguments:
               %{
                 "auction_id" => auction.id,
@@ -543,7 +541,7 @@ defmodule Autolaunch.BidActions do
   defp stocks_auction(%{kind: :stocks}), do: :ok
   defp stocks_auction(_auction), do: unavailable(:usdc_bids_unavailable)
 
-  defp bid_data(max_price_q96, amount, signer, %{lab_binding: binding} = snapshot) do
+  defp bid_data(max_price_q96, amount, signer, snapshot) do
     config = Lab.current!()
 
     data =
@@ -553,28 +551,18 @@ defmodule Autolaunch.BidActions do
         [max_price_q96, amount, signer, snapshot.prev_tick_price_q96, "0x"]
       )
 
-    {data, [chain_id: Lab.chain_id(), lab_binding: binding]}
+    {data, [chain_id: Lab.chain_id(), lab_binding: snapshot.lab_binding]}
   end
 
-  defp bid_data(max_price_q96, amount, signer, snapshot),
-    do:
-      {AuctionAbi.encode_submit_bid(
-         max_price_q96,
-         amount,
-         signer,
-         snapshot.prev_tick_price_q96
-       ), []}
+  defp risk_copy do
+    if Lab.test_chain?(),
+      do:
+        "Your wallet signs only the local-fork approval steps this bid still needs, then the test bid. These assets have no mainnet value.",
+      else: "Your wallet signs only the steps this bid still needs, then the bid itself."
+  end
 
-  defp risk_copy(%{lab_binding: _binding}),
-    do:
-      "Your wallet signs only the local-fork approval steps this bid still needs, then the test bid. These assets have no mainnet value."
-
-  defp risk_copy(_snapshot), do: @risk
-
-  defp lab_review_anchor(%{lab_binding: _binding, block: block}),
+  defp lab_review_anchor(%{block: block}),
     do: %{"block_number" => block.number, "block_hash" => block.hash}
-
-  defp lab_review_anchor(_snapshot), do: %{}
 
   # Only the transactions this wallet still needs. An allowance that already
   # covers the amount and outlives the review is spent exactly as it stands.
@@ -618,9 +606,8 @@ defmodule Autolaunch.BidActions do
         expires >= DateTime.to_unix(Envelope.current_time()) + @review_seconds
 
   defp permit2_address(%{permit2: address}), do: address
-  defp permit2_address(_snapshot), do: Permit2Abi.address()
 
-  defp encode_token_approval(%{lab_binding: _binding} = snapshot, amount) do
+  defp encode_token_approval(snapshot, amount) do
     config = Lab.current!()
 
     LabAbi.encode(
@@ -630,10 +617,7 @@ defmodule Autolaunch.BidActions do
     )
   end
 
-  defp encode_token_approval(_snapshot, amount),
-    do: Abi.encode_erc20("approve", [Permit2Abi.address(), amount])
-
-  defp encode_permit2_approval(%{lab_binding: _binding} = snapshot, amount, expiration) do
+  defp encode_permit2_approval(snapshot, amount, expiration) do
     config = Lab.current!()
 
     LabAbi.encode(
@@ -642,9 +626,6 @@ defmodule Autolaunch.BidActions do
       [snapshot.currency, snapshot.auction, amount, expiration]
     )
   end
-
-  defp encode_permit2_approval(snapshot, amount, expiration),
-    do: Permit2Abi.encode_approve(snapshot.currency, snapshot.auction, amount, expiration)
 
   defp open(lease, envelope, signer, step) do
     transact(lease, fn account ->
@@ -688,7 +669,7 @@ defmodule Autolaunch.BidActions do
 
   # Read-only dispatch evidence, called before the authority/account/review locks.
   def press_evidence(operation) do
-    with {:ok, :current} <- dispatch_lab_status(operation),
+    with {:ok, :current} <- current_lab_status(operation),
          {:ok, fresh} <- revalidate_treasury(operation),
          true <- treasury_still_reviewed?(operation, fresh),
          true <- valid_envelope?(operation),
@@ -959,7 +940,7 @@ defmodule Autolaunch.BidActions do
   end
 
   defp verified_treasury(auction) do
-    if Lab.enabled?(), do: lab_treasury(auction), else: verified_production_treasury(auction)
+    if Lab.test_chain?(), do: lab_treasury(auction), else: verified_production_treasury(auction)
   end
 
   defp lab_treasury(%{
@@ -1018,8 +999,7 @@ defmodule Autolaunch.BidActions do
   end
 
   defp revalidate_lab_treasury(operation, binding) do
-    with true <- lab_operation?(operation),
-         {:ok, auction} <- auction(binding["auction_id"]),
+    with {:ok, auction} <- auction(binding["auction_id"]),
          true <- Address.equal?(auction.auction_address, binding["auction_address"]),
          true <- Address.equal?(auction.treasury_address, binding["address"]),
          true <-
@@ -1035,9 +1015,7 @@ defmodule Autolaunch.BidActions do
   end
 
   defp treasury_still_reviewed?(operation, %{"mode" => "local_lab"} = fresh),
-    do:
-      fresh == operation.envelope["arguments"]["treasury_security"] and
-        lab_operation?(operation)
+    do: fresh == operation.envelope["arguments"]["treasury_security"]
 
   defp treasury_still_reviewed?(operation, fresh) do
     bound = operation.envelope["arguments"]["treasury_security"]
@@ -1075,49 +1053,22 @@ defmodule Autolaunch.BidActions do
       actions: [@action, @usdc_action],
       signer: operation.signer,
       to: operation.envelope["to"],
-      contract_name: operation.envelope["metadata"]["contract_name"]
+      contract_name: operation.envelope["metadata"]["contract_name"],
+      chain_id: Lab.chain_id()
     ]
 
-    options =
-      if lab_operation?(operation),
-        do: Keyword.put(options, :chain_id, Lab.chain_id()),
-        else: options
-
     Envelope.valid?(operation.envelope, options) and
-      (not lab_operation?(operation) or
-         Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2]))
+      Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2])
   end
 
-  defp dispatch_lab_status(operation) do
-    if lab_operation?(operation),
-      do: current_lab_status(operation),
-      else: {:ok, :current}
-  end
-
+  # A press is sent against the deployment it was reviewed on: the binding the
+  # envelope carries must still be the current description's, and a USDC review
+  # must still name the current bid adapter.
   defp current_lab_status(operation) do
-    binding = operation.envelope["metadata"]["lab"]
-
-    case Lab.current() do
-      {:ok, config} -> compare_lab_binding(operation, config, binding)
-      {:error, _reason} -> {:ok, :changed}
-    end
-  end
-
-  defp compare_lab_binding(operation, config, binding) do
-    if Lab.binding(config, [:regent, :permit2]) == binding,
-      do: verify_lab_target(operation),
-      else: {:ok, :changed}
-  end
-
-  defp verify_lab_target(operation) do
-    with {:ok, _current, block, opts} <- LabRpc.current([:regent, :permit2]),
-         :ok <- LabRpc.ensure_contract(operation.envelope["to"], block, opts),
-         true <- adapter_current?(operation) do
-      {:ok, :current}
-    else
-      false -> {:ok, :changed}
-      {:error, reason} -> unavailable(reason)
-    end
+    if Lab.binding_matches?(operation.envelope["metadata"]["lab"], [:regent, :permit2]) and
+         adapter_current?(operation),
+       do: {:ok, :current},
+       else: {:ok, :changed}
   end
 
   # A USDC review is bound to the adapter the Stocks lab named at the time.
@@ -1129,9 +1080,6 @@ defmodule Autolaunch.BidActions do
   end
 
   defp adapter_current?(_operation), do: true
-
-  defp lab_operation?(operation),
-    do: get_in(operation.envelope, ["metadata", "lab"]) != nil
 
   # Amounts and prices
 

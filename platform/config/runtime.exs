@@ -58,11 +58,10 @@ x_oauth_client_id =
 
 config :autolaunch, :x_oauth_client_id, x_oauth_client_id
 
-# Which chain this build runs against: `base` (real Base, the default) or
-# `fork` (a hosted Base fork carrying the lab contract graph, for a public
-# preview). Fork mode is admitted in every environment, production included;
-# it requires both lab configurations below, serves with writes open, and
-# keeps the Base log ledger off exactly as a lab does.
+# Which chain this build runs against: `base` (the default) or `fork` (a
+# hosted Base fork carrying test assets, for a public preview). Fork mode
+# requires both Base descriptions below, serves with writes open, and keeps the
+# Base log ledger off exactly as a local lab does.
 chain_mode = Autolaunch.ChainMode.parse!(System.get_env("AUTOLAUNCH_CHAIN_MODE"))
 config :autolaunch, :chain_mode, chain_mode
 
@@ -70,86 +69,62 @@ if chain_mode == :fork do
   config :autolaunch, :prelaunch_read_only, false
 end
 
-autolaunch_lab_path = System.get_env("AUTOLAUNCH_LAB_CONFIG")
-
-autolaunch_lab =
-  case {chain_mode, config_env(), autolaunch_lab_path} do
-    {:fork, _env, path} when path in [nil, ""] ->
-      raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_LAB_CONFIG"
-
-    {:fork, _env, path} ->
-      Autolaunch.Lab.load!(path, :fork)
-
-    {:base, _env, nil} ->
-      nil
-
-    {:base, _env, ""} ->
-      nil
-
-    {:base, :prod, _path} ->
-      raise "AUTOLAUNCH_LAB_CONFIG is development/test only"
-
-    {:base, env, path} when env in [:dev, :test] ->
-      Autolaunch.Lab.load!(path, :base)
+# One deployment description per network, in the shape the lab controllers
+# write and the contracts thread writes at mainnet deployment, loaded in every
+# environment. A network whose variable is unset keeps whatever the
+# environment's own config says, which outside ExUnit is no deployment.
+deployment_path = fn name ->
+  case System.get_env(name) do
+    path when is_binary(path) and path != "" -> path
+    _unset -> nil
   end
-
-config :autolaunch, :autolaunch_lab_enabled, not is_nil(autolaunch_lab)
-config :autolaunch, :autolaunch_lab_config_path, autolaunch_lab && autolaunch_lab.path
-
-if autolaunch_lab do
-  config :autolaunch,
-         :autolaunch_lab_run_id,
-         System.fetch_env!("AUTOLAUNCH_FORK_RUN_ID")
 end
 
-# The Stocks lab extends a running Agent lab and is refused without one.
-autolaunch_stocks_lab =
-  case {chain_mode, config_env(), System.get_env("AUTOLAUNCH_STOCKS_LAB_CONFIG")} do
-    {:fork, _env, path} when path in [nil, ""] ->
-      raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_STOCKS_LAB_CONFIG"
+base_deployment_path = deployment_path.("AUTOLAUNCH_BASE_DEPLOYMENT")
 
-    {:base, _env, nil} ->
-      nil
+if chain_mode == :fork and is_nil(base_deployment_path) do
+  raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_BASE_DEPLOYMENT"
+end
 
-    {:base, _env, ""} ->
-      nil
+base_deployment = base_deployment_path && Autolaunch.Lab.load!(base_deployment_path)
 
-    {:base, :prod, _path} ->
-      raise "AUTOLAUNCH_STOCKS_LAB_CONFIG is development/test only"
+if base_deployment do
+  config :autolaunch,
+    autolaunch_base_deployment: base_deployment_path,
+    autolaunch_base_deployment_id: System.fetch_env!("AUTOLAUNCH_BASE_DEPLOYMENT_ID"),
+    autolaunch_base_chain_id: base_deployment.chain_id
+end
 
-    {:base, _env, _path} when is_nil(autolaunch_lab) ->
-      raise "AUTOLAUNCH_STOCKS_LAB_CONFIG needs AUTOLAUNCH_LAB_CONFIG"
+# The Base Stocks description extends the Base one and is refused without it.
+base_stocks_deployment_path = deployment_path.("AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT")
 
-    {mode, _env, path} ->
-      loaded = Autolaunch.Stocks.Lab.load!(path, mode)
+if chain_mode == :fork and is_nil(base_stocks_deployment_path) do
+  raise "AUTOLAUNCH_CHAIN_MODE=fork needs AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT"
+end
 
-      if loaded.agent_lab_config != autolaunch_lab.path do
-        raise "AUTOLAUNCH_STOCKS_LAB_CONFIG names a different Agent lab than AUTOLAUNCH_LAB_CONFIG"
-      end
-
-      loaded
+if base_stocks_deployment_path do
+  if is_nil(base_deployment) do
+    raise "AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT needs AUTOLAUNCH_BASE_DEPLOYMENT"
   end
 
-config :autolaunch, :autolaunch_stocks_lab_enabled, not is_nil(autolaunch_stocks_lab)
+  base_stocks_deployment = Autolaunch.Stocks.Lab.load!(base_stocks_deployment_path)
 
-config :autolaunch,
-       :autolaunch_stocks_lab_config_path,
-       autolaunch_stocks_lab && autolaunch_stocks_lab.path
-
-# The Robinhood lab is its own blank local chain (31338), development and test only.
-autolaunch_robinhood_lab =
-  case {config_env(), System.get_env("AUTOLAUNCH_ROBINHOOD_LAB_CONFIG")} do
-    {_env, nil} -> nil
-    {_env, ""} -> nil
-    {:prod, _path} -> raise "AUTOLAUNCH_ROBINHOOD_LAB_CONFIG is development/test only"
-    {_env, path} -> Autolaunch.Robinhood.Lab.load!(path)
+  if base_stocks_deployment.agent_lab_config != base_deployment.path do
+    raise "AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT names a different Base description than AUTOLAUNCH_BASE_DEPLOYMENT"
   end
 
-config :autolaunch, :autolaunch_robinhood_lab_enabled, not is_nil(autolaunch_robinhood_lab)
+  config :autolaunch, :autolaunch_base_stocks_deployment, base_stocks_deployment_path
+end
 
-config :autolaunch,
-       :autolaunch_robinhood_lab_config_path,
-       autolaunch_robinhood_lab && autolaunch_robinhood_lab.path
+robinhood_deployment_path = deployment_path.("AUTOLAUNCH_ROBINHOOD_DEPLOYMENT")
+
+if robinhood_deployment_path do
+  robinhood_deployment = Autolaunch.Robinhood.Lab.load!(robinhood_deployment_path)
+
+  config :autolaunch,
+    autolaunch_robinhood_deployment: robinhood_deployment_path,
+    autolaunch_robinhood_chain_id: robinhood_deployment.chain_id
+end
 
 # Test funds: at most one grant per wallet and asset within this many seconds;
 # `0` is no cooldown. Unset means an hour on a public fork preview and none
@@ -179,7 +154,7 @@ database_config =
 # Robinhood through AUTOLAUNCH_ROBINHOOD_INDEXER_RPC_URL with its chain id,
 # launchpad address and start block named beside it. The test environment owns
 # this setting outright so a shell that exports an endpoint cannot start an
-# indexer under a test run, and a local lab run keeps the ledger off.
+# indexer under a test run.
 block_env! = fn name ->
   case name |> System.fetch_env!() |> Integer.parse() do
     {block, ""} when block >= 0 -> block
@@ -204,8 +179,10 @@ indexer_chain = fn url_name, chain_id, sources ->
   end
 end
 
+# A Base deployment on the test chain (a local lab or a hosted fork) keeps the
+# ledger off; the market feeds read those chains directly.
 indexer_chains =
-  if config_env() == :test or autolaunch_lab do
+  if config_env() == :test or (base_deployment && base_deployment.chain_id == 31_337) do
     []
   else
     indexer_chain.("AUTOLAUNCH_INDEXER_RPC_URL", fn -> 8453 end, fn ->

@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.Components.TokenLinks do
   # Both destinations are public Base mainnet. On a local-fork site they are
   # named as such, because nothing they sell or show is the fork's REGENT.
   def regent_market_links(assigns) do
-    assigns = assign(assigns, :local_lab?, Lab.enabled?())
+    assigns = assign(assigns, :local_lab?, Lab.test_chain?())
 
     ~H"""
     <nav class="regent-token-links" aria-label="REGENT market">

@@ -1,7 +1,5 @@
-import {createWalletClient, custom, getAddress, type Address, type Hash, type Hex} from "viem"
-import {base} from "viem/chains"
+import {getAddress, type Address, type Hash, type Hex} from "viem"
 
-import type {EthereumProvider} from "./connected_wallet"
 import {
   labNetwork,
   sendLabTransaction,
@@ -27,38 +25,18 @@ export type LaunchOperation = {
   action_id: string
   signer: Address
   chain_id: number
-  lab: AutolaunchLabBinding | null
-  lab_anchor: AutolaunchLabAnchor | null
+  lab: AutolaunchLabBinding
+  lab_anchor: AutolaunchLabAnchor
   terminal: boolean
   steps: LaunchStep[]
-}
-
-export type LaunchClients = {
-  addresses(): Promise<Address[]>
-  chainId(): Promise<number>
-  switchToBase(): Promise<void>
-  send(request: {account: Address; to: Address; data: Hex; value: bigint}): Promise<Hash>
-}
-
-export function clientsFor(provider: EthereumProvider): LaunchClients {
-  const walletClient = createWalletClient({chain: base, transport: custom(provider)})
-
-  return {
-    addresses: () => walletClient.getAddresses(),
-    chainId: () => walletClient.getChainId(),
-    switchToBase: async () => {
-      await walletClient.switchChain({id: base.id})
-    },
-    send: request => walletClient.sendTransaction(request),
-  }
 }
 
 /**
  * The one step of this launch the browser may hand to a wallet.
  *
- * The operation identity, the reviewed signer, the chain, the step the server
- * claimed and the exact bytes it reviewed all have to agree. A terminal
- * operation and an unknown step are refused rather than sent.
+ * The operation identity, the reviewed signer, the network binding, the step
+ * the server claimed and the exact bytes it reviewed all have to agree. A
+ * terminal operation and an unknown step are refused rather than sent.
  */
 export function sendableStep(
   operation: LaunchOperation,
@@ -67,9 +45,6 @@ export function sendableStep(
 ): LaunchStep {
   if (operation.action_id !== actionId) throw new Error("This is a different launch.")
   if (operation.terminal) throw new Error("This launch has already finished.")
-  if (operation.lab === null && operation.chain_id !== base.id) {
-    throw new Error("This launch is not for Base.")
-  }
   labNetwork(operation)
 
   const step = operation.steps.find(candidate => candidate.step === stepName)
@@ -87,71 +62,15 @@ export function sendableStep(
  *
  * `onSendStarted` runs synchronously immediately before the wallet send, so a
  * caller can tell a failure that never asked the wallet for anything from one
- * that may already have put a transaction on Base.
+ * that may already have put a transaction on the chain.
  */
-export async function sendLaunchStep(
+export function sendLaunchStep(
   operation: LaunchOperation,
   step: LaunchStep,
   resolveWallet: WalletResolver,
   onSendStarted: () => void,
-  clientFactory: (provider: EthereumProvider) => LaunchClients = clientsFor,
 ): Promise<Hash> {
-  if (labNetwork(operation)) {
-    return sendLabTransaction(operation, step, resolveWallet, onSendStarted)
-  }
-
-  const selected = selectedWallet(resolveWallet, operation.signer)
-  const clients = clientFactory(selected.provider)
-
-  if ((await clients.chainId()) !== base.id) {
-    sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
-    await clients.switchToBase()
-  }
-
-  sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
-
-  // The account is read again here, immediately before the send, so a wallet
-  // that moved after the server's own check still cannot be handed these bytes.
-  const [account] = await clients.addresses()
-  if (!account || getAddress(account) !== getAddress(operation.signer)) {
-    throw new Error("Use the wallet this launch was reviewed for.")
-  }
-
-  sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
-
-  // Match the local-lab boundary: after the account is reacquired, chain ID is
-  // the final asynchronous read before the wallet receives reviewed calldata.
-  if ((await clients.chainId()) !== base.id) {
-    throw new Error("Switch to Base before continuing.")
-  }
-
-  sameSelectedWallet(resolveWallet, selected.provider, operation.signer)
-
-  onSendStarted()
-  return clients.send({account, to: getAddress(step.to), data: step.data, value: 0n})
-}
-
-function selectedWallet(resolveWallet: WalletResolver, signer: Address) {
-  const selected = resolveWallet()
-  if (!selected || getAddress(selected.address) !== getAddress(signer)) {
-    throw new Error("Use the wallet this launch was reviewed for.")
-  }
-  return selected
-}
-
-function sameSelectedWallet(
-  resolveWallet: WalletResolver,
-  provider: EthereumProvider,
-  signer: Address,
-): void {
-  const current = resolveWallet()
-  if (
-    !current ||
-    current.provider !== provider ||
-    getAddress(current.address) !== getAddress(signer)
-  ) {
-    throw new Error("The selected wallet changed. Review this launch again.")
-  }
+  return sendLabTransaction(operation, step, resolveWallet, onSendStarted)
 }
 
 /**

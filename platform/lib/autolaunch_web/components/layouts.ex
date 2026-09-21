@@ -23,7 +23,7 @@ defmodule AutolaunchWeb.Layouts do
     <p :if={Autolaunch.Prelaunch.read_only?()} class="autolaunch-prelaunch-notice" role="status">
       Prelaunch · Read-only preview · Creation, accounts and wallet actions open after contract deployment.
     </p>
-    <p :if={Autolaunch.Lab.enabled?()} class="autolaunch-lab-warning" role="status">
+    <p :if={Autolaunch.Lab.test_chain?()} class="autolaunch-lab-warning" role="status">
       {@fork_label} · test assets · no mainnet value<span :if={!Autolaunch.Prelaunch.read_only?()}><span :if={
         !@preview?
       }> · launches and bids only</span>

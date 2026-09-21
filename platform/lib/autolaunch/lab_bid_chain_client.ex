@@ -155,7 +155,7 @@ defmodule Autolaunch.LabBidChainClient do
     else
       false -> {:error, :stock_not_admitted}
       :error -> {:error, :invalid_chain_response}
-      {:error, :stocks_lab_disabled} -> {:error, :usdc_bids_unavailable}
+      {:error, :stocks_deployment_missing} -> {:error, :usdc_bids_unavailable}
       {:error, reason} -> {:error, reason}
       _other -> {:error, :invalid_chain_response}
     end

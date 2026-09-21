@@ -269,12 +269,8 @@ defmodule Autolaunch.LaunchActions do
 
   @doc "The currently enforced lower bound, expressed in REGENT for the draft form."
   def minimum_raise do
-    if Lab.enabled?() do
-      with {:ok, amount} <- Autolaunch.LabLaunchChainClient.minimum_raise(),
-           do: {:ok, regent_units(amount)}
-    else
-      unavailable(:launch_preparation_unavailable)
-    end
+    with {:ok, amount} <- Autolaunch.LabLaunchChainClient.minimum_raise(),
+         do: {:ok, regent_units(amount)}
   end
 
   # The exact decimal rendering of an atomic REGENT amount.
@@ -298,14 +294,14 @@ defmodule Autolaunch.LaunchActions do
           to: snapshot.factory,
           resource: @resource,
           contract_name: @contract_name,
-          risk_copy: risk_copy(snapshot.fee, snapshot),
+          risk_copy: risk_copy(snapshot.fee),
           arguments: arguments(draft, fields, snapshot, steps, treasury_report)
         ]
     )
     |> stored()
   end
 
-  defp launch_data(fields, %{lab_binding: binding} = snapshot) do
+  defp launch_data(fields, snapshot) do
     config = Lab.current!()
 
     data =
@@ -326,11 +322,8 @@ defmodule Autolaunch.LaunchActions do
         ]
       )
 
-    {data, [chain_id: Lab.chain_id(), lab_binding: binding]}
+    {data, [chain_id: Lab.chain_id(), lab_binding: snapshot.lab_binding]}
   end
-
-  defp launch_data(fields, snapshot),
-    do: {LaunchAbi.encode_launch(Map.put(fields, :expected_launch_fee, snapshot.fee)), []}
 
   # One stored shape: the envelope is written, read and rendered exactly as the
   # confirmation token signed it.
@@ -347,7 +340,7 @@ defmodule Autolaunch.LaunchActions do
       %{
         "step" => "approval",
         "to" => regent_address(snapshot),
-        "data" => encode_regent_approval(snapshot, snapshot.factory, snapshot.fee),
+        "data" => encode_regent_approval(snapshot.factory, snapshot.fee),
         "amount" => Integer.to_string(snapshot.fee),
         "spender" => snapshot.factory
       }
@@ -381,19 +374,21 @@ defmodule Autolaunch.LaunchActions do
     }
   end
 
-  defp risk_copy(0, %{lab_binding: _binding}),
+  defp risk_copy(fee), do: risk_copy(fee, Lab.test_chain?())
+
+  defp risk_copy(0, true),
     do:
       "Your wallet creates this launch on a Base fork with test assets and no mainnet value. The launch fee is zero."
 
-  defp risk_copy(fee, %{lab_binding: _binding}),
+  defp risk_copy(fee, true),
     do:
       "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a Base fork. Test assets have no mainnet value."
 
-  defp risk_copy(0, _snapshot),
+  defp risk_copy(0, false),
     do:
       "Your wallet creates this launch on Base. The launch fee is zero right now, so no REGENT moves. A launch cannot be undone."
 
-  defp risk_copy(fee, _snapshot),
+  defp risk_copy(fee, false),
     do:
       "Your wallet pays #{regent_units(fee)} REGENT to create this launch on Base. A launch cannot be undone."
 
@@ -495,13 +490,10 @@ defmodule Autolaunch.LaunchActions do
 
   defp accepted_regent?(_snapshot), do: false
 
-  defp encode_regent_approval(%{lab_binding: _binding}, spender, amount) do
+  defp encode_regent_approval(spender, amount) do
     config = Lab.current!()
     LabAbi.encode(Lab.abi!(config, :token), "approve(address,uint256)", [spender, amount])
   end
-
-  defp encode_regent_approval(_snapshot, spender, amount),
-    do: Abi.encode_erc20("approve", [spender, amount])
 
   # A review is derived from one whole snapshot or from none, so a partial answer
   # is refused before any of it is believed.
@@ -684,22 +676,17 @@ defmodule Autolaunch.LaunchActions do
       action: @action,
       signer: operation.signer,
       to: argument(operation, "factory"),
-      contract_name: @contract_name
+      contract_name: @contract_name,
+      chain_id: Lab.chain_id()
     ]
 
-    options =
-      if lab_operation?(operation),
-        do: Keyword.put(options, :chain_id, Lab.chain_id()),
-        else: options
-
     Envelope.valid?(operation.envelope, options) and
-      (not lab_operation?(operation) or
-         Lab.binding_matches?(operation.envelope["metadata"]["lab"], [
-           :factory,
-           :strategy,
-           :hook,
-           :regent
-         ]))
+      Lab.binding_matches?(operation.envelope["metadata"]["lab"], [
+        :factory,
+        :strategy,
+        :hook,
+        :regent
+      ])
   end
 
   defp chain_still_reviewed(operation, step, fresh) do
@@ -739,7 +726,7 @@ defmodule Autolaunch.LaunchActions do
   defp allowance_ready?(:launch, fresh, _operation), do: fresh.allowance == fresh.fee
 
   defp review_treasury(draft) do
-    if Lab.enabled?() do
+    if Lab.test_chain?() do
       {:ok,
        %{
          "mode" => "local_lab",
@@ -853,8 +840,7 @@ defmodule Autolaunch.LaunchActions do
   end
 
   defp valid_lab_treasury?(operation, binding) do
-    lab_operation?(operation) and
-      Address.equal?(binding["address"], argument(operation, "treasury")) and
+    Address.equal?(binding["address"], argument(operation, "treasury")) and
       Lab.binding_matches?(operation.envelope["metadata"]["lab"], [
         :factory,
         :strategy,
@@ -862,8 +848,6 @@ defmodule Autolaunch.LaunchActions do
         :regent
       ])
   end
-
-  defp lab_operation?(operation), do: get_in(operation.envelope, ["metadata", "lab"]) != nil
 
   defp transition(action, nil),
     do: fn _account, operation -> LaunchOperations.update(operation, action) end

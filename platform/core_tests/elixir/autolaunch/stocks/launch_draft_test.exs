@@ -34,6 +34,7 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
 
     {:ok, projected} =
       Autolaunch.Stocks.LabProjection.project_observed(%{
+        chain_id: 8453,
         auction_address: auction,
         creator_human_account_id: owner.human_account_id,
         title: "Mine",

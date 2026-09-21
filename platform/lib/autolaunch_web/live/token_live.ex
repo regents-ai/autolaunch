@@ -29,7 +29,7 @@ defmodule AutolaunchWeb.TokenLive do
   def render(assigns) do
     assigns =
       assign(assigns,
-        local_lab?: Lab.enabled?(),
+        local_lab?: Lab.test_chain?(),
         page_record: page_record(assigns.page),
         page_status: page_status(assigns.page, :error),
         creator_connections: page_connections(assigns.page)
@@ -126,7 +126,7 @@ defmodule AutolaunchWeb.TokenLive do
   # site without the lab has no pool to read. A fresh page starts from nothing;
   # a re-read keeps the last figures until the new ones arrive.
   defp load_pool(socket, reset?) do
-    if Lab.enabled?(),
+    if Lab.configured?(),
       do: read_pool(socket, reset?),
       else: assign(socket, :pool, %Phoenix.LiveView.AsyncResult{})
   end

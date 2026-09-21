@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   @not_graduated [:not_graduated, :unknown_auction, :invalid_auction]
 
-  def mount(_params, _session, socket), do: {:ok, assign(socket, :open?, Lab.enabled?())}
+  def mount(_params, _session, socket), do: {:ok, assign(socket, :open?, Lab.configured?())}
 
   def handle_params(%{"auction" => auction}, _uri, socket) do
     case Address.normalize(auction) do

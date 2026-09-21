@@ -53,24 +53,13 @@ defmodule Autolaunch.Stocks.Assets do
   def all(:robinhood) do
     case RobinhoodLab.current() do
       {:ok, config} ->
-        Enum.map(RobinhoodLab.stocks(config), fn stock ->
-          %{
-            chain_id: RobinhoodLab.chain_id(),
-            symbol: stock.symbol,
-            name: stock.name,
-            address: stock.address,
-            decimals: stock.decimals,
-            route: stock.route,
-            catalog_status: :lab_fixture,
-            launch_admission: :fixture_admitted
-          }
-        end)
+        Enum.map(RobinhoodLab.stocks(config), &robinhood_asset(config, &1))
 
-      {:error, :robinhood_lab_disabled} ->
+      {:error, :robinhood_deployment_missing} ->
         []
 
       {:error, reason} ->
-        raise "Autolaunch Robinhood lab configuration is invalid: #{reason}"
+        raise "Autolaunch Robinhood deployment description is invalid: #{reason}"
     end
   end
 
@@ -91,8 +80,34 @@ defmodule Autolaunch.Stocks.Assets do
   def oracle_registry, do: %{chain_id: @base_chain_id, address: @oracle_registry}
 
   def fetch(@base_chain_id, address) when is_binary(address), do: find(:base, address)
-  def fetch(31_338, address) when is_binary(address), do: find(:robinhood, address)
+
+  def fetch(chain_id, address) when is_integer(chain_id) and is_binary(address) do
+    if chain_id == RobinhoodLab.chain_id(),
+      do: find(:robinhood, address),
+      else: {:error, :unsupported_stock}
+  end
+
   def fetch(_chain_id, _address), do: {:error, :unsupported_stock}
+
+  # A fixture stock is the lab's own mintable token; any other stock the
+  # description lists is a listed asset whose admission the launchpad answers.
+  defp robinhood_asset(config, %{fixture: true} = stock),
+    do: robinhood_asset(config, stock, :lab_fixture, :fixture_admitted)
+
+  defp robinhood_asset(config, stock), do: robinhood_asset(config, stock, :listed, :unverified)
+
+  defp robinhood_asset(config, stock, catalog_status, launch_admission) do
+    %{
+      chain_id: config.chain_id,
+      symbol: stock.symbol,
+      name: stock.name,
+      address: stock.address,
+      decimals: stock.decimals,
+      route: stock.route,
+      catalog_status: catalog_status,
+      launch_admission: launch_admission
+    }
+  end
 
   defp find(chain, address) do
     if Regex.match?(~r/\A0x[0-9a-fA-F]{40}\z/, address) do

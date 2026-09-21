@@ -19,8 +19,8 @@ type Review = {
   component_id: string
   signer: Address
   chain_id: number
-  lab: AutolaunchLabBinding | null
-  lab_anchor: AutolaunchLabAnchor | null
+  lab: AutolaunchLabBinding
+  lab_anchor: AutolaunchLabAnchor
   steps: {step: string; to: Address; data: Hex}[]
 }
 

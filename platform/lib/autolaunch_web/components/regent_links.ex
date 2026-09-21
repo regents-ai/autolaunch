@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
   alias AutolaunchWeb.Components.TokenLinks
 
   def header_links(assigns) do
-    assigns = assign(assigns, :local_lab?, Autolaunch.Lab.enabled?())
+    assigns = assign(assigns, :local_lab?, Autolaunch.Lab.test_chain?())
 
     ~H"""
     <div class="regent-header-links">

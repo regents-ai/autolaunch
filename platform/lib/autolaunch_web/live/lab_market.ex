@@ -1,7 +1,6 @@
 defmodule AutolaunchWeb.LabMarket do
   @moduledoc false
 
-  alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
 
@@ -9,7 +8,7 @@ defmodule AutolaunchWeb.LabMarket do
 
   @doc "Subscribes the connected page to the lab market topic when a lab feed runs."
   def subscribe(socket) do
-    if Phoenix.LiveView.connected?(socket) and Lab.enabled?() and Process.whereis(LabMarketFeed) do
+    if Phoenix.LiveView.connected?(socket) and Process.whereis(LabMarketFeed) do
       Phoenix.PubSub.subscribe(Autolaunch.PubSub, LabMarketFeed.topic())
       snapshot()
     else

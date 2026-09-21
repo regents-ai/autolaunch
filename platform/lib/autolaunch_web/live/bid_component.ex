@@ -528,8 +528,6 @@ defmodule AutolaunchWeb.BidComponent do
     })
   end
 
-  defp lab_anchor(%{"metadata" => %{"lab" => nil}}), do: nil
-
   defp lab_anchor(envelope),
     do: %{
       block_number: envelope["arguments"]["block_number"],
@@ -647,7 +645,7 @@ defmodule AutolaunchWeb.BidComponent do
   def bid_currency(auction),
     do: if(usdc_bids?(auction), do: "USDC", else: auction.quote_token_symbol)
 
-  defp usdc_bids?(%{kind: :stocks}), do: StocksLab.enabled?()
+  defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()
   defp usdc_bids?(_auction), do: false
 
   # An amount chosen before the panel opened is entered once, in the form that
@@ -695,7 +693,7 @@ defmodule AutolaunchWeb.BidComponent do
   defp notice(tone, reason), do: %{tone: tone, message: copy(reason)}
 
   defp copy(:chain_unavailable) do
-    if Lab.enabled?(),
+    if Lab.test_chain?(),
       do: "The Base fork could not be read just now. Check that it is still running.",
       else: Map.fetch!(@copy, :chain_unavailable)
   end

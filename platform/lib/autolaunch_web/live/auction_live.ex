@@ -73,7 +73,7 @@ defmodule AutolaunchWeb.AuctionLive do
   def render(assigns) do
     assigns =
       assign(assigns,
-        local_lab?: Lab.enabled?(),
+        local_lab?: Lab.test_chain?(),
         page_record: page_record(assigns.page),
         page_status: page_status(assigns.page, :error),
         creator_connections: page_connections(assigns.page)
@@ -361,7 +361,7 @@ defmodule AutolaunchWeb.AuctionLive do
   defp page_token(_page), do: nil
 
   defp assign_market(socket) do
-    if connected?(socket) and Lab.enabled?() and Process.whereis(LabMarketFeed) do
+    if connected?(socket) and Process.whereis(LabMarketFeed) do
       Phoenix.PubSub.subscribe(Autolaunch.PubSub, LabMarketFeed.topic())
       assign(socket, :market, market_snapshot())
     else

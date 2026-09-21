@@ -1,20 +1,20 @@
 defmodule Autolaunch.Stocks.Lab do
   @moduledoc """
-  The Stocks lab configuration: `stocks-site-config.json` written by
-  `contracts/stocks/bin/local-stocks-lab.py deploy`.
+  The Base Stocks deployment description: `stocks-site-config.json` as
+  `contracts/stocks/bin/local-stocks-lab.py deploy` writes it, and as the
+  contracts thread writes it for Base mainnet. `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT`
+  names the file.
 
-  It extends a running Agent lab and is refused unless it names the very Agent
-  lab configuration this site runs with, answers on the same admitted RPC
-  doors as chain 31337 (`Autolaunch.LabRpcUrl`), and declares every function
-  and event the site prepares against. Production loads it only in fork mode
-  (`Autolaunch.ChainMode`).
+  It extends the Base deployment (`Autolaunch.Lab`) and is refused unless it
+  names the very Base description this site runs with, answers on the same
+  chain through the same RPC doors (`Autolaunch.LabRpcUrl`), and declares
+  every function and event the site prepares against.
   """
 
   alias Autolaunch.Chain.Address
-  alias Autolaunch.{ChainMode, Lab, LabRpcUrl}
+  alias Autolaunch.{Lab, LabRpcUrl}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
-  @chain_id 31_337
   @stock_chain_id 8453
 
   @address_keys ~w(
@@ -48,16 +48,19 @@ defmodule Autolaunch.Stocks.Lab do
           abis: %{required(String.t()) => [map()]}
         }
 
-  def enabled?,
-    do: Application.get_env(:autolaunch, :autolaunch_stocks_lab_enabled, false) == true
+  @doc "Whether this site was given a Base Stocks deployment description."
+  def configured?,
+    do: is_binary(Application.get_env(:autolaunch, :autolaunch_base_stocks_deployment))
 
-  @doc "The loaded configuration, refused unless the Agent lab it extends is the current one."
+  @doc "The loaded description, refused unless the Base description it extends is the current one."
   def current do
-    with true <- enabled?() || {:error, :stocks_lab_disabled},
+    with path when is_binary(path) <-
+           Application.get_env(:autolaunch, :autolaunch_base_stocks_deployment) ||
+             {:error, :stocks_deployment_missing},
          {:ok, agent} <- Lab.current(),
-         {:ok, config} <-
-           Application.fetch_env!(:autolaunch, :autolaunch_stocks_lab_config_path) |> load(),
+         {:ok, config} <- load(path),
          true <- config.agent_lab_config == agent.path || {:error, :agent_lab_mismatch},
+         true <- config.chain_id == agent.chain_id || {:error, :agent_lab_mismatch},
          true <- config.rpc_url == agent.rpc_url || {:error, :agent_lab_mismatch},
          true <- config.public_rpc_url == agent.public_rpc_url || {:error, :agent_lab_mismatch},
          true <- same_agent_addresses?(config, agent) || {:error, :agent_lab_mismatch} do
@@ -67,29 +70,33 @@ defmodule Autolaunch.Stocks.Lab do
 
   def current! do
     case current() do
-      {:ok, config} -> config
-      {:error, reason} -> raise "Autolaunch Stocks lab configuration is unavailable: #{reason}"
+      {:ok, config} ->
+        config
+
+      {:error, reason} ->
+        raise "Autolaunch Base Stocks deployment description is unavailable: #{reason}"
     end
   end
 
-  def load!(path, mode \\ ChainMode.mode()) do
-    case load(path, mode) do
-      {:ok, config} -> config
-      {:error, reason} -> raise "Autolaunch Stocks lab configuration is invalid: #{reason}"
+  def load!(path) do
+    case load(path) do
+      {:ok, config} ->
+        config
+
+      {:error, reason} ->
+        raise "Autolaunch Base Stocks deployment description is invalid: #{reason}"
     end
   end
 
-  def load(path, mode \\ ChainMode.mode())
-
-  def load(path, mode) when is_binary(path) do
+  def load(path) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
          # Founder-supplied startup input; this path never comes from an HTTP request.
          # sobelow_skip ["Traversal.FileModule"]
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"], mode),
-         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url, mode),
-         @chain_id <- decoded["chain_id"],
+         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
+         {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
          {:ok, agent_lab_config} <- absolute(decoded["agent_lab_config"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, faucet} <- exact_faucet(decoded["faucet"]),
@@ -101,7 +108,7 @@ defmodule Autolaunch.Stocks.Lab do
          path: path,
          rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
-         chain_id: @chain_id,
+         chain_id: chain_id,
          agent_lab_config: agent_lab_config,
          addresses: addresses,
          faucet: faucet,
@@ -117,10 +124,10 @@ defmodule Autolaunch.Stocks.Lab do
     end
   end
 
-  def load(_path, _mode), do: {:error, :absolute_path_required}
+  def load(_path), do: {:error, :absolute_path_required}
 
   @doc """
-  The lab binding an envelope carries: the exact addresses a review depends on,
+  The binding an envelope carries: the exact addresses a review depends on,
   with the public RPC door as its `rpc_url`. The site's own door never leaves
   the server.
   """
@@ -167,7 +174,9 @@ defmodule Autolaunch.Stocks.Lab do
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
-  def chain_id, do: @chain_id
+
+  @doc "The Base deployment's chain id, which this description shares."
+  def chain_id, do: Lab.chain_id()
   def stock_chain_id, do: @stock_chain_id
 
   def rpc_opts(config, scope \\ "autolaunch stocks lab") do

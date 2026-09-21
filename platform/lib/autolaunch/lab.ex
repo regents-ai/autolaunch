@@ -1,10 +1,22 @@
 defmodule Autolaunch.Lab do
-  @moduledoc false
+  @moduledoc """
+  The Base deployment description: `site-config.json` as the lab controller
+  writes it at deployment, and as the contracts thread writes it for Base
+  mainnet. One shape in every environment: the chain id, the site's RPC door,
+  the door wallets use, every address the site prepares against and every ABI
+  it encodes with.
+
+  `AUTOLAUNCH_BASE_DEPLOYMENT` names the file and `AUTOLAUNCH_BASE_DEPLOYMENT_ID`
+  labels the deployment; the label travels in every envelope's binding so a
+  review made against one deployment never confirms against another. Chain
+  31337 is a test chain (a local lab or a hosted fork carrying test assets);
+  `test_chain?/0` is what the lab-only features key off.
+  """
 
   alias Autolaunch.Chain.Address
-  alias Autolaunch.{ChainMode, LabRpcUrl}
+  alias Autolaunch.LabRpcUrl
 
-  @chain_id 31_337
+  @test_chain_id 31_337
   # 1 / 2^96 = 5^96 / 10^96, so a Q96 price is an exact 96-place decimal.
   @five_pow_96 Integer.pow(5, 96)
   @address_keys ~w(
@@ -34,59 +46,58 @@ defmodule Autolaunch.Lab do
           abis: %{required(String.t()) => [map()]}
         }
 
-  def enabled?, do: Application.get_env(:autolaunch, :autolaunch_lab_enabled, false) == true
+  @doc "Whether this site was given a Base deployment description."
+  def configured?, do: is_binary(Application.get_env(:autolaunch, :autolaunch_base_deployment))
+
+  @doc "Whether the Base deployment is a test chain: test assets with no mainnet value."
+  def test_chain?, do: chain_id() == @test_chain_id
+
+  @doc "The configured Base deployment's chain id, or `nil` without one."
+  def chain_id, do: Application.get_env(:autolaunch, :autolaunch_base_chain_id)
 
   def current do
-    if enabled?() do
-      with {:ok, config} <-
-             Application.fetch_env!(:autolaunch, :autolaunch_lab_config_path)
-             |> load(),
-           run_id when is_binary(run_id) and run_id != "" <-
-             Application.get_env(:autolaunch, :autolaunch_lab_run_id) do
-        {:ok, Map.put(config, :run_id, run_id)}
-      else
-        nil -> {:error, :missing_acceptance_run}
-        "" -> {:error, :missing_acceptance_run}
-        {:error, reason} -> {:error, reason}
-        _invalid -> {:error, :missing_acceptance_run}
-      end
+    with path when is_binary(path) <-
+           Application.get_env(:autolaunch, :autolaunch_base_deployment),
+         {:ok, config} <- load(path),
+         run_id when is_binary(run_id) and run_id != "" <-
+           Application.get_env(:autolaunch, :autolaunch_base_deployment_id) do
+      {:ok, Map.put(config, :run_id, run_id)}
     else
-      {:error, :lab_disabled}
+      nil -> {:error, :deployment_missing}
+      {:error, reason} -> {:error, reason}
+      _invalid -> {:error, :missing_deployment_id}
     end
   end
 
   def current! do
     case current() do
       {:ok, config} -> config
-      {:error, reason} -> raise "Autolaunch lab configuration is unavailable: #{reason}"
+      {:error, reason} -> raise "Autolaunch Base deployment description is unavailable: #{reason}"
     end
   end
 
-  def load!(path, mode \\ ChainMode.mode()) do
-    case load(path, mode) do
+  def load!(path) do
+    case load(path) do
       {:ok, config} -> config
-      {:error, reason} -> raise "Autolaunch lab configuration is invalid: #{reason}"
+      {:error, reason} -> raise "Autolaunch Base deployment description is invalid: #{reason}"
     end
   end
 
   @doc """
-  Reads and validates `site-config.json` for a chain mode.
+  Reads and validates `site-config.json`.
 
-  `rpc_url` is the site's own door and must be admitted for the mode
-  (`Autolaunch.LabRpcUrl.admitted/2`); `public_rpc_url` is the door wallets
-  add and is required in fork mode (`Autolaunch.LabRpcUrl.public/3`).
+  `rpc_url` is the site's own door (`Autolaunch.LabRpcUrl.admitted/1`);
+  `public_rpc_url` is the door wallets use (`Autolaunch.LabRpcUrl.public/2`).
   """
-  def load(path, mode \\ ChainMode.mode())
-
-  def load(path, mode) when is_binary(path) do
+  def load(path) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
          # Founder-supplied startup input; this path never comes from an HTTP request.
          # sobelow_skip ["Traversal.FileModule"]
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"], mode),
-         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url, mode),
-         @chain_id <- decoded["chain_id"],
+         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
+         {:ok, chain_id} <- chain_id(decoded["chain_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, abis} <- exact_abis(decoded["abis"]),
          :ok <- Autolaunch.LabAbi.validate(abis) do
@@ -95,7 +106,7 @@ defmodule Autolaunch.Lab do
          path: path,
          rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
-         chain_id: @chain_id,
+         chain_id: chain_id,
          addresses: addresses,
          abis: abis
        }}
@@ -108,12 +119,12 @@ defmodule Autolaunch.Lab do
     end
   end
 
-  def load(_path, _mode), do: {:error, :absolute_path_required}
+  def load(_path), do: {:error, :absolute_path_required}
 
   @doc """
-  The lab binding an envelope carries to the browser. Its `rpc_url` is the
-  public door, the one a wallet adds as chain 31337; the site's own `rpc_url`
-  never leaves the server.
+  The binding an envelope carries to the browser. Its `rpc_url` is the public
+  door, the one a wallet uses for the chain; the site's own `rpc_url` never
+  leaves the server.
   """
   def binding(
         %{
@@ -166,7 +177,10 @@ defmodule Autolaunch.Lab do
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
-  def chain_id, do: @chain_id
+
+  @doc "The chain id a description names: any positive integer, exactly as written."
+  def chain_id(value) when is_integer(value) and value > 0, do: {:ok, value}
+  def chain_id(_value), do: {:error, :invalid_chain_id}
 
   defp exact_addresses(addresses) when is_map(addresses) do
     with true <- Enum.sort(Map.keys(addresses)) == Enum.sort(@address_keys),

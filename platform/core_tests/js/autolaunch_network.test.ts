@@ -9,7 +9,6 @@ import {
 import type {EthereumProvider} from "../../assets/js/wallet_actions/connected_wallet"
 
 const wallet = getAddress("0x1111111111111111111111111111111111111111")
-const other = getAddress("0x2222222222222222222222222222222222222222")
 const target = getAddress("0x3333333333333333333333333333333333333333")
 const hash = `0x${"ab".repeat(32)}` as Hash
 const blockHash = `0x${"12".repeat(32)}` as Hash
@@ -40,18 +39,41 @@ function selected(provider: EthereumProvider, address: string = wallet) {
 }
 
 describe("the wallet-facing RPC door admits loopback and https only", () => {
-  it("names the local lab for a loopback door and the preview for an https door", () => {
+  it("names the chain the binding is for: Base, the local lab or the preview", () => {
     expect(labNetwork(operation())).toEqual({
       chainId: 31_337,
       rpcUrl: "http://127.0.0.1:8545",
       chainName: "Autolaunch Local Lab",
+      testChain: true,
     })
 
     expect(labNetwork(operation({lab: binding({rpc_url: "https://fork.example.test/rpc"})}))).toEqual({
       chainId: 31_337,
       rpcUrl: "https://fork.example.test/rpc",
       chainName: "Autolaunch preview (Base fork)",
+      testChain: true,
     })
+
+    expect(
+      labNetwork(
+        operation({
+          chain_id: 8453,
+          lab: binding({chain_id: 8453, rpc_url: "https://base.example.test"}),
+        }),
+      ),
+    ).toEqual({
+      chainId: 8453,
+      rpcUrl: "https://base.example.test",
+      chainName: "Base",
+      testChain: false,
+    })
+
+    // Base is never reached through a loopback door, and a binding for one
+    // chain never sends on another.
+    expect(() =>
+      labNetwork(operation({chain_id: 8453, lab: binding({chain_id: 8453})})),
+    ).toThrow("The network binding changed.")
+    expect(() => labNetwork(operation({chain_id: 8453}))).toThrow("The network binding changed.")
   })
 
   it("refuses plain http off loopback, credentials, queries and fragments", () => {
@@ -66,7 +88,7 @@ describe("the wallet-facing RPC door admits loopback and https only", () => {
       "",
     ]) {
       expect(() => labNetwork(operation({lab: binding({rpc_url})}))).toThrow(
-        "The fork network binding changed.",
+        "The network binding changed.",
       )
     }
   })
@@ -95,7 +117,7 @@ describe("the wallet-facing RPC door admits loopback and https only", () => {
         selected({request}),
         vi.fn(),
       ),
-    ).rejects.toThrow("Switch to the Autolaunch fork")
+    ).rejects.toThrow("Switch to Autolaunch preview (Base fork)")
 
     expect(chains).toEqual([
       {
@@ -108,7 +130,7 @@ describe("the wallet-facing RPC door admits loopback and https only", () => {
   })
 })
 
-describe("each fork send rechecks account and chain at the provider boundary", () => {
+describe("each send rechecks account and chain at the provider boundary", () => {
 
   it("refuses a final switch back to Base without exposing the transaction", async () => {
     let chainReads = 0
@@ -126,7 +148,7 @@ describe("each fork send rechecks account and chain at the provider boundary", (
 
     await expect(
       sendLabTransaction(operation(), {to: target, data}, selected({request}), marked),
-    ).rejects.toThrow("Switch to the Autolaunch fork")
+    ).rejects.toThrow("Switch to Autolaunch Local Lab")
     expect(marked).not.toHaveBeenCalled()
     expect(request.mock.calls.map(([request]) => request.method)).not.toContain(
       "eth_sendTransaction",
@@ -149,6 +171,27 @@ describe("each fork send rechecks account and chain at the provider boundary", (
     expect(marked).not.toHaveBeenCalled()
     expect(request.mock.calls.map(([request]) => request.method)).not.toContain(
       "eth_sendTransaction",
+    )
+  })
+
+  it("sends on Base without anchoring to the reviewed block", async () => {
+    const request = vi.fn(async ({method}: {method: string}) => {
+      if (method === "eth_chainId") return "0x2105"
+      if (method === "eth_accounts") return [wallet]
+      if (method === "eth_sendTransaction") return hash
+      throw new Error(`Unexpected provider method ${method}`)
+    })
+
+    await expect(
+      sendLabTransaction(
+        operation({chain_id: 8453, lab: binding({chain_id: 8453, rpc_url: "https://base.example.test"})}),
+        {to: target, data},
+        selected({request}),
+        vi.fn(),
+      ),
+    ).resolves.toBe(hash)
+    expect(request.mock.calls.map(([request]) => request.method)).not.toContain(
+      "eth_getBlockByNumber",
     )
   })
 

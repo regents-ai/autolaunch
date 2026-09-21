@@ -9,24 +9,22 @@ defmodule Autolaunch.Stocks.LabProjection do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Auction
-  alias Autolaunch.Stocks.Lab
-
   @actor %System{}
   @domain Autolaunch
-  @chain_id Lab.chain_id()
 
-  @doc "Projects one receipt-verified local Stocks launch from its operation."
+  @doc "Projects one receipt-verified Stocks launch from its operation."
   def project_launch(
-        %{envelope: %{"chain_id" => @chain_id, "metadata" => %{"lab" => lab}} = envelope} =
+        %{envelope: %{"chain_id" => chain_id, "metadata" => %{"lab" => lab}} = envelope} =
           operation,
         result
       )
-      when is_map(lab) and is_map(result) do
+      when is_integer(chain_id) and is_map(lab) and is_map(result) do
     arguments = envelope["arguments"]
 
     # A verified launch is a command: the caller needs to know it landed, not the row.
     with {:ok, _auction} <-
            upsert(%{
+             chain_id: chain_id,
              auction_address: result["auction"],
              creator_human_account_id: Map.get(operation, :human_account_id),
              title: arguments["name"],
@@ -47,8 +45,9 @@ defmodule Autolaunch.Stocks.LabProjection do
 
   def project_launch(_operation, _result), do: :ok
 
-  @doc "Projects one `StockLaunchCreated` observed on the fork for a creator this site knows."
-  def project_observed(attributes) when is_map(attributes), do: upsert(attributes)
+  @doc "Projects one `StockLaunchCreated` observed on the chain for a creator this site knows."
+  def project_observed(%{chain_id: chain_id} = attributes) when is_integer(chain_id),
+    do: upsert(attributes)
 
   defp upsert(attributes) do
     Auction
@@ -56,7 +55,6 @@ defmodule Autolaunch.Stocks.LabProjection do
       :project_lab,
       attributes
       |> Map.merge(%{
-        chain_id: @chain_id,
         kind: :stocks,
         featured: false,
         current_clearing_price: "0"

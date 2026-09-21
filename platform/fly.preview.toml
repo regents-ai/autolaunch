@@ -19,9 +19,9 @@ primary_region = "iad"
   PHX_HOST = "preview.autolaunch.sh"
   AUTOLAUNCH_DEPLOYMENT_ROLE = "staging"
   AUTOLAUNCH_CHAIN_MODE = "fork"
-  AUTOLAUNCH_LAB_CONFIG = "/app/fork/site-config.json"
-  AUTOLAUNCH_STOCKS_LAB_CONFIG = "/app/fork/stocks-site-config.json"
-  AUTOLAUNCH_FORK_RUN_ID = "preview"
+  AUTOLAUNCH_BASE_DEPLOYMENT = "/app/fork/site-config.json"
+  AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT = "/app/fork/stocks-site-config.json"
+  AUTOLAUNCH_BASE_DEPLOYMENT_ID = "preview"
 
 [http_service]
   internal_port = 4000

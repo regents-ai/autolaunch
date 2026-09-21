@@ -157,7 +157,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
             trade_event={@trade_event}
           />
           <.treasury_security
-            :if={!Lab.enabled?()}
+            :if={!Lab.test_chain?()}
             report={report(record)}
             surface={"overview-#{@kind}-#{record.id}"}
           />
@@ -169,7 +169,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         records={@records.result}
         creators={grouped_connections(@creators)}
         trade_event={@trade_event}
-        treasury={!Lab.enabled?()}
+        treasury={!Lab.test_chain?()}
       />
       <nav
         :if={@pagination.ok? && (@cursor || @pagination.result.has_more)}
@@ -275,7 +275,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
             <span aria-hidden="true">→</span></span>
           </.link>
           <.treasury_security
-            :if={!Lab.enabled?()}
+            :if={!Lab.test_chain?()}
             report={report(record)}
             surface={"overview-#{@kind}-#{record.id}"}
           />

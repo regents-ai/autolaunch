@@ -28,15 +28,23 @@ for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describ
     vi.stubGlobal("window", {location: {origin: "http://fixture.invalid"}, dispatchEvent: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn()})
     const preflight = deferred<unknown>()
     let delayPreflight = true
-    const provider = {request: vi.fn(async () => delayPreflight ? preflight.promise : [signer])}
-    replaceActiveEthereumWallet({address: signer, provider})
     const a = deferred<Hash>(), b = deferred<Hash>()
     const requests: unknown[] = []
+    // One wallet on Base: the press preflight's account read is held until released,
+    // and each send is answered by its own deferred hash.
+    const provider = {request: vi.fn(async ({method, params}: {method: string; params?: unknown[]}) => {
+      if (method === "eth_chainId") return "0x2105"
+      if (method === "eth_accounts") return delayPreflight ? preflight.promise : [signer]
+      if (method === "eth_sendTransaction") { requests.push(params?.[0]); return requests.length === 1 ? a.promise : b.promise }
+      throw new Error(`Unexpected provider method ${method}`)
+    })}
+    replaceActiveEthereumWallet({address: signer, provider})
     const clients = {addresses: async () => [signer], chainId: async () => 8453,
       switchToBase: async () => {}, send: (request: unknown) => { requests.push(request); return requests.length === 1 ? a.promise : b.promise }}
     const step = kind === "subject" ? "action" : kind
+    const lab = {run_id: "base-2026-09", rpc_url: "https://base.example.test", chain_id: 8453, addresses: {regent: to}}
     const op = {action_id: actionA, signer, terminal: false, chain_id: 8453,
-      lab: null, lab_anchor: null, subject_id: "subject", component_id: "panel",
+      lab, lab_anchor: {block_number: 30_000_000, block_hash: hashA}, subject_id: "subject", component_id: "panel",
       steps: [{step, to, data: "0x1234"}]} as unknown as BidOperation & LaunchOperation & SubjectWalletOperation
     const callbacks = new Map<string, (p: any) => any>()
     const events: [string, any][] = []
@@ -46,8 +54,8 @@ for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describ
       pushEventTo: (_: HTMLElement, name: string, payload: unknown) => {events.push([name, payload])}}
     const send = (held: typeof op, name: string, started: () => void) => {
       const resolve = () => ({address: signer, provider})
-      if (kind === "bid") return sendBidStep(held, bidStep(held, held.action_id, name), resolve, started, () => clients)
-      if (kind === "launch") return sendLaunchStep(held, launchStep(held, held.action_id, name), resolve, started, () => clients)
+      if (kind === "bid") return sendBidStep(held, bidStep(held, held.action_id, name), resolve, started)
+      if (kind === "launch") return sendLaunchStep(held, launchStep(held, held.action_id, name), resolve, started)
       return sendSubjectStep(held, subjectStep(held, held.action_id, name), resolve, started, clients)
     }
     const config = {prefix: "review", selector: "[data-send]", connect: "[data-connect]", send}

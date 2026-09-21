@@ -20,7 +20,7 @@ Privy" when real sign-in is configured (below) and "sign-in unavailable" otherwi
 | --- | --- | --- |
 | Controller | `contracts/v1/bin/local-base-lab.py`, run from `contracts/v1` | Starts Anvil as a fork of Base, deploys the graph, funds wallets, mines to auction milestones, reports status, stops Anvil |
 | Run record | `contracts/v1/reports/generated/local-base-lab/state.json` | Anvil PID, RPC URL, head block at start, local addresses; ignored by Git |
-| Site config | `contracts/v1/reports/generated/local-base-lab/site-config.json` | `rpc_url`, `chain_id`, thirteen `addresses`, nine `abis`; the file `AUTOLAUNCH_LAB_CONFIG` names. An optional `public_rpc_url` (`https://` only) is the door wallets add as chain 31337; without it wallets are given the loopback `rpc_url` |
+| Site config | `contracts/v1/reports/generated/local-base-lab/site-config.json` | `rpc_url`, `chain_id`, thirteen `addresses`, nine `abis`; the file `AUTOLAUNCH_BASE_DEPLOYMENT` names. An optional `public_rpc_url` (`https://` only) is the door wallets add as chain 31337; without it wallets are given the loopback `rpc_url` |
 | Site integration | `Autolaunch.Lab`, `Autolaunch.LabMarketFeed`, `Autolaunch.LabProjection`, `Autolaunch.LabBidChainClient` | Validates the config, reads the fork every second, projects launched auctions into the database, verifies bids against the fork |
 
 ## Starting a fresh lab
@@ -78,15 +78,15 @@ env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test \
     MIX_TEST_PARTITION=_lab PORT=4050 \
     AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
     PRIVY_APP_ID=browser-test-public-id \
-    AUTOLAUNCH_LAB_CONFIG=/absolute/path/to/contracts/v1/reports/generated/local-base-lab/site-config.json \
-    AUTOLAUNCH_FORK_RUN_ID=<run label> \
+    AUTOLAUNCH_BASE_DEPLOYMENT=/absolute/path/to/contracts/v1/reports/generated/local-base-lab/site-config.json \
+    AUTOLAUNCH_BASE_DEPLOYMENT_ID=<run label> \
     mix phx.server
 ```
 
 | Variable | Meaning |
 | --- | --- |
-| `AUTOLAUNCH_LAB_CONFIG` | Absolute path of `site-config.json`; development and test only in `base` chain mode, required in `fork` chain mode |
-| `AUTOLAUNCH_FORK_RUN_ID` | A label for this run, required alongside the config; it travels in every envelope's lab binding |
+| `AUTOLAUNCH_BASE_DEPLOYMENT` | Absolute path of `site-config.json`, the Base deployment description, in every environment; required in `fork` chain mode |
+| `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | A label for this deployment, required alongside the description; it travels in every envelope's binding |
 | `PORT` | The port to serve on (test default 4050) |
 | `AUTOLAUNCH_DB_POOL_SIZE` | Database connections for this site (default 10); a long-lived lab site should ask for a few, such as 3, because several test servers share one local PostgreSQL |
 | `AUTOLAUNCH_BROWSER_TEST=1` | Test environment only: serve HTTP and use a plain connection pool instead of the sandbox |
@@ -119,7 +119,7 @@ PRIVY_VERIFICATION_KEY="$(cat /absolute/path/to/privy-verification-keys.pem)" \
 
 | Variable | Meaning |
 | --- | --- |
-| `AUTOLAUNCH_LAB_AUTH=privy` | Test environment only. Selects the production verifier `Autolaunch.Privy`, admits `http://localhost:PORT` as a site origin alongside `http://127.0.0.1:PORT`, and names `localhost` as the site host. The boot stops if `AUTOLAUNCH_LAB_CONFIG` or either input below is missing: explicit real sign-in never falls back to the fixture verifier |
+| `AUTOLAUNCH_LAB_AUTH=privy` | Test environment only. Selects the production verifier `Autolaunch.Privy`, admits `http://localhost:PORT` as a site origin alongside `http://127.0.0.1:PORT`, and names `localhost` as the site host. The boot stops if `AUTOLAUNCH_BASE_DEPLOYMENT` or either input below is missing: explicit real sign-in never falls back to the fixture verifier |
 | `PRIVY_APP_ID` | The real public app id of the Privy application |
 | `PRIVY_VERIFICATION_KEY` | The application's public ES256 verification keys as PEM blocks, one after another in this one variable (at most four). Privy publishes them at `https://auth.privy.io/api/v1/apps/<app id>/jwks.json`; the dashboard shows the current one. During rotation, configure the published keys together. Sign-in and the shared profile API (`/api/v1/profile`) independently verify each token against the same bounded configured set through `RegentPrivy`; single-key configuration remains supported |
 

@@ -40,6 +40,8 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
         {:error, reason}
 
       fixture ->
+        config = Autolaunch.Lab.current!()
+
         {:ok,
          %{
            tick_spacing_q96: fixture.tick_spacing_q96,
@@ -49,10 +51,13 @@ defmodule Autolaunch.TestAutolaunchBidChainClient do
            currency: fixture.currency,
            currency_balance: fixture.currency_balance,
            token_allowance: fixture.token_allowance,
+           permit2: Autolaunch.Lab.address!(config, :permit2),
            permit2_amount: fixture.permit2_amount,
            permit2_expiration: fixture.permit2_expiration,
            predecessor_source: fixture.predecessor_source,
-           prev_tick_price_q96: predecessor(max_price_q96, fixture)
+           prev_tick_price_q96: predecessor(max_price_q96, fixture),
+           block: fixture.block,
+           lab_binding: Autolaunch.Lab.binding(config, [:regent, :permit2])
          }}
     end
   end
@@ -166,6 +171,7 @@ defmodule Autolaunch.BidFixture do
       permit2_expiration: 0,
       predecessor_source: "fixture",
       prev_tick_price_q96: 2 * @q96,
+      block: %{number: 30_000_000, hash: "0x" <> String.duplicate("ab", 32)},
       outcomes: %{}
     }
     |> Map.merge(Map.new(overrides))

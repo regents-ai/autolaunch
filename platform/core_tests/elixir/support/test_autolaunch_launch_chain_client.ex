@@ -202,7 +202,9 @@ defmodule Autolaunch.LaunchFixture do
       hook: Map.get(overrides, :hook, @hook),
       terms: Map.merge(@terms, Map.get(overrides, :terms, %{})),
       block: Map.get(overrides, :block, %{number: 30_000_000, hash: block_hash()}),
-      regent: Map.get(overrides, :regent, Abi.regent_address())
+      regent: Map.get(overrides, :regent, Abi.regent_address()),
+      lab_binding:
+        Autolaunch.Lab.binding(Autolaunch.Lab.current!(), [:factory, :strategy, :hook, :regent])
     }
 
     %{snapshot: snapshot, outcomes: Map.get(overrides, :outcomes, %{})}

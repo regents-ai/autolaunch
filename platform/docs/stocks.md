@@ -20,10 +20,10 @@ lab runs it, and the evidence index.
 | Pool and fee administration | `/tokens/:id` (section `#pool`); linked from a graduated auction page ("View the pool and fee lanes") | Lab sites only, both launch kinds. `Autolaunch.Pool.read/1` reads one latest fork block: the pair (launch token / currency with symbols and exact addresses), pool id, liquidity fee 0.30% and tick spacing 60, the price at graduation (`finalSqrtPriceX96` → currency per whole token through `Autolaunch.PoolPrice`, exact when the value is a finite decimal, otherwise truncated and marked "…"), the current price, tick and liquidity read from the PoolManager's own storage (`extsload` of `Pool.State`; the Base `StateView` has no code on the fork), the locked positions with their NFT ids, amounts and `ownerOf` (Agent: one full-range position from `distribution(auction)`; Stocks: the full-range position and, when nonzero, the one-sided currency position from `launches(id)`), the unsold tokens (Stocks: retired at `0x…dEaD`; Agent: held by the vesting escrow) and the public Uniswap app link, labelled as Base mainnet. Fee lanes: Agent pools show the fixed 1% REGENT + 1% subject lanes, the splitter, a link to the subject page and the per-lane totals from the frozen hook's `SwapFeeSettled` logs since the migration block (one bounded `eth_getLogs`); Stocks pools show the REGENT lane, the subject lane's state from `subjectConfig`, the number of trades charged (`HookFeeAccrued`), revenue per destination (`accrued`/`settled` for `REGENT_DESTINATION()` and every splitter that ever held the lane, found from the hook's `PoolRegistered`/`SubjectLaneSet` logs since migration), the conversion history (`BucketSettled`) and the operator account (`executor()`). Fee administration (Stocks only, `AutolaunchWeb.StocksFeeAdminComponent`): everyone sees the administrator, any proposed administrator and the configuration version; the signed-in account whose selected wallet is the administrator can turn the subject lane on or onto another authentic Agent splitter (`configureSubject(launchId, splitter, currentVersion)`, splitter checked exactly as the create page checks it), turn it off (`configureSubject(launchId, 0x0, currentVersion)`) or propose a successor (`proposeFeeAdministrator`); the proposed wallet accepts (`acceptFeeAdministrator`). One durable lane, `Autolaunch.Stocks.FeeAdminOperation` (`stock_fee_admin_operations`, one open per account and auction) driven by `Stocks.FeeAdminActions` (prepare → claim_dispatch → bind_hash → verify) on the shared wallet-press plumbing (`WalletAttempt` kind `:stocks_fee_admin`, step `action`). Each is verified by its own event (`SubjectConfigured` with version = reviewed + 1, `FeeAdministratorTransferStarted`, `FeeAdministratorTransferred`) and by reading `subjectConfig` back at the receipt block. Nothing gates a press on page state: a stale version is refused by the contract and shown as the revert. Agent pools state "Fee lanes are fixed for this pool". Revenue conversion (`settle`) is executor-only; on the lab the executor is the impersonated deployer `0x5700…0001`, never a site wallet, so the page carries no conversion button, only the note "Revenue is converted to USDC and deposited by the operator outside trading" and the operator address. |
 | Test funds | `/create/stocks`, auction pages | Lab sites only; see below. |
 
-The site prepares against the local lab only. Without `AUTOLAUNCH_STOCKS_LAB_CONFIG` the draft
-page saves and validates, and the wallet step refuses with "Stock launches are not open on this
-site." The stock decimals shown on the draft page come from the lab configuration; the review
-uses the decimals the launchpad's `stockAdmission` records.
+The site prepares against the Stocks deployment description. Without
+`AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` the draft page saves and validates, and the wallet step refuses
+with "Stock launches are not open on this site." The stock decimals shown on the draft page come
+from the description; the review uses the decimals the launchpad's `stockAdmission` records.
 
 ## Lab configuration
 
@@ -88,9 +88,9 @@ written against are pinned at `platform/contracts/abi/stocks-*.json` (regenerate
 `contracts/stocks/src/interfaces` with solc 0.8.26) and registered in
 `platform/contracts/chain-contracts.yaml` under `stocks_local_lab`.
 
-Environment: `AUTOLAUNCH_STOCKS_LAB_CONFIG=/abs/path/stocks-site-config.json` alongside the
-Agent lab variables. Development and test only in `base` chain mode; production admits it only
-with `AUTOLAUNCH_CHAIN_MODE=fork`, where it is required.
+Environment: `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/abs/path/stocks-site-config.json` alongside the
+Base description variables, in every environment. It is refused without `AUTOLAUNCH_BASE_DEPLOYMENT`
+and must name the same Base description; `AUTOLAUNCH_CHAIN_MODE=fork` requires it.
 
 ## Faucet
 
@@ -129,7 +129,7 @@ stock execution; not reachable on Anvil), `release-admitted`. Nothing below is
 `contracts/stocks/README.md` blocks admission until the founder confirms it.
 
 The settlement rows were exercised on 9 September 2026 from a site on port 4070 (partition `_settle_lab`,
-`AUTOLAUNCH_FORK_RUN_ID=settle-2026-09-10`) against the same fork, with the graph at launchpad
+`AUTOLAUNCH_BASE_DEPLOYMENT_ID=settle-2026-09-10`) against the same fork, with the graph at launchpad
 `0x9079d5be…76bd`; the transaction hashes are in each row. The earlier `integrated-local` rows were exercised on 9 September 2026 against the recovered Agent lab
 fork (`http://127.0.0.1:58737`, chain 31337) with the Stocks graph deployed by
 `contracts/stocks/bin/local-stocks-lab.py deploy` (launchpad `0xd0e57e59…3067`, hook
@@ -214,9 +214,9 @@ python3 bin/local-stocks-lab.py --agent-lab-dir /Users/sean/Documents/regent/rep
 cd ../../platform
 env -u DATABASE_URL -u DATABASE_DIRECT_URL MIX_ENV=test REGENT_DEPS_ROOT=/Users/sean/Documents/regent/repos \
   MIX_TEST_PARTITION=_stocks_lab2 AUTOLAUNCH_BROWSER_TEST=1 AUTOLAUNCH_DB_POOL_SIZE=3 \
-  AUTOLAUNCH_LAB_CONFIG=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/site-config.json \
-  AUTOLAUNCH_STOCKS_LAB_CONFIG=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/stocks-site-config.json \
-  AUTOLAUNCH_FORK_RUN_ID=stocks-2026-09-09 PORT=4060 PRIVY_APP_ID=browser-test-public-id \
+  AUTOLAUNCH_BASE_DEPLOYMENT=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/site-config.json \
+  AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT=/Users/sean/Documents/regent/repos/autolaunch/contracts/v1/reports/generated/local-base-lab/stocks-site-config.json \
+  AUTOLAUNCH_BASE_DEPLOYMENT_ID=stocks-2026-09-09 PORT=4060 PRIVY_APP_ID=browser-test-public-id \
   sh -c 'mix db.setup && mix run --no-start --no-halt /Users/sean/Documents/regent/artifacts/autolaunch-stocks-lab/serve.exs'
 ```
 

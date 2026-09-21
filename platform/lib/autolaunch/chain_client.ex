@@ -22,9 +22,7 @@ defmodule Autolaunch.ChainClient do
         module
 
       :error ->
-        if Autolaunch.Lab.enabled?(),
-          do: Autolaunch.LabBidChainClient,
-          else: Autolaunch.RpcClient
+        Autolaunch.LabBidChainClient
     end
   end
 end
