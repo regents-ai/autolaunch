@@ -267,7 +267,10 @@ abstract contract MemestockSplitterCore is Initializable, ReentrancyGuard {
 
     /// @dev The one exit rule, shared by every path that can move value out to an account. One block is
     ///      the whole of it, and a top-up restarts it for the caller's complete position, so a stake,
-    ///      recognize, claim and exit round trip cannot complete inside one transaction.
+    ///      recognize, claim and exit round trip cannot complete inside one transaction. The block is
+    ///      the chain's native `block.number`: the Base block on Base; on an Arbitrum Orbit rollup such
+    ///      as the Robinhood chain it is the Ethereum block the rollup last observed, so there the wait
+    ///      is until the next Ethereum block (about twelve seconds), longer than one rollup block.
     function _requireLaterBlockThanStake(address account) private view {
         uint256 stakeBlock = _lastStakeBlock[account];
         if (block.number <= stakeBlock) revert SameBlockStakeExit(account, stakeBlock);

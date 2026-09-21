@@ -92,6 +92,7 @@ decimals, matching cross-bindings). None is known at build time.
 9. USDG is assumed six-decimal and the assumption is enforced at construction of every contract that reads it.
 10. Base receiver attribution is Base-Safe-attested; the deposit itself is permissionless with a surplus sweep.
 11. The position planner lives in a linked library and the hook creation code in a factory so the launchpad stays under the EIP-170 limit.
+12. The splitter's exit rule ("nothing leaves an account in its own stake block") reads the chain's native `block.number`, which on this Arbitrum Orbit rollup is the Ethereum block the rollup last observed, while the launchpad and the auction count Robinhood blocks through `BlockNumberish`. A staker therefore waits until the next Ethereum block, about twelve seconds, before claiming or unstaking (verified read-only on chain 4663 on 21 September 2026: a contract saw block 26,027,887 while `ArbSys.arbBlockNumber()` returned 69,038,732). The founder kept the rule as is and had this documented (21 September 2026). The local lab, a plain Anvil chain, does not reproduce this.
 
 ## The local lab
 

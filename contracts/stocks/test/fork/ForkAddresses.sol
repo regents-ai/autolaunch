@@ -7,7 +7,7 @@ pragma solidity 0.8.26;
 ///         Base fork block 51503693, RPC http://127.0.0.1:49719). Restarting the Agent lab changes
 ///         these; the suite checks each one carries code and fails loudly otherwise.
 library ForkAddresses {
-    address internal constant UERC20_FACTORY = 0x0Cc07121b250aDFCeE36347602c8F77Dd8c34A57;
+    address internal constant UERC20_FACTORY = 0xB3B264617C89f1D702c67Dfa99897B899362f165;
 
     /// @notice A large forked USDC holder the lab impersonates (Morpho Blue on Base).
     address internal constant USDC_HOLDER = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;

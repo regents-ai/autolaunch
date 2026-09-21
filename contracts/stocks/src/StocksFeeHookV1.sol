@@ -13,7 +13,7 @@ import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {BaseHook} from "@uniswap/v4-periphery/src/utils/BaseHook.sol";
 import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {IERC20Minimal} from "./interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "./interfaces/IERC20Views.sol";
 import {IRegentRevenueStakingMinimal} from "./interfaces/IRegentRevenueStakingMinimal.sol";
 import {IStockRoute} from "./interfaces/IStockRoute.sol";
 import {IStocksFeeHookV1} from "./interfaces/IStocksFeeHookV1.sol";
@@ -441,7 +441,7 @@ contract StocksFeeHookV1 is BaseHook, ReentrancyGuardTransient, IStocksFeeHookV1
     }
 
     function _requireAllowanceConsumed(address token, address spender) private view {
-        uint256 remaining = IERC20Minimal(token).allowance(address(this), spender);
+        uint256 remaining = IERC20Views(token).allowance(address(this), spender);
         if (remaining != 0) revert AllowanceNotConsumed(spender, remaining);
     }
 

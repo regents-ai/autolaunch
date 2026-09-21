@@ -7,7 +7,7 @@ import {SafeCastLib} from "solady/utils/SafeCastLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {IChainlinkAggregatorMinimal} from "../interfaces/IChainlinkAggregatorMinimal.sol";
-import {IERC20Minimal} from "../interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "../interfaces/IERC20Views.sol";
 import {ISlipstreamPoolMinimal} from "../interfaces/ISlipstreamPoolMinimal.sol";
 import {IStockRoute} from "../interfaces/IStockRoute.sol";
 import {StocksBindings} from "../StocksBindings.sol";
@@ -72,7 +72,7 @@ contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
         usdc = StocksBindings.USDC;
         pool = ISlipstreamPoolMinimal(pool_);
         feed = IChainlinkAggregatorMinimal(feed_);
-        stockUnit = 10 ** IERC20Minimal(stock_).decimals();
+        stockUnit = 10 ** IERC20Views(stock_).decimals();
         feedUnit = 10 ** IChainlinkAggregatorMinimal(feed_).decimals();
     }
 

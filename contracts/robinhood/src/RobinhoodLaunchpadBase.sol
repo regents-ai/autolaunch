@@ -29,7 +29,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {IUERC20Factory} from "uerc20-factory/interfaces/IUERC20Factory.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
-import {IERC20Minimal} from "autolaunch-stocks/interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "autolaunch-stocks/interfaces/IERC20Views.sol";
 import {MemestockLPLocker} from "autolaunch-stocks/MemestockLPLocker.sol";
 import {StocksPreset} from "autolaunch-stocks/StocksPreset.sol";
 import {IRobinhoodLaunchpadBase} from "./interfaces/IRobinhoodLaunchpadBase.sol";
@@ -148,7 +148,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         _requireContract(bindings.inbox);
         if (bindings.adminSafe == address(0)) revert ZeroAddress();
 
-        uint8 decimals = IERC20Minimal(bindings.usdg).decimals();
+        uint8 decimals = IERC20Views(bindings.usdg).decimals();
         if (decimals != RobinhoodPreset.USDG_DECIMALS) {
             revert UnexpectedDecimals(RobinhoodPreset.USDG_DECIMALS, decimals);
         }
@@ -366,7 +366,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         if (creator != address(this)) revert TokenCreatorMismatch(creator);
         bytes32 found = UERC20(newToken).graffiti();
         if (found != graffiti) revert TokenGraffitiMismatch(found);
-        uint256 supply = IERC20Minimal(newToken).totalSupply();
+        uint256 supply = IERC20Views(newToken).totalSupply();
         if (supply != totalSupply) revert TokenSupplyMismatch(totalSupply, supply);
         uint256 held = newToken.balanceOf(address(this));
         if (held != totalSupply) revert TokenSupplyMismatch(totalSupply, held);
@@ -630,10 +630,5 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
 
     function _requireBinding(uint256 field, uint256 expected, uint256 found) private pure {
         if (expected != found) revert AuctionBindingMismatch(field, expected, found);
-    }
-
-    function _requireLaunch(uint256 launchId) internal view returns (Launch storage record) {
-        record = _launches[launchId];
-        if (record.auction == address(0)) revert UnknownLaunch(launchId);
     }
 }

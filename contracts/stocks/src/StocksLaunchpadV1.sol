@@ -35,7 +35,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {IUERC20Factory} from "uerc20-factory/interfaces/IUERC20Factory.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
-import {IERC20Minimal} from "./interfaces/IERC20Minimal.sol";
+import {IERC20Views} from "./interfaces/IERC20Views.sol";
 import {IStockRoute} from "./interfaces/IStockRoute.sol";
 import {IStocksLaunchpadV1} from "./interfaces/IStocksLaunchpadV1.sol";
 import {MemestockLPLocker} from "./MemestockLPLocker.sol";
@@ -283,7 +283,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         address routeUsdc = IStockRoute(route).usdc();
         if (routeUsdc != StocksBindings.USDC) revert RouteBindingMismatch(StocksBindings.USDC, routeUsdc);
 
-        uint8 decimals = IERC20Minimal(stock).decimals();
+        uint8 decimals = IERC20Views(stock).decimals();
         _admissions[stock] = Admission({admitted: true, decimals: decimals, route: route});
         emit StockAdmitted(stock, decimals);
     }
@@ -382,7 +382,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         if (creator != address(this)) revert TokenCreatorMismatch(creator);
         bytes32 found = UERC20(newToken).graffiti();
         if (found != graffiti) revert TokenGraffitiMismatch(found);
-        uint256 supply = IERC20Minimal(newToken).totalSupply();
+        uint256 supply = IERC20Views(newToken).totalSupply();
         if (supply != StocksPreset.INITIAL_SUPPLY) revert TokenSupplyMismatch(StocksPreset.INITIAL_SUPPLY, supply);
         uint256 held = newToken.balanceOf(address(this));
         if (held != StocksPreset.INITIAL_SUPPLY) revert TokenSupplyMismatch(StocksPreset.INITIAL_SUPPLY, held);
@@ -506,7 +506,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         if (stockDust != 0) {
             stock.safeApprove(hook, stockDust);
             StocksFeeHookV1(hook).creditRegentLane(poolId, stockDust);
-            uint256 remaining = IERC20Minimal(stock).allowance(address(this), hook);
+            uint256 remaining = IERC20Views(stock).allowance(address(this), hook);
             if (remaining != 0) revert AllowanceNotConsumed(hook, remaining);
         }
 
