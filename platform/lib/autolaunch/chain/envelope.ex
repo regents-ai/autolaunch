@@ -70,7 +70,6 @@ defmodule Autolaunch.Chain.Envelope do
       preparation_nonce: preparation_nonce,
       expires_at: DateTime.add(prepared_at, @ttl_seconds, :second) |> DateTime.to_iso8601(),
       risk_copy: risk_copy,
-      approval: Keyword.get(opts, :approval),
       arguments: Keyword.get(opts, :arguments, %{}),
       metadata: %{
         contract_name: contract_name,
@@ -229,7 +228,6 @@ defmodule Autolaunch.Chain.Envelope do
       :preparation_nonce,
       :expires_at,
       :risk_copy,
-      :approval,
       :arguments,
       :metadata
     ]

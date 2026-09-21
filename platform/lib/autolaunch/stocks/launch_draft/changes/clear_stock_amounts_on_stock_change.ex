@@ -1,17 +1,17 @@
-defmodule Autolaunch.Stocks.LaunchDraft.Changes.ClearFloorPriceOnStockChange do
+defmodule Autolaunch.Stocks.LaunchDraft.Changes.ClearStockAmountsOnStockChange do
   @moduledoc false
   use Ash.Resource.Change
 
   alias Autolaunch.Chain.Address
 
-  # The floor price is denominated in the chosen STOCK, so a different currency
-  # makes the price entered under the old one meaningless: it is cleared unless
-  # this same save is entering it afresh.
+  # The required raise and the floor price are denominated in the chosen STOCK,
+  # so a different currency makes the amounts entered under the old one
+  # meaningless: each is cleared unless this same save is entering it afresh.
   @impl true
   def change(changeset, _opts, _context) do
     if Ash.Changeset.changing_attribute?(changeset, :stock_address) and
          not same_stock?(changeset.data.stock_address, next_stock(changeset)) do
-      clear_stale(changeset, :floor_price)
+      changeset |> clear_stale(:required_raise) |> clear_stale(:floor_price)
     else
       changeset
     end

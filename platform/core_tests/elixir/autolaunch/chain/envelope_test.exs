@@ -164,7 +164,6 @@ defmodule Autolaunch.Chain.EnvelopeTest do
         :preparation_nonce,
         :expires_at,
         :risk_copy,
-        :approval,
         :arguments,
         :metadata
       ])

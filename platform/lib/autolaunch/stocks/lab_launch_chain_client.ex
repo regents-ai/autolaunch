@@ -3,14 +3,10 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
   The one fork boundary a Stocks launch has: one snapshot before review, one
   read after the hash.
 
-  `snapshot/1` answers at one latest block: the launchpad's pause state, launch
-  fee and USDC minimum raise, the signer's REGENT balance and allowance to the
-  launchpad, and the admission record of the chosen STOCK with that minimum
-  quoted into the STOCK through the admitted route. `verify/3` reads the
-  allowance back for the approval step, and for the launch step decodes the
-  launchpad's `StockLaunchCreated` and `StockLaunchFeeCollected` from the
-  canonical receipt and checks them against the reviewed arguments and the
-  launchpad's own record.
+  `snapshot/1` answers at one latest block: the launchpad's pause state and the
+  admission record of the chosen STOCK. `verify/3` decodes the launchpad's
+  `StockLaunchCreated` from the canonical receipt and checks it against the
+  reviewed arguments and the launchpad's own record.
   """
 
   alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
@@ -18,46 +14,27 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
   alias Autolaunch.Stocks.Lab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
-  @binding_keys [:launchpad, :hook, :bid_adapter, :usdc, :permit2, :regent]
-  @usdc_decimals 6
+  @binding_keys [:launchpad, :hook, :bid_adapter, :usdc, :permit2]
 
   def binding_keys, do: @binding_keys
 
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
-  def snapshot(%{stock: stock, signer: signer}) do
+  def snapshot(%{stock: stock}) do
     with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, header} <- block_header(block, opts),
          :ok <- LabRpc.ensure_contract(Lab.address!(config, :launchpad), block, opts),
-         :ok <- LabRpc.ensure_contract(Lab.address!(config, :regent), block, opts),
          {:ok, paused} <- launchpad_bool(config, "launchesPaused()", [], block, opts),
-         {:ok, fee} <- launchpad_uint(config, "launchFee()", [], block, opts),
-         {:ok, minimum} <- launchpad_uint(config, "minimumRaiseUsdc()", [], block, opts),
-         {:ok, balance} <- regent_uint(config, "balanceOf(address)", [signer], block, opts),
-         {:ok, allowance} <- allowance(config, signer, block, opts),
          {:ok, [admitted, decimals, route]} <-
            launchpad_words(config, "stockAdmission(address)", [stock], 3, block, opts),
-         {:ok, route} <- Abi.word_address(route) |> allow_zero(route),
-         {:ok, required} <-
-           quoted_minimum(config, admitted != 0, route, stock, minimum, block, opts) do
+         {:ok, route} <- Abi.word_address(route) |> allow_zero(route) do
       {:ok,
        %{
          launchpad: Lab.address!(config, :launchpad),
          hook: Lab.address!(config, :hook),
-         regent: Lab.address!(config, :regent),
          paused: paused,
-         fee: fee,
-         minimum_raise_usdc: minimum,
-         balance: balance,
-         allowance: allowance,
-         block: Map.put(block, :timestamp, header.timestamp),
-         admission: %{
-           admitted: admitted != 0,
-           decimals: decimals,
-           route: route,
-           required_stock_raised: required
-         },
+         block: block,
+         admission: %{admitted: admitted != 0, decimals: decimals, route: route},
          lab_binding: Lab.binding(config, @binding_keys)
        }}
     else
@@ -67,28 +44,13 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
     end
   end
 
-  @doc "The launchpad's current USDC minimum raise, in whole USDC, for page copy."
-  @spec minimum_raise_usdc() :: {:ok, String.t()} | {:error, atom()}
-  def minimum_raise_usdc do
-    with {:ok, config} <- Lab.current(),
-         opts <- Lab.rpc_opts(config),
-         {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, minimum} <- launchpad_uint(config, "minimumRaiseUsdc()", [], block, opts) do
-      {:ok, Rpc.format_units(minimum, @usdc_decimals)}
-    else
-      :error -> {:error, :invalid_chain_response}
-      {:error, reason} -> {:error, reason}
-      _other -> {:error, :invalid_chain_response}
-    end
-  end
-
-  @spec verify(map(), :approval | :launch, String.t()) :: {:ok, map()} | {:error, atom()}
+  @spec verify(map(), :launch, String.t()) :: {:ok, map()} | {:error, atom()}
   def verify(envelope, step, hash) do
     with {:ok, result} <- verify_with_evidence(envelope, step, hash),
          do: {:ok, Map.delete(result, :receipt)}
   end
 
-  def verify_with_evidence(envelope, step, hash) when step in [:approval, :launch] do
+  def verify_with_evidence(envelope, :launch, hash) do
     with true <-
            Envelope.valid_for_confirmation?(envelope,
              resource: "autolaunch_stocks_launch",
@@ -96,9 +58,9 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
            ),
          true <- Lab.binding_matches?(envelope["metadata"]["lab"], @binding_keys),
          {:ok, config} <- Lab.current(),
-         %{} = current <- current_step(envelope, step),
+         %{} = current <- current_step(envelope, :launch),
          {:ok, evidence} <- LabRpc.canonical_outcome_evidence(config, envelope, current, hash),
-         {:ok, result} <- settled(evidence.outcome, envelope, step, config) do
+         {:ok, result} <- settled(evidence.outcome, envelope, config) do
       {:ok, Map.put(result, :receipt, evidence.receipt)}
     else
       false -> {:error, :lab_config_changed}
@@ -107,44 +69,22 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
     end
   end
 
-  defp settled(:pending, _envelope, _step, _config), do: {:ok, %{outcome: :pending}}
-  defp settled(:reverted, _envelope, _step, _config), do: {:ok, %{outcome: :reverted}}
+  defp settled(:pending, _envelope, _config), do: {:ok, %{outcome: :pending}}
+  defp settled(:reverted, _envelope, _config), do: {:ok, %{outcome: :reverted}}
 
-  # The allowance correction is confirmed only when the token recorded exactly
-  # the reviewed approval and the standing allowance now equals it.
-  defp settled({:success, logs}, envelope, :approval, config) do
-    signer = envelope["expected_signer"]
-    amount = envelope |> current_step(:approval) |> Map.fetch!("amount") |> String.to_integer()
-
-    with {:ok, block} <- LabRpc.block_from_logs(logs),
-         true <-
-           Abi.approval_recorded?(
-             logs,
-             Lab.address!(config, :regent),
-             signer,
-             Lab.address!(config, :launchpad),
-             amount
-           ),
-         {:ok, allowance} <- allowance(config, signer, block, Lab.rpc_opts(config)) do
-      {:ok, %{outcome: if(allowance == amount, do: :confirmed, else: :unverified)}}
-    else
-      false -> {:ok, %{outcome: :unverified}}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp settled({:success, logs}, envelope, :launch, config) do
+  # The launch is confirmed only when the launchpad's event names the reviewed
+  # signer, STOCK, floor and required raise, and its own record and auction
+  # index agree with that event. The start and end blocks are the launchpad's
+  # own: bidding opens a fixed lead after the block the launch was created in.
+  defp settled({:success, logs}, envelope, config) do
     arguments = envelope["arguments"]
 
     with {:ok, block} <- LabRpc.block_from_logs(logs),
          {:ok, event} <- launch_created(logs, config),
          true <- Address.equal?(event.launcher, envelope["expected_signer"]),
          true <- Address.equal?(event.stock, arguments["stock"]),
-         true <- event.start_block == integer(arguments, "start_block"),
          true <- event.floor_price_q96 == integer(arguments, "floor_price_q96"),
-         {:ok, fee} <-
-           fee_collected(logs, config, event.launch_id, envelope["expected_signer"]),
-         true <- fee == integer(arguments, "expected_launch_fee_atomic"),
+         true <- event.required_stock_raised == integer(arguments, "required_stock_raised"),
          opts <- Lab.rpc_opts(config),
          {:ok, record} <-
            launchpad_words(
@@ -172,7 +112,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
            "required_stock_raised" => Integer.to_string(event.required_stock_raised),
            "auction_inventory" => Integer.to_string(event.auction_inventory),
            "migration_reserve" => Integer.to_string(event.migration_reserve),
-           "launch_fee" => Integer.to_string(fee),
            "local_block_hash" => block.hash
          }
        }}
@@ -180,28 +119,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
       false -> {:ok, %{outcome: :unverified}}
       :error -> {:ok, %{outcome: :unverified}}
       {:error, reason} -> {:error, reason}
-    end
-  end
-
-  # The fee the launchpad recorded for this exact launch, paid by the signer. The
-  # launchpad emits nothing for a zero fee, so a zero review is satisfied by the
-  # absence of the event.
-  defp fee_collected(logs, config, launch_id, signer) do
-    launchpad = Lab.address!(config, :launchpad)
-    abi = Lab.abi!(config, :launchpad)
-
-    case LabAbi.event_words(abi, StocksLabAbi.fee_collected_signature(), logs, launchpad) do
-      {:ok, {[^launch_id, payer_word, _staking_word], [amount]}} ->
-        with {:ok, payer} <- Abi.word_address(payer_word),
-             true <- Address.equal?(payer, signer),
-             do: {:ok, amount},
-             else: (_ -> :error)
-
-      {:ok, _other_launch} ->
-        :error
-
-      :error ->
-        {:ok, 0}
     end
   end
 
@@ -268,43 +185,10 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
 
   defp record_matches?(_record, _event), do: false
 
-  defp block_header(%{number: number}, opts) do
-    with {:ok, %{"timestamp" => "0x" <> hex}} <-
-           Rpc.request(
-             "eth_getBlockByNumber",
-             ["0x" <> Integer.to_string(number, 16), false],
-             opts
-           ),
-         {timestamp, ""} <- Integer.parse(hex, 16) do
-      {:ok, %{timestamp: timestamp}}
-    else
-      {:error, reason} -> {:error, reason}
-      _other -> {:error, :invalid_block_header}
-    end
-  end
-
   defp launchpad_bool(config, signature, arguments, block, opts) do
     Rpc.call_bool(
       Lab.address!(config, :launchpad),
       LabAbi.encode(Lab.abi!(config, :launchpad), signature, arguments),
-      block,
-      opts
-    )
-  end
-
-  # The launchpad derives the required raise from the same quote at launch, so
-  # the review states the STOCK amount the minimum is worth right now. A STOCK
-  # that is not admitted has no route to quote through.
-  defp quoted_minimum(_config, false, _route, _stock, _minimum, _block, _opts), do: {:ok, nil}
-
-  defp quoted_minimum(config, true, route, stock, minimum, block, opts) do
-    Rpc.call_uint(
-      route,
-      LabAbi.encode(
-        Lab.abi!(config, :route),
-        "quoteExactIn(address,address,uint256)",
-        [Lab.address!(config, :usdc), stock, minimum]
-      ),
       block,
       opts
     )
@@ -325,27 +209,6 @@ defmodule Autolaunch.Stocks.LabLaunchChainClient do
       LabAbi.encode(Lab.abi!(config, :launchpad), signature, arguments),
       block,
       count,
-      opts
-    )
-  end
-
-  # REGENT is read through the configuration's standard `erc20` ABI at the
-  # address the Stocks lab repeats from the Agent lab.
-  defp regent_uint(config, signature, arguments, block, opts) do
-    Rpc.call_uint(
-      Lab.address!(config, :regent),
-      LabAbi.encode(Lab.abi!(config, :erc20), signature, arguments),
-      block,
-      opts
-    )
-  end
-
-  defp allowance(config, signer, block, opts) do
-    regent_uint(
-      config,
-      "allowance(address,address)",
-      [signer, Lab.address!(config, :launchpad)],
-      block,
       opts
     )
   end

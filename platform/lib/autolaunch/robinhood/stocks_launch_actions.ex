@@ -3,10 +3,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   The one boundary between a creator's wallet and the Robinhood Stocks launchpad.
 
   Preparation reads the local Robinhood lab once and returns the whole reviewed
-  sequence as a single immutable envelope: at most an exact USDG allowance
-  correction for the launch fee, then the one `launch(LaunchParams)` call it
-  enables. Nothing is written anywhere. The chain is the only record of what a
-  wallet launched: confirmation reads the canonical receipt through
+  sequence as a single immutable envelope: the one `launch(LaunchParams)` call.
+  Nothing is written anywhere. The chain is the only record of what a wallet
+  launched: confirmation reads the canonical receipt through
   `Autolaunch.Robinhood.StocksLaunchChainClient`, and a wallet's launches are the
   launchpad's own `StockLaunchCreated` records for that wallet.
 
@@ -15,11 +14,11 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   be exactly that wallet, never another linked address.
 
   The review derives the executable values from the saved Robinhood draft and
-  the chain: the first bidding block a fixed lead past the review block, the
-  executable floor price as the largest multiple of 100 not above the entered
-  price, the launchpad's USDG minimum raise quoted into the admitted STOCK, and
-  the launch fee the launchpad charges right now, which the tuple carries as
-  `expectedLaunchFee` so a fee that moves reverts rather than overcharges.
+  the chain: the required raise the creator entered, in the admitted STOCK's
+  base units, and the executable floor price as the largest multiple of 100 not
+  above the entered price. Bidding opens a fixed number of blocks after the
+  block the launch is created in, so the receipt is the only source of the
+  start and end blocks.
   """
 
   alias Autolaunch.Accounts.SessionAuthority
@@ -34,20 +33,17 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @action "autolaunch_robinhood_stocks_launch"
   @contract_name "RobinhoodStocksLaunchpadV1"
 
-  # Preset terms the review states back, shared with the Base Stocks launchpad.
+  # Preset terms the review states back, from contracts/robinhood/src/RobinhoodPreset.sol.
   @new_decimals 18
-  @usdg_decimals 6
-  @auction_duration_blocks 43_200
-  @claim_delay_blocks 64
-  @migration_delay_blocks 128
-  # Founder decision 2026-09-17: bidding opens 6,000 blocks after the block the
-  # review was prepared at. Every time the page states assumes a tenth of a
-  # second per block and is an estimate, never a promise.
   @start_lead_blocks 6_000
+  @auction_duration_blocks 864_000
+  @claim_delay_blocks 1_280
+  @migration_delay_blocks 2_560
+  # Every time the page states assumes a tenth of a second per block and is an
+  # estimate, never a promise.
   @blocks_per_second 10
   @tick_divisor 100
   @min_floor_price_q96 Integer.pow(2, 32) + 1
-  @uint64_max Integer.pow(2, 64) - 1
   @uint128_max Integer.pow(2, 128) - 1
   @lifecycles %{0 => "none", 1 => "active", 2 => "graduated", 3 => "failed"}
 
@@ -57,18 +53,15 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @doc "The fixed terms every Robinhood Stocks launch uses, for the review page."
   def terms do
     [
+      {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
       {"Initial supply", "1,000,000,000 NEW"},
       {"Sold at auction", "800,000,000 NEW (80%)"},
       {"Pool reserve", "200,000,000 NEW (20%)"},
-      {"Bidding opens",
-       "#{blocks(@start_lead_blocks)} after this review was prepared, #{estimate(@start_lead_blocks)}"},
-      {"Auction length",
-       "#{blocks(@auction_duration_blocks)}, #{estimate(@auction_duration_blocks)}"},
-      {"Claims open",
-       "#{blocks(@claim_delay_blocks)} after the auction ends, #{estimate(@claim_delay_blocks)}"},
-      {"Pool opens",
-       "#{blocks(@migration_delay_blocks)} after the auction ends, #{estimate(@migration_delay_blocks)}"},
+      {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
+      {"Auction length", schedule_copy(@auction_duration_blocks)},
+      {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
+      {"Pool opens", "#{schedule_copy(@migration_delay_blocks)} after the auction ends"},
       {"Creator allocation", "None"},
       {"Vesting", "None"},
       {"Treasury", "None"},
@@ -76,17 +69,15 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {"Staker revenue lane", "1% of stock-side volume to the token's stakers, always on"},
       {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
       {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
-      {"If the minimum is not raised",
-       "Every bid is refundable through the auction; the launch fee is not refunded"}
+      {"If the required raise is not reached", "Every bid is refundable through the auction"}
     ]
   end
 
-  @doc "The launch fee sentence the wallet card states for one reviewed fee, in whole USDG."
-  def launch_fee_copy("0"), do: "There is no launch fee right now."
+  @doc "How long the schedule's parts take, as blocks with an estimated duration."
+  def schedule_copy(blocks),
+    do: "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{estimate(blocks)}"
 
-  def launch_fee_copy(fee_units) when is_binary(fee_units),
-    do:
-      "#{fee_units} USDG, taken when the launch is created and not refunded if the minimum is not raised."
+  def start_lead_blocks, do: @start_lead_blocks
 
   @doc """
   Reviews one saved Robinhood draft for the signed-in wallet: one snapshot, one
@@ -99,25 +90,24 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          {:ok, draft} <- owned_draft(draft_id, actor),
          {:ok, fields} <- launchable(draft),
          {:ok, config} <- robinhood_lab(),
-         {:ok, snapshot} <- snapshot(fields.stock, signer),
+         {:ok, snapshot} <- snapshot(fields.stock),
          {:ok, executable} <- executable(fields, snapshot),
          do: {:ok, build(draft, fields, executable, signer, snapshot, config)}
   end
 
   @doc """
-  Reads one sent step back from the chain for the signed-in wallet. The result
-  is the chain client's own answer: `:pending`, `:reverted`, `:unverified`, or
-  `:confirmed` with the launchpad's record of the launch.
+  Reads the sent launch back from the chain for the signed-in wallet. The
+  result is the chain client's own answer: `:pending`, `:reverted`,
+  `:unverified`, or `:confirmed` with the launchpad's record of the launch.
   """
-  @spec verify(map(), :approval | :launch, String.t(), keyword()) ::
-          {:ok, map()} | {:error, term()}
-  def verify(envelope, step, hash, opts) when is_map(envelope) and step in [:approval, :launch] do
+  @spec verify(map(), :launch, String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def verify(envelope, :launch, hash, opts) when is_map(envelope) do
     with {:ok, actor} <- human(opts),
          {:ok, _signer} <- current_wallet(envelope["expected_signer"], actor, opts),
          {:ok, hash} <- canonical_hash(hash),
          {:ok, config} <- robinhood_lab(),
          true <- valid_envelope?(envelope, config) || unavailable(:envelope_invalid),
-         do: read_chain(envelope, step, hash)
+         do: read_chain(envelope, hash)
   end
 
   def verify(_envelope, _step, _hash, _opts), do: unavailable(:unknown_step)
@@ -153,6 +143,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          {:ok, asset} <-
            Assets.fetch(draft.stock_chain_id, draft.stock_address || "") |> refusable(),
          {:ok, stock} <- address(asset.address, :stock_invalid),
+         true <- is_binary(draft.required_raise) || unavailable(:required_raise_missing),
          true <- is_binary(draft.floor_price) || unavailable(:floor_price_missing) do
       {:ok,
        %{
@@ -163,6 +154,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
          image: draft.image,
          stock: stock,
          stock_symbol: asset.symbol,
+         required_raise: draft.required_raise,
          floor_price: draft.floor_price
        }}
     else
@@ -174,31 +166,21 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
 
   defp executable(fields, snapshot) do
     with :ok <- admitted(snapshot),
-         {:ok, start_block} <-
-           bounded(snapshot.block.number + @start_lead_blocks, @uint64_max, :start_too_late),
          {:ok, floor} <- floor_price(fields.floor_price, snapshot.admission.decimals),
-         {:ok, required} <- quoted_raise(snapshot.admission.required_stock_raised) do
+         {:ok, required} <- required_raise(fields.required_raise, snapshot.admission.decimals) do
       {:ok,
        %{
-         start_block: start_block,
-         end_block: start_block + @auction_duration_blocks,
          floor_price_q96: floor.executable,
          floor_price_evidence: floor,
          tick_spacing_q96: div(floor.executable, @tick_divisor),
-         minimum_raise_usdg: snapshot.minimum_raise_usdg,
          required_stock_raised: required,
-         stock_decimals: snapshot.admission.decimals,
-         launch_fee: snapshot.fee
+         stock_decimals: snapshot.admission.decimals
        }}
     end
   end
 
   defp admitted(%{paused: true}), do: unavailable(:launches_paused)
   defp admitted(%{admission: %{admitted: false}}), do: unavailable(:stock_not_admitted)
-
-  defp admitted(%{balance: balance, fee: fee}) when balance < fee,
-    do: unavailable(:insufficient_usdg)
-
   defp admitted(_snapshot), do: :ok
 
   # The largest multiple of 100 not above the entered price, so the executable
@@ -216,14 +198,14 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     end
   end
 
-  # The launchpad refuses a launch whose quoted minimum is nothing or more than
-  # a uint128 holds; the review refuses the same quote first.
-  defp quoted_raise(quote), do: bounded(quote, @uint128_max, :minimum_raise_unquotable)
-
-  defp bounded(value, max, _reason) when is_integer(value) and value > 0 and value <= max,
-    do: {:ok, value}
-
-  defp bounded(_value, _max, reason), do: unavailable(reason)
+  # The entered raise in the STOCK's base units, exact or refused. The
+  # launchpad refuses a raise of nothing or more than the auction can reach.
+  defp required_raise(value, decimals) do
+    case Amounts.parse_units(value, decimals) do
+      {:ok, raw} when raw > 0 and raw <= @uint128_max -> {:ok, raw}
+      _invalid -> unavailable(:required_raise_invalid)
+    end
+  end
 
   # The review
 
@@ -239,7 +221,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
         contract_name: @contract_name,
         chain_id: Lab.chain_id(),
         lab_binding: snapshot.lab_binding,
-        risk_copy: risk_copy(snapshot.fee),
+        risk_copy: risk_copy(),
         arguments: %{
           "draft_id" => draft.id,
           "name" => fields.name,
@@ -250,11 +232,9 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           "stock" => fields.stock,
           "stock_symbol" => fields.stock_symbol,
           "stock_decimals" => Integer.to_string(executable.stock_decimals),
-          "start_block" => Integer.to_string(executable.start_block),
           "start_lead_blocks" => Integer.to_string(@start_lead_blocks),
-          "end_block" => Integer.to_string(executable.end_block),
-          "minimum_raise_usdg_atomic" => Integer.to_string(executable.minimum_raise_usdg),
-          "minimum_raise_usdg" => usdg_units(executable.minimum_raise_usdg),
+          "auction_duration_blocks" => Integer.to_string(@auction_duration_blocks),
+          "required_raise_entered" => draft.required_raise,
           "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
           "required_stock_raised_units" =>
             Rpc.format_units(executable.required_stock_raised, executable.stock_decimals),
@@ -263,41 +243,30 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           "floor_price_executable" => executable.floor_price_evidence.executable_stock_per_new,
           "floor_price_adjusted" => floor_adjusted?(executable),
           "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
-          "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
-          "expected_launch_fee" => usdg_units(snapshot.fee),
-          "allowance_atomic" => Integer.to_string(snapshot.allowance),
-          "usdg" => snapshot.usdg,
           "launchpad" => snapshot.launchpad,
           "hook" => snapshot.hook,
           "route" => snapshot.admission.route,
           "block_number" => snapshot.block.number,
           "block_hash" => snapshot.block.hash,
-          "block_timestamp" => snapshot.block.timestamp,
           "terms" => Enum.map(terms(), fn {label, value} -> [label, value] end),
           "steps" => steps
         }
       )
       |> stored()
 
-    %{envelope: envelope, steps: steps, review: review(fields, executable, snapshot)}
+    %{envelope: envelope, steps: steps, review: review(fields, executable)}
   end
 
   # The plain facts the page shows before anything is signed.
-  defp review(fields, executable, snapshot) do
+  defp review(fields, executable) do
     [
-      ["Launch fee", launch_fee_copy(usdg_units(snapshot.fee))],
+      ["Launch fee", "None"],
       [
-        "Minimum raise",
-        "#{usdg_units(executable.minimum_raise_usdg)} USDG, worth #{Rpc.format_units(executable.required_stock_raised, executable.stock_decimals)} #{fields.stock_symbol} today"
+        "Required raise",
+        "#{Amounts.grouped(Rpc.format_units(executable.required_stock_raised, executable.stock_decimals))} #{fields.stock_symbol}"
       ],
-      [
-        "Bidding opens",
-        "Block #{executable.start_block}, #{estimate(@start_lead_blocks)} after this review was prepared"
-      ],
-      [
-        "Auction ends",
-        "Block #{executable.end_block}, #{estimate(@auction_duration_blocks)} later"
-      ],
+      ["Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"],
+      ["Auction length", schedule_copy(@auction_duration_blocks)],
       ["Floor price", floor_copy(fields, executable)]
     ]
   end
@@ -317,31 +286,13 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       executable.floor_price_evidence.candidate_price_q96 != executable.floor_price_q96
   end
 
-  # The reviewed sequence: the exact allowance correction when the standing
-  # allowance is not already the fee, then the one `launch` call it enables.
-  # The launchpad requires the allowance to equal the fee exactly, zero included.
+  # The reviewed sequence: the one `launch` call.
   defp reviewed_steps(fields, executable, snapshot, config) do
-    approval_step(snapshot, config) ++
-      [
-        %{
-          "step" => "launch",
-          "to" => snapshot.launchpad,
-          "data" => launch_data(fields, executable, config)
-        }
-      ]
-  end
-
-  defp approval_step(%{allowance: fee, fee: fee}, _config), do: []
-
-  defp approval_step(%{usdg: usdg, launchpad: launchpad, fee: fee}, config) do
     [
       %{
-        "step" => "approval",
-        "to" => usdg,
-        "data" =>
-          LabAbi.encode(Lab.abi!(config, :erc20), "approve(address,uint256)", [launchpad, fee]),
-        "amount" => Integer.to_string(fee),
-        "spender" => launchpad
+        "step" => "launch",
+        "to" => snapshot.launchpad,
+        "data" => launch_data(fields, executable, config)
       }
     ]
   end
@@ -358,45 +309,29 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
             fields.description,
             fields.website,
             fields.image,
-            executable.start_block,
-            executable.floor_price_q96,
-            executable.launch_fee
+            executable.floor_price_q96
           ],
-          fields.stock
+          fields.stock,
+          executable.required_stock_raised
         ]
       ]
     )
   end
 
-  defp risk_copy(0),
+  defp risk_copy,
     do:
-      "Your wallet creates this launch on the local Robinhood lab with test assets and no mainnet value. The launch fee is zero."
-
-  defp risk_copy(fee),
-    do:
-      "Your wallet spends #{usdg_units(fee)} test USDG to create this launch on the local Robinhood lab. The fee is not refunded. Test assets have no mainnet value."
-
-  defp usdg_units(amount), do: Rpc.format_units(amount, @usdg_decimals)
+      "Your wallet creates this launch on the local Robinhood lab with test assets and no mainnet value. There is no launch fee."
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 
-  defp blocks(count), do: "#{delimited(count)} blocks"
-
-  defp delimited(count) do
-    count
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
-    |> String.reverse()
-  end
-
-  # Every stated time is an estimate at a tenth of a second per block.
   defp estimate(blocks) do
     seconds = blocks / @blocks_per_second
 
-    if seconds < 90,
-      do: "about #{round(seconds)} seconds",
-      else: "about #{round(seconds / 60)} minutes"
+    cond do
+      seconds < 90 -> "about #{round(seconds)} seconds"
+      seconds < 90 * 60 -> "about #{round(seconds / 60)} minutes"
+      true -> "about #{round(seconds / 3600)} hours"
+    end
   end
 
   # Confirmation
@@ -414,8 +349,8 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     )
   end
 
-  defp read_chain(envelope, step, hash) do
-    case StocksLaunchChainClient.verify(envelope, step, hash) do
+  defp read_chain(envelope, hash) do
+    case StocksLaunchChainClient.verify(envelope, :launch, hash) do
       {:ok, result} -> {:ok, result}
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       {:error, reason} -> unavailable(reason)
@@ -581,9 +516,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     end
   end
 
-  defp snapshot(stock, signer) do
-    chain(StocksLaunchChainClient.snapshot(%{stock: stock, signer: signer}))
-  end
+  defp snapshot(stock), do: chain(StocksLaunchChainClient.snapshot(%{stock: stock}))
 
   defp chain({:ok, value}), do: {:ok, value}
   defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)

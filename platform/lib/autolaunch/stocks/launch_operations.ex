@@ -18,7 +18,7 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   @actor %System{}
   @domain Autolaunch
 
-  @hash_attributes %{approval: :approval_transaction_hash, launch: :launch_transaction_hash}
+  @hash_attributes %{launch: :launch_transaction_hash}
 
   @type lease :: %{lineage: String.t(), account_id: integer()}
 
@@ -79,10 +79,9 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   An exact replay is a no-op, a different hash is refused rather than
   overwriting the submitted identity, and a hash recovered after the operation
   ended attaches without reopening it. The step travels with the hash and has to
-  be the one the row is on, so a callback delayed past an advance can never land
-  in the other step's column.
+  be the one the row is on.
   """
-  @spec bind(Ash.Resource.record(), :approval | :launch, String.t()) ::
+  @spec bind(Ash.Resource.record(), :launch, String.t()) ::
           {:ok, Ash.Resource.record()} | {:error, term()}
   def bind(operation, step, hash) do
     attribute = Map.fetch!(@hash_attributes, step)
@@ -103,7 +102,7 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   defp bind_action(_terminal), do: :attach_late_hash
 
   @doc "The hash bound for one step of an operation, or `nil`."
-  @spec hash(map(), :approval | :launch) :: String.t() | nil
+  @spec hash(map(), :launch) :: String.t() | nil
   def hash(operation, step), do: Map.get(operation, Map.fetch!(@hash_attributes, step))
 
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}

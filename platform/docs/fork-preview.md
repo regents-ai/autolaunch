@@ -95,15 +95,14 @@ exactly as for a lab (`Autolaunch.Lab.load/2`, `Autolaunch.Stocks.Lab.load/2`).
 
 ## Faucet cooldown
 
-The test-funds panel keeps every button (1,000 REGENT, the launch-fee REGENT, each admitted
-stock, USDC) and every press still sends. With a cooldown above zero, one asset goes to one
+The test-funds panel keeps every button (1,000 REGENT, each admitted stock, USDC) and every press still sends. With a cooldown above zero, one asset goes to one
 wallet at most once per window: `Autolaunch.Stocks.FaucetCooldown` reads and locks the last
 grant of that asset to that wallet (`Autolaunch.Stocks.FaucetGrant`, table `faucet_grants`:
 `wallet`, `asset`, `granted_at`), refuses a press inside the window with "That test asset was
 already sent to this wallet recently; try again after HH:MM UTC.", and otherwise sends the
 grant and replaces the row in the same database transaction. A send that fails records nothing,
 so the next press is not penalised. Nothing is disabled in the browser; the check happens on the
-press. The assets are `regent`, `regent_launch_fee`, `usdc` and each stock's address.
+press. The assets are `regent`, `usdc` and each stock's address.
 
 The faucet refuses on a read-only site or without a lab, so a `base`-mode production build
 never funds anyone.

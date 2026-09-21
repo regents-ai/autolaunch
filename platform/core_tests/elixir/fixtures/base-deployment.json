@@ -2202,19 +2202,6 @@
       },
       {
         "inputs": [],
-        "name": "INITIAL_LAUNCH_FEE",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
         "name": "MAX_DESCRIPTION_BYTES",
         "outputs": [
           {
@@ -2436,11 +2423,6 @@
                 "internalType": "uint128",
                 "name": "requiredRegentRaised",
                 "type": "uint128"
-              },
-              {
-                "internalType": "uint256",
-                "name": "expectedLaunchFee",
-                "type": "uint256"
               }
             ],
             "internalType": "struct RegentsAutolaunchFactoryV1.LaunchParams",
@@ -2472,19 +2454,6 @@
           }
         ],
         "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "launchFee",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
         "type": "function"
       },
       {
@@ -2618,19 +2587,6 @@
         "type": "function"
       },
       {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "newFee",
-            "type": "uint256"
-          }
-        ],
-        "name": "setLaunchFee",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
         "inputs": [],
         "name": "strategy",
         "outputs": [
@@ -2726,56 +2682,6 @@
       },
       {
         "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "uint256",
-            "name": "launchId",
-            "type": "uint256"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "payer",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "address",
-            "name": "regentSafe",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          }
-        ],
-        "name": "LaunchFeeCollected",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": false,
-            "internalType": "uint256",
-            "name": "previousFee",
-            "type": "uint256"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint256",
-            "name": "newFee",
-            "type": "uint256"
-          }
-        ],
-        "name": "LaunchFeeUpdated",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
         "inputs": [],
         "name": "LaunchesPaused",
         "type": "event"
@@ -2848,49 +2754,6 @@
           }
         ],
         "name": "EmptyMetadataField",
-        "type": "error"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "expected",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "found",
-            "type": "uint256"
-          }
-        ],
-        "name": "InexactTransfer",
-        "type": "error"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "expected",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "found",
-            "type": "uint256"
-          }
-        ],
-        "name": "LaunchFeeAllowanceMismatch",
-        "type": "error"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "remaining",
-            "type": "uint256"
-          }
-        ],
-        "name": "LaunchFeeAllowanceNotConsumed",
         "type": "error"
       },
       {
@@ -2981,22 +2844,6 @@
           }
         ],
         "name": "NotStrategy",
-        "type": "error"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "current",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "expected",
-            "type": "uint256"
-          }
-        ],
-        "name": "StaleLaunchFee",
         "type": "error"
       },
       {
@@ -6556,6 +6403,19 @@
         "type": "function"
       },
       {
+        "inputs": [],
+        "name": "lpLocker",
+        "outputs": [
+          {
+            "internalType": "contract RevstakeLPLocker",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
         "inputs": [
           {
             "internalType": "address",
@@ -6566,19 +6426,6 @@
         "name": "migrate",
         "outputs": [],
         "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "minimumRegentRaised",
-        "outputs": [
-          {
-            "internalType": "uint128",
-            "name": "",
-            "type": "uint128"
-          }
-        ],
-        "stateMutability": "view",
         "type": "function"
       },
       {
@@ -6638,19 +6485,6 @@
           }
         ],
         "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint128",
-            "name": "minimum",
-            "type": "uint128"
-          }
-        ],
-        "name": "setMinimumRegentRaised",
-        "outputs": [],
-        "stateMutability": "nonpayable",
         "type": "function"
       },
       {
@@ -6824,25 +6658,6 @@
           }
         ],
         "name": "LaunchRetired",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": false,
-            "internalType": "uint128",
-            "name": "previousMinimum",
-            "type": "uint128"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint128",
-            "name": "newMinimum",
-            "type": "uint128"
-          }
-        ],
-        "name": "MinimumRegentRaisedChanged",
         "type": "event"
       },
       {
@@ -7047,17 +6862,6 @@
       {
         "inputs": [
           {
-            "internalType": "address",
-            "name": "caller",
-            "type": "address"
-          }
-        ],
-        "name": "NotGovernance",
-        "type": "error"
-      },
-      {
-        "inputs": [
-          {
             "internalType": "uint256",
             "name": "price",
             "type": "uint256"
@@ -7107,22 +6911,6 @@
           }
         ],
         "name": "RefusedTreasury",
-        "type": "error"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint128",
-            "name": "requested",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
-            "name": "minimum",
-            "type": "uint128"
-          }
-        ],
-        "name": "RequiredRaiseBelowMinimum",
         "type": "error"
       },
       {
@@ -7638,19 +7426,19 @@
     ]
   },
   "addresses": {
-    "cca_factory": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
-    "escrow_implementation": "0xa2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
-    "factory": "0x7777777777777777777777777777777777777777",
-    "governance_safe": "0xa3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3",
-    "hook": "0x6666666666666666666666666666666666666666",
+    "cca_factory": "0x000000001f26a0044baa66024e7b6599c61963f8",
+    "escrow_implementation": "0xff32e1dd5661b6f3d31aa9853d1f678e9f45c175",
+    "factory": "0xcc0df8493b348bfd7c58730a2c5e97b3a73acb00",
+    "governance_safe": "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e",
+    "hook": "0x2e3f35f8121629e57d2cd1b382e36048e1bae044",
     "permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
-    "pool_manager": "0xa4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4",
-    "position_manager": "0xa5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
-    "receiver_implementation": "0xa6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6",
+    "pool_manager": "0x498581ff718922c3f8e6a244956af099b2652b2b",
+    "position_manager": "0x7c5f5a4bbd8fd63184577525326123b519429bdc",
+    "receiver_implementation": "0xedcdc1ae9f53465623020ef604fbb57fe9224f55",
     "regent": "0x6f89bca4ea5931edfcb09786267b251dee752b07",
-    "splitter_implementation": "0xa7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7",
-    "strategy": "0x8888888888888888888888888888888888888888",
-    "uerc20_factory": "0xa8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8"
+    "splitter_implementation": "0x314702158c9b1e5639c0daa19ad2aa5c4a90d329",
+    "strategy": "0xcf305172c24cf8b1bf58ac057c5c920987784d92",
+    "uerc20_factory": "0xb3b264617c89f1d702c67dfa99897b899362f165"
   },
   "chain_id": 8453,
   "public_rpc_url": "https://base.example.test",

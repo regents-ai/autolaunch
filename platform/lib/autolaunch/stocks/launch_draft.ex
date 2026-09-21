@@ -3,9 +3,8 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   One private Stocks launch draft per human account and chain, independent of the Agent draft.
 
   Every section autosaves partial text. Completeness is decided here in one
-  place, and a change of auction currency clears the floor price that was
-  entered in the old currency so a review can never mix them. The minimum raise
-  is the launchpad's own USDC minimum, so no draft carries one.
+  place, and a change of auction currency clears the required raise and floor
+  price that were entered in the old currency so a review can never mix them.
   """
 
   use Ash.Resource,
@@ -18,7 +17,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   alias Autolaunch.Stocks.{Amounts, Assets, LaunchDraftImage, LaunchDraftImageStorage}
 
   @token_fields [:name, :symbol, :description, :website]
-  @terms_fields [:stock_address, :start_at, :start_timezone, :floor_price]
+  @terms_fields [:stock_address, :required_raise, :floor_price]
 
   @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
 
@@ -49,19 +48,13 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   def image_complete?(_draft), do: false
 
   @doc """
-  Whether the currency, schedule and floor price are complete and exact. A
-  Robinhood launch has no schedule to enter: bidding opens a fixed number of
-  blocks after the review.
+  Whether the currency, required raise and floor price are complete and exact.
+  There is no schedule to enter: bidding opens a fixed number of blocks after
+  the launch is created.
   """
-  def terms_complete?(%{chain: :robinhood} = draft) do
-    match?({:ok, _stock}, Assets.fetch(draft.stock_chain_id, draft.stock_address || "")) and
-      decimal_amount?(draft.floor_price)
-  end
-
   def terms_complete?(draft) do
     match?({:ok, _stock}, Assets.fetch(draft.stock_chain_id, draft.stock_address || "")) and
-      match?(%DateTime{}, draft.start_at) and
-      timezone?(draft.start_timezone) and
+      decimal_amount?(draft.required_raise) and
       decimal_amount?(draft.floor_price)
   end
 
@@ -72,12 +65,6 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
   defp within?(value, limit),
     do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
-
-  @doc "Whether `value` names an IANA zone the bundled table knows."
-  def timezone?(value) when is_binary(value),
-    do: match?({:ok, _}, DateTime.now(value))
-
-  def timezone?(_value), do: false
 
   defp decimal_amount?(value) when is_binary(value),
     do: match?({:ok, raw} when raw > 0, Amounts.parse_units(value, 36))
@@ -137,15 +124,11 @@ defmodule Autolaunch.Stocks.LaunchDraft do
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
     end
 
-    # The start arrives as the wall-clock text the creator typed plus the IANA
-    # zone it was typed in; the exact UTC instant is derived here, once.
     update :autosave_terms do
-      accept [:stock_address, :start_timezone, :floor_price]
-      argument :start_local, :string, constraints: [allow_empty?: true, max_length: 32]
+      accept @terms_fields
       require_atomic? false
       validate Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
-      change Autolaunch.Stocks.LaunchDraft.Changes.DeriveStartAt
-      change Autolaunch.Stocks.LaunchDraft.Changes.ClearFloorPriceOnStockChange
+      change Autolaunch.Stocks.LaunchDraft.Changes.ClearStockAmountsOnStockChange
     end
 
     update :attach_image do
@@ -198,8 +181,7 @@ defmodule Autolaunch.Stocks.LaunchDraft do
 
     attribute :stock_address, :string
     attribute :stock_chain_id, :integer, allow_nil?: false
-    attribute :start_at, :utc_datetime
-    attribute :start_timezone, :string
+    attribute :required_raise, :string
     attribute :floor_price, :string
 
     timestamps()

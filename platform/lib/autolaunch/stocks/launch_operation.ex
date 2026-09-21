@@ -2,10 +2,9 @@ defmodule Autolaunch.Stocks.LaunchOperation do
   @moduledoc """
   One durable direct-wallet Stocks launch the server owns before any wallet opens.
 
-  The reviewed sequence is immutable and lives in `envelope`: at most an exact
-  REGENT allowance correction for the launch fee, then the one `launch` call to
-  the Stocks launchpad it enables. `step` says which of those two transactions
-  is wallet-capable right now and `state` says how far that one has got.
+  The reviewed sequence is immutable and lives in `envelope`: the one `launch`
+  call to the Stocks launchpad. `step` names that transaction and `state` says
+  how far it has got.
 
   The database decides every race exactly as for the Agent launch: `action_id`
   is unique, each hash column is unique, and a partial identity over
@@ -21,8 +20,8 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @steps [:approval, :launch]
-  @hashes [:approval_transaction_hash, :launch_transaction_hash]
+  @steps [:launch]
+  @hashes [:launch_transaction_hash]
   @states [
     :prepared,
     :dispatched,
@@ -49,7 +48,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     identity_wheres_to_sql one_open_per_account: "terminal_at IS NULL"
 
     identity_index_names unique_action_id: "stock_launch_operations_action_id_index",
-                         unique_approval_hash: "stock_launch_operations_approval_hash_index",
                          unique_hash: "stock_launch_operations_hash_index",
                          one_open_per_account: "stock_launch_operations_one_open_index"
   end
@@ -103,17 +101,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       require_atomic? false
       validate attribute_equals(:state, :dispatched)
       change set_attribute(:state, :submitted)
-    end
-
-    # The allowance correction is verified, so the launch it enables becomes
-    # sendable. The approval's own hash stays exactly where it is.
-    update :advance do
-      accept [:result]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      validate attribute_equals(:step, :approval)
-      change set_attribute(:step, :launch)
-      change set_attribute(:state, :prepared)
     end
 
     update :record_chain_verified do
@@ -221,8 +208,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       attribute hash, :string, sensitive?: true, constraints: [min_length: 66, max_length: 66]
     end
 
-    # Adopted from the verified `StockLaunchCreated` and `StockLaunchFeeCollected`,
-    # never guessed before mining.
+    # Adopted from the verified `StockLaunchCreated`, never guessed before mining.
     attribute :result, :map, default: %{}
 
     attribute :reason, :string, constraints: [max_length: 120]
@@ -243,7 +229,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
 
   identities do
     identity :unique_action_id, [:action_id]
-    identity :unique_approval_hash, [:approval_transaction_hash]
     identity :unique_hash, [:launch_transaction_hash]
 
     identity :one_open_per_account, [:human_account_id] do

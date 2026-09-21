@@ -3,8 +3,7 @@ defmodule Autolaunch.LaunchActions do
   The one boundary between a founder's wallet and the launch factory.
 
   Preparation reads Base once, at one canonical safe block, and writes the whole
-  reviewed sequence as a single immutable envelope: at most an exact REGENT
-  allowance correction, then the one `launch` call it enables. Every durable
+  reviewed sequence as a single immutable envelope: the one `launch` call. Every durable
   write after that runs inside `SessionAuthority.transact_lease/3` as the
   outermost transaction, against the account that callback locked, so a claim, a
   bound hash or a settled outcome cannot outlive a concurrent logout.
@@ -38,7 +37,6 @@ defmodule Autolaunch.LaunchActions do
   @resource "autolaunch_launch"
   @action "autolaunch_launch"
   @contract_name "RegentsAutolaunchFactoryV1"
-  @regent_decimals 18
 
   # The factory's own inclusive byte caps on the five metadata strings. Each must
   # also be nonempty, which is what a historical draft can fail.
@@ -66,9 +64,6 @@ defmodule Autolaunch.LaunchActions do
   # the customer is told which fact moved rather than shown a generic failure.
   @moved "the reviewed factory binding changed"
   @paused "launches were paused after this review"
-  @stale_fee "the launch fee changed after this review"
-  @short "this wallet no longer holds the launch fee"
-  @allowance_moved "the REGENT allowance changed after this review"
 
   # A Base read that may answer differently later never settles anything.
   @transient [
@@ -80,7 +75,7 @@ defmodule Autolaunch.LaunchActions do
 
   # Everything a Base read was answered about. A settlement applies only to a row
   # still carrying all of it.
-  @identity [:state, :step, :envelope, :approval_transaction_hash, :launch_transaction_hash]
+  @identity [:state, :step, :envelope, :launch_transaction_hash]
 
   @doc """
   Proves the wallet Privy has selected belongs to this account, and nothing more.
@@ -96,13 +91,7 @@ defmodule Autolaunch.LaunchActions do
          do: {:ok, %{signer: signer}}
   end
 
-  @doc """
-  Reviews one saved draft: one snapshot, one immutable envelope, one operation.
-
-  The sequence carries only the transactions this wallet still needs — the exact
-  allowance correction when the standing allowance is not already the fee, then
-  the single `launch` call it enables.
-  """
+  @doc "Reviews one saved draft: one snapshot, one immutable envelope, one operation."
   @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(draft_id, address, opts) do
     with {:ok, actor} <- human(opts),
@@ -145,12 +134,12 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  @doc "Binds the first valid hash for the step the browser was actually sent."
+  @doc "Binds the first valid hash for the launch the browser was actually sent."
   @spec bind_hash(String.t(), atom(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def bind_hash(action_id, step, hash, opts) when step in [:approval, :launch] do
+  def bind_hash(action_id, :launch, hash, opts) do
     with {:ok, hash} <- canonical_hash(hash) do
       write(action_id, opts, fn _account, operation ->
-        LaunchOperations.bind(operation, step, hash)
+        LaunchOperations.bind(operation, :launch, hash)
       end)
     end
   end
@@ -237,7 +226,6 @@ defmodule Autolaunch.LaunchActions do
       # Plain English already, and the one fact that moved is what the customer
       # has to be told when a review is ended without ever being sent.
       :reason,
-      :approval_transaction_hash,
       :launch_transaction_hash,
       :terminal_at
     ])
@@ -249,15 +237,12 @@ defmodule Autolaunch.LaunchActions do
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
   @doc """
-  The hash bound for one named step of an operation, or `nil`.
+  The hash bound for the launch of an operation, or `nil`.
 
-  The two reviewed steps are named exactly, so a value that is neither has no
-  hash rather than becoming an atom.
+  The one reviewed step is named exactly, so any other value has no hash
+  rather than becoming an atom.
   """
   @spec step_hash(map(), String.t() | atom()) :: String.t() | nil
-  def step_hash(operation, step) when step in [:approval, "approval"],
-    do: LaunchOperations.hash(operation, :approval)
-
   def step_hash(operation, step) when step in [:launch, "launch"],
     do: LaunchOperations.hash(operation, :launch)
 
@@ -267,85 +252,48 @@ defmodule Autolaunch.LaunchActions do
   @spec terms() :: [String.t()]
   def terms, do: Enum.map(LaunchAbi.terms(), &Atom.to_string/1)
 
-  @doc "The currently enforced lower bound, expressed in REGENT for the draft form."
-  def minimum_raise do
-    with {:ok, amount} <- Autolaunch.LabLaunchChainClient.minimum_raise(),
-         do: {:ok, regent_units(amount)}
-  end
-
-  # The exact decimal rendering of an atomic REGENT amount.
-  defp regent_units(amount), do: Rpc.format_units(amount, @regent_decimals)
-
   # Reviews
 
   defp review(draft, fields, signer, snapshot, treasury_report) do
-    {launch_data, envelope_options} = launch_data(fields, snapshot)
-
-    steps =
-      approval_step(snapshot) ++
-        [%{"step" => "launch", "to" => snapshot.factory, "data" => launch_data}]
+    launch_data = launch_data(fields)
+    steps = [%{"step" => "launch", "to" => snapshot.factory, "data" => launch_data}]
 
     @action
-    |> Envelope.new(
-      signer,
-      launch_data,
-      envelope_options ++
-        [
-          to: snapshot.factory,
-          resource: @resource,
-          contract_name: @contract_name,
-          risk_copy: risk_copy(snapshot.fee),
-          arguments: arguments(draft, fields, snapshot, steps, treasury_report)
-        ]
+    |> Envelope.new(signer, launch_data,
+      to: snapshot.factory,
+      resource: @resource,
+      contract_name: @contract_name,
+      chain_id: Lab.chain_id(),
+      lab_binding: snapshot.lab_binding,
+      risk_copy: risk_copy(),
+      arguments: arguments(draft, fields, snapshot, steps, treasury_report)
     )
     |> stored()
   end
 
-  defp launch_data(fields, snapshot) do
+  defp launch_data(fields) do
     config = Lab.current!()
 
-    data =
-      LabAbi.encode(
-        Lab.abi!(config, :factory),
-        "launch((string,string,string,string,string,address,uint128,uint256))",
+    LabAbi.encode(
+      Lab.abi!(config, :factory),
+      "launch((string,string,string,string,string,address,uint128))",
+      [
         [
-          [
-            fields.name,
-            fields.symbol,
-            fields.description,
-            fields.website,
-            fields.image,
-            fields.treasury,
-            fields.required_regent_raised,
-            snapshot.fee
-          ]
+          fields.name,
+          fields.symbol,
+          fields.description,
+          fields.website,
+          fields.image,
+          fields.treasury,
+          fields.required_regent_raised
         ]
-      )
-
-    {data, [chain_id: Lab.chain_id(), lab_binding: snapshot.lab_binding]}
+      ]
+    )
   end
 
   # One stored shape: the envelope is written, read and rendered exactly as the
   # confirmation token signed it.
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
-
-  # The exact C4 allowance rule, zero included: an allowance that already equals
-  # the fee is spent as it stands, and anything else — higher, lower, or a
-  # residue left by a fee that moved — is corrected to exactly the fee first.
-  # There is no additive approval, no unlimited approval and no other spender.
-  defp approval_step(%{allowance: fee, fee: fee}), do: []
-
-  defp approval_step(snapshot) do
-    [
-      %{
-        "step" => "approval",
-        "to" => regent_address(snapshot),
-        "data" => encode_regent_approval(snapshot.factory, snapshot.fee),
-        "amount" => Integer.to_string(snapshot.fee),
-        "spender" => snapshot.factory
-      }
-    ]
-  end
 
   defp arguments(draft, fields, snapshot, steps, treasury_report) do
     %{
@@ -359,12 +307,7 @@ defmodule Autolaunch.LaunchActions do
       "treasury_security" => treasury_binding(treasury_report),
       "required_regent_raised" => draft.required_regent_raised,
       "required_regent_raised_atomic" => Integer.to_string(fields.required_regent_raised),
-      "minimum_regent_raised_atomic" => Integer.to_string(snapshot.minimum_regent_raised),
-      "minimum_regent_raised" => regent_units(snapshot.minimum_regent_raised),
-      "expected_launch_fee_atomic" => Integer.to_string(snapshot.fee),
-      "expected_launch_fee" => regent_units(snapshot.fee),
-      "allowance_atomic" => Integer.to_string(snapshot.allowance),
-      "regent" => regent_address(snapshot),
+      "regent" => snapshot.regent,
       "factory" => snapshot.factory,
       "strategy" => snapshot.strategy,
       "block_number" => snapshot.block.number,
@@ -374,23 +317,13 @@ defmodule Autolaunch.LaunchActions do
     }
   end
 
-  defp risk_copy(fee), do: risk_copy(fee, Lab.test_chain?())
-
-  defp risk_copy(0, true),
-    do:
-      "Your wallet creates this launch on a Base fork with test assets and no mainnet value. The launch fee is zero."
-
-  defp risk_copy(fee, true),
-    do:
-      "Your wallet spends #{regent_units(fee)} forked REGENT to create this launch on a Base fork. Test assets have no mainnet value."
-
-  defp risk_copy(0, false),
-    do:
-      "Your wallet creates this launch on Base. The launch fee is zero right now, so no REGENT moves. A launch cannot be undone."
-
-  defp risk_copy(fee, false),
-    do:
-      "Your wallet pays #{regent_units(fee)} REGENT to create this launch on Base. A launch cannot be undone."
+  defp risk_copy do
+    if Lab.test_chain?(),
+      do:
+        "Your wallet creates this launch on a Base fork with test assets and no mainnet value. There is no launch fee.",
+      else:
+        "Your wallet creates this launch on Base. There is no launch fee, so no REGENT moves. A launch cannot be undone."
+  end
 
   # Stored drafts
 
@@ -479,40 +412,23 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  defp regent_address(%{regent: regent} = snapshot) do
-    if accepted_regent?(snapshot), do: regent, else: nil
-  end
-
-  defp regent_address(_snapshot), do: nil
-
   defp accepted_regent?(%{regent: regent}),
     do: Address.equal?(regent, Abi.regent_address())
 
   defp accepted_regent?(_snapshot), do: false
 
-  defp encode_regent_approval(spender, amount) do
-    config = Lab.current!()
-    LabAbi.encode(Lab.abi!(config, :token), "approve(address,uint256)", [spender, amount])
-  end
-
   # A review is derived from one whole snapshot or from none, so a partial answer
   # is refused before any of it is believed.
   defp complete(snapshot) do
-    with %{factory: factory, strategy: strategy, strategy_factory: bound} <- snapshot,
-         %{fee: fee, allowance: allowance, balance: balance, hook: hook} <- snapshot,
+    with %{factory: factory, strategy: strategy, strategy_factory: bound, hook: hook} <- snapshot,
          %{paused: paused, terms: terms, block: block} <- snapshot,
-         %{minimum_regent_raised: minimum} <- snapshot,
-         true <- is_integer(minimum) and minimum > 0,
          true <-
            Enum.all?([factory, strategy, bound, hook], &match?({:ok, _}, Address.normalize(&1))),
-         true <- Enum.all?([fee, allowance, balance], &(is_integer(&1) and &1 >= 0)),
          true <- is_boolean(paused),
          true <- match?(%{number: number, hash: _} when is_integer(number), block),
          true <- Enum.sort(Map.keys(terms)) == Enum.sort(LaunchAbi.terms()),
          true <- Enum.all?(Map.values(terms), &is_integer/1) do
-      if minimum <= terms.max_reachable_raise,
-        do: {:ok, snapshot},
-        else: unavailable(:launch_snapshot_incomplete)
+      {:ok, snapshot}
     else
       _partial -> unavailable(:launch_snapshot_incomplete)
     end
@@ -527,14 +443,8 @@ defmodule Autolaunch.LaunchActions do
       snapshot.paused ->
         unavailable(:launches_paused)
 
-      snapshot.balance < snapshot.fee ->
-        unavailable(:insufficient_regent)
-
       refused_treasury?(fields.treasury, snapshot) ->
         unavailable(:launch_treasury_refused)
-
-      fields.required_regent_raised < snapshot.minimum_regent_raised ->
-        unavailable(:required_raise_below_minimum)
 
       # Two separate ceilings: the reviewed strategy's own reachable maximum,
       # which is a chain-supplied value, and the structural limit of the
@@ -582,14 +492,11 @@ defmodule Autolaunch.LaunchActions do
                launch_draft_id: draft.id,
                envelope: envelope,
                signer: signer,
-               step: first_step(envelope)
+               step: :launch
              }),
            do: {:ok, presented(operation)}
     end)
   end
-
-  defp first_step(envelope),
-    do: envelope["arguments"]["steps"] |> hd() |> Map.fetch!("step") |> String.to_existing_atom()
 
   # A new prepare always cancels whatever is open as :replaced and proceeds.
   defp release_undispatched(account_id) do
@@ -660,12 +567,10 @@ defmodule Autolaunch.LaunchActions do
   end
 
   # Everything the review promised about Base, checked against Base's answer
-  # right now. The allowance rule differs by step on purpose: the correction is
-  # still the exact correction it was reviewed as, while the launch is only ever
-  # handed over on an allowance that equals the fee exactly, zero included.
-  defp still_reviewed(%{step: step} = operation, fresh, fresh_treasury) do
+  # right now.
+  defp still_reviewed(operation, fresh, fresh_treasury) do
     case treasury_still_reviewed?(operation, fresh_treasury) do
-      true -> chain_still_reviewed(operation, step, fresh)
+      true -> chain_still_reviewed(operation, fresh)
       false -> {:changed, "the treasury security state changed"}
     end
   end
@@ -689,7 +594,7 @@ defmodule Autolaunch.LaunchActions do
       ])
   end
 
-  defp chain_still_reviewed(operation, step, fresh) do
+  defp chain_still_reviewed(operation, fresh) do
     cond do
       fresh.paused ->
         {:changed, @paused}
@@ -703,27 +608,10 @@ defmodule Autolaunch.LaunchActions do
       not same?(fresh.strategy_factory, fresh.factory) ->
         {:changed, @moved}
 
-      fresh.fee != atomic(operation, "expected_launch_fee_atomic") ->
-        {:changed, @stale_fee}
-
-      atomic(operation, "required_regent_raised_atomic") < fresh.minimum_regent_raised ->
-        {:changed, "the minimum raise increased above this draft's required raise"}
-
-      fresh.balance < fresh.fee ->
-        {:changed, @short}
-
-      not allowance_ready?(step, fresh, operation) ->
-        {:changed, @allowance_moved}
-
       true ->
         :ok
     end
   end
-
-  defp allowance_ready?(:approval, fresh, operation),
-    do: fresh.allowance == atomic(operation, "allowance_atomic")
-
-  defp allowance_ready?(:launch, fresh, _operation), do: fresh.allowance == fresh.fee
 
   defp review_treasury(draft) do
     if Lab.test_chain?() do
@@ -860,9 +748,9 @@ defmodule Autolaunch.LaunchActions do
   # The one Base read a settlement makes, with no transaction and no lock open.
   # A candidate with nothing sent to read about asks nothing.
   defp read_chain(%{state: :submitted} = candidate) do
-    hash = LaunchOperations.hash(candidate, candidate.step)
+    hash = LaunchOperations.hash(candidate, :launch)
 
-    case LaunchChainClient.module().verify(candidate.envelope, candidate.step, hash) do
+    case LaunchChainClient.module().verify(candidate.envelope, :launch, hash) do
       {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
       result -> result
     end
@@ -882,9 +770,6 @@ defmodule Autolaunch.LaunchActions do
   end
 
   defp identity(operation), do: Map.take(operation, @identity)
-
-  defp record(%{step: :approval} = operation, %{outcome: :confirmed} = result),
-    do: LaunchOperations.update(operation, :advance, %{result: merged(operation, result)})
 
   defp record(operation, %{outcome: :confirmed} = result) do
     with :ok <- LabProjection.project_launch(operation, result[:result] || %{}) do
@@ -1009,8 +894,6 @@ defmodule Autolaunch.LaunchActions do
   defp same?(left, right), do: Address.equal?(left, right)
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
-
-  defp atomic(operation, key), do: operation |> argument(key) |> String.to_integer()
 
   defp unavailable(reason), do: LaunchOperations.unavailable(reason)
 end

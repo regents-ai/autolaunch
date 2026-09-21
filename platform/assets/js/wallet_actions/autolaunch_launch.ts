@@ -8,7 +8,7 @@ import {
   type WalletResolver,
 } from "./autolaunch_network"
 
-export type LaunchStepName = "approval" | "launch"
+export type LaunchStepName = "launch"
 
 export type LaunchStep = {
   step: LaunchStepName

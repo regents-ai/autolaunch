@@ -24,8 +24,6 @@ defmodule Autolaunch.Stocks.Lab do
   )
   @abi_keys ~w(launchpad hook locker splitter bid_adapter route auction erc20 permit2)
   @faucet_keys ~w(regent_holder regent_amount stock_amount_units usdc_holder usdc_amount)
-  # Present when the lab funds the Stocks launch fee; a decimal string of REGENT base units.
-  @optional_faucet_keys ~w(regent_launch_fee_amount)
   @stock_keys ~w(symbol address decimals route fixture launch_admission)
 
   @type stock :: %{
@@ -155,15 +153,6 @@ defmodule Autolaunch.Stocks.Lab do
 
   def binding_matches?(_binding, _keys), do: false
 
-  @doc "The REGENT base units the lab faucet grants for the launch fee, or `nil` when it does not."
-  @spec launch_fee_grant(t()) :: non_neg_integer() | nil
-  def launch_fee_grant(%{faucet: faucet}) do
-    case faucet["regent_launch_fee_amount"] do
-      nil -> nil
-      digits -> String.to_integer(digits)
-    end
-  end
-
   @doc "The admitted lab stock for one exact address, or `nil`."
   @spec stock(t(), String.t()) :: stock() | nil
   def stock(%{stocks: stocks}, address) when is_binary(address),
@@ -221,14 +210,10 @@ defmodule Autolaunch.Stocks.Lab do
   defp faucet_section(_faucet, _chain_id), do: {:error, :invalid_faucet}
 
   defp exact_faucet(faucet) when is_map(faucet) do
-    optional = Map.keys(faucet) -- @faucet_keys
-
-    with true <- Enum.sort(Map.keys(faucet) -- optional) == Enum.sort(@faucet_keys),
-         true <- optional -- @optional_faucet_keys == [],
+    with true <- Enum.sort(Map.keys(faucet)) == Enum.sort(@faucet_keys),
          true <- valid_address?(faucet["regent_holder"]),
          true <- valid_address?(faucet["usdc_holder"]),
-         true <- Enum.all?(~w(regent_amount stock_amount_units usdc_amount), &digits?(faucet[&1])),
-         true <- Enum.all?(optional, &digits?(faucet[&1])) do
+         true <- Enum.all?(~w(regent_amount stock_amount_units usdc_amount), &digits?(faucet[&1])) do
       {:ok,
        faucet
        |> Map.update!("regent_holder", &String.downcase/1)

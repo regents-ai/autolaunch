@@ -22,10 +22,8 @@ defmodule Autolaunch.LabLaunchChainClient do
   }
 
   @impl true
-  def snapshot(%{signer: signer}) do
+  def snapshot(_request) do
     with {:ok, config, block, opts} <- LabRpc.current([:factory, :strategy, :regent]),
-         {:ok, fee} <- LabRpc.uint(config, :factory, "launchFee()", [], block, opts),
-         {:ok, minimum} <- minimum_raise(config, block, opts),
          {:ok, paused} <- LabRpc.bool(config, :factory, "launchesPaused()", [], block, opts),
          {:ok, strategy} <- LabRpc.address(config, :factory, "strategy()", [], block, opts),
          true <- Address.equal?(strategy, Lab.address!(config, :strategy)),
@@ -33,27 +31,12 @@ defmodule Autolaunch.LabLaunchChainClient do
            LabRpc.address(config, :strategy, "factory()", [], block, opts),
          {:ok, hook} <- LabRpc.address(config, :strategy, "hook()", [], block, opts),
          true <- Address.equal?(hook, Lab.address!(config, :hook)),
-         {:ok, balance} <-
-           LabRpc.uint(config, :regent, "balanceOf(address)", [signer], block, opts),
-         {:ok, allowance} <-
-           LabRpc.uint(
-             config,
-             :regent,
-             "allowance(address,address)",
-             [signer, Lab.address!(config, :factory)],
-             block,
-             opts
-           ),
          {:ok, terms} <- terms(config, block, opts) do
       {:ok,
        %{
          factory: Lab.address!(config, :factory),
          strategy: strategy,
          strategy_factory: strategy_factory,
-         fee: fee,
-         minimum_regent_raised: minimum,
-         allowance: allowance,
-         balance: balance,
          hook: hook,
          paused: paused,
          terms: terms,
@@ -68,21 +51,13 @@ defmodule Autolaunch.LabLaunchChainClient do
     end
   end
 
-  def minimum_raise do
-    with {:ok, config, block, opts} <- LabRpc.current([:strategy]),
-         do: minimum_raise(config, block, opts)
-  end
-
-  defp minimum_raise(config, block, opts),
-    do: LabRpc.uint(config, :strategy, "minimumRegentRaised()", [], block, opts)
-
   @impl true
   def verify(envelope, step, hash) do
     with {:ok, result} <- verify_with_evidence(envelope, step, hash),
          do: {:ok, Map.delete(result, :receipt)}
   end
 
-  def verify_with_evidence(envelope, step, hash) do
+  def verify_with_evidence(envelope, :launch, hash) do
     with true <-
            Autolaunch.Chain.Envelope.valid_for_confirmation?(envelope,
              resource: "autolaunch_launch",
@@ -91,9 +66,9 @@ defmodule Autolaunch.LabLaunchChainClient do
          true <-
            Lab.binding_matches?(envelope["metadata"]["lab"], [:factory, :strategy, :hook, :regent]),
          {:ok, config} <- Lab.current(),
-         current <- current_step(envelope, step),
+         current <- current_step(envelope, :launch),
          {:ok, evidence} <- LabRpc.canonical_outcome_evidence(config, envelope, current, hash),
-         {:ok, result} <- settled(evidence.outcome, envelope, step, config) do
+         {:ok, result} <- settled(evidence.outcome, envelope, config) do
       {:ok, Map.put(result, :receipt, evidence.receipt)}
     else
       false -> {:error, :lab_config_changed}
@@ -110,43 +85,9 @@ defmodule Autolaunch.LabLaunchChainClient do
     end)
   end
 
-  defp settled(:pending, _envelope, _step, _config), do: {:ok, %{outcome: :pending}}
-  defp settled(:reverted, _envelope, _step, _config), do: {:ok, %{outcome: :reverted}}
-
-  defp settled({:success, logs}, envelope, :approval, config),
-    do: verify_approval(logs, envelope, config)
-
-  defp settled({:success, logs}, envelope, :launch, config),
-    do: verify_launch(logs, envelope, config)
-
-  defp verify_approval(logs, envelope, config) do
-    with {:ok, block} <- LabRpc.block_from_logs(logs),
-         step <- current_step(envelope, :approval),
-         amount <- String.to_integer(step["amount"]),
-         true <-
-           Abi.approval_recorded?(
-             logs,
-             Lab.address!(config, :regent),
-             envelope["expected_signer"],
-             Lab.address!(config, :factory),
-             amount
-           ),
-         opts <- LabRpc.opts(config),
-         {:ok, allowance} <-
-           LabRpc.uint(
-             config,
-             :regent,
-             "allowance(address,address)",
-             [envelope["expected_signer"], Lab.address!(config, :factory)],
-             block,
-             opts
-           ) do
-      {:ok, %{outcome: if(allowance == amount, do: :confirmed, else: :unverified)}}
-    else
-      false -> {:ok, %{outcome: :unverified}}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  defp settled(:pending, _envelope, _config), do: {:ok, %{outcome: :pending}}
+  defp settled(:reverted, _envelope, _config), do: {:ok, %{outcome: :reverted}}
+  defp settled({:success, logs}, envelope, config), do: verify_launch(logs, envelope, config)
 
   defp verify_launch(logs, envelope, config) do
     with {:ok, block} <- LabRpc.block_from_logs(logs),

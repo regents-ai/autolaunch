@@ -3,10 +3,9 @@ defmodule Autolaunch.Stocks.Faucet do
   Lab-only test funds: one fork transaction per press, sent by the site through
   Anvil's account impersonation, never signed by the customer.
 
-  REGENT moves from the governance Safe's forked balance (Agent lab alone is
-  enough; the launch-fee grant needs the Stocks lab's configured amount), STOCK
-  is minted by the fixture token, and USDC moves from the forked holder the
-  Stocks lab names. Every press sends; the RPC's own error text is reported when
+  REGENT moves from the governance Safe's forked balance (the Agent lab alone
+  is enough), STOCK is minted by the fixture token, and USDC moves from the
+  forked holder the Stocks lab names. Every press sends; the RPC's own error text is reported when
   it fails. The RPC URL only ever comes from a validated lab configuration's
   own door (`Autolaunch.LabRpcUrl.admitted/1`), and a read-only site refuses.
 
@@ -42,50 +41,21 @@ defmodule Autolaunch.Stocks.Faucet do
     end
   end
 
-  @doc "The launch-fee REGENT grant this lab offers, in whole REGENT for the button, or `nil`."
-  @spec launch_fee_grant() :: String.t() | nil
-  def launch_fee_grant do
-    with {:ok, config} <- StocksLab.current(),
-         amount when is_integer(amount) <- StocksLab.launch_fee_grant(config) do
-      format(amount, 18)
-    else
-      _absent -> nil
-    end
-  end
-
   @doc "1,000 test REGENT from the governance Safe's forked balance."
   @spec regent(String.t()) :: {:ok, grant()} | {:error, String.t()}
-  def regent(wallet), do: regent_grant(wallet, {:ok, @regent_amount}, "regent")
-
-  @doc "The Stocks lab's configured launch-fee REGENT from the governance Safe's forked balance."
-  @spec regent_launch_fee(String.t()) :: {:ok, grant()} | {:error, String.t()}
-  def regent_launch_fee(wallet) do
-    amount =
-      with {:ok, config} <- stocks_lab(),
-           amount when is_integer(amount) <- StocksLab.launch_fee_grant(config) do
-        {:ok, amount}
-      else
-        nil -> {:error, "This lab does not fund the launch fee."}
-        error -> error
-      end
-
-    regent_grant(wallet, amount, "regent_launch_fee")
-  end
-
-  defp regent_grant(wallet, amount, asset) do
+  def regent(wallet) do
     with :ok <- admitted(),
          {:ok, wallet} <- address(wallet),
-         {:ok, amount} <- amount,
          {:ok, config} <- agent_lab() do
       grant(%{
         rpc: rpc(config.rpc_url),
         holder: Lab.address!(config, :governance_safe),
         token: Lab.address!(config, :regent),
-        data: transfer_calldata(wallet, amount),
+        data: transfer_calldata(wallet, @regent_amount),
         wallet: wallet,
-        asset: asset,
+        asset: "regent",
         symbol: "REGENT",
-        amount: amount,
+        amount: @regent_amount,
         decimals: 18
       })
     end

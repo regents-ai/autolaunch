@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.StockCurrencySelect
 
-  alias Autolaunch.{LaunchChain, Robinhood}
+  alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
   alias Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
 
@@ -21,11 +21,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   @sections %{
     "autosave_stocks_token_details" => ~w(name symbol description website),
-    "autosave_stocks_terms" => ~w(stock_address start_local start_timezone floor_price)
+    "autosave_stocks_terms" => ~w(stock_address required_raise floor_price)
   }
 
-  @stored_params ~w(name symbol description website image stock_address start_local
-    start_timezone floor_price)
+  @stored_params ~w(name symbol description website image stock_address required_raise floor_price)
 
   def section_params(event), do: Map.fetch!(@sections, event)
   def draft_field_params, do: @stored_params
@@ -34,23 +33,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   def draft_values(nil), do: blank_draft_fields()
 
-  def draft_values(draft) do
-    @stored_params
-    |> Map.new(fn
-      "start_local" -> {"start_local", start_local(draft.start_at, draft.start_timezone)}
-      param -> {param, Map.get(draft, String.to_existing_atom(param)) || ""}
-    end)
-  end
-
-  # The wall-clock text a `datetime-local` control shows for the stored instant.
-  defp start_local(%DateTime{} = utc, zone) when is_binary(zone) do
-    case DateTime.shift_zone(utc, zone) do
-      {:ok, local} -> Calendar.strftime(local, "%Y-%m-%dT%H:%M")
-      {:error, _reason} -> ""
-    end
-  end
-
-  defp start_local(_start_at, _zone), do: ""
+  def draft_values(draft),
+    do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
 
   attr :draft, :map, default: nil
   attr :draft_values, :map, required: true
@@ -59,7 +43,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :image_notice, :map, default: nil
   attr :stocks_image_upload, :map, default: nil
   attr :stocks_lab, :map, default: nil
-  attr :minimum_raise, :string, default: nil
   attr :market, :map, default: %{prices: %{}, venues: []}
   attr :launch_chain, :atom, required: true
   attr :active_stocks_launch, :boolean, default: false
@@ -83,8 +66,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       )
       |> assign(:token_fields, @token_fields)
       |> assign(:address_hint, @address_hint)
-      |> assign(:raise_currency, LaunchChain.raise_currency(assigns.launch_chain))
       |> assign(:fixed_terms, fixed_terms(assigns.launch_chain))
+      |> assign(:bidding_opens, bidding_opens(assigns.launch_chain))
 
     assigns =
       assign(assigns, :floor_echo, floor_echo(assigns.draft_values["floor_price"], assigns.stock))
@@ -199,12 +182,11 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             id="stocks-terms"
             phx-change="autosave_stocks_terms"
             phx-submit="autosave_stocks_terms"
-            phx-hook="AutolaunchZonedStart"
             class="launchpad-form-section rg-panel rg-panel--surface rg-field"
           >
             <header>
               <div>
-                <p class="autolaunch-kicker">Currency and schedule</p>
+                <p class="autolaunch-kicker">Currency and terms</p>
                 <Regent.Structure.section_bar>
                   <h2 class="rg-section-bar__label">Stock and auction terms</h2>
                 </Regent.Structure.section_bar>
@@ -236,47 +218,20 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               in order to bid on {bid_target(@draft_values["symbol"])}.
             </p>
 
-            <Regent.Primitives.field
-              :if={@launch_chain == :base}
-              id="stocks-terms-start_local"
-              label="Bidding opens"
-              class="autolaunch-draft-field"
-            >
-              <input
-                type="datetime-local"
-                id="stocks-terms-start_local"
-                name="stock_draft[start_local]"
-                value={@draft_values["start_local"]}
-                step="60"
-                aria-describedby="stocks-terms-start_local-hint"
-                phx-debounce="400"
-              />
-              <p id="stocks-terms-start_local-hint" class="autolaunch-draft-hint">
-                At least 10 minutes and at most 30 days from when you review. Bidding runs about 24 hours.
-              </p>
-              <label for="stocks-terms-start_timezone">Time zone</label>
-              <input
-                type="text"
-                id="stocks-terms-start_timezone"
-                name="stock_draft[start_timezone]"
-                value={@draft_values["start_timezone"]}
-                autocomplete="off"
-                placeholder="Detected from your browser"
-                aria-describedby="stocks-terms-start_timezone-hint"
-                phx-debounce="400"
-                data-zoned-start-timezone
-              />
-              <p id="stocks-terms-start_timezone-hint" class="autolaunch-draft-hint">
-                The zone the time above is written in, such as Europe/Amsterdam. Filled in from your browser; change it if you mean another zone.
-              </p>
-              <p :if={@draft_errors["start_local"]} class="autolaunch-draft-error" role="alert">
-                {@draft_errors["start_local"]}
-              </p>
-              <p :if={@draft_errors["start_timezone"]} class="autolaunch-draft-error" role="alert">
-                {@draft_errors["start_timezone"]}
-              </p>
-            </Regent.Primitives.field>
-
+            <.draft_field
+              field={
+                %{
+                  param: "required_raise",
+                  label: "Required raise in #{symbol(@stock)}",
+                  kind: :text,
+                  hint:
+                    "The least the auction must raise. If bids fall short, every bid is refundable."
+                }
+              }
+              form_id="stocks-terms"
+              value={@draft_values["required_raise"]}
+              error={@draft_errors["required_raise"]}
+            />
             <.draft_field
               field={
                 %{
@@ -290,12 +245,8 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               value={@draft_values["floor_price"]}
               error={@draft_errors["floor_price"]}
             />
-            <p id="stocks-terms-minimum-raise" class="autolaunch-draft-note">
-              Every stock launch has the same minimum: {minimum_raise_copy(
-                @minimum_raise,
-                @raise_currency,
-                @stock
-              )}. If bids fall short, every bid is refunded.
+            <p id="stocks-terms-bidding-opens" class="autolaunch-draft-note">
+              Bidding opens {@bidding_opens} after the launch is created. There is no launch fee.
             </p>
             <Regent.Primitives.disclosure
               id="stocks-terms-more-info"
@@ -306,17 +257,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
                 {@stock.symbol} uses {@stock.decimals} decimal places on {network_name(@launch_chain)}.
               </p>
               <p class="autolaunch-draft-hint">
-                Bids and refunds use the selected stock token. {@raise_currency} is converted before bidding.
+                Bids, the required raise and refunds all use the selected stock token.
                 These assets are listed for selection, not yet admitted for launch execution.
                 Asset transfer policies and execution availability require separate verification.
-              </p>
-              <p
-                :if={@launch_chain == :robinhood}
-                id="stocks-terms-robinhood-start"
-                class="autolaunch-draft-hint"
-              >
-                Bidding opens a fixed short time after you review the launch. The review shows the
-                exact blocks.
               </p>
               <p
                 :if={@floor_echo}
@@ -380,18 +323,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               </div>
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
-            <p :if={@launch_chain == :base}>
-              The review shows the exact start block, executable floor price, minimum raise and
-              launch fee before anything is submitted. The launch fee is 100,000 REGENT, paid to
-              REGENT staking as rewards and not refunded if the minimum is not raised. Your wallet
-              first allows exactly that fee to be taken when it has not already, then creates the
-              launch.
-            </p>
-            <p :if={@launch_chain == :robinhood && @robinhood_open?}>
-              The review shows the exact start block, executable floor price, minimum raise and
-              launch fee before anything is submitted. When there is a launch fee it is paid in
-              USDG and not refunded if the minimum is not raised. Your wallet first allows exactly
-              that fee to be taken when it has not already, then creates the launch.
+            <p :if={@launch_chain == :base || @robinhood_open?}>
+              The review shows the executable floor price, the required raise and the schedule
+              before anything is submitted. There is no launch fee: your wallet sends one
+              transaction that creates the launch.
             </p>
             <p
               :if={@launch_chain == :robinhood && !@robinhood_open?}
@@ -459,9 +394,9 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             kind={:draft}
             record={
               Map.merge(@draft_values, %{
-                "required_regent_raised" => blank(@minimum_raise),
-                "preview_metric_unit" => @raise_currency,
-                "preview_metric_label" => "Minimum raise"
+                "required_regent_raised" => blank(@draft_values["required_raise"]),
+                "preview_metric_unit" => symbol(@stock),
+                "preview_metric_label" => "Required raise"
               })
             }
             preview
@@ -484,15 +419,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               <dd>{if @stock, do: @stock.symbol, else: blank(nil)}</dd>
             </div>
             <div>
-              <dt>Bidding opens</dt>
-              <dd :if={@launch_chain == :base}>
-                {blank(@draft_values["start_local"])} {@draft_values["start_timezone"]}
-              </dd>
-              <dd :if={@launch_chain == :robinhood}>A fixed short time after you review</dd>
+              <dt>Required raise</dt>
+              <dd>{blank(@draft_values["required_raise"])} {symbol(@stock)}</dd>
             </div>
             <div>
-              <dt>Minimum raise</dt>
-              <dd>{minimum_raise_copy(@minimum_raise, @raise_currency, @stock)}</dd>
+              <dt>Bidding opens</dt>
+              <dd>{@bidding_opens} after the launch is created</dd>
             </div>
             <div>
               <dt>Floor price</dt>
@@ -596,13 +528,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
     end
   end
 
-  # The launchpad's minimum in its auction currency, worded for the chosen
-  # stock; the exact STOCK amount comes from the price when the launch is created.
-  defp minimum_raise_copy(nil, _currency, _stock), do: blank(nil)
-
-  defp minimum_raise_copy(units, currency, stock),
-    do: "#{Amounts.grouped(units)} #{currency} worth of #{symbol(stock)}, converted at launch"
-
   defp venue_note(:base), do: ""
   defp venue_note(:robinhood), do: ", the most traded venue"
 
@@ -610,7 +535,12 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp bid_target(symbol), do: symbol
 
   defp fixed_terms(:base), do: LaunchActions.terms()
-  defp fixed_terms(:robinhood), do: Robinhood.stock_terms()
+  defp fixed_terms(:robinhood), do: RobinhoodLaunchActions.terms()
+
+  defp bidding_opens(:base), do: LaunchActions.schedule_copy(LaunchActions.start_lead_blocks())
+
+  defp bidding_opens(:robinhood),
+    do: RobinhoodLaunchActions.schedule_copy(RobinhoodLaunchActions.start_lead_blocks())
 
   defp network_name(:base),
     do: if(Autolaunch.Lab.test_chain?(), do: "this site's Base fork", else: "Base")

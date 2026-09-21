@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   @moduledoc """
-  The wallet step of a Stocks launch: one review, then at most two transactions
-  (the exact launch-fee allowance when it is needed, then the launch itself).
+  The wallet step of a Stocks launch: one review, then the one launch
+  transaction. There is no launch fee.
 
   The wallet Privy has selected drives everything here and its address is proved
   against the mounted lease before any private fact is read. The browser reports
@@ -28,16 +28,13 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       "The Base fork could not be read just now. Check that it is still running.",
     stocks_unavailable: "Stock launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
-    insufficient_regent: "This wallet holds less REGENT than the launch fee.",
     active_stocks_launch_exists: ActiveLaunchLimit.message(),
     stock_not_admitted: "This stock token is not admitted for launches right now.",
-    start_too_soon: "The start must be at least 10 minutes from now. Move it later on the draft.",
-    start_too_late: "The start must be within 30 days. Move it earlier on the draft.",
-    start_missing: "Choose a start date and time on the draft.",
     floor_price_too_low: "The floor price is too low to be used. Raise it on the draft.",
     floor_price_missing: "Enter a floor price on the draft.",
-    minimum_raise_unquotable:
-      "This stock's price could not be read to set the minimum raise. Try again in a moment.",
+    required_raise_missing: "Enter a required raise on the draft.",
+    required_raise_invalid:
+      "The required raise must be more than zero, in an amount this stock token can represent. Check it on the draft.",
     amount_not_representable: "An amount has more decimal places than this stock token supports.",
     invalid_decimal: "An amount on the draft is not a plain decimal number.",
     price_out_of_range: "The floor price cannot be used. Check it on the draft.",
@@ -138,34 +135,23 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             </dd>
           </div>
           <div>
+            <dt>Required raise</dt>
+            <dd>
+              {Amounts.grouped(argument(@operation, "required_stock_raised_units"))} {argument(
+                @operation,
+                "stock_symbol"
+              )}. If bids fall short, every bid is refundable.
+            </dd>
+          </div>
+          <div>
             <dt>Bidding opens</dt>
             <dd>
-              {zoned(argument(@operation, "start_at"), argument(@operation, "start_timezone"))} · block {argument(
-                @operation,
-                "start_block"
-              )}
+              {LaunchActions.schedule_copy(LaunchActions.start_lead_blocks())} after the launch is created
             </dd>
           </div>
           <div>
-            <dt>Estimated close</dt>
-            <dd>
-              {zoned(argument(@operation, "estimated_end_at"), argument(@operation, "start_timezone"))} · block {argument(
-                @operation,
-                "end_block"
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt>Minimum raise</dt>
-            <dd>
-              {Amounts.grouped(argument(@operation, "minimum_raise_usdc"))} USDC worth of {argument(
-                @operation,
-                "stock_symbol"
-              )}, about {Amounts.compact_decimal(argument(@operation, "required_stock_raised_units"))} {argument(
-                @operation,
-                "stock_symbol"
-              )} at today's price. The exact amount is set from the price when the launch is created.
-            </dd>
+            <dt>Auction length</dt>
+            <dd>{LaunchActions.schedule_copy(LaunchActions.auction_duration_blocks())}</dd>
           </div>
           <div>
             <dt>Floor price</dt>
@@ -181,7 +167,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           </div>
           <div>
             <dt>Launch fee</dt>
-            <dd>{fee_display(@operation)}</dd>
+            <dd>None</dd>
           </div>
           <div>
             <dt>Wallet</dt>
@@ -193,7 +179,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           </div>
           <div>
             <dt>Transactions</dt>
-            <dd>{step_count(@operation)}</dd>
+            <dd>One transaction</dd>
           </div>
         </dl>
 
@@ -221,6 +207,11 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
             <.link :if={@auction_path} navigate={@auction_path}>Open the auction</.link>
             · Token <span class="launch-wallet-mono">{@operation.result["new_token"]}</span>
             · Auction <span class="launch-wallet-mono">{@operation.result["auction"]}</span>
+          </p>
+          <p>
+            Bidding opens at block {@operation.result["start_block"]} and ends at block {@operation.result[
+              "end_block"
+            ]}.
           </p>
         </section>
         <p
@@ -477,14 +468,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         &LaunchActions.step_hash(operation, &1["step"])
       )
 
-  defp step_count(operation) do
-    case length(LaunchActions.steps(operation)) do
-      1 -> "One transaction"
-      2 -> "Two transactions"
-    end
-  end
-
-  defp step_label("approval"), do: "Allow the launch fee to be taken"
   defp step_label("launch"), do: "Create the launch"
 
   # Where the sequence has got to, read from the operation's own step and state.
@@ -493,13 +476,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       Atom.to_string(step) == step_name -> current_state(operation.state)
       LaunchActions.step_hash(operation, step_name) -> "Verified"
       true -> "Waiting"
-    end
-  end
-
-  defp fee_display(operation) do
-    case argument(operation, "expected_launch_fee") do
-      "0" -> "None right now"
-      fee -> LaunchActions.launch_fee_copy(fee)
     end
   end
 
@@ -524,44 +500,29 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp settled_copy(%{state: :submission_unknown}),
     do: "This one is still unresolved. Check your wallet activity before you try it again."
 
-  defp settled_copy(%{state: :not_sent} = operation),
-    do: "Your wallet declined this." <> left_behind(operation)
+  defp settled_copy(%{state: :not_sent}), do: "Your wallet declined this. Nothing was sent."
 
   defp settled_copy(%{state: :cancelled}), do: WalletPressComponent.withdrawal_copy()
 
-  defp settled_copy(%{state: :expired} = operation),
-    do: "This review expired before the launch was sent." <> left_behind(operation)
+  defp settled_copy(%{state: :expired}),
+    do: "This review expired before the launch was sent. Nothing was sent."
 
-  defp settled_copy(%{state: :invalidated, reason: reason} = operation),
+  defp settled_copy(%{state: :invalidated, reason: reason}),
     do:
-      "The fork changed before the launch was sent." <>
-        left_behind(operation) <> " Review it again: #{reason}."
-
-  # A review that ends after its allowance correction was already sent leaves
-  # that exact allowance standing, so claiming nothing was sent would be false.
-  defp left_behind(operation) do
-    if LaunchActions.step_hash(operation, "approval"),
-      do:
-        " Your REGENT approval was already sent, so that allowance may still be active. A fresh review corrects that allowance exactly.",
-      else: " Nothing was sent."
-  end
+      "The fork changed before the launch was sent. Nothing was sent. Review it again: #{reason}."
 
   defp exact_values(operation) do
     [
       {"Launchpad", argument(operation, "launchpad")},
       {"Stock token", argument(operation, "stock")},
       {"Stock decimals", argument(operation, "stock_decimals")},
-      {"Start block", argument(operation, "start_block")},
-      {"End block", argument(operation, "end_block")},
+      {"Required raise (stock base units)", argument(operation, "required_stock_raised")},
       {"Floor price (every digit)",
        "#{argument(operation, "floor_price_executable")} #{argument(operation, "stock_symbol")} per token"},
       {"Floor price (Q96)", argument(operation, "floor_price_q96")},
       {"Bid tick spacing (Q96)", argument(operation, "tick_spacing_q96")},
-      {"Minimum raise (USDC base units)", argument(operation, "minimum_raise_usdc_atomic")},
-      {"Minimum raise quoted at review (base units)",
-       argument(operation, "required_stock_raised")},
-      {"Launch fee (atomic)", argument(operation, "expected_launch_fee_atomic")},
-      {"REGENT", argument(operation, "regent")},
+      {"Bidding opens (blocks after creation)", argument(operation, "start_lead_blocks")},
+      {"Auction length (blocks)", argument(operation, "auction_duration_blocks")},
       {"Reviewed block",
        "#{argument(operation, "block_number")} · #{argument(operation, "block_hash")}"},
       {"Calldata digest", operation.envelope["metadata"]["calldata_sha256"]}
@@ -588,18 +549,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
-
-  @doc false
-  def zoned(iso, zone) when is_binary(iso) and is_binary(zone) do
-    with {:ok, utc, _offset} <- DateTime.from_iso8601(iso),
-         {:ok, local} <- DateTime.shift_zone(utc, zone) do
-      Calendar.strftime(local, "%Y-%m-%d %H:%M") <> " " <> zone
-    else
-      _unreadable -> iso
-    end
-  end
-
-  def zoned(iso, _zone), do: iso
 
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"

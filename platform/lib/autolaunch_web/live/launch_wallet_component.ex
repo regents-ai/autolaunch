@@ -33,13 +33,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     launch_preparation_unavailable: "Launching from your wallet is not open yet.",
     launch_snapshot_incomplete: "Base gave an incomplete answer. Try again in a moment.",
     launches_paused: "New launches are paused right now.",
-    insufficient_regent: "This wallet does not hold enough REGENT for the launch fee.",
     launch_treasury_refused:
       "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
     required_raise_unreachable:
       "This required raise is higher than an auction can reach. Lower it on this draft and try again.",
-    required_raise_below_minimum:
-      "This required raise is below the current minimum for new launches. Increase it on your draft and review again.",
     strategy_not_bound:
       "This launch factory and its strategy do not match. Nothing was prepared.",
     launch_metadata_incomplete:
@@ -110,13 +107,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           :if={awaiting_current_chain?(@treasury_report, @fresh_treasury_report_id)}
           data-treasury-verification-state="awaiting-current-chain-confirmation"
         >
-          Awaiting current chain confirmation. No REGENT approval or launch can be prepared on the official Safe path.
+          Awaiting current chain confirmation. No launch can be prepared on the official Safe path.
         </p>
         <p
           :if={freshly_unverified?(@treasury_report, @fresh_treasury_report_id)}
           data-treasury-verification-state="unverified"
         >
-          Unverified. No REGENT approval or launch can be prepared on the official Safe path.
+          Unverified. No launch can be prepared on the official Safe path.
         </p>
         <form class="rg-field" phx-submit="verify_treasury" phx-target={@myself}>
           <label>USDC receipt transaction <input name="usdc" autocomplete="off" /></label>
@@ -167,12 +164,8 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
             <dd>{argument(@operation, "required_regent_raised")} REGENT</dd>
           </div>
           <div>
-            <dt>Minimum at review</dt>
-            <dd>{argument(@operation, "minimum_regent_raised")} REGENT</dd>
-          </div>
-          <div>
             <dt>Launch fee</dt>
-            <dd>{fee_display(@operation)}</dd>
+            <dd>None</dd>
           </div>
           <div>
             <dt>Treasury</dt>
@@ -192,7 +185,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           </div>
           <div>
             <dt>Transactions</dt>
-            <dd>{step_count(@operation)}</dd>
+            <dd>One transaction</dd>
           </div>
         </dl>
 
@@ -216,7 +209,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         <%!-- The list styling drops list semantics, so the role is stated. --%>
         <ol class="launch-wallet-steps" role="list" aria-label="Launch progress">
           <li :for={step <- LaunchActions.steps(@operation)} data-step={step["step"]}>
-            <span>{step_label(step["step"], @operation)}</span>
+            <span>{step_label(step["step"])}</span>
             <span class="launch-wallet-step-state">{step_state(@operation, step["step"])}</span>
             <.transaction
               hash={LaunchActions.step_hash(@operation, step["step"])}
@@ -655,13 +648,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
         &LaunchActions.step_hash(operation, &1["step"])
       )
 
-  defp step_count(operation) do
-    case length(LaunchActions.steps(operation)) do
-      1 -> "One transaction"
-      2 -> "Two transactions"
-    end
-  end
-
   # Where the sequence has got to, read from the operation's own step and state.
   defp step_state(%{step: step} = operation, step_name) do
     cond do
@@ -683,8 +669,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   defp current_state(:invalidated), do: "Out of date"
   defp current_state(:submission_unknown), do: "Unresolved"
 
-  defp step_label("approval", _operation), do: "Allow the launch fee to be taken"
-  defp step_label("launch", _operation), do: "Create the launch"
+  defp step_label("launch"), do: "Create the launch"
 
   # The exact customer sentence for a launch this server verified its own
   # evidence for. It deliberately promises no more than that: canonical public
@@ -708,35 +693,20 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   defp settled_copy(%{state: :submission_unknown}),
     do: "This one is still unresolved. Check your wallet activity before you try it again."
 
-  defp settled_copy(%{state: :not_sent} = operation),
-    do: "Your wallet declined this." <> left_behind(operation)
+  defp settled_copy(%{state: :not_sent}), do: "Your wallet declined this. Nothing was sent."
 
   defp settled_copy(%{state: :cancelled}),
     do: AutolaunchWeb.WalletPressComponent.withdrawal_copy()
 
-  defp settled_copy(%{state: :expired} = operation),
-    do: "This review expired before the launch was sent." <> left_behind(operation)
+  defp settled_copy(%{state: :expired}),
+    do: "This review expired before the launch was sent. Nothing was sent."
 
   defp settled_copy(%{state: :invalidated, envelope: %{"chain_id" => 31_337}} = operation),
     do:
-      "The fork changed before the launch was sent." <>
-        left_behind(operation) <> ended_because(operation)
+      "The fork changed before the launch was sent. Nothing was sent." <> ended_because(operation)
 
   defp settled_copy(%{state: :invalidated} = operation),
-    do:
-      "Base moved on before the launch was sent." <>
-        left_behind(operation) <> ended_because(operation)
-
-  # A review that ends after its allowance correction was already sent leaves
-  # that exact allowance standing on Base, so claiming nothing was sent would be
-  # false. The standing approval is named instead, and the next review's
-  # exact-equality branch is what corrects it.
-  defp left_behind(operation) do
-    if LaunchActions.step_hash(operation, "approval"),
-      do:
-        " Your REGENT approval was already sent, so that allowance may still be active. A fresh review corrects that allowance exactly.",
-      else: " Nothing was sent."
-  end
+    do: "Base moved on before the launch was sent. Nothing was sent." <> ended_because(operation)
 
   defp ended_because(%{reason: reason}) when is_binary(reason),
     do: " Review it again: #{reason}."
@@ -779,7 +749,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
       {"Strategy", argument(operation, "strategy")},
       {"Treasury", argument(operation, "treasury")},
       {"Required raise (atomic)", argument(operation, "required_regent_raised_atomic")},
-      {"Launch fee (atomic)", argument(operation, "expected_launch_fee_atomic")},
       {"Reviewed block",
        "#{argument(operation, "block_number")} · #{argument(operation, "block_hash")}"},
       {"Calldata digest", operation.envelope["metadata"]["calldata_sha256"]}
@@ -787,13 +756,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   end
 
   defp term_label(key), do: key |> String.replace("_", " ") |> String.capitalize()
-
-  defp fee_display(operation) do
-    case argument(operation, "expected_launch_fee") do
-      "0" -> "None right now"
-      fee -> "#{fee} REGENT"
-    end
-  end
 
   # The browser reports a closed reason key as a string, never text of its own.
   # Only a key that proves the wallet was never asked to send may say nothing was

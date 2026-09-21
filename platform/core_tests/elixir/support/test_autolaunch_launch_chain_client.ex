@@ -3,8 +3,8 @@ defmodule Autolaunch.TestAutolaunchLaunchChainClient do
   A fixture-bound Base client for the direct-wallet launch lane.
 
   It is exactly what the plan permits and no more: a scripted factory identity,
-  fee, pause state, balance, allowance, reciprocal strategy binding, bound fee
-  hook, founder-frozen terms and per-step outcomes, so the whole product flow
+  pause state, reciprocal strategy binding, bound fee hook, founder-frozen terms
+  and the launch outcome, so the whole product flow
   that follows a snapshot can be proved while the production client stays
   closed. It is never installed outside a test or the browser-proof server
   process, and nothing it answers is reviewed evidence.
@@ -194,11 +194,7 @@ defmodule Autolaunch.LaunchFixture do
       factory: Map.get(overrides, :factory, @factory),
       strategy: Map.get(overrides, :strategy, @strategy),
       strategy_factory: Map.get(overrides, :strategy_factory, @factory),
-      fee: Map.get(overrides, :fee, 1_000_000 * @unit),
-      minimum_regent_raised: Map.get(overrides, :minimum_regent_raised, 10_000_000 * @unit),
       paused: Map.get(overrides, :paused, false),
-      balance: Map.get(overrides, :balance, 5_000_000 * @unit),
-      allowance: Map.get(overrides, :allowance, 0),
       hook: Map.get(overrides, :hook, @hook),
       terms: Map.merge(@terms, Map.get(overrides, :terms, %{})),
       block: Map.get(overrides, :block, %{number: 30_000_000, hash: block_hash()}),

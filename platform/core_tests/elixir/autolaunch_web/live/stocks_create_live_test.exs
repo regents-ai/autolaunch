@@ -42,12 +42,7 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
 
     view
     |> form("#stocks-terms",
-      stock_draft: %{
-        stock_address: @aapl,
-        start_local: "2026-09-10T14:00",
-        start_timezone: "Europe/Amsterdam",
-        floor_price: "1.25"
-      }
+      stock_draft: %{stock_address: @aapl, required_raise: "500", floor_price: "1.25"}
     )
     |> render_change()
 
@@ -56,27 +51,25 @@ defmodule AutolaunchWeb.StocksCreateLiveTest do
     assert draft.name == "Apple Pair"
     assert draft.symbol == "APLP"
     assert draft.stock_address == @aapl
-    assert draft.start_at == ~U[2026-09-10 12:00:00Z]
-    assert draft.start_timezone == "Europe/Amsterdam"
+    assert draft.required_raise == "500"
     assert draft.floor_price == "1.25"
 
     html =
       view
-      |> form("#stocks-terms",
-        stock_draft: %{stock_address: @amzn, start_timezone: "Europe/Amsterdam"}
-      )
+      |> form("#stocks-terms", stock_draft: %{stock_address: @amzn})
       |> render_change()
 
     {:ok, changed} = Autolaunch.get_my_stocks_launch_draft(:base, actor: actor)
     assert changed.stock_address == @amzn
+    assert changed.required_raise == nil
     assert changed.floor_price == nil
-    assert changed.start_at == ~U[2026-09-10 12:00:00Z]
     refute html =~ ~s(value="1.25")
+    refute html =~ ~s(value="500")
     assert html =~ "Saved to your account"
 
     # With every section complete the wallet step appears, waiting for a wallet.
     view
-    |> form("#stocks-terms", stock_draft: %{floor_price: "2"})
+    |> form("#stocks-terms", stock_draft: %{required_raise: "250", floor_price: "2"})
     |> render_change()
 
     view

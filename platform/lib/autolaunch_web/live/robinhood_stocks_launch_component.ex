@@ -1,8 +1,7 @@
 defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   @moduledoc """
-  The wallet step of a memestock pair launch on Robinhood: one review, then at
-  most two transactions (the exact USDG launch-fee allowance when one is needed,
-  then the launch itself).
+  The wallet step of a memestock pair launch on Robinhood: one review, then the
+  one launch transaction. There is no launch fee.
 
   The wallet Privy has selected drives everything here and its address is proved
   against the mounted lease before anything is read. Nothing is stored: the
@@ -28,11 +27,13 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     invalid_chain_response: "Robinhood gave an incomplete answer. Try again in a moment.",
     robinhood_unavailable: "Robinhood launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
-    insufficient_usdg: "This wallet holds less USDG than the launch fee.",
     stock_not_admitted: "This stock is not open for launches right now. Choose another.",
     stock_invalid: "Choose a stock for this launch.",
     floor_price_missing: "Set a floor price on the draft first.",
     floor_price_too_low: "The floor price is too low to use. Raise it on the draft.",
+    required_raise_missing: "Set a required raise on the draft first.",
+    required_raise_invalid:
+      "The required raise must be more than zero, in an amount this stock token can represent. Check it on the draft.",
     launch_metadata_incomplete: "This draft is missing something the launch needs.",
     launch_draft_not_found: "This draft is no longer available.",
     launch_draft_unavailable: "This draft could not be read just now.",
@@ -42,7 +43,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   @generic "That did not go through. Try again in a moment."
   @unheld [:wrong_signer, :session_unavailable, :session_lease_required, :invalid_address]
-  @steps %{"approval" => :approval, "launch" => :launch}
+  @steps %{"launch" => :launch}
 
   @impl true
   def update(assigns, socket) do
@@ -122,7 +123,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           </div>
           <div>
             <dt>Transactions</dt>
-            <dd>{step_count(@review.steps)}</dd>
+            <dd>One transaction</dd>
           </div>
         </dl>
 
@@ -150,6 +151,11 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
             Launch #{launched(@sent)["launch_id"]} · Token
             <span class="launch-wallet-mono">{launched(@sent)["new_token"]}</span>
             · Auction <span class="launch-wallet-mono">{launched(@sent)["auction"]}</span>
+          </p>
+          <p>
+            Bidding opens at block {launched(@sent)["start_block"]} and ends at block {launched(@sent)[
+              "end_block"
+            ]}.
           </p>
           <p>
             <.link navigate={~p"/robinhood/auctions/#{launched(@sent)["auction"]}"}>
@@ -370,10 +376,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     end)
   end
 
-  defp step_count([_one]), do: "One transaction"
-  defp step_count([_one, _two]), do: "Two transactions"
-
-  defp step_label("approval"), do: "Allow the launch fee to be taken"
   defp step_label("launch"), do: "Create the launch"
 
   defp step_state(nil), do: "Ready"
@@ -395,20 +397,19 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp lifecycle("active"), do: "Active"
   defp lifecycle("graduated"), do: "Graduated"
-  defp lifecycle("failed"), do: "Minimum not raised"
+  defp lifecycle("failed"), do: "Required raise not reached"
   defp lifecycle("none"), do: "Not started"
 
   defp exact_values(review) do
     [
       {"Launchpad", argument(review, "launchpad")},
-      {"USDG", argument(review, "usdg")},
       {"Stock route", argument(review, "route")},
-      {"Start block", argument(review, "start_block")},
-      {"End block", argument(review, "end_block")},
-      {"Floor price (Q96)", argument(review, "floor_price_q96")},
+      {"Stock decimals", argument(review, "stock_decimals")},
       {"Required raise (stock base units)", argument(review, "required_stock_raised")},
-      {"Minimum raise (USDG base units)", argument(review, "minimum_raise_usdg_atomic")},
-      {"Launch fee (USDG base units)", argument(review, "expected_launch_fee_atomic")},
+      {"Floor price (Q96)", argument(review, "floor_price_q96")},
+      {"Bid tick spacing (Q96)", argument(review, "tick_spacing_q96")},
+      {"Bidding opens (blocks after creation)", argument(review, "start_lead_blocks")},
+      {"Auction length (blocks)", argument(review, "auction_duration_blocks")},
       {"Reviewed block",
        "#{argument(review, "block_number")} · #{argument(review, "block_hash")}"},
       {"Calldata digest", review.envelope["metadata"]["calldata_sha256"]}

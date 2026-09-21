@@ -2,14 +2,11 @@ defmodule Autolaunch.LaunchOperation do
   @moduledoc """
   One durable direct-wallet launch the server owns before any wallet opens.
 
-  The reviewed sequence is immutable and lives in `envelope`: at most an exact
-  REGENT allowance correction followed by the one `launch` call it enables.
-  `step` says which of those two transactions is wallet-capable right now and
-  `state` says how far that one transaction has got, so exactly one step is
-  sendable at a time and its hash is bound before the next becomes so.
+  The reviewed sequence is immutable and lives in `envelope`: the one `launch`
+  call. `step` names that transaction and `state` says how far it has got.
 
-  The database decides every race. `action_id` is unique, each hash column is
-  unique within itself across every operation, and a partial identity over
+  The database decides every race. `action_id` is unique, the hash column is
+  unique across every operation, and a partial identity over
   `terminal_at IS NULL` allows one open launch per human account. A new prepare
   closes whatever is open as replaced and takes the slot; a closed step never
   becomes a fresh send, and a hash that arrives late attaches to the operation
@@ -26,7 +23,7 @@ defmodule Autolaunch.LaunchOperation do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @steps [:approval, :launch]
+  @steps [:launch]
   @states [
     :prepared,
     :dispatched,
@@ -41,14 +38,7 @@ defmodule Autolaunch.LaunchOperation do
     :submission_unknown
   ]
 
-  @hashes [:approval_transaction_hash, :launch_transaction_hash]
-
-  # Postgres caps an index name at 63 bytes, so each identity is named for the
-  # phase it protects rather than for the whole column.
-  @hash_identities [
-    {:unique_launch_approval_hash, :approval_transaction_hash},
-    {:unique_launch_hash, :launch_transaction_hash}
-  ]
+  @hashes [:launch_transaction_hash]
 
   postgres do
     table "launch_operations"
@@ -109,17 +99,6 @@ defmodule Autolaunch.LaunchOperation do
       require_atomic? false
       validate attribute_equals(:state, :dispatched)
       change set_attribute(:state, :submitted)
-    end
-
-    # The allowance correction is verified, so the launch it enables becomes
-    # sendable. The approval's own hash stays exactly where it is.
-    update :advance do
-      accept [:result]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      validate attribute_equals(:step, :approval)
-      change set_attribute(:step, :launch)
-      change set_attribute(:state, :prepared)
     end
 
     update :record_chain_verified do
@@ -264,10 +243,7 @@ defmodule Autolaunch.LaunchOperation do
 
   identities do
     identity :unique_launch_action_id, [:action_id]
-
-    for {name, hash} <- @hash_identities do
-      identity name, [hash]
-    end
+    identity :unique_launch_hash, [:launch_transaction_hash]
 
     identity :one_open_per_account, [:human_account_id] do
       where expr(is_nil(terminal_at))

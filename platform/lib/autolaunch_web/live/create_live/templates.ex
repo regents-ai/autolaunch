@@ -82,7 +82,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
-  attr :minimum_raise, :string, default: nil
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -134,7 +133,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 :for={field <- token_detail_fields(@raise_currency)}
                 field={field}
                 form_id="launch-token-details"
-                hint={field_hint(field, @minimum_raise, @raise_currency)}
+                hint={field.hint}
                 value={@draft_values[field.param]}
                 error={@draft_errors[field.param]}
                 autosave
@@ -262,7 +261,8 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               <span>{if @launch_ready?, do: "Ready", else: "Details required"}</span>
             </header>
             <p>
-              You will see the exact REGENT fee and every transaction before anything is sent.
+              You will see every value and the one transaction before anything is sent. There is
+              no launch fee.
             </p>
             <.live_component
               :if={@launch_ready? && @active_draft}
@@ -476,13 +476,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     end)
   end
 
-  defp field_hint(%{key: :required_regent_raised}, nil, _currency),
-    do: "The current minimum must be verified before launching."
-
-  defp field_hint(%{key: :required_regent_raised}, minimum, currency),
-    do: "Minimum #{minimum} #{currency}. Checked again before launching."
-
-  defp field_hint(field, _minimum, _currency), do: field.hint
   defp treasury_field, do: @treasury_field
 
   defp stage_status(true), do: "Complete"

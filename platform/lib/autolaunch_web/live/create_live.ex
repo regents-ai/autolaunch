@@ -51,7 +51,6 @@ defmodule AutolaunchWeb.CreateLive do
          if connected?(socket) do
            socket
            |> load_create(actor)
-           |> start_async(:minimum_raise, fn -> Autolaunch.LaunchActions.minimum_raise() end)
          else
            socket
          end}
@@ -118,12 +117,6 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_async(name, result, %{assigns: %{launch_kind: :stocks}} = socket),
     do: AutolaunchWeb.StocksCreateLive.handle_async(name, result, socket)
-
-  def handle_async(:minimum_raise, {:ok, {:ok, amount}}, socket),
-    do: {:noreply, assign(socket, minimum_raise: amount)}
-
-  def handle_async(:minimum_raise, _unavailable, socket),
-    do: {:noreply, assign(socket, minimum_raise: nil)}
 
   def handle_async({:fetch_image_url, request_id}, result, socket) do
     if socket.assigns.image_request == request_id do
@@ -207,19 +200,19 @@ defmodule AutolaunchWeb.CreateLive do
   defp choice_title(:base, :revshare), do: "Revstake token on Base"
   defp choice_title(chain, :stocks), do: "Memestock pair on #{LaunchChain.label(chain)}"
 
-  # What each of the three launches does and which tokens it needs. Amounts are
-  # left to the form, which reads the live minimum from each launchpad.
+  # What each of the three launches does and which tokens it needs. There is
+  # no launch fee on any of them.
   defp choice_summary(:base, :revshare),
     do:
-      "Best for agent services and x402 endpoints that will earn USDC over the long term. Bidders pay in REGENT; the raise and its minimum are set in REGENT and the launch fee, when there is one, is paid in REGENT from your wallet."
+      "Best for agent services and x402 endpoints that will earn USDC over the long term. Bidders pay in REGENT and you choose the required raise in REGENT. There is no launch fee."
 
   defp choice_summary(:base, :stocks),
     do:
-      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDC; the raise and its minimum are set in USDC and the launch fee is paid in REGENT from your wallet."
+      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in the stock token you choose, and you set the required raise in that stock. There is no launch fee."
 
   defp choice_summary(:robinhood, :stocks) do
     summary =
-      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDG; the raise and its minimum are set in USDG and the launch fee, when there is one, is paid in USDG from your wallet."
+      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in the stock token you choose, and you set the required raise in that stock. There is no launch fee."
 
     if Autolaunch.Robinhood.Lab.configured?(),
       do: summary,
@@ -411,7 +404,6 @@ defmodule AutolaunchWeb.CreateLive do
       draft_notice: nil,
       image_notice: nil,
       image_request: nil,
-      minimum_raise: nil,
       x_connections: [],
       x_oauth_enabled: XOAuth.enabled?(),
       auction_limit_reached: auction_limit_reached?(actor),

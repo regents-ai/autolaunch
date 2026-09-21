@@ -13,7 +13,7 @@ defmodule Autolaunch.Stocks.LaunchDraft.Validations.PartialFields do
     description: 512,
     website: 256,
     stock_address: 42,
-    start_timezone: 64,
+    required_raise: 128,
     floor_price: 128
   }
 

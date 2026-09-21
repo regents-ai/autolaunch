@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.Address
-  alias Autolaunch.{Robinhood, Stocks}
+  alias Autolaunch.Stocks
   alias Autolaunch.Stocks.LaunchDraftImageStorage
   alias AutolaunchWeb.Live.StocksCreateLive.Templates
 
@@ -37,7 +37,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
             image_request: nil,
             current_human_id: actor.human_account_id,
             stocks_lab: stocks_lab(),
-            minimum_raise: nil,
             market: %{prices: %{}, venues: []},
             active_stocks_launch: active_stocks_launch?(actor),
             status: :loading
@@ -48,7 +47,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
            socket
            |> load_draft(actor)
            |> choose_linked_stock(params["token"], actor)
-           |> assign_minimum_raise(socket.assigns.launch_chain)
            |> assign_market()
          else
            socket
@@ -57,17 +55,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
-
-  # Base publishes its USDC minimum on the launchpad; the Robinhood launchpad is
-  # not live yet, so its preset USDG minimum stands in until a chain client reads it.
-  defp assign_minimum_raise(socket, :base),
-    do:
-      start_async(socket, :minimum_raise, fn ->
-        Stocks.LabLaunchChainClient.minimum_raise_usdc()
-      end)
-
-  defp assign_minimum_raise(socket, :robinhood),
-    do: assign(socket, minimum_raise: Robinhood.minimum_raise_usdg())
 
   # The chain's stock prices and the chosen stock's venues are read in the
   # background: the page renders without them and fills them in when they land.
@@ -156,14 +143,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
-
-  # The launchpad's USDC minimum raise, read once for the page's copy; a read
-  # that fails leaves the amount blank and the page otherwise usable.
-  def handle_async(:minimum_raise, {:ok, {:ok, units}}, socket),
-    do: {:noreply, assign(socket, minimum_raise: units)}
-
-  def handle_async(:minimum_raise, _unavailable, socket),
-    do: {:noreply, assign(socket, minimum_raise: nil)}
 
   def handle_async(:market, {:ok, market}, socket), do: {:noreply, assign(socket, market: market)}
   def handle_async(:market, _unavailable, socket), do: {:noreply, socket}

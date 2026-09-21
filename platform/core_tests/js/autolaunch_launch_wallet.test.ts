@@ -27,10 +27,7 @@ function operation(overrides: Partial<LaunchOperation> = {}): LaunchOperation {
     lab,
     lab_anchor: {block_number: 30_000_000, block_hash: blockHash},
     terminal: false,
-    steps: [
-      {step: "approval", to: regent, data: "0x095ea7b3ff" as Hex},
-      {step: "launch", to: factory, data: launchData},
-    ],
+    steps: [{step: "launch", to: factory, data: launchData}],
     ...overrides,
   }
 }
@@ -76,7 +73,7 @@ describe("the browser rechecks the wallet immediately before it sends", () => {
 
     const hash = await sendLaunchStep(
       held,
-      held.steps[1],
+      held.steps[0],
       () => ({address: wallet, provider: bound}),
       () => order.push("send-started"),
     )
@@ -102,7 +99,7 @@ describe("the browser rechecks the wallet immediately before it sends", () => {
     const firstProvider = selectedProvider
     const resolve = () => ({address: wallet, provider: selectedProvider})
 
-    await expect(sendLaunchStep(held, held.steps[1], resolve, vi.fn())).rejects.toThrow(
+    await expect(sendLaunchStep(held, held.steps[0], resolve, vi.fn())).rejects.toThrow(
       "selected wallet changed",
     )
 

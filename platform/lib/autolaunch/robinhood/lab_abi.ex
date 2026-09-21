@@ -3,8 +3,8 @@ defmodule Autolaunch.Robinhood.LabAbi do
 
   alias Autolaunch.LabAbi
 
-  @core_params "(string,string,string,string,string,uint64,uint256,uint256)"
-  @stocks_launch_params "(#{@core_params},address)"
+  @core_params "(string,string,string,string,string,uint256)"
+  @stocks_launch_params "(#{@core_params},address,uint128)"
   @launch_record "(address,address,address,address,uint64,uint64,uint64,uint64,uint128,uint256,uint8,bytes32,uint160,address,uint256,uint128,uint128,uint256)"
   @launch_record_words 18
 
@@ -30,8 +30,6 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"launchIdOfToken(address)", "view", ["uint256"]},
       f: {"nextLaunchId()", "view", ["uint256"]},
       f: {"launchesPaused()", "view", ["bool"]},
-      f: {"launchFee()", "view", ["uint256"]},
-      f: {"minimumRaiseUsdg()", "view", ["uint256"]},
       f: {"stockAdmission(address)", "view", ["bool", "uint8", "address"]},
       f: {"stockRecords(uint256)", "view", ["(uint256,uint128)"]},
       f: {"hook()", "view", ["address"]},
