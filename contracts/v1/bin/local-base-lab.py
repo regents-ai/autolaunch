@@ -77,11 +77,9 @@ TRANSFER = "0xa9059cbb"
 BALANCE_OF = "0x70a08231"
 ADMIN = "0xf851a440"
 FACTORY = "0xc45a0155"
-SET_LAUNCH_FEE = "0x5313be2c"
 PAUSE_LAUNCHES = "0xe79b502e"
 UNPAUSE_LAUNCHES = "0x5af02677"
 NOT_ADMIN = "0x17a84242"
-LAUNCH_FEE = "0xcf3cf573"
 LAUNCHES_PAUSED = "0x3bc340c2"
 START_BLOCK = "0x48cd4cb1"
 END_BLOCK = "0x083c6323"
@@ -619,12 +617,11 @@ def decode_address(data: str) -> str:
     return normalize_address("0x" + raw[12:].hex())
 
 
-def factory_state(client: RpcClient, factory: str) -> tuple[int, bool]:
-    fee = decode_uint(rpc_call(client, factory, LAUNCH_FEE))
+def factory_state(client: RpcClient, factory: str) -> bool:
     paused = decode_uint(rpc_call(client, factory, LAUNCHES_PAUSED))
     if paused not in (0, 1):
         raise LabError("factory pause readback is not boolean")
-    return fee, bool(paused)
+    return bool(paused)
 
 
 def abi_address(value: str) -> str:
@@ -708,17 +705,9 @@ def verify_adapter_bindings(client: RpcClient, admin: str, factory: str) -> None
 
 
 def restore_factory_state(
-    client: RpcClient, admin: str, factory: str, fee: int, paused: bool
+    client: RpcClient, admin: str, factory: str, paused: bool
 ) -> None:
-    current_fee, current_paused = factory_state(client, factory)
-    if current_fee != fee:
-        send_and_wait(
-            client,
-            admin,
-            GOVERNANCE_SAFE,
-            SET_LAUNCH_FEE + abi_uint(fee),
-        )
-    if current_paused != paused:
+    if factory_state(client, factory) != paused:
         selector = PAUSE_LAUNCHES if paused else UNPAUSE_LAUNCHES
         send_and_wait(client, admin, GOVERNANCE_SAFE, selector)
 
@@ -727,39 +716,23 @@ def prove_adapter(
     client: RpcClient,
     admin: str,
     factory: str,
-    prior_fee: int,
     prior_paused: bool,
     prior_governance_balance: int,
 ) -> None:
-    proof_fee = prior_fee ^ 1
     client.mutate("anvil_setBalance", [admin, quantity(10**18)])
     with impersonated(client, admin):
         try:
-            send_and_wait(
-                client,
-                admin,
-                GOVERNANCE_SAFE,
-                SET_LAUNCH_FEE + abi_uint(proof_fee),
-            )
-            if factory_state(client, factory)[0] != proof_fee:
-                raise LabError("authorized adapter fee proof did not change the fee")
-
             first = UNPAUSE_LAUNCHES if prior_paused else PAUSE_LAUNCHES
             second = PAUSE_LAUNCHES if prior_paused else UNPAUSE_LAUNCHES
             send_and_wait(client, admin, GOVERNANCE_SAFE, first)
-            if factory_state(client, factory)[1] == prior_paused:
+            if factory_state(client, factory) == prior_paused:
                 raise LabError("authorized adapter pause proof did not change state")
             send_and_wait(client, admin, GOVERNANCE_SAFE, second)
-            if factory_state(client, factory)[1] != prior_paused:
+            if factory_state(client, factory) != prior_paused:
                 raise LabError("authorized adapter pause proof did not restore state")
 
             try:
-                call_from(
-                    client,
-                    UNRELATED_ADMIN,
-                    GOVERNANCE_SAFE,
-                    SET_LAUNCH_FEE + abi_uint(proof_fee),
-                )
+                call_from(client, UNRELATED_ADMIN, GOVERNANCE_SAFE, first)
             except RpcError as exc:
                 expected_revert = NOT_ADMIN + abi_address(UNRELATED_ADMIN)
                 if not isinstance(exc.data, str) or exc.data.lower() != expected_revert:
@@ -769,9 +742,9 @@ def prove_adapter(
             else:
                 raise LabError("unrelated caller was not rejected by the adapter")
         finally:
-            restore_factory_state(client, admin, factory, prior_fee, prior_paused)
+            restore_factory_state(client, admin, factory, prior_paused)
 
-    if factory_state(client, factory) != (prior_fee, prior_paused):
+    if factory_state(client, factory) != prior_paused:
         raise LabError("factory state was not restored after adapter proof")
     if account_balance(client, REGENT, GOVERNANCE_SAFE) != prior_governance_balance:
         raise LabError("governance REGENT custody changed during adapter proof")
@@ -973,7 +946,7 @@ def command_admin(args: argparse.Namespace) -> None:
 
     expected_runtime = adapter_runtime(root, client, admin, factory)
     current_runtime = runtime_code(client, GOVERNANCE_SAFE)
-    prior_fee, prior_paused = factory_state(client, factory)
+    prior_paused = factory_state(client, factory)
     prior_governance_balance = account_balance(client, REGENT, GOVERNANCE_SAFE)
     baseline = state.get("governance_safe_original_runtime")
 
@@ -1008,12 +981,7 @@ def command_admin(args: argparse.Namespace) -> None:
             proof_snapshot = snapshot(client)
             try:
                 prove_adapter(
-                    client,
-                    admin,
-                    factory,
-                    prior_fee,
-                    prior_paused,
-                    prior_governance_balance,
+                    client, admin, factory, prior_paused, prior_governance_balance
                 )
             finally:
                 revert_snapshot(client, proof_snapshot)
@@ -1021,7 +989,7 @@ def command_admin(args: argparse.Namespace) -> None:
             if runtime_code(client, GOVERNANCE_SAFE) != expected_runtime:
                 raise LabError("adapter runtime changed after proof rollback")
             verify_adapter_bindings(client, admin, factory)
-            if factory_state(client, factory) != (prior_fee, prior_paused):
+            if factory_state(client, factory) != prior_paused:
                 raise LabError("factory state changed after proof rollback")
             if (
                 account_balance(client, REGENT, GOVERNANCE_SAFE)
@@ -1058,7 +1026,7 @@ def command_admin(args: argparse.Namespace) -> None:
                 try:
                     if runtime_code(client, GOVERNANCE_SAFE) != baseline:
                         rollback_errors.append("Safe runtime did not restore exactly")
-                    if factory_state(client, factory) != (prior_fee, prior_paused):
+                    if factory_state(client, factory) != prior_paused:
                         rollback_errors.append("factory state did not restore exactly")
                     if (
                         account_balance(client, REGENT, GOVERNANCE_SAFE)

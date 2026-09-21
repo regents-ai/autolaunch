@@ -243,17 +243,14 @@ deliberate_additions:
       that raise from one on-grid bid and graduates.
     evidence: [STR-013, STR-014]
 
-  - behaviour: `requiredRegentRaised` must be at least `minimumRegentRaised`, a governance-set floor
-      born at 10,000,000 REGENT — `AUCTION_ALLOCATION` sold at `FLOOR_PRICE_Q96` — that only the
-      Governance and Regent Safe changes through `setMinimumRegentRaised(uint128)`, never to zero
-      and never above `MAX_REACHABLE_RAISE`. A change applies to later initializations only; an
-      existing auction keeps the required raise recorded at initialization.
-    reason: The founder's launch terms require every Revshare launch to raise at least ten million
-      REGENT, which at the fixed floor price is the whole auction allocation, so a launch at the
-      floor graduates only by selling out. The bound is a governance parameter rather than a
-      constant so the Safe can move it without a redeployment, and it is a floor on initialization
-      alone so no later change can retire or re-price an auction bidders already committed to.
-    evidence: [STR-020, FAC-023]
+  - behaviour: `requiredRegentRaised` is the creator's to choose. Initialization refuses zero
+      and anything above `MAX_REACHABLE_RAISE` as unreachable and admits everything between; there
+      is no governance minimum and no setter, and an existing auction keeps the required raise
+      recorded at initialization.
+    reason: The founder's Revstake launch terms of 2026-09-21 leave the raise to the creator. A
+      zero raise would graduate an auction nobody bid in, so zero is refused with the same
+      unreachable error as the ceiling rather than through a second error or a governance bound.
+    evidence: [STR-013, FAC-023]
 
   - behaviour: The launch treasury is admitted once, at initialization, against a closed refusal set
       of exactly six shared-system destinations: the bound factory, this strategy, the bound hook,

@@ -28,8 +28,8 @@ creation would end construction past nonce 3. `DEP-071` asserts exactly that.
 
 There is no sixth transaction. No helper is deployed, no proxy is installed, no ownership is
 transferred, no role is granted, no governance call is made, no application is admitted, and no
-post-deployment binding call exists to make. The factory is born with its launch fee, its first
-launch id, and its paused state already correct, and the frozen Governance/Regent Safe is already
+post-deployment binding call exists to make. The factory is born with its first launch id and
+its paused state already correct, and the frozen Governance/Regent Safe is already
 its only mutable authority because that address is compiled into it.
 
 ## Deploying the graph and opening it are two separate acts

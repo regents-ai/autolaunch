@@ -158,7 +158,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         address escrow = factory.fundedEscrow(SUBJECT_LOW, treasury);
 
         RegentLBPStrategy.DistributionParams memory params =
-            RegentLBPStrategy.DistributionParams({launchId: 1, escrow: escrow, requiredRegentRaised: MINIMUM_RAISE});
+            RegentLBPStrategy.DistributionParams({launchId: 1, escrow: escrow, requiredRegentRaised: FLOOR_RAISE});
 
         vm.prank(outsider);
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotFactory.selector, outsider));
@@ -166,7 +166,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
 
         // The escrow's own funding is untouched and the launch is still creatable by the factory.
         assertEq(subject.balanceOf(escrow), PENDING_ALLOCATION, "escrow custody untouched");
-        address auction = factory.initialize(SUBJECT_LOW, escrow, 1, MINIMUM_RAISE);
+        address auction = factory.initialize(SUBJECT_LOW, escrow, 1, FLOOR_RAISE);
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), auction, "the bound factory succeeds");
     }
 
@@ -183,7 +183,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.expectRevert(RegentLBPStrategy.HookNotBound.selector);
         fresh.initializeDistribution(
             RegentLBPStrategy.DistributionParams({
-                launchId: 1, escrow: address(escrowImplementation), requiredRegentRaised: MINIMUM_RAISE
+                launchId: 1, escrow: address(escrowImplementation), requiredRegentRaised: FLOOR_RAISE
             })
         );
     }
@@ -192,7 +192,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     ///         graduation and no privileged account is involved anywhere in the path.
     function test_STR_003_MigrateIsPermissionless() public {
         Launch memory launch = _defaultLaunch();
-        _bidToGraduation(launch, MINIMUM_RAISE);
+        _bidToGraduation(launch, FLOOR_RAISE);
 
         vm.prank(outsider);
         strategy.migrate(address(launch.auction));
@@ -238,7 +238,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         RegentLBPStrategy.Distribution memory d = strategy.distribution(address(launch.auction));
         assertEq(uint256(d.migrationBlock), uint256(launch.auction.endBlock()) + 128, "recorded migration block");
 
-        _bidToGraduation(launch, MINIMUM_RAISE);
+        _bidToGraduation(launch, FLOOR_RAISE);
         vm.roll(uint256(d.migrationBlock) - 1);
         vm.expectRevert(
             abi.encodeWithSelector(RegentLBPStrategy.MigrationNotYetAllowed.selector, d.migrationBlock, block.number)
@@ -315,7 +315,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertEq(address(ccaFactory.protocolFeeController()), address(0), "the bound CCA factory takes no fee");
 
         Launch memory launch = _defaultLaunch();
-        _bidToGraduation(launch, MINIMUM_RAISE);
+        _bidToGraduation(launch, FLOOR_RAISE);
 
         strategy.migrate(address(launch.auction));
 
@@ -345,7 +345,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         );
 
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.ProtocolFeeControllerNotZero.selector, outsider));
-        factory.initialize(SUBJECT_LOW, escrow, 1, MINIMUM_RAISE);
+        factory.initialize(SUBJECT_LOW, escrow, 1, FLOOR_RAISE);
 
         assertEq(subject.balanceOf(address(strategy)), 0, "no reserve was pulled");
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(0), "no launch was recorded");
@@ -358,8 +358,8 @@ contract RegentLBPStrategyTest is StrategyFixture {
     /// @notice `C3-I3`: two simultaneous launches sharing this strategy keep separate reserves, and
     ///         neither launch's terminal path can consume the other's.
     function test_STR_012_ReserveIsIsolatedPerAuction() public {
-        Launch memory a = _newLaunch(SUBJECT_LOW, 1, MINIMUM_RAISE);
-        Launch memory b = _newLaunch(SUBJECT_HIGH, 2, MINIMUM_RAISE);
+        Launch memory a = _newLaunch(SUBJECT_LOW, 1, FLOOR_RAISE);
+        Launch memory b = _newLaunch(SUBJECT_HIGH, 2, FLOOR_RAISE);
 
         assertEq(a.subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "launch A reserve");
         assertEq(b.subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "launch B reserve");
@@ -376,7 +376,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertEq(a.subject.balanceOf(BaseBindings.DEAD_ADDRESS), TOTAL_SUPPLY, "launch A retired its whole supply");
 
         // B then graduates on its own reserve.
-        _bidToGraduation(b, MINIMUM_RAISE);
+        _bidToGraduation(b, FLOOR_RAISE);
         strategy.migrate(address(b.auction));
         assertEq(
             uint8(strategy.distribution(address(b.auction)).lifecycle),
@@ -388,7 +388,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
 
     /// @notice `C3-I3`: one SUBJECT maps to exactly one auction, forever.
     function test_STR_012_SimultaneousLaunchesCannotShareAReserve() public {
-        Launch memory a = _newLaunch(SUBJECT_LOW, 1, MINIMUM_RAISE);
+        Launch memory a = _newLaunch(SUBJECT_LOW, 1, FLOOR_RAISE);
 
         // The one escrow that a second launch could reuse is this launch's own: it is authentic, it
         // is still pending, and it still holds the exact 85%. A second auction over the same SUBJECT
@@ -396,7 +396,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.expectRevert(
             abi.encodeWithSelector(RegentLBPStrategy.SubjectAlreadyLaunched.selector, SUBJECT_LOW, address(a.auction))
         );
-        factory.initialize(SUBJECT_LOW, address(a.escrow), 2, MINIMUM_RAISE);
+        factory.initialize(SUBJECT_LOW, address(a.escrow), 2, FLOOR_RAISE);
 
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(a.auction), "the first auction still owns it");
         assertEq(a.subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "exactly one reserve");
@@ -411,7 +411,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     ///         auction itself, and the 10/5 split lands exactly.
     function test_STR_013_CanonicalInitializationAdmitsOnlyTheFrozenParameterSet() public {
         uint64 expectedStart = uint64(block.number) + strategy.START_DELAY_BLOCKS();
-        Launch memory launch = _newLaunch(SUBJECT_LOW, 7, 4 * MINIMUM_RAISE);
+        Launch memory launch = _newLaunch(SUBJECT_LOW, 7, 4 * FLOOR_RAISE);
         IContinuousClearingAuction auction = launch.auction;
 
         assertEq(auction.token(), address(launch.subject), "token");
@@ -436,17 +436,17 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertEq(d.subject, address(launch.subject), "recorded subject");
         assertEq(d.escrow, address(launch.escrow), "recorded escrow");
         assertEq(d.treasury, treasury, "treasury derived from escrow");
-        assertEq(d.requiredRegentRaised, 4 * MINIMUM_RAISE, "recorded required raise");
+        assertEq(d.requiredRegentRaised, 4 * FLOOR_RAISE, "recorded required raise");
         assertEq(uint8(d.lifecycle), uint8(RegentLBPStrategy.Lifecycle.Active), "active");
     }
 
-    function test_STR_013_StartIsAlwaysCurrentBlockPlus1800() public {
-        assertEq(strategy.START_DELAY_BLOCKS(), 1_800, "frozen start delay");
+    function test_STR_013_StartIsAlwaysCurrentBlockPlus300() public {
+        assertEq(strategy.START_DELAY_BLOCKS(), 300, "frozen start delay");
 
         vm.roll(2_500_000);
-        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, MINIMUM_RAISE);
-        assertEq(uint256(launch.auction.startBlock()), 2_500_000 + 1_800, "start is derived from the current block");
-        assertEq(uint256(strategy.distribution(address(launch.auction)).startBlock), 2_500_000 + 1_800, "recorded");
+        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, FLOOR_RAISE);
+        assertEq(uint256(launch.auction.startBlock()), 2_500_000 + 300, "start is derived from the current block");
+        assertEq(uint256(strategy.distribution(address(launch.auction)).startBlock), 2_500_000 + 300, "recorded");
     }
 
     /// @notice `C3-I2`: only an authentic, still-pending, correctly funded clone of the bound escrow
@@ -458,13 +458,13 @@ contract RegentLBPStrategyTest is StrategyFixture {
         // A hand-rolled impostor that answers every escrow getter correctly is still not a clone.
         EscrowImpostor impostor = new EscrowImpostor(SUBJECT_LOW, treasury, address(strategy));
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotAuthenticEscrow.selector, address(impostor)));
-        factory.initialize(SUBJECT_LOW, address(impostor), 1, MINIMUM_RAISE);
+        factory.initialize(SUBJECT_LOW, address(impostor), 1, FLOOR_RAISE);
 
         // A clone of a different escrow implementation is not a clone of the bound one.
         ConditionalVestingEscrowV1 rivalImplementation = new ConditionalVestingEscrowV1();
         address rival = _clone(address(rivalImplementation));
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotAuthenticEscrow.selector, rival));
-        factory.initialize(SUBJECT_LOW, rival, 1, MINIMUM_RAISE);
+        factory.initialize(SUBJECT_LOW, rival, 1, FLOOR_RAISE);
 
         // An authentic, correctly funded clone bound to a foreign strategy is refused too. It gets
         // its own SUBJECT so its 85% custody is genuine.
@@ -474,24 +474,21 @@ contract RegentLBPStrategyTest is StrategyFixture {
         other.approve(foreign, PENDING_ALLOCATION);
         ConditionalVestingEscrowV1(foreign).initialize(SUBJECT_LOW_ALT, treasury, outsider);
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.EscrowStrategyMismatch.selector, outsider));
-        factory.initialize(SUBJECT_LOW_ALT, foreign, 1, MINIMUM_RAISE);
+        factory.initialize(SUBJECT_LOW_ALT, foreign, 1, FLOOR_RAISE);
 
         assertEq(subject.balanceOf(address(strategy)), 0, "no reserve was pulled by any rejected path");
         assertEq(other.balanceOf(address(strategy)), 0, "and none by the foreign-strategy path either");
     }
 
-    /// @notice `C3-I2`: a required raise below the governance floor, or one the fixed auction can
-    ///         never reach, is refused at initialization rather than guaranteeing a failed launch.
-    ///         The floor is never zero, so zero is refused as below it.
+    /// @notice `C3-I2`: a required raise of zero, or one the fixed auction can never reach, is
+    ///         refused at initialization rather than guaranteeing a failed launch; every positive
+    ///         raise up to the reachable maximum is the creator's to choose.
     function test_STR_013_UnreachableRequiredRaiseIsRejected() public {
         StagedERC20 subject = _etchToken(SUBJECT_LOW);
         subject.mint(address(factory), TOTAL_SUPPLY);
         address escrow = factory.fundedEscrow(SUBJECT_LOW, treasury);
 
-        uint128 minimum = strategy.minimumRegentRaised();
-        vm.expectRevert(
-            abi.encodeWithSelector(RegentLBPStrategy.RequiredRaiseBelowMinimum.selector, uint128(0), minimum)
-        );
+        vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.UnreachableRequiredRaise.selector, uint128(0)));
         factory.initialize(SUBJECT_LOW, escrow, 1, 0);
 
         uint128 tooHigh = strategy.MAX_REACHABLE_RAISE() + 1;
@@ -502,7 +499,14 @@ contract RegentLBPStrategyTest is StrategyFixture {
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(0), "no auction was created for a rejected raise");
         assertEq(subject.balanceOf(address(strategy)), 0, "and no reserve was pulled");
 
-        // The exact boundary is admitted.
+        // Both admitted boundaries are admitted: one wei on one SUBJECT, the exact maximum on another.
+        StagedERC20 other = _etchToken(SUBJECT_LOW_ALT);
+        other.mint(address(factory), TOTAL_SUPPLY);
+        address otherEscrow = factory.fundedEscrow(SUBJECT_LOW_ALT, treasury);
+        address smallest = factory.initialize(SUBJECT_LOW_ALT, otherEscrow, 2, 1);
+        assertEq(strategy.auctionOfSubject(SUBJECT_LOW_ALT), smallest, "a one-wei raise is a valid launch");
+        assertEq(strategy.distribution(smallest).requiredRegentRaised, 1, "the one-wei raise was not recorded");
+
         address auction = factory.initialize(SUBJECT_LOW, escrow, 1, strategy.MAX_REACHABLE_RAISE());
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), auction, "the reachable boundary is a valid launch");
     }
@@ -564,7 +568,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.expectRevert(
             abi.encodeWithSelector(RegentLBPStrategy.InexactTransfer.selector, DISTRIBUTION_PULL, DISTRIBUTION_PULL - 1)
         );
-        factory.initialize(SUBJECT_LOW, escrow, 1, MINIMUM_RAISE);
+        factory.initialize(SUBJECT_LOW, escrow, 1, FLOOR_RAISE);
 
         // Movement 2 is the exact 10% delivery to the auction.
         subject.resetMovements();
@@ -574,14 +578,14 @@ contract RegentLBPStrategyTest is StrategyFixture {
                 RegentLBPStrategy.InexactTransfer.selector, AUCTION_ALLOCATION, AUCTION_ALLOCATION - 1
             )
         );
-        factory.initialize(SUBJECT_LOW, escrow, 1, MINIMUM_RAISE);
+        factory.initialize(SUBJECT_LOW, escrow, 1, FLOOR_RAISE);
 
         subject.arm(0, StagedERC20.Fault.None);
         assertEq(subject.balanceOf(address(strategy)), 0, "no reserve survived a rolled-back initialization");
         assertEq(strategy.auctionOfSubject(SUBJECT_LOW), address(0), "no launch survived either");
 
         subject.resetMovements();
-        address auction = factory.initialize(SUBJECT_LOW, escrow, 1, MINIMUM_RAISE);
+        address auction = factory.initialize(SUBJECT_LOW, escrow, 1, FLOOR_RAISE);
         assertEq(subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "the clean path still works");
         assertEq(subject.balanceOf(auction), AUCTION_ALLOCATION, "and delivers the exact auction supply");
     }
@@ -650,7 +654,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         (StagedERC20 subject, address escrow) = _fundedEscrowFor(candidate, launchId);
 
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.RefusedTreasury.selector, candidate));
-        factory.initialize(address(subject), escrow, launchId, MINIMUM_RAISE);
+        factory.initialize(address(subject), escrow, launchId, FLOOR_RAISE);
 
         assertEq(subject.balanceOf(address(strategy)), 0, "a refused treasury still pulled a reserve");
         assertEq(strategy.auctionOfSubject(address(subject)), address(0), "a refused treasury still created an auction");
@@ -662,7 +666,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         uint256 launchId = index + 100;
         (StagedERC20 subject, address escrow) = _fundedEscrowFor(candidate, launchId);
 
-        address auction = factory.initialize(address(subject), escrow, launchId, MINIMUM_RAISE);
+        address auction = factory.initialize(address(subject), escrow, launchId, FLOOR_RAISE);
 
         assertEq(strategy.distribution(auction).treasury, candidate, "the admitted treasury was not recorded");
         assertEq(subject.balanceOf(address(strategy)), RESERVE_ALLOCATION, "the admitted launch pulled no reserve");
@@ -695,7 +699,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     ///         every terminal fact.
     function test_STR_015_GraduationExecutesTheCompleteTerminalOrder() public {
         Launch memory launch = _defaultLaunch();
-        _bidToGraduation(launch, MINIMUM_RAISE);
+        _bidToGraduation(launch, FLOOR_RAISE);
 
         uint256 nextTokenIdBefore = positionManager.nextTokenId();
 
@@ -806,7 +810,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         Launch memory launch = _defaultLaunch();
         regent.mint(address(strategy), 777e18);
 
-        _bidToGraduation(launch, MINIMUM_RAISE);
+        _bidToGraduation(launch, FLOOR_RAISE);
 
         strategy.migrate(address(launch.auction));
         RegentLBPStrategy.Distribution memory d = strategy.distribution(address(launch.auction));
@@ -834,7 +838,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
         vm.prank(donor);
         launch.subject.transfer(address(strategy), 3_000e18);
 
-        _bidToGraduation(launch, MINIMUM_RAISE);
+        _bidToGraduation(launch, FLOOR_RAISE);
         uint256 escrowBefore = launch.subject.balanceOf(address(launch.escrow));
 
         strategy.migrate(address(launch.auction));
@@ -855,7 +859,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     function test_STR_015_MigrationBeforeEligibilityIsRejected() public {
         Launch memory launch = _defaultLaunch();
         _rollToStart(launch);
-        _bid(launch, bidder, MINIMUM_RAISE, _bidPrice(10));
+        _bid(launch, bidder, FLOOR_RAISE, _bidPrice(10));
 
         uint64 migrationBlock = strategy.distribution(address(launch.auction)).migrationBlock;
 
@@ -881,7 +885,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     /// @notice `C3-I5`: graduation is proved from the auction's own finalized state. An auction whose
     ///         raise fell short reports it, and the strategy retires that launch instead.
     function test_STR_015_FinalizationProvesGraduationBeforeCommitting() public {
-        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, 5 * MINIMUM_RAISE);
+        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, 5 * FLOOR_RAISE);
         _rollToStart(launch);
         _bid(launch, bidder, 1_000_000e18, _bidPrice(10));
         _rollToMigration(launch);
@@ -922,7 +926,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
 
     function test_STR_018_FinalizationIsOneShot() public {
         Launch memory launch = _defaultLaunch();
-        _bidToGraduation(launch, MINIMUM_RAISE);
+        _bidToGraduation(launch, FLOOR_RAISE);
         strategy.migrate(address(launch.auction));
 
         Ledger memory before = _ledger(launch);
@@ -964,7 +968,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
     /// @notice `ESC-003`: economic failure sends exactly the isolated 5% reserve to escrow and lets
     ///         that escrow retire the whole 100 billion.
     function test_ESC_003_FailureSendsTheIsolatedReserveToEscrow() public {
-        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, 5 * MINIMUM_RAISE);
+        Launch memory launch = _newLaunch(SUBJECT_LOW, 1, 5 * FLOOR_RAISE);
         _rollToStart(launch);
         _bid(launch, bidder, 1_000_000e18, _bidPrice(10));
         _rollToMigration(launch);
@@ -1066,7 +1070,7 @@ contract RegentLBPStrategyTest is StrategyFixture {
                         tickSpacing: strategy.BID_TICK_Q96(),
                         validationHook: address(0),
                         floorPrice: strategy.FLOOR_PRICE_Q96(),
-                        requiredCurrencyRaised: MINIMUM_RAISE,
+                        requiredCurrencyRaised: FLOOR_RAISE,
                         auctionStepsData: strategy.AUCTION_STEPS()
                     })
                 ),

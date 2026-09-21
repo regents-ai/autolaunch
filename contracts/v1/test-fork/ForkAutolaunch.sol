@@ -25,10 +25,8 @@ import {ForkFixture} from "./ForkFixture.sol";
 ///      Every piece of test state this harness stages, and the real production path that makes it
 ///      reachable, is inventoried in `docs/audit/fork-authority-and-state-inventory.md`. Nothing is impersonated
 ///      that a real account could not do: bidders are funded with `deal` because a fork cannot mint
-///      REGENT, and a launcher is funded and pranked because a launcher is an ordinary EOA.
+///      REGENT, and a launcher is pranked because a launcher is an ordinary EOA.
 abstract contract ForkAutolaunch is ForkFixture {
-    uint256 internal constant INITIAL_LAUNCH_FEE = 1_000_000e18;
-
     /// @dev Exactly the three permission bits `RegentFeeHook` declares.
     uint160 internal constant HOOK_FLAGS =
         uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG);
@@ -111,8 +109,7 @@ abstract contract ForkAutolaunch is ForkFixture {
             website: _filled(MAX_WEBSITE_BYTES),
             image: _filled(MAX_IMAGE_BYTES),
             treasury: treasury,
-            requiredRegentRaised: requiredRegentRaised,
-            expectedLaunchFee: factory.launchFee()
+            requiredRegentRaised: requiredRegentRaised
         });
     }
 
@@ -124,14 +121,12 @@ abstract contract ForkAutolaunch is ForkFixture {
         return string(buffer);
     }
 
-    /// @dev A connected wallet's exact approval and launch, from a real EOA.
+    /// @dev A connected wallet's exact launch, from a real EOA: one call, no approval.
     function _launchAsWallet(RegentsAutolaunchFactoryV1.LaunchParams memory params)
         internal
         returns (ForkLaunch memory launched, uint256 gasUsed, bytes memory calldataPayload)
     {
-        deal(BaseBindings.REGENT, launcher, params.expectedLaunchFee);
         vm.startPrank(launcher);
-        _approveExactly(BaseBindings.REGENT, address(factory), params.expectedLaunchFee);
 
         calldataPayload = abi.encodeCall(RegentsAutolaunchFactoryV1.launch, (params));
         uint256 before = gasleft();

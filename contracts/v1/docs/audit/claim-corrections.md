@@ -642,3 +642,45 @@ first, as only the Safe can, and say so.
 | `STR-013` | The zero-raise rejection was `UnreachableRequiredRaise(0)`. | Zero is now refused as below the minimum, which is never zero; the unreachable-ceiling half is unchanged. |
 | `STR-020` | New. | Owns the governance floor: Safe-only authority and bounds, the inclusive floor at initialization, and the terms an existing auction keeps across a change. |
 
+## 10. `autolaunch-revstake-terms` — a ten-minute start, no creation fee, and a creator-chosen raise
+
+Three founder decisions of 2026-09-21, final, applied together as one hard cutover. The result stays
+**mainnet NO-GO**.
+
+### 10.1 What changed and why
+
+- **Start.** `RegentLBPStrategy.START_DELAY_BLOCKS` is 300 rather than 1,800: an auction opens ten
+  minutes after its creating block on Base. Nothing else in the schedule moves.
+- **No creation fee.** The launch fee is deleted from `RegentsAutolaunchFactoryV1` outright:
+  `INITIAL_LAUNCH_FEE`, `launchFee`, `setLaunchFee`, `LaunchParams.expectedLaunchFee`, the events
+  `LaunchFeeUpdated` and `LaunchFeeCollected`, the errors `StaleLaunchFee`,
+  `LaunchFeeAllowanceMismatch` and `LaunchFeeAllowanceNotConsumed`, the factory's own
+  `InexactTransfer`, and the private collection path. Launching pulls no REGENT from the launcher and
+  needs no allowance; governance's whole mutable surface is the new-launch pause. `LaunchParams` is
+  seven fields and `launch`'s selector moves with it.
+- **Creator-chosen raise.** The governance minimum added by section 9 is deleted again:
+  `minimumRegentRaised`, `setMinimumRegentRaised`, `MinimumRegentRaisedChanged`, `NotGovernance` and
+  `RequiredRaiseBelowMinimum` are gone from the strategy. Initialization admits any positive required
+  raise up to `MAX_REACHABLE_RAISE` and refuses zero with the same `UnreachableRequiredRaise` the
+  ceiling uses. The 10,000,000 REGENT floor raise survives only as the fixtures' default and as the
+  measured economic reference in `FAC-023`.
+
+The fork and deployment test roots were updated for the new shapes (no fee funding, no fee
+assertions, no `setLaunchFee` authority proof) but neither gate was run; the committed Base
+observation record and `deployments/base-mainnet/mainnet-no-go-packet.json` predate this source and
+are stale until their gates are next authorized.
+
+### 10.2 Corrections to claims
+
+| Claim | What was wrong | What this change did |
+| --- | --- | --- |
+| `FAC-005`, `FAC-006`, `FAC-008`, `FAC-009`, `FAC-010`, `FAC-018`, `FAC-025`, `FAC-026` | Each described the launch fee. | Retired with their selectors; no subject remains. The IDs are never reused. |
+| `FAC-027` | Proved the positive-fee allowance was consumed exactly. | Rewritten to prove that launching costs nothing: a launcher holding REGENT and granting no allowance keeps its exact balance, the factory and the Regent Safe receive nothing, and no REGENT or SUBJECT allowance to any spender Regent names survives. Selector renamed. |
+| `FAC-007`, `FAC-028`, `DEP-072`, `DEP-073` | Statements mentioned the fee movement or the launch-fee authority in passing. | Wording corrected; evidence unchanged except that `FAC-007` no longer stages an allowance. |
+| `FAC-011` | The start was 1,800 blocks. | Statement and selector rewritten around 300, and the test now also asserts the constant. |
+| `FAC-021` | The rollback enumeration began at the fee transfer and its exactness proof. | Those two stages are deleted and the remaining fourteen renumbered; the ledger the rollback restores still includes the launcher's REGENT and allowance, which now must never move at all. |
+| `FAC-023` | The lower end of the admitted interval was the governance minimum. | Statement and selector rewritten: zero is refused as `UnreachableRequiredRaise(0)`, one wei is admitted and recorded, the floor raise and the exact maximum are admitted, and the floor raise's measured economics are kept as the reference outcome. |
+| `STR-013` | Zero was refused as below the minimum. | Zero is refused as unreachable again; one wei is admitted at the strategy; the start test asserts 300. |
+| `STR-020` | Owned the governance minimum. | Retired with both selectors; `autolaunch-minimum-raise` no longer activates anything. |
+| `ABI-002`, `ABI-003` | Listed `setLaunchFee` and `expectedLaunchFee`. | Statements and tests reduced to the five mutations and seven fields. |
+

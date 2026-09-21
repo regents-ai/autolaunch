@@ -50,10 +50,10 @@ abstract contract StrategyFixture is Test {
     uint256 internal constant PENDING_ALLOCATION = 85_000_000_000e18;
     uint256 internal constant AUCTION_ALLOCATION = 10_000_000_000e18;
     uint256 internal constant RESERVE_ALLOCATION = 5_000_000_000e18;
-    /// @dev The strategy's initial governance floor on a required raise: the whole auction
-    ///      allocation sold at the fixed floor price. A launch at this raise graduates only by
-    ///      selling out, so a single bid of exactly this amount is the smallest graduating bid.
-    uint128 internal constant MINIMUM_RAISE = 10_000_000e18;
+    /// @dev The fixture's default required raise: the whole auction allocation sold at the fixed
+    ///      floor price. A launch at this raise graduates only by selling out, so a single bid of
+    ///      exactly this amount is the smallest graduating bid.
+    uint128 internal constant FLOOR_RAISE = 10_000_000e18;
     uint256 internal constant DISTRIBUTION_PULL = 15_000_000_000e18;
 
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -186,7 +186,7 @@ abstract contract StrategyFixture is Test {
 
     /// @dev The default launch: SUBJECT sorts below REGENT, so REGENT is the pool's currency1.
     function _defaultLaunch() internal returns (Launch memory launch) {
-        launch = _newLaunch(SUBJECT_LOW, 1, MINIMUM_RAISE);
+        launch = _newLaunch(SUBJECT_LOW, 1, FLOOR_RAISE);
     }
 
     /// @notice The two addresses the strategy's next two ordinary `CREATE` clones will occupy.
@@ -226,7 +226,7 @@ abstract contract StrategyFixture is Test {
     }
 
     /// @dev One economically successful launch: a single bid above the floor that meets the required
-    ///      raise, then time to migration eligibility. At the governance floor the whole allocation
+    ///      raise, then time to migration eligibility. At the floor raise the whole allocation
     ///      must sell, so the bid clears at the floor price and the raise is the bid itself.
     function _bidToGraduation(Launch memory launch, uint128 amount) internal {
         _bidToGraduationAt(launch, amount, 10);

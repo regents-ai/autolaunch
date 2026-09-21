@@ -17,7 +17,6 @@
         "0x3bc340c2 launchesPaused()",
         "0x4861cf83 SPLITTER_IMPLEMENTATION_RUNTIME_CODE_HASH()",
         "0x4e894821 UERC20_FACTORY_RUNTIME_CODE_HASH()",
-        "0x5313be2c setLaunchFee(uint256)",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x5ab3c139 launchIdOfPaymentReceiver(address)",
         "0x5af02677 unpauseLaunches()",
@@ -31,22 +30,19 @@
         "0x902d55a5 TOTAL_SUPPLY()",
         "0x979bd9cc nextLaunchId()",
         "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
-        "0xa80abe95 INITIAL_LAUNCH_FEE()",
         "0xa8c62e76 strategy()",
         "0xc81ea2a0 MAX_DESCRIPTION_BYTES()",
         "0xca2afc6c launchIdOfSubject(address)",
-        "0xcf3cf573 launchFee()",
-        "0xd0464e3e launch((string,string,string,string,string,address,uint128,uint256))",
+        "0xd5925619 launch((string,string,string,string,string,address,uint128))",
         "0xe79b502e pauseLaunches()",
         "0xebd6c243 PENDING_ALLOCATION()",
         "0xf1bf1b45 MAX_WEBSITE_BYTES()"
       ],
       "mutating_functions": [
-        "0x5313be2c setLaunchFee(uint256)",
         "0x5af02677 unpauseLaunches()",
         "0x77f2b0c7 registerCanonicalPaymentReceiver(address)",
         "0x9d2299e4 createPaymentReceiver(uint256,address,uint16)",
-        "0xd0464e3e launch((string,string,string,string,string,address,uint128,uint256))",
+        "0xd5925619 launch((string,string,string,string,string,address,uint128))",
         "0xe79b502e pauseLaunches()"
       ],
       "view_functions": [
@@ -66,21 +62,17 @@
         "0x8a4940f2 MAX_SYMBOL_BYTES()",
         "0x902d55a5 TOTAL_SUPPLY()",
         "0x979bd9cc nextLaunchId()",
-        "0xa80abe95 INITIAL_LAUNCH_FEE()",
         "0xa8c62e76 strategy()",
         "0xc81ea2a0 MAX_DESCRIPTION_BYTES()",
         "0xca2afc6c launchIdOfSubject(address)",
-        "0xcf3cf573 launchFee()",
         "0xebd6c243 PENDING_ALLOCATION()",
         "0xf1bf1b45 MAX_WEBSITE_BYTES()"
       ],
       "events": [
         "0x07b3e48e8c6545581bdbef8629eb988aa7dcb66c8a7152384af19096cf2b4d1d LaunchesPaused() indexed=0",
         "0x07ec20fda323d7aad667bc196c6195b67fa0027c76058fe6d9fb0ffa94f1719a LaunchesUnpaused() indexed=0",
-        "0x0fd958ac60db1437ae35514054402c4e597e81881e4b6dd47a6509bd89121428 LaunchFeeUpdated(uint256,uint256) indexed=0",
         "0x2d6582e82dfaee6ad7ac4835d63119ce985332ceedd38d6187674eabc44fe857 PaymentReceiverCreated(uint256,address,address,address,uint16) indexed=3",
-        "0x7b5b327fb976e7bf5fb279515b3ea1821166f52c0b46e5825f0146b249f963f2 LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64) indexed=3",
-        "0x9f3b0730114747603d4395bfe87ba93159db303d7898a3a197877eb01a64b9c6 LaunchFeeCollected(uint256,address,address,uint256) indexed=2"
+        "0x7b5b327fb976e7bf5fb279515b3ea1821166f52c0b46e5825f0146b249f963f2 LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64) indexed=3"
       ],
       "event_fields": {
         "LaunchCreated": [
@@ -94,16 +86,6 @@
           "uint64 startBlock",
           "uint64 endBlock"
         ],
-        "LaunchFeeCollected": [
-          "uint256 indexed launchId",
-          "address indexed payer",
-          "address regentSafe",
-          "uint256 amount"
-        ],
-        "LaunchFeeUpdated": [
-          "uint256 previousFee",
-          "uint256 newFee"
-        ],
         "LaunchesPaused": [],
         "LaunchesUnpaused": [],
         "PaymentReceiverCreated": [
@@ -116,17 +98,13 @@
       },
       "errors": [
         "0x0091520e LaunchesAlreadyPaused()",
-        "0x27348c79 LaunchFeeAllowanceNotConsumed(uint256)",
         "0x2adf950a AllowanceNotConsumed(address,uint256)",
         "0x2ee9da4b SubjectNotFullyDistributed(uint256)",
         "0x3a1455a0 LaunchesArePaused()",
         "0x3c4d173a NotStrategy(address)",
         "0x3edfad0a SubjectHasNoCode(address)",
-        "0x4d1d1ebb LaunchFeeAllowanceMismatch(uint256,uint256)",
         "0x623befa0 LaunchRecordMismatch(uint256,uint256,uint256)",
         "0x68e283fe SubjectCreatorMismatch(address)",
-        "0x7eabb3b8 StaleLaunchFee(uint256,uint256)",
-        "0x9366facf InexactTransfer(uint256,uint256)",
         "0x988d1f03 NotGovernance(address)",
         "0x9a05a212 LaunchesNotPaused()",
         "0xa35a872a LaunchNotGraduated(uint256)",
@@ -144,8 +122,7 @@
           "string website",
           "string image",
           "address treasury",
-          "uint128 requiredRegentRaised",
-          "uint256 expectedLaunchFee"
+          "uint128 requiredRegentRaised"
         ]
       },
       "return_structs": {
@@ -172,10 +149,8 @@
         "0x10202c54 bindHook(address)",
         "0x112e335c receiverImplementation()",
         "0x14ec99b0 FLOOR_PRICE_Q96()",
-        "0x16277ab2 setMinimumRegentRaised(uint128)",
         "0x48bd92bb START_DELAY_BLOCKS()",
         "0x4a9923ac CLAIM_DELAY_BLOCKS()",
-        "0x4c33ffab minimumRegentRaised()",
         "0x4ca8ff5a escrowImplementation()",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x56586874 AUCTION_DURATION_BLOCKS()",
@@ -199,7 +174,6 @@
       ],
       "mutating_functions": [
         "0x10202c54 bindHook(address)",
-        "0x16277ab2 setMinimumRegentRaised(uint128)",
         "0xce5494bb migrate(address)",
         "0xd7750ed5 initializeDistribution((uint256,address,uint128))"
       ],
@@ -210,7 +184,6 @@
         "0x14ec99b0 FLOOR_PRICE_Q96()",
         "0x48bd92bb START_DELAY_BLOCKS()",
         "0x4a9923ac CLAIM_DELAY_BLOCKS()",
-        "0x4c33ffab minimumRegentRaised()",
         "0x4ca8ff5a escrowImplementation()",
         "0x53e916eb DISTRIBUTION_PULL()",
         "0x56586874 AUCTION_DURATION_BLOCKS()",
@@ -234,8 +207,7 @@
         "0x05bde07b44fed03322a53e3b8a39453530a1cefc5cb470dfe66355fbb27a8784 LaunchRetired(address,address,uint128) indexed=2",
         "0x22a226df6ec984fbff8a5635682b83b8c0c5ef200e674e367f1f60220854426b LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128) indexed=3",
         "0x3ffca04b410a3e894f1a96e386c5d29bfb1b8d48859f387f78e0297c9bb9fd5e HookBound(address) indexed=1",
-        "0x566466ea7ae73d52bd167b2206711db30050990222dc4524b58c437c86fb7b5f DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128) indexed=3",
-        "0xab01fe01438687d753d5f03079718075cdc79f8ef2473d4d83ae9ea4f178c78f MinimumRegentRaisedChanged(uint128,uint128) indexed=0"
+        "0x566466ea7ae73d52bd167b2206711db30050990222dc4524b58c437c86fb7b5f DistributionCreated(uint256,address,address,address,address,uint64,uint64,uint128,uint128) indexed=3"
       ],
       "event_fields": {
         "DistributionCreated": [
@@ -267,10 +239,6 @@
           "address indexed auction",
           "address indexed subject",
           "uint128 reserveReturned"
-        ],
-        "MinimumRegentRaisedChanged": [
-          "uint128 previousMinimum",
-          "uint128 newMinimum"
         ]
       },
       "errors": [
@@ -288,7 +256,6 @@
         "0x8d7fc6f2 EscrowStrategyMismatch(address)",
         "0x9366facf InexactTransfer(uint256,uint256)",
         "0x962d77b1 UnreachableRequiredRaise(uint128)",
-        "0x988d1f03 NotGovernance(address)",
         "0x98e8cdf6 HookNotBound()",
         "0x9e172b1d ImplementationHasNoCode(address)",
         "0xa30fa418 RefusedTreasury(address)",
@@ -303,7 +270,6 @@
         "0xde2d0a30 NoFullRangePosition()",
         "0xea279344 NotAuthenticEscrow(address)",
         "0xf76d3855 HookAlreadyBound(address)",
-        "0xfc6b4cc4 RequiredRaiseBelowMinimum(uint128,uint128)",
         "0xfd21a132 AuctionBindingMismatch(uint256,uint256,uint256)"
       ],
       "input_structs": {

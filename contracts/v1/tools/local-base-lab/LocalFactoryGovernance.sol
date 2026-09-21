@@ -2,14 +2,12 @@
 pragma solidity 0.8.26;
 
 interface ILocalFactoryGovernance {
-    function setLaunchFee(uint256 newFee) external;
-
     function pauseLaunches() external;
 
     function unpauseLaunches() external;
 }
 
-/// @notice Fork-only adapter granting one exact EOA the factory's three governance calls.
+/// @notice Fork-only adapter granting one exact EOA the factory's two governance calls.
 /// @dev This contract is storage-free. Its runtime is installed only at the compiled Safe address
 ///      inside an active loopback Anvil lab.
 contract LocalFactoryGovernance is ILocalFactoryGovernance {
@@ -32,10 +30,6 @@ contract LocalFactoryGovernance is ILocalFactoryGovernance {
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAdmin(msg.sender);
         _;
-    }
-
-    function setLaunchFee(uint256 newFee) external override onlyAdmin {
-        ILocalFactoryGovernance(factory).setLaunchFee(newFee);
     }
 
     function pauseLaunches() external override onlyAdmin {

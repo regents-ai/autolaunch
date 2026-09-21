@@ -92,10 +92,9 @@ class AdminRpc(FakeRpc):
         self.code = ORIGINAL_SAFE_RUNTIME
         self.adapter_admin = lab.FOUNDER_LOCAL_ADMIN
         self.adapter_factory = FACTORY
-        self.fee = 25
         self.paused = paused
         self.regent_balance = 777
-        self.snapshots: dict[str, tuple[str, int, bool, int]] = {}
+        self.snapshots: dict[str, tuple[str, bool, int]] = {}
         self.snapshot_counter = 0
         self.transaction_counter = 0
         self.send_failure_at: int | None = None
@@ -110,19 +109,14 @@ class AdminRpc(FakeRpc):
         if method == "evm_snapshot":
             self.snapshot_counter += 1
             snapshot_id = hex(self.snapshot_counter)
-            self.snapshots[snapshot_id] = (
-                self.code,
-                self.fee,
-                self.paused,
-                self.regent_balance,
-            )
+            self.snapshots[snapshot_id] = (self.code, self.paused, self.regent_balance)
             return snapshot_id
         if method == "evm_revert":
             snapshot_id = params[0]
             saved = self.snapshots.get(snapshot_id)
             if saved is None:
                 return False
-            self.code, self.fee, self.paused, self.regent_balance = saved
+            self.code, self.paused, self.regent_balance = saved
             return True
         if method == "anvil_setCode":
             self.code = params[1].lower()
@@ -141,9 +135,7 @@ class AdminRpc(FakeRpc):
             if transaction["from"] != lab.FOUNDER_LOCAL_ADMIN:
                 raise lab.LabError("unexpected transaction sender")
             data = transaction["data"]
-            if data.startswith(lab.SET_LAUNCH_FEE):
-                self.fee = int(data[len(lab.SET_LAUNCH_FEE) :], 16)
-            elif data == lab.PAUSE_LAUNCHES:
+            if data == lab.PAUSE_LAUNCHES:
                 if self.paused:
                     raise lab.LabError("already paused")
                 self.paused = True
@@ -175,8 +167,6 @@ class AdminRpc(FakeRpc):
                 if data == lab.FACTORY:
                     return "0x" + lab.abi_address(self.adapter_factory)
             if target == FACTORY:
-                if data == lab.LAUNCH_FEE:
-                    return word(self.fee)
                 if data == lab.LAUNCHES_PAUSED:
                     return word(int(self.paused))
             if target == lab.REGENT:
@@ -643,7 +633,7 @@ class AdminTests(unittest.TestCase):
                 saved_state = lab.load_json(root / lab.STATE_PATH)
                 saved_config = lab.load_json(root / lab.SITE_CONFIG_PATH)
                 self.assertEqual(client.code, ADAPTER_RUNTIME)
-                self.assertEqual((client.fee, client.paused), (25, paused))
+                self.assertEqual(client.paused, paused)
                 self.assertEqual(client.regent_balance, 777)
                 self.assertEqual(client.unrelated_rejections, 1)
                 self.assertEqual(
@@ -657,9 +647,6 @@ class AdminTests(unittest.TestCase):
                     for method, params in client.calls
                     if method == "eth_sendTransaction"
                 ]
-                self.assertTrue(
-                    any(data.startswith(lab.SET_LAUNCH_FEE) for data in sent)
-                )
                 self.assertIn(lab.PAUSE_LAUNCHES, sent)
                 self.assertIn(lab.UNPAUSE_LAUNCHES, sent)
 
@@ -691,7 +678,7 @@ class AdminTests(unittest.TestCase):
             ):
                 lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
             self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
-            self.assertEqual((client.fee, client.paused), (25, False))
+            self.assertFalse(client.paused)
             self.assertEqual(client.regent_balance, 777)
             self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
             self.assertEqual((root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes)
@@ -724,7 +711,7 @@ class AdminTests(unittest.TestCase):
                 ):
                     lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
                 self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
-                self.assertEqual((client.fee, client.paused), (25, False))
+                self.assertFalse(client.paused)
                 self.assertEqual(client.regent_balance, 777)
                 self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
                 self.assertEqual(
@@ -757,7 +744,7 @@ class AdminTests(unittest.TestCase):
             ):
                 lab.command_admin(Namespace(admin=lab.FOUNDER_LOCAL_ADMIN))
             self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
-            self.assertEqual((client.fee, client.paused), (25, False))
+            self.assertFalse(client.paused)
             self.assertEqual(client.regent_balance, 777)
             self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
             self.assertEqual((root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes)
@@ -804,7 +791,7 @@ class AdminTests(unittest.TestCase):
                 self.assertTrue(client.delivered)
                 self.assertIs(signal.getsignal(number), outer_handler)
                 self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
-                self.assertEqual((client.fee, client.paused), (25, False))
+                self.assertFalse(client.paused)
                 self.assertEqual(client.regent_balance, 777)
                 self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
                 self.assertEqual(
@@ -878,7 +865,7 @@ class AdminTests(unittest.TestCase):
                 self.assertIn("SIGTERM", stderr.getvalue())
                 self.assertNotIn("SIGHUP", stderr.getvalue())
                 self.assertEqual(client.code, ORIGINAL_SAFE_RUNTIME)
-                self.assertEqual((client.fee, client.paused), (25, False))
+                self.assertFalse(client.paused)
                 self.assertEqual(client.regent_balance, 777)
                 self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
                 self.assertEqual(
@@ -917,7 +904,7 @@ class AdminTests(unittest.TestCase):
             )
             self.assertEqual((root / lab.STATE_PATH).read_bytes(), state_bytes)
             self.assertEqual((root / lab.SITE_CONFIG_PATH).read_bytes(), config_bytes)
-            self.assertEqual((client.fee, client.paused), (25, False))
+            self.assertFalse(client.paused)
 
     def test_runtime_or_binding_mismatch_refuses_before_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1156,10 +1143,8 @@ class ArtifactDerivationTests(unittest.TestCase):
         "BALANCE_OF": (lab.ABI_TARGETS["token"], "balanceOf(address)"),
         "ADMIN": (ADAPTER, "admin()"),
         "FACTORY": (ADAPTER, "factory()"),
-        "SET_LAUNCH_FEE": (ADAPTER, "setLaunchFee(uint256)"),
         "PAUSE_LAUNCHES": (ADAPTER, "pauseLaunches()"),
         "UNPAUSE_LAUNCHES": (ADAPTER, "unpauseLaunches()"),
-        "LAUNCH_FEE": (lab.ABI_TARGETS["factory"], "launchFee()"),
         "LAUNCHES_PAUSED": (lab.ABI_TARGETS["factory"], "launchesPaused()"),
         "START_BLOCK": (lab.ABI_TARGETS["auction"], "startBlock()"),
         "END_BLOCK": (lab.ABI_TARGETS["auction"], "endBlock()"),
@@ -1207,7 +1192,7 @@ class ArtifactDerivationTests(unittest.TestCase):
     def test_every_pinned_selector_constant_is_derived_from_an_artifact(self):
         derived = set(self.FUNCTION_SELECTORS) | set(self.ERROR_SELECTORS)
         self.assertEqual(self.selector_shaped_constants(), derived)
-        self.assertEqual(len(derived), 15)
+        self.assertEqual(len(derived), 13)
         for name, value in (("EXTRA_SEL", "0xA9059CBB"), ("ExtraSel", "0xa9059cbb")):
             with (
                 self.subTest(injected=name),
@@ -1250,7 +1235,7 @@ class ArtifactDerivationTests(unittest.TestCase):
             for name, (contract, signature) in self.FUNCTION_SELECTORS.items()
             if contract == self.ADAPTER
         }
-        self.assertEqual(len(expected), 5)
+        self.assertEqual(len(expected), 4)
         self.assertEqual(artifact["methodIdentifiers"], expected)
 
     def test_distribution_migration_offset_comes_from_the_compiled_abi(self):
@@ -1339,7 +1324,6 @@ class SurfaceTests(unittest.TestCase):
         for required in (
             "address public immutable admin",
             "address public immutable factory",
-            "function setLaunchFee(uint256 newFee)",
             "function pauseLaunches()",
             "function unpauseLaunches()",
         ):

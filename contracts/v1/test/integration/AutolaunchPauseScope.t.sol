@@ -17,8 +17,7 @@ import {StagedERC20} from "../strategy/doubles/StagedERC20.sol";
 
 /// @notice `C4-I1`: the launch pause gates exactly one thing — creating a new launch. Every existing
 ///         launch keeps running: bidding, finalization, refunds, staking, claims, swaps, payments,
-///         vesting and recovery all continue untouched, and the launch fee a completed launch paid is
-///         never returned by a later economic failure.
+///         vesting and recovery all continue untouched.
 contract AutolaunchPauseScopeTest is AutolaunchFixture {
     SimpleSwapRouter internal router;
 
@@ -27,48 +26,13 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         router = new SimpleSwapRouter(IPoolManager(BaseBindings.POOL_MANAGER));
     }
 
-    /// @notice `FAC-018`: the launch fee buys the launch, not its outcome. A launch that later fails
-    ///         economically returns no REGENT to its launcher.
-    function test_FAC_018_FailedAuctionDoesNotRefundTheLaunchFee() public {
-        Launched memory launched = _defaultLaunch();
-
-        uint256 safeAfterLaunch = regent.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
-        assertEq(regent.balanceOf(launcher), 0, "the launcher kept fee REGENT");
-
-        _rollToMigration(launched);
-        strategy.migrate(address(launched.auction));
-        assertEq(
-            uint8(_distribution(launched).lifecycle),
-            uint8(RegentLBPStrategy.Lifecycle.Failed),
-            "this launch was supposed to fail"
-        );
-
-        assertEq(regent.balanceOf(launcher), 0, "the failed launch refunded its fee");
-        assertEq(
-            regent.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE),
-            safeAfterLaunch,
-            "the Regent Safe gave the fee back"
-        );
-        assertEq(regent.balanceOf(address(factory)), 0, "the factory holds refundable fee REGENT");
-
-        // And there is no surface that could ever return it.
-        bytes memory runtime = address(factory).code;
-        string[3] memory forbidden = ["refundLaunchFee(uint256)", "refund(uint256)", "withdraw(address,uint256)"];
-        for (uint256 i; i < forbidden.length; ++i) {
-            assertFalse(
-                _carriesSelector(runtime, bytes4(keccak256(bytes(forbidden[i])))),
-                string.concat("the factory can return a fee: ", forbidden[i])
-            );
-        }
-    }
-
     /// @notice `FAC-019`: with new launches paused, every existing lifecycle operation still works.
     function test_FAC_019_PauseNeverBlocksExistingLifecycleOperations() public {
         Launched memory winner = _defaultLaunch();
         Launched memory loser = _launchAs(launcher, _params());
 
         _rollToStart(winner);
-        _bid(winner, bidder, MINIMUM_RAISE, _bidPrice(10));
+        _bid(winner, bidder, FLOOR_RAISE, _bidPrice(10));
 
         vm.prank(governance);
         factory.pauseLaunches();
@@ -161,7 +125,6 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
         // Only the one thing the pause is for is actually blocked.
         assertTrue(factory.launchesPaused(), "the factory unpaused itself somewhere above");
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        _fundFee(launcher, params.expectedLaunchFee);
         vm.expectRevert(RegentsAutolaunchFactoryV1.LaunchesArePaused.selector);
         vm.prank(launcher);
         factory.launch(params);
@@ -171,7 +134,7 @@ contract AutolaunchPauseScopeTest is AutolaunchFixture {
     ///         factory pause has no reach into them at all.
     function test_SPL_010_ClaimsAndUnstakingIgnoreTheLaunchPause() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
         SubjectSplitterV1 splitter = SubjectSplitterV1(_distribution(launched).splitter);
 

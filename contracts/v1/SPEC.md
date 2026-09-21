@@ -73,13 +73,12 @@ The CCA binding requires runtime code hash `0xa1d2a90564f4f63580b25de42efaff9250
 
 ## 4. Factory
 
-`LaunchParams` contains only `name`, `symbol`, `description`, `website`, `image`, `treasury`, `requiredRegentRaised`, and `expectedLaunchFee`.
+`LaunchParams` contains only `name`, `symbol`, `description`, `website`, `image`, `treasury`, and `requiredRegentRaised`.
 
 Public mutations contain only:
 
 ```solidity
 launch(LaunchParams)
-setLaunchFee(uint256)
 pauseLaunches()
 unpauseLaunches()
 createPaymentReceiver(uint256 launchId, address beneficiary, uint16 referralBps)
@@ -89,11 +88,10 @@ registerCanonicalPaymentReceiver(address auction)
 Rules:
 
 - Supply is exactly 100 billion 18-decimal SUBJECT: 10% auction, 5% LP reserve, 85% vesting.
-- Initial launch fee is exactly 1,000,000 REGENT and goes to the Regent Safe.
+- Launching costs nothing. No REGENT moves from the launcher to the factory or to the Regent Safe, and the launcher grants no allowance.
 - Every factory begins paused. Construction admits no launch and announces no pause, so deploying the graph and opening it to launchers are separate acts: the five creation transactions leave launches closed, the disposable deployer gains no authority over that, and only a later Governance and Regent Safe transaction calling `unpauseLaunches()` admits the first launch. Anything deciding whether launches are open reads `launchesPaused()`.
-- Governance may change the fee, including to zero, and pause or unpause only new launches.
-- Factory allowance must equal the expected positive fee exactly. Zero fee requires zero factory allowance. A stale expected fee reverts everything.
-- Start is always `block.number + 1,800`.
+- Governance may pause or unpause only new launches.
+- Start is always `block.number + 300`.
 - There is no user start, floor, hook, pool setting, Safe, ERC-8004 identity, or salt.
 - IDs are sequential; internal salts derive only from the ID; duplicate names and symbols are allowed.
 - Metadata is nonempty and byte-bounded: name 64, symbol 16, description 512, website 256, image 256.
@@ -101,14 +99,14 @@ Rules:
 - Launch-time treasury admission lives only in `RegentLBPStrategy.initializeDistribution`, after the escrow is authenticated and before the auction is created. It refuses exactly seven addresses: the bound factory, the shared strategy, the bound fee hook, the frozen PoolManager, the frozen PositionManager, the frozen live staking contract, and the strategy's immutable LP locker. Every other treasury is admitted. There is no code-length rule, no codehash fingerprint, no interface probe, no registry, no generalized denylist, and no predicted-address rule.
 - Each launch's splitter and canonical receiver are deployed with ordinary CREATE clones, so each address follows from the shared strategy's nonce at graduation and from nothing any caller chose. The factory records every successfully initialized custom receiver and, through the immutable-strategy-only callback, the canonical receiver after the strategy has written the complete graduated distribution. `launchIdOfPaymentReceiver(address)` is a non-enumerable provenance lookup where zero means unknown; it does not make a receiver canonical. `LaunchGraduated` and the strategy record remain the only canonical account of what a launch deployed.
 - An admitted treasury may be an already-deployed Autolaunch artifact of another launch, and then delivers this launch's payouts into that artifact's ordinary accounting. An admitted treasury may also collide with an address the strategy's current nonce would later produce; that graduation's clone initializer reverts, the whole migration rolls back including the nonce advance, and the launch stalls — with its raised REGENT still in the CCA, its escrow still pending, its reserve and unsold SUBJECT unmoved, no pool or vesting begun, and CCA exit and claim rights intact — until any other launch's graduation moves the nonce past the collision. Both are accepted launcher-selected destination behaviour; refusing either would require enumerating launches that do not exist yet.
-- Launcher provenance gives no authority. A later failed auction does not refund the fee.
+- Launcher provenance gives no authority.
 - Factory pause never blocks existing auctions, finalization, refunds, staking, claims, swaps, payments, vesting, or recovery.
 
 ## 5. Auction, strategy, escrow, and migration
 
-Fixed auction configuration: duration 86,401 blocks; claim delay 64 blocks; migration eligibility end plus 128 blocks; frozen 104-byte, 13-step schedule; floor Q96 `79_228_162_514_264_337_593_543_900`; bid tick Q96 `792_281_625_142_643_375_935_439`; required raise at or above the strategy's governance minimum and mathematically reachable; auction protocol fee 0%.
+Fixed auction configuration: duration 86,401 blocks; claim delay 64 blocks; migration eligibility end plus 128 blocks; frozen 104-byte, 13-step schedule; floor Q96 `79_228_162_514_264_337_593_543_900`; bid tick Q96 `792_281_625_142_643_375_935_439`; required raise creator-chosen, positive and mathematically reachable; auction protocol fee 0%.
 
-The strategy holds one governance-set lower bound on the required raise, `minimumRegentRaised`, born at exactly 10,000,000 REGENT: the whole 10 billion auction allocation sold at the floor price, so a launch at that raise graduates only by selling out. Only the Governance and Regent Safe changes it, through `setMinimumRegentRaised(uint128)`, to a nonzero value no greater than `MAX_REACHABLE_RAISE`, and every change emits the previous and new minimum. A change applies only to launches initialized afterwards; an existing auction keeps the required raise recorded at its initialization. A required raise below the current minimum is refused at initialization, before any reserve moves.
+The creator chooses the required raise. Initialization admits any positive required raise up to `MAX_REACHABLE_RAISE` and refuses zero and anything above that bound as unreachable, before any reserve moves. There is no governance minimum and no setter; an auction keeps the required raise recorded at its initialization.
 
 The shared strategy receives one irreversible binding to the factory and hook. Only that factory initializes distributions. Anyone may call `migrate(auction)`. Technical failure is an ordinary EVM revert: no retry counter, retry mode, alternate pool, recovery migration, or committed technical-failure state.
 
@@ -203,7 +201,7 @@ Required groups:
 | IDs | Claim classes |
 | --- | --- |
 | `DEP-*` | Compiler and full recursive gitlink pins; chain ID; every external address, exact runtime code hash, proxy status, relevant getter, zero CCA controller, and clone implementation and runtime hashes. |
-| `FAC-*` | Governance-only fee and pause; pause scope; fee-update and fee-collection events; exact positive and zero fee allowances plus cleanup; stale-fee and complete-launch rollback; metadata bounds; sequential IDs; duplicate names; no user salts; launcher provenance; fixed start; floored, reachable raise; and complete launch. |
+| `FAC-*` | Governance-only pause; pause scope; no launch cost and no standing allowance; complete-launch rollback; metadata bounds; sequential IDs; duplicate names; no user salts; launcher provenance; fixed start; positive, reachable raise; and complete launch. |
 | `TOK-*` | Exactly 100B supply; 18 decimals; Autolaunch factory creator; immutable metadata; and no public mint, owner, tax, blacklist, upgrade, or administrative burn. |
 | `STR-*` | Only the canonical factory initializes; unknown auctions are rejected; exact 10/5/85 transfer; per-auction reserve isolation; permissionless migration; exact CCA parameters; the closed launch-time treasury refusal and admission set; final-price conversion in both currency orderings; one-shot finalization; and no committed retry state. |
 | `ESC-*` | One-time initialization; exact 85% pending custody; no pending release; strategy-only resolution; success starts 365-day linear vesting to the fixed treasury beneficiary; failure retires exactly 100B; and late failed SUBJECT goes only to the dead address. |
@@ -230,7 +228,7 @@ Stop if any contract claim is not deterministic, a requirement lacks coverage, a
 
 **Founder continuation clarification — 2026-08-20.** Contract-independent Ash product work may proceed before C5 when it is limited to the active-Privy-wallet boundary, durable protected operation state, simple forms and progress states, and interfaces derived from the already pinned external CCA, Permit2, and REGENT sources. It must remain fail-closed in production and may not invent a Regent ABI, deployed address, runtime fact, predecessor-hint source, projector fact, entitlement, or admission result. Final bindings, public controls, and release proof still follow C5. This clarification authorizes local implementation and review only; it authorizes no provider write, wallet request, signature, transaction, deployment, or value movement.
 
-After C5 freezes the ABI: `490.8.2/.3` project events through the existing watcher; `490.5` implements direct connected-wallet fee approval and launch; `839.5/.1` implement mandatory Permit2 bidding, five-argument bids, full/partial exits, claims, and refunds; `490.6` implements token details, SUBJECT stake/unstake/claims, canonical payments, and custom receivers. The token list uses a bounded recent graduated set from the database and connected-wallet balance filtering. Ash workers must use `ash-vibez` and exact repo-pinned Ash/Phoenix/LiveView sources. Global Stake/Redeem remains unchanged.
+After C5 freezes the ABI: `490.8.2/.3` project events through the existing watcher; `490.5` implements direct connected-wallet launch; `839.5/.1` implement mandatory Permit2 bidding, five-argument bids, full/partial exits, claims, and refunds; `490.6` implements token details, SUBJECT stake/unstake/claims, canonical payments, and custom receivers. The token list uses a bounded recent graduated set from the database and connected-wallet balance filtering. Ash workers must use `ash-vibez` and exact repo-pinned Ash/Phoenix/LiveView sources. Global Stake/Redeem remains unchanged.
 
 `490.12` owns Base Sepolia, `4wx` owns pinned/latest Base forks, and `839.7` owns the deployment packet. No provider write, deployment, signature, transaction, or value movement occurs without separate founder authority.
 

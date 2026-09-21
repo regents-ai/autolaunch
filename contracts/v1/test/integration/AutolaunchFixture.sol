@@ -63,11 +63,10 @@ abstract contract AutolaunchFixture is Test {
     uint256 internal constant PENDING_ALLOCATION = 85_000_000_000e18;
     uint256 internal constant AUCTION_ALLOCATION = 10_000_000_000e18;
     uint256 internal constant RESERVE_ALLOCATION = 5_000_000_000e18;
-    uint256 internal constant INITIAL_LAUNCH_FEE = 1_000_000e18;
-    /// @dev The strategy's initial governance floor on a required raise: the whole auction
-    ///      allocation sold at the fixed floor price. A launch at this raise graduates only by
-    ///      selling out, so a single bid of exactly this amount is the smallest graduating bid.
-    uint128 internal constant MINIMUM_RAISE = 10_000_000e18;
+    /// @dev The fixture's default required raise: the whole auction allocation sold at the fixed
+    ///      floor price. A launch at this raise graduates only by selling out, so a single bid of
+    ///      exactly this amount is the smallest graduating bid.
+    uint128 internal constant FLOOR_RAISE = 10_000_000e18;
 
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -222,7 +221,7 @@ abstract contract AutolaunchFixture is Test {
     // -------------------------------------------------------------------------
 
     /// @notice The default launch parameters: a valid launch of every field's smallest useful shape,
-    ///         at the governance floor on the required raise.
+    ///         at the floor raise.
     function _params() internal view returns (RegentsAutolaunchFactoryV1.LaunchParams memory params) {
         params = RegentsAutolaunchFactoryV1.LaunchParams({
             name: "Subject One",
@@ -231,25 +230,15 @@ abstract contract AutolaunchFixture is Test {
             website: "https://regents.sh",
             image: "ipfs://image",
             treasury: treasury,
-            requiredRegentRaised: MINIMUM_RAISE,
-            expectedLaunchFee: INITIAL_LAUNCH_FEE
+            requiredRegentRaised: FLOOR_RAISE
         });
     }
 
-    /// @notice Lower the strategy's raise floor, as only the Regent Safe can, so a later launch may
-    ///         name a raise that graduates without selling its whole allocation.
-    function _lowerMinimumRaise(uint128 minimum) internal {
-        vm.prank(governance);
-        strategy.setMinimumRegentRaised(minimum);
-    }
-
-    /// @notice Approve exactly the fee and launch as `who`, the way a connected wallet does.
+    /// @notice Launch as `who`, the way a connected wallet does: one call, no approval.
     function _launchAs(address who, RegentsAutolaunchFactoryV1.LaunchParams memory params)
         internal
         returns (Launched memory launched)
     {
-        _fundFee(who, params.expectedLaunchFee);
-
         vm.prank(who);
         (uint256 launchId, address subject, address auction, address escrow) = factory.launch(params);
 
@@ -291,13 +280,6 @@ abstract contract AutolaunchFixture is Test {
         revert("AutolaunchFixture: no name sorts on the requested side of REGENT");
     }
 
-    function _fundFee(address who, uint256 fee) internal {
-        if (fee == 0) return;
-        regent.mint(who, fee);
-        vm.prank(who);
-        regent.approve(address(factory), fee);
-    }
-
     // -------------------------------------------------------------------------
     // auction driving
     // -------------------------------------------------------------------------
@@ -327,7 +309,7 @@ abstract contract AutolaunchFixture is Test {
     }
 
     /// @dev One economically successful launch: a single bid above the floor that meets the required
-    ///      raise. At the governance floor the whole allocation must sell, so the bid clears at the
+    ///      raise. At the floor raise the whole allocation must sell, so the bid clears at the
     ///      floor price and the raise is the bid itself.
     function _bidToGraduation(Launched memory launched, uint128 amount) internal {
         _bidToGraduationAt(launched, amount, 10);
@@ -453,7 +435,9 @@ abstract contract AutolaunchFixture is Test {
         assertEq(found.strategyNonce, before.strategyNonce, string.concat(stage, ": a strategy clone survived"));
         assertEq(found.launcherRegent, before.launcherRegent, string.concat(stage, ": launcher REGENT moved"));
         assertEq(found.regentSafeRegent, before.regentSafeRegent, string.concat(stage, ": Regent Safe REGENT moved"));
-        assertEq(found.launcherAllowance, before.launcherAllowance, string.concat(stage, ": fee allowance moved"));
+        assertEq(
+            found.launcherAllowance, before.launcherAllowance, string.concat(stage, ": factory REGENT allowance moved")
+        );
         assertEq(found.lifecycle, before.lifecycle, string.concat(stage, ": lifecycle moved"));
         assertEq(found.recordedSplitter, before.recordedSplitter, string.concat(stage, ": a splitter was recorded"));
         assertEq(found.recordedReceiver, before.recordedReceiver, string.concat(stage, ": a receiver was recorded"));

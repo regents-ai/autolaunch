@@ -22,11 +22,11 @@ contract AutolaunchFailureTest is AutolaunchFixture {
     /// @notice `FAIL-001`: an auction that raises less than its required raise fails.
     function test_FAIL_001_UnmetRaiseResolvesAsFailed() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.requiredRegentRaised = MINIMUM_RAISE;
+        params.requiredRegentRaised = FLOOR_RAISE;
         Launched memory launched = _launchAs(launcher, params);
 
         _rollToStart(launched);
-        _bid(launched, bidder, MINIMUM_RAISE - 1e18, _bidPrice(10));
+        _bid(launched, bidder, FLOOR_RAISE - 1e18, _bidPrice(10));
         _rollToMigration(launched);
 
         strategy.migrate(address(launched.auction));
@@ -65,7 +65,7 @@ contract AutolaunchFailureTest is AutolaunchFixture {
     /// @notice `FAIL-003`: several genuine bids that together fall short still fail.
     function test_FAIL_003_PartialBidsBelowTheRaiseResolveAsFailed() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.requiredRegentRaised = 3 * MINIMUM_RAISE;
+        params.requiredRegentRaised = 3 * FLOOR_RAISE;
         Launched memory launched = _launchAs(launcher, params);
 
         _rollToStart(launched);
@@ -147,7 +147,7 @@ contract AutolaunchFailureTest is AutolaunchFixture {
     ///         be made whole from the CCA afterwards.
     function test_FAIL_006_BidderRefundsSurviveRetirement() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.requiredRegentRaised = 10 * MINIMUM_RAISE;
+        params.requiredRegentRaised = 10 * FLOOR_RAISE;
         Launched memory launched = _launchAs(launcher, params);
 
         _rollToStart(launched);

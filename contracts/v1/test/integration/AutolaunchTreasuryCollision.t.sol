@@ -54,8 +54,8 @@ contract AutolaunchTreasuryCollisionTest is AutolaunchFixture {
 
         // Both auctions were created in the same block, so one window carries both.
         _rollToStart(stalled);
-        uint256 stalledBid = _bid(stalled, bidder, MINIMUM_RAISE, _bidPrice(10));
-        _bid(intervening, bidder, MINIMUM_RAISE, _bidPrice(10));
+        uint256 stalledBid = _bid(stalled, bidder, FLOOR_RAISE, _bidPrice(10));
+        _bid(intervening, bidder, FLOOR_RAISE, _bidPrice(10));
         _rollToMigration(intervening);
 
         // -- the stall -------------------------------------------------------

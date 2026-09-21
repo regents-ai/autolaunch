@@ -129,12 +129,12 @@ contract RegentLBPStrategyPricingTest is StrategyFixture {
     /// @notice Two real launches whose only difference is which side of REGENT their SUBJECT sorts on
     ///         reach the same final price, open reciprocal pools, and both carry real liquidity.
     function test_STR_014_BothCurrencyOrderingsPreservePriceRelationships() public {
-        Launch memory low = _newLaunch(SUBJECT_LOW, 1, MINIMUM_RAISE);
-        Launch memory high = _newLaunch(SUBJECT_HIGH, 2, MINIMUM_RAISE);
+        Launch memory low = _newLaunch(SUBJECT_LOW, 1, FLOOR_RAISE);
+        Launch memory high = _newLaunch(SUBJECT_HIGH, 2, FLOOR_RAISE);
 
-        _bidToGraduation(low, MINIMUM_RAISE);
+        _bidToGraduation(low, FLOOR_RAISE);
         _rollToStart(high);
-        _bid(high, bidder, MINIMUM_RAISE, _bidPrice(10));
+        _bid(high, bidder, FLOOR_RAISE, _bidPrice(10));
         _rollToMigration(high);
 
         strategy.migrate(address(low.auction));

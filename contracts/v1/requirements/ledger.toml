@@ -31,9 +31,11 @@
 [ledger]
 version = 1
 authority = "SPEC.md"
-# `autolaunch-minimum-raise` is the founder-directed governance floor on the required raise; the
-# former ticket workflow is retired, so the change is named after itself.
-activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1", "regent-839.7", "regent-alv1.13", "autolaunch-minimum-raise"]
+# `autolaunch-revstake-terms` is the founder-directed launch-terms change of 2026-09-21 — a
+# 300-block start, no creation fee, and a creator-chosen required raise; the former ticket workflow
+# is retired, so the change is named after itself. It retired every claim the earlier
+# `autolaunch-minimum-raise` change owned, so that name no longer activates anything.
+activated_tickets = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C6.1", "regent-839.7", "regent-alv1.13", "autolaunch-revstake-terms"]
 
 # `fork` is activated only with the separately discovered, independently reviewed, and
 # committed Base observation record. The compare-only gate must execute every mapped fork
@@ -599,7 +601,7 @@ selectors = ["test_DEP_071_FactoryAloneCreatesTheStrategyAndTheMinedHook"]
 
 [[requirement]]
 id = "DEP-072"
-statement = "Every constructor binding and runtime readback across the seven contracts the ceremony produces is exact: the factory's token factory, strategy and hook, its initial launch fee, first launch id and paused state — the fifth receipt leaves launches closed; the strategy's factory, three clone implementations and bound hook; the hook's PoolManager and strategy; and the deployed runtime code hash of each of the four admitted addresses equals the hash the factory constructor admitted."
+statement = "Every constructor binding and runtime readback across the seven contracts the ceremony produces is exact: the factory's token factory, strategy and hook, its first launch id and paused state — the fifth receipt leaves launches closed; the strategy's factory, three clone implementations and bound hook; the hook's PoolManager and strategy; and the deployed runtime code hash of each of the four admitted addresses equals the hash the factory constructor admitted."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -609,7 +611,7 @@ selectors = ["test_DEP_072_EveryConstructorBindingAndReadbackIsExact"]
 
 [[requirement]]
 id = "DEP-073"
-statement = "After the five creations the disposable deployer holds no protocol authority anywhere in the graph: every governance-only and factory-only entry point refuses it, the frozen Governance/Regent Safe is the sole launch-fee and pause authority, and no contract the ceremony created holds ETH. The created graph is still paused, and impersonating that exact Safe address and calling the real unpauseLaunches() opens it — which proves only that the graph admits that one address as its activation authority, never that the live Safe's signers executed anything and never that any activation is authorized."
+statement = "After the five creations the disposable deployer holds no protocol authority anywhere in the graph: every governance-only and factory-only entry point refuses it, the frozen Governance/Regent Safe is the sole pause authority, and no contract the ceremony created holds ETH. The created graph is still paused, and impersonating that exact Safe address and calling the real unpauseLaunches() opens it — which proves only that the graph admits that one address as its activation authority, never that the live Safe's signers executed anything and never that any activation is authorized."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -638,11 +640,10 @@ status = "active"
 selectors = ["test_DEP_075_AnyPinnedValueMismatchAbortsBeforeTheFirstCreation"]
 
 # ---------------------------------------------------------------------------
-# FAC — governance-only fee and pause; pause scope; fee-update and
-#       fee-collection events; exact positive and zero fee allowances plus
-#       cleanup; stale-fee and complete-launch rollback; metadata bounds;
-#       sequential IDs; duplicate names; no user salts; launcher provenance;
-#       fixed start; reachable raise; and complete launch
+# FAC — governance-only pause; pause scope; no launch cost and no standing
+#       allowance; complete-launch rollback; metadata bounds; sequential IDs;
+#       duplicate names; no user salts; launcher provenance; fixed start;
+#       positive, reachable raise; and complete launch
 # ---------------------------------------------------------------------------
 
 [[requirement]]
@@ -689,29 +690,20 @@ gate = "hermetic"
 status = "active"
 selectors = ["test_FAC_004_SupplySplitsExactlyTenFiveEightyFive"]
 
-[[requirement]]
-id = "FAC-005"
-statement = "The initial launch fee is exactly 1,000,000 REGENT and goes to the Regent Safe."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_005_InitialLaunchFeeIsOneMillionRegentToTheSafe"]
-
-[[requirement]]
-id = "FAC-006"
-statement = "Governance may change the launch fee, including to zero, and no other actor may."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_006_OnlyGovernanceChangesTheLaunchFee"]
+# autolaunch-revstake-terms retirement. FAC-005, FAC-006, FAC-008, FAC-009, FAC-010, FAC-018,
+# FAC-025 and FAC-026 described the launch fee: its initial amount and destination, governance's
+# authority over it, the exact positive and zero allowances it demanded, the stale-fee refusal, its
+# non-refund after a failed auction, and its update and collection events. The launch fee is
+# deleted outright — INITIAL_LAUNCH_FEE, launchFee, setLaunchFee, expectedLaunchFee,
+# LaunchFeeUpdated, LaunchFeeCollected, StaleLaunchFee, LaunchFeeAllowanceMismatch,
+# LaunchFeeAllowanceNotConsumed and the factory's InexactTransfer are all gone — so those claims
+# have no subject left. Each is retired here rather than repointed, its selectors are deleted with
+# it, and no ID is reused. FAC-027 now carries the one fact that replaces them: launching moves
+# no REGENT from the launcher and leaves no allowance standing.
 
 [[requirement]]
 id = "FAC-007"
-statement = "Every freshly constructed factory begins paused, so construction alone admits no launch: launchesPaused() is true, a launch reverts with LaunchesArePaused before any fee movement, launch-ID allocation, deployment or event, pauseLaunches() reverts with LaunchesAlreadyPaused, and the constructor emits no pause or unpause event. Governance may then pause and unpause only new launches, and no other actor holds that authority."
+statement = "Every freshly constructed factory begins paused, so construction alone admits no launch: launchesPaused() is true, a launch reverts with LaunchesArePaused before launch-ID allocation, deployment or event, pauseLaunches() reverts with LaunchesAlreadyPaused, and the constructor emits no pause or unpause event. Governance may then pause and unpause only new launches, and no other actor holds that authority."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -723,44 +715,16 @@ selectors = [
 ]
 
 [[requirement]]
-id = "FAC-008"
-statement = "The factory allowance must equal the expected positive fee exactly."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_008_AllowanceMustEqualTheExpectedPositiveFee"]
-
-[[requirement]]
-id = "FAC-009"
-statement = "A zero launch fee requires a zero factory allowance."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_009_ZeroFeeRequiresZeroAllowance"]
-
-[[requirement]]
-id = "FAC-010"
-statement = "A stale expected launch fee reverts everything."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_010_StaleExpectedFeeRevertsTheWholeLaunch"]
-
-[[requirement]]
 id = "FAC-011"
-statement = "The auction start is always block.number plus 1,800."
+# autolaunch-revstake-terms correction. The start delay is 300 blocks, ten minutes on Base,
+# rather than the earlier 1,800.
+statement = "The auction start is always block.number plus 300: START_DELAY_BLOCKS is 300, every auction created at any block starts exactly 300 blocks later, and its end is that start plus the fixed duration."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_FAC_011_AuctionStartIsAlwaysBlockNumberPlus1800"]
+selectors = ["test_FAC_011_AuctionStartIsAlwaysBlockNumberPlus300"]
 
 [[requirement]]
 id = "FAC-012"
@@ -830,16 +794,6 @@ status = "active"
 selectors = ["test_FAC_017_LauncherProvenanceGivesNoAuthority"]
 
 [[requirement]]
-id = "FAC-018"
-statement = "A later failed auction does not refund the launch fee."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_018_FailedAuctionDoesNotRefundTheLaunchFee"]
-
-[[requirement]]
 id = "FAC-019"
 statement = "A factory pause never blocks existing auctions, finalization, refunds, staking, claims, swaps, payments, vesting, or recovery."
 owner = "C4"
@@ -885,16 +839,20 @@ id = "FAC-023"
 # either end actually settles on, which let the maximum *bid* price be read as a clearing
 # price. It is not: a raise met exactly clears at the fixed floor, and the recorded LP
 # consumption at that clearing price is the real evidence.
-# autolaunch-minimum-raise correction. The lower end is no longer one wei but the strategy's
-# governance minimum, so the smallest admitted launch is the floor and the smallest reachable
-# graduated outcome is a sell-out at the floor price.
-statement = "The required raise is at least the strategy's governance minimum and mathematically reachable for every admitted launch: zero and one wei below the minimum are refused as below it, the minimum itself is admitted and, when met by a single bid of exactly the minimum at any admitted price, sells the whole allocation and graduates at the one price where that raise buys the whole allocation, one Q96 unit above the rounded-down floor constant and never a bid maximum, the exact MAX_REACHABLE_RAISE boundary is admitted, and the floor extreme asserts the exact LP amounts the position consumed in each ordering."
+# autolaunch-minimum-raise correction. The lower end became the strategy's governance minimum, so
+# the smallest admitted launch was the floor and the smallest reachable graduated outcome a
+# sell-out at the floor price.
+# autolaunch-revstake-terms correction. The governance minimum is deleted: the creator chooses the
+# required raise, any positive amount up to MAX_REACHABLE_RAISE is admitted, and the floor raise —
+# the whole allocation at the floor price, 10,000,000 REGENT — stays the measured economic
+# reference rather than a bound.
+statement = "The required raise is the creator's to choose, positive and mathematically reachable: zero is refused as UnreachableRequiredRaise(0), one wei above MAX_REACHABLE_RAISE is refused as unreachable, a refused raise allocates no launch ID, one wei is admitted and recorded, the floor raise of 10,000,000 REGENT is admitted, the exact MAX_REACHABLE_RAISE boundary is admitted, and the floor raise, when met by a single bid of exactly that amount at any admitted price, sells the whole allocation and graduates at the one price where that raise buys the whole allocation, one Q96 unit above the rounded-down floor constant and never a bid maximum, with the exact LP amounts the position consumed asserted in each ordering."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_FAC_023_RequiredRaiseMeetsTheFloorAndIsReachable"]
+selectors = ["test_FAC_023_RequiredRaiseIsAnyPositiveReachableAmount"]
 
 [[requirement]]
 id = "FAC-024"
@@ -909,32 +867,12 @@ selectors = [
     "test_FAC_024_CanonicalRegistrationRejectsUnauthorizedAndMismatchedState",
 ]
 
-[[requirement]]
-id = "FAC-025"
-statement = "A governance launch-fee change emits the fee-update event carrying the exact previous and new fee."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_025_FeeUpdateEmitsTheExactPreviousAndNewFee"]
-
-[[requirement]]
-id = "FAC-026"
-statement = "A successful launch that collects a positive fee emits the fee-collection event carrying the exact payer, amount, and Regent Safe destination."
-owner = "C4"
-contract = "AutolaunchFactory"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = ["test_FAC_026_SuccessfulFeeCollectionEmitsTheExactCollectionEvent"]
-
-# regent-alv1.7 addition. The launch-time treasury refusal lands after the fee has moved, after
-# the SUBJECT exists and after the escrow has been cloned and funded, so it is the widest rollback
-# the launch path has. STR-019 owns the refusal set; this owns its atomicity at the factory.
+# regent-alv1.7 addition. The launch-time treasury refusal lands after the SUBJECT exists and
+# after the escrow has been cloned and funded, so it is the widest rollback the launch path has.
+# STR-019 owns the refusal set; this owns its atomicity at the factory.
 [[requirement]]
 id = "FAC-028"
-statement = "Each of the seven treasuries the strategy refuses at launch rolls the whole attempted launch back together — the fee movement, the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event — and disturbs no existing launch's lifecycle, escrow custody or isolated 5% reserve."
+statement = "Each of the seven treasuries the strategy refuses at launch rolls the whole attempted launch back together — the created SUBJECT, the cloned and funded escrow, the auction, the launch ID, both records and every event — and disturbs no existing launch's lifecycle, escrow custody or isolated 5% reserve."
 owner = "C6.1"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -944,13 +882,15 @@ selectors = ["test_FAC_028_RefusedTreasuryRollsTheWholeLaunchBack"]
 
 [[requirement]]
 id = "FAC-027"
-statement = "A positive-fee launch consumes the whole expected allowance and leaves the factory with zero residual REGENT allowance from the payer."
+# autolaunch-revstake-terms correction. This claim used to prove the positive-fee allowance was
+# consumed exactly; with the fee deleted it proves that launching costs nothing at all.
+statement = "Launching pulls no REGENT from the launcher: a launcher holding REGENT and granting the factory no allowance launches, keeps the exact balance it started with, the factory and the Regent Safe hold no REGENT from the launch, and no REGENT or SUBJECT allowance from the launcher or the factory to any spender Regent names survives the launch."
 owner = "C4"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
 gate = "hermetic"
 status = "active"
-selectors = ["test_FAC_027_PositiveFeeLaunchLeavesNoResidualAllowance"]
+selectors = ["test_FAC_027_LaunchMovesNoRegentAndLeavesNoAllowance"]
 
 # ---------------------------------------------------------------------------
 # TOK — exactly 100B supply; 18 decimals; Autolaunch factory creator; immutable
@@ -1170,7 +1110,7 @@ gate = "hermetic"
 status = "active"
 selectors = [
     "test_STR_013_CanonicalInitializationAdmitsOnlyTheFrozenParameterSet",
-    "test_STR_013_StartIsAlwaysCurrentBlockPlus1800",
+    "test_STR_013_StartIsAlwaysCurrentBlockPlus300",
     "test_STR_013_InauthenticEscrowIsRejected",
     "test_STR_013_UnreachableRequiredRaiseIsRejected",
     "test_STR_013_AdmittedMaximumRaiseIsReachedByRealOnGridBidding",
@@ -1273,18 +1213,13 @@ selectors = [
     "test_STR_019_NextCloneTreasuryStallsMigrationUntilAnInterveningGraduationMovesTheNonce",
 ]
 
-[[requirement]]
-id = "STR-020"
-statement = "RegentLBPStrategy holds one governance-set lower bound on the required raise, minimumRegentRaised, born at exactly 10,000,000 REGENT. Only the Governance and Regent Safe changes it, through setMinimumRegentRaised(uint128); zero and any value above MAX_REACHABLE_RAISE are refused as unreachable, any other caller is refused, and every change emits the exact previous and new minimum. Initialization refuses a required raise below the current minimum and admits the minimum itself, and a later change leaves every existing auction's recorded required raise untouched."
-owner = "autolaunch-minimum-raise"
-contract = "RegentLBPStrategy"
-evidence_class = "solidity-hermetic"
-gate = "hermetic"
-status = "active"
-selectors = [
-    "test_STR_020_MinimumIsGovernanceOnlyAndBounded",
-    "test_STR_020_FloorIsInclusiveAndExistingAuctionsKeepTheirTerms",
-]
+# autolaunch-revstake-terms retirement. STR-020 claimed the governance-set minimum on the
+# required raise, its Safe-only setter and its change event. The minimum is deleted outright —
+# minimumRegentRaised, setMinimumRegentRaised, MinimumRegentRaisedChanged, NotGovernance and
+# RequiredRaiseBelowMinimum are all gone from the strategy — so the claim has no subject left. It is
+# retired here rather than repointed, both of its selectors are deleted with it, and the ID is never
+# reused. The admission rule that remains — any positive required raise up to MAX_REACHABLE_RAISE —
+# is STR-013 at the strategy and FAC-023 at the factory.
 
 # ---------------------------------------------------------------------------
 # ESC — one-time initialization; exact 85% pending custody; no pending release;
@@ -2528,7 +2463,7 @@ selectors = ["test_ABI_001_ProtocolFeeControllerSelectorDerivesFromPinnedSignatu
 
 [[requirement]]
 id = "ABI-002"
-statement = "The factory's public mutation surface is exactly launch, setLaunchFee, pauseLaunches, unpauseLaunches, createPaymentReceiver, and the immutable-strategy-only registerCanonicalPaymentReceiver callback; it additionally exposes the non-enumerable launchIdOfPaymentReceiver getter and no receiver list, count, pagination, canonical flag, mutable administration or provenance event."
+statement = "The factory's public mutation surface is exactly launch, pauseLaunches, unpauseLaunches, createPaymentReceiver, and the immutable-strategy-only registerCanonicalPaymentReceiver callback; it additionally exposes the non-enumerable launchIdOfPaymentReceiver getter and no receiver list, count, pagination, canonical flag, mutable administration or provenance event."
 owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
@@ -2538,7 +2473,7 @@ selectors = ["test_ABI_002_FactoryPublicMutationSurfaceIsExact"]
 
 [[requirement]]
 id = "ABI-003"
-statement = "LaunchParams contains only name, symbol, description, website, image, treasury, requiredRegentRaised, and expectedLaunchFee."
+statement = "LaunchParams contains only name, symbol, description, website, image, treasury, and requiredRegentRaised."
 owner = "C5"
 contract = "AutolaunchFactory"
 evidence_class = "solidity-hermetic"
