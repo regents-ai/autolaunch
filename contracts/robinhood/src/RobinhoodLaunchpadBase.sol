@@ -41,11 +41,12 @@ import {RobinhoodPreset} from "./RobinhoodPreset.sol";
 import {RobinhoodPositionsLib} from "./libraries/RobinhoodPositionsLib.sol";
 
 /// @title RobinhoodLaunchpadBase
-/// @notice The chain-level machinery of a Robinhood launch: bindings, pause and fee governance, the
-///         USDG launch fee, NEW creation, CCA creation and read-back, custody, migration, the
-///         launch's own memestock splitter and the locked-liquidity technique of the Base Stocks
+/// @notice The chain-level machinery of a Robinhood launch: bindings, pause governance, NEW
+///         creation, CCA creation and read-back on the fixed Robinhood schedule, custody, migration,
+///         the launch's own memestock splitter and the locked-liquidity technique of the Base Stocks
 ///         launchpad. The launchpad on top supplies its terms (supply split), its locked positions
-///         and what it does with the currency the full range could not pair.
+///         and what it does with the currency the full range could not pair. A launch costs nothing
+///         beyond gas: no fee is pulled and the launchpad never holds USDG.
 /// @dev Bindings are constructor immutables, each proved to be deployed code and, where it has one,
 ///      to present the expected binding (USDG decimals, the inbox's USDG). Nothing is hard-coded:
 ///      no Robinhood address is known at build time, and a deployment with a wrong binding fails at
@@ -61,10 +62,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f;
 
     address internal constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-
-    /// @notice `sourceTag` every launch fee carries into the inbox.
-    // forge-lint: disable-next-line(unsafe-typecast)
-    bytes32 public constant LAUNCH_FEE_SOURCE_TAG = bytes32("robinhood-launch-fee");
 
     struct Bindings {
         address uerc20Factory;
@@ -100,7 +97,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     uint256 public override nextLaunchId = 1;
     /// @notice Born paused; only the Safe opens launches.
     bool public override launchesPaused = true;
-    uint256 public override launchFee = RobinhoodPreset.LAUNCH_FEE_USDG;
 
     mapping(uint256 launchId => Launch) internal _launches;
     mapping(address auction => uint256 launchId) public override launchIdOfAuction;
@@ -119,7 +115,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     error LaunchesArePaused();
     error EmptyMetadataField(uint256 field);
     error MetadataFieldTooLong(uint256 field, uint256 maximum, uint256 found);
-    error StartBlockOutOfWindow(uint64 startBlock, uint256 earliest, uint256 latest);
     error FloorPriceTooLow(uint256 floorPriceQ96);
     error FloorPriceNotOnGrid(uint256 floorPriceQ96);
     error TickSpacingTooSmall(uint256 tickSpacingQ96);
@@ -140,8 +135,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     error NoPositions();
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
     error AllowanceNotConsumed(address spender, uint256 remaining);
-    error StaleLaunchFee(uint256 current, uint256 expected);
-    error LaunchFeeAllowanceMismatch(uint256 expected, uint256 found);
 
     /// @param hookSalt The pre-mined CREATE2 salt giving the hook the exact permission bits v4
     ///        encodes in a hook address. Not stored; a wrong salt simply fails construction.
@@ -263,14 +256,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         emit LaunchesUnpaused();
     }
 
-    /// @inheritdoc IRobinhoodLaunchpadBase
-    /// @dev A launcher who reviewed the previous fee is refused with `StaleLaunchFee`, never charged.
-    function setLaunchFee(uint256 newFee) external override onlySafe {
-        uint256 previousFee = launchFee;
-        launchFee = newFee;
-        emit LaunchFeeUpdated(previousFee, newFee);
-    }
-
     // -------------------------------------------------------------------------
     // reads
     // -------------------------------------------------------------------------
@@ -298,7 +283,8 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
     // -------------------------------------------------------------------------
 
     /// @dev The whole shared creation path. The caller has already validated its kind-specific
-    ///      inputs and derived `requiredRaise`; nothing here is kind-specific but the terms.
+    ///      inputs; nothing here is kind-specific but the terms. The auction opens
+    ///      `RobinhoodPreset.START_LEAD_BLOCKS` after the current block, in the auction's block units.
     function _create(CoreParams memory core, address currency, uint128 requiredRaise)
         internal
         returns (uint256 launchId, address newToken, address auction)
@@ -311,15 +297,10 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         _requireBytes(3, bytes(core.website).length, StocksPreset.MAX_WEBSITE_BYTES);
         _requireBytes(4, bytes(core.image).length, StocksPreset.MAX_IMAGE_BYTES);
 
-        uint256 current = _getBlockNumberish();
-        uint256 earliest = current + StocksPreset.MIN_START_LEAD_BLOCKS;
-        uint256 latest = current + StocksPreset.MAX_START_LEAD_BLOCKS;
-        if (core.startBlock < earliest || core.startBlock > latest) {
-            revert StartBlockOutOfWindow(core.startBlock, earliest, latest);
-        }
-
         Terms memory terms = _terms();
         uint256 tickSpacing = bidTickSpacingFor(core.floorPriceQ96);
+        // The launcher chooses the raise. It must be a nonzero amount the fixed inventory can
+        // actually settle on: the inventory at the highest on-grid price the pinned CCA admits.
         uint256 reachable = _maxReachableRaise(terms.auctionInventory, tickSpacing);
         if (requiredRaise == 0 || requiredRaise > reachable) revert UnreachableRequiredRaise(requiredRaise, reachable);
 
@@ -329,24 +310,22 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         launchId = nextLaunchId;
         nextLaunchId = launchId + 1;
 
-        // The fee is the first value to move: nothing of the launch exists yet, so a refused fee
-        // costs the launcher only gas, and a launch never exists without its fee having been deposited.
-        _collectAndDepositLaunchFee(launchId, core.expectedLaunchFee);
-
         newToken = _createNew(core, launchId, terms.totalSupply);
 
-        uint64 endBlock = core.startBlock + StocksPreset.AUCTION_DURATION_BLOCKS;
-        auction = _createAuction(newToken, currency, core, launchId, endBlock, tickSpacing, requiredRaise, terms);
+        uint64 startBlock = SafeCastLib.toUint64(_getBlockNumberish()) + RobinhoodPreset.START_LEAD_BLOCKS;
+        uint64 endBlock = startBlock + RobinhoodPreset.AUCTION_DURATION_BLOCKS;
+        auction =
+            _createAuction(newToken, currency, core, launchId, startBlock, endBlock, tickSpacing, requiredRaise, terms);
 
         Launch storage record = _launches[launchId];
         record.launcher = msg.sender;
         record.newToken = newToken;
         record.currency = currency;
         record.auction = auction;
-        record.startBlock = core.startBlock;
+        record.startBlock = startBlock;
         record.endBlock = endBlock;
-        record.claimBlock = endBlock + StocksPreset.CLAIM_DELAY_BLOCKS;
-        record.migrationBlock = endBlock + StocksPreset.MIGRATION_DELAY_BLOCKS;
+        record.claimBlock = endBlock + RobinhoodPreset.CLAIM_DELAY_BLOCKS;
+        record.migrationBlock = endBlock + RobinhoodPreset.MIGRATION_DELAY_BLOCKS;
         record.requiredRaise = requiredRaise;
         record.floorPriceQ96 = core.floorPriceQ96;
         record.lifecycle = Lifecycle.Active;
@@ -363,40 +342,6 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         uint256 held = newToken.balanceOf(address(this));
         uint256 reserve = terms.totalSupply - terms.auctionInventory;
         if (held != reserve) revert ReserveMismatch(reserve, held);
-    }
-
-    /// @dev The USDG launch fee, with the Base launchpads' exact-allowance discipline and the inbox as
-    ///      its destination: the fee passes through this contract only for the duration of the call.
-    ///      The fee the launcher reviewed must be the current one and the allowance must equal it
-    ///      exactly; a zero fee moves nothing and still requires a zero allowance. Every leg is proved
-    ///      by balance delta and both temporary allowances are proved back at zero.
-    function _collectAndDepositLaunchFee(uint256 launchId, uint256 expectedFee) private {
-        uint256 fee = launchFee;
-        if (fee != expectedFee) revert StaleLaunchFee(fee, expectedFee);
-
-        address token = usdg;
-        uint256 allowed = IERC20Minimal(token).allowance(msg.sender, address(this));
-        if (allowed != fee) revert LaunchFeeAllowanceMismatch(fee, allowed);
-        if (fee == 0) return;
-
-        uint256 held = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), fee);
-        uint256 pulled = token.balanceOf(address(this)) - held;
-        if (pulled != fee) revert InexactTransfer(fee, pulled);
-        uint256 remaining = IERC20Minimal(token).allowance(msg.sender, address(this));
-        if (remaining != 0) revert AllowanceNotConsumed(address(this), remaining);
-
-        address destination = inbox;
-        token.safeApprove(destination, fee);
-        uint256 received =
-            IRobinhoodProtocolRevenueInboxV1(destination).deposit(fee, LAUNCH_FEE_SOURCE_TAG, bytes32(launchId));
-        if (received != fee) revert InexactTransfer(fee, received);
-        uint256 afterDeposit = token.balanceOf(address(this));
-        if (afterDeposit != held) revert InexactTransfer(held, afterDeposit);
-        remaining = IERC20Minimal(token).allowance(address(this), destination);
-        if (remaining != 0) revert AllowanceNotConsumed(destination, remaining);
-
-        emit LaunchFeeCollected(launchId, msg.sender, destination, fee);
     }
 
     /// @dev Exactly `totalSupply` of NEW, minted once, to this contract, by the pinned UERC20 factory.
@@ -434,6 +379,7 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         address currency,
         CoreParams memory core,
         uint256 launchId,
+        uint64 startBlock,
         uint64 endBlock,
         uint256 tickSpacing,
         uint128 requiredRaise,
@@ -449,14 +395,14 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
                             currency: currency,
                             tokensRecipient: address(this),
                             fundsRecipient: address(this),
-                            startBlock: core.startBlock,
+                            startBlock: startBlock,
                             endBlock: endBlock,
-                            claimBlock: endBlock + StocksPreset.CLAIM_DELAY_BLOCKS,
+                            claimBlock: endBlock + RobinhoodPreset.CLAIM_DELAY_BLOCKS,
                             tickSpacing: tickSpacing,
                             validationHook: address(0),
                             floorPrice: core.floorPriceQ96,
                             requiredCurrencyRaised: requiredRaise,
-                            auctionStepsData: StocksPreset.AUCTION_STEPS
+                            auctionStepsData: RobinhoodPreset.AUCTION_STEPS
                         })
                     ),
                     bytes32(launchId)
@@ -470,9 +416,9 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
         _requireBinding(2, terms.auctionInventory, cca.totalSupply());
         _requireBinding(3, uint256(uint160(address(this))), uint256(uint160(cca.tokensRecipient())));
         _requireBinding(4, uint256(uint160(address(this))), uint256(uint160(cca.fundsRecipient())));
-        _requireBinding(5, core.startBlock, cca.startBlock());
+        _requireBinding(5, startBlock, cca.startBlock());
         _requireBinding(6, endBlock, cca.endBlock());
-        _requireBinding(7, endBlock + StocksPreset.CLAIM_DELAY_BLOCKS, cca.claimBlock());
+        _requireBinding(7, endBlock + RobinhoodPreset.CLAIM_DELAY_BLOCKS, cca.claimBlock());
         _requireBinding(8, 0, uint256(uint160(address(cca.validationHook()))));
         _requireBinding(9, core.floorPriceQ96, cca.floorPrice());
         _requireBinding(10, tickSpacing, cca.tickSpacing());

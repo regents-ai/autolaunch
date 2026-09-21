@@ -267,7 +267,7 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
     ///         ledger stands still.
     function test_MIG_018_RepeatedGraduationRevertsAndMovesNoValue() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
 
         Ledger memory before = _ledger(launched);
@@ -312,7 +312,7 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
     function test_MIG_019_MigrationDependencyReentrancyIsRejectedWithCompleteRollback() public {
         Launched memory launched = _defaultLaunch();
         Launched memory other = _launchAs(outsider, _params());
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
 
         // 1. Re-entering the same launch's migration while a REGENT movement is in flight.
         uint256 attempts = regent.reentryAttempts();
@@ -329,7 +329,7 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
         // 2. The guard is contract-wide, so a re-entrant call naming a different active launch is
         //    refused as well and that launch is untouched.
         Launched memory second = _launchAs(launcher, _params());
-        _bidToGraduation(second, MINIMUM_RAISE);
+        _bidToGraduation(second, FLOOR_RAISE);
         _armReentry(address(strategy), abi.encodeCall(RegentLBPStrategy.migrate, (address(other.auction))));
         strategy.migrate(address(second.auction));
         assertFalse(regent.lastReentrySucceeded(), "a cross-launch re-entrant migration was admitted");
@@ -341,12 +341,9 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
 
         // 3. A re-entrant *launch* from a migration dependency is refused by the same guard, because
         //    the shared strategy is already inside a mutation.
-        vm.prank(governance);
-        factory.setLaunchFee(0);
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.expectedLaunchFee = 0;
         Launched memory third = _launchAs(launcher, params);
-        _bidToGraduation(third, MINIMUM_RAISE);
+        _bidToGraduation(third, FLOOR_RAISE);
 
         uint256 nextLaunchIdBefore = factory.nextLaunchId();
         attempts = regent.reentryAttempts();
@@ -359,7 +356,7 @@ contract AutolaunchTerminalRollbackTest is AutolaunchFixture {
         // 4. When the dependency's own failure propagates instead of being swallowed, the whole
         //    migration rolls back to its exact pre-migration state.
         Launched memory fourth = _launchAs(launcher, params);
-        _bidToGraduation(fourth, MINIMUM_RAISE);
+        _bidToGraduation(fourth, FLOOR_RAISE);
         Ledger memory before = _ledger(fourth);
         regent.resetMovements();
         regent.arm(1, StagedERC20.Fault.Revert);

@@ -33,10 +33,10 @@ contract AutolaunchLifecycleInvariantsTest is AutolaunchFixture {
         _deployAutolaunch();
 
         // Three launches created in the same block, on both sides of REGENT, at required raises
-        // spanning the admitted interval: one that needs real demand, one at the governance floor
+        // spanning the admitted interval: one that needs real demand, one at the floor raise
         // that two of the handler's largest bids meet, and one at the admitted maximum that no
         // reachable bid sequence in this portfolio can meet.
-        uint128[LAUNCHES] memory raises = [3 * MINIMUM_RAISE, MINIMUM_RAISE, strategy.MAX_REACHABLE_RAISE()];
+        uint128[LAUNCHES] memory raises = [3 * FLOOR_RAISE, FLOOR_RAISE, strategy.MAX_REACHABLE_RAISE()];
         bool[LAUNCHES] memory below = [true, false, true];
 
         address[LAUNCHES] memory auctions;

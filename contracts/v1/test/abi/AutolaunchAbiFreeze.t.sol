@@ -41,34 +41,31 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     // ABI-002 / ABI-003 — the factory
     // -------------------------------------------------------------------------
 
-    /// @notice `ABI-002`: the factory's public mutation surface is exactly the six `SPEC.md`
+    /// @notice `ABI-002`: the factory's public mutation surface is exactly the five `SPEC.md`
     ///         section 4 entry points — no owner transfer, no setter, no upgrade, no arbitrary call.
     function test_ABI_002_FactoryPublicMutationSurfaceIsExact() public view {
         string[] memory frozenLines = _frozenStrings(FACTORY, "mutating_functions");
 
-        string[] memory expected = new string[](6);
+        string[] memory expected = new string[](5);
         expected[0] = _assertFrozenFunction(
             frozenLines,
             RegentsAutolaunchFactoryV1.launch.selector,
-            "launch((string,string,string,string,string,address,uint128,uint256))",
+            "launch((string,string,string,string,string,address,uint128))",
             "factory"
         );
         expected[1] = _assertFrozenFunction(
-            frozenLines, RegentsAutolaunchFactoryV1.setLaunchFee.selector, "setLaunchFee(uint256)", "factory"
-        );
-        expected[2] = _assertFrozenFunction(
             frozenLines, RegentsAutolaunchFactoryV1.pauseLaunches.selector, "pauseLaunches()", "factory"
         );
-        expected[3] = _assertFrozenFunction(
+        expected[2] = _assertFrozenFunction(
             frozenLines, RegentsAutolaunchFactoryV1.unpauseLaunches.selector, "unpauseLaunches()", "factory"
         );
-        expected[4] = _assertFrozenFunction(
+        expected[3] = _assertFrozenFunction(
             frozenLines,
             RegentsAutolaunchFactoryV1.createPaymentReceiver.selector,
             "createPaymentReceiver(uint256,address,uint16)",
             "factory"
         );
-        expected[5] = _assertFrozenFunction(
+        expected[4] = _assertFrozenFunction(
             frozenLines,
             RegentsAutolaunchFactoryV1.registerCanonicalPaymentReceiver.selector,
             "registerCanonicalPaymentReceiver(address)",
@@ -82,7 +79,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         );
     }
 
-    /// @notice `ABI-003`: `LaunchParams` carries exactly the eight `SPEC.md` fields, in order, at
+    /// @notice `ABI-003`: `LaunchParams` carries exactly the seven `SPEC.md` fields, in order, at
     ///         exactly those widths.
     /// @dev Two independent proofs of the same shape: the field list the compiler recorded in the
     ///      ABI, and the tuple encoded inside `launch`'s own selector. A reordered, renamed, added,
@@ -90,15 +87,14 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     function test_ABI_003_LaunchParamsFieldsAreExact() public view {
         string[] memory frozen = _frozenStrings(FACTORY, "input_structs.launch_params");
 
-        string[8] memory expected = [
+        string[7] memory expected = [
             "string name",
             "string symbol",
             "string description",
             "string website",
             "string image",
             "address treasury",
-            "uint128 requiredRegentRaised",
-            "uint256 expectedLaunchFee"
+            "uint128 requiredRegentRaised"
         ];
 
         assertEq(frozen.length, expected.length, "LaunchParams field count");
@@ -107,7 +103,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         }
 
         assertEq(
-            bytes4(keccak256("launch((string,string,string,string,string,address,uint128,uint256))")),
+            bytes4(keccak256("launch((string,string,string,string,string,address,uint128))")),
             RegentsAutolaunchFactoryV1.launch.selector,
             "the LaunchParams tuple encoded in launch's selector is not the frozen one"
         );
@@ -275,12 +271,6 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             "LaunchCreated",
             "uint256 indexed launchId|address indexed launcher|address indexed subject|address auction|address escrow|address treasury|uint128 requiredRegentRaised|uint64 startBlock|uint64 endBlock"
         );
-        _assertEventFields(
-            FACTORY,
-            "LaunchFeeCollected",
-            "uint256 indexed launchId|address indexed payer|address regentSafe|uint256 amount"
-        );
-        _assertEventFields(FACTORY, "LaunchFeeUpdated", "uint256 previousFee|uint256 newFee");
         _assertEventFields(FACTORY, "LaunchesPaused", "");
         _assertEventFields(FACTORY, "LaunchesUnpaused", "");
         _assertEventFields(
@@ -303,7 +293,6 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
         _assertEventFields(
             STRATEGY, "LaunchRetired", "address indexed auction|address indexed subject|uint128 reserveReturned"
         );
-        _assertEventFields(STRATEGY, "MinimumRegentRaisedChanged", "uint128 previousMinimum|uint128 newMinimum");
 
         _assertEventFields(
             HOOK, "PoolRegistered", "bytes32 indexed poolId|address indexed splitter|address indexed subject"
@@ -499,7 +488,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     ///      Each clone is the real one this graph created through its real production caller.
     function test_ABI_008_CloneInitializersRunExactlyOnce() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
         RegentLBPStrategy.Distribution memory d = _distribution(launched);
 
@@ -871,22 +860,15 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     }
 
     function _factoryEvents() private pure returns (FrozenEvent[] memory events) {
-        events = new FrozenEvent[](6);
+        events = new FrozenEvent[](4);
         events[0] = FrozenEvent(
             RegentsAutolaunchFactoryV1.LaunchCreated.selector,
             "LaunchCreated(uint256,address,address,address,address,address,uint128,uint64,uint64)",
             3
         );
-        events[1] =
-            FrozenEvent(RegentsAutolaunchFactoryV1.LaunchFeeUpdated.selector, "LaunchFeeUpdated(uint256,uint256)", 0);
-        events[2] = FrozenEvent(
-            RegentsAutolaunchFactoryV1.LaunchFeeCollected.selector,
-            "LaunchFeeCollected(uint256,address,address,uint256)",
-            2
-        );
-        events[3] = FrozenEvent(RegentsAutolaunchFactoryV1.LaunchesPaused.selector, "LaunchesPaused()", 0);
-        events[4] = FrozenEvent(RegentsAutolaunchFactoryV1.LaunchesUnpaused.selector, "LaunchesUnpaused()", 0);
-        events[5] = FrozenEvent(
+        events[1] = FrozenEvent(RegentsAutolaunchFactoryV1.LaunchesPaused.selector, "LaunchesPaused()", 0);
+        events[2] = FrozenEvent(RegentsAutolaunchFactoryV1.LaunchesUnpaused.selector, "LaunchesUnpaused()", 0);
+        events[3] = FrozenEvent(
             RegentsAutolaunchFactoryV1.PaymentReceiverCreated.selector,
             "PaymentReceiverCreated(uint256,address,address,address,uint16)",
             3
@@ -894,7 +876,7 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
     }
 
     function _strategyEvents() private pure returns (FrozenEvent[] memory events) {
-        events = new FrozenEvent[](5);
+        events = new FrozenEvent[](4);
         events[0] = FrozenEvent(RegentLBPStrategy.HookBound.selector, "HookBound(address)", 1);
         events[1] = FrozenEvent(
             RegentLBPStrategy.DistributionCreated.selector,
@@ -906,9 +888,6 @@ contract AutolaunchAbiFreezeTest is AutolaunchFixture, FrozenSurface {
             RegentLBPStrategy.LaunchGraduated.selector,
             "LaunchGraduated(address,address,bytes32,address,address,uint160,uint256,uint128,uint128)",
             3
-        );
-        events[4] = FrozenEvent(
-            RegentLBPStrategy.MinimumRegentRaisedChanged.selector, "MinimumRegentRaisedChanged(uint128,uint128)", 0
         );
     }
 

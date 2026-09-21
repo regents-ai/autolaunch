@@ -178,7 +178,6 @@ contract DeploymentCeremonyTest is Test {
         assertEq(factory.uerc20Factory(), graph.uerc20Factory, "the factory bound another token factory");
         assertEq(address(factory.strategy()), graph.strategy, "the factory bound another strategy");
         assertEq(address(factory.hook()), graph.hook, "the factory bound another hook");
-        assertEq(factory.launchFee(), factory.INITIAL_LAUNCH_FEE(), "the factory was not born at its initial fee");
         assertEq(factory.nextLaunchId(), 1, "the factory was not born at launch id one");
         assertTrue(factory.launchesPaused(), "the fifth receipt did not leave the factory paused");
 
@@ -232,8 +231,6 @@ contract DeploymentCeremonyTest is Test {
         // The factory's whole mutable surface is governance-only, and the deployer is not it.
         vm.startPrank(deployer);
         vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.NotGovernance.selector, deployer));
-        factory.setLaunchFee(0);
-        vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.NotGovernance.selector, deployer));
         factory.pauseLaunches();
         vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.NotGovernance.selector, deployer));
         factory.unpauseLaunches();
@@ -243,17 +240,13 @@ contract DeploymentCeremonyTest is Test {
         strategy.bindHook(deployer);
         vm.stopPrank();
 
-        // The Safe is the authority, and it is the one compiled into the frozen bindings.
-        vm.prank(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
-        factory.setLaunchFee(7);
-        assertEq(factory.launchFee(), 7, "the frozen Safe is not the launch-fee authority");
-
-        // The same is true of activation, and it is proved the only honest way: the ceremony's own
-        // graph is still closed, and impersonating the frozen Safe's exact address and calling the
-        // real `unpauseLaunches()` opens it. Nothing here writes storage directly, nothing here is
-        // a live Safe signature, and nothing here proves anything about that Safe's own signer
-        // configuration — only that the graph these five creations produce admits that one address
-        // and no other as the account a later, separately authorized activation would come from.
+        // The Safe is the authority, and it is the one compiled into the frozen bindings. That is
+        // proved the only honest way: the ceremony's own graph is still closed, and impersonating
+        // the frozen Safe's exact address and calling the real `unpauseLaunches()` opens it. Nothing
+        // here writes storage directly, nothing here is a live Safe signature, and nothing here
+        // proves anything about that Safe's own signer configuration — only that the graph these
+        // five creations produce admits that one address and no other as the account a later,
+        // separately authorized activation would come from.
         assertTrue(factory.launchesPaused(), "the ceremony graph did not stay paused");
         vm.prank(BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
         factory.unpauseLaunches();

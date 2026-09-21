@@ -13,14 +13,14 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {StagedERC20} from "../strategy/doubles/StagedERC20.sol";
 
 /// @notice `C4-I3`: a failure at any external boundary of `launch` is an ordinary EVM revert that
-///         leaves no launch ID, no mapping entry, no token, no escrow, no auction, no fee movement,
-///         no allowance and no contract nonce behind.
+///         leaves no launch ID, no mapping entry, no token, no escrow, no auction, no REGENT
+///         movement, no allowance and no contract nonce behind.
 /// @dev Every stage below fails exactly one named boundary the launch crosses, one at a time, from
 ///      an identical pre-launch state, and each one then asserts the complete pre-launch ledger.
-///      The stages are the plan's own enumeration: the fee transfer and its exactness proof, UERC20
-///      creation, each readback, the escrow approval, the escrow initialization and its exact pull,
-///      the strategy initialization and its exact pull, the CCA creation and its readback, the
-///      SUBJECT delivery, the post-distribution custody proof, and the final record agreement.
+///      The stages are the plan's own enumeration: UERC20 creation, each readback, the escrow
+///      approval, the escrow initialization and its exact pull, the strategy initialization and its
+///      exact pull, the CCA creation and its readback, the SUBJECT delivery, the post-distribution
+///      custody proof, and the final record agreement.
 ///
 ///      Two injection shapes are used, and each is the honest one for its boundary. Identity
 ///      boundaries are failed by making the real dependency answer wrongly. Token-movement
@@ -54,87 +54,67 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
         Launched memory existing = _defaultLaunch();
         Pristine memory pristine = _pristine();
 
-        // 1. the fee transfer itself
-        vm.mockCallRevert(
-            BaseBindings.REGENT, abi.encodePacked(bytes4(keccak256("transferFrom(address,address,uint256)"))), ""
-        );
-        _assertRollsBack(
-            pristine, "1 fee transfer", abi.encodeWithSelector(SafeTransferLib.TransferFromFailed.selector)
-        );
-
-        // 2. the fee's exactness proof, measured at the Regent Safe
-        vm.mockCall(
-            BaseBindings.REGENT,
-            abi.encodeWithSignature("balanceOf(address)", BaseBindings.GOVERNANCE_AND_REGENT_SAFE),
-            abi.encode(uint256(0))
-        );
-        _assertRollsBack(
-            pristine,
-            "2 fee exactness proof",
-            abi.encodeWithSelector(RegentsAutolaunchFactoryV1.InexactTransfer.selector, INITIAL_LAUNCH_FEE, uint256(0))
-        );
-
-        // 3. UERC20 creation
+        // 1. UERC20 creation
         vm.mockCallRevert(address(uerc20Factory), abi.encodePacked(ITokenFactory.createToken.selector), "");
-        _assertRollsBack(pristine, "3 UERC20 creation", "");
+        _assertRollsBack(pristine, "1 UERC20 creation", "");
 
-        // 4. the created token carries no code
+        // 2. the created token carries no code
         _mockCreatedToken(outsider);
         _assertRollsBack(
             pristine,
-            "4 codeless SUBJECT readback",
+            "2 codeless SUBJECT readback",
             abi.encodeWithSelector(RegentsAutolaunchFactoryV1.SubjectHasNoCode.selector, outsider)
         );
 
-        // 5. the created token records a different creator
+        // 3. the created token records a different creator
         _mockCreatedToken(address(_unrelatedToken()));
         _assertRollsBack(
             pristine,
-            "5 foreign creator readback",
+            "3 foreign creator readback",
             abi.encodeWithSelector(RegentsAutolaunchFactoryV1.SubjectCreatorMismatch.selector, outsider)
         );
 
-        // 6. the created token records a different graffiti: another launch's real SUBJECT, whose
+        // 4. the created token records a different graffiti: another launch's real SUBJECT, whose
         //    creator is genuinely this factory but whose graffiti is that launch's ID
         _mockCreatedToken(address(existing.subject));
         _assertRollsBack(
             pristine,
-            "6 graffiti readback",
+            "4 graffiti readback",
             abi.encodeWithSelector(RegentsAutolaunchFactoryV1.SubjectGraffitiMismatch.selector, bytes32(uint256(1)))
         );
 
-        // 7. the SUBJECT approval the escrow clone needs
+        // 5. the SUBJECT approval the escrow clone needs
         StagedERC20 faulty = _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY);
         vm.mockCall(address(faulty), abi.encodeWithSignature("approve(address,uint256)"), abi.encode(false));
-        _assertRollsBack(pristine, "7 escrow approval", abi.encodeWithSelector(SafeTransferLib.ApproveFailed.selector));
+        _assertRollsBack(pristine, "5 escrow approval", abi.encodeWithSelector(SafeTransferLib.ApproveFailed.selector));
 
-        // 8. the escrow's own initialization check, on a SUBJECT that is not the fixed supply
+        // 6. the escrow's own initialization check, on a SUBJECT that is not the fixed supply
         _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY - 1);
         _assertRollsBack(
             pristine,
-            "8 escrow initialization",
+            "6 escrow initialization",
             abi.encodeWithSelector(ConditionalVestingEscrowV1.InvalidSubjectSupply.selector, TOTAL_SUPPLY - 1)
         );
 
-        // 9. the escrow's exact 85% pull, reverted and then silently short
+        // 7. the escrow's exact 85% pull, reverted and then silently short
         _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY).arm(1, StagedERC20.Fault.Revert);
         _assertRollsBack(
-            pristine, "9 escrow pull reverted", abi.encodeWithSelector(SafeTransferLib.TransferFromFailed.selector)
+            pristine, "7 escrow pull reverted", abi.encodeWithSelector(SafeTransferLib.TransferFromFailed.selector)
         );
         _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY).arm(1, StagedERC20.Fault.ShortTransfer);
         _assertRollsBack(
             pristine,
-            "9 escrow pull short",
+            "7 escrow pull short",
             abi.encodeWithSelector(
                 ConditionalVestingEscrowV1.InexactTransfer.selector, PENDING_ALLOCATION, PENDING_ALLOCATION - 1
             )
         );
 
-        // 10. the strategy's exact 15% pull
+        // 8. the strategy's exact 15% pull
         _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY).arm(2, StagedERC20.Fault.ShortTransfer);
         _assertRollsBack(
             pristine,
-            "10 strategy pull short",
+            "8 strategy pull short",
             abi.encodeWithSelector(
                 RegentLBPStrategy.InexactTransfer.selector,
                 strategy.DISTRIBUTION_PULL(),
@@ -142,21 +122,21 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
             )
         );
 
-        // 11. the strategy's initialization entry point
+        // 9. the strategy's initialization entry point
         vm.mockCallRevert(address(strategy), abi.encodePacked(RegentLBPStrategy.initializeDistribution.selector), "");
-        _assertRollsBack(pristine, "11 strategy initialization", "");
+        _assertRollsBack(pristine, "9 strategy initialization", "");
 
-        // 12. a codeless created auction
+        // 10. a codeless created auction
         vm.mockCall(
             BaseBindings.CCA_FACTORY, abi.encodeWithSelector(IDistributorFactory.create.selector), abi.encode(outsider)
         );
         _assertRollsBack(
             pristine,
-            "12 codeless auction readback",
+            "10 codeless auction readback",
             abi.encodeWithSelector(RegentLBPStrategy.AuctionHasNoCode.selector, outsider)
         );
 
-        // 13. a real but mis-bound created auction: another launch's auction, returned in its place
+        // 11. a real but mis-bound created auction: another launch's auction, returned in its place
         vm.mockCall(
             BaseBindings.CCA_FACTORY,
             abi.encodeWithSelector(IDistributorFactory.create.selector),
@@ -164,7 +144,7 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
         );
         _assertRollsBack(
             pristine,
-            "13 mis-bound auction readback",
+            "11 mis-bound auction readback",
             abi.encodeWithSelector(
                 RegentLBPStrategy.AuctionBindingMismatch.selector,
                 uint256(0),
@@ -173,11 +153,11 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
             )
         );
 
-        // 14. the 10% delivery into the auction
+        // 12. the 10% delivery into the auction
         _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY).arm(3, StagedERC20.Fault.ShortTransfer);
         _assertRollsBack(
             pristine,
-            "14 SUBJECT delivery",
+            "12 SUBJECT delivery",
             abi.encodeWithSelector(
                 RegentLBPStrategy.InexactTransfer.selector,
                 uint256(strategy.AUCTION_ALLOCATION()),
@@ -185,18 +165,18 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
             )
         );
 
-        // 15. the post-distribution custody proof at the factory
+        // 13. the post-distribution custody proof at the factory
         StagedERC20 gifted = _faultySubject(pristine.nextLaunchId, TOTAL_SUPPLY);
         vm.mockCall(
             address(gifted), abi.encodeWithSignature("balanceOf(address)", address(factory)), abi.encode(uint256(1))
         );
         _assertRollsBack(
             pristine,
-            "15 factory custody proof",
+            "13 factory custody proof",
             abi.encodeWithSelector(RegentsAutolaunchFactoryV1.SubjectNotFullyDistributed.selector, uint256(1))
         );
 
-        // 16. the final agreement between the returned identities and the strategy's own record
+        // 14. the final agreement between the returned identities and the strategy's own record
         RegentLBPStrategy.Distribution memory wrong;
         wrong.launchId = 4242;
         vm.mockCall(
@@ -204,7 +184,7 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
         );
         _assertRollsBack(
             pristine,
-            "16 final record agreement",
+            "14 final record agreement",
             abi.encodeWithSelector(
                 RegentsAutolaunchFactoryV1.LaunchRecordMismatch.selector,
                 uint256(0),
@@ -225,13 +205,13 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
     }
 
     /// @notice `FAC-028`: a treasury the strategy refuses at launch rolls the whole attempted launch
-    ///         back — the fee, the SUBJECT, the escrow, the auction, the records and the events
-    ///         together — and never disturbs an existing launch.
-    /// @dev The refusal happens after the fee has moved, after the SUBJECT exists and after that
-    ///      launch's escrow has been cloned and funded with the exact 85%, so this is the widest
-    ///      rollback the launch path has. The seven arms are the whole refusal set: the seven shared
-    ///      system destinations, each by exact address. `STR-019` owns the class enumeration at the
-    ///      strategy, including the classes admission deliberately admits.
+    ///         back — the SUBJECT, the escrow, the auction, the records and the events together —
+    ///         and never disturbs an existing launch.
+    /// @dev The refusal happens after the SUBJECT exists and after that launch's escrow has been
+    ///      cloned and funded with the exact 85%, so this is the widest rollback the launch path
+    ///      has. The seven arms are the whole refusal set: the seven shared system destinations,
+    ///      each by exact address. `STR-019` owns the class enumeration at the strategy, including
+    ///      the classes admission deliberately admits.
     function test_FAC_028_RefusedTreasuryRollsTheWholeLaunchBack() public {
         Launched memory existing = _defaultLaunch();
         Pristine memory pristine = _pristine();
@@ -288,7 +268,6 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
 
     function _pristine() private returns (Pristine memory pristine) {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        _fundFee(launcher, params.expectedLaunchFee);
 
         pristine.nextLaunchId = factory.nextLaunchId();
         pristine.factoryNonce = vm.getNonce(address(factory));
@@ -330,12 +309,12 @@ contract AutolaunchFactoryRollbackTest is AutolaunchFixture {
         assertEq(
             regent.allowance(launcher, address(factory)),
             pristine.launcherAllowance,
-            string.concat(stage, ": the fee allowance moved")
+            string.concat(stage, ": the launcher's factory allowance moved")
         );
         assertEq(
             regent.balanceOf(BaseBindings.GOVERNANCE_AND_REGENT_SAFE),
             pristine.safeRegent,
-            string.concat(stage, ": the Regent Safe received a fee")
+            string.concat(stage, ": the Regent Safe received REGENT")
         );
         assertEq(
             regent.balanceOf(address(factory)),

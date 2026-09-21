@@ -286,28 +286,25 @@ contract ProductionLifecycleForkTest is ForkAutolaunch {
     // stage 2 — two real launches through a connected wallet
     // -------------------------------------------------------------------------
 
-    /// @dev The exact fee discipline, proved at the destination: the launcher's allowance to the
-    ///      factory is fully consumed, and the Regent Safe's own balance rises by exactly the two
-    ///      fees. Nothing is inferred from a return value.
+    /// @dev Launching costs nothing, proved at every destination: the launcher grants no allowance,
+    ///      loses no REGENT, and the Regent Safe's own balance does not move.
     function _launchBoth() private returns (ForkLaunch memory failing, ForkLaunch memory graduating) {
-        uint256 fee = factory.launchFee();
-        assertEq(fee, INITIAL_LAUNCH_FEE, "the factory was born with another launch fee");
-
         uint256 safeBefore = _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE);
+        uint256 launcherBefore = _balanceOf(BaseBindings.REGENT, launcher);
         (failing,,) = _launchAsWallet(_worstCaseParams(UNREACHABLE_RAISE));
         (graduating,,) = _launchAsWallet(_worstCaseParams(REACHABLE_RAISE));
 
         assertEq(
-            _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE) - safeBefore,
-            fee * 2,
-            "the Regent Safe did not receive exactly two launch fees"
+            _balanceOf(BaseBindings.REGENT, BaseBindings.GOVERNANCE_AND_REGENT_SAFE),
+            safeBefore,
+            "the Regent Safe received REGENT for a launch"
         );
         assertEq(
             _allowance(BaseBindings.REGENT, launcher, address(factory)),
             0,
             "a launcher left standing spend authority behind"
         );
-        assertEq(_balanceOf(BaseBindings.REGENT, launcher), 0, "the launcher kept part of an exact fee");
+        assertEq(_balanceOf(BaseBindings.REGENT, launcher), launcherBefore, "a launch took REGENT from the launcher");
 
         // Launcher provenance is a record and nothing else: no SUBJECT, no role, no authority.
         assertEq(factory.launches(graduating.launchId).launcher, launcher, "the launch record lost its launcher");

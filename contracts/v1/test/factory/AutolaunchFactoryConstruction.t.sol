@@ -75,7 +75,7 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
             "the strategy's admitted escrow clone fingerprint is not this clone's"
         );
 
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
         RegentLBPStrategy.Distribution memory d = _distribution(launched);
         _assertIsCloneOf(d.splitter, address(splitterImplementation), "splitter");
@@ -199,7 +199,7 @@ contract AutolaunchFactoryConstructionTest is AutolaunchFixture {
         vm.prank(outsider);
         strategy.initializeDistribution(
             RegentLBPStrategy.DistributionParams({
-                launchId: 1, escrow: address(escrowImplementation), requiredRegentRaised: MINIMUM_RAISE
+                launchId: 1, escrow: address(escrowImplementation), requiredRegentRaised: FLOOR_RAISE
             })
         );
 

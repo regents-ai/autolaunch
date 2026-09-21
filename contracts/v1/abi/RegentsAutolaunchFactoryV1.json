@@ -62,19 +62,6 @@
     },
     {
       "type": "function",
-      "name": "INITIAL_LAUNCH_FEE",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
       "name": "MAX_DESCRIPTION_BYTES",
       "inputs": [],
       "outputs": [
@@ -301,11 +288,6 @@
               "name": "requiredRegentRaised",
               "type": "uint128",
               "internalType": "uint128"
-            },
-            {
-              "name": "expectedLaunchFee",
-              "type": "uint256",
-              "internalType": "uint256"
             }
           ]
         }
@@ -333,19 +315,6 @@
         }
       ],
       "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "launchFee",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "view"
     },
     {
       "type": "function",
@@ -479,19 +448,6 @@
     },
     {
       "type": "function",
-      "name": "setLaunchFee",
-      "inputs": [
-        {
-          "name": "newFee",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
       "name": "strategy",
       "inputs": [],
       "outputs": [
@@ -586,56 +542,6 @@
     },
     {
       "type": "event",
-      "name": "LaunchFeeCollected",
-      "inputs": [
-        {
-          "name": "launchId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "payer",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "regentSafe",
-          "type": "address",
-          "indexed": false,
-          "internalType": "address"
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "LaunchFeeUpdated",
-      "inputs": [
-        {
-          "name": "previousFee",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "newFee",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
       "name": "LaunchesPaused",
       "inputs": [],
       "anonymous": false
@@ -705,49 +611,6 @@
       "inputs": [
         {
           "name": "field",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "InexactTransfer",
-      "inputs": [
-        {
-          "name": "expected",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "found",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "LaunchFeeAllowanceMismatch",
-      "inputs": [
-        {
-          "name": "expected",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "found",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "LaunchFeeAllowanceNotConsumed",
-      "inputs": [
-        {
-          "name": "remaining",
           "type": "uint256",
           "internalType": "uint256"
         }
@@ -845,22 +708,6 @@
     },
     {
       "type": "error",
-      "name": "StaleLaunchFee",
-      "inputs": [
-        {
-          "name": "current",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "expected",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "SubjectCreatorMismatch",
       "inputs": [
         {
@@ -939,7 +786,6 @@
   "method_identifiers": {
     "DISTRIBUTION_PULL()": "53e916eb",
     "ESCROW_IMPLEMENTATION_RUNTIME_CODE_HASH()": "00b5a6b6",
-    "INITIAL_LAUNCH_FEE()": "a80abe95",
     "MAX_DESCRIPTION_BYTES()": "c81ea2a0",
     "MAX_IMAGE_BYTES()": "8096479a",
     "MAX_NAME_BYTES()": "680c60c7",
@@ -953,8 +799,7 @@
     "UERC20_FACTORY_RUNTIME_CODE_HASH()": "4e894821",
     "createPaymentReceiver(uint256,address,uint16)": "9d2299e4",
     "hook()": "7f5a7c7b",
-    "launch((string,string,string,string,string,address,uint128,uint256))": "d0464e3e",
-    "launchFee()": "cf3cf573",
+    "launch((string,string,string,string,string,address,uint128))": "d5925619",
     "launchIdOfPaymentReceiver(address)": "5ab3c139",
     "launchIdOfSubject(address)": "ca2afc6c",
     "launches(uint256)": "7b443a76",
@@ -962,7 +807,6 @@
     "nextLaunchId()": "979bd9cc",
     "pauseLaunches()": "e79b502e",
     "registerCanonicalPaymentReceiver(address)": "77f2b0c7",
-    "setLaunchFee(uint256)": "5313be2c",
     "strategy()": "a8c62e76",
     "uerc20Factory()": "0b8c5565",
     "unpauseLaunches()": "5af02677"

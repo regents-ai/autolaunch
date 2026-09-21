@@ -36,7 +36,6 @@ import {IUERC20Factory} from "uerc20-factory/interfaces/IUERC20Factory.sol";
 import {UERC20Metadata} from "uerc20-factory/libraries/UERC20MetadataLibrary.sol";
 import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 import {IERC20Minimal} from "./interfaces/IERC20Minimal.sol";
-import {IRegentRevenueStakingMinimal} from "./interfaces/IRegentRevenueStakingMinimal.sol";
 import {IStockRoute} from "./interfaces/IStockRoute.sol";
 import {IStocksLaunchpadV1} from "./interfaces/IStocksLaunchpadV1.sol";
 import {MemestockLPLocker} from "./MemestockLPLocker.sol";
@@ -51,8 +50,8 @@ import {StocksPreset} from "./StocksPreset.sol";
 ///      through a pinned Continuous Clearing Auction denominated in one admitted STOCK, custodies the
 ///      20% reserve, and after the auction either graduates into two locked NEW/STOCK positions or
 ///      retires the inventory. Every economic term comes from `StocksPreset`; a launcher supplies
-///      metadata, the STOCK, the start block and the floor price, nothing else, and keeps no authority
-///      over the launch afterwards.
+///      metadata, the STOCK, the floor price and the required raise, nothing else, and keeps no
+///      authority over the launch afterwards. The auction opens `START_LEAD_BLOCKS` after creation.
 ///
 ///      Graduation creates the launch's own memestock splitter, the fixed destination of the hook's
 ///      staker lane, and mints both positions to the permanent fee-only locker, which deposits their
@@ -66,10 +65,7 @@ import {StocksPreset} from "./StocksPreset.sol";
 ///      Stocks departs from Agent in what it does with STOCK the full range cannot pair: Agent sends it
 ///      to a treasury, Stocks locks it in a second, one-sided STOCK position (brief P13).
 ///
-///      A launch costs `launchFee` REGENT (born at `StocksPreset.LAUNCH_FEE_REGENT`). The fee is pulled
-///      from the launcher with the exact-allowance discipline of the frozen Agent factory's
-///      `_collectLaunchFee`, funded straight into the live REGENT staking contract as staker rewards
-///      (`fundRegentRewards`) in the same transaction, and never refunded.
+///      A launch costs nothing beyond gas: no REGENT is pulled and the launchpad never holds REGENT.
 contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     using SafeTransferLib for address;
     using PoolIdLibrary for PoolKey;
@@ -113,10 +109,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     /// @notice Born paused; only governance opens launches.
     bool public override launchesPaused = true;
 
-    /// @notice The REGENT a launch costs right now. Born at the founder-decided preset value.
-    uint256 public override launchFee = StocksPreset.LAUNCH_FEE_REGENT;
-    uint256 public override minimumRaiseUsdc = StocksPreset.MINIMUM_RAISE_USDC;
-
     mapping(address stock => Admission) private _admissions;
     mapping(uint256 launchId => Launch) private _launches;
     mapping(address auction => uint256 launchId) public override launchIdOfAuction;
@@ -134,12 +126,10 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     error StockNotAdmitted(address stock);
     error StockRefused(address stock);
     error RouteBindingMismatch(address expected, address found);
-    error StartBlockOutOfWindow(uint64 startBlock, uint256 earliest, uint256 latest);
     error FloorPriceTooLow(uint256 floorPriceQ96);
     error FloorPriceNotOnGrid(uint256 floorPriceQ96);
     error TickSpacingTooSmall(uint256 tickSpacingQ96);
     error UnreachableRequiredRaise(uint256 requiredStockRaised, uint256 maximum);
-    error ZeroMinimumRaise();
     error ProtocolFeeControllerNotZero(address controller);
     error TokenHasNoCode(address token);
     error TokenCreatorMismatch(address found);
@@ -157,8 +147,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     error UnexpectedStockOnlyPositionCount(uint256 found);
     error UnexpectedPositionMintCount(uint256 expected, uint256 found);
     error AllowanceNotConsumed(address spender, uint256 remaining);
-    error StaleLaunchFee(uint256 current, uint256 expected);
-    error LaunchFeeAllowanceMismatch(uint256 expected, uint256 found);
 
     /// @param hookSalt The pre-mined CREATE2 salt giving the hook the exact permission bits v4
     ///        encodes in a hook address. Not stored; a wrong salt simply fails construction.
@@ -201,22 +189,13 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         Admission storage admission = _admissions[params.stock];
         if (!admission.admitted) revert StockNotAdmitted(params.stock);
 
-        uint256 earliest = block.number + StocksPreset.MIN_START_LEAD_BLOCKS;
-        uint256 latest = block.number + StocksPreset.MAX_START_LEAD_BLOCKS;
-        if (params.startBlock < earliest || params.startBlock > latest) {
-            revert StartBlockOutOfWindow(params.startBlock, earliest, latest);
-        }
-
         uint256 tickSpacing = bidTickSpacingFor(params.floorPriceQ96);
-        // The required raise is governance's USDC minimum converted into STOCK by the admitted route's
-        // quote at this block: the launcher never chooses it. It must be a nonzero amount the fixed
-        // inventory can actually settle on and one the pinned CCA can carry (a uint128).
+        // The launcher chooses the STOCK raise. It must be a nonzero amount the fixed inventory can
+        // actually settle on: the inventory at the highest on-grid price the pinned CCA admits.
         uint256 reachable = _maxReachableRaise(tickSpacing);
-        if (reachable > type(uint128).max) reachable = type(uint128).max;
-        uint256 required =
-            IStockRoute(admission.route).quoteExactIn(StocksBindings.USDC, params.stock, minimumRaiseUsdc);
-        if (required == 0 || required > reachable) revert UnreachableRequiredRaise(required, reachable);
-        uint128 requiredStockRaised = uint128(required);
+        if (params.requiredStockRaised == 0 || params.requiredStockRaised > reachable) {
+            revert UnreachableRequiredRaise(params.requiredStockRaised, reachable);
+        }
 
         address controller =
             address(IContinuousClearingAuctionFactory(StocksBindings.CCA_FACTORY).protocolFeeController());
@@ -225,25 +204,22 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         launchId = nextLaunchId;
         nextLaunchId = launchId + 1;
 
-        // The fee is the first value to move: nothing of the launch exists yet, so a refused fee
-        // costs the launcher only gas, and a launch never exists without its fee having been funded.
-        _collectAndFundLaunchFee(launchId, params.expectedLaunchFee);
-
         newToken = _createNew(params, launchId);
 
-        uint64 endBlock = params.startBlock + StocksPreset.AUCTION_DURATION_BLOCKS;
-        auction = _createAuction(newToken, params, launchId, endBlock, tickSpacing, requiredStockRaised);
+        uint64 startBlock = SafeCastLib.toUint64(block.number) + StocksPreset.START_LEAD_BLOCKS;
+        uint64 endBlock = startBlock + StocksPreset.AUCTION_DURATION_BLOCKS;
+        auction = _createAuction(newToken, params, launchId, startBlock, endBlock, tickSpacing);
 
         Launch storage record = _launches[launchId];
         record.launcher = msg.sender;
         record.newToken = newToken;
         record.stock = params.stock;
         record.auction = auction;
-        record.startBlock = params.startBlock;
+        record.startBlock = startBlock;
         record.endBlock = endBlock;
         record.claimBlock = endBlock + StocksPreset.CLAIM_DELAY_BLOCKS;
         record.migrationBlock = endBlock + StocksPreset.MIGRATION_DELAY_BLOCKS;
-        record.requiredStockRaised = requiredStockRaised;
+        record.requiredStockRaised = params.requiredStockRaised;
         record.floorPriceQ96 = params.floorPriceQ96;
         record.lifecycle = Lifecycle.Active;
         launchIdOfAuction[auction] = launchId;
@@ -255,10 +231,10 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
             newToken,
             params.stock,
             auction,
-            params.startBlock,
+            startBlock,
             endBlock,
             params.floorPriceQ96,
-            requiredStockRaised,
+            params.requiredStockRaised,
             StocksPreset.AUCTION_INVENTORY,
             StocksPreset.MIGRATION_RESERVE
         );
@@ -334,24 +310,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         emit LaunchesUnpaused();
     }
 
-    /// @inheritdoc IStocksLaunchpadV1
-    /// @dev Zero is valid. A launcher who reviewed the previous fee is refused with `StaleLaunchFee`
-    ///      rather than charged the new one.
-    function setLaunchFee(uint256 newFee) external override onlyGovernance {
-        uint256 previousFee = launchFee;
-        launchFee = newFee;
-        emit LaunchFeeUpdated(previousFee, newFee);
-    }
-
-    /// @inheritdoc IStocksLaunchpadV1
-    /// @dev Applies to launches created afterwards only; a recorded auction keeps its STOCK raise.
-    function setMinimumRaiseUsdc(uint256 newMinimum) external override onlyGovernance {
-        if (newMinimum == 0) revert ZeroMinimumRaise();
-        uint256 previousMinimum = minimumRaiseUsdc;
-        minimumRaiseUsdc = newMinimum;
-        emit MinimumRaiseUsdcUpdated(previousMinimum, newMinimum);
-    }
-
     // -------------------------------------------------------------------------
     // reads
     // -------------------------------------------------------------------------
@@ -381,11 +339,12 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     }
 
     /// @dev The largest STOCK raise the fixed inventory can settle on for a bid grid: the inventory at
-    ///      the highest on-grid price the pinned CCA admits.
-    function _maxReachableRaise(uint256 tickSpacing) private pure returns (uint256) {
+    ///      the highest on-grid price the pinned CCA admits, capped at what the auction can carry.
+    function _maxReachableRaise(uint256 tickSpacing) private pure returns (uint256 reachable) {
         uint256 maxBidPrice = MaxBidPriceLib.maxBidPrice(StocksPreset.AUCTION_INVENTORY);
         uint256 onGrid = maxBidPrice - (maxBidPrice % tickSpacing);
-        return FullMath.mulDiv(StocksPreset.AUCTION_INVENTORY, onGrid, FixedPoint96.Q96);
+        reachable = FullMath.mulDiv(StocksPreset.AUCTION_INVENTORY, onGrid, FixedPoint96.Q96);
+        if (reachable > type(uint128).max) reachable = type(uint128).max;
     }
 
     /// @dev The official pool key one launch graduates into.
@@ -403,44 +362,6 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
     // -------------------------------------------------------------------------
     // internals: creation
     // -------------------------------------------------------------------------
-
-    /// @dev The launch fee, with the frozen Agent factory's `_collectLaunchFee` discipline and one
-    ///      more hop: the REGENT passes through this contract only for the duration of the call and is
-    ///      funded into the live staking contract as staker rewards before anything of the launch is
-    ///      created. The fee the launcher reviewed must be the current one, and the launcher's
-    ///      allowance must equal it exactly, so no standing spend authority is ever left behind; a zero
-    ///      fee moves nothing, funds nothing (the live contract refuses a zero amount) and still
-    ///      requires a zero allowance. Every leg is proved by balance delta and both temporary
-    ///      allowances are proved back at zero. This contract's absolute REGENT balance is deliberately
-    ///      never asserted, only its delta: an unrelated gift must not be able to brick launches.
-    function _collectAndFundLaunchFee(uint256 launchId, uint256 expectedFee) private {
-        uint256 fee = launchFee;
-        if (fee != expectedFee) revert StaleLaunchFee(fee, expectedFee);
-
-        address regent = StocksBindings.REGENT;
-        uint256 allowed = IERC20Minimal(regent).allowance(msg.sender, address(this));
-        if (allowed != fee) revert LaunchFeeAllowanceMismatch(fee, allowed);
-        if (fee == 0) return;
-
-        uint256 held = regent.balanceOf(address(this));
-        regent.safeTransferFrom(msg.sender, address(this), fee);
-        uint256 pulled = regent.balanceOf(address(this)) - held;
-        if (pulled != fee) revert InexactTransfer(fee, pulled);
-        uint256 remaining = IERC20Minimal(regent).allowance(msg.sender, address(this));
-        if (remaining != 0) revert AllowanceNotConsumed(address(this), remaining);
-
-        address staking = StocksBindings.LIVE_STAKING;
-        regent.safeApprove(staking, fee);
-        uint256 received = IRegentRevenueStakingMinimal(staking).fundRegentRewards(fee);
-        if (received != fee) revert InexactTransfer(fee, received);
-        // The fee must have left in full: this contract's REGENT balance is back where it started.
-        uint256 afterFunding = regent.balanceOf(address(this));
-        if (afterFunding != held) revert InexactTransfer(held, afterFunding);
-        remaining = IERC20Minimal(regent).allowance(address(this), staking);
-        if (remaining != 0) revert AllowanceNotConsumed(staking, remaining);
-
-        emit StockLaunchFeeCollected(launchId, msg.sender, staking, fee);
-    }
 
     /// @dev Exactly `S0` of NEW, minted once, to this contract, by the pinned UERC20 factory.
     function _createNew(LaunchParams calldata params, uint256 launchId) private returns (address newToken) {
@@ -473,9 +394,9 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         address newToken,
         LaunchParams calldata params,
         uint256 launchId,
+        uint64 startBlock,
         uint64 endBlock,
-        uint256 tickSpacing,
-        uint128 requiredStockRaised
+        uint256 tickSpacing
     ) private returns (address auction) {
         auction = address(
             IContinuousClearingAuctionFactory(StocksBindings.CCA_FACTORY)
@@ -487,13 +408,13 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
                             currency: params.stock,
                             tokensRecipient: address(this),
                             fundsRecipient: address(this),
-                            startBlock: params.startBlock,
+                            startBlock: startBlock,
                             endBlock: endBlock,
                             claimBlock: endBlock + StocksPreset.CLAIM_DELAY_BLOCKS,
                             tickSpacing: tickSpacing,
                             validationHook: address(0),
                             floorPrice: params.floorPriceQ96,
-                            requiredCurrencyRaised: requiredStockRaised,
+                            requiredCurrencyRaised: params.requiredStockRaised,
                             auctionStepsData: StocksPreset.AUCTION_STEPS
                         })
                     ),
@@ -508,7 +429,7 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         _requireBinding(2, StocksPreset.AUCTION_INVENTORY, cca.totalSupply());
         _requireBinding(3, uint256(uint160(address(this))), uint256(uint160(cca.tokensRecipient())));
         _requireBinding(4, uint256(uint160(address(this))), uint256(uint160(cca.fundsRecipient())));
-        _requireBinding(5, params.startBlock, cca.startBlock());
+        _requireBinding(5, startBlock, cca.startBlock());
         _requireBinding(6, endBlock, cca.endBlock());
         _requireBinding(7, endBlock + StocksPreset.CLAIM_DELAY_BLOCKS, cca.claimBlock());
         _requireBinding(8, 0, uint256(uint160(address(cca.validationHook()))));

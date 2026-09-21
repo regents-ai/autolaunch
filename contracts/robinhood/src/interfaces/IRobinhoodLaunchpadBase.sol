@@ -17,23 +17,19 @@ interface IRobinhoodLaunchpadBase {
         Failed
     }
 
-    /// @notice The metadata and terms every launcher supplies.
+    /// @notice The metadata and terms every launcher supplies. The auction opens
+    ///         `RobinhoodPreset.START_LEAD_BLOCKS` after the creation block (in the auction's block
+    ///         units): the opening block is fixed at creation, recorded in the launch and carried by
+    ///         the creation event. There is no launch fee.
     struct CoreParams {
         string name;
         string symbol;
         string description;
         string website;
         string image;
-        /// @dev First bidding block, in the auction's block units. Must satisfy
-        ///      `now + MIN_START_LEAD_BLOCKS <= startBlock <= now + MAX_START_LEAD_BLOCKS`.
-        uint64 startBlock;
         /// @dev Q96 currency base units per NEW base unit, the CCA floor. Bid tick spacing is derived
         ///      deterministically from it (see `bidTickSpacingFor`).
         uint256 floorPriceQ96;
-        /// @dev The USDG launch fee the launcher reviewed. Must equal the current `launchFee()`, and
-        ///      the launcher's USDG allowance to the launchpad must equal it exactly. The fee is pulled
-        ///      at creation, deposited into the protocol revenue inbox and never refunded.
-        uint256 expectedLaunchFee;
     }
 
     /// @notice One recorded launch. Identity and lifecycle only; the record carries no authority.
@@ -60,8 +56,6 @@ interface IRobinhoodLaunchpadBase {
         uint256 retiredNew;
     }
 
-    event LaunchFeeCollected(uint256 indexed launchId, address indexed payer, address indexed inbox, uint256 amount);
-    event LaunchFeeUpdated(uint256 previousFee, uint256 newFee);
     event LaunchesPaused();
     event LaunchesUnpaused();
     event LaunchRetired(uint256 indexed launchId, address indexed auction, uint256 newRetired);
@@ -76,15 +70,12 @@ interface IRobinhoodLaunchpadBase {
 
     function pauseLaunches() external;
     function unpauseLaunches() external;
-    /// @notice Set the USDG a new launch costs. Zero is a valid fee.
-    function setLaunchFee(uint256 newFee) external;
 
     function launches(uint256 launchId) external view returns (Launch memory);
     function launchIdOfAuction(address auction) external view returns (uint256);
     function launchIdOfToken(address newToken) external view returns (uint256);
     function nextLaunchId() external view returns (uint256);
     function launchesPaused() external view returns (bool);
-    function launchFee() external view returns (uint256);
     function bidTickSpacingFor(uint256 floorPriceQ96) external pure returns (uint256);
     /// @notice The current block in the auction's block units.
     function currentBlock() external view returns (uint256);

@@ -60,8 +60,8 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
 
     /// @dev Fixture price: 230 USDG per whole share, 8-decimal shares, 6-decimal USDG.
     uint256 internal constant USDG_PER_SHARE = 230_000000;
-    uint128 internal constant STOCK_REQUIRED_RAISE =
-        uint128(RobinhoodPreset.MINIMUM_RAISE_USDG_STOCKS * 1e8 / USDG_PER_SHARE);
+    /// @dev The raise the fixture launcher chooses: a thousand dollars of STOCK at the fixture price.
+    uint128 internal constant STOCK_REQUIRED_RAISE = uint128(1_000e6 * 1e8 / USDG_PER_SHARE);
 
     /// @dev A currency-per-NEW floor of 1e-16 base units per base unit, times 2^96, on the bid grid.
     uint256 internal constant FLOOR_PRICE_Q96 = 7_922_816_251_400;
@@ -197,36 +197,27 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
     // launches
     // -------------------------------------------------------------------------
 
-    function _core(uint256 expectedLaunchFee) internal view returns (IRobinhoodLaunchpadBase.CoreParams memory) {
+    function _core() internal pure returns (IRobinhoodLaunchpadBase.CoreParams memory) {
         return IRobinhoodLaunchpadBase.CoreParams({
             name: "New One",
             symbol: "NEW",
             description: "A Robinhood launch",
             website: "https://autolaunch.sh",
             image: "ipfs://image",
-            startBlock: uint64(block.number) + StocksPreset.MIN_START_LEAD_BLOCKS,
-            floorPriceQ96: FLOOR_PRICE_Q96,
-            expectedLaunchFee: expectedLaunchFee
+            floorPriceQ96: FLOOR_PRICE_Q96
         });
     }
 
-    /// @dev Reads `launchFee()` (an external call): build params before arming a prank or expectRevert.
-    function _stockParams(address stock) internal view returns (IRobinhoodStocksLaunchpadV1.LaunchParams memory) {
-        return IRobinhoodStocksLaunchpadV1.LaunchParams({core: _core(stocks.launchFee()), stock: stock});
-    }
-
-    /// @dev The exact-allowance discipline a wallet follows: approve precisely the reviewed fee.
-    function _approveFee(address who, address launchpad, uint256 fee) internal {
-        usdg.mint(who, fee);
-        vm.prank(who);
-        usdg.approve(launchpad, fee);
+    function _stockParams(address stock) internal pure returns (IRobinhoodStocksLaunchpadV1.LaunchParams memory) {
+        return IRobinhoodStocksLaunchpadV1.LaunchParams({
+            core: _core(), stock: stock, requiredStockRaised: STOCK_REQUIRED_RAISE
+        });
     }
 
     function _launchStockAs(address who, IRobinhoodStocksLaunchpadV1.LaunchParams memory params)
         internal
         returns (Launched memory launched)
     {
-        _approveFee(who, address(stocks), params.core.expectedLaunchFee);
         vm.prank(who);
         (uint256 launchId, address newToken, address auction) = stocks.launch(params);
         launched = Launched({
@@ -266,7 +257,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
     }
 
     function _rollToMigration(Launched memory launched) internal {
-        vm.roll(uint256(launched.auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
+        vm.roll(uint256(launched.auction.endBlock()) + RobinhoodPreset.MIGRATION_DELAY_BLOCKS);
     }
 
     function _bidToMigration(Launched memory launched, uint128 amount) internal returns (uint256 bidId) {
@@ -275,7 +266,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
         _rollToMigration(launched);
     }
 
-    /// @dev 500 shares of STOCK, well above the quoted minimum and far under the inventory at the floor.
+    /// @dev 500 shares of STOCK, well above the fixture raise and far under the inventory at the floor.
     function _graduateStock(Launched memory launched) internal returns (uint256 bidId) {
         bidId = _bidToMigration(launched, 500e8);
         stocks.migrate(launched.launchId);

@@ -9,15 +9,15 @@
       "contract": "RegentsAutolaunchFactoryV1",
       "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 7876,
-      "runtime_keccak256": "0xc6a3cc79c3a28e75b30cf55091e921773de32f7798d474712f8e1e24f1a021d4",
-      "runtime_sha256": "0108a34e86f5a04671c253b13b5852dfeb631dcaebaa93b1207ff0f277b4beac",
+      "runtime_bytes": 6894,
+      "runtime_keccak256": "0x572b1648ea17564826e4a3adb86facbb128e765d99dbf32c63b67d0dedbf341b",
+      "runtime_sha256": "832fec02f2fda9f6bf4de6d204f5d3a35387de83a015354045f7e8b2850d69aa",
       "runtime_immutable_references": 3,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 38964,
-      "creation_keccak256": "0x0feae88b15d90d2b78a50655f92c724d6aca765c99b5b4209afbe97e06fc67b6",
-      "creation_sha256": "278a8ad1573a3a38809e21c4838a719af328d9c91f4314c1c2a008e288a018d3",
-      "runtime_margin_bytes": 16700,
+      "creation_bytes": 37567,
+      "creation_keccak256": "0x2d6ff2237a2b68b881b64a9a3b3191263897690a4250ecb81c0ed9b48e6c825b",
+      "creation_sha256": "fc372ce52f0a10be7115a551dd009157c67531a761d96a821ac759ef78ddba19",
+      "runtime_margin_bytes": 17682,
       "constructor": [
         "address uerc20Factory_",
         "address escrowImplementation_",
@@ -26,22 +26,22 @@
         "bytes32 hookSalt"
       ],
       "constructor_args_bytes": 160,
-      "initcode_bytes": 39124,
-      "initcode_margin_bytes": 10028
+      "initcode_bytes": 37727,
+      "initcode_margin_bytes": 11425
     },
     {
       "contract": "RegentLBPStrategy",
       "source": "src/strategy/RegentLBPStrategy.sol",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 20201,
-      "runtime_keccak256": "0x207725d88041e00eaebd9b83a95fcd88756e1299dedc69606304e849b29b1fdf",
-      "runtime_sha256": "3ef0a4cde31ad246d9b5e2e83c85bc4a88a509d3be30b300c7f842630c8c46e6",
+      "runtime_bytes": 19829,
+      "runtime_keccak256": "0xcf235f9c91f19c83f1f16744ada0d64b665738d5d0d33f95bda12281d0f64cca",
+      "runtime_sha256": "9e4b3f2b75f58c3965dea4cf2e1a4546a8d8ac9dfafeb22d23ca13fa7818e0ba",
       "runtime_immutable_references": 6,
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 24478,
-      "creation_keccak256": "0x5e16201070204dad970cfeb09379e798f847ad3f3d919ed7890a1cda5fde9b18",
-      "creation_sha256": "ada3e990881ca5d87e56ea062943933d7fa4af56e67ac7757b5bcf0105939728",
-      "runtime_margin_bytes": 4375,
+      "creation_bytes": 24078,
+      "creation_keccak256": "0x1defb750cf097a6179f42bba4405587c0aa4a2308703873d1d5bfa75f4e82c40",
+      "creation_sha256": "910edf64c72c0ac396f676618cbc52efa40598a9b6a4d7649e133a922d21cfe8",
+      "runtime_margin_bytes": 4747,
       "constructor": [
         "address factory_",
         "address escrowImplementation_",
@@ -49,8 +49,8 @@
         "address receiverImplementation_"
       ],
       "constructor_args_bytes": 128,
-      "initcode_bytes": 24606,
-      "initcode_margin_bytes": 24546
+      "initcode_bytes": 24206,
+      "initcode_margin_bytes": 24946
     },
     {
       "contract": "RegentFeeHook",

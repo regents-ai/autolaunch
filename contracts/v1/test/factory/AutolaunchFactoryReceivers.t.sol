@@ -46,7 +46,7 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
         factory.createPaymentReceiver(pending.launchId, outsider, 0);
 
         _rollToStart(pending);
-        _bid(pending, bidder, MINIMUM_RAISE, _bidPrice(10));
+        _bid(pending, bidder, FLOOR_RAISE, _bidPrice(10));
         _rollToMigration(failed);
 
         // A failed launch never gets one.
@@ -206,7 +206,7 @@ contract AutolaunchFactoryReceiversTest is AutolaunchFixture {
     ///         note editor, and the receiver really does route payments through the launch splitter.
     function test_RCV_001_CustomReceiverCreationIsPermissionless() public {
         Launched memory launched = _defaultLaunch();
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
 
         address[3] memory creators = [outsider, bidder, treasury];

@@ -19,8 +19,9 @@ import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 ///         `RegentLBPStrategy` and the one correctly mined `RegentFeeHook`, and it is the only
 ///         account that may create an admitted SUBJECT, its pending escrow, and its canonical CCA
 ///         auction — always together, in one transaction.
-/// @dev Authority here is deliberately tiny. Governance — the frozen Regent Safe — may change the
-///      launch fee and may pause or unpause new launches, and that is the complete mutable surface.
+/// @dev Authority here is deliberately tiny. Governance — the frozen Regent Safe — may pause or
+///      unpause new launches, and that is the complete mutable surface. Launching costs nothing:
+///      no REGENT ever moves from the launcher to this factory or to the Regent Safe.
 ///      There is no owner, no authority transfer, no implementation setter, no token-factory setter,
 ///      no strategy or hook setter, no upgrade, no arbitrary call, and no post-deployment binding
 ///      operation. A launcher is recorded for provenance only and gains nothing.
@@ -42,7 +43,7 @@ import {UERC20} from "uerc20-factory/tokens/UERC20.sol";
 ///      reentrancy guard exists or is needed; `docs/security/threat-model.md` records that
 ///      reachability argument in full.
 ///
-///      Named invariants: `C4-I1` exact construction and immutable authority, `C4-I2` exact fee and
+///      Named invariants: `C4-I1` exact construction and immutable authority, `C4-I2` complete
 ///      validation before effects, `C4-I3` one canonical token, escrow and auction, `C4-I4` isolated
 ///      simultaneous launches, `C4-I5` permissionless custom receivers, `C4-I6` complete terminal
 ///      integration under ordinary EVM atomicity.
@@ -60,9 +61,6 @@ contract RegentsAutolaunchFactoryV1 {
 
     /// @notice The only decimals an admitted SUBJECT carries.
     uint8 public constant SUBJECT_DECIMALS = 18;
-
-    /// @notice The launch fee this factory is born with, in REGENT.
-    uint256 public constant INITIAL_LAUNCH_FEE = 1_000_000e18;
 
     /// @notice Exact inclusive byte caps on the five metadata strings. Each must also be nonempty.
     uint256 public constant MAX_NAME_BYTES = 64;
@@ -102,7 +100,6 @@ contract RegentsAutolaunchFactoryV1 {
         string image;
         address treasury;
         uint128 requiredRegentRaised;
-        uint256 expectedLaunchFee;
     }
 
     /// @notice One recorded launch. Provenance and identity only; it carries no authority.
@@ -125,9 +122,6 @@ contract RegentsAutolaunchFactoryV1 {
 
     /// @notice The next launch ID. IDs start at one, so zero is the absent sentinel.
     uint256 public nextLaunchId = 1;
-
-    /// @notice The REGENT a launch currently costs. Governance may set it to any value, zero included.
-    uint256 public launchFee;
 
     /// @notice Whether new launches are paused. Nothing else in the system is ever paused.
     /// @dev Every factory is born paused, so putting the graph on chain and opening it to launchers
@@ -158,8 +152,6 @@ contract RegentsAutolaunchFactoryV1 {
         uint64 startBlock,
         uint64 endBlock
     );
-    event LaunchFeeUpdated(uint256 previousFee, uint256 newFee);
-    event LaunchFeeCollected(uint256 indexed launchId, address indexed payer, address regentSafe, uint256 amount);
     event LaunchesPaused();
     event LaunchesUnpaused();
 
@@ -178,15 +170,11 @@ contract RegentsAutolaunchFactoryV1 {
     error LaunchesAlreadyPaused();
     error LaunchesNotPaused();
     error LaunchesArePaused();
-    error StaleLaunchFee(uint256 current, uint256 expected);
-    error LaunchFeeAllowanceMismatch(uint256 expected, uint256 found);
-    error LaunchFeeAllowanceNotConsumed(uint256 remaining);
     error EmptyMetadataField(uint256 field);
     error MetadataFieldTooLong(uint256 field, uint256 maximum, uint256 found);
     error SubjectHasNoCode(address subject);
     error SubjectCreatorMismatch(address found);
     error SubjectGraffitiMismatch(bytes32 found);
-    error InexactTransfer(uint256 expected, uint256 found);
     error AllowanceNotConsumed(address spender, uint256 remaining);
     error SubjectNotFullyDistributed(uint256 remaining);
     error LaunchRecordMismatch(uint256 field, uint256 expected, uint256 found);
@@ -223,7 +211,6 @@ contract RegentsAutolaunchFactoryV1 {
         uerc20Factory = uerc20Factory_;
         strategy = strategy_;
         hook = hook_;
-        launchFee = INITIAL_LAUNCH_FEE;
     }
 
     modifier onlyGovernance() {
@@ -234,16 +221,13 @@ contract RegentsAutolaunchFactoryV1 {
     /// @notice Create one launch: its SUBJECT, its pending escrow, and its canonical CCA auction.
     /// @dev Ordinary EVM atomicity is the whole failure design. Any revert anywhere below — in this
     ///      factory, in the pinned UERC20 factory, in the escrow, in the strategy, or in the pinned
-    ///      CCA — undoes the fee movement, the deployments, the records and the events together.
+    ///      CCA — undoes the deployments, the records and the events together.
     ///      There is no retry counter, no progress state and no partially created launch. `C4-I3`.
     function launch(LaunchParams calldata params)
         external
         returns (uint256 launchId, address subject, address auction, address escrow)
     {
         if (launchesPaused) revert LaunchesArePaused();
-
-        uint256 fee = launchFee;
-        if (fee != params.expectedLaunchFee) revert StaleLaunchFee(fee, params.expectedLaunchFee);
 
         // Solidity strings are bytes. A nonempty field within its exact byte cap is accepted as-is:
         // no normalization, no character policy, no URL validation, no content moderation.
@@ -256,21 +240,12 @@ contract RegentsAutolaunchFactoryV1 {
         launchId = nextLaunchId;
         nextLaunchId = launchId + 1;
 
-        _collectLaunchFee(launchId, fee);
-
         subject = _createSubject(params, launchId);
         escrow = _fundEscrow(subject, params.treasury);
         auction = _initializeDistribution(subject, escrow, params, launchId);
 
         _launches[launchId] = Launch(msg.sender, subject, auction, escrow, params.treasury);
         launchIdOfSubject[subject] = launchId;
-    }
-
-    /// @notice Set the REGENT a new launch costs. Governance only; zero is a valid fee.
-    function setLaunchFee(uint256 newFee) external onlyGovernance {
-        uint256 previousFee = launchFee;
-        launchFee = newFee;
-        emit LaunchFeeUpdated(previousFee, newFee);
     }
 
     /// @notice Stop admitting new launches. Governance only.
@@ -344,30 +319,6 @@ contract RegentsAutolaunchFactoryV1 {
     // -------------------------------------------------------------------------
     // internals
     // -------------------------------------------------------------------------
-
-    /// @dev The launcher's factory allowance must equal the current fee exactly — no more, no less —
-    ///      and a positive fee moves that exact amount straight to the Regent Safe, proved by the
-    ///      Safe's own balance delta rather than by a return value. A zero fee moves nothing and
-    ///      still requires a zero allowance, so no launcher ever leaves standing spend authority
-    ///      behind. This factory's absolute REGENT balance is deliberately never asserted: an
-    ///      unrelated gift must not be able to brick launches. `C4-I2`.
-    function _collectLaunchFee(uint256 launchId, uint256 fee) private {
-        address regent = BaseBindings.REGENT;
-        uint256 allowed = IERC20Minimal(regent).allowance(msg.sender, address(this));
-        if (allowed != fee) revert LaunchFeeAllowanceMismatch(fee, allowed);
-        if (fee == 0) return;
-
-        address regentSafe = BaseBindings.GOVERNANCE_AND_REGENT_SAFE;
-        uint256 before = regent.balanceOf(regentSafe);
-        regent.safeTransferFrom(msg.sender, regentSafe, fee);
-        uint256 received = regent.balanceOf(regentSafe) - before;
-        if (received != fee) revert InexactTransfer(fee, received);
-
-        uint256 remaining = IERC20Minimal(regent).allowance(msg.sender, address(this));
-        if (remaining != 0) revert LaunchFeeAllowanceNotConsumed(remaining);
-
-        emit LaunchFeeCollected(launchId, msg.sender, regentSafe, fee);
-    }
 
     /// @dev The one canonical SUBJECT. The only launch-specific entropy this factory supplies is
     ///      `bytes32(launchId)`, used as the UERC20 graffiti; the pinned factory hashes its own

@@ -634,8 +634,6 @@ def command_fund(args: argparse.Namespace) -> None:
 def launchpad_status(client: RpcClient, launchpad: str) -> dict[str, Any]:
     return {
         "launches_paused": bool(call_uint(client, launchpad, "launchesPaused()")),
-        "launch_fee_usdg_atomic": str(call_uint(client, launchpad, "launchFee()")),
-        "minimum_raise_usdg_atomic": str(call_uint(client, launchpad, "minimumRaiseUsdg()")),
         "next_launch_id": str(call_uint(client, launchpad, "nextLaunchId()")),
     }
 

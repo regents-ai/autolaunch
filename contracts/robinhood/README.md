@@ -18,13 +18,13 @@ treasury.
 
 | Contract | Role |
 | --- | --- |
-| `RobinhoodPreset` | Every Robinhood-specific fixed term: USDG decimals, the minimum raise, the USDG launch fee, the two lane percentages, the Base chain id. |
-| `RobinhoodProtocolRevenueInboxV1` | The on-chain collection point for every protocol dollar (hook protocol lane, the splitters' USDG protocol share, launch fees). Safe-only bridging to Base through a reviewed adapter, with destination versioning and batch records. |
+| `RobinhoodPreset` | Every Robinhood-specific fixed term: USDG decimals, the auction schedule in Robinhood's 0.1-second blocks (fixed ten-minute start lead of 6,000 blocks, one-day duration of 864,000, claim and migration delays, the thirteen-step release vector), the two lane percentages, the Base chain id. |
+| `RobinhoodProtocolRevenueInboxV1` | The on-chain collection point for every protocol dollar (hook protocol lane, the splitters' USDG protocol share). Safe-only bridging to Base through a reviewed adapter, with destination versioning and batch records. |
 | `RobinhoodBaseRevenueReceiverV1` | The Base-side address bridged USDC lands on. Base-Safe-attested batch attribution, permissionless deposit into live REGENT staking, surplus sweep. |
 | `RobinhoodMemestockSplitterV1` | The per-launch staking splitter (clone target) over `MemestockSplitterCore`: recognizes USDG, MEMESTOCK and STOCK; 2% protocol share of each (USDG into the inbox, tagged `robinhood-splitter`; MEMESTOCK and STOCK to the Robinhood Safe); the other 98% wholly to MEMESTOCK stakers pro rata; everything to the protocol route while nothing is staked. No owner, no parameters. |
 | `RobinhoodFeeHookV1` + `RobinhoodFeeHookFactory` | The official-pool v4 hook: two always-on STOCK-side lanes of one percent each. `settleProtocolLane` (executor only, admitted route, `minUsdgOut`) deposits USDG into the inbox; `settleStakerLane` (anyone) deposits the whole staker lane as STOCK into the pool's splitter. The factory holds the hook's creation code so the launchpad stays under the EIP-170 size limit. |
-| `RobinhoodLaunchpadBase` | The launch machinery: validated constructor bindings, pause and fee governance, the USDG launch fee into the inbox, NEW and auction creation with full read-back, custody, migration. Deploys the splitter implementation and the `MemestockLPLocker` in its constructor; at graduation clones the launch's splitter, registers it with the hook, mints the positions to the locker and registers each one to that splitter. |
-| `RobinhoodStocksLaunchpadV1` | Stock-pair launches: admitted STOCK as the auction currency, the required raise derived from the Safe's 1,000 USDG minimum through the route's quote, full-range plus one-sided STOCK positions locked in the fee-only locker. |
+| `RobinhoodLaunchpadBase` | The launch machinery: validated constructor bindings, pause governance, NEW and auction creation on the fixed Robinhood schedule with full read-back, custody, migration. A launch costs nothing beyond gas. Deploys the splitter implementation and the `MemestockLPLocker` in its constructor; at graduation clones the launch's splitter, registers it with the hook, mints the positions to the locker and registers each one to that splitter. |
+| `RobinhoodStocksLaunchpadV1` | Stock-pair launches: admitted STOCK as the auction currency, the required raise chosen by the launcher in STOCK (above zero, within what the inventory can settle on), full-range plus one-sided STOCK positions locked in the fee-only locker. |
 | `RobinhoodStockBidAdapterV1` | USDG in, STOCK bid out, in one transaction, owned by the caller. |
 | `RobinhoodPositionsLib` | Linked library carrying the position planner (EIP-170). Must be deployed and linked before the launchpads. |
 | `fixtures/FixtureUsdgStockRoute` | Lab-only fixed-price USDG/STOCK route. Never a production binding. |
@@ -46,12 +46,12 @@ controller always does).
 Every binding is a constructor argument and is verified at construction (code present, expected
 decimals, matching cross-bindings). None is known at build time.
 
-- Robinhood chain id and the block cadence (the auction schedule in `StocksPreset` is in Base 2-second blocks and is marked provisional for Robinhood; CCA and the launchpads read the chain's own block number through `BlockNumberish`).
+- Robinhood chain id. The auction schedule in `RobinhoodPreset` assumes 0.1-second blocks (founder decision of 21 September 2026: every Base term times twenty); CCA and the launchpads read the chain's own block number through `BlockNumberish`.
 - USDG address; confirmation that it reports six decimals (construction refuses anything else).
 - Continuous Clearing Auction factory, Uniswap v4 PoolManager and PositionManager, Permit2, and a UERC20 factory whose runtime code hash equals the Base one.
 - The Robinhood Safe (admin of every contract here) and the Base Safe (attests deliveries on the Base receiver).
 - The reviewed bridge adapter (must report USDG and Base chain id 8453) and the Base receiver address it delivers to.
-- The launch fee in USDG (born zero, Safe-settable) and the STOCK admissions with their routes.
+- The STOCK admissions with their routes.
 
 ## Deployment order
 
@@ -64,13 +64,31 @@ decimals, matching cross-bindings). None is known at build time.
 ## Decisions recorded in this package
 
 1. Bindings are constructor immutables validated at construction; no bindings library and no hard-coded addresses.
-2. The launch fee is USDG, born zero, Safe-settable, deposited into the inbox at creation and never refunded. There is no REGENT on the Robinhood chain.
-3. Launches take the launcher's start block and floor price like Base Stocks.
+2. A launch costs nothing beyond gas: no fee is pulled and the launchpad never holds USDG (founder decision 2026-09-21). There is no REGENT on the Robinhood chain.
+3. Every auction opens exactly ten minutes after its creation block (6,000 Robinhood blocks); the opening block is in the launch record and the creation event. The launcher supplies the floor price and the required raise in STOCK, above zero and within what the inventory can settle on; there is no governance minimum (founder decision 2026-09-21).
 4. Robinhood is memestake-only (founder decision 2026-09-18): the USDG agent launch, its splitter and its vesting were removed.
 5. The splitter is created at graduation as a clone of an implementation the launchpad deploys in its constructor; the launch record's `splitter` is the only splitter provenance, and the hook and the locker accept a splitter only from the launchpad.
 6. There is no payment-receiver clone and no administrator: both lanes are always on, and the splitter's `depositRecognizedRevenue` and `recognizeSurplusRevenue` are its only revenue surfaces.
 7. The protocol lane settles executor-only (it chooses an amount and a minimum price); the staker lane and the locker's `collect` are permissionless (they choose nothing). The splitter's 2% protocol share goes to the inbox in USDG and to the Robinhood Safe in MEMESTOCK and STOCK (founder decision 2026-09-18).
-8. The auction block schedule is shared with Base Stocks and is provisional until the Robinhood block cadence is confirmed.
+8. The auction block schedule is the Base Stocks schedule scaled twentyfold for 0.1-second blocks: start lead 6,000, duration 864,000, claim delay 1,280, migration delay 2,560, and a thirteen-step release vector whose scheduled steps each last twenty times the Base blocks at a twentieth of the Base rate (`RobinhoodPreset.t.sol` proves the sums). Because a per-block rate is a whole number of mps, dividing by twenty rounds each step's rate, so the per-step releases differ slightly from Base's (founder, 21 September 2026: accepted as is). For reference:
+
+   | Step | Base blocks (2 s) | Base release | Robinhood blocks (0.1 s) | Robinhood release |
+   |---|---|---|---|---|
+   | 1 | 5,445 | 5.8806% | 108,900 | 5.4450% |
+   | 2 | 4,258 | 5.7909% | 85,160 | 5.9612% |
+   | 3 | 3,902 | 5.8530% | 78,040 | 6.2432% |
+   | 4 | 3,686 | 5.8239% | 73,720 | 5.8976% |
+   | 5 | 3,534 | 5.8664% | 70,680 | 5.6544% |
+   | 6 | 3,418 | 5.8106% | 68,360 | 6.1524% |
+   | 7 | 3,324 | 5.8502% | 66,480 | 5.9832% |
+   | 8 | 3,245 | 5.8410% | 64,900 | 5.8410% |
+   | 9 | 3,178 | 5.8475% | 63,560 | 5.7204% |
+   | 10 | 3,119 | 5.8637% | 62,380 | 5.6142% |
+   | 11 | 3,068 | 5.8292% | 61,360 | 6.1360% |
+   | 12 | 3,022 | 5.8627% | 60,459 | 6.0459% |
+   | 13 (terminal, one block) | 1 | 29.8802% | 1 | 29.3055% |
+
+   Both columns sum to 100% of the auction inventory over one day of clock time.
 9. USDG is assumed six-decimal and the assumption is enforced at construction of every contract that reads it.
 10. Base receiver attribution is Base-Safe-attested; the deposit itself is permissionless with a surplus sweep.
 11. The position planner lives in a linked library and the hook creation code in a factory so the launchpad stays under the EIP-170 limit.
@@ -84,7 +102,7 @@ the pinned PoolManager, CCA factory, PositionManager and UERC20 factory, the inb
 factory, the Stocks launchpad (which deploys its hook, locker and splitter implementation), the USDG bid adapter, and thirteen mintable
 fixture stocks (the Base lab's symbols and fixture prices) each with a `FixtureUsdgStockRoute`
 holding one million shares and one billion USDG, admitted on the Stocks launchpad. The launchpad
-is unpaused; the launch fee is zero and its minimum raise is the preset's 1,000 USDG.
+is unpaused.
 
 ```bash
 uv run --no-project python bin/local-robinhood-lab.py start

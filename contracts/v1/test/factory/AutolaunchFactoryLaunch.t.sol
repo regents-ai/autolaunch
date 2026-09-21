@@ -18,22 +18,22 @@ import {Vm} from "forge-std/Vm.sol";
 ///         pending escrow and one canonical CCA auction, with a fixed supply, a fixed split, a fixed
 ///         schedule, no caller-chosen entropy, and complete isolation between launches.
 contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
-    /// @notice The price a required raise at the governance floor clears at: the exact Q96 price
+    /// @notice The price a required raise of the floor raise clears at: the exact Q96 price
     ///         at which 10,000,000 REGENT buys the whole 10 billion allocation, `2^96 / 1000`
     ///         rounded up. `FLOOR_PRICE_Q96` is that same quotient rounded down, so the book
     ///         settles one Q96 unit above the floor constant, never at a bid maximum.
-    uint256 internal constant MINIMUM_RAISE_CLEARING_PRICE_Q96 = 79_228_162_514_264_337_593_543_951;
+    uint256 internal constant FLOOR_RAISE_CLEARING_PRICE_Q96 = 79_228_162_514_264_337_593_543_951;
 
-    /// @notice The exact amounts a required raise at the governance floor funds its full-range
+    /// @notice The exact amounts a required raise of the floor raise funds its full-range
     ///         position with, per PoolKey ordering.
     /// @dev The audit packet publishes these numbers, so they are asserted here rather than
     ///      merely logged: a figure a reader is asked to trust has to be one the gate re-proves.
     ///      All follow from the floor clearing price and the 5% reserve, so a change to any of
     ///      them is a change to admitted economics and must fail loudly. The SUBJECT amount differs
     ///      by one wei between orderings because the planner rounds the two pool sides differently.
-    uint256 internal constant MINIMUM_RAISE_LP_REGENT = 4_999_999_999_999_999_991_414_587;
-    uint256 internal constant MINIMUM_RAISE_LP_SUBJECT_SUBJECT_LOW = 4_999_999_999_999_999_999_999_999_993;
-    uint256 internal constant MINIMUM_RAISE_LP_SUBJECT_REGENT_LOW = 4_999_999_999_999_999_999_999_999_992;
+    uint256 internal constant FLOOR_RAISE_LP_REGENT = 4_999_999_999_999_999_991_414_587;
+    uint256 internal constant FLOOR_RAISE_LP_SUBJECT_SUBJECT_LOW = 4_999_999_999_999_999_999_999_999_993;
+    uint256 internal constant FLOOR_RAISE_LP_SUBJECT_REGENT_LOW = 4_999_999_999_999_999_999_999_999_992;
 
     event LaunchCreated(
         uint256 indexed launchId,
@@ -75,7 +75,6 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         // A failed launch consumes no ID: the whole call, allocation included, rolls back.
         RegentsAutolaunchFactoryV1.LaunchParams memory bad = _params();
         bad.name = "";
-        _fundFee(launcher, bad.expectedLaunchFee);
         vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.EmptyMetadataField.selector, uint256(0)));
         vm.prank(launcher);
         factory.launch(bad);
@@ -105,12 +104,12 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
             );
         }
 
-        // The signature carries exactly the eight admitted fields, so there is nowhere for a
+        // The signature carries exactly the seven admitted fields, so there is nowhere for a
         // user-supplied salt to enter.
         assertEq(
             RegentsAutolaunchFactoryV1.launch.selector,
-            bytes4(keccak256("launch((string,string,string,string,string,address,uint128,uint256))")),
-            "the launch signature is not the admitted eight-field tuple"
+            bytes4(keccak256("launch((string,string,string,string,string,address,uint128))")),
+            "the launch signature is not the admitted seven-field tuple"
         );
 
         // C5 correction: name and symbol *do* move the created address, because the pinned UERC20
@@ -218,17 +217,18 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         );
     }
 
-    /// @notice `FAC-011`: every auction starts exactly 1,800 blocks after the block that created it,
+    /// @notice `FAC-011`: every auction starts exactly 300 blocks after the block that created it,
     ///         whatever block that is and whoever the launcher is.
-    function test_FAC_011_AuctionStartIsAlwaysBlockNumberPlus1800() public {
+    function test_FAC_011_AuctionStartIsAlwaysBlockNumberPlus300() public {
+        assertEq(strategy.START_DELAY_BLOCKS(), 300, "the frozen start delay is not 300 blocks");
         uint256[3] memory heights = [uint256(1_000_000), 1_000_001, 9_876_543];
         for (uint256 i; i < heights.length; ++i) {
             vm.roll(heights[i]);
             Launched memory launched = _launchAs(launcher, _params());
-            assertEq(uint256(launched.auction.startBlock()), heights[i] + 1_800, "the start is not block.number + 1800");
+            assertEq(uint256(launched.auction.startBlock()), heights[i] + 300, "the start is not block.number + 300");
             assertEq(
                 uint256(launched.auction.endBlock()),
-                heights[i] + 1_800 + strategy.AUCTION_DURATION_BLOCKS(),
+                heights[i] + 300 + strategy.AUCTION_DURATION_BLOCKS(),
                 "the end is not the start plus the fixed duration"
             );
         }
@@ -367,7 +367,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         }
 
         // The treasury survives all the way into the graduated splitter.
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
         assertEq(
             SubjectSplitterV1(_distribution(launched).splitter).treasury(),
@@ -391,7 +391,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     ///      reserve.
     function test_FAC_015_CrossLaunchTreasuryIsNotValueIsolated() public {
         Launched memory host = _launchSorted(false, _params());
-        _bidToGraduation(host, MINIMUM_RAISE);
+        _bidToGraduation(host, FLOOR_RAISE);
         strategy.migrate(address(host.auction));
 
         address hostSplitter = _distribution(host).splitter;
@@ -404,7 +404,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(_distribution(guest).treasury, hostSplitter, "the guest launch did not record the treasury it chose");
         assertEq(SubjectSplitterV1(hostSplitter).treasury(), treasury, "the host splitter changed its own treasury");
 
-        _bidToGraduation(guest, MINIMUM_RAISE);
+        _bidToGraduation(guest, FLOOR_RAISE);
         strategy.migrate(address(guest.auction));
         assertEq(
             SubjectSplitterV1(_distribution(guest).splitter).treasury(),
@@ -462,8 +462,8 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         Launched memory healthy = _launchSorted(false, good);
 
         _rollToStart(stranded);
-        _bid(stranded, bidder, MINIMUM_RAISE, _bidPrice(10));
-        _bid(healthy, bidder, MINIMUM_RAISE, _bidPrice(10));
+        _bid(stranded, bidder, FLOOR_RAISE, _bidPrice(10));
+        _bid(healthy, bidder, FLOOR_RAISE, _bidPrice(10));
         _rollToMigration(healthy);
 
         strategy.migrate(address(stranded.auction));
@@ -508,10 +508,6 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
 
         vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.NotGovernance.selector, launcher));
         vm.prank(launcher);
-        factory.setLaunchFee(0);
-
-        vm.expectRevert(abi.encodeWithSelector(RegentsAutolaunchFactoryV1.NotGovernance.selector, launcher));
-        vm.prank(launcher);
         factory.pauseLaunches();
 
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotFactory.selector, launcher));
@@ -526,7 +522,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(regent.balanceOf(launcher), 0, "the launcher kept REGENT from the launch");
 
         // Vested SUBJECT goes to the immutable treasury, never to the launcher.
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         vm.prank(outsider);
         strategy.migrate(address(launched.auction));
         vm.warp(block.timestamp + 365 days);
@@ -540,7 +536,6 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     ///         all of them agreeing, and announces exactly that.
     function test_FAC_020_CompleteLaunchProducesTokenAuctionAndEscrow() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        _fundFee(launcher, params.expectedLaunchFee);
 
         uint64 expectedStart = uint64(block.number) + strategy.START_DELAY_BLOCKS();
         address expectedSubject =
@@ -599,7 +594,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         );
 
         vm.roll(first.auction.startBlock());
-        _bid(first, bidder, MINIMUM_RAISE, _bidPrice(10));
+        _bid(first, bidder, FLOOR_RAISE, _bidPrice(10));
         vm.roll(uint256(first.auction.endBlock()) + strategy.MIGRATION_DELAY_BLOCKS());
 
         strategy.migrate(address(first.auction));
@@ -622,26 +617,20 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(hook.splitterOf(_poolId(second)), address(0), "the failed pool was registered");
     }
 
-    /// @notice `FAC-023`: the required raise must be at least the governance floor and inside the
-    ///         range the fixed auction can actually settle on, and every reachable graduated outcome
-    ///         inside that range really does resolve.
-    /// @dev The lower end is measured, not assumed. The floor is admitted only because a real pinned
-    ///      auction opened at it, filled by a single bid of exactly the floor, sells its whole
-    ///      allocation at the fixed floor price and migrates in both PoolKey orderings and at both
-    ///      reachable bid-price endpoints — the floor and the highest on-grid price.
-    ///      `NoFullRangePosition()` is not reachable there.
-    function test_FAC_023_RequiredRaiseMeetsTheFloorAndIsReachable() public {
+    /// @notice `FAC-023`: the creator chooses the required raise freely — any positive amount inside
+    ///         the range the fixed auction can actually settle on — and the floor-raise graduated
+    ///         outcome really does resolve.
+    /// @dev The floor raise's economics are measured, not assumed: a real pinned auction opened at
+    ///      it, filled by a single bid of exactly the floor raise, sells its whole allocation at the
+    ///      floor clearing price and migrates in both PoolKey orderings and at both reachable
+    ///      bid-price endpoints — the floor and the highest on-grid price. `NoFullRangePosition()`
+    ///      is not reachable there.
+    function test_FAC_023_RequiredRaiseIsAnyPositiveReachableAmount() public {
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        uint128 minimum = strategy.minimumRegentRaised();
-        assertEq(minimum, MINIMUM_RAISE, "the strategy was not born at the fixture's floor");
 
         params.requiredRegentRaised = 0;
         _expectMetadataRevert(
-            params, abi.encodeWithSelector(RegentLBPStrategy.RequiredRaiseBelowMinimum.selector, uint128(0), minimum)
-        );
-        params.requiredRegentRaised = minimum - 1;
-        _expectMetadataRevert(
-            params, abi.encodeWithSelector(RegentLBPStrategy.RequiredRaiseBelowMinimum.selector, minimum - 1, minimum)
+            params, abi.encodeWithSelector(RegentLBPStrategy.UnreachableRequiredRaise.selector, uint128(0))
         );
 
         uint128 tooHigh = strategy.MAX_REACHABLE_RAISE() + 1;
@@ -651,13 +640,16 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         );
         assertEq(factory.nextLaunchId(), 1, "a refused raise allocated an ID");
 
-        // Both admitted boundaries launch.
-        params.requiredRegentRaised = minimum;
+        // Every admitted boundary launches: one wei, the floor raise, and the exact maximum.
+        params.requiredRegentRaised = 1;
+        Launched memory smallest = _launchAs(launcher, params);
+        assertEq(_distribution(smallest).requiredRegentRaised, 1, "a one-wei raise was not recorded as chosen");
+        params.requiredRegentRaised = FLOOR_RAISE;
         _launchAs(launcher, params);
         params.requiredRegentRaised = strategy.MAX_REACHABLE_RAISE();
         _launchAs(launcher, params);
 
-        // The smallest reachable graduated outcome resolves at both endpoints, both orderings.
+        // The floor-raise graduated outcome resolves at both endpoints, both orderings.
         uint256 maxOnGridTicks =
             (5_214_812_099_415_631_407_193_670_143_883_195_676 - strategy.FLOOR_PRICE_Q96()) / strategy.BID_TICK_Q96();
         _assertFloorRaiseMigrates(true, 1);
@@ -677,7 +669,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         assertEq(launched.subject.totalSupply(), factory.TOTAL_SUPPLY(), "supply is not the factory's constant");
 
         // Nothing in the launch mints or burns after creation.
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
         assertEq(launched.subject.totalSupply(), 100_000_000_000e18, "graduation changed the supply");
     }
@@ -716,7 +708,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         vm.expectRevert(abi.encodeWithSelector(RegentLBPStrategy.NotAuthenticEscrow.selector, impostor));
         vm.prank(address(factory));
         strategy.initializeDistribution(
-            RegentLBPStrategy.DistributionParams({launchId: 99, escrow: impostor, requiredRegentRaised: MINIMUM_RAISE})
+            RegentLBPStrategy.DistributionParams({launchId: 99, escrow: impostor, requiredRegentRaised: FLOOR_RAISE})
         );
     }
 
@@ -751,7 +743,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         }
 
         // It is still exactly the same after the launch reaches a terminal state.
-        _bidToGraduation(launched, MINIMUM_RAISE);
+        _bidToGraduation(launched, FLOOR_RAISE);
         strategy.migrate(address(launched.auction));
         assertEq(launched.subject.name(), params.name, "the name changed at graduation");
         assertEq(launched.subject.symbol(), params.symbol, "the symbol changed at graduation");
@@ -854,7 +846,7 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
                 tickSpacing: strategy.BID_TICK_Q96(),
                 validationHook: address(0),
                 floorPrice: strategy.FLOOR_PRICE_Q96(),
-                requiredCurrencyRaised: MINIMUM_RAISE,
+                requiredCurrencyRaised: FLOOR_RAISE,
                 auctionStepsData: strategy.AUCTION_STEPS()
             })
         );
@@ -867,16 +859,16 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     function _assertFloorRaiseMigrates(bool subjectBelowRegent, uint256 ticksAboveFloor) private {
         uint256 snap = vm.snapshotState();
         RegentsAutolaunchFactoryV1.LaunchParams memory params = _params();
-        params.requiredRegentRaised = MINIMUM_RAISE;
+        params.requiredRegentRaised = FLOOR_RAISE;
         Launched memory launched = _launchSorted(subjectBelowRegent, params);
 
         _rollToStart(launched);
-        _bid(launched, bidder, MINIMUM_RAISE, _bidPrice(ticksAboveFloor));
+        _bid(launched, bidder, FLOOR_RAISE, _bidPrice(ticksAboveFloor));
         _rollToMigration(launched);
 
         strategy.migrate(address(launched.auction));
         assertTrue(launched.auction.isGraduated(), "a floor raise did not graduate");
-        assertEq(uint256(launched.auction.currencyRaised()), MINIMUM_RAISE, "the raise was not the floor");
+        assertEq(uint256(launched.auction.currencyRaised()), FLOOR_RAISE, "the raise was not the floor");
         assertEq(
             uint8(_distribution(launched).lifecycle),
             uint8(RegentLBPStrategy.Lifecycle.Graduated),
@@ -888,22 +880,22 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
         // price where that raise buys the whole allocation, whichever tick the bidder would pay to.
         assertEq(
             launched.auction.clearingPrice(),
-            MINIMUM_RAISE_CLEARING_PRICE_Q96,
+            FLOOR_RAISE_CLEARING_PRICE_Q96,
             "a floor raise cleared somewhere other than the floor clearing price"
         );
         assertEq(
             launched.auction.lbpInitializationParams().initialPriceX96,
-            MINIMUM_RAISE_CLEARING_PRICE_Q96,
+            FLOOR_RAISE_CLEARING_PRICE_Q96,
             "the final price handed to migration was not the floor clearing price"
         );
 
         // And the LP consumption at that clearing price is recorded rather than merely bounded: the
         // position really is funded out of the floor raise and the isolated 5% reserve.
         RegentLBPStrategy.Distribution memory d = _distribution(launched);
-        assertEq(uint256(d.lpRegentUsed), MINIMUM_RAISE_LP_REGENT, "the floor-raise LP REGENT consumption moved");
+        assertEq(uint256(d.lpRegentUsed), FLOOR_RAISE_LP_REGENT, "the floor-raise LP REGENT consumption moved");
         assertEq(
             uint256(d.lpSubjectUsed),
-            subjectBelowRegent ? MINIMUM_RAISE_LP_SUBJECT_SUBJECT_LOW : MINIMUM_RAISE_LP_SUBJECT_REGENT_LOW,
+            subjectBelowRegent ? FLOOR_RAISE_LP_SUBJECT_SUBJECT_LOW : FLOOR_RAISE_LP_SUBJECT_REGENT_LOW,
             "the floor-raise LP SUBJECT consumption moved"
         );
         assertLe(uint256(d.lpSubjectUsed), RESERVE_ALLOCATION, "the position consumed more than the isolated reserve");
@@ -952,12 +944,9 @@ contract AutolaunchFactoryLaunchTest is AutolaunchFixture {
     function _expectMetadataRevert(RegentsAutolaunchFactoryV1.LaunchParams memory params, bytes memory expected)
         private
     {
-        _fundFee(launcher, params.expectedLaunchFee);
         vm.expectRevert(expected);
         vm.prank(launcher);
         factory.launch(params);
-        vm.prank(launcher);
-        regent.approve(address(factory), 0);
     }
 
     /// @dev A string built from raw bytes, so a malformed UTF-8 sequence can be supplied at all.

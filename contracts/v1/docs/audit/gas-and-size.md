@@ -14,8 +14,8 @@ each constructor takes.
 
 | Contract | Runtime (B) | EIP-170 margin | Creation (B) | Constructor args (B) | Initcode (B) | EIP-3860 margin |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `RegentsAutolaunchFactoryV1` | 7,876 | 16,700 | 38,964 | 160 | 39,124 | 10,028 |
-| `RegentLBPStrategy` | 20,201 | 4,375 | 24,478 | 128 | 24,606 | 24,546 |
+| `RegentsAutolaunchFactoryV1` | 6,894 | 17,682 | 37,567 | 160 | 37,727 | 11,425 |
+| `RegentLBPStrategy` | 19,829 | 4,747 | 24,078 | 128 | 24,206 | 24,946 |
 | `RegentFeeHook` | 4,831 | 19,745 | 5,633 | 64 | 5,697 | 43,455 |
 | `ConditionalVestingEscrowV1` | 4,527 | 20,049 | 4,665 | 0 | 4,665 | 44,487 |
 | `SubjectSplitterV1` | 6,289 | 18,287 | 6,427 | 0 | 6,427 | 42,725 |
@@ -38,7 +38,7 @@ and suffix literals in the production strategy's own clone-code-hash computation
 transcribed. `test_GAS_001_*` measures that length on a real clone the factory created, and compares
 its `EXTCODEHASH` against the strategy's own `escrowCloneCodehash`.
 
-The tightest margin in the set is the strategy's 4,375 runtime bytes, comfortably above the 1,000-byte
+The tightest margin in the set is the strategy's 4,747 runtime bytes, comfortably above the 1,000-byte
 headroom the contract-worker rules require when no stricter budget is recorded, and none is.
 
 ### EVM code identity
@@ -53,8 +53,8 @@ admission identity.
 
 | Contract | Runtime keccak-256 | Is a deployed `EXTCODEHASH` |
 | --- | --- | --- |
-| `RegentsAutolaunchFactoryV1` | `0xc6a3cc79c3a28e75b30cf55091e921773de32f7798d474712f8e1e24f1a021d4` | no — 3 immutables |
-| `RegentLBPStrategy` | `0x207725d88041e00eaebd9b83a95fcd88756e1299dedc69606304e849b29b1fdf` | no — 6 immutables |
+| `RegentsAutolaunchFactoryV1` | `0x572b1648ea17564826e4a3adb86facbb128e765d99dbf32c63b67d0dedbf341b` | no — 3 immutables |
+| `RegentLBPStrategy` | `0xcf235f9c91f19c83f1f16744ada0d64b665738d5d0d33f95bda12281d0f64cca` | no — 6 immutables |
 | `RegentFeeHook` | `0x23b340c11c9e77999062a2605b37e2de5f9a7fc4c7f28ab96c2277646c083d54` | no — 2 immutables |
 | `ConditionalVestingEscrowV1` | `0x462e3b12b73402b61b3561345880a5b6eeed4f13d2088f156712fe1b293f1545` | yes |
 | `SubjectSplitterV1` | `0x51f75aa1524323c76b393e14aa236909badf323187512949d4356163316f749e` | yes |

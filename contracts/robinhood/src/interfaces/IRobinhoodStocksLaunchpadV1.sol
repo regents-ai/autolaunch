@@ -7,12 +7,16 @@ import {IRobinhoodStockAdmission} from "./IRobinhoodStockAdmission.sol";
 /// @title IRobinhoodStocksLaunchpadV1
 /// @notice The Robinhood stock-pair launchpad: a NEW token sold for an admitted STOCK, migrating into
 ///         the official NEW/STOCK pool whose hook lanes and LP fees belong to the launch's own
-///         memestock splitter. The required raise is the Safe's USDG minimum converted into
-///         STOCK by the admitted route's quote at creation; the launcher never chooses it.
+///         memestock splitter. The launcher chooses the required raise in STOCK; there is no
+///         governance minimum.
 interface IRobinhoodStocksLaunchpadV1 is IRobinhoodLaunchpadBase, IRobinhoodStockAdmission {
     struct LaunchParams {
         CoreParams core;
         address stock;
+        /// @dev STOCK base units the auction must raise to graduate. Must be above zero and no more
+        ///      than the fixed inventory can settle on at the highest admitted bid price; anything
+        ///      else is refused with `UnreachableRequiredRaise`.
+        uint128 requiredStockRaised;
     }
 
     /// @dev What one graduation locked beyond the full range.
@@ -49,7 +53,6 @@ interface IRobinhoodStocksLaunchpadV1 is IRobinhoodLaunchpadBase, IRobinhoodStoc
         uint256 stockDust,
         uint256 newRetired
     );
-    event MinimumRaiseUsdgUpdated(uint256 previousMinimum, uint256 newMinimum);
     event StockAdmitted(address indexed stock, uint8 decimals, address indexed route);
     event StockRevoked(address indexed stock);
 
@@ -57,9 +60,6 @@ interface IRobinhoodStocksLaunchpadV1 is IRobinhoodLaunchpadBase, IRobinhoodStoc
 
     function admitStock(address stock, address route) external;
     function revokeStock(address stock) external;
-    /// @notice Set the USDG every later launch must raise (in STOCK at the route's quote). Zero refused.
-    function setMinimumRaiseUsdg(uint256 newMinimum) external;
 
-    function minimumRaiseUsdg() external view returns (uint256);
     function stockRecords(uint256 launchId) external view returns (StockRecord memory);
 }

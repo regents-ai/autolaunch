@@ -44,8 +44,8 @@ import {Script} from "forge-std/Script.sol";
 ///
 ///      Nothing here holds authority. The deployer's account is disposable: after the fifth creation
 ///      it owns no role, setter, allowance, balance, upgrade path or recovery power anywhere in the
-///      graph, and the frozen Governance/Regent Safe remains the sole launch-fee and new-launch
-///      pause authority exactly as it was compiled into the factory.
+///      graph, and the frozen Governance/Regent Safe remains the sole new-launch pause authority
+///      exactly as it was compiled into the factory.
 contract DeployAutolaunchV1 is Script {
     /// @notice Exactly the three permission bits `RegentFeeHook` declares.
     uint160 internal constant HOOK_FLAGS =
