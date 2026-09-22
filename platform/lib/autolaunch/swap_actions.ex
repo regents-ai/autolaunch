@@ -446,7 +446,12 @@ defmodule Autolaunch.SwapActions do
   end
 
   defp risk_copy(trade, amount_in) do
-    "Your wallet trades #{units(amount_in, trade.sell)} #{trade.sell.symbol} for #{trade.buy.symbol} on the local Base fork with test assets and no mainnet value. The trade goes through only if you receive at least the lowest amount shown."
+    network =
+      if Lab.test_chain?(),
+        do: "the local Base fork with test assets and no mainnet value",
+        else: "Base"
+
+    "Your wallet trades #{units(amount_in, trade.sell)} #{trade.sell.symbol} for #{trade.buy.symbol} on #{network}. The trade goes through only if you receive at least the lowest amount shown."
   end
 
   # The reviewed sequence: the exact allowances the router still lacks, then the

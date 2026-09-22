@@ -339,7 +339,7 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   def handle_event("step_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, notice: wallet_failure_copy(reason))}
+    do: {:noreply, assign(socket, notice: wallet_failure_copy(reason, socket.assigns.review))}
 
   def handle_event("close_review", _params, socket),
     do: {:noreply, socket |> assign(notice: nil) |> closed()}
@@ -563,19 +563,33 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp reverted_copy(:collect), do: @generic
 
-  defp wallet_failure_copy("wallet_unavailable"),
+  defp wallet_failure_copy("wallet_unavailable", _review),
     do: "Open the wallet you signed in with, then try again. Nothing was sent."
 
-  defp wallet_failure_copy("network_mismatch"),
-    do:
-      "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent."
+  defp wallet_failure_copy("network_mismatch", %{envelope: %{"chain_id" => chain_id}}) do
+    if test_chain?(chain_id),
+      do:
+        "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent.",
+      else:
+        "Your wallet is on a different network. Switch it to #{network_name(chain_id)}, then try again. Nothing was sent."
+  end
 
-  defp wallet_failure_copy("wallet_declined"), do: "Your wallet declined this. Nothing was sent."
+  defp wallet_failure_copy("wallet_declined", _review),
+    do: "Your wallet declined this. Nothing was sent."
 
-  defp wallet_failure_copy("send_unconfirmed"),
+  defp wallet_failure_copy("send_unconfirmed", _review),
     do: "Your wallet may have sent this transaction. Check your wallet activity."
 
-  defp wallet_failure_copy(_unknown), do: @generic
+  defp wallet_failure_copy(_unknown, _review), do: @generic
+
+  defp test_chain?(chain_id),
+    do: Autolaunch.Lab.test_chain?(chain_id) or Autolaunch.Robinhood.Lab.test_chain?(chain_id)
+
+  defp network_name(chain_id) do
+    if chain_id == Autolaunch.Robinhood.Lab.chain_id(),
+      do: Autolaunch.Robinhood.Lab.network_name(chain_id),
+      else: Autolaunch.Lab.network_name(chain_id)
+  end
 
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 

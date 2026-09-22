@@ -24,8 +24,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
     invalid_address:
       "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
-    chain_unavailable:
-      "The Base fork could not be read just now. Check that it is still running.",
+    chain_unavailable: "Base could not be read just now. Try again in a moment.",
     stocks_unavailable: "Stock launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
     active_stocks_launch_exists: ActiveLaunchLimit.message(),
@@ -175,7 +174,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>{Autolaunch.ChainMode.label()} · chain 31337</dd>
+            <dd>{Autolaunch.Lab.network_name(@operation.envelope["chain_id"])}</dd>
           </div>
           <div>
             <dt>Transactions</dt>
@@ -200,9 +199,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         </ol>
 
         <section :if={@operation.state == :chain_verified} class="launch-wallet-settled" role="status">
-          <p>
-            The test transaction and launch record were verified. Test assets have no mainnet value.
-          </p>
+          <p>{verified_copy(@operation)}</p>
           <p>
             <.link :if={@auction_path} navigate={@auction_path}>Open the auction</.link>
             · Token <span class="launch-wallet-mono">{@operation.result["new_token"]}</span>
@@ -491,8 +488,19 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp current_state(:invalidated), do: "Out of date"
   defp current_state(:submission_unknown), do: "Unresolved"
 
-  defp settled_copy(%{state: :reverted}),
-    do: "This test transaction reverted. Nothing was created."
+  defp verified_copy(%{envelope: %{"chain_id" => chain_id}}) do
+    if Autolaunch.Lab.test_chain?(chain_id),
+      do:
+        "The test transaction and launch record were verified. Test assets have no mainnet value.",
+      else:
+        "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
+  end
+
+  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => chain_id}}) do
+    if Autolaunch.Lab.test_chain?(chain_id),
+      do: "This test transaction reverted. Nothing was created.",
+      else: "This transaction reverted on Base. Nothing was created."
+  end
 
   defp settled_copy(%{state: :unverified}),
     do: "This transaction did not record the launch you reviewed."
@@ -507,9 +515,13 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp settled_copy(%{state: :expired}),
     do: "This review expired before the launch was sent. Nothing was sent."
 
-  defp settled_copy(%{state: :invalidated, reason: reason}),
-    do:
-      "The fork changed before the launch was sent. Nothing was sent. Review it again: #{reason}."
+  defp settled_copy(%{state: :invalidated, reason: reason, envelope: %{"chain_id" => chain_id}}),
+    do: invalidated_copy(Autolaunch.Lab.test_chain?(chain_id)) <> " Review it again: #{reason}."
+
+  defp invalidated_copy(true),
+    do: "The fork changed before the launch was sent. Nothing was sent."
+
+  defp invalidated_copy(false), do: "Base moved on before the launch was sent. Nothing was sent."
 
   defp exact_values(operation) do
     [
@@ -538,7 +550,15 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   defp wallet_failure_copy(_unknown), do: @generic
 
-  defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
+  defp notice(tone, reason), do: %{tone: tone, message: copy(reason)}
+
+  defp copy(:chain_unavailable) do
+    if Autolaunch.Lab.test_chain?(),
+      do: "The Base fork could not be read just now. Check that it is still running.",
+      else: Map.fetch!(@copy, :chain_unavailable)
+  end
+
+  defp copy(reason), do: Map.get(@copy, reason, @generic)
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
   defp refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason

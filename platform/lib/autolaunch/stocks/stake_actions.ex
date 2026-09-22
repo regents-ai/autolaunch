@@ -62,16 +62,14 @@ defmodule Autolaunch.Stocks.StakeActions do
       abi: StocksLabAbi,
       launchpad: :launchpad,
       hook: :hook,
-      locker: :locker,
-      network: "the local Base fork"
+      locker: :locker
     },
     robinhood: %{
       lab: RobinhoodLab,
       abi: RobinhoodLabAbi,
       launchpad: :stocks_launchpad,
       hook: :stocks_hook,
-      locker: :stocks_locker,
-      network: "the local Robinhood test network"
+      locker: :stocks_locker
     }
   }
   @token_decimals 18
@@ -333,23 +331,35 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp risk_copy(:stake, pool, venue, amount),
     do:
-      "Your wallet stakes #{units(amount, @token_decimals)} #{pool.token.symbol} in this launch's staking contract on #{venue.network} with test assets and no mainnet value. You can unstake later; not right after staking."
+      "Your wallet stakes #{units(amount, @token_decimals)} #{pool.token.symbol} in this launch's staking contract on #{network(venue)}. You can unstake later; not right after staking."
 
   defp risk_copy(:unstake, pool, venue, amount),
     do:
-      "Your wallet takes #{units(amount, @token_decimals)} #{pool.token.symbol} back out of this launch's staking contract on #{venue.network} with test assets and no mainnet value."
+      "Your wallet takes #{units(amount, @token_decimals)} #{pool.token.symbol} back out of this launch's staking contract on #{network(venue)}."
 
   defp risk_copy(:claim, pool, venue, _amount),
     do:
-      "Your wallet claims every reward this launch's staking contract holds for it, in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}, on #{venue.network} with test assets and no mainnet value."
+      "Your wallet claims every reward this launch's staking contract holds for it, in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}, on #{network(venue)}."
 
   defp risk_copy(:settle, pool, venue, _amount),
     do:
-      "Your wallet moves the #{pool.currency.symbol} waiting in the stakers' fee lane into this launch's staking contract, for every staker, on #{venue.network} with test assets and no mainnet value. Nothing comes to your wallet."
+      "Your wallet moves the #{pool.currency.symbol} waiting in the stakers' fee lane into this launch's staking contract, for every staker, on #{network(venue)}. Nothing comes to your wallet."
 
   defp risk_copy(:collect, pool, venue, _amount),
     do:
-      "Your wallet collects the locked liquidity's trading fees into this launch's staking contract, for every #{pool.token.symbol} staker, on #{venue.network} with test assets and no mainnet value. Nothing comes to your wallet."
+      "Your wallet collects the locked liquidity's trading fees into this launch's staking contract, for every #{pool.token.symbol} staker, on #{network(venue)}. Nothing comes to your wallet."
+
+  defp network(%{lab: StocksLab}) do
+    if Autolaunch.Lab.test_chain?(),
+      do: "the local Base fork with test assets and no mainnet value",
+      else: "Base"
+  end
+
+  defp network(%{lab: RobinhoodLab}) do
+    if RobinhoodLab.test_chain?(),
+      do: "the local Robinhood test network with test assets and no mainnet value",
+      else: "Robinhood Chain"
+  end
 
   # The reviewed sequence, one calldata per step, exactly what the wallet sends.
   defp reviewed_steps(:stake, pool, venue, config, wallet, amount) do

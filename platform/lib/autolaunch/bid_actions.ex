@@ -459,8 +459,7 @@ defmodule Autolaunch.BidActions do
         to: usdc.adapter,
         resource: @resource,
         contract_name: @usdc_contract_name,
-        risk_copy:
-          "Your wallet signs the local-fork USDC allowance this bid still needs, then one transaction that buys #{auction.quote_token_symbol} and places the test bid. These assets have no mainnet value.",
+        risk_copy: usdc_risk_copy(auction),
         arguments:
           %{
             "auction_id" => auction.id,
@@ -552,6 +551,14 @@ defmodule Autolaunch.BidActions do
       )
 
     {data, [chain_id: Lab.chain_id(), lab_binding: snapshot.lab_binding]}
+  end
+
+  defp usdc_risk_copy(auction) do
+    if Lab.test_chain?(),
+      do:
+        "Your wallet signs the local-fork USDC allowance this bid still needs, then one transaction that buys #{auction.quote_token_symbol} and places the test bid. These assets have no mainnet value.",
+      else:
+        "Your wallet signs the USDC allowance this bid still needs, then one transaction that buys #{auction.quote_token_symbol} and places the bid."
   end
 
   defp risk_copy do
@@ -695,7 +702,7 @@ defmodule Autolaunch.BidActions do
 
   defp claim(account, operation, :changed, _treasury_result) do
     with :ok <- signer_matches(account, operation.signer),
-         do: update(operation, :cancel, %{reason: "the reviewed fork changed"})
+         do: update(operation, :cancel, %{reason: "the reviewed network changed"})
   end
 
   defp claim(account, operation, :current, {:error, _reason}) do

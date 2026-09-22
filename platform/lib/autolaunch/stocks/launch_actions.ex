@@ -55,7 +55,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @withdrawn "review withdrawn"
   @lapsed "the reviewed launch expired before it was sent"
   @unresolved "account started a new launch while this one was unresolved"
-  @reverted "verified revert on the fork"
+  @reverted "verified revert on Base"
   @contradicted "canonical receipt contradicts the reviewed launch"
   @paused "launches were paused after this review"
   @moved "the reviewed launchpad binding changed"
@@ -343,9 +343,13 @@ defmodule Autolaunch.Stocks.LaunchActions do
     ])
   end
 
-  defp risk_copy,
-    do:
-      "Your wallet creates this launch on a Base fork with test assets and no mainnet value. There is no launch fee."
+  defp risk_copy do
+    if Autolaunch.Lab.test_chain?(),
+      do:
+        "Your wallet creates this launch on a Base fork with test assets and no mainnet value. There is no launch fee.",
+      else:
+        "Your wallet creates this launch on Base. There is no launch fee. A launch cannot be undone."
+  end
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 

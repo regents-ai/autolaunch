@@ -244,7 +244,7 @@ defmodule AutolaunchWeb.BidComponent do
               </dd>
             </div>
             <div>
-              <dt>Network</dt><dd>{network_name(@operation)}</dd>
+              <dt>Network</dt><dd>{Lab.network_name(@operation.envelope["chain_id"])}</dd>
             </div>
           </dl>
 
@@ -658,25 +658,22 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp preset(socket), do: socket
 
-  defp confirmed_copy(%{envelope: %{"chain_id" => 31_337}} = operation),
-    do:
-      "Bid #{operation.onchain_bid_id} was verified on the fork. Test assets have no mainnet value."
+  defp confirmed_copy(%{envelope: %{"chain_id" => chain_id}} = operation) do
+    if Lab.test_chain?(chain_id),
+      do:
+        "Bid #{operation.onchain_bid_id} was verified on the fork. Test assets have no mainnet value.",
+      else:
+        "Bid #{operation.onchain_bid_id} is on Base. Your position appears once it is read back."
+  end
 
-  defp confirmed_copy(operation),
-    do: "Bid #{operation.onchain_bid_id} is on Base. Your position appears once it is read back."
-
-  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => 31_337}}),
-    do: "This test transaction reverted."
-
-  defp settled_copy(%{state: :reverted}), do: "This transaction reverted on Base."
+  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => chain_id}}) do
+    if Lab.test_chain?(chain_id),
+      do: "This test transaction reverted.",
+      else: "This transaction reverted on Base."
+  end
 
   defp settled_copy(%{state: :unverified}),
     do: "This transaction did not record the bid you reviewed."
-
-  defp network_name(%{envelope: %{"chain_id" => 31_337}}),
-    do: "#{Autolaunch.ChainMode.label()} · chain 31337"
-
-  defp network_name(_operation), do: "Base"
 
   # The browser reports a closed reason key as a string, never text of its own.
   # Only a key that proves the wallet was never asked to send may say nothing

@@ -181,7 +181,7 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>{network_name(@operation)}</dd>
+            <dd>{Lab.network_name(@operation.envelope["chain_id"])}</dd>
           </div>
           <div>
             <dt>Transactions</dt>
@@ -620,11 +620,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   defp production_report(_draft), do: nil
 
-  defp network_name(%{envelope: %{"chain_id" => 31_337}}),
-    do: "#{Autolaunch.ChainMode.label()} · chain 31337"
-
-  defp network_name(_operation), do: "Base"
-
   defp freshly_verified?(%{id: id, verification_state: :verified}, id), do: true
   defp freshly_verified?(_report, _fresh_report_id), do: false
 
@@ -674,18 +669,19 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   # The exact customer sentence for a launch this server verified its own
   # evidence for. It deliberately promises no more than that: canonical public
   # confirmation is the finalized projection, not this.
-  defp verified_copy(%{envelope: %{"chain_id" => 31_337}}),
-    do: "The test transaction and launch record were verified. Test assets have no mainnet value."
+  defp verified_copy(%{envelope: %{"chain_id" => chain_id}}) do
+    if Lab.test_chain?(chain_id),
+      do:
+        "The test transaction and launch record were verified. Test assets have no mainnet value.",
+      else:
+        "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
+  end
 
-  defp verified_copy(_operation),
-    do:
-      "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
-
-  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => 31_337}}),
-    do: "This test transaction reverted. Nothing was created."
-
-  defp settled_copy(%{state: :reverted}),
-    do: "This transaction reverted on Base. Nothing was created."
+  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => chain_id}}) do
+    if Lab.test_chain?(chain_id),
+      do: "This test transaction reverted. Nothing was created.",
+      else: "This transaction reverted on Base. Nothing was created."
+  end
 
   defp settled_copy(%{state: :unverified}),
     do: "This transaction did not record the launch you reviewed."
@@ -701,12 +697,13 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
   defp settled_copy(%{state: :expired}),
     do: "This review expired before the launch was sent. Nothing was sent."
 
-  defp settled_copy(%{state: :invalidated, envelope: %{"chain_id" => 31_337}} = operation),
-    do:
-      "The fork changed before the launch was sent. Nothing was sent." <> ended_because(operation)
+  defp settled_copy(%{state: :invalidated, envelope: %{"chain_id" => chain_id}} = operation),
+    do: invalidated_copy(Lab.test_chain?(chain_id)) <> ended_because(operation)
 
-  defp settled_copy(%{state: :invalidated} = operation),
-    do: "Base moved on before the launch was sent. Nothing was sent." <> ended_because(operation)
+  defp invalidated_copy(true),
+    do: "The fork changed before the launch was sent. Nothing was sent."
+
+  defp invalidated_copy(false), do: "Base moved on before the launch was sent. Nothing was sent."
 
   defp ended_because(%{reason: reason}) when is_binary(reason),
     do: " Review it again: #{reason}."

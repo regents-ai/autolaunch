@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
       <Regent.Structure.section_bar>
         <h2 class="rg-section-bar__label">Pool</h2>
       </Regent.Structure.section_bar>
-      <p :if={@pool.loading} role="status">Reading the pool from the Base fork…</p>
+      <p :if={@pool.loading} role="status">Reading the pool…</p>
       <div :if={@pool.failed} role="alert" class="autolaunch-empty">
         <p>{failure_copy(@pool.failed)}</p>
         <Regent.Primitives.button phx-click="reload_pool" variant="secondary">
@@ -123,7 +123,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
       <a href={@facts.uniswap_url} target="_blank" rel="noopener noreferrer">
         Open this pool on the Uniswap app
       </a>
-      · public Base mainnet link, not this fork
+      <span :if={Autolaunch.Lab.test_chain?()}>· public Base mainnet link, not this fork</span>
     </p>
 
     <Regent.Primitives.disclosure id="pool-exact-values" summary="Exact values">
@@ -325,8 +325,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
 
   defp failure_copy({:error, reason})
        when reason in [:deployment_missing, :stocks_deployment_missing],
-       do: "Pool details are read from a Base fork, and this site is not running one."
+       do: "Pool details are not available on this site."
 
-  defp failure_copy(_reason),
-    do: "The pool could not be read from the Base fork just now."
+  defp failure_copy(_reason), do: "The pool could not be read just now."
 end

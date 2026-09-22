@@ -55,6 +55,16 @@ defmodule Autolaunch.Lab do
   @doc "Whether the Base deployment is a test chain: test assets with no mainnet value."
   def test_chain?, do: chain_id() == @test_chain_id
 
+  @doc "Whether a reviewed chain id is the test chain's."
+  def test_chain?(chain_id), do: chain_id == @test_chain_id
+
+  @doc "The network a reviewed chain id names, as every Base page shows it."
+  def network_name(chain_id) do
+    if test_chain?(chain_id),
+      do: "#{Autolaunch.ChainMode.label()} · chain #{@test_chain_id}",
+      else: "Base"
+  end
+
   @doc "The configured Base deployment's chain id, or `nil` without one."
   def chain_id, do: Application.get_env(:autolaunch, :autolaunch_base_chain_id)
 
