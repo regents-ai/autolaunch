@@ -18,3 +18,13 @@ Robinhood together). Live means open for bidding, the same as the auctions list'
 
 Still open: the public API has no counts of its own, so an outside tracker must still page
 through the auction list and tally it.
+
+## Creator X accounts before activation
+
+Checked 22 September 2026 by secret name only: the live app `autolaunch-sh` holds no
+`X_OAUTH_CLIENT_ID` (nor `PRIVY_APP_ID`; the site is still the read-only prelaunch). Until an
+X app is registered with the callback `https://autolaunch.sh/auth/x/callback` and its client id
+is set, creators cannot add X accounts and no auction or token shows a creator link.
+
+Robinhood launches name their creator by the launching wallet: the account whose signed-in
+wallet it still is, when exactly one account's is. The launch itself required that wallet.
