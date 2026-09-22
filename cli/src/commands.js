@@ -31,7 +31,7 @@ export const commands = [
   {
     command: "auction <id>", operation_id: "getAuction", webmcp: "autolaunch_auction",
     method: "GET", path: "/api/v1/auctions/{id}", flags: [],
-    description: "Read an auction by exact UUID, including its kind (agent or stocks), the quote_token bids are paid in, and its stored treasury report.", authority: "public", effect: "read",
+    description: "Read one auction: a Base auction by exact UUID (its kind, the quote_token bids are paid in, and its stored treasury report) or a Robinhood auction by contract address (read from its chain).", authority: "public", effect: "read",
     request: args => ({path: `/api/v1/auctions/${pathSegment(args[1])}`}),
   },
   {

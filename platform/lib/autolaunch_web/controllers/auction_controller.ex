@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.AuctionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch
+  alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Auctions, Lab}
   alias Autolaunch.TreasurySecurity
 
@@ -35,20 +36,38 @@ defmodule AutolaunchWeb.AuctionController do
     end
   end
 
+  # A Base auction is named by its id; a Robinhood auction, which has none, by
+  # its address, as on /robinhood/auctions/:auction.
   def show(conn, %{"id" => id} = params) do
-    autolaunch = conn.private[:auction_controller_autolaunch] || Autolaunch
-
     with true <- Map.keys(params) == ["id"],
-         {:ok, _id} <- Ash.Type.UUID.cast_input(id, []),
-         {:ok, auction} when not is_nil(auction) <-
-           autolaunch.get_public_auction(id, actor: nil) do
-      json(conn, %{data: public_auction(auction)})
+         {:ok, entry} <- auction_entry(conn, id) do
+      json(conn, %{data: entry})
     else
       false -> invalid_request(conn)
-      :error -> not_found(conn)
-      {:ok, nil} -> not_found(conn)
+      :not_found -> not_found(conn)
       {:error, _error} -> internal_error(conn)
     end
+  end
+
+  defp auction_entry(conn, id) do
+    case Ash.Type.UUID.cast_input(id, []) do
+      {:ok, _id} -> base_auction_entry(conn, id)
+      :error -> robinhood_auction_entry(id)
+    end
+  end
+
+  defp base_auction_entry(conn, id) do
+    case autolaunch(conn).get_public_auction(id, actor: nil) do
+      {:ok, nil} -> :not_found
+      {:ok, auction} -> {:ok, public_auction(auction)}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp robinhood_auction_entry(address) do
+    with {:ok, auctions} <- Auctions.list(),
+         %{} = auction <- Enum.find(auctions, :not_found, &Address.equal?(&1.auction, address)),
+         do: {:ok, robinhood_auction(auction)}
   end
 
   def bid_quote(conn, %{"id" => id} = params) do

@@ -125,6 +125,7 @@ function pathValue(value: string | number): string {
 
 function publicTools(signal: AbortSignal): PublicTool[] {
   const id: Property = {type: "string", description: "Exact public auction UUID."}
+  const auction: Property = {type: "string", description: "Exact public auction UUID (Base), or the auction's contract address (Robinhood)."}
   const decimal: Property = {
     type: "string",
     description: "Positive decimal digits with optional fractional digits; no exponent. The API trims whitespace, caps input at 100 bytes, and validates decimal bounds. Sent unchanged, without rounding.",
@@ -151,8 +152,8 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_auction",
-      "Read one public Autolaunch auction by UUID: its kind (agent or stocks), the quote_token bids are paid in, and its stored treasury report when available.",
-      {id},
+      "Read one public Autolaunch auction: a Base auction by UUID (its kind, quote_token and stored treasury report) or a Robinhood auction by contract address (read from its chain).",
+      {id: auction},
       ["id"],
       input => ({path: `/api/v1/auctions/${pathValue(input.id)}`}),
       signal,

@@ -217,10 +217,14 @@ paths:
         - name: id
           in: path
           required: true
-          schema: {type: string, format: uuid}
+          description: "A Base auction's UUID, or a Robinhood auction's contract address (Robinhood auctions have no UUID; the chain is their only record)."
+          schema:
+            oneOf:
+              - {type: string, format: uuid}
+              - {type: string, pattern: "^0x[0-9a-fA-F]{40}$"}
       responses:
         "200":
-          description: Public Autolaunch auction
+          description: Public Autolaunch auction on Base or Robinhood
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AuctionEnvelope"}
@@ -401,7 +405,10 @@ components:
       additionalProperties: false
       required: [data]
       properties:
-        data: {$ref: "#/components/schemas/Auction"}
+        data:
+          oneOf:
+            - {$ref: "#/components/schemas/RobinhoodAuction"}
+            - {$ref: "#/components/schemas/Auction"}
     Auction:
       description: A Base auction, as the site records it.
       type: object
