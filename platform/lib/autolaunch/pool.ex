@@ -1,9 +1,10 @@
 defmodule Autolaunch.Pool do
   @moduledoc """
-  Read-only pool facts for one graduated launch, read from the local Base fork.
+  Read-only pool facts for one graduated launch, read from Base.
 
   Agent launches graduate into a REGENT/SUBJECT pool recorded by the frozen
-  strategy (`distribution(auction)`) and charged by the frozen `RegentFeeHook`;
+  strategy (`distribution(auction)`) and charged by the frozen `RegentFeeHook`,
+  whose splitter lane lands in the launch's revenue splitter on every trade;
   Stocks launches graduate into a NEW/STOCK pool recorded by the launchpad
   (`launches(id)`), charged by `StocksFeeHookV1` and locked in the launchpad's
   LP locker, whose fees flow to the launch's memestake splitter. Both are read
@@ -12,7 +13,7 @@ defmodule Autolaunch.Pool do
   locked positions and their owner, the unsold tokens' fate, and the fee lanes
   with their totals.
 
-  Nothing here writes, signs or caches; every figure is the fork's own answer.
+  Nothing here writes, signs or caches; every figure is the chain's own answer.
   """
 
   alias Autolaunch.Chain.{Abi, Address, Rpc}
@@ -152,6 +153,7 @@ defmodule Autolaunch.Pool do
       {:ok,
        %{
          kind: :agent,
+         chain: :base,
          block: block,
          pool_id: distribution.pool_id,
          token: %{
@@ -221,11 +223,21 @@ defmodule Autolaunch.Pool do
 
   # Every `SwapFeeSettled` this pool emitted since graduation, summed per fee
   # token. Each lane is the same amount, so one total per token names both.
+  # The splitter's lane lands in it on the trade itself, so its totals are the
+  # only staking facts to read.
   defp agent_fees(config, distribution, auction, block, opts) do
     hook = Lab.address!(config, :hook)
 
     with {:ok, logs} <-
-           logs(hook, distribution.migration_block, block, [nil, distribution.pool_id], opts) do
+           logs(hook, distribution.migration_block, block, [nil, distribution.pool_id], opts),
+         {:ok, splitter} <-
+           splitter_facts(
+             Lab.abi!(config, :splitter),
+             "usdc()",
+             distribution.splitter,
+             block,
+             opts
+           ) do
       topic = LabAbi.topic(LabAbi.swap_fee_settled_signature())
 
       settled =
@@ -247,7 +259,7 @@ defmodule Autolaunch.Pool do
       {:ok,
        %{
          lane_bps: @lane_bps,
-         splitter: distribution.splitter,
+         splitter: splitter,
          receiver: distribution.receiver,
          subject_path: "/subjects/" <> LabProjection.subject_identity(distribution.subject),
          swaps: length(settled),
@@ -470,7 +482,14 @@ defmodule Autolaunch.Pool do
              3,
              opts
            ),
-         {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts),
+         {:ok, splitter} <-
+           splitter_facts(
+             StocksLab.abi!(config, :splitter),
+             "dollar()",
+             launch.splitter,
+             block,
+             opts
+           ),
          {:ok, logs} <- logs(hook, launch.migration_block, block, [nil, launch.pool_id], opts) do
       accrued_topic = LabAbi.topic(StocksLabAbi.hook_fee_accrued_signature())
       regent_topic = LabAbi.topic(StocksLabAbi.regent_lane_settled_signature())
@@ -501,15 +520,16 @@ defmodule Autolaunch.Pool do
 
   # The memestake splitter of a graduated launch: what is staked in it, the
   # skim it keeps from every unstake, and the dollar it pays out in.
-  defp splitter_facts(config, splitter, block, opts) do
-    abi = StocksLab.abi!(config, :splitter)
-
+  # A launch's splitter as the staking card shows it. Both splitters name
+  # their dollar asset, the Revstake one as `usdc()` and the memestock one as
+  # `dollar()`; it is USDC on either.
+  defp splitter_facts(abi, dollar_signature, splitter, block, opts) do
     with {:ok, total_staked} <-
            Rpc.call_uint(splitter, LabAbi.encode(abi, "totalStaked()", []), block, opts),
          {:ok, skim_bps} <-
            Rpc.call_uint(splitter, LabAbi.encode(abi, "SKIM_BPS()", []), block, opts),
          {:ok, dollar} <-
-           Rpc.call_address(splitter, LabAbi.encode(abi, "dollar()", []), block, opts) do
+           Rpc.call_address(splitter, LabAbi.encode(abi, dollar_signature, []), block, opts) do
       {:ok,
        %{
          address: splitter,

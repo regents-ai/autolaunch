@@ -64,9 +64,9 @@ defmodule AutolaunchWeb.TokenLive do
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
         <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token graduated from</.link>
       </p>
-      <.pool_facts :if={@local_lab?} pool={@pool} />
+      <.pool_facts pool={@pool} />
       <.live_component
-        :if={@local_lab? && @page_record.auction.kind == :stocks && @pool.ok?}
+        :if={@pool.ok?}
         module={AutolaunchWeb.StakeComponent}
         id={"token-stake-#{@page_record.id}"}
         launch={%{chain: :base, auction: @page_record.auction}}
@@ -121,10 +121,10 @@ defmodule AutolaunchWeb.TokenLive do
     |> load_pool(true)
   end
 
-  # The pool is its own read of the fork: the token record renders as soon as
-  # the database answers, and the pool section says when the fork is slow. A
-  # site without the lab has no pool to read. A fresh page starts from nothing;
-  # a re-read keeps the last figures until the new ones arrive.
+  # The pool is its own read of the chain: the token record renders as soon as
+  # the database answers, and the pool section says when the chain is slow. A
+  # site without a Base deployment has no pool to read. A fresh page starts
+  # from nothing; a re-read keeps the last figures until the new ones arrive.
   defp load_pool(socket, reset?) do
     if Lab.configured?(),
       do: read_pool(socket, reset?),

@@ -1,16 +1,17 @@
 defmodule Autolaunch.Stocks.StakeActions do
   @moduledoc """
-  The one boundary between a wallet and a graduated memestock launch's
-  memestake splitter, its fee hook and its LP locker, on the Base Stocks lab
-  or the Robinhood lab.
+  The one boundary between a wallet and a graduated launch's staking contract:
+  a Revstake launch's revenue splitter on Base, or a memestock launch's
+  memestake splitter with its fee hook and LP locker, on Base or on Robinhood.
 
   Five reviewed actions, each one immutable envelope the wallet signs step by
   step: stake (the exact token allowance to the splitter when it is short, then
   the stake), unstake, claim (every reward the splitter holds for the wallet),
   settle (the hook's staker lane into the splitter, open to anyone) and collect
-  (the locked positions' trading fees into the splitter, open to anyone).
-  Nothing is written anywhere: the chain is the only record, and confirmation
-  reads the canonical receipt.
+  (the locked positions' trading fees into the splitter, open to anyone). A
+  Revstake splitter is paid on the trade itself, so it offers only the first
+  three. Nothing is written anywhere: the chain is the only record, and
+  confirmation reads the canonical receipt.
 
   Every call binds to the signed-in wallet of the account the session lease
   names, read inside the lease at call time: the wallet the page presents must
@@ -20,7 +21,7 @@ defmodule Autolaunch.Stocks.StakeActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
-  alias Autolaunch.{LabAbi, Pool}
+  alias Autolaunch.{Lab, LabAbi, Pool}
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
@@ -37,13 +38,6 @@ defmodule Autolaunch.Stocks.StakeActions do
     settle: "autolaunch_settle_stakers",
     collect: "autolaunch_collect_fees"
   }
-  @contract_names %{
-    stake: "MemestockSplitterV1",
-    unstake: "MemestockSplitterV1",
-    claim: "MemestockSplitterV1",
-    settle: "StocksFeeHookV1",
-    collect: "MemestockLPLocker"
-  }
   @steps [
     :token_approval,
     :stake,
@@ -53,23 +47,53 @@ defmodule Autolaunch.Stocks.StakeActions do
     :collect_full_range,
     :collect_stock_only
   ]
-  # Where a launch lives: its lab and that lab's event signatures, the keys its
-  # launchpad, hook and locker have in the lab's configuration, and how the
-  # wallet is told about the network.
+  # Where a launch lives, by its chain and kind: its deployment and that
+  # deployment's event signatures, the configuration keys of the contracts a
+  # review binds to, the locker (none for a Revstake launch), the actions the
+  # staking contract offers and what each one signs against.
   @venues %{
-    base: %{
+    {:base, :agent} => %{
+      lab: Lab,
+      abi: LabAbi,
+      binding: [:strategy, :hook],
+      hook: :hook,
+      locker: nil,
+      kinds: [:stake, :unstake, :claim],
+      contracts: %{
+        stake: "SubjectSplitterV1",
+        unstake: "SubjectSplitterV1",
+        claim: "SubjectSplitterV1"
+      }
+    },
+    {:base, :stocks} => %{
       lab: StocksLab,
       abi: StocksLabAbi,
-      launchpad: :launchpad,
+      binding: [:launchpad, :hook, :locker],
       hook: :hook,
-      locker: :locker
+      locker: :locker,
+      kinds: @kinds,
+      contracts: %{
+        stake: "MemestockSplitterV1",
+        unstake: "MemestockSplitterV1",
+        claim: "MemestockSplitterV1",
+        settle: "StocksFeeHookV1",
+        collect: "MemestockLPLocker"
+      }
     },
-    robinhood: %{
+    {:robinhood, :stocks} => %{
       lab: RobinhoodLab,
       abi: RobinhoodLabAbi,
-      launchpad: :stocks_launchpad,
+      binding: [:stocks_launchpad, :stocks_hook, :stocks_locker],
       hook: :stocks_hook,
-      locker: :stocks_locker
+      locker: :stocks_locker,
+      kinds: @kinds,
+      contracts: %{
+        stake: "MemestockSplitterV1",
+        unstake: "MemestockSplitterV1",
+        claim: "MemestockSplitterV1",
+        settle: "RobinhoodFeeHookV1",
+        collect: "MemestockLPLocker"
+      }
     }
   }
   @token_decimals 18
@@ -81,11 +105,12 @@ defmodule Autolaunch.Stocks.StakeActions do
   @doc """
   What one wallet has in a launch's splitter, read at the block the pool facts
   were read at: its token balance, its stake, its allowance to the splitter and
-  what it can claim in each of the three assets. A public read of public
-  figures; nothing is bound to it.
+  what it can claim in each of the three assets (the dollar, the launch's token
+  and the currency it trades against). A public read of public figures;
+  nothing is bound to it.
   """
   @spec position(map(), String.t()) :: {:ok, map()} | {:error, term()}
-  def position(%{kind: :stocks} = pool, address) do
+  def position(pool, address) do
     splitter = pool.fees.splitter.address
     dollar = pool.fees.splitter.dollar
     venue = venue(pool)
@@ -116,8 +141,6 @@ defmodule Autolaunch.Stocks.StakeActions do
     end
   end
 
-  def position(_pool, _address), do: unavailable(:stake_unavailable)
-
   @doc """
   Reviews one action on a graduated launch's splitter for the signed-in
   wallet. The launch is `%{chain: :base, auction: auction_record}` or
@@ -129,6 +152,7 @@ defmodule Autolaunch.Stocks.StakeActions do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, actor, opts),
          {:ok, pool} <- pool(launch),
+         true <- kind in venue(pool).kinds || unavailable(:unknown_action),
          {:ok, config} <- lab(venue(pool)),
          {:ok, wallet} <- position(pool, signer),
          {:ok, amount} <- amount(kind, Map.get(request, :amount), wallet),
@@ -218,17 +242,18 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp pool(%{chain: :robinhood, auction: auction}),
     do: auction |> RobinhoodPool.read() |> pooled()
 
-  defp pooled({:ok, %{kind: :stocks} = pool}), do: {:ok, pool}
-  defp pooled({:ok, _agent}), do: unavailable(:stake_unavailable)
+  defp pooled({:ok, pool}), do: {:ok, pool}
   defp pooled({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
   defp pooled({:error, _reason}), do: unavailable(:stake_unavailable)
 
-  defp venue(%{chain: chain}), do: Map.fetch!(@venues, chain)
+  defp venue(%{chain: chain, kind: kind}), do: Map.fetch!(@venues, {chain, kind})
 
   # The venue a signed envelope was reviewed on, named in its own arguments.
-  defp envelope_venue(%{"arguments" => %{"chain" => chain}})
-       when chain in ["base", "robinhood"],
-       do: {:ok, Map.fetch!(@venues, String.to_existing_atom(chain))}
+  defp envelope_venue(%{"arguments" => %{"chain" => chain, "launch" => launch}})
+       when chain in ["base", "robinhood"] and launch in ["agent", "stocks"],
+       do:
+         {:ok,
+          Map.fetch!(@venues, {String.to_existing_atom(chain), String.to_existing_atom(launch)})}
 
   defp envelope_venue(_envelope), do: unavailable(:envelope_invalid)
 
@@ -239,8 +264,10 @@ defmodule Autolaunch.Stocks.StakeActions do
     end
   end
 
-  defp binding(venue, config),
-    do: venue.lab.binding(config, [venue.launchpad, venue.hook, venue.locker])
+  defp binding(venue, config), do: venue.lab.binding(config, venue.binding)
+
+  defp locker(%{locker: nil}, _config), do: nil
+  defp locker(venue, config), do: venue.lab.address!(config, venue.locker)
 
   # The review
 
@@ -255,17 +282,18 @@ defmodule Autolaunch.Stocks.StakeActions do
       |> Envelope.new(signer, last["data"],
         to: last["to"],
         resource: @resource,
-        contract_name: Map.fetch!(@contract_names, kind),
+        contract_name: Map.fetch!(venue.contracts, kind),
         chain_id: venue.lab.chain_id(),
         lab_binding: binding(venue, config),
         risk_copy: risk_copy(kind, pool, venue, amount),
         arguments: %{
           "kind" => Atom.to_string(kind),
           "chain" => Atom.to_string(pool.chain),
+          "launch" => Atom.to_string(pool.kind),
           "pool_id" => pool.pool_id,
           "splitter" => pool.fees.splitter.address,
           "hook" => pool.hook,
-          "locker" => venue.lab.address!(config, venue.locker),
+          "locker" => locker(venue, config),
           "token" => pool.token.address,
           "token_symbol" => pool.token.symbol,
           "currency" => pool.currency.address,
@@ -349,16 +377,16 @@ defmodule Autolaunch.Stocks.StakeActions do
     do:
       "Your wallet collects the locked liquidity's trading fees into this launch's staking contract, for every #{pool.token.symbol} staker, on #{network(venue)}. Nothing comes to your wallet."
 
-  defp network(%{lab: StocksLab}) do
-    if Autolaunch.Lab.test_chain?(),
-      do: "the local Base fork with test assets and no mainnet value",
-      else: "Base"
-  end
-
   defp network(%{lab: RobinhoodLab}) do
     if RobinhoodLab.test_chain?(),
       do: "the local Robinhood test network with test assets and no mainnet value",
       else: "Robinhood Chain"
+  end
+
+  defp network(_base) do
+    if Lab.test_chain?(),
+      do: "the local Base fork with test assets and no mainnet value",
+      else: "Base"
   end
 
   # The reviewed sequence, one calldata per step, exactly what the wallet sends.

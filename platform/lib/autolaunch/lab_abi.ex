@@ -4,6 +4,7 @@ defmodule Autolaunch.LabAbi do
   alias Autolaunch.Chain.{Abi, Address}
 
   @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)"
+  @claimed "Claimed(address,address,uint256)"
 
   @required %{
     "factory" => [
@@ -78,6 +79,20 @@ defmodule Autolaunch.LabAbi do
     "hook" => [
       e: {@swap_fee_settled, [true, true, true, false, false, false]}
     ],
+    # The token page's staking card reads and drives the launch's revenue splitter.
+    "splitter" => [
+      f: {"usdc()", "view", ["address"]},
+      f: {"totalStaked()", "view", ["uint256"]},
+      f: {"stakedOf(address)", "view", ["uint256"]},
+      f: {"claimable(address,address)", "view", ["uint256"]},
+      f: {"SKIM_BPS()", "view", ["uint256"]},
+      f: {"stake(uint256)", "nonpayable", []},
+      f: {"unstake(uint256)", "nonpayable", []},
+      f: {"claimAll()", "nonpayable", []},
+      e: {"Staked(address,uint256)", [true, false]},
+      e: {"Unstaked(address,uint256)", [true, false]},
+      e: {@claimed, [true, true, false]}
+    ],
     "token" => [
       f: {"approve(address,uint256)", "nonpayable", ["bool"]},
       f: {"balanceOf(address)", "view", ["uint256"]},
@@ -104,6 +119,7 @@ defmodule Autolaunch.LabAbi do
   def requirements, do: @required
 
   def swap_fee_settled_signature, do: @swap_fee_settled
+  def claimed_signature, do: @claimed
 
   def validate(abis, required \\ @required)
 

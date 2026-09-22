@@ -1,11 +1,12 @@
 defmodule AutolaunchWeb.StakeComponent do
   @moduledoc """
-  The staking card of a graduated memestock launch, on its Base or Robinhood
-  token page: what the launch's staking contract holds, what this
-  wallet has in it, an amount to stake or unstake, and the three open actions
-  (claim, settle for stakers, collect trading fees). A panel over the card
-  walks the wallet through each reviewed action and closes itself when the
-  chain confirms it.
+  The staking card of a graduated launch, on its Base or Robinhood token page:
+  what the launch's staking contract holds, what this wallet has in it, an
+  amount to stake or unstake, and the open actions (claim, and for a memestock
+  launch settle for stakers and collect trading fees; a Revstake launch's
+  splitter is paid on the trade itself). A panel over the card walks the
+  wallet through each reviewed action and closes itself when the chain
+  confirms it.
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
   `%{chain: :robinhood, auction: address}`; `pool` is its current facts.
@@ -118,20 +119,18 @@ defmodule AutolaunchWeb.StakeComponent do
       />
 
       <h2 id={@id <> "-title"} class="token-stake__title">Stake {@pool.token.symbol}</h2>
-      <p class="token-stake__lead">
-        Stakers share this launch's trading fees: 1% of every trade's {@pool.currency.symbol} side plus the locked liquidity's fees, paid in {@pool.fees.splitter.dollar.symbol}, {@pool.token.symbol} and {@pool.currency.symbol}. Unstake any time after the block you staked in.
-      </p>
+      <p class="token-stake__lead">{lead(@pool)}</p>
 
       <dl class="token-stake__facts">
         <div>
           <dt>Staked by everyone</dt>
           <dd>{@pool.fees.splitter.total_staked} {@pool.token.symbol}</dd>
         </div>
-        <div>
+        <div :if={@pool.kind == :stocks}>
           <dt>Waiting for stakers</dt>
           <dd>{@pool.fees.stakers.accrued} {@pool.currency.symbol}</dd>
         </div>
-        <div :for={position <- @pool.positions}>
+        <div :for={position <- @pool.positions} :if={@pool.kind == :stocks}>
           <dt>{position.label} fees to collect</dt>
           <dd>{uncollected(position.uncollected, @pool)}</dd>
         </div>
@@ -223,10 +222,22 @@ defmodule AutolaunchWeb.StakeComponent do
             <Regent.Primitives.button type="submit" name="kind" value="claim" variant="secondary">
               Claim rewards
             </Regent.Primitives.button>
-            <Regent.Primitives.button type="submit" name="kind" value="settle" variant="secondary">
+            <Regent.Primitives.button
+              :if={@pool.kind == :stocks}
+              type="submit"
+              name="kind"
+              value="settle"
+              variant="secondary"
+            >
               Settle for stakers
             </Regent.Primitives.button>
-            <Regent.Primitives.button type="submit" name="kind" value="collect" variant="secondary">
+            <Regent.Primitives.button
+              :if={@pool.kind == :stocks}
+              type="submit"
+              name="kind"
+              value="collect"
+              variant="secondary"
+            >
               Collect trading fees
             </Regent.Primitives.button>
           </div>
@@ -507,6 +518,14 @@ defmodule AutolaunchWeb.StakeComponent do
   defp action(%{authenticated: false}), do: :sign_in
   defp action(%{wallet: nil}), do: :connect_wallet
   defp action(_assigns), do: :act
+
+  defp lead(%{kind: :agent} = pool),
+    do:
+      "Stakers share this launch's revenue as it arrives: 1% of every trade plus whatever else is paid to its revenue splitter, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
+
+  defp lead(%{kind: :stocks} = pool),
+    do:
+      "Stakers share this launch's trading fees: 1% of every trade's #{pool.currency.symbol} side plus the locked liquidity's fees, paid in #{pool.fees.splitter.dollar.symbol}, #{pool.token.symbol} and #{pool.currency.symbol}. Unstake any time after the block you staked in."
 
   defp uncollected(nil, _pool), do: "Not readable right now"
 

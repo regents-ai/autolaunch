@@ -196,6 +196,9 @@ defmodule Autolaunch.Lab do
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
 
+  @doc "The RPC options for reads and calls against this deployment's chain."
+  def rpc_opts(config, scope \\ "autolaunch local lab"), do: Autolaunch.LabRpc.opts(config, scope)
+
   @doc "The chain id a description names: any positive integer, exactly as written."
   def chain_id(value) when is_integer(value) and value > 0, do: {:ok, value}
   def chain_id(_value), do: {:error, :invalid_chain_id}

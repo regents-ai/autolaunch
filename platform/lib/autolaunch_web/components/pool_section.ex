@@ -2,7 +2,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
   @moduledoc """
   The "Pool" section of a graduated token's page: the pool a launch graduated
   into, its locked positions, its price, and its fee lanes and revenue, read from
-  the local Base fork by `Autolaunch.Pool`.
+  Base by `Autolaunch.Pool`.
   """
   use AutolaunchWeb, :html
 
@@ -83,7 +83,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
         </dd>
       </div>
       <div>
-        <dt>Read at local block</dt>
+        <dt>Read at block</dt>
         <dd>{@facts.block.number}</dd>
       </div>
     </dl>
@@ -184,7 +184,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
         <div>
           <dt>Subject revenue splitter</dt>
           <dd>
-            <span class="autolaunch-exact-value">{@facts.fees.splitter}</span>
+            <span class="autolaunch-exact-value">{@facts.fees.splitter.address}</span>
             <.link navigate={@facts.fees.subject_path}>Open the subject page</.link>
           </dd>
         </div>
