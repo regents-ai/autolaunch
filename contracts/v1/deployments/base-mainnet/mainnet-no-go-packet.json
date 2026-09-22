@@ -22,7 +22,7 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xb80de55fb6b1e0240c12c9a52ed313fd0b16482fb2b704e0aa4f77b34e5d81f3"
+    "value": "0x5548e545551bca298bbf8e878da23ffe2c7be147939c1033ed65ad6acb184521"
   },
   "external_observation": {
     "governance_and_regent_safe": {
@@ -44,7 +44,7 @@
       "paused": false,
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     },
-    "observed_at_block": 50754918
+    "observed_at_block": 51650703
   },
   "external_observation_note": "The mutable external state a deployment depends on: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, modules, module page terminator, fallback handler, singleton and version. Frozen by `bin/deployment-gate.sh --prepare` and compared exactly by `--rehearse`, which also holds every frozen binding's runtime and proxy identity to reports/frozen/fork-observations.json and re-asserts the CCA zero fee controller and the USDC pause and blacklist policy. `observed_at_block` is provenance, not a comparison, because the head moves.",
   "fork_check_receipt": {
@@ -61,29 +61,29 @@
       },
       "later": {
         "path": "reports/generated/fork/forge-test-later.json",
-        "sha256": "17c509de4eef4c334272962d13d31596c6f2442e1b213bf45577a7e49caa4875"
+        "sha256": "4e237fb490a0ea7d1877b6ddae3eeedb27637326516357f4ac39cc6a7a6e124f"
       },
       "pinned": {
         "path": "reports/generated/fork/forge-test-pinned.json",
-        "sha256": "211eec28b51558075a7f5bee7f4eddb128e605df85869fc0372db6767843c80d"
+        "sha256": "f3287014cddf4ede21f706edbd6f1f8ce6f9c3a00214c52291d89a4591928413"
       }
     },
     "status": "passed",
     "tested_identity": {
-      "commit": "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa",
-      "src_tree": "91a741e417b75706a4071f7bdac2c5e13548c0fc",
-      "tree": "b15498bdf6df6198cf2f1476db5aa5c9b4796882"
+      "commit": "4451c776f84fa904dd02b0c4360d360a45a945cb",
+      "src_tree": "eeeb1cedb315c97bf1a22658c02a5210a9c517c9",
+      "tree": "95b97d1fb3c9bd594f6494b82c412d934bf68b07"
     },
     "version": 1,
     "worktree": "clean"
   },
-  "fork_check_receipt_sha256": "a1cb403f5c01dfdf5c6e998bd8ea429e9142c99ca4518faf494a00dd01e68853",
+  "fork_check_receipt_sha256": "84f34fb84e7f8429ee6fc8894d67a4af871304c374184627d8099e2d0549053e",
   "immutable_identities": {
-    "fork_evidence_commit": "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa",
+    "fork_evidence_commit": "4451c776f84fa904dd02b0c4360d360a45a945cb",
     "note": "The production authority and the evidence candidate are two different identities that share one src/ tree. The candidate commit this packet was rendered from is proved by bin/deployment-gate.sh at run time and is deliberately not embedded here: a file cannot carry the hash of the commit that contains it.",
-    "production_authority_commit": "f4114f5276386f48bf8dc53ee344189d98c8896e",
-    "production_authority_tree": "bb660324bb1d5cc322adeb243b0bd51779821fcb",
-    "shared_src_tree": "91a741e417b75706a4071f7bdac2c5e13548c0fc"
+    "production_authority_commit": "7d564cec735c3b1b928ec4e2ede0b244682d105b",
+    "production_authority_tree": "97ea43cbf2e6625889b64deefcea406ea11ccdc5",
+    "shared_src_tree": "eeeb1cedb315c97bf1a22658c02a5210a9c517c9"
   },
   "limits": {
     "code_identity_note": "`creation_code_keccak256` is the frozen build's own deployer-independent identity for the contract. It is not the hash of the initcode a real transaction sends: four of these seven constructors take arguments that are themselves addresses this ceremony produces, so that hash is only knowable once a deployer is selected. `initcode_bytes` is the whole creation code plus those encoded arguments, because that is what EIP-3860 measures.",
@@ -174,14 +174,14 @@
         "constructor_args_bytes": 160,
         "contract": "RegentsAutolaunchFactoryV1",
         "created_by": "deployer",
-        "creation_code_bytes": 34458,
-        "creation_code_keccak256": "0x548cd4d2b66956aeed082e924fb5cb20e0acb2d1dd2c06002b3c3de4e229cb3b",
+        "creation_code_bytes": 37567,
+        "creation_code_keccak256": "0x2d6ff2237a2b68b881b64a9a3b3191263897690a4250ecb81c0ed9b48e6c825b",
         "deployer_nonce_offset": 4,
-        "initcode_bytes": 34618,
-        "initcode_margin_bytes": 14534,
+        "initcode_bytes": 37727,
+        "initcode_margin_bytes": 11425,
         "mechanism": "transaction",
-        "runtime_bytes": 7876,
-        "runtime_margin_bytes": 16700,
+        "runtime_bytes": 6894,
+        "runtime_margin_bytes": 17682,
         "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
         "value_wei": 0
       }
@@ -192,14 +192,14 @@
         "constructor_args_bytes": 128,
         "contract": "RegentLBPStrategy",
         "created_by": "RegentsAutolaunchFactoryV1",
-        "creation_code_bytes": 19972,
-        "creation_code_keccak256": "0x39a388f6e1432bf27b88ea76eefb8146f55f14dfa7edf74a3030e893152971bf",
+        "creation_code_bytes": 24078,
+        "creation_code_keccak256": "0x1defb750cf097a6179f42bba4405587c0aa4a2308703873d1d5bfa75f4e82c40",
         "factory_nonce": 1,
-        "initcode_bytes": 20100,
-        "initcode_margin_bytes": 29052,
+        "initcode_bytes": 24206,
+        "initcode_margin_bytes": 24946,
         "mechanism": "CREATE",
-        "runtime_bytes": 19449,
-        "runtime_margin_bytes": 5127,
+        "runtime_bytes": 19829,
+        "runtime_margin_bytes": 4747,
         "source": "src/strategy/RegentLBPStrategy.sol"
       },
       {

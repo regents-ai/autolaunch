@@ -301,7 +301,7 @@ itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) i
 
 **Nothing in this repository has been deployed.** The frozen packet under
 `deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the seven
-predicted addresses, and it records the external state observed at Base block `50754918`. Its
+predicted addresses, and it records the external state observed at Base block `51650703`. Its
 authorization state is still `not authorized`: no founder has granted a `GO_TO_DEPLOY`, no
 signing method is named, and only a later founder instruction naming the packet's exact digest
 may authorize a signature or a broadcast.
@@ -318,26 +318,26 @@ initial state from an event that was never emitted.
 
 ### The production authority and the fork-evidence commit are named apart
 
-The production authority is commit `f4114f5276386f48bf8dc53ee344189d98c8896e`, tree
-`bb660324bb1d5cc322adeb243b0bd51779821fcb`, carrying `src/` tree
-`91a741e417b75706a4071f7bdac2c5e13548c0fc`. The fork-evidence commit is
-`ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`, which sits on it and shares that same `src/` tree,
+The production authority is commit `7d564cec735c3b1b928ec4e2ede0b244682d105b`, tree
+`97ea43cbf2e6625889b64deefcea406ea11ccdc5`, carrying `contracts/v1/src` tree
+`eeeb1cedb315c97bf1a22658c02a5210a9c517c9`. The fork-evidence commit is
+`4451c776f84fa904dd02b0c4360d360a45a945cb`, which sits on it and shares that same source tree,
 because it changes no production byte: its whole diff is the two `source_authority` fields inside
 `reports/frozen/fork-observations.json` — the naming step the fork gate proves against Git and
-against the checkout before any fork test opens — and one whitespace-only `forge fmt` of
-`test-fork/ProductionLifecycleFork.t.sol`. `docs/audit/README.md` carries the same table, and states
-there — as here — that the identities earlier proofs named belong to pre-`regent-alv1.16` bytecode
-and certify nothing about this candidate.
+against the checkout before any fork test opens — and the fork gate's own record that the authority
+carries its sources at `contracts/v1/src`. `docs/audit/README.md` carries the same table, and states
+there — as here — that the identities earlier proofs named belong to pre-Revstake bytecode and
+certify nothing about this candidate.
 
-The packet under `deployments/base-mainnet/` was re-rendered from this authority. Four contracts'
-compiled bytes moved with the receiver-provenance lookup and the reference-free aggregate paths — the
-splitter, the receiver, the factory and the strategy — so their code identity, sizes and margins and
-the packet digest all moved with them. The packet's `selection` and `external_observation` sections
-were then re-derived live: `--prepare` under the founder's separate read-only Base authority read
-the deployer's nonce (`0`), mined the salt, re-derived the seven predicted addresses and snapshotted
-the control surface at block `50754918`, all byte-identical to the prior packet, and `--rehearse`
-held them and simulated the exact script against a read-only fork with nothing broadcast. Status
-stays mainnet NO-GO.
+The packet under `deployments/base-mainnet/` was re-rendered from this authority. Two contracts'
+compiled bytes moved with the Revstake terms — the factory, which collects no launch fee, and the
+strategy, which admits a creator-chosen raise and mints to the fee-only LP locker — so their code
+identity, sizes and margins and the packet digest all moved with them. The packet's `selection` and
+`external_observation` sections were then re-derived live: `--prepare` under the founder's separate
+read-only Base authority read the deployer's nonce (`0`), mined the salt, re-derived the seven
+predicted addresses and snapshotted the control surface at block `51650703`, all
+byte-identical to the prior packet, and `--rehearse` held them and simulated the exact script
+against a read-only fork with nothing broadcast. Status stays mainnet NO-GO.
 
 ## License
 

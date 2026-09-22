@@ -75,14 +75,23 @@ receivers. The strategy writes its complete terminal distribution, registers the
 through the factory's immutable-strategy-only callback, then emits `LaunchGraduated`; the strategy
 record and event remain the canonical authority. The two permissionless aggregate balance paths now
 accept no reference and propagate zero, while atomic `pay` and direct recognized deposits preserve
-their exact references. Both founder-run gates that follow integration have now been taken as far as
-they go without a deployment instruction: the read-only Base fork check has been executed against
-this exact candidate, and the deployment packet has been re-rendered from it offline.
+their exact references.
+
+Two later changes moved production bytes. The Revstake fee-only LP locker: the strategy's
+constructor creates one permanent locker, graduation mints the full-range position to it rather
+than to the dead address, and the locker registers each launch's fixed splitter (`MIG-006`). Then
+`autolaunch-revstake-terms` (section 10 of [claim-corrections.md](claim-corrections.md)) applied
+three founder decisions as one hard cutover: an auction opens 300 blocks after its creating block,
+the launch fee is deleted outright, and the governance floor on the required raise is deleted again
+so a creator chooses any positive reachable raise. Both founder-run gates that follow integration
+have now been taken as far as they go without a deployment instruction: the read-only Base fork
+check has been executed against this exact candidate, and the deployment packet has been
+re-prepared and rehearsed from it.
 
 The reviewed observation records Base blocks `50541328` and `50541628`, and the separately authorized
 check executed all eighteen pinned selectors at the pinned header and exactly the approved nine later
 selectors at the later header — twenty-seven mapped selectors, all passing — then wrote the
-commit-bound receipt naming evidence commit `ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`. The record's
+commit-bound receipt naming evidence commit `4451c776f84fa904dd02b0c4360d360a45a945cb`. The record's
 observed values did not move: the same reviewed headers, bindings, proxies and gas schedule were
 re-checked live against Base and matched, so this was a re-execution against different bytecode
 rather than a re-observation of the chain, and no discovery pass and no new reviewer decision was
@@ -95,26 +104,26 @@ how an evidence-only change would come to read as a production change.
 
 | Object | Identity |
 | --- | --- |
-| Production authority commit | `f4114f5276386f48bf8dc53ee344189d98c8896e` |
-| Production authority tree | `bb660324bb1d5cc322adeb243b0bd51779821fcb` |
-| Production source tree (`src/`) | `91a741e417b75706a4071f7bdac2c5e13548c0fc` |
-| Fork-evidence commit | `ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`, named exactly by `reports/generated/fork/fork-check-receipt.json` |
+| Production authority commit | `7d564cec735c3b1b928ec4e2ede0b244682d105b` |
+| Production authority tree | `97ea43cbf2e6625889b64deefcea406ea11ccdc5` |
+| Production source tree (`contracts/v1/src`) | `eeeb1cedb315c97bf1a22658c02a5210a9c517c9` |
+| Fork-evidence commit | `4451c776f84fa904dd02b0c4360d360a45a945cb`, named exactly by `reports/generated/fork/fork-check-receipt.json` |
 
-The fork-evidence commit changes no production byte. Its `src/` tree is exactly
-`91a741e417b75706a4071f7bdac2c5e13548c0fc`, and its whole diff over the authority is the two
-`source_authority` fields inside `reports/frozen/fork-observations.json` plus one whitespace-only
-`forge fmt` of `test-fork/ProductionLifecycleFork.t.sol`. Before provider access,
+The fork-evidence commit changes no production byte. Its `contracts/v1/src` tree is exactly
+`eeeb1cedb315c97bf1a22658c02a5210a9c517c9`, and its whole diff over the authority is the two
+`source_authority` fields inside `reports/frozen/fork-observations.json` plus the fork gate's own
+record that the authority carries its sources at `contracts/v1/src`. Before provider access,
 `bin/fork-gate.sh check` refuses every tracked or untracked non-generated difference and prints the
 exact HEAD commit, full tree and source tree. A pass writes those identities and the retained report
 hashes to ignored scratch. `bin/deployment-gate.sh` accepts only that exact receipt after the
 renderer has been set to the same evidence commit; absent, stale, dirty or mismatched evidence fails
 closed.
 
-The identities the earlier `regent-alv1.13.1` records named — production authority
-`3634f6f0e11523c426662b7524f2c94fd37d3597`, tree `e1439723f4263d70024cac59bbeab48d3eeec894`, `src/`
-tree `a0c0fe3bf0c8bbe7b2cd503716eb44faadcd6952`, evidence commit
-`a39cf05a1d53678c14a4042c751aa452d346e7c2` — belong to the pre-`regent-alv1.16` bytecode and certify
-nothing about this one.
+The identities the earlier `regent-alv1.16` records named — production authority
+`f4114f5276386f48bf8dc53ee344189d98c8896e`, tree `bb660324bb1d5cc322adeb243b0bd51779821fcb`, `src/`
+tree `91a741e417b75706a4071f7bdac2c5e13548c0fc`, evidence commit
+`ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa` — belong to the pre-Revstake bytecode and certify nothing
+about this one.
 
 **The earlier C9 evidence candidate certifies nothing about this one.** Commit
 `49b7458e5c93f502247905201352074ef5b5c409` carried an earlier version of this same harness on top of
@@ -132,7 +141,7 @@ statement about this candidate, and this packet makes none.
 | [fork-authority-and-state-inventory.md](fork-authority-and-state-inventory.md) | the founder fork authority text and its digest, the read-only boundary, the staged-state inventory, and the named hermetic-double limits |
 | [gas-and-size.md](gas-and-size.md) | deployable byte margins, EVM code identity, the hook callback measurement recorded without an invented limit, and the complete-transaction gas figures. Every figure on that page is re-proved by the gate against the artifact or the executed measurement it came from |
 | [deployment-ceremony.md](deployment-ceremony.md) | the five-transaction Base ceremony, the three values it consumes, what stops a wrong one, the deployment-gate modes, the chain-id endpoint boundary, the external-state preflight, and the approval boundary that keeps the repository mainnet NO-GO |
-| [fork-evidence-ea8c81b/](fork-evidence-ea8c81b/README.md) | retained copies of the four fork reports whose hashes the committed fork-check receipt names, kept because the offline gate clears `reports/generated/` on every run. Evidence only; no gate reads them and the packet is unchanged |
+| [fork-evidence-4451c77/](fork-evidence-4451c77/README.md) | retained copies of the four fork reports whose hashes the committed fork-check receipt names, kept because the offline gate clears `reports/generated/` on every run. Evidence only; no gate reads them |
 | `../security/threat-model.md` | the threat model and the requirement each mitigation maps to |
 | `../security/slither-dispositions.md` | one disposition row per Slither result and one record per inline suppression |
 | `../../contracts/autolaunch-release-manifest.json` | the generated release manifest: surface allowlist, code identity, clone derivation, bindings, and deployment-pending discipline |
@@ -268,7 +277,7 @@ the shape and the one limitation that follows from it.
 | `INV-001..010` | invariant | active, executed, passing |
 | `DEP-040..053` | fork | active, executed and passing against this candidate's source authority at the pinned header; the approved eight `DEP-*` claims run again at the later header |
 | `GAS-003..006` | fork | active, executed and passing at blocks `50541328`/`50541628`; the three transaction envelopes run at the pinned header and `GAS-006` runs at both |
-| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider. The packet is re-rendered from this candidate, then `--prepare 0x9b2C414614aEE294202c1219520955EF3B596031` and `--rehearse` ran under the founder's separate read-only Base authority at observed block `50754918`: the live nonce (`0`), the mined salt, the seven predicted addresses and the external control surface re-derived exactly, and the exact deployment script simulated cleanly with nothing broadcast |
+| `DEP-070..075` | deployment | active, executed and passing under `bin/deployment-gate.sh --offline`, which reached no provider. The packet is re-rendered from this candidate, then `--prepare 0x9b2C414614aEE294202c1219520955EF3B596031` and `--rehearse` ran under the founder's separate read-only Base authority at observed block `51650703`: the live nonce (`0`), the mined salt, the seven predicted addresses and the external control surface re-derived exactly, and the exact deployment script simulated cleanly with nothing broadcast |
 
 ## What is not proved
 
@@ -288,7 +297,7 @@ the shape and the one limitation that follows from it.
   one, and every packet they render is a proposal whose status is `mainnet-NO-GO`. The installed
   packet carries this candidate's own code identity, sizes and margins, and its deployer, hook salt,
   seven predicted addresses and external observation were re-derived live by `--prepare` at block
-  `50754918` and held by `--rehearse`, which simulated the exact script without a signer and
+  `51650703` and held by `--rehearse`, which simulated the exact script without a signer and
   broadcast nothing. Only a later founder instruction naming a reviewed packet's exact digest may authorize a signature
   or broadcast.
 - **An activation.** The factory is born paused, and nothing here opens it. `DEP-073` impersonates
