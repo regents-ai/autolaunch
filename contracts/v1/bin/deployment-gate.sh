@@ -2007,49 +2007,30 @@ if [ "$mode" = --prepare ]; then
 fi
 
 # ---------------------------------------------------------------------------
-section "The deployed manifest stays separate and unpopulated"
+section "The deployed manifest is the empty record or a record of this packet"
 # ---------------------------------------------------------------------------
 
-# The packet is a proposal; the manifest is a record of confirmed Base receipts. Two files is not
-# enough on its own, so the manifest is proved empty here: a simulated address, a rehearsal
-# transaction hash, or a fork block number reaching it fails this gate.
-python3 - "$manifest" <<'PYTHON'
+# The packet is a proposal; the manifest is a record of confirmed Base receipts. Exactly two states
+# are admitted, defined once in bin/ceremony.py beside the recorder that writes the second: the
+# canonical empty record, or a deployed record whose approved digest is the installed packet's and
+# whose five transactions and eight contracts carry exactly the packet's predicted addresses. A
+# simulated address, a rehearsal transaction hash, a fork block number, a stray key or a record of
+# some other packet fails this gate.
+python3 - "$manifest" "$packet" <<'PYTHON'
 import json
-import re
 import sys
 
+sys.path.insert(0, "bin")
+import ceremony
+
 manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-problems = []
-
-if manifest.get("status") != "not deployed":
-    problems.append(f"the deployed manifest status is [{manifest.get('status')}], expected [not deployed]")
-
-
-def walk(node, path=""):
-    if isinstance(node, dict):
-        for key, value in node.items():
-            walk(value, f"{path}.{key}" if path else key)
-    elif isinstance(node, list):
-        for index, value in enumerate(node):
-            walk(value, f"{path}[{index}]")
-    elif isinstance(node, str) and re.fullmatch(r"0x[0-9a-fA-F]{40}|0x[0-9a-fA-F]{64}", node):
-        problems.append(f"the deployed manifest carries an address or hash at '{path}'")
-    elif isinstance(node, (int, float)) and not isinstance(node, bool) and node != 0:
-        problems.append(f"the deployed manifest carries a nonzero number at '{path}'")
-
-
-for key, value in manifest.items():
-    if key in {"status", "artifact", "note", "populated_by", "version"}:
-        continue
-    walk(value, key)
-
-if problems:
+packet = json.load(open(sys.argv[2], encoding="utf-8"))
+try:
+    print(ceremony.verify_manifest(manifest, packet))
+except SystemExit as error:
     print("DEPLOYED MANIFEST RECONCILIATION FAILED", file=sys.stderr)
-    for problem in problems:
-        print(f"  - {problem}", file=sys.stderr)
+    print(f"  {error}", file=sys.stderr)
     raise SystemExit(1)
-
-print("the deployed manifest is structurally separate and carries no deployed fact")
 PYTHON
 
 # ---------------------------------------------------------------------------

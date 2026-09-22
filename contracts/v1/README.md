@@ -299,6 +299,13 @@ profile builds into gitignored scratch under `reports/generated/`, separate from
 `deployments/base-mainnet/` is rendered and compared by the shell, and no test can author one for
 itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) is the full account.
 
+`bin/ceremony.py` is the other half, for after the founder has sent the five creations by hand:
+`record` proves five confirmed Base transaction hashes against the installed packet and writes the
+deployed-manifest candidate, and `site-config` renders the website's production file from the
+installed packet and manifest. Both refuse to run beside signing authority, sign nothing, and write
+only under `reports/generated/deployment/`.
+[deployments/base-mainnet/README.md](deployments/base-mainnet/README.md) has the usage.
+
 **Nothing in this repository has been deployed.** The frozen packet under
 `deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the eight
 predicted addresses, and it records the external state observed at Base block `51657720`. Its

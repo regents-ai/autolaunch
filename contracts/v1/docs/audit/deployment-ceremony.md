@@ -268,10 +268,18 @@ commit, tree, and `src/` tree it ran against.
 ## The deployed manifest is a different thing
 
 `deployments/base-mainnet/deployed-manifest.json` is the only record of deployed facts, and it is
-deliberately empty. It is populated once, from confirmed Base receipts, after a GO_TO_DEPLOY. No
-simulated fact may reach it — not a fork address, not a rehearsal transaction hash, not a fork
-block number — and the gate proves on every run that it carries no address, no hash, and no nonzero
-number. `contracts/autolaunch-release-manifest.json` remains the immutable build-identity record
+deliberately empty. It is populated once, by `bin/ceremony.py record`, from confirmed Base
+receipts, after a GO_TO_DEPLOY. No simulated fact may reach it — not a fork address, not a
+rehearsal transaction hash, not a fork block number. The gate admits exactly two states, defined
+once in `bin/ceremony.py` (`verify_manifest`) so that the recorder that writes the second state and
+the gate that admits it share one definition: the canonical empty record, or a deployed record
+whose approved digest equals the installed packet's, whose selection equals the packet's, whose
+five transactions carry the packet's nonce sequence with 32-byte hashes and positive block numbers,
+whose eight contracts carry exactly the packet's predicted addresses, and whose readbacks are
+present. A stray key, a different digest, a moved address or a wrong nonce fails the gate.
+`deployments/base-mainnet/README.md` describes `record`, the website's `site-config` mode and how
+the recorder was proved on a local Anvil without a Base transaction.
+`contracts/autolaunch-release-manifest.json` remains the immutable build-identity record
 and is untouched by any of this. Source verification on a block explorer is a named post-deployment
 operation, not a prerequisite transaction in this five-creation ceremony.
 
