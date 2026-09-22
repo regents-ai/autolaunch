@@ -1709,7 +1709,8 @@ else
 fi
 
 python3 - "$mode" "$ceremony_report" "$sizes" "$frozen" "$state_source" "$rendered_tmp" "$packet" \
-    "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" <<'PYTHON'
+    "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" "$PRODUCTION_AUTHORITY_COMMIT" \
+    "$PRODUCTION_AUTHORITY_TREE" "$PRODUCTION_AUTHORITY_SRC_TREE" "$FORK_EVIDENCE_COMMIT" <<'PYTHON'
 import hashlib
 import json
 import sys
@@ -1724,7 +1725,11 @@ import sys
     packet_path,
     receipt_path,
     expected_receipt_sha,
-) = sys.argv[1:10]
+    PRODUCTION_AUTHORITY_COMMIT,
+    PRODUCTION_AUTHORITY_TREE,
+    SHARED_SRC_TREE,
+    FORK_EVIDENCE_COMMIT,
+) = sys.argv[1:14]
 
 EIP170 = 24_576
 EIP3860 = 49_152
@@ -1732,12 +1737,6 @@ EIP3860 = 49_152
 # A guardrail on the in-EVM creation gas DEP-074 measures. The packet's own gas note explains why
 # that figure is a floor rather than a transaction cost.
 IN_EVM_CREATION_GAS_GUARDRAIL = 14_000_000
-
-# The two immutable identities the packet names apart, from README.md's own record.
-PRODUCTION_AUTHORITY_COMMIT = "f4114f5276386f48bf8dc53ee344189d98c8896e"
-PRODUCTION_AUTHORITY_TREE = "bb660324bb1d5cc322adeb243b0bd51779821fcb"
-SHARED_SRC_TREE = "91a741e417b75706a4071f7bdac2c5e13548c0fc"
-FORK_EVIDENCE_COMMIT = "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa"
 
 CREATION_ORDER = [
     ("UERC20Factory", "lib/uerc20-factory/src/factories/UERC20Factory.sol"),
