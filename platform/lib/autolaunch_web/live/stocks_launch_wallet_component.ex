@@ -27,7 +27,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     chain_unavailable: "Base could not be read just now. Try again in a moment.",
     stocks_unavailable: "Stock launches are not open on this site.",
     launches_paused: "New launches are paused right now.",
-    active_stocks_launch_exists: ActiveLaunchLimit.message(),
     stock_not_admitted: "This stock token is not admitted for launches right now.",
     floor_price_too_low: "The floor price is too low to be used. Raise it on the draft.",
     floor_price_missing: "Enter a floor price on the draft.",
@@ -496,6 +495,8 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       else: Map.fetch!(@copy, :chain_unavailable)
   end
 
+  # Read at runtime so the page does not compile against the validation module.
+  defp copy(:active_stocks_launch_exists), do: ActiveLaunchLimit.message()
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)

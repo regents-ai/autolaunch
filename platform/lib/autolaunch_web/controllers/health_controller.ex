@@ -14,6 +14,8 @@ defmodule AutolaunchWeb.HealthController do
   # Validate a real product read without returning user rows. The timeout is
   # below Fly's two-second health deadline, and no error/connection data leaves
   # this endpoint. A running BEAM alone does not make the application ready.
+  # The prefix is the repository's own configured schema name, never request input.
+  # sobelow_skip ["SQL.Query"]
   defp database_ready? do
     case Ecto.Adapters.SQL.query(
            Autolaunch.Repo,

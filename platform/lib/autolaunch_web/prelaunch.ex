@@ -39,6 +39,9 @@ defmodule AutolaunchWeb.Prelaunch do
   defp public_quote?("POST", ["api", "v1", "auctions", _id, "bid-quote"]), do: true
   defp public_quote?(_, _), do: false
 
+  # The response type and body are fixed here (a JSON error or the rendered
+  # error page); neither comes from the request.
+  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp refuse(conn, status) do
     json? =
       match?(["api" | _], conn.path_info) or
