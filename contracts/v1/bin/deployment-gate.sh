@@ -2020,6 +2020,7 @@ python3 - "$manifest" "$packet" <<'PYTHON'
 import json
 import sys
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, "bin")
 import ceremony
 

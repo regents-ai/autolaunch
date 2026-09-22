@@ -34,6 +34,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Neither this tool nor the gate that imports it may leave a bytecode cache in the tree: the
+# required gate proves the checkout is one clean physical Git object, ignored files included.
+sys.dont_write_bytecode = True
+
 
 def _load_freeze():
     path = Path(__file__).resolve().parent / "freeze-artifacts.py"
