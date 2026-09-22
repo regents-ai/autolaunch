@@ -38,7 +38,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction, :robinhood_auction, :token]
+  attr :kind, :atom,
+    required: true,
+    values: [:auction, :robinhood_auction, :token, :robinhood_token]
+
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
@@ -80,7 +83,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <span :if={@view.connections == []}>Creator unavailable</span>
         <span :if={@view.age} class="home-coin__age">{@view.age}</span>
         <span class="home-coin__status">{@view.status}</span>
-        <span :if={@kind == :robinhood_auction} class="home-coin__status">Robinhood</span>
+        <span :if={@view.chain == "Robinhood"} class="home-coin__status">Robinhood</span>
       </div>
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
       <.quick_actions
@@ -177,10 +180,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction, :robinhood_auction, :token]
+  attr :kind, :atom,
+    required: true,
+    values: [:auction, :robinhood_auction, :token, :robinhood_token]
+
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
+  attr :quick_column, :boolean, default: false, doc: "the table has a quick-action column"
 
   def explore_row(assigns) do
     assigns =
@@ -201,7 +208,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <span :if={!present?(@view.image)} class="home-table__fallback" aria-hidden="true">{String.first(
             @view.name || "?"
           )}</span>
-          <span><strong>{@view.name}</strong><small>${@view.symbol}{if @kind == :robinhood_auction,
+          <span><strong>{@view.name}</strong><small>${@view.symbol}{if @view.chain == "Robinhood",
             do: " · Robinhood"}</small></span>
         </.link>
       </td>
@@ -215,12 +222,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
         >{@view.creator}</a><span :if={@view.connections == []}>—</span>
       </td>
       <td data-label="Age">{@view.age || "—"}</td>
-      <td data-label={if @kind == :token, do: "Pair", else: "Status"}>
-        {if @kind == :token, do: "#{@view.symbol} / #{@view.quick.currency}", else: @view.status}
+      <td data-label={if @view.pair, do: "Pair", else: "Status"}>
+        {@view.pair || @view.status}
       </td>
-      <td :if={@trade_event}>
+      <td :if={@quick_column}>
         <.quick_actions
-          :if={@view.quick}
+          :if={@trade_event && @view.quick}
           event={@trade_event}
           record_id={@view.record_id}
           name={@view.name}
@@ -231,7 +238,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction, :token]
+  attr :kind, :atom, required: true, values: [:auction, :token, :robinhood_token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
 
@@ -407,7 +414,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       state: auction.state,
       chain: "Base",
       launch: if(auction.kind == :stocks, do: "Memestock", else: "Revstake"),
-      raised: nil
+      raised: nil,
+      pair: nil
     }
   end
 
@@ -432,12 +440,38 @@ defmodule AutolaunchWeb.Components.MarketCard do
       state: auction.state,
       chain: "Robinhood",
       launch: "Memestock",
-      raised: metric(auction.raised, auction.stock_symbol)
+      raised: metric(auction.raised, auction.stock_symbol),
+      pair: nil
+    }
+  end
+
+  # A graduated Robinhood launch is a token its own address names. The chain
+  # records no image, description, creator or graduation time; the price it
+  # shows is the price its auction cleared at.
+  defp view(:robinhood_token, launch, _connections) do
+    %{
+      name: launch.name,
+      symbol: launch.symbol,
+      description: nil,
+      image: nil,
+      status: "Graduated",
+      metric_label: "Clearing price",
+      metric: metric(launch.clearing_price, launch.stock_symbol),
+      address: launch.token,
+      path: "/robinhood/tokens/#{launch.token}",
+      creator: nil,
+      age: nil,
+      connections: [],
+      quick: nil,
+      record_id: launch.token,
+      chain: "Robinhood",
+      pair: "#{launch.symbol} / #{launch.stock_symbol}"
     }
   end
 
   defp view(:token, token, connections) do
     presentation = Token.presentation(token)
+    currency = SwapComponent.entry_symbol(token.auction)
 
     %{
       name: presentation.name,
@@ -454,10 +488,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
       connections: connection_list(connections),
       quick: %{
         verb: "Buy",
-        currency: SwapComponent.entry_symbol(token.auction),
+        currency: currency,
         unavailable: closed_before_deployment()
       },
-      record_id: token.id
+      record_id: token.id,
+      chain: "Base",
+      pair: "#{presentation.symbol} / #{currency}"
     }
   end
 

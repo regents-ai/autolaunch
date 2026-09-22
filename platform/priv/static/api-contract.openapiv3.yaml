@@ -270,7 +270,7 @@ paths:
       x-pagination: keyset
       responses:
         "200":
-          description: Public Autolaunch tokens, newest graduation first
+          description: Public Autolaunch tokens on Base and Robinhood; every entry names its chain. Robinhood tokens are read from their chain and come first across pages, newest launch first; stored Base tokens follow, newest graduation first.
           content:
             application/json:
               schema: {$ref: "#/components/schemas/TokenListEnvelope"}
@@ -457,8 +457,12 @@ components:
         pagination: {$ref: "#/components/schemas/Pagination"}
         data:
           type: array
-          items: {$ref: "#/components/schemas/Token"}
+          items:
+            oneOf:
+              - {$ref: "#/components/schemas/RobinhoodToken"}
+              - {$ref: "#/components/schemas/Token"}
     Token:
+      description: A Base token, as the site records it.
       type: object
       additionalProperties: false
       required: [id, chain, chain_id, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, treasury_security]
@@ -477,6 +481,23 @@ components:
           oneOf:
             - {$ref: "#/components/schemas/TreasurySecurity"}
             - {type: "null"}
+    RobinhoodToken:
+      description: The token of a graduated Robinhood memestock launch, read from its chain, which records no summary, graduation time, rank or treasury report.
+      type: object
+      additionalProperties: false
+      required: [chain, chain_id, address, auction_address, launch_id, name, symbol, kind, quote_token, clearing_price, raised]
+      properties:
+        chain: {type: string, enum: [robinhood]}
+        chain_id: {type: integer, minimum: 1}
+        address: {type: string, pattern: "^0x[0-9a-fA-F]{40}$", description: "The token contract's address; the token's page is /robinhood/tokens/{address}."}
+        auction_address: {type: string, pattern: "^0x[0-9a-fA-F]{40}$", description: "The auction the token graduated from; its page is /robinhood/auctions/{auction_address}."}
+        launch_id: {type: integer, minimum: 1}
+        name: {type: string}
+        symbol: {type: string}
+        kind: {type: string, enum: [stocks]}
+        quote_token: {$ref: "#/components/schemas/QuoteToken", description: "The stock the token trades against."}
+        clearing_price: {type: string, description: "The price the auction cleared at, in the quote token, as a decimal string."}
+        raised: {type: string, description: "The quote token the auction raised, as a decimal string."}
     TreasurySecurityEnvelope:
       type: object
       additionalProperties: false

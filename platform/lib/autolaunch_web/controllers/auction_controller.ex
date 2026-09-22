@@ -2,7 +2,6 @@ defmodule AutolaunchWeb.AuctionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Auctions, Lab}
   alias Autolaunch.TreasurySecurity
 
@@ -15,7 +14,7 @@ defmodule AutolaunchWeb.AuctionController do
 
     with {:ok, mode, sort, limit} <- list_options(params),
          {:ok, page} <-
-           AutolaunchWeb.AuctionPage.read(params["after"], mode, sort, limit, autolaunch) do
+           AutolaunchWeb.MarketPage.auctions(params["after"], mode, sort, limit, autolaunch) do
       json(conn, %{
         data:
           Enum.map(page.robinhood, &robinhood_auction/1) ++
@@ -57,9 +56,11 @@ defmodule AutolaunchWeb.AuctionController do
   end
 
   defp robinhood_auction_entry(address) do
-    with {:ok, auctions} <- Auctions.list(),
-         %{} = auction <- Enum.find(auctions, :not_found, &Address.equal?(&1.auction, address)),
-         do: {:ok, robinhood_auction(auction)}
+    case Auctions.fetch(address) do
+      {:ok, auction} -> {:ok, robinhood_auction(auction)}
+      {:error, :not_found} -> :not_found
+      {:error, error} -> {:error, error}
+    end
   end
 
   def bid_quote(conn, %{"id" => id} = params) do

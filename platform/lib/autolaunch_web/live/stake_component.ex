@@ -1,7 +1,7 @@
 defmodule AutolaunchWeb.StakeComponent do
   @moduledoc """
-  The staking card of a graduated memestock launch, on a Base token page or a
-  Robinhood auction page: what the launch's staking contract holds, what this
+  The staking card of a graduated memestock launch, on its Base or Robinhood
+  token page: what the launch's staking contract holds, what this
   wallet has in it, an amount to stake or unstake, and the three open actions
   (claim, settle for stakers, collect trading fees). A panel over the card
   walks the wallet through each reviewed action and closes itself when the

@@ -1,16 +1,44 @@
-defmodule AutolaunchWeb.AuctionPage do
-  @moduledoc false
+defmodule AutolaunchWeb.MarketPage do
+  @moduledoc """
+  One page of a public market list across both chains. The Robinhood entries,
+  read from their chain and ordered by launch id, lead; the stored Base
+  records follow in keyset order. One signed cursor names the position in
+  whichever group the previous page ended in, so a reader who follows
+  `next_cursor` sees every entry of both chains exactly once.
+  """
 
   alias Autolaunch.Robinhood.Auctions
   alias AutolaunchWeb.Endpoint
 
   @salt "public-listings-v1"
 
-  def read(cursor, mode, sort, limit, autolaunch \\ Autolaunch) do
-    scope = {:auctions, mode, sort}
+  @doc "Auctions in one mode and sort: Robinhood auctions in launch order, then Base auctions."
+  def auctions(cursor, mode, sort, limit, autolaunch \\ Autolaunch) do
+    read(
+      {:auctions, mode, sort},
+      sort,
+      cursor,
+      limit,
+      fn -> Auctions.list(mode, sort) end,
+      &autolaunch.page_public_auctions(mode, sort, actor: nil, page: &1)
+    )
+  end
 
+  @doc "Graduated tokens: Robinhood tokens newest launch first, then Base tokens newest graduation first."
+  def tokens(cursor, limit, autolaunch \\ Autolaunch) do
+    read(
+      :tokens,
+      "newest",
+      cursor,
+      limit,
+      &Auctions.graduated/0,
+      &autolaunch.page_public_tokens(actor: nil, page: &1)
+    )
+  end
+
+  defp read(scope, sort, cursor, limit, robinhood, base) do
     with {:ok, position} <- position(cursor, scope),
-         {:ok, robinhood} <- robinhood(position, mode, sort) do
+         {:ok, robinhood} <- robinhood(position, sort, robinhood) do
       {visible, remaining} = Enum.split(robinhood, limit)
 
       case remaining do
@@ -18,7 +46,7 @@ defmodule AutolaunchWeb.AuctionPage do
           {:ok, page(visible, [], {:robinhood, List.last(visible).launch_id}, scope)}
 
         [] ->
-          base_page(visible, position, mode, sort, limit, scope, autolaunch)
+          base_page(visible, position, limit, scope, base)
       end
     end
   end
@@ -40,11 +68,11 @@ defmodule AutolaunchWeb.AuctionPage do
 
   defp position(_cursor, _scope), do: {:error, :invalid_query}
 
-  defp robinhood({:base, _keyset}, _mode, _sort), do: {:ok, []}
+  defp robinhood({:base, _keyset}, _sort, _read), do: {:ok, []}
 
-  defp robinhood({:robinhood, after_id}, mode, sort) do
-    with {:ok, auctions} <- Auctions.list(mode, sort) do
-      {:ok, Enum.filter(auctions, &after_launch?(&1.launch_id, after_id, sort))}
+  defp robinhood({:robinhood, after_id}, sort, read) do
+    with {:ok, entries} <- read.() do
+      {:ok, Enum.filter(entries, &after_launch?(&1.launch_id, after_id, sort))}
     end
   end
 
@@ -52,12 +80,12 @@ defmodule AutolaunchWeb.AuctionPage do
   defp after_launch?(id, after_id, "newest"), do: id < after_id
   defp after_launch?(id, after_id, "oldest"), do: id > after_id
 
-  defp base_page(robinhood, position, mode, sort, limit, scope, autolaunch) do
+  defp base_page(robinhood, position, limit, scope, read) do
     remaining = limit - length(robinhood)
     opts = [limit: max(remaining, 1)]
     opts = if keyset = base_keyset(position), do: Keyword.put(opts, :after, keyset), else: opts
 
-    with {:ok, base} <- autolaunch.page_public_auctions(mode, sort, actor: nil, page: opts) do
+    with {:ok, base} <- read.(opts) do
       {:ok, page(robinhood, base_records(base, remaining), base_next(base, remaining), scope)}
     end
   end

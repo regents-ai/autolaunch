@@ -160,7 +160,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
     ),
     tool(
       "autolaunch_tokens",
-      "List public graduated Autolaunch tokens.",
+      "List public graduated Autolaunch tokens on Base and Robinhood; every entry names its chain. Robinhood tokens are read from their chain and come first across pages, newest launch first; stored Base tokens follow, newest graduation first.",
       {
         after: {type: "string", description: "Pass pagination.next_cursor unchanged to read the next page. Cursors expire after 24 hours."},
         limit: {

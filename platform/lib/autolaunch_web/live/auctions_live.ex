@@ -41,7 +41,7 @@ defmodule AutolaunchWeb.AuctionsLive do
       socket,
       [:records, :creators, :pagination, :robinhood],
       fn ->
-        with {:ok, page} <- AutolaunchWeb.AuctionPage.read(cursor, "all", "newest", 24) do
+        with {:ok, page} <- AutolaunchWeb.MarketPage.auctions(cursor, "all", "newest", 24) do
           {:ok,
            %{
              records: page.records,

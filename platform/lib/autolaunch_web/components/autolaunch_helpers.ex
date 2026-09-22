@@ -47,36 +47,18 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   attr :robinhood, :map,
     default: Phoenix.LiveView.AsyncResult.ok([]),
-    doc: "the Robinhood auctions listed beside the stored ones"
+    doc: "the Robinhood auctions or tokens listed before the stored ones"
 
   attr :robinhood_trade_event, :string, default: nil
 
   def collection(assigns) do
     assigns =
-      assign(assigns,
-        listed?: async_list(assigns.records) != [] or async_list(assigns.robinhood) != [],
-        title: if(assigns.kind == :auctions, do: "Auctions", else: "Tokens"),
-        copy:
-          if(
-            assigns.kind == :auctions,
-            do: "Live and recent auctions.",
-            else: "Graduated launch tokens."
-          ),
-        empty_title: if(assigns.kind == :auctions, do: "No auctions yet", else: "No tokens yet"),
-        empty_copy:
-          if(
-            assigns.kind == :auctions,
-            do:
-              if(Autolaunch.Prelaunch.read_only?(),
-                do: "Auctions will appear here after contract deployment.",
-                else: "Start the first launch and it will appear here for bidders."
-              ),
-            else: "Tokens appear here after their auction graduates."
-          ),
-        empty_action:
-          if(assigns.kind == :auctions, do: "Create a launch", else: "Browse auctions"),
-        empty_path: if(assigns.kind == :auctions, do: "/create", else: "/auctions")
+      assigns
+      |> assign(
+        :listed?,
+        async_list(assigns.records) != [] or async_list(assigns.robinhood) != []
       )
+      |> assign(collection_copy(assigns.kind))
 
     ~H"""
     <section id={"autolaunch-#{@kind}"} class="autolaunch-page market-explore">
@@ -140,7 +122,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <.link :if={@cursor} patch={"/#{@kind}"}>Back to newest</.link>
       </Regent.Primitives.notice>
       <Regent.Primitives.notice :if={@robinhood.failed && !@records.failed} role="alert">
-        <p>Robinhood auctions are unavailable right now.</p>
+        <p>{@robinhood_failure}</p>
       </Regent.Primitives.notice>
       <div :if={@kind == :auctions && @listed?} class="auction-card-grid">
         <.auction_card
@@ -170,6 +152,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         creators={grouped_connections(@creators)}
         trade_event={@trade_event}
         treasury={!Lab.test_chain?()}
+        robinhood={async_list(@robinhood)}
       />
       <nav
         :if={@pagination.ok? && (@cursor || @pagination.result.has_more)}
@@ -195,7 +178,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   attr :creators, :map, required: true, doc: "creator connections grouped by record"
   attr :trade_event, :string, default: nil
   attr :treasury, :boolean, default: false, doc: "show each record's treasury report"
-  attr :robinhood, :list, default: [], doc: "Robinhood auctions that lead the rows"
+  attr :robinhood, :list, default: [], doc: "Robinhood auctions or tokens that lead the rows"
   attr :robinhood_trade_event, :string, default: nil
 
   def explore_table(assigns) do
@@ -219,10 +202,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         </thead>
         <tbody>
           <.explore_row
-            :for={auction <- @robinhood}
-            kind={:robinhood_auction}
-            record={auction}
+            :for={entry <- @robinhood}
+            kind={if @kind == :token, do: :robinhood_token, else: :robinhood_auction}
+            record={entry}
             trade_event={@robinhood_trade_event}
+            quick_column={@trade_event != nil}
           />
           <%= for record <- @records do %>
             <.explore_row
@@ -230,6 +214,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
               record={record}
               creator_connections={connections_for(record, @creators)}
               trade_event={@trade_event}
+              quick_column={@trade_event != nil}
             />
             <tr :if={@treasury} class="home-table__note">
               <td colspan={if @trade_event, do: 6, else: 5}>
@@ -244,6 +229,34 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       </table>
     </div>
     """
+  end
+
+  defp collection_copy(:auctions) do
+    %{
+      title: "Auctions",
+      copy: "Live and recent auctions.",
+      empty_title: "No auctions yet",
+      empty_copy:
+        if(Autolaunch.Prelaunch.read_only?(),
+          do: "Auctions will appear here after contract deployment.",
+          else: "Start the first launch and it will appear here for bidders."
+        ),
+      empty_action: "Create a launch",
+      empty_path: "/create",
+      robinhood_failure: "Robinhood auctions are unavailable right now."
+    }
+  end
+
+  defp collection_copy(:tokens) do
+    %{
+      title: "Tokens",
+      copy: "Graduated launch tokens.",
+      empty_title: "No tokens yet",
+      empty_copy: "Tokens appear here after their auction graduates.",
+      empty_action: "Browse auctions",
+      empty_path: "/auctions",
+      robinhood_failure: "Robinhood tokens are unavailable right now."
+    }
   end
 
   defp async_list(%{ok?: true, result: records}) when is_list(records), do: records

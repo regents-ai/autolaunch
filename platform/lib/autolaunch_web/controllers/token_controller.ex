@@ -2,17 +2,19 @@ defmodule AutolaunchWeb.TokenController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch
+  alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
 
   def index(conn, params) do
     autolaunch = conn.private[:token_controller_autolaunch] || Autolaunch
 
     with {:ok, limit} <- list_limit(params),
-         {:ok, page_opts} <- AutolaunchWeb.PublicPage.options(params["after"], :tokens, limit),
-         {:ok, page} <- autolaunch.page_public_tokens(actor: nil, page: page_opts) do
+         {:ok, page} <- AutolaunchWeb.MarketPage.tokens(params["after"], limit, autolaunch) do
       json(conn, %{
-        data: Enum.map(page.results, &public_token/1),
-        pagination: AutolaunchWeb.PublicPage.metadata(page, :tokens)
+        data:
+          Enum.map(page.robinhood, &robinhood_token/1) ++
+            Enum.map(page.records, &public_token/1),
+        pagination: page.pagination
       })
     else
       {:error, :invalid_query} -> invalid_request(conn)
@@ -53,6 +55,29 @@ defmodule AutolaunchWeb.TokenController do
       graduated_at: DateTime.to_iso8601(token.graduated_at),
       top_rank: token.top_rank,
       treasury_security: TreasurySecurity.public_view(loaded_report(token))
+    }
+  end
+
+  # The chain is the only record of a Robinhood token, so the entry carries
+  # what the chain answers: no id, summary, graduation time, rank or treasury
+  # report. Its page is /robinhood/tokens/:token.
+  defp robinhood_token(launch) do
+    %{
+      chain: "robinhood",
+      chain_id: Lab.chain_id(),
+      address: launch.token,
+      auction_address: launch.auction,
+      launch_id: launch.launch_id,
+      name: launch.name,
+      symbol: launch.symbol,
+      kind: "stocks",
+      quote_token: %{
+        address: launch.stock_address,
+        symbol: launch.stock_symbol,
+        decimals: launch.stock_decimals
+      },
+      clearing_price: launch.clearing_price,
+      raised: launch.raised
     }
   end
 

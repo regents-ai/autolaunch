@@ -1,7 +1,8 @@
 defmodule Autolaunch.Robinhood.Auctions do
   @moduledoc """
   Every Robinhood memestock auction on the local Robinhood lab, newest first,
-  for the public auction list: the chain is the only record of these launches.
+  for the public auction and token lists: the chain is the only record of
+  these launches, and a graduated launch is a listed token.
 
   Everything is read at one latest block: the launchpad's launch records
   (ids run from 1 to `nextLaunchId() - 1`), each token's own name and symbol,
@@ -11,7 +12,7 @@ defmodule Autolaunch.Robinhood.Auctions do
   (`Autolaunch.Robinhood.BlockClock`). Nothing here writes, signs or caches.
   """
 
-  alias Autolaunch.Chain.{Abi, Rpc}
+  alias Autolaunch.Chain.{Abi, Address, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
@@ -22,6 +23,7 @@ defmodule Autolaunch.Robinhood.Auctions do
   @type t :: %{
           launch_id: pos_integer(),
           auction: String.t(),
+          token: String.t(),
           name: String.t(),
           symbol: String.t(),
           stock_address: String.t(),
@@ -44,6 +46,30 @@ defmodule Autolaunch.Robinhood.Auctions do
     with {:ok, auctions} <- list() do
       filtered = Enum.filter(auctions, &in_mode?(&1, mode))
       {:ok, if(sort == "oldest", do: Enum.reverse(filtered), else: filtered)}
+    end
+  end
+
+  @doc "The graduated launches, newest first: every Robinhood token the site lists."
+  @spec graduated() :: {:ok, [t()]} | {:error, atom()}
+  def graduated do
+    with {:ok, auctions} <- list(), do: {:ok, Enum.filter(auctions, &(&1.state == :graduated))}
+  end
+
+  @doc "One auction by its address, or `{:error, :not_found}`."
+  @spec fetch(String.t()) :: {:ok, t()} | {:error, atom()}
+  def fetch(address), do: find(&Address.equal?(&1.auction, address))
+
+  @doc "The graduated launch whose token has this address, or `{:error, :not_found}`."
+  @spec fetch_by_token(String.t()) :: {:ok, t()} | {:error, atom()}
+  def fetch_by_token(address),
+    do: find(&(&1.state == :graduated and Address.equal?(&1.token, address)))
+
+  defp find(match) do
+    with {:ok, auctions} <- list() do
+      case Enum.find(auctions, match) do
+        nil -> {:error, :not_found}
+        auction -> {:ok, auction}
+      end
     end
   end
 
@@ -96,6 +122,7 @@ defmodule Autolaunch.Robinhood.Auctions do
        %{
          launch_id: launch_id,
          auction: auction,
+         token: token,
          name: name,
          symbol: symbol,
          stock_address: stock.address,

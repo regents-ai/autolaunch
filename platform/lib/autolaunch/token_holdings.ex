@@ -8,7 +8,7 @@ defmodule Autolaunch.TokenHoldings do
   latest block, so every amount on the page is from the same moment. Base
   tokens come from the site's token records and link to their token page;
   Robinhood tokens come from the Robinhood launchpad itself, since the chain is
-  the only record of those launches, and link to their auction page.
+  the only record of those launches, and link to their own token page.
   """
 
   alias Autolaunch.Accounts
@@ -175,7 +175,7 @@ defmodule Autolaunch.TokenHoldings do
                   name: name,
                   symbol: symbol,
                   held: shown(atomic),
-                  href: "/robinhood/auctions/#{launch.auction}"
+                  href: "/robinhood/tokens/#{launch.token}"
                 }}
 
       error ->

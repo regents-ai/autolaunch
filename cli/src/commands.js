@@ -46,7 +46,7 @@ export const commands = [
   {
     command: "tokens list", operation_id: "listTokens", webmcp: "autolaunch_tokens",
     method: "GET", path: "/api/v1/tokens", flags: ["limit", "after"],
-    description: "List graduated tokens, newest first. Defaults to 100, capped at 100; follow pagination.next_cursor with --after (24-hour expiry).",
+    description: "List graduated tokens on Base and Robinhood; every entry names its chain. Robinhood tokens come first across pages, newest launch first; Base tokens follow, newest graduation first. Defaults to 100, capped at 100; follow pagination.next_cursor with --after (24-hour expiry).",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
     request: (_args, values) => listQuery("/api/v1/tokens", values, ["limit", "after"]),
   },

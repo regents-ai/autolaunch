@@ -129,7 +129,7 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_async(:home_robinhood, _failure, socket),
     do: {:noreply, assign(socket, robinhood: [], robinhood_failed: true)}
 
-  # Robinhood auctions carry no opening time to page by, so they lead the first page.
+  # Robinhood entries carry no opening time to page by, so they lead the first page.
   defp load_robinhood(socket, true), do: socket
 
   defp load_robinhood(socket, false) do
@@ -271,13 +271,17 @@ defmodule AutolaunchWeb.HomeLive do
         <p :if={@market_loading} class="visually-hidden" role="status">Loading coins</p>
 
         <Regent.Primitives.notice :if={@robinhood_failed} tone="error" class="home-market__error">
-          <p>Robinhood auctions are unavailable right now.</p>
+          <p>
+            {if @kind == :token,
+              do: "Robinhood tokens are unavailable right now.",
+              else: "Robinhood auctions are unavailable right now."}
+          </p>
         </Regent.Primitives.notice>
         <div :if={@listed? && @market_options.display == "grid"} class="home-coin-grid">
           <.explore_card
-            :for={auction <- @robinhood}
-            kind={:robinhood_auction}
-            record={auction}
+            :for={entry <- @robinhood}
+            kind={if @kind == :token, do: :robinhood_token, else: :robinhood_auction}
+            record={entry}
             trade_event="open_robinhood_bid"
           />
           <.explore_card

@@ -53,19 +53,21 @@ defmodule Autolaunch.HomeMarket do
     end
   end
 
-  @doc "The Robinhood auctions the same search, state filter and sort order show."
-  def robinhood(%{view: "tokens"}), do: {:ok, []}
-
+  @doc """
+  The Robinhood entries the same search, state filter and sort order show:
+  the auctions that have not graduated, or in the tokens view the graduated
+  launches, each of which is a token.
+  """
   def robinhood(options) do
     with {:ok, auctions} <- RobinhoodAuctions.list() do
-      shown = Enum.filter(auctions, &(state?(&1, options.state) and matches?(&1, options.q)))
+      shown = Enum.filter(auctions, &(shown?(&1, options) and matches?(&1, options.q)))
       {:ok, if(options.sort == "oldest", do: Enum.reverse(shown), else: shown)}
     end
   end
 
-  # Home lists auctions that have not graduated; a graduated one is a token.
-  defp state?(auction, "all"), do: auction.state != :graduated
-  defp state?(auction, state), do: to_string(auction.state) == state
+  defp shown?(auction, %{view: "tokens"}), do: auction.state == :graduated
+  defp shown?(auction, %{state: "all"}), do: auction.state != :graduated
+  defp shown?(auction, %{state: state}), do: to_string(auction.state) == state
 
   defp matches?(_auction, ""), do: true
 
@@ -73,7 +75,7 @@ defmodule Autolaunch.HomeMarket do
     query = String.downcase(query)
 
     Enum.any?(
-      [auction.name, auction.symbol, auction.auction],
+      [auction.name, auction.symbol, auction.auction, auction.token],
       &String.contains?(String.downcase(&1), query)
     )
   end
