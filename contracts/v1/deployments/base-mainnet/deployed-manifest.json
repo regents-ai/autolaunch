@@ -1,12 +1,182 @@
 {
   "artifact": "regents-autolaunch-base-mainnet-deployed-manifest",
   "version": 1,
-  "status": "not deployed",
+  "status": "deployed",
   "populated_by": "confirmed Base receipts, and nothing else",
   "note": "This file is the only record of deployed facts, and it is deliberately empty. It is not the packet: the packet is a proposal about what a ceremony would do, rendered from an offline or read-only run. Nothing simulated may be written here. Every field is populated once, by `bin/ceremony.py record` from confirmed Base receipts, after the founder has named the approved packet digest and sent the ceremony by hand; a human installs the candidate it writes, and bin/deployment-gate.sh admits exactly that record or this empty one.",
-  "approved_packet_digest": null,
-  "selection": null,
-  "transactions": [],
-  "contracts": [],
-  "readbacks": null
+  "approved_packet_digest": "0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327",
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000001bc5",
+    "note": "The founder-selected disposable deployer, its starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the eight addresses those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` derives them and a human installs the packet candidate it writes; while it is null this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves the deployer five nonces past this one, so this packet is single-use.",
+    "predicted_addresses": {
+      "escrow_implementation": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+      "factory": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+      "hook": "0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044",
+      "lp_locker": "0xBdC4b69bfd66aCDb8b794bADbEf3a50a14891159",
+      "receiver_implementation": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
+      "splitter_implementation": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
+      "strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
+      "uerc20_factory": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563"
+    },
+    "starting_nonce": 0
+  },
+  "transactions": [
+    {
+      "index": 0,
+      "hash": "0xed61af550d66a8b53cbddf45af2142a5f159fd12bff60b77a5aa8a52b2a976b7",
+      "nonce": 0,
+      "block_number": 51660956,
+      "gas_used": 2793709,
+      "contract": "UERC20Factory",
+      "contract_key": "uerc20_factory",
+      "address": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563"
+    },
+    {
+      "index": 1,
+      "hash": "0x7506a773f73d4e756e96f44d6070d61abdeaacb54edafc1f100a939736494f93",
+      "nonce": 1,
+      "block_number": 51660988,
+      "gas_used": 1057082,
+      "contract": "ConditionalVestingEscrowV1",
+      "contract_key": "escrow_implementation",
+      "address": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d"
+    },
+    {
+      "index": 2,
+      "hash": "0x98bf96b122101e9d07c6949e04635dcecc2a851a2b13eb045aea532b7b0d0ff9",
+      "nonce": 2,
+      "block_number": 51661009,
+      "gas_used": 1438247,
+      "contract": "SubjectSplitterV1",
+      "contract_key": "splitter_implementation",
+      "address": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3"
+    },
+    {
+      "index": 3,
+      "hash": "0x385eb8e2ef17b4abf9bfa1fa68f58274df8127bc86adbc4d511c878553f0dc04",
+      "nonce": 3,
+      "block_number": 51661029,
+      "gas_used": 900720,
+      "contract": "PaymentReceiverV1",
+      "contract_key": "receiver_implementation",
+      "address": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2"
+    },
+    {
+      "index": 4,
+      "hash": "0x5cd9b0d5e8ed3b8c3036350cac2fce3b7024d05b96694aa2c507f7bd65114596",
+      "nonce": 4,
+      "block_number": 51661052,
+      "gas_used": 7843229,
+      "contract": "RegentsAutolaunchFactoryV1",
+      "contract_key": "factory",
+      "address": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e"
+    }
+  ],
+  "contracts": [
+    {
+      "contract": "UERC20Factory",
+      "contract_key": "uerc20_factory",
+      "address": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+      "created_by": "deployer",
+      "mechanism": "transaction",
+      "block_number": 51660956,
+      "codehash": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f",
+      "runtime_bytes": 12682,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "ConditionalVestingEscrowV1",
+      "contract_key": "escrow_implementation",
+      "address": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+      "created_by": "deployer",
+      "mechanism": "transaction",
+      "block_number": 51660988,
+      "codehash": "0x462e3b12b73402b61b3561345880a5b6eeed4f13d2088f156712fe1b293f1545",
+      "runtime_bytes": 4527,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "SubjectSplitterV1",
+      "contract_key": "splitter_implementation",
+      "address": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
+      "created_by": "deployer",
+      "mechanism": "transaction",
+      "block_number": 51661009,
+      "codehash": "0x51f75aa1524323c76b393e14aa236909badf323187512949d4356163316f749e",
+      "runtime_bytes": 6289,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "PaymentReceiverV1",
+      "contract_key": "receiver_implementation",
+      "address": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
+      "created_by": "deployer",
+      "mechanism": "transaction",
+      "block_number": 51661029,
+      "codehash": "0x98088902bc81f8472949dad00e0670d1427cff0ae1bed025120993c9b0c9dfbc",
+      "runtime_bytes": 3804,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "RegentsAutolaunchFactoryV1",
+      "contract_key": "factory",
+      "address": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+      "created_by": "deployer",
+      "mechanism": "transaction",
+      "block_number": 51661052,
+      "codehash": "0xd3ee28167756493f3b8f5180928657bcc21f329b7f65f4090d6c431fc9991b04",
+      "runtime_bytes": 6894,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "RegentLBPStrategy",
+      "contract_key": "strategy",
+      "address": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
+      "created_by": "RegentsAutolaunchFactoryV1",
+      "mechanism": "CREATE",
+      "block_number": 51661052,
+      "codehash": "0xbe4f5ed81b25b63d50433bb1e059841becc0b7e8fe6bf232aebf22b7468f45a2",
+      "runtime_bytes": 19829,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "RevstakeLPLocker",
+      "contract_key": "lp_locker",
+      "address": "0xBdC4b69bfd66aCDb8b794bADbEf3a50a14891159",
+      "created_by": "RegentLBPStrategy",
+      "mechanism": "CREATE",
+      "block_number": 51661052,
+      "codehash": "0x42816d31fa37702c3d55f475b15c3405579273ade05ddadc4bdc80b474a39caa",
+      "runtime_bytes": 3474,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    },
+    {
+      "contract": "RegentFeeHook",
+      "contract_key": "hook",
+      "address": "0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044",
+      "created_by": "RegentsAutolaunchFactoryV1",
+      "mechanism": "CREATE2",
+      "block_number": 51661052,
+      "codehash": "0x062d82026a563bb687bad5db108ca0320e76b817595bbab45b1570c9fd093c0a",
+      "runtime_bytes": 4831,
+      "verification": "deployed code equals the frozen runtime with immutables masked"
+    }
+  ],
+  "readbacks": {
+    "factory.uerc20Factory": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+    "factory.strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
+    "factory.hook": "0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044",
+    "factory.launchesPaused": true,
+    "factory.nextLaunchId": 1,
+    "strategy.factory": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+    "strategy.escrowImplementation": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+    "strategy.splitterImplementation": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
+    "strategy.receiverImplementation": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
+    "strategy.hook": "0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044",
+    "strategy.lpLocker": "0xBdC4b69bfd66aCDb8b794bADbEf3a50a14891159",
+    "hook.poolManager": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+    "hook.strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
+    "lpLocker.strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95"
+  }
 }
