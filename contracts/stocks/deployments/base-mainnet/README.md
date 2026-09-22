@@ -83,39 +83,32 @@ only consume a pinned salt.
 - `rehearse` (read-only endpoint under `REGENT_BASE_RPC_URL`): the deployer's live nonce still
   equals the committed one; every committed external fact (binding code hashes, the Safe's owners
   and threshold, the live staking owner and paused flag, each pool's tokens, each stock's and
-  feed's decimals) matches the live chain exactly; then the exact deployment script is simulated
-  against Base with no signer and no broadcast.
+  feed's decimals) matches the live chain exactly. It then builds each creation transaction from
+  the frozen build and its constructor arguments, simulates all of them in order, at their nonces,
+  on a Base node itself (`eth_simulateV1`, with nonce and balance validation), proves every created
+  code against the frozen runtime and every readback below against the packet, and writes the
+  transactions to `reports/generated/deployment/rehearsed-transactions.json`. Nothing is signed or
+  broadcast. Forge cannot simulate this ceremony: Base's stock tokens carry a one-byte `0xef` code
+  that only a Base node executes, and every route constructor reads its stock.
 
 Both refuse to run beside any signing, keystore, sender or hardware-wallet environment variable, or
 beside a `.env`, `.env.local` or `.envrc` file.
 
 ## Sending the ceremony by hand
 
-The founder sends each creation from a signer of his own, confirms its receipt against the packet
+The founder sends each creation from a signer of their own, confirms its receipt against the packet
 (sender, nonce, created address, status) and only then sends the next. If any creation lands
-elsewhere, the packet is terminal and is never resumed. With the packet's values written out, the
-three kinds of creation are:
+elsewhere, the packet is terminal and is never resumed. Each creation's transaction data is the
+`data` field of its row in `rehearsed-transactions.json`, from a rehearsal run just before the first
+send:
 
 ```bash
-forge create src/StocksLaunchpadV1.sol:StocksLaunchpadV1 \
-  --rpc-url base --broadcast \
-  --constructor-args 0xUERC20_FACTORY 0xHOOK_SALT
+cast send --rpc-url base <your signer flags> --nonce N --gas-limit GAS --create 0xDATA
 ```
 
-```bash
-forge create src/StockBidAdapterV1.sol:StockBidAdapterV1 \
-  --rpc-url base --broadcast \
-  --constructor-args 0xPREDICTED_LAUNCHPAD
-```
-
-```bash
-forge create src/routes/AerodromeStockRouteV1.sol:AerodromeStockRouteV1 \
-  --rpc-url base --broadcast \
-  --constructor-args 0xSTOCK 0xPOOL 0xFEED
-```
-
-The signer flags are the founder's own and are never written down here. `base` is the
-`[rpc_endpoints]` alias in `foundry.toml`, resolved from `REGENT_BASE_RPC_URL`.
+Every flag comes before `--create`. The signer flags are the founder's own and are never written
+down here. `base` is the `[rpc_endpoints]` alias in `foundry.toml`, resolved from
+`REGENT_BASE_RPC_URL`.
 
 After each receipt, the public reads that prove it:
 
