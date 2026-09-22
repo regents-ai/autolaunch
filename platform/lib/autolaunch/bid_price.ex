@@ -14,23 +14,28 @@ defmodule Autolaunch.BidPrice do
       |> Decimal.normalize()
       |> Decimal.to_string(:normal)
 
+  defguardp is_positive_uint256(value) when is_integer(value) and value in 1..@uint256_max
+  defguardp is_uint256(value) when is_integer(value) and value in 0..@uint256_max
+
   def align(maximum, %{
         tick_spacing_q96: spacing,
         floor_price_q96: floor,
         clearing_price_q96: clearing,
         max_bid_price_q96: cap
       })
-      when is_integer(maximum) and maximum in 1..@uint256_max and
-             is_integer(spacing) and spacing in 1..@uint256_max and
-             is_integer(floor) and floor in 1..@uint256_max and
-             is_integer(clearing) and clearing in 0..@uint256_max and
-             is_integer(cap) and cap in 1..@uint256_max do
+      when is_positive_uint256(maximum) and is_positive_uint256(spacing) and
+             is_positive_uint256(floor) and is_uint256(clearing) and is_positive_uint256(cap) do
     price = div(min(maximum, cap), spacing) * spacing
+    admissible(price, spacing, floor, clearing)
+  end
 
+  def align(_, _), do: {:error, :bid_preparation_unavailable}
+
+  # A tick is admissible when the floor sits on the grid and the price is on or
+  # above the floor, above the clearing price and positive.
+  defp admissible(price, spacing, floor, clearing) do
     if rem(floor, spacing) == 0 and price >= floor and price > clearing and price > 0,
       do: {:ok, price},
       else: {:error, :price_below_admissible_tick}
   end
-
-  def align(_, _), do: {:error, :bid_preparation_unavailable}
 end

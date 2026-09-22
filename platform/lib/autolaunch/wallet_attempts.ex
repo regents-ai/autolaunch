@@ -31,28 +31,7 @@ defmodule Autolaunch.WalletAttempts do
          {:ok, _uuid} <- Ecto.UUID.cast(press_id),
          :ok <- eligible(candidate, step, signer),
          :ok <- actions(kind).press_evidence(%{candidate | step: step}) do
-      transact(lease, fn account ->
-        with {:ok, op} <- parent(kind, account.id, action_id, true),
-             :ok <- eligible(op, step, signer),
-             true <- op.envelope == candidate.envelope,
-             true <- Address.equal?(account.wallet_address, signer),
-             {:ok, existing} <- fetch(kind, op, press_id, true) do
-          case existing do
-            nil ->
-              with {:ok, attempt} <- create(kind, op, step, press_id),
-                   do: response(kind, op, attempt, true)
-
-            %{step: ^step, envelope: envelope} = attempt when envelope == op.envelope ->
-              response(kind, op, attempt, false)
-
-            _ ->
-              unavailable(:press_identity_conflict)
-          end
-        else
-          false -> unavailable(:wrong_signer)
-          error -> error
-        end
-      end)
+      transact(lease, &dispatch_locked(kind, &1, action_id, step, press_id, signer, candidate))
     else
       :error -> unavailable(:invalid_press)
       error -> error
@@ -62,22 +41,8 @@ defmodule Autolaunch.WalletAttempts do
   def dispatch(_, _, _, _, _, _), do: unavailable(:invalid_press)
 
   def report(kind, action_id, press_id, report, opts) when kind in @kinds do
-    with {:ok, lease} <- authority(opts) do
-      transact(lease, fn account ->
-        with {:ok, op} <- parent(kind, account.id, action_id, true),
-             {:ok, attempt} <- issued(kind, op, press_id, true),
-             true <-
-               is_map(report) and
-                 (not Map.has_key?(report, "step") or
-                    report["step"] == Atom.to_string(attempt.step)),
-             {:ok, attempt} <- ingest(attempt, report) do
-          response(kind, op, attempt, false)
-        else
-          false -> unavailable(:submitted_step_mismatch)
-          error -> error
-        end
-      end)
-    end
+    with {:ok, lease} <- authority(opts),
+         do: transact(lease, &report_locked(kind, &1, action_id, press_id, report))
   end
 
   def verify(kind, action_id, press_id, opts) when kind in @kinds do
@@ -85,30 +50,79 @@ defmodule Autolaunch.WalletAttempts do
          {:ok, candidate} <- parent(kind, lease.account_id, action_id, false),
          {:ok, attempt} <- issued(kind, candidate, press_id, false),
          {:ok, outcome} <- read_chain(kind, attempt) do
-      transact(lease, fn account ->
-        with {:ok, op} <- parent(kind, account.id, action_id, true),
-             {:ok, current} <- issued(kind, op, press_id, true),
-             {:ok, op, current} <- reconcile(kind, op, current, attempt, outcome),
-             do: response(kind, op, current, false)
-      end)
+      transact(lease, &verify_locked(kind, &1, action_id, press_id, attempt, outcome))
     end
   end
 
-  defp hash_field(kind, step) do
-    case {kind, step} do
-      {:bid, :token_approval} -> :token_approval_transaction_hash
-      {:bid, :permit2_approval} -> :permit2_approval_transaction_hash
-      {:bid, :bid} -> :bid_transaction_hash
-      {:bid, :usdc_approval} -> :usdc_approval_transaction_hash
-      {:bid, :usdc_bid} -> :usdc_bid_transaction_hash
-      {:launch, :launch} -> :launch_transaction_hash
-      {:stocks_launch, :launch} -> :launch_transaction_hash
-      {:bid_settlement, :exit} -> :exit_transaction_hash
-      {:bid_settlement, :claim} -> :claim_transaction_hash
-      {:subject, :action} -> :action_transaction_hash
-      {_, :approval} -> :approval_transaction_hash
+  # Under the account lock: the same operation, envelope and signer the
+  # unlocked read admitted, then the press that already exists or a new one.
+  defp dispatch_locked(kind, account, action_id, step, press_id, signer, candidate) do
+    with {:ok, op} <- parent(kind, account.id, action_id, true),
+         :ok <- eligible(op, step, signer),
+         true <- op.envelope == candidate.envelope,
+         true <- Address.equal?(account.wallet_address, signer),
+         {:ok, existing} <- fetch(kind, op, press_id, true) do
+      adopt(kind, op, step, press_id, existing)
+    else
+      false -> unavailable(:wrong_signer)
+      error -> error
     end
   end
+
+  defp adopt(kind, op, step, press_id, nil) do
+    with {:ok, attempt} <- create(kind, op, step, press_id), do: response(kind, op, attempt, true)
+  end
+
+  defp adopt(
+         kind,
+         %{envelope: envelope} = op,
+         step,
+         _press_id,
+         %{step: step, envelope: envelope} = attempt
+       ),
+       do: response(kind, op, attempt, false)
+
+  defp adopt(_kind, _op, _step, _press_id, _attempt), do: unavailable(:press_identity_conflict)
+
+  defp report_locked(kind, account, action_id, press_id, report) do
+    with {:ok, op} <- parent(kind, account.id, action_id, true),
+         {:ok, attempt} <- issued(kind, op, press_id, true),
+         true <- step_matches?(report, attempt),
+         {:ok, attempt} <- ingest(attempt, report) do
+      response(kind, op, attempt, false)
+    else
+      false -> unavailable(:submitted_step_mismatch)
+      error -> error
+    end
+  end
+
+  defp step_matches?(report, attempt) do
+    is_map(report) and
+      (not Map.has_key?(report, "step") or report["step"] == Atom.to_string(attempt.step))
+  end
+
+  defp verify_locked(kind, account, action_id, press_id, attempt, outcome) do
+    with {:ok, op} <- parent(kind, account.id, action_id, true),
+         {:ok, current} <- issued(kind, op, press_id, true),
+         {:ok, op, current} <- reconcile(kind, op, current, attempt, outcome),
+         do: response(kind, op, current, false)
+  end
+
+  @hash_fields %{
+    {:bid, :token_approval} => :token_approval_transaction_hash,
+    {:bid, :permit2_approval} => :permit2_approval_transaction_hash,
+    {:bid, :bid} => :bid_transaction_hash,
+    {:bid, :usdc_approval} => :usdc_approval_transaction_hash,
+    {:bid, :usdc_bid} => :usdc_bid_transaction_hash,
+    {:launch, :launch} => :launch_transaction_hash,
+    {:stocks_launch, :launch} => :launch_transaction_hash,
+    {:bid_settlement, :exit} => :exit_transaction_hash,
+    {:bid_settlement, :claim} => :claim_transaction_hash,
+    {:subject, :action} => :action_transaction_hash
+  }
+
+  defp hash_field(_kind, :approval), do: :approval_transaction_hash
+  defp hash_field(kind, step), do: Map.fetch!(@hash_fields, {kind, step})
 
   @doc """
   Whether a press for the review's current step is still with the wallet or

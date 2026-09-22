@@ -30,7 +30,8 @@ defmodule Autolaunch.Repo.Migrations.StocksLaunchDraftImages do
             name: "stock_launch_draft_images_human_account_id_fkey",
             type: :bigint,
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
 
       add :stock_launch_draft_id,
           references(:stock_launch_drafts,
@@ -38,7 +39,8 @@ defmodule Autolaunch.Repo.Migrations.StocksLaunchDraftImages do
             name: "stock_launch_draft_images_stock_launch_draft_id_fkey",
             type: :uuid,
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:stock_launch_draft_images, [:stock_launch_draft_id, :digest],

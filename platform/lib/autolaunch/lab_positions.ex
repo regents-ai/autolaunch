@@ -28,19 +28,18 @@ defmodule Autolaunch.LabPositions do
   @spec read([map()], [Bid.t()], String.t(), map(), map(), keyword()) ::
           {:ok, [reading()]} | {:error, term()}
   def read(abi, positions, auction_address, market, block, opts) do
-    if block.number >= market.end_block do
-      Enum.reduce_while(positions, {:ok, []}, fn position, {:ok, readings} ->
-        case chain_bid(abi, auction_address, position, block, opts) do
-          {:ok, bid} ->
-            {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
+    if block.number >= market.end_block,
+      do: readings(abi, positions, auction_address, market, block, opts),
+      else: {:ok, []}
+  end
 
-          {:error, reason} ->
-            {:halt, {:error, reason}}
-        end
-      end)
-    else
-      {:ok, []}
-    end
+  defp readings(abi, positions, auction_address, market, block, opts) do
+    Enum.reduce_while(positions, {:ok, []}, fn position, {:ok, readings} ->
+      case chain_bid(abi, auction_address, position, block, opts) do
+        {:ok, bid} -> {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
   end
 
   @doc "Every site position of one auction that names an on-chain bid id."

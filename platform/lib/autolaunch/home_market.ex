@@ -43,8 +43,8 @@ defmodule Autolaunch.HomeMarket do
     with {:ok, page_options} <- PublicPage.options(cursor, scope, 24),
          {:ok, page} <-
            resource
-           |> Ash.Query.for_read(:home_market, arguments)
-           |> Ash.read(actor: nil, page: page_options) do
+           |> Ash.Query.for_read(:home_market, arguments, actor: nil)
+           |> Ash.read(page: page_options) do
       {:ok,
        Map.merge(PublicPage.metadata(page, scope), %{
          records: page.results,

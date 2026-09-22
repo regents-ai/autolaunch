@@ -35,7 +35,8 @@ defmodule Autolaunch.Repo.Migrations.StocksFeeAdmin do
             name: "stock_fee_admin_operations_human_account_id_fkey",
             type: :bigint,
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:stock_fee_admin_operations, [:action_transaction_hash],
@@ -53,7 +54,8 @@ defmodule Autolaunch.Repo.Migrations.StocksFeeAdmin do
             name: "stock_fee_admin_operations_auction_id_fkey",
             type: :uuid,
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:stock_fee_admin_operations, [:human_account_id, :auction_id],
