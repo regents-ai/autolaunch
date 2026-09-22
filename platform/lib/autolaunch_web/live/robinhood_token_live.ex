@@ -89,6 +89,12 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         session_lease={@session_lease}
       />
       <p :if={@pool.loading} role="status">Reading the staking figures…</p>
+      <p :if={@pool.ok?} class="autolaunch-live-market">
+        Read at block {@pool.result.block.number}.
+        <Regent.Primitives.button phx-click="reload_pool" variant="secondary">
+          Read again
+        </Regent.Primitives.button>
+      </p>
       <p :if={@pool.failed == {:error, :not_graduated}} class="autolaunch-live-market">
         This token has not been moved into its pool yet. Staking opens once it is.
       </p>

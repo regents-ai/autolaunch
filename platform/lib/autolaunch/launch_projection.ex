@@ -110,7 +110,7 @@ defmodule Autolaunch.LaunchProjection do
       LabProjection.auction_attrs(arguments, %{
         chain_id: deployment.chain_id,
         creator_human_account_id: operation.human_account_id,
-        state: :active,
+        state: :created,
         auction_address: event.auction,
         quote_token_address: Lab.address!(deployment, :regent),
         treasury_address: event.treasury

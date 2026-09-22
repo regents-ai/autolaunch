@@ -18,7 +18,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
 
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.{Abi, Rpc}
-  alias Autolaunch.{LabAbi, LabProjection}
+  alias Autolaunch.{LabAbi, LabProjection, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
   alias Autolaunch.Stocks.LabProjection, as: StocksProjection
@@ -248,7 +248,8 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              opts
            ),
          market <- %{end_block: end_block, claim_block: claim_block},
-         {:ok, positions} <- positions(config, auction, market, block, opts) do
+         {:ok, positions} <- positions(config, auction, market, block, opts),
+         {:ok, price_quote} <- Pool.stocks_price_quote(config, record, decimals, block, opts) do
       {:ok,
        %{
          auction_id: auction.id,
@@ -256,6 +257,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          state:
            market_state(Enum.at(record, @lifecycle_index), graduated?, block.number, start_block),
          current_clearing_price: Amounts.format_cca_price(clearing, decimals, @new_decimals),
+         price_quote: price_quote,
          block_number: block.number,
          block_hash: block.hash,
          start_block: start_block,
@@ -292,24 +294,26 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   defp refresh_row(auction, snapshot) do
     state = join_state(auction.state, snapshot.state)
     price = snapshot.current_clearing_price
+    market_changed? = auction.state != state or auction.current_clearing_price != price
 
-    with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions) do
-      cond do
-        auction.state != state or auction.current_clearing_price != price ->
-          # A graduation projects the public token row at once, so the pool page
-          # exists as soon as the auction row says the launch graduated.
-          with {:ok, row} <-
-                 Autolaunch.refresh_lab_market_auction(auction, state, price, actor: @actor),
-               :ok <- LabProjection.project_graduated_token(row),
-               do: {:ok, auction.id}
-
-        positions_changed? ->
-          {:ok, auction.id}
-
-        true ->
-          {:ok, nil}
-      end
+    with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions),
+         :ok <- refresh_market(auction, market_changed?, state, price),
+         {:ok, price_changed?} <-
+           LabProjection.project_token_price(auction.id, snapshot.price_quote) do
+      if market_changed? or positions_changed? or price_changed?,
+        do: {:ok, auction.id},
+        else: {:ok, nil}
     end
+  end
+
+  # A graduation projects the public token row at once, so the pool page exists
+  # as soon as the auction row says the launch graduated, and the token's price
+  # is the pool's from the same reading.
+  defp refresh_market(_auction, false, _state, _price), do: :ok
+
+  defp refresh_market(auction, true, state, price) do
+    with {:ok, row} <- Autolaunch.refresh_lab_market_auction(auction, state, price, actor: @actor),
+         do: LabProjection.project_graduated_token(row)
   end
 
   defp join_state(current, _observed) when current in [:graduated, :failed], do: current

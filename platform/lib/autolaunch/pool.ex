@@ -29,6 +29,7 @@ defmodule Autolaunch.Pool do
   @distribution_words 18
   @pools_slot 6
   @liquidity_offset 3
+  @quote_fraction_digits 18
   @uniswap_pool_url "https://app.uniswap.org/explore/pools/base/"
 
   # Concrete-contract reads the pinned interface ABIs do not carry: fixed
@@ -69,6 +70,87 @@ defmodule Autolaunch.Pool do
 
   def read_at(%{kind: :stocks} = auction, config, block, opts),
     do: read_stocks(auction, config, block, opts)
+
+  @doc """
+  The pool's current price for the token record, from the words a market feed
+  already read: an agent launch's `distribution`, or a Stocks launch's
+  `launches` record with its stock's decimals. `nil` until the launch has a
+  pool with a price. The figure is the currency per whole token as a plain
+  decimal cut at eighteen fraction places, never rounded up, so it fits the
+  record and shortens on screen; every digit stays readable on the pool page.
+  """
+  @spec agent_price_quote(map(), [non_neg_integer()], Rpc.block(), keyword()) ::
+          {:ok, String.t() | nil} | {:error, atom()}
+  def agent_price_quote(config, words, block, opts) do
+    case agent_distribution(words) do
+      {:ok, distribution} ->
+        price_quote(
+          Lab.address!(config, :pool_manager),
+          distribution.pool_id,
+          currency0?(distribution.subject, Lab.address!(config, :regent)),
+          @regent_decimals,
+          block,
+          opts
+        )
+
+      {:error, :not_graduated} ->
+        {:ok, nil}
+
+      error ->
+        error
+    end
+  end
+
+  @spec stocks_price_quote(map(), [non_neg_integer()], non_neg_integer(), Rpc.block(), keyword()) ::
+          {:ok, String.t() | nil} | {:error, atom()}
+  def stocks_price_quote(config, words, currency_decimals, block, opts) do
+    case stocks_launch(words) do
+      {:ok, launch} ->
+        price_quote(
+          StocksLab.address!(config, :pool_manager),
+          launch.pool_id,
+          currency0?(launch.new_token, launch.stock),
+          currency_decimals,
+          block,
+          opts
+        )
+
+      {:error, :not_graduated} ->
+        {:ok, nil}
+
+      error ->
+        error
+    end
+  end
+
+  defp price_quote(pool_manager, pool_id, token_is_currency0?, decimals, block, opts) do
+    with {:ok, [slot0]} <- extsload(pool_manager, state_slot(pool_id), block, opts) do
+      sqrt_price = rem(slot0, Integer.pow(2, 160))
+
+      case PoolPrice.currency_per_token(
+             sqrt_price,
+             token_is_currency0?,
+             @token_decimals,
+             decimals
+           ) do
+        {:ok, price} -> {:ok, cut(price.value)}
+        {:error, :invalid_sqrt_price} -> {:ok, nil}
+      end
+    end
+  end
+
+  defp cut(value) do
+    case String.split(String.trim_trailing(value, "…"), ".", parts: 2) do
+      [whole] ->
+        whole
+
+      [whole, fraction] ->
+        case fraction |> String.slice(0, @quote_fraction_digits) |> String.trim_trailing("0") do
+          "" -> whole
+          kept -> whole <> "." <> kept
+        end
+    end
+  end
 
   @doc "The public Base pool page on the Uniswap app for a pool id."
   def uniswap_url(pool_id), do: @uniswap_pool_url <> pool_id
@@ -381,11 +463,13 @@ defmodule Autolaunch.Pool do
     end
   end
 
+  # A launch that has not graduated has no splitter or pool yet, so its record
+  # is read only once its lifecycle says the pool exists.
   defp stocks_launch(words) do
-    with {:ok, new_token} <- Abi.word_address(Enum.at(words, 1)),
+    with 2 <- Enum.at(words, 11),
+         {:ok, new_token} <- Abi.word_address(Enum.at(words, 1)),
          {:ok, stock} <- Abi.word_address(Enum.at(words, 2)),
-         {:ok, splitter} <- Abi.word_address(Enum.at(words, 4)),
-         2 <- Enum.at(words, 11) do
+         {:ok, splitter} <- Abi.word_address(Enum.at(words, 4)) do
       {:ok,
        %{
          new_token: new_token,
@@ -598,8 +682,7 @@ defmodule Autolaunch.Pool do
          block,
          opts
        ) do
-    {:ok, id} = Base.decode16(String.trim_leading(pool_id, "0x"), case: :lower)
-    state_slot = keccak(id <> <<@pools_slot::256>>)
+    state_slot = state_slot(pool_id)
     liquidity_slot = <<:binary.decode_unsigned(state_slot) + @liquidity_offset::256>>
 
     with {:ok, [slot0]} <- extsload(pool_manager, state_slot, block, opts),
@@ -615,6 +698,11 @@ defmodule Autolaunch.Pool do
           {:ok, nil}
       end
     end
+  end
+
+  defp state_slot(pool_id) do
+    {:ok, id} = Base.decode16(String.trim_leading(pool_id, "0x"), case: :lower)
+    keccak(id <> <<@pools_slot::256>>)
   end
 
   defp extsload(pool_manager, slot, block, opts) do

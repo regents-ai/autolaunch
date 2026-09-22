@@ -241,7 +241,7 @@ defmodule AutolaunchWeb.WalletPressComponent do
         <p :for={attempt <- Map.get(operation, :attempts, [])} data-wallet-press={attempt.id}>
           <span>{@label.(Atom.to_string(attempt.step), operation)} · {outcome(attempt.state)}</span>
           <code :if={attempt.transaction_hash}>{attempt.transaction_hash}</code>
-          <span :if={attempt.result["onchain_bid_id"]}>Bid {attempt.result["onchain_bid_id"]}</span>
+          <span :if={attempt.result["onchain_bid_id"]}>Bid #{attempt.result["onchain_bid_id"]}</span>
           <span :if={attempt.result["auction"]}>Auction {attempt.result["auction"]}</span>
           <Regent.Primitives.button
             :if={attempt.transaction_hash && attempt.state == :submitted}

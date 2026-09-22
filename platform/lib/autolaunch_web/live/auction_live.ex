@@ -151,12 +151,12 @@ defmodule AutolaunchWeb.AuctionLive do
             surface="auction-detail"
           />
           <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
-          <dl :if={@local_lab? && @market_snapshot} class="autolaunch-live-market">
+          <dl :if={@market_snapshot} class="autolaunch-live-market">
             <div>
-              <dt>Fork block</dt><dd>{@market_snapshot.block_number}</dd>
+              <dt>Read at block</dt><dd>{@market_snapshot.block_number}</dd>
             </div>
             <div>
-              <dt>{@page_record.quote_token_symbol} raised</dt><dd>
+              <dt>{raised_label(@page_record)}</dt><dd>
                 <AutolaunchWeb.TokenDisplay.price
                   amount={@market_snapshot.currency_raised}
                   fallback="—"
@@ -176,13 +176,13 @@ defmodule AutolaunchWeb.AuctionLive do
             </div>
           </dl>
           <Regent.Primitives.disclosure
-            :if={@local_lab? && @market_snapshot}
+            :if={@market_snapshot}
             id="auction-exact-market-amounts"
             summary="Exact market amounts"
           >
             <dl class="autolaunch-live-market">
               <div>
-                <dt>{@page_record.quote_token_symbol} raised</dt><dd class="autolaunch-exact-value">
+                <dt>{raised_label(@page_record)}</dt><dd class="autolaunch-exact-value">
                   {@market_snapshot.currency_raised}
                 </dd>
               </div>
@@ -362,6 +362,13 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   defp graduated_token(_record), do: nil
+
+  # A failed auction's currency is refunded from the block it failed, so what
+  # its contract still holds is what was bid, not what the launch keeps.
+  defp raised_label(%{state: :failed, quote_token_symbol: symbol}),
+    do: "#{symbol} bid before refunds"
+
+  defp raised_label(%{quote_token_symbol: symbol}), do: "#{symbol} raised"
 
   defp page_token(%{ok?: true, result: %{token: token}}), do: token
   defp page_token(_page), do: nil

@@ -10,6 +10,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   alias Autolaunch.Lab
   alias Autolaunch.Token
   alias Autolaunch.TreasurySecurity
+  alias AutolaunchWeb.SwapComponent
 
   def read_index(reader) do
     case reader.() do
@@ -412,8 +413,8 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def market_metric(:auction, _record), do: "Price forming"
 
-  def market_metric(:token, %{price_quote: price}) when is_binary(price) and price != "",
-    do: "Price #{price}"
+  def market_metric(:token, %{price_quote: price} = token) when is_binary(price) and price != "",
+    do: "Price #{price} #{SwapComponent.entry_symbol(token.auction)}"
 
   def market_metric(:token, _record), do: "Market price pending"
 

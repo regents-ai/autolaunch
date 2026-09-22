@@ -9,8 +9,13 @@ defmodule AutolaunchWeb.TokenLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.Pool
+  alias AutolaunchWeb.LabMarket
+  alias AutolaunchWeb.SwapComponent
 
-  def mount(_params, _session, socket), do: {:ok, socket}
+  def mount(_params, _session, socket) do
+    LabMarket.subscribe(socket)
+    {:ok, socket}
+  end
 
   # The identifier is read here so a patch to another token reloads the page
   # instead of keeping the previous record on screen.
@@ -25,6 +30,15 @@ defmodule AutolaunchWeb.TokenLive do
   # pool is read again. The previous figures stay on the page while the fork
   # answers, so the card that asked keeps its wallet, position and notice.
   def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket, false)}
+
+  # The market feed saw this token's auction change: a trade moved its pool,
+  # so the price and the pool are read again. Other tokens' changes are not
+  # this page's business.
+  def handle_info({:autolaunch_market_updated, %{auction_ids: auction_ids}}, socket) do
+    if page_auction_id(socket.assigns.page) in auction_ids,
+      do: {:noreply, refresh(socket)},
+      else: {:noreply, socket}
+  end
 
   def render(assigns) do
     assigns =
@@ -52,7 +66,12 @@ defmodule AutolaunchWeb.TokenLive do
         record={@page_record}
         creator_connections={@creator_connections}
       />
-      <.exact_price id="token-exact-price" summary="Exact price" amount={@page_record.price_quote} />
+      <.exact_price
+        id="token-exact-price"
+        summary="Price to 18 decimals"
+        amount={@page_record.price_quote}
+        unit={SwapComponent.entry_symbol(@page_record.auction)}
+      />
       <.live_component
         module={AutolaunchWeb.SwapComponent}
         id={"token-trade-#{@page_record.id}"}
@@ -120,6 +139,19 @@ defmodule AutolaunchWeb.TokenLive do
     |> assign_async(:page, fn -> load_token_page(id) end, reset: true)
     |> load_pool(true)
   end
+
+  # A re-read keeps the record and the pool on the page until the new ones
+  # arrive, so the page never blanks while the chain answers.
+  defp refresh(socket) do
+    id = socket.assigns.record_id
+
+    socket
+    |> assign_async(:page, fn -> load_token_page(id) end, reset: false)
+    |> load_pool(false)
+  end
+
+  defp page_auction_id(%{ok?: true, result: %{record: %{auction: %{id: id}}}}), do: id
+  defp page_auction_id(_page), do: nil
 
   # The pool is its own read of the chain: the token record renders as soon as
   # the database answers, and the pool section says when the chain is slow. A

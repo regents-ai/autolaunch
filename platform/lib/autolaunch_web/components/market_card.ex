@@ -480,7 +480,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       image: presentation.image,
       status: "Graduated",
       metric_label: "Price",
-      metric: metric(token.price_quote, nil),
+      metric: metric(token.price_quote, currency),
       address: presentation.auction_address,
       path: "/tokens/#{token.id}",
       creator: creator_name(connections),

@@ -148,6 +148,38 @@ defmodule Autolaunch.LabProjection do
 
   def project_graduated_token(_auction), do: :ok
 
+  @doc """
+  Stores the pool price a market feed just read for an auction's token, and
+  says whether it moved. `nil` before the pool has a price, or for an auction
+  without a token row yet, changes nothing.
+  """
+  @spec project_token_price(String.t(), String.t() | nil) :: {:ok, boolean()} | {:error, term()}
+  def project_token_price(_auction_id, nil), do: {:ok, false}
+
+  def project_token_price(auction_id, price_quote) when is_binary(price_quote) do
+    case read_token(auction_id) do
+      {:ok, %Token{price_quote: ^price_quote}} ->
+        {:ok, false}
+
+      {:ok, %Token{} = token} ->
+        with {:ok, _token} <-
+               Autolaunch.set_subject_token_price(
+                 token,
+                 price_quote,
+                 "pool",
+                 DateTime.utc_now(),
+                 actor: @actor
+               ),
+             do: {:ok, true}
+
+      {:ok, nil} ->
+        {:ok, false}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp token_subject(%Auction{kind: :stocks}), do: {:ok, nil}
 
   defp token_subject(%Auction{kind: :agent, id: auction_id}) do

@@ -596,7 +596,9 @@ defmodule Autolaunch.LabMarketFeed do
                18,
                block,
                opts
-             ) do
+             ),
+           {:ok, price_quote} <-
+             Autolaunch.Pool.agent_price_quote(config, distribution, block, opts) do
         lifecycle = Enum.at(distribution, 0)
         market = %{end_block: end_block, claim_block: claim_block}
 
@@ -607,6 +609,7 @@ defmodule Autolaunch.LabMarketFeed do
              auction_address: String.downcase(address),
              state: market_state(auction.state, lifecycle, graduated?, block.number, start_block),
              current_clearing_price: Lab.format_price(clearing_price),
+             price_quote: price_quote,
              block_number: block.number,
              block_hash: block.hash,
              start_block: start_block,
@@ -724,34 +727,29 @@ defmodule Autolaunch.LabMarketFeed do
       state = join_state(auction.state, snapshot.state)
       price = snapshot.current_clearing_price
 
-      case Autolaunch.LabPositions.project(snapshot.positions) do
-        {:ok, positions_changed?} ->
-          cond do
-            auction.state != state or auction.current_clearing_price != price ->
-              refresh_changed_snapshot(auction, state, price, actor, changed)
+      market_changed? = auction.state != state or auction.current_clearing_price != price
 
-            positions_changed? ->
-              {:cont, {:ok, [auction.id | changed]}}
-
-            true ->
-              {:cont, {:ok, changed}}
-          end
-
-        {:error, reason} ->
-          rollback(reason)
+      with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions),
+           :ok <- refresh_market(auction, market_changed?, state, price, actor),
+           {:ok, price_changed?} <-
+             Autolaunch.LabProjection.project_token_price(auction.id, snapshot.price_quote) do
+        if market_changed? or positions_changed? or price_changed?,
+          do: {:cont, {:ok, [auction.id | changed]}},
+          else: {:cont, {:ok, changed}}
+      else
+        {:error, reason} -> rollback(reason)
       end
     end
 
     # A launch the feed sees graduate becomes a public token in the same
-    # transaction, so its pool page exists as soon as the auction says so.
-    defp refresh_changed_snapshot(auction, state, price, actor, changed) do
+    # transaction, so its pool page exists as soon as the auction says so, and
+    # the token's price is the pool's from the same reading.
+    defp refresh_market(_auction, false, _state, _price, _actor), do: :ok
+
+    defp refresh_market(auction, true, state, price, actor) do
       with {:ok, refreshed} <-
              Autolaunch.refresh_lab_market_auction(auction, state, price, actor: actor),
-           :ok <- Autolaunch.LabProjection.project_graduated_token(refreshed) do
-        {:cont, {:ok, [auction.id | changed]}}
-      else
-        {:error, reason} -> rollback(reason)
-      end
+           do: Autolaunch.LabProjection.project_graduated_token(refreshed)
     end
 
     defp changed_ids(%{changed_ids: ids}), do: ids
