@@ -60,11 +60,6 @@ defmodule Autolaunch.BidSettlementOperation do
       filter expr(bid_position_id == ^arg(:bid_position_id) and is_nil(terminal_at))
     end
 
-    read :open_for_account do
-      argument :human_account_id, :integer, allow_nil?: false
-      filter expr(human_account_id == ^arg(:human_account_id) and is_nil(terminal_at))
-    end
-
     create :prepare do
       accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false
@@ -78,15 +73,6 @@ defmodule Autolaunch.BidSettlementOperation do
       require_atomic? false
       validate attribute_equals(:state, :prepared)
       change set_attribute(:state, :dispatched)
-    end
-
-    # The boundary derives which column from the row's own `step`, so a hash can
-    # only ever land on the step that was claimed.
-    update :bind_hash do
-      accept @hashes
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :submitted)
     end
 
     # The exit is verified and the bid has fill, so the claim becomes sendable.
@@ -160,12 +146,6 @@ defmodule Autolaunch.BidSettlementOperation do
       validate attribute_in(:state, [:dispatched, :submitted])
       change set_attribute(:state, :submission_unknown)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :attach_late_hash do
-      accept @hashes
-      require_atomic? false
-      validate present(:terminal_at)
     end
   end
 

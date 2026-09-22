@@ -3,7 +3,7 @@ defmodule Autolaunch.WalletAttempts do
   Authority → account → review → attempt locking. Provider reads are outside locks.
   Review eligibility admits new presses only; outcomes of issued presses remain
   writable after expiry, withdrawal, replacement or another press's confirmation.
-  No recovery path sends a transaction. Legacy reports never select a newest press.
+  No recovery path sends a transaction.
   """
   require Ash.Query
 
@@ -94,45 +94,6 @@ defmodule Autolaunch.WalletAttempts do
     end
   end
 
-  def report_legacy(kind, action_id, step_name, hash, opts) when kind in @kinds do
-    with {:ok, lease} <- authority(opts) do
-      transact(lease, fn account ->
-        with {:ok, op} <- parent(kind, account.id, action_id, true),
-             {:ok, step} <- step(op, step_name),
-             {:ok, rows} <-
-               query(kind, op)
-               |> Ash.Query.filter(legacy == true and step == ^step)
-               |> Ash.read(actor: @system),
-             {:ok, attempt} <- legacy_attempt(kind, op, step, rows),
-             {:ok, attempt} <- ingest(attempt, %{"transaction_hash" => hash}),
-             {:ok, op} <- bind_legacy_parent(kind, op, step, attempt.transaction_hash),
-             do: response(kind, op, attempt, false)
-      end)
-    end
-  end
-
-  defp bind_legacy_parent(kind, op, step, hash) do
-    attribute = hash_field(kind, step)
-
-    cond do
-      Map.get(op, attribute) == hash ->
-        {:ok, op}
-
-      Map.get(op, attribute) != nil ->
-        unavailable(:submitted_hash_conflict)
-
-      op.step != step ->
-        {:ok, op}
-
-      true ->
-        action = if op.terminal_at, do: :attach_late_hash, else: :bind_hash
-
-        op
-        |> Ash.Changeset.for_update(action, %{attribute => hash}, actor: @system)
-        |> Ash.update(actor: @system)
-    end
-  end
-
   defp hash_field(kind, step) do
     case {kind, step} do
       {:bid, :token_approval} -> :token_approval_transaction_hash
@@ -148,32 +109,6 @@ defmodule Autolaunch.WalletAttempts do
       {_, :approval} -> :approval_transaction_hash
     end
   end
-
-  defp legacy_attempt(_, _, _, [attempt]), do: {:ok, attempt}
-
-  defp legacy_attempt(kind, op, step, []) do
-    hash = Map.get(op, hash_field(kind, step))
-    # Rolling compatibility for an old client that claimed the old parent row
-    # after migration. Fresh review/press rows never satisfy this legacy evidence.
-    if hash || (op.step == step and op.state in [:dispatched, :submitted, :submission_unknown]) do
-      attrs = %{
-        foreign_key(kind) => op.id,
-        :step => step,
-        :envelope => op.envelope,
-        :legacy => true,
-        :state => if(hash, do: :submitted, else: :submission_unknown),
-        :transaction_hash => hash
-      }
-
-      WalletAttempt
-      |> Ash.Changeset.for_create(:dispatch, attrs, actor: @system)
-      |> Ash.create(actor: @system)
-    else
-      unavailable(:legacy_press_not_found)
-    end
-  end
-
-  defp legacy_attempt(_, _, _, _), do: unavailable(:legacy_press_ambiguous)
 
   def list(kind, action_id, opts) when kind in @kinds do
     with {:ok, lease} <- authority(opts),
@@ -257,7 +192,6 @@ defmodule Autolaunch.WalletAttempts do
       :id => id,
       :step => step,
       :envelope => op.envelope,
-      :legacy => false,
       :state => :dispatched,
       :transaction_hash => nil
     }
@@ -480,8 +414,7 @@ defmodule Autolaunch.WalletAttempts do
         :evidence,
         :inserted_at,
         :updated_at,
-        :resolved_at,
-        :legacy
+        :resolved_at
       ])
 
   defp view(:bid, op), do: Autolaunch.BidActions.view(op)

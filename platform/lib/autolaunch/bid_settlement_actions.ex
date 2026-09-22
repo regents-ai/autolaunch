@@ -96,15 +96,6 @@ defmodule Autolaunch.BidSettlementActions do
     end
   end
 
-  @doc "Binds the first valid hash for the step the browser was actually sent."
-  @spec bind_hash(String.t(), atom(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def bind_hash(action_id, step, hash, opts) when step in [:exit, :claim] do
-    with {:ok, hash} <- canonical_hash(hash),
-         do: write(action_id, opts, fn _account, operation -> bind(operation, step, hash) end)
-  end
-
-  def bind_hash(_action_id, _step, _hash, _opts), do: unavailable(:unknown_step)
-
   @doc "Reads the exact bound hash and records whatever it truthfully settles as."
   @spec verify(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def verify(action_id, opts) do
@@ -129,21 +120,6 @@ defmodule Autolaunch.BidSettlementActions do
         action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
         update(operation, action, %{reason: @unresolved})
       end)
-
-  @doc "The account's open settlements by bid position id, recovered without a lease."
-  @spec open_operations(keyword()) :: {:ok, %{optional(String.t()) => map()}} | {:error, term()}
-  def open_operations(opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, rows} <-
-           BidSettlementOperation
-           |> Ash.Query.for_read(:open_for_account, %{human_account_id: actor.human_account_id},
-             domain: @domain,
-             actor: @actor
-           )
-           |> Ash.read(domain: @domain) do
-      {:ok, Map.new(rows, &{&1.bid_position_id, presented(&1)})}
-    end
-  end
 
   @doc "One operation of the account, by action id, without a lease and writing nothing."
   @spec operation_view(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -442,24 +418,6 @@ defmodule Autolaunch.BidSettlementActions do
   defp transition(action, reason),
     do: fn _account, operation -> update(operation, action, %{reason: reason}) end
 
-  defp bind(operation, step, hash) do
-    attribute = Map.fetch!(@hash_attributes, step)
-
-    case Map.fetch!(operation, attribute) do
-      ^hash -> {:ok, operation}
-      nil -> bind_step(operation, step, attribute, hash)
-      _different -> unavailable(:submitted_hash_conflict)
-    end
-  end
-
-  defp bind_step(%{step: step} = operation, step, attribute, hash),
-    do: update(operation, bind_action(operation), %{attribute => hash})
-
-  defp bind_step(_operation, _step, _attribute, _hash), do: unavailable(:submitted_step_mismatch)
-
-  defp bind_action(%{terminal_at: nil}), do: :bind_hash
-  defp bind_action(_terminal), do: :attach_late_hash
-
   defp read_chain(%{state: :submitted} = candidate) do
     hash = step_hash(candidate, candidate.step)
 
@@ -610,10 +568,6 @@ defmodule Autolaunch.BidSettlementActions do
   end
 
   # Shared helpers
-
-  defp canonical_hash(hash) do
-    if Rpc.valid_hash?(hash), do: {:ok, String.downcase(hash)}, else: unavailable(:invalid_hash)
-  end
 
   defp normalize(value) do
     case Address.normalize(value) do

@@ -64,8 +64,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
-     |> assign_new(:operation, fn -> nil end)
-     |> restored()}
+     |> assign_new(:operation, fn -> nil end)}
   end
 
   @impl true
@@ -286,9 +285,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       {:noreply,
        WalletPressComponent.verify(socket, :bid_settlement, params, opts(socket), __MODULE__)}
 
-  def handle_event("wallet_press_restore", params, socket),
-    do: {:noreply, WalletPressComponent.restore(socket, :bid_settlement, params, opts(socket))}
-
   def handle_event("settlement_active_wallet", %{"address" => address}, socket),
     do: {:noreply, assign(socket, wallet: normalized(address), notice: nil)}
 
@@ -373,23 +369,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       steps: BidSettlementActions.steps(operation)
     })
   end
-
-  # An open settlement of this position is shown as soon as the card mounts.
-  defp restored(%{assigns: %{operation: nil, current_human_id: id}} = socket)
-       when is_integer(id) do
-    case BidSettlementActions.open_operations(opts(socket)) do
-      {:ok, %{} = open} ->
-        case Map.get(open, socket.assigns.position.id) do
-          nil -> socket
-          operation -> socket |> assign(:operation, operation) |> published()
-        end
-
-      _unavailable ->
-        socket
-    end
-  end
-
-  defp restored(socket), do: socket
 
   # A verified step changed the stored position, so the page that owns the
   # card reloads it; the card itself never guesses a status.

@@ -421,11 +421,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
          __MODULE__
        )}
 
-  def handle_event("wallet_press_restore", params, socket),
-    do:
-      {:noreply,
-       AutolaunchWeb.WalletPressComponent.restore(socket, :subject, params, opts(socket))}
-
   def handle_event("subject_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -468,20 +463,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     socket.assigns.subject.subject_id
     |> Autolaunch.claim_subject_wallet_dispatch(action_id, socket.assigns.wallet, opts(socket))
     |> claimed(socket)
-  end
-
-  # The bound row goes on screen before Base is asked anything, so a read that
-  # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event("subject_wallet_submitted", params, socket) do
-    {:noreply,
-     AutolaunchWeb.WalletPressComponent.legacy_report(
-       socket,
-       :subject,
-       params,
-       opts(socket),
-       __MODULE__,
-       "autolaunch-subject-wallet:hash-durable"
-     )}
   end
 
   def handle_event("check_subject_wallet_step", %{"action-id" => action_id}, socket),
@@ -534,16 +515,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     do:
       {:noreply,
        socket |> assign(operation: nil, amount: "", note: "") |> cleared() |> refreshed()}
-
-  # Browser storage only prompts a restore; the owning account's row supplies
-  # every fact. No row means the stored hint is stale, and saying so is what
-  # stops it asking again on every reload.
-  def handle_event("restore_subject_wallet_operation", _params, socket) do
-    case Autolaunch.open_subject_wallet_operation(socket.assigns.subject.subject_id, opts(socket)) do
-      {:ok, %{operation: nil}} -> {:noreply, cleared(socket)}
-      result -> {:noreply, settled(result, socket)}
-    end
-  end
 
   def handle_event("subject_wallet_failed", %{"reason" => reason}, socket),
     do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
@@ -646,24 +617,10 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   # is withdrawn. Anything already claimed stays exactly where it is, bound to the
   # wallet it was reviewed for.
   defp switched(%{assigns: %{wallet: wallet}} = socket, signer, state) when wallet != signer,
-    do: socket |> assign(wallet: signer, state: state, notice: nil) |> withdraw() |> restored()
+    do: socket |> assign(wallet: signer, state: state, notice: nil) |> withdraw()
 
   defp switched(socket, signer, state),
-    do: socket |> assign(wallet: signer, state: state, notice: nil) |> restored()
-
-  # The account's open action for this subject is a server fact, so it is shown
-  # whenever this wallet is adopted. Browser storage only ever prompts a replay
-  # of a reported hash; a new tab, another device or cleared storage must still
-  # see the action that is really in flight rather than a form that would refuse.
-  defp restored(%{assigns: %{operation: nil}} = socket) do
-    case Autolaunch.open_subject_wallet_operation(socket.assigns.subject.subject_id, opts(socket)) do
-      {:ok, %{operation: nil}} -> socket
-      {:ok, %{operation: _open}} = result -> settled(result, socket)
-      _unavailable -> socket
-    end
-  end
-
-  defp restored(socket), do: socket
+    do: assign(socket, wallet: signer, state: state, notice: nil)
 
   defp withdraw(%{assigns: %{operation: %{state: :prepared} = operation}} = socket) do
     if started?(operation), do: socket, else: cancel(socket, operation)

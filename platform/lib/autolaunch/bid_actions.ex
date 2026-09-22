@@ -251,20 +251,6 @@ defmodule Autolaunch.BidActions do
   def claim_dispatch(_input, _context), do: unavailable(:authentication_required)
 
   @doc """
-  Binds the first valid hash for the step the browser was actually sent.
-
-  The step travels with the hash and has to be the one the row is on, so a
-  callback delayed past an advance can never land in a later step's column. An
-  exact replay is a no-op so a browser replaying a lost callback cannot fail, a
-  different hash is refused rather than overwriting the submitted identity, and
-  a hash recovered after the operation ended attaches without reopening it.
-  """
-  def bind_hash(%{arguments: %{step: step} = arguments}, context) do
-    with {:ok, hash} <- canonical_hash(arguments.transaction_hash),
-         do: write(context, arguments.action_id, fn _account, op -> bind(op, step, hash) end)
-  end
-
-  @doc """
   Reads the exact bound hash and records whatever it truthfully settles as.
 
   Base is read from the candidate row alone, before any lease transaction opens,
@@ -317,14 +303,6 @@ defmodule Autolaunch.BidActions do
           update(op, action, %{reason: @unresolved})
         end
       )
-
-  @doc "The account's open operation, recovered without a lease and writing nothing."
-  def open_operation(_input, %{actor: %Human{} = actor}) do
-    with {:ok, operation} <- open_row(actor.human_account_id, false),
-         do: {:ok, %{operation: view(operation)}}
-  end
-
-  def open_operation(_input, _context), do: {:error, :authentication_required}
 
   @doc "The presenter's whole view of one operation. Everything else stays server-side."
   @spec view(Ash.Resource.record() | nil) :: map() | nil
@@ -709,26 +687,6 @@ defmodule Autolaunch.BidActions do
     with :ok <- signer_matches(account, operation.signer),
          do: update(operation, :cancel, %{reason: "treasury security changed"})
   end
-
-  defp bind(operation, step, hash) do
-    attribute = Map.fetch!(@hash_attributes, step)
-
-    case Map.fetch!(operation, attribute) do
-      ^hash -> {:ok, operation}
-      nil -> bind_step(operation, step, attribute, hash)
-      _different -> unavailable(:submitted_hash_conflict)
-    end
-  end
-
-  # The hash was produced for one exact step, so it may only ever land in that
-  # step's own column, and only while the row is still on that step.
-  defp bind_step(%{step: step} = operation, step, attribute, hash),
-    do: update(operation, bind_action(operation), %{attribute => hash})
-
-  defp bind_step(_operation, _step, _attribute, _hash), do: unavailable(:submitted_step_mismatch)
-
-  defp bind_action(%{terminal_at: nil}), do: :bind_hash
-  defp bind_action(_terminal), do: :attach_late_hash
 
   # The one Base read a settlement makes, with no transaction and no lock open.
   # A candidate with nothing sent to read about asks nothing.
@@ -1190,10 +1148,6 @@ defmodule Autolaunch.BidActions do
   defp maybe_warning(warnings, false, _warning), do: warnings
 
   # Shared helpers
-
-  defp canonical_hash(hash) do
-    if Rpc.valid_hash?(hash), do: {:ok, String.downcase(hash)}, else: unavailable(:invalid_hash)
-  end
 
   defp normalize(value) do
     case Address.normalize(value) do

@@ -154,19 +154,6 @@ defmodule Autolaunch.SubjectWalletActions do
     end
   end
 
-  @doc "Binds the first valid hash for the step the browser was actually sent."
-  @spec bind_hash(String.t(), String.t(), atom(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, term()}
-  def bind_hash(subject_id, action_id, step, hash, opts) when step in [:approval, :action] do
-    with {:ok, hash} <- canonical_hash(hash) do
-      write(subject_id, action_id, opts, fn _account, operation ->
-        SubjectWalletOperations.bind(operation, step, hash)
-      end)
-    end
-  end
-
-  def bind_hash(_subject_id, _action_id, _step, _hash, _opts), do: unavailable(:unknown_step)
-
   @doc """
   Reads the exact bound hash and records whatever it truthfully settles as.
 
@@ -218,26 +205,6 @@ defmodule Autolaunch.SubjectWalletActions do
         action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
         SubjectWalletOperations.update(operation, action, %{reason: @unresolved})
       end)
-
-  @doc """
-  The account's open operation for this subject, recovered under its current lease.
-
-  Recovery reads private facts, so it requires the same current lease every other
-  path does: the lease has to resolve an account right now, the acting human has
-  to be that account, and the row is read by the account the lease resolved
-  rather than by anything the caller named. Nothing is written. A missing,
-  revoked or account-mismatched lease is refused without naming a single fact of
-  whatever operation may exist.
-  """
-  @spec open_operation(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def open_operation(subject_id, opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         {:ok, operation} <- SubjectWalletOperations.open(account.id, subject_id, false),
-         do: {:ok, %{operation: presented(operation)}}
-  end
 
   @doc "The presenter's whole view of one operation. Everything else stays server-side."
   @spec presented(Ash.Resource.record() | nil) :: map() | nil
@@ -931,14 +898,7 @@ defmodule Autolaunch.SubjectWalletActions do
 
   # The lease and the acting human have to name one account, so a lease held for
   # another account answers about nothing.
-  defp same_account(%Human{human_account_id: id}, %{id: id}), do: :ok
-  defp same_account(_actor, _account), do: unavailable(:session_unavailable)
-
   # Shared helpers
-
-  defp canonical_hash(hash) do
-    if Rpc.valid_hash?(hash), do: {:ok, String.downcase(hash)}, else: unavailable(:invalid_hash)
-  end
 
   defp normalize(value) do
     case Address.normalize(value) do

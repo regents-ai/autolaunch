@@ -47,7 +47,6 @@ defmodule Autolaunch.WalletAttempt do
         :bid_settlement_operation_id,
         :step,
         :envelope,
-        :legacy,
         :state,
         :transaction_hash
       ]
@@ -85,7 +84,6 @@ defmodule Autolaunch.WalletAttempt do
       ]
 
     attribute :envelope, :map, allow_nil?: false, sensitive?: true
-    attribute :legacy, :boolean, allow_nil?: false, default: false
 
     attribute :state, :atom,
       allow_nil?: false,

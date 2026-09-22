@@ -21,7 +21,7 @@ defmodule Autolaunch.LaunchActions do
   alias Autolaunch
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Abi, Address, Envelope, LaunchAbi, Rpc}
+  alias Autolaunch.Chain.{Abi, Address, Envelope, LaunchAbi}
 
   alias Autolaunch.{
     Lab,
@@ -134,18 +134,6 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  @doc "Binds the first valid hash for the launch the browser was actually sent."
-  @spec bind_hash(String.t(), atom(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def bind_hash(action_id, :launch, hash, opts) do
-    with {:ok, hash} <- canonical_hash(hash) do
-      write(action_id, opts, fn _account, operation ->
-        LaunchOperations.bind(operation, :launch, hash)
-      end)
-    end
-  end
-
-  def bind_hash(_action_id, _step, _hash, _opts), do: unavailable(:unknown_step)
-
   @doc """
   Reads the exact bound hash and records whatever it truthfully settles as.
 
@@ -192,23 +180,6 @@ defmodule Autolaunch.LaunchActions do
         action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
         LaunchOperations.update(operation, action, %{reason: @unresolved})
       end)
-
-  @doc """
-  The account's open launch, recovered under its current lease.
-
-  Recovery reads private facts, so it requires the same current lease every other
-  path does. Nothing is written, and a missing, revoked or account-mismatched
-  lease is refused without naming a single fact of whatever operation may exist.
-  """
-  @spec open_operation(keyword()) :: {:ok, map()} | {:error, term()}
-  def open_operation(opts) do
-    with {:ok, actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         {:ok, account} <- leased(lease),
-         :ok <- same_account(actor, account),
-         {:ok, operation} <- LaunchOperations.open(account.id, false),
-         do: {:ok, %{operation: presented(operation)}}
-  end
 
   @doc "The presenter's whole view of one operation. Everything else stays server-side."
   @spec presented(Ash.Resource.record() | nil) :: map() | nil
@@ -879,10 +850,6 @@ defmodule Autolaunch.LaunchActions do
   defp same_account(_actor, _account), do: unavailable(:session_unavailable)
 
   # Shared helpers
-
-  defp canonical_hash(hash) do
-    if Rpc.valid_hash?(hash), do: {:ok, String.downcase(hash)}, else: unavailable(:invalid_hash)
-  end
 
   defp normalize(value) do
     case Address.normalize(value) do

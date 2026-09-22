@@ -63,31 +63,6 @@ defmodule AutolaunchWeb.WalletPressComponent do
     )
   end
 
-  def legacy_report(socket, kind, params, opts, component, event) do
-    case Autolaunch.WalletAttempts.report_legacy(
-           kind,
-           params["action_id"],
-           params["step"],
-           params["transaction_hash"],
-           opts
-         ) do
-      {:ok, %{attempt: attempt}} = result ->
-        socket =
-          apply_result(socket, result)
-          |> push_event(event, %{
-            action_id: params["action_id"],
-            step: params["step"],
-            transaction_hash: params["transaction_hash"],
-            component_id: socket.assigns.id
-          })
-
-        verify(socket, kind, Map.put(params, "press_id", attempt.id), opts, component)
-
-      error ->
-        completed(socket, {:legacy, error})
-    end
-  end
-
   def report(socket, kind, params, opts, component) do
     # Acknowledgement is not delayed behind RPC. Verification gets its own task,
     # without an operation-wide task name that could cancel a sibling's result.
@@ -99,7 +74,7 @@ defmodule AutolaunchWeb.WalletPressComponent do
            opts
          ) do
       {:ok, _} = result ->
-        socket = apply_result(socket, result) |> push_event("wallet-press:durable", params)
+        socket = apply_result(socket, result)
 
         if params["transaction_hash"],
           do: verify(socket, kind, params, opts, component),
@@ -120,9 +95,6 @@ defmodule AutolaunchWeb.WalletPressComponent do
         end,
         :verify
       )
-
-  def restore(socket, kind, params, opts),
-    do: apply_result(socket, Autolaunch.wallet_presses(kind, params["action_id"], opts))
 
   defp async(socket, component, fun, tag) do
     pid = self()
@@ -211,9 +183,6 @@ defmodule AutolaunchWeb.WalletPressComponent do
       case reason do
         :chain_unavailable ->
           "Base could not be read just now. Try again in a moment."
-
-        %Ash.Error.Invalid.Unavailable{reason: :legacy_press_not_found} ->
-          "That transaction is not the step this bid is waiting for."
 
         _ ->
           "This wallet press could not be updated. Sign in again or check its recorded transaction."

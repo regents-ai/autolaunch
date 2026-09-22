@@ -352,11 +352,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
          __MODULE__
        )}
 
-  def handle_event("wallet_press_restore", params, socket),
-    do:
-      {:noreply,
-       AutolaunchWeb.WalletPressComponent.restore(socket, :launch, params, opts(socket))}
-
   def handle_event("launch_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -382,20 +377,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
     action_id
     |> Autolaunch.claim_launch_dispatch(socket.assigns.wallet, opts(socket))
     |> claimed(socket)
-  end
-
-  # The bound row goes on screen before Base is asked anything, so a read that
-  # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event("launch_submitted", params, socket) do
-    {:noreply,
-     AutolaunchWeb.WalletPressComponent.legacy_report(
-       socket,
-       :launch,
-       params,
-       opts(socket),
-       __MODULE__,
-       "autolaunch-launch:hash-durable"
-     )}
   end
 
   def handle_event("check_launch_step", %{"action-id" => action_id}, socket),
@@ -424,16 +405,6 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   def handle_event("clear_launch", _params, socket),
     do: {:noreply, socket |> assign(operation: nil, notice: nil) |> cleared()}
-
-  # Browser storage only prompts a restore; the owning account's row supplies
-  # every fact. No row means the stored hint is stale, and saying so is what
-  # stops it asking again on every reload.
-  def handle_event("restore_launch_operation", _params, socket) do
-    case Autolaunch.open_launch_operation(opts(socket)) do
-      {:ok, %{operation: nil}} -> {:noreply, cleared(socket)}
-      result -> {:noreply, settled(result, socket)}
-    end
-  end
 
   def handle_event("launch_failed", %{"reason" => reason}, socket),
     do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
@@ -547,23 +518,10 @@ defmodule AutolaunchWeb.LaunchWalletComponent do
 
   defp adopt(socket, address) do
     case Autolaunch.launch_wallet_state(address, opts(socket)) do
-      {:ok, %{signer: signer}} -> socket |> assign(wallet: signer, notice: nil) |> restored()
+      {:ok, %{signer: signer}} -> assign(socket, wallet: signer, notice: nil)
       {:error, error} -> refused(socket, address, refusal(error))
     end
   end
-
-  # The account's open launch is a server fact, so it is read whenever this wallet
-  # is adopted. Browser storage only ever prompts a replay of a reported hash; a
-  # new tab, another device or cleared storage must still see what is in flight.
-  defp restored(%{assigns: %{operation: nil}} = socket) do
-    case Autolaunch.open_launch_operation(opts(socket)) do
-      {:ok, %{operation: nil}} -> socket
-      {:ok, %{operation: _open}} = result -> settled(result, socket)
-      _unavailable -> socket
-    end
-  end
-
-  defp restored(socket), do: socket
 
   # Membership is a session fact. Any wallet but the signed-in one is
   # not adopted at all; the signed-in one stays on screen with the reason.

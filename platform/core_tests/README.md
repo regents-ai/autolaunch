@@ -1,6 +1,6 @@
 # Autolaunch core tests
 
-This is the active platform suite: **30 Elixir cases and 10 JavaScript cases**.
+This is the active platform suite: **30 Elixir cases and 8 JavaScript cases**.
 `manifest.json` identifies the approved cases and their original sources. Helpers
 and image fixtures are retained here so the old test folders are not dependencies.
 

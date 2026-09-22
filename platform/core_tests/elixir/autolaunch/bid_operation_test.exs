@@ -22,8 +22,6 @@ defmodule Autolaunch.BidOperationTest do
   alias Autolaunch.{Auction, BidOperation, TreasurySecurityReport}
   alias Autolaunch.Repo
 
-  @approval_hash "0x" <> String.duplicate("aa", 32)
-
   @barrier_treasury "0x8888888888888888888888888888888888888888"
 
   setup :bidder
@@ -62,7 +60,14 @@ defmodule Autolaunch.BidOperationTest do
     for refused <- [
           fn -> Autolaunch.claim_bid_dispatch(operation.action_id, opts) end,
           fn ->
-            Autolaunch.bind_bid_hash(operation.action_id, :token_approval, @approval_hash, opts)
+            Autolaunch.dispatch_wallet_press(
+              :bid,
+              operation.action_id,
+              "token_approval",
+              Ecto.UUID.generate(),
+              wallet,
+              opts
+            )
           end,
           fn -> Autolaunch.verify_bid_step(operation.action_id, opts) end,
           fn -> Autolaunch.cancel_bid_review(operation.action_id, opts) end,
@@ -73,17 +78,13 @@ defmodule Autolaunch.BidOperationTest do
     end
 
     # The row the revoked session left is untouched and still that account's.
-    {:ok, :bind, claim} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
+    row =
+      BidOperation
+      |> Ash.Query.filter(action_id == ^operation.action_id)
+      |> Ash.read_one!(actor: system())
 
-    reauthenticated =
-      Keyword.put(opts, :context, %{
-        session_lease: %{lineage: claim.lineage, account_id: account.id}
-      })
-
-    assert {:ok, %{operation: %{state: :prepared, action_id: action_id}}} =
-             Autolaunch.open_bid_operation(reauthenticated)
-
-    assert action_id == operation.action_id
+    assert %{state: :prepared, human_account_id: account_id} = row
+    assert account_id == account.id
   end
 
   describe "second-connection barriers" do

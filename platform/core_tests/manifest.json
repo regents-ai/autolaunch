@@ -73,13 +73,13 @@
       "group": "Account and session isolation",
       "framework": "exunit",
       "file": "core_tests/elixir/autolaunch/bid_operation_test.exs",
-      "line": 53,
+      "line": 51,
       "test_name": "REVOCATION_ENDS_EVERY_WRITE: a revoked lease claims, binds and settles nothing",
       "keep_because": "Revoking a session blocks subsequent bid mutations and leaves the existing operation unchanged.",
       "generated_case": null,
       "original_file": "test/autolaunch/bid_operation_test.exs",
       "original_source_sha256": "db6650156de75014e530897712bcb60b272c3dc5bc95afb5d9a0b02fb8e67e16",
-      "source_sha256": "408b8c640f3d90e3d3c6254dfc3f8ecde9ca14b1fd1aa7dbf435343c0c5b484b"
+      "source_sha256": "5bf08d988f960f781735d18116cb716110bd4226bb7e2861a1dc1f8e18d0f33a"
     },
     {
       "id": 7,
@@ -489,42 +489,16 @@
       "group": "Browser wallet boundary and recovery",
       "framework": "vitest",
       "file": "core_tests/js/wallet_presses.test.ts",
-      "line": 25,
-      "test_name": "two presses reach pending provider requests, survive B review, and replay only independent reports",
-      "keep_because": "Two explicit bid presses reach independent provider requests with the original reviewed bytes; duplicate delivery/recovery does not resend. Keep only the bid instance of this existing three-kind generated test.",
+      "line": 19,
+      "test_name": "two presses reach pending provider requests, survive B review, and nothing replays on remount",
+      "keep_because": "Two explicit bid presses reach independent provider requests with the original reviewed bytes and report their own hashes; duplicate delivery does not resend and a remount replays nothing. Keep only the bid instance of this existing three-kind generated test.",
       "generated_case": {
         "kind": "bid",
         "describe": "bid provider press isolation"
       },
       "original_file": "assets/test/wallet_presses.test.ts",
       "original_source_sha256": "94ae01dce53daf6fb2a037136f6fe01c510a97b1fc558559d1da8b843155bbf2",
-      "source_sha256": "8e2501123a2244d5682f11adf3b93f6e8f30c9e78f16546ec2bc2313336806e7"
-    },
-    {
-      "id": 39,
-      "group": "Browser wallet boundary and recovery",
-      "framework": "vitest",
-      "file": "core_tests/js/wallet_presses.test.ts",
-      "line": 92,
-      "test_name": "skips corrupt entries independently and retains a subsequent valid hash",
-      "keep_because": "Corrupt stored reports cannot discard a subsequent valid submitted transaction hash.",
-      "generated_case": null,
-      "original_file": "assets/test/wallet_presses.test.ts",
-      "original_source_sha256": "94ae01dce53daf6fb2a037136f6fe01c510a97b1fc558559d1da8b843155bbf2",
-      "source_sha256": "8e2501123a2244d5682f11adf3b93f6e8f30c9e78f16546ec2bc2313336806e7"
-    },
-    {
-      "id": 40,
-      "group": "Browser wallet boundary and recovery",
-      "framework": "vitest",
-      "file": "core_tests/js/wallet_presses.test.ts",
-      "line": 109,
-      "test_name": "a late A acknowledgment cannot remove B's hash, rejection or unknown report",
-      "keep_because": "A late acknowledgment cannot erase another attempt’s hash or unresolved report.",
-      "generated_case": null,
-      "original_file": "assets/test/wallet_presses.test.ts",
-      "original_source_sha256": "94ae01dce53daf6fb2a037136f6fe01c510a97b1fc558559d1da8b843155bbf2",
-      "source_sha256": "8e2501123a2244d5682f11adf3b93f6e8f30c9e78f16546ec2bc2313336806e7"
+      "source_sha256": "6d4af81fcf566606866b416ebb07d91b6753f0e990b5a32f8273ac10baeb01f9"
     }
   ],
   "legacy_folders_to_remove": [

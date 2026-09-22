@@ -320,9 +320,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       {:noreply,
        WalletPressComponent.verify(socket, :stocks_launch, params, opts(socket), __MODULE__)}
 
-  def handle_event("wallet_press_restore", params, socket),
-    do: {:noreply, WalletPressComponent.restore(socket, :stocks_launch, params, opts(socket))}
-
   def handle_event("launch_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -331,18 +328,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
      socket.assigns.draft.id
      |> LaunchActions.prepare(socket.assigns.wallet, opts(socket))
      |> settled(socket)}
-  end
-
-  def handle_event("launch_submitted", params, socket) do
-    {:noreply,
-     WalletPressComponent.legacy_report(
-       socket,
-       :stocks_launch,
-       params,
-       opts(socket),
-       __MODULE__,
-       "autolaunch-launch:hash-durable"
-     )}
   end
 
   def handle_event("check_launch_step", %{"action-id" => action_id}, socket),
@@ -356,13 +341,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   def handle_event("clear_launch", _params, socket),
     do: {:noreply, socket |> adopt_operation(nil) |> assign(notice: nil) |> cleared()}
-
-  def handle_event("restore_launch_operation", _params, socket) do
-    case LaunchActions.open_operation(opts(socket)) do
-      {:ok, %{operation: nil}} -> {:noreply, cleared(socket)}
-      result -> {:noreply, settled(result, socket)}
-    end
-  end
 
   def handle_event("launch_failed", %{"reason" => reason}, socket),
     do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
@@ -412,19 +390,10 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   defp adopt(socket, address) do
     case LaunchActions.wallet_state(address, opts(socket)) do
-      {:ok, %{signer: signer}} -> socket |> assign(wallet: signer, notice: nil) |> restored()
+      {:ok, %{signer: signer}} -> assign(socket, wallet: signer, notice: nil)
       {:error, error} -> refused(socket, address, refusal(error))
     end
   end
-
-  defp restored(%{assigns: %{operation: nil}} = socket) do
-    case LaunchActions.open_operation(opts(socket)) do
-      {:ok, %{operation: %{}}} = result -> settled(result, socket)
-      _none -> socket
-    end
-  end
-
-  defp restored(socket), do: socket
 
   defp refused(socket, _address, reason) when reason in @unheld,
     do: assign(socket, wallet: nil, notice: notice(:error, reason))

@@ -92,15 +92,6 @@ defmodule Autolaunch.LaunchOperation do
       change set_attribute(:state, :dispatched)
     end
 
-    # The boundary derives which column from the row's own `step`, so a hash can
-    # only ever land on the step that was claimed.
-    update :bind_hash do
-      accept @hashes
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :submitted)
-    end
-
     update :record_chain_verified do
       accept [:result]
       require_atomic? false
@@ -182,15 +173,6 @@ defmodule Autolaunch.LaunchOperation do
       validate attribute_in(:state, [:dispatched, :submitted])
       change set_attribute(:state, :submission_unknown)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    # A hash recovered after the operation ended. It is attached so the same
-    # transaction can still be verified truthfully, and the terminal state and
-    # every hash already bound are left exactly as they were.
-    update :attach_late_hash do
-      accept @hashes
-      require_atomic? false
-      validate present(:terminal_at)
     end
   end
 

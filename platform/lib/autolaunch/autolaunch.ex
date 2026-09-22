@@ -132,7 +132,6 @@ defmodule Autolaunch do
         args: [:auction_id, :expected_signer, :usdc_amount, :max_price]
 
       define :claim_bid_dispatch, action: :claim_bid_dispatch, args: [:action_id]
-      define :bind_bid_hash, action: :bind_bid_hash, args: [:action_id, :step, :transaction_hash]
       define :verify_bid_step, action: :verify_bid_step, args: [:action_id]
       define :cancel_bid_review, action: :cancel_bid_review, args: [:action_id]
       define :close_bid_not_sent, action: :close_bid_not_sent, args: [:action_id]
@@ -142,7 +141,6 @@ defmodule Autolaunch do
         args: [:action_id]
 
       define :start_new_bid, action: :start_new_bid, args: [:action_id]
-      define :open_bid_operation, action: :open_bid_operation
     end
 
     # The durable bidder operation is written only by `BidActions` under a
@@ -395,10 +393,6 @@ defmodule Autolaunch do
     to: Autolaunch.SubjectWalletActions,
     as: :claim_dispatch
 
-  defdelegate bind_subject_wallet_hash(subject_id, action_id, step, hash, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :bind_hash
-
   defdelegate verify_subject_wallet_step(subject_id, action_id, opts),
     to: Autolaunch.SubjectWalletActions,
     as: :verify
@@ -418,10 +412,6 @@ defmodule Autolaunch do
   defdelegate start_new_subject_wallet_action(subject_id, action_id, opts),
     to: Autolaunch.SubjectWalletActions,
     as: :start_new
-
-  defdelegate open_subject_wallet_operation(subject_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :open_operation
 
   defdelegate dispatch_wallet_press(kind, action_id, step, press_id, signer, opts),
     to: Autolaunch.WalletAttempts,
@@ -453,10 +443,6 @@ defmodule Autolaunch do
     to: Autolaunch.LaunchActions,
     as: :claim_dispatch
 
-  defdelegate bind_launch_hash(action_id, step, hash, opts),
-    to: Autolaunch.LaunchActions,
-    as: :bind_hash
-
   defdelegate verify_launch_step(action_id, opts),
     to: Autolaunch.LaunchActions,
     as: :verify
@@ -476,10 +462,6 @@ defmodule Autolaunch do
   defdelegate start_new_launch(action_id, opts),
     to: Autolaunch.LaunchActions,
     as: :start_new
-
-  defdelegate open_launch_operation(opts),
-    to: Autolaunch.LaunchActions,
-    as: :open_operation
 
   # The site rule: one Revstake auction per account. Queries run under the
   # system actor: LaunchOperation is system-only, and the in-flight window is

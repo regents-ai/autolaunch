@@ -182,6 +182,7 @@ defmodule Autolaunch.BidFixture do
     do: overrides |> fixture() |> TestAutolaunchBidChainClient.install()
 
   @doc "The exact refusal an Ash action carried out, whatever its error class."
+  def refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   def refusal(%{errors: errors}), do: Enum.find_value(errors, :unmatched, &unavailable/1)
   def refusal(reason), do: reason
 

@@ -346,9 +346,6 @@ defmodule AutolaunchWeb.BidComponent do
       {:noreply,
        AutolaunchWeb.WalletPressComponent.verify(socket, :bid, params, opts(socket), __MODULE__)}
 
-  def handle_event("wallet_press_restore", params, socket),
-    do: {:noreply, AutolaunchWeb.WalletPressComponent.restore(socket, :bid, params, opts(socket))}
-
   def handle_event("bid_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
@@ -395,20 +392,6 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_event("sign_bid_step", %{"action-id" => action_id}, socket),
     do: action_id |> Autolaunch.claim_bid_dispatch(opts(socket)) |> claimed(socket)
 
-  # The bound row goes on screen before Base is asked anything, so a read that
-  # cannot answer leaves the transaction and its link exactly where they are.
-  def handle_event("bid_submitted", params, socket) do
-    {:noreply,
-     AutolaunchWeb.WalletPressComponent.legacy_report(
-       socket,
-       :bid,
-       params,
-       opts(socket),
-       __MODULE__,
-       "autolaunch-bid:hash-durable"
-     )}
-  end
-
   def handle_event("check_bid_step", %{"action-id" => action_id}, socket),
     do: {:noreply, action_id |> Autolaunch.verify_bid_step(opts(socket)) |> settled(socket)}
 
@@ -443,16 +426,6 @@ defmodule AutolaunchWeb.BidComponent do
          estimate: nil
        )
        |> cleared()}
-
-  # Browser storage only prompts a restore; the owning account's row supplies
-  # every fact. No row means the stored hint is stale, and saying so is what
-  # stops it asking again on every reload.
-  def handle_event("restore_bid_operation", _params, socket) do
-    case Autolaunch.open_bid_operation(opts(socket)) do
-      {:ok, %{operation: nil}} -> {:noreply, cleared(socket)}
-      result -> {:noreply, settled(result, socket)}
-    end
-  end
 
   def handle_event("bid_wallet_failed", %{"reason" => reason}, socket),
     do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
