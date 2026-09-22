@@ -515,7 +515,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp lead(%{kind: :agent} = pool),
     do:
-      "Stakers share this launch's revenue as it arrives: 1% of every trade, paid to the staking contract on the trade itself, the locked liquidity's own trading fees, which anyone can collect into it, and whatever else is paid to it, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
+      "Stakers share this launch's revenue as it arrives: 1% of every trade, the locked liquidity's trading fees once anyone collects them, and anything else paid to the staking contract, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
 
   defp lead(%{kind: :stocks} = pool),
     do:

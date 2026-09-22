@@ -34,7 +34,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
     ~H"""
     <p>
       {@facts.token.symbol} trades against {@facts.currency.symbol} in its official pool.
-      Its liquidity is locked forever; the fee lanes below are charged on every trade.
+      Its liquidity is locked forever; the fees below are charged on every trade.
     </p>
     <dl class="autolaunch-live-market pool-facts">
       <div>
@@ -171,13 +171,12 @@ defmodule AutolaunchWeb.Components.PoolSection do
 
   defp agent_fees(assigns) do
     ~H"""
-    <section id="pool-fees" aria-label="Fee lanes">
-      <h3>Fee lanes</h3>
+    <section id="pool-fees" aria-label="Trading fees">
+      <h3>Trading fees</h3>
       <p>
-        On every trade, 1% of currency-side volume goes to REGENT (governance) and 1% to this
-        launch's staking contract, paid on the trade itself. The locked liquidity's own trading
-        fees can be collected by anyone into the same staking contract, for {@facts.token.symbol} stakers.
-        Both are fixed for this pool.
+        Every trade pays 1% to REGENT governance and 1% to this launch's staking contract, straight
+        away. The locked liquidity also earns trading fees; anyone can collect them into the same
+        staking contract for {@facts.token.symbol} stakers. These fees are fixed for this pool.
       </p>
       <dl class="autolaunch-live-market">
         <div>
@@ -192,7 +191,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
           <dd>{@facts.fees.swaps}</dd>
         </div>
         <div>
-          <dt>Paid to each lane so far</dt>
+          <dt>Paid to each 1% share so far</dt>
           <dd>
             {Amounts.compact_decimal(@facts.fees.per_lane.currency)} REGENT and {Amounts.compact_decimal(
               @facts.fees.per_lane.token
