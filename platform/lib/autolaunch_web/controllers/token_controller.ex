@@ -43,6 +43,8 @@ defmodule AutolaunchWeb.TokenController do
   defp public_token(token) do
     %{
       id: token.id,
+      chain: "base",
+      chain_id: token.auction.chain_id,
       auction_id: token.auction_id,
       subject_id: token.subject_id,
       name: token.name,

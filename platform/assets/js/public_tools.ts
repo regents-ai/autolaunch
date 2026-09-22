@@ -135,7 +135,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
   return [
     tool(
       "autolaunch_auctions",
-      "List public Autolaunch auctions. Returns stored public data, not a live chain read.",
+      "List public Autolaunch auctions on Base and Robinhood; every entry names its chain. Base entries are stored public data; Robinhood entries are read from their chain and lead the first page.",
       {
         after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same mode and sort. Cursors expire after 24 hours."},
         mode: {type: "string", enum: ["all", "biddable", "live", "failed_minimum", "graduated"]},
