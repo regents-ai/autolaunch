@@ -73,24 +73,27 @@ defmodule Autolaunch.Robinhood.Positions do
          {:ok, clock} <- BlockClock.read(block, opts),
          {:ok, auctions} <- Auctions.at(config, block, opts) do
       venue = %{abi: Lab.abi!(config, :auction), block: block, clock: clock, opts: opts}
+      pinned_positions(auctions, wallets, venue)
+    end
+  end
 
-      with {:ok, positions} <-
-             collect(auctions, fn auction ->
-               collect(wallets, &wallet_positions(auction, &1, venue))
-             end),
-           # Log ranges use block numbers; refuse a history that moved since
-           # the state reads pinned its hash.
-           {:ok, %{"hash" => hash}} <-
-             Rpc.request(
-               "eth_getBlockByNumber",
-               ["0x" <> Integer.to_string(block.number, 16), false],
-               opts
-             ),
-           true <- hash == block.hash do
-        {:ok, %{positions: positions, block: block.number}}
-      else
-        _error -> {:error, :invalid_chain_response}
-      end
+  # Log ranges use block numbers; refuse a history that moved since the state
+  # reads pinned its hash.
+  defp pinned_positions(auctions, wallets, venue) do
+    with {:ok, positions} <-
+           collect(auctions, fn auction ->
+             collect(wallets, &wallet_positions(auction, &1, venue))
+           end),
+         {:ok, %{"hash" => hash}} <-
+           Rpc.request(
+             "eth_getBlockByNumber",
+             ["0x" <> Integer.to_string(venue.block.number, 16), false],
+             venue.opts
+           ),
+         true <- hash == venue.block.hash do
+      {:ok, %{positions: positions, block: venue.block.number}}
+    else
+      _error -> {:error, :invalid_chain_response}
     end
   end
 
@@ -237,25 +240,32 @@ defmodule Autolaunch.Robinhood.Positions do
     }
 
     case Rpc.request("eth_getLogs", [filter], venue.opts) do
-      {:ok, logs} when is_list(logs) ->
-        Enum.reduce_while(logs, {:ok, false}, fn log, {:ok, claimed?} ->
-          with %{"removed" => false, "blockNumber" => "0x" <> number} <- log,
-               {number, ""} <- Integer.parse(number, 16),
-               true <- number >= 0 and number <= venue.block.number,
-               {:ok, %{tokens_claimed: tokens}} <-
-                 CcaSettlement.claimed(venue.abi, [log], auction, bid.bid_id, bid.owner) do
-            {:cont, {:ok, claimed? or tokens > 0}}
-          else
-            _invalid ->
-              {:halt, {:error, :invalid_chain_response}}
-          end
-        end)
+      {:ok, logs} when is_list(logs) -> claimed_in?(logs, bid, auction, venue)
+      {:ok, _other} -> {:error, :invalid_chain_response}
+      error -> error
+    end
+  end
 
-      {:ok, _other} ->
-        {:error, :invalid_chain_response}
+  defp claimed_in?(logs, bid, auction, venue) do
+    Enum.reduce_while(logs, {:ok, false}, fn log, {:ok, claimed?} ->
+      case claimed_log(log, bid, auction, venue) do
+        {:ok, tokens} -> {:cont, {:ok, claimed? or tokens > 0}}
+        error -> {:halt, error}
+      end
+    end)
+  end
 
-      error ->
-        error
+  # The tokens one claim log delivered, or an invalid response for a log that
+  # is removed, outside the pinned range or not this bid's claim.
+  defp claimed_log(log, bid, auction, venue) do
+    with %{"removed" => false, "blockNumber" => "0x" <> number} <- log,
+         {number, ""} <- Integer.parse(number, 16),
+         true <- number >= 0 and number <= venue.block.number,
+         {:ok, %{tokens_claimed: tokens}} <-
+           CcaSettlement.claimed(venue.abi, [log], auction, bid.bid_id, bid.owner) do
+      {:ok, tokens}
+    else
+      _invalid -> {:error, :invalid_chain_response}
     end
   end
 end
