@@ -4,7 +4,7 @@
 [![Solidity 0.8.26](https://img.shields.io/badge/solidity-0.8.26-lightgrey)](https://soliditylang.org)
 [![Foundry 1.5.1](https://img.shields.io/badge/foundry-1.5.1--stable-lightgrey)](https://getfoundry.sh)
 [![Slither 0.11.5](https://img.shields.io/badge/slither-0.11.5-lightgrey)](https://github.com/crytic/slither)
-[![Status: not deployed](https://img.shields.io/badge/status-not%20deployed-lightgrey)](#the-deployment-ceremony-gate)
+[![Status: deployed on Base, launches paused](https://img.shields.io/badge/status-deployed%20on%20Base%2C%20launches%20paused-lightgrey)](deployments/base-mainnet/README.md)
 
 Clean Solidity implementation of the founder-frozen Autolaunch V1 system, written and
 maintained by Regents Labs. Autolaunch is the Regent token-launch system; this directory is the
@@ -27,13 +27,12 @@ The controlling specification is [SPEC.md](SPEC.md). The prior implementation in
 release until the complete claim-level test, static-analysis, fork, review, and founder
 audit gates pass.
 
-> [!WARNING]
-> No deployment, signature, provider write, or value movement is authorized by this
-> component. Nothing here has been deployed. A deployment packet and deployer have been
-> selected, but only a later founder instruction naming the packet's exact digest may
-> authorize a signature or a broadcast. Every factory is also born paused, so even a
-> completed ceremony admits no launch: opening one is a separate Governance and Regent Safe
-> transaction that needs its own founder instruction, and nothing here is that instruction.
+> [!NOTE]
+> Deployed on Base on 22 September 2026 by the ceremony of packet digest
+> `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`; the eight addresses are in
+> [deployments/base-mainnet/](deployments/base-mainnet/README.md). The factory was born paused:
+> opening launches is a separate Governance and Regent Safe transaction. Nothing in this
+> component signs, broadcasts, or moves value.
 
 > [!IMPORTANT]
 > Evidence here is local by construction. The repository's `.github/workflows/test.yml` runs the
@@ -195,7 +194,7 @@ Paths are relative to this directory.
 | `test-fork/` | the read-only Base fork harness; outside the offline test root, so it can never execute against a hermetic or invariant claim |
 | `script/` | the one deployment script: five direct, zero-value creation transactions and nothing else. It imports no miner, holds no key, and is never invoked with `--broadcast` by any gate |
 | `test-deployment/` | the deployment-ceremony harness, the external-state preflight, and the selection derivation; outside both other test roots, so only the deployment gate can execute or close its claims |
-| `deployments/base-mainnet/` | the mainnet-NO-GO packet, which is a proposal and the sole ceremony authority, and the deployed manifest, which is an empty record. Nothing here has been deployed |
+| `deployments/base-mainnet/` | the packet the founder approved, and the deployed manifest recording the Base deployment from its five confirmed receipts |
 | `docs/security/` | threat model and Slither dispositions |
 | `docs/audit/` | the founder audit packet: posture, claim corrections, fork authority and staged-state inventory, gas and size |
 | `reports/generated/` | scratch gate evidence. `bin/gate.sh` deletes and rewrites it on every run and `.gitignore` keeps it out of the tree. Never committed, never an authority. |
@@ -306,15 +305,16 @@ installed packet and manifest. Both refuse to run beside signing authority, sign
 only under `reports/generated/deployment/`.
 [deployments/base-mainnet/README.md](deployments/base-mainnet/README.md) has the usage.
 
-**Nothing in this repository has been deployed.** The frozen packet under
-`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the eight
-predicted addresses, and it records the external state observed at Base block `51657720`. Its
-authorization state is still `not authorized`: no founder has granted a `GO_TO_DEPLOY`, no
-signing method is named, and only a later founder instruction naming the packet's exact digest
-may authorize a signature or a broadcast.
+**The ceremony ran on Base on 22 September 2026.** The packet under `deployments/base-mainnet/`
+pins the deployer, a pre-mined hook salt and the eight predicted addresses, and records the
+external state observed at Base block `51657720`. The founder approved its digest
+`0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327` and sent the five creations from
+`0x9b2C414614aEE294202c1219520955EF3B596031` at nonces 0–4, in Base blocks `51660956`–`51661052`.
+`bin/ceremony.py record` proved every receipt, code identity and readback against the packet and
+wrote `deployments/base-mainnet/deployed-manifest.json`.
 
-**And a completed ceremony would still admit no launch.** Every factory is born paused, so the fifth
-receipt leaves launches closed and the disposable deployer has no say in that. `DEP-072` reads the
+**And the deployed factory still admits no launch.** Every factory is born paused, so the fifth
+receipt left launches closed and the deployer has no say in that. `DEP-072` reads the
 paused state back off the ceremony graph, and `DEP-073` proves that graph admits the frozen
 Governance and Regent Safe address — and only it — as the account a later activation would come
 from, by impersonating that address on a local fork and calling the real `unpauseLaunches()`. That
@@ -345,7 +345,7 @@ read-only Base authority read the deployer's nonce (`0`), mined the salt, re-der
 predicted addresses — the seven the prior packet predicted, byte-identical, plus the LP locker the
 strategy constructor creates at strategy nonce 1 — and snapshotted the control surface at block
 `51657720`, and `--rehearse` held them and simulated the exact script against a read-only fork
-with nothing broadcast. Status stays mainnet NO-GO.
+with nothing broadcast. The ceremony then ran exactly this packet.
 
 ## License
 

@@ -1,11 +1,12 @@
 # Autolaunch contracts
 
-Four Foundry projects, one per directory. Each is built and verified from its own directory, and
-nothing in any of them is deployed on a public chain.
+Four Foundry projects, one per directory. Each is built and verified from its own directory. The
+Base Revstake contracts in `v1/` are deployed on Base, with launches still paused; nothing in the
+other three is deployed yet.
 
 | Project | What it is | Chain | Status | Verify |
 | --- | --- | --- | --- | --- |
-| [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | Complete against the frozen [SPEC.md](v1/SPEC.md); offline gate, Base fork evidence, deployment packet prepared and rehearsed; not yet deployed | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
+| [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | Complete against the frozen [SPEC.md](v1/SPEC.md); offline gate, Base fork evidence, deployed on Base on 22 September 2026, launches paused | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
 | [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | Implemented with its own gate; packet carries the code identity, no deployer selected yet | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
 | [robinhood/](robinhood/README.md) | Robinhood Memestake: the Memestake launchpad rebuilt for Robinhood Chain with USDG as the dollar, plus a Base-side receiver for bridged revenue | Robinhood Chain (4663), one contract on Base | Implemented with its own gate; packet carries the code identity, no deployer selected; no production stock route contract yet | `cd robinhood && bin/gate.sh`, with `../stocks/lib` in place |
 | [revenue-mesh/](revenue-mesh/README.md) | Immutable USDC payment routes over Circle CCTP from other chains into a Base `PaymentReceiverV1` | Source chains (Arbitrum One wrapper first) into Base | Offline foundation; every route is an unverified, inactive candidate | `cd revenue-mesh && forge fmt --check && forge build && forge test -vvv` |
@@ -73,8 +74,8 @@ launchpad under the contract size limit.
 Every project keeps two files apart: a **packet** (`mainnet-no-go-packet.json`), the proposal that
 describes what a ceremony would do and the only committed ceremony authority, and a **deployed
 manifest** (`deployed-manifest.json`), the record of what was actually created, populated only from
-confirmed receipts. All three manifests are the empty record; every packet's authorization state
-is `not authorized`. The founder signs and sends every creation by hand; no key,
+confirmed receipts. The v1 manifest records the Base deployment; the Base Memestake and Robinhood
+manifests are still the empty record. The founder signs and sends every creation by hand; no key,
 endpoint or credential appears in this repository.
 
 1. **Base Revstake first** ([v1/deployments/base-mainnet/](v1/deployments/base-mainnet/README.md)).
@@ -84,12 +85,12 @@ endpoint or credential appears in this repository.
    `RevstakeLPLocker`, and mines `RegentFeeHook` with the pinned salt: eight contracts in all. The
    packet names the deployer, its starting nonce (0), the hook salt and the eight predicted
    addresses, and records the external state observed at Base block 51657720; it was rendered
-   offline, prepared and rehearsed against a read-only Base fork with nothing broadcast. Its digest
-   is `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`, and only a founder
-   instruction naming that digest authorizes a signature. After the receipts confirm,
-   `bin/ceremony.py record` proves them against the packet and writes the deployed manifest, and
-   `bin/ceremony.py site-config` renders the website's deployment file from it. The factory is born
-   paused: opening it is a later `unpauseLaunches()` from the Governance and Regent Safe.
+   offline, prepared and rehearsed against a read-only Base fork with nothing broadcast. The founder
+   approved its digest, `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`, and
+   sent the five creations on 22 September 2026 (Base blocks 51660956–51661052);
+   `bin/ceremony.py record` proved the receipts against the packet and wrote the deployed manifest,
+   and `bin/ceremony.py site-config` renders the website's deployment file from it. The factory is
+   born paused: opening it is a later `unpauseLaunches()` from the Governance and Regent Safe.
 2. **Base Memestake next** ([stocks/deployments/base-mainnet/](stocks/deployments/base-mainnet/README.md)).
    `bin/ceremony.py prepare` takes the deployer, the UERC20 factory from step 1 and one
    `--admission STOCK:POOL:FEED` per stock, and a human installs its candidate. The ceremony is then

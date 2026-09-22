@@ -46,14 +46,14 @@ page state. The public records are also served as JSON (`GET /api/v1/auctions`,
 `GET /api/v1/auctions/:id`, `POST /api/v1/auctions/:id/bid-quote`, `GET /api/v1/tokens`,
 `GET /api/v1/treasury-security/:address`), registered as five read-only
 [WebMCP tools](platform/docs/public-webmcp.md) in browsers that support them, and mirrored by
-the [CLI](cli/README.md). Until the contracts are deployed the production site is read-only:
-reads and quotes work, wallet actions are switched off.
+the [CLI](cli/README.md). Until it is switched on with the deployment addresses, the production site
+is read-only: reads and quotes work, wallet actions are switched off.
 
 ## Status
 
 | Part | What exists | Deployed | What comes next |
 | --- | --- | --- | --- |
-| Base Revstake contracts | Complete against a frozen specification, with an offline gate, Base fork evidence, and a deployment packet that names the deployer and the eight predicted addresses | Nothing on mainnet. The packet awaits the founder's approval; the deployed record is empty | The founder sends the five creation transactions by hand, `bin/ceremony.py` records the receipts, then the Governance Safe opens the factory to launches |
+| Base Revstake contracts | Complete against a frozen specification, with an offline gate, Base fork evidence, and a deployment packet that names the deployer and the eight predicted addresses | Deployed on Base on 22 September 2026; the eight addresses are in [the deployment record](contracts/v1/deployments/base-mainnet/README.md). Launches are still paused | The Governance Safe opens the factory to launches |
 | Base Memestake contracts | Implemented with its own gate; the packet carries the code identity but no deployer selection yet | Nothing | After the Revstake ceremony: prepare the packet against the token factory that ceremony created, then the launchpad, bid adapter and one route per admitted stock |
 | Robinhood contracts | Implemented with its own gate; the packet carries the code identity but no deployer selection; no production stock route contract exists yet | Nothing | Its own track: six creations on Robinhood Chain and one on Base, once a route, a bridge adapter and the chain bindings are supplied |
 | Revenue mesh | An offline foundation for USDC payment routes over CCTP into a launch's payment receiver | Nothing; every route is an unverified candidate | Admission requirements listed in its README |

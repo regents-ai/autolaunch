@@ -1,6 +1,28 @@
 # Base mainnet
 
-**Nothing here has been deployed.** The repository is mainnet NO-GO.
+**Deployed on Base on 22 September 2026.** The founder approved packet digest
+`0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327` and sent its five creations from deployer
+`0x9b2C414614aEE294202c1219520955EF3B596031`; `deployed-manifest.json` records them. The factory was
+born paused and admits no launch until the Governance and Regent Safe calls `unpauseLaunches()`.
+
+| Contract | Address | Base block |
+| --- | --- | --- |
+| UERC20Factory | `0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563` | 51660956 |
+| ConditionalVestingEscrowV1 | `0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d` | 51660988 |
+| SubjectSplitterV1 | `0x777b2e0F3c7787DA781c3948651249C2C822e9C3` | 51661009 |
+| PaymentReceiverV1 | `0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2` | 51661029 |
+| RegentsAutolaunchFactoryV1 | `0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e` | 51661052 |
+| RegentLBPStrategy | `0x69c13CCd9312e21d66fd162896E39bFC5f886F95` | 51661052 |
+| RevstakeLPLocker | `0xBdC4b69bfd66aCDb8b794bADbEf3a50a14891159` | 51661052 |
+| RegentFeeHook | `0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044` | 51661052 |
+
+| Nonce | Creation | Transaction |
+| --- | --- | --- |
+| 0 | UERC20Factory | `0xed61af550d66a8b53cbddf45af2142a5f159fd12bff60b77a5aa8a52b2a976b7` |
+| 1 | ConditionalVestingEscrowV1 | `0x7506a773f73d4e756e96f44d6070d61abdeaacb54edafc1f100a939736494f93` |
+| 2 | SubjectSplitterV1 | `0x98bf96b122101e9d07c6949e04635dcecc2a851a2b13eb045aea532b7b0d0ff9` |
+| 3 | PaymentReceiverV1 | `0x385eb8e2ef17b4abf9bfa1fa68f58274df8127bc86adbc4d511c878553f0dc04` |
+| 4 | RegentsAutolaunchFactoryV1 | `0x5cd9b0d5e8ed3b8c3036350cac2fce3b7024d05b96694aa2c507f7bd65114596` |
 
 The installed packet is rendered from the Revstake candidate. Its production authority is
 commit `7d564cec735c3b1b928ec4e2ede0b244682d105b`, tree
@@ -27,7 +49,9 @@ nothing. A human installed that candidate, and `--offline` re-rendered it byte f
 `--rehearse` then held every frozen binding and the control surface to the committed values,
 re-derived the eight addresses exactly, and simulated the exact deployment script — including the
 strategy's `lpLocker()` readback — against a read-only Base fork with no signer and no broadcast.
-Status stays mainnet NO-GO and authorization stays `not authorized`; a rehearsal is not an approval.
+A rehearsal is not an approval: the packet's own `authorization` field describes the proposal as
+rendered, and the founder's approval of its digest is recorded in the deployed manifest's
+`approved_packet_digest`.
 
 Two files live in this directory, and keeping them apart is the point.
 
@@ -43,9 +67,8 @@ Two files live in this directory, and keeping them apart is the point.
   identity, this packet cannot claim the exact ceremony was rehearsed. Every value in it is public;
   no key, mnemonic, keystore path, endpoint or credential belongs here.
 
-- `deployed-manifest.json` is a **record**, and it is empty. It is populated once, by
-  `bin/ceremony.py record`, from confirmed Base receipts, after a founder GO_TO_DEPLOY has named
-  the packet's exact digest and the ceremony has actually run. No simulated fact may reach it — not
+- `deployed-manifest.json` is a **record**, written once by `bin/ceremony.py record` from the five
+  confirmed Base receipts after the founder approved the packet's exact digest and the ceremony ran. No simulated fact may reach it — not
   a fork address, not a rehearsal transaction hash, not a fork block number. The gate admits exactly
   two states, defined once in `bin/ceremony.py` and proved on every run: the empty record, or a
   deployed record whose approved digest is the installed packet's and whose five transactions and
