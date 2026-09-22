@@ -22,7 +22,7 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x5548e545551bca298bbf8e878da23ffe2c7be147939c1033ed65ad6acb184521"
+    "value": "0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327"
   },
   "external_observation": {
     "governance_and_regent_safe": {
@@ -44,7 +44,7 @@
       "paused": false,
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     },
-    "observed_at_block": 51650703
+    "observed_at_block": 51657720
   },
   "external_observation_note": "The mutable external state a deployment depends on: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, modules, module page terminator, fallback handler, singleton and version. Frozen by `bin/deployment-gate.sh --prepare` and compared exactly by `--rehearse`, which also holds every frozen binding's runtime and proxy identity to reports/frozen/fork-observations.json and re-asserts the CCA zero fee controller and the USDC pause and blacklist policy. `observed_at_block` is provenance, not a comparison, because the head moves.",
   "fork_check_receipt": {
@@ -86,7 +86,7 @@
     "shared_src_tree": "eeeb1cedb315c97bf1a22658c02a5210a9c517c9"
   },
   "limits": {
-    "code_identity_note": "`creation_code_keccak256` is the frozen build's own deployer-independent identity for the contract. It is not the hash of the initcode a real transaction sends: four of these seven constructors take arguments that are themselves addresses this ceremony produces, so that hash is only knowable once a deployer is selected. `initcode_bytes` is the whole creation code plus those encoded arguments, because that is what EIP-3860 measures.",
+    "code_identity_note": "`creation_code_keccak256` is the frozen build's own deployer-independent identity for the contract. It is not the hash of the initcode a real transaction sends: four of these eight constructors (the factory, the strategy, the locker and the hook) take arguments that are themselves addresses this ceremony produces, so that hash is only knowable once a deployer is selected. `initcode_bytes` is the whole creation code plus those encoded arguments, because that is what EIP-3860 measures.",
     "eip170_runtime_bytes": 24576,
     "eip3860_initcode_bytes": 49152,
     "gas_note": "This packet records no gas figure, and no complete deployment-transaction gas result exists anywhere in this repository for these five creations. DEP-074 proves the EIP-170 and EIP-3860 size margins above; the only gas it measures is each creation's in-EVM cost, held under the guardrail above and printed by the gate. That figure is a floor, not a transaction cost: an in-EVM CREATE excludes the intrinsic cost, the initcode calldata cost and EIP-3860's per-word charge a real creation transaction carries, and it moves with the frame it is taken in. Full per-transaction estimates stay pending the exact selected deployer and salt and an authorized rehearsal. Fund the ceremony from a live estimate against that deployer, not from this packet.",
@@ -95,11 +95,12 @@
   "selection": {
     "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
     "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000001bc5",
-    "note": "The founder-selected disposable deployer, its starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the seven addresses those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` derives them and a human installs the packet candidate it writes; while it is null this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves the deployer five nonces past this one, so this packet is single-use.",
+    "note": "The founder-selected disposable deployer, its starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the eight addresses those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` derives them and a human installs the packet candidate it writes; while it is null this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves the deployer five nonces past this one, so this packet is single-use.",
     "predicted_addresses": {
       "escrow_implementation": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
       "factory": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
       "hook": "0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044",
+      "lp_locker": "0xBdC4b69bfd66aCDb8b794bADbEf3a50a14891159",
       "receiver_implementation": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
       "splitter_implementation": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
       "strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
@@ -186,7 +187,7 @@
         "value_wei": 0
       }
     ],
-    "excluded": "no deployment helper, proxy, upgrade path, ownership handoff, role grant, governance transaction, application admission, liquidity locker, recovery framework, or post-deployment binding call",
+    "excluded": "no deployment helper, proxy, upgrade path, ownership handoff, role grant, governance transaction, application admission, recovery framework, or post-deployment binding call",
     "internal_creations": [
       {
         "constructor_args_bytes": 128,
@@ -194,13 +195,27 @@
         "created_by": "RegentsAutolaunchFactoryV1",
         "creation_code_bytes": 24078,
         "creation_code_keccak256": "0x1defb750cf097a6179f42bba4405587c0aa4a2308703873d1d5bfa75f4e82c40",
-        "factory_nonce": 1,
+        "creator_nonce": 1,
         "initcode_bytes": 24206,
         "initcode_margin_bytes": 24946,
         "mechanism": "CREATE",
         "runtime_bytes": 19829,
         "runtime_margin_bytes": 4747,
         "source": "src/strategy/RegentLBPStrategy.sol"
+      },
+      {
+        "constructor_args_bytes": 32,
+        "contract": "RevstakeLPLocker",
+        "created_by": "RegentLBPStrategy",
+        "creation_code_bytes": 3628,
+        "creation_code_keccak256": "0xfa6b6756061362ff6003f0eca2734df0c4615da380d5d9bf78bb1dbf7f4f41ed",
+        "creator_nonce": 1,
+        "initcode_bytes": 3660,
+        "initcode_margin_bytes": 45492,
+        "mechanism": "CREATE",
+        "runtime_bytes": 3474,
+        "runtime_margin_bytes": 21102,
+        "source": "src/revenue/RevstakeLPLocker.sol"
       },
       {
         "constructor_args_bytes": 64,

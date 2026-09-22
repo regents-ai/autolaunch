@@ -300,8 +300,8 @@ profile builds into gitignored scratch under `reports/generated/`, separate from
 itself. [docs/audit/deployment-ceremony.md](docs/audit/deployment-ceremony.md) is the full account.
 
 **Nothing in this repository has been deployed.** The frozen packet under
-`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the seven
-predicted addresses, and it records the external state observed at Base block `51650703`. Its
+`deployments/base-mainnet/` now pins a disposable deployer, a pre-mined hook salt, and the eight
+predicted addresses, and it records the external state observed at Base block `51657720`. Its
 authorization state is still `not authorized`: no founder has granted a `GO_TO_DEPLOY`, no
 signing method is named, and only a later founder instruction naming the packet's exact digest
 may authorize a signature or a broadcast.
@@ -334,10 +334,11 @@ compiled bytes moved with the Revstake terms — the factory, which collects no 
 strategy, which admits a creator-chosen raise and mints to the fee-only LP locker — so their code
 identity, sizes and margins and the packet digest all moved with them. The packet's `selection` and
 `external_observation` sections were then re-derived live: `--prepare` under the founder's separate
-read-only Base authority read the deployer's nonce (`0`), mined the salt, re-derived the seven
-predicted addresses and snapshotted the control surface at block `51650703`, all
-byte-identical to the prior packet, and `--rehearse` held them and simulated the exact script
-against a read-only fork with nothing broadcast. Status stays mainnet NO-GO.
+read-only Base authority read the deployer's nonce (`0`), mined the salt, re-derived the eight
+predicted addresses — the seven the prior packet predicted, byte-identical, plus the LP locker the
+strategy constructor creates at strategy nonce 1 — and snapshotted the control surface at block
+`51657720`, and `--rehearse` held them and simulated the exact script against a read-only fork
+with nothing broadcast. Status stays mainnet NO-GO.
 
 ## License
 

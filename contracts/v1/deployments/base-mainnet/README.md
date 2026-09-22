@@ -10,17 +10,24 @@ evidence commit `4451c776f84fa904dd02b0c4360d360a45a945cb`. The code identity, s
 EIP-3860 margins it records for the factory and the strategy are this candidate's own measurements,
 because the Revstake terms and the fee-only LP locker changed both contracts' compiled bytes.
 
-**The selection section was re-prepared and rehearsed for this identity.** Under the founder's
-separate read-only Base authority, `bin/deployment-gate.sh --prepare 0x9b2C414614aEE294202c1219520955EF3B596031`
-read the selected deployer's live nonce (`0`), mined the hook salt, re-derived the seven predicted
-addresses and snapshotted the live Safe and live-staking control surface at Base block `51650703`.
-Every one of those values came back byte-identical to the prior packet; the only fields that moved
-were the two contracts' code identity, the embedded fork-check receipt,
-`external_observation.observed_at_block` and the digest. A human installed that candidate, and
-`--offline` re-rendered it byte for byte. `--rehearse` then held every frozen binding and the
-control surface to the committed values, re-derived the seven addresses exactly, and simulated the
-exact deployment script against a read-only Base fork with no signer and no broadcast. Status stays
-mainnet NO-GO and authorization stays `not authorized`; a rehearsal is not an approval.
+**The selection section was re-prepared and rehearsed with the LP locker as the eighth predicted
+address.** The strategy constructor creates `RevstakeLPLocker` at strategy nonce 1, so the packet
+now predicts eight contracts from the five transactions and records three internal creations. Under
+the founder's separate read-only Base authority,
+`bin/deployment-gate.sh --prepare 0x9b2C414614aEE294202c1219520955EF3B596031` read the selected
+deployer's live nonce (`0`), mined the hook salt, re-derived the eight predicted addresses and
+snapshotted the live Safe and live-staking control surface at Base block `51657720`. The deployer,
+its nonce, the salt (`0x…1bc5`), the seven addresses the prior packet predicted and every
+control-surface value came back byte-identical to that packet; what moved was the eighth prediction
+(`lp_locker`, `0xBdC4b69bfd66aCDb8b794bADbEf3a50a14891159`), the topology's third internal creation
+and its single canonical `created_by`/`creator_nonce` shape, `external_observation.observed_at_block`
+and the digest, now `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`. The prior
+digest `0x5548e545551bca298bbf8e878da23ffe2c7be147939c1033ed65ad6acb184521` is retired and names
+nothing. A human installed that candidate, and `--offline` re-rendered it byte for byte.
+`--rehearse` then held every frozen binding and the control surface to the committed values,
+re-derived the eight addresses exactly, and simulated the exact deployment script — including the
+strategy's `lpLocker()` readback — against a read-only Base fork with no signer and no broadcast.
+Status stays mainnet NO-GO and authorization stays `not authorized`; a rehearsal is not an approval.
 
 Two files live in this directory, and keeping them apart is the point.
 
