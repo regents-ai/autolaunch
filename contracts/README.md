@@ -118,8 +118,8 @@ The revenue mesh has no deployment script and no production address.
   choose it.
 - **Memestake preset accepted** (9 September 2026): the fixed terms in `StocksPreset.sol` stand, on
   the basis that their 13-step schedule leaves about 30% of the auction inventory for the final
-  block, as the Revstake schedule does (29.88% on Base). The values are still labelled
-  PROVISIONAL inside `stocks/README.md`.
+  block, as the Revstake schedule does (29.88% on Base). `stocks/README.md` marks each of them
+  "Founder decision 2026-09-09".
 - **Hook permissions.** The Memestake hooks declare `beforeInitialize`, `beforeSwap`, `afterSwap`
   and both swap return deltas, so the stock is charged on every swap form. Both lanes are always
   on; the staker lane and the locker's `collect` need no authority, the REGENT (Base) or protocol

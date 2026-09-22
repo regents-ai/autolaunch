@@ -122,7 +122,8 @@ proves all 8 (ordering × form) cases.
   the caller's `minAmountOut` is the only slippage control. `launch` does not quote: the required
   raise is the launcher's STOCK amount and the CCA's raise test never reads the dollar.
 - The one-sided STOCK position's width (adjacent tick-spacing boundary out to the last usable tick on
-  the STOCK side) and the destination of the rounding residue (REGENT lane) are PROVISIONAL. The
+  the STOCK side) and the destination of the rounding residue (REGENT lane) are the founder's
+  decision of 9 September 2026. The
   residue bound is a property of the pinned planner's arithmetic, derived in
   `StocksLaunchpadMigrateTest._roundingBound` and asserted at every fuzzed clearing price; it is not
   a guarantee about a different planner or tick spacing. Per-tick liquidity is not checked in code:

@@ -5,19 +5,19 @@ import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
 /// @title StocksPreset
 /// @notice Every fixed launch term of Autolaunch Stocks, in one place, with its provenance.
-/// @dev A value marked `PROVISIONAL` is a single bounded proposal from `contracts/stocks/README.md`.
-///      It blocks release admission until the founder confirms or replaces it; nothing else in the
-///      component restates it. Values with a brief or pinned-dependency provenance are exact.
+/// @dev A value marked `Founder decision 2026-09-09` began as a single bounded proposal from
+///      `contracts/stocks/README.md` and was accepted by the founder on 9 September 2026; nothing else
+///      in the component restates it. Values with a brief or pinned-dependency provenance are exact.
 library StocksPreset {
     // -------------------------------------------------------------------------
     // NEW token and allocation
     // -------------------------------------------------------------------------
 
-    // PROVISIONAL: awaiting founder decision record
+    // Founder decision 2026-09-09
     uint8 internal constant NEW_DECIMALS = 18;
 
     /// @notice `S0`. Divisible by five; below the CCA `MAX_TOTAL_SUPPLY` (1 << 100).
-    // PROVISIONAL: awaiting founder decision record
+    // Founder decision 2026-09-09
     uint256 internal constant INITIAL_SUPPLY = 1_000_000_000e18;
 
     /// @notice Brief P04, exact: 80% of `S0` is sold through the auction.
@@ -34,7 +34,7 @@ library StocksPreset {
     // -------------------------------------------------------------------------
 
     /// @notice Brief P03 "approximately 24 hours" at Base's 2-second blocks.
-    // PROVISIONAL: awaiting founder decision record (the block count; the ~24 h intent is the brief's)
+    // Founder decision 2026-09-09 (the block count; the ~24 h intent is the brief's)
     uint64 internal constant AUCTION_DURATION_BLOCKS = 43_200;
 
     /// @notice Founder decision (21 September 2026): every auction opens exactly ten minutes after its
@@ -65,9 +65,9 @@ library StocksPreset {
     // official pool
     // -------------------------------------------------------------------------
 
-    // PROVISIONAL: awaiting founder decision record
+    // Founder decision 2026-09-09
     uint24 internal constant POOL_FEE = 3000;
-    // PROVISIONAL: awaiting founder decision record
+    // Founder decision 2026-09-09
     int24 internal constant POOL_TICK_SPACING = 60;
 
     /// @notice Brief P08: each hook lane is `feeBase / LANE_DIVISOR`, floored per lane.
@@ -94,7 +94,7 @@ library StocksPreset {
     ///         supply is not reduced because UERC20 has no burn.
     /// @notice Brief §1.2 recommendation: after a failed minimum the reserve and the swept inventory
     ///         are retired the same way.
-    // PROVISIONAL: awaiting founder decision record (failed-minimum retirement)
+    // Founder decision 2026-09-09 (failed-minimum retirement)
     bool internal constant RETIRE_FAILED_INVENTORY = true;
 
     /// @notice Brief P13 "all-net-STOCK liquidity": graduation locks two positions in the fee-only
@@ -104,7 +104,7 @@ library StocksPreset {
     ///         STOCK. Only the rounding remainder below one unit of liquidity, bounded by
     ///         `sqrt(clearingPrice)` base units and zero at every realistic price, accrues to the
     ///         REGENT lane of the pool's hook. See README "Money and custody rules" 3.
-    // PROVISIONAL: awaiting founder decision record (the destination of the rounding remainder)
+    // Founder decision 2026-09-09 (the destination of the rounding remainder)
     bool internal constant LP_STOCK_DUST_TO_REGENT_BUCKET = true;
 
     // -------------------------------------------------------------------------
@@ -125,7 +125,7 @@ library StocksPreset {
     ///         offset down, so `+spacing` lands one spacing above the initial tick rounded down, which
     ///         keeps the whole range strictly above the initial tick; the upper bound is the highest
     ///         usable tick (`MAX_TICK` clamps there).
-    // PROVISIONAL: awaiting founder decision record (the width; the side follows from the price)
+    // Founder decision 2026-09-09 (the width; the side follows from the price)
     int24 internal constant STOCK_ONLY_BELOW_LOWER_OFFSET = TickMath.MIN_TICK;
     int24 internal constant STOCK_ONLY_BELOW_UPPER_OFFSET = -(POOL_TICK_SPACING - 1);
     int24 internal constant STOCK_ONLY_ABOVE_LOWER_OFFSET = POOL_TICK_SPACING;

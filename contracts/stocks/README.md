@@ -45,26 +45,27 @@ otherwise. No deployment, funding or public-chain transaction is part of this co
 
 ## Preset: fixed terms and their provenance
 
-The Stocks decision record the September 8 brief refers to was not found in this repository or
-the workspace. Every value marked **PROVISIONAL** below is a single bounded proposal, lives only
-in `StocksPreset.sol`, and blocks release admission until the founder confirms or replaces it.
-No value was copied from Agent merely because it was nearby; where a value is shared it is
-because the same pinned dependency imposes it.
+Every term lives only in `StocksPreset.sol`. The values marked **founder decision 2026-09-09**
+began as single bounded proposals, because the Stocks decision record the September 8 brief refers
+to was never found; the founder accepted all of them on 9 September 2026, on the basis that the step
+schedule keeps about 30% of the auction supply in the final block as Agent's does (29.88%, proven in
+`StocksPreset.t.sol`). No value was copied from Agent merely because it was nearby; where a value is
+shared it is because the same pinned dependency imposes it.
 
 | Term | Value | Provenance |
 | --- | --- | --- |
-| NEW decimals | 18 | PROVISIONAL |
-| NEW initial supply `S0` | 1,000,000,000 × 10^18 | PROVISIONAL; divisible by five; below the CCA `MAX_TOTAL_SUPPLY` |
+| NEW decimals | 18 | Founder decision 2026-09-09 |
+| NEW initial supply `S0` | 1,000,000,000 × 10^18 | Founder decision 2026-09-09; divisible by five; below the CCA `MAX_TOTAL_SUPPLY` |
 | Auction inventory | `4 * (S0 / 5)` = 800,000,000 × 10^18 | Brief P04, exact |
 | Migration reserve | `S0 / 5` = 200,000,000 × 10^18 | Brief P04, exact |
-| Auction duration | 43,200 blocks (~24 h at Base's 2 s blocks) | Brief P03 "approximately 24 hours"; block count PROVISIONAL |
+| Auction duration | 43,200 blocks (~24 h at Base's 2 s blocks) | Brief P03 "approximately 24 hours"; block count founder decision 2026-09-09 |
 | Step schedule | 13 packed steps summing to 43,200 blocks and exactly `MPS = 1e7` | Derived; shape mirrors Agent's pinned schedule, proven by test |
 | Start lead | `START_LEAD_BLOCKS` 300 (ten minutes at 2 s blocks): every auction opens exactly 300 blocks after its creation block; the launcher does not choose it; the opening block is in the launch record and the `StockLaunchCreated` event | Founder decision 2026-09-21 |
 | Claim delay | 64 blocks after end | Same pinned CCA convention as Agent |
 | Migration delay | 128 blocks after end | Same pinned CCA convention as Agent |
 | Bid tick spacing | `floorPriceQ96 / 100`, requiring `floorPriceQ96 % 100 == 0` and the result ≥ CCA `MIN_TICK_SPACING` | Derived; floor ≥ CCA `MIN_FLOOR_PRICE` |
-| Official pool LP fee | 3000 (0.30%) | PROVISIONAL |
-| Official pool tick spacing | 60 | PROVISIONAL |
+| Official pool LP fee | 3000 (0.30%) | Founder decision 2026-09-09 |
+| Official pool tick spacing | 60 | Founder decision 2026-09-09 |
 | REGENT hook lane | 100 bps of realized STOCK-side amount, floored | Brief P08 |
 | Staker hook lane | 100 bps of realized STOCK-side amount, floored, always on; deposited as STOCK into the launch's splitter by anyone (`settleStakerLane`) | Founder decision 2026-09-18 |
 | Splitter protocol share | 2% (`SKIM_BPS` 200) of every recognized amount in USDC, MEMESTOCK and STOCK; USDC straight into live REGENT staking, MEMESTOCK and STOCK to the Governance and REGENT Safe; the other 98% belongs wholly to stakers | Founder decision 2026-09-18 |
@@ -73,10 +74,10 @@ because the same pinned dependency imposes it.
 | Required raise | chosen by the launcher in STOCK base units (`requiredStockRaised`), above zero and at most what the fixed inventory can settle on at the highest on-grid bid price (`UnreachableRequiredRaise` otherwise); no governance minimum; a recorded auction keeps its raise | Founder decision 2026-09-21 |
 | Creator allocation, vesting, treasury | none | Brief P05 |
 | Unsold NEW after graduation | transferred to `0x…dEaD` ("retired"; supply is not reduced because UERC20 has no burn) | Brief P13; mechanism labelled |
-| Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; PROVISIONAL |
+| Reserve and inventory after failed minimum | transferred to `0x…dEaD` in `migrate`; refunds remain independent | Brief §1.2 recommendation; founder decision 2026-09-09 |
 | Locked liquidity | Two positions, both NFTs to the `MemestockLPLocker`: (1) full range, funded by the whole reserve and the STOCK it pairs at the clearing price; (2) one-sided STOCK, holding every remaining unit of net STOCK | Brief P13 "all-net-STOCK liquidity", exact; see the design note below |
-| One-sided STOCK position geometry | From the tick-spacing boundary adjacent to the initial price out to the last usable tick on the STOCK side of the book (below the price when STOCK is currency1, above it when STOCK is currency0) | PROVISIONAL (the width; the side follows from the price) |
-| LP rounding remainder (STOCK below one unit of liquidity after both positions) | accrued to the REGENT lane of the pool's hook; proven `< sqrt(clearingPrice)` base units, zero at every fixture price | PROVISIONAL (the destination) |
+| One-sided STOCK position geometry | From the tick-spacing boundary adjacent to the initial price out to the last usable tick on the STOCK side of the book (below the price when STOCK is currency1, above it when STOCK is currency0) | Founder decision 2026-09-09 (the width; the side follows from the price) |
+| LP rounding remainder (STOCK below one unit of liquidity after both positions) | accrued to the REGENT lane of the pool's hook; proven `< sqrt(clearingPrice)` base units, zero at every fixture price | Founder decision 2026-09-09 (the destination) |
 | LP custody | both position NFTs minted to the launchpad's `MemestockLPLocker` and registered to the launch's splitter, once and forever; the locker can only collect fees (a decrease of exactly zero) and deposit them into that splitter; no principal path exists | Brief P13; founder decision 2026-09-18 (fees to stakers) |
 
 ### Design note on the two positions
@@ -98,8 +99,8 @@ positions are minted in one PositionManager call with exact settlement amounts. 
 quarter sells the full range is STOCK-bound, takes the whole raise itself, and the reserve it cannot
 pair is retired with the unsold NEW (`test_graduation_with_less_than_a_quarter_sold_both_orderings`).
 The second position is the first liquidity a NEW seller meets and moves the price down through a
-STOCK-only book; that geometry (and the accrual of the residue to the REGENT lane) is the
-PROVISIONAL part awaiting the founder's decision record.
+STOCK-only book; that geometry (and the accrual of the residue to the REGENT lane) was the founder's
+decision of 9 September 2026.
 
 ## Hook mechanics
 
