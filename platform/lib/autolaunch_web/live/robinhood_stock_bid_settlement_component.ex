@@ -52,13 +52,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   @impl true
   def update(assigns, socket) do
+    identity =
+      {assigns.auction, assigns.bid["bid_id"], assigns.wallet, assigns.current_human_id,
+       assigns.session_lease}
+
+    socket =
+      if socket.assigns[:settlement_identity] == identity, do: socket, else: cleared(socket)
+
     {:ok,
      socket
      |> assign(assigns)
+     |> assign(:settlement_identity, identity)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:sent, fn -> %{} end)
-     |> reviewed_for_wallet()}
+     |> refresh_returned()}
   end
 
   @impl true
@@ -73,7 +81,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         {@notice.message}
       </p>
 
-      <div :if={!@review} class="launch-wallet-controls">
+      <p :if={@returned} class="launch-wallet-settled" role="status">
+        Your bid was returned in full. This launch did not raise enough, and there are no tokens to claim.
+      </p>
+
+      <div :if={!@review && !@returned} class="launch-wallet-controls">
         <Regent.Primitives.button
           type="button"
           phx-click="review_settlement"
@@ -184,14 +196,18 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   @impl true
   def handle_event("review_settlement", _params, socket) do
-    request = %{auction: socket.assigns.auction, bid_id: socket.assigns.bid["bid_id"]}
-
-    case StockBidSettlementActions.prepare(request, socket.assigns.wallet, opts(socket)) do
+    case prepare(socket) do
       {:ok, review} ->
-        {:noreply, socket |> assign(review: review, sent: %{}, notice: nil) |> published()}
+        {:noreply,
+         socket |> assign(review: review, sent: %{}, notice: nil, returned: false) |> published()}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: notice(:info, refusal(error)))}
+        socket =
+          if refusal(error) == :failed_bid_returned,
+            do: returned(socket),
+            else: assign(socket, returned: false, notice: notice(:info, refusal(error)))
+
+        {:noreply, socket}
     end
   end
 
@@ -209,7 +225,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   def handle_event("step_failed", %{"reason" => reason}, socket),
     do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
 
-  def handle_event("clear_review", _params, socket), do: {:noreply, cleared(socket)}
+  def handle_event("clear_review", _params, socket),
+    do: {:noreply, socket |> cleared() |> refresh_returned()}
 
   # The wallet itself is the bid panel's; this row only follows it.
   def handle_event(_other, _params, socket), do: {:noreply, socket}
@@ -254,17 +271,38 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     })
   end
 
-  # A review belongs to the wallet it was prepared for; another wallet starts clean.
-  defp reviewed_for_wallet(%{assigns: %{review: %{envelope: envelope}, wallet: wallet}} = socket) do
-    if String.downcase(envelope["expected_signer"]) == wallet, do: socket, else: cleared(socket)
+  # Re-read exited bids on load and parent refresh; the row is only a hint.
+  # The action still checks the current session, ownership and fresh chain state.
+  defp refresh_returned(socket) do
+    socket = if socket.assigns[:returned], do: cleared(socket), else: socket
+    socket = assign(socket, :returned, false)
+
+    if socket.assigns.bid["exited_block"] not in [nil, "0", 0] do
+      case prepare(socket) do
+        {:error, error} ->
+          if refusal(error) == :failed_bid_returned, do: returned(socket), else: socket
+
+        {:ok, _review} ->
+          socket
+      end
+    else
+      socket
+    end
   end
 
-  defp reviewed_for_wallet(socket), do: socket
+  defp prepare(socket) do
+    request = %{auction: socket.assigns.auction, bid_id: socket.assigns.bid["bid_id"]}
+    StockBidSettlementActions.prepare(request, socket.assigns.wallet, opts(socket))
+  end
+
+  defp returned(socket), do: socket |> cleared() |> assign(:returned, true)
 
   defp cleared(socket) do
-    socket
-    |> assign(review: nil, sent: %{}, notice: nil)
-    |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
+    socket = assign(socket, review: nil, sent: %{}, notice: nil, returned: false)
+
+    if socket.assigns[:id],
+      do: push_event(socket, "reviewed-steps:cleared", %{component_id: socket.assigns.id}),
+      else: socket
   end
 
   defp opts(socket),

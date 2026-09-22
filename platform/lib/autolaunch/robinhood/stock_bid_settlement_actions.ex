@@ -91,6 +91,14 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
 
   # The steps the auction accepts right now: the exit first, then the claim
   # when one is open; a bid already returned may only claim.
+  defp eligible_steps(%{
+         graduated?: false,
+         exit: {:refused, :already_exited},
+         bid: %{exited_block: exited_block, tokens_filled: 0}
+       })
+       when exited_block > 0,
+       do: unavailable(:failed_bid_returned)
+
   defp eligible_steps(%{exit: {:refused, :already_exited}, claim: %{} = claim}),
     do: {:ok, [claim_step(claim)]}
 
