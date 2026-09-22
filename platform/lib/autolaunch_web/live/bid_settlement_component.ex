@@ -197,11 +197,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <p :if={@operation.state == :confirmed} class="bid-settled" role="status">
           {confirmed_copy(@operation)}
         </p>
-        <p :if={@operation.state in [:reverted, :unverified]} class="bid-settled" role="alert">
-          {settled_copy(@operation)}
-        </p>
         <p
-          :if={@operation.state in [:not_sent, :cancelled, :expired, :submission_unknown]}
+          :if={@operation.state in [:cancelled, :expired]}
           class="bid-settled"
           role="status"
         >
@@ -223,8 +220,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         <Regent.Primitives.button
           :if={@operation.state == :submitted}
           type="button"
-          phx-click="check_settlement_step"
-          phx-value-action-id={@operation.action_id}
+          phx-click="wallet_press_verify"
+          phx-value-action_id={@operation.action_id}
+          phx-value-press_id={submitted_press(@operation)}
           phx-target={@myself}
           variant="secondary"
         >
@@ -295,9 +293,6 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      |> BidSettlementActions.prepare(socket.assigns.wallet, opts(socket))
      |> settled(socket)}
   end
-
-  def handle_event("check_settlement_step", %{"action-id" => action_id}, socket),
-    do: {:noreply, action_id |> BidSettlementActions.verify(opts(socket)) |> settled(socket)}
 
   def handle_event("cancel_settlement_review", %{"action-id" => action_id}, socket),
     do: {:noreply, action_id |> BidSettlementActions.cancel(opts(socket)) |> settled(socket)}
@@ -443,12 +438,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp current_state(:dispatched), do: "In your wallet"
   defp current_state(:submitted), do: "Sent"
   defp current_state(:confirmed), do: "Confirmed"
-  defp current_state(:reverted), do: "Reverted"
-  defp current_state(:unverified), do: "Unresolved"
-  defp current_state(:not_sent), do: "Not sent"
   defp current_state(:cancelled), do: "Cancelled"
   defp current_state(:expired), do: "Expired"
-  defp current_state(:submission_unknown), do: "Unresolved"
 
   defp confirmed_copy(%{result: %{"tokens_claimed_units" => tokens}} = operation),
     do:
@@ -463,21 +454,17 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       else: "This settlement is confirmed on Base."
   end
 
-  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => chain_id}}) do
-    if Lab.test_chain?(chain_id),
-      do: "This test transaction reverted.",
-      else: "This transaction reverted on Base."
-  end
-
-  defp settled_copy(%{state: :unverified}),
-    do: "This transaction did not record the settlement you reviewed."
-
-  defp settled_copy(%{state: :submission_unknown}),
-    do: "This one is still unresolved. Check your wallet activity before you try it again."
-
-  defp settled_copy(%{state: :not_sent}), do: "Your wallet declined this."
   defp settled_copy(%{state: :cancelled}), do: WalletPressComponent.withdrawal_copy()
   defp settled_copy(%{state: :expired}), do: "This review expired before it was sent."
+
+  # The press whose transaction the card is waiting on: the submitted attempt of
+  # the current step, whose hash the chain has not answered about yet.
+  defp submitted_press(operation),
+    do:
+      Enum.find_value(
+        operation.attempts,
+        &(&1.state == :submitted and &1.step == operation.step and &1.id)
+      )
 
   defp copy(:chain_unavailable) do
     if Lab.test_chain?(),

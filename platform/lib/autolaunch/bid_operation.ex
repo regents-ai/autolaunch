@@ -3,16 +3,12 @@ defmodule Autolaunch.BidOperation do
   One durable bid the server owns before any wallet opens.
 
   The reviewed sequence is immutable and lives in `envelope`. `step` says which
-  of its transactions is wallet-capable right now and `state` says how far that
-  one transaction has got, so exactly one step is sendable at a time and its hash
-  is bound before the next becomes so.
+  of its transactions is wallet-capable right now and `state` says how far the
+  reviewed sequence has got. Every wallet press of a step is its own
+  `WalletAttempt`; a confirmed press advances the step or ends the bid.
 
-  The database decides every race: `action_id` is unique, each hash column is
-  unique within itself, and a partial identity over `terminal_at IS NULL`
-  allows one open bid per account. A claimed step whose
-  outcome is unknown holds that slot until the account explicitly ends it; it
-  never becomes a fresh send, and a hash that arrives late attaches to the
-  operation it belongs to without reopening it.
+  The database decides every race: `action_id` is unique and a partial identity
+  over `terminal_at IS NULL` allows one open bid per account.
   """
 
   use Ash.Resource,
@@ -24,26 +20,7 @@ defmodule Autolaunch.BidOperation do
   # A direct bid needs at most the two allowances and the bid itself; a USDC bid
   # needs the exact USDC allowance to the adapter and the adapter call.
   @steps [:token_approval, :permit2_approval, :bid, :usdc_approval, :usdc_bid]
-  @states [
-    :prepared,
-    :dispatched,
-    :submitted,
-    :confirmed,
-    :unverified,
-    :reverted,
-    :not_sent,
-    :cancelled,
-    :expired,
-    :submission_unknown
-  ]
-
-  @hashes [
-    :token_approval_transaction_hash,
-    :permit2_approval_transaction_hash,
-    :bid_transaction_hash,
-    :usdc_approval_transaction_hash,
-    :usdc_bid_transaction_hash
-  ]
+  @states [:prepared, :confirmed, :cancelled, :expired]
 
   postgres do
     table "bid_operations"
@@ -75,48 +52,6 @@ defmodule Autolaunch.BidOperation do
       change set_attribute(:human_account_id, arg(:human_account_id))
     end
 
-    update :claim_dispatch do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :prepared)
-      change set_attribute(:state, :dispatched)
-    end
-
-    update :advance do
-      accept [:step]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :prepared)
-    end
-
-    update :confirm do
-      accept [:onchain_bid_id]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      validate attribute_in(:step, [:bid, :usdc_bid])
-      validate present(:onchain_bid_id)
-      change set_attribute(:state, :confirmed)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    # A canonical success whose own logs or allowance contradict the review, and
-    # a canonical revert. Both are terminal and neither is ever resent.
-    update :record_unverified do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :unverified)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :record_revert do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :reverted)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
     update :cancel do
       accept [:reason]
       require_atomic? false
@@ -125,42 +60,14 @@ defmodule Autolaunch.BidOperation do
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 
-    # The exact EIP-1193 rejection of a claimed step: the wallet was asked and
-    # said no, so nothing was broadcast.
-    update :close_not_sent do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :not_sent)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :release_unstarted do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :prepared)
-    end
-
-    # The granted Permit2 allowance has passed its expiry with no later hash to
-    # report. The old sequence can no longer be spent, so a new review has to
+    # The granted Permit2 allowance has passed its expiry with no press still in
+    # flight. The old sequence can no longer be spent, so a new review has to
     # reread current state rather than resume this one.
     update :expire do
       accept [:reason]
       require_atomic? false
       validate attribute_equals(:state, :prepared)
       change set_attribute(:state, :expired)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    # The account chose to start a new bid while a claimed step's outcome is
-    # still unknown. The calldata is never resent; the row stays for the
-    # projector to reconcile and the account's slot is released.
-    update :close_submission_unknown do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_in(:state, [:dispatched, :submitted])
-      change set_attribute(:state, :submission_unknown)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
   end
@@ -188,10 +95,6 @@ defmodule Autolaunch.BidOperation do
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
-    for hash <- @hashes do
-      attribute hash, :string, sensitive?: true, constraints: [min_length: 66, max_length: 66]
-    end
-
     # Adopted from the verified BidSubmitted event, never guessed before mining.
     attribute :onchain_bid_id, :string, constraints: [max_length: 78]
 
@@ -209,10 +112,6 @@ defmodule Autolaunch.BidOperation do
 
   identities do
     identity :unique_action_id, [:action_id]
-
-    for hash <- @hashes do
-      identity :"unique_#{hash}", [hash]
-    end
 
     identity :one_open_per_account, [:human_account_id] do
       where expr(is_nil(terminal_at))

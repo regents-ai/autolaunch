@@ -131,15 +131,7 @@ defmodule Autolaunch do
         action: :prepare_usdc_bid,
         args: [:auction_id, :expected_signer, :usdc_amount, :max_price]
 
-      define :claim_bid_dispatch, action: :claim_bid_dispatch, args: [:action_id]
-      define :verify_bid_step, action: :verify_bid_step, args: [:action_id]
       define :cancel_bid_review, action: :cancel_bid_review, args: [:action_id]
-      define :close_bid_not_sent, action: :close_bid_not_sent, args: [:action_id]
-
-      define :release_unstarted_bid_dispatch,
-        action: :release_unstarted_bid_dispatch,
-        args: [:action_id]
-
       define :start_new_bid, action: :start_new_bid, args: [:action_id]
     end
 
@@ -155,13 +147,9 @@ defmodule Autolaunch do
     # written only by `BidSettlementActions` under a session lease.
     resource Autolaunch.BidSettlementOperation
 
-    # Writes stay on LaunchActions; this read is the production projection's match.
-    resource @launch_operation do
-      define :chain_verified_launch_operation_by_hash,
-        action: :chain_verified_by_launch_hash,
-        args: [:launch_transaction_hash],
-        not_found_error?: false
-    end
+    # The durable direct-wallet launch is written only by `LaunchActions` under
+    # a session lease, on the same terms.
+    resource @launch_operation
 
     # The Stocks launch lane: one private draft per account and the durable
     # single-transaction operation `Autolaunch.Stocks.LaunchActions` owns.
@@ -372,9 +360,8 @@ defmodule Autolaunch do
   def quote_auction_bid(auction_id, amount, max_price, opts \\ []),
     do: Autolaunch.BidActions.quote(auction_id, amount, max_price, opts)
 
-  # The two bidder rules a presenter needs, owned here so the page and the named
+  # The bidder rule a presenter needs, owned here so the page and the named
   # preparation action can only ever answer the same way.
-  defdelegate parse_bid_amount(value, decimals), to: Autolaunch.BidActions, as: :atomic_amount
   defdelegate bid_amount_units(amount, decimals), to: Autolaunch.BidActions, as: :units
 
   # The clean-V1 subject wallet lane. `SubjectWalletActions` proves the active
@@ -389,25 +376,9 @@ defmodule Autolaunch do
     to: Autolaunch.SubjectWalletActions,
     as: :prepare
 
-  defdelegate claim_subject_wallet_dispatch(subject_id, action_id, address, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :claim_dispatch
-
-  defdelegate verify_subject_wallet_step(subject_id, action_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :verify
-
   defdelegate cancel_subject_wallet_review(subject_id, action_id, opts),
     to: Autolaunch.SubjectWalletActions,
     as: :cancel
-
-  defdelegate close_subject_wallet_not_sent(subject_id, action_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :close_not_sent
-
-  defdelegate release_unstarted_subject_wallet_dispatch(subject_id, action_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :release_unstarted
 
   defdelegate start_new_subject_wallet_action(subject_id, action_id, opts),
     to: Autolaunch.SubjectWalletActions,
@@ -439,25 +410,9 @@ defmodule Autolaunch do
     to: Autolaunch.LaunchActions,
     as: :prepare
 
-  defdelegate claim_launch_dispatch(action_id, address, opts),
-    to: Autolaunch.LaunchActions,
-    as: :claim_dispatch
-
-  defdelegate verify_launch_step(action_id, opts),
-    to: Autolaunch.LaunchActions,
-    as: :verify
-
   defdelegate cancel_launch_review(action_id, opts),
     to: Autolaunch.LaunchActions,
     as: :cancel
-
-  defdelegate close_launch_not_sent(action_id, opts),
-    to: Autolaunch.LaunchActions,
-    as: :close_not_sent
-
-  defdelegate release_unstarted_launch_dispatch(action_id, opts),
-    to: Autolaunch.LaunchActions,
-    as: :release_unstarted
 
   defdelegate start_new_launch(action_id, opts),
     to: Autolaunch.LaunchActions,
@@ -543,43 +498,5 @@ defmodule Autolaunch do
     |> Ash.Query.filter(fragment("lower(?)", auction_address) in ^lowered)
     |> Ash.read!()
     |> MapSet.new(&String.downcase(&1.auction_address))
-  end
-
-  def list_public_auctions(mode, sort, limit, opts \\ []) do
-    Autolaunch.Auction
-    |> Ash.Query.for_read(:read)
-    |> filter_public_auctions(mode)
-    |> sort_public_auctions(sort)
-    |> Ash.Query.limit(limit)
-    |> Ash.Query.load(:treasury_security_report)
-    |> Ash.read(opts)
-  end
-
-  def list_public_tokens(limit, opts \\ []) do
-    Autolaunch.Token
-    |> Ash.Query.for_read(:read)
-    |> Ash.Query.sort(graduated_at: :desc, id: :asc)
-    |> Ash.Query.limit(limit)
-    |> Ash.Query.load(:treasury_security_report)
-    |> Ash.read(opts)
-  end
-
-  defp filter_public_auctions(query, mode) when mode in ["biddable", "live"],
-    do: Ash.Query.filter(query, state: :active)
-
-  defp filter_public_auctions(query, "failed_minimum"),
-    do: Ash.Query.filter(query, state: :failed)
-
-  defp filter_public_auctions(query, "graduated"),
-    do: Ash.Query.filter(query, state: :graduated)
-
-  defp filter_public_auctions(query, "all"), do: query
-
-  defp sort_public_auctions(query, "oldest") do
-    Ash.Query.sort(query, opened_at: :asc, inserted_at: :asc, id: :asc)
-  end
-
-  defp sort_public_auctions(query, "newest") do
-    Ash.Query.sort(query, opened_at: :desc_nils_last, inserted_at: :desc, id: :asc)
   end
 end

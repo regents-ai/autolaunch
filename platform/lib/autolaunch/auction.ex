@@ -265,29 +265,9 @@ defmodule Autolaunch.Auction do
       run fn input, context -> BidActions.prepare_usdc(input, context) end
     end
 
-    action :claim_bid_dispatch, :map do
-      argument :action_id, :string, allow_nil?: false
-      run fn input, context -> BidActions.claim_dispatch(input, context) end
-    end
-
-    action :verify_bid_step, :map do
-      argument :action_id, :string, allow_nil?: false
-      run fn input, context -> BidActions.verify(input, context) end
-    end
-
     action :cancel_bid_review, :map do
       argument :action_id, :string, allow_nil?: false
       run fn input, context -> BidActions.cancel(input, context) end
-    end
-
-    action :close_bid_not_sent, :map do
-      argument :action_id, :string, allow_nil?: false
-      run fn input, context -> BidActions.close_not_sent(input, context) end
-    end
-
-    action :release_unstarted_bid_dispatch, :map do
-      argument :action_id, :string, allow_nil?: false
-      run fn input, context -> BidActions.release_unstarted(input, context) end
     end
 
     action :start_new_bid, :map do
@@ -335,11 +315,7 @@ defmodule Autolaunch.Auction do
              :bid_position,
              :prepare_bid,
              :prepare_usdc_bid,
-             :claim_bid_dispatch,
-             :verify_bid_step,
              :cancel_bid_review,
-             :close_bid_not_sent,
-             :release_unstarted_bid_dispatch,
              :start_new_bid
            ]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor

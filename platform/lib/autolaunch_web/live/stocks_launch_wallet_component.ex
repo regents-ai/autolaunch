@@ -212,16 +212,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           </p>
         </section>
         <p
-          :if={@operation.state in [:reverted, :unverified]}
-          class="launch-wallet-settled"
-          role="alert"
-        >
-          {settled_copy(@operation)}
-        </p>
-        <p
-          :if={
-            @operation.state in [:not_sent, :cancelled, :expired, :invalidated, :submission_unknown]
-          }
+          :if={@operation.state in [:cancelled, :expired, :invalidated]}
           class="launch-wallet-settled"
           role="status"
         >
@@ -257,8 +248,9 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
           <Regent.Primitives.button
             :if={@operation.state == :submitted}
             type="button"
-            phx-click="check_launch_step"
-            phx-value-action-id={@operation.action_id}
+            phx-click="wallet_press_verify"
+            phx-value-action_id={@operation.action_id}
+            phx-value-press_id={submitted_press(@operation)}
             phx-target={@myself}
             variant="secondary"
           >
@@ -331,9 +323,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
      |> settled(socket)}
   end
 
-  def handle_event("check_launch_step", %{"action-id" => action_id}, socket),
-    do: {:noreply, action_id |> LaunchActions.verify(opts(socket)) |> settled(socket)}
-
   def handle_event("cancel_launch_review", %{"action-id" => action_id}, socket),
     do: {:noreply, action_id |> LaunchActions.cancel(opts(socket)) |> settled(socket)}
 
@@ -342,9 +331,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   def handle_event("clear_launch", _params, socket),
     do: {:noreply, socket |> adopt_operation(nil) |> assign(notice: nil) |> cleared()}
-
-  def handle_event("launch_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
 
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
@@ -450,13 +436,9 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
   defp current_state(:dispatched), do: "In your wallet"
   defp current_state(:submitted), do: "Sent"
   defp current_state(:chain_verified), do: "Verified"
-  defp current_state(:reverted), do: "Reverted"
-  defp current_state(:unverified), do: "Unresolved"
-  defp current_state(:not_sent), do: "Not sent"
   defp current_state(:cancelled), do: "Cancelled"
   defp current_state(:expired), do: "Expired"
   defp current_state(:invalidated), do: "Out of date"
-  defp current_state(:submission_unknown), do: "Unresolved"
 
   defp verified_copy(%{envelope: %{"chain_id" => chain_id}}) do
     if Autolaunch.Lab.test_chain?(chain_id),
@@ -465,20 +447,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       else:
         "Your transaction and launch record were verified. This launch will appear here when its onchain record is ready."
   end
-
-  defp settled_copy(%{state: :reverted, envelope: %{"chain_id" => chain_id}}) do
-    if Autolaunch.Lab.test_chain?(chain_id),
-      do: "This test transaction reverted. Nothing was created.",
-      else: "This transaction reverted on Base. Nothing was created."
-  end
-
-  defp settled_copy(%{state: :unverified}),
-    do: "This transaction did not record the launch you reviewed."
-
-  defp settled_copy(%{state: :submission_unknown}),
-    do: "This one is still unresolved. Check your wallet activity before you try it again."
-
-  defp settled_copy(%{state: :not_sent}), do: "Your wallet declined this. Nothing was sent."
 
   defp settled_copy(%{state: :cancelled}), do: WalletPressComponent.withdrawal_copy()
 
@@ -511,14 +479,14 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
     ]
   end
 
-  defp wallet_failure_copy("wallet_unavailable"),
-    do: "Open the wallet you are using here, then try again. Nothing was sent."
-
-  defp wallet_failure_copy("send_unconfirmed"),
+  # The press whose transaction the card is waiting on: the submitted attempt of
+  # the current step, whose hash the chain has not answered about yet.
+  defp submitted_press(operation),
     do:
-      "Your wallet may have sent this transaction. Check your wallet activity before you start another launch."
-
-  defp wallet_failure_copy(_unknown), do: @generic
+      Enum.find_value(
+        operation.attempts,
+        &(&1.state == :submitted and &1.step == operation.step and &1.id)
+      )
 
   defp notice(tone, reason), do: %{tone: tone, message: copy(reason)}
 

@@ -58,7 +58,6 @@ defmodule Autolaunch.BidOperationTest do
     assert SessionAuthority.revoke(%{lineage: opts[:context].session_lease.lineage})
 
     for refused <- [
-          fn -> Autolaunch.claim_bid_dispatch(operation.action_id, opts) end,
           fn ->
             Autolaunch.dispatch_wallet_press(
               :bid,
@@ -69,7 +68,9 @@ defmodule Autolaunch.BidOperationTest do
               opts
             )
           end,
-          fn -> Autolaunch.verify_bid_step(operation.action_id, opts) end,
+          fn ->
+            Autolaunch.verify_wallet_press(:bid, operation.action_id, Ecto.UUID.generate(), opts)
+          end,
           fn -> Autolaunch.cancel_bid_review(operation.action_id, opts) end,
           fn -> Autolaunch.prepare_bid(auction.id, wallet, "1", "3", opts) end
         ] do

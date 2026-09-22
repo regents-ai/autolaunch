@@ -27,7 +27,6 @@ defmodule Autolaunch.BidActions do
     Lab,
     LabAbi,
     LabBidChainClient,
-    LabProjection,
     TreasurySecurity
   }
 
@@ -60,12 +59,9 @@ defmodule Autolaunch.BidActions do
   @permit2_seconds 900
 
   @replaced "replaced by a newer review"
-  @rejected "wallet reported an explicit user rejection"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed bid expired before it was sent"
   @unresolved "account started a new bid while this one was unresolved"
-  @reverted "verified revert on Base"
-  @contradicted "canonical receipt contradicts the reviewed bid"
 
   # A Base read that may answer differently later never settles anything.
   @transient [
@@ -82,10 +78,6 @@ defmodule Autolaunch.BidActions do
     usdc_approval: :usdc_approval_transaction_hash,
     usdc_bid: :usdc_bid_transaction_hash
   }
-
-  # Everything a Base read was answered about. A settlement applies only to a row
-  # still carrying all of it.
-  @identity [:state, :step, :envelope | Map.values(@hash_attributes)]
 
   @doc "The public estimate for one auction, from its stored snapshot."
   def quote(auction_id, amount, max_price, opts \\ []) do
@@ -225,84 +217,19 @@ defmodule Autolaunch.BidActions do
 
   def prepare_usdc(_input, _context), do: {:error, :authentication_required}
 
-  @doc """
-  Claims the current step's dispatch. Only this winner may open the wallet.
-
-  The locked account and the signer the stored envelope pinned decide together,
-  inside the transaction that takes the row, so a wallet the account no longer
-  holds cannot be handed a dispatch by a check that passed a moment earlier.
-  """
-  def claim_dispatch(input, %{actor: %Human{}} = context) do
-    action_id = input.arguments.action_id
-
-    with {:ok, lease} <- lease(context),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, lab_status} <- current_lab_status(candidate),
-         treasury_result <- revalidate_treasury(candidate) do
-      transact(
-        lease,
-        &locked_transition(&1, action_id, fn account, operation ->
-          claim(account, operation, lab_status, treasury_result)
-        end)
-      )
-    end
-  end
-
-  def claim_dispatch(_input, _context), do: unavailable(:authentication_required)
-
-  @doc """
-  Reads the exact bound hash and records whatever it truthfully settles as.
-
-  Base is read from the candidate row alone, before any lease transaction opens,
-  so no provider call ever happens under a row lock. The locked row then has to
-  still be that same candidate — same state, step, bound hashes and reviewed
-  envelope — or the outcome is dropped rather than applied to a step it never
-  described.
-
-  A hash the chain has not resolved writes nothing at all, so the same hash can
-  be read again later; an approval advances the sequence only once its own
-  allowance really holds, and only the auction's own event confirms a bid.
-  """
-  def verify(input, %{actor: %Human{}} = context) do
-    action_id = input.arguments.action_id
-
-    with {:ok, lease} <- lease(context),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, outcome} <- read_chain(candidate),
-         do: transact(lease, &locked_transition(&1, action_id, settle(candidate, outcome)))
-  end
-
-  def verify(_input, _context), do: unavailable(:authentication_required)
-
   def cancel(input, context),
     do: write(context, input.arguments.action_id, transition(:cancel, %{reason: @withdrawn}))
 
-  def close_not_sent(input, context),
-    do:
-      write(context, input.arguments.action_id, transition(:close_not_sent, %{reason: @rejected}))
-
-  def release_unstarted(input, context),
-    do: write(context, input.arguments.action_id, transition(:release_unstarted, %{}))
-
   @doc """
-  Ends an operation whose claimed step never resolved, at the account's request.
+  Ends an operation whose presses have not resolved, at the account's request.
 
-  Its calldata is never resent and its bound hashes stay exactly where they are.
-  The row remains for the canonical projector; only the account's open slot is
-  released, and a new review is a new bid, which the protocol permits.
+  Withdrawing the review cancels future admission only: every issued press keeps
+  its own record and its hash, and nothing is ever resent. The row remains for
+  the canonical projector; only the account's open slot is released, and a new
+  review is a new bid, which the protocol permits.
   """
   def start_new_bid(input, context),
-    do:
-      write(
-        context,
-        input.arguments.action_id,
-        fn _account, op ->
-          # New presses do not mutate the review's prepared state. Withdrawing
-          # that review cancels future admission, never its issued attempts.
-          action = if op.state == :prepared, do: :cancel, else: :close_submission_unknown
-          update(op, action, %{reason: @unresolved})
-        end
-      )
+    do: write(context, input.arguments.action_id, transition(:cancel, %{reason: @unresolved}))
 
   @doc "The presenter's whole view of one operation. Everything else stays server-side."
   @spec view(Ash.Resource.record() | nil) :: map() | nil
@@ -317,7 +244,6 @@ defmodule Autolaunch.BidActions do
       :envelope,
       :onchain_bid_id,
       :terminal_at
-      | Map.values(@hash_attributes)
     ])
     |> Autolaunch.WalletAttempts.decorate(operation, :bid)
   end
@@ -326,7 +252,7 @@ defmodule Autolaunch.BidActions do
   @spec steps(map()) :: [map()]
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
-  @doc "The hash bound for one step of an operation, or `nil`."
+  @doc "The hash of the confirmed or pending press for one step of a presented operation, or `nil`."
   @spec step_hash(map(), String.t()) :: String.t() | nil
   def step_hash(operation, step),
     do: Map.get(operation, Map.fetch!(@hash_attributes, String.to_existing_atom(step)))
@@ -643,11 +569,7 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  defp replace_open(%{state: :prepared} = open),
-    do: update(open, :cancel, %{reason: @replaced})
-
-  defp replace_open(open),
-    do: update(open, :close_submission_unknown, %{reason: @replaced})
+  defp replace_open(open), do: update(open, :cancel, %{reason: @replaced})
 
   defp released({:ok, _cancelled}), do: :ok
   defp released(error), do: error
@@ -666,88 +588,6 @@ defmodule Autolaunch.BidActions do
 
   defp transition(action, input),
     do: fn _account, operation -> update(operation, action, input) end
-
-  defp claim(account, operation, :current, {:ok, fresh_treasury}) do
-    with :ok <- signer_matches(account, operation.signer),
-         true <- valid_envelope?(operation),
-         true <- treasury_still_reviewed?(operation, fresh_treasury) do
-      update(operation, :claim_dispatch, %{})
-    else
-      false -> update(operation, :cancel, %{reason: "the reviewed network or treasury changed"})
-      error -> error
-    end
-  end
-
-  defp claim(account, operation, :changed, _treasury_result) do
-    with :ok <- signer_matches(account, operation.signer),
-         do: update(operation, :cancel, %{reason: "the reviewed network changed"})
-  end
-
-  defp claim(account, operation, :current, {:error, _reason}) do
-    with :ok <- signer_matches(account, operation.signer),
-         do: update(operation, :cancel, %{reason: "treasury security changed"})
-  end
-
-  # The one Base read a settlement makes, with no transaction and no lock open.
-  # A candidate with nothing sent to read about asks nothing.
-  defp read_chain(%{state: :submitted} = candidate) do
-    hash = Map.fetch!(candidate, Map.fetch!(@hash_attributes, candidate.step))
-
-    case ChainClient.module().verify(candidate.envelope, candidate.step, hash) do
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      result -> result
-    end
-  end
-
-  defp read_chain(_settled), do: {:ok, nil}
-
-  # The read answered about one exact candidate. A locked row that has moved on
-  # since — another socket bound a hash, advanced the step, or the account ended
-  # the operation — is left exactly as it stands.
-  defp settle(candidate, outcome) do
-    fn _account, operation ->
-      if identity(operation) == identity(candidate),
-        do: record(operation, outcome),
-        else: {:ok, operation}
-    end
-  end
-
-  defp identity(operation), do: Map.take(operation, @identity)
-
-  defp record(operation, %{outcome: :confirmed} = result), do: advance(operation, result)
-
-  defp record(operation, %{outcome: :reverted}),
-    do: update(operation, :record_revert, %{reason: @reverted})
-
-  defp record(operation, %{outcome: :unverified}),
-    do: update(operation, :record_unverified, %{reason: @contradicted})
-
-  # A hash the chain has not resolved yet, and a candidate that had nothing to
-  # read, both leave the row bound and readable again.
-  defp record(operation, _unresolved), do: {:ok, operation}
-
-  # Both bid steps end the operation: the direct `submitBid` and the adapter's
-  # `bidWithUsdc` each carry the one on-chain bid id that confirms it.
-  defp advance(%{step: step} = operation, %{onchain_bid_id: bid_id} = result)
-       when step in [:bid, :usdc_bid] do
-    projection = Map.put(result[:result] || %{}, "onchain_bid_id", bid_id)
-
-    with :ok <- LabProjection.project_bid(operation, projection) do
-      update(operation, :confirm, %{onchain_bid_id: bid_id})
-    end
-  end
-
-  defp advance(operation, _result), do: update(operation, :advance, %{step: next_step(operation)})
-
-  defp next_step(%{envelope: envelope, step: step}) do
-    current = Atom.to_string(step)
-
-    envelope["arguments"]["steps"]
-    |> Enum.map(& &1["step"])
-    |> Enum.drop_while(&(&1 != current))
-    |> Enum.at(1)
-    |> String.to_existing_atom()
-  end
 
   # The reviewed envelope lives ten minutes. Past that, no prepared step of it
   # can be spent, whether it is a lone bid or the remainder of a longer

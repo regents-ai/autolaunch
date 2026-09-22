@@ -7,11 +7,12 @@ defmodule Autolaunch.BidSettlementOperation do
   returns the unspent currency and records the fill, then, on a graduated
   auction with fill, a `claim` step (`claimTokens`) that delivers the launch
   token. A failed auction has only the `exit` step. `step` says which of those
-  is wallet-capable right now and `state` how far that one has got.
+  is wallet-capable right now and `state` how far the reviewed sequence has
+  got. Every wallet press of a step is its own `WalletAttempt`.
 
   The database decides every race exactly as `BidOperation` does: `action_id`
-  is unique, each hash column is unique, and a partial identity over
-  `terminal_at IS NULL` allows one open settlement per bid position.
+  is unique and a partial identity over `terminal_at IS NULL` allows one open
+  settlement per bid position.
   """
 
   use Ash.Resource,
@@ -21,19 +22,7 @@ defmodule Autolaunch.BidSettlementOperation do
     authorizers: [Ash.Policy.Authorizer]
 
   @steps [:exit, :claim]
-  @hashes [:exit_transaction_hash, :claim_transaction_hash]
-  @states [
-    :prepared,
-    :dispatched,
-    :submitted,
-    :confirmed,
-    :unverified,
-    :reverted,
-    :not_sent,
-    :cancelled,
-    :expired,
-    :submission_unknown
-  ]
+  @states [:prepared, :confirmed, :cancelled, :expired]
 
   postgres do
     table "bid_settlement_operations"
@@ -68,47 +57,6 @@ defmodule Autolaunch.BidSettlementOperation do
       change set_attribute(:bid_position_id, arg(:bid_position_id))
     end
 
-    update :claim_dispatch do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :prepared)
-      change set_attribute(:state, :dispatched)
-    end
-
-    # The exit is verified and the bid has fill, so the claim becomes sendable.
-    update :advance do
-      accept [:result]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      validate attribute_equals(:step, :exit)
-      change set_attribute(:step, :claim)
-      change set_attribute(:state, :prepared)
-    end
-
-    update :confirm do
-      accept [:result]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :confirmed)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :record_unverified do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :unverified)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :record_revert do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :reverted)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
     update :cancel do
       accept [:reason]
       require_atomic? false
@@ -117,34 +65,11 @@ defmodule Autolaunch.BidSettlementOperation do
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 
-    update :close_not_sent do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :not_sent)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :release_unstarted do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :prepared)
-    end
-
     update :expire do
       accept [:reason]
       require_atomic? false
       validate attribute_equals(:state, :prepared)
       change set_attribute(:state, :expired)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :close_submission_unknown do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_in(:state, [:dispatched, :submitted])
-      change set_attribute(:state, :submission_unknown)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
   end
@@ -171,10 +96,6 @@ defmodule Autolaunch.BidSettlementOperation do
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
-    for hash <- @hashes do
-      attribute hash, :string, sensitive?: true, constraints: [min_length: 66, max_length: 66]
-    end
-
     # Adopted from the verified `BidExited` and `TokensClaimed` events, never
     # guessed before mining: `currency_refunded`, `tokens_filled`, `tokens_claimed`.
     attribute :result, :map, allow_nil?: false, default: %{}
@@ -197,10 +118,6 @@ defmodule Autolaunch.BidSettlementOperation do
 
   identities do
     identity :unique_action_id, [:action_id]
-
-    for hash <- @hashes do
-      identity :"unique_#{hash}", [hash]
-    end
 
     identity :one_open_per_position, [:bid_position_id] do
       where expr(is_nil(terminal_at))

@@ -5,7 +5,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
   Preparation reads the fork once and writes the whole reviewed sequence as a
   single immutable envelope: the one `launch(LaunchParams)` call. Every durable
   write after that runs inside `SessionAuthority.transact_lease/3` against the
-  account that callback locked.
+  account that callback locked. Wallet presses of the review are
+  `Autolaunch.WalletAttempts`; this module only supplies their evidence.
 
   The review derives the executable values from the saved draft and the chain:
   the required raise the creator entered, in the admitted STOCK's base units,
@@ -26,7 +27,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
     Assets,
     Lab,
     LabLaunchChainClient,
-    LabProjection,
     LaunchDraft,
     LaunchOperations
   }
@@ -51,18 +51,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
 
   @replaced "replaced by a newer review"
-  @rejected "wallet reported an explicit user rejection"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed launch expired before it was sent"
   @unresolved "account started a new launch while this one was unresolved"
-  @reverted "verified revert on Base"
-  @contradicted "canonical receipt contradicts the reviewed launch"
   @paused "launches were paused after this review"
   @moved "the reviewed launchpad binding changed"
   @revoked "this stock token is no longer admitted"
 
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
-  @identity [:state, :step, :envelope, :launch_transaction_hash]
 
   @doc "The fixed terms every Stocks launch uses, for the review page."
   def terms do
@@ -122,41 +118,11 @@ defmodule Autolaunch.Stocks.LaunchActions do
     end
   end
 
-  @doc "Claims the current step's dispatch after the fork is read again and compared to the review."
-  @spec claim_dispatch(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def claim_dispatch(action_id, address, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, fresh} <- snapshot(reviewed_fields(candidate)) do
-      transact(lease, &locked(&1, action_id, claiming(signer, candidate, fresh)))
-    end
-  end
-
-  @spec verify(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def verify(action_id, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, outcome} <- read_chain(candidate),
-         do: transact(lease, &locked(&1, action_id, settle(candidate, outcome)))
-  end
-
   def cancel(action_id, opts), do: write(action_id, opts, transition(:cancel, @withdrawn))
 
-  def close_not_sent(action_id, opts),
-    do: write(action_id, opts, transition(:close_not_sent, @rejected))
-
-  def release_unstarted(action_id, opts),
-    do: write(action_id, opts, transition(:release_unstarted, nil))
-
+  @doc "Ends a launch whose presses have not resolved, at the account's request; nothing is resent."
   def start_new(action_id, opts),
-    do:
-      write(action_id, opts, fn _account, operation ->
-        action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
-        LaunchOperations.update(operation, action, %{reason: @unresolved})
-      end)
+    do: write(action_id, opts, transition(:cancel, @unresolved))
 
   @doc "The presenter's whole view of one operation."
   def presented(nil), do: nil
@@ -172,7 +138,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
       :envelope,
       :result,
       :reason,
-      :launch_transaction_hash,
       :terminal_at
     ])
     |> Autolaunch.WalletAttempts.decorate(operation, :stocks_launch)
@@ -182,7 +147,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
   def step_hash(operation, step) when step in [:launch, "launch"],
-    do: LaunchOperations.hash(operation, :launch)
+    do: Map.get(operation, :launch_transaction_hash)
 
   def step_hash(_operation, _unknown), do: nil
 
@@ -430,11 +395,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
       {:ok, nil} ->
         :ok
 
-      {:ok, %{state: :prepared} = open} ->
-        released(LaunchOperations.update(open, :cancel, %{reason: @replaced}))
-
       {:ok, open} ->
-        released(LaunchOperations.update(open, :close_submission_unknown, %{reason: @replaced}))
+        released(LaunchOperations.update(open, :cancel, %{reason: @replaced}))
 
       {:error, reason} ->
         {:error, reason}
@@ -443,28 +405,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp released({:ok, _closed}), do: :ok
   defp released(error), do: error
-
-  defp claiming(signer, candidate, fresh) do
-    fn account, operation ->
-      with :ok <- same_signer(operation, signer),
-           :ok <- LaunchOperations.signer_matches(account, operation.signer),
-           :ok <- unchanged(operation, candidate) do
-        dispatch(operation, valid_envelope?(operation), still_reviewed(operation, fresh))
-      end
-    end
-  end
-
-  defp dispatch(operation, false, _reviewed),
-    do: LaunchOperations.update(operation, :invalidate, %{reason: "the reviewed network changed"})
-
-  defp dispatch(operation, true, :ok), do: LaunchOperations.update(operation, :claim_dispatch)
-
-  defp dispatch(operation, true, {:changed, reason}),
-    do: LaunchOperations.update(operation, :invalidate, %{reason: reason})
-
-  defp unchanged(operation, candidate) do
-    if identity(operation) == identity(candidate), do: :ok, else: unavailable(:launch_step_moved)
-  end
 
   # Everything the review promised about the fork, checked against the fork's
   # answer right now.
@@ -502,52 +442,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
       )
   end
 
-  defp transition(action, nil),
-    do: fn _account, operation -> LaunchOperations.update(operation, action) end
-
   defp transition(action, reason),
     do: fn _account, operation ->
       LaunchOperations.update(operation, action, %{reason: reason})
     end
-
-  defp read_chain(%{state: :submitted} = candidate) do
-    hash = LaunchOperations.hash(candidate, :launch)
-
-    case LabLaunchChainClient.verify(candidate.envelope, :launch, hash) do
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      result -> result
-    end
-  end
-
-  defp read_chain(_settled), do: {:ok, nil}
-
-  defp settle(candidate, outcome) do
-    fn _account, operation ->
-      if identity(operation) == identity(candidate),
-        do: record(operation, outcome),
-        else: {:ok, operation}
-    end
-  end
-
-  defp identity(operation), do: Map.take(operation, @identity)
-
-  defp record(operation, %{outcome: :confirmed} = outcome) do
-    with :ok <- LabProjection.project_launch(operation, outcome[:result] || %{}) do
-      LaunchOperations.update(operation, :record_chain_verified, %{
-        result: merged(operation, outcome)
-      })
-    end
-  end
-
-  defp record(operation, %{outcome: :reverted}),
-    do: LaunchOperations.update(operation, :record_revert, %{reason: @reverted})
-
-  defp record(operation, %{outcome: :unverified}),
-    do: LaunchOperations.update(operation, :record_unverified, %{reason: @contradicted})
-
-  defp record(operation, _unresolved), do: {:ok, operation}
-
-  defp merged(%{result: result}, outcome), do: Map.merge(result || %{}, outcome[:result] || %{})
 
   defp expire_lapsed(%{state: :prepared, envelope: %{"expires_at" => expires_at}} = operation) do
     {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
@@ -582,9 +480,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   defp operation(account_id, action_id, lock?),
     do: LaunchOperations.fetch(account_id, action_id, lock?)
-
-  defp same_signer(%{signer: signer}, signer), do: :ok
-  defp same_signer(_operation, _other), do: unavailable(:wrong_signer)
 
   # Session and wallet identity
 

@@ -3,9 +3,9 @@ defmodule Autolaunch.SubjectWalletOperations do
   The one private transition boundary for `SubjectWalletOperation`.
 
   Every durable write runs inside `SessionAuthority.transact_lease/3` as the
-  outermost transaction, so a claim, a hash bind or a settlement cannot outlive a
-  concurrent logout, revocation or lapse of provider evidence. The owner comes
-  from the account that callback locked rather than an actor captured earlier.
+  outermost transaction, so a review transition cannot outlive a concurrent
+  logout, revocation or lapse of provider evidence. The owner comes from the
+  account that callback locked rather than an actor captured earlier.
 
   Provider reads happen before these calls. Only the resulting row write happens
   inside the lock, and the row is taken `FOR UPDATE` first, so two sockets racing
@@ -24,8 +24,6 @@ defmodule Autolaunch.SubjectWalletOperations do
 
   @actor %System{}
   @domain Autolaunch
-
-  @hash_attributes %{approval: :approval_transaction_hash, action: :action_transaction_hash}
 
   @type lease :: %{lineage: String.t(), account_id: integer()}
 
@@ -90,10 +88,6 @@ defmodule Autolaunch.SubjectWalletOperations do
     |> Ash.Changeset.for_update(action, input, domain: @domain, actor: @actor)
     |> Ash.update(actor: @actor)
   end
-
-  @doc "The hash bound for one step of an operation, or `nil`."
-  @spec hash(map(), :approval | :action) :: String.t() | nil
-  def hash(operation, step), do: Map.get(operation, Map.fetch!(@hash_attributes, step))
 
   @doc "The signer is the account's signed-in wallet right now, proved inside the locked transaction."
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}

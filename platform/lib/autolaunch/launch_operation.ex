@@ -5,12 +5,11 @@ defmodule Autolaunch.LaunchOperation do
   The reviewed sequence is immutable and lives in `envelope`: the one `launch`
   call. `step` names that transaction and `state` says how far it has got.
 
-  The database decides every race. `action_id` is unique, the hash column is
-  unique across every operation, and a partial identity over
-  `terminal_at IS NULL` allows one open launch per human account. A new prepare
-  closes whatever is open as replaced and takes the slot; a closed step never
-  becomes a fresh send, and a hash that arrives late attaches to the operation
-  it belongs to without reopening it.
+  The database decides every race. `action_id` is unique and a partial identity
+  over `terminal_at IS NULL` allows one open launch per human account. A new
+  prepare closes whatever is open as replaced and takes the slot. Every wallet
+  press of the review is its own `WalletAttempt`; the operation only summarises
+  how far the reviewed sequence has got.
 
   `chain_verified` is the honest terminal success: this server proved its own
   receipt evidence. Canonical public launch confirmation is the finalized
@@ -24,21 +23,7 @@ defmodule Autolaunch.LaunchOperation do
     authorizers: [Ash.Policy.Authorizer]
 
   @steps [:launch]
-  @states [
-    :prepared,
-    :dispatched,
-    :submitted,
-    :chain_verified,
-    :unverified,
-    :reverted,
-    :not_sent,
-    :cancelled,
-    :expired,
-    :invalidated,
-    :submission_unknown
-  ]
-
-  @hashes [:launch_transaction_hash]
+  @states [:prepared, :chain_verified, :cancelled, :expired, :invalidated]
 
   postgres do
     table "launch_operations"
@@ -65,17 +50,6 @@ defmodule Autolaunch.LaunchOperation do
       filter expr(human_account_id == ^arg(:human_account_id) and is_nil(terminal_at))
     end
 
-    read :chain_verified_by_launch_hash do
-      get? true
-      argument :launch_transaction_hash, :string, allow_nil?: false
-
-      filter expr(
-               state == :chain_verified and
-                 fragment("lower(?)", launch_transaction_hash) ==
-                   fragment("lower(?)", ^arg(:launch_transaction_hash))
-             )
-    end
-
     create :prepare do
       accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false
@@ -83,40 +57,6 @@ defmodule Autolaunch.LaunchOperation do
       validate Autolaunch.LaunchOperation.Validations.AuctionLimit
       change set_attribute(:human_account_id, arg(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
-    end
-
-    update :claim_dispatch do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :prepared)
-      change set_attribute(:state, :dispatched)
-    end
-
-    update :record_chain_verified do
-      accept [:result]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      validate attribute_equals(:step, :launch)
-      change set_attribute(:state, :chain_verified)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    # A canonical success whose own logs or factory reads contradict the review,
-    # and a canonical revert. Both are terminal and neither is ever resent.
-    update :record_unverified do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :unverified)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :record_revert do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :reverted)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 
     update :cancel do
@@ -137,41 +77,14 @@ defmodule Autolaunch.LaunchOperation do
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 
-    # The exact EIP-1193 rejection of a claimed step: the wallet was asked and
-    # said no, so nothing was broadcast.
-    update :close_not_sent do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :not_sent)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :release_unstarted do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :prepared)
-    end
-
-    # The reviewed envelope has passed its expiry with no hash to report, so the
-    # old bytes can no longer be spent and a new review has to reread state.
+    # The reviewed envelope has passed its expiry with no press still in flight,
+    # so the old bytes can no longer be spent and a new review has to reread
+    # state.
     update :expire do
       accept [:reason]
       require_atomic? false
       validate attribute_equals(:state, :prepared)
       change set_attribute(:state, :expired)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    # The account chose to start a new launch while a claimed step's outcome is
-    # still unknown. The calldata is never resent; the row stays for the
-    # projector to reconcile and the account's open slot is released.
-    update :close_submission_unknown do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_in(:state, [:dispatched, :submitted])
-      change set_attribute(:state, :submission_unknown)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
   end
@@ -199,10 +112,6 @@ defmodule Autolaunch.LaunchOperation do
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
-    for hash <- @hashes do
-      attribute hash, :string, sensitive?: true, constraints: [min_length: 66, max_length: 66]
-    end
-
     # Adopted from the verified `LaunchCreated`, never guessed before mining: the
     # launch id, subject, auction, escrow and the fixed schedule it recorded.
     attribute :result, :map, default: %{}
@@ -225,7 +134,6 @@ defmodule Autolaunch.LaunchOperation do
 
   identities do
     identity :unique_launch_action_id, [:action_id]
-    identity :unique_launch_hash, [:launch_transaction_hash]
 
     identity :one_open_per_account, [:human_account_id] do
       where expr(is_nil(terminal_at))

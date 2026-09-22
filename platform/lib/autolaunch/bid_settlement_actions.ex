@@ -21,7 +21,8 @@ defmodule Autolaunch.BidSettlementActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
   alias Autolaunch.Chain.{Address, Envelope, Rpc}
-  alias Autolaunch.{Bid, BidSettlementOperation, Lab, LabBidSettlementChainClient, LabProjection}
+
+  alias Autolaunch.{Bid, BidSettlementOperation, Lab, LabBidSettlementChainClient}
 
   @actor %System{}
   @domain Autolaunch
@@ -32,12 +33,9 @@ defmodule Autolaunch.BidSettlementActions do
   @new_decimals 18
 
   @replaced "replaced by a newer review"
-  @rejected "wallet reported an explicit user rejection"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed settlement expired before it was sent"
   @unresolved "account started a new settlement while this one was unresolved"
-  @reverted "verified revert on Base"
-  @contradicted "canonical receipt contradicts the reviewed settlement"
 
   @transient [
     :chain_unavailable,
@@ -47,7 +45,6 @@ defmodule Autolaunch.BidSettlementActions do
   ]
 
   @hash_attributes %{exit: :exit_transaction_hash, claim: :claim_transaction_hash}
-  @identity [:state, :step, :envelope | Map.values(@hash_attributes)]
 
   @doc """
   Reviews one settlement: one snapshot, one immutable sequence, one operation.
@@ -84,42 +81,11 @@ defmodule Autolaunch.BidSettlementActions do
     end
   end
 
-  @doc "Claims the current step's dispatch. Only this winner may open the wallet."
-  @spec claim_dispatch(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def claim_dispatch(action_id, address, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         :ok <- press_evidence(candidate) do
-      transact(lease, &locked(&1, action_id, claiming(signer, candidate)))
-    end
-  end
-
-  @doc "Reads the exact bound hash and records whatever it truthfully settles as."
-  @spec verify(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def verify(action_id, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, outcome} <- read_chain(candidate),
-         do: transact(lease, &locked(&1, action_id, settle(candidate, outcome)))
-  end
-
   def cancel(action_id, opts), do: write(action_id, opts, transition(:cancel, @withdrawn))
 
-  def close_not_sent(action_id, opts),
-    do: write(action_id, opts, transition(:close_not_sent, @rejected))
-
-  def release_unstarted(action_id, opts),
-    do: write(action_id, opts, transition(:release_unstarted, nil))
-
+  @doc "Ends a settlement whose presses have not resolved, at the account's request; nothing is resent."
   def start_new(action_id, opts),
-    do:
-      write(action_id, opts, fn _account, operation ->
-        action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
-        update(operation, action, %{reason: @unresolved})
-      end)
+    do: write(action_id, opts, transition(:cancel, @unresolved))
 
   @doc "One operation of the account, by action id, without a lease and writing nothing."
   @spec operation_view(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -143,8 +109,6 @@ defmodule Autolaunch.BidSettlementActions do
       :envelope,
       :result,
       :reason,
-      :exit_transaction_hash,
-      :claim_transaction_hash,
       :terminal_at
     ])
     |> Autolaunch.WalletAttempts.decorate(operation, :bid_settlement)
@@ -153,7 +117,7 @@ defmodule Autolaunch.BidSettlementActions do
   @doc "The reviewed sequence, in order, as the progress list renders it."
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
-  @doc "The hash bound for one step of an operation, or `nil`."
+  @doc "The hash of the confirmed or pending press for one step of a presented operation, or `nil`."
   def step_hash(operation, step) when step in ["exit", "claim"],
     do: step_hash(operation, String.to_existing_atom(step))
 
@@ -368,35 +332,13 @@ defmodule Autolaunch.BidSettlementActions do
   defp release_undispatched(bid_position_id) do
     case open_row(bid_position_id, true) do
       {:ok, nil} -> :ok
-      {:ok, %{state: :prepared} = open} -> released(update(open, :cancel, %{reason: @replaced}))
-      {:ok, open} -> released(update(open, :close_submission_unknown, %{reason: @replaced}))
+      {:ok, open} -> released(update(open, :cancel, %{reason: @replaced}))
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp released({:ok, _closed}), do: :ok
   defp released(error), do: error
-
-  defp claiming(signer, candidate) do
-    fn account, operation ->
-      with :ok <- same_signer(operation, signer),
-           :ok <- signer_matches(account, operation.signer),
-           :ok <- unchanged(operation, candidate) do
-        if valid_envelope?(operation),
-          do: update(operation, :claim_dispatch, %{}),
-          else: update(operation, :cancel, %{reason: "the reviewed network changed"})
-      end
-    end
-  end
-
-  defp unchanged(operation, candidate) do
-    if identity(operation) == identity(candidate),
-      do: :ok,
-      else: unavailable(:settlement_step_moved)
-  end
-
-  defp same_signer(%{signer: signer}, signer), do: :ok
-  defp same_signer(_operation, _other), do: unavailable(:wrong_signer)
 
   defp valid_envelope?(operation) do
     Envelope.valid?(operation.envelope,
@@ -413,55 +355,8 @@ defmodule Autolaunch.BidSettlementActions do
       )
   end
 
-  defp transition(action, nil), do: fn _account, operation -> update(operation, action, %{}) end
-
   defp transition(action, reason),
     do: fn _account, operation -> update(operation, action, %{reason: reason}) end
-
-  defp read_chain(%{state: :submitted} = candidate) do
-    hash = step_hash(candidate, candidate.step)
-
-    case chain_client().verify(candidate.envelope, candidate.step, hash) do
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      result -> result
-    end
-  end
-
-  defp read_chain(_settled), do: {:ok, nil}
-
-  defp settle(candidate, outcome) do
-    fn _account, operation ->
-      if identity(operation) == identity(candidate),
-        do: record(operation, outcome),
-        else: {:ok, operation}
-    end
-  end
-
-  defp identity(operation), do: Map.take(operation, @identity)
-
-  # A verified exit projects the position as returned and, when a claim step
-  # follows, makes it sendable; a verified claim projects it as claimed.
-  defp record(operation, %{outcome: :confirmed} = outcome) do
-    result = merged(operation, outcome)
-
-    with :ok <- LabProjection.project_settlement(operation, operation.step, outcome[:result]) do
-      if operation.step == :exit and next_step?(operation),
-        do: update(operation, :advance, %{result: result}),
-        else: update(operation, :confirm, %{result: result})
-    end
-  end
-
-  defp record(operation, %{outcome: :reverted}),
-    do: update(operation, :record_revert, %{reason: @reverted})
-
-  defp record(operation, %{outcome: :unverified}),
-    do: update(operation, :record_unverified, %{reason: @contradicted})
-
-  defp record(operation, _unresolved), do: {:ok, operation}
-
-  defp next_step?(operation), do: Enum.any?(steps(operation), &(&1["step"] == "claim"))
-
-  defp merged(%{result: result}, outcome), do: Map.merge(result || %{}, outcome[:result] || %{})
 
   defp expire_lapsed(%{state: :prepared, envelope: %{"expires_at" => expires_at}} = operation) do
     {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)

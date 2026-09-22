@@ -18,8 +18,6 @@ defmodule Autolaunch.Stocks.LaunchOperations do
   @actor %System{}
   @domain Autolaunch
 
-  @hash_attributes %{launch: :launch_transaction_hash}
-
   @type lease :: %{lineage: String.t(), account_id: integer()}
 
   @spec transact(lease(), (Ash.Resource.record() -> {:ok, term()} | {:error, term()})) ::
@@ -72,10 +70,6 @@ defmodule Autolaunch.Stocks.LaunchOperations do
     |> Ash.Changeset.for_update(action, input, domain: @domain, actor: @actor)
     |> Ash.update(actor: @actor)
   end
-
-  @doc "The hash bound for one step of an operation, or `nil`."
-  @spec hash(map(), :launch) :: String.t() | nil
-  def hash(operation, step), do: Map.get(operation, Map.fetch!(@hash_attributes, step))
 
   @spec signer_matches(Ash.Resource.record(), String.t()) :: :ok | {:error, term()}
   def signer_matches(%{wallet_address: wallet}, signer) do

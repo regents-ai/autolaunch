@@ -35,7 +35,7 @@ defmodule Autolaunch.BidActionsTest do
     assert refusal(error) == :wrong_signer
   end
 
-  test "TREASURY_DRIFT_ENDS_THE_REVIEW_BEFORE_ANY_APPROVAL_OR_BID_DISPATCH", %{
+  test "TREASURY_DRIFT_REFUSES_EVERY_PRESS_OF_THE_REVIEW", %{
     auction: auction,
     wallet: wallet,
     opts: opts
@@ -51,11 +51,17 @@ defmodule Autolaunch.BidActionsTest do
       threshold: 1
     )
 
-    assert {:ok, %{operation: ended}} =
-             Autolaunch.claim_bid_dispatch(operation.action_id, opts)
+    assert {:error, error} =
+             Autolaunch.dispatch_wallet_press(
+               :bid,
+               operation.action_id,
+               Atom.to_string(operation.step),
+               Ecto.UUID.generate(),
+               wallet,
+               opts
+             )
 
-    assert ended.state == :cancelled
-    assert ended.terminal_at
+    assert refusal(error) == :treasury_security_changed
   end
 
   test "EXACT_AMOUNTS_AND_PRICES: only exact eighteen-decimal amounts and positive prices review",

@@ -75,26 +75,21 @@ defmodule Autolaunch.LaunchProjection do
       case attempts do
         [attempt | _] ->
           accepted_operation(
-            {:ok, %{attempt.launch_operation | result: attempt.result}},
+            %{attempt.launch_operation | result: attempt.result},
             deployment
           )
 
         [] ->
-          hash
-          |> Autolaunch.chain_verified_launch_operation_by_hash(actor: @actor)
-          |> accepted_operation(deployment)
+          {:ok, nil}
       end
     end
   end
 
-  defp accepted_operation({:ok, %{envelope: envelope} = operation}, deployment) do
+  defp accepted_operation(%{envelope: envelope} = operation, deployment) do
     if envelope_chain_id(envelope) == deployment.chain_id,
       do: {:ok, operation},
       else: {:ok, nil}
   end
-
-  defp accepted_operation({:ok, nil}, _deployment), do: {:ok, nil}
-  defp accepted_operation({:error, reason}, _deployment), do: {:error, reason}
 
   defp envelope_chain_id(envelope) when is_map(envelope), do: envelope["chain_id"]
 

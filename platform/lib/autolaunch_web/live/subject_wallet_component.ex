@@ -310,14 +310,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
             {confirmed_copy(@operation)}
           </p>
           <p
-            :if={@operation.state in [:reverted, :unverified]}
-            class="subject-wallet-settled"
-            role="alert"
-          >
-            {settled_copy(@operation.state)}
-          </p>
-          <p
-            :if={@operation.state in [:not_sent, :cancelled, :expired, :submission_unknown]}
+            :if={@operation.state in [:cancelled, :expired]}
             class="subject-wallet-settled"
             role="status"
           >
@@ -339,8 +332,9 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
           <Regent.Primitives.button
             :if={@operation.state == :submitted}
             type="button"
-            phx-click="check_subject_wallet_step"
-            phx-value-action-id={@operation.action_id}
+            phx-click="wallet_press_verify"
+            phx-value-action_id={@operation.action_id}
+            phx-value-press_id={submitted_press(@operation)}
             phx-target={@myself}
             variant="secondary"
           >
@@ -457,47 +451,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
      |> settled(socket)}
   end
 
-  # The browser's preflight is necessary input, never authority: the locked
-  # dispatch proves the account still holds this wallet, and only its winner is
-  # handed the exact reviewed bytes.
-  def handle_event("sign_subject_wallet_step", %{"action-id" => action_id}, socket) do
-    socket.assigns.subject.subject_id
-    |> Autolaunch.claim_subject_wallet_dispatch(action_id, socket.assigns.wallet, opts(socket))
-    |> claimed(socket)
-  end
-
-  def handle_event("check_subject_wallet_step", %{"action-id" => action_id}, socket),
-    do:
-      {:noreply,
-       socket.assigns.subject.subject_id
-       |> Autolaunch.verify_subject_wallet_step(action_id, opts(socket))
-       |> settled(socket)}
-
-  # The exact EIP-1193 rejection of a claimed step: the wallet was asked and said
-  # no, so nothing was broadcast and the action ends. Only that one code ends an
-  # action; any other reported code is not a rejection and changes nothing.
-  def handle_event(
-        "subject_wallet_rejected",
-        %{"action_id" => action_id, "code" => 4001},
-        socket
-      ),
-      do:
-        {:noreply,
-         socket.assigns.subject.subject_id
-         |> Autolaunch.close_subject_wallet_not_sent(action_id, opts(socket))
-         |> settled(socket)}
-
-  def handle_event("subject_wallet_rejected", _params, socket), do: {:noreply, socket}
-
-  # The browser proved this claimed step never reached its wallet send, so the
-  # same review becomes sendable again rather than ending.
-  def handle_event("subject_wallet_dispatch_not_started", %{"action_id" => action_id}, socket),
-    do:
-      {:noreply,
-       socket.assigns.subject.subject_id
-       |> Autolaunch.release_unstarted_subject_wallet_dispatch(action_id, opts(socket))
-       |> settled(socket)}
-
   def handle_event("cancel_subject_wallet_review", %{"action-id" => action_id}, socket),
     do:
       {:noreply,
@@ -516,9 +469,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
     do:
       {:noreply,
        socket |> assign(operation: nil, amount: "", note: "") |> cleared() |> refreshed()}
-
-  def handle_event("subject_wallet_failed", %{"reason" => reason}, socket),
-    do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
 
   attr :notice, :map, required: true
 
@@ -566,21 +516,6 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
 
   defp settled({:error, error}, socket),
     do: assign(socket, notice: notice(:error, refusal(error)))
-
-  # Only the dispatch this claim just won may open a wallet, and it is read from
-  # that claim's own result rather than from whatever this socket last held. A
-  # refused or repeated claim therefore hands the browser nothing.
-  defp claimed({:ok, %{operation: %{state: :dispatched} = operation}} = result, socket) do
-    {:noreply,
-     result
-     |> settled(socket)
-     |> push_event("autolaunch-subject-wallet:send", %{
-       action_id: operation.action_id,
-       step: Atom.to_string(operation.step)
-     })}
-  end
-
-  defp claimed(result, socket), do: {:noreply, settled(result, socket)}
 
   # The one acknowledgement the browser waits for before it drops its own copy of
   # a reported hash: this exact hash is durable on this exact step.
@@ -713,12 +648,8 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   defp current_state(:dispatched), do: "In your wallet"
   defp current_state(:submitted), do: "Sent"
   defp current_state(:confirmed), do: "Confirmed"
-  defp current_state(:reverted), do: "Reverted"
-  defp current_state(:unverified), do: "Unresolved"
-  defp current_state(:not_sent), do: "Not sent"
   defp current_state(:cancelled), do: "Cancelled"
   defp current_state(:expired), do: "Expired"
-  defp current_state(:submission_unknown), do: "Unresolved"
 
   defp step_label("approval", operation),
     do: "Allow #{argument(operation, "symbol")} to be spent"
@@ -764,26 +695,17 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
   defp confirmed_copy(_operation),
     do: "Confirmed on Base. Your balances update once this subject's history is read back."
 
-  defp settled_copy(:reverted), do: "This transaction reverted on Base. Nothing moved."
-  defp settled_copy(:unverified), do: "This transaction did not record the action you reviewed."
-  defp settled_copy(:not_sent), do: "Your wallet declined this. Nothing was sent."
   defp settled_copy(:cancelled), do: AutolaunchWeb.WalletPressComponent.withdrawal_copy()
   defp settled_copy(:expired), do: "This review expired before it was sent. Nothing was sent."
 
-  defp settled_copy(:submission_unknown),
-    do: "This one is still unresolved. Check your wallet activity before you try it again."
-
-  # The browser reports a closed reason key as a string, never text of its own.
-  # Only a key that proves the wallet was never asked to send may say nothing was
-  # sent; everything else leaves the question open and says so.
-  defp wallet_failure_copy("wallet_unavailable"),
-    do: "Open the wallet you are using here, then try again. Nothing was sent."
-
-  defp wallet_failure_copy("send_unconfirmed"),
+  # The press whose transaction the card is waiting on: the submitted attempt of
+  # the current step, whose hash the chain has not answered about yet.
+  defp submitted_press(operation),
     do:
-      "Your wallet may have sent this transaction. Check your wallet activity before you start another action."
-
-  defp wallet_failure_copy(_unknown), do: @generic
+      Enum.find_value(
+        operation.attempts,
+        &(&1.state == :submitted and &1.step == operation.step and &1.id)
+      )
 
   defp notice(tone, reason), do: %{tone: tone, message: Map.get(@copy, reason, @generic)}
 

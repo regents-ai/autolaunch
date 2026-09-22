@@ -7,11 +7,11 @@ defmodule Autolaunch.Stocks.LaunchOperation do
   how far it has got.
 
   The database decides every race exactly as for the Agent launch: `action_id`
-  is unique, each hash column is unique, and a partial identity over
-  `terminal_at IS NULL` allows one open Stocks launch per human account. The
-  site also allows one Stocks auction in progress per account
-  (`Validations.ActiveLaunchLimit`). `chain_verified` means this server proved
-  its own receipt evidence.
+  is unique and a partial identity over `terminal_at IS NULL` allows one open
+  Stocks launch per human account. The site also allows one Stocks auction in
+  progress per account (`Validations.ActiveLaunchLimit`). Every wallet press of
+  the review is its own `WalletAttempt`; `chain_verified` means this server
+  proved its own receipt evidence.
   """
 
   use Ash.Resource,
@@ -21,20 +21,7 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     authorizers: [Ash.Policy.Authorizer]
 
   @steps [:launch]
-  @hashes [:launch_transaction_hash]
-  @states [
-    :prepared,
-    :dispatched,
-    :submitted,
-    :chain_verified,
-    :unverified,
-    :reverted,
-    :not_sent,
-    :cancelled,
-    :expired,
-    :invalidated,
-    :submission_unknown
-  ]
+  @states [:prepared, :chain_verified, :cancelled, :expired, :invalidated]
 
   postgres do
     table "stock_launch_operations"
@@ -48,7 +35,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     identity_wheres_to_sql one_open_per_account: "terminal_at IS NULL"
 
     identity_index_names unique_action_id: "stock_launch_operations_action_id_index",
-                         unique_hash: "stock_launch_operations_hash_index",
                          one_open_per_account: "stock_launch_operations_one_open_index"
   end
 
@@ -87,38 +73,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
     end
 
-    update :claim_dispatch do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :prepared)
-      change set_attribute(:state, :dispatched)
-    end
-
-    update :record_chain_verified do
-      accept [:result]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      validate attribute_equals(:step, :launch)
-      change set_attribute(:state, :chain_verified)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :record_unverified do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :unverified)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :record_revert do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :submitted)
-      change set_attribute(:state, :reverted)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
     update :cancel do
       accept [:reason]
       require_atomic? false
@@ -135,34 +89,11 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
 
-    update :close_not_sent do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :not_sent)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :release_unstarted do
-      accept []
-      require_atomic? false
-      validate attribute_equals(:state, :dispatched)
-      change set_attribute(:state, :prepared)
-    end
-
     update :expire do
       accept [:reason]
       require_atomic? false
       validate attribute_equals(:state, :prepared)
       change set_attribute(:state, :expired)
-      change set_attribute(:terminal_at, &DateTime.utc_now/0)
-    end
-
-    update :close_submission_unknown do
-      accept [:reason]
-      require_atomic? false
-      validate attribute_in(:state, [:dispatched, :submitted])
-      change set_attribute(:state, :submission_unknown)
       change set_attribute(:terminal_at, &DateTime.utc_now/0)
     end
   end
@@ -189,10 +120,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
-    for hash <- @hashes do
-      attribute hash, :string, sensitive?: true, constraints: [min_length: 66, max_length: 66]
-    end
-
     # Adopted from the verified `StockLaunchCreated`, never guessed before mining.
     attribute :result, :map, default: %{}
 
@@ -214,7 +141,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
 
   identities do
     identity :unique_action_id, [:action_id]
-    identity :unique_hash, [:launch_transaction_hash]
 
     identity :one_open_per_account, [:human_account_id] do
       where expr(is_nil(terminal_at))

@@ -5,8 +5,9 @@ defmodule Autolaunch.LaunchActions do
   Preparation reads Base once, at one canonical safe block, and writes the whole
   reviewed sequence as a single immutable envelope: the one `launch` call. Every durable
   write after that runs inside `SessionAuthority.transact_lease/3` as the
-  outermost transaction, against the account that callback locked, so a claim, a
-  bound hash or a settled outcome cannot outlive a concurrent logout.
+  outermost transaction, against the account that callback locked, so a review
+  transition cannot outlive a concurrent logout. Wallet presses of the review
+  are `Autolaunch.WalletAttempts`; this module only supplies their evidence.
 
   The wallet Privy has selected drives everything. Its address arrives as
   untrusted browser input and is proved against the account the mounted lease
@@ -26,7 +27,6 @@ defmodule Autolaunch.LaunchActions do
   alias Autolaunch.{
     Lab,
     LabAbi,
-    LabProjection,
     LaunchChainClient,
     LaunchDraft,
     LaunchDraftImageStorage,
@@ -53,12 +53,9 @@ defmodule Autolaunch.LaunchActions do
   ]
 
   @replaced "replaced by a newer review"
-  @rejected "wallet reported an explicit user rejection"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed launch expired before it was sent"
   @unresolved "account started a new launch while this one was unresolved"
-  @reverted "verified revert on Base"
-  @contradicted "canonical receipt contradicts the reviewed launch"
 
   # Exactly what a fresh pre-dispatch read is allowed to disagree about, named so
   # the customer is told which fact moved rather than shown a generic failure.
@@ -72,10 +69,6 @@ defmodule Autolaunch.LaunchActions do
     :invalid_block_header,
     :transaction_missing
   ]
-
-  # Everything a Base read was answered about. A settlement applies only to a row
-  # still carrying all of it.
-  @identity [:state, :step, :envelope, :launch_transaction_hash]
 
   @doc """
   Proves the wallet Privy has selected belongs to this account, and nothing more.
@@ -110,76 +103,19 @@ defmodule Autolaunch.LaunchActions do
     end
   end
 
-  @doc """
-  Claims the current step's dispatch. Only this winner may open the wallet.
-
-  Base is read again first, outside any transaction, and compared to the
-  immutable review. A review the chain has moved past is ended inside the locked
-  transaction rather than refused, so its bytes can never be spent later. The
-  locked account, the stored signer and the address the browser is offering right
-  now all have to agree inside that same transaction.
-  """
-  @spec claim_dispatch(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def claim_dispatch(action_id, address, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, signer} <- normalize(address),
-         {:ok, lease} <- lease(opts),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, fresh} <- snapshot(candidate.signer),
-         treasury_result <- revalidate_treasury(candidate) do
-      transact(
-        lease,
-        &locked(&1, action_id, claiming(signer, candidate, fresh, treasury_result))
-      )
-    end
-  end
-
-  @doc """
-  Reads the exact bound hash and records whatever it truthfully settles as.
-
-  Base is read from the candidate row alone, before any lease transaction opens,
-  so no provider call ever happens under a row lock. The locked row then has to
-  still be that same candidate — same state, step, bound hashes and reviewed
-  envelope — or the outcome is dropped rather than applied to a step it never
-  described.
-
-  A hash the chain has not resolved writes nothing at all, so the same hash can
-  be read again later, and a read that fails writes no verdict either.
-  """
-  @spec verify(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def verify(action_id, opts) do
-    with {:ok, _actor} <- human(opts),
-         {:ok, lease} <- lease(opts),
-         {:ok, candidate} <- operation(lease.account_id, action_id, false),
-         {:ok, outcome} <- read_chain(candidate),
-         do: transact(lease, &locked(&1, action_id, settle(candidate, outcome)))
-  end
-
   @spec cancel(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def cancel(action_id, opts), do: write(action_id, opts, transition(:cancel, @withdrawn))
 
-  @spec close_not_sent(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def close_not_sent(action_id, opts),
-    do: write(action_id, opts, transition(:close_not_sent, @rejected))
-
-  @spec release_unstarted(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def release_unstarted(action_id, opts),
-    do: write(action_id, opts, transition(:release_unstarted, nil))
-
   @doc """
-  Ends a launch whose claimed step never resolved, at the account's request.
+  Ends a launch whose presses have not resolved, at the account's request.
 
-  Its calldata is never resent and its bound hashes stay exactly where they are.
-  The row remains for the canonical projector; only this account's open slot is
-  released.
+  Withdrawing the review cancels future admission only: every issued press keeps
+  its own record and its hash, and nothing is ever resent. The row remains for
+  the canonical projector; only this account's open slot is released.
   """
   @spec start_new(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def start_new(action_id, opts),
-    do:
-      write(action_id, opts, fn _account, operation ->
-        action = if operation.state == :prepared, do: :cancel, else: :close_submission_unknown
-        LaunchOperations.update(operation, action, %{reason: @unresolved})
-      end)
+    do: write(action_id, opts, transition(:cancel, @unresolved))
 
   @doc "The presenter's whole view of one operation. Everything else stays server-side."
   @spec presented(Ash.Resource.record() | nil) :: map() | nil
@@ -197,7 +133,6 @@ defmodule Autolaunch.LaunchActions do
       # Plain English already, and the one fact that moved is what the customer
       # has to be told when a review is ended without ever being sent.
       :reason,
-      :launch_transaction_hash,
       :terminal_at
     ])
     |> Autolaunch.WalletAttempts.decorate(operation, :launch)
@@ -208,14 +143,15 @@ defmodule Autolaunch.LaunchActions do
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
   @doc """
-  The hash bound for the launch of an operation, or `nil`.
+  The hash of the confirmed or pending press for the launch step of a
+  presented operation, or `nil`.
 
   The one reviewed step is named exactly, so any other value has no hash
   rather than becoming an atom.
   """
   @spec step_hash(map(), String.t() | atom()) :: String.t() | nil
   def step_hash(operation, step) when step in [:launch, "launch"],
-    do: LaunchOperations.hash(operation, :launch)
+    do: Map.get(operation, :launch_transaction_hash)
 
   def step_hash(_operation, _unknown), do: nil
 
@@ -470,71 +406,19 @@ defmodule Autolaunch.LaunchActions do
   end
 
   # A new prepare always cancels whatever is open as :replaced and proceeds.
+  # An open review is always prepared: its presses live on their own rows.
   defp release_undispatched(account_id) do
     case LaunchOperations.open(account_id, true) do
       {:ok, nil} ->
         :ok
 
       {:ok, open} ->
-        replace_open(open)
+        with {:ok, _cancelled} <- LaunchOperations.update(open, :cancel, %{reason: @replaced}),
+             do: :ok
 
       {:error, reason} ->
         {:error, reason}
     end
-  end
-
-  defp replace_open(%{state: :prepared} = open) do
-    with {:ok, _cancelled} <- LaunchOperations.update(open, :cancel, %{reason: @replaced}),
-         do: :ok
-  end
-
-  defp replace_open(open) do
-    with {:ok, _cancelled} <-
-           LaunchOperations.update(open, :close_submission_unknown, %{reason: @replaced}),
-         do: :ok
-  end
-
-  # The wallet the browser is offering right now, the signer this review pinned,
-  # and the account the lease locked all have to name one wallet, inside the one
-  # transaction that takes the row. Only then is Base's own current answer
-  # compared with what the review promised.
-  defp claiming(signer, candidate, fresh, fresh_treasury) do
-    fn account, operation ->
-      with :ok <- same_signer(operation, signer),
-           :ok <- LaunchOperations.signer_matches(account, operation.signer),
-           :ok <- unchanged(operation, candidate),
-           true <- valid_envelope?(operation) do
-        dispatch(operation, fresh, fresh_treasury)
-      else
-        false ->
-          LaunchOperations.update(operation, :invalidate, %{
-            reason: "the reviewed network changed"
-          })
-
-        error ->
-          error
-      end
-    end
-  end
-
-  defp dispatch(operation, _fresh, {:error, _reason}),
-    do:
-      LaunchOperations.update(operation, :invalidate, %{
-        reason: "the treasury security state changed"
-      })
-
-  defp dispatch(operation, fresh, {:ok, fresh_treasury}) do
-    case still_reviewed(operation, fresh, fresh_treasury) do
-      :ok -> LaunchOperations.update(operation, :claim_dispatch)
-      {:changed, reason} -> LaunchOperations.update(operation, :invalidate, %{reason: reason})
-    end
-  end
-
-  # The fresh read answered about the row as it stood outside this transaction. A
-  # row another socket has moved since is refused rather than dispatched on an
-  # answer that no longer describes it.
-  defp unchanged(operation, candidate) do
-    if identity(operation) == identity(candidate), do: :ok, else: unavailable(:launch_step_moved)
   end
 
   # Everything the review promised about Base, checked against Base's answer
@@ -708,59 +592,10 @@ defmodule Autolaunch.LaunchActions do
       ])
   end
 
-  defp transition(action, nil),
-    do: fn _account, operation -> LaunchOperations.update(operation, action) end
-
   defp transition(action, reason),
     do: fn _account, operation ->
       LaunchOperations.update(operation, action, %{reason: reason})
     end
-
-  # The one Base read a settlement makes, with no transaction and no lock open.
-  # A candidate with nothing sent to read about asks nothing.
-  defp read_chain(%{state: :submitted} = candidate) do
-    hash = LaunchOperations.hash(candidate, :launch)
-
-    case LaunchChainClient.module().verify(candidate.envelope, :launch, hash) do
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      result -> result
-    end
-  end
-
-  defp read_chain(_settled), do: {:ok, nil}
-
-  # The read answered about one exact candidate. A locked row that has moved on
-  # since — another socket bound a hash, advanced the step, or the account ended
-  # the operation — is left exactly as it stands.
-  defp settle(candidate, outcome) do
-    fn _account, operation ->
-      if identity(operation) == identity(candidate),
-        do: record(operation, outcome),
-        else: {:ok, operation}
-    end
-  end
-
-  defp identity(operation), do: Map.take(operation, @identity)
-
-  defp record(operation, %{outcome: :confirmed} = result) do
-    with :ok <- LabProjection.project_launch(operation, result[:result] || %{}) do
-      LaunchOperations.update(operation, :record_chain_verified, %{
-        result: merged(operation, result)
-      })
-    end
-  end
-
-  defp record(operation, %{outcome: :reverted}),
-    do: LaunchOperations.update(operation, :record_revert, %{reason: @reverted})
-
-  defp record(operation, %{outcome: :unverified}),
-    do: LaunchOperations.update(operation, :record_unverified, %{reason: @contradicted})
-
-  # A hash the chain has not resolved yet, and a candidate that had nothing to
-  # read, both leave the row bound and readable again.
-  defp record(operation, _unresolved), do: {:ok, operation}
-
-  defp merged(%{result: result}, outcome), do: Map.merge(result, outcome[:result] || %{})
 
   # The reviewed envelope lives ten minutes. Past that, no prepared step of it
   # can be spent, so the operation ends here — inside the locked transaction,
@@ -802,10 +637,6 @@ defmodule Autolaunch.LaunchActions do
 
   defp operation(account_id, action_id, lock?),
     do: LaunchOperations.fetch(account_id, action_id, lock?)
-
-  # A review is prepared for one signer, and only that wallet may dispatch it.
-  defp same_signer(%{signer: signer}, signer), do: :ok
-  defp same_signer(_operation, _other), do: unavailable(:wrong_signer)
 
   # Session and wallet identity
 
