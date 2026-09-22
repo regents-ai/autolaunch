@@ -88,17 +88,15 @@ RPC_ENV=REGENT_BASE_RPC_URL
 CHAIN_ID=8453
 PROBE_REFUSAL="the configured $RPC_ALIAS endpoint did not answer a read-only chain-id probe with exactly $CHAIN_ID"
 
-PRODUCTION_AUTHORITY_COMMIT=f4114f5276386f48bf8dc53ee344189d98c8896e
-PRODUCTION_AUTHORITY_TREE=bb660324bb1d5cc322adeb243b0bd51779821fcb
-PRODUCTION_AUTHORITY_SRC_TREE=91a741e417b75706a4071f7bdac2c5e13548c0fc
-# Filled with the exact clean B' commit only after the founder's fork check writes a successful
-# receipt for it. A preparation run cannot proceed while this sentinel remains.
-FORK_EVIDENCE_COMMIT=ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa
-# Both authorities predate the contracts/v1 layout and carry src/ at the root of their own trees.
-# They are historical Git objects read at their recorded path for evidence verification only; the
-# candidate checkout is always read at $component/src.
-PRODUCTION_AUTHORITY_SRC_PATH=src
-FORK_EVIDENCE_SRC_PATH=src
+PRODUCTION_AUTHORITY_COMMIT=7d564cec735c3b1b928ec4e2ede0b244682d105b
+PRODUCTION_AUTHORITY_TREE=97ea43cbf2e6625889b64deefcea406ea11ccdc5
+PRODUCTION_AUTHORITY_SRC_TREE=eeeb1cedb315c97bf1a22658c02a5210a9c517c9
+# The exact clean commit the founder's fork check wrote its successful receipt for. A preparation
+# run cannot proceed unless the retained receipt names exactly this commit.
+FORK_EVIDENCE_COMMIT=4451c776f84fa904dd02b0c4360d360a45a945cb
+# Both authorities carry their sources at $component/src, where the candidate checkout is read too.
+PRODUCTION_AUTHORITY_SRC_PATH=$component/src
+FORK_EVIDENCE_SRC_PATH=$component/src
 
 # The discard port. Nothing listens on it, so the dead-endpoint regression is deterministic.
 DEAD_ENDPOINT=http://127.0.0.1:9
