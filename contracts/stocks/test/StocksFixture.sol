@@ -113,17 +113,20 @@ abstract contract StocksFixture is Test, DeployPermit2 {
         vm.warp(1_700_000_000);
 
         _constructAt(
-            StocksBindings.USDC, abi.encodePacked(type(MockERC20).creationCode, abi.encode("USD Coin", "USDC", uint8(6)))
+            StocksBindings.USDC,
+            abi.encodePacked(type(MockERC20).creationCode, abi.encode("USD Coin", "USDC", uint8(6)))
         );
         _constructAt(
-            StocksBindings.REGENT, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Regent", "REGENT", uint8(18)))
+            StocksBindings.REGENT,
+            abi.encodePacked(type(MockERC20).creationCode, abi.encode("Regent", "REGENT", uint8(18)))
         );
         usdc = MockERC20(StocksBindings.USDC);
         regent = MockERC20(StocksBindings.REGENT);
 
         deployPermit2();
         _constructAt(
-            StocksBindings.LIVE_STAKING, abi.encodePacked(type(MockLiveStaking).creationCode, abi.encode(StocksBindings.USDC))
+            StocksBindings.LIVE_STAKING,
+            abi.encodePacked(type(MockLiveStaking).creationCode, abi.encode(StocksBindings.USDC))
         );
         _constructAt(
             StocksBindings.POOL_MANAGER, abi.encodePacked(type(PoolManager).creationCode, abi.encode(address(this)))
@@ -369,7 +372,9 @@ abstract contract StocksFixture is Test, DeployPermit2 {
         vm.prank(account);
         delta = swapRouter.swap(
             _poolKey(launched),
-            SwapParams({zeroForOne: zeroForOne, amountSpecified: amountSpecified, sqrtPriceLimitX96: sqrtPriceLimitX96}),
+            SwapParams({
+                zeroForOne: zeroForOne, amountSpecified: amountSpecified, sqrtPriceLimitX96: sqrtPriceLimitX96
+            }),
             PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ""
         );

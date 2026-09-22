@@ -216,8 +216,37 @@ forge build
 forge test --fuzz-runs 64
 FOUNDRY_PROFILE=fork forge test --fork-url http://127.0.0.1:PORT --fuzz-runs 64   # against the lab
 FOUNDRY_PROFILE=fork forge test --fork-url https://base-rpc.publicnode.com --match-contract AerodromeStockRouteForkTest   # route against Base itself
-slither . --config-file slither.config.json --filter-paths "lib/|test/|script/"   # if installed
 ```
+
+### The gate
+
+`bin/gate.sh` is the one required check before a change is proposed. It is offline and proves,
+in order: the frozen tool and build identity (`requirements/frozen-identity.json` against
+`forge --version`, `slither --version` and `forge config --json`), `forge fmt --check`, a clean
+`forge build --sizes` whose artifacts carry the frozen compiler identity, the frozen release surface
+(`bin/freeze.py check` reconciles `abi/` and `reports/frozen/` byte for byte against the fresh
+build, the dependency snapshot under `lib/` against `reports/frozen/dependency-closure.json`, and
+the compiled test listing against `reports/frozen/test-listing.json`), the whole hermetic test
+portfolio, Slither with every detector on and every result dispositioned in
+`docs/security/slither-dispositions.md`, and a provider-secret scan. It ends with `GATE PASS` and
+a receipt under `reports/generated/`, which is never committed.
+
+The gate proves a clean repository first: every tracked byte must equal the index and nothing
+untracked may exist outside the ignored build directories, so it runs in a clean clone, not in a
+working tree with edits. The dependency snapshot is exported, not a submodule tree, so the gate
+does not walk submodules; `lib/` must be the snapshot the closure pins.
+
+```sh
+export PATH="$HOME/.foundry/bin:$PATH"      # forge 1.5.1
+uv tool install slither-analyzer==0.11.5    # once; the gate resolves its interpreter itself
+cd contracts/stocks && bin/gate.sh
+```
+
+`bin/freeze.py write` regenerates the frozen release surface after an intended production change.
+It runs `forge clean`, `forge build` and `forge test --list --json` and rewrites `abi/` and
+`reports/frozen/`; review the diff, then run the gate. The freeze pins every production contract's
+runtime and creation code, its ABI and selectors, the clone template the launchpad stamps, the
+hook flags the deploy script mines for, and the content digest of every dependency.
 
 `test/fork/ForkAddresses.sol` pins the lab run it was written against; a restarted lab needs those
 addresses updated. The route suite skips on the lab (chain id 31337) and the lifecycle suite skips

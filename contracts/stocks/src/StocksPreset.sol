@@ -21,8 +21,8 @@ library StocksPreset {
     uint256 internal constant INITIAL_SUPPLY = 1_000_000_000e18;
 
     /// @notice Brief P04, exact: 80% of `S0` is sold through the auction.
-    // slither-disable-next-line divide-before-multiply
     // forge-lint: disable-next-line(unsafe-typecast)
+    // slither-disable-next-line divide-before-multiply
     uint128 internal constant AUCTION_INVENTORY = uint128(4 * (INITIAL_SUPPLY / 5));
 
     /// @notice Brief P04, exact: 20% of `S0` is the migration reserve.

@@ -1,0 +1,359 @@
+{
+  "contract": "AerodromeStockRouteV1",
+  "source": "src/routes/AerodromeStockRouteV1.sol",
+  "compiler": "0.8.26+commit.8a97fa7a",
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "stock_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "pool_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "feed_",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "MAX_DEVIATION_BPS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "MAX_FEED_AGE",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "feed",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract IChainlinkAggregatorMinimal"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "feedUnit",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "pool",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract ISlipstreamPoolMinimal"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "quoteExactIn",
+      "inputs": [
+        {
+          "name": "tokenIn",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "tokenOut",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "amountIn",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amountOut",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "stock",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "stockUnit",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "swapExactIn",
+      "inputs": [
+        {
+          "name": "tokenIn",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "tokenOut",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "amountIn",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "minAmountOut",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "recipient",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "amountOut",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "uniswapV3SwapCallback",
+      "inputs": [
+        {
+          "name": "amount0Delta",
+          "type": "int256",
+          "internalType": "int256"
+        },
+        {
+          "name": "amount1Delta",
+          "type": "int256",
+          "internalType": "int256"
+        },
+        {
+          "name": "",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "usdc",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "error",
+      "name": "BadFeedAnswer",
+      "inputs": [
+        {
+          "name": "answer",
+          "type": "int256",
+          "internalType": "int256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InsufficientOutput",
+      "inputs": [
+        {
+          "name": "minimum",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NoCode",
+      "inputs": [
+        {
+          "name": "target",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NotPool",
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "PoolBindingMismatch",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "found",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "PriceDeviation",
+      "inputs": [
+        {
+          "name": "quoted",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "Reentrancy",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "StaleFeed",
+      "inputs": [
+        {
+          "name": "updatedAt",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnsupportedPair",
+      "inputs": [
+        {
+          "name": "tokenIn",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "tokenOut",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "ZeroAddress",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ZeroAmount",
+      "inputs": []
+    }
+  ],
+  "method_identifiers": {
+    "MAX_DEVIATION_BPS()": "25c68403",
+    "MAX_FEED_AGE()": "696453b8",
+    "feed()": "37a7b7d8",
+    "feedUnit()": "871ba01f",
+    "pool()": "16f0115b",
+    "quoteExactIn(address,address,uint256)": "12be4fe0",
+    "stock()": "bdf3c4ae",
+    "stockUnit()": "fe8d6b94",
+    "swapExactIn(address,address,uint256,uint256,address)": "7b32b50e",
+    "uniswapV3SwapCallback(int256,int256,bytes)": "fa461e33",
+    "usdc()": "3e413bee"
+  }
+}

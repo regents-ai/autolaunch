@@ -137,6 +137,7 @@ contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
 
     /// @dev Dollars per whole share in feed units, from the latest round.
     function _feedPrice() internal view returns (uint256) {
+        // slither-disable-next-line unused-return
         (, int256 answer,, uint256 updatedAt,) = feed.latestRoundData();
         if (answer <= 0) revert BadFeedAnswer(answer);
         if (updatedAt == 0 || updatedAt + MAX_FEED_AGE < block.timestamp) revert StaleFeed(updatedAt);

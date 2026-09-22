@@ -41,6 +41,34 @@ pre-pass cannot follow those `../stocks/lib` imports and fails a build that touc
 the compiler resolves them; add `FOUNDRY_LINT_LINT_ON_BUILD=false` when that happens (the lab
 controller always does).
 
+### The gate
+
+`bin/gate.sh` is the one required check before a change is proposed. It shares its body with the
+Base package (`../stocks/bin/memestake-gate.sh`) and proves the same things in the same order: the
+frozen tool and build identity in `requirements/frozen-identity.json`, formatting, a clean build
+whose artifacts carry the frozen compiler identity, the frozen release surface under `abi/` and
+`reports/frozen/` (`../stocks/bin/freeze.py check` against `requirements/freeze.json`), the whole
+hermetic test portfolio, Slither with every detector on and every result dispositioned in
+`docs/security/slither-dispositions.md`, and a provider-secret scan. It ends with `GATE PASS` and
+a receipt under `reports/generated/`, which is never committed.
+
+Slither cannot follow this package's `../stocks/lib` and `allow_paths`, so the gate builds a
+self-contained copy under `reports/generated/slither-copy/` (this package's sources, the Base
+sources it imports, the dependency snapshot through symlinks, and the remappings rewritten to
+match) and analyzes that copy; the dispositions record locations relative to it.
+
+The gate proves a clean repository first, so it runs in a clean clone with the Base package's
+`lib/` snapshot in place, not in a working tree with edits.
+
+```sh
+export PATH="$HOME/.foundry/bin:$PATH"      # forge 1.5.1
+uv tool install slither-analyzer==0.11.5    # once; the gate resolves its interpreter itself
+cd contracts/robinhood && bin/gate.sh
+```
+
+`python3 ../stocks/bin/freeze.py write` regenerates the frozen release surface after an intended
+production change; review the diff, then run the gate.
+
 ## What the founder must supply before any deployment
 
 Every binding is a constructor argument and is verified at construction (code present, expected

@@ -77,7 +77,11 @@ contract StocksForkLifecycleTest is Test {
         // The real AAPLc carries one byte of `0xef` code on a fresh fork; once the lab controller has
         // run, the fixture is already there. Either way this suite installs its own copy.
         bool placeholder = ForkAddresses.AAPLC.code.length == 1;
-        if (!placeholder) assertEq(ForkAddresses.AAPLC.codehash, keccak256(type(FixtureStockToken).runtimeCode), "unknown code at AAPLc");
+        if (!placeholder) {
+            assertEq(
+                ForkAddresses.AAPLC.codehash, keccak256(type(FixtureStockToken).runtimeCode), "unknown code at AAPLc"
+            );
+        }
         vm.etch(ForkAddresses.AAPLC, type(FixtureStockToken).runtimeCode);
         assertEq(stock.symbol(), "AAPLc");
         assertEq(stock.decimals(), 8);
@@ -85,7 +89,10 @@ contract StocksForkLifecycleTest is Test {
         bytes32 salt;
         address predicted = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
         (, salt) = HookMiner.find(
-            predicted, HOOK_FLAGS, type(StocksFeeHookV1).creationCode, abi.encode(StocksBindings.POOL_MANAGER, predicted)
+            predicted,
+            HOOK_FLAGS,
+            type(StocksFeeHookV1).creationCode,
+            abi.encode(StocksBindings.POOL_MANAGER, predicted)
         );
         launchpad = new StocksLaunchpadV1(ForkAddresses.UERC20_FACTORY, salt);
         hook = StocksFeeHookV1(launchpad.hook());
@@ -164,8 +171,8 @@ contract StocksForkLifecycleTest is Test {
         assertEq(auction.bids(adapterBid).owner, bidderUsdc);
         assertEq(usdc.balanceOf(address(adapter)), 0);
         assertEq(stock.balanceOf(address(adapter)), 0);
-        (uint160 permit2Allowance,,) =
-            IAllowanceTransfer(StocksBindings.PERMIT2).allowance(address(adapter), ForkAddresses.AAPLC, address(auction));
+        (uint160 permit2Allowance,,) = IAllowanceTransfer(StocksBindings.PERMIT2)
+            .allowance(address(adapter), ForkAddresses.AAPLC, address(auction));
         assertEq(permit2Allowance, 0);
 
         vm.roll(uint256(auction.endBlock()) + StocksPreset.MIGRATION_DELAY_BLOCKS);
@@ -229,7 +236,9 @@ contract StocksForkLifecycleTest is Test {
         uint256 expectedUsdc = amount * USDC_PER_SHARE / 1e8;
         uint256 stakingBefore = usdc.balanceOf(StocksBindings.LIVE_STAKING);
         hook.settleRegentLane(record.poolId, amount, expectedUsdc);
-        assertEq(usdc.balanceOf(StocksBindings.LIVE_STAKING) - stakingBefore, expectedUsdc, "live staking received USDC");
+        assertEq(
+            usdc.balanceOf(StocksBindings.LIVE_STAKING) - stakingBefore, expectedUsdc, "live staking received USDC"
+        );
         (regentLane,) = hook.accrued(record.poolId);
         assertEq(regentLane, accruedBefore - amount);
         (uint256 converted, uint256 deposited,) = hook.settled(record.poolId);
@@ -330,7 +339,9 @@ contract StocksForkLifecycleTest is Test {
         assertGt(newFees, 0, "LP fees in NEW");
         assertEq(stock.balanceOf(address(locker)), 0, "the locker keeps nothing");
         assertEq(IERC20(newToken).balanceOf(address(locker)), 0);
-        assertApproxEqAbs(stock.balanceOf(record.splitter) - splitterStockBefore, stockFees - stockFees * 200 / 10_000, 2);
+        assertApproxEqAbs(
+            stock.balanceOf(record.splitter) - splitterStockBefore, stockFees - stockFees * 200 / 10_000, 2
+        );
         assertApproxEqAbs(
             IERC20(newToken).balanceOf(record.splitter) - splitterNewBefore, newFees - newFees * 200 / 10_000, 2
         );
@@ -343,7 +354,9 @@ contract StocksForkLifecycleTest is Test {
         vm.prank(bidderDirect);
         splitter.claimAll();
         assertApproxEqAbs(
-            stock.balanceOf(bidderDirect) - stockBalance, (stakerLane - laneSkim) + (stockFees - stockFees * 200 / 10_000), 4
+            stock.balanceOf(bidderDirect) - stockBalance,
+            (stakerLane - laneSkim) + (stockFees - stockFees * 200 / 10_000),
+            4
         );
         assertApproxEqAbs(IERC20(newToken).balanceOf(bidderDirect) - newBalance, newFees - newFees * 200 / 10_000, 2);
 
@@ -409,7 +422,11 @@ contract StocksForkLifecycleTest is Test {
 
     /// @dev The pinned planner's floor-liquidity / round-up-amounts remainder bound, as derived in
     ///      `StocksLaunchpadMigrateTest._roundingBound`.
-    function _roundingBound(bool budgetIsCurrency0, uint160 sqrtPriceX96, uint256 budget) private pure returns (uint256) {
+    function _roundingBound(bool budgetIsCurrency0, uint160 sqrtPriceX96, uint256 budget)
+        private
+        pure
+        returns (uint256)
+    {
         if (budgetIsCurrency0) {
             uint256 product = FullMath.mulDiv(
                 sqrtPriceX96,
@@ -435,10 +452,7 @@ contract StocksForkLifecycleTest is Test {
         });
     }
 
-    function _launch()
-        private
-        returns (uint256 launchId, address newToken, IContinuousClearingAuction auction)
-    {
+    function _launch() private returns (uint256 launchId, address newToken, IContinuousClearingAuction auction) {
         IStocksLaunchpadV1.LaunchParams memory params = _launchParams();
         address auctionAddress;
         vm.prank(launcher);
@@ -470,7 +484,8 @@ contract StocksForkLifecycleTest is Test {
         stock.mint(account, amount);
         vm.startPrank(account);
         stock.approve(StocksBindings.PERMIT2, amount);
-        IAllowanceTransfer(StocksBindings.PERMIT2).approve(ForkAddresses.AAPLC, address(auction), uint160(amount), type(uint48).max);
+        IAllowanceTransfer(StocksBindings.PERMIT2)
+            .approve(ForkAddresses.AAPLC, address(auction), uint160(amount), type(uint48).max);
         bidId = auction.submitBid(price, amount, account, FLOOR_PRICE_Q96, "");
         vm.stopPrank();
     }

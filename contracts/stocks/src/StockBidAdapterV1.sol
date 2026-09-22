@@ -87,7 +87,8 @@ contract StockBidAdapterV1 is ReentrancyGuardTransient, IStockBidAdapterV1 {
         // auction pulls exactly `stockCommitted` from this contract and both allowances are proved zero.
         stock.safeApprove(permit2, stockCommitted);
         IAllowanceTransfer(permit2).approve(stock, auction, uint160(stockCommitted), uint48(block.timestamp));
-        bidId = IContinuousClearingAuction(auction).submitBid(maxPriceQ96, stockCommitted, msg.sender, prevTickPriceQ96, "");
+        bidId = IContinuousClearingAuction(auction)
+            .submitBid(maxPriceQ96, stockCommitted, msg.sender, prevTickPriceQ96, "");
 
         uint256 erc20Remaining = IERC20Views(stock).allowance(address(this), permit2);
         if (erc20Remaining != 0) revert AllowanceNotRestored(permit2, erc20Remaining);

@@ -1,0 +1,1155 @@
+{
+  "contract": "StocksLaunchpadV1",
+  "source": "src/StocksLaunchpadV1.sol",
+  "compiler": "0.8.26+commit.8a97fa7a",
+  "abi": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "uerc20Factory_",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "hookSalt",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "admitStock",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "route",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "bidTickSpacingFor",
+      "inputs": [
+        {
+          "name": "floorPriceQ96",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "tickSpacing",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "hook",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "launch",
+      "inputs": [
+        {
+          "name": "params",
+          "type": "tuple",
+          "internalType": "struct IStocksLaunchpadV1.LaunchParams",
+          "components": [
+            {
+              "name": "name",
+              "type": "string",
+              "internalType": "string"
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "internalType": "string"
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "internalType": "string"
+            },
+            {
+              "name": "website",
+              "type": "string",
+              "internalType": "string"
+            },
+            {
+              "name": "image",
+              "type": "string",
+              "internalType": "string"
+            },
+            {
+              "name": "stock",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "floorPriceQ96",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "requiredStockRaised",
+              "type": "uint128",
+              "internalType": "uint128"
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "newToken",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "launchIdOfAuction",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "launchIdOfToken",
+      "inputs": [
+        {
+          "name": "newToken",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "launches",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "tuple",
+          "internalType": "struct IStocksLaunchpadV1.Launch",
+          "components": [
+            {
+              "name": "launcher",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "newToken",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "stock",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "auction",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "splitter",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "startBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "endBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "claimBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "migrationBlock",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "requiredStockRaised",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "floorPriceQ96",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "lifecycle",
+              "type": "uint8",
+              "internalType": "enum IStocksLaunchpadV1.Lifecycle"
+            },
+            {
+              "name": "poolId",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "finalSqrtPriceX96",
+              "type": "uint160",
+              "internalType": "uint160"
+            },
+            {
+              "name": "lpTokenId",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "lpStockUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "lpNewUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            },
+            {
+              "name": "retiredNew",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "lpStockOnlyTokenId",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "lpStockOnlyUsed",
+              "type": "uint128",
+              "internalType": "uint128"
+            }
+          ]
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "launchesPaused",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "locker",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "migrate",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "nextLaunchId",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "pauseLaunches",
+      "inputs": [],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "revokeStock",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "splitterImplementation",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "stockAdmission",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "admitted",
+          "type": "bool",
+          "internalType": "bool"
+        },
+        {
+          "name": "decimals",
+          "type": "uint8",
+          "internalType": "uint8"
+        },
+        {
+          "name": "route",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "unpauseLaunches",
+      "inputs": [],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "LaunchesPaused",
+      "inputs": [],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "LaunchesUnpaused",
+      "inputs": [],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "MemestockSplitterCreated",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "newToken",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "stock",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "splitter",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "StockAdmitted",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "decimals",
+          "type": "uint8",
+          "indexed": false,
+          "internalType": "uint8"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "StockLaunchCreated",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "launcher",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "newToken",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "stock",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "auction",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "startBlock",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        },
+        {
+          "name": "endBlock",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        },
+        {
+          "name": "floorPriceQ96",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "requiredStockRaised",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "auctionInventory",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "migrationReserve",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "StockLaunchGraduated",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "auction",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "poolId",
+          "type": "bytes32",
+          "indexed": false,
+          "internalType": "bytes32"
+        },
+        {
+          "name": "sqrtPriceX96",
+          "type": "uint160",
+          "indexed": false,
+          "internalType": "uint160"
+        },
+        {
+          "name": "lpTokenId",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "lpStockUsed",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "lpNewUsed",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "lpStockOnlyTokenId",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "lpStockOnlyUsed",
+          "type": "uint128",
+          "indexed": false,
+          "internalType": "uint128"
+        },
+        {
+          "name": "stockRaised",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "stockDustToRevenue",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "unsoldNewRetired",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "StockLaunchRetired",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "auction",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "newRetired",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "StockRevoked",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "error",
+      "name": "AllowanceNotConsumed",
+      "inputs": [
+        {
+          "name": "spender",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "remaining",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "AuctionBindingMismatch",
+      "inputs": [
+        {
+          "name": "field",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "AuctionHasNoCode",
+      "inputs": [
+        {
+          "name": "auction",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "CurrencyRaisedMismatch",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "EmptyMetadataField",
+      "inputs": [
+        {
+          "name": "field",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "FloorPriceNotOnGrid",
+      "inputs": [
+        {
+          "name": "floorPriceQ96",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "FloorPriceTooLow",
+      "inputs": [
+        {
+          "name": "floorPriceQ96",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "InexactTransfer",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "LaunchNotActive",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "uint8",
+          "internalType": "enum IStocksLaunchpadV1.Lifecycle"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "LaunchesAlreadyPaused",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "LaunchesArePaused",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "LaunchesNotPaused",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "MetadataFieldTooLong",
+      "inputs": [
+        {
+          "name": "field",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "maximum",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "MigrationNotYetAllowed",
+      "inputs": [
+        {
+          "name": "migrationBlock",
+          "type": "uint64",
+          "internalType": "uint64"
+        },
+        {
+          "name": "currentBlock",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NoCode",
+      "inputs": [
+        {
+          "name": "account",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "NoFullRangePosition",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "NotGovernance",
+      "inputs": [
+        {
+          "name": "caller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "PriceIsZero",
+      "inputs": [
+        {
+          "name": "price",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "PriceTooHigh",
+      "inputs": [
+        {
+          "name": "price",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "maxPrice",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "ProtocolFeeControllerNotZero",
+      "inputs": [
+        {
+          "name": "controller",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "Reentrancy",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ReserveMismatch",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "RouteBindingMismatch",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "found",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "SqrtPriceX96OutOfBounds",
+      "inputs": [
+        {
+          "name": "sqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        },
+        {
+          "name": "minSqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        },
+        {
+          "name": "maxSqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "StockNotAdmitted",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "StockRefused",
+      "inputs": [
+        {
+          "name": "stock",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "TickSpacingTooSmall",
+      "inputs": [
+        {
+          "name": "tickSpacingQ96",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "TokenCreatorMismatch",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "TokenGraffitiMismatch",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "TokenHasNoCode",
+      "inputs": [
+        {
+          "name": "token",
+          "type": "address",
+          "internalType": "address"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "TokenSupplyMismatch",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnexpectedPositionMintCount",
+      "inputs": [
+        {
+          "name": "expected",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnexpectedRuntimeCodeHash",
+      "inputs": [
+        {
+          "name": "account",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "expected",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        },
+        {
+          "name": "found",
+          "type": "bytes32",
+          "internalType": "bytes32"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnexpectedStockOnlyPositionCount",
+      "inputs": [
+        {
+          "name": "found",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnknownLaunch",
+      "inputs": [
+        {
+          "name": "launchId",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "UnreachableRequiredRaise",
+      "inputs": [
+        {
+          "name": "requiredStockRaised",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "maximum",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "name": "ZeroAddress",
+      "inputs": []
+    }
+  ],
+  "method_identifiers": {
+    "admitStock(address,address)": "f6f19fe1",
+    "bidTickSpacingFor(uint256)": "9e82ecfc",
+    "hook()": "7f5a7c7b",
+    "launch((string,string,string,string,string,address,uint256,uint128))": "53cb738a",
+    "launchIdOfAuction(address)": "a568a4fe",
+    "launchIdOfToken(address)": "a27d865a",
+    "launches(uint256)": "7b443a76",
+    "launchesPaused()": "3bc340c2",
+    "locker()": "d7b96d4e",
+    "migrate(uint256)": "454b0608",
+    "nextLaunchId()": "979bd9cc",
+    "pauseLaunches()": "e79b502e",
+    "revokeStock(address)": "06b0b7f2",
+    "splitterImplementation()": "e63db9b2",
+    "stockAdmission(address)": "03631d24",
+    "unpauseLaunches()": "5af02677"
+  }
+}

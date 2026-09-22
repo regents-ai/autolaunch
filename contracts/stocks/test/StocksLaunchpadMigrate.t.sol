@@ -105,7 +105,9 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         // Exactly what the two positions consumed funded them; the PositionManager keeps nothing extra
         // and nothing that was already there is touched.
         assertEq(
-            FixtureStockToken(l.stock).balanceOf(address(positionManager)), pmStockBefore, "PositionManager STOCK unchanged"
+            FixtureStockToken(l.stock).balanceOf(address(positionManager)),
+            pmStockBefore,
+            "PositionManager STOCK unchanged"
         );
         assertEq(UERC20(l.newToken).balanceOf(address(positionManager)), pmNewBefore, "PositionManager NEW unchanged");
         uint256 placed = uint256(record.lpStockUsed) + record.lpStockOnlyUsed;
@@ -185,7 +187,9 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
         int24 maxUsable = TickMath.maxUsableTick(spacing);
 
         assertEq(record.lpTokenId, nextTokenId, "the full range is minted first");
-        assertEq(IERC721(address(positionManager)).ownerOf(record.lpTokenId), address(locker), "full range to the locker");
+        assertEq(
+            IERC721(address(positionManager)).ownerOf(record.lpTokenId), address(locker), "full range to the locker"
+        );
         assertEq(locker.splitterOf(record.lpTokenId), record.splitter, "full range registered");
         (PoolKey memory fullKey, PositionInfo fullInfo) = positionManager.getPoolAndPositionInfo(record.lpTokenId);
         assertEq(PoolId.unwrap(fullKey.toId()), record.poolId);
@@ -201,10 +205,13 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
 
         assertEq(record.lpStockOnlyTokenId, record.lpTokenId + 1, "the one-sided position is minted second");
         assertEq(
-            IERC721(address(positionManager)).ownerOf(record.lpStockOnlyTokenId), address(locker), "one-sided to the locker"
+            IERC721(address(positionManager)).ownerOf(record.lpStockOnlyTokenId),
+            address(locker),
+            "one-sided to the locker"
         );
         assertEq(locker.splitterOf(record.lpStockOnlyTokenId), record.splitter, "one-sided registered");
-        (PoolKey memory sideKey, PositionInfo sideInfo) = positionManager.getPoolAndPositionInfo(record.lpStockOnlyTokenId);
+        (PoolKey memory sideKey, PositionInfo sideInfo) =
+            positionManager.getPoolAndPositionInfo(record.lpStockOnlyTokenId);
         assertEq(PoolId.unwrap(sideKey.toId()), record.poolId);
         assertGt(positionManager.getPositionLiquidity(record.lpStockOnlyTokenId), 0);
         assertGt(record.lpStockOnlyUsed, 0);
@@ -232,7 +239,11 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
     ///      below the price it is below `(B - A) / Q96`. Evaluated at the price itself, which is
     ///      conservative for both (A >= price above, B <= price below), plus one for the integer floors.
     ///      Equals one or zero at every price the fixtures reach.
-    function _roundingBound(bool budgetIsCurrency0, uint160 sqrtPriceX96, uint256 budget) private pure returns (uint256) {
+    function _roundingBound(bool budgetIsCurrency0, uint160 sqrtPriceX96, uint256 budget)
+        private
+        pure
+        returns (uint256)
+    {
         if (budgetIsCurrency0) {
             uint256 product = FullMath.mulDiv(
                 sqrtPriceX96, TickMath.getSqrtPriceAtTick(TickMath.maxUsableTick(StocksPreset.POOL_TICK_SPACING)), Q96
@@ -268,8 +279,7 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
                 found = true;
                 assertEq(uint256(logs[i].topics[1]), l.launchId);
                 (
-                    bytes32 poolId,
-                    ,
+                    bytes32 poolId,,
                     uint256 lpTokenId,
                     uint128 lpStockUsed,
                     uint128 lpNewUsed,
@@ -279,7 +289,8 @@ contract StocksLaunchpadMigrateTest is StocksFixture {
                     uint256 stockDust,
                     uint256 retired
                 ) = abi.decode(
-                    logs[i].data, (bytes32, uint160, uint256, uint128, uint128, uint256, uint128, uint256, uint256, uint256)
+                    logs[i].data,
+                    (bytes32, uint160, uint256, uint128, uint128, uint256, uint128, uint256, uint256, uint256)
                 );
                 assertEq(poolId, record.poolId);
                 assertEq(lpTokenId, record.lpTokenId);

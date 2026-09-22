@@ -1,0 +1,85 @@
+{
+  "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
+  "total": 47,
+  "tests": {
+    "test/RobinhoodBaseReceiver.t.sol": {
+      "RobinhoodBaseReceiverTest": [
+        "test_a_short_or_misreported_deposit_reverts",
+        "test_attestation_is_safe_only_and_bounded_by_what_arrived",
+        "test_batches_deposit_independently_and_surplus_excludes_attested_amounts",
+        "test_deposit_uses_the_delivered_amount_and_retries_after_a_failure"
+      ]
+    },
+    "test/RobinhoodFeeHook.t.sol": {
+      "RobinhoodFeeHookTest": [
+        "test_every_swap_accrues_two_equal_stock_lanes_and_the_pool_is_bound_to_its_splitter",
+        "test_hook_bindings",
+        "test_launchpad_only_and_safe_only_surfaces",
+        "test_protocol_lane_refuses_a_conversion_below_the_executor_minimum",
+        "test_protocol_lane_settles_executor_only_through_the_route_into_the_inbox",
+        "test_staker_lane_settles_permissionlessly_in_stock_into_the_splitter"
+      ]
+    },
+    "test/RobinhoodInbox.t.sol": {
+      "RobinhoodInboxTest": [
+        "test_a_partial_pull_by_the_adapter_reverts_the_batch",
+        "test_a_sent_batch_keeps_its_destination_after_a_change",
+        "test_adapter_must_bind_usdg_and_base",
+        "test_bridge_records_a_batch_and_moves_exactly_the_amount",
+        "test_bridge_refuses_stale_version_stale_adapter_expiry_and_overdraw",
+        "test_construction_refuses_a_non_six_decimal_dollar",
+        "test_deposit_is_exact_and_counted",
+        "test_destination_changes_bump_the_version_without_redeploy",
+        "test_safe_only_administration",
+        "test_usdg_is_never_recoverable_and_other_tokens_go_to_the_safe"
+      ]
+    },
+    "test/RobinhoodLaunchpads.t.sol": {
+      "RobinhoodLaunchpadsTest": [
+        "test_admission_is_safe_only",
+        "test_auction_opens_exactly_ten_minutes_after_the_creation_block",
+        "test_each_graduation_gets_its_own_splitter",
+        "test_launch_costs_no_usdg_and_needs_no_allowance",
+        "test_migration_waits_for_the_migration_block",
+        "test_required_raise_is_chosen_by_the_launcher_above_zero_and_within_reach",
+        "test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker",
+        "test_stock_launch_requires_admission_and_records_the_launch",
+        "test_stock_launch_that_misses_the_raise_retires_every_new",
+        "test_the_launchpad_deploys_its_own_locker_and_splitter_implementation",
+        "test_usdg_can_never_be_admitted_as_a_stock"
+      ]
+    },
+    "test/RobinhoodLockedLiquidity.t.sol": {
+      "RobinhoodLockedLiquidityTest": [
+        "test_collect_deposits_both_currencies_into_the_splitter_and_keeps_nothing",
+        "test_collect_works_in_the_other_currency_order",
+        "test_only_the_launchpad_registers_and_a_registration_is_forever"
+      ]
+    },
+    "test/RobinhoodMemestockSplitter.t.sol": {
+      "RobinhoodMemestockSplitterTest": [
+        "test_a_misreporting_inbox_is_refused",
+        "test_a_refusing_inbox_fails_only_usdg_recognition",
+        "test_revenue_with_nothing_staked_goes_whole_to_the_protocol_route",
+        "test_stock_and_memestock_protocol_shares_go_to_the_safe",
+        "test_the_implementation_refuses_zero_bindings_and_can_never_be_initialized",
+        "test_two_stakers_divide_pro_rata_and_nothing_is_held_back",
+        "test_unsupported_tokens_are_recovered_to_the_safe_and_the_three_assets_never_are",
+        "test_usdg_protocol_share_goes_into_the_inbox_tagged_and_the_rest_to_stakers"
+      ]
+    },
+    "test/RobinhoodPreset.t.sol": {
+      "RobinhoodPresetTest": [
+        "test_each_scheduled_step_is_the_base_step_stretched_twentyfold",
+        "test_every_block_term_is_the_base_term_times_twenty",
+        "test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps"
+      ]
+    },
+    "test/RobinhoodStockBidAdapter.t.sol": {
+      "RobinhoodStockBidAdapterTest": [
+        "test_bid_with_usdg_converts_and_commits_exactly_for_the_caller",
+        "test_unknown_auction_and_short_output_are_refused"
+      ]
+    }
+  }
+}
