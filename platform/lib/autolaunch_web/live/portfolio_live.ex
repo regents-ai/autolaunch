@@ -244,6 +244,8 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp standing_copy(%{standing: :returned}), do: "Returned"
 
+  defp standing_copy(%{standing: :claimed}), do: "Claimed"
+
   defp standing_copy(%{standing: :filled, claim_block: block}),
     do: "Filled: tokens can be claimed from block #{block}"
 

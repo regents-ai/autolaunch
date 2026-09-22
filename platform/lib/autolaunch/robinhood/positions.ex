@@ -13,18 +13,19 @@ defmodule Autolaunch.Robinhood.Positions do
   un-exited bid is refundable in full. Once it has graduated, an un-exited bid
   still has whatever it did not spend to come back, an amount only the exit
   itself states. An exited bid with tokens filled can claim them from the
-  claim block; an exited bid with nothing filled has been returned.
+  claim block. After a claim clears the stored fill, a positive `TokensClaimed`
+  event distinguishes a claimed bid from one returned with nothing filled.
   """
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Abi, Address, Rpc}
+  alias Autolaunch.Chain.{Abi, Address, CcaSettlement, Rpc}
   alias Autolaunch.{LabAbi, TokenHoldings}
   alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
 
   @bid_record_words 7
 
-  @type standing :: :bidding | :refundable | :ended | :returned | :filled | :claimable
+  @type standing :: :bidding | :refundable | :ended | :returned | :filled | :claimable | :claimed
 
   @type position :: %{
           auction: String.t(),
@@ -65,9 +66,23 @@ defmodule Autolaunch.Robinhood.Positions do
          {:ok, auctions} <- Auctions.at(config, block, opts) do
       venue = %{abi: Lab.abi!(config, :auction), block: block, clock: clock, opts: opts}
 
-      collect(auctions, fn auction ->
-        collect(wallets, &wallet_positions(auction, &1, venue))
-      end)
+      with {:ok, positions} <-
+             collect(auctions, fn auction ->
+               collect(wallets, &wallet_positions(auction, &1, venue))
+             end),
+           # Log ranges use block numbers; refuse a history that moved since
+           # the state reads pinned its hash.
+           {:ok, %{"hash" => hash}} <-
+             Rpc.request(
+               "eth_getBlockByNumber",
+               ["0x" <> Integer.to_string(block.number, 16), false],
+               opts
+             ),
+           true <- hash == block.hash do
+        {:ok, positions}
+      else
+        _error -> {:error, :invalid_chain_response}
+      end
     end
   end
 
@@ -129,7 +144,7 @@ defmodule Autolaunch.Robinhood.Positions do
            ),
          {:ok, owner} <- Abi.word_address(owner_word),
          true <- Address.equal?(owner, wallet) do
-      {:ok, %{bid_id: bid_id, max_price_q96: price_q96, amount: amount}}
+      {:ok, %{bid_id: bid_id, owner: owner, max_price_q96: price_q96, amount: amount}}
     else
       _ -> :error
     end
@@ -181,7 +196,11 @@ defmodule Autolaunch.Robinhood.Positions do
 
   defp standing(%{exited_block: 0}, %{state: :graduated}, _venue), do: {:ok, :ended, nil, nil}
 
-  defp standing(%{tokens_filled: 0}, _auction, _venue), do: {:ok, :returned, nil, nil}
+  defp standing(%{tokens_filled: 0} = bid, auction, venue) do
+    with {:ok, claimed?} <- claimed?(bid, auction.auction, venue) do
+      {:ok, if(claimed?, do: :claimed, else: :returned), nil, nil}
+    end
+  end
 
   defp standing(_bid, auction, venue) do
     with {:ok, claim_block} <-
@@ -194,6 +213,41 @@ defmodule Autolaunch.Robinhood.Positions do
       if venue.clock >= claim_block,
         do: {:ok, :claimable, nil, claim_block},
         else: {:ok, :filled, nil, claim_block}
+    end
+  end
+
+  defp claimed?(bid, auction, venue) do
+    filter = %{
+      address: auction,
+      fromBlock: "0x0",
+      toBlock: "0x" <> Integer.to_string(venue.block.number, 16),
+      topics: [
+        LabAbi.topic(CcaSettlement.tokens_claimed_signature()),
+        "0x" <> String.pad_leading(Integer.to_string(bid.bid_id, 16), 64, "0"),
+        "0x" <> String.pad_leading(String.slice(bid.owner, 2..-1//1), 64, "0")
+      ]
+    }
+
+    case Rpc.request("eth_getLogs", [filter], venue.opts) do
+      {:ok, logs} when is_list(logs) ->
+        Enum.reduce_while(logs, {:ok, false}, fn log, {:ok, claimed?} ->
+          with %{"removed" => false, "blockNumber" => "0x" <> number} <- log,
+               {number, ""} <- Integer.parse(number, 16),
+               true <- number >= 0 and number <= venue.block.number,
+               {:ok, %{tokens_claimed: tokens}} <-
+                 CcaSettlement.claimed(venue.abi, [log], auction, bid.bid_id, bid.owner) do
+            {:cont, {:ok, claimed? or tokens > 0}}
+          else
+            _invalid ->
+              {:halt, {:error, :invalid_chain_response}}
+          end
+        end)
+
+      {:ok, _other} ->
+        {:error, :invalid_chain_response}
+
+      error ->
+        error
     end
   end
 end
