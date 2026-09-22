@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
+  alias Autolaunch.Robinhood.StockBidSettlementActions
   alias AutolaunchWeb.RobinhoodStockBidComponent
 
   @copy %{
@@ -102,7 +102,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>{network_name(Lab.test_chain?())} · chain {@review.envelope["chain_id"]}</dd>
+            <dd>
+              {network_name(@review.envelope["chain_id"])} · chain {@review.envelope["chain_id"]}
+            </dd>
           </div>
           <div>
             <dt>Transactions</dt>
@@ -128,7 +130,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
         <p :if={done?(@review.steps, @sent)} class="launch-wallet-settled" role="status">
           {done_copy(@review.steps)}
-          <span :if={Lab.test_chain?()}>Test assets have no real value.</span>
+          <span :if={@review.envelope["chain_id"] == 31_338}>Test assets have no real value.</span>
         </p>
 
         <Regent.Primitives.disclosure
@@ -313,8 +315,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp step_count([_one]), do: "One transaction"
   defp step_count([_one, _two]), do: "Two transactions"
 
-  defp network_name(true), do: "Robinhood test network"
-  defp network_name(false), do: "Robinhood Chain"
+  defp network_name(31_338), do: "Robinhood test network"
+  defp network_name(_chain_id), do: "Robinhood Chain"
 
   defp step_label("exit"), do: "Return the bid"
   defp step_label("claim"), do: "Claim tokens"
@@ -344,7 +346,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp wallet_failure_copy("network_mismatch"),
     do:
-      "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent."
+      "Your wallet is connected to a different network under the reviewed chain number. Check the network settings in your wallet, then try again. Nothing was sent."
 
   defp wallet_failure_copy("wallet_declined"), do: "Your wallet declined this. Nothing was sent."
 

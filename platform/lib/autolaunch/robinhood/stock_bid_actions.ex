@@ -286,7 +286,12 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   end
 
   defp risk_copy(executable, asset) do
-    "Your wallet bids on this auction on the local Robinhood lab with test assets and no mainnet value. Up to #{usdg_units(executable.usdg_amount)} USDG is converted into #{asset.symbol} for the bid; any unspent part comes back to you in the same transaction."
+    network =
+      if Lab.test_chain?(),
+        do: "the local Robinhood lab with test assets and no mainnet value",
+        else: "Robinhood Chain (chain #{Lab.chain_id()})"
+
+    "Your wallet bids on this auction on #{network}. Up to #{usdg_units(executable.usdg_amount)} USDG is converted into #{asset.symbol} for the bid; any unspent part comes back to you in the same transaction."
   end
 
   # The reviewed sequence: the exact allowance for the bid amount when the

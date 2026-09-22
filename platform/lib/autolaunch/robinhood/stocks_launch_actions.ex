@@ -318,9 +318,14 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
     )
   end
 
-  defp risk_copy,
-    do:
-      "Your wallet creates this launch on the local Robinhood lab with test assets and no mainnet value. There is no launch fee."
+  defp risk_copy do
+    network =
+      if Lab.test_chain?(),
+        do: "the local Robinhood lab with test assets and no mainnet value",
+        else: "Robinhood Chain (chain #{Lab.chain_id()})"
+
+    "Your wallet creates this launch on #{network}. There is no launch fee."
+  end
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
 

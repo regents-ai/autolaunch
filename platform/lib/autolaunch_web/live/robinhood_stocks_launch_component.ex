@@ -119,7 +119,9 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           </div>
           <div>
             <dt>Network</dt>
-            <dd>Robinhood test network · chain {@review.envelope["chain_id"]}</dd>
+            <dd>
+              {network_name(@review.envelope["chain_id"])} · chain {@review.envelope["chain_id"]}
+            </dd>
           </div>
           <div>
             <dt>Transactions</dt>
@@ -145,7 +147,8 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
         <section :if={launched(@sent)} class="launch-wallet-settled" role="status">
           <p>
-            The launch was created and its record was verified. Test assets have no real value.
+            The launch was created and its record was verified.
+            <span :if={@review.envelope["chain_id"] == 31_338}>Test assets have no real value.</span>
           </p>
           <p>
             Launch #{launched(@sent)["launch_id"]} · Token
@@ -376,6 +379,9 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
     end)
   end
 
+  defp network_name(31_338), do: "Robinhood test network"
+  defp network_name(_chain_id), do: "Robinhood Chain"
+
   defp step_label("launch"), do: "Create the launch"
 
   defp step_state(nil), do: "Ready"
@@ -421,7 +427,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
 
   defp wallet_failure_copy("network_mismatch"),
     do:
-      "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent."
+      "Your wallet is connected to a different network under the reviewed chain number. Check the network settings in your wallet, then try again. Nothing was sent."
 
   defp wallet_failure_copy("wallet_declined"), do: "Your wallet declined this. Nothing was sent."
 

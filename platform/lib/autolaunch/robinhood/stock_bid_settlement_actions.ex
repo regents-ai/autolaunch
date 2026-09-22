@@ -221,7 +221,12 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
         &is_nil/1
       )
 
-    "Your wallet signs a transaction that #{Enum.join(parts, ", then one that ")} on the local Robinhood lab. Test assets have no mainnet value."
+    network =
+      if Lab.test_chain?(),
+        do: "the local Robinhood lab. Test assets have no mainnet value.",
+        else: "Robinhood Chain (chain #{Lab.chain_id()})."
+
+    "Your wallet signs a transaction that #{Enum.join(parts, ", then one that ")} on #{network}"
   end
 
   defp price(q96, decimals), do: Amounts.format_cca_price(q96, decimals, @new_decimals)
