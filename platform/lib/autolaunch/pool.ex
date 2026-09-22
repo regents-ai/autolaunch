@@ -41,8 +41,34 @@ defmodule Autolaunch.Pool do
   @doc "The lab's pool facts for one graduated auction row, or why they cannot be read."
   @spec read(map()) :: {:ok, t()} | {:error, atom()}
   def read(%{state: state}) when state != :graduated, do: {:error, :not_graduated}
-  def read(%{kind: :agent} = auction), do: read_agent(auction)
-  def read(%{kind: :stocks} = auction), do: read_stocks(auction)
+
+  def read(%{kind: :agent} = auction) do
+    with {:ok, config} <- Lab.current(),
+         opts <- LabRpc.opts(config, "autolaunch pool page"),
+         {:ok, block} <- Rpc.latest_block(opts),
+         do: read_agent(auction, config, block, opts)
+  end
+
+  def read(%{kind: :stocks} = auction) do
+    with {:ok, config} <- StocksLab.current(),
+         opts <- StocksLab.rpc_opts(config, "autolaunch pool page"),
+         {:ok, block} <- Rpc.latest_block(opts),
+         do: read_stocks(auction, config, block, opts)
+  end
+
+  @doc """
+  The same facts at a block already read, on the deployment it was read with:
+  for a page that reads several pools at one moment.
+  """
+  @spec read_at(map(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
+  def read_at(%{state: state}, _config, _block, _opts) when state != :graduated,
+    do: {:error, :not_graduated}
+
+  def read_at(%{kind: :agent} = auction, config, block, opts),
+    do: read_agent(auction, config, block, opts)
+
+  def read_at(%{kind: :stocks} = auction, config, block, opts),
+    do: read_stocks(auction, config, block, opts)
 
   @doc "The public Base pool page on the Uniswap app for a pool id."
   def uniswap_url(pool_id), do: @uniswap_pool_url <> pool_id
@@ -95,11 +121,8 @@ defmodule Autolaunch.Pool do
 
   # Agent
 
-  defp read_agent(auction) do
-    with {:ok, config} <- Lab.current(),
-         opts <- LabRpc.opts(config, "autolaunch pool page"),
-         {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, words} <-
+  defp read_agent(auction, config, block, opts) do
+    with {:ok, words} <-
            LabRpc.words(
              config,
              :strategy,
@@ -278,11 +301,8 @@ defmodule Autolaunch.Pool do
 
   # Stocks
 
-  defp read_stocks(auction) do
-    with {:ok, config} <- StocksLab.current(),
-         opts <- StocksLab.rpc_opts(config, "autolaunch pool page"),
-         {:ok, block} <- Rpc.latest_block(opts),
-         {:ok, launch_id} <-
+  defp read_stocks(auction, config, block, opts) do
+    with {:ok, launch_id} <-
            launchpad_uint(
              config,
              "launchIdOfAuction(address)",

@@ -41,21 +41,29 @@ defmodule Autolaunch.Robinhood.Positions do
           href: String.t()
         }
 
-  @doc "Every Robinhood bid the actor's verified wallets hold, newest auction first."
-  @spec read(Human.t()) :: {:ok, [position()]} | {:error, :unavailable}
+  @type reading :: %{positions: [position()], block: pos_integer() | nil}
+
+  @doc """
+  Every Robinhood bid the actor's verified wallets hold, newest auction first,
+  with the block they were read at. An account with no verified wallet reads
+  nothing and names no block.
+  """
+  @spec read(Human.t()) :: {:ok, reading()} | {:error, :unavailable}
   def read(%Human{} = actor) do
     with {:ok, wallets} <- TokenHoldings.verified_wallets(actor),
-         {:ok, positions} <- positions(wallets) do
-      {:ok, positions}
+         {:ok, reading} <- positions(wallets) do
+      {:ok, reading}
     else
       _error -> {:error, :unavailable}
     end
   end
 
-  defp positions([]), do: {:ok, []}
+  @none %{positions: [], block: nil}
+
+  defp positions([]), do: {:ok, @none}
 
   defp positions(wallets) do
-    if Lab.configured?(), do: read_positions(wallets), else: {:ok, []}
+    if Lab.configured?(), do: read_positions(wallets), else: {:ok, @none}
   end
 
   defp read_positions(wallets) do
@@ -79,7 +87,7 @@ defmodule Autolaunch.Robinhood.Positions do
                opts
              ),
            true <- hash == block.hash do
-        {:ok, positions}
+        {:ok, %{positions: positions, block: block.number}}
       else
         _error -> {:error, :invalid_chain_response}
       end

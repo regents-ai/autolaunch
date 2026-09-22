@@ -127,7 +127,7 @@ defmodule AutolaunchWeb.PortfolioLive do
           </div>
           <div>
             <dt>Tokens held</dt>
-            <dd>{if is_list(@token_holdings), do: length(@token_holdings), else: "–"}</dd>
+            <dd>{if is_map(@token_holdings), do: length(@token_holdings.holdings), else: "–"}</dd>
           </div>
         </dl>
 
@@ -141,18 +141,28 @@ defmodule AutolaunchWeb.PortfolioLive do
           <p :if={@token_holdings == :error} class="autolaunch-empty" role="alert">
             Your token balances are unavailable right now.
           </p>
-          <p :if={@token_holdings == []} class="autolaunch-empty">
-            Tokens held by your verified wallets will appear here.
+          <p :if={is_map(@token_holdings) && @token_holdings.holdings == []} class="autolaunch-empty">
+            Tokens held or staked by your verified wallets will appear here.
             <.link navigate="/tokens">Explore tokens</.link>
           </p>
-          <ol :if={is_list(@token_holdings) && @token_holdings != []} class="autolaunch-record-list">
-            <li :for={holding <- @token_holdings}>
+          <ol
+            :if={is_map(@token_holdings) && @token_holdings.holdings != []}
+            class="autolaunch-record-list"
+          >
+            <li :for={holding <- @token_holdings.holdings}>
               <.link navigate={holding.href}>
                 <strong>{holding.name} · {holding.symbol}</strong>
-                <span>{holding.held} {holding.symbol}</span>
+                <span>{holding_copy(holding)}</span>
+                <span>{chain_name(holding.chain)}</span>
               </.link>
             </li>
           </ol>
+          <p
+            :if={is_map(@token_holdings) && @token_holdings.blocks != %{}}
+            class="autolaunch-refresh-status"
+          >
+            {blocks_copy(@token_holdings.blocks)}
+          </p>
         </section>
 
         <section id="autolaunch-bid-positions" aria-labelledby="autolaunch-bid-positions-title">
@@ -164,6 +174,9 @@ defmodule AutolaunchWeb.PortfolioLive do
             <.link navigate="/auctions">Explore auctions</.link>
           </p>
           <p :if={@positions != [] && @current == []}>No active bids.</p>
+          <p :if={@market.head} class="autolaunch-refresh-status">
+            {chain_name(:base)} read at block {@market.head.number}
+          </p>
           <.position_list
             :if={@current != []}
             positions={@current}
@@ -204,16 +217,19 @@ defmodule AutolaunchWeb.PortfolioLive do
           <p :if={@robinhood_positions == :error} class="autolaunch-empty" role="alert">
             Your Robinhood bids are unavailable right now.
           </p>
-          <p :if={@robinhood_positions == []} class="autolaunch-empty">
+          <p
+            :if={is_map(@robinhood_positions) && @robinhood_positions.positions == []}
+            class="autolaunch-empty"
+          >
             Bids from your verified wallets on Robinhood auctions will appear here.
             <.link navigate="/auctions">Explore auctions</.link>
           </p>
           <ol
-            :if={is_list(@robinhood_positions) && @robinhood_positions != []}
+            :if={is_map(@robinhood_positions) && @robinhood_positions.positions != []}
             class="autolaunch-record-list"
           >
             <li
-              :for={position <- @robinhood_positions}
+              :for={position <- @robinhood_positions.positions}
               id={"autolaunch-robinhood-bid-#{position.auction}-#{position.bid_id}"}
             >
               <.link navigate={position.href}>
@@ -227,11 +243,44 @@ defmodule AutolaunchWeb.PortfolioLive do
               </.link>
             </li>
           </ol>
+          <p
+            :if={is_map(@robinhood_positions) && @robinhood_positions.block}
+            class="autolaunch-refresh-status"
+          >
+            {chain_name(:robinhood)} read at block {@robinhood_positions.block}
+          </p>
         </section>
       </div>
     </section>
     """
   end
+
+  # One line per token: what the wallets hold, what they staked, what they can claim.
+  defp holding_copy(holding) do
+    [
+      "#{holding.held} #{holding.symbol} held",
+      if(holding.staked != "0", do: "#{holding.staked} #{holding.symbol} staked"),
+      claimable_copy(holding.claimable)
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp claimable_copy([]), do: nil
+
+  defp claimable_copy(claimable),
+    do: "claim " <> Enum.map_join(claimable, " + ", &"#{&1.amount} #{&1.symbol}")
+
+  defp blocks_copy(blocks),
+    do:
+      Enum.map_join(blocks, " · ", fn {chain, number} ->
+        "#{chain_name(chain)} read at block #{number}"
+      end)
+
+  defp chain_name(:base), do: Autolaunch.Lab.network_name(Autolaunch.Lab.chain_id())
+
+  defp chain_name(:robinhood),
+    do: Autolaunch.Robinhood.Lab.network_name(Autolaunch.Robinhood.Lab.chain_id())
 
   # What the auction itself says about the bid, in the bidder's words.
   defp standing_copy(%{standing: :bidding}), do: "In the auction"

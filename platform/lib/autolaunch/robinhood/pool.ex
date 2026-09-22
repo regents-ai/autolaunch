@@ -31,10 +31,16 @@ defmodule Autolaunch.Robinhood.Pool do
   @doc "The lab's staking facts for one graduated auction address, or why they cannot be read."
   @spec read(String.t()) :: {:ok, t()} | {:error, atom()}
   def read(auction) when is_binary(auction) do
-    with {:ok, auction} <- Address.normalize(auction) |> normalized(),
-         {:ok, config} <- Lab.current(),
+    with {:ok, config} <- Lab.current(),
          opts <- Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
+         do: read_at(auction, config, block, opts)
+  end
+
+  @doc "The same facts at a block already read, on the deployment it was read with."
+  @spec read_at(String.t(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
+  def read_at(auction, config, block, opts) when is_binary(auction) do
+    with {:ok, auction} <- Address.normalize(auction) |> normalized(),
          {:ok, launch_id} <-
            launchpad_uint(config, "launchIdOfAuction(address)", [auction], block, opts),
          true <- launch_id > 0 || {:error, :unknown_auction},
