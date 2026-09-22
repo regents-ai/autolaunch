@@ -30,7 +30,10 @@ defmodule AutolaunchWeb.Components.SwapModal do
       <.live_component
         module={AutolaunchWeb.SwapComponent}
         id={@id <> "-input"}
-        token={@token}
+        launch={%{chain: :base, auction: @token.auction}}
+        symbol={@presentation.symbol}
+        image={@presentation.image}
+        currency={AutolaunchWeb.SwapComponent.entry_symbol(@token.auction)}
         preset_amount={@amount}
         authenticated={@authenticated}
         current_human_id={@current_human_id}

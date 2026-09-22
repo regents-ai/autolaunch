@@ -14,7 +14,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Auctions, Lab, Pool}
 
-  def mount(_params, _session, socket), do: {:ok, assign(socket, :open?, Lab.configured?())}
+  def mount(_params, _session, socket),
+    do: {:ok, assign(socket, open?: Lab.configured?(), swap?: swap_configured?())}
+
+  # Trading is offered only by a deployment that names its router and quoter.
+  defp swap_configured? do
+    case Lab.current() do
+      {:ok, config} -> match?({:ok, _addresses}, Lab.swap_addresses(config))
+      {:error, _reason} -> false
+    end
+  end
 
   # The address is read here so a patch to another token reloads the page
   # instead of keeping the previous launch on screen.
@@ -73,6 +82,17 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           <dd>{@launch.result.raised} {@launch.result.stock_symbol}</dd>
         </div>
       </dl>
+      <.live_component
+        :if={@swap?}
+        module={AutolaunchWeb.SwapComponent}
+        id={"robinhood-trade-#{@launch.result.auction}"}
+        launch={%{chain: :robinhood, auction: @launch.result.auction}}
+        symbol={@launch.result.symbol}
+        currency={@launch.result.stock_symbol}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
       <p class="autolaunch-live-market">
         <.link navigate={"/robinhood/auctions/#{@launch.result.auction}"}>
           Open the auction this token graduated from

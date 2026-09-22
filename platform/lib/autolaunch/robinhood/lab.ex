@@ -6,7 +6,8 @@ defmodule Autolaunch.Robinhood.Lab do
   names the file.
 
   It is refused unless it answers on an admitted RPC door
-  (`Autolaunch.LabRpcUrl`), names every address the site depends on, lists
+  (`Autolaunch.LabRpcUrl`), names every address the site depends on (with the
+  swap router and quoter together or not at all), lists
   every stock the Stocks launchpad admitted, and declares every function and
   event the site prepares against. Chain 31338 is the local lab, a blank Anvil
   chain with fixture stocks; `test_chain?/0` is what the lab-only features key
@@ -22,6 +23,9 @@ defmodule Autolaunch.Robinhood.Lab do
     stocks_launchpad stocks_hook stocks_locker stocks_splitter_implementation bid_adapter usdg
     inbox hook_factory pool_manager position_manager cca_factory uerc20_factory permit2 admin_safe
   )
+  # A deployment that supports swapping on the site names Uniswap's Universal
+  # Router and V4 Quoter together; one without the other is refused.
+  @swap_address_keys ~w(swap_router quoter)
   @abi_keys ~w(stocks_launchpad stocks_hook stocks_locker splitter bid_adapter stock_route auction erc20)
   @stock_keys ~w(symbol name address decimals route usdg_per_share fixture launch_admission)
   @stock_decimals 8
@@ -151,6 +155,16 @@ defmodule Autolaunch.Robinhood.Lab do
   def binding_matches?(_binding, _keys), do: false
 
   def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
+
+  @doc "The router and quoter a deployment trades through, or `:error` when it names none."
+  @spec swap_addresses(t()) :: {:ok, %{router: String.t(), quoter: String.t()}} | :error
+  def swap_addresses(%{addresses: addresses}) do
+    case addresses do
+      %{"swap_router" => router, "quoter" => quoter} -> {:ok, %{router: router, quoter: quoter}}
+      _none -> :error
+    end
+  end
+
   def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
 
   @doc "The stocks the controller read back from the chain, admitted on the Stocks launchpad."
@@ -170,7 +184,7 @@ defmodule Autolaunch.Robinhood.Lab do
   defp run_id(_value), do: {:error, :invalid_run_id}
 
   defp exact_addresses(addresses) when is_map(addresses) do
-    with true <- Enum.sort(Map.keys(addresses)) == Enum.sort(@address_keys),
+    with true <- Enum.sort(Map.keys(addresses)) in address_key_sets(),
          true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end) do
       {:ok, Map.new(addresses, fn {key, value} -> {key, String.downcase(value)} end)}
     else
@@ -179,6 +193,9 @@ defmodule Autolaunch.Robinhood.Lab do
   end
 
   defp exact_addresses(_addresses), do: {:error, :invalid_addresses}
+
+  defp address_key_sets,
+    do: [Enum.sort(@address_keys), Enum.sort(@address_keys ++ @swap_address_keys)]
 
   # Every entry is exactly what the controller read back from the chain; a
   # missing field, a stock that is not eight decimals, or a repeated symbol or

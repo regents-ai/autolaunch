@@ -1,6 +1,7 @@
 defmodule Autolaunch.SwapActions do
   @moduledoc """
-  The one boundary between a trader's wallet and a graduated token's pool.
+  The one boundary between a trader's wallet and a graduated token's pool, on
+  Base or on Robinhood Chain.
 
   Preparation reads the pool's own facts and returns the whole reviewed
   sequence as a single immutable envelope: at most the exact token allowance to
@@ -22,6 +23,8 @@ defmodule Autolaunch.SwapActions do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Address, Envelope, Permit2Abi, Rpc}
   alias Autolaunch.{Lab, LabAbi, LabRpc, Pool}
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.{Amounts, LaunchOperations}
   alias Autolaunch.Stocks.Lab, as: StocksLab
 
@@ -29,8 +32,9 @@ defmodule Autolaunch.SwapActions do
   @action "autolaunch_swap"
   @contract_name "UniversalRouter"
   # Uniswap's own Base deployments; the local Base fork carries the same code.
-  @router "0x6ff5693b99212da76ad316178a184ab56d299b43"
-  @quoter "0x0d5e0f971ed27fbff6c2837bf31316121532048d"
+  # The Robinhood deployment names its router and quoter itself.
+  @base_router "0x6ff5693b99212da76ad316178a184ab56d299b43"
+  @base_quoter "0x0d5e0f971ed27fbff6c2837bf31316121532048d"
   # V4_SWAP, then SWAP_EXACT_IN_SINGLE, SETTLE_ALL, TAKE_ALL.
   @commands "0x10"
   @v4_actions "0x060c0f"
@@ -101,14 +105,16 @@ defmodule Autolaunch.SwapActions do
   @steps [:token_approval, :permit2_approval, :swap]
 
   @doc """
-  Reviews one exact-input trade on a graduated auction's pool for the signed-in
-  wallet. `:buy` spends the pool's currency for the token; `:sell` the reverse.
+  Reviews one exact-input trade on a graduated launch's pool for the signed-in
+  wallet. The launch is `%{chain: :base, auction: auction_row}` or
+  `%{chain: :robinhood, auction: auction_address}`, as the staking actions name
+  it. `:buy` spends the pool's currency for the token; `:sell` the reverse.
   `protection` is the price protection in percent, from 1 to 10, rounded to two
   decimal places.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(
-        %{auction: auction, direction: direction, amount: amount, protection: protection},
+        %{launch: launch, direction: direction, amount: amount, protection: protection},
         address,
         opts
       )
@@ -116,11 +122,11 @@ defmodule Autolaunch.SwapActions do
     with {:ok, protection} <- protection(protection),
          {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, actor, opts),
-         {:ok, pool} <- pool(auction),
-         {:ok, venue} <- venue(pool.kind),
+         {:ok, pool} <- pool(launch),
+         {:ok, venue} <- venue(pool),
          trade <- trade(pool, direction),
          {:ok, amount_in} <- amount_in(amount, trade.sell.decimals),
-         {:ok, snapshot} <- snapshot(trade, signer, amount_in, pool.block, venue.rpc),
+         {:ok, snapshot} <- snapshot(trade, signer, amount_in, pool.block, venue),
          {:ok, min_out} <- min_out(snapshot.quote, protection),
          :ok <- affordable(amount_in, snapshot) do
       limits = %{amount_in: amount_in, min_out: min_out, protection: protection}
@@ -137,13 +143,13 @@ defmodule Autolaunch.SwapActions do
   review is what a wallet signs.
   """
   @spec estimate(map()) :: {:ok, %{received: String.t(), rate: String.t()}} | {:error, term()}
-  def estimate(%{auction: auction, direction: direction, amount: amount})
+  def estimate(%{launch: launch, direction: direction, amount: amount})
       when direction in [:buy, :sell] do
-    with {:ok, pool} <- pool(auction),
-         {:ok, venue} <- venue(pool.kind),
+    with {:ok, pool} <- pool(launch),
+         {:ok, venue} <- venue(pool),
          trade <- trade(pool, direction),
          {:ok, amount_in} <- amount_in(amount, trade.sell.decimals),
-         {:ok, quote} <- quote(trade, amount_in, pool.block, venue.rpc) do
+         {:ok, quote} <- quote(trade, amount_in, pool.block, venue) do
       {:ok,
        %{
          received: compact(units(quote, trade.buy), 8),
@@ -157,10 +163,10 @@ defmodule Autolaunch.SwapActions do
   A public read of public balances; nothing is bound to it.
   """
   @spec balances(map(), String.t()) :: {:ok, map()} | {:error, term()}
-  def balances(auction, address) do
+  def balances(launch, address) do
     with {:ok, holder} <- address(address),
-         {:ok, pool} <- pool(auction),
-         {:ok, venue} <- venue(pool.kind),
+         {:ok, pool} <- pool(launch),
+         {:ok, venue} <- venue(pool),
          {:ok, token} <- balance(pool.token, holder, pool.block, venue.rpc),
          {:ok, currency} <- balance(pool.currency, holder, pool.block, venue.rpc),
          do: {:ok, %{token: token, currency: currency}}
@@ -215,8 +221,8 @@ defmodule Autolaunch.SwapActions do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(envelope["expected_signer"], actor, opts),
          {:ok, hash} <- canonical_hash(hash),
-         true <- valid_envelope?(envelope) || unavailable(:envelope_invalid),
-         {:ok, venue} <- venue(envelope["arguments"]["kind"]),
+         {:ok, venue} <- envelope_venue(envelope),
+         true <- valid_envelope?(envelope, venue) || unavailable(:envelope_invalid),
          true <- venue.binding == envelope["metadata"]["lab"] || unavailable(:lab_config_changed),
          %{} = sent <- reviewed_step(envelope, step) || unavailable(:unknown_step),
          {:ok, block} <- chain(Rpc.latest_block(venue.rpc)),
@@ -238,27 +244,72 @@ defmodule Autolaunch.SwapActions do
 
   # The pool and the two sides of the trade
 
-  defp pool(auction) do
-    case Pool.read(auction) do
-      {:ok, pool} -> {:ok, pool}
-      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
-      {:error, _reason} -> unavailable(:swap_unavailable)
+  defp pool(%{chain: :base, auction: auction}), do: auction |> Pool.read() |> pooled()
+
+  defp pool(%{chain: :robinhood, auction: auction}),
+    do: auction |> RobinhoodPool.read() |> pooled()
+
+  defp pool(_launch), do: unavailable(:swap_unavailable)
+
+  defp pooled({:ok, pool}), do: {:ok, pool}
+  defp pooled({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
+  defp pooled({:error, _reason}), do: unavailable(:swap_unavailable)
+
+  # Where the trade runs: the deployment's RPC door, chain, router, quoter and
+  # Permit2, and the binding the envelope carries. Base venues trade through
+  # Uniswap's own router; a Robinhood deployment trades only when it names a
+  # router and quoter.
+  defp venue(%{chain: :base, kind: :agent}), do: base_venue(Lab, Lab.current(), &LabRpc.opts/1)
+
+  defp venue(%{chain: :base, kind: :stocks}),
+    do: base_venue(StocksLab, StocksLab.current(), &StocksLab.rpc_opts/1)
+
+  defp venue(%{chain: :robinhood, kind: :stocks}), do: robinhood_venue(RobinhoodLab.current())
+  defp venue(_pool), do: unavailable(:swap_unavailable)
+
+  defp base_venue(lab, {:ok, config}, rpc) do
+    {:ok,
+     %{
+       chain: :base,
+       chain_id: lab.chain_id(),
+       rpc: rpc.(config),
+       binding: lab.binding(config, [:pool_manager]),
+       router: @base_router,
+       quoter: @base_quoter,
+       permit2: Permit2Abi.address()
+     }}
+  end
+
+  defp base_venue(_lab, {:error, _reason}, _rpc), do: unavailable(:swap_unavailable)
+
+  defp robinhood_venue({:ok, config}) do
+    case RobinhoodLab.swap_addresses(config) do
+      {:ok, %{router: router, quoter: quoter}} ->
+        {:ok,
+         %{
+           chain: :robinhood,
+           chain_id: RobinhoodLab.chain_id(),
+           rpc: RobinhoodLab.rpc_opts(config),
+           binding:
+             RobinhoodLab.binding(config, [:pool_manager, :swap_router, :quoter, :permit2]),
+           router: router,
+           quoter: quoter,
+           permit2: RobinhoodLab.address!(config, :permit2)
+         }}
+
+      :error ->
+        unavailable(:swap_unavailable)
     end
   end
 
-  defp venue(kind) when kind in [:agent, "agent"], do: venue(Lab, Lab.current(), &LabRpc.opts/1)
+  defp robinhood_venue({:error, _reason}), do: unavailable(:swap_unavailable)
 
-  defp venue(kind) when kind in [:stocks, "stocks"],
-    do: venue(StocksLab, StocksLab.current(), &StocksLab.rpc_opts/1)
+  # The venue a signed envelope was reviewed on, named in its own arguments.
+  defp envelope_venue(%{"arguments" => %{"chain" => chain, "kind" => kind}})
+       when chain in ["base", "robinhood"] and kind in ["agent", "stocks"],
+       do: venue(%{chain: String.to_existing_atom(chain), kind: String.to_existing_atom(kind)})
 
-  defp venue(_kind), do: unavailable(:swap_unavailable)
-
-  defp venue(lab, {:ok, config}, rpc) do
-    {:ok,
-     %{chain_id: lab.chain_id(), rpc: rpc.(config), binding: lab.binding(config, [:pool_manager])}}
-  end
-
-  defp venue(_lab, {:error, _reason}, _rpc), do: unavailable(:swap_unavailable)
+  defp envelope_venue(_envelope), do: unavailable(:envelope_invalid)
 
   defp trade(pool, direction) do
     {sell, buy} =
@@ -318,18 +369,20 @@ defmodule Autolaunch.SwapActions do
 
   # Chain snapshot, every read pinned to the block the pool facts were read at.
 
-  defp snapshot(trade, signer, amount_in, block, rpc) do
+  defp snapshot(trade, signer, amount_in, block, venue) do
     token = trade.sell.address
+    rpc = venue.rpc
 
-    with :ok <- chain(LabRpc.ensure_contract(@router, block, rpc)),
-         :ok <- chain(LabRpc.ensure_contract(@quoter, block, rpc)),
+    with :ok <- chain(LabRpc.ensure_contract(venue.router, block, rpc)),
+         :ok <- chain(LabRpc.ensure_contract(venue.quoter, block, rpc)),
+         :ok <- chain(LabRpc.ensure_contract(venue.permit2, block, rpc)),
          {:ok, balance} <-
            chain(Rpc.call_uint(token, Abi.encode_erc20("balance_of", [signer]), block, rpc)),
          {:ok, token_allowance} <-
            chain(
              Rpc.call_uint(
                token,
-               Abi.encode_erc20("allowance", [signer, Permit2Abi.address()]),
+               Abi.encode_erc20("allowance", [signer, venue.permit2]),
                block,
                rpc
              )
@@ -337,15 +390,15 @@ defmodule Autolaunch.SwapActions do
          {:ok, permit2_words} <-
            chain(
              Rpc.call_words(
-               Permit2Abi.address(),
-               Permit2Abi.encode_allowance(signer, token, @router),
+               venue.permit2,
+               Permit2Abi.encode_allowance(signer, token, venue.router),
                block,
                3,
                rpc
              )
            ),
          {:ok, permit2} <- Permit2Abi.decode_allowance(permit2_words) |> decoded(),
-         {:ok, quote} <- quote(trade, amount_in, block, rpc) do
+         {:ok, quote} <- quote(trade, amount_in, block, venue) do
       {:ok,
        %{
          balance: balance,
@@ -359,7 +412,7 @@ defmodule Autolaunch.SwapActions do
 
   # The quoter simulates the swap through the pool's hook and answers by
   # reverting, so it is only ever read through `eth_call`.
-  defp quote(trade, amount_in, block, rpc) do
+  defp quote(trade, amount_in, block, venue) do
     data =
       LabAbi.encode(
         @quoter_abi,
@@ -367,7 +420,7 @@ defmodule Autolaunch.SwapActions do
         [[trade.pool_key, trade.zero_for_one, amount_in, "0x"]]
       )
 
-    case Rpc.call_words(@quoter, data, block, 2, rpc) do
+    case Rpc.call_words(venue.quoter, data, block, 2, venue.rpc) do
       {:ok, [amount_out, _gas]} when amount_out > 0 -> {:ok, amount_out}
       {:ok, _zero} -> unavailable(:quote_unavailable)
       {:error, reason} when reason in @transient -> unavailable(:quote_unavailable)
@@ -392,26 +445,28 @@ defmodule Autolaunch.SwapActions do
   defp build(trade, signer, limits, snapshot, pool, venue) do
     %{amount_in: amount_in, min_out: min_out, protection: protection} = limits
     deadline = System.os_time(:second) + @deadline_seconds
-    steps = reviewed_steps(trade, amount_in, min_out, deadline, snapshot)
+    steps = reviewed_steps(trade, amount_in, min_out, deadline, snapshot, venue)
     data = steps |> List.last() |> Map.fetch!("data")
 
     envelope =
       @action
       |> Envelope.new(signer, data,
-        to: @router,
+        to: venue.router,
         resource: @resource,
         contract_name: @contract_name,
         chain_id: venue.chain_id,
         lab_binding: venue.binding,
-        risk_copy: risk_copy(trade, amount_in),
+        risk_copy: risk_copy(trade, amount_in, venue),
         arguments: %{
+          "chain" => Atom.to_string(pool.chain),
           "kind" => Atom.to_string(pool.kind),
           "direction" => Atom.to_string(trade.direction),
           "pool_id" => pool.pool_id,
           "pool_manager" => pool.pool_manager,
           "hook" => pool.hook,
-          "router" => @router,
-          "quoter" => @quoter,
+          "router" => venue.router,
+          "quoter" => venue.quoter,
+          "permit2" => venue.permit2,
           "sell" => trade.sell.address,
           "sell_symbol" => trade.sell.symbol,
           "sell_decimals" => trade.sell.decimals,
@@ -445,56 +500,68 @@ defmodule Autolaunch.SwapActions do
     }
   end
 
-  defp risk_copy(trade, amount_in) do
-    network =
-      if Lab.test_chain?(),
-        do: "the local Base fork with test assets and no mainnet value",
-        else: "Base"
+  defp risk_copy(trade, amount_in, venue) do
+    "Your wallet trades #{units(amount_in, trade.sell)} #{trade.sell.symbol} for #{trade.buy.symbol} on #{network(venue)}. The trade goes through only if you receive at least the lowest amount shown."
+  end
 
-    "Your wallet trades #{units(amount_in, trade.sell)} #{trade.sell.symbol} for #{trade.buy.symbol} on #{network}. The trade goes through only if you receive at least the lowest amount shown."
+  defp network(%{chain: :base, chain_id: chain_id}) do
+    if Lab.test_chain?(chain_id),
+      do: "the local Base fork with test assets and no mainnet value",
+      else: "Base"
+  end
+
+  defp network(%{chain: :robinhood, chain_id: chain_id}) do
+    if RobinhoodLab.test_chain?(chain_id),
+      do: "the Robinhood test network with test assets and no value",
+      else: "Robinhood Chain"
   end
 
   # The reviewed sequence: the exact allowances the router still lacks, then the
   # one swap they enable.
-  defp reviewed_steps(trade, amount_in, min_out, deadline, snapshot) do
-    token_approval(trade, amount_in, snapshot) ++
-      permit2_approval(trade, amount_in, deadline, snapshot) ++
+  defp reviewed_steps(trade, amount_in, min_out, deadline, snapshot, venue) do
+    token_approval(trade, amount_in, snapshot, venue) ++
+      permit2_approval(trade, amount_in, deadline, snapshot, venue) ++
       [
         %{
           "step" => "swap",
-          "to" => @router,
+          "to" => venue.router,
           "data" => swap_data(trade, amount_in, min_out, deadline)
         }
       ]
   end
 
-  defp token_approval(_trade, amount, %{token_allowance: allowance}) when allowance >= amount,
-    do: []
+  defp token_approval(_trade, amount, %{token_allowance: allowance}, _venue)
+       when allowance >= amount,
+       do: []
 
-  defp token_approval(trade, amount, _snapshot) do
+  defp token_approval(trade, amount, _snapshot, venue) do
     [
       %{
         "step" => "token_approval",
         "to" => trade.sell.address,
-        "data" => Abi.encode_erc20("approve", [Permit2Abi.address(), amount]),
+        "data" => Abi.encode_erc20("approve", [venue.permit2, amount]),
         "amount" => Integer.to_string(amount)
       }
     ]
   end
 
   # A standing Permit2 allowance is reused only if it outlives the deadline.
-  defp permit2_approval(_trade, amount, deadline, %{
-         permit2: %{amount: allowed, expiration: until}
-       })
+  defp permit2_approval(
+         _trade,
+         amount,
+         deadline,
+         %{permit2: %{amount: allowed, expiration: until}},
+         _venue
+       )
        when allowed >= amount and until >= deadline,
        do: []
 
-  defp permit2_approval(trade, amount, deadline, _snapshot) do
+  defp permit2_approval(trade, amount, deadline, _snapshot, venue) do
     [
       %{
         "step" => "permit2_approval",
-        "to" => Permit2Abi.address(),
-        "data" => Permit2Abi.encode_approve(trade.sell.address, @router, amount, deadline),
+        "to" => venue.permit2,
+        "data" => Permit2Abi.encode_approve(trade.sell.address, venue.router, amount, deadline),
         "amount" => Integer.to_string(amount),
         "expiration" => Integer.to_string(deadline)
       }
@@ -521,12 +588,12 @@ defmodule Autolaunch.SwapActions do
 
   # Confirmation
 
-  defp valid_envelope?(envelope) do
+  defp valid_envelope?(envelope, venue) do
     Envelope.valid_for_confirmation?(envelope,
       resource: @resource,
       action: @action,
       signer: envelope["expected_signer"],
-      to: @router,
+      to: venue.router,
       contract_name: @contract_name
     )
   end

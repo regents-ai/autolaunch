@@ -41,10 +41,13 @@ defmodule AutolaunchWeb.TokenLive do
   end
 
   def render(assigns) do
+    page_record = page_record(assigns.page)
+
     assigns =
       assign(assigns,
         local_lab?: Lab.test_chain?(),
-        page_record: page_record(assigns.page),
+        page_record: page_record,
+        presentation: page_record && Autolaunch.Token.presentation(page_record),
         page_status: page_status(assigns.page, :error),
         creator_connections: page_connections(assigns.page)
       )
@@ -75,7 +78,10 @@ defmodule AutolaunchWeb.TokenLive do
       <.live_component
         module={AutolaunchWeb.SwapComponent}
         id={"token-trade-#{@page_record.id}"}
-        token={@page_record}
+        launch={%{chain: :base, auction: @page_record.auction}}
+        symbol={@presentation.symbol}
+        image={@presentation.image}
+        currency={SwapComponent.entry_symbol(@page_record.auction)}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}

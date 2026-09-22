@@ -22,6 +22,10 @@ defmodule Autolaunch.Robinhood.Pool do
   @usdg_decimals 6
   @lane_bps 100
   @graduated 2
+  # Every Robinhood memestock pool is created with this key; the fee hook
+  # refuses any other tick spacing.
+  @pool_fee 3_000
+  @tick_spacing 60
 
   # Concrete-contract read the pinned interface ABIs do not carry: `ownerOf(uint256)`.
   @owner_of_selector "0x6352211e"
@@ -71,7 +75,11 @@ defmodule Autolaunch.Robinhood.Pool do
          pool_id: launch.pool_id,
          token: %{address: launch.new_token, symbol: symbol, decimals: @token_decimals},
          currency: %{address: launch.stock, symbol: stock.symbol, decimals: stock.decimals},
+         token_is_currency0?: currency0?(launch.new_token, launch.stock),
+         pool_fee: @pool_fee,
+         tick_spacing: @tick_spacing,
          hook: Lab.address!(config, :stocks_hook),
+         pool_manager: Lab.address!(config, :pool_manager),
          positions: positions,
          fees: fees
        }}

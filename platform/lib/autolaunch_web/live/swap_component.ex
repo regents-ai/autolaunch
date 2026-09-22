@@ -1,6 +1,9 @@
 defmodule AutolaunchWeb.SwapComponent do
   @moduledoc """
-  The swap form shared by the token page and the listing dialogs. Everything
+  The swap form shared by the token pages and the listing dialogs, for a
+  launch on Base or on Robinhood Chain: `launch` names it as the staking card
+  does, `symbol` and `image` present its token, and `currency` names what the
+  pool is entered with (`nil` where the token cannot be swapped here). Everything
   happens on the one form: an amount, a live quote, a max-slippage setting
   behind the gear, then a panel over the form that walks the wallet through the
   swap and closes itself when the swap lands.
@@ -56,12 +59,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   @impl true
   def update(assigns, socket) do
-    auction = assigns.token.auction
-
-    scope =
-      {assigns.token.id, auction.kind, auction.chain_id, auction.quote_token_address,
-       auction.quote_token_symbol}
-
+    scope = {assigns.launch.chain, launch_key(assigns.launch), assigns.currency}
     fresh? = socket.assigns[:scope] != scope
 
     socket =
@@ -93,13 +91,13 @@ defmodule AutolaunchWeb.SwapComponent do
      |> assign_new(:authenticated, fn -> false end)
      |> assign_new(:current_human_id, fn -> nil end)
      |> assign_new(:session_lease, fn -> nil end)
-     |> assign(
-       token_view: Autolaunch.Token.presentation(assigns.token),
-       entry_symbol: entry_symbol(auction),
-       read_only?: Autolaunch.Prelaunch.read_only?()
-     )
+     |> assign_new(:image, fn -> nil end)
+     |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
      |> then(&if(fresh?, do: estimated(&1), else: &1))}
   end
+
+  defp launch_key(%{chain: :base, auction: %{id: id}}), do: id
+  defp launch_key(%{chain: :robinhood, auction: address}), do: address
 
   @impl true
   def render(assigns) do
@@ -119,13 +117,13 @@ defmodule AutolaunchWeb.SwapComponent do
         target={@myself}
       />
 
-      <div :if={@entry_symbol} class="token-swap__stack">
+      <div :if={@currency} class="token-swap__stack">
         <.swap_form
           id={"#{@id}-form-#{@revision}"}
           sell_symbol={sell(assigns)}
           buy_symbol={buy(assigns)}
-          sell_image={if @direction == :sell, do: @token_view.image}
-          buy_image={if @direction == :buy, do: @token_view.image}
+          sell_image={if @direction == :sell, do: @image}
+          buy_image={if @direction == :buy, do: @image}
           amount={@amount}
           estimated_output={@estimate && @estimate.received}
           rate={@estimate && @estimate.rate}
@@ -149,8 +147,8 @@ defmodule AutolaunchWeb.SwapComponent do
           :if={@review}
           id={"#{@id}-review"}
           review={@review.review}
-          sell_image={if @direction == :sell, do: @token_view.image}
-          buy_image={if @direction == :buy, do: @token_view.image}
+          sell_image={if @direction == :sell, do: @image}
+          buy_image={if @direction == :buy, do: @image}
           steps={steps(@review, @sent)}
           next_step={next_step(@review, @sent)}
           stalled={stalled(@sent)}
@@ -161,7 +159,7 @@ defmodule AutolaunchWeb.SwapComponent do
         />
       </div>
 
-      <p :if={!@entry_symbol} class="token-swap__rate" role="status">
+      <p :if={!@currency} class="token-swap__rate" role="status">
         Swapping is not available for this token yet.
       </p>
     </div>
@@ -222,7 +220,7 @@ defmodule AutolaunchWeb.SwapComponent do
     socket = entered(socket, params)
 
     request = %{
-      auction: socket.assigns.token.auction,
+      launch: socket.assigns.launch,
       direction: socket.assigns.direction,
       amount: socket.assigns.amount,
       protection: socket.assigns.protection
@@ -326,7 +324,7 @@ defmodule AutolaunchWeb.SwapComponent do
 
   defp estimated(%{assigns: %{error: nil, amount: amount}} = socket) when amount != "" do
     asked = asked(socket)
-    request = %{auction: socket.assigns.token.auction, direction: asked.direction, amount: amount}
+    request = %{launch: socket.assigns.launch, direction: asked.direction, amount: amount}
 
     socket
     |> assign(estimate: nil)
@@ -342,10 +340,10 @@ defmodule AutolaunchWeb.SwapComponent do
       revision: socket.assigns.revision
     }
 
-  defp balanced(%{assigns: %{wallet: wallet, entry_symbol: symbol}} = socket)
-       when is_binary(wallet) and is_binary(symbol) do
-    auction = socket.assigns.token.auction
-    start_async(socket, :balances, fn -> {wallet, SwapActions.balances(auction, wallet)} end)
+  defp balanced(%{assigns: %{wallet: wallet, currency: currency}} = socket)
+       when is_binary(wallet) and is_binary(currency) do
+    launch = socket.assigns.launch
+    start_async(socket, :balances, fn -> {wallet, SwapActions.balances(launch, wallet)} end)
   end
 
   defp balanced(socket), do: assign(socket, balances: nil)
@@ -458,10 +456,10 @@ defmodule AutolaunchWeb.SwapComponent do
   defp action(%{amount: amount, error: nil}) when amount != "", do: :review
   defp action(_assigns), do: :enter_amount
 
-  defp sell(%{direction: :buy, entry_symbol: symbol}), do: symbol
-  defp sell(%{token_view: %{symbol: symbol}}), do: symbol
-  defp buy(%{direction: :buy, token_view: %{symbol: symbol}}), do: symbol
-  defp buy(%{entry_symbol: symbol}), do: symbol
+  defp sell(%{direction: :buy, currency: currency}), do: currency
+  defp sell(%{symbol: symbol}), do: symbol
+  defp buy(%{direction: :buy, symbol: symbol}), do: symbol
+  defp buy(%{currency: currency}), do: currency
 
   defp sold(:buy), do: :currency
   defp sold(:sell), do: :token
