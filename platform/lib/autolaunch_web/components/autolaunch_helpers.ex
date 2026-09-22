@@ -51,6 +51,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     doc: "the Robinhood auctions or tokens listed before the stored ones"
 
   attr :robinhood_trade_event, :string, default: nil
+  slot :stats, doc: "the auction counts band above the heading"
 
   def collection(assigns) do
     assigns =
@@ -63,6 +64,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
     ~H"""
     <section id={"autolaunch-#{@kind}"} class="autolaunch-page market-explore">
+      {render_slot(@stats)}
       <header class="autolaunch-heading">
         <Regent.Structure.section_bar>
           <h1 class="rg-section-bar__label">{@title}</h1>

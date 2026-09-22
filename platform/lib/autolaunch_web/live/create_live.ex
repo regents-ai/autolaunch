@@ -8,6 +8,8 @@ defmodule AutolaunchWeb.CreateLive do
   alias Autolaunch.{LaunchChain, LaunchDraftImageStorage, Limits}
   alias AutolaunchWeb.Live.CreateLive.Templates
 
+  import AutolaunchWeb.Components.AuctionStats
+
   @autosave_events ["autosave_launch_token_details", "autosave_launch_treasury"]
 
   # A signed-out visitor stays on this route: the page explains the sign-in
@@ -17,7 +19,12 @@ defmodule AutolaunchWeb.CreateLive do
     chain = LaunchChain.from_param(params["chain"])
     kind = launch_kind(chain, params)
 
-    mount_kind(kind, params, session, assign(socket, launch_kind: kind, launch_chain: chain))
+    socket =
+      socket
+      |> assign(launch_kind: kind, launch_chain: chain)
+      |> assign_auction_stats()
+
+    mount_kind(kind, params, session, socket)
   end
 
   # Robinhood launches memestock pairs only; Base launches either type, and a
@@ -129,6 +136,7 @@ defmodule AutolaunchWeb.CreateLive do
   def render(assigns) do
     ~H"""
     <div class="autolaunch-page launchpad-create">
+      <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
       <header class="launchpad-create__header">
         <p class="autolaunch-kicker">Autolaunch · Create</p>
         <Regent.Structure.section_bar>

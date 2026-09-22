@@ -231,3 +231,20 @@
 .stocks-terms-table th { width: 40%; padding: var(--space-2) var(--space-2) var(--space-2) 0; text-align: left; vertical-align: top; font-family: var(--font-family-ui); font-size: .75rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); }
 .stocks-terms-table td { padding: var(--space-2) 0; vertical-align: top; font-family: var(--font-family-mono); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
 @media (max-width: 42rem) { .stocks-terms-table th, .stocks-terms-table td { display: block; width: auto; padding: 0; } .stocks-terms-table th { padding-top: var(--space-2); } .stocks-terms-table td { padding-bottom: var(--space-2); } }
+
+/* Auction counts band: home, auctions and create pages. */
+.auction-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-4); width: 100%; min-width: 0; margin: 0; padding-block: 10px; border-radius: 6px; }
+.auction-stats__group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-2); min-width: 0; }
+.auction-stats__group + .auction-stats__group { padding-left: var(--space-4); border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent); }
+.auction-stats__title { margin: 0; font-family: var(--font-family-title); font-size: .875rem; line-height: 1.3; }
+.auction-stats__counts { display: flex; gap: var(--space-2); margin: 0; }
+.auction-stats__counts > div { display: flex; align-items: baseline; gap: 6px; }
+.auction-stats__counts dt { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .1em; text-transform: uppercase; }
+.auction-stats__counts dd { margin: 0; font-size: .9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.auction-stats__note { margin: 0; font-size: .75rem; }
+:is(#home-explore, .market-explore) > .auction-stats { margin-bottom: var(--space-3); }
+@media (max-width: 42rem) {
+  .auction-stats { flex-direction: column; align-items: stretch; gap: 0; }
+  .auction-stats__group { justify-content: space-between; padding-block: 6px; }
+  .auction-stats__group + .auction-stats__group { padding-left: 0; border-left: 0; border-top: 1px solid color-mix(in srgb, currentColor 35%, transparent); }
+}

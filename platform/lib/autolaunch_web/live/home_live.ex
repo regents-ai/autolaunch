@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.HomeLive do
 
   import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1]
   import AutolaunchWeb.Components.SwapModal
+  import AutolaunchWeb.Components.AuctionStats
   alias Autolaunch.HomeMarket
 
   def mount(_params, _session, socket) do
@@ -30,7 +31,8 @@ defmodule AutolaunchWeb.HomeLive do
        next_cursor: nil,
        has_more: false,
        local_lab: Autolaunch.Lab.test_chain?()
-     )}
+     )
+     |> assign_auction_stats()}
   end
 
   def handle_params(params, _uri, socket) do
@@ -173,6 +175,7 @@ defmodule AutolaunchWeb.HomeLive do
 
     ~H"""
     <main class="home-page home-explore-page" id="home-explore">
+      <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
       <header class="home-heading">
         <div class="home-heading__discovery">
           <h1 id="home-explore-title">Explore</h1>

@@ -3,8 +3,10 @@ defmodule AutolaunchWeb.AuctionsLive do
   use AutolaunchWeb, :live_view
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.SwapModal
+  import AutolaunchWeb.Components.AuctionStats
 
-  def mount(_params, _session, socket), do: {:ok, assign(socket, trade: nil)}
+  def mount(_params, _session, socket),
+    do: {:ok, socket |> assign(trade: nil) |> assign_auction_stats()}
 
   def handle_params(params, _uri, socket) do
     {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page()}
@@ -66,7 +68,11 @@ defmodule AutolaunchWeb.AuctionsLive do
       trade_event="open_trade"
       robinhood={@robinhood}
       robinhood_trade_event="open_robinhood_bid"
-    />
+    >
+      <:stats>
+        <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
+      </:stats>
+    </.collection>
     <.robinhood_bid_modal
       :if={match?(%{record: %{launch_id: _}}, @trade)}
       id={"auctions-robinhood-bid-#{@trade.record.auction}"}
