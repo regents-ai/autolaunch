@@ -444,10 +444,9 @@ probe_base_chain_id() {
     printf 'the configured %s alias answers a read-only chain-id probe with exactly %s\n' "$RPC_ALIAS" "$CHAIN_ID"
 }
 
-# The recorded production authority predates the contracts/v1 layout and carries src/ at the root
-# of its own tree. It is read there, as a historical Git object, for this verification only; the
-# checkout is always read at $component/src, and the two must be one tree identity.
-RECORDED_AUTHORITY_SRC_PATH=src
+# The recorded production authority carries its sources at $component/src, exactly where this
+# checkout is read, and the two must be one tree identity.
+RECORDED_AUTHORITY_SRC_PATH=$component/src
 verify_named_source_authority() {
     identity=$(python3 -c 'import json,sys
 record = json.load(open(sys.argv[1], encoding="utf-8"))["source_authority"]
