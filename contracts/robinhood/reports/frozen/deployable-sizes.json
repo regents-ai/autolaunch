@@ -359,8 +359,8 @@
     {
       "contract": "UERC20Factory",
       "source": "../stocks/lib/uerc20-factory/src/factories/UERC20Factory.sol",
-      "role": "The pinned token factory build; the launchpad requires the bound deployment's runtime code hash to equal it.",
-      "deployed_by": "founder-supplied binding (constructor argument)",
+      "role": "The pinned token factory build; Robinhood Chain carries no deployment with this runtime, so the ceremony creates one first and the launchpad requires its exact runtime hash.",
+      "deployed_by": "deployment script (CREATE from the deployer), first in the deployment order",
       "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 12682,
       "runtime_keccak256": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f",

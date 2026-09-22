@@ -158,7 +158,7 @@
     "AerodromeStockRouteV1": {
       "source": "src/routes/AerodromeStockRouteV1.sol",
       "role": "The production IStockRoute: one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed.",
-      "deployed_by": "operator, one per admitted STOCK, before admitStock",
+      "deployed_by": "deployment script (CREATE from the deployer), one per admitted STOCK, before admitStock",
       "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 2759,
       "runtime_keccak256": "0x586be4d2a11017379ab7df8905bdb05143e47184129a48ee6eb3a5c964e98435",

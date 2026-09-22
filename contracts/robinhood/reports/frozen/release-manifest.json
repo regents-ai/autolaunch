@@ -34,7 +34,7 @@
     "RobinhoodProtocolRevenueInboxV1": {
       "source": "src/RobinhoodProtocolRevenueInboxV1.sol",
       "role": "Collects the protocol lane in USDG on Robinhood and bridges it to the Base receiver through the Safe-set adapter.",
-      "deployed_by": "deployment script (CREATE from the deployer), first in the deployment order",
+      "deployed_by": "deployment script (CREATE from the deployer), second in the deployment order after the UERC20 factory",
       "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 3777,
       "runtime_keccak256": "0x52ea3bb2aa734d6daba7d5c7826781f7ba92c42fca61b0bc2e22138e34357832",
@@ -408,8 +408,8 @@
     },
     "UERC20Factory": {
       "source": "../stocks/lib/uerc20-factory/src/factories/UERC20Factory.sol",
-      "role": "The pinned token factory build; the launchpad requires the bound deployment's runtime code hash to equal it.",
-      "deployed_by": "founder-supplied binding (constructor argument)",
+      "role": "The pinned token factory build; Robinhood Chain carries no deployment with this runtime, so the ceremony creates one first and the launchpad requires its exact runtime hash.",
+      "deployed_by": "deployment script (CREATE from the deployer), first in the deployment order",
       "compiler": "0.8.26+commit.8a97fa7a",
       "runtime_bytes": 12682,
       "runtime_keccak256": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f",
@@ -427,7 +427,7 @@
       "abi_file": null,
       "deployment": {
         "address": null,
-        "status": "founder_supplied_binding"
+        "status": "deployment_pending"
       }
     }
   },
@@ -539,6 +539,13 @@
     },
     "RobinhoodPreset": {
       "source": "src/RobinhoodPreset.sol",
+      "runtime_bytes": 3,
+      "runtime_object_sha256": "404760f93266d9513faeb5d141a820e9cff5d24c78deff83cbeb78b45983fb20",
+      "creation_bytes": 31,
+      "creation_object_sha256": "34b15988275363bbd9cca1f0492dfb36a23bb73b4e22f72cc308d511514c9b90"
+    },
+    "StocksBindings": {
+      "source": "../stocks/src/StocksBindings.sol",
       "runtime_bytes": 3,
       "runtime_object_sha256": "404760f93266d9513faeb5d141a820e9cff5d24c78deff83cbeb78b45983fb20",
       "creation_bytes": 31,

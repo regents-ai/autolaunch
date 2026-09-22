@@ -30,7 +30,7 @@
     },
     "AerodromeStockRouteV1": {
       "role": "The production IStockRoute: one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed.",
-      "deployed_by": "operator, one per admitted STOCK, before admitStock"
+      "deployed_by": "deployment script (CREATE from the deployer), one per admitted STOCK, before admitStock"
     }
   },
   "clone_targets": ["MemestockSplitterV1"],

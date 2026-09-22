@@ -14,7 +14,7 @@
   "production_contracts": {
     "RobinhoodProtocolRevenueInboxV1": {
       "role": "Collects the protocol lane in USDG on Robinhood and bridges it to the Base receiver through the Safe-set adapter.",
-      "deployed_by": "deployment script (CREATE from the deployer), first in the deployment order"
+      "deployed_by": "deployment script (CREATE from the deployer), second in the deployment order after the UERC20 factory"
     },
     "RobinhoodPositionsLib": {
       "role": "The externally linked library RobinhoodStocksLaunchpadV1 delegates its v4 position building to.",
@@ -90,9 +90,9 @@
     },
     "UERC20Factory": {
       "source": "../stocks/lib/uerc20-factory/src/factories/UERC20Factory.sol",
-      "role": "The pinned token factory build; the launchpad requires the bound deployment's runtime code hash to equal it.",
-      "deployed_by": "founder-supplied binding (constructor argument)",
-      "deployment_status": "founder_supplied_binding"
+      "role": "The pinned token factory build; Robinhood Chain carries no deployment with this runtime, so the ceremony creates one first and the launchpad requires its exact runtime hash.",
+      "deployed_by": "deployment script (CREATE from the deployer), first in the deployment order",
+      "deployment_status": "deployment_pending"
     }
   },
   "dependencies": {

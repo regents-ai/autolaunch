@@ -293,21 +293,31 @@ problems = []
 ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True)
 if ordinary:
     problems.extend(ordinary.rstrip("\n").splitlines())
-scratch_roots = tuple(
-    component.encode() + b"/" + root
-    for root in (
-        b"reports/generated/",
-        b"cache/",
-        b"cache-fork/",
-        b"out/",
-        b"out-fork/",
-        b"artifacts/",
-        b"broadcast/",
-    )
+SCRATCH_ROOTS = (
+    b"reports/generated/",
+    b"cache/",
+    b"cache-fork/",
+    b"out/",
+    b"out-fork/",
+    b"artifacts/",
+    b"broadcast/",
 )
+
+
+def authorized_scratch(path):
+    # The generated Foundry and report roots of every contracts package, and the exported
+    # dependency snapshot under contracts/stocks/lib that the Memestake packages build against.
+    parts = path.split(b"/", 2)
+    if len(parts) < 3 or parts[0] != b"contracts":
+        return False
+    if parts[1] == b"stocks" and parts[2].startswith(b"lib/"):
+        return True
+    return parts[2].startswith(SCRATCH_ROOTS)
+
+
 ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
 for path in ignored:
-    if path and not path.startswith(scratch_roots):
+    if path and not authorized_scratch(path):
         problems.append("!! " + os.fsdecode(path))
 
 flagged = []
