@@ -22,9 +22,20 @@ of them is a plain contract creation carrying zero value.
 The fifth transaction is the only one that does more than create a single contract. Inside its own
 constructor the factory creates `RegentLBPStrategy` with an ordinary `CREATE` — its first internal
 creation, at factory nonce 1 — and then `RegentFeeHook` with a `CREATE2` over the pre-mined salt,
-and binds the two together through the strategy's one-shot `bindHook`. A contract's nonce starts at
-one, and `CREATE2` consumes a nonce just as `CREATE` does, so a factory that made any third internal
-creation would end construction past nonce 3. `DEP-071` asserts exactly that.
+and binds the two together through the strategy's one-shot `bindHook`. The strategy's own
+constructor, running inside that first `CREATE`, creates `RevstakeLPLocker` with an ordinary
+`CREATE` at strategy nonce 1: the permanent fee-only locker every graduated position is minted to.
+That makes eight contracts from five transactions, with three internal creations. A contract's
+nonce starts at one, and `CREATE2` consumes a nonce just as `CREATE` does, so a factory that made
+any third internal creation would end construction past nonce 3, and a strategy that made any
+second would end past nonce 2. `DEP-071` asserts both, and that every other created contract is
+still at nonce 1.
+
+| Created by | Mechanism | Creator nonce | Contract |
+| --- | --- | --- | --- |
+| `RegentsAutolaunchFactoryV1` constructor | `CREATE` | 1 | `RegentLBPStrategy` |
+| `RegentLBPStrategy` constructor | `CREATE` | 1 | `RevstakeLPLocker` |
+| `RegentsAutolaunchFactoryV1` constructor | `CREATE2` | — (pre-mined salt) | `RegentFeeHook` |
 
 There is no sixth transaction. No helper is deployed, no proxy is installed, no ownership is
 transferred, no role is granted, no governance call is made, no application is admitted, and no
@@ -91,7 +102,8 @@ transaction sequence is assembled and nothing is broadcast at all. All of them a
 - a deployer whose live nonce is not the pinned starting nonce is refused before the first
   creation;
 - each simulated creation's address is compared to the prediction before the next one is built, and
-  the factory's own `strategy()` and `hook()` readbacks are compared afterwards.
+  the factory's own `strategy()` and `hook()` readbacks and the strategy's own `lpLocker()`
+  readback are compared afterwards.
 
 **None of this is a check between confirmed Base transactions.** Once a broadcast begins, the
 script runs no further and a later revert cannot unsend an earlier transaction. So an authorized
@@ -149,7 +161,7 @@ sections hold the two things a ceremony cannot derive for itself — the founder
 selection, and a snapshot of the mutable external control surface — and no gate mode writes them.
 
 `--prepare <deployer>` reads the selected account's live nonce off Base, mines the hook salt once
-against the predicted factory and the predicted strategy, derives the seven addresses those three
+against the predicted factory and the predicted strategy, derives the eight addresses those three
 values determine, freezes the live control surface, and renders a complete packet candidate under
 `reports/generated/deployment/`, which is gitignored scratch that nothing reads.
 
@@ -199,7 +211,7 @@ relations that must hold whatever the membership is are asserted in Solidity too
 owner that exists, a nonempty Safe owner set, and a threshold between one and that owner count.
 
 The preflight carries no requirement id and closes no claim. Neither does the selection contract
-beside it, which re-derives the seven predicted addresses. Both are excluded by name from the
+beside it, which re-derives the eight predicted addresses. Both are excluded by name from the
 compiled listing and the ledger reconciliation, exactly as `bin/fork-gate.sh` excludes its discovery
 pass.
 
@@ -214,8 +226,9 @@ nothing.
 What that proves is the script's own checks, against live chain state: the deployer's live Base
 nonce still equals the committed starting nonce, the pinned salt still derives a hook address
 carrying the three permission bits, each simulated creation lands on the committed prediction, and
-the factory's `strategy()` and `hook()` readbacks are the predicted internal addresses. Any
-mismatch reverts the simulation, which is a stop rather than a new candidate.
+the factory's `strategy()` and `hook()` readbacks and the strategy's `lpLocker()` readback are the
+predicted internal addresses. Any mismatch reverts the simulation, which is a stop rather than a
+new candidate.
 
 This ticket authorizes no deployment. No gate, script, or committed artifact here carries a
 broadcast command; assembling one is part of the separate founder approval described below.
@@ -230,7 +243,7 @@ that is a deliberate human step, and the deployment profile's Solidity has no fi
 at all, so no test can author a packet for itself.
 
 The packet carries the frozen build, the exact five-transaction topology, the code identity and
-both deployability margins for all seven contracts, the two immutable identities named apart, and
+both deployability margins for all eight contracts, the two immutable identities named apart, and
 the `selection` and `external_observation` sections a preparation run fills in. While those are
 null the packet says so plainly: it cannot claim that the exact ceremony was rehearsed. Its digest
 is `sha256` over the document rendered with `digest.value` set to null, so installing a selection
@@ -267,8 +280,8 @@ operation, not a prerequisite transaction in this five-creation ceremony.
 | Claim | What it proves |
 | --- | --- |
 | `DEP-070` | five direct zero-value creations on the deployer's own nonce sequence, in the fixed order, advancing the nonce by exactly five |
-| `DEP-071` | the factory alone creates the strategy at factory nonce 1 and the hook by `CREATE2` over the pre-mined salt, at an address carrying exactly the three permission bits |
-| `DEP-072` | every constructor binding and runtime readback across the seven contracts, the four admitted runtime code hashes, and the paused state the fifth receipt leaves behind |
+| `DEP-071` | the factory alone creates the strategy at factory nonce 1 and the hook by `CREATE2` over the pre-mined salt, at an address carrying exactly the three permission bits; the strategy alone creates the LP locker at strategy nonce 1; nothing else creates anything |
+| `DEP-072` | every constructor binding and runtime readback across the eight contracts, the locker's runtime against this build, the four admitted runtime code hashes, and the paused state the fifth receipt leaves behind |
 | `DEP-073` | the disposable deployer retains no protocol authority, the frozen Safe is the sole mutable authority, and the created graph admits that one address — and only it — as the account a later activation would come from |
-| `DEP-074` | EIP-170 and EIP-3860 margins for all seven contracts, plus each creation's in-EVM gas floor under a 14,000,000 guardrail. No complete deployment-transaction gas figure is measured or claimed |
+| `DEP-074` | EIP-170 and EIP-3860 margins for all eight contracts, plus each creation's in-EVM gas floor under a 14,000,000 guardrail. No complete deployment-transaction gas figure is measured or claimed |
 | `DEP-075` | every mismatch aborts in simulation, before anything is created and before a broadcast has a sequence to send, and a completed ceremony cannot be resumed |

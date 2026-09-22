@@ -7,6 +7,7 @@ import {RegentsAutolaunchFactoryV1} from "../src/factory/RegentsAutolaunchFactor
 import {RegentFeeHook} from "../src/hook/RegentFeeHook.sol";
 import {PaymentReceiverV1} from "../src/revenue/PaymentReceiverV1.sol";
 import {SubjectSplitterV1} from "../src/revenue/SubjectSplitterV1.sol";
+import {RegentLBPStrategy} from "../src/strategy/RegentLBPStrategy.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {UERC20Factory} from "uerc20-factory/factories/UERC20Factory.sol";
 import {Script} from "forge-std/Script.sol";
@@ -19,8 +20,10 @@ import {Script} from "forge-std/Script.sol";
 ///      `SubjectSplitterV1`, then `PaymentReceiverV1`, then `RegentsAutolaunchFactoryV1`. The
 ///      factory's own constructor is the only thing that creates `RegentLBPStrategy` — its first
 ///      internal `CREATE`, at factory nonce 1 — and the mined `RegentFeeHook`, its one internal
-///      `CREATE2`. There is no deployment helper, proxy, upgrade path, ownership handoff, role
-///      grant, governance transaction, locker, recovery framework, or post-deployment binding call.
+///      `CREATE2`; the strategy's own constructor is the only thing that creates
+///      `RevstakeLPLocker`, its first internal `CREATE`, at strategy nonce 1. There is no
+///      deployment helper, proxy, upgrade path, ownership handoff, role grant, governance
+///      transaction, recovery framework, or post-deployment binding call.
 ///
 ///      Three values are consumed and never produced here: the deployer, its exact starting nonce,
 ///      and the pre-mined `hookSalt`. This file imports no miner and contains no search loop, so the
@@ -33,7 +36,8 @@ import {Script} from "forge-std/Script.sol";
 ///      pinned starting nonce; the hook address the pinned salt derives must already carry exactly
 ///      the three permission bits Uniswap v4 encodes in a hook address; each simulated creation's
 ///      address must equal the prediction; and the factory's own `strategy()` and `hook()`
-///      readbacks must equal the predicted internal addresses. A mismatch aborts the simulation, so
+///      readbacks and the strategy's own `lpLocker()` readback must equal the predicted internal
+///      addresses. A mismatch aborts the simulation, so
 ///      no transaction sequence is assembled and nothing is broadcast at all.
 ///
 ///      These are not checks between confirmed Base transactions. Once a broadcast begins this
@@ -61,6 +65,10 @@ contract DeployAutolaunchV1 is Script {
     /// @dev EIP-161 starts a contract's nonce at one, so the factory's first `CREATE` is nonce 1.
     uint256 internal constant STRATEGY_FACTORY_NONCE = 1;
 
+    /// @notice The strategy nonce its only internal `CREATE` — the LP locker — consumes.
+    /// @dev The strategy constructor runs `new RevstakeLPLocker(address(this))` once, at nonce 1.
+    uint256 internal constant LOCKER_STRATEGY_NONCE = 1;
+
     /// @notice The three ceremony values the approved packet pins and this script only consumes.
     string internal constant DEPLOYER_ENV = "REGENT_DEPLOYMENT_DEPLOYER";
     string internal constant STARTING_NONCE_ENV = "REGENT_DEPLOYMENT_STARTING_NONCE";
@@ -73,7 +81,7 @@ contract DeployAutolaunchV1 is Script {
         bytes32 hookSalt;
     }
 
-    /// @notice The seven addresses one ceremony produces, in creation order.
+    /// @notice The eight addresses one ceremony produces, in creation order.
     struct Graph {
         address uerc20Factory;
         address escrowImplementation;
@@ -81,6 +89,7 @@ contract DeployAutolaunchV1 is Script {
         address receiverImplementation;
         address factory;
         address strategy;
+        address lpLocker;
         address hook;
     }
 
@@ -96,9 +105,10 @@ contract DeployAutolaunchV1 is Script {
     /// @dev Pure by construction: it reads no chain state, so a prediction can be checked, reviewed
     ///      and frozen into a packet long before anything is broadcast. The five top-level addresses
     ///      are the deployer's own `CREATE` sequence from the pinned starting nonce; the strategy is
-    ///      the factory's first internal `CREATE`; and the hook is the factory's `CREATE2` over the
-    ///      pinned salt and the exact initcode this repository's frozen build produces for
-    ///      `RegentFeeHook(POOL_MANAGER, predictedStrategy)`.
+    ///      the factory's first internal `CREATE`; the LP locker is the strategy's first internal
+    ///      `CREATE`, made from inside the strategy constructor; and the hook is the factory's
+    ///      `CREATE2` over the pinned salt and the exact initcode this repository's frozen build
+    ///      produces for `RegentFeeHook(POOL_MANAGER, predictedStrategy)`.
     ///
     ///      The permission-bit check is what makes a wrong or absent salt fail here rather than
     ///      inside the factory constructor: `Hooks.validateHookAddress` would reject it anyway, but
@@ -112,6 +122,7 @@ contract DeployAutolaunchV1 is Script {
         graph.factory = top[4];
 
         graph.strategy = vm.computeCreateAddress(graph.factory, STRATEGY_FACTORY_NONCE);
+        graph.lpLocker = vm.computeCreateAddress(graph.strategy, LOCKER_STRATEGY_NONCE);
         graph.hook = vm.computeCreate2Address(ceremony.hookSalt, keccak256(hookInitcode(graph.strategy)), graph.factory);
 
         uint160 bits = uint160(graph.hook) & HOOK_FLAG_MASK;
@@ -186,6 +197,9 @@ contract DeployAutolaunchV1 is Script {
 
         address strategy = address(factory.strategy());
         if (strategy != graph.strategy) revert InternalCreationMismatch("strategy", graph.strategy, strategy);
+
+        address lpLocker = address(RegentLBPStrategy(strategy).lpLocker());
+        if (lpLocker != graph.lpLocker) revert InternalCreationMismatch("lpLocker", graph.lpLocker, lpLocker);
 
         address hook = address(factory.hook());
         if (hook != graph.hook) revert InternalCreationMismatch("hook", graph.hook, hook);

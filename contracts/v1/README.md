@@ -285,7 +285,7 @@ would send to put the Autolaunch graph on Base, and nothing else. It has four mo
 - `--rehearse` is the chief's mode, run under the same authority and only after independent review.
   It is compare-only: it runs the ceremony selectors against a read-only fork, holds every frozen
   binding's runtime and proxy identity to `reports/frozen/fork-observations.json` and the live
-  control surface to the committed packet, re-derives the seven predicted addresses, and simulates
+  control surface to the committed packet, re-derives the eight predicted addresses, and simulates
   the exact deployment script with no `--broadcast` and no signer. It refuses to run while the
   committed packet pins no deployer.
 - `--selftest-dead-endpoint` is the regression for the chain-id boundary the two provider modes

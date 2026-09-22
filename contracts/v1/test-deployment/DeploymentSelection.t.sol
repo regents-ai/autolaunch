@@ -94,6 +94,7 @@ contract DeploymentSelectionTest is Test {
         emit log_named_address("selection predicted_receiver_implementation", graph.receiverImplementation);
         emit log_named_address("selection predicted_factory", graph.factory);
         emit log_named_address("selection predicted_strategy", graph.strategy);
+        emit log_named_address("selection predicted_lp_locker", graph.lpLocker);
         emit log_named_address("selection predicted_hook", graph.hook);
     }
 }

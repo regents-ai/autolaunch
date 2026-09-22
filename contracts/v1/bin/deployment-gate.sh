@@ -1526,6 +1526,7 @@ PREDICTED = [
     "receiver_implementation",
     "factory",
     "strategy",
+    "lp_locker",
     "hook",
 ]
 ADDRESS = re.compile(r"0x[0-9a-fA-F]{40}")
@@ -1643,7 +1644,7 @@ if problems:
 
 print(f"binding identity: all {len(bindings)} live bindings match {observations_path} exactly")
 if mode == "--rehearse":
-    print("selection: the seven predicted addresses re-derive from the committed packet exactly")
+    print("selection: the eight predicted addresses re-derive from the committed packet exactly")
     print("external observation: the live staking and Safe facts match the committed packet exactly")
 else:
     open(observed_path, "w", encoding="utf-8").write(json.dumps(observed, indent=2, sort_keys=True) + "\n")
@@ -1745,9 +1746,12 @@ CREATION_ORDER = [
     ("PaymentReceiverV1", "src/revenue/PaymentReceiverV1.sol"),
     ("RegentsAutolaunchFactoryV1", "src/factory/RegentsAutolaunchFactoryV1.sol"),
 ]
+# In temporal order: the factory constructor creates the strategy, whose constructor creates the
+# locker before returning, and then the factory constructor creates the hook.
 INTERNAL_ORDER = [
-    ("RegentLBPStrategy", "src/strategy/RegentLBPStrategy.sol"),
-    ("RegentFeeHook", "src/hook/RegentFeeHook.sol"),
+    ("RegentLBPStrategy", "src/strategy/RegentLBPStrategy.sol", "RegentsAutolaunchFactoryV1"),
+    ("RevstakeLPLocker", "src/revenue/RevstakeLPLocker.sol", "RegentLBPStrategy"),
+    ("RegentFeeHook", "src/hook/RegentFeeHook.sol", "RegentsAutolaunchFactoryV1"),
 ]
 
 problems = []
@@ -1782,7 +1786,7 @@ for line in decoded_logs(report_path):
     }:
         measured[current][key] = value
 
-expected_names = [name for name, _ in CREATION_ORDER + INTERNAL_ORDER]
+expected_names = [name for name, _ in CREATION_ORDER] + [name for name, _, _ in INTERNAL_ORDER]
 if sorted(measured) != sorted(expected_names):
     problems.append(f"the ceremony measured {sorted(measured)}, expected {sorted(expected_names)}")
 if hook_flags is None:
@@ -1821,12 +1825,12 @@ if problems:
     raise SystemExit(1)
 
 
-def code_identity(name, source, index, mechanism):
+def code_identity(name, source, created_by, mechanism, index=None):
     found = measured[name]
     entry = {
         "contract": name,
         "source": source,
-        "created_by": "deployer" if mechanism == "transaction" else "RegentsAutolaunchFactoryV1",
+        "created_by": created_by,
         "mechanism": mechanism,
         "runtime_bytes": int(found["runtime_bytes"]),
         "runtime_margin_bytes": int(found["runtime_margin_bytes"]),
@@ -1898,21 +1902,22 @@ document = {
     "topology": {
         "top_level_creations": len(CREATION_ORDER),
         "creation_order": [
-            code_identity(name, source, index, "transaction")
+            code_identity(name, source, "deployer", "transaction", index)
             for index, (name, source) in enumerate(CREATION_ORDER)
         ],
         "internal_creations": [
-            dict(code_identity(INTERNAL_ORDER[0][0], INTERNAL_ORDER[0][1], 0, "CREATE"), factory_nonce=1),
+            dict(code_identity(*INTERNAL_ORDER[0], "CREATE"), creator_nonce=1),
+            dict(code_identity(*INTERNAL_ORDER[1], "CREATE"), creator_nonce=1),
             dict(
-                code_identity(INTERNAL_ORDER[1][0], INTERNAL_ORDER[1][1], 0, "CREATE2"),
+                code_identity(*INTERNAL_ORDER[2], "CREATE2"),
                 salt="the pre-mined hookSalt this packet pins once a deployer is selected",
                 required_permission_bits=hook_flags,
             ),
         ],
         "excluded": (
             "no deployment helper, proxy, upgrade path, ownership handoff, role grant, governance "
-            "transaction, application admission, liquidity locker, recovery framework, or "
-            "post-deployment binding call"
+            "transaction, application admission, recovery framework, or post-deployment binding "
+            "call"
         ),
     },
     "limits": {
@@ -1922,8 +1927,9 @@ document = {
         "code_identity_note": (
             "`creation_code_keccak256` is the frozen build's own deployer-independent identity for "
             "the contract. It is not the hash of the initcode a real transaction sends: four of "
-            "these seven constructors take arguments that are themselves addresses this ceremony "
-            "produces, so that hash is only knowable once a deployer is selected. "
+            "these eight constructors — the factory, the strategy, the locker and the hook — take "
+            "arguments that are themselves addresses this ceremony produces, so that hash is only "
+            "knowable once a deployer is selected. "
             "`initcode_bytes` is the whole creation code plus those encoded arguments, because "
             "that is what EIP-3860 measures."
         ),
@@ -1946,7 +1952,7 @@ document = {
         "predicted_addresses": chosen.get("predicted_addresses"),
         "note": (
             "The founder-selected disposable deployer, its starting nonce read from Base, the hook "
-            "salt mined once against the predicted factory and strategy, and the seven addresses "
+            "salt mined once against the predicted factory and strategy, and the eight addresses "
             "those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` "
             "derives them and a human installs the packet candidate it writes; while it is null "
             "this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves "
@@ -2073,7 +2079,7 @@ printf '\nMAINNET NO-GO. Nothing was signed, broadcast, deployed, funded, or mov
 if [ "$mode" = --prepare ]; then
     cat <<'TRANSITION'
 This run closed no claim and installed nothing. Before the candidate above becomes authority,
-check the deployer address, its nonce and balance, the mined salt and the seven predicted
+check the deployer address, its nonce and balance, the mined salt and the eight predicted
 addresses against an independent derivation, and every control-surface value against an
 independent source. Then install it as the committed packet, re-render with --offline, commit,
 and rehearse with --rehearse.
