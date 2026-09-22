@@ -21,7 +21,7 @@ The website defaults to a read-only preview before contract deployment. Explore,
 public records, search, filters and the public read APIs remain available. The
 existing bid-quote POST is a read-only calculation and remains available too.
 
-- Create expands two disabled planned options: Agent Revshare and Onchain Stock Pair.
+- The Create button is shown disabled, titled "Available after contract deployment".
 - Creation, bids, payments, staking and account changes are disabled in the UI.
 - `/create` and its descendants return 404 before a draft can mount. Auth callbacks,
   session/account APIs and other write-method requests are refused server-side.
