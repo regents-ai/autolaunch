@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
 """The local Robinhood lab: a blank Anvil chain (31338) carrying the Stocks graph.
 
-`start` boots Anvil, installs Permit2's runtime at its canonical address, runs
-`script/DeployRobinhoodLab.s.sol` from Anvil's first unlocked account, reads every
-fixture stock and its route back from the chain, and writes
-`reports/generated/local-robinhood-lab/site-config.json` for the site plus
-`state.json` for this controller. `fund` gives a wallet test ETH, USDG and optionally
-fixture STOCK. `status` reports the launchpad and every admitted stock. `advance`
-mines to an auction's start, end, claim or migration block; `migrate` graduates or
-fails a launch once its migration block has passed. `stop` ends the recorded Anvil.
+`start` boots Anvil, installs Permit2's runtime at its canonical address and a block
+clock at the ArbSys precompile address, runs `script/DeployRobinhoodLab.s.sol` from
+Anvil's first unlocked account, reads every fixture stock and its route back from the
+chain, and writes `reports/generated/local-robinhood-lab/site-config.json` for the site
+plus `state.json` for this controller. `fund` gives a wallet test ETH, USDG and
+optionally fixture STOCK. `status` reports the launchpad and every admitted stock.
+`advance` moves the block clock to an auction's start, end, claim or migration block;
+`pace` moves it there evenly over wall time; `migrate` graduates or fails a launch once
+its migration block has passed. `stop` ends the recorded Anvil.
+
+The block clock: on the Robinhood chain, an Arbitrum Orbit rollup, the launchpad and the
+auction read the rollup block number from the ArbSys precompile (`arbBlockNumber()` at
+0x…64), not `block.number`. The lab installs a stand-in at that address whose answer is
+storage slot 0, so `advance` and `pace` set the number the contracts see with one call
+instead of mining hundreds of thousands of blocks (Anvil mines about forty a second). The
+splitters read `block.number`, which on the rollup is the Ethereum block; on the lab it is
+Anvil's own block, one per transaction.
 
 Every mutation and `stop` first proves the recorded run is this controller's own: the recorded
 process is alive, is Anvil, is the one process listening on the recorded loopback port, and the
@@ -79,7 +88,12 @@ LAUNCH_FIELDS = (
     "lpNewUsed", "retiredNew",
 )
 LIFECYCLES = ("None", "Active", "Graduated", "Failed")
-MINE_CHUNK_BLOCKS = 200
+ARB_SYS = "0x0000000000000000000000000000000000000064"
+# PUSH1 0, SLOAD, PUSH1 0, MSTORE, PUSH1 32, PUSH1 0, RETURN: every call is answered with storage slot 0.
+BLOCK_CLOCK_RUNTIME = "0x60005460005260206000f3"
+BLOCK_CLOCK_SLOT = "0x0"
+BLOCK_CLOCK_GENESIS = 1
+PACE_TICK_SECONDS = 0.25
 ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 DOTENV_NAMES = (".env", ".env.local", ".envrc")
 
@@ -492,15 +506,32 @@ def auction_timing(client: RpcClient, launchpad: str, auction: str) -> dict[str,
     }
 
 
-def mine_to(client: RpcClient, target: int) -> int:
-    """Mine to `target` in chunks of 200 blocks: Anvil mines about 100 blocks a second, and the client waits 10."""
-    head = parse_quantity(client.request("eth_blockNumber"))
-    if head > target:
-        raise LabError(f"current block {head} is already past target {target}")
-    while head < target:
-        client.request("anvil_mine", [quantity(min(MINE_CHUNK_BLOCKS, target - head))])
-        head = parse_quantity(client.request("eth_blockNumber"))
-    return head
+def read_block_clock(client: RpcClient) -> int:
+    return call_uint(client, ARB_SYS, "arbBlockNumber()")
+
+
+def set_block_clock(client: RpcClient, value: int) -> None:
+    client.request("anvil_setStorageAt", [ARB_SYS, BLOCK_CLOCK_SLOT, f"0x{value:064x}"])
+
+
+def install_block_clock(client: RpcClient) -> None:
+    client.request("anvil_setCode", [ARB_SYS, BLOCK_CLOCK_RUNTIME])
+    set_block_clock(client, BLOCK_CLOCK_GENESIS)
+    if read_block_clock(client) != BLOCK_CLOCK_GENESIS:
+        raise LabError("the block clock did not answer with its genesis value")
+
+
+def advance_block_clock(client: RpcClient, target: int) -> int:
+    clock = read_block_clock(client)
+    if clock > target:
+        raise LabError(f"the block clock at {clock} is already past target {target}")
+    if clock < target:
+        set_block_clock(client, target)
+    return target
+
+
+def paced_target(origin: int, target: int, elapsed: float, duration: float) -> int:
+    return origin + int((target - origin) * min(elapsed / duration, 1.0))
 
 
 def owned_run(state: Mapping[str, Any]) -> RpcClient:
@@ -559,6 +590,7 @@ def command_start(_args: argparse.Namespace) -> None:
             raise LabError("Anvil did not expose a local deployment account")
         deployer = normalize_address(str(accounts[0]), "local deployer")
         client.request("anvil_setCode", [PERMIT2, runtime])
+        install_block_clock(client)
         graph, pairs = deploy_graph(root, client, deployer)
         for label, address in graph.items():
             if not label.endswith("hook_salt") and label != "admin_safe" and client.request("eth_getCode", [address, "latest"]) == "0x":
@@ -566,6 +598,9 @@ def command_start(_args: argparse.Namespace) -> None:
         stocks = describe_stocks(client, graph, pairs)
         if call_address(client, graph["stocks_hook"], "executor()") != deployer:
             raise LabError("stocks hook executor readback mismatch")
+        set_block_clock(client, BLOCK_CLOCK_GENESIS + 1)
+        if call_uint(client, graph["stocks_launchpad"], "currentBlock()") != BLOCK_CLOCK_GENESIS + 1:
+            raise LabError("the launchpad does not follow the block clock")
         addresses = {label: value for label, value in graph.items() if not label.endswith("hook_salt")}
         run_id = f"robinhood-lab-{int(time.time())}-{process.pid}"
         atomic_write_json(
@@ -658,6 +693,7 @@ def command_status(args: argparse.Namespace) -> None:
         "rpc_url": state["rpc_url"],
         "chain_id": LOCAL_CHAIN_ID,
         "block_number": parse_quantity(client.request("eth_blockNumber")),
+        "block_clock": read_block_clock(client),
         "stocks_launchpad": {
             **launchpad_status(client, stocks_launchpad),
             "executor": call_address(client, state["addresses"]["stocks_hook"], "executor()"),
@@ -676,8 +712,30 @@ def command_advance(args: argparse.Namespace) -> None:
     root = component_root()
     state, client = active_state(root)
     timing = auction_timing(client, state["addresses"]["stocks_launchpad"], args.auction)
-    block_number = mine_to(client, int(timing[args.to]))
-    print(json.dumps({"block_number": block_number, "target": args.to, "timing": timing}, indent=2, sort_keys=True))
+    block_clock = advance_block_clock(client, int(timing[args.to]))
+    print(json.dumps({"block_clock": block_clock, "target": args.to, "timing": timing}, indent=2, sort_keys=True))
+
+
+def command_pace(args: argparse.Namespace) -> None:
+    root = component_root()
+    state, client = active_state(root)
+    if args.duration_seconds <= 0:
+        raise LabError("pace duration must be positive")
+    timing = auction_timing(client, state["addresses"]["stocks_launchpad"], args.auction)
+    target = int(timing[args.to])
+    origin = read_block_clock(client)
+    if origin > target:
+        raise LabError(f"the block clock at {origin} is already past target {target}")
+    began = time.monotonic()
+    clock = origin
+    while clock < target:
+        desired = paced_target(origin, target, time.monotonic() - began, args.duration_seconds)
+        if desired > clock:
+            set_block_clock(client, desired)
+            clock = desired
+        else:
+            time.sleep(PACE_TICK_SECONDS)
+    print(json.dumps({"block_clock": clock, "target": args.to, "duration_seconds": args.duration_seconds, "timing": timing}, indent=2, sort_keys=True))
 
 
 def command_migrate(args: argparse.Namespace) -> None:
@@ -722,10 +780,15 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--launch", type=int, help="also print this launch id's record")
     status.add_argument("--auction", help="also print this auction's block timing")
     status.set_defaults(run=command_status)
-    advance = commands.add_parser("advance", help="mine to an auction's start, end, claim or migration block")
+    advance = commands.add_parser("advance", help="move the block clock to an auction's start, end, claim or migration block")
     advance.add_argument("auction")
     advance.add_argument("--to", choices=("start", "end", "claim", "migration"), required=True)
     advance.set_defaults(run=command_advance)
+    pace = commands.add_parser("pace", help="move the block clock evenly over wall time to an auction's lifecycle block")
+    pace.add_argument("auction")
+    pace.add_argument("--to", choices=("start", "end", "claim", "migration"), default="migration")
+    pace.add_argument("--duration-seconds", type=float, default=1200.0, help="wall seconds to spend (default 1200)")
+    pace.set_defaults(run=command_pace)
     migrate = commands.add_parser("migrate", help="call migrate(launchId) from the deployer")
     migrate.add_argument("launch", type=int)
     migrate.set_defaults(run=command_migrate)

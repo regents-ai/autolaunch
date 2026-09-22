@@ -97,7 +97,8 @@ decimals, matching cross-bindings). None is known at build time.
 ## The local lab
 
 `bin/local-robinhood-lab.py` boots a blank Anvil chain (id 31338), installs Permit2's runtime at its
-canonical address, and runs `script/DeployRobinhoodLab.s.sol` from Anvil's first unlocked account,
+canonical address and a block clock at the ArbSys precompile address (see below), and runs
+`script/DeployRobinhoodLab.s.sol` from Anvil's first unlocked account,
 which stands in for the admin Safe and the hook executor. The script deploys a mintable USDG double,
 the pinned PoolManager, CCA factory, PositionManager and UERC20 factory, the inbox, the hook
 factory, the Stocks launchpad (which deploys its hook, locker and splitter implementation), the USDG bid adapter, and thirteen mintable
@@ -110,6 +111,7 @@ uv run --no-project python bin/local-robinhood-lab.py start
 uv run --no-project python bin/local-robinhood-lab.py fund 0xWALLET --usdg 100000 --stock AAPLc --shares 1000
 uv run --no-project python bin/local-robinhood-lab.py status [--launch ID] [--auction 0x…]
 uv run --no-project python bin/local-robinhood-lab.py advance 0xAUCTION --to start|end|claim|migration
+uv run --no-project python bin/local-robinhood-lab.py pace 0xAUCTION [--to migration] [--duration-seconds 1200]
 uv run --no-project python bin/local-robinhood-lab.py migrate ID
 uv run --no-project python bin/local-robinhood-lab.py stop
 ```
@@ -123,6 +125,20 @@ uv run --no-project python bin/local-robinhood-lab.py stop
 `stocks_locker`, `splitter`, `bid_adapter`, `stock_route`, `auction`, `erc20`). Every stock entry is read back from the chain after
 deployment, including its admission on the Stocks launchpad; the controller carries no catalog of
 its own. Nothing proven against the fixture stocks or routes is evidence about a real stock market.
+
+The block clock. On the Robinhood chain the launchpad and the auction read the rollup block number
+from the ArbSys precompile (`arbBlockNumber()` at `0x…64`, through `BlockNumberish`), not from
+`block.number`. The lab installs a stand-in at that address before deploying, so every contract
+takes the same code path it takes on the real chain, and the controller sets the number the
+contracts see with one call: `advance` jumps the clock to a lifecycle block, `pace` moves it there
+evenly over wall time (twenty minutes by default, so a whole one-day auction plays out in twenty
+minutes), and `status` reports it as `block_clock`. Mining is not an option at these terms: Anvil
+mines about forty empty blocks a second, so the 864,000-block auction would take more than five
+hours. The clock only moves when `advance` or `pace` moves it. The splitters read `block.number`,
+which on the lab is Anvil's own block (one per transaction) and on the real chain is the Ethereum
+block. Anything that shows the auction clock must read it the way the contracts do: on Robinhood,
+call `arbBlockNumber()` at `0x…64` (on the real chain it agrees with `eth_blockNumber` within a few
+blocks; on the lab only the precompile is right).
 
 `state.json` records the Anvil process, its loopback port and the chain's genesis hash. Before
 `fund`, `advance`, `migrate` or `stop` touches the endpoint, the controller proves the recorded
