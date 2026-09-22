@@ -39,32 +39,21 @@ defmodule AutolaunchWeb.AuctionsLive do
 
     assign_async(
       socket,
-      [:records, :creators, :pagination],
+      [:records, :creators, :pagination, :robinhood],
       fn ->
-        with {:ok, opts} <-
-               AutolaunchWeb.PublicPage.options(cursor, {:auctions, "all", "newest"}, 24),
-             {:ok, page} <-
-               Autolaunch.page_public_auctions("all", "newest", actor: nil, page: opts) do
+        with {:ok, page} <- AutolaunchWeb.AuctionPage.read(cursor, "all", "newest", 24) do
           {:ok,
            %{
-             records: page.results,
-             creators: creator_connections_for(page.results),
-             pagination: AutolaunchWeb.PublicPage.metadata(page, {:auctions, "all", "newest"})
+             records: page.records,
+             robinhood: page.robinhood,
+             creators: creator_connections_for(page.records),
+             pagination: page.pagination
            }}
         end
       end,
       reset: true
     )
-    |> assign_async(:robinhood, fn -> robinhood_auctions(cursor) end, reset: true)
   end
-
-  # Robinhood auctions carry no opening time to page by, so they lead the first page only.
-  defp robinhood_auctions(nil) do
-    with {:ok, auctions} <- Autolaunch.Robinhood.Auctions.list(),
-         do: {:ok, %{robinhood: auctions}}
-  end
-
-  defp robinhood_auctions(_cursor), do: {:ok, %{robinhood: []}}
 
   def render(assigns) do
     ~H"""

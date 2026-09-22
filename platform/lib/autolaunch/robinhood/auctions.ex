@@ -39,6 +39,19 @@ defmodule Autolaunch.Robinhood.Auctions do
     if Lab.configured?(), do: read(), else: {:ok, []}
   end
 
+  @doc "Public auctions filtered by mode and ordered by launch id, before Base auctions."
+  def list(mode, sort) do
+    with {:ok, auctions} <- list() do
+      filtered = Enum.filter(auctions, &in_mode?(&1, mode))
+      {:ok, if(sort == "oldest", do: Enum.reverse(filtered), else: filtered)}
+    end
+  end
+
+  defp in_mode?(_auction, "all"), do: true
+  defp in_mode?(auction, mode) when mode in ["biddable", "live"], do: auction.state == :active
+  defp in_mode?(auction, "failed_minimum"), do: auction.state == :failed
+  defp in_mode?(auction, "graduated"), do: auction.state == :graduated
+
   defp read do
     with {:ok, config} <- Lab.current(),
          opts = Lab.rpc_opts(config),

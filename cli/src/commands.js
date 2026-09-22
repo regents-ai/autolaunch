@@ -24,7 +24,7 @@ export const commands = [
   {
     command: "auctions list", operation_id: "listAuctions", webmcp: "autolaunch_auctions",
     method: "GET", path: "/api/v1/auctions", flags: ["mode", "sort", "limit", "after"],
-    description: "List public auctions on Base and Robinhood with their chain, kind and quote_token. Defaults to 50, capped at 50; Robinhood auctions lead the first page outside the limit; follow pagination.next_cursor with --after (24-hour expiry). Modes: all, biddable, live, failed_minimum, graduated. Sort: newest or oldest.",
+    description: "List public auctions on Base and Robinhood with their chain, kind and quote_token. Defaults to 50, capped at 50; the limit includes both chains, with Robinhood launch order before Base date order across pages; follow pagination.next_cursor with --after (24-hour expiry). Modes: all, biddable, live, failed_minimum, graduated. Sort: newest or oldest.",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
     request: (_args, values) => listQuery("/api/v1/auctions", values, ["mode", "sort", "limit", "after"]),
   },

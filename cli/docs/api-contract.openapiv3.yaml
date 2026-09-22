@@ -203,7 +203,7 @@ paths:
       x-pagination: keyset
       responses:
         "200":
-          description: Public Autolaunch auctions on Base and Robinhood. Every entry names its chain. Robinhood auctions are read from their chain, carry no opening time to page by, and so lead the first page only, outside the limit; the mode and sort apply to them too.
+          description: Public Autolaunch auctions on Base and Robinhood. Every entry names its chain. The limit caps the combined number of entries. Robinhood auctions are read from their chain and come before Base auctions across pages, ordered by launch id because they have no opening time. Base auctions then use their existing date order. Mode and sort apply within both groups; a configured chain read failure returns an error, not a partial page.
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AuctionListEnvelope"}

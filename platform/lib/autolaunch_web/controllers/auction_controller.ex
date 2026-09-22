@@ -9,26 +9,18 @@ defmodule AutolaunchWeb.AuctionController do
   @modes ~w(all biddable live failed_minimum graduated)
   @sorts ~w(newest oldest)
   @query_parameters ~w(mode sort limit after)
-  @mode_states %{
-    "biddable" => [:active],
-    "live" => [:active],
-    "failed_minimum" => [:failed],
-    "graduated" => [:graduated]
-  }
 
   def index(conn, params) do
     autolaunch = conn.private[:auction_controller_autolaunch] || Autolaunch
 
     with {:ok, mode, sort, limit} <- list_options(params),
-         scope = {:auctions, mode, sort},
-         {:ok, page_opts} <- AutolaunchWeb.PublicPage.options(params["after"], scope, limit),
-         {:ok, page} <- autolaunch.page_public_auctions(mode, sort, actor: nil, page: page_opts),
-         {:ok, robinhood} <- robinhood_auctions(params["after"], mode, sort) do
+         {:ok, page} <-
+           AutolaunchWeb.AuctionPage.read(params["after"], mode, sort, limit, autolaunch) do
       json(conn, %{
         data:
-          Enum.map(robinhood, &robinhood_auction/1) ++
-            Enum.map(page.results, &public_auction/1),
-        pagination: AutolaunchWeb.PublicPage.metadata(page, scope)
+          Enum.map(page.robinhood, &robinhood_auction/1) ++
+            Enum.map(page.records, &public_auction/1),
+        pagination: page.pagination
       })
     else
       {:error, :invalid_query} -> invalid_request(conn)
@@ -108,22 +100,6 @@ defmodule AutolaunchWeb.AuctionController do
   end
 
   defp parse_limit(_value, _maximum), do: {:error, :invalid_query}
-
-  # Robinhood auctions carry no opening time to page by, so they lead the first
-  # page only, as on /auctions; the mode and sort apply to them all the same.
-  defp robinhood_auctions(nil, mode, sort) do
-    with {:ok, auctions} <- Auctions.list() do
-      {:ok, auctions |> Enum.filter(&in_mode?(&1, mode)) |> sorted(sort)}
-    end
-  end
-
-  defp robinhood_auctions(_cursor, _mode, _sort), do: {:ok, []}
-
-  defp in_mode?(_auction, "all"), do: true
-  defp in_mode?(auction, mode), do: auction.state in Map.fetch!(@mode_states, mode)
-
-  defp sorted(auctions, "newest"), do: auctions
-  defp sorted(auctions, "oldest"), do: Enum.reverse(auctions)
 
   defp public_auction(auction) do
     %{

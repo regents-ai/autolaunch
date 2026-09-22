@@ -139,7 +139,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         >Retry</Regent.Primitives.button>
         <.link :if={@cursor} patch={"/#{@kind}"}>Back to newest</.link>
       </Regent.Primitives.notice>
-      <Regent.Primitives.notice :if={@robinhood.failed} role="alert">
+      <Regent.Primitives.notice :if={@robinhood.failed && !@records.failed} role="alert">
         <p>Robinhood auctions are unavailable right now.</p>
       </Regent.Primitives.notice>
       <div :if={@kind == :auctions && @listed?} class="auction-card-grid">
