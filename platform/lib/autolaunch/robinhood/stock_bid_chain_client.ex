@@ -19,7 +19,7 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   alias Autolaunch.BidPrice
   alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
   alias Autolaunch.{LabAbi, LabRpc}
-  alias Autolaunch.Robinhood.Lab
+  alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Amounts
 
@@ -40,6 +40,7 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
          launchpad <- Lab.address!(config, :stocks_launchpad),
          usdg <- Lab.address!(config, :usdg),
          {:ok, block} <- Rpc.latest_block(opts),
+         {:ok, clock} <- BlockClock.read(block, opts),
          :ok <- LabRpc.ensure_contract(adapter, block, opts),
          :ok <- LabRpc.ensure_contract(auction, block, opts),
          :ok <- adapter_bound(config, adapter, launchpad, usdg, block, opts),
@@ -51,7 +52,7 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
          {:ok, usdg_balance} <- usdg_uint(config, "balanceOf(address)", [signer], block, opts),
          {:ok, usdg_allowance} <- allowance(config, signer, block, opts),
          {:ok, stock_quote} <- stock_quote(config, route, usdg, stock, usdg_amount, block, opts),
-         {:ok, facts} <- auction_facts(config, auction, block, opts),
+         {:ok, facts} <- auction_facts(config, auction, clock, block, opts),
          {:ok, aligned} <- aligned_price(max, facts),
          {:ok, prev_tick} <- predecessor(config, auction, aligned, block, opts) do
       {:ok,
@@ -70,6 +71,7 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
          prev_tick_price_q96: prev_tick,
          predecessor_source: "bounded local auction tick walk",
          block: block,
+         clock: clock,
          lab_binding: Lab.binding(config, @binding_keys)
        }}
     else
@@ -339,7 +341,7 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
   # eth_call pinned to the snapshot block, never a transaction) only once the
   # auction is active; before that the stored `clearingPrice()` is the only
   # clearing price there is, and the snapshot says which one it reports.
-  defp auction_facts(config, auction, block, opts) do
+  defp auction_facts(config, auction, clock, block, opts) do
     with {:ok, spacing} <- auction_uint(config, auction, "tickSpacing()", [], block, opts),
          {:ok, floor} <- auction_uint(config, auction, "floorPrice()", [], block, opts),
          {:ok, cap} <- auction_uint(config, auction, "MAX_BID_PRICE()", [], block, opts),
@@ -348,7 +350,8 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
          {:ok, end_block} <- auction_uint(config, auction, "endBlock()", [], block, opts),
          {:ok, claim_block} <- auction_uint(config, auction, "claimBlock()", [], block, opts),
          {:ok, graduated} <- auction_bool(config, auction, "isGraduated()", [], block, opts),
-         {:ok, simulated} <- simulated_clearing(config, auction, start_block, block, opts) do
+         {:ok, simulated} <-
+           simulated_clearing(config, auction, start_block, clock, block, opts) do
       {:ok,
        %{
          tick_spacing_q96: spacing,
@@ -367,11 +370,11 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
     end
   end
 
-  defp simulated_clearing(_config, _auction, start_block, %{number: number}, _opts)
-       when number < start_block,
+  defp simulated_clearing(_config, _auction, start_block, clock, _block, _opts)
+       when clock < start_block,
        do: {:ok, nil}
 
-  defp simulated_clearing(config, auction, _start_block, block, opts) do
+  defp simulated_clearing(config, auction, _start_block, _clock, block, opts) do
     with {:ok, [clearing, _raised, _mps_per_price, _mps, _prev, _next]} <-
            auction_words(config, auction, "checkpoint()", [], block, opts, 6),
          do: {:ok, clearing}

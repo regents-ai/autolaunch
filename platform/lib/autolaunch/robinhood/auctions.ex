@@ -6,12 +6,14 @@ defmodule Autolaunch.Robinhood.Auctions do
   Everything is read at one latest block: the launchpad's launch records
   (ids run from 1 to `nextLaunchId() - 1`), each token's own name and symbol,
   the stock the auction is denominated in, and the auction's schedule, stored
-  clearing price and currency raised. Nothing here writes, signs or caches.
+  clearing price and currency raised. An auction's state comes from its
+  schedule against the block clock the contracts keep time by
+  (`Autolaunch.Robinhood.BlockClock`). Nothing here writes, signs or caches.
   """
 
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
-  alias Autolaunch.Robinhood.Lab
+  alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Amounts, Assets}
 
@@ -47,24 +49,25 @@ defmodule Autolaunch.Robinhood.Auctions do
   @doc "Every auction the launchpad records, newest first, read at the given block."
   @spec at(map(), map(), keyword()) :: {:ok, [t()]} | {:error, atom()}
   def at(config, block, opts) do
-    with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
+    with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts),
+         {:ok, clock} <- BlockClock.read(block, opts) do
       Enum.reduce_while(
         1..(next_id - 1)//1,
         {:ok, []},
-        &newest_first(config, &1, &2, block, opts)
+        &newest_first(config, &1, &2, block, clock, opts)
       )
     end
   end
 
-  defp newest_first(config, launch_id, {:ok, found}, block, opts) do
-    case auction(config, launch_id, block, opts) do
+  defp newest_first(config, launch_id, {:ok, found}, block, clock, opts) do
+    case auction(config, launch_id, block, clock, opts) do
       {:ok, auction} -> {:cont, {:ok, [auction | found]}}
       error -> {:halt, error}
     end
   end
 
   # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock, …
-  defp auction(config, launch_id, block, opts) do
+  defp auction(config, launch_id, block, clock, opts) do
     with {:ok, words} <- launch_words(config, launch_id, block, opts),
          {:ok, token} <- Abi.word_address(Enum.at(words, 1)),
          {:ok, stock_address} <- Abi.word_address(Enum.at(words, 2)),
@@ -75,7 +78,7 @@ defmodule Autolaunch.Robinhood.Auctions do
          {:ok, clearing} <- auction_uint(config, auction, "clearingPrice()", block, opts),
          {:ok, raised} <- auction_uint(config, auction, "currencyRaised()", block, opts),
          {:ok, state} <-
-           state(config, auction, Enum.at(words, 4), Enum.at(words, 5), block, opts) do
+           state(config, auction, Enum.at(words, 4), Enum.at(words, 5), clock, block, opts) do
       {:ok,
        %{
          launch_id: launch_id,
@@ -96,15 +99,15 @@ defmodule Autolaunch.Robinhood.Auctions do
     end
   end
 
-  defp state(_config, _auction, start_block, _end_block, %{number: number}, _opts)
-       when number < start_block,
+  defp state(_config, _auction, start_block, _end_block, clock, _block, _opts)
+       when clock < start_block,
        do: {:ok, :created}
 
-  defp state(_config, _auction, _start_block, end_block, %{number: number}, _opts)
-       when number < end_block,
+  defp state(_config, _auction, _start_block, end_block, clock, _block, _opts)
+       when clock < end_block,
        do: {:ok, :active}
 
-  defp state(config, auction, _start_block, _end_block, block, opts) do
+  defp state(config, auction, _start_block, _end_block, _clock, block, opts) do
     data = LabAbi.encode(Lab.abi!(config, :auction), "isGraduated()", [])
 
     with {:ok, graduated?} <- Rpc.call_bool(auction, data, block, opts),

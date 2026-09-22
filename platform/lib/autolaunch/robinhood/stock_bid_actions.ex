@@ -25,7 +25,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Address, Envelope, Rpc}
   alias Autolaunch.LabAbi
-  alias Autolaunch.Robinhood.{Lab, StockBidChainClient}
+  alias Autolaunch.Robinhood.{BlockClock, Lab, StockBidChainClient}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.{Amounts, Assets, LaunchOperations}
 
@@ -104,6 +104,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          {:ok, auction} <- address(auction, :invalid_auction),
          rpc <- Lab.rpc_opts(config),
          {:ok, block} <- chain(Rpc.latest_block(rpc)),
+         {:ok, clock} <- chain(BlockClock.read(block, rpc)),
          {:ok, stock, decimals} <- stock_decimals(auction, block, config, rpc),
          {:ok, asset} <- listed_stock(stock),
          {:ok, window} <- bidding_window(auction, block, config, rpc),
@@ -112,6 +113,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
       {:ok,
        %{
          block: block,
+         clock: clock,
          bids: bids,
          stock: %{"address" => stock, "symbol" => asset.symbol},
          window: window
@@ -193,8 +195,8 @@ defmodule Autolaunch.Robinhood.StockBidActions do
 
   defp biddable(_usdg_amount, %{stock_quote: 0}), do: unavailable(:usdg_route_unavailable)
 
-  defp biddable(_usdg_amount, %{block: %{number: number}, auction: auction})
-       when number < auction.start_block or number >= auction.end_block,
+  defp biddable(_usdg_amount, %{clock: clock, auction: auction})
+       when clock < auction.start_block or clock >= auction.end_block,
        do: unavailable(:auction_not_open)
 
   defp biddable(_usdg_amount, _snapshot), do: :ok

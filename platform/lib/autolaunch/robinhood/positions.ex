@@ -19,7 +19,7 @@ defmodule Autolaunch.Robinhood.Positions do
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Abi, Address, Rpc}
   alias Autolaunch.{LabAbi, TokenHoldings}
-  alias Autolaunch.Robinhood.{Auctions, Lab}
+  alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
 
   @bid_record_words 7
@@ -61,8 +61,9 @@ defmodule Autolaunch.Robinhood.Positions do
     with {:ok, config} <- Lab.current(),
          opts = Lab.rpc_opts(config),
          {:ok, block} <- Rpc.latest_block(opts),
+         {:ok, clock} <- BlockClock.read(block, opts),
          {:ok, auctions} <- Auctions.at(config, block, opts) do
-      venue = %{abi: Lab.abi!(config, :auction), block: block, opts: opts}
+      venue = %{abi: Lab.abi!(config, :auction), block: block, clock: clock, opts: opts}
 
       collect(auctions, fn auction ->
         collect(wallets, &wallet_positions(auction, &1, venue))
@@ -190,7 +191,7 @@ defmodule Autolaunch.Robinhood.Positions do
              venue.block,
              venue.opts
            ) do
-      if venue.block.number >= claim_block,
+      if venue.clock >= claim_block,
         do: {:ok, :claimable, nil, claim_block},
         else: {:ok, :filled, nil, claim_block}
     end

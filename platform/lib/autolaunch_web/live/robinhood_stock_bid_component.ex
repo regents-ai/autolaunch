@@ -479,11 +479,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp stock_symbol(%{stock: %{"symbol" => symbol}}), do: symbol
   defp stock_symbol(nil), do: "the auction's stock"
 
-  defp window_copy(%{block: %{number: now}, window: %{"start_block" => start_block}})
+  defp window_copy(%{clock: now, window: %{"start_block" => start_block}})
        when now < start_block,
        do: "Opens at block #{start_block}. Robinhood is at block #{now}."
 
-  defp window_copy(%{block: %{number: now}, window: %{"end_block" => end_block}})
+  defp window_copy(%{clock: now, window: %{"end_block" => end_block}})
        when now < end_block,
        do: "Open until block #{end_block}. Robinhood is at block #{now}."
 
