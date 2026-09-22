@@ -233,7 +233,7 @@ class Chain:
         return bytes.fromhex(self.cast("code", account).removeprefix("0x"))
 
     def codehash(self, account: str) -> str:
-        return self.cast("codehash", account).lower()
+        return freeze.keccak256(self.code(account))
 
     def call(self, to: str, signature: str, *arguments: str) -> str:
         return self.cast("call", to, signature, *arguments)
