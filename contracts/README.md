@@ -5,7 +5,7 @@ nothing in any of them is deployed on a public chain.
 
 | Project | What it is | Chain | Status | Verify |
 | --- | --- | --- | --- | --- |
-| [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | Complete against the frozen [SPEC.md](v1/SPEC.md); offline gate, Base fork evidence, deployment packet prepared and rehearsed; mainnet NO-GO | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
+| [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | Complete against the frozen [SPEC.md](v1/SPEC.md); offline gate, Base fork evidence, deployment packet prepared and rehearsed; not yet deployed | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
 | [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | Implemented with its own gate; packet carries the code identity, no deployer selected yet | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
 | [robinhood/](robinhood/README.md) | Robinhood Memestake: the Memestake launchpad rebuilt for Robinhood Chain with USDG as the dollar, plus a Base-side receiver for bridged revenue | Robinhood Chain (4663), one contract on Base | Implemented with its own gate; packet carries the code identity, no deployer selected; no production stock route contract yet | `cd robinhood && bin/gate.sh`, with `../stocks/lib` in place |
 | [revenue-mesh/](revenue-mesh/README.md) | Immutable USDC payment routes over Circle CCTP from other chains into a Base `PaymentReceiverV1` | Source chains (Arbitrum One wrapper first) into Base | Offline foundation; every route is an unverified, inactive candidate | `cd revenue-mesh && forge fmt --check && forge build && forge test -vvv` |
@@ -74,11 +74,11 @@ Every project keeps two files apart: a **packet** (`mainnet-no-go-packet.json`),
 describes what a ceremony would do and the only committed ceremony authority, and a **deployed
 manifest** (`deployed-manifest.json`), the record of what was actually created, populated only from
 confirmed receipts. All three manifests are the empty record; every packet's authorization state
-is `not authorized`. The founder sends every creation by hand from a signer of his own; no key,
+is `not authorized`. The founder signs and sends every creation by hand; no key,
 endpoint or credential appears in this repository.
 
 1. **Base Revstake first** ([v1/deployments/base-mainnet/](v1/deployments/base-mainnet/README.md)).
-   Five zero-value creations from a disposable deployer, in order: `UERC20Factory`,
+   Five zero-value creations from one dedicated deployer, in order: `UERC20Factory`,
    `ConditionalVestingEscrowV1`, `SubjectSplitterV1`, `PaymentReceiverV1` and
    `RegentsAutolaunchFactoryV1`, whose constructor creates `RegentLBPStrategy`, which creates
    `RevstakeLPLocker`, and mines `RegentFeeHook` with the pinned salt: eight contracts in all. The
