@@ -235,7 +235,10 @@ defmodule AutolaunchWeb.BidComponent do
             <div>
               <dt>Effective tick price</dt>
               <dd>
-                {argument(@operation, "max_price")} {argument(@operation, "currency_symbol")} per token
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={argument(@operation, "max_price")}
+                  unit={"#{argument(@operation, "currency_symbol")} per token"}
+                />
               </dd>
             </div>
             <div>
@@ -324,6 +327,7 @@ defmodule AutolaunchWeb.BidComponent do
         :if={AutolaunchWeb.WalletPressComponent.scope(assigns)}
         history={@wallet_press_history}
         target={@myself}
+        label={fn step, operation -> step_label(step, argument(operation, "currency_symbol")) end}
       />
     </section>
     """

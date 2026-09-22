@@ -114,6 +114,7 @@ defmodule AutolaunchWeb.AuctionLive do
             record={@page_record}
             creator_connections={@creator_connections}
             trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
+            status={settling_status(@page_record, @bidding_ended?)}
           />
           <.exact_price
             id="auction-exact-price"
@@ -321,6 +322,11 @@ defmodule AutolaunchWeb.AuctionLive do
       _none -> assign(socket, :my_positions, [])
     end
   end
+
+  # Between the end block and the first settlement the record still says
+  # active; the page knows bidding is over and says so.
+  defp settling_status(%{state: :active}, true), do: "Bidding ended"
+  defp settling_status(_record, _bidding_ended?), do: nil
 
   defp bidding_ended?(%{state: state}, _snapshot) when state in [:graduated, :failed], do: true
 

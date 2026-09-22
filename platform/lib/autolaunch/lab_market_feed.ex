@@ -561,6 +561,12 @@ defmodule Autolaunch.LabMarketFeed do
     defp collect_snapshot({:ok, {:ok, snapshot}}, snapshots),
       do: {:cont, {:ok, [snapshot | snapshots]}}
 
+    # A row whose contract does not exist at this head has no market to read
+    # (a launch mined on another lab run, or one a reorg removed); it is left
+    # as it is so one such row never stops every other auction refreshing.
+    defp collect_snapshot({:ok, {:error, :lab_contract_missing}}, snapshots),
+      do: {:cont, {:ok, snapshots}}
+
     defp collect_snapshot({:ok, {:error, reason}}, _snapshots),
       do: {:halt, {:error, reason}}
 

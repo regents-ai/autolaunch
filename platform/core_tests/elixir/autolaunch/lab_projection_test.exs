@@ -38,7 +38,7 @@ defmodule Autolaunch.LabProjectionTest do
     [launch] = all(LaunchJob)
 
     assert auction.chain_id == 31_337
-    assert auction.state == :active
+    assert auction.state == :created
     assert auction.auction_address == @auction
     assert auction.treasury_address == @treasury
     assert auction.quote_token_address == @regent

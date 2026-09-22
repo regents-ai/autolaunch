@@ -345,7 +345,7 @@ defmodule Autolaunch.LabProjection do
              auction_attrs(arguments, %{
                chain_id: envelope["chain_id"],
                creator_human_account_id: human_account_id,
-               state: :active,
+               state: :created,
                auction_address: result["auction"],
                quote_token_address: arguments["regent"],
                treasury_address: result["treasury"]

@@ -239,6 +239,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
     default: nil,
     doc: "set once the coin trades; takes the description's place"
 
+  attr :status, :string,
+    default: nil,
+    doc: "the page's own reading of the state, when the record's state label lags the chain"
+
   def detail_card(assigns) do
     assigns =
       assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
@@ -261,7 +265,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="market-identity__body">
         <p class="market-identity__symbol">${@view.symbol}</p>
         <div class="market-identity__meta">
-          <span>{@view.status}</span><span :if={@view.age}>{@view.age} ago</span>
+          <span>{@status || @view.status}</span><span :if={@view.age}>{@view.age} ago</span>
         </div>
         <div class="market-identity__price">
           <span>{@view.metric_label}</span><TokenDisplay.price

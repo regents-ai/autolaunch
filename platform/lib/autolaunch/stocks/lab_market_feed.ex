@@ -215,6 +215,10 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          {:ok, Map.put(snapshots, snapshot.auction_address, snapshot),
           List.wrap(changed_id) ++ changed}}
       else
+        # A row whose contract does not exist at this head has no market to
+        # read (a launch mined on another lab run, or one a reorg removed); it
+        # is left as it is so one such row never stops the others refreshing.
+        {:error, :lab_contract_missing} -> {:cont, {:ok, snapshots, changed}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)

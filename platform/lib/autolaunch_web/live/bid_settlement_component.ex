@@ -264,6 +264,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
         :if={WalletPressComponent.scope(assigns)}
         history={@wallet_press_history}
         target={@myself}
+        label={&step_label/2}
       />
     </article>
     """

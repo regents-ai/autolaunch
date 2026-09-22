@@ -381,6 +381,7 @@ defmodule AutolaunchWeb.SubjectWalletComponent do
         :if={AutolaunchWeb.WalletPressComponent.scope(assigns)}
         history={@wallet_press_history}
         target={@myself}
+        label={&step_label/2}
       />
     </section>
     """

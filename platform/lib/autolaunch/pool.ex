@@ -192,12 +192,14 @@ defmodule Autolaunch.Pool do
     end
   end
 
+  # The pool id is read first: until the strategy migrates the launch, the
+  # splitter and receiver words are still zero and decode as no address.
   defp agent_distribution(words) do
-    with {:ok, subject} <- Abi.word_address(Enum.at(words, 11)),
+    with pool_id when pool_id != 0 <- Enum.at(words, 16),
+         {:ok, subject} <- Abi.word_address(Enum.at(words, 11)),
          {:ok, escrow} <- Abi.word_address(Enum.at(words, 12)),
          {:ok, splitter} <- Abi.word_address(Enum.at(words, 14)),
-         {:ok, receiver} <- Abi.word_address(Enum.at(words, 15)),
-         pool_id when pool_id != 0 <- Enum.at(words, 16) do
+         {:ok, receiver} <- Abi.word_address(Enum.at(words, 15)) do
       {:ok,
        %{
          migration_block: Enum.at(words, 4),

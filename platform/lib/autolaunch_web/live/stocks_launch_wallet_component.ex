@@ -299,6 +299,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         :if={WalletPressComponent.scope(assigns)}
         history={@wallet_press_history}
         target={@myself}
+        label={fn step, _operation -> step_label(step) end}
       />
     </section>
     """

@@ -204,11 +204,7 @@ defmodule AutolaunchWeb.WalletPressComponent do
 
     attempts =
       (previous.attempts ++ incoming.attempts)
-      |> Enum.reduce(%{}, fn row, rows ->
-        Map.update(rows, row.id, row, fn old ->
-          if DateTime.compare(old.updated_at, row.updated_at) == :gt, do: old, else: row
-        end)
-      end)
+      |> Enum.reduce(%{}, fn row, rows -> Map.update(rows, row.id, row, &newest(&1, row)) end)
       |> Map.values()
       |> Enum.sort_by(&{&1.inserted_at, &1.id})
 
@@ -231,15 +227,19 @@ defmodule AutolaunchWeb.WalletPressComponent do
     Map.put(view, :attempts, attempts)
   end
 
+  defp newest(old, row),
+    do: if(DateTime.compare(old.updated_at, row.updated_at) == :gt, do: old, else: row)
+
   attr :history, :map, required: true
   attr :target, :any, required: true
+  attr :label, :any, required: true, doc: "step name and operation to the step's own wording"
 
   def history(assigns) do
     ~H"""
     <section :if={map_size(@history) > 0} aria-label="Wallet press outcomes" aria-live="polite">
       <div :for={{action_id, operation} <- Enum.sort(@history)}>
         <p :for={attempt <- Map.get(operation, :attempts, [])} data-wallet-press={attempt.id}>
-          <span>{attempt.step}: {attempt.state}</span>
+          <span>{@label.(Atom.to_string(attempt.step), operation)} · {outcome(attempt.state)}</span>
           <code :if={attempt.transaction_hash}>{attempt.transaction_hash}</code>
           <span :if={attempt.result["onchain_bid_id"]}>Bid {attempt.result["onchain_bid_id"]}</span>
           <span :if={attempt.result["auction"]}>Auction {attempt.result["auction"]}</span>
@@ -257,4 +257,13 @@ defmodule AutolaunchWeb.WalletPressComponent do
     </section>
     """
   end
+
+  defp outcome(:dispatched), do: "Waiting for your wallet"
+  defp outcome(:submitted), do: "Sent, waiting for confirmation"
+  defp outcome(:confirmed), do: "Confirmed"
+  defp outcome(:reverted), do: "Reverted on chain"
+  defp outcome(:unverified), do: "Could not be verified"
+  defp outcome(:not_sent), do: "Declined in your wallet"
+  defp outcome(:not_started), do: "Nothing was sent"
+  defp outcome(:submission_unknown), do: "Outcome unknown, check your wallet"
 end
