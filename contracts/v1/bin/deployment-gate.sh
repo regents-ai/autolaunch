@@ -228,7 +228,7 @@ verify_fork_receipt() {
 
     python3 - "$receipt_path" "$expected_commit" "$expected_tree" "$expected_src" \
         "$physical_root" "$fork_pinned_report" "$fork_later_report" "$fork_test_list" \
-        "$ledger" "$observations" <<'PYTHON'
+        "$ledger" "$observations" <<'PYTHON' || fail "the fork-check receipt did not reconcile"
 import hashlib
 import json
 import os
@@ -531,13 +531,16 @@ print(
 )
 PYTHON
 
+    # Both steps name their own failure: the regressions call this function inside a command
+    # substitution, where `set -e` is suspended, so errexit alone would let a failed step through.
     python3 "$checker" ledger \
         --ledger "$ledger" \
         --spec SPEC.md \
         --gates fork \
         --test-list "$fork_test_list" \
         --test-report "$fork_pinned_report" "$fork_later_report" \
-        --receipt "$offline_receipt"
+        --receipt "$offline_receipt" ||
+        fail "the fork-check receipt's reports did not reconcile with the requirement ledger"
 }
 
 # A passing mode also binds the committed packet and this run's render to the same A/B authority.
