@@ -22,8 +22,12 @@ Modes:
               the selection suite, and writes a packet candidate carrying the selection and the
               external observation to reports/generated/deployment/. A human installs it.
   rehearse    Re-observes the committed external state and compares it exactly, proves the deployer
-              nonce still equals the committed one, and simulates the exact deployment script
-              against the live chain with no signer and no broadcast.
+              nonce still equals the committed one, and simulates the ceremony against the live
+              chain with no signer and no broadcast. Robinhood simulates the exact deployment
+              scripts. Base simulates the exact creation transactions in sequence on the node
+              itself (`eth_simulateV1`), because Base's stock tokens carry a one-byte `0xef` code
+              that only a Base node executes, and writes those transactions to
+              reports/generated/deployment/ for the founder to send.
   record      Verifies the founder's confirmed transaction hashes against the committed packet
               (sender, nonce, order, created address, status, code identity, readbacks) and writes
               a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
@@ -58,7 +62,9 @@ FROZEN_IDENTITY = Path("requirements/frozen-identity.json")
 PACKET_NAME = "mainnet-no-go-packet.json"
 MANIFEST_NAME = "deployed-manifest.json"
 SITE_CONFIG_NAME = "site-config.json"
+REHEARSED_TRANSACTIONS_NAME = "rehearsed-transactions.json"
 DEPLOYMENT_PROFILE = "deployment"
+SIMULATION_GAS = 20_000_000  # the per-creation gas ceiling of a node rehearsal
 SELECTION_CONTRACT = "DeploymentSelectionTest"
 CEREMONY_CONTRACT = "DeploymentCeremonyTest"
 
@@ -125,8 +131,8 @@ def digest_of(document: dict) -> str:
     return "0x" + sha256_hex(json.dumps(undigested, indent=2, sort_keys=True).encode())
 
 
-def run(args: list[str], env: dict | None = None) -> str:
-    result = subprocess.run(args, capture_output=True, text=True, env=env)
+def run(args: list[str], env: dict | None = None, stdin: str | None = None) -> str:
+    result = subprocess.run(args, capture_output=True, text=True, env=env, input=stdin)
     if result.returncode != 0:
         raise CeremonyError(f"{args[0]} {args[1]} exited {result.returncode}:\n{result.stderr.strip()}")
     return result.stdout
@@ -216,6 +222,10 @@ class Chain:
 
     def cast(self, *args: str) -> str:
         return run(["cast", *args, "--rpc-url", self.endpoint()]).strip()
+
+    def rpc(self, method: str, params: list):
+        """One raw JSON-RPC request; the parameters travel on stdin, never on the command line."""
+        return json.loads(run(["cast", "rpc", method, "--raw", "--rpc-url", self.endpoint()], stdin=json.dumps(params)))
 
     def probe(self) -> None:
         found = int(self.cast("chain-id"))
@@ -345,7 +355,6 @@ class Package:
     component: str
     network: str
     chain: Chain
-    script: str
     shared_component: str | None
     hook_salt_env = "REGENT_DEPLOYMENT_HOOK_SALT"
     deployer_env = "REGENT_DEPLOYMENT_DEPLOYER"
@@ -388,7 +397,7 @@ class Package:
     def topology(self, selection: dict) -> list[dict]:
         raise NotImplementedError
 
-    def rehearsals(self, selection: dict) -> list[tuple[Chain, list[str], dict]]:
+    def rehearse(self, packet: dict) -> None:
         raise NotImplementedError
 
     # --- record and site-config --------------------------------------------------------------
@@ -427,7 +436,6 @@ class Stocks(Package):
     component = "contracts/stocks"
     network = "base-mainnet"
     chain = Chain("base", "REGENT_BASE_RPC_URL", 8453)
-    script = "script/DeployStocksBase.s.sol:DeployStocksBase"
     shared_component = None
     PREDICTED = ("launchpad", "splitter_implementation", "locker", "hook", "bid_adapter")
     # Every contract a ceremony creates, in creation order, transactions first and then the
@@ -557,9 +565,75 @@ class Stocks(Package):
         ]
         return [{"chain_id": self.chain.chain_id, "creation_order": order, "internal_creations": internal}]
 
-    def rehearsals(self, selection: dict) -> list[tuple[Chain, list[str], dict]]:
-        env = self.selection_environment(selection, selection["hook_salt"])
-        return [(self.chain, ["forge", "script", self.script, "--rpc-url", self.chain.alias], env)]
+    def rehearse(self, packet: dict) -> None:
+        """Simulates the exact creation transactions, in order and at their nonces, on a Base node,
+        then the wiring readbacks against the simulated state, and writes the transactions out.
+        Forge cannot run this ceremony: every route constructor reads its stock token, whose
+        one-byte `0xef` code only a Base node executes."""
+        selection = packet["selection"]
+        artifacts = frozen_artifacts(self.frozen)
+        transactions = []
+        for entry in self.topology(selection)[0]["creation_order"]:
+            contract = entry["contract"]
+            record = self.frozen.contract(contract)
+            creation = bytes.fromhex(freeze.code_object(artifacts[contract], "bytecode"))
+            if freeze.keccak256(creation) != record["creation_keccak256"].lower():
+                raise CeremonyError(f"the build's {contract} creation code is not the frozen one")
+            types = ",".join(parameter.split()[0] for parameter in record["constructor"])
+            names = [parameter.split()[1] for parameter in record["constructor"]]
+            arguments = run(["cast", "abi-encode", f"constructor({types})",
+                             *(str(entry["constructor_arguments"][name]) for name in names)]).strip()
+            transactions.append({"index": entry["index"], "nonce": entry["deployer_nonce"], "contract": contract,
+                                 "address": entry["address"], "data": "0x" + creation.hex() + arguments.removeprefix("0x")})
+
+        fee = hex(2 * int(self.chain.cast("base-fee", "latest")))
+        creations = [{"from": selection["deployer"], "nonce": hex(t["nonce"]), "data": t["data"], "gas": hex(SIMULATION_GAS),
+                      "maxFeePerGas": fee, "maxPriorityFeePerGas": "0x0"} for t in transactions]
+        plan = self.readback_plan(selection)
+        readbacks = [{"to": to, "data": freeze.keccak256(signature.partition(")")[0].encode() + b")")[:10],
+                      "maxFeePerGas": "0x0", "maxPriorityFeePerGas": "0x0"} for _, to, signature, _ in plan]
+        blocks = self.chain.rpc("eth_simulateV1", [{
+            "blockStateCalls": [{"calls": creations}, {"blockOverrides": {"baseFeePerGas": "0x0"}, "calls": readbacks}],
+            "validation": True,
+        }, "latest"])
+
+        problems: list[str] = []
+        for transaction, call in zip(transactions, blocks[0]["calls"]):
+            label = f"transaction {transaction['index']} ({transaction['contract']}, nonce {transaction['nonce']})"
+            if quantity(call["status"]) != 1:
+                problems.append(f"{label} reverted: {call.get('error') or call['returnData']}")
+                continue
+            transaction["gas_used"] = quantity(call["gasUsed"])
+            runtime = bytes.fromhex(call["returnData"].removeprefix("0x"))
+            verification, matches = compare_runtime(self.frozen.contract(transaction["contract"]),
+                                                    artifacts[transaction["contract"]], {}, runtime)
+            if not matches:
+                problems.append(f"{label}: the created code does not match ({verification})")
+        for (key, _, signature, wanted), call in zip(plan, blocks[1]["calls"]):
+            word = call["returnData"].removeprefix("0x")
+            if quantity(call["status"]) != 1 or len(word) != 64:
+                problems.append(f"readback {key} did not answer one word")
+                continue
+            found = int(word, 16) == 1 if signature.endswith("(bool)") else checksum(word[24:])
+            if found != wanted:
+                problems.append(f"readback {key}: expected {wanted}, found {found}")
+        if problems:
+            raise CeremonyError("the simulated ceremony does not match the packet:\n  " + "\n  ".join(problems))
+
+        document = {
+            "artifact": f"regents-autolaunch-{self.network}-rehearsed-transactions",
+            "packet_digest": packet["digest"]["value"],
+            "chain_id": self.chain.chain_id,
+            "deployer": selection["deployer"],
+            "simulated_after_block": quantity(blocks[0]["number"]) - 1,
+            "gas_used_total": sum(t["gas_used"] for t in transactions),
+            "transactions": transactions,
+        }
+        candidate = write_candidate(REHEARSED_TRANSACTIONS_NAME, document)
+        print(f"{len(transactions)} creations simulated in order on {self.chain.alias} after block "
+              f"{document['simulated_after_block']}, every created code matches the frozen build and all "
+              f"{len(plan)} readbacks match; {document['gas_used_total']} gas; nothing was broadcast")
+        print(f"the exact transactions are written to {candidate}")
 
     def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
         predicted = selection["predicted_addresses"]
@@ -575,30 +649,27 @@ class Stocks(Package):
             (self.chain, "StocksFeeHookV1", predicted["hook"], "StocksLaunchpadV1 constructor"),
         ]
 
-    def readbacks(self, selection: dict, problems: list[str]) -> dict:
-        chain = self.chain
+    def readback_plan(self, selection: dict) -> list[tuple[str, str, str, object]]:
+        """(key, contract, view, expected value) for every wiring fact of the deployed graph."""
         predicted = selection["predicted_addresses"]
         launchpad = predicted["launchpad"]
-        found = {
-            "launchpad.hook": chain.call_address(launchpad, "hook()(address)"),
-            "launchpad.locker": chain.call_address(launchpad, "locker()(address)"),
-            "launchpad.splitterImplementation": chain.call_address(launchpad, "splitterImplementation()(address)"),
-            "launchpad.launchesPaused": chain.call_bool(launchpad, "launchesPaused()(bool)"),
-            "bidAdapter.launchpad": chain.call_address(predicted["bid_adapter"], "launchpad()(address)"),
-        }
-        expected = {
-            "launchpad.hook": predicted["hook"],
-            "launchpad.locker": predicted["locker"],
-            "launchpad.splitterImplementation": predicted["splitter_implementation"],
-            "launchpad.launchesPaused": True,
-            "bidAdapter.launchpad": launchpad,
-        }
+        plan = [
+            ("launchpad.hook", launchpad, "hook()(address)", predicted["hook"]),
+            ("launchpad.locker", launchpad, "locker()(address)", predicted["locker"]),
+            ("launchpad.splitterImplementation", launchpad, "splitterImplementation()(address)", predicted["splitter_implementation"]),
+            ("launchpad.launchesPaused", launchpad, "launchesPaused()(bool)", True),
+            ("bidAdapter.launchpad", predicted["bid_adapter"], "launchpad()(address)", launchpad),
+        ]
         for i, route in enumerate(predicted["routes"]):
             admission = selection["admissions"][i]
-            for view, wanted in (("stock", admission["stock"]), ("pool", admission["pool"]), ("feed", admission["feed"])):
-                found[f"route[{i}].{view}"] = chain.call_address(route, f"{view}()(address)")
-                expected[f"route[{i}].{view}"] = wanted
-        for key, wanted in expected.items():
+            plan += [(f"route[{i}].{view}", route, f"{view}()(address)", admission[view]) for view in ("stock", "pool", "feed")]
+        return plan
+
+    def readbacks(self, selection: dict, problems: list[str]) -> dict:
+        found = {}
+        for key, to, signature, wanted in self.readback_plan(selection):
+            read = self.chain.call_bool if signature.endswith("(bool)") else self.chain.call_address
+            found[key] = read(to, signature)
             if found[key] != wanted:
                 problems.append(f"readback {key}: expected {wanted}, found {found[key]}")
         return found
@@ -840,12 +911,16 @@ class Robinhood(Package):
     def library_pin(self, selection: dict) -> str:
         return f"{self.LIBRARY}:{selection['predicted_addresses']['positions_lib']}"
 
-    def rehearsals(self, selection: dict) -> list[tuple[Chain, list[str], dict]]:
-        env = self.selection_environment(selection, selection["hook_salt"])
-        return [
-            (self.chain, ["forge", "script", self.script, "--rpc-url", self.chain.alias, "--libraries", self.library_pin(selection)], env),
-            (self.base, ["forge", "script", self.receiver_script, "--rpc-url", self.base.alias], env),
-        ]
+    def rehearse(self, packet: dict) -> None:
+        selection = packet["selection"]
+        env = forge_env(offline=False, extra=self.selection_environment(selection, selection["hook_salt"]))
+        for chain, command in (
+            (self.chain, ["forge", "script", self.script, "--rpc-url", self.chain.alias, "--libraries", self.library_pin(selection)]),
+            (self.base, ["forge", "script", self.receiver_script, "--rpc-url", self.base.alias]),
+        ):
+            chain.endpoint()
+            run(command, env=env)
+            print(f"{command[2]}: simulated cleanly against {chain.alias} with no signer; nothing was broadcast")
 
     def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
         p = selection["predicted_addresses"]
@@ -1175,10 +1250,7 @@ def mode_rehearse(package: Package, frozen: Frozen, args: argparse.Namespace) ->
         raise CeremonyError("external state moved since the packet was prepared:\n  " + "\n  ".join(problems))
     print("external observation: every committed fact matches the live chain exactly")
     verify_selection_rederives(package, selection)
-    for chain, command, env in package.rehearsals(selection):
-        chain.endpoint()
-        run(command, env=forge_env(offline=False, extra=env))
-        print(f"{command[2]}: simulated cleanly against {chain.alias} with no signer; nothing was broadcast")
+    package.rehearse(packet)
     print("CEREMONY REHEARSE PASS: mainnet-NO-GO, not authorized")
     return 0
 
@@ -1279,22 +1351,10 @@ def frozen_artifacts(frozen: Frozen) -> dict[str, dict]:
     return found
 
 
-def verify_code(chain: Chain, frozen: Frozen, artifacts: dict, links: dict[str, str], contract: str,
-                address: str, block: int, created_by: str, problems: list[str]) -> dict:
-    record = frozen.contract(contract)
-    artifact = artifacts[contract]
-    onchain = chain.code(address)
-    codehash = freeze.keccak256(onchain)
-    entry = {"contract": contract, "contract_key": CONTRACT_KEYS[contract], "chain_id": chain.chain_id, "address": address,
-             "created_by": created_by, "block_number": block, "codehash": codehash, "runtime_bytes": len(onchain)}
-    if len(onchain) == 0:
-        problems.append(f"{contract} at {address} has no code")
-        return entry
+def compare_runtime(record: dict, artifact: dict, links: dict[str, str], code: bytes) -> tuple[str, bool]:
+    """How a created runtime is compared with the frozen one, and whether it matches."""
     if record["runtime_keccak256_is_deployed_codehash"]:
-        entry["verification"] = "codehash equals the frozen runtime keccak256"
-        if codehash != record["runtime_keccak256"].lower():
-            problems.append(f"{contract} at {address}: codehash {codehash} is not the frozen {record['runtime_keccak256']}")
-        return entry
+        return "codehash equals the frozen runtime keccak256", freeze.keccak256(code) == record["runtime_keccak256"].lower()
     compiled = freeze.code_object(artifact, "deployedBytecode")
     for _, libraries in (artifact["deployedBytecode"].get("linkReferences") or {}).items():
         for library, positions in libraries.items():
@@ -1302,15 +1362,27 @@ def verify_code(chain: Chain, frozen: Frozen, artifacts: dict, links: dict[str, 
                 start = position["start"] * 2
                 compiled = compiled[:start] + links[library].lower().removeprefix("0x") + compiled[start + 40:]
     compiled_bytes = bytearray(bytes.fromhex(compiled))
-    masked = bytearray(onchain)
+    masked = bytearray(code)
     for references in (artifact["deployedBytecode"].get("immutableReferences") or {}).values():
         for reference in references:
             start, length = reference["start"], reference["length"]
             compiled_bytes[start:start + length] = b"\0" * length
             masked[start:start + length] = b"\0" * length
-    entry["verification"] = "deployed code equals the frozen runtime with immutables masked and libraries linked"
-    if bytes(compiled_bytes) != bytes(masked):
-        problems.append(f"{contract} at {address}: deployed code differs from the frozen runtime outside its immutables")
+    return "deployed code equals the frozen runtime with immutables masked and libraries linked", bytes(compiled_bytes) == bytes(masked)
+
+
+def verify_code(chain: Chain, frozen: Frozen, artifacts: dict, links: dict[str, str], contract: str,
+                address: str, block: int, created_by: str, problems: list[str]) -> dict:
+    onchain = chain.code(address)
+    codehash = freeze.keccak256(onchain)
+    entry = {"contract": contract, "contract_key": CONTRACT_KEYS[contract], "chain_id": chain.chain_id, "address": address,
+             "created_by": created_by, "block_number": block, "codehash": codehash, "runtime_bytes": len(onchain)}
+    if len(onchain) == 0:
+        problems.append(f"{contract} at {address} has no code")
+        return entry
+    entry["verification"], matches = compare_runtime(frozen.contract(contract), artifacts[contract], links, onchain)
+    if not matches:
+        problems.append(f"{contract} at {address}: the deployed code does not match ({entry['verification']})")
     return entry
 
 
