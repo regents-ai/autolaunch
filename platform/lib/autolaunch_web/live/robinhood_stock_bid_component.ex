@@ -56,6 +56,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   @steps %{"usdg_approval" => :usdg_approval, "usdg_bid" => :usdg_bid}
 
   @impl true
+  def update(%{refresh_bids: true}, socket), do: {:ok, with_reading(socket)}
+
   def update(assigns, socket) do
     {:ok,
      socket
@@ -259,9 +261,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           <h3>Your bids on this auction</h3>
           <ul role="list">
             <li :for={bid <- @reading.bids}>
-              Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]} · {bid_state(
-                bid
-              )}
+              <p>
+                Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]} · {bid_state(
+                  bid
+                )}
+              </p>
+              <.live_component
+                module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
+                id={"#{@id}-settle-#{bid["bid_id"]}"}
+                parent_id={@id}
+                auction={@auction}
+                bid={bid}
+                wallet={@wallet}
+                current_human_id={@current_human_id}
+                session_lease={@session_lease}
+              />
             </li>
           </ul>
         </section>

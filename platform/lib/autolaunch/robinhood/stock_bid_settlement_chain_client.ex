@@ -1,38 +1,43 @@
-defmodule Autolaunch.LabBidSettlementChainClient do
+defmodule Autolaunch.Robinhood.StockBidSettlementChainClient do
   @moduledoc """
-  The one fork boundary a Base bid settlement has: one snapshot before review,
-  one read after each hash.
+  The one chain boundary settling a bid on a Robinhood memestock auction has:
+  one snapshot before review, one read after each hash.
 
-  `snapshot/1` pins one block on the Base fork, reads the auction's schedule,
-  currency and the bid's own record, and asks the auction what settling would
-  do through `Autolaunch.Chain.CcaSettlement`, which simulates the auction's
-  own `checkpoint()`, `isGraduated()`, `clearingPrice()`, then the exit and
-  the claim from the bid's owner, deriving `exitPartiallyFilledBid` hints when
-  the bid needs them.
+  `snapshot/1` pins one block on Robinhood, reads the auction's schedule, its
+  STOCK and that STOCK's admitted decimals from the launchpad, the bid's own
+  record, and asks the auction what settling would do through
+  `Autolaunch.Chain.CcaSettlement`: the exit that returns unspent STOCK (a
+  plain exit, or a partial exit with checkpoint hints when the bid was only
+  partly filled) and the claim that delivers the launch tokens.
 
-  `verify/3` decodes `BidExited` and `TokensClaimed` from the canonical receipt
-  and checks the owner is the reviewed signer.
+  `verify/3` decodes `BidExited` and `TokensClaimed` from the canonical
+  receipt and checks the owner is the reviewed signer.
   """
 
   alias Autolaunch.Chain.{Address, CcaSettlement, Envelope, Rpc}
-  alias Autolaunch.{Lab, LabAbi, LabRpc}
+  alias Autolaunch.{LabAbi, LabRpc}
+  alias Autolaunch.Robinhood.Lab
 
-  @binding_keys [:regent]
+  @binding_keys [:stocks_launchpad]
+  @new_decimals 18
 
   def binding_keys, do: @binding_keys
 
-  @doc "Everything the review states about one bid position, read and simulated at one block."
+  @doc "Everything the review states about one bid, read and simulated at one block."
   @spec snapshot(map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(%{auction: auction, bid_id: bid_id, signer: signer})
       when is_integer(bid_id) and bid_id >= 0 do
     with {:ok, auction} <- Address.normalize(auction),
-         {:ok, config, block, opts} <- LabRpc.current(@binding_keys),
+         {:ok, config} <- Lab.current(),
+         opts <- Lab.rpc_opts(config),
+         {:ok, block} <- Rpc.latest_block(opts),
          :ok <- LabRpc.ensure_contract(auction, block, opts),
          venue <- venue(config, block, opts),
          {:ok, end_block} <- call_uint(venue, auction, "endBlock()"),
          {:ok, claim_block} <- call_uint(venue, auction, "claimBlock()"),
-         {:ok, currency} <-
+         {:ok, stock} <-
            Rpc.call_address(auction, LabAbi.encode(venue.abi, "currency()", []), block, opts),
+         {:ok, decimals} <- stock_decimals(config, stock, block, opts),
          {:ok, bid} <- CcaSettlement.bid(venue, auction, bid_id),
          {:ok, simulated} <- CcaSettlement.simulate(venue, auction, bid, end_block) do
       {:ok,
@@ -41,7 +46,8 @@ defmodule Autolaunch.LabBidSettlementChainClient do
          block: block,
          end_block: end_block,
          claim_block: claim_block,
-         currency: currency,
+         stock: stock,
+         stock_decimals: decimals,
          bid: bid,
          signer: signer,
          lab_binding: Lab.binding(config, @binding_keys)
@@ -62,13 +68,23 @@ defmodule Autolaunch.LabBidSettlementChainClient do
   def verify_with_evidence(envelope, step, hash) when step in [:exit, :claim] do
     with true <-
            Envelope.valid_for_confirmation?(envelope,
-             resource: "autolaunch_bid",
+             resource: "autolaunch_robinhood_bid_settlement",
              chain_id: Lab.chain_id()
            ),
          true <- Lab.binding_matches?(envelope["metadata"]["lab"], @binding_keys),
          {:ok, config} <- Lab.current(),
          %{} = current <- current_step(envelope, step),
-         {:ok, evidence} <- LabRpc.canonical_outcome_evidence(config, envelope, current, hash),
+         opts <- Lab.rpc_opts(config),
+         {:ok, block} <- Rpc.latest_block(opts),
+         {:ok, evidence} <-
+           Rpc.canonical_outcome_evidence(
+             hash,
+             envelope["expected_signer"],
+             current["to"],
+             current["data"],
+             block,
+             opts
+           ),
          {:ok, result} <- settled(evidence.outcome, envelope, step, config) do
       {:ok, Map.put(result, :receipt, evidence.receipt)}
     else
@@ -88,6 +104,25 @@ defmodule Autolaunch.LabBidSettlementChainClient do
     }
   end
 
+  # `stockAdmission(stock)`: admitted, decimals, route. A revoked stock keeps
+  # the decimals it was admitted with, so a settlement still formats correctly.
+  defp stock_decimals(config, stock, block, opts) do
+    with {:ok, [_admitted, decimals, _route]} <-
+           Rpc.call_words(
+             Lab.address!(config, :stocks_launchpad),
+             LabAbi.encode(Lab.abi!(config, :stocks_launchpad), "stockAdmission(address)", [stock]),
+             block,
+             3,
+             opts
+           ),
+         true <- decimals in 0..255 do
+      {:ok, decimals}
+    else
+      {:error, reason} -> {:error, reason}
+      _malformed -> {:error, :invalid_chain_response}
+    end
+  end
+
   defp settled(:pending, _envelope, _step, _config), do: {:ok, %{outcome: :pending}}
   defp settled(:reverted, _envelope, _step, _config), do: {:ok, %{outcome: :reverted}}
 
@@ -100,7 +135,7 @@ defmodule Autolaunch.LabBidSettlementChainClient do
 
     case CcaSettlement.exited(abi, logs, envelope["to"], bid_id, envelope["expected_signer"]) do
       {:ok, exit} ->
-        decimals = String.to_integer(arguments["currency_decimals"])
+        decimals = String.to_integer(arguments["stock_decimals"])
 
         {:ok,
          %{
@@ -109,9 +144,9 @@ defmodule Autolaunch.LabBidSettlementChainClient do
              "onchain_bid_id" => arguments["onchain_bid_id"],
              "exited" => true,
              "tokens_filled" => Integer.to_string(exit.tokens_filled),
-             "tokens_filled_units" => Rpc.format_units(exit.tokens_filled, 18),
-             "currency_refunded" => Integer.to_string(exit.currency_refunded),
-             "currency_refunded_units" => Rpc.format_units(exit.currency_refunded, decimals),
+             "tokens_filled_units" => Rpc.format_units(exit.tokens_filled, @new_decimals),
+             "stock_refunded" => Integer.to_string(exit.currency_refunded),
+             "stock_refunded_units" => Rpc.format_units(exit.currency_refunded, decimals),
              "local_block_hash" => exit.block.hash
            }
          }}
@@ -138,7 +173,7 @@ defmodule Autolaunch.LabBidSettlementChainClient do
              "onchain_bid_id" => arguments["onchain_bid_id"],
              "claimed" => true,
              "tokens_claimed" => Integer.to_string(claim.tokens_claimed),
-             "tokens_claimed_units" => Rpc.format_units(claim.tokens_claimed, 18),
+             "tokens_claimed_units" => Rpc.format_units(claim.tokens_claimed, @new_decimals),
              "local_block_hash" => claim.block.hash
            }
          }}

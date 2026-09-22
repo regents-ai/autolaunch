@@ -12,6 +12,8 @@ defmodule Autolaunch.Robinhood.LabAbi do
   @splitter_created "MemestockSplitterCreated(uint256,address,address,address)"
   @stock_bid_placed "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
   @bid_submitted "BidSubmitted(uint256,address,uint256,uint128)"
+  @bid_exited "BidExited(uint256,address,uint256,uint256)"
+  @tokens_claimed "TokensClaimed(uint256,address,uint256)"
   @hook_fee_accrued "HookFeeAccrued(bytes32,uint256,uint256,uint256)"
   @protocol_lane_settled "ProtocolLaneSettled(bytes32,uint256,uint256)"
   @staker_lane_settled "StakerLaneSettled(bytes32,address,uint256)"
@@ -82,8 +84,8 @@ defmodule Autolaunch.Robinhood.LabAbi do
     "stock_route" => [
       f: {"quoteExactIn(address,address,uint256)", "view", ["uint256"]}
     ],
-    # The Continuous Clearing Auction the Stocks launchpad creates; only what
-    # the bid reader reads.
+    # The Continuous Clearing Auction the Stocks launchpad creates: what the
+    # bid reader reads, and what a settlement after the end block sends.
     "auction" => [
       f: {"currency()", "view", ["address"]},
       f: {"floorPrice()", "view", ["uint256"]},
@@ -91,13 +93,19 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"clearingPrice()", "view", ["uint256"]},
       f: {"MAX_BID_PRICE()", "view", ["uint256"]},
       f: {"checkpoint()", "nonpayable", [@checkpoint]},
+      f: {"checkpoints(uint64)", "view", [@checkpoint]},
       f: {"startBlock()", "view", ["uint64"]},
       f: {"endBlock()", "view", ["uint64"]},
       f: {"claimBlock()", "view", ["uint64"]},
       f: {"isGraduated()", "view", ["bool"]},
       f: {"ticks(uint256)", "view", ["(uint256,uint256)"]},
       f: {"bids(uint256)", "view", [@bid_record]},
-      e: {@bid_submitted, [true, true, false, false]}
+      f: {"exitBid(uint256)", "nonpayable", []},
+      f: {"exitPartiallyFilledBid(uint256,uint64,uint64)", "nonpayable", []},
+      f: {"claimTokens(uint256)", "nonpayable", []},
+      e: {@bid_submitted, [true, true, false, false]},
+      e: {@bid_exited, [true, true, false, false]},
+      e: {@tokens_claimed, [true, true, false]}
     ],
     "erc20" => [
       f: {"approve(address,uint256)", "nonpayable", ["bool"]},

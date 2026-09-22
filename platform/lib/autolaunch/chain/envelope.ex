@@ -15,6 +15,7 @@ defmodule Autolaunch.Chain.Envelope do
     autolaunch_stake
     autolaunch_robinhood_stocks_launch
     autolaunch_robinhood_bid
+    autolaunch_robinhood_bid_settlement
   )
   @lab_resources ~w(
     autolaunch_launch
@@ -28,6 +29,7 @@ defmodule Autolaunch.Chain.Envelope do
   @robinhood_lab_resources ~w(
     autolaunch_robinhood_stocks_launch
     autolaunch_robinhood_bid
+    autolaunch_robinhood_bid_settlement
     autolaunch_stake
   )
 
