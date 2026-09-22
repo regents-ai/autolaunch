@@ -134,7 +134,10 @@ contracts see with one call: `advance` jumps the clock to a lifecycle block, `pa
 evenly over wall time (twenty minutes by default, so a whole one-day auction plays out in twenty
 minutes), and `status` reports it as `block_clock`. Mining is not an option at these terms: Anvil
 mines about forty empty blocks a second, so the 864,000-block auction would take more than five
-hours. The clock only moves when `advance` or `pace` moves it. The splitters read `block.number`,
+hours. The clock only moves when `advance` or `pace` moves it, only forward, and only one of them
+at a time: a second `advance` or `pace` started while one is running is refused, and a target the
+clock has already passed is refused, so the number the contracts see never goes backwards. The
+splitters read `block.number`,
 which on the lab is Anvil's own block (one per transaction) and on the real chain is the Ethereum
 block. Anything that shows the auction clock must read it the way the contracts do: on Robinhood,
 call `arbBlockNumber()` at `0x…64` (on the real chain it agrees with `eth_blockNumber` within a few

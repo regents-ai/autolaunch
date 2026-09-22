@@ -8,8 +8,9 @@ chain, and writes `reports/generated/local-robinhood-lab/site-config.json` for t
 plus `state.json` for this controller. `fund` gives a wallet test ETH, USDG and
 optionally fixture STOCK. `status` reports the launchpad and every admitted stock.
 `advance` moves the block clock to an auction's start, end, claim or migration block;
-`pace` moves it there evenly over wall time; `migrate` graduates or fails a launch once
-its migration block has passed. `stop` ends the recorded Anvil.
+`pace` moves it there evenly over wall time; only one of them runs at a time and neither
+moves the clock backwards; `migrate` graduates or fails a launch once its migration block
+has passed. `stop` ends the recorded Anvil.
 
 The block clock: on the Robinhood chain, an Arbitrum Orbit rollup, the launchpad and the
 auction read the rollup block number from the ArbSys precompile (`arbBlockNumber()` at
@@ -29,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fcntl
 import json
 import os
 import re
@@ -41,7 +43,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterator, Mapping, Sequence
 
 LOCAL_CHAIN_ID = 31_338
 PERMIT2 = "0x000000000022d473030f116ddee9f6b43ac78ba3"
@@ -52,6 +54,7 @@ DEPLOYER_ENV = "REGENT_ROBINHOOD_LAB_DEPLOYER"
 PERMIT2_SOURCE = Path("../stocks/lib/permit2/test/utils/DeployPermit2.sol")
 GENERATED = Path("reports/generated/local-robinhood-lab")
 STATE_PATH = GENERATED / "state.json"
+BLOCK_CLOCK_LOCK_PATH = GENERATED / "block-clock.lock"
 SITE_CONFIG_PATH = GENERATED / "site-config.json"
 ABI_ARTIFACTS = {
     "stocks_launchpad": Path("out/RobinhoodStocksLaunchpadV1.sol/RobinhoodStocksLaunchpadV1.json"),
@@ -521,7 +524,21 @@ def install_block_clock(client: RpcClient) -> None:
         raise LabError("the block clock did not answer with its genesis value")
 
 
+@contextlib.contextmanager
+def block_clock_writer(root: Path) -> Iterator[None]:
+    """One command moves the block clock at a time; an overlapping `advance` or `pace` fails instead of racing."""
+    path = root / BLOCK_CLOCK_LOCK_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise LabError("another command is moving the block clock; wait for it to finish") from exc
+        yield
+
+
 def advance_block_clock(client: RpcClient, target: int) -> int:
+    """The only mover after `start`: reads the live clock first, so it never writes an earlier value."""
     clock = read_block_clock(client)
     if clock > target:
         raise LabError(f"the block clock at {clock} is already past target {target}")
@@ -712,7 +729,8 @@ def command_advance(args: argparse.Namespace) -> None:
     root = component_root()
     state, client = active_state(root)
     timing = auction_timing(client, state["addresses"]["stocks_launchpad"], args.auction)
-    block_clock = advance_block_clock(client, int(timing[args.to]))
+    with block_clock_writer(root):
+        block_clock = advance_block_clock(client, int(timing[args.to]))
     print(json.dumps({"block_clock": block_clock, "target": args.to, "timing": timing}, indent=2, sort_keys=True))
 
 
@@ -723,18 +741,18 @@ def command_pace(args: argparse.Namespace) -> None:
         raise LabError("pace duration must be positive")
     timing = auction_timing(client, state["addresses"]["stocks_launchpad"], args.auction)
     target = int(timing[args.to])
-    origin = read_block_clock(client)
-    if origin > target:
-        raise LabError(f"the block clock at {origin} is already past target {target}")
-    began = time.monotonic()
-    clock = origin
-    while clock < target:
-        desired = paced_target(origin, target, time.monotonic() - began, args.duration_seconds)
-        if desired > clock:
-            set_block_clock(client, desired)
-            clock = desired
-        else:
-            time.sleep(PACE_TICK_SECONDS)
+    with block_clock_writer(root):
+        origin = read_block_clock(client)
+        if origin > target:
+            raise LabError(f"the block clock at {origin} is already past target {target}")
+        began = time.monotonic()
+        clock = origin
+        while clock < target:
+            desired = paced_target(origin, target, time.monotonic() - began, args.duration_seconds)
+            if desired > clock:
+                clock = advance_block_clock(client, desired)
+            else:
+                time.sleep(PACE_TICK_SECONDS)
     print(json.dumps({"block_clock": clock, "target": args.to, "duration_seconds": args.duration_seconds, "timing": timing}, indent=2, sort_keys=True))
 
 
