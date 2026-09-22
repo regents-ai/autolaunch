@@ -13,7 +13,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Robinhood.StocksLaunchActions
+  alias Autolaunch.Robinhood.{Lab, StocksLaunchActions}
 
   @copy %{
     authentication_required: "Sign in to launch from your wallet.",
@@ -120,7 +120,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
           <div>
             <dt>Network</dt>
             <dd>
-              {network_name(@review.envelope["chain_id"])} · chain {@review.envelope["chain_id"]}
+              {Lab.network_name(@review.envelope["chain_id"])} · chain {@review.envelope["chain_id"]}
             </dd>
           </div>
           <div>
@@ -148,7 +148,7 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
         <section :if={launched(@sent)} class="launch-wallet-settled" role="status">
           <p>
             The launch was created and its record was verified.
-            <span :if={@review.envelope["chain_id"] == 31_338}>Test assets have no real value.</span>
+            <span :if={Lab.test_chain?(@review.envelope["chain_id"])}>Test assets have no real value.</span>
           </p>
           <p>
             Launch #{launched(@sent)["launch_id"]} · Token
@@ -378,9 +378,6 @@ defmodule AutolaunchWeb.RobinhoodStocksLaunchComponent do
       if match?(%{outcome: :confirmed}, sent[name]), do: nil, else: name
     end)
   end
-
-  defp network_name(31_338), do: "Robinhood test network"
-  defp network_name(_chain_id), do: "Robinhood Chain"
 
   defp step_label("launch"), do: "Create the launch"
 

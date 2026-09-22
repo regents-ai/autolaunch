@@ -108,6 +108,7 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          {:ok, stock, decimals} <- stock_decimals(auction, block, config, rpc),
          {:ok, asset} <- listed_stock(stock),
          {:ok, window} <- bidding_window(auction, block, config, rpc),
+         {:ok, graduated?} <- graduated?(auction, block, config, rpc),
          {:ok, logs} <- bid_logs(auction, signer, block, rpc),
          {:ok, bids} <- bid_records(logs, auction, signer, decimals, block, config, rpc) do
       {:ok,
@@ -116,7 +117,8 @@ defmodule Autolaunch.Robinhood.StockBidActions do
          clock: clock,
          bids: bids,
          stock: %{"address" => stock, "symbol" => asset.symbol},
-         window: window
+         window: window,
+         graduated?: graduated?
        }}
     end
   end
@@ -501,6 +503,14 @@ defmodule Autolaunch.Robinhood.StockBidActions do
       {:error, reason} -> chain({:error, reason})
       _malformed -> unavailable(:invalid_chain_response)
     end
+  end
+
+  # Whether the auction raised what it required, at the pinned block. Final once
+  # bidding has ended and any bid has exited, since every exit checkpoints first.
+  defp graduated?(auction, block, config, rpc) do
+    abi = Lab.abi!(config, :auction)
+
+    chain(Rpc.call_bool(auction, LabAbi.encode(abi, "isGraduated()", []), block, rpc))
   end
 
   # The auction's own first and last bidding blocks at the pinned block.

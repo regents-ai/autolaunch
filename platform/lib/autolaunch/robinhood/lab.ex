@@ -55,6 +55,13 @@ defmodule Autolaunch.Robinhood.Lab do
   @doc "Whether the Robinhood deployment is the local lab: fixture stocks with no value."
   def test_chain?, do: chain_id() == @test_chain_id
 
+  @doc "Whether a reviewed chain id is the local lab's."
+  def test_chain?(chain_id), do: chain_id == @test_chain_id
+
+  @doc "The network a reviewed chain id names."
+  def network_name(chain_id),
+    do: if(test_chain?(chain_id), do: "Robinhood test network", else: "Robinhood Chain")
+
   @doc "The configured Robinhood deployment's chain id, or `nil` without one."
   def chain_id, do: Application.get_env(:autolaunch, :autolaunch_robinhood_chain_id)
 

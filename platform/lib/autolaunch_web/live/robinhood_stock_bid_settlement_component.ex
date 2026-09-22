@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Robinhood.StockBidSettlementActions
+  alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
   alias AutolaunchWeb.RobinhoodStockBidComponent
 
   @copy %{
@@ -40,6 +40,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     claim_not_open: "Tokens cannot be claimed yet.",
     nothing_to_claim: "This bid has no tokens to claim.",
     bid_not_exited: "Return this bid before claiming its tokens.",
+    failed_bid_returned:
+      "Your bid was returned in full. This launch did not raise enough, and there are no tokens to claim.",
     bid_needs_partial_exit_hints_unavailable:
       "This bid was only partly filled and the auction's records for it could not be traced. Try again in a moment.",
     settlement_reverted: "The auction refused this right now.",
@@ -57,16 +59,18 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
        assigns.session_lease}
 
     socket =
-      if socket.assigns[:settlement_identity] == identity, do: socket, else: cleared(socket)
+      if socket.assigns[:settlement_identity] in [nil, identity],
+        do: socket,
+        else: cleared(socket)
 
     {:ok,
      socket
      |> assign(assigns)
      |> assign(:settlement_identity, identity)
+     |> assign(:returned?, returned?(assigns.bid, assigns.graduated?))
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
-     |> assign_new(:sent, fn -> %{} end)
-     |> refresh_returned()}
+     |> assign_new(:sent, fn -> %{} end)}
   end
 
   @impl true
@@ -81,11 +85,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         {@notice.message}
       </p>
 
-      <p :if={@returned} class="launch-wallet-settled" role="status">
-        Your bid was returned in full. This launch did not raise enough, and there are no tokens to claim.
+      <p :if={@returned?} class="launch-wallet-settled" role="status">
+        {returned_copy()}
       </p>
 
-      <div :if={!@review && !@returned} class="launch-wallet-controls">
+      <div :if={!@review && !@returned?} class="launch-wallet-controls">
         <Regent.Primitives.button
           type="button"
           phx-click="review_settlement"
@@ -115,7 +119,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           <div>
             <dt>Network</dt>
             <dd>
-              {network_name(@review.envelope["chain_id"])} · chain {@review.envelope["chain_id"]}
+              {Lab.network_name(@review.envelope["chain_id"])} · chain {@review.envelope["chain_id"]}
             </dd>
           </div>
           <div>
@@ -142,7 +146,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
         <p :if={done?(@review.steps, @sent)} class="launch-wallet-settled" role="status">
           {done_copy(@review.steps)}
-          <span :if={@review.envelope["chain_id"] == 31_338}>Test assets have no real value.</span>
+          <span :if={Lab.test_chain?(@review.envelope["chain_id"])}>Test assets have no real value.</span>
         </p>
 
         <Regent.Primitives.disclosure
@@ -196,18 +200,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   @impl true
   def handle_event("review_settlement", _params, socket) do
-    case prepare(socket) do
+    request = %{auction: socket.assigns.auction, bid_id: socket.assigns.bid["bid_id"]}
+
+    case StockBidSettlementActions.prepare(request, socket.assigns.wallet, opts(socket)) do
       {:ok, review} ->
-        {:noreply,
-         socket |> assign(review: review, sent: %{}, notice: nil, returned: false) |> published()}
+        {:noreply, socket |> assign(review: review, sent: %{}, notice: nil) |> published()}
 
       {:error, error} ->
-        socket =
-          if refusal(error) == :failed_bid_returned,
-            do: returned(socket),
-            else: assign(socket, returned: false, notice: notice(:info, refusal(error)))
-
-        {:noreply, socket}
+        {:noreply, assign(socket, notice: notice(:info, refusal(error)))}
     end
   end
 
@@ -225,8 +225,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   def handle_event("step_failed", %{"reason" => reason}, socket),
     do: {:noreply, assign(socket, notice: %{tone: :error, message: wallet_failure_copy(reason)})}
 
-  def handle_event("clear_review", _params, socket),
-    do: {:noreply, socket |> cleared() |> refresh_returned()}
+  def handle_event("clear_review", _params, socket), do: {:noreply, cleared(socket)}
 
   # The wallet itself is the bid panel's; this row only follows it.
   def handle_event(_other, _params, socket), do: {:noreply, socket}
@@ -271,38 +270,20 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
     })
   end
 
-  # Re-read exited bids on load and parent refresh; the row is only a hint.
-  # The action still checks the current session, ownership and fresh chain state.
-  defp refresh_returned(socket) do
-    socket = if socket.assigns[:returned], do: cleared(socket), else: socket
-    socket = assign(socket, :returned, false)
+  # An exited bid with nothing filled on an auction that did not graduate has
+  # had its whole stake returned; the auction offers it nothing further. On a
+  # graduated auction the same record means the tokens were claimed.
+  defp returned?(%{"exited_block" => exited, "tokens_filled_now" => "0"}, false),
+    do: exited != "0"
 
-    if socket.assigns.bid["exited_block"] not in [nil, "0", 0] do
-      case prepare(socket) do
-        {:error, error} ->
-          if refusal(error) == :failed_bid_returned, do: returned(socket), else: socket
+  defp returned?(_bid, _graduated?), do: false
 
-        {:ok, _review} ->
-          socket
-      end
-    else
-      socket
-    end
-  end
-
-  defp prepare(socket) do
-    request = %{auction: socket.assigns.auction, bid_id: socket.assigns.bid["bid_id"]}
-    StockBidSettlementActions.prepare(request, socket.assigns.wallet, opts(socket))
-  end
-
-  defp returned(socket), do: socket |> cleared() |> assign(:returned, true)
+  defp returned_copy, do: @copy.failed_bid_returned
 
   defp cleared(socket) do
-    socket = assign(socket, review: nil, sent: %{}, notice: nil, returned: false)
-
-    if socket.assigns[:id],
-      do: push_event(socket, "reviewed-steps:cleared", %{component_id: socket.assigns.id}),
-      else: socket
+    socket
+    |> assign(review: nil, sent: %{}, notice: nil)
+    |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
   end
 
   defp opts(socket),
@@ -352,9 +333,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp step_count([_one]), do: "One transaction"
   defp step_count([_one, _two]), do: "Two transactions"
-
-  defp network_name(31_338), do: "Robinhood test network"
-  defp network_name(_chain_id), do: "Robinhood Chain"
 
   defp step_label("exit"), do: "Return the bid"
   defp step_label("claim"), do: "Claim tokens"

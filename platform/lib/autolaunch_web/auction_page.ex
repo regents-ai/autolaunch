@@ -4,7 +4,6 @@ defmodule AutolaunchWeb.AuctionPage do
   alias Autolaunch.Robinhood.Auctions
   alias AutolaunchWeb.Endpoint
 
-  # Shared with the former Base-only cursor so links already issued remain valid.
   @salt "public-listings-v1"
 
   def read(cursor, mode, sort, limit, autolaunch \\ Autolaunch) do
@@ -34,10 +33,6 @@ defmodule AutolaunchWeb.AuctionPage do
       {:ok, {^scope, {:base, keyset}}} when is_nil(keyset) or is_binary(keyset) ->
         {:ok, {:base, keyset}}
 
-      # Old cursors already returned all Robinhood entries on their first page.
-      {:ok, {^scope, keyset}} when is_binary(keyset) ->
-        {:ok, {:base, keyset}}
-
       _invalid ->
         {:error, :invalid_query}
     end
@@ -59,27 +54,28 @@ defmodule AutolaunchWeb.AuctionPage do
 
   defp base_page(robinhood, position, mode, sort, limit, scope, autolaunch) do
     remaining = limit - length(robinhood)
-
-    keyset =
-      case position do
-        {:base, keyset} -> keyset
-        {:robinhood, _id} -> nil
-      end
-
     opts = [limit: max(remaining, 1)]
-    opts = if keyset, do: Keyword.put(opts, :after, keyset), else: opts
+    opts = if keyset = base_keyset(position), do: Keyword.put(opts, :after, keyset), else: opts
 
     with {:ok, base} <- autolaunch.page_public_auctions(mode, sort, actor: nil, page: opts) do
-      # An exactly full Robinhood page probes Base without consuming its first row.
-      if remaining == 0 do
-        next = if base.results != [], do: {:base, nil}
-        {:ok, page(robinhood, [], next, scope)}
-      else
-        next = if base.more?, do: {:base, List.last(base.results).__metadata__.keyset}
-        {:ok, page(robinhood, base.results, next, scope)}
-      end
+      {:ok, page(robinhood, base_records(base, remaining), base_next(base, remaining), scope)}
     end
   end
+
+  defp base_keyset({:base, keyset}), do: keyset
+  defp base_keyset({:robinhood, _id}), do: nil
+
+  # An exactly full Robinhood page probes Base without consuming its first row.
+  defp base_records(_base, 0), do: []
+  defp base_records(base, _remaining), do: base.results
+
+  defp base_next(%{results: []}, 0), do: nil
+  defp base_next(_base, 0), do: {:base, nil}
+
+  defp base_next(%{more?: true, results: results}, _remaining),
+    do: {:base, List.last(results).__metadata__.keyset}
+
+  defp base_next(_base, _remaining), do: nil
 
   defp page(robinhood, records, next, scope) do
     %{
