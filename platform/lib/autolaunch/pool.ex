@@ -3,15 +3,17 @@ defmodule Autolaunch.Pool do
   Read-only pool facts for one graduated launch, read from Base.
 
   Agent launches graduate into a REGENT/SUBJECT pool recorded by the frozen
-  strategy (`distribution(auction)`) and charged by the frozen `RegentFeeHook`,
-  whose splitter lane lands in the launch's revenue splitter on every trade;
-  Stocks launches graduate into a NEW/STOCK pool recorded by the launchpad
-  (`launches(id)`), charged by `StocksFeeHookV1` and locked in the launchpad's
-  LP locker, whose fees flow to the launch's memestake splitter. Both are read
-  at one latest block: the pool key and id, the price at graduation, the
-  current pool price and liquidity from the PoolManager's own storage, the
-  locked positions and their owner, the unsold tokens' fate, and the fee lanes
-  with their totals.
+  strategy (`distribution(auction)`), charged by the frozen `RegentFeeHook`,
+  whose splitter lane lands in the launch's revenue splitter on every trade,
+  and locked in the strategy's `RevstakeLPLocker`, whose collected fees flow to
+  that same splitter; Stocks launches graduate into a NEW/STOCK pool recorded
+  by the launchpad (`launches(id)`), charged by `StocksFeeHookV1` and locked in
+  the launchpad's LP locker, whose fees flow to the launch's memestake
+  splitter. Both are read at one latest block: the pool key and id, the price
+  at graduation, the current pool price and liquidity from the PoolManager's
+  own storage, the locked positions with their owner and the fees a collection
+  would deposit now, the unsold tokens' fate, and the fee lanes with their
+  totals.
 
   Nothing here writes, signs or caches; every figure is the chain's own answer.
   """
@@ -246,6 +248,7 @@ defmodule Autolaunch.Pool do
              block,
              opts
            ),
+         locker <- Lab.address!(config, :lp_locker),
          {:ok, owner} <-
            owner_of(
              Lab.address!(config, :position_manager),
@@ -277,12 +280,23 @@ defmodule Autolaunch.Pool do
          current: current,
          positions: [
            %{
+             key: :full_range,
              label: "Full range",
              token_id: distribution.lp_token_id,
              owner: owner,
-             locked?: Address.equal?(owner, @dead),
+             locked?: Address.equal?(owner, locker),
              token_amount: Rpc.format_units(distribution.lp_subject_used, @token_decimals),
-             currency_amount: Rpc.format_units(distribution.lp_regent_used, @regent_decimals)
+             currency_amount: Rpc.format_units(distribution.lp_regent_used, @regent_decimals),
+             uncollected:
+               uncollected(
+                 locker,
+                 Lab.abi!(config, :lp_locker),
+                 distribution.lp_token_id,
+                 token_is_currency0?,
+                 @regent_decimals,
+                 block,
+                 opts
+               )
            }
          ],
          unsold: %{
@@ -328,8 +342,9 @@ defmodule Autolaunch.Pool do
 
   # Every `SwapFeeSettled` this pool emitted since graduation, summed per fee
   # token. Each lane is the same amount, so one total per token names both.
-  # The splitter's lane lands in it on the trade itself, so its totals are the
-  # only staking facts to read.
+  # The splitter's lane lands in it on the trade itself; the locked position's
+  # own pool fees wait in the position until collected, and the position
+  # carries what a collection would deposit now.
   defp agent_fees(config, distribution, auction, block, opts) do
     hook = Lab.address!(config, :hook)
 
@@ -510,7 +525,16 @@ defmodule Autolaunch.Pool do
            locked?: Address.equal?(owner, locker),
            token_amount: Rpc.format_units(launch.lp_new_used, @token_decimals),
            currency_amount: Rpc.format_units(launch.lp_stock_used, decimals),
-           uncollected: uncollected(config, launch, launch.lp_token_id, decimals, block, opts)
+           uncollected:
+             uncollected(
+               locker,
+               StocksLab.abi!(config, :locker),
+               launch.lp_token_id,
+               currency0?(launch.new_token, launch.stock),
+               decimals,
+               block,
+               opts
+             )
          }
        ] ++ one_sided}
     end
@@ -535,31 +559,18 @@ defmodule Autolaunch.Pool do
            locked?: Address.equal?(owner, locker),
            token_amount: "0",
            currency_amount: Rpc.format_units(launch.lp_stock_only_used, decimals),
-           uncollected: uncollected(config, launch, token_id, decimals, block, opts)
+           uncollected:
+             uncollected(
+               locker,
+               StocksLab.abi!(config, :locker),
+               token_id,
+               currency0?(launch.new_token, launch.stock),
+               decimals,
+               block,
+               opts
+             )
          }
        ]}
-    end
-  end
-
-  # `collect` simulated through `eth_call`: the fees a collection would deposit
-  # into the splitter now, or nil when the simulation cannot answer.
-  defp uncollected(config, launch, token_id, decimals, block, opts) do
-    data = LabAbi.encode(StocksLab.abi!(config, :locker), "collect(uint256)", [token_id])
-
-    case Rpc.call_words(StocksLab.address!(config, :locker), data, block, 2, opts) do
-      {:ok, [amount0, amount1]} ->
-        {token, currency} =
-          if currency0?(launch.new_token, launch.stock),
-            do: {amount0, amount1},
-            else: {amount1, amount0}
-
-        %{
-          token_amount: Rpc.format_units(token, @token_decimals),
-          currency_amount: Rpc.format_units(currency, decimals)
-        }
-
-      {:error, _reason} ->
-        nil
     end
   end
 
@@ -670,6 +681,27 @@ defmodule Autolaunch.Pool do
   end
 
   # Shared chain reads
+
+  # `collect` simulated through `eth_call` on the locker that owns the
+  # position: the fees a collection would deposit into the splitter now, or
+  # nil when the simulation cannot answer.
+  defp uncollected(locker, abi, token_id, token_is_currency0?, decimals, block, opts) do
+    data = LabAbi.encode(abi, "collect(uint256)", [token_id])
+
+    case Rpc.call_words(locker, data, block, 2, opts) do
+      {:ok, [amount0, amount1]} ->
+        {token, currency} =
+          if token_is_currency0?, do: {amount0, amount1}, else: {amount1, amount0}
+
+        %{
+          token_amount: Rpc.format_units(token, @token_decimals),
+          currency_amount: Rpc.format_units(currency, decimals)
+        }
+
+      {:error, _reason} ->
+        nil
+    end
+  end
 
   # `Pool.State` lives at `keccak256(poolId . POOLS_SLOT)`: word 0 packs
   # `sqrtPriceX96 | tick | protocolFee | lpFee`, word 3 is the liquidity.

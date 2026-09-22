@@ -122,6 +122,8 @@ defmodule Autolaunch.BaseRpcStub do
 
   defp result("eth_call", [%{data: data}, _block], state), do: state.calls.(data, state)
 
+  defp result("eth_getLogs", [_filter], state), do: Map.get(state, :logs, [])
+
   defp restore(key, nil), do: Application.delete_env(:autolaunch, key)
   defp restore(key, value), do: Application.put_env(:autolaunch, key, value)
 end

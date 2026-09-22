@@ -2,11 +2,11 @@ defmodule AutolaunchWeb.StakeComponent do
   @moduledoc """
   The staking card of a graduated launch, on its Base or Robinhood token page:
   what the launch's staking contract holds, what this wallet has in it, an
-  amount to stake or unstake, and the open actions (claim, and for a memestock
-  launch settle for stakers and collect trading fees; a Revstake launch's
-  splitter is paid on the trade itself). A panel over the card walks the
-  wallet through each reviewed action and closes itself when the chain
-  confirms it.
+  amount to stake or unstake, and the open actions (claim, collect the locked
+  liquidity's trading fees, and for a memestock launch settle for stakers; a
+  Revstake launch's swap fee reaches its splitter on the trade itself). A
+  panel over the card walks the wallet through each reviewed action and
+  closes itself when the chain confirms it.
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
   `%{chain: :robinhood, auction: address}`; `pool` is its current facts.
@@ -130,7 +130,7 @@ defmodule AutolaunchWeb.StakeComponent do
           <dt>Waiting for stakers</dt>
           <dd>{@pool.fees.stakers.accrued} {@pool.currency.symbol}</dd>
         </div>
-        <div :for={position <- @pool.positions} :if={@pool.kind == :stocks}>
+        <div :for={position <- @pool.positions}>
           <dt>{position.label} fees to collect</dt>
           <dd>{uncollected(position.uncollected, @pool)}</dd>
         </div>
@@ -231,13 +231,7 @@ defmodule AutolaunchWeb.StakeComponent do
             >
               Settle for stakers
             </Regent.Primitives.button>
-            <Regent.Primitives.button
-              :if={@pool.kind == :stocks}
-              type="submit"
-              name="kind"
-              value="collect"
-              variant="secondary"
-            >
+            <Regent.Primitives.button type="submit" name="kind" value="collect" variant="secondary">
               Collect trading fees
             </Regent.Primitives.button>
           </div>
@@ -521,7 +515,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp lead(%{kind: :agent} = pool),
     do:
-      "Stakers share this launch's revenue as it arrives: 1% of every trade plus whatever else is paid to its revenue splitter, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
+      "Stakers share this launch's revenue as it arrives: 1% of every trade, paid to the staking contract on the trade itself, the locked liquidity's own trading fees, which anyone can collect into it, and whatever else is paid to it, in #{pool.fees.splitter.dollar.symbol}, #{pool.currency.symbol} and #{pool.token.symbol}. Each staked #{pool.token.symbol} earns its share of the whole supply's cut. Unstake any time after the block you staked in."
 
   defp lead(%{kind: :stocks} = pool),
     do:

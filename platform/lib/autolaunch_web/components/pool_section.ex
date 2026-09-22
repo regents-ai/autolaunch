@@ -106,11 +106,8 @@ defmodule AutolaunchWeb.Components.PoolSection do
               <dt>Owner</dt>
               <dd>
                 <span class="autolaunch-exact-value">{position.owner}</span>
-                <span :if={position.locked? && @facts.kind == :agent}>
-                  Locked forever: nobody holds this address.
-                </span>
-                <span :if={position.locked? && @facts.kind == :stocks}>
-                  Locked forever in the fee locker: its trading fees go to stakers.
+                <span :if={position.locked?}>
+                  Locked forever: its trading fees go to stakers.
                 </span>
               </dd>
             </div>
@@ -177,12 +174,14 @@ defmodule AutolaunchWeb.Components.PoolSection do
     <section id="pool-fees" aria-label="Fee lanes">
       <h3>Fee lanes</h3>
       <p>
-        1% of currency-side volume goes to REGENT (governance) and 1% to the subject's revenue
-        splitter, paid on every trade. Fee lanes are fixed for this pool.
+        On every trade, 1% of currency-side volume goes to REGENT (governance) and 1% to this
+        launch's staking contract, paid on the trade itself. The locked liquidity's own trading
+        fees can be collected by anyone into the same staking contract, for {@facts.token.symbol} stakers.
+        Both are fixed for this pool.
       </p>
       <dl class="autolaunch-live-market">
         <div>
-          <dt>Subject revenue splitter</dt>
+          <dt>Staking contract</dt>
           <dd>
             <span class="autolaunch-exact-value">{@facts.fees.splitter.address}</span>
             <.link navigate={@facts.fees.subject_path}>Open the subject page</.link>

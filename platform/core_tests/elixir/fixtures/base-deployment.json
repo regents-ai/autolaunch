@@ -4181,6 +4181,299 @@
         "type": "error"
       }
     ],
+    "lp_locker": [
+      {
+        "type": "constructor",
+        "inputs": [
+          {
+            "name": "strategy_",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "stateMutability": "nonpayable"
+      },
+      {
+        "type": "function",
+        "name": "collect",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "amount0",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "amount1",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "stateMutability": "nonpayable"
+      },
+      {
+        "type": "function",
+        "name": "register",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "expectedKey",
+            "type": "tuple",
+            "internalType": "struct PoolKey",
+            "components": [
+              {
+                "name": "currency0",
+                "type": "address",
+                "internalType": "Currency"
+              },
+              {
+                "name": "currency1",
+                "type": "address",
+                "internalType": "Currency"
+              },
+              {
+                "name": "fee",
+                "type": "uint24",
+                "internalType": "uint24"
+              },
+              {
+                "name": "tickSpacing",
+                "type": "int24",
+                "internalType": "int24"
+              },
+              {
+                "name": "hooks",
+                "type": "address",
+                "internalType": "contract IHooks"
+              }
+            ]
+          },
+          {
+            "name": "splitter",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      },
+      {
+        "type": "function",
+        "name": "splitterOf",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "splitter",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "stateMutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "strategy",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "stateMutability": "view"
+      },
+      {
+        "type": "event",
+        "name": "FeesDeposited",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "indexed": true,
+            "internalType": "uint256"
+          },
+          {
+            "name": "splitter",
+            "type": "address",
+            "indexed": true,
+            "internalType": "address"
+          },
+          {
+            "name": "currency0",
+            "type": "address",
+            "indexed": false,
+            "internalType": "address"
+          },
+          {
+            "name": "currency1",
+            "type": "address",
+            "indexed": false,
+            "internalType": "address"
+          },
+          {
+            "name": "amount0",
+            "type": "uint256",
+            "indexed": false,
+            "internalType": "uint256"
+          },
+          {
+            "name": "amount1",
+            "type": "uint256",
+            "indexed": false,
+            "internalType": "uint256"
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "PositionLocked",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "indexed": true,
+            "internalType": "uint256"
+          },
+          {
+            "name": "poolId",
+            "type": "bytes32",
+            "indexed": true,
+            "internalType": "PoolId"
+          },
+          {
+            "name": "splitter",
+            "type": "address",
+            "indexed": true,
+            "internalType": "address"
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "error",
+        "name": "AllowanceNotCleared",
+        "inputs": [
+          {
+            "name": "token",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "found",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "error",
+        "name": "AlreadyRegistered",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "error",
+        "name": "BalanceNotRestored",
+        "inputs": [
+          {
+            "name": "token",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "expected",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "found",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "error",
+        "name": "EmptyPosition",
+        "inputs": []
+      },
+      {
+        "type": "error",
+        "name": "NotStrategy",
+        "inputs": [
+          {
+            "name": "caller",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "error",
+        "name": "PoolMismatch",
+        "inputs": []
+      },
+      {
+        "type": "error",
+        "name": "PositionNotOwned",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "error",
+        "name": "Reentrancy",
+        "inputs": []
+      },
+      {
+        "type": "error",
+        "name": "SplitterMismatch",
+        "inputs": []
+      },
+      {
+        "type": "error",
+        "name": "UnregisteredPosition",
+        "inputs": [
+          {
+            "name": "tokenId",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "error",
+        "name": "ZeroStrategy",
+        "inputs": []
+      }
+    ],
     "permit2": [
       {
         "inputs": [],
@@ -7431,6 +7724,7 @@
     "factory": "0xcc0df8493b348bfd7c58730a2c5e97b3a73acb00",
     "governance_safe": "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e",
     "hook": "0x2e3f35f8121629e57d2cd1b382e36048e1bae044",
+    "lp_locker": "0x7f2d8a0d1b6e3c4f5a9b8c7d6e5f4a3b2c1d0e9f",
     "permit2": "0x000000000022d473030f116ddee9f6b43ac78ba3",
     "pool_manager": "0x498581ff718922c3f8e6a244956af099b2652b2b",
     "position_manager": "0x7c5f5a4bbd8fd63184577525326123b519429bdc",

@@ -20,7 +20,7 @@ Privy" when real sign-in is configured (below) and "sign-in unavailable" otherwi
 | --- | --- | --- |
 | Controller | `contracts/v1/bin/local-base-lab.py`, run from `contracts/v1` | Starts Anvil as a fork of Base, deploys the graph, funds wallets, mines to auction milestones, reports status, stops Anvil |
 | Run record | `contracts/v1/reports/generated/local-base-lab/state.json` | Anvil PID, RPC URL, head block at start, local addresses; ignored by Git |
-| Site config | `contracts/v1/reports/generated/local-base-lab/site-config.json` | `rpc_url`, `chain_id`, thirteen `addresses`, nine `abis`; the file `AUTOLAUNCH_BASE_DEPLOYMENT` names. An optional `public_rpc_url` (`https://` only) is the door wallets add as chain 31337; without it wallets are given the loopback `rpc_url` |
+| Site config | `contracts/v1/reports/generated/local-base-lab/site-config.json` | `rpc_url`, `chain_id`, fourteen `addresses`, ten `abis`; the file `AUTOLAUNCH_BASE_DEPLOYMENT` names. An optional `public_rpc_url` (`https://` only) is the door wallets add as chain 31337; without it wallets are given the loopback `rpc_url` |
 | Site integration | `Autolaunch.Lab`, `Autolaunch.LabMarketFeed`, `Autolaunch.LabProjection`, `Autolaunch.LabBidChainClient` | Validates the config, reads the fork every second, projects launched auctions into the database, verifies bids against the fork |
 
 ## Starting a fresh lab

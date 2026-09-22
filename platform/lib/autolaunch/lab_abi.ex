@@ -4,6 +4,7 @@ defmodule Autolaunch.LabAbi do
   alias Autolaunch.Chain.{Abi, Address}
 
   @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)"
+  @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
   @claimed "Claimed(address,address,uint256)"
 
   @required %{
@@ -79,6 +80,13 @@ defmodule Autolaunch.LabAbi do
     "hook" => [
       e: {@swap_fee_settled, [true, true, true, false, false, false]}
     ],
+    # The token page simulates and drives the locked position's fee collection
+    # on the strategy's LP locker, and reads what a collection deposited.
+    "lp_locker" => [
+      f: {"collect(uint256)", "nonpayable", ["uint256", "uint256"]},
+      f: {"splitterOf(uint256)", "view", ["address"]},
+      e: {@fees_deposited, [true, true, false, false, false, false]}
+    ],
     # The token page's staking card reads and drives the launch's revenue splitter.
     "splitter" => [
       f: {"usdc()", "view", ["address"]},
@@ -119,6 +127,7 @@ defmodule Autolaunch.LabAbi do
   def requirements, do: @required
 
   def swap_fee_settled_signature, do: @swap_fee_settled
+  def fees_deposited_signature, do: @fees_deposited
   def claimed_signature, do: @claimed
 
   def validate(abis, required \\ @required)

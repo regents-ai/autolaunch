@@ -64,6 +64,7 @@ ABI_TARGETS = {
     "factory": "src/factory/RegentsAutolaunchFactoryV1.sol:RegentsAutolaunchFactoryV1",
     "strategy": "src/strategy/RegentLBPStrategy.sol:RegentLBPStrategy",
     "hook": "src/hook/RegentFeeHook.sol:RegentFeeHook",
+    "lp_locker": "src/revenue/RevstakeLPLocker.sol:RevstakeLPLocker",
     "escrow": "src/escrow/ConditionalVestingEscrowV1.sol:ConditionalVestingEscrowV1",
     "splitter": "src/revenue/SubjectSplitterV1.sol:SubjectSplitterV1",
     "receiver": "src/revenue/PaymentReceiverV1.sol:PaymentReceiverV1",
@@ -86,6 +87,7 @@ END_BLOCK = "0x083c6323"
 CLAIM_BLOCK = "0x37dfbc4b"
 FUNDS_RECIPIENT = "0x3b6fd2cf"
 DISTRIBUTION = "0xc2db09c1"
+LP_LOCKER = "0x03fc2013"
 
 
 class LabError(RuntimeError):
@@ -557,7 +559,9 @@ def deploy_graph(root: Path, client: RpcClient, deployer: str) -> dict[str, str]
             {"REGENT_LOCAL_LAB_DEPLOYER": deployer, "RUST_LOG": "error"}
         ),
     )
-    return parse_deployment_graph(output)
+    graph = parse_deployment_graph(output)
+    graph["lp_locker"] = decode_address(rpc_call(client, graph["strategy"], LP_LOCKER))
+    return graph
 
 
 def rpc_call(client: RpcClient, target: str, data: str) -> str:

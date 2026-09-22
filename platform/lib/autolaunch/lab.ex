@@ -25,6 +25,7 @@ defmodule Autolaunch.Lab do
     factory
     governance_safe
     hook
+    lp_locker
     permit2
     pool_manager
     position_manager
@@ -34,7 +35,7 @@ defmodule Autolaunch.Lab do
     strategy
     uerc20_factory
   )
-  @abi_keys ~w(auction escrow factory hook permit2 receiver splitter strategy token)
+  @abi_keys ~w(auction escrow factory hook lp_locker permit2 receiver splitter strategy token)
   # The log ledger follows the factory from the block it was deployed in.
   @ledger_keys ~w(factory)
 

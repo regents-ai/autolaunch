@@ -1,16 +1,17 @@
 defmodule Autolaunch.Stocks.StakeActions do
   @moduledoc """
   The one boundary between a wallet and a graduated launch's staking contract:
-  a Revstake launch's revenue splitter on Base, or a memestock launch's
-  memestake splitter with its fee hook and LP locker, on Base or on Robinhood.
+  a Revstake launch's revenue splitter with its LP locker on Base, or a
+  memestock launch's memestake splitter with its fee hook and LP locker, on
+  Base or on Robinhood.
 
   Five reviewed actions, each one immutable envelope the wallet signs step by
   step: stake (the exact token allowance to the splitter when it is short, then
   the stake), unstake, claim (every reward the splitter holds for the wallet),
   settle (the hook's staker lane into the splitter, open to anyone) and collect
   (the locked positions' trading fees into the splitter, open to anyone). A
-  Revstake splitter is paid on the trade itself, so it offers only the first
-  three. Nothing is written anywhere: the chain is the only record, and
+  Revstake splitter's hook lane is pulled on the trade itself, so it offers no
+  settle. Nothing is written anywhere: the chain is the only record, and
   confirmation reads the canonical receipt.
 
   Every call binds to the signed-in wallet of the account the session lease
@@ -49,20 +50,21 @@ defmodule Autolaunch.Stocks.StakeActions do
   ]
   # Where a launch lives, by its chain and kind: its deployment and that
   # deployment's event signatures, the configuration keys of the contracts a
-  # review binds to, the locker (none for a Revstake launch), the actions the
-  # staking contract offers and what each one signs against.
+  # review binds to, the locker, the actions the staking contract offers and
+  # what each one signs against.
   @venues %{
     {:base, :agent} => %{
       lab: Lab,
       abi: LabAbi,
-      binding: [:strategy, :hook],
+      binding: [:strategy, :hook, :lp_locker],
       hook: :hook,
-      locker: nil,
-      kinds: [:stake, :unstake, :claim],
+      locker: :lp_locker,
+      kinds: [:stake, :unstake, :claim, :collect],
       contracts: %{
         stake: "SubjectSplitterV1",
         unstake: "SubjectSplitterV1",
-        claim: "SubjectSplitterV1"
+        claim: "SubjectSplitterV1",
+        collect: "RevstakeLPLocker"
       }
     },
     {:base, :stocks} => %{
@@ -266,7 +268,6 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp binding(venue, config), do: venue.lab.binding(config, venue.binding)
 
-  defp locker(%{locker: nil}, _config), do: nil
   defp locker(venue, config), do: venue.lab.address!(config, venue.locker)
 
   # The review
