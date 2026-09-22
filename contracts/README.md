@@ -24,15 +24,9 @@ sources.
 
 ## Founder decisions recorded 9 September 2026
 
-- **Agent launch fee: 500,000 REGENT** (was the factory's built-in 1,000,000). `contracts/v1` is
-  frozen, so the constant `INITIAL_LAUNCH_FEE` is not edited; the factory's designed mutable surface
-  is used instead: the Governance and REGENT Safe calls `setLaunchFee(500_000e18)` as the activation
-  step right after `unpauseLaunches`. The local Base-fork lab applies the same call
-  (`contracts/stocks/bin/local-stocks-lab.py set-agent-fee`), and the website reads `launchFee()`
-  from the factory, so no other component hardcodes the amount. Re-freezing V1 with a new constant
-  would change its runtime identity and every frozen record; that remains a separate founder call.
-- **Stocks launch fee: 100,000 REGENT**, paid at creation into REGENT staking as staker rewards
-  (`fundRegentRewards`), never refunded. Implemented in `contracts/stocks/`.
+- **No launch fee** (founder decision, 21–22 September 2026, replacing the 500,000 and 100,000 REGENT
+  fees recorded here earlier). Neither `contracts/v1` nor `contracts/stocks` charges one: a launch costs
+  only gas, and no launchpad contract pulls or holds REGENT at creation.
 - **Stocks preset values accepted** as recorded in `contracts/stocks/README.md`, on the basis that the
   step schedule keeps ~30% of the auction supply in the final block, as Agent's does.
 - **Hook permission set accepted**: `beforeSwap` + `afterSwap` with return deltas so STOCK is charged on
