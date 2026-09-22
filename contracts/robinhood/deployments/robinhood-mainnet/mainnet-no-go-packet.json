@@ -23,7 +23,7 @@
   },
   "source_identity": {
     "src_tree": "53ab73f960659a73dfdccce42ed5050788a3b9fc",
-    "shared_src_tree": "4b6641b363d80b8969450b02809a4c1b5cc20344",
+    "shared_src_tree": "ae774116e03bd45492d9aa3c8b00fbbbe704383f",
     "shared_component": "contracts/stocks"
   },
   "frozen_manifest_sha256": "ce5673ff96c079ff6fa0c70776d7184b56bfc596a3ff938132e50adfb5833ac2",
@@ -195,6 +195,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x62fbaac133829de10622870bd415a9a76a6c2a07250e36ea8fc83adcdac9a66c"
+    "value": "0xd8cf41b0ab6e8f604a24775f5db25c72e24d5ab2f85ae4c7a64818f1f54e6867"
   }
 }

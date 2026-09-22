@@ -22,7 +22,7 @@
     "append_cbor": false
   },
   "source_identity": {
-    "src_tree": "4b6641b363d80b8969450b02809a4c1b5cc20344"
+    "src_tree": "ae774116e03bd45492d9aa3c8b00fbbbe704383f"
   },
   "frozen_manifest_sha256": "0c7b5d37924f13aa5a8c7b542f4f64cfc193f3893728e1f51d028993691b3b69",
   "code_identity": [
@@ -122,6 +122,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0x346afe69f7c9381eb39750a0d80531733a0768d45282feb5de05bee8d4852232"
+    "value": "0x8077b67f0b0982b92a3d9bbf85e91c6766b6db864686c0d37786ffd259856ad6"
   }
 }
