@@ -2,13 +2,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   @moduledoc """
   One graduated Robinhood memestock token, named by its token address: the
   one page of that token. The chain is the only record of the launch, so the
-  page reads the launch its token came from, names the auction it graduated
-  from, and hands the signed-in wallet the staking card.
+  page reads the launch its token came from, names its creator when a
+  signed-up account's wallet launched it, names the auction it graduated
+  from, and hands the signed-in wallet the trading and staking cards.
   """
 
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
+  import AutolaunchWeb.Components.AutolaunchHelpers,
+    only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
+
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
 
   alias Autolaunch.Chain.Address
@@ -37,6 +40,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
          assign(socket,
            token: nil,
            launch: %Phoenix.LiveView.AsyncResult{},
+           creator_connections: %Phoenix.LiveView.AsyncResult{},
            pool: %Phoenix.LiveView.AsyncResult{}
          )}
     end
@@ -64,7 +68,11 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         </Regent.Structure.section_bar>
         <p>{network_copy(Lab.test_chain?())}</p>
       </header>
-      <.detail_card kind={:robinhood_token} record={@launch.result} />
+      <.detail_card
+        kind={:robinhood_token}
+        record={@launch.result}
+        creator_connections={@creator_connections.result}
+      />
       <dl class="autolaunch-live-market" aria-label="Token facts">
         <div>
           <dt>Token address</dt>
@@ -165,6 +173,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   defp load_page(%{assigns: %{open?: false}} = socket) do
     assign(socket,
       launch: %Phoenix.LiveView.AsyncResult{},
+      creator_connections: %Phoenix.LiveView.AsyncResult{},
       pool: %Phoenix.LiveView.AsyncResult{}
     )
   end
@@ -174,9 +183,15 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
     socket
     |> assign_async(
-      :launch,
+      [:launch, :creator_connections],
       fn ->
-        with {:ok, launch} <- Auctions.fetch_by_token(token), do: {:ok, %{launch: launch}}
+        with {:ok, launch} <- Auctions.fetch_by_token(token) do
+          {:ok,
+           %{
+             launch: launch,
+             creator_connections: connections_for(launch, creator_connections_for([launch]))
+           }}
+        end
       end,
       reset: true
     )

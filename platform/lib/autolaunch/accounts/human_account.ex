@@ -16,6 +16,14 @@ defmodule Autolaunch.Accounts.HumanAccount do
       filter expr(privy_user_id == ^arg(:privy_did))
     end
 
+    # The accounts whose signed-in wallet is one of these addresses (lowercase).
+    # A Robinhood launch's launcher had to be its creator's signed-in wallet, so
+    # this names who launched it.
+    read :by_signed_in_wallets do
+      argument :wallet_addresses, {:array, :string}, allow_nil?: false
+      filter expr(string_downcase(wallet_address) in ^arg(:wallet_addresses))
+    end
+
     read :read_self do
       get? true
       argument :id, :integer, allow_nil?: false
@@ -53,7 +61,7 @@ defmodule Autolaunch.Accounts.HumanAccount do
   end
 
   policies do
-    policy action([:by_privy_did, :register_verified, :refresh_verified]) do
+    policy action([:by_privy_did, :by_signed_in_wallets, :register_verified, :refresh_verified]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
 

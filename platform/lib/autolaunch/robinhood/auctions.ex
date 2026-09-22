@@ -6,12 +6,18 @@ defmodule Autolaunch.Robinhood.Auctions do
 
   Everything is read at one latest block: the launchpad's launch records
   (ids run from 1 to `nextLaunchId() - 1`), each token's own name and symbol,
-  the stock the auction is denominated in, and the auction's schedule, stored
+  the metadata the launch wrote into it (description, website and image), the
+  stock the auction is denominated in, and the auction's schedule, stored
   clearing price and currency raised. An auction's state comes from its
   schedule against the block clock the contracts keep time by
-  (`Autolaunch.Robinhood.BlockClock`). Nothing here writes, signs or caches.
+  (`Autolaunch.Robinhood.BlockClock`). The launcher had to be its creator's
+  signed-in wallet, so each listed auction also names the account whose
+  signed-in wallet that still is, when exactly one account's is; its creator's
+  X accounts show beside the launch. Nothing here writes, signs or caches.
   """
 
+  alias Autolaunch.Accounts
+  alias Autolaunch.Actors.System
   alias Autolaunch.Chain.{Abi, Address, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
@@ -22,23 +28,30 @@ defmodule Autolaunch.Robinhood.Auctions do
 
   @type t :: %{
           launch_id: pos_integer(),
+          launcher: String.t(),
           auction: String.t(),
           token: String.t(),
           name: String.t(),
           symbol: String.t(),
+          description: String.t() | nil,
+          website: String.t() | nil,
+          image: String.t() | nil,
           stock_address: String.t(),
           stock_symbol: String.t(),
           stock_decimals: non_neg_integer(),
           state: :created | :active | :graduated | :failed,
           clearing_price: String.t(),
           clearing_price_q96: non_neg_integer(),
-          raised: String.t()
+          raised: String.t(),
+          creator_human_account_id: pos_integer() | nil
         }
 
   @doc "The lab's auctions, newest first; none where Robinhood auctions are not open."
   @spec list() :: {:ok, [t()]} | {:error, atom()}
   def list do
-    if Lab.configured?(), do: read(), else: {:ok, []}
+    if Lab.configured?(),
+      do: with({:ok, auctions} <- read(), do: with_creators(auctions)),
+      else: {:ok, []}
   end
 
   @doc "Public auctions filtered by mode and ordered by launch id, before Base auctions."
@@ -78,6 +91,30 @@ defmodule Autolaunch.Robinhood.Auctions do
   defp in_mode?(auction, "failed_minimum"), do: auction.state == :failed
   defp in_mode?(auction, "graduated"), do: auction.state == :graduated
 
+  defp with_creators([]), do: {:ok, []}
+
+  defp with_creators(auctions) do
+    launchers = auctions |> Enum.map(&String.downcase(&1.launcher)) |> Enum.uniq()
+
+    with {:ok, accounts} <-
+           Accounts.list_human_accounts_by_signed_in_wallets(launchers, actor: %System{}) do
+      owners = Enum.group_by(accounts, &String.downcase(&1.wallet_address), & &1.id)
+
+      {:ok,
+       Enum.map(
+         auctions,
+         &Map.put(&1, :creator_human_account_id, owner(owners, &1.launcher))
+       )}
+    end
+  end
+
+  defp owner(owners, launcher) do
+    case Map.get(owners, String.downcase(launcher), []) do
+      [id] -> id
+      _none_or_several -> nil
+    end
+  end
+
   defp read do
     with {:ok, config} <- Lab.current(),
          opts = Lab.rpc_opts(config),
@@ -85,8 +122,8 @@ defmodule Autolaunch.Robinhood.Auctions do
          do: at(config, block, opts)
   end
 
-  @doc "Every auction the launchpad records, newest first, read at the given block."
-  @spec at(map(), map(), keyword()) :: {:ok, [t()]} | {:error, atom()}
+  @doc "Every auction the launchpad records, newest first, read at the given block, creators not yet named."
+  @spec at(map(), map(), keyword()) :: {:ok, [map()]} | {:error, atom()}
   def at(config, block, opts) do
     with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts),
          {:ok, clock} <- BlockClock.read(block, opts) do
@@ -108,12 +145,14 @@ defmodule Autolaunch.Robinhood.Auctions do
   # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock, …
   defp auction(config, launch_id, block, clock, opts) do
     with {:ok, words} <- launch_words(config, launch_id, block, opts),
+         {:ok, launcher} <- Abi.word_address(Enum.at(words, 0)),
          {:ok, token} <- Abi.word_address(Enum.at(words, 1)),
          {:ok, stock_address} <- Abi.word_address(Enum.at(words, 2)),
          {:ok, auction} <- Abi.word_address(Enum.at(words, 3)),
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), stock_address),
          {:ok, name} <- Rpc.call_string(token, LabAbi.selector("name()"), block, opts),
          {:ok, symbol} <- Rpc.call_string(token, LabAbi.selector("symbol()"), block, opts),
+         {:ok, metadata} <- metadata(token, block, opts),
          {:ok, clearing} <- auction_uint(config, auction, "clearingPrice()", block, opts),
          {:ok, raised} <- auction_uint(config, auction, "currencyRaised()", block, opts),
          {:ok, state} <-
@@ -121,10 +160,14 @@ defmodule Autolaunch.Robinhood.Auctions do
       {:ok,
        %{
          launch_id: launch_id,
+         launcher: launcher,
          auction: auction,
          token: token,
          name: name,
          symbol: symbol,
+         description: metadata["description"],
+         website: metadata["website"],
+         image: metadata["image"],
          stock_address: stock.address,
          stock_symbol: stock.symbol,
          stock_decimals: stock.decimals,
@@ -152,6 +195,20 @@ defmodule Autolaunch.Robinhood.Auctions do
 
     with {:ok, graduated?} <- Rpc.call_bool(auction, data, block, opts),
          do: {:ok, if(graduated?, do: :graduated, else: :failed)}
+  end
+
+  # The token's `tokenURI()` is a base64 JSON object holding only the metadata
+  # fields the launch filled in.
+  defp metadata(token, block, opts) do
+    with {:ok, "data:application/json;base64," <> encoded} <-
+           Rpc.call_string(token, LabAbi.selector("tokenURI()"), block, opts),
+         {:ok, json} <- Base.decode64(encoded),
+         {:ok, %{} = metadata} <- Jason.decode(json) do
+      {:ok, metadata}
+    else
+      {:error, reason} when is_atom(reason) -> {:error, reason}
+      _malformed -> {:error, :invalid_chain_response}
+    end
   end
 
   defp launch_words(config, launch_id, block, opts) do

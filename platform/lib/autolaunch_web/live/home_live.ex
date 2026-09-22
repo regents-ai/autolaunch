@@ -24,6 +24,7 @@ defmodule AutolaunchWeb.HomeLive do
        records: [],
        creators: %{},
        robinhood: [],
+       robinhood_creators: %{},
        robinhood_failed: false,
        market_loading: true,
        market_failed: false,
@@ -125,11 +126,13 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_async(:home_market, _failure, socket),
     do: {:noreply, assign(socket, market_loading: false, market_failed: true)}
 
-  def handle_async(:home_robinhood, {:ok, {:ok, auctions}}, socket),
-    do: {:noreply, assign(socket, robinhood: auctions, robinhood_failed: false)}
+  def handle_async(:home_robinhood, {:ok, {:ok, auctions, creators}}, socket),
+    do:
+      {:noreply,
+       assign(socket, robinhood: auctions, robinhood_creators: creators, robinhood_failed: false)}
 
   def handle_async(:home_robinhood, _failure, socket),
-    do: {:noreply, assign(socket, robinhood: [], robinhood_failed: true)}
+    do: {:noreply, assign(socket, robinhood: [], robinhood_creators: %{}, robinhood_failed: true)}
 
   # Robinhood entries carry no opening time to page by, so they lead the first page.
   defp load_robinhood(socket, true), do: socket
@@ -138,8 +141,11 @@ defmodule AutolaunchWeb.HomeLive do
     options = socket.assigns.market_options
 
     socket
-    |> assign(robinhood: [], robinhood_failed: false)
-    |> start_async(:home_robinhood, fn -> HomeMarket.robinhood(options) end)
+    |> assign(robinhood: [], robinhood_creators: %{}, robinhood_failed: false)
+    |> start_async(:home_robinhood, fn ->
+      with {:ok, auctions} <- HomeMarket.robinhood(options),
+           do: {:ok, auctions, creator_connections_for(auctions)}
+    end)
   end
 
   defp load_market(socket, append?) do
@@ -223,12 +229,12 @@ defmodule AutolaunchWeb.HomeLive do
                 <label for="home-state">Auction state</label>
                 <select name="state" id="home-state">
                   <option value="all" selected={@market_options.state == "all"}>
-                    All in this category
+                    All auctions
                   </option>
                   <option value="created" selected={@market_options.state == "created"}>
-                    Created
+                    Opening soon
                   </option>
-                  <option value="active" selected={@market_options.state == "active"}>Active</option>
+                  <option value="active" selected={@market_options.state == "active"}>Live</option>
                   <option
                     value="failed"
                     selected={@market_options.state == "failed"}
@@ -285,6 +291,7 @@ defmodule AutolaunchWeb.HomeLive do
             :for={entry <- @robinhood}
             kind={if @kind == :token, do: :robinhood_token, else: :robinhood_auction}
             record={entry}
+            creator_connections={connections_for(entry, @robinhood_creators)}
             trade_event="open_robinhood_bid"
           />
           <.explore_card
@@ -299,7 +306,7 @@ defmodule AutolaunchWeb.HomeLive do
           :if={@listed? && @market_options.display == "table"}
           kind={@kind}
           records={@records}
-          creators={@creators}
+          creators={Map.merge(@creators, @robinhood_creators)}
           trade_event="open_trade"
           robinhood={@robinhood}
           robinhood_trade_event="open_robinhood_bid"

@@ -38,7 +38,7 @@ defmodule AutolaunchWeb.TokensLive do
            %{
              records: page.records,
              robinhood: page.robinhood,
-             creators: creator_connections_for(page.records),
+             creators: creator_connections_for(page.records ++ page.robinhood),
              pagination: page.pagination
            }}
         end

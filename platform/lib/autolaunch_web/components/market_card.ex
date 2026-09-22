@@ -33,7 +33,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div :if={!@view.path} class="launchpad-card__link">
         <.card_contents view={@view} />
       </div>
-      <.card_socials connections={@view.connections} />
+      <.card_socials connections={@view.connections} website={@view.website} />
     </article>
     """
   end
@@ -144,7 +144,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <dd><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></dd>
         </div>
         <div :if={@view.raised}>
-          <dt>Raised</dt>
+          <dt>{if @view.state == :failed, do: "Bid before refunds", else: "Raised"}</dt>
           <dd><TokenDisplay.price amount={@view.raised.amount} unit={@view.raised.unit} /></dd>
         </div>
         <div :if={@view.quick}>
@@ -238,7 +238,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction, :token, :robinhood_token]
+  attr :kind, :atom,
+    required: true,
+    values: [:auction, :robinhood_auction, :token, :robinhood_token]
+
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
 
@@ -292,7 +295,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         >
           {@view.description}
         </p>
-        <.card_socials connections={@view.connections} />
+        <.card_socials connections={@view.connections} website={@view.website} />
       </div>
     </section>
     """
@@ -357,10 +360,22 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :connections, :list, required: true
+  attr :website, :string, default: nil
 
+  # A website shows only as an ordinary web link; anything else a launch
+  # recorded there is left off the page.
   defp card_socials(assigns) do
+    assigns = assign(assigns, :website, web_link(assigns.website))
+
     ~H"""
-    <div :if={@connections != []} class="launchpad-card__socials" aria-label="Creator accounts">
+    <div
+      :if={@connections != [] || @website}
+      class="launchpad-card__socials"
+      aria-label="Creator links"
+    >
+      <a :if={@website} href={@website.url} target="_blank" rel="noopener noreferrer nofollow">
+        <span>Website</span> {@website.label}
+      </a>
       <a
         :for={connection <- @connections}
         href={"https://x.com/#{URI.encode_www_form(connection.username)}"}
@@ -379,6 +394,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: present(values["symbol"], "TICKER"),
       description: present(values["description"], "Your launch description will appear here."),
       image: values["image"],
+      website: values["website"],
       status: "Preview",
       metric_label: present(values["preview_metric_label"], "Raise target"),
       metric:
@@ -401,7 +417,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: auction.token_symbol,
       description: present(auction.summary, "Auction details are recorded onchain."),
       image: auction.image,
-      status: auction.state |> to_string() |> String.capitalize(),
+      website: auction.website,
+      status: state_label(auction.state),
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol),
       address: auction.auction_address,
@@ -419,22 +436,24 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  # A Robinhood auction is read from its chain, which records no image,
-  # description, creator or opening time, so the card shows none.
-  defp view(:robinhood_auction, auction, _connections) do
+  # A Robinhood auction is read from its chain: the token holds the
+  # description, website and image the launch wrote, and the chain records no
+  # opening time. Its creator is the account whose signed-in wallet launched it.
+  defp view(:robinhood_auction, auction, connections) do
     %{
       name: auction.name,
       symbol: auction.symbol,
-      description: nil,
-      image: nil,
-      status: auction.state |> to_string() |> String.capitalize(),
+      description: auction.description,
+      image: auction.image,
+      website: auction.website,
+      status: state_label(auction.state),
       metric_label: "Clearing price",
       metric: metric(auction.clearing_price, auction.stock_symbol),
       address: auction.auction,
       path: "/robinhood/auctions/#{auction.auction}",
-      creator: nil,
+      creator: creator_name(connections),
       age: nil,
-      connections: [],
+      connections: connection_list(connections),
       quick: auction_quick(auction, "USDG"),
       record_id: auction.auction,
       state: auction.state,
@@ -445,23 +464,24 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  # A graduated Robinhood launch is a token its own address names. The chain
-  # records no image, description, creator or graduation time; the price it
-  # shows is the price its auction cleared at.
-  defp view(:robinhood_token, launch, _connections) do
+  # A graduated Robinhood launch is a token its own address names, carrying
+  # the launch's description, website and image. The chain records no
+  # graduation time; the price shown is the price its auction cleared at.
+  defp view(:robinhood_token, launch, connections) do
     %{
       name: launch.name,
       symbol: launch.symbol,
-      description: nil,
-      image: nil,
+      description: launch.description,
+      image: launch.image,
+      website: launch.website,
       status: "Graduated",
       metric_label: "Clearing price",
       metric: metric(launch.clearing_price, launch.stock_symbol),
       address: launch.token,
       path: "/robinhood/tokens/#{launch.token}",
-      creator: nil,
+      creator: creator_name(connections),
       age: nil,
-      connections: [],
+      connections: connection_list(connections),
       quick: nil,
       record_id: launch.token,
       chain: "Robinhood",
@@ -478,6 +498,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: presentation.symbol,
       description: present(presentation.summary, "Graduated token"),
       image: presentation.image,
+      website: presentation.website,
       status: "Graduated",
       metric_label: "Price",
       metric: metric(token.price_quote, currency),
@@ -496,6 +517,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
       pair: "#{presentation.symbol} / #{currency}"
     }
   end
+
+  @doc "An auction state in the words the site uses: live means open for bidding."
+  def state_label(:created), do: "Opening soon"
+  def state_label(:active), do: "Live"
+  def state_label(:graduated), do: "Graduated"
+  def state_label(:failed), do: "Failed"
 
   # An auction that has ended takes no bids, so its row offers none.
   defp auction_quick(auction), do: auction_quick(auction, BidComponent.bid_currency(auction))
@@ -553,6 +580,22 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   defp relative_age(_at), do: nil
+
+  defp web_link(url) when is_binary(url) do
+    case URI.parse(String.trim(url)) do
+      %URI{scheme: scheme, host: host} = uri
+      when scheme in ["http", "https"] and host not in [nil, ""] ->
+        %{url: URI.to_string(uri), label: website_label(uri)}
+
+      _other ->
+        nil
+    end
+  end
+
+  defp web_link(_url), do: nil
+
+  defp website_label(%URI{host: host, path: path}),
+    do: String.trim_leading(host, "www.") <> String.trim_trailing(path || "", "/")
 
   defp present?(value), do: is_binary(value) and String.trim(value) != ""
   defp present(value, fallback), do: if(present?(value), do: value, else: fallback)

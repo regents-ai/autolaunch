@@ -132,6 +132,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
           :for={auction <- async_list(@robinhood)}
           kind={:robinhood_auction}
           record={auction}
+          creator_connections={connections_for(auction, grouped_connections(@creators))}
           trade_event={@robinhood_trade_event}
         />
         <div :for={record <- async_list(@records)} class="auction-card-grid__cell">
@@ -208,6 +209,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
             :for={entry <- @robinhood}
             kind={if @kind == :token, do: :robinhood_token, else: :robinhood_auction}
             record={entry}
+            creator_connections={connections_for(entry, @creators)}
             trade_event={@robinhood_trade_event}
             quick_column={@trade_event != nil}
           />
@@ -406,7 +408,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   def connections_for(_record, _grouped), do: %{}
 
-  def market_status(:auction, record), do: display_status(record.state)
+  def market_status(:auction, record), do: state_label(record.state)
   def market_status(:token, _record), do: "Graduated"
 
   def market_metric(:auction, %{current_clearing_price: price})

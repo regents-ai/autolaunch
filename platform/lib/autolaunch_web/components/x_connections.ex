@@ -30,7 +30,7 @@ defmodule AutolaunchWeb.Components.XConnections do
       </header>
 
       <p :if={!@enabled} class="x-connections__disabled">
-        X connections are not configured for this environment.
+        X accounts can't be added right now.
       </p>
 
       <ul>

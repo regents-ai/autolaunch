@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.SharedProfileController do
     |> put_resp_header("cache-control", "no-store")
     |> put_layout(html: {AutolaunchWeb.Layouts, :app})
     |> render(:show,
-      page_title: "Profile",
+      page_title: "Profile · Autolaunch",
       current_path: "/profile",
       search_query: "",
       account_control: Autolaunch.AccessContext.account_control(access)

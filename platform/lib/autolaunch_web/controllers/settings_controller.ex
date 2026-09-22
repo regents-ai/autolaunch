@@ -12,7 +12,7 @@ defmodule AutolaunchWeb.SettingsController do
     |> put_resp_header("cache-control", "no-store")
     |> put_layout(html: {AutolaunchWeb.Layouts, :app})
     |> render(:show,
-      page_title: "Settings",
+      page_title: "Settings · Autolaunch",
       current_path: "/settings",
       search_query: "",
       account_control: Autolaunch.AccessContext.account_control(access)

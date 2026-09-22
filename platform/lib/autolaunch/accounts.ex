@@ -10,6 +10,10 @@ defmodule Autolaunch.Accounts do
 
       define :get_human_account, action: :read_self, args: [:id]
 
+      define :list_human_accounts_by_signed_in_wallets,
+        action: :by_signed_in_wallets,
+        args: [:wallet_addresses]
+
       define :register_verified,
         action: :register_verified,
         args: [:privy_did, :wallet_address, :wallet_addresses]

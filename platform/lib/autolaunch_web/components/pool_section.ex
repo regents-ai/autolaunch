@@ -152,7 +152,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
           <dd class="autolaunch-exact-value">{@facts.unsold.amount}</dd>
         </div>
         <div>
-          <dt>Pool fee lane contract</dt>
+          <dt>Pool fee contract</dt>
           <dd class="autolaunch-exact-value">{@facts.hook}</dd>
         </div>
         <div>
@@ -210,16 +210,15 @@ defmodule AutolaunchWeb.Components.PoolSection do
 
   defp stocks_fees(assigns) do
     ~H"""
-    <section id="pool-fees" aria-label="Fee lanes">
-      <h3>Fee lanes</h3>
+    <section id="pool-fees" aria-label="Trading fees">
+      <h3>Trading fees</h3>
       <p>
-        Two revenue lanes are charged in {@facts.currency.symbol} on every trade: 1% of
-        currency-side volume for REGENT and 1% for {@facts.token.symbol} stakers. Both are always on. {@facts.fees.trades} trades have been charged since graduation.
+        Every trade pays 1% of its {@facts.currency.symbol} side to REGENT and 1% to {@facts.token.symbol} stakers. Both are always on. {@facts.fees.trades} trades have been charged since graduation.
       </p>
       <ol class="autolaunch-record-list pool-buckets">
         <li>
           <article>
-            <h5>REGENT lane</h5>
+            <h5>REGENT's share</h5>
             <dl class="autolaunch-live-market">
               <div>
                 <dt>Awaiting conversion</dt>
@@ -242,7 +241,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
         </li>
         <li>
           <article>
-            <h5>Staker lane</h5>
+            <h5>Stakers' share</h5>
             <dl class="autolaunch-live-market">
               <div>
                 <dt>Awaiting settlement</dt>
@@ -279,7 +278,7 @@ defmodule AutolaunchWeb.Components.PoolSection do
           <article>
             <dl class="autolaunch-live-market">
               <div>
-                <dt>Lane</dt>
+                <dt>Share</dt>
                 <dd>{lane_label(settlement.lane)}</dd>
               </div>
               <div>

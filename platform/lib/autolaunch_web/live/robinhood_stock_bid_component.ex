@@ -8,7 +8,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   against the mounted lease before anything is read. Nothing is stored: the
   review lives on this page only, the browser reports a hash and stops, and
   every outcome on screen is the server's own read of that hash. A wallet's
-  bids are the auction's own records.
+  bids are the auction's own records. Once the auction has ended, the page
+  passes what that means for bidders and the card keeps only the wallet's
+  bids and their settlement.
   """
 
   use AutolaunchWeb, :live_component
@@ -62,6 +64,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     {:ok,
      socket
      |> assign(assigns)
+     |> assign_new(:ended, fn -> nil end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
@@ -82,9 +85,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     >
       <header class="bid-heading">
         <Regent.Structure.section_bar>
-          <h2 class="rg-section-bar__label">Place a bid</h2>
+          <h2 class="rg-section-bar__label">
+            {if @ended, do: "Bidding has ended", else: "Place a bid"}
+          </h2>
         </Regent.Structure.section_bar>
-        <p>
+        <p :if={@ended}>{@ended}</p>
+        <p :if={!@ended}>
           Bid with USDG. It is converted into the auction's stock inside the bid, and any unspent part comes straight back. Your wallet confirms every step.
         </p>
       </header>
@@ -99,12 +105,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
       <p :if={!@authenticated} class="bid-empty">
         <Regent.Primitives.button type="button" data-account-target="sign-in">
-          Sign in to bid
+          {if @ended, do: "Sign in to see your bids", else: "Sign in to bid"}
         </Regent.Primitives.button>
       </p>
 
       <div :if={@authenticated && !@wallet} class="bid-empty">
-        <p>Choose the wallet you want to bid from.</p>
+        <p>
+          {if @ended,
+            do: "Choose the wallet you bid from.",
+            else: "Choose the wallet you want to bid from."}
+        </p>
         <Regent.Primitives.button type="button" data-wallet-connect>
           Connect or switch wallet
         </Regent.Primitives.button>
@@ -126,8 +136,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           </div>
         </dl>
 
+        <p :if={@ended && @reading && @reading.bids == []} class="bid-empty">
+          This wallet placed no bids on this auction.
+        </p>
+
         <form
-          :if={!@review}
+          :if={!@ended && !@review}
           id={"#{@id}-form"}
           class="rg-field"
           phx-change="bid_form_changed"
