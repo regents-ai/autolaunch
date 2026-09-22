@@ -1927,7 +1927,7 @@ document = {
         "code_identity_note": (
             "`creation_code_keccak256` is the frozen build's own deployer-independent identity for "
             "the contract. It is not the hash of the initcode a real transaction sends: four of "
-            "these eight constructors — the factory, the strategy, the locker and the hook — take "
+            "these eight constructors (the factory, the strategy, the locker and the hook) take "
             "arguments that are themselves addresses this ceremony produces, so that hash is only "
             "knowable once a deployer is selected. "
             "`initcode_bytes` is the whole creation code plus those encoded arguments, because "
