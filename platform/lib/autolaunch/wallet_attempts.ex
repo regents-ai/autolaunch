@@ -110,6 +110,18 @@ defmodule Autolaunch.WalletAttempts do
     end
   end
 
+  @doc """
+  Whether a press for the review's current step is still with the wallet or
+  awaiting its chain read. Such a review has not lapsed: its bytes may already
+  be on chain, and only the chain read may settle it.
+  """
+  @spec in_flight?(atom(), Ash.Resource.record()) :: boolean()
+  def in_flight?(kind, op) when kind in @kinds do
+    query(kind, op)
+    |> Ash.Query.filter(step == ^op.step and state in [:dispatched, :submitted])
+    |> Ash.exists?(actor: @system)
+  end
+
   def list(kind, action_id, opts) when kind in @kinds do
     with {:ok, lease} <- authority(opts),
          {:ok, op} <- parent(kind, lease.account_id, action_id, false),

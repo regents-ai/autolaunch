@@ -552,9 +552,10 @@ defmodule Autolaunch.Stocks.LaunchActions do
   defp expire_lapsed(%{state: :prepared, envelope: %{"expires_at" => expires_at}} = operation) do
     {:ok, expires_at, _offset} = DateTime.from_iso8601(expires_at)
 
-    if DateTime.compare(expires_at, Envelope.current_time()) != :gt,
-      do: LaunchOperations.update(operation, :expire, %{reason: @lapsed}),
-      else: {:ok, operation}
+    if DateTime.compare(expires_at, Envelope.current_time()) != :gt and
+         not Autolaunch.WalletAttempts.in_flight?(:stocks_launch, operation),
+       do: LaunchOperations.update(operation, :expire, %{reason: @lapsed}),
+       else: {:ok, operation}
   end
 
   defp expire_lapsed(operation), do: {:ok, operation}

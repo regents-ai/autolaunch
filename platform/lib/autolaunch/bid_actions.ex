@@ -754,7 +754,7 @@ defmodule Autolaunch.BidActions do
   # sequence, so the operation ends here — inside the locked transaction, ahead
   # of the claim — and a new review rereads current allowance and auction state.
   defp expire_lapsed(%{state: :prepared} = operation) do
-    if expired?(operation),
+    if expired?(operation) and not Autolaunch.WalletAttempts.in_flight?(:bid, operation),
       do: update(operation, :expire, %{reason: @lapsed}),
       else: {:ok, operation}
   end
