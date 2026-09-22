@@ -29,10 +29,10 @@ audit gates pass.
 
 > [!NOTE]
 > Deployed on Base on 22 September 2026 by the ceremony of packet digest
-> `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`; the eight addresses are in
-> [deployments/base-mainnet/](deployments/base-mainnet/README.md). The factory was born paused:
-> opening launches is a separate Governance and Regent Safe transaction. Nothing in this
-> component signs, broadcasts, or moves value.
+> `0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327`; the eight addresses, all
+> verified on Basescan, are in [deployments/base-mainnet/](deployments/base-mainnet/README.md). The
+> factory was born paused: opening launches is a separate Governance and Regent Safe transaction.
+> Nothing in this component signs, broadcasts, or moves value.
 
 > [!IMPORTANT]
 > Evidence here is local by construction. The repository's `.github/workflows/test.yml` runs the

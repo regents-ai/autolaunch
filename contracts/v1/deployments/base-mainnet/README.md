@@ -5,6 +5,9 @@
 `0x9b2C414614aEE294202c1219520955EF3B596031`; `deployed-manifest.json` records them. The factory was
 born paused and admits no launch until the Governance and Regent Safe calls `unpauseLaunches()`.
 
+All eight contracts are verified on Basescan as exact matches (solc 0.8.26), submitted on
+22 September 2026 with `forge verify-contract`.
+
 | Contract | Address | Base block |
 | --- | --- | --- |
 | UERC20Factory | `0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563` | 51660956 |
