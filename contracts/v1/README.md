@@ -23,9 +23,10 @@ The strategy distribution and `LaunchGraduated` remain the canonical-receiver au
 payments and direct recognized deposits still preserve their exact references.
 
 The controlling specification is [SPEC.md](SPEC.md). The prior implementation in
-`regent-contracts` is historical reference only. This component contains no deployed
-release until the complete claim-level test, static-analysis, fork, review, and founder
-audit gates pass.
+`regent-contracts` is historical reference only. This component is deployed on Base (see the
+note below and [deployments/base-mainnet/](deployments/base-mainnet/README.md)); its release
+posture is otherwise governed by the claim-level test, static-analysis, fork and review gates
+described in this file.
 
 > [!NOTE]
 > Deployed on Base on 22 September 2026 by the ceremony of packet digest

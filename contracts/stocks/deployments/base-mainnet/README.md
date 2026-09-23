@@ -3,16 +3,19 @@
 **Deployed on Base on 23 September 2026.** The founder approved packet digest
 `0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5` and sent its twelve creations from deployer
 `0x9b2C414614aEE294202c1219520955EF3B596031` (nonces 5–16, Base blocks 51673079–51673339);
-`deployed-manifest.json` records them. The launchpad was born paused and admits no stock and no
-launch until the Governance and Regent Safe calls `admitStock` for each stock, `setExecutor` on the
-hook and, last, `unpauseLaunches()`.
+`deployed-manifest.json` records them. The launchpad was born paused. On 23 September 2026 the
+Governance and Regent Safe admitted all ten stocks with their `AerodromeStockRouteV2` routes in
+transaction `0x97030521eac9d0eace8f53d1bcb5f42ef3527cabb712d73228bfe4fc8617fbd6` (block 51698209),
+and the hook's `executor()` reads `0x72E2FB09147d3E6E5c9F44A4E127E6321e022045`. No launch is
+admitted until the Safe calls `unpauseLaunches()`. The V2 route addresses are listed in the
+top-level [contracts/README.md](../../../README.md).
 
 **The ten route creations are retired.** On 23 September 2026, before any route was admitted, the
 founder removed the 5% Chainlink guard from the stock routes. The ten `AerodromeStockRouteV1`
 contracts below (nonces 7–16) refuse an execution more than five percent under the feed and were
 never admitted; they stay on chain unused. Ten `AerodromeStockRouteV2` routes
 (`src/routes/AerodromeStockRouteV2.sol`, same constructor, no guard), one per stock over the same
-pool and feed, are created by hand from the deployer and admitted in the Safe session instead. The
+pool and feed, were created by hand from the deployer and admitted by the Safe instead. The
 tables keep the record of what the ceremony sent; the launchpad's `stockAdmission` is the authority
 on which route each stock uses, and `site-config` reads it from there.
 
@@ -110,7 +113,7 @@ paired with another stock's route were refused. On the same day every deployed r
 Base state for all ten stocks: a 0.1-share sale landed within 0.35% of the Chainlink price, a 20 USDC
 purchase landed near it, and the purchased stock moved through the bid adapter's exact Permit2
 allowance path with both allowances back at zero. Those rehearsals ran through the V1 routes; the
-Safe session admits the V2 routes.
+Safe admitted the V2 routes.
 
 ## The values the ceremony consumes
 
