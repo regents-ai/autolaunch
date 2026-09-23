@@ -26,6 +26,7 @@ treasury.
 | `RobinhoodLaunchpadBase` | The launch machinery: validated constructor bindings, pause governance, NEW and auction creation on the fixed Robinhood schedule with full read-back, custody, migration. A launch costs nothing beyond gas. Deploys the splitter implementation and the `MemestockLPLocker` in its constructor; at graduation clones the launch's splitter, registers it with the hook, mints the positions to the locker and registers each one to that splitter. |
 | `RobinhoodStocksLaunchpadV1` | Stock-pair launches: admitted STOCK as the auction currency, the required raise chosen by the launcher in STOCK (above zero, within what the inventory can settle on), full-range plus one-sided STOCK positions locked in the fee-only locker. |
 | `RobinhoodStockBidAdapterV1` | USDG in, STOCK bid out, in one transaction, owned by the caller. |
+| `routes/UniswapV3StockRouteV1` | The production USDG <-> STOCK route, one per admitted stock: executes on that stock's Uniswap v3 USDG/STOCK pool (either currency order) under the caller's minimum alone and quotes from its Chainlink feed. Holds nothing between calls. |
 | `RobinhoodPositionsLib` | Linked library carrying the position planner (EIP-170). Must be deployed and linked before the launchpads. |
 | `fixtures/FixtureUsdgStockRoute` | Lab-only fixed-price USDG/STOCK route. Never a production binding. |
 
@@ -34,12 +35,48 @@ treasury.
 ```bash
 FOUNDRY_OFFLINE=true forge build --sizes
 FOUNDRY_OFFLINE=true forge test
+FOUNDRY_PROFILE=fork forge test --fork-url robinhood    # the production route against Robinhood Chain itself
 ```
+
+`test/fork/` runs only under the `fork` profile, against Robinhood Chain through the `robinhood`
+alias in `foundry.toml` (resolved from `REGENT_ROBINHOOD_RPC_URL`, which is never written down); the
+default profile and the gate exclude it. It binds the route to the live AAPL, TSLA and SNDK pools,
+buys and sells a thousand dollars of each through the real pools and issuer tokens, and shows a
+fifty-thousand-dollar purchase on the thin SNDK pool refused by a 95%-of-quote minimum and executed
+at a zero minimum.
 
 Libraries resolve from `../stocks/lib`; the package installs nothing of its own. forge 1.4's lint
 pre-pass cannot follow those `../stocks/lib` imports and fails a build that touched any file, while
 the compiler resolves them; add `FOUNDRY_LINT_LINT_ON_BUILD=false` when that happens (the lab
 controller always does).
+
+### The gate
+
+`bin/gate.sh` is the one required check before a change is proposed. It shares its body with the
+Base package (`../stocks/bin/memestake-gate.sh`) and proves the same things in the same order: the
+frozen tool and build identity in `requirements/frozen-identity.json`, formatting, a clean build
+whose artifacts carry the frozen compiler identity, the frozen release surface under `abi/` and
+`reports/frozen/` (`../stocks/bin/freeze.py check` against `requirements/freeze.json`), the whole
+hermetic test portfolio, Slither with every detector on and every result dispositioned in
+`docs/security/slither-dispositions.md`, and a provider-secret scan. It ends with `GATE PASS` and
+a receipt under `reports/generated/`, which is never committed.
+
+Slither cannot follow this package's `../stocks/lib` and `allow_paths`, so the gate builds a
+self-contained copy under `reports/generated/slither-copy/` (this package's sources, the Base
+sources it imports, the dependency snapshot through symlinks, and the remappings rewritten to
+match) and analyzes that copy; the dispositions record locations relative to it.
+
+The gate proves a clean repository first, so it runs in a clean clone with the Base package's
+`lib/` snapshot in place, not in a working tree with edits.
+
+```sh
+export PATH="$HOME/.foundry/bin:$PATH"      # forge 1.5.1
+uv tool install slither-analyzer==0.11.5    # once; the gate resolves its interpreter itself
+cd contracts/robinhood && bin/gate.sh
+```
+
+`python3 ../stocks/bin/freeze.py write` regenerates the frozen release surface after an intended
+production change; review the diff, then run the gate.
 
 ## What the founder must supply before any deployment
 
@@ -93,11 +130,15 @@ decimals, matching cross-bindings). None is known at build time.
 10. Base receiver attribution is Base-Safe-attested; the deposit itself is permissionless with a surplus sweep.
 11. The position planner lives in a linked library and the hook creation code in a factory so the launchpad stays under the EIP-170 limit.
 12. The splitter's exit rule ("nothing leaves an account in its own stake block") reads the chain's native `block.number`, which on this Arbitrum Orbit rollup is the Ethereum block the rollup last observed, while the launchpad and the auction count Robinhood blocks through `BlockNumberish`. A staker therefore waits until the next Ethereum block, about twelve seconds, before claiming or unstaking (verified read-only on chain 4663 on 21 September 2026: a contract saw block 26,027,887 while `ArbSys.arbBlockNumber()` returned 69,038,732). The founder kept the rule as is and had this documented (21 September 2026). The local lab, a plain Anvil chain, does not reproduce this.
+13. Stock routes. `UniswapV3StockRouteV1` is the production route, one per admitted stock, created by the deployment ceremony after the bid adapter and admitted by the Safe. It executes directly on the stock's Uniswap v3 USDG/STOCK pool (the Robinhood pools sort USDG and the stock either way; the route reads the order once at construction), quotes from the stock's Chainlink USD feed and refuses a quote from a feed older than seven days (the feeds hold the last close over weekends and holidays, so a shorter bound would stop every Monday morning). `swapExactIn` never reads the feed: the price control is the minimum each caller sets, and nothing in the route refuses an execution under the feed. The executor's minimum is what protects REGENT's share, so the executor key must be kept safe and sales should be split in thin markets; the website offers bidders a minimum at 95% of the Chainlink price. Every Robinhood stock has eighteen decimals; the hermetic suite, the lab and the fixtures use eighteen decimals throughout, and `RobinhoodEighteenDecimalLifecycle.t.sol` walks a whole launch through the production route in both currency orders. `test/fork/UniswapV3StockRouteFork.t.sol` bought and sold a thousand dollars of AAPL, TSLA and SNDK through the live pools on 23 September 2026 (largest shortfall against the feed: 1.28% on the thin SNDK sale) and showed a fifty-thousand-dollar SNDK purchase refused by a 95%-of-quote minimum and, at a zero minimum, executed 74% under the feed (6.86 shares delivered against 26.43 quoted).
+14. The issuer's powers over the stock tokens. The Robinhood stock tokens are the issuer's upgradeable contracts. One issuer key can replace the token code for every stock at once, pause all transfers, block any address from sending or receiving, burn any holder's balance (neither the pause nor the blocklist stops a burn), and rename a token, with no delay and no on-chain notice before it happens (verified on chain 4663 on 23 September 2026: every issuer role is held by a single externally owned key; 175 addresses are blocked, all of them wallets and none of them contracts; the global pause was used once, before launch). Any of these powers used against the launchpad, the hook, the locker, a splitter, a route or a pool would stall bids, settlements and fee collection for every market on that stock until the issuer reversed it; balances would stay where they are, a burn being the issuer's alone. The pools trade against these tokens around the clock today, and nothing in the graph can be blocked for being a contract. Accepted as a known limit (recorded 23 September 2026 on the chief engineer's instruction; the founder's own word on it is not yet on file).
+15. Thin pools. Several USDG pools are thin (SNDK, INTC and MSTR at the time of writing: more than 1% of price impact on a ten-thousand-dollar trade, and the SNDK pool cannot fill fifty thousand dollars near the feed price). Nothing in the route refuses such a fill on its own; the caller's minimum does. The executor settles the protocol lane in pieces small enough for the pool at hand rather than in one call, with a minimum chosen from the quote every time, and the website should size bids the same way.
 
 ## The local lab
 
 `bin/local-robinhood-lab.py` boots a blank Anvil chain (id 31338), installs Permit2's runtime at its
-canonical address, and runs `script/DeployRobinhoodLab.s.sol` from Anvil's first unlocked account,
+canonical address and a block clock at the ArbSys precompile address (see below), and runs
+`script/DeployRobinhoodLab.s.sol` from Anvil's first unlocked account,
 which stands in for the admin Safe and the hook executor. The script deploys a mintable USDG double,
 the pinned PoolManager, CCA factory, PositionManager and UERC20 factory, the inbox, the hook
 factory, the Stocks launchpad (which deploys its hook, locker and splitter implementation), the USDG bid adapter, and thirteen mintable
@@ -110,6 +151,7 @@ uv run --no-project python bin/local-robinhood-lab.py start
 uv run --no-project python bin/local-robinhood-lab.py fund 0xWALLET --usdg 100000 --stock AAPLc --shares 1000
 uv run --no-project python bin/local-robinhood-lab.py status [--launch ID] [--auction 0x…]
 uv run --no-project python bin/local-robinhood-lab.py advance 0xAUCTION --to start|end|claim|migration
+uv run --no-project python bin/local-robinhood-lab.py pace 0xAUCTION [--to migration] [--duration-seconds 1200]
 uv run --no-project python bin/local-robinhood-lab.py migrate ID
 uv run --no-project python bin/local-robinhood-lab.py stop
 ```
@@ -123,6 +165,23 @@ uv run --no-project python bin/local-robinhood-lab.py stop
 `stocks_locker`, `splitter`, `bid_adapter`, `stock_route`, `auction`, `erc20`). Every stock entry is read back from the chain after
 deployment, including its admission on the Stocks launchpad; the controller carries no catalog of
 its own. Nothing proven against the fixture stocks or routes is evidence about a real stock market.
+
+The block clock. On the Robinhood chain the launchpad and the auction read the rollup block number
+from the ArbSys precompile (`arbBlockNumber()` at `0x…64`, through `BlockNumberish`), not from
+`block.number`. The lab installs a stand-in at that address before deploying, so every contract
+takes the same code path it takes on the real chain, and the controller sets the number the
+contracts see with one call: `advance` jumps the clock to a lifecycle block, `pace` moves it there
+evenly over wall time (twenty minutes by default, so a whole one-day auction plays out in twenty
+minutes), and `status` reports it as `block_clock`. Mining is not an option at these terms: Anvil
+mines about forty empty blocks a second, so the 864,000-block auction would take more than five
+hours. The clock only moves when `advance` or `pace` moves it, only forward, and only one of them
+at a time: a second `advance` or `pace` started while one is running is refused, and a target the
+clock has already passed is refused, so the number the contracts see never goes backwards. The
+splitters read `block.number`,
+which on the lab is Anvil's own block (one per transaction) and on the real chain is the Ethereum
+block. Anything that shows the auction clock must read it the way the contracts do: on Robinhood,
+call `arbBlockNumber()` at `0x…64` (on the real chain it agrees with `eth_blockNumber` within a few
+blocks; on the lab only the precompile is right).
 
 `state.json` records the Anvil process, its loopback port and the chain's genesis hash. Before
 `fund`, `advance`, `migrate` or `stop` touches the endpoint, the controller proves the recorded

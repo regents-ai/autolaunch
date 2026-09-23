@@ -110,9 +110,9 @@
   },
   "purpose": "The committed Base comparison authority installed from an independently reviewed read-only discovery candidate. Discovery closed no claim; check mode compares live chain state and complete production flows against this record at both committed headers.",
   "source_authority": {
-    "note": "The production authority these observations were taken against, and the src/ tree that authority carries. bin/fork-gate.sh proves both against Git and against this checkout before any fork test can run, so a record installed beside other bytes is a stop rather than evidence about them.",
-    "production_authority_commit": "f4114f5276386f48bf8dc53ee344189d98c8896e",
-    "production_source_tree": "91a741e417b75706a4071f7bdac2c5e13548c0fc"
+    "note": "The production authority these observations were taken against, and the contracts/v1/src tree that authority carries. bin/fork-gate.sh proves both against Git and against this checkout before any fork test can run, so a record installed beside other bytes is a stop rather than evidence about them.",
+    "production_authority_commit": "7d564cec735c3b1b928ec4e2ede0b244682d105b",
+    "production_source_tree": "eeeb1cedb315c97bf1a22658c02a5210a9c517c9"
   },
   "status": "observed_and_committed",
   "transaction_gas_schedule": {

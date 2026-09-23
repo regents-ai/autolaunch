@@ -14,8 +14,8 @@ import {IRobinhoodStockRoute} from "../interfaces/IRobinhoodStockRoute.sol";
 contract FixtureUsdgStockRoute is IRobinhoodStockRoute {
     using SafeTransferLib for address;
 
-    /// @notice One whole share in STOCK base units (eight decimals, like the Base catalog tokens).
-    uint256 public constant SHARE = 1e8;
+    /// @notice One whole share in STOCK base units (eighteen decimals, like every Robinhood stock).
+    uint256 public constant SHARE = 1e18;
 
     address public immutable override stock;
     address public immutable override usdg;

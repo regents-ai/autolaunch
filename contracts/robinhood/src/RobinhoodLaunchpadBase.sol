@@ -409,6 +409,8 @@ abstract contract RobinhoodLaunchpadBase is BlockNumberish, ReentrancyGuardTrans
                 )
         );
 
+        // A code-presence check, not an arithmetic equality: a CREATE2 address without code is no auction.
+        // slither-disable-next-line incorrect-equality
         if (auction.code.length == 0) revert AuctionHasNoCode(auction);
         IContinuousClearingAuction cca = IContinuousClearingAuction(auction);
         _requireBinding(0, uint256(uint160(newToken)), uint256(uint160(cca.token())));

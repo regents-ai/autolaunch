@@ -147,20 +147,19 @@ entire non-generated checkout must already be committed and clean before provide
 
 ## 4. Execution status
 
-**Executed and passing under read-only Base authority for the `regent-alv1.16` receiver-provenance
-source authority.** The reviewed observation binds blocks `50541328` and `50541628`. The ledger
+**Executed and passing under read-only Base authority for the Revstake source authority.** The reviewed observation binds blocks `50541328` and `50541628`. The ledger
 activates `fork`, the compiled listing maps twenty-seven selectors, and the compare-only gate
 executed all eighteen fork claims at the pinned header plus exactly the approved nine-claim subset at
 the later header, with zero failures or skips.
 
 That run was made against production authority commit
-`f4114f5276386f48bf8dc53ee344189d98c8896e`, full tree
-`bb660324bb1d5cc322adeb243b0bd51779821fcb`, carrying `src/` tree
-`91a741e417b75706a4071f7bdac2c5e13548c0fc`, and the gate proved both against Git and against the
+`7d564cec735c3b1b928ec4e2ede0b244682d105b`, full tree
+`97ea43cbf2e6625889b64deefcea406ea11ccdc5`, carrying `contracts/v1/src` tree
+`eeeb1cedb315c97bf1a22658c02a5210a9c517c9`, and the gate proved both against Git and against the
 checkout before any fork test opened. The evidence commit is
-`ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa`, which carries that same source tree and no
-production-byte change: it moves the two `source_authority` fields inside the record and applies one
-whitespace-only `forge fmt` to `test-fork/ProductionLifecycleFork.t.sol`. No observed value moved
+`4451c776f84fa904dd02b0c4360d360a45a945cb`, which carries that same source tree and no
+production-byte change: it moves the two `source_authority` fields inside the record and the fork
+gate's own record that the authority carries its sources at `contracts/v1/src`. No observed value moved
 with it — the same reviewed headers, bindings, proxy families, implementations and transaction gas
 schedule were re-checked live against Base and matched exactly, which is what makes this a
 re-execution against different bytecode rather than a re-observation of the chain. Discovery was
@@ -174,7 +173,7 @@ the receipt's exact evidence commit and independently re-derives all of it befor
 provider access. `bin/deployment-gate.sh --prepare 0x9b2C414614aEE294202c1219520955EF3B596031` and `--rehearse` then ran
 against this identity under the same read-only authority: the deployer's live nonce, the mined
 salt, the seven predicted addresses and the Safe and live-staking control surface observed at block
-`50754918` matched the prior packet exactly, and the exact deployment script simulated cleanly with
+`51650703` matched the prior packet exactly, and the exact deployment script simulated cleanly with
 no signer and no broadcast.
 
 The earlier discovery pass wrote only gitignored scratch and closed no claim. A separate provider

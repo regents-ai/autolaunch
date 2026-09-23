@@ -52,7 +52,8 @@ contract StockBidAdapterTest is StocksFixture {
         assertEq(usdc.balanceOf(buyer), 0);
         assertEq(usdc.allowance(buyer, address(adapter)), 0);
         assertEq(FixtureStockToken(l.stock).allowance(address(adapter), StocksBindings.PERMIT2), 0);
-        (uint160 permit2Allowance,,) = IAllowanceTransfer(StocksBindings.PERMIT2).allowance(address(adapter), l.stock, address(l.auction));
+        (uint160 permit2Allowance,,) =
+            IAllowanceTransfer(StocksBindings.PERMIT2).allowance(address(adapter), l.stock, address(l.auction));
         assertEq(permit2Allowance, 0);
         assertEq(adapter.launchpad(), address(launchpad));
         assertEq(adapter.usdc(), StocksBindings.USDC);
@@ -65,7 +66,8 @@ contract StockBidAdapterTest is StocksFixture {
         // 500 shares: fully filled at the floor, so it exits through the plain `exitBid` path.
         _armBuyer(115_000e6);
         vm.prank(buyer);
-        (uint256 bidId,) = adapter.bidWithUsdc(address(l.auction), 115_000e6, 1, _bidPrice(10), FLOOR_PRICE_Q96, block.timestamp);
+        (uint256 bidId,) =
+            adapter.bidWithUsdc(address(l.auction), 115_000e6, 1, _bidPrice(10), FLOOR_PRICE_Q96, block.timestamp);
         _rollToMigration(l);
         launchpad.migrate(l.launchId);
 
@@ -81,8 +83,10 @@ contract StockBidAdapterTest is StocksFixture {
         _rollToStart(l);
         _armBuyer(4_600e6);
         vm.startPrank(buyer);
-        (uint256 first,) = adapter.bidWithUsdc(address(l.auction), 2_300e6, 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp);
-        (uint256 second,) = adapter.bidWithUsdc(address(l.auction), 2_300e6, 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp);
+        (uint256 first,) =
+            adapter.bidWithUsdc(address(l.auction), 2_300e6, 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp);
+        (uint256 second,) =
+            adapter.bidWithUsdc(address(l.auction), 2_300e6, 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp);
         vm.stopPrank();
         assertNotEq(first, second);
         assertEq(l.auction.bids(first).owner, buyer);
@@ -118,7 +122,9 @@ contract StockBidAdapterTest is StocksFixture {
         Launched memory l = _launch(STOCK_LOW);
         _rollToStart(l);
 
-        vm.expectRevert(abi.encodeWithSelector(StockBidAdapterV1.Expired.selector, block.timestamp - 1, block.timestamp));
+        vm.expectRevert(
+            abi.encodeWithSelector(StockBidAdapterV1.Expired.selector, block.timestamp - 1, block.timestamp)
+        );
         vm.prank(buyer);
         adapter.bidWithUsdc(address(l.auction), 2_300e6, 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp - 1);
 
@@ -156,7 +162,9 @@ contract StockBidAdapterTest is StocksFixture {
             abi.encodeWithSelector(FixtureStockRoute.InsufficientOutput.selector, expectedStock + 1, expectedStock)
         );
         vm.prank(buyer);
-        adapter.bidWithUsdc(address(l.auction), 2_300e6, expectedStock + 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp);
+        adapter.bidWithUsdc(
+            address(l.auction), 2_300e6, expectedStock + 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp
+        );
 
         // A route that pays nothing: refused even with `minStockOut == 0`.
         ZeroRoute zero = new ZeroRoute(l.stock);
@@ -198,7 +206,9 @@ contract StockBidAdapterTest is StocksFixture {
 
         uint128 expectedStock = uint128((2_300e6 - 17e6) * 1e8 / USDC_PER_SHARE);
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IStockBidAdapterV1.StockBidPlaced(address(l.auction), buyer, 0, 2_300e6 - 17e6, expectedStock, _bidPrice(2));
+        emit IStockBidAdapterV1.StockBidPlaced(
+            address(l.auction), buyer, 0, 2_300e6 - 17e6, expectedStock, _bidPrice(2)
+        );
         vm.prank(buyer);
         adapter.bidWithUsdc(address(l.auction), 2_300e6, 1, _bidPrice(2), FLOOR_PRICE_Q96, block.timestamp);
         assertEq(usdc.balanceOf(buyer), 17e6, "unconsumed USDC came back");

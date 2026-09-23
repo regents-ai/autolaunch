@@ -192,7 +192,9 @@ contract StocksFeeHookTest is StocksFixture {
         if (stockSpecified && exactInput) assertEq(uint256(-traderDelta), STOCK_AMOUNT, "exact STOCK input");
         if (stockSpecified && !exactInput) assertEq(uint256(traderDelta), STOCK_AMOUNT, "exact STOCK output");
         if (!stockSpecified && exactInput) assertEq(before.traderNew - post.traderNew, NEW_AMOUNT, "exact NEW input");
-        if (!stockSpecified && !exactInput) assertEq(post.traderNew - before.traderNew, NEW_AMOUNT, "exact NEW output");
+        if (!stockSpecified && !exactInput) {
+            assertEq(post.traderNew - before.traderNew, NEW_AMOUNT, "exact NEW output");
+        }
     }
 
     function test_small_stock_inputs_are_charged_exactly_and_floored() public {
@@ -267,7 +269,9 @@ contract StocksFeeHookTest is StocksFixture {
     function test_the_hooks_stock_balance_is_exactly_the_sum_of_both_lanes() public {
         Launched memory l = _graduatedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l);
-        assertEq(hook.pool(poolId).splitter, address(_splitter(l)), "the staker lane's destination is the launch's splitter");
+        assertEq(
+            hook.pool(poolId).splitter, address(_splitter(l)), "the staker lane's destination is the launch's splitter"
+        );
 
         (uint256 dust, uint256 stakerBefore) = hook.accrued(poolId);
         assertEq(dust, _dust(l), "graduation dust sits in the REGENT lane");
@@ -390,7 +394,9 @@ contract StocksFeeHookTest is StocksFixture {
 
         liveStaking.setReportsWrongAmount(true);
         uint256 expectedUsdc = 1e8 * USDC_PER_SHARE / 1e8;
-        vm.expectRevert(abi.encodeWithSelector(StocksFeeHookV1.DepositMismatch.selector, expectedUsdc, expectedUsdc + 1));
+        vm.expectRevert(
+            abi.encodeWithSelector(StocksFeeHookV1.DepositMismatch.selector, expectedUsdc, expectedUsdc + 1)
+        );
         vm.prank(executor);
         hook.settleRegentLane(poolId, 1e8, 1);
         liveStaking.setReportsWrongAmount(false);
@@ -434,7 +440,9 @@ contract StocksFeeHookTest is StocksFixture {
         (,, uint256 toStakers) = hook.settled(poolId);
         assertEq(toStakers, stakerLane);
         assertEq(FixtureStockToken(l.stock).balanceOf(address(splitter)), stakerLane - protocolShare);
-        assertEq(FixtureStockToken(l.stock).balanceOf(governance) - safeBefore, protocolShare, "2% of STOCK to the Safe");
+        assertEq(
+            FixtureStockToken(l.stock).balanceOf(governance) - safeBefore, protocolShare, "2% of STOCK to the Safe"
+        );
         assertEq(FixtureStockToken(l.stock).allowance(address(hook), address(splitter)), 0);
         assertEq(FixtureStockToken(l.stock).balanceOf(address(hook)), regentLane, "only the REGENT lane remains");
         // The sole staker is owed the whole net amount, up to accumulator rounding.

@@ -34,11 +34,11 @@ contract RobinhoodFeeHookTest is RobinhoodFixture {
         assertEq(bound.newToken, l.newToken);
         assertEq(bound.splitter, address(_splitter(l)));
 
-        _fundTrader(l, 10e8);
-        uint256 lane = 10e8 / StocksPreset.LANE_DIVISOR;
+        _fundTrader(l, 10e18);
+        uint256 lane = 10e18 / StocksPreset.LANE_DIVISOR;
         vm.expectEmit(true, false, false, true, address(stocksHook));
-        emit IRobinhoodFeeHookV1.HookFeeAccrued(poolId, 10e8, lane, lane);
-        _swapCurrencyIn(l, address(stocksHook), 10e8);
+        emit IRobinhoodFeeHookV1.HookFeeAccrued(poolId, 10e18, lane, lane);
+        _swapCurrencyIn(l, address(stocksHook), 10e18);
 
         (uint256 protocolLane, uint256 stakerLane) = stocksHook.accrued(poolId);
         assertEq(protocolLane, dust + lane);
@@ -49,9 +49,9 @@ contract RobinhoodFeeHookTest is RobinhoodFixture {
     function test_protocol_lane_settles_executor_only_through_the_route_into_the_inbox() public {
         (Launched memory l,) = _graduatedStakedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l, address(stocksHook));
-        _fundTrader(l, 10e8);
-        _swapCurrencyIn(l, address(stocksHook), 10e8);
-        uint256 lane = 10e8 / StocksPreset.LANE_DIVISOR;
+        _fundTrader(l, 10e18);
+        _swapCurrencyIn(l, address(stocksHook), 10e18);
+        uint256 lane = 10e18 / StocksPreset.LANE_DIVISOR;
         (uint256 protocolBefore,) = stocksHook.accrued(poolId);
 
         vm.prank(outsider);
@@ -67,7 +67,7 @@ contract RobinhoodFeeHookTest is RobinhoodFixture {
         stocksHook.settleProtocolLane(poolId, protocolBefore + 1, 0);
         vm.stopPrank();
 
-        uint256 expectedUsdg = lane * USDG_PER_SHARE / 1e8;
+        uint256 expectedUsdg = lane * USDG_PER_SHARE / 1e18;
         uint256 inboxBefore = inbox.totalCollected();
         vm.expectEmit(true, false, false, true, address(stocksHook));
         emit IRobinhoodFeeHookV1.ProtocolLaneSettled(poolId, lane, expectedUsdg);
@@ -90,10 +90,10 @@ contract RobinhoodFeeHookTest is RobinhoodFixture {
     function test_protocol_lane_refuses_a_conversion_below_the_executor_minimum() public {
         (Launched memory l,) = _graduatedStakedMarket(STOCK_LOW);
         bytes32 poolId = _poolId(l, address(stocksHook));
-        _fundTrader(l, 10e8);
-        _swapCurrencyIn(l, address(stocksHook), 10e8);
-        uint256 lane = 10e8 / StocksPreset.LANE_DIVISOR;
-        uint256 expectedUsdg = lane * USDG_PER_SHARE / 1e8;
+        _fundTrader(l, 10e18);
+        _swapCurrencyIn(l, address(stocksHook), 10e18);
+        uint256 lane = 10e18 / StocksPreset.LANE_DIVISOR;
+        uint256 expectedUsdg = lane * USDG_PER_SHARE / 1e18;
 
         vm.prank(executor);
         vm.expectRevert();
@@ -110,9 +110,9 @@ contract RobinhoodFeeHookTest is RobinhoodFixture {
         vm.expectRevert(abi.encodeWithSelector(RobinhoodFeeHookV1.PoolNotRegistered.selector, bytes32(uint256(1))));
         stocksHook.settleStakerLane(bytes32(uint256(1)));
 
-        _fundTrader(l, 10e8);
-        _swapCurrencyIn(l, address(stocksHook), 10e8);
-        uint256 lane = 10e8 / StocksPreset.LANE_DIVISOR;
+        _fundTrader(l, 10e18);
+        _swapCurrencyIn(l, address(stocksHook), 10e18);
+        uint256 lane = 10e18 / StocksPreset.LANE_DIVISOR;
         uint256 safeBefore = stockHigh.balanceOf(safe);
         (uint256 protocolBefore,) = stocksHook.accrued(poolId);
 

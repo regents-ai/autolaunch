@@ -87,13 +87,13 @@ contract RobinhoodLaunchpadsTest is RobinhoodFixture {
         assertEq(record.migrationBlock, expectedEnd + RobinhoodPreset.MIGRATION_DELAY_BLOCKS);
 
         // Bidding is refused before the opening block and accepted on it.
-        stockLow.mint(bidder, 1e8);
+        stockLow.mint(bidder, 1e18);
         vm.roll(expectedStart - 1);
         vm.expectRevert();
         vm.prank(bidder);
-        l.auction.submitBid(_bidPrice(1), 1e8, bidder, FLOOR_PRICE_Q96, "");
+        l.auction.submitBid(_bidPrice(1), 1e18, bidder, FLOOR_PRICE_Q96, "");
         vm.roll(expectedStart);
-        _bidDirect(l, bidder, 1e8, _bidPrice(1));
+        _bidDirect(l, bidder, 1e18, _bidPrice(1));
 
         // A later creation block opens later by the same lead.
         Launched memory later = _launchStock(STOCK_HIGH);

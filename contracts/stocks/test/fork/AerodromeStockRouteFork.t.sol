@@ -2,14 +2,16 @@
 pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {console2} from "forge-std/console2.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {StocksBindings} from "../../src/StocksBindings.sol";
 import {FixtureStockToken} from "../../src/fixtures/FixtureStockToken.sol";
-import {AerodromeStockRouteV1} from "../../src/routes/AerodromeStockRouteV1.sol";
+import {AerodromeStockRouteV2} from "../../src/routes/AerodromeStockRouteV2.sol";
 
-/// @notice The production route against Base itself: every admitted pool and feed binds, and a
-///         real swap through the live AAPLc pool lands within the feed bound. Runs only on a fork
-///         of Base mainnet (`--fork-url` to a Base RPC); the lab fork skips it.
+/// @notice The production route against Base itself: every admitted pool and feed binds, a real
+///         swap through the live AAPLc pool lands near the feed quote, and a purchase beyond the
+///         pool's depth is refused by a 95%-of-quote minimum and executed at a zero minimum. Runs
+///         only on a fork of Base mainnet (`--fork-url` to a Base RPC); the lab fork skips it.
 /// @dev The `0xb2…` stock tokens are `0xef` precompiles the EVM cannot run, so this suite installs
 ///      `FixtureStockToken` at the stock address and refills the pool's stock balance. Pool
 ///      liquidity, prices and USDC are real; the stock token's transfer policy is not exercised.
@@ -30,7 +32,7 @@ contract AerodromeStockRouteForkTest is Test {
         (address[10] memory stocks, address[10] memory pools, address[10] memory feeds) = _admitted();
         for (uint256 i = 0; i < 10; ++i) {
             _installFixtureToken(stocks[i]);
-            AerodromeStockRouteV1 route = new AerodromeStockRouteV1(stocks[i], pools[i], feeds[i]);
+            AerodromeStockRouteV2 route = new AerodromeStockRouteV2(stocks[i], pools[i], feeds[i]);
             assertEq(route.stockUnit(), 1e8);
             assertEq(route.feedUnit(), 1e8);
             uint256 shares = route.quoteExactIn(StocksBindings.USDC, stocks[i], 1_000e6);
@@ -40,8 +42,8 @@ contract AerodromeStockRouteForkTest is Test {
         }
     }
 
-    function test_live_swap_usdc_to_stock_lands_within_the_feed_bound() public {
-        AerodromeStockRouteV1 route = _aaplRoute();
+    function test_live_swap_usdc_to_stock_lands_near_the_feed_quote() public {
+        AerodromeStockRouteV2 route = _aaplRoute();
         deal(StocksBindings.USDC, address(route), 1_000e6);
 
         uint256 quoted = route.quoteExactIn(StocksBindings.USDC, AAPLC, 1_000e6);
@@ -53,8 +55,8 @@ contract AerodromeStockRouteForkTest is Test {
         _assertRouteEmpty(route);
     }
 
-    function test_live_swap_stock_to_usdc_lands_within_the_feed_bound() public {
-        AerodromeStockRouteV1 route = _aaplRoute();
+    function test_live_swap_stock_to_usdc_lands_near_the_feed_quote() public {
+        AerodromeStockRouteV2 route = _aaplRoute();
         FixtureStockToken(AAPLC).mint(address(route), 1e8);
 
         uint256 quoted = route.quoteExactIn(AAPLC, StocksBindings.USDC, 1e8);
@@ -66,17 +68,35 @@ contract AerodromeStockRouteForkTest is Test {
         _assertRouteEmpty(route);
     }
 
-    function test_live_swap_beyond_pool_depth_is_refused_by_the_feed_bound() public {
-        AerodromeStockRouteV1 route = _aaplRoute();
+    function test_live_swap_beyond_pool_depth_is_refused_by_a_95_percent_minimum() public {
+        AerodromeStockRouteV2 route = _aaplRoute();
         deal(StocksBindings.USDC, address(route), 20_000_000e6);
+        uint256 minimum = route.quoteExactIn(StocksBindings.USDC, AAPLC, 20_000_000e6) * 95 / 100;
 
-        vm.expectPartialRevert(AerodromeStockRouteV1.PriceDeviation.selector);
-        route.swapExactIn(StocksBindings.USDC, AAPLC, 20_000_000e6, 0, alice);
+        vm.expectPartialRevert(AerodromeStockRouteV2.InsufficientOutput.selector);
+        route.swapExactIn(StocksBindings.USDC, AAPLC, 20_000_000e6, minimum, alice);
     }
 
-    function _aaplRoute() internal returns (AerodromeStockRouteV1 route) {
+    function test_live_swap_beyond_pool_depth_executes_at_a_zero_minimum() public {
+        AerodromeStockRouteV2 route = _aaplRoute();
+        deal(StocksBindings.USDC, address(route), 20_000_000e6);
+        uint256 quoted = route.quoteExactIn(StocksBindings.USDC, AAPLC, 20_000_000e6);
+
+        uint256 amountOut = route.swapExactIn(StocksBindings.USDC, AAPLC, 20_000_000e6, 0, alice);
+
+        assertEq(IERC20(AAPLC).balanceOf(alice), amountOut, "the purchase lands with alice");
+        assertLt(amountOut, quoted * 95 / 100, "the pool fills a purchase beyond its depth well under the feed");
+        _assertRouteEmpty(route);
+        console2.log("AAPLc purchase beyond depth: shares delivered:", amountOut);
+        console2.log("AAPLc purchase beyond depth: feed quote:", quoted);
+        console2.log(
+            "AAPLc purchase beyond depth: USDC returned unconsumed:", IERC20(StocksBindings.USDC).balanceOf(alice)
+        );
+    }
+
+    function _aaplRoute() internal returns (AerodromeStockRouteV2 route) {
         _installFixtureToken(AAPLC);
-        route = new AerodromeStockRouteV1(AAPLC, AAPLC_POOL, AAPLC_FEED);
+        route = new AerodromeStockRouteV2(AAPLC, AAPLC_POOL, AAPLC_FEED);
         // The pool's real stock balance vanished with the precompile; give it depth to pay out of.
         FixtureStockToken(AAPLC).mint(AAPLC_POOL, 1_000_000e8);
     }
@@ -85,7 +105,7 @@ contract AerodromeStockRouteForkTest is Test {
         vm.etch(stock, type(FixtureStockToken).runtimeCode);
     }
 
-    function _assertRouteEmpty(AerodromeStockRouteV1 route) internal view {
+    function _assertRouteEmpty(AerodromeStockRouteV2 route) internal view {
         assertEq(IERC20(StocksBindings.USDC).balanceOf(address(route)), 0, "usdc left on the route");
         assertEq(IERC20(AAPLC).balanceOf(address(route)), 0, "stock left on the route");
     }

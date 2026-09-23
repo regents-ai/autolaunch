@@ -1,0 +1,521 @@
+{
+  "artifact": "regents-autolaunch-base-mainnet-deployed-manifest",
+  "version": 1,
+  "status": "deployed",
+  "populated_by": "confirmed receipts, and nothing else",
+  "note": "This file is the only record of deployed facts, and it is deliberately empty. It is not the packet: the packet is a proposal about what a ceremony would do, rendered from an offline or read-only run. Nothing simulated may be written here. Every field is populated once, by `bin/ceremony.py record` from confirmed receipts, after the founder has named the approved packet digest and sent the ceremony by hand; a human installs the candidate it writes.",
+  "approved_packet_digest": "0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5",
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "starting_nonce": 5,
+    "hook_salt": "0x00000000000000000000000000000000000000000000000000000000000010a0",
+    "uerc20_factory": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+    "admissions": [
+      {
+        "stock": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+        "pool": "0xA3b1E3f9747065e2073722Ff4c9027d3eA4994F0",
+        "feed": "0x787f13dEa48Db0897CbCDD985de77809D837F988"
+      },
+      {
+        "stock": "0xb200000000000000000000d9192b6B456483C2E8",
+        "pool": "0xd03Bc8C7F2FAedCe2aac81bF0444AEA08Ea06E9b",
+        "feed": "0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295"
+      },
+      {
+        "stock": "0xb2000000000000000000002D0BA3164cc74f58B7",
+        "pool": "0xB1987CAD1682841b4b641d50E520777eC5Ab5542",
+        "feed": "0x5bF49E0ffA937CE2FfF033c739aD7C634c4D34F2"
+      },
+      {
+        "stock": "0xb2000000000000000000008bC8786B856E61707C",
+        "pool": "0xEAF57753BC382E0324a1D43F72E7027705a2273E",
+        "feed": "0x6526aE6797A76123638b863AeE4dD27Ba4E4b27D"
+      },
+      {
+        "stock": "0xB200000000000000000000Ab99cFa739E253872B",
+        "pool": "0x7103eB3c9590d1281f7dc03b2A9EE27C39dF5D54",
+        "feed": "0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c"
+      },
+      {
+        "stock": "0xb2000000000000000000004884b426556b92883d",
+        "pool": "0x8b27f626ab668197000BC722A1012022CAeD10E2",
+        "feed": "0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a"
+      },
+      {
+        "stock": "0xb20000000000000000000078ee7ce2fE4908108C",
+        "pool": "0x853F5f1B92b16714Fe6CDA67CAad0856B83C7ab9",
+        "feed": "0x04689a41629776563E6822F76f2e57D148d28513"
+      },
+      {
+        "stock": "0xb200000000000000000000397293Cb8cda9a10c5",
+        "pool": "0x5A8236f575471e7BfCA2C8462a200c28f737246E",
+        "feed": "0x388b0dC46C0Fb05A74BeE0994fa5b02c6Fcca2eA"
+      },
+      {
+        "stock": "0xb2000000000000000000007b9fcbd005511aCBd5",
+        "pool": "0x0bf58fe0FAc935Ac69595c19B12Ba0d75E3F8c0E",
+        "feed": "0x6A634B235903C4ad6376892180d6fF8612e3Fa68"
+      },
+      {
+        "stock": "0xb2000000000000000000001e800a7f5189430cD0",
+        "pool": "0x469337fDcc5E8f38e2E4B670B04F57865D13a7BB",
+        "feed": "0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4"
+      }
+    ],
+    "predicted_addresses": {
+      "launchpad": "0x1d36a95112835f81b1B499A808e556020C64Cac2",
+      "splitter_implementation": "0x657e75434CED9dFa5397c7cE4d96da238923a452",
+      "locker": "0x9e8B5EDdfC2aCdfc600FB37FBDc070c0Cd0033d7",
+      "hook": "0x3820CD7413BC2EF795229C39C648326D99c8e0cC",
+      "bid_adapter": "0xd28e66967C1fE651e6EC47f13397a74240C064A2",
+      "routes": [
+        "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41",
+        "0x740D2e1978991cdC0594D3a5F69B04C9148B2581",
+        "0xF26A18A009362695d00043eb63F7AB42B2170CA9",
+        "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27",
+        "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df",
+        "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82",
+        "0x49E0995070753fA58152889829249febcF9E0C53",
+        "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60",
+        "0xACfa95f1c16eF61C281C26511556Bf918814151F",
+        "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7"
+      ]
+    }
+  },
+  "transactions": [
+    {
+      "index": 0,
+      "chain_id": 8453,
+      "hash": "0x0503dcf6b755d91f5166c6a3af0288c91215c0fddc17e1ddfbb9b5abcba35320",
+      "block_number": 51673079,
+      "nonce": 5,
+      "contract": "StocksLaunchpadV1",
+      "address": "0x1d36a95112835f81b1B499A808e556020C64Cac2"
+    },
+    {
+      "index": 1,
+      "chain_id": 8453,
+      "hash": "0x336114b51f04ba8cae3a62fff55d0d3202cdc5c6dc0775024351bb1c46a3e8df",
+      "block_number": 51673107,
+      "nonce": 6,
+      "contract": "StockBidAdapterV1",
+      "address": "0xd28e66967C1fE651e6EC47f13397a74240C064A2"
+    },
+    {
+      "index": 2,
+      "chain_id": 8453,
+      "hash": "0x96dbf72dce5b9dc9c5a135b5f5d05a61b693dfe24d75a3201c33da484576f97e",
+      "block_number": 51673122,
+      "nonce": 7,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41"
+    },
+    {
+      "index": 3,
+      "chain_id": 8453,
+      "hash": "0xd69455923686738168decba7ffb4930d24e909ad887b2d807fee4f2ee49a3f92",
+      "block_number": 51673169,
+      "nonce": 8,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0x740D2e1978991cdC0594D3a5F69B04C9148B2581"
+    },
+    {
+      "index": 4,
+      "chain_id": 8453,
+      "hash": "0xd8a671a83defcad932a302c0dd994745cdb6dee609a181e22c1b9fb0e1c5f47e",
+      "block_number": 51673205,
+      "nonce": 9,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0xF26A18A009362695d00043eb63F7AB42B2170CA9"
+    },
+    {
+      "index": 5,
+      "chain_id": 8453,
+      "hash": "0x3cf3b31a86b5e65dbc7a64c27791a8158e537958f421c7fd3ddd1067a90830b2",
+      "block_number": 51673231,
+      "nonce": 10,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27"
+    },
+    {
+      "index": 6,
+      "chain_id": 8453,
+      "hash": "0x59392e30bdd2ce3e7f26a8ac0d11e1a67915d5e475c5c934e3bb7417000d8b9e",
+      "block_number": 51673243,
+      "nonce": 11,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df"
+    },
+    {
+      "index": 7,
+      "chain_id": 8453,
+      "hash": "0xc6b1f09b478dd4dd833251d089ee3f69f550257cc7afd27f030c64da5474dffa",
+      "block_number": 51673254,
+      "nonce": 12,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82"
+    },
+    {
+      "index": 8,
+      "chain_id": 8453,
+      "hash": "0xf85513e7f7a2ea3899c0f1427c80673e8525b561021a930477dec1784dfe41cd",
+      "block_number": 51673273,
+      "nonce": 13,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0x49E0995070753fA58152889829249febcF9E0C53"
+    },
+    {
+      "index": 9,
+      "chain_id": 8453,
+      "hash": "0xcc0d825505e64d59c6f08dbae2d420daf7fe45d96b5ae49b49c70c1156e408ee",
+      "block_number": 51673292,
+      "nonce": 14,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60"
+    },
+    {
+      "index": 10,
+      "chain_id": 8453,
+      "hash": "0x68c1520e2f8512c37d5134150c7331a1fa4c15f9df3642f934f43cf0456e8eee",
+      "block_number": 51673313,
+      "nonce": 15,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0xACfa95f1c16eF61C281C26511556Bf918814151F"
+    },
+    {
+      "index": 11,
+      "chain_id": 8453,
+      "hash": "0xc5bd337d0762f4be426a3a415f536761163a837f975a5c122f4f621bb4215aec",
+      "block_number": 51673339,
+      "nonce": 16,
+      "contract": "AerodromeStockRouteV1",
+      "address": "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7"
+    }
+  ],
+  "contracts": [
+    {
+      "contract": "StocksLaunchpadV1",
+      "contract_key": "launchpad",
+      "chain_id": 8453,
+      "address": "0x1d36a95112835f81b1B499A808e556020C64Cac2",
+      "created_by": "deployer",
+      "block_number": 51673079,
+      "codehash": "0x6c0816734223130296a9c7e066f3d90daa8cbe2b2de8e06ebcdcd0faebd42b76",
+      "runtime_bytes": 21278,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "StockBidAdapterV1",
+      "contract_key": "bid_adapter",
+      "chain_id": 8453,
+      "address": "0xd28e66967C1fE651e6EC47f13397a74240C064A2",
+      "created_by": "deployer",
+      "block_number": 51673107,
+      "codehash": "0x378b5f8d47067ae0da8ae36d374b5efe9d49bfaa12ad5d660b87e87831120b73",
+      "runtime_bytes": 3181,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41",
+      "created_by": "deployer",
+      "block_number": 51673122,
+      "codehash": "0xbde32cfb642b79b42b65607d8763e9344d642939baa777cdd1b18f7accabb2e2",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0x740D2e1978991cdC0594D3a5F69B04C9148B2581",
+      "created_by": "deployer",
+      "block_number": 51673169,
+      "codehash": "0xf2aff39893f595a31ddb8b23ba6ea73fde9fab88e8888b5bdbb7151dbc1a5415",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0xF26A18A009362695d00043eb63F7AB42B2170CA9",
+      "created_by": "deployer",
+      "block_number": 51673205,
+      "codehash": "0xc2d3bd63fd415c3c92b1b84ff03d28f91ea63e1ce806cccf450db65efb82d368",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27",
+      "created_by": "deployer",
+      "block_number": 51673231,
+      "codehash": "0xcac0c9b4de3c8b3e02f528157d1488a81f58eee1eeaaa953aa705626982958c5",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df",
+      "created_by": "deployer",
+      "block_number": 51673243,
+      "codehash": "0xc0ae977af3048053c6866b4e3b0d3b3d814d3ecd059d2fea4967a25bd0f1a4a9",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82",
+      "created_by": "deployer",
+      "block_number": 51673254,
+      "codehash": "0x91c160f3efa42ebd8b8301d882bc3a3dd1f857b657c59720949b9219ca8e59c8",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0x49E0995070753fA58152889829249febcF9E0C53",
+      "created_by": "deployer",
+      "block_number": 51673273,
+      "codehash": "0x5a7bbf94c8da572bdf734d8b1210278e2f53bf1e6ddf3270f4899fedd77edb18",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60",
+      "created_by": "deployer",
+      "block_number": 51673292,
+      "codehash": "0xf8f8c3922f7d2c1da7e4613e0443d3f1c74deb9aeb1461e3ea28c334ecfa8bb4",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0xACfa95f1c16eF61C281C26511556Bf918814151F",
+      "created_by": "deployer",
+      "block_number": 51673313,
+      "codehash": "0xdda423bc82f723183f1704d781ba722a5e1df24c84d1d75f5ac6ea86c3297ce2",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "contract_key": "route",
+      "chain_id": 8453,
+      "address": "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7",
+      "created_by": "deployer",
+      "block_number": 51673339,
+      "codehash": "0x7512213d6804c08cf7f3c6536db3a1f467a52def46d7135df05fae7c5d3db384",
+      "runtime_bytes": 2759,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "MemestockSplitterV1",
+      "contract_key": "splitter_implementation",
+      "chain_id": 8453,
+      "address": "0x657e75434CED9dFa5397c7cE4d96da238923a452",
+      "created_by": "StocksLaunchpadV1 constructor",
+      "block_number": 51673079,
+      "codehash": "0x8f5b607af0fc8c6d3c62a5c171f2f9e475adc537679cd5d70c22ea27b06bf415",
+      "runtime_bytes": 6447,
+      "verification": "codehash equals the frozen runtime keccak256"
+    },
+    {
+      "contract": "MemestockLPLocker",
+      "contract_key": "locker",
+      "chain_id": 8453,
+      "address": "0x9e8B5EDdfC2aCdfc600FB37FBDc070c0Cd0033d7",
+      "created_by": "StocksLaunchpadV1 constructor",
+      "block_number": 51673079,
+      "codehash": "0xcc70093a7da88f71cd75231f804f410e8979c1e9ccd1ae240748e3847213561b",
+      "runtime_bytes": 3271,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    },
+    {
+      "contract": "StocksFeeHookV1",
+      "contract_key": "hook",
+      "chain_id": 8453,
+      "address": "0x3820CD7413BC2EF795229C39C648326D99c8e0cC",
+      "created_by": "StocksLaunchpadV1 constructor",
+      "block_number": 51673079,
+      "codehash": "0x0d1274a1026acb6ee2a268a41c1679743b206991b02ed205fbdee1640a4401d8",
+      "runtime_bytes": 8077,
+      "verification": "deployed code equals the frozen runtime with immutables masked and libraries linked"
+    }
+  ],
+  "readbacks": {
+    "launchpad.hook": "0x3820CD7413BC2EF795229C39C648326D99c8e0cC",
+    "launchpad.locker": "0x9e8B5EDdfC2aCdfc600FB37FBDc070c0Cd0033d7",
+    "launchpad.splitterImplementation": "0x657e75434CED9dFa5397c7cE4d96da238923a452",
+    "launchpad.launchesPaused": true,
+    "bidAdapter.launchpad": "0x1d36a95112835f81b1B499A808e556020C64Cac2",
+    "route[0].stock": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+    "route[0].pool": "0xA3b1E3f9747065e2073722Ff4c9027d3eA4994F0",
+    "route[0].feed": "0x787f13dEa48Db0897CbCDD985de77809D837F988",
+    "route[1].stock": "0xb200000000000000000000d9192b6B456483C2E8",
+    "route[1].pool": "0xd03Bc8C7F2FAedCe2aac81bF0444AEA08Ea06E9b",
+    "route[1].feed": "0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295",
+    "route[2].stock": "0xb2000000000000000000002D0BA3164cc74f58B7",
+    "route[2].pool": "0xB1987CAD1682841b4b641d50E520777eC5Ab5542",
+    "route[2].feed": "0x5bF49E0ffA937CE2FfF033c739aD7C634c4D34F2",
+    "route[3].stock": "0xb2000000000000000000008bC8786B856E61707C",
+    "route[3].pool": "0xEAF57753BC382E0324a1D43F72E7027705a2273E",
+    "route[3].feed": "0x6526aE6797A76123638b863AeE4dD27Ba4E4b27D",
+    "route[4].stock": "0xB200000000000000000000Ab99cFa739E253872B",
+    "route[4].pool": "0x7103eB3c9590d1281f7dc03b2A9EE27C39dF5D54",
+    "route[4].feed": "0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c",
+    "route[5].stock": "0xb2000000000000000000004884b426556b92883d",
+    "route[5].pool": "0x8b27f626ab668197000BC722A1012022CAeD10E2",
+    "route[5].feed": "0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a",
+    "route[6].stock": "0xb20000000000000000000078ee7ce2fE4908108C",
+    "route[6].pool": "0x853F5f1B92b16714Fe6CDA67CAad0856B83C7ab9",
+    "route[6].feed": "0x04689a41629776563E6822F76f2e57D148d28513",
+    "route[7].stock": "0xb200000000000000000000397293Cb8cda9a10c5",
+    "route[7].pool": "0x5A8236f575471e7BfCA2C8462a200c28f737246E",
+    "route[7].feed": "0x388b0dC46C0Fb05A74BeE0994fa5b02c6Fcca2eA",
+    "route[8].stock": "0xb2000000000000000000007b9fcbd005511aCBd5",
+    "route[8].pool": "0x0bf58fe0FAc935Ac69595c19B12Ba0d75E3F8c0E",
+    "route[8].feed": "0x6A634B235903C4ad6376892180d6fF8612e3Fa68",
+    "route[9].stock": "0xb2000000000000000000001e800a7f5189430cD0",
+    "route[9].pool": "0x469337fDcc5E8f38e2E4B670B04F57865D13a7BB",
+    "route[9].feed": "0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4"
+  },
+  "admissions": [
+    {
+      "stock": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+      "symbol": "AAPLc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0xA3b1E3f9747065e2073722Ff4c9027d3eA4994F0",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0x787f13dEa48Db0897CbCDD985de77809D837F988",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41"
+    },
+    {
+      "stock": "0xb200000000000000000000d9192b6B456483C2E8",
+      "symbol": "AMZNc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0xd03Bc8C7F2FAedCe2aac81bF0444AEA08Ea06E9b",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0x740D2e1978991cdC0594D3a5F69B04C9148B2581"
+    },
+    {
+      "stock": "0xb2000000000000000000002D0BA3164cc74f58B7",
+      "symbol": "GOOGLc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0xB1987CAD1682841b4b641d50E520777eC5Ab5542",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0x5bF49E0ffA937CE2FfF033c739aD7C634c4D34F2",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0xF26A18A009362695d00043eb63F7AB42B2170CA9"
+    },
+    {
+      "stock": "0xb2000000000000000000008bC8786B856E61707C",
+      "symbol": "METAc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0xEAF57753BC382E0324a1D43F72E7027705a2273E",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0x6526aE6797A76123638b863AeE4dD27Ba4E4b27D",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27"
+    },
+    {
+      "stock": "0xB200000000000000000000Ab99cFa739E253872B",
+      "symbol": "MSFTc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0x7103eB3c9590d1281f7dc03b2A9EE27C39dF5D54",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df"
+    },
+    {
+      "stock": "0xb2000000000000000000004884b426556b92883d",
+      "symbol": "MSTRc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0x8b27f626ab668197000BC722A1012022CAeD10E2",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82"
+    },
+    {
+      "stock": "0xb20000000000000000000078ee7ce2fE4908108C",
+      "symbol": "NVDAc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0x853F5f1B92b16714Fe6CDA67CAad0856B83C7ab9",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0x04689a41629776563E6822F76f2e57D148d28513",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0x49E0995070753fA58152889829249febcF9E0C53"
+    },
+    {
+      "stock": "0xb200000000000000000000397293Cb8cda9a10c5",
+      "symbol": "SNDKc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0x5A8236f575471e7BfCA2C8462a200c28f737246E",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0x388b0dC46C0Fb05A74BeE0994fa5b02c6Fcca2eA",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60"
+    },
+    {
+      "stock": "0xb2000000000000000000007b9fcbd005511aCBd5",
+      "symbol": "SPCXc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0x0bf58fe0FAc935Ac69595c19B12Ba0d75E3F8c0E",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0x6A634B235903C4ad6376892180d6fF8612e3Fa68",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0xACfa95f1c16eF61C281C26511556Bf918814151F"
+    },
+    {
+      "stock": "0xb2000000000000000000001e800a7f5189430cD0",
+      "symbol": "TSLAc",
+      "decimals": 8,
+      "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+      "pool": "0x469337fDcc5E8f38e2E4B670B04F57865D13a7BB",
+      "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+      "feed": "0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4",
+      "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "feed_decimals": 8,
+      "route": "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7"
+    }
+  ]
+}

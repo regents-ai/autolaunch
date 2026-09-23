@@ -43,6 +43,22 @@ match_path = "test/fork/**"
 # Profiles inherit the default exclusion; a glob that matches nothing lifts it here.
 no_match_path = "none/**"
 
+# The deployment-ceremony profile, the only profile `bin/ceremony.py` runs. Same frozen build; a
+# separate test root and build directory so ceremony artifacts never touch the set the required gate
+# reconciles. No filesystem access: the graph is emitted as decoded logs and rendered by the tool.
+[profile.deployment]
+test = "test-deployment"
+out = "reports/generated/deployment-out"
+cache_path = "reports/generated/deployment-cache"
+offline = false
+ffi = false
+fs_permissions = []
+
+# The one Base endpoint alias. Its value stays an unresolved environment reference in every
+# committed file; the required offline gate never reads it.
+[rpc_endpoints]
+base = "${REGENT_BASE_RPC_URL}"
+
 # Lint applies to the shipped sources; test doubles and the lab script are exercised, not linted.
 [lint]
 ignore = ["test/**/*.sol", "script/**/*.sol"]

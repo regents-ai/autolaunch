@@ -171,6 +171,7 @@ contract RobinhoodStocksLaunchpadV1 is RobinhoodLaunchpadBase, IRobinhoodStocksL
 
     /// @dev The rounding remainder below one unit of liquidity is credited to the pool's protocol
     ///      lane; every unit of this launch's NEW still here is retired. No principal path exists.
+    // slither-disable-next-line reentrancy-no-eth
     function _finishGraduation(
         uint256 launchId,
         Launch storage record,

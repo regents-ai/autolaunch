@@ -242,7 +242,9 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         uint256 auctionHeld = newToken.balanceOf(auction);
         newToken.safeTransfer(auction, StocksPreset.AUCTION_INVENTORY);
         uint256 delivered = newToken.balanceOf(auction) - auctionHeld;
-        if (delivered != StocksPreset.AUCTION_INVENTORY) revert InexactTransfer(StocksPreset.AUCTION_INVENTORY, delivered);
+        if (delivered != StocksPreset.AUCTION_INVENTORY) {
+            revert InexactTransfer(StocksPreset.AUCTION_INVENTORY, delivered);
+        }
         IContinuousClearingAuction(auction).onTokensReceived();
 
         uint256 held = newToken.balanceOf(address(this));
@@ -373,7 +375,9 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
                 StocksPreset.NEW_DECIMALS,
                 StocksPreset.INITIAL_SUPPLY,
                 address(this),
-                abi.encode(UERC20Metadata({description: params.description, website: params.website, image: params.image})),
+                abi.encode(
+                    UERC20Metadata({description: params.description, website: params.website, image: params.image})
+                ),
                 graffiti
             );
 
@@ -422,6 +426,8 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
                 )
         );
 
+        // A code-presence check, not an arithmetic equality: a CREATE2 address without code is no auction.
+        // slither-disable-next-line incorrect-equality
         if (auction.code.length == 0) revert AuctionHasNoCode(auction);
         IContinuousClearingAuction cca = IContinuousClearingAuction(auction);
         _requireBinding(0, uint256(uint160(newToken)), uint256(uint160(cca.token())));
@@ -495,7 +501,13 @@ contract StocksLaunchpadV1 is ReentrancyGuardTransient, IStocksLaunchpadV1 {
         IPoolManager(StocksBindings.POOL_MANAGER).initialize(key, sqrtPriceX96);
 
         LockedLiquidity memory locked = _mintLockedPositions(
-            key, sqrtPriceX96, stockIsCurrency0, stock, newToken, SafeCastLib.toUint128(raised), StocksPreset.MIGRATION_RESERVE
+            key,
+            sqrtPriceX96,
+            stockIsCurrency0,
+            stock,
+            newToken,
+            SafeCastLib.toUint128(raised),
+            StocksPreset.MIGRATION_RESERVE
         );
         MemestockLPLocker(locker).register(locked.fullRangeTokenId, key, splitter);
         if (locked.stockOnlyTokenId != 0) MemestockLPLocker(locker).register(locked.stockOnlyTokenId, key, splitter);

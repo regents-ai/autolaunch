@@ -591,7 +591,7 @@ selectors = [
 
 [[requirement]]
 id = "DEP-071"
-statement = "The Autolaunch factory's constructor alone creates the two internal contracts: RegentLBPStrategy at the factory's first internal CREATE, factory nonce 1, and RegentFeeHook by CREATE2 over the packet's pre-mined salt and the frozen build's exact hook initcode, at an address carrying exactly the three permission bits the hook declares; the factory makes no third internal creation."
+statement = "The ceremony's three internal creations are exactly these: the Autolaunch factory's constructor alone creates RegentLBPStrategy at the factory's first internal CREATE, factory nonce 1, and RegentFeeHook by CREATE2 over the packet's pre-mined salt and the frozen build's exact hook initcode, at an address carrying exactly the three permission bits the hook declares; the strategy's constructor alone creates RevstakeLPLocker at the strategy's first internal CREATE, strategy nonce 1. The factory makes no third internal creation, the strategy makes no second, and no other contract the ceremony produces creates anything."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -601,7 +601,7 @@ selectors = ["test_DEP_071_FactoryAloneCreatesTheStrategyAndTheMinedHook"]
 
 [[requirement]]
 id = "DEP-072"
-statement = "Every constructor binding and runtime readback across the seven contracts the ceremony produces is exact: the factory's token factory, strategy and hook, its first launch id and paused state — the fifth receipt leaves launches closed; the strategy's factory, three clone implementations and bound hook; the hook's PoolManager and strategy; and the deployed runtime code hash of each of the four admitted addresses equals the hash the factory constructor admitted."
+statement = "Every constructor binding and runtime readback across the eight contracts the ceremony produces is exact: the factory's token factory, strategy and hook, its first launch id and paused state — the fifth receipt leaves launches closed; the strategy's factory, three clone implementations, bound hook and LP locker; the locker's strategy, with runtime code byte-identical to this build's RevstakeLPLocker bound to that strategy; the hook's PoolManager and strategy; and the deployed runtime code hash of each of the four admitted addresses equals the hash the factory constructor admitted."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"
@@ -621,7 +621,7 @@ selectors = ["test_DEP_073_TheDeployerRetainsNoProtocolAuthority"]
 
 [[requirement]]
 id = "DEP-074"
-statement = "Every contract the ceremony creates, the two internal ones included, deploys runtime within the EIP-170 limit and is created from initcode within the EIP-3860 limit, measured from the ceremony's own execution against the exact constructor arguments it uses. The in-EVM gas each of the five creations consumes is measured and held under 14,000,000 as a guardrail only: it excludes the intrinsic cost, the initcode calldata cost and EIP-3860's per-word charge a real creation transaction carries, so it is a floor and never a complete-transaction gas result. No complete deployment-transaction gas figure is claimed by this or any other requirement, and the full per-transaction estimates stay pending the exact selected deployer and salt and an authorized rehearsal."
+statement = "Every contract the ceremony creates, the three internal ones included, deploys runtime within the EIP-170 limit and is created from initcode within the EIP-3860 limit, measured from the ceremony's own execution against the exact constructor arguments it uses. The in-EVM gas each of the five creations consumes is measured and held under 14,000,000 as a guardrail only: it excludes the intrinsic cost, the initcode calldata cost and EIP-3860's per-word charge a real creation transaction carries, so it is a floor and never a complete-transaction gas result. No complete deployment-transaction gas figure is claimed by this or any other requirement, and the full per-transaction estimates stay pending the exact selected deployer and salt and an authorized rehearsal."
 owner = "regent-839.7"
 contract = "deployment-ceremony"
 evidence_class = "deployment-ceremony"

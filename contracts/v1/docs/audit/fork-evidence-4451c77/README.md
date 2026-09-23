@@ -1,4 +1,4 @@
-# Retained fork evidence — commit `ea8c81b`
+# Retained fork evidence — commit `4451c77`
 
 Four files copied byte for byte out of `reports/generated/fork/` after the compare-only fork check
 that produced `fork-check-receipt.json`. They are the reports whose `sha256` that receipt names, and
@@ -9,11 +9,12 @@ whose receipt digest the deployment packet names.
 | `forge-test-list.json` | the compiled fork test list — the selectors Forge discovered for the run |
 | `forge-test-pinned.json` | the run at the pinned header: eighteen selectors |
 | `forge-test-later.json` | the run at the later header: the approved nine-selector subset |
-| `fork-check-receipt.json` | the receipt binding the tested commit, tree, `src/` tree and the three report hashes |
+| `fork-check-receipt.json` | the receipt binding the tested commit, tree, `contracts/v1/src` tree and the three report hashes |
 
 The run covered by these files is fork-evidence commit
-`ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa` on production authority
-`f4114f5276386f48bf8dc53ee344189d98c8896e`.
+`4451c776f84fa904dd02b0c4360d360a45a945cb` on production authority
+`7d564cec735c3b1b928ec4e2ede0b244682d105b`, executed on 2026-09-22 against the committed headers
+`50541328` and `50541628`.
 
 ## Why they are retained here
 
@@ -29,14 +30,14 @@ Exactly as named by `fork-check-receipt.json` and, for the receipt itself, by th
 | File | sha256 |
 | --- | --- |
 | `forge-test-list.json` | `21cd56b89a58b16057cb73ca2814125866d519f0589e5cfe6371b9c4c6bdc4e3` |
-| `forge-test-pinned.json` | `211eec28b51558075a7f5bee7f4eddb128e605df85869fc0372db6767843c80d` |
-| `forge-test-later.json` | `17c509de4eef4c334272962d13d31596c6f2442e1b213bf45577a7e49caa4875` |
-| `fork-check-receipt.json` | `a1cb403f5c01dfdf5c6e998bd8ea429e9142c99ca4518faf494a00dd01e68853` |
+| `forge-test-pinned.json` | `f3287014cddf4ede21f706edbd6f1f8ce6f9c3a00214c52291d89a4591928413` |
+| `forge-test-later.json` | `4e237fb490a0ea7d1877b6ddae3eeedb27637326516357f4ac39cc6a7a6e124f` |
+| `fork-check-receipt.json` | `84f34fb84e7f8429ee6fc8894d67a4af871304c374184627d8099e2d0549053e` |
 
 Re-check them with:
 
 ```
-shasum -a 256 docs/audit/fork-evidence-ea8c81b/*.json
+shasum -a 256 docs/audit/fork-evidence-4451c77/*.json
 ```
 
 ## What this directory is not

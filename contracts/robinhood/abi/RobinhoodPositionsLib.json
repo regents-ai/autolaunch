@@ -1,0 +1,281 @@
+{
+  "contract": "RobinhoodPositionsLib",
+  "source": "src/libraries/RobinhoodPositionsLib.sol",
+  "compiler": "0.8.26+commit.8a97fa7a",
+  "abi": [
+    {
+      "type": "function",
+      "name": "defined",
+      "inputs": [
+        {
+          "name": "sqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        },
+        {
+          "name": "definition",
+          "type": "tuple",
+          "internalType": "struct PositionDefinition",
+          "components": [
+            {
+              "name": "offsetLower",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "offsetUpper",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "weight",
+              "type": "uint24",
+              "internalType": "uint24"
+            },
+            {
+              "name": "overridePositionRecipient",
+              "type": "address",
+              "internalType": "address"
+            }
+          ]
+        },
+        {
+          "name": "budget",
+          "type": "tuple",
+          "internalType": "struct CurrencyAmounts",
+          "components": [
+            {
+              "name": "amount0",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "amount1",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ]
+        },
+        {
+          "name": "recipient",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positions",
+          "type": "tuple[]",
+          "internalType": "struct Position[]",
+          "components": [
+            {
+              "name": "amount0",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "amount1",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "tickLower",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "tickUpper",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "liquidity",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "recipient",
+              "type": "address",
+              "internalType": "address"
+            }
+          ]
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "exactlyFundedPlan",
+      "inputs": [
+        {
+          "name": "positions",
+          "type": "tuple[]",
+          "internalType": "struct Position[]",
+          "components": [
+            {
+              "name": "amount0",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "amount1",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "tickLower",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "tickUpper",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "liquidity",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "recipient",
+              "type": "address",
+              "internalType": "address"
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "type": "tuple",
+          "internalType": "struct PoolKey",
+          "components": [
+            {
+              "name": "currency0",
+              "type": "address",
+              "internalType": "Currency"
+            },
+            {
+              "name": "currency1",
+              "type": "address",
+              "internalType": "Currency"
+            },
+            {
+              "name": "fee",
+              "type": "uint24",
+              "internalType": "uint24"
+            },
+            {
+              "name": "tickSpacing",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "hooks",
+              "type": "IHooks",
+              "internalType": "contract IHooks"
+            }
+          ]
+        },
+        {
+          "name": "amount0",
+          "type": "uint128",
+          "internalType": "uint128"
+        },
+        {
+          "name": "amount1",
+          "type": "uint128",
+          "internalType": "uint128"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "unlockData",
+          "type": "bytes",
+          "internalType": "bytes"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "fullRange",
+      "inputs": [
+        {
+          "name": "sqrtPriceX96",
+          "type": "uint160",
+          "internalType": "uint160"
+        },
+        {
+          "name": "currencyIsCurrency0",
+          "type": "bool",
+          "internalType": "bool"
+        },
+        {
+          "name": "currencyBudget",
+          "type": "uint128",
+          "internalType": "uint128"
+        },
+        {
+          "name": "reserve",
+          "type": "uint128",
+          "internalType": "uint128"
+        },
+        {
+          "name": "recipient",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "tuple",
+          "internalType": "struct Position",
+          "components": [
+            {
+              "name": "amount0",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "amount1",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "tickLower",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "tickUpper",
+              "type": "int24",
+              "internalType": "int24"
+            },
+            {
+              "name": "liquidity",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "recipient",
+              "type": "address",
+              "internalType": "address"
+            }
+          ]
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "error",
+      "name": "NoFullRangePosition",
+      "inputs": []
+    }
+  ],
+  "method_identifiers": {
+    "defined(uint160,PositionDefinition,CurrencyAmounts,address)": "99c2c6f3",
+    "exactlyFundedPlan(Position[],PoolKey,uint128,uint128)": "5c3ae7d3",
+    "fullRange(uint160,bool,uint128,uint128,address)": "ac4875cb"
+  }
+}

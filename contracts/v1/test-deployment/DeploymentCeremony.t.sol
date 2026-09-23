@@ -7,6 +7,7 @@ import {ConditionalVestingEscrowV1} from "../src/escrow/ConditionalVestingEscrow
 import {RegentsAutolaunchFactoryV1} from "../src/factory/RegentsAutolaunchFactoryV1.sol";
 import {RegentFeeHook} from "../src/hook/RegentFeeHook.sol";
 import {PaymentReceiverV1} from "../src/revenue/PaymentReceiverV1.sol";
+import {RevstakeLPLocker} from "../src/revenue/RevstakeLPLocker.sol";
 import {SubjectSplitterV1} from "../src/revenue/SubjectSplitterV1.sol";
 import {RegentLBPStrategy} from "../src/strategy/RegentLBPStrategy.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
@@ -97,7 +98,7 @@ contract DeploymentCeremonyTest is Test {
 
         // Zero value. Nothing was funded, nothing was forwarded, and no created contract holds ETH.
         assertEq(deployer.balance, balanceBefore, "the ceremony moved value out of the deployer");
-        address[7] memory created = _addresses(graph);
+        address[8] memory created = _addresses(graph);
         for (uint256 i; i < created.length; ++i) {
             assertEq(created[i].balance, 0, "a created contract holds ETH");
             assertGt(created[i].code.length, 0, "a predicted address carries no code");
@@ -121,21 +122,25 @@ contract DeploymentCeremonyTest is Test {
     }
 
     // -------------------------------------------------------------------------
-    // DEP-071 — the two internal creations the factory alone makes
+    // DEP-071 — the three internal creations: two by the factory, one by the strategy
     // -------------------------------------------------------------------------
 
     /// @notice `DEP-071`: the factory constructor alone creates the strategy at its first internal
-    ///         `CREATE` and the hook by `CREATE2` over the pre-mined salt, and the hook address
-    ///         carries exactly the three declared permission bits.
+    ///         `CREATE` and the hook by `CREATE2` over the pre-mined salt, the hook address carries
+    ///         exactly the three declared permission bits, and the strategy constructor alone
+    ///         creates the LP locker at its first internal `CREATE`. Nothing else creates anything.
     function test_DEP_071_FactoryAloneCreatesTheStrategyAndTheMinedHook() public {
         (DeployAutolaunchV1.Ceremony memory ceremony,) = _prepare();
         DeployAutolaunchV1.Graph memory graph = deployment.execute(ceremony);
 
         RegentsAutolaunchFactoryV1 factory = RegentsAutolaunchFactoryV1(graph.factory);
+        RegentLBPStrategy strategy = RegentLBPStrategy(graph.strategy);
         assertEq(address(factory.strategy()), graph.strategy, "the strategy is not the factory's first CREATE");
         assertEq(address(factory.hook()), graph.hook, "the hook is not the factory's predicted CREATE2");
+        assertEq(address(strategy.lpLocker()), graph.lpLocker, "the locker is not the strategy's first CREATE");
 
         assertEq(graph.strategy, vm.computeCreateAddress(graph.factory, 1), "the strategy is not at factory nonce 1");
+        assertEq(graph.lpLocker, vm.computeCreateAddress(graph.strategy, 1), "the locker is not at strategy nonce 1");
         assertEq(
             graph.hook,
             vm.computeCreate2Address(
@@ -152,6 +157,16 @@ contract DeploymentCeremonyTest is Test {
         // more, so a factory that made any third internal creation would be past three.
         assertEq(vm.getNonce(graph.factory), 3, "the factory made an internal creation the ceremony does not admit");
 
+        // The strategy made exactly the locker: its `CREATE` consumed nonce 1 and nothing consumed
+        // nonce 2. Every other contract the ceremony produces is still at the nonce it was born
+        // with, so no constructor other than the factory's and the strategy's created anything.
+        assertEq(vm.getNonce(graph.strategy), 2, "the strategy made an internal creation the ceremony does not admit");
+        address[8] memory created = _addresses(graph);
+        for (uint256 i; i < created.length; ++i) {
+            if (created[i] == graph.factory || created[i] == graph.strategy) continue;
+            assertEq(vm.getNonce(created[i]), 1, "a contract other than the factory and the strategy created something");
+        }
+
         // The permission-bit word is a packet fact: it is a property of the hook's own declaration
         // and is the same whoever deploys it. This run's salt and strategy are not — they belong to
         // this run's stand-in deployer — so they are reported and never rendered.
@@ -164,7 +179,7 @@ contract DeploymentCeremonyTest is Test {
     // DEP-072 — exact constructor bindings and runtime readbacks
     // -------------------------------------------------------------------------
 
-    /// @notice `DEP-072`: every constructor binding and every runtime readback across the seven
+    /// @notice `DEP-072`: every constructor binding and every runtime readback across the eight
     ///         deployed contracts is exactly what the ceremony intended, with no post-deployment
     ///         binding call anywhere.
     function test_DEP_072_EveryConstructorBindingAndReadbackIsExact() public {
@@ -173,6 +188,7 @@ contract DeploymentCeremonyTest is Test {
 
         RegentsAutolaunchFactoryV1 factory = RegentsAutolaunchFactoryV1(graph.factory);
         RegentLBPStrategy strategy = RegentLBPStrategy(graph.strategy);
+        RevstakeLPLocker lpLocker = RevstakeLPLocker(graph.lpLocker);
         RegentFeeHook hook = RegentFeeHook(graph.hook);
 
         assertEq(factory.uerc20Factory(), graph.uerc20Factory, "the factory bound another token factory");
@@ -186,9 +202,24 @@ contract DeploymentCeremonyTest is Test {
         assertEq(strategy.splitterImplementation(), graph.splitterImplementation, "the strategy bound another splitter");
         assertEq(strategy.receiverImplementation(), graph.receiverImplementation, "the strategy bound another receiver");
         assertEq(strategy.hook(), graph.hook, "the strategy did not bind the hook the factory created");
+        assertEq(address(strategy.lpLocker()), graph.lpLocker, "the strategy bound another locker");
+
+        assertEq(lpLocker.strategy(), graph.strategy, "the locker bound another strategy");
 
         assertEq(address(hook.poolManager()), BaseBindings.POOL_MANAGER, "the hook bound another PoolManager");
         assertEq(hook.strategy(), graph.strategy, "the hook bound another strategy");
+
+        // The locker's runtime is exactly what this build produces for `RevstakeLPLocker(strategy)`:
+        // a reference instance constructed here with the same argument carries byte-identical code,
+        // immutable included. `type(RevstakeLPLocker).runtimeCode` is unavailable for a contract
+        // with immutables, which is why the comparison is against a reference creation rather
+        // than a constant; the masked comparison against the frozen artifact belongs to the
+        // recorder, which has the artifact's immutable references.
+        assertEq(
+            graph.lpLocker.code,
+            address(new RevstakeLPLocker(graph.strategy)).code,
+            "the locker's runtime is not this build's RevstakeLPLocker bound to the strategy"
+        );
 
         // The four admitted runtime code hashes are the constructor's own admission rule, and the
         // deployed accounts are what it admitted. A codeless or substituted implementation would
@@ -255,7 +286,7 @@ contract DeploymentCeremonyTest is Test {
         // Nothing about the deployer survives in the graph: no balance, no code, no allowance from
         // any created contract, and no residual role. Its remaining ETH is ordinary wallet property.
         assertEq(deployer.code.length, 0, "the disposable deployer is not an ordinary account");
-        address[7] memory created = _addresses(graph);
+        address[8] memory created = _addresses(graph);
         for (uint256 i; i < created.length; ++i) {
             assertEq(created[i].balance, 0, "a created contract holds ETH the deployer could reach");
         }
@@ -313,8 +344,9 @@ contract DeploymentCeremonyTest is Test {
             _reportDeployability(names[i], creationCode[i], constructorArgs[i], addresses[i].code.length, gasUsed[i]);
         }
 
-        // The two the factory creates from inside its own constructor are subject to the same two
-        // limits, measured against the exact arguments the constructor itself supplies.
+        // The three created from inside constructors — the strategy and the hook by the factory,
+        // the locker by the strategy — are subject to the same two limits, measured against the
+        // exact arguments each constructor itself supplies.
         _reportDeployability(
             "RegentLBPStrategy",
             type(RegentLBPStrategy).creationCode,
@@ -322,6 +354,13 @@ contract DeploymentCeremonyTest is Test {
                 graph.factory, graph.escrowImplementation, graph.splitterImplementation, graph.receiverImplementation
             ),
             graph.strategy.code.length,
+            0
+        );
+        _reportDeployability(
+            "RevstakeLPLocker",
+            type(RevstakeLPLocker).creationCode,
+            abi.encode(graph.strategy),
+            graph.lpLocker.code.length,
             0
         );
         _reportDeployability(
@@ -397,7 +436,7 @@ contract DeploymentCeremonyTest is Test {
 
         // Nothing was created by any of the three refusals.
         DeployAutolaunchV1.Graph memory graph = deployment.predict(ceremony);
-        address[7] memory created = _addresses(graph);
+        address[8] memory created = _addresses(graph);
         for (uint256 i; i < created.length; ++i) {
             assertEq(created[i].code.length, 0, "an aborted ceremony created something");
         }
@@ -525,16 +564,18 @@ contract DeploymentCeremonyTest is Test {
         emit log_named_address("ceremony creation_4_receiver_implementation", graph.receiverImplementation);
         emit log_named_address("ceremony creation_5_factory", graph.factory);
         emit log_named_address("ceremony internal_strategy", graph.strategy);
+        emit log_named_address("ceremony internal_lp_locker", graph.lpLocker);
         emit log_named_address("ceremony internal_hook", graph.hook);
     }
 
-    function _addresses(DeployAutolaunchV1.Graph memory graph) private pure returns (address[7] memory set) {
+    function _addresses(DeployAutolaunchV1.Graph memory graph) private pure returns (address[8] memory set) {
         set[0] = graph.uerc20Factory;
         set[1] = graph.escrowImplementation;
         set[2] = graph.splitterImplementation;
         set[3] = graph.receiverImplementation;
         set[4] = graph.factory;
         set[5] = graph.strategy;
-        set[6] = graph.hook;
+        set[6] = graph.lpLocker;
+        set[7] = graph.hook;
     }
 }

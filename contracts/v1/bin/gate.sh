@@ -116,7 +116,8 @@ trap 'cleanup_unpublished_receipt; exit 1' HUP INT TERM
 
 # Compare every tracked file in the ticket repository directly with its indexed blob, reject
 # hidden index flags, and force every recursive submodule to expose ordinary and ignored dirt.
-# Generated Foundry/report roots are the only worktree-state exclusions.
+# The generated Foundry/report roots of every contracts package and the exported dependency
+# snapshot under contracts/stocks/lib are the only worktree-state exclusions.
 repository_snapshot() {
     python3 - "$component" <<'PYTHON'
 import hashlib
@@ -126,7 +127,8 @@ import subprocess
 import sys
 
 # The proof covers the whole repository that contains the current directory, from its Git top
-# level. Only the named component's generated roots are excluded from worktree state.
+# level. The generated roots of every contracts package and the exported dependency snapshot
+# under contracts/stocks/lib are the only worktree-state exclusions.
 component = sys.argv[1]
 os.chdir(subprocess.run(["git", "rev-parse", "--show-toplevel"], check=True, capture_output=True, text=True).stdout.rstrip("\n"))
 
@@ -229,21 +231,31 @@ ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], tex
 if ordinary:
     problems.extend(ordinary.rstrip("\n").splitlines())
 
-scratch = tuple(
-    component.encode() + b"/" + root
-    for root in (
-        b"reports/generated/",
-        b"cache/",
-        b"cache-fork/",
-        b"out/",
-        b"out-fork/",
-        b"artifacts/",
-        b"broadcast/",
-    )
+SCRATCH_ROOTS = (
+    b"reports/generated/",
+    b"cache/",
+    b"cache-fork/",
+    b"out/",
+    b"out-fork/",
+    b"artifacts/",
+    b"broadcast/",
 )
+
+
+def authorized_scratch(path):
+    # The generated Foundry and report roots of every contracts package, and the exported
+    # dependency snapshot under contracts/stocks/lib that the Memestake packages build against.
+    parts = path.split(b"/", 2)
+    if len(parts) < 3 or parts[0] != b"contracts":
+        return False
+    if parts[1] == b"stocks" and parts[2].startswith(b"lib/"):
+        return True
+    return parts[2].startswith(SCRATCH_ROOTS)
+
+
 ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
 for path in ignored:
-    if path and not path.startswith(scratch):
+    if path and not authorized_scratch(path):
         problems.append("!! " + os.fsdecode(path))
 
 flagged = []

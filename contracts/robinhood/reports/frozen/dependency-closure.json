@@ -1,0 +1,130 @@
+{
+  "purpose": "Content identity of the pinned dependency snapshot the build reads. Each digest folds every file's path and SHA-256 under the dependency's directory, so the exported upstream source cannot change without this record changing. The revisions are the exact commits dependencies.json pins; bootstrap-deps.py refuses any other.",
+  "root": "../stocks/lib",
+  "lock": "../stocks/dependencies.json",
+  "dependencies": {
+    "blocknumberish": {
+      "revision": "38fe20bc0341d5bc2780d41f90dadb70e10f8cea",
+      "exported_paths": [
+        "src",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 3,
+      "content_sha256": "55b088f02c95834081b1fd84bc63335dbc4ef222e0010d332e501aa84d41eb93"
+    },
+    "continuous-clearing-auction": {
+      "revision": "7d7602d257733315434570f2a0c2f94f1c7b207a",
+      "exported_paths": [
+        "src",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 36,
+      "content_sha256": "0b7922453a2b0a3d876f9ef19e835394233ed103e7ff730005f851100166b6e4"
+    },
+    "forge-std": {
+      "revision": "3b20d60d14b343ee4f908cb8079495c07f5e8981",
+      "exported_paths": [
+        "src",
+        "LICENSE-APACHE",
+        "LICENSE-MIT",
+        "README.md"
+      ],
+      "files": 27,
+      "content_sha256": "130570b085b92a9ecc1dc8e69fecd1da0811082f97f9d4e1b2f363796537bd60"
+    },
+    "liquidity-launcher": {
+      "revision": "3a3103543f50a13a0ae52a253bb98a925d72146f",
+      "exported_paths": [
+        "src",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 38,
+      "content_sha256": "3da7f93bd5c46060fe769b324509b6ecf8398745973e9d98cdeafba4e95d6a87"
+    },
+    "openzeppelin-contracts": {
+      "revision": "e4f70216d759d8e6a64144a9e1f7bbeed78e7079",
+      "exported_paths": [
+        "contracts",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 307,
+      "content_sha256": "68dd403236fcb394c6ef1e3ea4bb738523dee88739b3d6d6a916d6e285666407"
+    },
+    "optimism": {
+      "revision": "3a8c970d12e1f1fb867d6d89e1f6938ddffe6143",
+      "exported_paths": [
+        "packages/contracts-bedrock/interfaces/L2/IERC7802.sol",
+        "packages/contracts-bedrock/src/libraries/Predeploys.sol",
+        "LICENSE"
+      ],
+      "files": 3,
+      "content_sha256": "f3f3e632028c721f3f49ee4fcb48e27fa95380bfac361a7f0a5505f1178bed44"
+    },
+    "permit2": {
+      "revision": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219",
+      "exported_paths": [
+        "src",
+        "test/utils/DeployPermit2.sol",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 19,
+      "content_sha256": "a85050b83f484436aae0b691fb0c5317700478db6630a39a33237bc4fd145aba"
+    },
+    "solady": {
+      "revision": "33b4b98e350bbcba6aa85642957c313e98b5f911",
+      "exported_paths": [
+        "src",
+        "LICENSE.txt",
+        "README.md"
+      ],
+      "files": 109,
+      "content_sha256": "762f33e6250abd9bbdff6c07e4a1e460ffd54c09ef4d14d2925ec4c9039ac66d"
+    },
+    "solmate": {
+      "revision": "4b47a19038b798b4a33d9749d25e570443520647",
+      "exported_paths": [
+        "src",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 61,
+      "content_sha256": "a39b7d935f51601ab5446aac541b335c7b8ce6593e7171b09e4b5e6df6e9cd86"
+    },
+    "uerc20-factory": {
+      "revision": "09ae130f7a10f7c1b96e0dc7d9724d567080c4ef",
+      "exported_paths": [
+        "src",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 11,
+      "content_sha256": "80008b07ff81e1f8b41e1cc8949656fb23a75da7fcba99923b22c73eba751e55"
+    },
+    "v4-core": {
+      "revision": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc",
+      "exported_paths": [
+        "src",
+        "test/utils",
+        "licenses",
+        "README.md"
+      ],
+      "files": 98,
+      "content_sha256": "41555c6805b302882f687ace698894c1aeac8d694c6d21e95a5c9221c3775c00"
+    },
+    "v4-periphery": {
+      "revision": "ad04c9f24a170accf5ea1b2836bbafd514537ca6",
+      "exported_paths": [
+        "src",
+        "LICENSE",
+        "README.md"
+      ],
+      "files": 65,
+      "content_sha256": "89d9620d02f2815b61c5989a1c66fb3c874920b588ce2f2ca0726589b34a1611"
+    }
+  }
+}

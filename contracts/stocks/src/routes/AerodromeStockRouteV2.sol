@@ -12,29 +12,23 @@ import {ISlipstreamPoolMinimal} from "../interfaces/ISlipstreamPoolMinimal.sol";
 import {IStockRoute} from "../interfaces/IStockRoute.sol";
 import {StocksBindings} from "../StocksBindings.sol";
 
-/// @title AerodromeStockRouteV1
+/// @title AerodromeStockRouteV2
 /// @notice The production USDC <-> STOCK route for one Base-native stock: one Aerodrome Slipstream
-///         USDC/STOCK pool for execution, one Chainlink total-return feed for the quote and as a
-///         sanity bound on every execution.
+///         USDC/STOCK pool for execution, one Chainlink total-return feed for the review quote.
 /// @dev Pinned at construction: the pool (which must be `USDC/STOCK` in that currency order, as
 ///      every `0xb2…` stock pool is, USDC sorting first) and the feed. The route calls the pool
 ///      directly, never a router, and builds every swap itself: the price limit is the extreme of
-///      the pool's range, so `minAmountOut` and the feed bound are the only price controls.
-///      `quoteExactIn` is the feed price, not the pool price: it is the review quote a caller
-///      compares against, and `swapExactIn` refuses any execution that delivers less than
-///      `MAX_DEVIATION_BPS` under that quote. The route holds nothing between
-///      calls: whatever `amountIn` the pool did not consume goes back to `recipient` in the call.
-contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
+///      the pool's range, so the caller's `minAmountOut` is the only price control. `quoteExactIn`
+///      is the feed price, not the pool price: it is the review quote a caller chooses a minimum
+///      from, and `swapExactIn` never reads the feed. The route holds nothing between calls:
+///      whatever `amountIn` the pool did not consume goes back to `recipient` in the call.
+contract AerodromeStockRouteV2 is ReentrancyGuardTransient, IStockRoute {
     using SafeTransferLib for address;
 
-    /// @notice Oldest feed answer the route accepts. The feeds hold the last close over weekends
+    /// @notice Oldest feed answer the quote accepts. The feeds hold the last close over weekends
     ///         and market holidays, so the bound only catches a feed that has stopped.
     uint256 public constant MAX_FEED_AGE = 7 days;
 
-    /// @notice Largest shortfall of an execution against the feed quote, in basis points.
-    uint256 public constant MAX_DEVIATION_BPS = 500;
-
-    uint256 internal constant BPS = 10_000;
     uint256 internal constant USDC_UNIT = 1e6;
 
     address public immutable override stock;
@@ -56,7 +50,6 @@ contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
     error BadFeedAnswer(int256 answer);
     error StaleFeed(uint256 updatedAt);
     error InsufficientOutput(uint256 minimum, uint256 found);
-    error PriceDeviation(uint256 quoted, uint256 found);
     error NotPool(address caller);
 
     constructor(address stock_, address pool_, address feed_) {
@@ -84,8 +77,8 @@ contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
         returns (uint256 amountOut)
     {
         if (recipient == address(0)) revert ZeroAddress();
-        // Validates the pair, the amount and the feed before anything reaches the pool.
-        uint256 quoted = quoteExactIn(tokenIn, tokenOut, amountIn);
+        if (amountIn == 0) revert ZeroAmount();
+        _requirePair(tokenIn, tokenOut);
 
         bool zeroForOne = tokenIn == usdc;
         (int256 amount0, int256 amount1) = pool.swap(
@@ -101,7 +94,6 @@ contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
         amountOut = SafeCastLib.toUint256(-paid);
 
         if (amountOut < minAmountOut) revert InsufficientOutput(minAmountOut, amountOut);
-        if (amountOut * BPS < quoted * (BPS - MAX_DEVIATION_BPS)) revert PriceDeviation(quoted, amountOut);
 
         uint256 residue = amountIn - consumed;
         if (residue != 0) tokenIn.safeTransfer(recipient, residue);
@@ -125,18 +117,24 @@ contract AerodromeStockRouteV1 is ReentrancyGuardTransient, IStockRoute {
         returns (uint256 amountOut)
     {
         if (amountIn == 0) revert ZeroAmount();
+        _requirePair(tokenIn, tokenOut);
         uint256 price = _feedPrice();
-        if (tokenIn == usdc && tokenOut == stock) {
+        if (tokenIn == usdc) {
             return FixedPointMathLib.fullMulDiv(amountIn, stockUnit * feedUnit, price * USDC_UNIT);
         }
-        if (tokenIn == stock && tokenOut == usdc) {
-            return FixedPointMathLib.fullMulDiv(amountIn, price * USDC_UNIT, stockUnit * feedUnit);
-        }
-        revert UnsupportedPair(tokenIn, tokenOut);
+        return FixedPointMathLib.fullMulDiv(amountIn, price * USDC_UNIT, stockUnit * feedUnit);
+    }
+
+    /// @dev The route converts USDC to the stock and the stock to USDC, nothing else.
+    function _requirePair(address tokenIn, address tokenOut) internal view {
+        bool purchase = tokenIn == usdc && tokenOut == stock;
+        bool sale = tokenIn == stock && tokenOut == usdc;
+        if (!purchase && !sale) revert UnsupportedPair(tokenIn, tokenOut);
     }
 
     /// @dev Dollars per whole share in feed units, from the latest round.
     function _feedPrice() internal view returns (uint256) {
+        // slither-disable-next-line unused-return
         (, int256 answer,, uint256 updatedAt,) = feed.latestRoundData();
         if (answer <= 0) revert BadFeedAnswer(answer);
         if (updatedAt == 0 || updatedAt + MAX_FEED_AGE < block.timestamp) revert StaleFeed(updatedAt);
