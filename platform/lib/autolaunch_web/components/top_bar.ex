@@ -18,15 +18,18 @@ defmodule AutolaunchWeb.Components.TopBar do
     <header
       class="shell-top home-top"
       id="home-top"
-      phx-hook="HomeSearch"
-      data-query={@search_query}
       data-blog-header={if @blog?, do: "true"}
     >
+      <%!-- Hidden until opening: before then there is nothing to search. --%>
       <form
+        :if={!Autolaunch.Prelaunch.read_only?()}
+        id="home-search"
         class="home-search"
         action="/"
         method="get"
         role="search"
+        phx-hook="HomeSearch"
+        data-query={@search_query}
         phx-submit={if @home?, do: "search"}
       >
         <label for="home-search-q" class="visually-hidden">Search coins and creators</label>
@@ -70,7 +73,6 @@ defmodule AutolaunchWeb.Components.TopBar do
           <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
           <Regent.Primitives.button
             disabled
-            variant="secondary"
             class="home-top__create"
             title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
           >+ Create</Regent.Primitives.button>
@@ -78,7 +80,7 @@ defmodule AutolaunchWeb.Components.TopBar do
         <.link
           :if={!Autolaunch.Prelaunch.read_only?()}
           navigate="/create"
-          class="rg-button rg-button--secondary home-top__create"
+          class="rg-button home-top__create"
         >+ Create</.link>
         <.account_control account_control={@account_control} />
       </div>

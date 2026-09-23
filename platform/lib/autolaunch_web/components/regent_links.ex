@@ -62,7 +62,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
         rel="noopener noreferrer"
       >Buy $REGENT</a>
       <a
-        class="rg-button rg-button--secondary regent-header-cta"
+        class="rg-button regent-header-cta regent-header-cta--soft"
         href="https://x.com/regents_sh"
         target="_blank"
         rel="noopener noreferrer"

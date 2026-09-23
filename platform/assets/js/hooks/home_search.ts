@@ -53,7 +53,7 @@ export const HomeSearch = {
 }
 
 export function installStaticMarketSearch(): void {
-  const el = document.getElementById("home-top")
+  const el = document.getElementById("home-search")
   if (!el || el.closest("[data-phx-main]")) return
   const instance: HomeSearchHook = {el}
   HomeSearch.mounted.call(instance)

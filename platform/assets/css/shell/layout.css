@@ -11,7 +11,22 @@
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
 .regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; color: inherit; }
 .regent-header-links svg, .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
-.rg-button.regent-header-cta { min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
+/* Header buttons match the regents.sh App button: a charcoal plate with corner marks
+   that close into a full outline on hover. Follow on X draws its marks in a softer orange. */
+.rg-button:is(.regent-header-cta, .home-top__create, .account-control__sign-in) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
+.rg-button.regent-header-cta--soft { --rg-button-border-color: color-mix(in srgb, var(--palette-tangerine-tango) 45%, transparent); }
+:root[data-theme="dark"] .rg-button.regent-header-cta--soft::after { --rg-button-cut-ink: var(--rg-button-border-color); }
+/* Create stays closed until opening, on a gray plate, but keeps the marks and the hover outline. */
+.rg-button.home-top__create:disabled { cursor: not-allowed; }
+:root .rg-button.home-top__create:disabled::after { --rg-button-edge-ink: var(--rg-button-active-border); }
+:root[data-theme="dark"] .rg-button.home-top__create:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
+:root .rg-button.home-top__create:disabled:hover::after {
+  --rg-button-edge-ink: var(--rg-button-active-border); --rg-button-cut-ink: var(--rg-button-active-border); --rg-button-cut-gap: 0px;
+  background-size:
+    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
+}
 .regent-header-cta .rg-button__label { display: inline-flex; align-items: center; gap: 8px; }
 .regent-header-links .regent-header-cta svg { flex: none; width: 1rem; height: 1rem; }
 .regent-token-menu { position: relative; z-index: 10; }

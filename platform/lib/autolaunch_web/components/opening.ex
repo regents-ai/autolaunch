@@ -29,7 +29,12 @@ defmodule AutolaunchWeb.Components.Opening do
       title={"Opens #{@label}"}
     >
       <span class="opening-countdown__label" hidden={@seconds == 0}>Opens in</span>
-      <span class="opening-countdown__time" role="timer">{remaining(@seconds)}</span>
+      <%!-- The title font's digits differ in width, so the clock is held at the
+            width of its widest time; 4 is that font's widest digit. --%>
+      <span class="opening-countdown__clock">
+        <span class="opening-countdown__time" role="timer">{remaining(@seconds)}</span>
+        <span class="opening-countdown__widest" aria-hidden="true">44:44:44</span>
+      </span>
     </span>
     """
   end

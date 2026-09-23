@@ -63,10 +63,8 @@ liveSocket.connect()
 installStaticMarketSearch()
 installRegentTokenMenu()
 installOpeningCountdown()
-if (document.documentElement.dataset.prelaunchReadOnly !== "true") {
-  installAccountAuthLazyLoader()
-  installCrossTabCsrf()
-}
+installAccountAuthLazyLoader()
+installCrossTabCsrf()
 installPublicTools()
 
 // Exposed for the browser console: liveSocket.enableDebug(), enableLatencySim().
