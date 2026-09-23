@@ -73,7 +73,7 @@ defmodule AutolaunchWeb.Components.TopBar do
           <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
           <Regent.Primitives.button
             disabled
-            class="home-top__create"
+            class="home-top__create opening-create"
             title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
           >+ Create</Regent.Primitives.button>
         </span>

@@ -30,10 +30,22 @@
 .prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
 .prelaunch-actions h2, .prelaunch-actions p { margin: 0; }
 .prelaunch-actions p { color: var(--color-fg-muted); font-size: .875rem; }
-html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.home-top__create) {
+html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.opening-create) {
   --rg-button-fill: color-mix(in srgb, var(--color-fg) 12%, var(--color-surface));
   --rg-button-ink: var(--color-fg-muted);
   background: var(--rg-button-fill); color: var(--rg-button-ink); border: 1px solid var(--hairline-strong); opacity: 1; cursor: not-allowed;
 }
-html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.home-top__create)::before,
-html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.home-top__create)::after { display: none; }
+html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.opening-create)::before,
+html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.opening-create)::after { display: none; }
+/* Both Create buttons stay closed until opening, on a gray plate, but keep the
+   corner marks and the hover outline of the header buttons. */
+.rg-button.opening-create:disabled { cursor: not-allowed; }
+:root .rg-button.opening-create:disabled::after { --rg-button-edge-ink: var(--rg-button-active-border); }
+:root[data-theme="dark"] .rg-button.opening-create:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
+:root .rg-button.opening-create:disabled:hover::after {
+  --rg-button-edge-ink: var(--rg-button-active-border); --rg-button-cut-ink: var(--rg-button-active-border); --rg-button-cut-gap: 0px;
+  background-size:
+    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
+}

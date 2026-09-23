@@ -25,6 +25,7 @@ defmodule AutolaunchWeb.Components.Rail do
           <Regent.Primitives.button
             :if={item.id == :create and Autolaunch.Prelaunch.read_only?()}
             disabled
+            class="opening-create"
             title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
           >Create</Regent.Primitives.button>
           <.link

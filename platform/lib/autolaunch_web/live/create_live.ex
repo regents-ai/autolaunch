@@ -173,14 +173,14 @@ defmodule AutolaunchWeb.CreateLive do
                 href={create_path(@launch_chain, :stocks)}
                 class={kind_class(@launch_kind == :stocks)}
                 aria-current={if @launch_kind == :stocks, do: "page"}
-              >Memestock pair</.link>
+              >Memestake token</.link>
             </div>
             <p
               :if={@launch_chain == :robinhood}
               id="launch-kind-robinhood-note"
               class="launchpad-create__choice-note"
             >
-              Robinhood launches memestock pairs only. Revstake tokens launch on Base.
+              Robinhood launches Memestake tokens only. Revstake tokens launch on Base.
             </p>
           </nav>
           <p class="launchpad-create__choice-summary" role="status">
@@ -205,21 +205,21 @@ defmodule AutolaunchWeb.CreateLive do
     do: ["rg-button", if(selected?, do: "rg-button--primary", else: "rg-button--secondary")]
 
   defp choice_title(:base, :revshare), do: "Revstake token on Base"
-  defp choice_title(chain, :stocks), do: "Memestock pair on #{LaunchChain.label(chain)}"
+  defp choice_title(chain, :stocks), do: "Memestake token on #{LaunchChain.label(chain)}"
 
   # What each of the three launches does and which tokens it needs. Amounts are
   # left to the form, which reads the live minimum from each launchpad.
   defp choice_summary(:base, :revshare),
     do:
-      "Best for agent services and x402 endpoints that will earn USDC over the long term. Bidders pay in REGENT; the raise and its minimum are set in REGENT and the launch fee, when there is one, is paid in REGENT from your wallet."
+      "Raise early funds through a CCA auction. It tokenizes a stablecoin generating service or agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders pay in REGENT; the raise and its minimum are set in REGENT and the launch fee, when there is one, is paid in REGENT from your wallet."
 
   defp choice_summary(:base, :stocks),
     do:
-      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDC; the raise and its minimum are set in USDC and the launch fee is paid in REGENT from your wallet."
+      "A 24 hour auction for a new token paired with an onchain stock. Stakers earn the onchain stock from fees. Bidders pay in USDC; the raise and its minimum are set in USDC and the launch fee is paid in REGENT from your wallet."
 
   defp choice_summary(:robinhood, :stocks) do
     summary =
-      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in USDG; the raise and its minimum are set in USDG and the launch fee, when there is one, is paid in USDG from your wallet."
+      "A 24 hour auction for a new token paired with an onchain stock. Stakers earn the onchain stock from fees. Bidders pay in USDG; the raise and its minimum are set in USDG and the launch fee, when there is one, is paid in USDG from your wallet."
 
     if Autolaunch.Robinhood.Lab.enabled?(),
       do: summary,

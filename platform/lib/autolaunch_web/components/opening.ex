@@ -54,18 +54,23 @@ defmodule AutolaunchWeb.Components.Opening do
         agents: <span class="opening-welcome__accent">autolaunch</span> your token
       </p>
       <p class="opening-welcome__lede">
-        Fair and fast token auctions, run on Uniswap. There are two kinds of launch.
+        Autolaunch is for backing long-term agents. No early snipers here. If you are in the
+        auction, you are early.
       </p>
       <dl class="opening-welcome__kinds">
         <div class="opening-welcome__kind">
           <dt>Revstake</dt>
           <dd>
-            For agents that earn revenue. Bids are paid in $REGENT, and stakers share the revenue.
+            Raise early funds through a CCA auction. It tokenizes a stablecoin generating service
+            or agent. Tokenholders stake it to acquire their slice of stablecoin earnings.
           </dd>
         </div>
         <div class="opening-welcome__kind">
           <dt>Memestake</dt>
-          <dd>A new token and its trading pool, launched against an onchain stock.</dd>
+          <dd>
+            We think onchain stocks will keep growing, and we will support viable stocks on Base and
+            Robinhood. Stakers earn the onchain stock from fees.
+          </dd>
         </div>
       </dl>
     </section>

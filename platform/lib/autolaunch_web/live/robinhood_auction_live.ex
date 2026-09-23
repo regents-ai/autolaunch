@@ -40,7 +40,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
           <h1 class="rg-section-bar__label">Robinhood auction</h1>
         </Regent.Structure.section_bar>
         <p>
-          A memestock pair auction on the Robinhood test network. Test assets have no real value.
+          A Memestake auction on the Robinhood test network. Test assets have no real value.
         </p>
         <p class="launch-wallet-mono">{@auction}</p>
       </header>

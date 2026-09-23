@@ -402,7 +402,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       record_id: auction.id,
       state: auction.state,
       chain: "Base",
-      launch: if(auction.kind == :stocks, do: "Memestock", else: "Revstake"),
+      launch: if(auction.kind == :stocks, do: "Memestake", else: "Revstake"),
       raised: nil
     }
   end
@@ -427,7 +427,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       record_id: auction.auction,
       state: auction.state,
       chain: "Robinhood",
-      launch: "Memestock",
+      launch: "Memestake",
       raised: metric(auction.raised, auction.stock_symbol)
     }
   end

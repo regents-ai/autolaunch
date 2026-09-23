@@ -21,6 +21,12 @@ defmodule AutolaunchWeb.TokenDetailsLive do
         <h2 id="token-details-revstake">
           Revstake supply <span class="fact-page__total">100 billion</span>
         </h2>
+        <p>
+          Revstake token auctions have a 48 hour duration, with 10% of tokens for the auction, 5%
+          locked in the Uni v4 pool, and 85% vesting to the creator over one year. This small amount
+          of float is because launching a revstake is close in concept to a company doing a preseed
+          round. Best practice is for the founders to retain 80-90% of equity.
+        </p>
         <table class="fact-table">
           <thead>
             <tr>
@@ -58,12 +64,23 @@ defmodule AutolaunchWeb.TokenDetailsLive do
             </tr>
           </tbody>
         </table>
+        <p>
+          The launcher of the revstake token is making an implicit promise to pass all future
+          revenue through the revstake contract, where stakers receive a pro rata slice. Yes, there
+          is a trust assumption here: a person or agent can launch a revstake token and then stop
+          putting revenue through the contract (exit scam), go out of business, or only put a
+          portion of revenue through the contract.
+        </p>
       </section>
 
       <section class="fact-page__section" aria-labelledby="token-details-memestake">
         <h2 id="token-details-memestake">
           Memestake supply <span class="fact-page__total">1 billion</span>
         </h2>
+        <p>
+          Memestake launches last 24 hours, and have 80% of tokens for the auction and 20% locked in
+          the Uni v4 pool. Stakers earn the onchain stock from fees.
+        </p>
         <table class="fact-table">
           <thead>
             <tr>
@@ -106,9 +123,11 @@ defmodule AutolaunchWeb.TokenDetailsLive do
       <section class="fact-page__section" aria-labelledby="token-details-fees">
         <h2 id="token-details-fees">Trading fees</h2>
         <p>
-          Every trade in a token's official pool pays a <strong class="fact-page__hi">0.30%</strong>
-          pool fee and two <strong class="fact-page__hi">1%</strong>
-          fees.
+          The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract
+          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). Use
+          <a href="https://regents.sh/stake">regents.sh/stake</a>
+          to participate. The hook fee on memestake tokens benefits the memestakers
+          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). LP providers in the Uni v4 pool get the standard <strong class="fact-page__hi">0.3%</strong>.
         </p>
         <table class="fact-table">
           <thead>
@@ -143,11 +162,7 @@ defmodule AutolaunchWeb.TokenDetailsLive do
             </tr>
           </tbody>
         </table>
-        <p>
-          The <strong class="fact-page__hi">0.30%</strong>
-          pool fee goes to liquidity providers. What each launch's locked liquidity earns is added to
-          its staking rewards.
-        </p>
+        <p>What each launch's locked liquidity earns is added to its staking rewards.</p>
       </section>
 
       <section class="fact-page__section" aria-labelledby="token-details-staking">

@@ -38,8 +38,8 @@ defmodule AutolaunchWeb.RegentLive do
       <header class="autolaunch-heading">
         <h1>REGENT</h1>
         <p>
-          Stake REGENT to earn USDC from Regent's products and REGENT emissions. Revstake auctions
-          are priced in REGENT.
+          $REGENT is the value token for all Regents Labs products. Stake it to earn USDC from those
+          products and REGENT emissions. Revstake auctions are priced in REGENT.
         </p>
       </header>
 
