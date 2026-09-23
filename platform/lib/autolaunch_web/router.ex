@@ -84,6 +84,7 @@ defmodule AutolaunchWeb.Router do
       live "/subjects/:id", SubjectLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/regent", RegentLive, :regent
+      live "/convert", ConvertLive, :index
     end
   end
 end

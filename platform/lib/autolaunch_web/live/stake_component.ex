@@ -4,11 +4,9 @@ defmodule AutolaunchWeb.StakeComponent do
   what the launch's staking contract holds, what this wallet has in it, an
   amount to stake or unstake, and the open actions (claim, collect the locked
   liquidity's trading fees, and for a memestock launch settle for stakers; a
-  Revstake launch's swap fee reaches its splitter on the trade itself). On a
-  memestock launch, the wallet the Safe named to convert REGENT's share of
-  the trading fees also sees that conversion. A panel over the card walks the
-  wallet through each reviewed action and closes itself when the chain
-  confirms it.
+  Revstake launch's swap fee reaches its splitter on the trade itself). A
+  panel over the card walks the wallet through each reviewed action and
+  closes itself when the chain confirms it.
 
   The `launch` assign names the launch: `%{chain: :base, auction: record}` or
   `%{chain: :robinhood, auction: address}`; `pool` is its current facts.
@@ -20,7 +18,6 @@ defmodule AutolaunchWeb.StakeComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.Address
   alias Autolaunch.Stocks.StakeActions
   alias Phoenix.LiveView.JS
 
@@ -47,12 +44,7 @@ defmodule AutolaunchWeb.StakeComponent do
     amount_above_balance: "This wallet holds less than that.",
     amount_above_stake: "You have less than that staked.",
     envelope_invalid: "This review is out of date. Close it and review again.",
-    invalid_hash: "That transaction could not be read. Check your wallet activity.",
-    not_converter: "Only the wallet the Safe named can convert REGENT's share.",
-    amount_above_share: "Less than that is waiting in REGENT's share.",
-    no_route: "This stock has no conversion route yet.",
-    price_unavailable:
-      "The stock's Chainlink price is not answering right now, so the conversion would not go through. Try again later."
+    invalid_hash: "That transaction could not be read. Check your wallet activity."
   }
   @generic "That did not go through. Try again in a moment."
   @steps %{
@@ -62,16 +54,14 @@ defmodule AutolaunchWeb.StakeComponent do
     "claim" => :claim,
     "settle" => :settle,
     "collect_full_range" => :collect_full_range,
-    "collect_stock_only" => :collect_stock_only,
-    "convert" => :convert
+    "collect_stock_only" => :collect_stock_only
   }
   @kinds %{
     "stake" => :stake,
     "unstake" => :unstake,
     "claim" => :claim,
     "settle" => :settle,
-    "collect" => :collect,
-    "convert" => :convert
+    "collect" => :collect
   }
 
   @impl true
@@ -84,9 +74,6 @@ defmodule AutolaunchWeb.StakeComponent do
           scope: assigns.launch,
           amount: "",
           error: nil,
-          convert_amount: "",
-          convert_error: nil,
-          notice_kind: nil,
           wallet: nil,
           position: nil,
           notice: nil,
@@ -274,71 +261,8 @@ defmodule AutolaunchWeb.StakeComponent do
             Staking opens after launch
           </Regent.Primitives.button>
 
-          <p
-            :if={@error || (is_nil(@review) && @notice && @notice_kind != :convert)}
-            class="token-swap__error"
-            role="alert"
-          >
+          <p :if={@error || (is_nil(@review) && @notice)} class="token-swap__error" role="alert">
             {@error || @notice}
-          </p>
-        </form>
-
-        <form
-          :if={converter?(assigns)}
-          id={"#{@id}-convert-#{@revision}"}
-          class="token-swap__form token-stake__form token-stake__convert"
-          aria-label="Convert REGENT's share"
-          phx-change={"convert-#{@revision}"}
-          phx-submit="review"
-          phx-target={@myself}
-          inert={!is_nil(@review)}
-        >
-          <p class="token-stake__lead">
-            Sell REGENT's share of this launch's trading fees for {@pool.fees.splitter.dollar.symbol} and send it to REGENT's revenue. The sale must come within 5% of the Chainlink price.
-          </p>
-          <div class="token-swap__leg">
-            <div class="token-swap__leg-head">
-              <label for={@id <> "-convert-amount"}>REGENT's share to convert</label>
-              <div class="token-swap__portions" role="group" aria-label="Part of REGENT's share">
-                <button type="button" phx-click="fill_convert" phx-target={@myself}>Max</button>
-              </div>
-            </div>
-            <div class="token-swap__amount-row">
-              <input
-                id={@id <> "-convert-amount"}
-                name="convert_amount"
-                type="text"
-                value={@convert_amount}
-                inputmode="decimal"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="0"
-                aria-label={"Amount of #{@pool.currency.symbol}"}
-                aria-invalid={to_string(!is_nil(@convert_error))}
-                phx-debounce="300"
-              />
-              <span class="token-swap__currency" title={@pool.currency.symbol}>
-                <span>{@pool.currency.symbol}</span>
-              </span>
-            </div>
-            <p class="token-swap__leg-foot">
-              <span>{@pool.fees.regent.accrued} {@pool.currency.symbol} waiting</span>
-            </p>
-          </div>
-          <Regent.Primitives.button
-            type="submit"
-            name="kind"
-            value="convert"
-            class="token-swap__submit"
-          >
-            Convert REGENT's share
-          </Regent.Primitives.button>
-          <p
-            :if={@convert_error || (is_nil(@review) && @notice && @notice_kind == :convert)}
-            class="token-swap__error"
-            role="alert"
-          >
-            {@convert_error || @notice}
           </p>
         </form>
 
@@ -368,22 +292,6 @@ defmodule AutolaunchWeb.StakeComponent do
       else: {:noreply, socket}
   end
 
-  def handle_event("convert-" <> revision, params, socket) do
-    if revision == Integer.to_string(socket.assigns.revision),
-      do: {:noreply, convert_entered(socket, params)},
-      else: {:noreply, socket}
-  end
-
-  def handle_event("fill_convert", _params, socket) do
-    {:noreply,
-     assign(socket,
-       convert_amount: socket.assigns.pool.fees.regent.accrued,
-       convert_error: nil,
-       notice: nil,
-       revision: socket.assigns.revision + 1
-     )}
-  end
-
   def handle_event("fill", %{"percent" => percent}, socket)
       when percent in ["25", "50", "75", "100"] do
     case socket.assigns.position do
@@ -404,15 +312,12 @@ defmodule AutolaunchWeb.StakeComponent do
   end
 
   def handle_event("review", %{"kind" => name} = params, socket) when is_map_key(@kinds, name) do
-    kind = Map.fetch!(@kinds, name)
-
-    socket =
-      if kind == :convert, do: convert_entered(socket, params), else: entered(socket, params)
+    socket = entered(socket, params)
 
     request = %{
-      kind: kind,
+      kind: Map.fetch!(@kinds, name),
       launch: socket.assigns.launch,
-      amount: if(kind == :convert, do: socket.assigns.convert_amount, else: socket.assigns.amount)
+      amount: socket.assigns.amount
     }
 
     case StakeActions.prepare(request, socket.assigns.wallet, opts(socket)) do
@@ -423,7 +328,7 @@ defmodule AutolaunchWeb.StakeComponent do
          |> published()}
 
       {:error, error} ->
-        {:noreply, assign(socket, notice: copy(refusal(error)), notice_kind: kind)}
+        {:noreply, assign(socket, notice: copy(refusal(error)))}
     end
   end
 
@@ -475,17 +380,6 @@ defmodule AutolaunchWeb.StakeComponent do
         else: "Enter an amount using digits and a decimal point."
 
     assign(socket, amount: amount, error: error, notice: nil)
-  end
-
-  defp convert_entered(socket, params) do
-    amount = params |> Map.get("convert_amount", socket.assigns.convert_amount) |> limited()
-
-    error =
-      if Regex.match?(~r/\A[0-9]*\.?[0-9]*\z/, amount),
-        do: nil,
-        else: "Enter an amount using digits and a decimal point."
-
-    assign(socket, convert_amount: amount, convert_error: error, notice: nil)
   end
 
   defp limited(value) when is_binary(value), do: String.slice(value, 0, 256)
@@ -547,7 +441,6 @@ defmodule AutolaunchWeb.StakeComponent do
     socket
     |> assign(
       amount: "",
-      convert_amount: "",
       notice: nil,
       done: %{kind: socket.assigns.review.kind, results: results}
     )
@@ -615,15 +508,6 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp actor(_socket), do: nil
 
-  # The conversion is offered only to the wallet the hook names as its
-  # executor, read from the chain with the pool; the Safe can name another.
-  defp converter?(%{pool: %{kind: :stocks, fees: %{regent: %{converter: converter}}}} = assigns),
-    do:
-      action(assigns) == :act and is_binary(assigns.wallet) and
-        Address.equal?(assigns.wallet, converter)
-
-  defp converter?(_assigns), do: false
-
   defp action(%{read_only?: true}), do: :closed
   defp action(%{authenticated: false}), do: :sign_in
   defp action(%{wallet: nil}), do: :connect_wallet
@@ -674,7 +558,6 @@ defmodule AutolaunchWeb.StakeComponent do
   defp step_label("settle", _review), do: "Confirm settlement"
   defp step_label("collect_full_range", _review), do: "Collect the full-range fees"
   defp step_label("collect_stock_only", _review), do: "Collect the one-sided fees"
-  defp step_label("convert", _review), do: "Confirm conversion"
 
   defp step_state(nil), do: :ready
   defp step_state(%{outcome: :pending}), do: :sent
@@ -692,10 +575,6 @@ defmodule AutolaunchWeb.StakeComponent do
     do: "Nothing was waiting for stakers, so there was nothing to settle."
 
   defp reverted_copy(:collect), do: @generic
-
-  defp reverted_copy(:convert),
-    do:
-      "The conversion did not go through and nothing moved. The sale may have come in more than 5% under the Chainlink price, or the price may have moved since this review. Close this and review again for a fresh price."
 
   defp wallet_failure_copy("wallet_unavailable", _review),
     do: "Open the wallet you signed in with, then try again. Nothing was sent."
@@ -744,7 +623,8 @@ defmodule AutolaunchWeb.StakeComponent do
   attr :notice, :string, default: nil
   attr :target, :any, default: nil
 
-  defp stake_review(assigns) do
+  @doc "The review panel over a staking card: the reviewed facts and the wallet steps, one button at a time."
+  def stake_review(assigns) do
     ~H"""
     <section id={@id} class="token-swap__review" aria-labelledby={@id <> "-title"}>
       <header class="token-swap__review-head">
@@ -853,14 +733,12 @@ defmodule AutolaunchWeb.StakeComponent do
   defp title(:claim), do: "You’re claiming"
   defp title(:settle), do: "Settling for stakers"
   defp title(:collect), do: "Collecting trading fees"
-  defp title(:convert), do: "Converting REGENT's share"
 
   defp done_title(:stake), do: "Staked"
   defp done_title(:unstake), do: "Unstaked"
   defp done_title(:claim), do: "Claimed"
   defp done_title(:settle), do: "Settled for stakers"
   defp done_title(:collect), do: "Trading fees collected"
-  defp done_title(:convert), do: "REGENT's share converted"
 
   defp done_lines(%{results: results}) do
     for %{} = result <- results, do: done_line(result)
@@ -881,13 +759,10 @@ defmodule AutolaunchWeb.StakeComponent do
     "#{result["token_units"]} #{result["token_symbol"]} · #{result["currency_units"]} #{result["currency_symbol"]} moved to the staking contract"
   end
 
-  defp done_line(%{"kind" => "convert"} = result) do
-    "#{result["converted_units"]} #{result["currency_symbol"]} sold for #{result["dollar_units"]} #{result["dollar_symbol"]}, sent to REGENT's revenue"
-  end
-
   attr :size, :string, required: true
 
-  defp cross(assigns) do
+  @doc "The close mark on a review panel or a toast."
+  def cross(assigns) do
     ~H"""
     <svg viewBox="0 0 24 24" width={@size} height={@size} fill="none" aria-hidden="true">
       <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />

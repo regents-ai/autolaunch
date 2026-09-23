@@ -116,6 +116,16 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
+      <.live_component
+        :if={@pool.ok?}
+        module={AutolaunchWeb.ConvertComponent}
+        id={"robinhood-convert-#{@launch.result.auction}"}
+        launch={%{chain: :robinhood, auction: @launch.result.auction}}
+        pool={@pool.result}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
       <p :if={@pool.loading} role="status">Reading the staking figures…</p>
       <p :if={@pool.ok?} class="autolaunch-live-market">
         Read at block {@pool.result.block.number}.

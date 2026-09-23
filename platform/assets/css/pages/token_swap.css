@@ -159,6 +159,15 @@
   font-size: .875rem;
   font-variant-numeric: tabular-nums;
 }
+.token-convert__floor {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--color-fg-muted);
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.token-convert__floor input { flex: 0 0 auto; width: 1.125rem; height: 1.125rem; margin-top: .15rem; accent-color: var(--color-fg); }
 .token-swap__direction { display: flex; justify-content: center; margin-block: -1.25rem; z-index: 1; }
 .token-swap__direction .rg-button { min-width: 44px; min-height: 44px; padding: .5rem; }
 .token-swap__submit { width: 100%; min-height: 3.5rem; margin-top: var(--space-1); font-size: 1.0625rem; }

@@ -115,9 +115,10 @@ defmodule Autolaunch.Stocks.StakeActions do
     }
   }
   @token_decimals 18
-  # Both stock routes refuse a sale more than 5% under the Chainlink quote, so
-  # a conversion never asks for less than that.
-  @route_floor_bps 9_500
+  # The floor a conversion may ask for: the sale refuses less than 95% of the
+  # stock's worth at the Chainlink price. The routes themselves take any price
+  # above the minimum the sale names.
+  @floor_bps 9_500
   @bps 10_000
   @uint128_max Integer.pow(2, 128) - 1
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
@@ -167,8 +168,9 @@ defmodule Autolaunch.Stocks.StakeActions do
   Reviews one action on a graduated launch's splitter for the signed-in
   wallet. The launch is `%{chain: :base, auction: auction_record}` or
   `%{chain: :robinhood, auction: auction_address}`. `:stake` and `:unstake`
-  take the token amount typed and `:convert` the stock amount; the other three
-  take nothing.
+  take the token amount typed and `:convert` the stock amount, with `floor:
+  true` to refuse less than 95% of the Chainlink price and `false` for no
+  minimum; the other three take nothing.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def prepare(%{kind: kind, launch: launch} = request, address, opts) when kind in @kinds do
@@ -180,7 +182,7 @@ defmodule Autolaunch.Stocks.StakeActions do
          {:ok, config} <- lab(venue(pool)),
          {:ok, wallet} <- position(pool, signer),
          {:ok, amount} <- amount(kind, Map.get(request, :amount), wallet),
-         {:ok, amount} <- conversion(kind, amount, pool, config),
+         {:ok, amount} <- conversion(kind, amount, Map.get(request, :floor), pool, config),
          do: {:ok, build(kind, pool, config, signer, wallet, amount)}
   end
 
@@ -274,23 +276,31 @@ defmodule Autolaunch.Stocks.StakeActions do
 
   defp converter(_kind, _pool, _signer), do: :ok
 
-  # The stock amount to sell from REGENT's lane, what the stock's route says it
-  # is worth at the Chainlink price right now, and the least the sale may
-  # bring. The hook reads the stock's route from the launchpad when it sells,
-  # so the quote comes from that same route.
-  defp conversion(:convert, value, pool, config) do
+  # The stock amount to sell from REGENT's lane and the least the sale may
+  # bring. With the floor, that is 95% of what the stock's route says it is
+  # worth at the Chainlink price right now; without it there is no minimum and
+  # Chainlink is not asked. The hook reads the stock's route from the launchpad
+  # when it sells, so the quote comes from that same route.
+  defp conversion(:convert, value, floor, pool, config) when is_boolean(floor) do
     venue = venue(pool)
     rpc = venue.lab.rpc_opts(config)
 
     with {:ok, stock} <- parsed(value, pool.currency.decimals),
          true <- stock <= pool.fees.regent.accrued_atomic || unavailable(:amount_above_share),
-         {:ok, route} <- route(venue, config, pool, rpc),
-         {:ok, worth} <- quote(venue, config, route, pool, stock, rpc) do
-      {:ok, %{stock: stock, worth: worth, least: div(worth * @route_floor_bps, @bps)}}
+         {:ok, route} <- route(venue, config, pool, rpc) do
+      least(floor, stock, fn -> quote(venue, config, route, pool, stock, rpc) end)
     end
   end
 
-  defp conversion(_kind, amount, _pool, _config), do: {:ok, amount}
+  defp conversion(:convert, _value, _floor, _pool, _config), do: unavailable(:unknown_action)
+  defp conversion(_kind, amount, _floor, _pool, _config), do: {:ok, amount}
+
+  defp least(false, stock, _quote), do: {:ok, %{stock: stock, worth: nil, least: 0}}
+
+  defp least(true, stock, quote) do
+    with {:ok, worth} <- quote.(),
+         do: {:ok, %{stock: stock, worth: worth, least: div(worth * @floor_bps, @bps)}}
+  end
 
   defp route(venue, config, pool, rpc) do
     launchpad = venue.lab.address!(config, venue.launchpad)
@@ -306,8 +316,8 @@ defmodule Autolaunch.Stocks.StakeActions do
     end
   end
 
-  # The route refuses to quote while its Chainlink feed is stopped or stale,
-  # and then it would refuse the sale too.
+  # The route refuses to quote while its Chainlink feed is stopped or stale;
+  # a sale without the floor does not ask it.
   defp quote(venue, config, route, pool, stock, rpc) do
     data =
       LabAbi.encode(
@@ -447,6 +457,16 @@ defmodule Autolaunch.Stocks.StakeActions do
     end)
   end
 
+  defp review(:convert, pool, _wallet, %{stock: stock, worth: nil}) do
+    currency = pool.currency
+
+    [
+      ["Waiting in REGENT's share", "#{pool.fees.regent.accrued} #{currency.symbol}"],
+      ["You convert", "#{units(stock, currency.decimals)} #{currency.symbol}"],
+      ["Least accepted", "No minimum"]
+    ]
+  end
+
   defp review(:convert, pool, _wallet, %{stock: stock, worth: worth, least: least}) do
     currency = pool.currency
     dollar = pool.fees.splitter.dollar
@@ -483,6 +503,12 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp risk_copy(:collect, pool, venue, _amount),
     do:
       "Your wallet collects the locked liquidity's trading fees into this launch's staking contract, for every #{pool.token.symbol} staker, on #{network(venue)}. Nothing comes to your wallet."
+
+  defp risk_copy(:convert, pool, venue, %{stock: stock, worth: nil}) do
+    dollar = pool.fees.splitter.dollar
+
+    "Your wallet sells #{units(stock, pool.currency.decimals)} #{pool.currency.symbol} from REGENT's share of this launch's trading fees for whatever the market pays, with no minimum, and the #{dollar.symbol} goes to REGENT's revenue, on #{network(venue)}. Nothing comes to your wallet."
+  end
 
   defp risk_copy(:convert, pool, venue, %{stock: stock, least: least}) do
     dollar = pool.fees.splitter.dollar

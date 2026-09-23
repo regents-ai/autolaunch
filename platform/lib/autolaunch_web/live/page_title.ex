@@ -19,7 +19,8 @@ defmodule AutolaunchWeb.Live.PageTitle do
     AutolaunchWeb.SubjectsLive => "Subjects",
     AutolaunchWeb.SubjectLive => "Subject",
     AutolaunchWeb.PortfolioLive => "Portfolio",
-    AutolaunchWeb.RegentLive => "REGENT"
+    AutolaunchWeb.RegentLive => "REGENT",
+    AutolaunchWeb.ConvertLive => "REGENT's share"
   }
 
   def on_mount(:default, _params, _session, socket),

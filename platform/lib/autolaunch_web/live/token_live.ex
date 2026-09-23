@@ -100,6 +100,16 @@ defmodule AutolaunchWeb.TokenLive do
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
+      <.live_component
+        :if={@pool.ok? && @pool.result.kind == :stocks}
+        module={AutolaunchWeb.ConvertComponent}
+        id={"token-convert-#{@page_record.id}"}
+        launch={%{chain: :base, auction: @page_record.auction}}
+        pool={@pool.result}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
       <.treasury_security
         :if={!@local_lab?}
         report={report(@page_record)}
