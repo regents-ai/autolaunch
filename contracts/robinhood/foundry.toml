@@ -22,11 +22,25 @@ offline = true
 ffi = false
 fs_permissions = []
 
+# `test/fork/` runs only under the `fork` profile against Robinhood Chain itself.
+no_match_path = "test/fork/**"
+
 [profile.default.fuzz]
 runs = 64
 seed = "0x524f42494e484f4f44"
 max_test_rejects = 65536
 fail_on_revert = true
+
+# The live-chain suite: the production route against Robinhood Chain's own pools and feeds.
+# Forge is only ever pointed at the `robinhood` alias below (`--fork-url robinhood`); the endpoint
+# value is never written anywhere.
+[profile.fork]
+test = "test/fork"
+out = "out-fork"
+cache_path = "cache-fork"
+match_path = "test/fork/**"
+# Profiles inherit the default exclusion; a glob that matches nothing lifts it here.
+no_match_path = "none/**"
 
 # The deployment-ceremony profile, the only profile `../stocks/bin/ceremony.py` runs for this
 # package. Same frozen build; a separate test root and build directory. The externally linked

@@ -26,7 +26,7 @@
     "src": "src",
     "test": "test",
     "libs": ["../stocks/lib"],
-    "no_match_path": null,
+    "no_match_path": "test/fork/**",
     "remappings": [
       "forge-std/=../stocks/lib/forge-std/src/",
       "solady/=../stocks/lib/solady/src/",
