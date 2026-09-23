@@ -179,9 +179,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             autocomplete="off"
             placeholder="0.0"
           />
-          <p :if={@max_price != ""} class="bid-usd">
-            <UsdValue.usd amount={@max_price} rate={@usd_rate} per="per token" />
-          </p>
+          <UsdValue.usd
+            :if={@max_price != ""}
+            class="bid-usd"
+            amount={@max_price}
+            rate={@usd_rate}
+            per="per token"
+          />
           <Regent.Primitives.button class="bid-primary" type="submit">
             Review bid
           </Regent.Primitives.button>
@@ -513,7 +517,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp assign_usd_prices(socket),
     do:
-      assign_async(socket, :usd_prices, fn ->
+      UsdValue.assign_rate(socket, :usd_prices, :robinhood, fn ->
         {:ok, %{usd_prices: MarketData.prices(:robinhood)}}
       end)
 

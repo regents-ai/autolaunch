@@ -189,7 +189,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   # holds the auction back.
   defp assign_usd_prices(socket),
     do:
-      assign_async(socket, :usd_prices, fn ->
+      UsdValue.assign_rate(socket, :usd_prices, :robinhood, fn ->
         {:ok, %{usd_prices: MarketData.prices(:robinhood)}}
       end)
 

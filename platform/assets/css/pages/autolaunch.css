@@ -256,7 +256,7 @@
 /* An amount's dollar value, beside the amount itself. */
 .usd-value { color: var(--color-fg-muted); font-size: .875em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .market-identity__price .usd-value { font-size: .8125rem; }
-.bid-usd { margin: 0; font-size: .875rem; }
+.bid-usd { display: block; font-size: .875rem; }
 .raise-progress__bar { appearance: none; width: 100%; height: 10px; border: 0; border-radius: 999px; overflow: hidden; background: var(--hairline); color: var(--brand-accent); }
 .raise-progress__bar::-webkit-progress-bar { background: var(--hairline); border-radius: 999px; }
 .raise-progress__bar::-webkit-progress-value { background: var(--brand-accent); border-radius: 999px; }

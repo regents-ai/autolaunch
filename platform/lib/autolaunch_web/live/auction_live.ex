@@ -335,7 +335,7 @@ defmodule AutolaunchWeb.AuctionLive do
   defp load_usd_rate(socket) do
     id = socket.assigns.record_id
 
-    assign_async(socket, :usd_rate, fn ->
+    UsdValue.assign_rate(socket, :usd_rate, :base, fn ->
       with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
            {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid) do
         {:ok, %{usd_rate: UsdValue.rate(auction)}}

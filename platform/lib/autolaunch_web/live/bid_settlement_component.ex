@@ -506,7 +506,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp assign_usd_rate(%{assigns: %{position: %{auction: auction}}} = socket) do
     socket
     |> assign(:usd_rate_for, auction.id)
-    |> assign_async(:usd_rate, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
+    |> UsdValue.assign_rate(:usd_rate, :base, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
   end
 
   defp compact(value) when is_binary(value) and value != "", do: Amounts.compact_decimal(value)

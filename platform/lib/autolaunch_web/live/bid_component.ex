@@ -152,7 +152,7 @@ defmodule AutolaunchWeb.BidComponent do
               variant="secondary"
             >Max</Regent.Primitives.button>
           </div>
-          <p :if={@amount != ""} class="bid-usd"><UsdValue.usd amount={@amount} rate={@rate} /></p>
+          <UsdValue.usd :if={@amount != ""} class="bid-usd" amount={@amount} rate={@rate} />
 
           <label for={"#{@id}-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
           <input
@@ -163,9 +163,13 @@ defmodule AutolaunchWeb.BidComponent do
             autocomplete="off"
             placeholder="0.0"
           />
-          <p :if={@max_price != ""} class="bid-usd">
-            <UsdValue.usd amount={@max_price} rate={@rate} per="per token" />
-          </p>
+          <UsdValue.usd
+            :if={@max_price != ""}
+            class="bid-usd"
+            amount={@max_price}
+            rate={@rate}
+            per="per token"
+          />
 
           <p :if={@estimate} class="bid-estimate">
             You would receive about {@estimate} tokens if the auction ended now.
@@ -212,9 +216,13 @@ defmodule AutolaunchWeb.BidComponent do
             autocomplete="off"
             placeholder="0.0"
           />
-          <p :if={@usdc_max_price != ""} class="bid-usd">
-            <UsdValue.usd amount={@usdc_max_price} rate={@rate} per="per token" />
-          </p>
+          <UsdValue.usd
+            :if={@usdc_max_price != ""}
+            class="bid-usd"
+            amount={@usdc_max_price}
+            rate={@rate}
+            per="per token"
+          />
           <Regent.Primitives.button
             class="bid-primary"
             type="submit"
@@ -659,7 +667,7 @@ defmodule AutolaunchWeb.BidComponent do
   defp assign_usd_rate(%{assigns: %{auction: auction}} = socket) do
     socket
     |> assign(:usd_rate_for, auction.id)
-    |> assign_async(:usd_rate, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
+    |> UsdValue.assign_rate(:usd_rate, :base, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
   end
 
   defp balance(nil, _auction), do: "—"
