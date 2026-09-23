@@ -25,9 +25,11 @@ import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
+import {installCopyAgentGuide} from "./copy_agent_guide"
 import {installOpeningCountdown} from "./opening_countdown"
 import {installPublicTools} from "./public_tools"
 import {installRegentTokenMenu} from "./regent_token_menu"
+import {installShellMenu} from "./shell_menu"
 
 const hooks = {
   ...colocatedHooks,
@@ -62,7 +64,9 @@ holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
 liveSocket.connect()
 installStaticMarketSearch()
 installRegentTokenMenu()
+installShellMenu()
 installOpeningCountdown()
+installCopyAgentGuide()
 installAccountAuthLazyLoader()
 installCrossTabCsrf()
 installPublicTools()

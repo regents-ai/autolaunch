@@ -11,9 +11,10 @@
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
 .regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; color: inherit; }
 .regent-header-links svg, .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
-/* Header buttons match the regents.sh App button: a charcoal plate with corner marks
-   that close into a full outline on hover. Follow on X draws its marks in a softer orange. */
-.rg-button:is(.regent-header-cta, .home-top__create, .account-control__sign-in) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
+/* Header buttons, both Create buttons and Copy to Agent match the regents.sh App button: a
+   charcoal plate with corner marks that close into a full outline on hover. Follow on X draws
+   its marks in a softer orange. */
+.rg-button:is(.regent-header-cta, .create-button, .account-control__sign-in, .copy-agent-guide) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
 .rg-button.regent-header-cta--soft { --rg-button-border-color: color-mix(in srgb, var(--palette-tangerine-tango) 45%, transparent); }
 :root[data-theme="dark"] .rg-button.regent-header-cta--soft::after { --rg-button-cut-ink: var(--rg-button-border-color); }
 .regent-header-cta .rg-button__label { display: inline-flex; align-items: center; gap: 8px; }

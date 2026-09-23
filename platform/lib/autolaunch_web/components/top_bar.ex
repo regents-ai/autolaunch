@@ -73,14 +73,14 @@ defmodule AutolaunchWeb.Components.TopBar do
           <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
           <Regent.Primitives.button
             disabled
-            class="home-top__create opening-create"
+            class="create-button"
             title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
           >+ Create</Regent.Primitives.button>
         </span>
         <.link
           :if={!Autolaunch.Prelaunch.read_only?()}
           navigate="/create"
-          class="rg-button home-top__create"
+          class="rg-button create-button"
         >+ Create</.link>
         <.account_control account_control={@account_control} />
       </div>

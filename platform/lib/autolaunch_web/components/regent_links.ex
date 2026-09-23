@@ -66,7 +66,8 @@ defmodule AutolaunchWeb.Components.RegentLinks do
         href="https://x.com/regents_sh"
         target="_blank"
         rel="noopener noreferrer"
-      ><span class="rg-button__label"><.source_icon kind={:x} /> Follow on X</span></a>
+        aria-label="Follow on X"
+      ><span class="rg-button__label">Follow on <.source_icon kind={:x} /></span></a>
       <nav class="regent-social-links" aria-label="Regents on GitHub">
         <.github_link />
       </nav>

@@ -61,15 +61,23 @@ defmodule AutolaunchWeb.Components.Opening do
         <div class="opening-welcome__kind">
           <dt>Revstake</dt>
           <dd>
-            Raise early funds through a CCA auction. It tokenizes a stablecoin generating service
-            or agent. Tokenholders stake it to acquire their slice of stablecoin earnings.
+            <ul>
+              <li>Raise early funds through a CCA auction</li>
+              <li>Tokenize a stablecoin generating service or agent</li>
+              <li>Tokenholders stake it to acquire their slice of all future stablecoin earnings</li>
+            </ul>
           </dd>
         </div>
         <div class="opening-welcome__kind">
           <dt>Memestake</dt>
           <dd>
-            We think onchain stocks will keep growing, and we will support viable stocks on Base and
-            Robinhood. Stakers earn the onchain stock from fees.
+            <ul>
+              <li>Onchain stocks will continue to grow on Base and Robinhood</li>
+              <li>Pairing a memecoin with a real stock is called a memestock</li>
+              <li>
+                Staking it allows holders to receive onchain stocks from the meme's trading fees
+              </li>
+            </ul>
           </dd>
         </div>
       </dl>

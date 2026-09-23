@@ -13,7 +13,17 @@ defmodule AutolaunchWeb.TokenDetailsLive do
     ~H"""
     <main class="fact-page">
       <header class="autolaunch-heading">
-        <h1>Token details</h1>
+        <div class="fact-page__title">
+          <h1>Token details</h1>
+          <Regent.Primitives.button
+            id="copy-agent-guide"
+            class="copy-agent-guide"
+            data-copy-agent-guide={~p"/llms.txt"}
+            phx-update="ignore"
+          >
+            <span data-copy-agent-label aria-live="polite">Copy to Agent</span>
+          </Regent.Primitives.button>
+        </div>
         <p>Supply, trading fees and staking rewards for every Autolaunch token.</p>
       </header>
 

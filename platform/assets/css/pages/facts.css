@@ -1,5 +1,7 @@
 /* Fact pages (Token details, REGENT): plain tables, a few orange figures, then a "Show details" list. */
 .fact-page { display: grid; gap: var(--space-4); max-width: 1040px; min-width: 0; }
+.fact-page__title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+.fact-page__title > h1 { margin: 0; }
 .fact-page__section { display: grid; gap: var(--space-2); min-width: 0; }
 .fact-page__section > * { margin: 0; }
 .fact-page h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 1.25rem; line-height: 1.3; }
