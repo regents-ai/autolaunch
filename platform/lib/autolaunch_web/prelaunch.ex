@@ -50,7 +50,7 @@ defmodule AutolaunchWeb.Prelaunch do
          Jason.encode!(%{
            error: %{
              code: "prelaunch_read_only",
-             message: "Autolaunch is read-only until contract deployment."
+             message: "Autolaunch opens #{Prelaunch.opens_at_label()}."
            }
          })}
       else

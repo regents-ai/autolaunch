@@ -17,7 +17,10 @@ defmodule AutolaunchWeb.Components.AccountControl do
         class="account-control__sign-in"
         data-account-target="sign-in"
         disabled={Autolaunch.Prelaunch.read_only?()}
-        title={if Autolaunch.Prelaunch.read_only?(), do: "Accounts are unavailable during prelaunch"}
+        title={
+          if Autolaunch.Prelaunch.read_only?(),
+            do: "Sign-in opens #{Autolaunch.Prelaunch.opens_at_label()}"
+        }
       >
         Sign in
       </Regent.Primitives.button>

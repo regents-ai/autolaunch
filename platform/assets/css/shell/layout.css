@@ -11,6 +11,9 @@
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
 .regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; color: inherit; }
 .regent-header-links svg, .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
+.rg-button.regent-header-cta { min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
+.regent-header-cta .rg-button__label { display: inline-flex; align-items: center; gap: 8px; }
+.regent-header-links .regent-header-cta svg { flex: none; width: 1rem; height: 1rem; }
 .regent-token-menu { position: relative; z-index: 10; }
 .regent-token-menu > summary { list-style: none; cursor: pointer; }
 .regent-token-menu > summary::-webkit-details-marker { display: none; }
@@ -32,6 +35,7 @@
 .rg-button.regent-token-menu__link::after { content: none; }
 .regent-token-menu :is(summary, a, button):focus-visible, .regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 @media (max-width: 55rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
+@media (max-width: 42rem) { .regent-header-links { flex: 1 1 100%; flex-wrap: wrap; gap: var(--space-1); } .rg-button.regent-header-cta { flex: 1 1 auto; padding-inline: 10px; font-size: .875rem; } .regent-header-links > .regent-social-links { display: none; } }
 @media (pointer: coarse) { .regent-social-links a, .regent-token-menu > summary { width: 2.75rem; height: 2.75rem; } }
 .autolaunch-profile-page { display: grid; gap: var(--space-4); }
 .autolaunch-profile-page .rg-profile { width: 100%; max-width: 48rem; margin: 0; }

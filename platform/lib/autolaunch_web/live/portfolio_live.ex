@@ -86,7 +86,7 @@ defmodule AutolaunchWeb.PortfolioLive do
         <h2>Connect to your portfolio</h2>
         <p>
           {if Autolaunch.Prelaunch.read_only?(),
-            do: "Portfolios and account access will be available after contract deployment.",
+            do: "Portfolios and sign-in open #{Autolaunch.Prelaunch.opens_at_label()}.",
             else: "Sign in to see bids and tokens from your verified wallets."}
         </p>
         <Regent.Primitives.button

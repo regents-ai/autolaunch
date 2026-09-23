@@ -7,7 +7,7 @@ defmodule AutolaunchWeb.SharedProfileHTML do
       <section class="market-profile-panel" aria-label="Account details">
         <div :if={Autolaunch.Prelaunch.read_only?()} class="autolaunch-heading">
           <h1>Profile</h1>
-          <p>Account changes are unavailable during prelaunch.</p>
+          <p>Profiles open {Autolaunch.Prelaunch.opens_at_label()}.</p>
           <Regent.Primitives.button disabled>Edit profile</Regent.Primitives.button>
           <Regent.Primitives.button disabled variant="secondary">Connect wallet</Regent.Primitives.button>
         </div>

@@ -68,7 +68,8 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
             assigns.kind == :auctions,
             do:
               if(Autolaunch.Prelaunch.read_only?(),
-                do: "Auctions will appear here after contract deployment.",
+                do:
+                  "Auctions will appear here once Autolaunch opens #{Autolaunch.Prelaunch.opens_at_label()}.",
                 else: "Start the first launch and it will appear here for bidders."
               ),
             else: "Tokens appear here after their auction graduates."
@@ -105,7 +106,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <Regent.Primitives.button
           :if={!@cursor && @kind == :auctions && Autolaunch.Prelaunch.read_only?()}
           disabled
-          title="Available after contract deployment"
+          title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
         >{@empty_action}</Regent.Primitives.button>
         <.link
           :if={!@cursor && !(@kind == :auctions && Autolaunch.Prelaunch.read_only?())}

@@ -200,7 +200,7 @@ defmodule AutolaunchWeb.AuctionLive do
             aria-label="Bidding unavailable"
           >
             <h2>Place a bid</h2>
-            <p>Bidding will be available after contract deployment.</p>
+            <p>Bidding opens {Autolaunch.Prelaunch.opens_at_label()}.</p>
             <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
           </section>
           <.live_component

@@ -12,6 +12,7 @@ defmodule AutolaunchWeb.HomeLive do
     ]
 
   import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1]
+  import AutolaunchWeb.Components.Opening, only: [welcome: 1]
   import AutolaunchWeb.Components.SwapModal
   alias Autolaunch.HomeMarket
 
@@ -173,6 +174,7 @@ defmodule AutolaunchWeb.HomeLive do
 
     ~H"""
     <main class="home-page home-explore-page" id="home-explore">
+      <.welcome :if={Autolaunch.Prelaunch.read_only?()} />
       <header class="home-heading">
         <div class="home-heading__discovery">
           <h1 id="home-explore-title">Explore</h1>
@@ -332,7 +334,7 @@ defmodule AutolaunchWeb.HomeLive do
                 @market_options.state == "all"
             }
             disabled
-            title="Available after contract deployment"
+            title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
           >Create an auction</Regent.Primitives.button>
           <.link
             :if={

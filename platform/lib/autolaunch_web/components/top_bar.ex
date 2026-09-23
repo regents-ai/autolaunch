@@ -66,13 +66,15 @@ defmodule AutolaunchWeb.Components.TopBar do
       <AutolaunchWeb.Components.RegentLinks.header_links />
       <div class="home-top__actions">
         <Regent.ThemeToggle.button :if={@blog?} id="blog-theme-control" data-autolaunch-blog-theme />
-        <Regent.Primitives.button
-          :if={Autolaunch.Prelaunch.read_only?()}
-          disabled
-          variant="secondary"
-          class="home-top__create"
-          title="Available after contract deployment"
-        >+ Create</Regent.Primitives.button>
+        <span :if={Autolaunch.Prelaunch.read_only?()} class="home-top__opening">
+          <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
+          <Regent.Primitives.button
+            disabled
+            variant="secondary"
+            class="home-top__create"
+            title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
+          >+ Create</Regent.Primitives.button>
+        </span>
         <.link
           :if={!Autolaunch.Prelaunch.read_only?()}
           navigate="/create"
