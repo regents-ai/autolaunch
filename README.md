@@ -1,99 +1,159 @@
 # Autolaunch
 
-Launch token auctions on Base. Bid on the ones you believe will be long-term, successful stablecoin businesses. Designed for agents to participate in both creation and bidding, and promotes launching novel x402 services as the 'new unlock' for agents using Autolaunch. 
+Autolaunch runs public auctions for new tokens. It then pays the people who stake those tokens a
+share of every trade.
 
-Autolaunch auctions new tokens and puts them to work for the people who stake them. A launcher
-names a token and the raise it needs; bidders name a price; a continuous clearing auction settles
-at one price. A launch that reaches its raise graduates into a Uniswap v4 pool whose liquidity is
-locked for good, and one that does not refunds every bidder in full. From then on the pool's
-trading fees, and any payments made to the launch, flow to the token's stakers.
+Anyone can launch a token and name the least the auction must raise. Anyone can bid. When bidding
+closes, one price applies to every winning bid. If the auction raises its minimum, the token
+graduates: it starts trading in a Uniswap pool whose liquidity is locked forever. If it falls short,
+every bidder takes their full bid back. After graduation, trading fees on the token flow to the
+people who stake it.
 
-This repository holds the Solidity contracts for each launch type, the autolaunch.sh website, a
-public command-line client and the home of future agent plugins.
+[Website](https://autolaunch.sh) · [How the contracts work](contracts/README.md) · [Command-line tool](cli/README.md) · [API and agent tools](platform/docs/public-webmcp.md)
 
-[Website](https://autolaunch.sh) · [Contracts](contracts/README.md) · [CLI](cli/README.md) · [API and WebMCP](platform/docs/public-webmcp.md) · [Star on GitHub](https://github.com/regents-ai/autolaunch)
+## Two kinds of launch
 
-## Three launch types
+**Revstake** tokens are for agents and projects that earn money. The launcher raises REGENT for
+their project. Stakers share the token's trading fees and any payments the project routes to them.
+Revstake launches run on Base.
 
-| | Base Revstake | Base Memestake | Robinhood Memestake |
-| --- | --- | --- | --- |
-| Chain | Base (8453) | Base (8453) | Robinhood Chain (4663) |
-| What you bid with | REGENT | one admitted tokenised stock, such as AAPLc; a bidder may also pay USDC and have it converted inside the bid | one admitted tokenised stock, paid for in USDG inside the bid |
-| Token supply | 100 billion: 10% auctioned, 5% liquidity reserve, 85% vests to the launch treasury over 365 days | 1 billion: 80% auctioned, 20% liquidity reserve | 1 billion: 80% auctioned, 20% liquidity reserve |
-| Auction | opens 300 blocks after launch, runs 86,401 blocks | opens 300 blocks after launch, runs 43,200 blocks (about a day) | opens 6,000 blocks after launch, runs 864,000 blocks (about a day at 0.1-second blocks) |
-| Where liquidity goes | one full-range position, owned forever by `RevstakeLPLocker` | two positions, owned forever by `MemestockLPLocker`; unsold tokens are retired | two positions, owned forever by `MemestockLPLocker`; unsold tokens are retired |
-| Swap fees | two 1% lanes on every swap: one to the Regent Safe, one into the launch's staking contract | two 1% lanes of the stock side of every swap: one converted to USDC for REGENT staking, one into the launch's staking contract | two 1% lanes of the stock side of every swap: one converted to USDG into the protocol inbox, one into the launch's staking contract |
-| How stakers earn | every inflow is skimmed 2%, then split between stakers (by their staked share of the total supply) and the treasury; the locked position's fees and payments through `PaymentReceiverV1` arrive the same way | every inflow is skimmed 2%; the other 98% goes to stakers pro rata, in USDC, the token and the stock; no treasury | every inflow is skimmed 2%; the other 98% goes to stakers pro rata, in USDG, the token and the stock; no treasury |
-| Contracts | [contracts/v1](contracts/v1/README.md) | [contracts/stocks](contracts/stocks/README.md) | [contracts/robinhood](contracts/robinhood/README.md) |
+**Memestake** tokens are memecoins paired with a tokenised stock, such as Tesla or Apple. Bids are
+paid in that stock. Nobody keeps what the auction raises: every unit goes into the token's locked
+trading pool. There is no creator allocation and no team treasury. Memestake
+launches run on Base and on Robinhood Chain.
 
-There is no launch fee on any launch type: a launch costs only gas. The launcher chooses the
-required raise. Revstake launches exist only on Base; Robinhood Chain hosts Memestake launches
-only. The full picture, including which contract does what, is in the
-[contracts overview](contracts/README.md).
-
-## The website
-
-autolaunch.sh is a Phoenix, LiveView and Ash application ([platform/](platform/README.md)). Signed
-in with Privy, a person can:
-
-- create a launch: either type on Base, Memestake on Robinhood; the page autosaves a draft, shows
-  the fixed terms in words, then asks the wallet to sign one launch transaction;
-- bid on an auction, with the price aligned to the auction's tick, and afterwards return an
-  unfilled bid or claim the tokens from the portfolio page;
-- follow auctions and tokens, buy or sell a token from its page, stake it, claim what it has
-  earned, and collect the locked liquidity's trading fees into the staking contract.
-
-Every wallet action is sent exactly as pressed; the site never blocks or defers one because of
-page state. The public records are also served as JSON (`GET /api/v1/auctions`,
-`GET /api/v1/auctions/:id`, `POST /api/v1/auctions/:id/bid-quote`, `GET /api/v1/tokens`,
-`GET /api/v1/treasury-security/:address`), registered as five read-only
-[WebMCP tools](platform/docs/public-webmcp.md) in browsers that support them, and mirrored by
-the [CLI](cli/README.md). Until it is switched on with the deployment addresses, the production site
-is read-only: reads and quotes work, wallet actions are switched off.
-
-## Status
-
-| Part | What exists | Deployed | What comes next |
-| --- | --- | --- | --- |
-| Base Revstake contracts | Complete against a frozen specification, with an offline gate, Base fork evidence, and a deployment packet that names the deployer and the eight predicted addresses | Deployed on Base on 22 September 2026; the eight addresses are in [the deployment record](contracts/v1/deployments/base-mainnet/README.md). Launches are still paused | The Governance Safe opens the factory to launches |
-| Base Memestake contracts | Implemented with its own gate; the launchpad, fee hook, bid adapter and one `AerodromeStockRouteV2` for each of ten stocks | Deployed on Base on 23 September 2026; the addresses are in [the deployment record](contracts/stocks/deployments/base-mainnet/README.md). The Governance Safe has admitted the ten stocks with their routes and named the fee operator. Launches are still paused | The Governance Safe opens launches at website activation |
-| Robinhood contracts | Implemented with its own gate; the launchpad, fee hook, bid adapter, protocol revenue inbox, one Uniswap v3 `UniswapV3StockRouteV1` for each of 25 stocks, and a Base receiver for bridged revenue. The approved deployment packet names the deployer and every predicted address | Being deployed; the addresses will be in [the deployment record](contracts/robinhood/deployments/robinhood-mainnet/README.md) | The Robinhood Safe admits the 25 stocks and names the fee operator; launches open with Base. The bridge adapter that carries protocol revenue to Base (USDG to native Base USDC through Across) follows; until then the revenue waits in the inbox |
-| Revenue mesh | An offline foundation for USDC payment routes over CCTP into a launch's payment receiver | Nothing; every route is an unverified candidate | Admission requirements listed in its README |
-| Website | Auction, token, launch, bid, portfolio and staking flows; public API and WebMCP tools; a local Base-fork lab | Serves in read-only preview until contract addresses are configured | Deployment addresses rendered from the contracts' deployed records |
-| CLI | The public read-only `autolaunch` command, a local release candidate (0.1.0) | Not published to a registry | Publication once registry authority is established |
-| Plugins | None; the folder marks the intended home | Nothing | A plugin would wrap the CLI and the public API |
-
-## Work on it
-
-| Component | Location | Check |
+| | Revstake | Memestake |
 | --- | --- | --- |
-| Website and API | [platform/](platform/README.md) | `cd platform && mix precommit && npm run typecheck && npm test` |
-| Public CLI | [cli/](cli/README.md) | `cd cli && npm run check` |
-| Base Revstake contracts | [contracts/v1/](contracts/v1/README.md) | `cd contracts/v1 && bin/gate.sh`, after the one-time setup in its README |
-| Base Memestake contracts | [contracts/stocks/](contracts/stocks/README.md) | `cd contracts/stocks && bin/gate.sh`, after `bootstrap-deps.py` has filled `lib/` |
-| Robinhood contracts | [contracts/robinhood/](contracts/robinhood/README.md) | `cd contracts/robinhood && bin/gate.sh` |
-| Revenue mesh | [contracts/revenue-mesh/](contracts/revenue-mesh/README.md) | `cd contracts/revenue-mesh && forge fmt --check && forge build && forge test -vvv` |
-| Agent plugins | [plugins/](plugins/README.md) | none; nothing is implemented yet |
+| Where | Base | Base and Robinhood Chain |
+| You bid with | REGENT | a tokenised stock. You can also pay in dollars (USDC on Base, USDG on Robinhood Chain), converted into the stock in the same transaction |
+| Total supply | 100 billion | 1 billion |
+| Sold in the auction | 10% | 80% |
+| Paired with the raise in the trading pool | 5% | 20% |
+| Everything else | 85%, plus any unsold tokens, vests to the launcher's treasury over one year after graduation | none; unsold tokens are sent to a burn address |
+| Where the raise goes | enough is paired with the token to open the pool; the rest goes to the launcher's treasury | all of it is locked in the trading pool |
+| Bidding opens | about 10 minutes after launch | about 10 minutes after launch |
+| Bidding lasts | about 48 hours | about 24 hours |
 
-`platform/contracts/` holds the runtime ABIs, the chain-contract manifest and the OpenAPI
-contract the website consumes, not the Solidity sources. Web work needs only the platform
-dependencies; the contract dependency closure (about 6 GB of git history) is fetched only for
-contract work. Shared libraries remain separate repositories.
+Launching is free apart from the network fee.
 
-## Related products
+## How an auction works
 
-| Product | Use it for | Website | Source |
-| --- | --- | --- | --- |
-| Regents | Agent identity, operations, staking and redemption | [regents.sh](https://regents.sh) | [Regents](https://github.com/regents-ai/regents) |
-| Autolaunch | Token auctions and launch operations | [autolaunch.sh](https://autolaunch.sh) | [Autolaunch](https://github.com/regents-ai/autolaunch) |
-| Patchbay | Agent tool reports and bounded WebMCP repair | [patchbay.help](https://patchbay.help) | [Patchbay](https://github.com/regents-ai/patchbay) |
-| Techtree | Controlled Skill evaluations and verifiable results | [techtree.sh](https://techtree.sh) | [Techtree](https://github.com/regents-ai/techtree) |
+Autolaunch uses Uniswap's continuous clearing auction. It sells the tokens a little at a time over
+the whole auction, not all at once at the end.
 
-Each product owns its API, CLI and authorization. A login, payment or published result on one
-product does not grant permissions on another. Shared presentation lives in
-[design-system](https://github.com/regents-ai/design-system); common Elixir libraries live in
-[elixir-utils](https://github.com/regents-ai/elixir-utils).
+1. **You place a bid.** You choose how much to spend and the highest price you will pay per
+   token.
+2. **One price for everyone.** At any moment the auction has a single clearing price, set by the
+   bids competing for the tokens released so far. Bids priced above it buy at the clearing price,
+   not at their own limit, so nobody pays more than anyone else.
+3. **If the price passes your limit,** your bid stops buying. You keep the tokens it already bought
+   and take back the rest of your money.
+4. **The minimum.** Each auction must raise the amount its launcher set before it can graduate.
+   The auction page shows how close it is, and the auction list shows a green check once an auction
+   has reached its minimum.
+5. **When bidding ends,** there are two outcomes:
+   - **Graduated.** The minimum was reached. Bidders claim their tokens, and the token starts
+     trading at the auction's final price in a Uniswap v4 pool.
+   - **Failed.** The minimum was not reached. Every bidder takes back their full bid, and every
+     token is sent to a burn address.
+
+Refunds are paid by the Uniswap auction contract itself. Nothing in Autolaunch can hold them back.
+
+## Where the fees go
+
+Trades in a token's official pool pay two extra fees of 1% each, on top of the pool's usual 0.30%
+trading fee:
+
+- **1% goes to the token's staking pot.**
+- **1% goes to Regent.** On Memestake pools it is converted to dollars first. On Base those dollars
+  go to people who stake REGENT.
+
+The pool's liquidity is locked in a contract that can only collect trading fees. Anyone can press
+"collect", and the fees always go into the token's staking pot.
+
+Revstake projects can also send customer payments to the pot. Each Revstake token comes with its
+own payment address, and money sent there is shared out the same way.
+
+## How staking works
+
+Stake a token on its page to earn a share of everything that reaches its staking pot: trading fees,
+locked liquidity fees and, for Revstake tokens, payments. Earnings arrive in the currencies that
+came in: the token itself, the stock or REGENT it trades against, and dollars.
+
+- **Regent keeps 2%** of everything that arrives. On Base, dollars from that 2% go to people who
+  stake REGENT.
+- **Memestake:** stakers share the other 98% in proportion to their stake. If nobody is staked, it
+  goes to Regent instead.
+- **Revstake:** stakers earn according to how much of the *whole supply* they stake. For example,
+  if you stake 1% of all tokens, you earn 1% of the 98%, however many other people are staking. The
+  part not earned by stakers goes to the project's treasury.
+
+You can claim earnings or unstake at any time after the block in which you last staked. On
+Robinhood Chain that means waiting about twelve seconds after staking.
+
+## Is it safe?
+
+Autolaunch's contracts are built so that the promises above do not depend on trusting anyone.
+
+**What nobody can do, including Regent:**
+
+- withdraw a token's locked liquidity. The contract that holds it can only collect trading fees and
+  pay them into the token's staking pot;
+- create more of a token, tax its transfers, block a holder, or change the token after launch;
+- change a live auction's terms, or stop a refund;
+- change the fee rates, or take stakers' tokens or earnings;
+- upgrade the contracts. They cannot be changed once deployed.
+
+**What Regent can do:**
+
+- pause or reopen *new* launches. A pause never touches auctions already running, refunds,
+  claims, trading, staking or payments;
+- for Memestake, choose which stocks new launches can use. Removing a stock stops only new
+  launches with it;
+- for Memestake, choose who converts Regent's 1% share of the fees into dollars. The contracts do
+  not check the conversion price: whoever converts sets the least they will accept, and the website
+  offers 95% of the stock's Chainlink price as that minimum.
+
+**Your money stays in your wallet.** The website never holds funds. Every bid, trade, stake and
+claim is a transaction you approve in your own wallet.
+
+**Risks you should know about:**
+
+- New tokens are speculative. A token's price can fall to nothing. Only bid what you can afford to
+  lose.
+- Revstake launchers receive 85% of the supply over a year, plus the part of the raise not needed
+  for the pool. What they do with it is up to them.
+- Memestake bids and earnings are in tokenised stocks. Their value moves with the stock market, and
+  each stock token follows its issuer's rules.
+- Staking earnings depend on trading and payments. They are not guaranteed.
+- The contracts are new. Contracts are audited using the Trail of Bits and Crytic skills, using
+  GPT 6 Astra. They were also tested against the real Base contracts they rely on. Their source code
+  is public, and the deployed Revstake contracts are verified on Basescan.
+
+## Status (23 September 2026)
+
+| | |
+| --- | --- |
+| Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches are not open yet |
+| Memestake on Base | Contracts deployed and verified on Basescan on 23 September 2026 ([addresses](contracts/README.md#base-8453-memestake)), with ten stocks added: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches are not open yet |
+| Memestake on Robinhood Chain | Not deployed yet |
+| autolaunch.sh | You can browse it now. Launching, bidding and trading turn on when the contracts open |
+| Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
+
+## More
+
+- [How the contracts work](contracts/README.md): each contract, what it controls, and who can
+  change what.
+- [Command-line tool](cli/README.md) and [API and agent tools](platform/docs/public-webmcp.md):
+  public auction and token data for scripts and AI agents.
+- Developers: [website](platform/README.md) and [contracts](contracts/README.md)
+  setup.
+
+Autolaunch is part of the Regent family, with [Regents](https://regents.sh),
+[Patchbay](https://patchbay.help) and [Techtree](https://techtree.sh). An account or payment on one
+product grants nothing on another.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Dependencies under `contracts/v1/lib/` and `contracts/stocks/lib/` keep their own licenses.
+MIT. See [LICENSE](LICENSE). Libraries under `contracts/v1/lib/` and `contracts/stocks/lib/` keep
+their own licenses.
