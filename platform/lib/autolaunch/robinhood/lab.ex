@@ -27,8 +27,8 @@ defmodule Autolaunch.Robinhood.Lab do
   # Router and V4 Quoter together; one without the other is refused.
   @swap_address_keys ~w(swap_router quoter)
   @abi_keys ~w(stocks_launchpad stocks_hook stocks_locker splitter bid_adapter stock_route auction erc20)
-  @stock_keys ~w(symbol name address decimals route usdg_per_share fixture launch_admission)
-  @stock_decimals 8
+  @stock_keys ~w(symbol name address decimals route pool feed fixture launch_admission)
+  @stock_decimals 18
 
   @type stock :: %{
           symbol: String.t(),
@@ -36,7 +36,8 @@ defmodule Autolaunch.Robinhood.Lab do
           address: String.t(),
           decimals: pos_integer(),
           route: String.t(),
-          usdg_per_share: pos_integer(),
+          pool: String.t(),
+          feed: String.t(),
           fixture: boolean(),
           launch_admission: String.t()
         }
@@ -198,7 +199,7 @@ defmodule Autolaunch.Robinhood.Lab do
     do: [Enum.sort(@address_keys), Enum.sort(@address_keys ++ @swap_address_keys)]
 
   # Every entry is exactly what the controller read back from the chain; a
-  # missing field, a stock that is not eight decimals, or a repeated symbol or
+  # missing field, a stock that is not eighteen decimals, or a repeated symbol or
   # address refuses the whole description. Addresses are normalized (the zero
   # address refused) before the duplicate check.
   defp exact_stocks(stocks) when is_list(stocks) and stocks != [] do
@@ -223,7 +224,8 @@ defmodule Autolaunch.Robinhood.Lab do
          true <- valid_address?(stock["address"]),
          @stock_decimals <- stock["decimals"],
          true <- valid_address?(stock["route"]),
-         {:ok, usdg_per_share} <- atomic_amount(stock["usdg_per_share"]),
+         true <- valid_address?(stock["pool"]),
+         true <- valid_address?(stock["feed"]),
          true <- is_boolean(stock["fixture"]),
          true <- present?(stock["launch_admission"]) do
       {:ok,
@@ -233,7 +235,8 @@ defmodule Autolaunch.Robinhood.Lab do
          address: String.downcase(stock["address"]),
          decimals: @stock_decimals,
          route: String.downcase(stock["route"]),
-         usdg_per_share: usdg_per_share,
+         pool: String.downcase(stock["pool"]),
+         feed: String.downcase(stock["feed"]),
          fixture: stock["fixture"],
          launch_admission: stock["launch_admission"]
        }}
@@ -256,15 +259,6 @@ defmodule Autolaunch.Robinhood.Lab do
   defp exact_abis(_abis), do: {:error, :invalid_abis}
 
   defp present?(value), do: is_binary(value) and value != ""
-
-  defp atomic_amount(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {amount, ""} when amount > 0 -> {:ok, amount}
-      _ -> :error
-    end
-  end
-
-  defp atomic_amount(_value), do: :error
 
   defp valid_address?(value), do: match?({:ok, _address}, Address.normalize(value))
 
