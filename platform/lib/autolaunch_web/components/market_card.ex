@@ -268,6 +268,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
     default: nil,
     doc: "the page's own reading of the state, when the record's state label lags the chain"
 
+  slot :price_note, doc: "shown after the price, such as its dollar value"
+
   def detail_card(assigns) do
     assigns =
       assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
@@ -297,6 +299,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             amount={@view.metric.amount}
             unit={@view.metric.unit}
           />
+          {render_slot(@price_note)}
         </div>
         <.link
           :if={@trade_path}

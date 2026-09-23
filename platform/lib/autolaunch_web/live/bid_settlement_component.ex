@@ -17,7 +17,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidSettlementActions, Lab}
   alias Autolaunch.Stocks.Amounts
-  alias AutolaunchWeb.WalletPressComponent
+  alias AutolaunchWeb.{UsdValue, WalletPressComponent}
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
@@ -64,13 +64,20 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
-     |> assign_new(:operation, fn -> nil end)}
+     |> assign_new(:operation, fn -> nil end)
+     |> assign_usd_rate()}
   end
 
   @impl true
   def render(assigns) do
     auction = assigns.position.auction
-    assigns = assign(assigns, auction: auction, actions: actions(assigns.position, auction))
+
+    assigns =
+      assign(assigns,
+        auction: auction,
+        actions: actions(assigns.position, auction),
+        rate: assigns.usd_rate.result
+      )
 
     ~H"""
     <article
@@ -85,17 +92,24 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       <dl>
         <div>
           <dt>Bid amount</dt>
-          <dd>{@position.amount} {@auction.quote_token_symbol}</dd>
+          <dd>
+            {@position.amount} {@auction.quote_token_symbol}
+            <UsdValue.usd amount={@position.amount} rate={@rate} />
+          </dd>
         </div>
         <div>
           <dt>Maximum price</dt>
           <dd title={@position.max_price}>
             {compact(@position.max_price)} {@auction.quote_token_symbol}
+            <UsdValue.usd amount={@position.max_price} rate={@rate} per="per token" />
           </dd>
         </div>
         <div :if={@position.currency_refunded}>
           <dt>Returned</dt>
-          <dd>{@position.currency_refunded} {@auction.quote_token_symbol}</dd>
+          <dd>
+            {@position.currency_refunded} {@auction.quote_token_symbol}
+            <UsdValue.usd amount={@position.currency_refunded} rate={@rate} />
+          </dd>
         </div>
         <div :if={positive?(@position.tokens_filled)}>
           <dt>Tokens won</dt>
@@ -159,6 +173,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
             <dt>Returned to you</dt>
             <dd>
               {argument(@operation, "currency_refunded")} {argument(@operation, "currency_symbol")}
+              <UsdValue.usd amount={argument(@operation, "currency_refunded")} rate={@rate} />
             </dd>
           </div>
           <div :if={argument(@operation, "tokens_filled")}>
@@ -482,6 +497,17 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
+
+  # The dollar price of the bid's currency, read once per auction and apart
+  # from the card, so a slow price never holds a settlement back.
+  defp assign_usd_rate(%{assigns: %{position: %{auction: %{id: id}}, usd_rate_for: id}} = socket),
+    do: socket
+
+  defp assign_usd_rate(%{assigns: %{position: %{auction: auction}}} = socket) do
+    socket
+    |> assign(:usd_rate_for, auction.id)
+    |> assign_async(:usd_rate, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
+  end
 
   defp compact(value) when is_binary(value) and value != "", do: Amounts.compact_decimal(value)
   defp compact(_value), do: "—"

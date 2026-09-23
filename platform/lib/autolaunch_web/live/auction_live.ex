@@ -12,6 +12,7 @@ defmodule AutolaunchWeb.AuctionLive do
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
+  alias AutolaunchWeb.UsdValue
 
   def mount(_params, _session, socket),
     do: {:ok, socket |> assign_market() |> assign(my_positions: [], fire_allowed_at: nil)}
@@ -24,7 +25,8 @@ defmodule AutolaunchWeb.AuctionLive do
      |> follow_fire(id)
      |> assign(:record_id, id)
      |> assign_positions()
-     |> load_page(reset: true)}
+     |> load_page(reset: true)
+     |> load_usd_rate()}
   end
 
   def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
@@ -78,7 +80,8 @@ defmodule AutolaunchWeb.AuctionLive do
         local_lab?: Lab.test_chain?(),
         page_record: page_record(assigns.page),
         page_status: page_status(assigns.page, :error),
-        creator_connections: page_connections(assigns.page)
+        creator_connections: page_connections(assigns.page),
+        usd_rate: assigns.usd_rate.result
       )
 
     assigns =
@@ -117,7 +120,15 @@ defmodule AutolaunchWeb.AuctionLive do
             creator_connections={@creator_connections}
             trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
             status={settling_status(@page_record, @bidding_ended?)}
-          />
+          >
+            <:price_note>
+              <UsdValue.usd
+                amount={@page_record.current_clearing_price}
+                rate={@usd_rate}
+                per="per token"
+              />
+            </:price_note>
+          </.detail_card>
           <.raise_progress
             :if={@market_snapshot}
             id="auction-raise-progress"
@@ -125,6 +136,7 @@ defmodule AutolaunchWeb.AuctionLive do
             raised={@market_snapshot.currency_raised}
             required={minimum(@page_record)}
             symbol={@page_record.quote_token_symbol}
+            usd_rate={@usd_rate}
             block={@market_snapshot.block_number}
             start_block={@market_snapshot.start_block}
             end_block={@market_snapshot.end_block}
@@ -145,6 +157,7 @@ defmodule AutolaunchWeb.AuctionLive do
                   amount={minimum(@page_record)}
                   unit={@page_record.quote_token_symbol}
                 />
+                <UsdValue.usd amount={minimum(@page_record)} rate={@usd_rate} />
               </dd>
             </div>
             <div>
@@ -185,6 +198,7 @@ defmodule AutolaunchWeb.AuctionLive do
                   amount={@market_snapshot.currency_raised}
                   fallback="—"
                 />
+                <UsdValue.usd amount={@market_snapshot.currency_raised} rate={@usd_rate} />
               </dd>
             </div>
             <div>
@@ -313,6 +327,22 @@ defmodule AutolaunchWeb.AuctionLive do
   defp load_page(socket, reset: reset) do
     id = socket.assigns.record_id
     assign_async(socket, :page, fn -> load_auction_page_with_token(id) end, reset: reset)
+  end
+
+  # The dollar price of the auction's currency, read apart from the page so a
+  # slow price never holds the auction back and a market update never reads it
+  # again.
+  defp load_usd_rate(socket) do
+    id = socket.assigns.record_id
+
+    assign_async(socket, :usd_rate, fn ->
+      with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
+           {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid) do
+        {:ok, %{usd_rate: UsdValue.rate(auction)}}
+      else
+        _missing -> {:error, :no_auction}
+      end
+    end)
   end
 
   # Flames travel per auction: the page follows one auction at a time, and a

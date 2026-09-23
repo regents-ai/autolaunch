@@ -258,29 +258,38 @@ defmodule Autolaunch.Robinhood.StockBidActions do
     %{envelope: envelope, steps: steps, review: review(executable, asset)}
   end
 
-  # The plain facts the page shows before anything is signed.
+  # The plain facts the page shows before anything is signed. A stock amount
+  # carries its exact figure as `worth`, so the page can show its dollar value.
   defp review(executable, asset) do
+    stock_quote = stock_units(executable.stock_quote, executable)
+    min_stock_out = stock_units(executable.min_stock_out, executable)
+    max_price = stock_per_new(executable.max_price_q96, executable)
+
     [
-      ["You spend up to", "#{usdg_units(executable.usdg_amount)} USDG"],
-      [
+      row("You spend up to", "#{usdg_units(executable.usdg_amount)} USDG"),
+      row(
         "Worth today",
-        "#{compact(stock_units(executable.stock_quote, executable))} #{asset.symbol} at today's route quote"
-      ],
-      [
+        "#{compact(stock_quote)} #{asset.symbol} at today's route quote",
+        stock_quote
+      ),
+      row(
         "Lowest #{asset.symbol} you accept",
-        "#{compact(stock_units(executable.min_stock_out, executable))} #{asset.symbol}, at most 1% below today's quote"
-      ],
-      ["Max price", max_price_copy(executable, asset)],
-      [
+        "#{compact(min_stock_out)} #{asset.symbol}, at most 1% below today's quote",
+        min_stock_out
+      ),
+      row("Max price", max_price_copy(executable, asset, max_price), max_price, "per token"),
+      row(
         "Must be included by",
         "#{block_time(executable.deadline)}, about #{div(@deadline_seconds, 60)} minutes after this review"
-      ]
+      )
     ]
   end
 
-  defp max_price_copy(executable, asset) do
-    price =
-      "#{compact(stock_per_new(executable.max_price_q96, executable))} #{asset.symbol} per NEW"
+  defp row(label, value, worth \\ nil, per \\ nil),
+    do: %{label: label, value: value, worth: worth, per: per}
+
+  defp max_price_copy(executable, asset, max_price) do
+    price = "#{compact(max_price)} #{asset.symbol} per token"
 
     if executable.max_price_adjusted,
       do: "#{price}, adjusted down from the #{executable.max_price_entered} you entered",

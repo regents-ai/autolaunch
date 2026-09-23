@@ -1,10 +1,12 @@
 defmodule Autolaunch.Stocks.MarketData do
   @moduledoc """
-  What the create page shows about a stock before a launch is drafted: its
-  price and where it can be bought.
+  The market prices the site shows: a stock's price and where it can be bought,
+  for the create page, and the dollar value of an auction's currency, REGENT or
+  a stock, for the auction pages.
 
-  Prices come from the chain's Chainlink feeds (see `PriceFeeds`); venues come
-  from DexScreener's pair listings. On Base the venues are the stock token's
+  Stock prices come from the chain's Chainlink feeds (see `PriceFeeds`);
+  REGENT's price is its Base Uniswap pool's, and venues come from DexScreener's
+  pair listings. On Base the venues are the stock token's
   deepest Aerodrome pool and its deepest Uniswap pool, each linked to that
   venue's swap page; on Robinhood it is the single pair with the most volume
   in the last day, linked to its DexScreener page. Every answer is kept for ten
@@ -14,13 +16,14 @@ defmodule Autolaunch.Stocks.MarketData do
 
   use GenServer
 
-  alias Autolaunch.Chain.Rpc
+  alias Autolaunch.Chain.{Abi, Address, Rpc}
   alias Autolaunch.Stocks.{Assets, PriceFeeds}
 
   @ttl_ms 600_000
   @latest_round_data "0xfeaf968c"
   @usdc_base "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
   @dexscreener "https://api.dexscreener.com"
+  @regent_pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
   @base_venues [{"aerodrome", "Aerodrome"}, {"uniswap", "Uniswap"}]
 
   def start_link(options \\ []),
@@ -31,6 +34,12 @@ defmodule Autolaunch.Stocks.MarketData do
 
   @doc "USD prices by ticker for every listed stock on the chain whose feed answered."
   def prices(chain), do: cached({:prices, chain}, fn -> read_prices(chain) end, %{})
+
+  @doc "One stock token's USD price on the chain; nil while its feed has not answered."
+  def stock_price(chain, symbol), do: prices(chain)[PriceFeeds.ticker(symbol)]
+
+  @doc "REGENT's USD price in its Base Uniswap pool; nil while DexScreener has not answered."
+  def regent_price, do: cached(:regent_price, &read_regent_price/0, nil)
 
   @doc "The venues that trade the stock, deepest or busiest first; none for no stock."
   def venues(_chain, nil), do: []
@@ -119,6 +128,26 @@ defmodule Autolaunch.Stocks.MarketData do
 
       _unavailable ->
         :error
+    end
+  end
+
+  # The pool must be the REGENT pool this site names; any other token's price
+  # in its place is no answer.
+  defp read_regent_price do
+    case get("/latest/dex/pairs/base/#{@regent_pool}") do
+      {:ok, %{"pairs" => [%{"baseToken" => %{"address" => token}, "priceUsd" => price} | _]}}
+      when is_binary(price) ->
+        if Address.equal?(token, Abi.regent_address()), do: positive(price), else: :error
+
+      _unavailable ->
+        :error
+    end
+  end
+
+  defp positive(price) do
+    case Decimal.parse(price) do
+      {decimal, ""} -> if Decimal.gt?(decimal, 0), do: {:ok, decimal}, else: :error
+      _unparsed -> :error
     end
   end
 

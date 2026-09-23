@@ -190,28 +190,44 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
     %{envelope: envelope, steps: steps, review: review(envelope["arguments"])}
   end
 
-  # The plain facts the page shows before anything is signed.
+  # The plain facts the page shows before anything is signed. A stock amount
+  # carries its exact figure as `worth`, so the page can show its dollar value.
   defp review(arguments) do
     symbol = arguments["stock_symbol"]
+    refunded = arguments["stock_refunded_units"]
+    filled = arguments["tokens_filled_units"]
+    claimed = arguments["tokens_claimed_units"]
 
     Enum.reject(
       [
-        [
+        row(
           "Bid",
-          "#{compact(arguments["bid_amount_units"])} #{symbol} at up to #{compact(arguments["max_price"])} #{symbol} per token"
-        ],
-        ["Final price", "#{compact(arguments["final_clearing_price"])} #{symbol} per token"],
-        ["Outcome", outcome_copy(arguments)],
-        arguments["stock_refunded_units"] &&
-          ["Comes back to you", "#{compact(arguments["stock_refunded_units"])} #{symbol}"],
-        arguments["tokens_filled_units"] &&
-          ["Tokens won", "#{compact(arguments["tokens_filled_units"])} tokens"],
-        arguments["tokens_claimed_units"] &&
-          ["Tokens claimable now", "#{compact(arguments["tokens_claimed_units"])} tokens"]
+          "#{compact(arguments["bid_amount_units"])} #{symbol}",
+          arguments["bid_amount_units"]
+        ),
+        row(
+          "Max price",
+          "#{compact(arguments["max_price"])} #{symbol} per token",
+          arguments["max_price"],
+          "per token"
+        ),
+        row(
+          "Final price",
+          "#{compact(arguments["final_clearing_price"])} #{symbol} per token",
+          arguments["final_clearing_price"],
+          "per token"
+        ),
+        row("Outcome", outcome_copy(arguments)),
+        refunded && row("Comes back to you", "#{compact(refunded)} #{symbol}", refunded),
+        filled && row("Tokens won", "#{compact(filled)} tokens"),
+        claimed && row("Tokens claimable now", "#{compact(claimed)} tokens")
       ],
       &(&1 in [nil, false])
     )
   end
+
+  defp row(label, value, worth \\ nil, per \\ nil),
+    do: %{label: label, value: value, worth: worth, per: per}
 
   defp outcome_copy(%{"graduated" => true}),
     do: "The launch raised enough. Tokens are on their way."

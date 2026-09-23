@@ -20,6 +20,7 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias AutolaunchWeb.UsdValue
 
   @chain_id 8453
 
@@ -73,11 +74,14 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
+     |> assign_usd_rate()
      |> preset()}
   end
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :rate, assigns.usd_rate.result)
+
     ~H"""
     <section
       id={@id}
@@ -113,7 +117,11 @@ defmodule AutolaunchWeb.BidComponent do
             <dt>Wallet</dt><dd class="bid-mono">{short(@wallet)}</dd>
           </div>
           <div>
-            <dt>{@auction.quote_token_symbol}</dt><dd>{balance(@balance, @auction)}</dd>
+            <dt>{@auction.quote_token_symbol}</dt>
+            <dd>
+              {balance(@balance, @auction)}
+              <UsdValue.usd amount={balance(@balance, @auction)} rate={@rate} />
+            </dd>
           </div>
         </dl>
 
@@ -144,6 +152,7 @@ defmodule AutolaunchWeb.BidComponent do
               variant="secondary"
             >Max</Regent.Primitives.button>
           </div>
+          <p :if={@amount != ""} class="bid-usd"><UsdValue.usd amount={@amount} rate={@rate} /></p>
 
           <label for={"#{@id}-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
           <input
@@ -154,6 +163,9 @@ defmodule AutolaunchWeb.BidComponent do
             autocomplete="off"
             placeholder="0.0"
           />
+          <p :if={@max_price != ""} class="bid-usd">
+            <UsdValue.usd amount={@max_price} rate={@rate} per="per token" />
+          </p>
 
           <p :if={@estimate} class="bid-estimate">
             You would receive about {@estimate} tokens if the auction ended now.
@@ -200,6 +212,9 @@ defmodule AutolaunchWeb.BidComponent do
             autocomplete="off"
             placeholder="0.0"
           />
+          <p :if={@usdc_max_price != ""} class="bid-usd">
+            <UsdValue.usd amount={@usdc_max_price} rate={@rate} per="per token" />
+          </p>
           <Regent.Primitives.button
             class="bid-primary"
             type="submit"
@@ -214,6 +229,7 @@ defmodule AutolaunchWeb.BidComponent do
             <div :if={argument(@operation, "amount")}>
               <dt>Amount</dt><dd>
                 {argument(@operation, "amount")} {argument(@operation, "currency_symbol")}
+                <UsdValue.usd amount={argument(@operation, "amount")} rate={@rate} />
               </dd>
             </div>
             <div :if={argument(@operation, "usdc_amount")}>
@@ -221,12 +237,18 @@ defmodule AutolaunchWeb.BidComponent do
             </div>
             <div :if={argument(@operation, "stock_quote")}>
               <dt>Estimated {argument(@operation, "currency_symbol")}</dt>
-              <dd>{argument(@operation, "stock_quote")} (estimate, not binding)</dd>
+              <dd>
+                {argument(@operation, "stock_quote")}
+                <UsdValue.usd amount={argument(@operation, "stock_quote")} rate={@rate} />
+                (estimate, not binding)
+              </dd>
             </div>
             <div :if={argument(@operation, "min_stock_out")}>
               <dt>Least accepted</dt>
               <dd>
-                {argument(@operation, "min_stock_out")} {argument(@operation, "currency_symbol")} · 1% below the estimate
+                {argument(@operation, "min_stock_out")} {argument(@operation, "currency_symbol")}
+                <UsdValue.usd amount={argument(@operation, "min_stock_out")} rate={@rate} />
+                · 1% below the estimate
               </dd>
             </div>
             <div :if={argument(@operation, "deadline")}>
@@ -239,11 +261,13 @@ defmodule AutolaunchWeb.BidComponent do
                   amount={argument(@operation, "max_price")}
                   unit={"#{argument(@operation, "currency_symbol")} per token"}
                 />
+                <UsdValue.usd amount={argument(@operation, "max_price")} rate={@rate} per="per token" />
               </dd>
             </div>
             <div>
               <dt>Requested maximum</dt><dd>
-                {argument(@operation, "requested_max_price") || argument(@operation, "max_price")}
+                {requested_max_price(@operation)} {argument(@operation, "currency_symbol")} per token
+                <UsdValue.usd amount={requested_max_price(@operation)} rate={@rate} per="per token" />
               </dd>
             </div>
             <div>
@@ -624,6 +648,19 @@ defmodule AutolaunchWeb.BidComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
+
+  defp requested_max_price(operation),
+    do: argument(operation, "requested_max_price") || argument(operation, "max_price")
+
+  # The dollar price of the auction's currency, read once per auction and
+  # apart from the form, so a slow price never holds a bid back.
+  defp assign_usd_rate(%{assigns: %{auction: %{id: id}, usd_rate_for: id}} = socket), do: socket
+
+  defp assign_usd_rate(%{assigns: %{auction: auction}} = socket) do
+    socket
+    |> assign(:usd_rate_for, auction.id)
+    |> assign_async(:usd_rate, fn -> {:ok, %{usd_rate: UsdValue.rate(auction)}} end)
+  end
 
   defp balance(nil, _auction), do: "—"
 

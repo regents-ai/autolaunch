@@ -17,6 +17,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Robinhood.{Lab, StockBidActions}
+  alias Autolaunch.Stocks.MarketData
+  alias AutolaunchWeb.UsdValue
 
   @copy %{
     authentication_required: "Sign in to bid from your wallet.",
@@ -71,11 +73,19 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:sent, fn -> %{} end)
      |> assign_new(:reading, fn -> nil end)
      |> assign_new(:usdg_amount, fn -> Map.get(assigns, :preset_amount) || "" end)
-     |> assign_new(:max_price, fn -> "" end)}
+     |> assign_new(:max_price, fn -> "" end)
+     |> assign_usd_prices()}
   end
 
   @impl true
   def render(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :usd_rate,
+        UsdValue.stock_rate(assigns.usd_prices.result, reading_symbol(assigns.reading))
+      )
+
     ~H"""
     <section
       id={@id}
@@ -169,6 +179,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             autocomplete="off"
             placeholder="0.0"
           />
+          <p :if={@max_price != ""} class="bid-usd">
+            <UsdValue.usd amount={@max_price} rate={@usd_rate} per="per token" />
+          </p>
           <Regent.Primitives.button class="bid-primary" type="submit">
             Review bid
           </Regent.Primitives.button>
@@ -182,9 +195,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         >
           <h3>Review this bid</h3>
           <dl>
-            <div :for={[label, value] <- @review.review}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
+            <div :for={row <- @review.review}>
+              <dt>{row.label}</dt>
+              <dd>
+                {row.value}
+                <UsdValue.usd :if={row.worth} amount={row.worth} rate={@usd_rate} per={row.per} />
+              </dd>
             </div>
             <div>
               <dt>Wallet</dt>
@@ -278,9 +294,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           <ul role="list">
             <li :for={bid <- @reading.bids}>
               <p>
-                Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]} · {bid_state(
-                  bid
-                )}
+                Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]}
+                <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
+                · {bid_state(bid)}
               </p>
               <.live_component
                 module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
@@ -289,6 +305,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
                 auction={@auction}
                 bid={bid}
                 graduated?={@reading.graduated?}
+                usd_rate={@usd_rate}
                 wallet={@wallet}
                 current_human_id={@current_human_id}
                 session_lease={@session_lease}
@@ -489,6 +506,19 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp outcome_notice(:unverified),
     do: %{tone: :error, message: "That transaction did not record the step you reviewed."}
+
+  # Robinhood's stock prices, read once and apart from the form, so a slow
+  # price never holds a bid back.
+  defp assign_usd_prices(%{assigns: %{usd_prices: _prices}} = socket), do: socket
+
+  defp assign_usd_prices(socket),
+    do:
+      assign_async(socket, :usd_prices, fn ->
+        {:ok, %{usd_prices: MarketData.prices(:robinhood)}}
+      end)
+
+  defp reading_symbol(%{stock: %{"symbol" => symbol}}), do: symbol
+  defp reading_symbol(nil), do: nil
 
   defp stock_symbol(%{stock: %{"symbol" => symbol}}), do: symbol
   defp stock_symbol(nil), do: "the auction's stock"

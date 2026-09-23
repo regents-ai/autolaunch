@@ -10,13 +10,18 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
 
   alias Autolaunch.LaunchChain
   alias Autolaunch.Stocks.Amounts
-  alias AutolaunchWeb.TokenDisplay
+  alias AutolaunchWeb.{TokenDisplay, UsdValue}
 
   attr :id, :string, required: true
   attr :state, :atom, required: true
   attr :raised, :string, required: true, doc: "whole units, as a plain decimal"
   attr :required, :string, required: true, doc: "whole units, as a plain decimal"
   attr :symbol, :string, required: true
+
+  attr :usd_rate, :any,
+    required: true,
+    doc: "the USD price of one unit, or nil while none is known"
+
   attr :block, :integer, required: true, doc: "the block the auction keeps time by"
   attr :start_block, :integer, required: true
   attr :end_block, :integer, required: true
@@ -34,7 +39,9 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
     <section id={@id} class="raise-progress" aria-label="Progress to the minimum raise">
       <p class="raise-progress__figure">
         <strong><TokenDisplay.price amount={readable(@raised)} unit={@symbol} /></strong>
-        raised of <TokenDisplay.price amount={readable(@required)} unit={@symbol} /> minimum
+        <UsdValue.usd amount={@raised} rate={@usd_rate} /> raised of
+        <TokenDisplay.price amount={readable(@required)} unit={@symbol} />
+        <UsdValue.usd amount={@required} rate={@usd_rate} /> minimum
       </p>
       <progress
         class="raise-progress__bar"
@@ -47,7 +54,8 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
       <p class="raise-progress__note">
         <span>{reached(@raised, @percent)}</span>
         <span :if={@percent < 100}>
-          <TokenDisplay.price amount={shortfall(@raised, @required)} unit={@symbol} /> still needed.
+          <TokenDisplay.price amount={shortfall(@raised, @required)} unit={@symbol} />
+          <UsdValue.usd amount={missing(@raised, @required)} rate={@usd_rate} /> still needed.
         </span>
         <span>{timing("Bidding ends", @end_block - @block, @end_block, @chain, @test_chain)}</span>
       </p>
@@ -63,7 +71,9 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
     <section id={@id} class="raise-progress" aria-label="The final raise">
       <p class="raise-progress__figure">
         <strong><TokenDisplay.price amount={readable(@raised)} unit={@symbol} /></strong>
-        raised of <TokenDisplay.price amount={readable(@required)} unit={@symbol} /> minimum
+        <UsdValue.usd amount={@raised} rate={@usd_rate} /> raised of
+        <TokenDisplay.price amount={readable(@required)} unit={@symbol} />
+        <UsdValue.usd amount={@required} rate={@usd_rate} /> minimum
       </p>
       <progress
         class="raise-progress__bar"
@@ -80,7 +90,8 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
           <TokenDisplay.price
             amount={shortfall(@raised, @required)}
             unit={@symbol}
-          />.
+          />
+          <UsdValue.usd amount={missing(@raised, @required)} rate={@usd_rate} />.
         </span>
         <span>{outcome(@state)}</span>
       </p>
@@ -94,7 +105,7 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
     <section id={@id} class="raise-progress" aria-label="The minimum raise">
       <p class="raise-progress__figure">
         Must raise <strong><TokenDisplay.price amount={readable(@required)} unit={@symbol} /></strong>
-        to graduate
+        <UsdValue.usd amount={@required} rate={@usd_rate} /> to graduate
       </p>
       <p class="raise-progress__note">
         <span>
@@ -127,8 +138,10 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
     |> Decimal.to_integer()
   end
 
-  defp shortfall(raised, required),
-    do: required |> Decimal.new() |> Decimal.sub(Decimal.new(raised)) |> readable(:ceiling)
+  defp shortfall(raised, required), do: raised |> missing(required) |> readable(:ceiling)
+
+  defp missing(raised, required),
+    do: required |> Decimal.new() |> Decimal.sub(Decimal.new(raised))
 
   defp outcome(:graduated), do: "The auction graduated."
   defp outcome(:failed), do: "Every bidder can take back their full bid."

@@ -15,7 +15,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementActions}
-  alias AutolaunchWeb.RobinhoodStockBidComponent
+  alias AutolaunchWeb.{RobinhoodStockBidComponent, UsdValue}
 
   @copy %{
     authentication_required: "Sign in to settle this bid.",
@@ -108,9 +108,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       >
         <h4>Settle bid #{@bid["bid_id"]}</h4>
         <dl>
-          <div :for={[label, value] <- @review.review}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
+          <div :for={row <- @review.review}>
+            <dt>{row.label}</dt>
+            <dd>
+              {row.value}
+              <UsdValue.usd :if={row.worth} amount={row.worth} rate={@usd_rate} per={row.per} />
+            </dd>
           </div>
           <div>
             <dt>Wallet</dt>

@@ -19,8 +19,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Auctions, Lab}
+  alias Autolaunch.Stocks.MarketData
+  alias AutolaunchWeb.UsdValue
 
-  def mount(_params, _session, socket), do: {:ok, assign(socket, :open?, Lab.configured?())}
+  def mount(_params, _session, socket),
+    do: {:ok, socket |> assign(:open?, Lab.configured?()) |> assign_usd_prices()}
 
   def handle_params(%{"auction" => auction}, _uri, socket) do
     case Address.normalize(auction) do
@@ -32,6 +35,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   def handle_event("retry", _params, socket), do: {:noreply, load_launch(socket)}
 
   def render(assigns) do
+    assigns = assign(assigns, :usd_rate, usd_rate(assigns.usd_prices, assigns.launch))
+
     ~H"""
     <article
       :if={@open? && @auction && @launch.ok?}
@@ -51,13 +56,18 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             kind={:robinhood_auction}
             record={@launch.result}
             creator_connections={@creator_connections.result}
-          />
+          >
+            <:price_note>
+              <UsdValue.usd amount={@launch.result.clearing_price} rate={@usd_rate} per="per token" />
+            </:price_note>
+          </.detail_card>
           <.raise_progress
             id="robinhood-raise-progress"
             state={@launch.result.state}
             raised={@launch.result.raised}
             required={@launch.result.required}
             symbol={@launch.result.stock_symbol}
+            usd_rate={@usd_rate}
             block={@launch.result.clock}
             start_block={@launch.result.start_block}
             end_block={@launch.result.end_block}
@@ -67,7 +77,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
           <dl class="autolaunch-live-market" aria-label="Auction facts">
             <div>
               <dt>Minimum to graduate</dt>
-              <dd>{@launch.result.required} {@launch.result.stock_symbol}</dd>
+              <dd>
+                {@launch.result.required} {@launch.result.stock_symbol}
+                <UsdValue.usd amount={@launch.result.required} rate={@usd_rate} />
+              </dd>
             </div>
             <div>
               <dt>Bids are paid in</dt>
@@ -75,7 +88,10 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             </div>
             <div>
               <dt>{raised_label(@launch.result)}</dt>
-              <dd>{@launch.result.raised} {@launch.result.stock_symbol}</dd>
+              <dd>
+                {@launch.result.raised} {@launch.result.stock_symbol}
+                <UsdValue.usd amount={@launch.result.raised} rate={@usd_rate} />
+              </dd>
             </div>
             <div>
               <dt>Auction address</dt>
@@ -168,6 +184,19 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       reset: true
     )
   end
+
+  # Robinhood's stock prices, read beside the launch so a slow price never
+  # holds the auction back.
+  defp assign_usd_prices(socket),
+    do:
+      assign_async(socket, :usd_prices, fn ->
+        {:ok, %{usd_prices: MarketData.prices(:robinhood)}}
+      end)
+
+  defp usd_rate(%{result: prices}, %{ok?: true, result: %{stock_symbol: symbol}}),
+    do: UsdValue.stock_rate(prices, symbol)
+
+  defp usd_rate(_prices, _launch), do: nil
 
   # A failed auction's contract still holds what was bid until each bid is
   # returned, so that figure is not what the launch keeps.
