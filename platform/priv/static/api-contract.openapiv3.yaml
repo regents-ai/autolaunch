@@ -433,7 +433,7 @@ components:
             - {$ref: "#/components/schemas/TreasurySecurity"}
             - {type: "null"}
     RobinhoodAuction:
-      description: A Robinhood memestock auction, read from its chain, which records no summary, opening time or treasury report.
+      description: A Robinhood Memestake auction, read from its chain, which records no summary, opening time or treasury report.
       type: object
       additionalProperties: false
       required: [chain, chain_id, address, launch_id, title, token_symbol, kind, state, quote_token, clearing_price, raised]
@@ -482,7 +482,7 @@ components:
             - {$ref: "#/components/schemas/TreasurySecurity"}
             - {type: "null"}
     RobinhoodToken:
-      description: The token of a graduated Robinhood memestock launch, read from its chain, which records no summary, graduation time, rank or treasury report.
+      description: The token of a graduated Robinhood Memestake launch, read from its chain, which records no summary, graduation time, rank or treasury report.
       type: object
       additionalProperties: false
       required: [chain, chain_id, address, auction_address, launch_id, name, symbol, kind, quote_token, clearing_price, raised]

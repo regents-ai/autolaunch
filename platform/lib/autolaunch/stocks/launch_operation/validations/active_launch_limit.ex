@@ -8,7 +8,7 @@ defmodule Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit do
   """
   use Ash.Resource.Validation
 
-  @message "You already have a stock launch in progress. One at a time for now."
+  @message "You already have a Memestake launch in progress. One at a time for now."
 
   def message, do: @message
 

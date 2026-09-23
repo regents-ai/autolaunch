@@ -1,9 +1,10 @@
 defmodule AutolaunchWeb.RobinhoodAuctionLive do
   @moduledoc """
-  One Robinhood memestock auction, named by its address. The chain is the only
+  One Robinhood Memestake auction, named by its address. The chain is the only
   record of these auctions: the page reads the launch (its token's name,
   description, website and image, its state and what it raised), names its
-  creator when a signed-up account's wallet launched it, hands the signed-in
+  creator when a signed-up account's wallet launched it, shows how far it is
+  toward its minimum and roughly when bidding ends, hands the signed-in
   wallet the bid step, and once the launch has graduated, points at the
   token's own page, where it trades and stakes.
   """
@@ -14,6 +15,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
+  import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Auctions, Lab}
@@ -50,7 +52,23 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             record={@launch.result}
             creator_connections={@creator_connections.result}
           />
+          <.raise_progress
+            id="robinhood-raise-progress"
+            state={@launch.result.state}
+            raised={@launch.result.raised}
+            required={@launch.result.required}
+            symbol={@launch.result.stock_symbol}
+            block={@launch.result.clock}
+            start_block={@launch.result.start_block}
+            end_block={@launch.result.end_block}
+            chain={:robinhood}
+            test_chain={Lab.test_chain?()}
+          />
           <dl class="autolaunch-live-market" aria-label="Auction facts">
+            <div>
+              <dt>Minimum to graduate</dt>
+              <dd>{@launch.result.required} {@launch.result.stock_symbol}</dd>
+            </div>
             <div>
               <dt>Bids are paid in</dt>
               <dd>USDG, converted into {@launch.result.stock_symbol} inside each bid</dd>
@@ -166,9 +184,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   defp ended_copy(_launch), do: nil
 
   defp network_copy(true),
-    do: "A memestock pair auction on the Robinhood test network. Test assets have no real value."
+    do: "A Memestake auction on the Robinhood test network. Test assets have no real value."
 
-  defp network_copy(false), do: "A memestock pair auction on Robinhood Chain."
+  defp network_copy(false), do: "A Memestake auction on Robinhood Chain."
 
   defp unreadable?(%{failed: nil}), do: false
   defp unreadable?(%{failed: {:error, :not_found}}), do: false

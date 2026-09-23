@@ -113,6 +113,7 @@ defmodule Autolaunch.LaunchProjection do
         state: :created,
         auction_address: event.auction,
         quote_token_address: Lab.address!(deployment, :regent),
+        required_currency_raised: Integer.to_string(event.required_regent_raised),
         treasury_address: event.treasury
       })
 

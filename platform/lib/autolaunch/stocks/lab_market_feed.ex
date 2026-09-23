@@ -167,6 +167,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
              quote_token_address: launch.stock,
              quote_token_symbol: lab_stock.symbol,
              quote_token_decimals: lab_stock.decimals,
+             required_currency_raised: Integer.to_string(launch.required),
              state: :created,
              treasury_address: Lab.address!(config, :launchpad)
            }) do
@@ -177,13 +178,21 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     end
   end
 
-  # An empty record (a never-used id) has a zero token and is skipped.
-  defp launch_record([launcher, new_token, stock, auction | _rest]) do
+  # An empty record (a never-used id) has a zero token and is skipped. Word 9
+  # is the stock the auction must raise to graduate.
+  defp launch_record([launcher, new_token, stock, auction | _rest] = record) do
     with {:ok, launcher} <- Abi.word_address(launcher),
          {:ok, new_token} <- Abi.word_address(new_token),
          {:ok, stock} <- Abi.word_address(stock),
          {:ok, auction} <- Abi.word_address(auction) do
-      {:ok, %{launcher: launcher, new_token: new_token, stock: stock, auction: auction}}
+      {:ok,
+       %{
+         launcher: launcher,
+         new_token: new_token,
+         stock: stock,
+         auction: auction,
+         required: Enum.at(record, 9)
+       }}
     end
   end
 

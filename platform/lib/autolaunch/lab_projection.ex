@@ -234,6 +234,7 @@ defmodule Autolaunch.LabProjection do
         quote_token_decimals: auction.quote_token_decimals,
         current_clearing_price:
           result["current_clearing_price"] || auction.current_clearing_price,
+        required_currency_raised: auction.required_currency_raised,
         treasury_address: auction.treasury_address
       })
     end
@@ -380,6 +381,7 @@ defmodule Autolaunch.LabProjection do
                state: :created,
                auction_address: result["auction"],
                quote_token_address: arguments["regent"],
+               required_currency_raised: arguments["required_regent_raised_atomic"],
                treasury_address: result["treasury"]
              })
            ),

@@ -45,6 +45,7 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
         quote_token_address: "0xb200000000000000000000c2e324d24d7eecd1fb",
         quote_token_symbol: "AAPLc",
         quote_token_decimals: 8,
+        required_currency_raised: "100000000",
         state: :created,
         treasury_address: "0x" <> String.duplicate("cd", 20)
       })

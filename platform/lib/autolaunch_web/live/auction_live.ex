@@ -5,8 +5,10 @@ defmodule AutolaunchWeb.AuctionLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
+  import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionFire
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
@@ -116,13 +118,35 @@ defmodule AutolaunchWeb.AuctionLive do
             trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
             status={settling_status(@page_record, @bidding_ended?)}
           />
+          <.raise_progress
+            :if={@market_snapshot}
+            id="auction-raise-progress"
+            state={@market_snapshot.state}
+            raised={@market_snapshot.currency_raised}
+            required={minimum(@page_record)}
+            symbol={@page_record.quote_token_symbol}
+            block={@market_snapshot.block_number}
+            start_block={@market_snapshot.start_block}
+            end_block={@market_snapshot.end_block}
+            chain={:base}
+            test_chain={@local_lab?}
+          />
           <.exact_price
             id="auction-exact-price"
             summary="Exact clearing price"
             amount={@page_record.current_clearing_price}
             unit={@page_record.quote_token_symbol}
           />
-          <dl class="autolaunch-live-market" aria-label="Auction currency">
+          <dl class="autolaunch-live-market" aria-label="Auction terms">
+            <div>
+              <dt>Minimum to graduate</dt>
+              <dd>
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={minimum(@page_record)}
+                  unit={@page_record.quote_token_symbol}
+                />
+              </dd>
+            </div>
             <div>
               <dt>Bids are paid in</dt>
               <dd>
@@ -369,6 +393,9 @@ defmodule AutolaunchWeb.AuctionLive do
     do: "#{symbol} bid before refunds"
 
   defp raised_label(%{quote_token_symbol: symbol}), do: "#{symbol} raised"
+
+  defp minimum(%{required_currency_raised: required, quote_token_decimals: decimals}),
+    do: required |> String.to_integer() |> Rpc.format_units(decimals)
 
   defp page_token(%{ok?: true, result: %{token: token}}), do: token
   defp page_token(_page), do: nil

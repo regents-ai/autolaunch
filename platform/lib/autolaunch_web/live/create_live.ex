@@ -27,8 +27,8 @@ defmodule AutolaunchWeb.CreateLive do
     mount_kind(kind, params, session, socket)
   end
 
-  # Robinhood launches memestock pairs only; Base launches either type, and a
-  # link that names a stock (`token=`) means a memestock pair.
+  # Robinhood launches Memestake tokens only; Base launches either type, and a
+  # link that names a stock (`token=`) means a Memestake token.
   defp launch_kind(:robinhood, _params), do: :stocks
   defp launch_kind(:base, %{"kind" => "stocks"}), do: :stocks
   defp launch_kind(:base, %{"token" => token}) when is_binary(token) and token != "", do: :stocks
@@ -174,14 +174,14 @@ defmodule AutolaunchWeb.CreateLive do
                 href={create_path(@launch_chain, :stocks)}
                 class={kind_class(@launch_kind == :stocks)}
                 aria-current={if @launch_kind == :stocks, do: "page"}
-              >Memestock pair</.link>
+              >Memestake token</.link>
             </div>
             <p
               :if={@launch_chain == :robinhood}
               id="launch-kind-robinhood-note"
               class="launchpad-create__choice-note"
             >
-              Robinhood launches memestock pairs only. Revstake tokens launch on Base.
+              Robinhood launches Memestake tokens only. Revstake tokens launch on Base.
             </p>
           </nav>
           <p class="launchpad-create__choice-summary" role="status">
@@ -206,7 +206,7 @@ defmodule AutolaunchWeb.CreateLive do
     do: ["rg-button", if(selected?, do: "rg-button--primary", else: "rg-button--secondary")]
 
   defp choice_title(:base, :revshare), do: "Revstake token on Base"
-  defp choice_title(chain, :stocks), do: "Memestock pair on #{LaunchChain.label(chain)}"
+  defp choice_title(chain, :stocks), do: "Memestake token on #{LaunchChain.label(chain)}"
 
   # What each of the three launches does and which tokens it needs. There is
   # no launch fee on any of them.

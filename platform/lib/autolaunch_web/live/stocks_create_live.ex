@@ -163,7 +163,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
         class="autolaunch-empty launchpad-create__sign-in"
       >
         <Regent.Structure.section_bar>
-          <h2 class="rg-section-bar__label">Sign in to launch a stock-paired auction</h2>
+          <h2 class="rg-section-bar__label">Sign in to launch a Memestake auction</h2>
         </Regent.Structure.section_bar>
         <p>
           A launch starts as a private draft saved to your account, so Create needs you signed

@@ -19,7 +19,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
   alias Autolaunch.Chain.{Address, Envelope, Rpc}
-  alias Autolaunch.LabAbi
+  alias Autolaunch.{LabAbi, LaunchChain}
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   alias Autolaunch.Stocks.{
@@ -41,9 +41,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
   @auction_duration_blocks 43_200
   @claim_delay_blocks 64
   @migration_delay_blocks 128
-  # Every time the page states assumes two seconds per block and is an
-  # estimate, never a promise.
-  @seconds_per_block 2
   @tick_divisor 100
   @min_floor_price_q96 Integer.pow(2, 32) + 1
   @uint128_max Integer.pow(2, 128) - 1
@@ -87,7 +84,8 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @doc "How long the schedule's parts take, as blocks with an estimated duration."
   def schedule_copy(blocks),
-    do: "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{estimate(blocks)}"
+    do:
+      "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{LaunchChain.time_estimate(:base, blocks)}"
 
   def start_lead_blocks, do: @start_lead_blocks
   def auction_duration_blocks, do: @auction_duration_blocks
@@ -295,16 +293,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
   end
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
-
-  defp estimate(blocks) do
-    seconds = blocks * @seconds_per_block
-
-    cond do
-      seconds < 90 -> "about #{seconds} seconds"
-      seconds < 90 * 60 -> "about #{round(seconds / 60)} minutes"
-      true -> "about #{round(seconds / 3600)} hours"
-    end
-  end
 
   # Stored drafts
 

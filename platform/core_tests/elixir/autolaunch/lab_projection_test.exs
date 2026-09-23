@@ -42,6 +42,7 @@ defmodule Autolaunch.LabProjectionTest do
     assert auction.auction_address == @auction
     assert auction.treasury_address == @treasury
     assert auction.quote_token_address == @regent
+    assert auction.required_currency_raised == "500000000000000000000000"
 
     assert subject.subject_id == LabProjection.subject_identity(@subject)
     assert subject.chain_id == 31_337
@@ -172,6 +173,7 @@ defmodule Autolaunch.LabProjectionTest do
           "description" => "A local fork launch.",
           "website" => "https://example.test/local",
           "image" => "https://example.test/local.png",
+          "required_regent_raised_atomic" => "500000000000000000000000",
           "regent" => @regent,
           "factory" => @factory
         }

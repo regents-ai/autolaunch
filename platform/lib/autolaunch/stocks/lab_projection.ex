@@ -35,6 +35,7 @@ defmodule Autolaunch.Stocks.LabProjection do
              quote_token_address: arguments["stock"],
              quote_token_symbol: arguments["stock_symbol"],
              quote_token_decimals: String.to_integer(arguments["stock_decimals"]),
+             required_currency_raised: arguments["required_stock_raised"],
              state: :created,
              # The auction's funds recipient: every raised STOCK goes to the launchpad,
              # which is the only custody a Stocks launch has.

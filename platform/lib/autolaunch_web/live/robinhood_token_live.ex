@@ -219,9 +219,9 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   end
 
   defp network_copy(true),
-    do: "A memestock token on the Robinhood test network. Test assets have no real value."
+    do: "A Memestake token on the Robinhood test network. Test assets have no real value."
 
-  defp network_copy(false), do: "A memestock token on Robinhood Chain."
+  defp network_copy(false), do: "A Memestake token on Robinhood Chain."
 
   defp unreadable?(%{failed: nil}), do: false
 

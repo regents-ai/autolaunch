@@ -7,8 +7,8 @@ defmodule Autolaunch.Robinhood.Auctions do
   Everything is read at one latest block: the launchpad's launch records
   (ids run from 1 to `nextLaunchId() - 1`), each token's own name and symbol,
   the metadata the launch wrote into it (description, website and image), the
-  stock the auction is denominated in, and the auction's schedule, stored
-  clearing price and currency raised. An auction's state comes from its
+  stock the auction is denominated in, the minimum it must raise, and the
+  auction's schedule, stored clearing price and currency raised. An auction's state comes from its
   schedule against the block clock the contracts keep time by
   (`Autolaunch.Robinhood.BlockClock`). The launcher had to be its creator's
   signed-in wallet, so each listed auction also names the account whose
@@ -43,6 +43,10 @@ defmodule Autolaunch.Robinhood.Auctions do
           clearing_price: String.t(),
           clearing_price_q96: non_neg_integer(),
           raised: String.t(),
+          required: String.t(),
+          start_block: non_neg_integer(),
+          end_block: non_neg_integer(),
+          clock: non_neg_integer(),
           creator_human_account_id: pos_integer() | nil
         }
 
@@ -142,7 +146,8 @@ defmodule Autolaunch.Robinhood.Auctions do
     end
   end
 
-  # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock, …
+  # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock,
+  # …, and at word 8 the stock the auction must raise to graduate.
   defp auction(config, launch_id, block, clock, opts) do
     with {:ok, words} <- launch_words(config, launch_id, block, opts),
          {:ok, launcher} <- Abi.word_address(Enum.at(words, 0)),
@@ -174,7 +179,11 @@ defmodule Autolaunch.Robinhood.Auctions do
          state: state,
          clearing_price: Amounts.format_cca_price(clearing, stock.decimals, @token_decimals),
          clearing_price_q96: clearing,
-         raised: Rpc.format_units(raised, stock.decimals)
+         raised: Rpc.format_units(raised, stock.decimals),
+         required: Rpc.format_units(Enum.at(words, 8), stock.decimals),
+         start_block: Enum.at(words, 4),
+         end_block: Enum.at(words, 5),
+         clock: clock
        }}
     else
       :error -> {:error, :invalid_chain_response}

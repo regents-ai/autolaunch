@@ -25,6 +25,7 @@ defmodule Autolaunch.Auction do
     :quote_token_symbol,
     :quote_token_decimals,
     :current_clearing_price,
+    :required_currency_raised,
     :treasury_address,
     :chain_id
   ]
@@ -415,6 +416,15 @@ defmodule Autolaunch.Auction do
     attribute :treasury_address, :string do
       public? true
       constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    # What the auction must raise to graduate, in the quote token's smallest
+    # units. The auction contract keeps it without a getter, so the launch
+    # that set it is the record of it.
+    attribute :required_currency_raised, :string do
+      public? true
+      allow_nil? false
+      constraints match: ~r/\A[1-9][0-9]{0,38}\z/
     end
 
     timestamps()

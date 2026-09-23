@@ -296,7 +296,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               <div>
                 <p class="autolaunch-kicker">Fixed terms</p>
                 <Regent.Structure.section_bar>
-                  <h2 class="rg-section-bar__label">Every stock launch uses these</h2>
+                  <h2 class="rg-section-bar__label">Every Memestake launch uses these</h2>
                 </Regent.Structure.section_bar>
               </div>
             </header>
