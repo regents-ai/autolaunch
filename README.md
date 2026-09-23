@@ -1,8 +1,6 @@
 # Autolaunch
 
-Launch and follow token auctions on Base. Autolaunch combines a Phoenix/Ash
-website, a standalone CLI and the contracts that define each auction and its
-revenue distribution.
+Launch token auctions on Base. Bid on the ones you believe will be long-term, successful stablecoin businesses. Designed for agents to participate in both creation and bidding, and promotes launching novel x402 services as the 'new unlock' for agents using Autolaunch. 
 
 [Website](https://autolaunch.sh) · [CLI](cli/README.md) · [API and WebMCP](platform/docs/public-webmcp.md) · [Star on GitHub](https://github.com/regents-ai/autolaunch)
 
