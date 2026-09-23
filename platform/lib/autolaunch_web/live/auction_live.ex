@@ -5,12 +5,14 @@ defmodule AutolaunchWeb.AuctionLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
+  import AutolaunchWeb.Components.PriceChart
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionFire
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
+  alias Autolaunch.PriceHistory
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
   alias AutolaunchWeb.UsdValue
 
@@ -26,6 +28,7 @@ defmodule AutolaunchWeb.AuctionLive do
      |> assign(:record_id, id)
      |> assign_positions()
      |> load_page(reset: true)
+     |> load_prices(reset: true)
      |> load_usd_rate()}
   end
 
@@ -64,7 +67,11 @@ defmodule AutolaunchWeb.AuctionLive do
 
     if market.generation > socket.assigns.market.generation do
       {:noreply,
-       socket |> assign(:market, market) |> assign_positions() |> load_page(reset: false)}
+       socket
+       |> assign(:market, market)
+       |> assign_positions()
+       |> load_page(reset: false)
+       |> load_prices(reset: false)}
     else
       {:noreply, socket}
     end
@@ -129,6 +136,13 @@ defmodule AutolaunchWeb.AuctionLive do
               />
             </:price_note>
           </.detail_card>
+          <.price_chart
+            :if={@prices.ok?}
+            id="auction-price-chart"
+            label="Clearing price since bidding opened"
+            points={@prices.result}
+            color={@page_record.image_color}
+          />
           <.raise_progress
             :if={@market_snapshot}
             id="auction-raise-progress"
@@ -327,6 +341,28 @@ defmodule AutolaunchWeb.AuctionLive do
   defp load_page(socket, reset: reset) do
     id = socket.assigns.record_id
     assign_async(socket, :page, fn -> load_auction_page_with_token(id) end, reset: reset)
+  end
+
+  # The clearing price since bidding opened, read from the auction's own logs
+  # apart from the page, so a slow read never holds the auction back.
+  defp load_prices(socket, reset: reset) do
+    id = socket.assigns.record_id
+
+    assign_async(
+      socket,
+      :prices,
+      fn ->
+        with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
+             {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid),
+             {:ok, points} <- PriceHistory.base_auction(auction) do
+          {:ok, %{prices: points}}
+        else
+          {:error, reason} -> {:error, reason}
+          _invalid_id -> {:error, :not_found}
+        end
+      end,
+      reset: reset
+    )
   end
 
   # The dollar price of the auction's currency, read apart from the page so a

@@ -13,6 +13,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
+  import AutolaunchWeb.Components.PriceChart
 
   alias Autolaunch.Chain.Address
   alias Autolaunch.Robinhood.{Auctions, Lab, Pool}
@@ -72,6 +73,13 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         kind={:robinhood_token}
         record={@launch.result}
         creator_connections={@creator_connections.result}
+      />
+      <.price_chart
+        :if={@pool.ok?}
+        id="robinhood-token-price-chart"
+        label="Price since the pool opened"
+        points={@pool.result.prices}
+        color={@launch.result.image_color}
       />
       <dl class="autolaunch-live-market" aria-label="Token facts">
         <div>

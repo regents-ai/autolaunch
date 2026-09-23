@@ -24,6 +24,7 @@ import {AutolaunchSubjectWallet} from "./hooks/autolaunch_subject_wallet"
 import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {ImageGradient} from "./hooks/image_gradient"
+import {PriceChart} from "./hooks/price_chart"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
 import {installPublicTools} from "./public_tools"
@@ -41,6 +42,7 @@ const hooks = {
   AutolaunchSwapDialog,
   AutolaunchTestFunds,
   ImageGradient,
+  PriceChart,
   Optics,
   XConnections,
   HomeSearch,

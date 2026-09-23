@@ -13,7 +13,7 @@ defmodule Autolaunch.Robinhood.Pool do
   """
 
   alias Autolaunch.Chain.{Abi, Address, Rpc}
-  alias Autolaunch.LabAbi
+  alias Autolaunch.{LabAbi, PriceHistory}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
   alias Autolaunch.Stocks.Assets
@@ -65,7 +65,21 @@ defmodule Autolaunch.Robinhood.Pool do
            Rpc.call_string(launch.new_token, LabAbi.selector("symbol()"), block, opts),
          {:ok, positions} <-
            positions(config, launch, stock_only_token_id, stock_only_used, stock, block, opts),
-         {:ok, fees} <- fees(config, launch, stock, block, opts) do
+         {:ok, fees} <- fees(config, launch, stock, block, opts),
+         # The launch's migration block is on the rollup clock, not the block
+         # numbers logs carry, so the pool's logs are read from the chain's start.
+         {:ok, prices} <-
+           PriceHistory.pool(
+             %{
+               pool_manager: Lab.address!(config, :pool_manager),
+               pool_id: launch.pool_id,
+               token_is_currency0?: currency0?(launch.new_token, launch.stock),
+               currency_decimals: stock.decimals
+             },
+             0,
+             block,
+             opts
+           ) do
       {:ok,
        %{
          kind: :stocks,
@@ -81,7 +95,8 @@ defmodule Autolaunch.Robinhood.Pool do
          hook: Lab.address!(config, :stocks_hook),
          pool_manager: Lab.address!(config, :pool_manager),
          positions: positions,
-         fees: fees
+         fees: fees,
+         prices: prices
        }}
     else
       :error -> {:error, :invalid_chain_response}

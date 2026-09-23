@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.TokenLive do
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.PoolSection
+  import AutolaunchWeb.Components.PriceChart
 
   alias Autolaunch.Lab
   alias Autolaunch.Pool
@@ -68,6 +69,13 @@ defmodule AutolaunchWeb.TokenLive do
         kind={:token}
         record={@page_record}
         creator_connections={@creator_connections}
+      />
+      <.price_chart
+        :if={@pool.ok?}
+        id="token-price-chart"
+        label="Price since the pool opened"
+        points={@pool.result.prices}
+        color={@presentation.image_color}
       />
       <.exact_price
         id="token-exact-price"

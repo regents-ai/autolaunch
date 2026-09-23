@@ -155,6 +155,11 @@
 .market-identity--tinted .market-graduated { padding: 1px 9px; border: 1px solid var(--image-color); border-radius: 999px; background: color-mix(in srgb, var(--image-color) 22%, var(--color-surface)); color: var(--color-fg); }
 .market-identity__price { display: grid; gap: 4px; font-size: 1.125rem; font-variant-numeric: tabular-nums; }
 .market-identity__price > span:first-child { color: var(--color-fg-muted); font-size: .75rem; }
+.price-chart { --price-line: var(--image-color, var(--color-fg)); display: grid; gap: 8px; min-width: 0; margin: 0; padding: 14px 16px 10px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
+.price-chart__caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; color: var(--color-fg-muted); font-size: .75rem; }
+.price-chart__change { color: var(--color-fg); font-variant-numeric: tabular-nums; }
+.price-chart__line { display: block; width: 100%; height: 140px; }
+.price-chart__line[data-unavailable] { display: none; }
 .market-identity__description { margin: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
 .market-identity__trade { position: relative; justify-self: start; max-width: 100%; overflow: hidden; }
 .market-identity__trade .rg-button__label { overflow-wrap: anywhere; }

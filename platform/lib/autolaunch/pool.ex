@@ -19,7 +19,7 @@ defmodule Autolaunch.Pool do
   """
 
   alias Autolaunch.Chain.{Abi, Address, Rpc}
-  alias Autolaunch.{Lab, LabAbi, LabProjection, LabRpc, PoolPrice}
+  alias Autolaunch.{Lab, LabAbi, LabProjection, LabRpc, PoolPrice, PriceHistory}
   alias Autolaunch.Stocks.Lab, as: StocksLab
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
@@ -257,7 +257,19 @@ defmodule Autolaunch.Pool do
              opts
            ),
          {:ok, fees} <-
-           agent_fees(config, distribution, auction, block, opts) do
+           agent_fees(config, distribution, auction, block, opts),
+         {:ok, prices} <-
+           PriceHistory.pool(
+             %{
+               pool_manager: Lab.address!(config, :pool_manager),
+               pool_id: distribution.pool_id,
+               token_is_currency0?: token_is_currency0?,
+               currency_decimals: @regent_decimals
+             },
+             distribution.migration_block,
+             block,
+             opts
+           ) do
       {:ok,
        %{
          kind: :agent,
@@ -278,6 +290,7 @@ defmodule Autolaunch.Pool do
          pool_manager: Lab.address!(config, :pool_manager),
          graduation_price: graduation_price,
          current: current,
+         prices: prices,
          positions: [
            %{
              key: :full_range,
@@ -437,7 +450,19 @@ defmodule Autolaunch.Pool do
              opts
            ),
          {:ok, positions} <- stocks_positions(config, launch, decimals, block, opts),
-         {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts) do
+         {:ok, fees} <- stocks_fees(config, launch, decimals, block, opts),
+         {:ok, prices} <-
+           PriceHistory.pool(
+             %{
+               pool_manager: StocksLab.address!(config, :pool_manager),
+               pool_id: launch.pool_id,
+               token_is_currency0?: token_is_currency0?,
+               currency_decimals: decimals
+             },
+             launch.migration_block,
+             block,
+             opts
+           ) do
       {:ok,
        %{
          kind: :stocks,
@@ -463,6 +488,7 @@ defmodule Autolaunch.Pool do
          pool_manager: StocksLab.address!(config, :pool_manager),
          graduation_price: graduation_price,
          current: current,
+         prices: prices,
          positions: positions,
          unsold: %{
            amount: Rpc.format_units(launch.retired_new, @token_decimals),

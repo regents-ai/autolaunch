@@ -15,9 +15,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
+  import AutolaunchWeb.Components.PriceChart
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.Chain.Address
+  alias Autolaunch.PriceHistory
   alias Autolaunch.Robinhood.{Auctions, Lab}
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.UsdValue
@@ -61,6 +63,13 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
               <UsdValue.usd amount={@launch.result.clearing_price} rate={@usd_rate} per="per token" />
             </:price_note>
           </.detail_card>
+          <.price_chart
+            :if={@prices.ok?}
+            id="robinhood-auction-price-chart"
+            label="Clearing price since bidding opened"
+            points={@prices.result}
+            color={@launch.result.image_color}
+          />
           <.raise_progress
             id="robinhood-raise-progress"
             state={@launch.result.state}
@@ -163,7 +172,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     do:
       assign(socket,
         launch: %Phoenix.LiveView.AsyncResult{},
-        creator_connections: %Phoenix.LiveView.AsyncResult{}
+        creator_connections: %Phoenix.LiveView.AsyncResult{},
+        prices: %Phoenix.LiveView.AsyncResult{}
       )
 
   defp load_launch(socket) do
@@ -180,6 +190,14 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
              creator_connections: connections_for(launch, creator_connections_for([launch]))
            }}
         end
+      end,
+      reset: true
+    )
+    |> assign_async(
+      :prices,
+      fn ->
+        with {:ok, points} <- PriceHistory.robinhood_auction(auction),
+             do: {:ok, %{prices: points}}
       end,
       reset: true
     )
