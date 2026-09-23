@@ -56,7 +56,9 @@ contract DeployStocksLab is Script {
 
         vm.startBroadcast(deployer);
         StocksLaunchpadV1 launchpad = new StocksLaunchpadV1(uerc20Factory, hookSalt);
-        if (address(launchpad) != predictedLaunchpad) revert LaunchpadAddressMismatch(predictedLaunchpad, address(launchpad));
+        if (address(launchpad) != predictedLaunchpad) {
+            revert LaunchpadAddressMismatch(predictedLaunchpad, address(launchpad));
+        }
         if (launchpad.hook() != predictedHook) revert HookAddressMismatch(predictedHook, launchpad.hook());
 
         StockBidAdapterV1 adapter = new StockBidAdapterV1(address(launchpad));

@@ -1,0 +1,142 @@
+{
+  "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
+  "total": 104,
+  "tests": {
+    "test/AerodromeStockRoute.t.sol": {
+      "AerodromeStockRouteTest": [
+        "test_callback_accepts_only_the_pinned_pool",
+        "test_construction_pins_pool_feed_and_units",
+        "test_construction_rejects_a_pool_in_the_other_currency_order",
+        "test_construction_rejects_a_pool_of_another_stock",
+        "test_construction_rejects_zero_addresses_and_codeless_targets",
+        "test_quote_converts_both_ways_at_the_feed_price",
+        "test_quote_rejects_a_stopped_or_broken_feed",
+        "test_quote_rejects_zero_amount_and_unsupported_pairs",
+        "test_swap_accepts_a_pool_price_within_five_percent_of_the_feed",
+        "test_swap_cannot_be_reentered_from_the_pool_callback",
+        "test_swap_refuses_a_fill_too_short_to_meet_the_feed_bound",
+        "test_swap_refuses_a_pool_price_more_than_five_percent_under_the_feed",
+        "test_swap_rejects_a_zero_recipient",
+        "test_swap_rejects_output_under_the_caller_minimum",
+        "test_swap_returns_unconsumed_input_to_the_recipient",
+        "test_swap_stock_to_usdc_pays_the_recipient_and_keeps_nothing",
+        "test_swap_usdc_to_stock_pays_the_recipient_and_keeps_nothing",
+        "test_swap_validates_the_feed_before_touching_the_pool"
+      ]
+    },
+    "test/MemestockLPLocker.t.sol": {
+      "MemestockLPLockerTest": [
+        "test_bindings_and_the_launchpad_only_write_once_registration",
+        "test_collect_deposits_both_currencies_into_the_splitter_and_keeps_nothing",
+        "test_collect_emits_the_deposit_and_tags_it_with_the_position",
+        "test_collect_never_touches_balances_the_locker_already_held",
+        "test_collect_refuses_positions_the_launchpad_never_registered",
+        "test_collect_works_in_the_other_currency_order",
+        "test_registration_checks_ownership_pool_and_splitter",
+        "test_with_nothing_staked_collected_fees_are_the_protocols"
+      ]
+    },
+    "test/MemestockSplitter.t.sol": {
+      "MemestockSplitterTest": [
+        "testFuzz_every_recognized_unit_is_the_protocols_or_a_stakers",
+        "test_a_bare_transfer_becomes_revenue_only_through_surplus_recognition",
+        "test_a_failing_regent_staking_deposit_fails_only_usdc_recognition",
+        "test_a_later_staker_shares_only_in_later_revenue",
+        "test_clone_is_bound_once_to_the_launch_and_has_no_administrator",
+        "test_force_sent_eth_goes_to_the_safe",
+        "test_initialize_refuses_zero_self_and_aliased_tokens",
+        "test_nothing_leaves_an_account_in_its_own_stake_block",
+        "test_only_the_three_assets_are_recognized_and_strays_go_to_the_safe",
+        "test_revenue_is_divided_pro_rata_with_nothing_held_back",
+        "test_stake_and_unstake_guards",
+        "test_staked_principal_and_owed_revenue_are_never_recognized_as_surplus",
+        "test_stock_and_memestock_shares_go_to_the_safe_and_the_rest_to_stakers",
+        "test_unstaking_keeps_what_was_already_earned",
+        "test_usdc_share_goes_straight_into_live_staking_and_the_rest_to_stakers",
+        "test_with_nothing_staked_the_whole_inflow_is_the_protocols"
+      ]
+    },
+    "test/StockBidAdapter.t.sol": {
+      "StockBidAdapterTest": [
+        "test_bidWithUsdc_places_a_bid_owned_by_the_caller",
+        "test_bids_outside_the_auction_window_revert_atomically",
+        "test_deadline_zero_amount_and_allowance_guards",
+        "test_each_auction_resolves_its_own_stock_and_route",
+        "test_foreign_auction_is_refused",
+        "test_larger_standing_allowance_is_consumed_exactly",
+        "test_min_stock_out_and_zero_output_are_refused",
+        "test_off_grid_price_reverts_atomically",
+        "test_preexisting_balances_are_never_committed_or_returned",
+        "test_route_residue_returns_to_the_caller",
+        "test_the_bid_settles_through_the_cca_for_the_caller_alone",
+        "test_two_invocations_are_independent_bids"
+      ]
+    },
+    "test/StocksFeeHook.t.sol": {
+      "StocksFeeHookTest": [
+        "testFuzz_grossLane_is_the_smallest_fixed_point",
+        "test_accrual_event_reports_both_lanes",
+        "test_callbacks_are_pool_manager_only",
+        "test_fee_matrix_charges_stock_on_every_swap_form_with_conservation",
+        "test_hook_address_carries_exactly_the_declared_permission_bits",
+        "test_launchpad_only_surface",
+        "test_registration_validates_the_whole_key",
+        "test_settle_regent_lane_deposits_usdc_into_live_staking",
+        "test_settle_regent_lane_guards",
+        "test_settle_regent_lane_re_credits_route_residue",
+        "test_settle_regent_lane_refuses_a_misbehaving_staking_and_reverts_only_itself",
+        "test_settle_staker_lane_guards",
+        "test_settle_staker_lane_is_permissionless_and_deposits_stock_in_kind_into_the_splitter",
+        "test_small_stock_inputs_are_charged_exactly_and_floored",
+        "test_stock_specified_partial_fills_revert_and_stock_unspecified_partial_fills_are_charged",
+        "test_swaps_on_an_unregistered_pool_with_this_hook_cannot_exist",
+        "test_the_hooks_stock_balance_is_exactly_the_sum_of_both_lanes",
+        "test_zero_fee_swaps_make_no_take"
+      ]
+    },
+    "test/StocksLaunchpadLaunch.t.sol": {
+      "StocksLaunchpadLaunchTest": [
+        "testFuzz_bidTickSpacingFor_is_one_hundredth_of_an_on_grid_floor",
+        "test_a_fresh_launchpad_is_born_paused",
+        "test_admission_reads_decimals_and_verifies_the_route_bindings",
+        "test_auction_is_bound_to_stock_and_to_the_launchpad_as_both_recipients",
+        "test_auction_opens_exactly_ten_minutes_after_the_creation_block",
+        "test_both_pool_orderings_are_reachable",
+        "test_floor_price_rules",
+        "test_governance_only_mutators",
+        "test_launch_costs_no_regent_and_needs_no_allowance",
+        "test_launch_is_atomic_when_the_auction_creation_fails",
+        "test_launch_mints_exactly_S0_once_and_keeps_only_the_reserve",
+        "test_launch_refuses_unadmitted_and_revoked_stock",
+        "test_launch_refuses_while_paused_and_only_gates_launch",
+        "test_metadata_caps",
+        "test_required_raise_is_chosen_by_the_launcher_above_zero_and_within_reach",
+        "test_revoke_never_changes_an_existing_launch"
+      ]
+    },
+    "test/StocksLaunchpadMigrate.t.sol": {
+      "StocksLaunchpadMigrateTest": [
+        "testFuzz_graduation_locks_all_net_stock_at_any_clearing_price",
+        "test_each_graduation_gets_its_own_splitter",
+        "test_failed_launch_with_no_bids",
+        "test_failed_minimum_retires_inventory_and_reserve_and_refunds_through_the_cca",
+        "test_graduation_both_orderings",
+        "test_graduation_emits_the_record",
+        "test_graduation_with_less_than_a_quarter_sold_both_orderings",
+        "test_launchpad_never_exposes_a_token_or_stock_withdrawal",
+        "test_migrate_guards",
+        "test_no_principal_path_exists_for_either_locked_position",
+        "test_nobody_can_initialize_the_official_pool_before_migration"
+      ]
+    },
+    "test/StocksPreset.t.sol": {
+      "StocksPresetTest": [
+        "test_allocation_splits_the_initial_supply_exactly",
+        "test_lane_constants",
+        "test_schedule_has_thirteen_steps_summing_to_the_duration_and_to_mps",
+        "test_timing_constants",
+        "test_twelve_scheduled_steps_each_release_about_five_point_eight_percent"
+      ]
+    }
+  }
+}

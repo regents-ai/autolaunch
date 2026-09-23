@@ -88,17 +88,15 @@ RPC_ENV=REGENT_BASE_RPC_URL
 CHAIN_ID=8453
 PROBE_REFUSAL="the configured $RPC_ALIAS endpoint did not answer a read-only chain-id probe with exactly $CHAIN_ID"
 
-PRODUCTION_AUTHORITY_COMMIT=f4114f5276386f48bf8dc53ee344189d98c8896e
-PRODUCTION_AUTHORITY_TREE=bb660324bb1d5cc322adeb243b0bd51779821fcb
-PRODUCTION_AUTHORITY_SRC_TREE=91a741e417b75706a4071f7bdac2c5e13548c0fc
-# Filled with the exact clean B' commit only after the founder's fork check writes a successful
-# receipt for it. A preparation run cannot proceed while this sentinel remains.
-FORK_EVIDENCE_COMMIT=ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa
-# Both authorities predate the contracts/v1 layout and carry src/ at the root of their own trees.
-# They are historical Git objects read at their recorded path for evidence verification only; the
-# candidate checkout is always read at $component/src.
-PRODUCTION_AUTHORITY_SRC_PATH=src
-FORK_EVIDENCE_SRC_PATH=src
+PRODUCTION_AUTHORITY_COMMIT=7d564cec735c3b1b928ec4e2ede0b244682d105b
+PRODUCTION_AUTHORITY_TREE=97ea43cbf2e6625889b64deefcea406ea11ccdc5
+PRODUCTION_AUTHORITY_SRC_TREE=eeeb1cedb315c97bf1a22658c02a5210a9c517c9
+# The exact clean commit the founder's fork check wrote its successful receipt for. A preparation
+# run cannot proceed unless the retained receipt names exactly this commit.
+FORK_EVIDENCE_COMMIT=4451c776f84fa904dd02b0c4360d360a45a945cb
+# Both authorities carry their sources at $component/src, where the candidate checkout is read too.
+PRODUCTION_AUTHORITY_SRC_PATH=$component/src
+FORK_EVIDENCE_SRC_PATH=$component/src
 
 # The discard port. Nothing listens on it, so the dead-endpoint regression is deterministic.
 DEAD_ENDPOINT=http://127.0.0.1:9
@@ -228,7 +226,7 @@ verify_fork_receipt() {
 
     python3 - "$receipt_path" "$expected_commit" "$expected_tree" "$expected_src" \
         "$physical_root" "$fork_pinned_report" "$fork_later_report" "$fork_test_list" \
-        "$ledger" "$observations" <<'PYTHON'
+        "$ledger" "$observations" <<'PYTHON' || fail "the fork-check receipt did not reconcile"
 import hashlib
 import json
 import os
@@ -531,13 +529,16 @@ print(
 )
 PYTHON
 
+    # Both steps name their own failure: the regressions call this function inside a command
+    # substitution, where `set -e` is suspended, so errexit alone would let a failed step through.
     python3 "$checker" ledger \
         --ledger "$ledger" \
         --spec SPEC.md \
         --gates fork \
         --test-list "$fork_test_list" \
         --test-report "$fork_pinned_report" "$fork_later_report" \
-        --receipt "$offline_receipt"
+        --receipt "$offline_receipt" ||
+        fail "the fork-check receipt's reports did not reconcile with the requirement ledger"
 }
 
 # A passing mode also binds the committed packet and this run's render to the same A/B authority.
@@ -704,21 +705,31 @@ problems = []
 ordinary = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True)
 if ordinary:
     problems.extend(ordinary.rstrip("\n").splitlines())
-scratch_roots = tuple(
-    component.encode() + b"/" + root
-    for root in (
-        b"reports/generated/",
-        b"cache/",
-        b"cache-fork/",
-        b"out/",
-        b"out-fork/",
-        b"artifacts/",
-        b"broadcast/",
-    )
+SCRATCH_ROOTS = (
+    b"reports/generated/",
+    b"cache/",
+    b"cache-fork/",
+    b"out/",
+    b"out-fork/",
+    b"artifacts/",
+    b"broadcast/",
 )
+
+
+def authorized_scratch(path):
+    # The generated Foundry and report roots of every contracts package, and the exported
+    # dependency snapshot under contracts/stocks/lib that the Memestake packages build against.
+    parts = path.split(b"/", 2)
+    if len(parts) < 3 or parts[0] != b"contracts":
+        return False
+    if parts[1] == b"stocks" and parts[2].startswith(b"lib/"):
+        return True
+    return parts[2].startswith(SCRATCH_ROOTS)
+
+
 ignored = run(["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]).split(b"\0")
 for path in ignored:
-    if path and not path.startswith(scratch_roots):
+    if path and not authorized_scratch(path):
         problems.append("!! " + os.fsdecode(path))
 
 flagged = [
@@ -1515,6 +1526,7 @@ PREDICTED = [
     "receiver_implementation",
     "factory",
     "strategy",
+    "lp_locker",
     "hook",
 ]
 ADDRESS = re.compile(r"0x[0-9a-fA-F]{40}")
@@ -1632,7 +1644,7 @@ if problems:
 
 print(f"binding identity: all {len(bindings)} live bindings match {observations_path} exactly")
 if mode == "--rehearse":
-    print("selection: the seven predicted addresses re-derive from the committed packet exactly")
+    print("selection: the eight predicted addresses re-derive from the committed packet exactly")
     print("external observation: the live staking and Safe facts match the committed packet exactly")
 else:
     open(observed_path, "w", encoding="utf-8").write(json.dumps(observed, indent=2, sort_keys=True) + "\n")
@@ -1698,7 +1710,8 @@ else
 fi
 
 python3 - "$mode" "$ceremony_report" "$sizes" "$frozen" "$state_source" "$rendered_tmp" "$packet" \
-    "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" <<'PYTHON'
+    "$fork_receipt_snapshot" "$fork_receipt_snapshot_sha" "$PRODUCTION_AUTHORITY_COMMIT" \
+    "$PRODUCTION_AUTHORITY_TREE" "$PRODUCTION_AUTHORITY_SRC_TREE" "$FORK_EVIDENCE_COMMIT" <<'PYTHON'
 import hashlib
 import json
 import sys
@@ -1713,7 +1726,11 @@ import sys
     packet_path,
     receipt_path,
     expected_receipt_sha,
-) = sys.argv[1:10]
+    PRODUCTION_AUTHORITY_COMMIT,
+    PRODUCTION_AUTHORITY_TREE,
+    SHARED_SRC_TREE,
+    FORK_EVIDENCE_COMMIT,
+) = sys.argv[1:14]
 
 EIP170 = 24_576
 EIP3860 = 49_152
@@ -1722,12 +1739,6 @@ EIP3860 = 49_152
 # that figure is a floor rather than a transaction cost.
 IN_EVM_CREATION_GAS_GUARDRAIL = 14_000_000
 
-# The two immutable identities the packet names apart, from README.md's own record.
-PRODUCTION_AUTHORITY_COMMIT = "f4114f5276386f48bf8dc53ee344189d98c8896e"
-PRODUCTION_AUTHORITY_TREE = "bb660324bb1d5cc322adeb243b0bd51779821fcb"
-SHARED_SRC_TREE = "91a741e417b75706a4071f7bdac2c5e13548c0fc"
-FORK_EVIDENCE_COMMIT = "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa"
-
 CREATION_ORDER = [
     ("UERC20Factory", "lib/uerc20-factory/src/factories/UERC20Factory.sol"),
     ("ConditionalVestingEscrowV1", "src/escrow/ConditionalVestingEscrowV1.sol"),
@@ -1735,9 +1746,12 @@ CREATION_ORDER = [
     ("PaymentReceiverV1", "src/revenue/PaymentReceiverV1.sol"),
     ("RegentsAutolaunchFactoryV1", "src/factory/RegentsAutolaunchFactoryV1.sol"),
 ]
+# In temporal order: the factory constructor creates the strategy, whose constructor creates the
+# locker before returning, and then the factory constructor creates the hook.
 INTERNAL_ORDER = [
-    ("RegentLBPStrategy", "src/strategy/RegentLBPStrategy.sol"),
-    ("RegentFeeHook", "src/hook/RegentFeeHook.sol"),
+    ("RegentLBPStrategy", "src/strategy/RegentLBPStrategy.sol", "RegentsAutolaunchFactoryV1"),
+    ("RevstakeLPLocker", "src/revenue/RevstakeLPLocker.sol", "RegentLBPStrategy"),
+    ("RegentFeeHook", "src/hook/RegentFeeHook.sol", "RegentsAutolaunchFactoryV1"),
 ]
 
 problems = []
@@ -1772,7 +1786,7 @@ for line in decoded_logs(report_path):
     }:
         measured[current][key] = value
 
-expected_names = [name for name, _ in CREATION_ORDER + INTERNAL_ORDER]
+expected_names = [name for name, _ in CREATION_ORDER] + [name for name, _, _ in INTERNAL_ORDER]
 if sorted(measured) != sorted(expected_names):
     problems.append(f"the ceremony measured {sorted(measured)}, expected {sorted(expected_names)}")
 if hook_flags is None:
@@ -1811,12 +1825,12 @@ if problems:
     raise SystemExit(1)
 
 
-def code_identity(name, source, index, mechanism):
+def code_identity(name, source, created_by, mechanism, index=None):
     found = measured[name]
     entry = {
         "contract": name,
         "source": source,
-        "created_by": "deployer" if mechanism == "transaction" else "RegentsAutolaunchFactoryV1",
+        "created_by": created_by,
         "mechanism": mechanism,
         "runtime_bytes": int(found["runtime_bytes"]),
         "runtime_margin_bytes": int(found["runtime_margin_bytes"]),
@@ -1888,21 +1902,22 @@ document = {
     "topology": {
         "top_level_creations": len(CREATION_ORDER),
         "creation_order": [
-            code_identity(name, source, index, "transaction")
+            code_identity(name, source, "deployer", "transaction", index)
             for index, (name, source) in enumerate(CREATION_ORDER)
         ],
         "internal_creations": [
-            dict(code_identity(INTERNAL_ORDER[0][0], INTERNAL_ORDER[0][1], 0, "CREATE"), factory_nonce=1),
+            dict(code_identity(*INTERNAL_ORDER[0], "CREATE"), creator_nonce=1),
+            dict(code_identity(*INTERNAL_ORDER[1], "CREATE"), creator_nonce=1),
             dict(
-                code_identity(INTERNAL_ORDER[1][0], INTERNAL_ORDER[1][1], 0, "CREATE2"),
+                code_identity(*INTERNAL_ORDER[2], "CREATE2"),
                 salt="the pre-mined hookSalt this packet pins once a deployer is selected",
                 required_permission_bits=hook_flags,
             ),
         ],
         "excluded": (
             "no deployment helper, proxy, upgrade path, ownership handoff, role grant, governance "
-            "transaction, application admission, liquidity locker, recovery framework, or "
-            "post-deployment binding call"
+            "transaction, application admission, recovery framework, or post-deployment binding "
+            "call"
         ),
     },
     "limits": {
@@ -1912,8 +1927,9 @@ document = {
         "code_identity_note": (
             "`creation_code_keccak256` is the frozen build's own deployer-independent identity for "
             "the contract. It is not the hash of the initcode a real transaction sends: four of "
-            "these seven constructors take arguments that are themselves addresses this ceremony "
-            "produces, so that hash is only knowable once a deployer is selected. "
+            "these eight constructors (the factory, the strategy, the locker and the hook) take "
+            "arguments that are themselves addresses this ceremony produces, so that hash is only "
+            "knowable once a deployer is selected. "
             "`initcode_bytes` is the whole creation code plus those encoded arguments, because "
             "that is what EIP-3860 measures."
         ),
@@ -1936,7 +1952,7 @@ document = {
         "predicted_addresses": chosen.get("predicted_addresses"),
         "note": (
             "The founder-selected disposable deployer, its starting nonce read from Base, the hook "
-            "salt mined once against the predicted factory and strategy, and the seven addresses "
+            "salt mined once against the predicted factory and strategy, and the eight addresses "
             "those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` "
             "derives them and a human installs the packet candidate it writes; while it is null "
             "this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves "
@@ -1991,49 +2007,31 @@ if [ "$mode" = --prepare ]; then
 fi
 
 # ---------------------------------------------------------------------------
-section "The deployed manifest stays separate and unpopulated"
+section "The deployed manifest is the empty record or a record of this packet"
 # ---------------------------------------------------------------------------
 
-# The packet is a proposal; the manifest is a record of confirmed Base receipts. Two files is not
-# enough on its own, so the manifest is proved empty here: a simulated address, a rehearsal
-# transaction hash, or a fork block number reaching it fails this gate.
-python3 - "$manifest" <<'PYTHON'
+# The packet is a proposal; the manifest is a record of confirmed Base receipts. Exactly two states
+# are admitted, defined once in bin/ceremony.py beside the recorder that writes the second: the
+# canonical empty record, or a deployed record whose approved digest is the installed packet's and
+# whose five transactions and eight contracts carry exactly the packet's predicted addresses. A
+# simulated address, a rehearsal transaction hash, a fork block number, a stray key or a record of
+# some other packet fails this gate.
+python3 - "$manifest" "$packet" <<'PYTHON'
 import json
-import re
 import sys
 
+sys.dont_write_bytecode = True
+sys.path.insert(0, "bin")
+import ceremony
+
 manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-problems = []
-
-if manifest.get("status") != "not deployed":
-    problems.append(f"the deployed manifest status is [{manifest.get('status')}], expected [not deployed]")
-
-
-def walk(node, path=""):
-    if isinstance(node, dict):
-        for key, value in node.items():
-            walk(value, f"{path}.{key}" if path else key)
-    elif isinstance(node, list):
-        for index, value in enumerate(node):
-            walk(value, f"{path}[{index}]")
-    elif isinstance(node, str) and re.fullmatch(r"0x[0-9a-fA-F]{40}|0x[0-9a-fA-F]{64}", node):
-        problems.append(f"the deployed manifest carries an address or hash at '{path}'")
-    elif isinstance(node, (int, float)) and not isinstance(node, bool) and node != 0:
-        problems.append(f"the deployed manifest carries a nonzero number at '{path}'")
-
-
-for key, value in manifest.items():
-    if key in {"status", "artifact", "note", "populated_by", "version"}:
-        continue
-    walk(value, key)
-
-if problems:
+packet = json.load(open(sys.argv[2], encoding="utf-8"))
+try:
+    print(ceremony.verify_manifest(manifest, packet))
+except SystemExit as error:
     print("DEPLOYED MANIFEST RECONCILIATION FAILED", file=sys.stderr)
-    for problem in problems:
-        print(f"  - {problem}", file=sys.stderr)
+    print(f"  {error}", file=sys.stderr)
     raise SystemExit(1)
-
-print("the deployed manifest is structurally separate and carries no deployed fact")
 PYTHON
 
 # ---------------------------------------------------------------------------
@@ -2063,7 +2061,7 @@ printf '\nMAINNET NO-GO. Nothing was signed, broadcast, deployed, funded, or mov
 if [ "$mode" = --prepare ]; then
     cat <<'TRANSITION'
 This run closed no claim and installed nothing. Before the candidate above becomes authority,
-check the deployer address, its nonce and balance, the mined salt and the seven predicted
+check the deployer address, its nonce and balance, the mined salt and the eight predicted
 addresses against an independent derivation, and every control-surface value against an
 independent source. Then install it as the committed packet, re-render with --offline, commit,
 and rehearse with --rehearse.

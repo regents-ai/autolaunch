@@ -22,7 +22,7 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xb80de55fb6b1e0240c12c9a52ed313fd0b16482fb2b704e0aa4f77b34e5d81f3"
+    "value": "0x5ba245ed0af9de1c1749f0b50cd54919a8084faf580d92282ef0592144f35327"
   },
   "external_observation": {
     "governance_and_regent_safe": {
@@ -44,7 +44,7 @@
       "paused": false,
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     },
-    "observed_at_block": 50754918
+    "observed_at_block": 51657720
   },
   "external_observation_note": "The mutable external state a deployment depends on: the live staking owner, pause state and USDC binding, and the Governance/Regent Safe's exact owners, threshold, guard, modules, module page terminator, fallback handler, singleton and version. Frozen by `bin/deployment-gate.sh --prepare` and compared exactly by `--rehearse`, which also holds every frozen binding's runtime and proxy identity to reports/frozen/fork-observations.json and re-asserts the CCA zero fee controller and the USDC pause and blacklist policy. `observed_at_block` is provenance, not a comparison, because the head moves.",
   "fork_check_receipt": {
@@ -61,32 +61,32 @@
       },
       "later": {
         "path": "reports/generated/fork/forge-test-later.json",
-        "sha256": "17c509de4eef4c334272962d13d31596c6f2442e1b213bf45577a7e49caa4875"
+        "sha256": "4e237fb490a0ea7d1877b6ddae3eeedb27637326516357f4ac39cc6a7a6e124f"
       },
       "pinned": {
         "path": "reports/generated/fork/forge-test-pinned.json",
-        "sha256": "211eec28b51558075a7f5bee7f4eddb128e605df85869fc0372db6767843c80d"
+        "sha256": "f3287014cddf4ede21f706edbd6f1f8ce6f9c3a00214c52291d89a4591928413"
       }
     },
     "status": "passed",
     "tested_identity": {
-      "commit": "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa",
-      "src_tree": "91a741e417b75706a4071f7bdac2c5e13548c0fc",
-      "tree": "b15498bdf6df6198cf2f1476db5aa5c9b4796882"
+      "commit": "4451c776f84fa904dd02b0c4360d360a45a945cb",
+      "src_tree": "eeeb1cedb315c97bf1a22658c02a5210a9c517c9",
+      "tree": "95b97d1fb3c9bd594f6494b82c412d934bf68b07"
     },
     "version": 1,
     "worktree": "clean"
   },
-  "fork_check_receipt_sha256": "a1cb403f5c01dfdf5c6e998bd8ea429e9142c99ca4518faf494a00dd01e68853",
+  "fork_check_receipt_sha256": "84f34fb84e7f8429ee6fc8894d67a4af871304c374184627d8099e2d0549053e",
   "immutable_identities": {
-    "fork_evidence_commit": "ea8c81b2a5724213d3aeb4b0d81885b932f7d1aa",
+    "fork_evidence_commit": "4451c776f84fa904dd02b0c4360d360a45a945cb",
     "note": "The production authority and the evidence candidate are two different identities that share one src/ tree. The candidate commit this packet was rendered from is proved by bin/deployment-gate.sh at run time and is deliberately not embedded here: a file cannot carry the hash of the commit that contains it.",
-    "production_authority_commit": "f4114f5276386f48bf8dc53ee344189d98c8896e",
-    "production_authority_tree": "bb660324bb1d5cc322adeb243b0bd51779821fcb",
-    "shared_src_tree": "91a741e417b75706a4071f7bdac2c5e13548c0fc"
+    "production_authority_commit": "7d564cec735c3b1b928ec4e2ede0b244682d105b",
+    "production_authority_tree": "97ea43cbf2e6625889b64deefcea406ea11ccdc5",
+    "shared_src_tree": "eeeb1cedb315c97bf1a22658c02a5210a9c517c9"
   },
   "limits": {
-    "code_identity_note": "`creation_code_keccak256` is the frozen build's own deployer-independent identity for the contract. It is not the hash of the initcode a real transaction sends: four of these seven constructors take arguments that are themselves addresses this ceremony produces, so that hash is only knowable once a deployer is selected. `initcode_bytes` is the whole creation code plus those encoded arguments, because that is what EIP-3860 measures.",
+    "code_identity_note": "`creation_code_keccak256` is the frozen build's own deployer-independent identity for the contract. It is not the hash of the initcode a real transaction sends: four of these eight constructors (the factory, the strategy, the locker and the hook) take arguments that are themselves addresses this ceremony produces, so that hash is only knowable once a deployer is selected. `initcode_bytes` is the whole creation code plus those encoded arguments, because that is what EIP-3860 measures.",
     "eip170_runtime_bytes": 24576,
     "eip3860_initcode_bytes": 49152,
     "gas_note": "This packet records no gas figure, and no complete deployment-transaction gas result exists anywhere in this repository for these five creations. DEP-074 proves the EIP-170 and EIP-3860 size margins above; the only gas it measures is each creation's in-EVM cost, held under the guardrail above and printed by the gate. That figure is a floor, not a transaction cost: an in-EVM CREATE excludes the intrinsic cost, the initcode calldata cost and EIP-3860's per-word charge a real creation transaction carries, and it moves with the frame it is taken in. Full per-transaction estimates stay pending the exact selected deployer and salt and an authorized rehearsal. Fund the ceremony from a live estimate against that deployer, not from this packet.",
@@ -95,11 +95,12 @@
   "selection": {
     "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
     "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000001bc5",
-    "note": "The founder-selected disposable deployer, its starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the seven addresses those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` derives them and a human installs the packet candidate it writes; while it is null this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves the deployer five nonces past this one, so this packet is single-use.",
+    "note": "The founder-selected disposable deployer, its starting nonce read from Base, the hook salt mined once against the predicted factory and strategy, and the eight addresses those three determine. Null until `bin/deployment-gate.sh --prepare <deployer>` derives them and a human installs the packet candidate it writes; while it is null this packet cannot claim the exact ceremony was rehearsed. A completed ceremony moves the deployer five nonces past this one, so this packet is single-use.",
     "predicted_addresses": {
       "escrow_implementation": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
       "factory": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
       "hook": "0x1F4E9AD63d95531d44eC90A700F21F0bBD40e044",
+      "lp_locker": "0xBdC4b69bfd66aCDb8b794bADbEf3a50a14891159",
       "receiver_implementation": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
       "splitter_implementation": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
       "strategy": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
@@ -174,33 +175,47 @@
         "constructor_args_bytes": 160,
         "contract": "RegentsAutolaunchFactoryV1",
         "created_by": "deployer",
-        "creation_code_bytes": 34458,
-        "creation_code_keccak256": "0x548cd4d2b66956aeed082e924fb5cb20e0acb2d1dd2c06002b3c3de4e229cb3b",
+        "creation_code_bytes": 37567,
+        "creation_code_keccak256": "0x2d6ff2237a2b68b881b64a9a3b3191263897690a4250ecb81c0ed9b48e6c825b",
         "deployer_nonce_offset": 4,
-        "initcode_bytes": 34618,
-        "initcode_margin_bytes": 14534,
+        "initcode_bytes": 37727,
+        "initcode_margin_bytes": 11425,
         "mechanism": "transaction",
-        "runtime_bytes": 7876,
-        "runtime_margin_bytes": 16700,
+        "runtime_bytes": 6894,
+        "runtime_margin_bytes": 17682,
         "source": "src/factory/RegentsAutolaunchFactoryV1.sol",
         "value_wei": 0
       }
     ],
-    "excluded": "no deployment helper, proxy, upgrade path, ownership handoff, role grant, governance transaction, application admission, liquidity locker, recovery framework, or post-deployment binding call",
+    "excluded": "no deployment helper, proxy, upgrade path, ownership handoff, role grant, governance transaction, application admission, recovery framework, or post-deployment binding call",
     "internal_creations": [
       {
         "constructor_args_bytes": 128,
         "contract": "RegentLBPStrategy",
         "created_by": "RegentsAutolaunchFactoryV1",
-        "creation_code_bytes": 19972,
-        "creation_code_keccak256": "0x39a388f6e1432bf27b88ea76eefb8146f55f14dfa7edf74a3030e893152971bf",
-        "factory_nonce": 1,
-        "initcode_bytes": 20100,
-        "initcode_margin_bytes": 29052,
+        "creation_code_bytes": 24078,
+        "creation_code_keccak256": "0x1defb750cf097a6179f42bba4405587c0aa4a2308703873d1d5bfa75f4e82c40",
+        "creator_nonce": 1,
+        "initcode_bytes": 24206,
+        "initcode_margin_bytes": 24946,
         "mechanism": "CREATE",
-        "runtime_bytes": 19449,
-        "runtime_margin_bytes": 5127,
+        "runtime_bytes": 19829,
+        "runtime_margin_bytes": 4747,
         "source": "src/strategy/RegentLBPStrategy.sol"
+      },
+      {
+        "constructor_args_bytes": 32,
+        "contract": "RevstakeLPLocker",
+        "created_by": "RegentLBPStrategy",
+        "creation_code_bytes": 3628,
+        "creation_code_keccak256": "0xfa6b6756061362ff6003f0eca2734df0c4615da380d5d9bf78bb1dbf7f4f41ed",
+        "creator_nonce": 1,
+        "initcode_bytes": 3660,
+        "initcode_margin_bytes": 45492,
+        "mechanism": "CREATE",
+        "runtime_bytes": 3474,
+        "runtime_margin_bytes": 21102,
+        "source": "src/revenue/RevstakeLPLocker.sol"
       },
       {
         "constructor_args_bytes": 64,

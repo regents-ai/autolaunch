@@ -112,7 +112,7 @@ The only admin is Regent's Safe wallet, and it controls only these things:
 | --- | --- | --- |
 | Pause or reopen new launches | yes | yes |
 | Choose which stocks new launches can use | — | yes. Removing a stock never affects a launch that already uses it |
-| Choose who converts Regent's 1% fee share into dollars | — | yes. On Base the conversion must come within 5% of the stock's Chainlink price, and the price reading must be less than 7 days old |
+| Choose who converts Regent's 1% fee share into dollars | — | yes. The conversion must come within 5% of the stock's Chainlink price, and the price reading must be less than 7 days old |
 | Move dollars collected for Regent from Robinhood Chain to Base | — | yes, for the Robinhood Safe |
 
 A pause stops only new launches. Running auctions, refunds, claims, trading, staking, payments and
@@ -152,7 +152,7 @@ For readers following along on Basescan:
 | Vesting contract | `ConditionalVestingEscrowV1` | — | — |
 | Payment address | `PaymentReceiverV1` | — | — |
 | Bid helper | — | `StockBidAdapterV1` | `RobinhoodStockBidAdapterV1` |
-| Stock-to-dollar converter | — | `AerodromeStockRouteV1`, one per stock | not written yet |
+| Stock-to-dollar converter | — | `AerodromeStockRouteV1`, one per stock | `UniswapV3StockRouteV1`, one per stock |
 | Regent's dollar collection | — | — | `RobinhoodProtocolRevenueInboxV1`, and `RobinhoodBaseRevenueReceiverV1` on Base |
 
 [revenue-mesh/](revenue-mesh/README.md) holds early work on payment routes from other chains into a

@@ -12,16 +12,14 @@ the one shared `RegentFeeHook`, the one shared `RegentLBPStrategy`, and the one
 `RegentsAutolaunchFactoryV1` that deploys and binds both of them and creates every launch. The
 dependency, binding, chain, ABI-provenance, factory, token, escrow, splitter, receiver, hook,
 strategy, migration, failure, stateful invariant, ABI, deployed-runtime, and complete-transaction
-gas mitigations carry their designated evidence. Under separate read-only authority, the `regent-alv1.16`
+gas mitigations carry their designated evidence. Under separate read-only authority, the Revstake
 fork check executed every fork claim at Base block `50541328` and the nine-claim identity, proxy,
 controller, header and gas-method subset again at block `50541628`; all twenty-seven mapped
-selectors passed against the receiver-provenance source authority
-`f4114f5276386f48bf8dc53ee344189d98c8896e`. The live staking contract's mutable
+selectors passed against the Revstake source authority
+`7d564cec735c3b1b928ec4e2ede0b244682d105b`. The live staking contract's mutable
 `paused()` is not re-read there and must be read again immediately before any separately authorized
 deployment. `docs/audit/fork-authority-and-state-inventory.md` section 2.1 states that limitation in
-full. The liquidity-position locker that earlier packets named as a
-second precondition was cancelled and is not coming, so the final candidate is whichever correction
-lands last. Deployment and a signed ceremony remain outside this packet either way.
+full. Deployment and a signed ceremony remain outside this packet.
 
 ## 1. Assets
 

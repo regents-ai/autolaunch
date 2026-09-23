@@ -1,0 +1,106 @@
+{
+  "note": "What contracts/stocks/bin/freeze.py freezes for the Robinhood Memestake package. Names only: every byte, selector, topic, size and digest is derived from the compiler artifacts and the dependency snapshot, never written here.",
+  "component": "contracts/robinhood",
+  "chain": {
+    "name": "robinhood-chain",
+    "id": 4663,
+    "base_receiver_chain": {
+      "name": "base-mainnet",
+      "id": 8453
+    }
+  },
+  "frozen_identity": "requirements/frozen-identity.json",
+  "owned_source_prefixes": ["src/", "../stocks/src/"],
+  "production_contracts": {
+    "RobinhoodProtocolRevenueInboxV1": {
+      "role": "Collects the protocol lane in USDG on Robinhood and bridges it to the Base receiver through the Safe-set adapter.",
+      "deployed_by": "deployment script (CREATE from the deployer), second in the deployment order after the UERC20 factory"
+    },
+    "RobinhoodPositionsLib": {
+      "role": "The externally linked library RobinhoodStocksLaunchpadV1 delegates its v4 position building to.",
+      "deployed_by": "deployment script (CREATE from the deployer), linked into the launchpad"
+    },
+    "RobinhoodFeeHookFactory": {
+      "role": "Deploys RobinhoodFeeHookV1 at a mined CREATE2 address for the launchpad that calls it.",
+      "deployed_by": "deployment script (CREATE from the deployer)"
+    },
+    "RobinhoodStocksLaunchpadV1": {
+      "role": "The Robinhood Memestake launchpad: creates the token and the CCA auction per launch, graduates into the official v4 pool, deploys its hook through the factory and its locker and splitter implementation itself.",
+      "deployed_by": "deployment script (CREATE from the deployer), linked against RobinhoodPositionsLib"
+    },
+    "RobinhoodFeeHookV1": {
+      "role": "The v4 fee hook every official Robinhood pool is initialized with; charges the swap fee lanes in USDG.",
+      "deployed_by": "RobinhoodFeeHookFactory.deploy (CREATE2 with the mined hook salt), called from the launchpad constructor"
+    },
+    "RobinhoodMemestockSplitterV1": {
+      "role": "The per-launch revenue splitter implementation for Robinhood; each launch receives a Solady minimal-proxy clone of it.",
+      "deployed_by": "RobinhoodStocksLaunchpadV1 constructor (CREATE); cloned per launch by LibClone.clone"
+    },
+    "MemestockLPLocker": {
+      "role": "Holds every graduated launch's full-range v4 position forever and routes collected fees to the launch's splitter; the same source as the Base package.",
+      "deployed_by": "RobinhoodStocksLaunchpadV1 constructor (CREATE)"
+    },
+    "RobinhoodStockBidAdapterV1": {
+      "role": "Bids into a launch's auction with STOCK on behalf of msg.sender through the launchpad's admitted route, pulling USDG through Permit2.",
+      "deployed_by": "deployment script (CREATE from the deployer)"
+    },
+    "UniswapV3StockRouteV1": {
+      "role": "The production USDG <-> STOCK route for one admitted stock: executes on that stock's Uniswap v3 USDG/STOCK pool (either currency order), quotes from its Chainlink feed and refuses any execution more than five percent under the feed.",
+      "deployed_by": "deployment script (CREATE from the deployer), one per admitted stock after the bid adapter"
+    },
+    "RobinhoodBaseRevenueReceiverV1": {
+      "role": "The Base-side address bridged USDC lands on: Base-Safe-attested attribution, permissionless deposit into live REGENT staking, surplus sweep.",
+      "deployed_by": "deployment script on Base mainnet (chain 8453)"
+    }
+  },
+  "clone_targets": ["RobinhoodMemestockSplitterV1"],
+  "clone_library_source": "../stocks/lib/solady/src/utils/LibClone.sol",
+  "hook": {
+    "contract": "RobinhoodFeeHookV1",
+    "create2_deployer": "RobinhoodFeeHookFactory",
+    "flags_source": "script/DeployRobinhoodLab.s.sol",
+    "flags": [
+      "BEFORE_INITIALIZE",
+      "BEFORE_SWAP",
+      "AFTER_SWAP",
+      "BEFORE_SWAP_RETURNS_DELTA",
+      "AFTER_SWAP_RETURNS_DELTA"
+    ]
+  },
+  "dependency_contracts": {
+    "ContinuousClearingAuctionFactory": {
+      "source": "../stocks/lib/continuous-clearing-auction/src/ContinuousClearingAuctionFactory.sol",
+      "role": "The pinned CCA factory build the launchpad binds; the founder supplies the Robinhood deployment.",
+      "deployed_by": "founder-supplied binding (constructor argument)",
+      "deployment_status": "founder_supplied_binding"
+    },
+    "ContinuousClearingAuction": {
+      "source": "../stocks/lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol",
+      "role": "The pinned per-launch auction build the bound factory creates for every launch.",
+      "deployed_by": "the bound CCA factory, one per launch",
+      "deployment_status": "created_per_launch"
+    },
+    "PoolManager": {
+      "source": "../stocks/lib/v4-core/src/PoolManager.sol",
+      "role": "The pinned Uniswap v4 PoolManager build the hook factory and launchpad bind.",
+      "deployed_by": "founder-supplied binding (constructor argument)",
+      "deployment_status": "founder_supplied_binding"
+    },
+    "PositionManager": {
+      "source": "../stocks/lib/v4-periphery/src/PositionManager.sol",
+      "role": "The pinned Uniswap v4 PositionManager build the launchpad and locker bind.",
+      "deployed_by": "founder-supplied binding (constructor argument)",
+      "deployment_status": "founder_supplied_binding"
+    },
+    "UERC20Factory": {
+      "source": "../stocks/lib/uerc20-factory/src/factories/UERC20Factory.sol",
+      "role": "The pinned token factory build; Robinhood Chain carries no deployment with this runtime, so the ceremony creates one first and the launchpad requires its exact runtime hash.",
+      "deployed_by": "deployment script (CREATE from the deployer), first in the deployment order",
+      "deployment_status": "deployment_pending"
+    }
+  },
+  "dependencies": {
+    "lock": "../stocks/dependencies.json",
+    "root": "../stocks/lib"
+  }
+}

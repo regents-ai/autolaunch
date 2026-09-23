@@ -77,10 +77,10 @@ contract RobinhoodMemestockSplitterTest is RobinhoodFixture {
     }
 
     function test_stock_and_memestock_protocol_shares_go_to_the_safe() public {
-        uint256 stockShare = 50e8 * SKIM_BPS / 10_000;
-        _deposit(STOCK_LOW, 50e8, bytes32("stock"));
+        uint256 stockShare = 50e18 * SKIM_BPS / 10_000;
+        _deposit(STOCK_LOW, 50e18, bytes32("stock"));
         assertEq(stockLow.balanceOf(safe), stockShare);
-        assertApproxEqAbs(splitter.claimable(STOCK_LOW, staker), 50e8 - stockShare, 1);
+        assertApproxEqAbs(splitter.claimable(STOCK_LOW, staker), 50e18 - stockShare, 1);
 
         // MEMESTOCK has a fixed supply, so the payer's MEMESTOCK comes out of the staker's own stake.
         vm.prank(staker);
@@ -126,10 +126,10 @@ contract RobinhoodMemestockSplitterTest is RobinhoodFixture {
         uint256 inboxBefore = inbox.totalCollected();
 
         _deposit(USDG_ADDRESS, 100e6, bytes32("idle-usdg"));
-        _deposit(STOCK_LOW, 5e8, bytes32("idle-stock"));
+        _deposit(STOCK_LOW, 5e18, bytes32("idle-stock"));
 
         assertEq(inbox.totalCollected(), inboxBefore + 100e6);
-        assertEq(stockLow.balanceOf(safe), 5e8);
+        assertEq(stockLow.balanceOf(safe), 5e18);
         assertEq(usdg.balanceOf(address(splitter)), 0);
         assertEq(stockLow.balanceOf(address(splitter)), 0);
     }
@@ -160,7 +160,7 @@ contract RobinhoodMemestockSplitterTest is RobinhoodFixture {
         splitter.depositRecognizedRevenue(USDG_ADDRESS, 10e6, bytes32("down"));
         vm.stopPrank();
 
-        _deposit(STOCK_LOW, 1e8, bytes32("still-up"));
+        _deposit(STOCK_LOW, 1e18, bytes32("still-up"));
         assertGt(splitter.claimable(STOCK_LOW, staker), 0);
     }
 

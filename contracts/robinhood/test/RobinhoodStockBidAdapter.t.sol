@@ -15,7 +15,7 @@ contract RobinhoodStockBidAdapterTest is RobinhoodFixture {
         Launched memory l = _launchStock(STOCK_HIGH);
         _rollToStart(l);
         uint256 usdgAmount = 2_300e6;
-        uint128 expectedStock = uint128(usdgAmount * 1e8 / USDG_PER_SHARE);
+        uint128 expectedStock = uint128(usdgAmount * 1e18 / USDG_PER_SHARE);
         uint256 auctionStockBefore = stockHigh.balanceOf(address(l.auction));
 
         usdg.mint(bidder, usdgAmount);
@@ -52,7 +52,7 @@ contract RobinhoodStockBidAdapterTest is RobinhoodFixture {
         vm.expectRevert(abi.encodeWithSelector(RobinhoodStockBidAdapterV1.UnknownAuction.selector, outsider));
         adapter.bidWithUsdg(outsider, 230e6, 1, _bidPrice(10), FLOOR_PRICE_Q96, block.timestamp);
         vm.expectRevert();
-        adapter.bidWithUsdg(address(l.auction), 230e6, 1e8 + 1, _bidPrice(10), FLOOR_PRICE_Q96, block.timestamp);
+        adapter.bidWithUsdg(address(l.auction), 230e6, 1e18 + 1, _bidPrice(10), FLOOR_PRICE_Q96, block.timestamp);
         vm.stopPrank();
     }
 }

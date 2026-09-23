@@ -48,7 +48,7 @@ from typing import Any, Iterator, Mapping, Sequence
 LOCAL_CHAIN_ID = 31_338
 PERMIT2 = "0x000000000022d473030f116ddee9f6b43ac78ba3"
 USDG_DECIMALS = 6
-STOCK_DECIMALS = 8
+STOCK_DECIMALS = 18
 DEPLOY_SCRIPT = "script/DeployRobinhoodLab.s.sol:DeployRobinhoodLab"
 DEPLOYER_ENV = "REGENT_ROBINHOOD_LAB_DEPLOYER"
 PERMIT2_SOURCE = Path("../stocks/lib/permit2/test/utils/DeployPermit2.sol")
@@ -451,6 +451,8 @@ def describe_stocks(client: RpcClient, graph: Mapping[str, str], pairs: Mapping[
         admitted, recorded_decimals, recorded_route = words(eth_call(client, launchpad, "stockAdmission(address)", abi_address(stock)))
         if admitted != 1 or recorded_decimals != STOCK_DECIMALS or decode_address_word(recorded_route) != route:
             raise LabError(f"admission readback mismatch for {symbol}")
+        # The fixture route is the lab's market and its price in one contract, so it stands in the
+        # production entry's pool and feed places.
         stocks.append(
             {
                 "symbol": symbol,
@@ -458,7 +460,8 @@ def describe_stocks(client: RpcClient, graph: Mapping[str, str], pairs: Mapping[
                 "address": stock,
                 "decimals": STOCK_DECIMALS,
                 "route": route,
-                "usdg_per_share": str(call_uint(client, route, "usdgPerShare()")),
+                "pool": route,
+                "feed": route,
                 "fixture": True,
                 "launch_admission": "fixture_admitted",
             }

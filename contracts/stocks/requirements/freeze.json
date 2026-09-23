@@ -1,0 +1,74 @@
+{
+  "note": "What contracts/stocks/bin/freeze.py freezes for the Base Memestake package. Names only: every byte, selector, topic, size and digest is derived from the compiler artifacts and the dependency snapshot, never written here.",
+  "component": "contracts/stocks",
+  "chain": {
+    "name": "base-mainnet",
+    "id": 8453
+  },
+  "frozen_identity": "requirements/frozen-identity.json",
+  "owned_source_prefixes": ["src/"],
+  "production_contracts": {
+    "StocksLaunchpadV1": {
+      "role": "The Memestake launchpad: creates the UERC20 token and the CCA auction per launch, holds the migration reserve, graduates into the official v4 pool, deploys the hook, the LP locker and the splitter implementation in its constructor.",
+      "deployed_by": "deployment script (CREATE from the deployer)"
+    },
+    "StocksFeeHookV1": {
+      "role": "The v4 fee hook every official pool is initialized with; charges the swap fee lanes and forwards them to the launch's splitter.",
+      "deployed_by": "StocksLaunchpadV1 constructor (CREATE2 with the mined hook salt)"
+    },
+    "MemestockLPLocker": {
+      "role": "Holds every graduated launch's full-range v4 position forever and routes collected fees to the launch's splitter; exposes no principal path.",
+      "deployed_by": "StocksLaunchpadV1 constructor (CREATE)"
+    },
+    "MemestockSplitterV1": {
+      "role": "The per-launch revenue splitter implementation; each launch receives a Solady minimal-proxy clone of it.",
+      "deployed_by": "StocksLaunchpadV1 constructor (CREATE); cloned per launch by LibClone.clone"
+    },
+    "StockBidAdapterV1": {
+      "role": "Bids into a launch's auction with STOCK on behalf of msg.sender through the launchpad's admitted route.",
+      "deployed_by": "deployment script (CREATE from the deployer)"
+    },
+    "AerodromeStockRouteV1": {
+      "role": "The production IStockRoute: one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed.",
+      "deployed_by": "deployment script (CREATE from the deployer), one per admitted STOCK, before admitStock"
+    }
+  },
+  "clone_targets": ["MemestockSplitterV1"],
+  "clone_library_source": "lib/solady/src/utils/LibClone.sol",
+  "hook": {
+    "contract": "StocksFeeHookV1",
+    "create2_deployer": "StocksLaunchpadV1",
+    "flags_source": "script/DeployStocksLab.s.sol",
+    "flags": [
+      "BEFORE_INITIALIZE",
+      "BEFORE_SWAP",
+      "AFTER_SWAP",
+      "BEFORE_SWAP_RETURNS_DELTA",
+      "AFTER_SWAP_RETURNS_DELTA"
+    ]
+  },
+  "dependency_contracts": {
+    "ContinuousClearingAuctionFactory": {
+      "source": "lib/continuous-clearing-auction/src/ContinuousClearingAuctionFactory.sol",
+      "role": "The pinned CCA factory build; the launchpad binds the live Base deployment at StocksBindings.CCA_FACTORY.",
+      "deployed_by": "Uniswap (live on Base)",
+      "deployment_status": "live_base_binding"
+    },
+    "ContinuousClearingAuction": {
+      "source": "lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol",
+      "role": "The pinned per-launch auction build the live factory creates for every launch.",
+      "deployed_by": "the live CCA factory, one per launch",
+      "deployment_status": "created_per_launch"
+    },
+    "UERC20Factory": {
+      "source": "lib/uerc20-factory/src/factories/UERC20Factory.sol",
+      "role": "The pinned token factory build; the launchpad takes the live Base deployment as a constructor argument.",
+      "deployed_by": "Uniswap (live on Base)",
+      "deployment_status": "live_base_constructor_argument"
+    }
+  },
+  "dependencies": {
+    "lock": "dependencies.json",
+    "root": "lib"
+  }
+}

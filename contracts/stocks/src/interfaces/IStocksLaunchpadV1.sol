@@ -118,9 +118,7 @@ interface IStocksLaunchpadV1 {
 
     /// @notice Create one Stocks launch: NEW, its pinned CCA denominated in STOCK and the 80/20
     ///         allocation, atomically.
-    function launch(LaunchParams calldata params)
-        external
-        returns (uint256 launchId, address newToken, address auction);
+    function launch(LaunchParams calldata params) external returns (uint256 launchId, address newToken, address auction);
 
     /// @notice Drive a launch past its end to its terminal state. Anyone may call once the
     ///         migration block is reached. Graduated: create the launch's memestock splitter,

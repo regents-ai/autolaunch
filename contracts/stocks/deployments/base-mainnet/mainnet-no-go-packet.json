@@ -1,0 +1,553 @@
+{
+  "artifact": "regents-autolaunch-base-mainnet-deployment-packet",
+  "version": 1,
+  "status": "mainnet-NO-GO",
+  "authorization": {
+    "state": "not authorized",
+    "instrument": "the founder's separate word naming this packet's exact digest",
+    "granted_by": null,
+    "signing_method": null,
+    "note": "Nothing in this repository may be signed, broadcast, funded or deployed until the founder separately approves this exact digest. The founder sends every transaction by hand from a signer of his own; no credential appears in this packet or anywhere in this repository."
+  },
+  "chain": {
+    "id": 8453,
+    "name": "base"
+  },
+  "build": {
+    "solc_identity": "0.8.26+commit.8a97fa7a",
+    "evm_version": "cancun",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "bytecode_hash": "none",
+    "append_cbor": false
+  },
+  "source_identity": {
+    "src_tree": "ae774116e03bd45492d9aa3c8b00fbbbe704383f"
+  },
+  "frozen_manifest_sha256": "0c7b5d37924f13aa5a8c7b542f4f64cfc193f3893728e1f51d028993691b3b69",
+  "code_identity": [
+    {
+      "contract": "StocksLaunchpadV1",
+      "source": "src/StocksLaunchpadV1.sol",
+      "constructor": [
+        "address uerc20Factory_",
+        "bytes32 hookSalt"
+      ],
+      "runtime_bytes": 21278,
+      "runtime_keccak256": "0x078b17986ba2470eb800ceea40ca04ed0583bdad17786c88c60220e3b90a5a97",
+      "runtime_immutable_references": 4,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 40837,
+      "creation_keccak256": "0xe74aff5448809fb8734ce5a6663278bf5bbc9d411299f46c97556856c3ce0153"
+    },
+    {
+      "contract": "StockBidAdapterV1",
+      "source": "src/StockBidAdapterV1.sol",
+      "constructor": [
+        "address launchpad_"
+      ],
+      "runtime_bytes": 3181,
+      "runtime_keccak256": "0x0add2c990d9151a58475e5f40920951a4d9ed4c729cefe9fc11eaebf2bbcfa42",
+      "runtime_immutable_references": 3,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3441,
+      "creation_keccak256": "0xb558a9d32dc8c4b999522f414926724897d8d6f6589d4386baf46037459a0371"
+    },
+    {
+      "contract": "AerodromeStockRouteV1",
+      "source": "src/routes/AerodromeStockRouteV1.sol",
+      "constructor": [
+        "address stock_",
+        "address pool_",
+        "address feed_"
+      ],
+      "runtime_bytes": 2759,
+      "runtime_keccak256": "0x586be4d2a11017379ab7df8905bdb05143e47184129a48ee6eb3a5c964e98435",
+      "runtime_immutable_references": 6,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3850,
+      "creation_keccak256": "0xe0ba4f68226aa0ba9332058f173196bda7b5003766d36d2cf1df471db9787bf3"
+    },
+    {
+      "contract": "MemestockSplitterV1",
+      "source": "src/MemestockSplitterV1.sol",
+      "constructor": [],
+      "runtime_bytes": 6447,
+      "runtime_keccak256": "0x8f5b607af0fc8c6d3c62a5c171f2f9e475adc537679cd5d70c22ea27b06bf415",
+      "runtime_immutable_references": 0,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": true,
+      "creation_bytes": 6585,
+      "creation_keccak256": "0x9471680e89fd78ca79c7b3088ed3e709eb6a911a81f661c811570c4f35495983"
+    },
+    {
+      "contract": "MemestockLPLocker",
+      "source": "src/MemestockLPLocker.sol",
+      "constructor": [
+        "address launchpad_",
+        "address positionManager_"
+      ],
+      "runtime_bytes": 3271,
+      "runtime_keccak256": "0xbb33127a3bfe131e71bbffd05418b7240f38686d5c4f8b1247dae1f709899923",
+      "runtime_immutable_references": 2,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3512,
+      "creation_keccak256": "0xc66055229fee9624e08478caf6b6a0ecaedc6223724c35185a1f8560a1517005"
+    },
+    {
+      "contract": "StocksFeeHookV1",
+      "source": "src/StocksFeeHookV1.sol",
+      "constructor": [
+        "address manager_",
+        "address launchpad_"
+      ],
+      "runtime_bytes": 8077,
+      "runtime_keccak256": "0x56f7a16c6fecc72bd96f9ba58b5d7ddeed3753f5e7e3b0f396d7c9d5639db93b",
+      "runtime_immutable_references": 2,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 8903,
+      "creation_keccak256": "0xce85a679a62256c5f05add31a4b89b04df6dec6f8e7b5e99e11989fa914c769a"
+    }
+  ],
+  "hook_permission_bits": "0x20cc",
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "starting_nonce": 5,
+    "hook_salt": "0x00000000000000000000000000000000000000000000000000000000000010a0",
+    "uerc20_factory": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+    "admissions": [
+      {
+        "stock": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+        "pool": "0xA3b1E3f9747065e2073722Ff4c9027d3eA4994F0",
+        "feed": "0x787f13dEa48Db0897CbCDD985de77809D837F988"
+      },
+      {
+        "stock": "0xb200000000000000000000d9192b6B456483C2E8",
+        "pool": "0xd03Bc8C7F2FAedCe2aac81bF0444AEA08Ea06E9b",
+        "feed": "0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295"
+      },
+      {
+        "stock": "0xb2000000000000000000002D0BA3164cc74f58B7",
+        "pool": "0xB1987CAD1682841b4b641d50E520777eC5Ab5542",
+        "feed": "0x5bF49E0ffA937CE2FfF033c739aD7C634c4D34F2"
+      },
+      {
+        "stock": "0xb2000000000000000000008bC8786B856E61707C",
+        "pool": "0xEAF57753BC382E0324a1D43F72E7027705a2273E",
+        "feed": "0x6526aE6797A76123638b863AeE4dD27Ba4E4b27D"
+      },
+      {
+        "stock": "0xB200000000000000000000Ab99cFa739E253872B",
+        "pool": "0x7103eB3c9590d1281f7dc03b2A9EE27C39dF5D54",
+        "feed": "0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c"
+      },
+      {
+        "stock": "0xb2000000000000000000004884b426556b92883d",
+        "pool": "0x8b27f626ab668197000BC722A1012022CAeD10E2",
+        "feed": "0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a"
+      },
+      {
+        "stock": "0xb20000000000000000000078ee7ce2fE4908108C",
+        "pool": "0x853F5f1B92b16714Fe6CDA67CAad0856B83C7ab9",
+        "feed": "0x04689a41629776563E6822F76f2e57D148d28513"
+      },
+      {
+        "stock": "0xb200000000000000000000397293Cb8cda9a10c5",
+        "pool": "0x5A8236f575471e7BfCA2C8462a200c28f737246E",
+        "feed": "0x388b0dC46C0Fb05A74BeE0994fa5b02c6Fcca2eA"
+      },
+      {
+        "stock": "0xb2000000000000000000007b9fcbd005511aCBd5",
+        "pool": "0x0bf58fe0FAc935Ac69595c19B12Ba0d75E3F8c0E",
+        "feed": "0x6A634B235903C4ad6376892180d6fF8612e3Fa68"
+      },
+      {
+        "stock": "0xb2000000000000000000001e800a7f5189430cD0",
+        "pool": "0x469337fDcc5E8f38e2E4B670B04F57865D13a7BB",
+        "feed": "0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4"
+      }
+    ],
+    "predicted_addresses": {
+      "launchpad": "0x1d36a95112835f81b1B499A808e556020C64Cac2",
+      "splitter_implementation": "0x657e75434CED9dFa5397c7cE4d96da238923a452",
+      "locker": "0x9e8B5EDdfC2aCdfc600FB37FBDc070c0Cd0033d7",
+      "hook": "0x3820CD7413BC2EF795229C39C648326D99c8e0cC",
+      "bid_adapter": "0xd28e66967C1fE651e6EC47f13397a74240C064A2",
+      "routes": [
+        "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41",
+        "0x740D2e1978991cdC0594D3a5F69B04C9148B2581",
+        "0xF26A18A009362695d00043eb63F7AB42B2170CA9",
+        "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27",
+        "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df",
+        "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82",
+        "0x49E0995070753fA58152889829249febcF9E0C53",
+        "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60",
+        "0xACfa95f1c16eF61C281C26511556Bf918814151F",
+        "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7"
+      ]
+    }
+  },
+  "external_observation": {
+    "observed_at_block": 51662646,
+    "bindings": {
+      "regent": {
+        "address": "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07",
+        "codehash": "0x780092a64f1f9280792aad406597d051e610e1a9ee0a57033187faf21a79a21f"
+      },
+      "usdc": {
+        "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "codehash": "0xa6705a10bb756b5dea144591118be77d7af0c3eee3bf2dfe2583dcb0364fefab"
+      },
+      "cca_factory": {
+        "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+        "codehash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa"
+      },
+      "pool_manager": {
+        "address": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+        "codehash": "0x83b2af6e9f3158defc2811cbcb0db71ecf8b2ba2abea39c39e370ac5c6f43eb6"
+      },
+      "position_manager": {
+        "address": "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+        "codehash": "0x243f9e091ddf11c7c04e28059fdbbf1bab82b72d414fafb8e096c097aaeb622a"
+      },
+      "live_staking": {
+        "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+        "codehash": "0xcaef93094fa27d35f5ff9e619d5ee75528c7c18f19f4f31a0a5eaba62a976497"
+      },
+      "governance_and_regent_safe": {
+        "address": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+        "codehash": "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c"
+      },
+      "permit2": {
+        "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "codehash": "0xa67739abc3ede9dbdc0491636c67d6a14ac07fab9030c3f509b1eb7b11dff8ed"
+      },
+      "uerc20_factory": {
+        "address": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+        "codehash": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f"
+      }
+    },
+    "admissions": [
+      {
+        "stock": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+        "symbol": "AAPLc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0xA3b1E3f9747065e2073722Ff4c9027d3eA4994F0",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0x787f13dEa48Db0897CbCDD985de77809D837F988",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb200000000000000000000d9192b6B456483C2E8",
+        "symbol": "AMZNc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0xd03Bc8C7F2FAedCe2aac81bF0444AEA08Ea06E9b",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb2000000000000000000002D0BA3164cc74f58B7",
+        "symbol": "GOOGLc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0xB1987CAD1682841b4b641d50E520777eC5Ab5542",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0x5bF49E0ffA937CE2FfF033c739aD7C634c4D34F2",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb2000000000000000000008bC8786B856E61707C",
+        "symbol": "METAc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0xEAF57753BC382E0324a1D43F72E7027705a2273E",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0x6526aE6797A76123638b863AeE4dD27Ba4E4b27D",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xB200000000000000000000Ab99cFa739E253872B",
+        "symbol": "MSFTc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0x7103eB3c9590d1281f7dc03b2A9EE27C39dF5D54",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb2000000000000000000004884b426556b92883d",
+        "symbol": "MSTRc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0x8b27f626ab668197000BC722A1012022CAeD10E2",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb20000000000000000000078ee7ce2fE4908108C",
+        "symbol": "NVDAc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0x853F5f1B92b16714Fe6CDA67CAad0856B83C7ab9",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0x04689a41629776563E6822F76f2e57D148d28513",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb200000000000000000000397293Cb8cda9a10c5",
+        "symbol": "SNDKc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0x5A8236f575471e7BfCA2C8462a200c28f737246E",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0x388b0dC46C0Fb05A74BeE0994fa5b02c6Fcca2eA",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb2000000000000000000007b9fcbd005511aCBd5",
+        "symbol": "SPCXc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0x0bf58fe0FAc935Ac69595c19B12Ba0d75E3F8c0E",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0x6A634B235903C4ad6376892180d6fF8612e3Fa68",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      },
+      {
+        "stock": "0xb2000000000000000000001e800a7f5189430cD0",
+        "symbol": "TSLAc",
+        "decimals": 8,
+        "stock_codehash": "0x309b8896ee4c1ff7ec1966155373dee42663b6b40c3fedc70ba501684848d2a3",
+        "pool": "0x469337fDcc5E8f38e2E4B670B04F57865D13a7BB",
+        "pool_codehash": "0xad8972486d67a48db1f32f254a4c2f4be28df0b5f399559d1e7cd8fbcfbedc96",
+        "feed": "0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8
+      }
+    ],
+    "governance_and_regent_safe": {
+      "owners": [
+        "0x8C172cA4b5Dd9449217C636A953727eACD690e37",
+        "0x978BDbECb54C54800D01055Df5A8f6af600BfaCe",
+        "0x1d0dcABAeb941823E51935F795Be184aBeBf76dF"
+      ],
+      "threshold": 2
+    },
+    "live_staking": {
+      "owner": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "paused": false
+    }
+  },
+  "topology": [
+    {
+      "chain_id": 8453,
+      "creation_order": [
+        {
+          "index": 0,
+          "contract": "StocksLaunchpadV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 5,
+          "address": "0x1d36a95112835f81b1B499A808e556020C64Cac2",
+          "constructor_arguments": {
+            "uerc20Factory_": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+            "hookSalt": "0x00000000000000000000000000000000000000000000000000000000000010a0"
+          }
+        },
+        {
+          "index": 1,
+          "contract": "StockBidAdapterV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 6,
+          "address": "0xd28e66967C1fE651e6EC47f13397a74240C064A2",
+          "constructor_arguments": {
+            "launchpad_": "0x1d36a95112835f81b1B499A808e556020C64Cac2"
+          }
+        },
+        {
+          "index": 2,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 7,
+          "address": "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41",
+          "constructor_arguments": {
+            "stock_": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+            "pool_": "0xA3b1E3f9747065e2073722Ff4c9027d3eA4994F0",
+            "feed_": "0x787f13dEa48Db0897CbCDD985de77809D837F988"
+          }
+        },
+        {
+          "index": 3,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 8,
+          "address": "0x740D2e1978991cdC0594D3a5F69B04C9148B2581",
+          "constructor_arguments": {
+            "stock_": "0xb200000000000000000000d9192b6B456483C2E8",
+            "pool_": "0xd03Bc8C7F2FAedCe2aac81bF0444AEA08Ea06E9b",
+            "feed_": "0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295"
+          }
+        },
+        {
+          "index": 4,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 9,
+          "address": "0xF26A18A009362695d00043eb63F7AB42B2170CA9",
+          "constructor_arguments": {
+            "stock_": "0xb2000000000000000000002D0BA3164cc74f58B7",
+            "pool_": "0xB1987CAD1682841b4b641d50E520777eC5Ab5542",
+            "feed_": "0x5bF49E0ffA937CE2FfF033c739aD7C634c4D34F2"
+          }
+        },
+        {
+          "index": 5,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 10,
+          "address": "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27",
+          "constructor_arguments": {
+            "stock_": "0xb2000000000000000000008bC8786B856E61707C",
+            "pool_": "0xEAF57753BC382E0324a1D43F72E7027705a2273E",
+            "feed_": "0x6526aE6797A76123638b863AeE4dD27Ba4E4b27D"
+          }
+        },
+        {
+          "index": 6,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 11,
+          "address": "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df",
+          "constructor_arguments": {
+            "stock_": "0xB200000000000000000000Ab99cFa739E253872B",
+            "pool_": "0x7103eB3c9590d1281f7dc03b2A9EE27C39dF5D54",
+            "feed_": "0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c"
+          }
+        },
+        {
+          "index": 7,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 12,
+          "address": "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82",
+          "constructor_arguments": {
+            "stock_": "0xb2000000000000000000004884b426556b92883d",
+            "pool_": "0x8b27f626ab668197000BC722A1012022CAeD10E2",
+            "feed_": "0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a"
+          }
+        },
+        {
+          "index": 8,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 13,
+          "address": "0x49E0995070753fA58152889829249febcF9E0C53",
+          "constructor_arguments": {
+            "stock_": "0xb20000000000000000000078ee7ce2fE4908108C",
+            "pool_": "0x853F5f1B92b16714Fe6CDA67CAad0856B83C7ab9",
+            "feed_": "0x04689a41629776563E6822F76f2e57D148d28513"
+          }
+        },
+        {
+          "index": 9,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 14,
+          "address": "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60",
+          "constructor_arguments": {
+            "stock_": "0xb200000000000000000000397293Cb8cda9a10c5",
+            "pool_": "0x5A8236f575471e7BfCA2C8462a200c28f737246E",
+            "feed_": "0x388b0dC46C0Fb05A74BeE0994fa5b02c6Fcca2eA"
+          }
+        },
+        {
+          "index": 10,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 15,
+          "address": "0xACfa95f1c16eF61C281C26511556Bf918814151F",
+          "constructor_arguments": {
+            "stock_": "0xb2000000000000000000007b9fcbd005511aCBd5",
+            "pool_": "0x0bf58fe0FAc935Ac69595c19B12Ba0d75E3F8c0E",
+            "feed_": "0x6A634B235903C4ad6376892180d6fF8612e3Fa68"
+          }
+        },
+        {
+          "index": 11,
+          "contract": "AerodromeStockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 16,
+          "address": "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7",
+          "constructor_arguments": {
+            "stock_": "0xb2000000000000000000001e800a7f5189430cD0",
+            "pool_": "0x469337fDcc5E8f38e2E4B670B04F57865D13a7BB",
+            "feed_": "0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4"
+          }
+        }
+      ],
+      "internal_creations": [
+        {
+          "contract": "MemestockSplitterV1",
+          "mechanism": "CREATE",
+          "created_by": "StocksLaunchpadV1 constructor",
+          "creator_nonce": 1,
+          "address": "0x657e75434CED9dFa5397c7cE4d96da238923a452"
+        },
+        {
+          "contract": "MemestockLPLocker",
+          "mechanism": "CREATE",
+          "created_by": "StocksLaunchpadV1 constructor",
+          "creator_nonce": 2,
+          "address": "0x9e8B5EDdfC2aCdfc600FB37FBDc070c0Cd0033d7"
+        },
+        {
+          "contract": "StocksFeeHookV1",
+          "mechanism": "CREATE2",
+          "created_by": "StocksLaunchpadV1 constructor",
+          "salt": "0x00000000000000000000000000000000000000000000000000000000000010a0",
+          "address": "0x3820CD7413BC2EF795229C39C648326D99c8e0cC",
+          "constructor_arguments": {
+            "manager_": "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+            "launchpad_": "0x1d36a95112835f81b1B499A808e556020C64Cac2"
+          }
+        }
+      ]
+    }
+  ],
+  "selection_note": "Null until `bin/ceremony.py prepare` derives the selection from the founder's inputs and a human installs the candidate it writes. A completed ceremony moves the deployer past its starting nonce, so an installed selection is single-use.",
+  "digest": {
+    "algorithm": "sha256",
+    "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
+    "value": "0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5"
+  }
+}

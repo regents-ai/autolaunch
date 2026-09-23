@@ -1,0 +1,74 @@
+{
+  "note": "Every value here is reconciled against its own authority by bin/gate.sh before any test runs: the installed tools, the effective `forge config --json`, and ../stocks/dependencies.json. Robinhood has no compiled binding constants; every binding is a verified constructor argument.",
+  "chain": {
+    "name": "robinhood-chain",
+    "id": 4663
+  },
+  "toolchain": {
+    "forge_version": "1.5.1-stable",
+    "forge_commit_sha": "b0a9dd9ceda36f63e2326ce530c10e6916f4b8a2",
+    "slither_version": "0.11.5",
+    "python_version": "3.14.7"
+  },
+  "build": {
+    "solc_version": "0.8.26",
+    "solc_identity": "0.8.26+commit.8a97fa7a",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "evm_version": "cancun",
+    "bytecode_hash": "none",
+    "append_cbor": false
+  },
+  "foundry": {
+    "offline": true,
+    "ffi": false,
+    "fs_permissions": [],
+    "src": "src",
+    "test": "test",
+    "libs": ["../stocks/lib"],
+    "no_match_path": "test/fork/**",
+    "remappings": [
+      "forge-std/=../stocks/lib/forge-std/src/",
+      "solady/=../stocks/lib/solady/src/",
+      "@solady/=../stocks/lib/solady/",
+      "continuous-clearing-auction/=../stocks/lib/continuous-clearing-auction/src/",
+      "blocknumberish/=../stocks/lib/blocknumberish/",
+      "@uniswap/blocknumberish/=../stocks/lib/blocknumberish/",
+      "liquidity-launcher/=../stocks/lib/liquidity-launcher/",
+      "@openzeppelin/=../stocks/lib/openzeppelin-contracts/",
+      "openzeppelin-contracts/=../stocks/lib/openzeppelin-contracts/",
+      "@uniswap/v4-core/=../stocks/lib/v4-core/",
+      "@uniswap/v4-periphery/=../stocks/lib/v4-periphery/",
+      "v4-periphery/=../stocks/lib/v4-periphery/",
+      "permit2/=../stocks/lib/permit2/",
+      "solmate/=../stocks/lib/solmate/",
+      "uerc20-factory/=../stocks/lib/uerc20-factory/src/",
+      "@uniswap/uerc20-factory/=../stocks/lib/uerc20-factory/",
+      "@optimism/=../stocks/lib/optimism/packages/contracts-bedrock/",
+      "autolaunch-stocks/=../stocks/src/",
+      "autolaunch-stocks-test/=../stocks/test/",
+      "optimism/=../stocks/lib/optimism/packages/contracts-bedrock/src/",
+      "v4-core/=../stocks/lib/v4-core/src/"
+    ]
+  },
+  "fuzz": {
+    "runs": 64,
+    "seed": "0x524f42494e484f4f44",
+    "max_test_rejects": 65536,
+    "fail_on_revert": true
+  },
+  "dependencies": {
+    "forge-std": "3b20d60d14b343ee4f908cb8079495c07f5e8981",
+    "continuous-clearing-auction": "7d7602d257733315434570f2a0c2f94f1c7b207a",
+    "blocknumberish": "38fe20bc0341d5bc2780d41f90dadb70e10f8cea",
+    "openzeppelin-contracts": "e4f70216d759d8e6a64144a9e1f7bbeed78e7079",
+    "uerc20-factory": "09ae130f7a10f7c1b96e0dc7d9724d567080c4ef",
+    "optimism": "3a8c970d12e1f1fb867d6d89e1f6938ddffe6143",
+    "liquidity-launcher": "3a3103543f50a13a0ae52a253bb98a925d72146f",
+    "solady": "33b4b98e350bbcba6aa85642957c313e98b5f911",
+    "v4-periphery": "ad04c9f24a170accf5ea1b2836bbafd514537ca6",
+    "v4-core": "59d3ecf53afa9264a16bba0e38f4c5d2231f80bc",
+    "permit2": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219",
+    "solmate": "4b47a19038b798b4a33d9749d25e570443520647"
+  }
+}

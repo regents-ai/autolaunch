@@ -98,8 +98,11 @@ proves all 8 (ordering × form) cases.
   paid to anyone else.
 
 - The fixture STOCK (`FixtureStockToken`) stands in for Base-native `0xb2…` tokens whose `0xef` code
-  Anvil cannot run. Transfer policy and Permit2 compatibility of the live tokens are unproven
-  (AT04, AT48). Every STOCK recognition transfers the protocol share to the Safe in the same call,
+  Anvil cannot run, so no local test exercises the live tokens (AT04, AT48). They were exercised on a
+  Base node instead (read-only simulation, 23 September 2026, all ten admitted stocks): each moved
+  through the bid adapter's exact Permit2 allowance path (ERC-20 allowance to Permit2, Permit2
+  allowance to a puller, `transferFrom`) with both allowances back at zero, and each deployed route
+  bought and sold it against its live pool within the feed bound. Every STOCK recognition transfers the protocol share to the Safe in the same call,
   and `collect` deposits both currencies of a position together, so a STOCK whose transfer policy
   refused the Safe would stall `collect` and `settleStakerLane` for every market on that STOCK
   (funds stay in the hook and the position; nothing is lost) with no recipient change or partial
@@ -122,7 +125,8 @@ proves all 8 (ordering × form) cases.
   the caller's `minAmountOut` is the only slippage control. `launch` does not quote: the required
   raise is the launcher's STOCK amount and the CCA's raise test never reads the dollar.
 - The one-sided STOCK position's width (adjacent tick-spacing boundary out to the last usable tick on
-  the STOCK side) and the destination of the rounding residue (REGENT lane) are PROVISIONAL. The
+  the STOCK side) and the destination of the rounding residue (REGENT lane) are the founder's
+  decision of 9 September 2026. The
   residue bound is a property of the pinned planner's arithmetic, derived in
   `StocksLaunchpadMigrateTest._roundingBound` and asserted at every fuzzed clearing price; it is not
   a guarantee about a different planner or tick spacing. Per-tick liquidity is not checked in code:

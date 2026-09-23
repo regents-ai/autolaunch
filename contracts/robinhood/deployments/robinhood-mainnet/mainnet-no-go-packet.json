@@ -1,0 +1,217 @@
+{
+  "artifact": "regents-autolaunch-robinhood-mainnet-deployment-packet",
+  "version": 1,
+  "status": "mainnet-NO-GO",
+  "authorization": {
+    "state": "not authorized",
+    "instrument": "the founder's separate word naming this packet's exact digest",
+    "granted_by": null,
+    "signing_method": null,
+    "note": "Nothing in this repository may be signed, broadcast, funded or deployed until the founder separately approves this exact digest. The founder sends every transaction by hand from a signer of his own; no credential appears in this packet or anywhere in this repository."
+  },
+  "chain": {
+    "id": 4663,
+    "name": "robinhood"
+  },
+  "build": {
+    "solc_identity": "0.8.26+commit.8a97fa7a",
+    "evm_version": "cancun",
+    "optimizer_runs": 200,
+    "via_ir": true,
+    "bytecode_hash": "none",
+    "append_cbor": false
+  },
+  "source_identity": {
+    "src_tree": "8f706cdd4b007033b11a3fe0e8bef5ad8137f171",
+    "shared_src_tree": "ae774116e03bd45492d9aa3c8b00fbbbe704383f",
+    "shared_component": "contracts/stocks"
+  },
+  "frozen_manifest_sha256": "658c752728c16abfe2115b126ace97f8a24fbb0aa4d4e3049a39e9448a176ac8",
+  "code_identity": [
+    {
+      "contract": "UERC20Factory",
+      "source": "../stocks/lib/uerc20-factory/src/factories/UERC20Factory.sol",
+      "constructor": [],
+      "runtime_bytes": 12682,
+      "runtime_keccak256": "0x47a5ee559aa5c815a6a350486a1de3beb868d238ba5b2d46e62db5128645195f",
+      "runtime_immutable_references": 0,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": true,
+      "creation_bytes": 12708,
+      "creation_keccak256": "0x54c692571d99db7b3452841d913179cceddbf9c8422b7e33f99c643b7787d93e"
+    },
+    {
+      "contract": "RobinhoodProtocolRevenueInboxV1",
+      "source": "src/RobinhoodProtocolRevenueInboxV1.sol",
+      "constructor": [
+        "address usdg_",
+        "address adminSafe_"
+      ],
+      "runtime_bytes": 3777,
+      "runtime_keccak256": "0x52ea3bb2aa734d6daba7d5c7826781f7ba92c42fca61b0bc2e22138e34357832",
+      "runtime_immutable_references": 2,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 4289,
+      "creation_keccak256": "0x7e7f84ef7539be007023decad205a6c325186f9f9d016a3860e6592c6251e716"
+    },
+    {
+      "contract": "RobinhoodPositionsLib",
+      "source": "src/libraries/RobinhoodPositionsLib.sol",
+      "constructor": [],
+      "runtime_bytes": 7696,
+      "runtime_keccak256": "0x823eeb61dea5b62c1b8544174385efc90a3a96c1990270d00982ea17326874ca",
+      "runtime_immutable_references": 0,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": true,
+      "creation_bytes": 7726,
+      "creation_keccak256": "0x2f7d4029a9da99cd297e2ae7dd149a37921a8bcd917556a2eec0c12d943608f9"
+    },
+    {
+      "contract": "RobinhoodFeeHookFactory",
+      "source": "src/RobinhoodFeeHookFactory.sol",
+      "constructor": [
+        "address poolManager_"
+      ],
+      "runtime_bytes": 9835,
+      "runtime_keccak256": "0x67b5219e3e05f3807993e4e649cac816000b2b440d90403ad7d5ded19e847125",
+      "runtime_immutable_references": 1,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 10020,
+      "creation_keccak256": "0x4b99ca189cc47cb86fd39f3ec9f997887020561b9e6182701cb56b45da738a43"
+    },
+    {
+      "contract": "RobinhoodStocksLaunchpadV1",
+      "source": "src/RobinhoodStocksLaunchpadV1.sol",
+      "constructor": [
+        "(address,address,address,address,address,address,address,address) bindings",
+        "bytes32 hookSalt"
+      ],
+      "runtime_bytes": 17542,
+      "runtime_keccak256": null,
+      "runtime_immutable_references": 11,
+      "runtime_linked_libraries": [
+        {
+          "library": "RobinhoodPositionsLib",
+          "source": "src/libraries/RobinhoodPositionsLib.sol",
+          "offsets": [
+            14352,
+            16891,
+            17396
+          ]
+        }
+      ],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 30221,
+      "creation_keccak256": null
+    },
+    {
+      "contract": "RobinhoodStockBidAdapterV1",
+      "source": "src/RobinhoodStockBidAdapterV1.sol",
+      "constructor": [
+        "address launchpad_",
+        "address permit2_"
+      ],
+      "runtime_bytes": 3155,
+      "runtime_keccak256": "0x8074cd60c856ef252aa0d07919c54e26998787a4cbd0bbbf0ca0bfb7c35bf332",
+      "runtime_immutable_references": 3,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3598,
+      "creation_keccak256": "0x8f723b06dde631bdf8b063b0b7f9801886d50d7213af7f427ce7cabfa5bde5dc"
+    },
+    {
+      "contract": "UniswapV3StockRouteV1",
+      "source": "src/routes/UniswapV3StockRouteV1.sol",
+      "constructor": [
+        "address usdg_",
+        "address stock_",
+        "address pool_",
+        "address feed_"
+      ],
+      "runtime_bytes": 2975,
+      "runtime_keccak256": "0xd7dc66a5abb635cdc549ddb8d5544cfd3fca0cf11780715b1d5ae7f93730a5d5",
+      "runtime_immutable_references": 7,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 4279,
+      "creation_keccak256": "0x89ca45101adc90350567d742d2a9efc247c0fa03761cad3643f7fb88a79ad576"
+    },
+    {
+      "contract": "RobinhoodFeeHookV1",
+      "source": "src/RobinhoodFeeHookV1.sol",
+      "constructor": [
+        "address manager_",
+        "address launchpad_",
+        "address usdg_",
+        "address inbox_",
+        "address adminSafe_"
+      ],
+      "runtime_bytes": 8022,
+      "runtime_keccak256": "0x28c9f58a10195ec2565a7f3dcb5af2c359d43f5cad56367ad38287a75f48725d",
+      "runtime_immutable_references": 5,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 9003,
+      "creation_keccak256": "0xfa567da6f5e3b4237989a06aa6353d81801dc726e9a3917b1849f24e76985a3e"
+    },
+    {
+      "contract": "RobinhoodMemestockSplitterV1",
+      "source": "src/RobinhoodMemestockSplitterV1.sol",
+      "constructor": [
+        "address usdg_",
+        "address inbox_",
+        "address adminSafe_"
+      ],
+      "runtime_bytes": 6227,
+      "runtime_keccak256": "0x3d12e753dc9c9aac721e266f689cb8035204e7c42cc6bccaeeeaec06c932c6f5",
+      "runtime_immutable_references": 3,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 6676,
+      "creation_keccak256": "0x23889d9075e85701261d6d142f07cb286f493c8ebf856625ce43d3cec4a22e41"
+    },
+    {
+      "contract": "MemestockLPLocker",
+      "source": "../stocks/src/MemestockLPLocker.sol",
+      "constructor": [
+        "address launchpad_",
+        "address positionManager_"
+      ],
+      "runtime_bytes": 3271,
+      "runtime_keccak256": "0xbb33127a3bfe131e71bbffd05418b7240f38686d5c4f8b1247dae1f709899923",
+      "runtime_immutable_references": 2,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 3512,
+      "creation_keccak256": "0xc66055229fee9624e08478caf6b6a0ecaedc6223724c35185a1f8560a1517005"
+    },
+    {
+      "contract": "RobinhoodBaseRevenueReceiverV1",
+      "source": "src/RobinhoodBaseRevenueReceiverV1.sol",
+      "constructor": [
+        "address usdc_",
+        "address liveStaking_",
+        "address baseSafe_"
+      ],
+      "runtime_bytes": 2113,
+      "runtime_keccak256": "0xc77488543e265d61d86882f55bc896442e0d55a33459c80496ffb7302ff8e6ca",
+      "runtime_immutable_references": 3,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 2506,
+      "creation_keccak256": "0xe780281bae5ac2a27bd0c3a285806e4b9242923613d1dd55249972314e9388ed"
+    }
+  ],
+  "hook_permission_bits": "0x20cc",
+  "selection": null,
+  "external_observation": null,
+  "topology": null,
+  "selection_note": "Null until `bin/ceremony.py prepare` derives the selection from the founder's inputs and a human installs the candidate it writes. A completed ceremony moves the deployer past its starting nonce, so an installed selection is single-use.",
+  "digest": {
+    "algorithm": "sha256",
+    "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
+    "value": "0xe9fc2f01ed672b1e314b3e9d04cb8e7d331188396ceefa1a26c74283b35b3ce3"
+  }
+}

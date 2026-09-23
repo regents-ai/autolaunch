@@ -666,9 +666,11 @@ Three founder decisions of 2026-09-21, final, applied together as one hard cutov
   measured economic reference in `FAC-023`.
 
 The fork and deployment test roots were updated for the new shapes (no fee funding, no fee
-assertions, no `setLaunchFee` authority proof) but neither gate was run; the committed Base
-observation record and `deployments/base-mainnet/mainnet-no-go-packet.json` predate this source and
-are stale until their gates are next authorized.
+assertions, no `setLaunchFee` authority proof), and both gates have since run for this source: the
+fork check at evidence commit `4451c776f84fa904dd02b0c4360d360a45a945cb` re-executed all twenty-seven
+mapped selectors against the unchanged record headers, and the deployment gate re-prepared and
+rehearsed `deployments/base-mainnet/mainnet-no-go-packet.json` at Base block `51650703` with
+every selection value byte-identical to the prior packet.
 
 ### 10.2 Corrections to claims
 

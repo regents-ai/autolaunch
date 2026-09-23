@@ -169,7 +169,9 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
     }
 
     function test_floor_price_rules() public {
-        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.FloorPriceTooLow.selector, ConstantsLib.MIN_FLOOR_PRICE - 1));
+        vm.expectRevert(
+            abi.encodeWithSelector(StocksLaunchpadV1.FloorPriceTooLow.selector, ConstantsLib.MIN_FLOOR_PRICE - 1)
+        );
         launchpad.bidTickSpacingFor(ConstantsLib.MIN_FLOOR_PRICE - 1);
 
         vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.FloorPriceNotOnGrid.selector, FLOOR_PRICE_Q96 + 1));
@@ -349,9 +351,7 @@ contract StocksLaunchpadLaunchTest is StocksFixture {
         assertEq(route, address(routeLow));
 
         FixtureStockRoute wrongRoute = new FixtureStockRoute(STOCK_HIGH, USDC_PER_SHARE);
-        vm.expectRevert(
-            abi.encodeWithSelector(StocksLaunchpadV1.RouteBindingMismatch.selector, STOCK_LOW, STOCK_HIGH)
-        );
+        vm.expectRevert(abi.encodeWithSelector(StocksLaunchpadV1.RouteBindingMismatch.selector, STOCK_LOW, STOCK_HIGH));
         vm.prank(governance);
         launchpad.admitStock(STOCK_LOW, address(wrongRoute));
 

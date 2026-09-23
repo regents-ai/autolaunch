@@ -58,13 +58,14 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
     address internal constant STOCK_HIGH = address(uint160(type(uint160).max - 0xB200));
     address internal constant USDG_ADDRESS = address(uint160(0xD0011));
 
-    /// @dev Fixture price: 230 USDG per whole share, 8-decimal shares, 6-decimal USDG.
+    /// @dev Fixture price: 230 USDG per whole share, 18-decimal shares (every Robinhood stock), 6-decimal USDG.
     uint256 internal constant USDG_PER_SHARE = 230_000000;
     /// @dev The raise the fixture launcher chooses: a thousand dollars of STOCK at the fixture price.
-    uint128 internal constant STOCK_REQUIRED_RAISE = uint128(1_000e6 * 1e8 / USDG_PER_SHARE);
+    uint128 internal constant STOCK_REQUIRED_RAISE = uint128(1_000e6 * 1e18 / USDG_PER_SHARE);
 
-    /// @dev A currency-per-NEW floor of 1e-16 base units per base unit, times 2^96, on the bid grid.
-    uint256 internal constant FLOOR_PRICE_Q96 = 7_922_816_251_400;
+    /// @dev A currency-per-NEW floor of 1e-6 base units per base unit (a millionth of a share per
+    ///      NEW), times 2^96, on the bid grid.
+    uint256 internal constant FLOOR_PRICE_Q96 = 79_228_162_514_264_337_593_500;
 
     struct Launched {
         uint256 launchId;
@@ -112,10 +113,10 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
             USDG_ADDRESS, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Global Dollar", "USDG", uint8(6)))
         );
         _constructAt(
-            STOCK_LOW, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Stock Low", "LOW", uint8(8)))
+            STOCK_LOW, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Stock Low", "LOW", uint8(18)))
         );
         _constructAt(
-            STOCK_HIGH, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Stock High", "HIGH", uint8(8)))
+            STOCK_HIGH, abi.encodePacked(type(MockERC20).creationCode, abi.encode("Stock High", "HIGH", uint8(18)))
         );
         usdg = MockERC20(USDG_ADDRESS);
         stockLow = MockERC20(STOCK_LOW);
@@ -180,7 +181,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
     }
 
     function _fundRoute(FixtureUsdgStockRoute route, MockERC20 stock) internal {
-        stock.mint(address(route), 1_000_000_000e8);
+        stock.mint(address(route), 1_000_000_000e18);
         usdg.mint(address(route), 1_000_000_000_000e6);
     }
 
@@ -268,7 +269,7 @@ abstract contract RobinhoodFixture is Test, DeployPermit2 {
 
     /// @dev 500 shares of STOCK, well above the fixture raise and far under the inventory at the floor.
     function _graduateStock(Launched memory launched) internal returns (uint256 bidId) {
-        bidId = _bidToMigration(launched, 500e8);
+        bidId = _bidToMigration(launched, 500e18);
         stocks.migrate(launched.launchId);
     }
 
