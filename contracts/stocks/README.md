@@ -136,8 +136,10 @@ and collect often. Tokens other than the three recognized assets can be swept to
 - Base's native stock assets (`0xb2…`) carry a one-byte `0xef` code that Anvil cannot execute.
   The fork lab therefore installs `FixtureStockToken` (8 decimals, matching symbol) at those exact
   addresses with `anvil_setCode`. **This is a fixture. Nothing tested against it is B20-verified.**
-  Issuer transfer policy and Permit2 compatibility remain open admission blockers (acceptance tests
-  AT04, AT48).
+  The live tokens were exercised on a Base node instead (23 September 2026, all ten admitted
+  stocks): transfers between contracts, the bid adapter's Permit2 path, and a buy and a sale through
+  each deployed route; delivery to the Safe was shown on 19 September. The issuer changing its
+  transfer policy later remains an accepted limit (see SECURITY.md, AT04, AT48).
 - The Governance and REGENT Safe (`0x9fa1…9a3e`) is the only governance. No launch has an
   administrator: both lanes and the splitter are fixed by the contracts.
 

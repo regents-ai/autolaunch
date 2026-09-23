@@ -85,6 +85,16 @@ one transaction each, all verifiable through public reads:
    executor-only path.
 3. `unpauseLaunches()` on the launchpad, last.
 
+The founder decided (23 September 2026) that the first two are one Safe session, and that the
+launchpad opens at the same moment as the Revstake factory, just before the website goes live.
+Before signing, both batches were run from the Safe on a Base node without sending (after block
+51674137): every stock read back admitted with its own route, the executor read back, and both
+launchpads read open after the activation batch; `admitStock` from any other account and a stock
+paired with another stock's route were refused. On the same day every deployed route was run on live
+Base state for all ten stocks: a 0.1-share sale landed within 0.35% of the Chainlink price, a 20 USDC
+purchase succeeded inside the 5% bound, and the purchased stock moved through the bid adapter's
+exact Permit2 allowance path with both allowances back at zero.
+
 ## The values the ceremony consumes
 
 `prepare` takes the founder's public choices on its command line and reads the rest off the chain
