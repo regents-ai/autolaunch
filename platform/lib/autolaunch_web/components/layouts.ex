@@ -20,9 +20,6 @@ defmodule AutolaunchWeb.Layouts do
       |> assign(:preview?, Autolaunch.ChainMode.fork?())
 
     ~H"""
-    <p :if={Autolaunch.Prelaunch.read_only?()} class="autolaunch-prelaunch-notice" role="status">
-      Autolaunch opens {Autolaunch.Prelaunch.opens_at_label()}. Look around now; creating auctions, bidding and sign-in open then.
-    </p>
     <p :if={Autolaunch.Lab.enabled?()} class="autolaunch-lab-warning" role="status">
       {@fork_label} · test assets · no mainnet value<span :if={!Autolaunch.Prelaunch.read_only?()}><span :if={
         !@preview?

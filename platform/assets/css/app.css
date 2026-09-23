@@ -11,7 +11,6 @@
 @import "./pages/home.css";
 @import "./pages/token_details.css";
 
-.autolaunch-prelaunch-notice { margin: 0; padding: 10px 16px; text-align: center; background: var(--color-fg); color: var(--color-surface); font-size: .8125rem; line-height: 1.5; }
 /* Until opening: one countdown beside + Create, and a short welcome on the home page. */
 #home-top .home-top__opening { display: inline-flex; align-items: center; gap: 8px; }
 .opening-countdown { display: inline-flex; align-items: center; gap: 8px; min-height: 2.75rem; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--hairline-strong); font-family: var(--font-family-title); white-space: nowrap; }
