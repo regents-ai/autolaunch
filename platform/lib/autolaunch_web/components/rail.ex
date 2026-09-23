@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.Components.Rail do
     %{id: :home, label: "Home", path: "/", icon: :home},
     %{id: :auctions, label: "Auctions", path: "/auctions", icon: :auctions},
     %{id: :tokens, label: "Tokens", path: "/tokens", icon: :tokens},
+    %{id: :token_details, label: "Token details", path: "/token-details", icon: :token_details},
     %{id: :portfolio, label: "Portfolio", path: "/portfolio", icon: :portfolio},
     %{id: :regent, label: "REGENT", path: "/regent", icon: :regent},
     %{id: :create, label: "Create", path: "/create", icon: :create}
@@ -87,6 +88,10 @@ defmodule AutolaunchWeb.Components.Rail do
       <g :if={@name == :tokens}>
         <circle cx="12" cy="12" r="7.25" />
         <path d="M12 8.5v7M9.5 10.25h3.4a2.1 2.1 0 0 1 0 4.2H9.5" />
+      </g>
+      <g :if={@name == :token_details}>
+        <rect x="5" y="4" width="14" height="16" />
+        <path d="M8.5 9h7M8.5 12.5h7M8.5 16h4" />
       </g>
       <g :if={@name == :portfolio}>
         <rect x="4.5" y="7" width="15" height="12" />
