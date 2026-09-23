@@ -144,6 +144,7 @@ defmodule AutolaunchWeb.AuctionLive do
             usd_rate={@usd_rate}
             color={@page_record.image_color}
             bid_form="autolaunch-bid"
+            price_info={price_info(@page_record)}
           />
           <.raise_progress
             :if={@market_snapshot}
@@ -457,6 +458,14 @@ defmodule AutolaunchWeb.AuctionLive do
     do: block >= end_block
 
   defp bidding_ended?(_record, _snapshot), do: false
+
+  # A Revstake token and REGENT both have 100 billion tokens, so its price in
+  # REGENT compares the two whole tokens directly.
+  defp price_info(%{kind: :agent}),
+    do:
+      "REGENT and this token both have 100 billion tokens, so a price of 1 REGENT per token values it the same as REGENT."
+
+  defp price_info(_auction), do: nil
 
   defp ended_copy(%{state: :graduated, quote_token_symbol: symbol}),
     do:

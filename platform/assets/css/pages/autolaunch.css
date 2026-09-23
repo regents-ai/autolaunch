@@ -166,10 +166,15 @@
 .price-chart__facts dd { margin: 0; overflow-wrap: anywhere; }
 /* An open auction's price panel: the price to beat, the bids by maximum price around the price now, and how a bid works. */
 .auction-book { --book-color: var(--image-color, var(--brand-accent)); display: grid; gap: 14px; min-width: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
-.auction-book__beat { display: grid; gap: 6px; justify-items: start; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--book-color) 14%, var(--color-surface)); }
+.auction-book__beat { position: relative; display: grid; gap: 6px; justify-items: start; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--book-color) 14%, var(--color-surface)); }
 .auction-book__lead { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; }
 .auction-book__price { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .auction-book__price strong { font-size: 1.5rem; }
+.auction-book__info { display: inline-block; margin-inline-start: 4px; vertical-align: middle; }
+.auction-book__info-icon { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 1px solid currentColor; border-radius: 50%; background: none; color: var(--color-fg-muted); font: italic 600 0.75rem/1 Georgia, serif; cursor: help; }
+.auction-book__info-icon:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.auction-book__info-panel { position: absolute; z-index: 5; bottom: calc(100% - 4px); left: 8px; right: 8px; padding: 8px 10px; border-radius: 8px; background: var(--color-fg); color: var(--color-bg); font-size: 0.8125rem; line-height: 1.4; visibility: hidden; opacity: 0; transition: opacity 120ms; pointer-events: none; }
+.auction-book__info:hover .auction-book__info-panel, .auction-book__info-icon:focus + .auction-book__info-panel { visibility: visible; opacity: 1; }
 .auction-book__ladder { display: grid; gap: 8px; margin: 0; min-width: 0; }
 .auction-book__ladder figcaption, .auction-book__empty, .auction-book__more { margin: 0; color: var(--color-fg-muted); font-size: .75rem; }
 /* One column grid for every row, so the bars start and end together. */

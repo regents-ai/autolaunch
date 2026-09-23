@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
   attr :usd_rate, :any, required: true, doc: "the USD price of one unit, or nil"
   attr :color, :string, default: nil, doc: "the image colour, or nil for the plain bars"
   attr :bid_form, :string, required: true, doc: "the bid component's id"
+  attr :price_info, :string, default: nil, doc: "more on the price, behind an info icon"
 
   def auction_book(assigns) do
     assigns =
@@ -42,6 +43,19 @@ defmodule AutolaunchWeb.Components.AuctionBook do
         <p class="auction-book__price">
           <strong><TokenDisplay.counted amount={@book.price_to_beat} unit={@symbol} /></strong>
           per token <UsdValue.usd amount={@book.price_to_beat} rate={@usd_rate} per="per token" />
+          <span :if={@price_info} class="auction-book__info">
+            <button
+              type="button"
+              class="auction-book__info-icon"
+              aria-label="About this price"
+              aria-describedby={"#{@id}-price-info"}
+            >
+              i
+            </button>
+            <span id={"#{@id}-price-info"} role="tooltip" class="auction-book__info-panel">
+              {@price_info}
+            </span>
+          </span>
         </p>
         <Regent.Primitives.button
           type="button"
