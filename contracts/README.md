@@ -7,7 +7,7 @@ other three is deployed yet.
 | Project | What it is | Chain | Status | Verify |
 | --- | --- | --- | --- | --- |
 | [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | Complete against the frozen [SPEC.md](v1/SPEC.md); offline gate, Base fork evidence, deployed on Base on 22 September 2026, launches paused | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
-| [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | Implemented with its own gate; packet carries the code identity, no deployer selected yet | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
+| [stocks/](stocks/README.md) | Base Memestake: a new token auctioned for one admitted tokenised stock, then locked into its stock pool with two stock-side fee lanes and per-launch staking | Base (8453) | Implemented with its own gate; deployed on Base on 23 September 2026, launchpad paused, no stock admitted yet | `cd stocks && bin/gate.sh`, after `python3 bootstrap-deps.py <hydrated checkout>` has filled `lib/` |
 | [robinhood/](robinhood/README.md) | Robinhood Memestake: the Memestake launchpad rebuilt for Robinhood Chain with USDG as the dollar, plus a Base-side receiver for bridged revenue | Robinhood Chain (4663), one contract on Base | Implemented with its own gate; packet carries the code identity, no deployer selected; no production stock route contract yet | `cd robinhood && bin/gate.sh`, with `../stocks/lib` in place |
 | [revenue-mesh/](revenue-mesh/README.md) | Immutable USDC payment routes over Circle CCTP from other chains into a Base `PaymentReceiverV1` | Source chains (Arbitrum One wrapper first) into Base | Offline foundation; every route is an unverified, inactive candidate | `cd revenue-mesh && forge fmt --check && forge build && forge test -vvv` |
 
@@ -74,8 +74,8 @@ launchpad under the contract size limit.
 Every project keeps two files apart: a **packet** (`mainnet-no-go-packet.json`), the proposal that
 describes what a ceremony would do and the only committed ceremony authority, and a **deployed
 manifest** (`deployed-manifest.json`), the record of what was actually created, populated only from
-confirmed receipts. The v1 manifest records the Base deployment; the Base Memestake and Robinhood
-manifests are still the empty record. The founder signs and sends every creation by hand; no key,
+confirmed receipts. The v1 and Base Memestake manifests record the Base deployments; the Robinhood
+manifest is still the empty record. The founder signs and sends every creation by hand; no key,
 endpoint or credential appears in this repository.
 
 1. **Base Revstake first** ([v1/deployments/base-mainnet/](v1/deployments/base-mainnet/README.md)).
@@ -92,11 +92,14 @@ endpoint or credential appears in this repository.
    and `bin/ceremony.py site-config` renders the website's deployment file from it. The factory is
    born paused: opening it is a later `unpauseLaunches()` from the Governance and Regent Safe.
 2. **Base Memestake next** ([stocks/deployments/base-mainnet/](stocks/deployments/base-mainnet/README.md)).
-   `bin/ceremony.py prepare` takes the deployer, the UERC20 factory from step 1 and one
-   `--admission STOCK:POOL:FEED` per stock, and a human installs its candidate. The ceremony is then
-   `StocksLaunchpadV1` (creating its splitter implementation, `MemestockLPLocker` and
-   `StocksFeeHookV1`), `StockBidAdapterV1`, and one `AerodromeStockRouteV1` per admitted stock.
-   Afterwards the Safe admits each stock, names the hook executor and unpauses the launchpad.
+   Twelve zero-value creations from the same deployer (nonces 5–16): `StocksLaunchpadV1` (creating
+   its splitter implementation, `MemestockLPLocker` and `StocksFeeHookV1`), `StockBidAdapterV1`, and
+   one `AerodromeStockRouteV1` for each of the ten admitted stocks. `bin/ceremony.py rehearse`
+   simulated the exact transactions in order on a Base node, since Base's stock tokens run only
+   there. The founder approved digest `0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5` and sent the twelve on
+   23 September 2026 (Base blocks 51673079–51673339); `record` proved the
+   receipts and wrote the deployed manifest. The launchpad is born paused: the Safe next admits each
+   stock with its route and names the hook executor, and unpauses it at website activation.
 3. **Robinhood as its own track** ([robinhood/deployments/robinhood-mainnet/](robinhood/deployments/robinhood-mainnet/README.md)).
    Six creations on Robinhood Chain (`UERC20Factory`, the revenue inbox, the positions library,
    the hook factory, the launchpad and the bid adapter) and one on Base (the revenue receiver),

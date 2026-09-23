@@ -1,6 +1,44 @@
 # Base mainnet: the Memestake ceremony
 
-**Nothing here has been deployed.** The package is mainnet NO-GO.
+**Deployed on Base on 23 September 2026.** The founder approved packet digest
+`0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5` and sent its twelve creations from deployer
+`0x9b2C414614aEE294202c1219520955EF3B596031` (nonces 5–16, Base blocks 51673079–51673339);
+`deployed-manifest.json` records them. The launchpad was born paused and admits no stock and no
+launch until the Governance and Regent Safe calls `admitStock` for each stock, `setExecutor` on the
+hook and, last, `unpauseLaunches()`.
+
+| Contract | Address | Base block |
+| --- | --- | --- |
+| StocksLaunchpadV1 | `0x1d36a95112835f81b1B499A808e556020C64Cac2` | 51673079 |
+| StockBidAdapterV1 | `0xd28e66967C1fE651e6EC47f13397a74240C064A2` | 51673107 |
+| AerodromeStockRouteV1 (AAPLc) | `0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41` | 51673122 |
+| AerodromeStockRouteV1 (AMZNc) | `0x740D2e1978991cdC0594D3a5F69B04C9148B2581` | 51673169 |
+| AerodromeStockRouteV1 (GOOGLc) | `0xF26A18A009362695d00043eb63F7AB42B2170CA9` | 51673205 |
+| AerodromeStockRouteV1 (METAc) | `0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27` | 51673231 |
+| AerodromeStockRouteV1 (MSFTc) | `0xdBBaA710EfddDe431027eBBa81b8c517e46544Df` | 51673243 |
+| AerodromeStockRouteV1 (MSTRc) | `0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82` | 51673254 |
+| AerodromeStockRouteV1 (NVDAc) | `0x49E0995070753fA58152889829249febcF9E0C53` | 51673273 |
+| AerodromeStockRouteV1 (SNDKc) | `0xfFf81E528935FaEf2dd64087bc0b3740f7908a60` | 51673292 |
+| AerodromeStockRouteV1 (SPCXc) | `0xACfa95f1c16eF61C281C26511556Bf918814151F` | 51673313 |
+| AerodromeStockRouteV1 (TSLAc) | `0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7` | 51673339 |
+| MemestockSplitterV1 (created by the launchpad) | `0x657e75434CED9dFa5397c7cE4d96da238923a452` | 51673079 |
+| MemestockLPLocker (created by the launchpad) | `0x9e8B5EDdfC2aCdfc600FB37FBDc070c0Cd0033d7` | 51673079 |
+| StocksFeeHookV1 (created by the launchpad) | `0x3820CD7413BC2EF795229C39C648326D99c8e0cC` | 51673079 |
+
+| Nonce | Creation | Transaction |
+| --- | --- | --- |
+| 5 | StocksLaunchpadV1 | `0x0503dcf6b755d91f5166c6a3af0288c91215c0fddc17e1ddfbb9b5abcba35320` |
+| 6 | StockBidAdapterV1 | `0x336114b51f04ba8cae3a62fff55d0d3202cdc5c6dc0775024351bb1c46a3e8df` |
+| 7 | AerodromeStockRouteV1 (AAPLc) | `0x96dbf72dce5b9dc9c5a135b5f5d05a61b693dfe24d75a3201c33da484576f97e` |
+| 8 | AerodromeStockRouteV1 (AMZNc) | `0xd69455923686738168decba7ffb4930d24e909ad887b2d807fee4f2ee49a3f92` |
+| 9 | AerodromeStockRouteV1 (GOOGLc) | `0xd8a671a83defcad932a302c0dd994745cdb6dee609a181e22c1b9fb0e1c5f47e` |
+| 10 | AerodromeStockRouteV1 (METAc) | `0x3cf3b31a86b5e65dbc7a64c27791a8158e537958f421c7fd3ddd1067a90830b2` |
+| 11 | AerodromeStockRouteV1 (MSFTc) | `0x59392e30bdd2ce3e7f26a8ac0d11e1a67915d5e475c5c934e3bb7417000d8b9e` |
+| 12 | AerodromeStockRouteV1 (MSTRc) | `0xc6b1f09b478dd4dd833251d089ee3f69f550257cc7afd27f030c64da5474dffa` |
+| 13 | AerodromeStockRouteV1 (NVDAc) | `0xf85513e7f7a2ea3899c0f1427c80673e8525b561021a930477dec1784dfe41cd` |
+| 14 | AerodromeStockRouteV1 (SNDKc) | `0xcc0d825505e64d59c6f08dbae2d420daf7fe45d96b5ae49b49c70c1156e408ee` |
+| 15 | AerodromeStockRouteV1 (SPCXc) | `0x68c1520e2f8512c37d5134150c7331a1fa4c15f9df3642f934f43cf0456e8eee` |
+| 16 | AerodromeStockRouteV1 (TSLAc) | `0xc5bd337d0762f4be426a3a415f536761163a837f975a5c122f4f621bb4215aec` |
 
 Two files live in this directory, and keeping them apart is the point.
 
@@ -15,10 +53,10 @@ Two files live in this directory, and keeping them apart is the point.
   `reports/generated/deployment/`, but it never installs one. Every value in it is public; no key,
   mnemonic, keystore path, endpoint or credential belongs here.
 
-- `deployed-manifest.json` is a **record**, and it is empty. It is populated once, by
-  `bin/ceremony.py record`, from confirmed Base receipts, after the founder has named the packet's
-  exact digest and sent the ceremony by hand. No simulated fact may reach it. `render` proves on
-  every run that it is the empty record.
+- `deployed-manifest.json` is a **record**. It was populated once, by `bin/ceremony.py record`, from
+  confirmed Base receipts, after the founder named the packet's exact digest and sent the ceremony
+  by hand. No simulated fact reaches it. `render` proves on every run that it is a deployed record
+  for the installed packet's digest.
 
 ## The whole ceremony
 
