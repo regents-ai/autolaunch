@@ -36,9 +36,11 @@ defmodule AutolaunchWeb.TokenDisplay do
 
   @doc """
   A read-only price. A price carrying more than four significant digits is
-  shortened on screen, truncated rather than rounded up, while the exact figure
-  stays readable to assistive technology and on hover. The exact string is
-  never altered: an amount that is not a plain decimal is shown as written.
+  shortened on screen, truncated rather than rounded up, and a long run of
+  zeros after the point is written as a count, as in `0.0₇4399`, while the
+  exact figure stays readable to assistive technology and on hover. The exact
+  string is never altered: an amount that is not a plain decimal is shown as
+  written.
   """
   def price(%{amount: amount} = assigns) when is_nil(amount) or amount == "" do
     ~H"""
@@ -50,8 +52,38 @@ defmodule AutolaunchWeb.TokenDisplay do
     assigns
     |> assign(
       exact: with_unit(assigns.amount, assigns.unit),
-      shown: with_unit(significant(assigns.amount), assigns.unit)
+      shown: assigns.amount |> significant() |> with_unit(assigns.unit) |> zeros()
     )
+    |> figure()
+  end
+
+  # Four or more zeros straight after the point are hard to count, so the run
+  # is written as one zero with its length below it: 0.0000000444 is 0.0₇444.
+  @zero_run ~r/(?<![\d.])0\.(0{4,})(\d+)/
+
+  @doc "Text with each small figure's zeros after the point counted, as in `0.0₇444 REGENT`."
+  def zeros(text),
+    do:
+      Regex.replace(@zero_run, text, fn _all, run, rest ->
+        "0.0#{subscript(byte_size(run))}#{rest}"
+      end)
+
+  defp subscript(count),
+    do: count |> Integer.digits() |> Enum.map_join(&<<0x2080 + &1::utf8>>)
+
+  attr :amount, :string, required: true
+  attr :unit, :string, default: nil
+
+  @doc """
+  A read-only price shown with every digit it was given, only its zeros after
+  the point counted. The plain figure stays readable to assistive technology
+  and on hover.
+  """
+  def counted(assigns) do
+    exact = with_unit(assigns.amount, assigns.unit)
+
+    assigns
+    |> assign(exact: exact, shown: zeros(exact))
     |> figure()
   end
 

@@ -12,6 +12,7 @@ defmodule AutolaunchWeb.UsdValue do
   alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.{Amounts, MarketData, PriceFeeds}
+  alias AutolaunchWeb.TokenDisplay
   alias Phoenix.LiveView.AsyncResult
 
   @significant_digits 4
@@ -53,12 +54,20 @@ defmodule AutolaunchWeb.UsdValue do
   attr :per, :string, default: nil, doc: "what the amount is per, such as \"per token\""
   attr :class, :string, default: nil
 
-  @doc "The amount's dollar value, such as `≈ $1,234.50`; nothing for an amount that is not a number."
+  @doc """
+  The amount's dollar value, such as `≈ $1,234.50`; nothing for an amount that
+  is not a number. A value under a ten-thousandth of a dollar counts its zeros,
+  as in `≈ $0.0₄1245`, with the plain figure kept for assistive technology.
+  """
   def usd(assigns) do
-    assigns = assign(assigns, :text, text(decimal(assigns.amount), assigns.rate, assigns.per))
+    text = text(decimal(assigns.amount), assigns.rate, assigns.per)
+    assigns = assign(assigns, text: text, shown: text && TokenDisplay.zeros(text))
 
     ~H"""
-    <span :if={@text} class={["usd-value", @class]}>{@text}</span>
+    <span :if={@text && @shown == @text} class={["usd-value", @class]}>{@text}</span>
+    <span :if={@text && @shown != @text} class={["usd-value", @class]}>
+      <span aria-hidden="true">{@shown}</span><span class="visually-hidden">{@text}</span>
+    </span>
     """
   end
 
