@@ -16,8 +16,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
+  alias Autolaunch.AuctionBook
   alias Autolaunch.Robinhood.{Lab, StockBidActions}
   alias Autolaunch.Stocks.MarketData
+  alias AutolaunchWeb.Components.AuctionBook, as: Book
   alias AutolaunchWeb.UsdValue
 
   @copy %{
@@ -67,6 +69,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      socket
      |> assign(assigns)
      |> assign_new(:ended, fn -> nil end)
+     |> assign_new(:book, fn -> nil end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
@@ -186,6 +189,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
             rate={@usd_rate}
             per="per token"
           />
+          <.standing_line
+            outlook={@book && AuctionBook.outlook("", @max_price, @book)}
+            book={@book}
+            symbol={stock_symbol(@reading)}
+          />
           <Regent.Primitives.button class="bid-primary" type="submit">
             Review bid
           </Regent.Primitives.button>
@@ -300,7 +308,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               <p>
                 Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]}
                 <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
-                · {bid_state(bid)}
+                · {bid_state(bid, @book)}
               </p>
               <.live_component
                 module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
@@ -346,6 +354,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         {:noreply, assign(socket, notice: notice(:error, refusal(error)))}
     end
   end
+
+  # The price to beat, entered from the auction's price panel.
+  def handle_event("use_price", %{"price" => price}, socket),
+    do: {:noreply, assign(socket, max_price: price, notice: nil)}
 
   def handle_event("step_sent", %{"step" => name, "transaction_hash" => hash}, socket)
       when is_map_key(@steps, name) and is_binary(hash),
@@ -537,8 +549,35 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp window_copy(_reading), do: "Ended."
 
-  defp bid_state(%{"exited_block" => "0"}), do: "In the auction"
-  defp bid_state(%{"exited_block" => block}), do: "Exited at block #{block}"
+  defp bid_state(%{"exited_block" => "0"}, nil), do: "In the auction"
+
+  defp bid_state(%{"exited_block" => "0", "max_price_q96" => price}, book),
+    do: price |> String.to_integer() |> AuctionBook.standing(book) |> Book.bid_status()
+
+  defp bid_state(%{"exited_block" => block}, _book), do: "Exited at block #{block}"
+
+  attr :outlook, :map, default: nil
+  attr :book, :map, default: nil
+  attr :symbol, :string, required: true
+
+  # Whether the typed maximum gets tokens against the auction's price now.
+  defp standing_line(%{outlook: %{reaches?: true}} = assigns) do
+    ~H"""
+    <p class="bid-estimate" role="status">
+      Above the price now: you start getting tokens next block.
+    </p>
+    """
+  end
+
+  defp standing_line(%{outlook: %{reaches?: false}} = assigns) do
+    ~H"""
+    <p class="bid-estimate" role="status">
+      Too low to get tokens right now: bid at least {@book.price_to_beat} {@symbol} per token.
+    </p>
+    """
+  end
+
+  defp standing_line(assigns), do: ~H""
 
   defp exact_values(review) do
     [

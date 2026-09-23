@@ -18,9 +18,10 @@ defmodule AutolaunchWeb.BidComponent do
 
   alias Autolaunch
   alias Autolaunch.Actors.Human
+  alias Autolaunch.AuctionBook
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
-  alias AutolaunchWeb.UsdValue
+  alias AutolaunchWeb.{TokenDisplay, UsdValue}
 
   @chain_id 8453
 
@@ -69,7 +70,7 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign_new(:max_price, fn -> "" end)
      |> assign_new(:usdc_amount, fn -> "" end)
      |> assign_new(:usdc_max_price, fn -> "" end)
-     |> assign_new(:estimate, fn -> nil end)
+     |> assign_new(:book, fn -> nil end)
      |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
@@ -171,9 +172,11 @@ defmodule AutolaunchWeb.BidComponent do
             per="per token"
           />
 
-          <p :if={@estimate} class="bid-estimate">
-            You would receive about {@estimate} tokens if the auction ended now.
-          </p>
+          <.outlook
+            outlook={@book && AuctionBook.outlook(@amount, @max_price, @book)}
+            book={@book}
+            symbol={@auction.quote_token_symbol}
+          />
 
           <Regent.Primitives.button
             class="bid-primary"
@@ -222,6 +225,11 @@ defmodule AutolaunchWeb.BidComponent do
             amount={@usdc_max_price}
             rate={@rate}
             per="per token"
+          />
+          <.outlook
+            outlook={@book && AuctionBook.outlook("", @usdc_max_price, @book)}
+            book={@book}
+            symbol={@auction.quote_token_symbol}
           />
           <Regent.Primitives.button
             class="bid-primary"
@@ -382,17 +390,17 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_event("bid_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
-  def handle_event("bid_form_changed", %{"amount" => amount, "max_price" => max_price}, socket) do
-    {:noreply,
-     socket |> assign(amount: amount, max_price: max_price, notice: nil) |> assign_estimate()}
-  end
+  def handle_event("bid_form_changed", %{"amount" => amount, "max_price" => max_price}, socket),
+    do: {:noreply, assign(socket, amount: amount, max_price: max_price, notice: nil)}
 
   def handle_event("fill_bid_amount", _params, socket) do
     {:noreply,
-     socket
-     |> assign(amount: balance(socket.assigns.balance, socket.assigns.auction), notice: nil)
-     |> assign_estimate()}
+     assign(socket, amount: balance(socket.assigns.balance, socket.assigns.auction), notice: nil)}
   end
+
+  # The price to beat, entered from the auction's price panel into both forms.
+  def handle_event("use_price", %{"price" => price}, socket),
+    do: {:noreply, assign(socket, max_price: price, usdc_max_price: price, notice: nil)}
 
   def handle_event("review_bid", %{"amount" => amount, "max_price" => max_price}, socket) do
     {:noreply,
@@ -434,8 +442,7 @@ defmodule AutolaunchWeb.BidComponent do
          amount: "",
          max_price: "",
          usdc_amount: "",
-         usdc_max_price: "",
-         estimate: nil
+         usdc_max_price: ""
        )
        |> cleared()}
 
@@ -448,6 +455,38 @@ defmodule AutolaunchWeb.BidComponent do
     </p>
     """
   end
+
+  attr :outlook, :map, default: nil
+  attr :book, :map, default: nil
+  attr :symbol, :string, required: true
+
+  # What the typed maximum means against the auction's price now, and with an
+  # amount, the tokens it can expect.
+  defp outlook(%{outlook: %{reaches?: true}} = assigns) do
+    ~H"""
+    <div class="bid-estimate" role="status">
+      <p>Above the price now: you start getting tokens next block.</p>
+      <p :if={@outlook.about}>
+        About <TokenDisplay.price amount={@outlook.about} />
+        tokens if the price stays at {@book.clearing} {@symbol}.
+      </p>
+      <p :if={@outlook.at_least}>
+        At least <TokenDisplay.price amount={@outlook.at_least} />
+        tokens, even if the price climbs to your maximum.
+      </p>
+    </div>
+    """
+  end
+
+  defp outlook(%{outlook: %{reaches?: false}} = assigns) do
+    ~H"""
+    <p class="bid-estimate" role="status">
+      Too low to get tokens right now: bid at least {@book.price_to_beat} {@symbol} per token.
+    </p>
+    """
+  end
+
+  defp outlook(assigns), do: ~H""
 
   attr :hash, :string, default: nil
   attr :chain_id, :integer, default: @chain_id
@@ -532,7 +571,7 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp cancel(socket, operation) do
     case Autolaunch.cancel_bid_review(operation.action_id, opts(socket)) do
-      {:ok, _cancelled} -> socket |> assign(operation: nil, estimate: nil) |> cleared()
+      {:ok, _cancelled} -> socket |> assign(operation: nil) |> cleared()
       denied -> settled(denied, socket)
     end
   end
@@ -545,13 +584,6 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp refused(socket, address, reason),
     do: assign(socket, wallet: address, balance: nil, notice: notice(:info, reason))
-
-  defp assign_estimate(%{assigns: %{amount: amount, max_price: max_price}} = socket) do
-    case Autolaunch.quote_auction_bid(socket.assigns.auction.id, amount, max_price) do
-      {:ok, %{estimated_tokens_if_end_now: estimate}} -> assign(socket, estimate: estimate)
-      {:error, _incomplete} -> assign(socket, estimate: nil)
-    end
-  end
 
   defp opts(socket),
     do: [

@@ -5,14 +5,14 @@ defmodule AutolaunchWeb.AuctionLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
-  import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.RaiseProgress
 
+  alias Autolaunch.AuctionBook
   alias Autolaunch.AuctionFire
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
-  alias Autolaunch.PriceHistory
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
   alias AutolaunchWeb.UsdValue
 
@@ -28,7 +28,7 @@ defmodule AutolaunchWeb.AuctionLive do
      |> assign(:record_id, id)
      |> assign_positions()
      |> load_page(reset: true)
-     |> load_prices(reset: true)
+     |> load_book(reset: true)
      |> load_usd_rate()}
   end
 
@@ -71,7 +71,7 @@ defmodule AutolaunchWeb.AuctionLive do
        |> assign(:market, market)
        |> assign_positions()
        |> load_page(reset: false)
-       |> load_prices(reset: false)}
+       |> load_book(reset: false)}
     else
       {:noreply, socket}
     end
@@ -136,12 +136,14 @@ defmodule AutolaunchWeb.AuctionLive do
               />
             </:price_note>
           </.detail_card>
-          <.price_chart
-            :if={@prices.ok?}
-            id="auction-price-chart"
-            label="Clearing price since bidding opened"
-            points={@prices.result}
+          <.auction_book
+            :if={bidding_open?(@bidding_ended?) && @book.ok?}
+            id="auction-book"
+            book={@book.result}
+            symbol={@page_record.quote_token_symbol}
+            usd_rate={@usd_rate}
             color={@page_record.image_color}
+            bid_form="autolaunch-bid"
           />
           <.raise_progress
             :if={@market_snapshot}
@@ -261,10 +263,32 @@ defmodule AutolaunchWeb.AuctionLive do
             module={AutolaunchWeb.BidComponent}
             id="autolaunch-bid"
             auction={@page_record}
+            book={(@book.ok? && @book.result) || nil}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
           />
+          <section
+            :if={bidding_open?(@bidding_ended?) && @book.ok? && @my_positions != []}
+            id="autolaunch-my-bids"
+            class="bid-panel rg-panel rg-panel--surface"
+            aria-label="Your bids"
+          >
+            <h3>Your bids on this auction</h3>
+            <ul role="list" class="bid-positions">
+              <li :for={position <- @my_positions}>
+                Bid #{position.onchain_bid_id} ·
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={position.amount}
+                  unit={@page_record.quote_token_symbol}
+                /> up to
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={position.max_price}
+                  unit={"#{@page_record.quote_token_symbol} per token"}
+                /> · {position_standing(position, @page_record, @book.result)}
+              </li>
+            </ul>
+          </section>
           <section
             :if={!Autolaunch.Prelaunch.read_only?() && @bidding_ended?}
             id="autolaunch-settlement"
@@ -343,19 +367,19 @@ defmodule AutolaunchWeb.AuctionLive do
     assign_async(socket, :page, fn -> load_auction_page_with_token(id) end, reset: reset)
   end
 
-  # The clearing price since bidding opened, read from the auction's own logs
-  # apart from the page, so a slow read never holds the auction back.
-  defp load_prices(socket, reset: reset) do
+  # The price to get tokens and the bids around it, read from the auction
+  # contract apart from the page, so a slow read never holds the auction back.
+  defp load_book(socket, reset: reset) do
     id = socket.assigns.record_id
 
     assign_async(
       socket,
-      :prices,
+      :book,
       fn ->
         with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
              {:ok, %Autolaunch.Auction{} = auction} <- Autolaunch.get_public_auction(uuid),
-             {:ok, points} <- PriceHistory.base_auction(auction) do
-          {:ok, %{prices: points}}
+             {:ok, book} <- AuctionBook.base(auction) do
+          {:ok, %{book: book}}
         else
           {:error, reason} -> {:error, reason}
           _invalid_id -> {:error, :not_found}
@@ -363,6 +387,15 @@ defmodule AutolaunchWeb.AuctionLive do
       end,
       reset: reset
     )
+  end
+
+  defp bidding_open?(bidding_ended?), do: !Autolaunch.Prelaunch.read_only?() && !bidding_ended?
+
+  # A position records the exact price its bid was placed at.
+  defp position_standing(position, %{quote_token_decimals: decimals}, book) do
+    {:ok, price_q96} = Autolaunch.BidActions.price_q96(position.max_price, decimals)
+
+    price_q96 |> AuctionBook.standing(book) |> bid_status()
   end
 
   # The dollar price of the auction's currency, read apart from the page so a

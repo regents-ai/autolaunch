@@ -10,9 +10,15 @@ defmodule Autolaunch.BidPrice do
   """
   def decimal(q96, currency_decimals),
     do:
-      Decimal.new(1, q96 * Integer.pow(5, 96) * Integer.pow(10, 18), -(96 + currency_decimals))
-      |> Decimal.normalize()
+      (q96 * Integer.pow(5, 96) * Integer.pow(10, 18))
+      |> plain(-(96 + currency_decimals))
       |> Decimal.to_string(:normal)
+
+  # Drops trailing zeros by hand: `Decimal.normalize/1` would round the
+  # coefficient to the context precision, and a Q96 price has more digits.
+  defp plain(0, _exp), do: Decimal.new(0)
+  defp plain(coef, exp) when rem(coef, 10) == 0, do: plain(div(coef, 10), exp + 1)
+  defp plain(coef, exp), do: Decimal.new(1, coef, exp)
 
   defguardp is_positive_uint256(value) when is_integer(value) and value in 1..@uint256_max
   defguardp is_uint256(value) when is_integer(value) and value in 0..@uint256_max

@@ -78,7 +78,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         :if={@pool.ok?}
         id="robinhood-token-price-chart"
         label="Price since the pool opened"
-        points={@pool.result.prices}
+        history={@pool.result.prices}
+        unit={@pool.result.currency.symbol}
         color={@launch.result.image_color}
       />
       <dl class="autolaunch-live-market" aria-label="Token facts">

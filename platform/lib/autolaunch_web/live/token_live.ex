@@ -74,7 +74,8 @@ defmodule AutolaunchWeb.TokenLive do
         :if={@pool.ok?}
         id="token-price-chart"
         label="Price since the pool opened"
-        points={@pool.result.prices}
+        history={@pool.result.prices}
+        unit={@pool.result.currency.symbol}
         color={@presentation.image_color}
       />
       <.exact_price

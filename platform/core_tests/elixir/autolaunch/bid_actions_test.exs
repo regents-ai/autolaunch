@@ -115,7 +115,9 @@ defmodule Autolaunch.BidActionsTest do
       assert args["requested_max_price"] == requested
       assert args["max_price_q96"] == Integer.to_string(expected)
       assert rem(expected, spacing) == 0
-      assert Decimal.compare(Decimal.new(args["max_price"]), Decimal.new(requested)) == :lt
+
+      assert Decimal.compare(Decimal.new(args["max_price"], max_digits: :infinity), requested) ==
+               :lt
 
       assert op.envelope["data"] ==
                Autolaunch.LabAbi.encode(

@@ -15,11 +15,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
-  import AutolaunchWeb.Components.PriceChart
+  import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.RaiseProgress
 
+  alias Autolaunch.AuctionBook
   alias Autolaunch.Chain.Address
-  alias Autolaunch.PriceHistory
   alias Autolaunch.Robinhood.{Auctions, Lab}
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.UsdValue
@@ -63,12 +63,14 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
               <UsdValue.usd amount={@launch.result.clearing_price} rate={@usd_rate} per="per token" />
             </:price_note>
           </.detail_card>
-          <.price_chart
-            :if={@prices.ok?}
-            id="robinhood-auction-price-chart"
-            label="Clearing price since bidding opened"
-            points={@prices.result}
+          <.auction_book
+            :if={@launch.result.state == :active && @book.ok?}
+            id="robinhood-auction-book"
+            book={@book.result}
+            symbol={@launch.result.stock_symbol}
+            usd_rate={@usd_rate}
             color={@launch.result.image_color}
+            bid_form="autolaunch-robinhood-bid"
           />
           <.raise_progress
             id="robinhood-raise-progress"
@@ -124,6 +126,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             id="autolaunch-robinhood-bid"
             auction={@auction}
             ended={ended_copy(@launch.result)}
+            book={(@book.ok? && @book.result) || nil}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}
@@ -173,7 +176,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       assign(socket,
         launch: %Phoenix.LiveView.AsyncResult{},
         creator_connections: %Phoenix.LiveView.AsyncResult{},
-        prices: %Phoenix.LiveView.AsyncResult{}
+        book: %Phoenix.LiveView.AsyncResult{}
       )
 
   defp load_launch(socket) do
@@ -194,11 +197,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       reset: true
     )
     |> assign_async(
-      :prices,
-      fn ->
-        with {:ok, points} <- PriceHistory.robinhood_auction(auction),
-             do: {:ok, %{prices: points}}
-      end,
+      :book,
+      fn -> with {:ok, book} <- AuctionBook.robinhood(auction), do: {:ok, %{book: book}} end,
       reset: true
     )
   end
