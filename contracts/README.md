@@ -10,6 +10,9 @@ splitter. When it does not graduate, the token supply is retired and bidders ref
 
 Four Foundry projects, one per directory. Each is built and verified from its own directory.
 
+For Uniswap CCA engineers, [CCA-INTEGRATION.md](CCA-INTEGRATION.md) lists every CCA parameter our
+contracts set and every one the launcher chooses.
+
 | Project | What it is | Chain | Status on 23 September 2026 | Verify |
 | --- | --- | --- | --- | --- |
 | [v1/](v1/README.md) | Base Revstake: agent tokens auctioned for REGENT, with a permanent fee-only LP locker, a shared fee hook, per-launch staking, payment receivers and a vesting escrow | Base (8453) | **Deployed** on Base on 22 September 2026 (eight contracts, verified on Basescan); launches paused until the Governance and Regent Safe calls `unpauseLaunches()` | `cd v1 && bin/gate.sh`, offline, after the one-time setup in its README |
