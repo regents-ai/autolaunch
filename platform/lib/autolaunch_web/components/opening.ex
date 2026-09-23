@@ -9,14 +9,15 @@ defmodule AutolaunchWeb.Components.Opening do
   @doc """
   Time left until opening, ticked each second in the browser from the server's
   first value. LiveView leaves its contents alone so a page update never
-  rewinds it.
+  rewinds it. Past the opening time, until the site switches over, it reads
+  "Opening soon".
   """
   def countdown(assigns) do
     assigns =
       assign(assigns,
         opens_at: DateTime.to_iso8601(Prelaunch.opens_at()),
         label: Prelaunch.opens_at_label(),
-        remaining: remaining(DateTime.utc_now())
+        seconds: max(DateTime.diff(Prelaunch.opens_at(), DateTime.utc_now()), 0)
       )
 
     ~H"""
@@ -27,15 +28,15 @@ defmodule AutolaunchWeb.Components.Opening do
       phx-update="ignore"
       title={"Opens #{@label}"}
     >
-      <span class="opening-countdown__label">Opens in</span>
-      <span class="opening-countdown__time" role="timer">{@remaining}</span>
+      <span class="opening-countdown__label" hidden={@seconds == 0}>Opens in</span>
+      <span class="opening-countdown__time" role="timer">{remaining(@seconds)}</span>
     </span>
     """
   end
 
-  defp remaining(now) do
-    seconds = max(DateTime.diff(Prelaunch.opens_at(), now), 0)
+  defp remaining(0), do: "Opening soon"
 
+  defp remaining(seconds) do
     [div(seconds, 3600), div(rem(seconds, 3600), 60), rem(seconds, 60)]
     |> Enum.map_join(":", &(&1 |> Integer.to_string() |> String.pad_leading(2, "0")))
   end
