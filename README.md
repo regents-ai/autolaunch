@@ -110,8 +110,9 @@ Autolaunch's contracts are built so that the promises above do not depend on tru
   claims, trading, staking or payments;
 - for Memestake, choose which stocks new launches can use. Removing a stock stops only new
   launches with it;
-- for Memestake, choose who converts Regent's 1% share of the fees into dollars. The conversion
-  must come within 5% of the stock's Chainlink price.
+- for Memestake, choose who converts Regent's 1% share of the fees into dollars. The contracts do
+  not check the conversion price: whoever converts sets the least they will accept, and the website
+  offers 95% of the stock's Chainlink price as that minimum.
 
 **Your money stays in your wallet.** The website never holds funds. Every bid, trade, stake and
 claim is a transaction you approve in your own wallet.
