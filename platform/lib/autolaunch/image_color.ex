@@ -6,9 +6,11 @@ defmodule Autolaunch.ImageColor do
 
   The image is shrunk to a small square and its opaque pixels grouped by hue,
   each weighted by how colourful it is, so a small bright area beats a large
-  dull one. The heaviest group's average colour wins. An image with almost no
-  colour is known by a neutral grey. Either way the lightness is kept in a band
-  that reads against both the light and the dark theme.
+  dull one. The heaviest group's average colour wins. When that colour and its
+  two neighbouring hues are both small and dull, the image is known by a
+  neutral grey: a photo whose strongest colour is a dull patch of skin is grey,
+  while a small vivid logo on black keeps its colour. Either way the lightness is kept in a band that reads against
+  both the light and the dark theme.
 
   Images are stored at `/images/<id>/<digest>` and `/stock-images/<id>/<digest>`;
   `for_urls/1` reads the colours of such addresses in one query per table.
@@ -21,8 +23,10 @@ defmodule Autolaunch.ImageColor do
   @min_alpha 128
   # A pixel this close to grey carries no hue.
   @min_chroma 38
-  # Below this share of colourful weight the image is known by its grey.
-  @min_colourful 0.04
+  # The winning hue and its neighbours keep their colour when they cover this
+  # share of the image, weighted by chroma, or are this vivid on average.
+  @min_share 0.06
+  @vivid_chroma 80
   @min_lightness 0.42
   @max_lightness 0.62
   @grey_lightness 0.52
@@ -111,18 +115,30 @@ defmodule Autolaunch.ImageColor do
           else: buckets
       end)
 
-    colourful = buckets |> Map.values() |> Enum.map(&elem(&1, 0)) |> Enum.sum()
+    case Enum.max_by(buckets, fn {_bucket, {_n, weight, _r, _g, _b}} -> weight end, fn -> nil end) do
+      {bucket, {_n, weight, r, g, b}} ->
+        {count, near} = window(buckets, bucket)
 
-    if colourful < @min_colourful * 255 * length(pixels) do
-      grey()
-    else
-      {weight, r, g, b} = buckets |> Map.values() |> Enum.max_by(&elem(&1, 0))
-      banded({r / weight, g / weight, b / weight})
+        if near < @min_share * 255 * length(pixels) and near < @vivid_chroma * count,
+          do: grey(),
+          else: banded({r / weight, g / weight, b / weight})
+
+      nil ->
+        grey()
     end
   end
 
-  defp weighed({r, g, b}, w), do: {w, r * w, g * w, b * w}
-  defp add({w0, r0, g0, b0}, {r, g, b}, w), do: {w0 + w, r0 + r * w, g0 + g * w, b0 + b * w}
+  # How many pixels a hue and its two neighbours hold, and their summed chroma.
+  defp window(buckets, bucket) do
+    [bucket - 1, bucket, bucket + 1]
+    |> Enum.map(&Map.get(buckets, Integer.mod(&1, @buckets), {0, 0, 0, 0, 0}))
+    |> Enum.reduce({0, 0}, fn {n, w, _r, _g, _b}, {count, weight} -> {count + n, weight + w} end)
+  end
+
+  defp weighed({r, g, b}, w), do: {1, w, r * w, g * w, b * w}
+
+  defp add({n, w0, r0, g0, b0}, {r, g, b}, w),
+    do: {n + 1, w0 + w, r0 + r * w, g0 + g * w, b0 + b * w}
 
   defp bucket({r, g, b}) do
     {h, _s, _l} = hsl({r / 255, g / 255, b / 255})
