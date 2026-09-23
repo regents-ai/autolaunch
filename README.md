@@ -134,7 +134,7 @@ claim is a transaction you approve in your own wallet.
 | | |
 | --- | --- |
 | Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches are not open yet |
-| Memestake on Base | Contracts deployed on 23 September 2026 ([addresses](contracts/stocks/deployments/base-mainnet/README.md)), with ten stocks ready to add: Apple, Amazon, Alphabet, Meta, Microsoft, MicroStrategy, Nvidia, SanDisk, SpaceX and Tesla. Launches are not open yet |
+| Memestake on Base | Contracts deployed on 23 September 2026 ([addresses](contracts/stocks/deployments/base-mainnet/README.md)), with ten stocks ready to add: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches are not open yet |
 | Memestake on Robinhood Chain | Not deployed yet |
 | autolaunch.sh | You can browse it now. Launching, bidding and trading turn on when the contracts open |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
