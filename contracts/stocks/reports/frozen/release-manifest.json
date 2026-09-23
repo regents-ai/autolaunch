@@ -21,7 +21,7 @@
     "MemestockLPLocker",
     "MemestockSplitterV1",
     "StockBidAdapterV1",
-    "AerodromeStockRouteV1"
+    "AerodromeStockRouteV2"
   ],
   "contracts": {
     "StocksLaunchpadV1": {
@@ -155,29 +155,29 @@
         "status": "deployment_pending"
       }
     },
-    "AerodromeStockRouteV1": {
-      "source": "src/routes/AerodromeStockRouteV1.sol",
-      "role": "The production IStockRoute: one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed.",
-      "deployed_by": "deployment script (CREATE from the deployer), one per admitted STOCK, before admitStock",
+    "AerodromeStockRouteV2": {
+      "source": "src/routes/AerodromeStockRouteV2.sol",
+      "role": "The production IStockRoute: one per admitted STOCK, executing on its Aerodrome Slipstream USDC pool under the caller's minimum alone and quoting from its Chainlink feed.",
+      "deployed_by": "by hand from the deployer (CREATE), one per admitted STOCK, before admitStock in the Safe session",
       "compiler": "0.8.26+commit.8a97fa7a",
-      "runtime_bytes": 2759,
-      "runtime_keccak256": "0x586be4d2a11017379ab7df8905bdb05143e47184129a48ee6eb3a5c964e98435",
-      "runtime_sha256": "0b505d5fff4c2111f9696fe8f83ca0b2051cd456ac173830a64944f6875797f5",
-      "runtime_object_sha256": "98e28e60dc6bd525c0494003a5a3a6ca497ac2a3fb6d6d7d8e365db2e2151e68",
+      "runtime_bytes": 2721,
+      "runtime_keccak256": "0x8e26b30c20e0b5f4afbb52b57a0b5a55a3d7409e8a6890927d98d28a0c084f14",
+      "runtime_sha256": "0ff3f26d664f2917354efdc0e99f52a28ffa1bf8a15f8fcbd3802b7ecdf64e4b",
+      "runtime_object_sha256": "997173b2c6dfbae66791e77121c0507ce4e10a3bfe073db3fe4e4e13d5511e91",
       "runtime_immutable_references": 6,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 3850,
-      "creation_keccak256": "0xe0ba4f68226aa0ba9332058f173196bda7b5003766d36d2cf1df471db9787bf3",
-      "creation_sha256": "fb4cbb624fbad036725e4872227d8c773cc13e6ada2d100ec7a9dd1e4475ffe5",
-      "creation_object_sha256": "92b81307aff67d77f6a30581866f07aee031bf3a2ff3eb393b9aab706d492264",
+      "creation_bytes": 3819,
+      "creation_keccak256": "0xf03efbb2c3d47a47c37faed99f0e62ae92520e02089e89406befd2b69f9ca5ac",
+      "creation_sha256": "74730c42cea5afab6746bda6fce41545a326c01216542326de49436df39f6356",
+      "creation_object_sha256": "e261e2dbdea99876c13c7382ec0418446c26a6e2eedaaf0f3769f39b297e7901",
       "creation_linked_libraries": [],
       "constructor": [
         "address stock_",
         "address pool_",
         "address feed_"
       ],
-      "abi_file": "abi/AerodromeStockRouteV1.json",
+      "abi_file": "abi/AerodromeStockRouteV2.json",
       "deployment": {
         "address": null,
         "status": "deployment_pending"

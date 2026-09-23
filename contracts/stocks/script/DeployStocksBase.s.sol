@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {Script} from "forge-std/Script.sol";
-import {AerodromeStockRouteV1} from "../src/routes/AerodromeStockRouteV1.sol";
+import {AerodromeStockRouteV2} from "../src/routes/AerodromeStockRouteV2.sol";
 import {StockBidAdapterV1} from "../src/StockBidAdapterV1.sol";
 import {StocksBindings} from "../src/StocksBindings.sol";
 import {StocksFeeHookV1} from "../src/StocksFeeHookV1.sol";
@@ -164,7 +164,7 @@ contract DeployStocksBase is Script {
 
         for (uint256 i; i < ceremony.admissions.length; ++i) {
             Admission memory admission = ceremony.admissions[i];
-            created = address(new AerodromeStockRouteV1(admission.stock, admission.pool, admission.feed));
+            created = address(new AerodromeStockRouteV2(admission.stock, admission.pool, admission.feed));
             if (created != graph.routes[i]) {
                 revert CreationAddressMismatch(FIXED_CREATIONS + i, graph.routes[i], created);
             }

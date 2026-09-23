@@ -1,6 +1,10 @@
 # Robinhood Chain: the Memestake ceremony
 
-**Nothing here has been deployed.** The package is mainnet NO-GO.
+**Being deployed.** The founder approved packet digest
+`0x410d7a8a45b9b2e31ab0d96a74b56df1750f7cb66d9730d2a1e7d6cdfa8eb811` (the six Robinhood Chain
+creations, 25 `UniswapV3StockRouteV1` routes and the Base receiver) and the ceremony is in
+progress. Addresses become deployed facts only when `deployed-manifest.json` records the confirmed
+receipts; until then the packet's predicted addresses are predictions.
 
 Two files live in this directory, and keeping them apart is the point.
 
@@ -14,9 +18,10 @@ Two files live in this directory, and keeping them apart is the point.
   byte with this committed copy; the tool never installs a candidate. Every value in it is public;
   no key, mnemonic, keystore path, endpoint or credential belongs here.
 
-- `deployed-manifest.json` is a **record**, and it is empty. It is populated once, by `record`,
-  from confirmed receipts on both chains, after the founder has named the packet's exact digest and
-  sent the ceremony by hand. No simulated fact may reach it.
+- `deployed-manifest.json` is a **record**. It is empty until the ceremony's receipts are
+  confirmed, and is then populated once, by `record`, from those receipts on both chains, after the
+  founder has named the packet's exact digest and sent the ceremony by hand. No simulated fact may
+  reach it.
 
 Run every tool command from this directory's package root, `contracts/robinhood`, as
 `python3 ../stocks/bin/ceremony.py <mode>`.

@@ -1,6 +1,6 @@
 {
   "purpose": "The frozen hermetic test portfolio: every test identity Foundry lists under the default profile, by source file and contract. bin/gate.sh takes the listing again and requires it to equal this, then requires every listed test to execute exactly once and pass.",
-  "total": 91,
+  "total": 93,
   "tests": {
     "test/RobinhoodBaseReceiver.t.sol": {
       "RobinhoodBaseReceiverTest": [
@@ -99,17 +99,18 @@
         "test_quote_converts_both_ways_at_the_feed_price",
         "test_quote_rejects_a_stopped_or_broken_feed",
         "test_quote_rejects_zero_amount_and_unsupported_pairs",
-        "test_swap_accepts_a_pool_price_within_five_percent_of_the_feed",
         "test_swap_cannot_be_reentered_from_the_pool_callback",
-        "test_swap_refuses_a_fill_too_short_to_meet_the_feed_bound",
-        "test_swap_refuses_a_pool_price_more_than_five_percent_under_the_feed",
+        "test_swap_far_under_the_feed_executes_when_the_caller_minimum_allows",
+        "test_swap_far_under_the_feed_is_refused_by_the_caller_minimum",
         "test_swap_rejects_a_zero_recipient",
         "test_swap_rejects_output_under_the_caller_minimum",
+        "test_swap_rejects_zero_amount_and_unsupported_pairs",
         "test_swap_returns_unconsumed_input_to_the_recipient",
         "test_swap_returns_unconsumed_stock_to_the_recipient",
+        "test_swap_short_fill_is_refused_only_by_the_caller_minimum",
         "test_swap_stock_to_usdg_pays_the_recipient_and_keeps_nothing",
-        "test_swap_usdg_to_stock_pays_the_recipient_and_keeps_nothing",
-        "test_swap_validates_the_feed_before_touching_the_pool"
+        "test_swap_succeeds_while_the_feed_is_stale_and_the_quote_reverts",
+        "test_swap_usdg_to_stock_pays_the_recipient_and_keeps_nothing"
       ],
       "UniswapV3StockRouteUsdgFirstTest": [
         "test_callback_accepts_only_the_pinned_pool",
@@ -122,17 +123,18 @@
         "test_quote_converts_both_ways_at_the_feed_price",
         "test_quote_rejects_a_stopped_or_broken_feed",
         "test_quote_rejects_zero_amount_and_unsupported_pairs",
-        "test_swap_accepts_a_pool_price_within_five_percent_of_the_feed",
         "test_swap_cannot_be_reentered_from_the_pool_callback",
-        "test_swap_refuses_a_fill_too_short_to_meet_the_feed_bound",
-        "test_swap_refuses_a_pool_price_more_than_five_percent_under_the_feed",
+        "test_swap_far_under_the_feed_executes_when_the_caller_minimum_allows",
+        "test_swap_far_under_the_feed_is_refused_by_the_caller_minimum",
         "test_swap_rejects_a_zero_recipient",
         "test_swap_rejects_output_under_the_caller_minimum",
+        "test_swap_rejects_zero_amount_and_unsupported_pairs",
         "test_swap_returns_unconsumed_input_to_the_recipient",
         "test_swap_returns_unconsumed_stock_to_the_recipient",
+        "test_swap_short_fill_is_refused_only_by_the_caller_minimum",
         "test_swap_stock_to_usdg_pays_the_recipient_and_keeps_nothing",
-        "test_swap_usdg_to_stock_pays_the_recipient_and_keeps_nothing",
-        "test_swap_validates_the_feed_before_touching_the_pool"
+        "test_swap_succeeds_while_the_feed_is_stale_and_the_quote_reverts",
+        "test_swap_usdg_to_stock_pays_the_recipient_and_keeps_nothing"
       ]
     }
   }

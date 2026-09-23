@@ -28,9 +28,9 @@
       "role": "Bids into a launch's auction with STOCK on behalf of msg.sender through the launchpad's admitted route.",
       "deployed_by": "deployment script (CREATE from the deployer)"
     },
-    "AerodromeStockRouteV1": {
-      "role": "The production IStockRoute: one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed.",
-      "deployed_by": "deployment script (CREATE from the deployer), one per admitted STOCK, before admitStock"
+    "AerodromeStockRouteV2": {
+      "role": "The production IStockRoute: one per admitted STOCK, executing on its Aerodrome Slipstream USDC pool under the caller's minimum alone and quoting from its Chainlink feed.",
+      "deployed_by": "by hand from the deployer (CREATE), one per admitted STOCK, before admitStock in the Safe session"
     }
   },
   "clone_targets": ["MemestockSplitterV1"],

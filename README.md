@@ -135,7 +135,7 @@ claim is a transaction you approve in your own wallet.
 | | |
 | --- | --- |
 | Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches are not open yet |
-| Memestake on Base | Contracts deployed on 23 September 2026 ([addresses](contracts/stocks/deployments/base-mainnet/README.md)), with ten stocks ready to add: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches are not open yet |
+| Memestake on Base | Contracts deployed and verified on Basescan on 23 September 2026 ([addresses](contracts/README.md#base-8453-memestake)), with ten stocks added: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches are not open yet |
 | Memestake on Robinhood Chain | Not deployed yet |
 | autolaunch.sh | You can browse it now. Launching, bidding and trading turn on when the contracts open |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
@@ -146,7 +146,7 @@ claim is a transaction you approve in your own wallet.
   change what.
 - [Command-line tool](cli/README.md) and [API and agent tools](platform/docs/public-webmcp.md):
   public auction and token data for scripts and AI agents.
-- Developers: [website](platform/README.md) and [contracts](contracts/README.md#building-and-checking-the-contracts)
+- Developers: [website](platform/README.md) and [contracts](contracts/README.md)
   setup.
 
 Autolaunch is part of the Regent family, with [Regents](https://regents.sh),

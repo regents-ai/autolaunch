@@ -18,8 +18,13 @@ Agent subject splitter, not a change to it.
 
 ## Status
 
-`implemented-unverified` at best until the evidence index in `platform/docs/stocks.md` says
-otherwise. No deployment, funding or public-chain transaction is part of this component.
+Deployed on Base on 23 September 2026 under packet digest
+`0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5`; the addresses are in
+[deployments/base-mainnet/](deployments/base-mainnet/README.md) and in the top-level
+[contracts/README.md](../README.md). Ten stocks are admitted with `AerodromeStockRouteV2` routes
+and the hook executor is set; the launchpad stays paused until the Governance and Regent Safe calls
+`unpauseLaunches()`. The evidence index in `platform/docs/stocks.md` records the verification
+status of each claim.
 
 ## Layout
 
@@ -34,7 +39,7 @@ otherwise. No deployment, funding or public-chain transaction is part of this co
 | `src/MemestockLPLocker.sol` | Permanent fee-only owner of every launch position; anyone may `collect`, the fees always land in the launch's splitter. Shared with the Robinhood launchpad. |
 | `src/StockBidAdapterV1.sol` | Atomic USDC → STOCK → CCA bid owned by the caller. |
 | `src/StocksBindings.sol` | The frozen Base bindings this component compiles against, copied from `contracts/v1`, plus canonical Permit2. |
-| `src/routes/` | `IStockRoute` implementations: `AerodromeStockRouteV1`, the production route (one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed), and the lab-only `FixtureStockRoute`. |
+| `src/routes/` | `IStockRoute` implementations: `AerodromeStockRouteV2`, the production route (one per admitted STOCK, over its Aerodrome Slipstream USDC pool and Chainlink feed), and the lab-only `FixtureStockRoute`. |
 | `src/fixtures/` | `FixtureStockToken` and `FixtureStockCatalog`: the ERC-20 the local fork installs at the catalog addresses, and the catalog itself. Lab-only. |
 | `test/` | Hermetic suite: real PoolManager, PositionManager, CCA factory, UERC20 factory and Permit2 bytecode at their frozen addresses; USDC, REGENT and live staking are named doubles; the splitter and the locker are the real contracts. |
 | `test/fork/` | The local Base-fork suite (`FOUNDRY_PROFILE=fork`), against chain truth on the lab fork. |
@@ -145,7 +150,7 @@ and collect often. Tokens other than the three recognized assets can be swept to
 
 ### Stock routes
 
-`AerodromeStockRouteV1` is the production `IStockRoute`: one contract per STOCK, pinned at
+`AerodromeStockRouteV2` is the production `IStockRoute`: one contract per STOCK, pinned at
 construction to that stock's Aerodrome Slipstream USDC/STOCK pool (factory
 `0xf8f2eb4940cfe7d13603dddd87f123820fc061ef`, tick spacing 10, 0.05% fee; USDC is always
 `token0`) and to its Chainlink total-return feed (8 decimals, USD per share, held at the last
@@ -154,11 +159,21 @@ caller-supplied calldata, and:
 
 - quotes from the feed, not the pool; `launch` does not quote at all, the required raise is the
   launcher's STOCK amount and the CCA's raise test is in STOCK;
-- executes on the pool with the widest price limit and refuses any execution that delivers more than
-  5% (`MAX_DEVIATION_BPS`) under the feed quote, on top of the caller's own `minAmountOut`;
-- refuses a feed answer that is not positive or is older than 7 days (`MAX_FEED_AGE`);
+- executes on the pool with the widest price limit; the price control is the minimum each caller
+  sets (`minAmountOut`), and `swapExactIn` never reads the feed. The executor's minimum is what
+  protects REGENT's share of every REGENT-lane sale, so the executor key must be kept safe and
+  sales should be split in thin markets; the website offers bidders a minimum at 95% of the
+  Chainlink price;
+- refuses a quote whose feed answer is not positive or is older than 7 days (`MAX_FEED_AGE`);
 - returns whatever input the pool did not consume to the recipient in the same call and holds
   nothing between calls; the pool's pull callback accepts the pinned pool only.
+
+The ten `AerodromeStockRouteV1` routes the Base ceremony created on 22–23 September 2026 carried a
+5% feed guard on execution; the founder removed it before any was admitted. They are retired.
+Ten V2 routes were created by hand from the deployer on 23 September 2026 and admitted by the Safe
+in transaction `0x97030521eac9d0eace8f53d1bcb5f42ef3527cabb712d73228bfe4fc8617fbd6` (block
+51698209); their addresses are in the top-level [contracts/README.md](../README.md) and readable
+from the launchpad's `stockAdmission(stock)`.
 
 Admittable today (a Chainlink feed and a Slipstream USDC pool both exist; COINc, CRCLc and INTCc
 have neither):

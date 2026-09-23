@@ -22,11 +22,11 @@
     "append_cbor": false
   },
   "source_identity": {
-    "src_tree": "8f706cdd4b007033b11a3fe0e8bef5ad8137f171",
-    "shared_src_tree": "ae774116e03bd45492d9aa3c8b00fbbbe704383f",
+    "src_tree": "4ba1902d0dc3f8ee843b9e1554ae041fdddd308b",
+    "shared_src_tree": "f93c456933072e823de729b80665cdb50d8d779e",
     "shared_component": "contracts/stocks"
   },
-  "frozen_manifest_sha256": "658c752728c16abfe2115b126ace97f8a24fbb0aa4d4e3049a39e9448a176ac8",
+  "frozen_manifest_sha256": "a3b57b027b137b654aa16527589664730c1f2f8305a3ceb5e573e9a66b8cbea1",
   "code_identity": [
     {
       "contract": "UERC20Factory",
@@ -130,13 +130,13 @@
         "address pool_",
         "address feed_"
       ],
-      "runtime_bytes": 2975,
-      "runtime_keccak256": "0xd7dc66a5abb635cdc549ddb8d5544cfd3fca0cf11780715b1d5ae7f93730a5d5",
+      "runtime_bytes": 2935,
+      "runtime_keccak256": "0xeb18a5037da87ed36c61cee938096a22bcda02836c1b3b82b8136c7bffaaef36",
       "runtime_immutable_references": 7,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 4279,
-      "creation_keccak256": "0x89ca45101adc90350567d742d2a9efc247c0fa03761cad3643f7fb88a79ad576"
+      "creation_bytes": 4246,
+      "creation_keccak256": "0x42cc4cbc4e2755f6fc20d45cd401dcd06eb16444687b1149df3d140f063855ff"
     },
     {
       "contract": "RobinhoodFeeHookV1",
@@ -205,13 +205,1158 @@
     }
   ],
   "hook_permission_bits": "0x20cc",
-  "selection": null,
-  "external_observation": null,
-  "topology": null,
+  "selection": {
+    "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+    "starting_nonce": 0,
+    "hook_salt": "0x0000000000000000000000000000000000000000000000000000000000002d89",
+    "external": {
+      "usdg": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "cca_factory": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+      "pool_manager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+      "position_manager": "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+      "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+      "admin_safe": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+    },
+    "site_bindings": {
+      "swap_router": "0x204FAca1764B154221e35c0d20aBb3c525710498",
+      "quoter": "0x8Dc178eFB8111BB0973Dd9d722ebeFF267c98F94"
+    },
+    "admissions": [
+      {
+        "stock": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+        "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+        "feed": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0"
+      },
+      {
+        "stock": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+        "pool": "0x48D284A2A4d3DC1b3Da08231Fe44317e7e7Aa51f",
+        "feed": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72"
+      },
+      {
+        "stock": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+        "pool": "0x8AC92DA74AB5F3b1d024Dc1943Ad7e15Dc4179Ef",
+        "feed": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C"
+      },
+      {
+        "stock": "0xad25Ac6C84D497db898fa1E8387bf6Af3532a1c4",
+        "pool": "0xa57ab582b310dd6f9e934EA1EEEa152741545E6A",
+        "feed": "0x62Cc8F9b5f56a33c9C8A60c8B92779f523c4E984"
+      },
+      {
+        "stock": "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5",
+        "pool": "0x654E4143e82a5824445Ade0824351C2A9ACD95a8",
+        "feed": "0x6652eDf64bA3731C4F2D3ce821A0Fb1f1f6b482a"
+      },
+      {
+        "stock": "0x941AE714EC6D8130c7B75d67160Ca08f1e7d11Dd",
+        "pool": "0xc30c89cB7815A1488b7998D15eEC73961707Fc5a",
+        "feed": "0x1C6c8cADBe02E19129c39dDB92281cE4c0bf206b"
+      },
+      {
+        "stock": "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
+        "pool": "0xE2b46c905E12Ab8E2f864e4821a4325884C1B126",
+        "feed": "0x27C71df6A64fB476468EdF256CF72c038baB5B67"
+      },
+      {
+        "stock": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+        "pool": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+        "feed": "0xF6f373a037c30F0e5010d854385cA89185AE638b"
+      },
+      {
+        "stock": "0xc72b96e0E48ecd4DC75E1e45396e26300BC39681",
+        "pool": "0x2e5a92f5013a64661A49312111be2e8aBd33F56a",
+        "feed": "0x3f390C5C24628Ac7C489515402235FeAD71D1913"
+      },
+      {
+        "stock": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+        "pool": "0x107a7Cb40d8665360ba10E59471Af06150A50922",
+        "feed": "0x7C38C00C30BEe9378381E7B6135d7283356D71b1"
+      },
+      {
+        "stock": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+        "pool": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510",
+        "feed": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E"
+      },
+      {
+        "stock": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+        "pool": "0x17578C0e0D15da44f31677263114F71aE76653EA",
+        "feed": "0x396118bdFB181e6240E74D243F266B061c0edc3D"
+      },
+      {
+        "stock": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD",
+        "pool": "0xd057B1Bc54917855BBee58eAd58647f47caB35E5",
+        "feed": "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596"
+      },
+      {
+        "stock": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "pool": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+        "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15"
+      },
+      {
+        "stock": "0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A",
+        "pool": "0x851680416A4f4E1c463d45171d61ACDdBc8554c0",
+        "feed": "0x820ABedFF239034956B7A9d2F0a331f9F075eB4c"
+      },
+      {
+        "stock": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+        "pool": "0xD60A5d14dB690B7Afad71F76B108071D7175597d",
+        "feed": "0x80901d846d5D7B030F26B480776EE3b29374C2ae"
+      },
+      {
+        "stock": "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5",
+        "pool": "0x6Ba50150B17Ffd0972915Aaf04fFd5E8f4Fa49b4",
+        "feed": "0xa0DF4ee0fFf975306345875E3548Fcc519577A11"
+      },
+      {
+        "stock": "0x411eFb0E7f985935DAec3D4C3ebaEa0d0AD7D89f",
+        "pool": "0x8cB787e6c315D464775289BaD00FDD67d53Ecb3D",
+        "feed": "0x209b73908e92Ae021826eD79609845451Ecba2ce"
+      },
+      {
+        "stock": "0xB90A19fF0Af67f7779afF50A882A9CfF42446400",
+        "pool": "0xA1e1C9519cD5ae47e9A935645E1A7b935b944559",
+        "feed": "0xfb133Fa4B7b385802B693a293606682Df47109A3"
+      },
+      {
+        "stock": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
+        "pool": "0xc61284332117c3FB23A2A56cceFFD07F7aF60029",
+        "feed": "0xB265810950ba6c5C0Ff821c9963014a56fD8Bffb"
+      },
+      {
+        "stock": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+        "pool": "0xa7Bb1AC63BBaB0C44316E6c8C455213441689167",
+        "feed": "0x319724394D3A0e3669269846abE664Cd621f9f6A"
+      },
+      {
+        "stock": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+        "pool": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3",
+        "feed": "0x4A1166a659A55625345e9515b32adECea5547C38"
+      },
+      {
+        "stock": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA",
+        "pool": "0x07e8Ea83D4C1340774c8965125e26e12bf943bf1",
+        "feed": "0x874cF94aa8eC88Fd9560094dD065f2fB3E41Fc2F"
+      },
+      {
+        "stock": "0xd917B029C761D264c6A312BBbcDA868658eF86a6",
+        "pool": "0x04391780F519B7d3ba59c9590459D76e23d225C4",
+        "feed": "0xA994d3684e8400A6c8078226925779FdeE682DD9"
+      },
+      {
+        "stock": "0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344",
+        "pool": "0x02175608F1b5E6b5ed221cCFdC7Be197D111D915",
+        "feed": "0x75a9c76Ef439e2C7c2E5a34Ab105EcFe3766431c"
+      }
+    ],
+    "predicted_addresses": {
+      "uerc20_factory": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+      "inbox": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+      "positions_lib": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
+      "hook_factory": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
+      "launchpad": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+      "bid_adapter": "0x1d36a95112835f81b1B499A808e556020C64Cac2",
+      "hook": "0xea3Bea7E546CB12aBf6eCB168Cb4bb17fc9A60CC",
+      "splitter_implementation": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95",
+      "locker": "0x849Fdcc586d6220d2763589170d7490142e87f88",
+      "routes": [
+        "0xd28e66967C1fE651e6EC47f13397a74240C064A2",
+        "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41",
+        "0x740D2e1978991cdC0594D3a5F69B04C9148B2581",
+        "0xF26A18A009362695d00043eb63F7AB42B2170CA9",
+        "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27",
+        "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df",
+        "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82",
+        "0x49E0995070753fA58152889829249febcF9E0C53",
+        "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60",
+        "0xACfa95f1c16eF61C281C26511556Bf918814151F",
+        "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7",
+        "0x547F3b931EaF75bAb98364aB396058ddc2E68e4a",
+        "0xa851eb9bb6455b3C243B7ad0a3bAF026C76b2F4e",
+        "0x33102EfaE7846b8B23199394c8e04b4Fbe760585",
+        "0x2fFb4E5243DBE074a80221A671a940A34347624a",
+        "0xb0214E19c899b95D4CDb9054f5C2DC9a26a1a53b",
+        "0x9Bf555a848b11b19c248A137B828877BcADFd3C3",
+        "0xFc783A3cfACb4Af476d55b292107AEe3A23726eF",
+        "0x51B6f1AdE5568701b67947dd69B07F6e2c8C1Ea9",
+        "0x89B9f6D4408a88958eC3268D93b68e748Ab82EC3",
+        "0xD0C568fd5A45959da9B0bD7C002a973c845231E7",
+        "0xbF73B915Baf7EBbbBA26cf51eEb64a6A23c81481",
+        "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+        "0x8F511153393429468C3861E7cC5341Abb3310871",
+        "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942"
+      ]
+    },
+    "base_receiver": {
+      "chain_id": 8453,
+      "deployer": "0x9b2C414614aEE294202c1219520955EF3B596031",
+      "starting_nonce": 27,
+      "base_safe": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+      "predicted_address": "0xbF73B915Baf7EBbbBA26cf51eEb64a6A23c81481"
+    }
+  },
+  "external_observation": {
+    "observed_at_block": 70747574,
+    "bindings": {
+      "usdg": {
+        "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "codehash": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6"
+      },
+      "cca_factory": {
+        "address": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+        "codehash": "0xa1d2a90564f4f63580b25de42efaff92505c254b00fc666f65ab38126cce5cfa"
+      },
+      "pool_manager": {
+        "address": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+        "codehash": "0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626"
+      },
+      "position_manager": {
+        "address": "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+        "codehash": "0xc873e135dc9aaec88489cfbad146b4cb49d6a32e0d80326377784b7ba17670b2"
+      },
+      "permit2": {
+        "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+        "codehash": "0x5208783f52488f7d3493e5e38311ab707c1d75457fe472a19b0b4d57d66a7fca"
+      },
+      "admin_safe": {
+        "address": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+        "codehash": "0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c"
+      }
+    },
+    "usdg_decimals": 6,
+    "site_bindings": {
+      "swap_router": {
+        "address": "0x204FAca1764B154221e35c0d20aBb3c525710498",
+        "codehash": "0x76b92a5bba2dd32019a64eb421f1750e78c6ba044dbfa6840b722eb5ac63d296"
+      },
+      "quoter": {
+        "address": "0x8Dc178eFB8111BB0973Dd9d722ebeFF267c98F94",
+        "codehash": "0xd707b1da8cb165e5ea35a3b4450d971eb562ec171e23492aa117036b78a868f6"
+      }
+    },
+    "admissions": [
+      {
+        "stock": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+        "symbol": "AAPL",
+        "name": "Apple • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+        "pool_codehash": "0xa488ede24eef95af56b0e7c171832ce207f070212584786d40acbfcecbe9b1d0",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+        "pool_fee": 500,
+        "feed": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood AAPL / USD"
+      },
+      {
+        "stock": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+        "symbol": "AMD",
+        "name": "AMD • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x48D284A2A4d3DC1b3Da08231Fe44317e7e7Aa51f",
+        "pool_codehash": "0x1c21637dafc804de5eab9be901cd75196a18796f37a69693ec6d7d8bce2e6a3c",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+        "pool_fee": 3000,
+        "feed": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHAMD / USD"
+      },
+      {
+        "stock": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+        "symbol": "AMZN",
+        "name": "Amazon • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x8AC92DA74AB5F3b1d024Dc1943Ad7e15Dc4179Ef",
+        "pool_codehash": "0x191671d26bc1c6db2d6313ed04651a5c23d04c93efdad353a8dd6ff0adf2692a",
+        "pool_token0": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 3000,
+        "feed": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood AMZN / USD"
+      },
+      {
+        "stock": "0xad25Ac6C84D497db898fa1E8387bf6Af3532a1c4",
+        "symbol": "BABA",
+        "name": "Alibaba • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xa57ab582b310dd6f9e934EA1EEEa152741545E6A",
+        "pool_codehash": "0xcc6fec9469a0490728460bded40cd66c483d1b1f82b2caff4c6cb09b0c18ce51",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xad25Ac6C84D497db898fa1E8387bf6Af3532a1c4",
+        "pool_fee": 3000,
+        "feed": "0x62Cc8F9b5f56a33c9C8A60c8B92779f523c4E984",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood BABA / USD"
+      },
+      {
+        "stock": "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5",
+        "symbol": "CRCL",
+        "name": "Circle Internet Group • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x654E4143e82a5824445Ade0824351C2A9ACD95a8",
+        "pool_codehash": "0x5c1fdecfd93e28c8d08fa2bcdcaa423a263319e57f9f26630052f7d10e058ce9",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5",
+        "pool_fee": 3000,
+        "feed": "0x6652eDf64bA3731C4F2D3ce821A0Fb1f1f6b482a",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood CRCL / USD"
+      },
+      {
+        "stock": "0x941AE714EC6D8130c7B75d67160Ca08f1e7d11Dd",
+        "symbol": "DELL",
+        "name": "Dell • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xc30c89cB7815A1488b7998D15eEC73961707Fc5a",
+        "pool_codehash": "0xa2e794b40c7c1a8e14db1eedea1774dcbca080183f11c980ad86024b424a4fc6",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0x941AE714EC6D8130c7B75d67160Ca08f1e7d11Dd",
+        "pool_fee": 10000,
+        "feed": "0x1C6c8cADBe02E19129c39dDB92281cE4c0bf206b",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood DELL-USD"
+      },
+      {
+        "stock": "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
+        "symbol": "GME",
+        "name": "GameStop • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xE2b46c905E12Ab8E2f864e4821a4325884C1B126",
+        "pool_codehash": "0x0f9c7fe14126f28a6d3e15c4bd0a1520853680eac18c313b942b458e3e3cc4f8",
+        "pool_token0": "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 500,
+        "feed": "0x27C71df6A64fB476468EdF256CF72c038baB5B67",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood GME / USD"
+      },
+      {
+        "stock": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+        "symbol": "GOOGL",
+        "name": "Alphabet Class A • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+        "pool_codehash": "0xecd896ff68596f6159c069b13382ccb1453ee5fa6e5d2b0a85ad09a566095f59",
+        "pool_token0": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 500,
+        "feed": "0xF6f373a037c30F0e5010d854385cA89185AE638b",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood GOOGL / USD"
+      },
+      {
+        "stock": "0xc72b96e0E48ecd4DC75E1e45396e26300BC39681",
+        "symbol": "INTC",
+        "name": "Intel • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x2e5a92f5013a64661A49312111be2e8aBd33F56a",
+        "pool_codehash": "0x38ad8e3bd8df0995ac3fb906af73cae8116a6e33c305b11de93d18f8ca225189",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xc72b96e0E48ecd4DC75E1e45396e26300BC39681",
+        "pool_fee": 3000,
+        "feed": "0x3f390C5C24628Ac7C489515402235FeAD71D1913",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHINTC / USD"
+      },
+      {
+        "stock": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+        "symbol": "META",
+        "name": "Meta Platforms • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x107a7Cb40d8665360ba10E59471Af06150A50922",
+        "pool_codehash": "0x6b35576f8f4dfb5bd54dde49026cbfa7ee2f038cd0f306cb4fff11de8babd988",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+        "pool_fee": 3000,
+        "feed": "0x7C38C00C30BEe9378381E7B6135d7283356D71b1",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood META / USD"
+      },
+      {
+        "stock": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+        "symbol": "MSFT",
+        "name": "Microsoft • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510",
+        "pool_codehash": "0xd553656e660f1d5a2e98a4964bf42d6340630fe72aa48a3a09b8b97d95c133f2",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+        "pool_fee": 3000,
+        "feed": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHMSFT / USD"
+      },
+      {
+        "stock": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+        "symbol": "MSTR",
+        "name": "Strategy Inc. • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x17578C0e0D15da44f31677263114F71aE76653EA",
+        "pool_codehash": "0x86bf39b3c9ba461925d3aea70fceafacdbc8d8f9c147eaa19b13c0f07e1d9fc6",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+        "pool_fee": 10000,
+        "feed": "0x396118bdFB181e6240E74D243F266B061c0edc3D",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood MSTR / USD"
+      },
+      {
+        "stock": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD",
+        "symbol": "MU",
+        "name": "Micron Technology • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xd057B1Bc54917855BBee58eAd58647f47caB35E5",
+        "pool_codehash": "0xb9866b3d02f92a802a2802af32ffb8c4b315ac3143af5050137b4005d09451d0",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD",
+        "pool_fee": 3000,
+        "feed": "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHMU / USD"
+      },
+      {
+        "stock": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "symbol": "NVDA",
+        "name": "NVIDIA • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+        "pool_codehash": "0x20fbed0e49e9ac176e3220dc3c96a9b47d33c5f2b468f180afd7ff5ae00d4a8e",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "pool_fee": 500,
+        "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHNVDA / USD"
+      },
+      {
+        "stock": "0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A",
+        "symbol": "PLTR",
+        "name": "Palantir Technologies • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x851680416A4f4E1c463d45171d61ACDdBc8554c0",
+        "pool_codehash": "0x030660d256a69c9dadce0d462caaf45c6a0740934771e822864fb867c2bb8253",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A",
+        "pool_fee": 3000,
+        "feed": "0x820ABedFF239034956B7A9d2F0a331f9F075eB4c",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood PLTR / USD"
+      },
+      {
+        "stock": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+        "symbol": "QQQ",
+        "name": "Invesco QQQ • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xD60A5d14dB690B7Afad71F76B108071D7175597d",
+        "pool_codehash": "0x416c4a3e4ab67095dd9418ea59a58c746c3ede92d128865f9d6136c3215fec88",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+        "pool_fee": 500,
+        "feed": "0x80901d846d5D7B030F26B480776EE3b29374C2ae",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood QQQ / USD"
+      },
+      {
+        "stock": "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5",
+        "symbol": "SGOV",
+        "name": "iShares 0-3 Month Treasury Bond • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x6Ba50150B17Ffd0972915Aaf04fFd5E8f4Fa49b4",
+        "pool_codehash": "0xcc4bdc6e744b569eb37804433ea710dcb707c8312daf7ec89479ba58a3a8ee15",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5",
+        "pool_fee": 500,
+        "feed": "0xa0DF4ee0fFf975306345875E3548Fcc519577A11",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood SGOV-USD"
+      },
+      {
+        "stock": "0x411eFb0E7f985935DAec3D4C3ebaEa0d0AD7D89f",
+        "symbol": "SLV",
+        "name": "iShares Silver Trust • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x8cB787e6c315D464775289BaD00FDD67d53Ecb3D",
+        "pool_codehash": "0x53ce3e1dc56e296592fc87963bd018151bedc7ef0550c64c163d19649703f4c2",
+        "pool_token0": "0x411eFb0E7f985935DAec3D4C3ebaEa0d0AD7D89f",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 3000,
+        "feed": "0x209b73908e92Ae021826eD79609845451Ecba2ce",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood SLV / USD"
+      },
+      {
+        "stock": "0xB90A19fF0Af67f7779afF50A882A9CfF42446400",
+        "symbol": "SNDK",
+        "name": "Sandisk Corporation • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xA1e1C9519cD5ae47e9A935645E1A7b935b944559",
+        "pool_codehash": "0x81044a3427523cbbaa2eee108750c5d9cf2ab1b3493e5e741ab02819a8a2bb42",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xB90A19fF0Af67f7779afF50A882A9CfF42446400",
+        "pool_fee": 10000,
+        "feed": "0xfb133Fa4B7b385802B693a293606682Df47109A3",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHSNDK / USD"
+      },
+      {
+        "stock": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
+        "symbol": "SPCX",
+        "name": "Space Exploration Technologies Corp. Class A Common Stock • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xc61284332117c3FB23A2A56cceFFD07F7aF60029",
+        "pool_codehash": "0x542a51d81e044d5f0656b30bd86242fef55d60807b81e3a218ae126df770fbbf",
+        "pool_token0": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 500,
+        "feed": "0xB265810950ba6c5C0Ff821c9963014a56fD8Bffb",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood SPCX / USD"
+      },
+      {
+        "stock": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+        "symbol": "SPY",
+        "name": "SPDR S&P 500 ETF Trust • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xa7Bb1AC63BBaB0C44316E6c8C455213441689167",
+        "pool_codehash": "0xaed14af326e94c7e4f2e8a267c0a93346c5d66c5aec0772a6b1a0ecdf5b9f7c5",
+        "pool_token0": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 500,
+        "feed": "0x319724394D3A0e3669269846abE664Cd621f9f6A",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHSPY / USD"
+      },
+      {
+        "stock": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+        "symbol": "TSLA",
+        "name": "Tesla • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3",
+        "pool_codehash": "0x3051864bf6341e841e6ee2a1bd7f5e5fe03b8f5ff633e02e00c6d13923b8ec19",
+        "pool_token0": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 3000,
+        "feed": "0x4A1166a659A55625345e9515b32adECea5547C38",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHTSLA / USD"
+      },
+      {
+        "stock": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA",
+        "symbol": "TSM",
+        "name": "Taiwan Semiconductor Manufacturing • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x07e8Ea83D4C1340774c8965125e26e12bf943bf1",
+        "pool_codehash": "0x9a0e0901506a63113bfb88bbdaa2ae5ae63be3039fdfc627e37b83d15f8aafbb",
+        "pool_token0": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA",
+        "pool_token1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_fee": 10000,
+        "feed": "0x874cF94aa8eC88Fd9560094dD065f2fB3E41Fc2F",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood TSM / USD"
+      },
+      {
+        "stock": "0xd917B029C761D264c6A312BBbcDA868658eF86a6",
+        "symbol": "USAR",
+        "name": "USA Rare Earth • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x04391780F519B7d3ba59c9590459D76e23d225C4",
+        "pool_codehash": "0x045ce45c99d35b5c177a5494bb41765c97b35c1ee8e4d85f0baf5c7edf039685",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xd917B029C761D264c6A312BBbcDA868658eF86a6",
+        "pool_fee": 3000,
+        "feed": "0xA994d3684e8400A6c8078226925779FdeE682DD9",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "Robinhood USAR-USD"
+      },
+      {
+        "stock": "0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344",
+        "symbol": "USO",
+        "name": "United States Oil Fund • Robinhood Token",
+        "decimals": 18,
+        "stock_codehash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "pool": "0x02175608F1b5E6b5ed221cCFdC7Be197D111D915",
+        "pool_codehash": "0x880fe760a81feb1fe9ba980e4c3a79a3d7c0a1425193d0b64b42d21d122bebc1",
+        "pool_token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "pool_token1": "0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344",
+        "pool_fee": 3000,
+        "feed": "0x75a9c76Ef439e2C7c2E5a34Ab105EcFe3766431c",
+        "feed_codehash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "feed_decimals": 8,
+        "feed_description": "RHUSO / USD"
+      }
+    ],
+    "cca_factory_frozen_runtime_bytes": 21378,
+    "admin_safe": {
+      "owners": [
+        "0x1d0dcABAeb941823E51935F795Be184aBeBf76dF",
+        "0x978BDbECb54C54800D01055Df5A8f6af600BfaCe",
+        "0x0cb27e883E207905AD2A94F9B6eF0C7A99223C37"
+      ],
+      "threshold": 2
+    },
+    "base": {
+      "observed_at_block": 51700363,
+      "bindings": {
+        "usdc": {
+          "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "codehash": "0xa6705a10bb756b5dea144591118be77d7af0c3eee3bf2dfe2583dcb0364fefab"
+        },
+        "live_staking": {
+          "address": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+          "codehash": "0xcaef93094fa27d35f5ff9e619d5ee75528c7c18f19f4f31a0a5eaba62a976497"
+        }
+      },
+      "live_staking": {
+        "owner": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e",
+        "paused": false
+      },
+      "base_safe": {
+        "owners": [
+          "0x8C172cA4b5Dd9449217C636A953727eACD690e37",
+          "0x978BDbECb54C54800D01055Df5A8f6af600BfaCe",
+          "0x1d0dcABAeb941823E51935F795Be184aBeBf76dF"
+        ],
+        "threshold": 2
+      }
+    }
+  },
+  "topology": [
+    {
+      "chain_id": 4663,
+      "creation_order": [
+        {
+          "index": 0,
+          "contract": "UERC20Factory",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 0,
+          "address": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+          "constructor_arguments": {}
+        },
+        {
+          "index": 1,
+          "contract": "RobinhoodProtocolRevenueInboxV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 1,
+          "address": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "adminSafe_": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+          }
+        },
+        {
+          "index": 2,
+          "contract": "RobinhoodPositionsLib",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 2,
+          "address": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3",
+          "constructor_arguments": {}
+        },
+        {
+          "index": 3,
+          "contract": "RobinhoodFeeHookFactory",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 3,
+          "address": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
+          "constructor_arguments": {
+            "poolManager_": "0x8366a39CC670B4001A1121B8F6A443A643e40951"
+          }
+        },
+        {
+          "index": 4,
+          "contract": "RobinhoodStocksLaunchpadV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 4,
+          "address": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+          "linked_library": {
+            "RobinhoodPositionsLib": "0x777b2e0F3c7787DA781c3948651249C2C822e9C3"
+          },
+          "constructor_arguments": {
+            "bindings": {
+              "uerc20Factory": "0x90bA0ef13f7791Dd308bD3e10cd6aD755840d563",
+              "ccaFactory": "0x000000001F26a0044BaA66024e7b6599c61963F8",
+              "poolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+              "positionManager": "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+              "hookFactory": "0x34636E5Cd649C1BBda2b63676c76F66E60bAe5E2",
+              "usdg": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "inbox": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+              "adminSafe": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+            },
+            "hookSalt": "0x0000000000000000000000000000000000000000000000000000000000002d89"
+          }
+        },
+        {
+          "index": 5,
+          "contract": "RobinhoodStockBidAdapterV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 5,
+          "address": "0x1d36a95112835f81b1B499A808e556020C64Cac2",
+          "constructor_arguments": {
+            "launchpad_": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+            "permit2_": "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+          }
+        },
+        {
+          "index": 6,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 6,
+          "address": "0xd28e66967C1fE651e6EC47f13397a74240C064A2",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+            "pool_": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+            "feed_": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0"
+          }
+        },
+        {
+          "index": 7,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 7,
+          "address": "0xb4d24085bc5bd35C06b97f500e1019E8fD9d8e41",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+            "pool_": "0x48D284A2A4d3DC1b3Da08231Fe44317e7e7Aa51f",
+            "feed_": "0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72"
+          }
+        },
+        {
+          "index": 8,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 8,
+          "address": "0x740D2e1978991cdC0594D3a5F69B04C9148B2581",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+            "pool_": "0x8AC92DA74AB5F3b1d024Dc1943Ad7e15Dc4179Ef",
+            "feed_": "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C"
+          }
+        },
+        {
+          "index": 9,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 9,
+          "address": "0xF26A18A009362695d00043eb63F7AB42B2170CA9",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xad25Ac6C84D497db898fa1E8387bf6Af3532a1c4",
+            "pool_": "0xa57ab582b310dd6f9e934EA1EEEa152741545E6A",
+            "feed_": "0x62Cc8F9b5f56a33c9C8A60c8B92779f523c4E984"
+          }
+        },
+        {
+          "index": 10,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 10,
+          "address": "0x6943c568549CEAb04EA07Ca9Cdb58a47165D3d27",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5",
+            "pool_": "0x654E4143e82a5824445Ade0824351C2A9ACD95a8",
+            "feed_": "0x6652eDf64bA3731C4F2D3ce821A0Fb1f1f6b482a"
+          }
+        },
+        {
+          "index": 11,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 11,
+          "address": "0xdBBaA710EfddDe431027eBBa81b8c517e46544Df",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x941AE714EC6D8130c7B75d67160Ca08f1e7d11Dd",
+            "pool_": "0xc30c89cB7815A1488b7998D15eEC73961707Fc5a",
+            "feed_": "0x1C6c8cADBe02E19129c39dDB92281cE4c0bf206b"
+          }
+        },
+        {
+          "index": 12,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 12,
+          "address": "0xfE93FA01615d25DBeA7c2Ee8118A9988802DBF82",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
+            "pool_": "0xE2b46c905E12Ab8E2f864e4821a4325884C1B126",
+            "feed_": "0x27C71df6A64fB476468EdF256CF72c038baB5B67"
+          }
+        },
+        {
+          "index": 13,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 13,
+          "address": "0x49E0995070753fA58152889829249febcF9E0C53",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+            "pool_": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+            "feed_": "0xF6f373a037c30F0e5010d854385cA89185AE638b"
+          }
+        },
+        {
+          "index": 14,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 14,
+          "address": "0xfFf81E528935FaEf2dd64087bc0b3740f7908a60",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xc72b96e0E48ecd4DC75E1e45396e26300BC39681",
+            "pool_": "0x2e5a92f5013a64661A49312111be2e8aBd33F56a",
+            "feed_": "0x3f390C5C24628Ac7C489515402235FeAD71D1913"
+          }
+        },
+        {
+          "index": 15,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 15,
+          "address": "0xACfa95f1c16eF61C281C26511556Bf918814151F",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+            "pool_": "0x107a7Cb40d8665360ba10E59471Af06150A50922",
+            "feed_": "0x7C38C00C30BEe9378381E7B6135d7283356D71b1"
+          }
+        },
+        {
+          "index": 16,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 16,
+          "address": "0xa39c8E7e26Ef5e66785a405a277B930e48e6Afb7",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+            "pool_": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510",
+            "feed_": "0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E"
+          }
+        },
+        {
+          "index": 17,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 17,
+          "address": "0x547F3b931EaF75bAb98364aB396058ddc2E68e4a",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+            "pool_": "0x17578C0e0D15da44f31677263114F71aE76653EA",
+            "feed_": "0x396118bdFB181e6240E74D243F266B061c0edc3D"
+          }
+        },
+        {
+          "index": 18,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 18,
+          "address": "0xa851eb9bb6455b3C243B7ad0a3bAF026C76b2F4e",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD",
+            "pool_": "0xd057B1Bc54917855BBee58eAd58647f47caB35E5",
+            "feed_": "0x425EEFdCf05ed6526C3cE61Af99429A228a6d596"
+          }
+        },
+        {
+          "index": 19,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 19,
+          "address": "0x33102EfaE7846b8B23199394c8e04b4Fbe760585",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "pool_": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+            "feed_": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15"
+          }
+        },
+        {
+          "index": 20,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 20,
+          "address": "0x2fFb4E5243DBE074a80221A671a940A34347624a",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x894E1EC2D74FFE5AEF8Dc8A9e84686acCB964F2A",
+            "pool_": "0x851680416A4f4E1c463d45171d61ACDdBc8554c0",
+            "feed_": "0x820ABedFF239034956B7A9d2F0a331f9F075eB4c"
+          }
+        },
+        {
+          "index": 21,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 21,
+          "address": "0xb0214E19c899b95D4CDb9054f5C2DC9a26a1a53b",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+            "pool_": "0xD60A5d14dB690B7Afad71F76B108071D7175597d",
+            "feed_": "0x80901d846d5D7B030F26B480776EE3b29374C2ae"
+          }
+        },
+        {
+          "index": 22,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 22,
+          "address": "0x9Bf555a848b11b19c248A137B828877BcADFd3C3",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5",
+            "pool_": "0x6Ba50150B17Ffd0972915Aaf04fFd5E8f4Fa49b4",
+            "feed_": "0xa0DF4ee0fFf975306345875E3548Fcc519577A11"
+          }
+        },
+        {
+          "index": 23,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 23,
+          "address": "0xFc783A3cfACb4Af476d55b292107AEe3A23726eF",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x411eFb0E7f985935DAec3D4C3ebaEa0d0AD7D89f",
+            "pool_": "0x8cB787e6c315D464775289BaD00FDD67d53Ecb3D",
+            "feed_": "0x209b73908e92Ae021826eD79609845451Ecba2ce"
+          }
+        },
+        {
+          "index": 24,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 24,
+          "address": "0x51B6f1AdE5568701b67947dd69B07F6e2c8C1Ea9",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xB90A19fF0Af67f7779afF50A882A9CfF42446400",
+            "pool_": "0xA1e1C9519cD5ae47e9A935645E1A7b935b944559",
+            "feed_": "0xfb133Fa4B7b385802B693a293606682Df47109A3"
+          }
+        },
+        {
+          "index": 25,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 25,
+          "address": "0x89B9f6D4408a88958eC3268D93b68e748Ab82EC3",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
+            "pool_": "0xc61284332117c3FB23A2A56cceFFD07F7aF60029",
+            "feed_": "0xB265810950ba6c5C0Ff821c9963014a56fD8Bffb"
+          }
+        },
+        {
+          "index": 26,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 26,
+          "address": "0xD0C568fd5A45959da9B0bD7C002a973c845231E7",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+            "pool_": "0xa7Bb1AC63BBaB0C44316E6c8C455213441689167",
+            "feed_": "0x319724394D3A0e3669269846abE664Cd621f9f6A"
+          }
+        },
+        {
+          "index": 27,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 27,
+          "address": "0xbF73B915Baf7EBbbBA26cf51eEb64a6A23c81481",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+            "pool_": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3",
+            "feed_": "0x4A1166a659A55625345e9515b32adECea5547C38"
+          }
+        },
+        {
+          "index": 28,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 28,
+          "address": "0x4c003500c6a28826d15A6E4cF023C1f1ecd41E08",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA",
+            "pool_": "0x07e8Ea83D4C1340774c8965125e26e12bf943bf1",
+            "feed_": "0x874cF94aa8eC88Fd9560094dD065f2fB3E41Fc2F"
+          }
+        },
+        {
+          "index": 29,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 29,
+          "address": "0x8F511153393429468C3861E7cC5341Abb3310871",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xd917B029C761D264c6A312BBbcDA868658eF86a6",
+            "pool_": "0x04391780F519B7d3ba59c9590459D76e23d225C4",
+            "feed_": "0xA994d3684e8400A6c8078226925779FdeE682DD9"
+          }
+        },
+        {
+          "index": 30,
+          "contract": "UniswapV3StockRouteV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 30,
+          "address": "0x0886e34742B5E5ab8e07B0A6C3fC66A7912DE942",
+          "constructor_arguments": {
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "stock_": "0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344",
+            "pool_": "0x02175608F1b5E6b5ed221cCFdC7Be197D111D915",
+            "feed_": "0x75a9c76Ef439e2C7c2E5a34Ab105EcFe3766431c"
+          }
+        }
+      ],
+      "internal_creations": [
+        {
+          "contract": "RobinhoodFeeHookV1",
+          "mechanism": "CREATE2",
+          "created_by": "RobinhoodFeeHookFactory.deploy from the launchpad constructor",
+          "salt": "0x0000000000000000000000000000000000000000000000000000000000002d89",
+          "address": "0xea3Bea7E546CB12aBf6eCB168Cb4bb17fc9A60CC",
+          "constructor_arguments": {
+            "manager_": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+            "launchpad_": "0x635615cCEF2Ef24D0655fC2eBC47a14e005FEF6e",
+            "usdg_": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "inbox_": "0xAFa68eEFd0b9c02Be2BC2306AEe50CDE4BC2133d",
+            "adminSafe_": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+          }
+        },
+        {
+          "contract": "RobinhoodMemestockSplitterV1",
+          "mechanism": "CREATE",
+          "created_by": "RobinhoodStocksLaunchpadV1 constructor",
+          "creator_nonce": 1,
+          "address": "0x69c13CCd9312e21d66fd162896E39bFC5f886F95"
+        },
+        {
+          "contract": "MemestockLPLocker",
+          "mechanism": "CREATE",
+          "created_by": "RobinhoodStocksLaunchpadV1 constructor",
+          "creator_nonce": 2,
+          "address": "0x849Fdcc586d6220d2763589170d7490142e87f88"
+        }
+      ]
+    },
+    {
+      "chain_id": 8453,
+      "creation_order": [
+        {
+          "index": 0,
+          "contract": "RobinhoodBaseRevenueReceiverV1",
+          "mechanism": "transaction",
+          "created_by": "deployer",
+          "deployer_nonce": 27,
+          "address": "0xbF73B915Baf7EBbbBA26cf51eEb64a6A23c81481",
+          "constructor_arguments": {
+            "usdc_": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "liveStaking_": "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5",
+            "baseSafe_": "0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e"
+          }
+        }
+      ],
+      "internal_creations": []
+    }
+  ],
   "selection_note": "Null until `bin/ceremony.py prepare` derives the selection from the founder's inputs and a human installs the candidate it writes. A completed ceremony moves the deployer past its starting nonce, so an installed selection is single-use.",
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xe9fc2f01ed672b1e314b3e9d04cb8e7d331188396ceefa1a26c74283b35b3ce3"
+    "value": "0x410d7a8a45b9b2e31ab0d96a74b56df1750f7cb66d9730d2a1e7d6cdfa8eb811"
   }
 }

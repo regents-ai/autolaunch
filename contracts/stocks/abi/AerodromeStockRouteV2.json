@@ -1,6 +1,6 @@
 {
-  "contract": "AerodromeStockRouteV1",
-  "source": "src/routes/AerodromeStockRouteV1.sol",
+  "contract": "AerodromeStockRouteV2",
+  "source": "src/routes/AerodromeStockRouteV2.sol",
   "compiler": "0.8.26+commit.8a97fa7a",
   "abi": [
     {
@@ -23,19 +23,6 @@
         }
       ],
       "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "MAX_DEVIATION_BPS",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "view"
     },
     {
       "type": "function",
@@ -286,22 +273,6 @@
     },
     {
       "type": "error",
-      "name": "PriceDeviation",
-      "inputs": [
-        {
-          "name": "quoted",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "found",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
       "name": "Reentrancy",
       "inputs": []
     },
@@ -344,7 +315,6 @@
     }
   ],
   "method_identifiers": {
-    "MAX_DEVIATION_BPS()": "25c68403",
     "MAX_FEED_AGE()": "696453b8",
     "feed()": "37a7b7d8",
     "feedUnit()": "871ba01f",

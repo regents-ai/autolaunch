@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {HookMiner} from "@uniswap/v4-periphery/src/utils/HookMiner.sol";
 import {DeployStocksBase} from "../script/DeployStocksBase.s.sol";
-import {AerodromeStockRouteV1} from "../src/routes/AerodromeStockRouteV1.sol";
+import {AerodromeStockRouteV2} from "../src/routes/AerodromeStockRouteV2.sol";
 import {StockBidAdapterV1} from "../src/StockBidAdapterV1.sol";
 import {StocksBindings} from "../src/StocksBindings.sol";
 import {StocksFeeHookV1} from "../src/StocksFeeHookV1.sol";
@@ -70,9 +70,9 @@ contract DeploymentCeremonyTest is StocksFixture {
         assertEq(created.splitterImplementation(), graph.splitterImplementation, "splitter readback");
         assertEq(address(StocksFeeHookV1(graph.hook).launchpad()), graph.launchpad, "hook bound to the launchpad");
         assertEq(address(StockBidAdapterV1(graph.bidAdapter).launchpad()), graph.launchpad, "adapter bound");
-        assertEq(AerodromeStockRouteV1(graph.routes[0]).stock(), STOCK_LOW, "route stock");
-        assertEq(address(AerodromeStockRouteV1(graph.routes[0]).pool()), address(pool), "route pool");
-        assertEq(address(AerodromeStockRouteV1(graph.routes[0]).feed()), address(feed), "route feed");
+        assertEq(AerodromeStockRouteV2(graph.routes[0]).stock(), STOCK_LOW, "route stock");
+        assertEq(address(AerodromeStockRouteV2(graph.routes[0]).pool()), address(pool), "route pool");
+        assertEq(address(AerodromeStockRouteV2(graph.routes[0]).feed()), address(feed), "route feed");
     }
 
     function test_execute_refuses_a_deployer_whose_nonce_moved() public {

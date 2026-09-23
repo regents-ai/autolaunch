@@ -45,7 +45,7 @@
       "deployed_by": "deployment script (CREATE from the deployer)"
     },
     "UniswapV3StockRouteV1": {
-      "role": "The production USDG <-> STOCK route for one admitted stock: executes on that stock's Uniswap v3 USDG/STOCK pool (either currency order), quotes from its Chainlink feed and refuses any execution more than five percent under the feed.",
+      "role": "The production USDG <-> STOCK route for one admitted stock: executes on that stock's Uniswap v3 USDG/STOCK pool (either currency order) under the caller's minimum alone and quotes from its Chainlink feed.",
       "deployed_by": "deployment script (CREATE from the deployer), one per admitted stock after the bid adapter"
     },
     "RobinhoodBaseRevenueReceiverV1": {
