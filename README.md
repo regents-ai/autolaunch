@@ -125,9 +125,9 @@ claim is a transaction you approve in your own wallet.
 - Memestake bids and earnings are in tokenised stocks. Their value moves with the stock market, and
   each stock token follows its issuer's rules.
 - Staking earnings depend on trading and payments. They are not guaranteed.
-- The contracts are new. The Regent team has reviewed them and tested them against the real Base
-  contracts they rely on, but no outside security firm has audited them yet. Their source code is
-  public, and the deployed Base contracts are verified on Basescan.
+- The contracts are new. Contracts are audited using the Trail of Bits and Crytic skills, using
+  GPT 6 Astra. They were also tested against the real Base contracts they rely on. Their source code
+  is public, and the deployed Base contracts are verified on Basescan.
 
 ## Status (22 September 2026)
 

@@ -134,9 +134,9 @@ Nobody, including Regent, can:
   [Base deployment record](v1/deployments/base-mainnet/README.md).
 - The full rules for Revstake are in [v1/SPEC.md](v1/SPEC.md), and for Memestake in the
   [Base](stocks/README.md) and [Robinhood](robinhood/README.md) notes.
-- The contracts have been reviewed and tested by the Regent team, including against the real
-  Uniswap, Permit2 and REGENT contracts on a copy of Base. No outside security firm has audited
-  them yet. The review notes are in [v1/docs/audit](v1/docs/audit/README.md).
+- Contracts are audited using the Trail of Bits and Crytic skills, using GPT 6 Astra. They were
+  also tested against the real Uniswap, Permit2 and REGENT contracts on a copy of Base. The review
+  notes are in [v1/docs/audit](v1/docs/audit/README.md).
 
 ## Contract names
 
