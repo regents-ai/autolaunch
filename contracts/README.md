@@ -8,7 +8,7 @@ can change what. For the product itself, start with the [main README](../README.
 | Launch type | Chain | Status | Details |
 | --- | --- | --- | --- |
 | Revstake | Base | Deployed on 22 September 2026 and verified on Basescan. Launches are not open yet | [addresses and transactions](v1/deployments/base-mainnet/README.md) |
-| Memestake | Base | Not deployed yet | [contract notes](stocks/README.md) |
+| Memestake | Base | Deployed on 23 September 2026. Launches are not open yet, and no stock has been added yet | [addresses and transactions](stocks/deployments/base-mainnet/README.md), [contract notes](stocks/README.md) |
 | Memestake | Robinhood Chain | Not deployed yet | [contract notes](robinhood/README.md) |
 
 Every contract here is fixed once deployed. None can be upgraded, and none has an owner who can
