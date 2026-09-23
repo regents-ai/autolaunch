@@ -1018,12 +1018,14 @@ class Robinhood(Package):
     def rehearse(self, packet: dict) -> None:
         selection = packet["selection"]
         env = forge_env(offline=False, extra=self.selection_environment(selection, selection["hook_salt"]))
-        for chain, command in (
-            (self.chain, ["forge", "script", self.script, "--rpc-url", self.chain.alias, "--libraries", self.library_pin(selection)]),
-            (self.base, ["forge", "script", self.receiver_script, "--rpc-url", self.base.alias]),
+        # The Base receiver is created at the deployer's Base nonce, not its Robinhood one.
+        base_env = {**env, self.starting_nonce_env: str(selection["base_receiver"]["starting_nonce"])}
+        for chain, command, command_env in (
+            (self.chain, ["forge", "script", self.script, "--rpc-url", self.chain.alias, "--libraries", self.library_pin(selection)], env),
+            (self.base, ["forge", "script", self.receiver_script, "--rpc-url", self.base.alias], base_env),
         ):
             chain.endpoint()
-            run(command, env=env)
+            run(command, env=command_env)
             print(f"{command[2]}: simulated cleanly against {chain.alias} with no signer; nothing was broadcast")
 
     def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
