@@ -35,8 +35,9 @@ Modes:
               (sender, nonce, order, created address, status, code identity, readbacks) and writes
               a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
-              ABIs and the endpoint the founder passes, to reports/generated/deployment/. Base
-              reads every stock's route from the launchpad's admission over that endpoint.
+              ABIs and the endpoint the founder passes, to reports/generated/deployment/. On both
+              chains every stock's route is read from the launchpad's admission over that
+              endpoint; on Robinhood the route's pool and feed are read from the route.
 
 Endpoints come from the environment only (`REGENT_BASE_RPC_URL`, `REGENT_ROBINHOOD_RPC_URL`),
 matching the `[rpc_endpoints]` aliases in `foundry.toml`, except that site-config reads through
@@ -456,6 +457,15 @@ def admitted_route(chain: Chain, launchpad: str, stock: str) -> str:
     if not same_address(found, stock):
         raise CeremonyError(f"the route {route} admitted for {stock} reports {found} as its stock")
     return route
+
+
+def route_venue(chain: Chain, route: str, usdg: str) -> tuple[str, str]:
+    """The pool and feed a Robinhood route is pinned to, read from the route, which must settle
+    in the chain's USDG."""
+    found = chain.call_address(route, "usdg()(address)")
+    if not same_address(found, usdg):
+        raise CeremonyError(f"the route {route} settles in {found}, not USDG {usdg}")
+    return chain.call_address(route, "pool()(address)"), chain.call_address(route, "feed()(address)")
 
 
 class Stocks(Package):
@@ -1116,20 +1126,22 @@ class Robinhood(Package):
             "swap_router": manifest["selection"]["site_bindings"]["swap_router"],
             "quoter": manifest["selection"]["site_bindings"]["quoter"],
         }
-        stocks = [
-            {
+        chain = self.chain.through(args.rpc_url)
+        stocks = []
+        for admission in manifest["admissions"]:
+            route = admitted_route(chain, created["launchpad"], admission["stock"])
+            pool, feed = route_venue(chain, route, external["usdg"])
+            stocks.append({
                 "symbol": admission["symbol"],
                 "name": admission["name"],
                 "address": admission["stock"].lower(),
                 "decimals": admission["decimals"],
-                "route": admission["route"].lower(),
-                "pool": admission["pool"].lower(),
-                "feed": admission["feed"].lower(),
+                "route": route.lower(),
+                "pool": pool.lower(),
+                "feed": feed.lower(),
                 "fixture": False,
                 "launch_admission": "admitted",
-            }
-            for admission in manifest["admissions"]
-        ]
+            })
         return {
             "rpc_url": args.rpc_url,
             "public_rpc_url": args.public_rpc_url,
