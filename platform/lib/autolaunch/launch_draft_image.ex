@@ -106,6 +106,14 @@ defmodule Autolaunch.LaunchDraftImage do
       filter expr(id == ^arg(:id) and digest == ^arg(:digest))
       prepare build(select: [:id, :digest, :content_type, :byte_size, :bytes])
     end
+
+    # The colours of stored images, for cards that show them; an image's
+    # colour is public exactly as its address is.
+    read :public_colors do
+      argument :ids, {:array, :uuid}, allow_nil?: false
+      filter expr(id in ^arg(:ids))
+      prepare build(select: [:id, :digest, :color])
+    end
   end
 
   policies do
@@ -117,7 +125,7 @@ defmodule Autolaunch.LaunchDraftImage do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
     end
 
-    policy action(:public_by_id_and_digest) do
+    policy action([:public_by_id_and_digest, :public_colors]) do
       authorize_if always()
     end
   end
@@ -141,6 +149,12 @@ defmodule Autolaunch.LaunchDraftImage do
       allow_nil? false
       public? true
       constraints min: 1, max: 2_097_152
+    end
+
+    attribute :color, :string do
+      allow_nil? false
+      public? true
+      constraints match: ~r/\A#[0-9a-f]{6}\z/, max_length: 7
     end
 
     attribute :bytes, :binary do

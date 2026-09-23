@@ -12,6 +12,9 @@
 .auction-card__title p { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; color: var(--color-fg-muted); }
 .auction-card__state { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--hairline); border-radius: 999px; font-size: .6875rem; letter-spacing: .04em; text-transform: uppercase; color: var(--color-fg-muted); white-space: nowrap; }
 .auction-card__state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+/* A card whose image has a known colour wears it as a border that fades into the card, two pixels wider inside the same outer size. */
+.auction-card--tinted { padding: 18px; border: 3px solid transparent; background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box, linear-gradient(to bottom, var(--image-color) 35%, var(--color-surface)) border-box; }
+.auction-card--tinted .auction-card__state.market-graduated { border-color: currentColor; color: var(--image-color); }
 .auction-card[data-state="active"] .auction-card__state { border-color: currentColor; color: var(--color-success); }
 .auction-card[data-state="created"] .auction-card__state { color: var(--color-fg); }
 .auction-card__tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }

@@ -45,7 +45,8 @@ defmodule Autolaunch.Auction do
     :quote_token_symbol,
     :quote_token_decimals,
     :current_clearing_price,
-    :treasury_address
+    :treasury_address,
+    :image_color
   ]
 
   postgres do
@@ -207,6 +208,7 @@ defmodule Autolaunch.Auction do
       upsert? true
       upsert_identity :chain_auction
       upsert_fields @projection_upsert
+      change Autolaunch.Auction.Changes.ImageColor
     end
 
     create :project_launch do
@@ -214,6 +216,7 @@ defmodule Autolaunch.Auction do
       upsert? true
       upsert_identity :chain_auction
       upsert_fields @projection_upsert
+      change Autolaunch.Auction.Changes.ImageColor
     end
 
     update :set_bid_terms do
@@ -350,6 +353,12 @@ defmodule Autolaunch.Auction do
     attribute :image, :string do
       public? true
       constraints max_length: 256, trim?: true
+    end
+
+    # The colour of the image, when the image is one the site stores.
+    attribute :image_color, :string do
+      public? true
+      constraints match: ~r/\A#[0-9a-f]{6}\z/, max_length: 7
     end
 
     attribute :featured, :boolean do

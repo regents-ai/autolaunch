@@ -317,6 +317,7 @@ defmodule Autolaunch.Token do
       symbol: first_present(field(auction, :token_symbol), Map.get(token, :symbol)),
       summary: first_present(field(auction, :summary), Map.get(token, :summary)),
       image: field(auction, :image),
+      image_color: field(auction, :image_color),
       website: field(auction, :website),
       auction_address: field(auction, :auction_address)
     }

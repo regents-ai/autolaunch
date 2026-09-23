@@ -66,6 +66,8 @@ defmodule Autolaunch do
         action: :public_by_id_and_digest,
         args: [:id, :digest],
         not_found_error?: false
+
+      define :launch_draft_image_colors, action: :public_colors, args: [:ids]
     end
 
     resource Autolaunch.Auction do
@@ -206,6 +208,8 @@ defmodule Autolaunch do
         action: :public_by_id_and_digest,
         args: [:id, :digest],
         not_found_error?: false
+
+      define :stock_launch_draft_image_colors, action: :public_colors, args: [:ids]
     end
 
     resource Autolaunch.Stocks.LaunchOperation do

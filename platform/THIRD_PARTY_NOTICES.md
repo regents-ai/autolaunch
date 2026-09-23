@@ -18,6 +18,10 @@ TechTree source: `repos/techtree/platform/assets/js/optics/crown/` and
 
 Patchbay source: `repos/patchbay/assets/js/optics/crown/`.
 
+The coin overview gradient under `assets/js/optics/image_gradient/` starts from
+the vignette of the VGPU "Simple Gradient" example (https://vgpu.sh/examples/gradient),
+used with `vgpu@0.4.0` under the same license.
+
 ### MIT License
 
 Copyright (c) 2025 Vercel, Inc.

@@ -52,7 +52,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
       assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
 
     ~H"""
-    <article class="home-coin">
+    <article
+      class={["home-coin", @view.color && "home-coin--tinted"]}
+      style={tint(@view.color)}
+    >
       <.link navigate={@view.path} class="home-coin__main">
         <div class="home-coin__art">
           <img
@@ -83,7 +86,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         >{@view.creator}</a>
         <span :if={@view.connections == []}>Creator unavailable</span>
         <span :if={@view.age} class="home-coin__age">{@view.age}</span>
-        <span class="home-coin__status">{@view.status}</span>
+        <span class={["home-coin__status", graduated(@view.status)]}>{@view.status}</span>
         <span :if={@view.chain == "Robinhood"} class="home-coin__status">Robinhood</span>
       </div>
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
@@ -117,7 +120,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
     assigns = assign(assigns, view: view, minimum_reached: minimum_reached?(view))
 
     ~H"""
-    <article class="auction-card" data-state={@view.state}>
+    <article
+      class={["auction-card", @view.color && "auction-card--tinted"]}
+      style={tint(@view.color)}
+      data-state={@view.state}
+    >
       <.link navigate={@view.path} class="auction-card__main">
         <header class="auction-card__head">
           <div class="auction-card__art">
@@ -138,7 +145,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             <h2>{@view.name}</h2>
             <p>${@view.symbol}</p>
           </div>
-          <span class="auction-card__state">{@view.status}</span>
+          <span class={["auction-card__state", graduated(@view.status)]}>{@view.status}</span>
         </header>
         <p class="auction-card__tags">
           <span>{@view.chain}</span><span>{@view.launch}</span>
@@ -275,7 +282,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
       assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
 
     ~H"""
-    <section class="market-identity" aria-label="Coin overview">
+    <section
+      id="coin-overview"
+      class={["market-identity", @view.color && "market-identity--tinted"]}
+      style={tint(@view.color)}
+      phx-hook={@view.color && "ImageGradient"}
+      aria-label="Coin overview"
+    >
+      <canvas
+        :if={@view.color}
+        id="coin-overview-gradient"
+        class="market-identity__gradient"
+        phx-update="ignore"
+        aria-hidden="true"
+      ></canvas>
       <div class="market-identity__image">
         <img
           :if={present?(@view.image)}
@@ -292,7 +312,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="market-identity__body">
         <p class="market-identity__symbol">${@view.symbol}</p>
         <div class="market-identity__meta">
-          <span>{@status || @view.status}</span><span :if={@view.age}>{@view.age} ago</span>
+          <span class={graduated(@status || @view.status)}>{@status || @view.status}</span>
+          <span :if={@view.age}>{@view.age} ago</span>
         </div>
         <div class="market-identity__price">
           <span>{@view.metric_label}</span><TokenDisplay.price
@@ -412,6 +433,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: present(values["symbol"], "TICKER"),
       description: present(values["description"], "Your launch description will appear here."),
       image: values["image"],
+      color: nil,
       website: values["website"],
       status: "Preview",
       metric_label: present(values["preview_metric_label"], "Raise target"),
@@ -435,6 +457,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: auction.token_symbol,
       description: present(auction.summary, "Auction details are recorded onchain."),
       image: auction.image,
+      color: auction.image_color,
       website: auction.website,
       status: state_label(auction.state),
       metric_label: "Clearing price",
@@ -467,6 +490,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: auction.symbol,
       description: auction.description,
       image: auction.image,
+      color: auction.image_color,
       website: auction.website,
       status: state_label(auction.state),
       metric_label: "Clearing price",
@@ -496,6 +520,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: launch.symbol,
       description: launch.description,
       image: launch.image,
+      color: launch.image_color,
       website: launch.website,
       status: "Graduated",
       metric_label: "Clearing price",
@@ -521,6 +546,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       symbol: presentation.symbol,
       description: present(presentation.summary, "Graduated token"),
       image: presentation.image,
+      color: presentation.image_color,
       website: presentation.website,
       status: "Graduated",
       metric_label: "Price",
@@ -577,6 +603,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
        do: Decimal.compare(Decimal.new(raised), Decimal.new(minimum)) != :lt
 
   defp minimum_reached?(_view), do: false
+
+  # A card whose image has a known colour carries it for its border, background
+  # and graduated badge.
+  defp tint(nil), do: nil
+  defp tint(color), do: "--image-color: #{color}"
+
+  defp graduated("Graduated"), do: "market-graduated"
+  defp graduated(_status), do: nil
 
   defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 

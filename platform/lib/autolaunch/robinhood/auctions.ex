@@ -13,12 +13,14 @@ defmodule Autolaunch.Robinhood.Auctions do
   (`Autolaunch.Robinhood.BlockClock`). The launcher had to be its creator's
   signed-in wallet, so each listed auction also names the account whose
   signed-in wallet that still is, when exactly one account's is; its creator's
-  X accounts show beside the launch. Nothing here writes, signs or caches.
+  X accounts show beside the launch. An image the site stores carries its
+  colour (`Autolaunch.ImageColor`). Nothing here writes, signs or caches.
   """
 
   alias Autolaunch.Accounts
   alias Autolaunch.Actors.System
   alias Autolaunch.Chain.{Abi, Address, Rpc}
+  alias Autolaunch.ImageColor
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
@@ -36,6 +38,7 @@ defmodule Autolaunch.Robinhood.Auctions do
           description: String.t() | nil,
           website: String.t() | nil,
           image: String.t() | nil,
+          image_color: String.t() | nil,
           stock_address: String.t(),
           stock_symbol: String.t(),
           stock_decimals: non_neg_integer(),
@@ -54,7 +57,12 @@ defmodule Autolaunch.Robinhood.Auctions do
   @spec list() :: {:ok, [t()]} | {:error, atom()}
   def list do
     if Lab.configured?(),
-      do: with({:ok, auctions} <- read(), do: with_creators(auctions)),
+      do:
+        with(
+          {:ok, auctions} <- read(),
+          {:ok, auctions} <- with_creators(auctions),
+          do: {:ok, with_image_colors(auctions)}
+        ),
       else: {:ok, []}
   end
 
@@ -110,6 +118,11 @@ defmodule Autolaunch.Robinhood.Auctions do
          &Map.put(&1, :creator_human_account_id, owner(owners, &1.launcher))
        )}
     end
+  end
+
+  defp with_image_colors(auctions) do
+    colors = auctions |> Enum.map(& &1.image) |> ImageColor.for_urls()
+    Enum.map(auctions, &Map.put(&1, :image_color, colors[&1.image]))
   end
 
   defp owner(owners, launcher) do

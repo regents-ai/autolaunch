@@ -3,6 +3,7 @@ defmodule Autolaunch.LaunchDraftImage.Changes.PrepareImmutableImage do
   use Ash.Resource.Change
 
   alias Autolaunch.Actors.Human
+  alias Autolaunch.ImageColor
   alias Autolaunch.LaunchDraft.ImageValidator
 
   @impl true
@@ -14,10 +15,12 @@ defmodule Autolaunch.LaunchDraftImage.Changes.PrepareImmutableImage do
 
     with :ok <- validate_owned_draft(draft_id, actor),
          :ok <- validate_filename(original_filename),
-         {:ok, _content_type} <- ImageValidator.validate(bytes, content_type) do
+         {:ok, _content_type} <- ImageValidator.validate(bytes, content_type),
+         {:ok, color} <- ImageColor.dominant(bytes) do
       changeset
       |> Ash.Changeset.change_attribute(:byte_size, byte_size(bytes))
       |> Ash.Changeset.change_attribute(:digest, sha256(bytes))
+      |> Ash.Changeset.change_attribute(:color, color)
     else
       {:error, :draft_unavailable} ->
         Ash.Changeset.add_error(changeset,
