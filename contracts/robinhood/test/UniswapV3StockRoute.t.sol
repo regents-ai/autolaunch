@@ -9,9 +9,9 @@ import {UniswapV3StockRouteV1} from "../src/routes/UniswapV3StockRouteV1.sol";
 import {MockUniswapV3Pool} from "./mocks/MockUniswapV3Pool.sol";
 
 /// @notice The production route quotes from the feed, executes on the pinned pool in whichever
-///         currency order the pool sorts, refuses any execution more than 5% under the feed quote,
-///         and keeps nothing between calls. Run once with USDG as `token0` and once with the
-///         18-decimal stock as `token0`.
+///         currency order the pool sorts, refuses only what the caller's minimum refuses, and keeps
+///         nothing between calls. Run once with USDG as `token0` and once with the 18-decimal stock
+///         as `token0`.
 abstract contract UniswapV3StockRouteTestBase is Test {
     /// @dev 230 dollars per share in eight feed decimals; the same price in USDG base units.
     int256 internal constant FEED_ANSWER = 23_000_000_000;
@@ -205,32 +205,53 @@ abstract contract UniswapV3StockRouteTestBase is Test {
         route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, address(0));
     }
 
-    function test_swap_refuses_a_pool_price_more_than_five_percent_under_the_feed() public {
-        usdg.mint(address(route), 1_000e6);
-        pool.setPrice(USDG_PER_SHARE * 106 / 100);
-        uint256 found = 1_000e6 * 1e18 / (USDG_PER_SHARE * 106 / 100);
+    function test_swap_rejects_zero_amount_and_unsupported_pairs() public {
+        usdg.mint(address(route), 1e6);
+        vm.expectRevert(UniswapV3StockRouteV1.ZeroAmount.selector);
+        route.swapExactIn(address(usdg), address(stock), 0, 0, alice);
         vm.expectRevert(
-            abi.encodeWithSelector(UniswapV3StockRouteV1.PriceDeviation.selector, STOCK_FOR_1000_USDG, found)
+            abi.encodeWithSelector(UniswapV3StockRouteV1.UnsupportedPair.selector, address(usdg), address(usdg))
         );
-        route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
-
-        stock.mint(address(route), 1e18);
-        pool.setPrice(USDG_PER_SHARE * 94 / 100);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                UniswapV3StockRouteV1.PriceDeviation.selector, USDG_PER_SHARE, USDG_PER_SHARE * 94 / 100
-            )
-        );
-        route.swapExactIn(address(stock), address(usdg), 1e18, 0, alice);
+        route.swapExactIn(address(usdg), address(usdg), 1e6, 0, alice);
+        vm.expectRevert(abi.encodeWithSelector(UniswapV3StockRouteV1.UnsupportedPair.selector, address(stock), alice));
+        route.swapExactIn(address(stock), alice, 1e6, 0, alice);
+        assertEq(usdg.balanceOf(address(route)), 1e6);
     }
 
-    function test_swap_accepts_a_pool_price_within_five_percent_of_the_feed() public {
+    function test_swap_far_under_the_feed_executes_when_the_caller_minimum_allows() public {
         usdg.mint(address(route), 1_000e6);
-        pool.setPrice(USDG_PER_SHARE * 104 / 100);
+        pool.setPrice(2 * USDG_PER_SHARE);
+        uint256 found = 1_000e6 * 1e18 / (2 * USDG_PER_SHARE);
+
         uint256 amountOut = route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
-        assertEq(amountOut, 1_000e6 * 1e18 / (USDG_PER_SHARE * 104 / 100));
-        assertEq(stock.balanceOf(alice), amountOut);
+
+        assertEq(amountOut, found);
+        assertEq(stock.balanceOf(alice), found);
         _assertRouteEmpty();
+
+        stock.mint(address(route), 1e18);
+        pool.setPrice(USDG_PER_SHARE / 2);
+        amountOut = route.swapExactIn(address(stock), address(usdg), 1e18, 0, alice);
+        assertEq(amountOut, USDG_PER_SHARE / 2);
+        assertEq(usdg.balanceOf(alice), USDG_PER_SHARE / 2);
+        _assertRouteEmpty();
+    }
+
+    function test_swap_far_under_the_feed_is_refused_by_the_caller_minimum() public {
+        usdg.mint(address(route), 1_000e6);
+        pool.setPrice(2 * USDG_PER_SHARE);
+        uint256 minimum = STOCK_FOR_1000_USDG * 95 / 100;
+        uint256 found = 1_000e6 * 1e18 / (2 * USDG_PER_SHARE);
+        vm.expectRevert(abi.encodeWithSelector(UniswapV3StockRouteV1.InsufficientOutput.selector, minimum, found));
+        route.swapExactIn(address(usdg), address(stock), 1_000e6, minimum, alice);
+
+        stock.mint(address(route), 1e18);
+        pool.setPrice(USDG_PER_SHARE / 2);
+        minimum = USDG_PER_SHARE * 95 / 100;
+        vm.expectRevert(
+            abi.encodeWithSelector(UniswapV3StockRouteV1.InsufficientOutput.selector, minimum, USDG_PER_SHARE / 2)
+        );
+        route.swapExactIn(address(stock), address(usdg), 1e18, minimum, alice);
     }
 
     function test_swap_returns_unconsumed_input_to_the_recipient() public {
@@ -257,22 +278,36 @@ abstract contract UniswapV3StockRouteTestBase is Test {
         _assertRouteEmpty();
     }
 
-    function test_swap_refuses_a_fill_too_short_to_meet_the_feed_bound() public {
+    function test_swap_short_fill_is_refused_only_by_the_caller_minimum() public {
         usdg.mint(address(route), 1_000e6);
         pool.setFillBps(9_000);
+        uint256 found = 900e6 * 1e18 / USDG_PER_SHARE;
         vm.expectRevert(
-            abi.encodeWithSelector(
-                UniswapV3StockRouteV1.PriceDeviation.selector, STOCK_FOR_1000_USDG, 900e6 * 1e18 / USDG_PER_SHARE
-            )
+            abi.encodeWithSelector(UniswapV3StockRouteV1.InsufficientOutput.selector, STOCK_FOR_1000_USDG, found)
         );
-        route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
+        route.swapExactIn(address(usdg), address(stock), 1_000e6, STOCK_FOR_1000_USDG, alice);
+
+        assertEq(route.swapExactIn(address(usdg), address(stock), 1_000e6, found, alice), found);
+        assertEq(usdg.balanceOf(alice), 100e6);
+        _assertRouteEmpty();
     }
 
-    function test_swap_validates_the_feed_before_touching_the_pool() public {
+    function test_swap_succeeds_while_the_feed_is_stale_and_the_quote_reverts() public {
         usdg.mint(address(route), 1_000e6);
         feed.set(FEED_ANSWER, NOW - 8 days);
         vm.expectRevert(abi.encodeWithSelector(UniswapV3StockRouteV1.StaleFeed.selector, NOW - 8 days));
-        route.swapExactIn(address(usdg), address(stock), 1_000e6, 0, alice);
+        route.quoteExactIn(address(usdg), address(stock), 1_000e6);
+
+        uint256 amountOut = route.swapExactIn(address(usdg), address(stock), 1_000e6, STOCK_FOR_1000_USDG, alice);
+
+        assertEq(amountOut, STOCK_FOR_1000_USDG);
+        assertEq(stock.balanceOf(alice), STOCK_FOR_1000_USDG);
+        _assertRouteEmpty();
+
+        feed.set(0, NOW);
+        stock.mint(address(route), 1e18);
+        assertEq(route.swapExactIn(address(stock), address(usdg), 1e18, USDG_PER_SHARE, alice), USDG_PER_SHARE);
+        _assertRouteEmpty();
     }
 
     function test_swap_cannot_be_reentered_from_the_pool_callback() public {

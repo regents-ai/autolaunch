@@ -21,9 +21,10 @@ interface IUniswapV3FactoryMinimal {
 
 /// @notice The production route against Robinhood Chain itself: three live pools in both currency
 ///         orders (AAPL and SNDK sort USDG first, TSLA sorts the stock first), a real purchase and
-///         a real sale through each, and the feed bound refusing a purchase the thin SNDK pool
-///         cannot fill near the feed price. Runs only on a fork of Robinhood Chain
-///         (`FOUNDRY_PROFILE=fork forge test --fork-url robinhood`); any other chain skips it.
+///         a real sale through each, and a purchase the thin SNDK pool cannot fill near the feed
+///         price, refused by a 95%-of-quote minimum and executed at a zero minimum. Runs only on a
+///         fork of Robinhood Chain (`FOUNDRY_PROFILE=fork forge test --fork-url robinhood`); any
+///         other chain skips it.
 /// @dev The stock tokens are the real upgradeable issuer tokens: the stock is read from each pool,
 ///      never typed in. USDG is dealt to the route (storage write); the stock for every sale is
 ///      the stock the preceding purchase delivered, so the tokens' transfer rules are exercised
@@ -42,7 +43,7 @@ contract UniswapV3StockRouteForkTest is Test {
 
     /// @dev A thousand dollars, the settlement size every pool fills near the feed.
     uint256 internal constant PURCHASE_USDG = 1_000e6;
-    /// @dev Fifty thousand dollars, far past what the thin SNDK pool can fill within the bound.
+    /// @dev Fifty thousand dollars, far past what the thin SNDK pool can fill near the feed price.
     uint256 internal constant LARGE_PURCHASE_USDG = 50_000e6;
 
     struct Venue {
@@ -76,24 +77,41 @@ contract UniswapV3StockRouteForkTest is Test {
         }
     }
 
-    function test_live_purchase_and_sale_of_aapl_land_within_the_feed_bound() public {
+    function test_live_purchase_and_sale_of_aapl_land_near_the_feed_quote() public {
         _purchaseThenSell(_venues()[0], 0.02e18);
     }
 
-    function test_live_purchase_and_sale_of_tsla_land_within_the_feed_bound() public {
+    function test_live_purchase_and_sale_of_tsla_land_near_the_feed_quote() public {
         _purchaseThenSell(_venues()[1], 0.02e18);
     }
 
-    function test_live_purchase_and_sale_of_sndk_land_within_the_feed_bound() public {
+    function test_live_purchase_and_sale_of_sndk_land_near_the_feed_quote() public {
         _purchaseThenSell(_venues()[2], 0.05e18);
     }
 
-    function test_large_purchase_on_the_thin_sndk_pool_is_refused_by_the_feed_bound() public {
+    function test_large_purchase_on_the_thin_sndk_pool_is_refused_by_a_95_percent_minimum() public {
         (UniswapV3StockRouteV1 route, address stock) = _route(_venues()[2]);
         deal(USDG, address(route), LARGE_PURCHASE_USDG);
+        uint256 minimum = route.quoteExactIn(USDG, stock, LARGE_PURCHASE_USDG) * 95 / 100;
 
-        vm.expectPartialRevert(UniswapV3StockRouteV1.PriceDeviation.selector);
-        route.swapExactIn(USDG, stock, LARGE_PURCHASE_USDG, 0, alice);
+        vm.expectPartialRevert(UniswapV3StockRouteV1.InsufficientOutput.selector);
+        route.swapExactIn(USDG, stock, LARGE_PURCHASE_USDG, minimum, alice);
+    }
+
+    function test_large_purchase_on_the_thin_sndk_pool_executes_at_a_zero_minimum() public {
+        (UniswapV3StockRouteV1 route, address stock) = _route(_venues()[2]);
+        deal(USDG, address(route), LARGE_PURCHASE_USDG);
+        uint256 quoted = route.quoteExactIn(USDG, stock, LARGE_PURCHASE_USDG);
+
+        uint256 shares = route.swapExactIn(USDG, stock, LARGE_PURCHASE_USDG, 0, alice);
+
+        assertEq(IERC20(stock).balanceOf(alice), shares, "the purchase lands with alice");
+        assertLt(shares, quoted * 95 / 100, "the thin pool fills a large purchase well under the feed");
+        _assertRouteEmpty(route, stock);
+        console2.log("SNDK large purchase: shares delivered:", shares);
+        console2.log("SNDK large purchase: feed quote:", quoted);
+        console2.log("SNDK large purchase shortfall vs feed, bps:", _shortfallBps(shares, quoted));
+        console2.log("SNDK large purchase: USDG returned unconsumed:", IERC20(USDG).balanceOf(alice));
     }
 
     /// @dev Buys a thousand dollars of the stock for alice, then sells every share back, checking

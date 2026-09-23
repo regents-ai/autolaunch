@@ -14,27 +14,22 @@ import {RobinhoodPreset} from "../RobinhoodPreset.sol";
 
 /// @title UniswapV3StockRouteV1
 /// @notice The production USDG <-> STOCK route for one Robinhood Chain stock: one Uniswap v3
-///         USDG/STOCK pool for execution, one Chainlink feed for the quote and as a sanity bound on
-///         every execution.
+///         USDG/STOCK pool for execution, one Chainlink feed for the review quote.
 /// @dev Pinned at construction: USDG, the stock, the pool (whose two currencies must be exactly USDG
 ///      and the stock, in either order; the Robinhood pools sort both ways) and the feed. The route
 ///      calls the pool directly, never a router, and builds every swap itself: the price limit is the
-///      extreme of the pool's range, so `minAmountOut` and the feed bound are the only price
-///      controls. `quoteExactIn` is the feed price, not the pool price: it is the review quote a
-///      caller compares against, and `swapExactIn` refuses any execution that delivers less than
-///      `MAX_DEVIATION_BPS` under that quote. The route holds nothing between calls: whatever
-///      `amountIn` the pool did not consume goes back to `recipient` in the call.
+///      extreme of the pool's range, so the caller's `minAmountOut` is the only price control.
+///      `quoteExactIn` is the feed price, not the pool price: it is the review quote a caller
+///      chooses a minimum from, and `swapExactIn` never reads the feed. The route holds nothing
+///      between calls: whatever `amountIn` the pool did not consume goes back to `recipient` in the
+///      call.
 contract UniswapV3StockRouteV1 is ReentrancyGuardTransient, IRobinhoodStockRoute {
     using SafeTransferLib for address;
 
-    /// @notice Oldest feed answer the route accepts. The feeds hold the last close over weekends
+    /// @notice Oldest feed answer the quote accepts. The feeds hold the last close over weekends
     ///         and market holidays, so the bound only catches a feed that has stopped.
     uint256 public constant MAX_FEED_AGE = 7 days;
 
-    /// @notice Largest shortfall of an execution against the feed quote, in basis points.
-    uint256 public constant MAX_DEVIATION_BPS = 500;
-
-    uint256 internal constant BPS = 10_000;
     uint256 internal constant USDG_UNIT = 10 ** uint256(RobinhoodPreset.USDG_DECIMALS);
 
     address public immutable override stock;
@@ -61,7 +56,6 @@ contract UniswapV3StockRouteV1 is ReentrancyGuardTransient, IRobinhoodStockRoute
     error BadFeedAnswer(int256 answer);
     error StaleFeed(uint256 updatedAt);
     error InsufficientOutput(uint256 minimum, uint256 found);
-    error PriceDeviation(uint256 quoted, uint256 found);
     error NotPool(address caller);
 
     constructor(address usdg_, address stock_, address pool_, address feed_) {
@@ -97,8 +91,8 @@ contract UniswapV3StockRouteV1 is ReentrancyGuardTransient, IRobinhoodStockRoute
         returns (uint256 amountOut)
     {
         if (recipient == address(0)) revert ZeroAddress();
-        // Validates the pair, the amount and the feed before anything reaches the pool.
-        uint256 quoted = quoteExactIn(tokenIn, tokenOut, amountIn);
+        if (amountIn == 0) revert ZeroAmount();
+        _requirePair(tokenIn, tokenOut);
 
         // Selling `token0` for `token1` when the input is whichever side sorts first.
         bool zeroForOne = (tokenIn == stock) == stockIsToken0;
@@ -115,7 +109,6 @@ contract UniswapV3StockRouteV1 is ReentrancyGuardTransient, IRobinhoodStockRoute
         amountOut = SafeCastLib.toUint256(-paid);
 
         if (amountOut < minAmountOut) revert InsufficientOutput(minAmountOut, amountOut);
-        if (amountOut * BPS < quoted * (BPS - MAX_DEVIATION_BPS)) revert PriceDeviation(quoted, amountOut);
 
         uint256 residue = amountIn - consumed;
         if (residue != 0) tokenIn.safeTransfer(recipient, residue);
@@ -140,14 +133,19 @@ contract UniswapV3StockRouteV1 is ReentrancyGuardTransient, IRobinhoodStockRoute
         returns (uint256 amountOut)
     {
         if (amountIn == 0) revert ZeroAmount();
+        _requirePair(tokenIn, tokenOut);
         uint256 price = _feedPrice();
-        if (tokenIn == usdg && tokenOut == stock) {
+        if (tokenIn == usdg) {
             return FixedPointMathLib.fullMulDiv(amountIn, stockUnit * feedUnit, price * USDG_UNIT);
         }
-        if (tokenIn == stock && tokenOut == usdg) {
-            return FixedPointMathLib.fullMulDiv(amountIn, price * USDG_UNIT, stockUnit * feedUnit);
-        }
-        revert UnsupportedPair(tokenIn, tokenOut);
+        return FixedPointMathLib.fullMulDiv(amountIn, price * USDG_UNIT, stockUnit * feedUnit);
+    }
+
+    /// @dev The route converts USDG to the stock and the stock to USDG, nothing else.
+    function _requirePair(address tokenIn, address tokenOut) internal view {
+        bool purchase = tokenIn == usdg && tokenOut == stock;
+        bool sale = tokenIn == stock && tokenOut == usdg;
+        if (!purchase && !sale) revert UnsupportedPair(tokenIn, tokenOut);
     }
 
     /// @dev Dollars per whole share in feed units, from the latest round.
