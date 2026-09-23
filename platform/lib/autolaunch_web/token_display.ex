@@ -34,13 +34,17 @@ defmodule AutolaunchWeb.TokenDisplay do
   attr :unit, :string, default: nil
   attr :fallback, :string, default: "No price yet"
 
+  attr :round, :atom,
+    default: :nearest,
+    values: [:nearest, :down],
+    doc: ":down for a figure that must never read higher than it is"
+
   @doc """
   A read-only price. A price carrying more than four significant digits is
-  shortened on screen, truncated rather than rounded up, and a long run of
-  zeros after the point is written as a count, as in `0.0₇4399`, while the
-  exact figure stays readable to assistive technology and on hover. The exact
-  string is never altered: an amount that is not a plain decimal is shown as
-  written.
+  shortened on screen, rounded to the nearest, and a long run of zeros after
+  the point is written as a count, as in `0.0₇44`, while the exact figure stays
+  readable to assistive technology and on hover. The exact string is never
+  altered: an amount that is not a plain decimal is shown as written.
   """
   def price(%{amount: amount} = assigns) when is_nil(amount) or amount == "" do
     ~H"""
@@ -52,7 +56,7 @@ defmodule AutolaunchWeb.TokenDisplay do
     assigns
     |> assign(
       exact: with_unit(assigns.amount, assigns.unit),
-      shown: assigns.amount |> significant() |> with_unit(assigns.unit) |> zeros()
+      shown: assigns.amount |> significant(assigns.round) |> with_unit(assigns.unit) |> zeros()
     )
     |> figure()
   end
@@ -97,25 +101,29 @@ defmodule AutolaunchWeb.TokenDisplay do
   # parse of an admitted string is unbounded.
   @plain_decimal ~r/\A-?(?:0|[1-9]\d*)(?:\.\d+)?\z/
 
-  defp significant(amount) do
+  defp significant(amount, round) do
     if Regex.match?(@plain_decimal, amount) do
       {decimal, ""} = Decimal.parse(amount, max_digits: :infinity)
-      truncate_significant(decimal)
+      decimal |> rounded(round) |> Decimal.to_string(:normal)
     else
       amount
     end
   end
 
-  defp truncate_significant(%Decimal{coef: 0}), do: "0"
+  # In whole-number arithmetic: Decimal's own rounding would first cut an exact
+  # Q96 price to its context precision and could round it twice.
+  defp rounded(%Decimal{coef: 0}, _round), do: Decimal.new(0)
 
-  defp truncate_significant(%Decimal{coef: coef, exp: exp} = decimal) when is_integer(coef) do
-    digits = coef |> Integer.digits() |> length()
-
-    decimal
-    |> Decimal.round(@significant_digits - digits - exp, :down)
-    |> Decimal.normalize()
-    |> Decimal.to_string(:normal)
+  defp rounded(%Decimal{sign: sign, coef: coef, exp: exp}, round) do
+    cut = max(length(Integer.digits(coef)) - @significant_digits, 0)
+    unit = Integer.pow(10, cut)
+    kept = div(coef, unit)
+    kept = if round == :nearest and 2 * rem(coef, unit) >= unit, do: kept + 1, else: kept
+    trimmed(sign, kept, exp + cut)
   end
+
+  defp trimmed(sign, coef, exp) when rem(coef, 10) == 0, do: trimmed(sign, div(coef, 10), exp + 1)
+  defp trimmed(sign, coef, exp), do: Decimal.new(sign, coef, exp)
 
   defp figure(%{exact: same, shown: same} = assigns) do
     ~H"""

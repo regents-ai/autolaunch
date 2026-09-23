@@ -467,11 +467,11 @@ defmodule AutolaunchWeb.BidComponent do
     <div class="bid-estimate" role="status">
       <p>Above the price now: you start getting tokens next block.</p>
       <p :if={@outlook.about}>
-        About <TokenDisplay.price amount={@outlook.about} />
-        tokens if the price stays at {@book.clearing} {@symbol}.
+        About <TokenDisplay.price amount={@outlook.about} /> tokens if the price stays at
+        <TokenDisplay.price amount={@book.clearing} unit={@symbol} />.
       </p>
       <p :if={@outlook.at_least}>
-        At least <TokenDisplay.price amount={@outlook.at_least} />
+        At least <TokenDisplay.price amount={@outlook.at_least} round={:down} />
         tokens, even if the price climbs to your maximum.
       </p>
     </div>

@@ -74,8 +74,8 @@ defmodule AutolaunchWeb.Components.AuctionBook do
       <figure class="auction-book__ladder">
         <figcaption>Bids by the most each will pay per token</figcaption>
         <p :if={@book.levels.shown == []} class="auction-book__empty">
-          No bids yet. The price starts at
-          <TokenDisplay.counted amount={@book.floor} unit={@symbol} /> per token.
+          No bids yet. The price starts at <TokenDisplay.price amount={@book.floor} unit={@symbol} />
+          per token.
         </p>
         <ol :if={@book.levels.shown != []} role="list">
           <li :if={@book.levels.hidden_above > 0} class="auction-book__more">
@@ -84,7 +84,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
           <.level :for={level <- @in_levels} level={level} symbol={@symbol} widest={@widest} />
           <li class="auction-book__now">
             <span>Price now</span>
-            <span><TokenDisplay.counted amount={@book.clearing} unit={@symbol} /></span>
+            <span><TokenDisplay.price amount={@book.clearing} unit={@symbol} /></span>
           </li>
           <.level :for={level <- @other_levels} level={level} symbol={@symbol} widest={@widest} />
           <li :if={@book.levels.hidden_below > 0} class="auction-book__more">
@@ -114,7 +114,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
     ~H"""
     <li class="auction-book__level" data-standing={@level.standing}>
       <span class="auction-book__level-price">
-        <TokenDisplay.counted amount={@level.price} />
+        <TokenDisplay.price amount={@level.price} />
       </span>
       <span class="auction-book__bar" aria-hidden="true">
         <span style={"width: #{width(@level.amount, @widest)}%"}></span>

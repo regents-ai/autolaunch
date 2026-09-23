@@ -40,10 +40,6 @@ defmodule Autolaunch.AuctionBook do
           standing: standing()
         }
 
-  # Prices on screen keep this many significant digits: a price stored on the
-  # auction's grid is a little under the round figure it was set from.
-  @shown_digits 6
-
   @doc "A Base auction's book, read at the latest block."
   @spec base(map()) :: {:ok, map()} | {:error, atom()}
   def base(%{auction_address: address, quote_token_decimals: decimals} = auction)
@@ -145,8 +141,8 @@ defmodule Autolaunch.AuctionBook do
        %{
          block: block,
          clearing_q96: clearing,
-         clearing: shown(clearing, decimals),
-         floor: shown(floor, decimals),
+         clearing: BidPrice.decimal(clearing, decimals),
+         floor: BidPrice.decimal(floor, decimals),
          decimals: decimals,
          price_to_beat_q96: if(to_beat <= cap, do: to_beat),
          price_to_beat: if(to_beat <= cap, do: entered(to_beat, spacing, decimals)),
@@ -181,7 +177,7 @@ defmodule Autolaunch.AuctionBook do
       |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
       |> Enum.map(fn {price, amounts} ->
         %{
-          price: shown(price, decimals),
+          price: BidPrice.decimal(price, decimals),
           price_q96: price,
           amount: Rpc.format_units(Enum.sum(amounts), decimals),
           bids: length(amounts),
@@ -200,8 +196,6 @@ defmodule Autolaunch.AuctionBook do
     }
   end
 
-  defp shown(q96, decimals), do: q96 |> exact(decimals) |> significant(@shown_digits, :half_up)
-
   # The shortest price a bidder can type that the bid form turns back into
   # exactly this grid price: rounded up, so it never falls to the grid step
   # below, with as few digits as keep it under the step above.
@@ -209,7 +203,7 @@ defmodule Autolaunch.AuctionBook do
     exact = exact(q96, decimals)
 
     Enum.find_value(Stream.iterate(1, &(&1 + 1)), fn digits ->
-      typed = significant(exact, digits, :ceiling)
+      typed = rounded_up(exact, digits)
       {:ok, typed_q96} = BidActions.price_q96(typed, decimals)
       if div(typed_q96, spacing) * spacing == q96, do: typed
     end)
@@ -220,21 +214,12 @@ defmodule Autolaunch.AuctionBook do
   defp exact(q96, decimals),
     do: {q96 * Integer.pow(5, 96) * Integer.pow(10, 18), -(96 + decimals)}
 
-  # Rounded to `digits` significant digits in whole-number arithmetic:
+  # Rounded up to `digits` significant digits in whole-number arithmetic:
   # Decimal's own rounding would first cut a Q96 price to its context precision.
-  defp significant({coef, exp}, digits, rounding) do
+  defp rounded_up({coef, exp}, digits) do
     cut = max(length(Integer.digits(coef)) - digits, 0)
     unit = Integer.pow(10, cut)
-    kept = div(coef, unit)
-    left = rem(coef, unit)
-
-    kept =
-      case rounding do
-        :ceiling when left > 0 -> kept + 1
-        :half_up when 2 * left >= unit and left > 0 -> kept + 1
-        _rounding -> kept
-      end
-
+    kept = if rem(coef, unit) > 0, do: div(coef, unit) + 1, else: div(coef, unit)
     kept |> trimmed(exp + cut) |> Decimal.to_string(:normal)
   end
 
