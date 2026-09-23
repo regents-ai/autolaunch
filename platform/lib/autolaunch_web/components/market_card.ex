@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   @moduledoc false
   use Phoenix.Component
 
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Token
   alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay}
 
@@ -102,10 +103,18 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
 
+  attr :reading, :map,
+    default: nil,
+    doc: "the market feed's reading of a Base auction, which carries its amount raised"
+
   @doc "The large auction card of the auctions page: who, where, what state, and how to bid."
   def auction_card(assigns) do
-    assigns =
-      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
+    view =
+      assigns.kind
+      |> view(assigns.record, assigns.creator_connections)
+      |> with_reading(assigns.reading)
+
+    assigns = assign(assigns, view: view, minimum_reached: minimum_reached?(view))
 
     ~H"""
     <article class="auction-card" data-state={@view.state}>
@@ -145,7 +154,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </div>
         <div :if={@view.raised}>
           <dt>{if @view.state == :failed, do: "Bid before refunds", else: "Raised"}</dt>
-          <dd><TokenDisplay.price amount={@view.raised.amount} unit={@view.raised.unit} /></dd>
+          <dd>
+            <TokenDisplay.price amount={@view.raised.amount} unit={@view.raised.unit} /><span
+              :if={@minimum_reached}
+              class="auction-card__met"
+              title="Minimum reached"
+            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg><span class="visually-hidden">Minimum reached</span></span>
+          </dd>
         </div>
         <div :if={@view.quick}>
           <dt>Bids in</dt>
@@ -432,6 +447,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
       chain: "Base",
       launch: if(auction.kind == :stocks, do: "Memestake", else: "Revstake"),
       raised: nil,
+      minimum:
+        auction.required_currency_raised
+        |> String.to_integer()
+        |> Rpc.format_units(auction.quote_token_decimals),
       pair: nil
     }
   end
@@ -460,6 +479,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       chain: "Robinhood",
       launch: "Memestake",
       raised: metric(auction.raised, auction.stock_symbol),
+      minimum: auction.required,
       pair: nil
     }
   end
@@ -542,6 +562,19 @@ defmodule AutolaunchWeb.Components.MarketCard do
     do: if(Autolaunch.Prelaunch.read_only?(), do: "Available after contract deployment")
 
   # The stored figure travels untouched; only its on-screen form is shortened.
+  # A Base auction's amount raised is read from its chain by the market feed.
+  defp with_reading(view, nil), do: view
+
+  defp with_reading(view, reading),
+    do: %{view | raised: metric(reading.currency_raised, view.metric.unit)}
+
+  # Both amounts are whole units, as plain decimals.
+  defp minimum_reached?(%{raised: %{amount: raised}, minimum: minimum})
+       when is_binary(raised),
+       do: Decimal.compare(Decimal.new(raised), Decimal.new(minimum)) != :lt
+
+  defp minimum_reached?(_view), do: false
+
   defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 
   defp connection_list(connections) when is_map(connections) do

@@ -21,6 +21,8 @@
 .auction-card__stats > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; padding: 8px 0; border-bottom: 1px solid var(--hairline); }
 .auction-card__stats dt { flex-shrink: 0; color: var(--color-fg-muted); }
 .auction-card__stats dd { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.auction-card__met { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--color-success); }
+.auction-card__met svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .auction-card__stats a { color: inherit; text-decoration: none; }
 .auction-card__stats a:hover { text-decoration: underline; }
 .auction-card__more { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; border: 1px solid var(--hairline); border-radius: 6px; color: inherit; font-size: .8125rem; text-decoration: none; }

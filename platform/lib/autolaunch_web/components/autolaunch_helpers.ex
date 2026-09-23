@@ -51,6 +51,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     doc: "the Robinhood auctions or tokens listed before the stored ones"
 
   attr :robinhood_trade_event, :string, default: nil
+
+  attr :market, :map,
+    default: nil,
+    doc: "the market feed's readings, which give each Base auction its amount raised"
+
   slot :stats, doc: "the auction counts band above the heading"
 
   def collection(assigns) do
@@ -139,6 +144,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
           <.auction_card
             kind={:auction}
             record={record}
+            reading={auction_market_snapshot(@market, record)}
             creator_connections={connections_for(record, grouped_connections(@creators))}
             trade_event={@trade_event}
           />

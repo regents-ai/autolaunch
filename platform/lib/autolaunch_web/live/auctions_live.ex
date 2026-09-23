@@ -4,9 +4,14 @@ defmodule AutolaunchWeb.AuctionsLive do
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.SwapModal
   import AutolaunchWeb.Components.AuctionStats
+  alias AutolaunchWeb.LabMarket
 
   def mount(_params, _session, socket),
-    do: {:ok, socket |> assign(trade: nil) |> assign_auction_stats()}
+    do:
+      {:ok,
+       socket
+       |> assign(trade: nil, market: LabMarket.subscribe(socket))
+       |> assign_auction_stats()}
 
   def handle_params(params, _uri, socket) do
     {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page()}
@@ -35,6 +40,11 @@ defmodule AutolaunchWeb.AuctionsLive do
   end
 
   def handle_event("close_trade", _params, socket), do: {:noreply, socket}
+
+  # The market feed read the auctions again: the amounts raised on the Base
+  # cards follow it.
+  def handle_info({:autolaunch_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
 
   defp load_page(socket) do
     cursor = socket.assigns.cursor
@@ -68,6 +78,7 @@ defmodule AutolaunchWeb.AuctionsLive do
       trade_event="open_trade"
       robinhood={@robinhood}
       robinhood_trade_event="open_robinhood_bid"
+      market={@market}
     >
       <:stats>
         <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
