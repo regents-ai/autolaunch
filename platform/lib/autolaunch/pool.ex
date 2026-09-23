@@ -575,8 +575,9 @@ defmodule Autolaunch.Pool do
   end
 
   # The hook's two lanes for this pool, read from its own storage right now,
-  # plus every accrual and settlement it emitted since graduation, and the
-  # splitter the staker lane and the locker's LP fees flow to.
+  # plus every accrual and settlement it emitted since graduation, the wallet
+  # the Safe named to convert Regent's lane, and the splitter the staker lane
+  # and the locker's LP fees flow to.
   defp stocks_fees(config, launch, decimals, block, opts) do
     hook = StocksLab.address!(config, :hook)
     abi = StocksLab.abi!(config, :hook)
@@ -597,6 +598,8 @@ defmodule Autolaunch.Pool do
              3,
              opts
            ),
+         {:ok, converter} <-
+           Rpc.call_address(hook, LabAbi.encode(abi, "executor()", []), block, opts),
          {:ok, splitter} <-
            splitter_facts(
              StocksLab.abi!(config, :splitter),
@@ -616,6 +619,8 @@ defmodule Autolaunch.Pool do
          trades: Enum.count(logs, &(topic_at(&1, 0) == accrued_topic)),
          regent: %{
            accrued: Rpc.format_units(regent_accrued, decimals),
+           accrued_atomic: regent_accrued,
+           converter: converter,
            settled_currency: Rpc.format_units(stock_converted, decimals),
            settled_usdc: Rpc.format_units(usdc_deposited, @usdc_decimals)
          },

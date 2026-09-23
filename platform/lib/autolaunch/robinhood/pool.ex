@@ -239,13 +239,14 @@ defmodule Autolaunch.Robinhood.Pool do
     end
   end
 
-  # The hook's staker lane for this pool, read from its own storage right now,
-  # and the splitter the lane and the locker's LP fees flow to.
+  # The hook's two lanes for this pool, read from its own storage right now,
+  # the wallet the Safe named to convert Regent's lane, and the splitter the
+  # staker lane and the locker's LP fees flow to.
   defp fees(config, launch, stock, block, opts) do
     hook = Lab.address!(config, :stocks_hook)
     abi = Lab.abi!(config, :stocks_hook)
 
-    with {:ok, [_protocol_accrued, staker_accrued]} <-
+    with {:ok, [protocol_accrued, staker_accrued]} <-
            Rpc.call_words(
              hook,
              LabAbi.encode(abi, "accrued(bytes32)", [launch.pool_id]),
@@ -261,10 +262,17 @@ defmodule Autolaunch.Robinhood.Pool do
              3,
              opts
            ),
+         {:ok, converter} <-
+           Rpc.call_address(hook, LabAbi.encode(abi, "executor()", []), block, opts),
          {:ok, splitter} <- splitter_facts(config, launch.splitter, block, opts) do
       {:ok,
        %{
          lane_bps: @lane_bps,
+         regent: %{
+           accrued: Rpc.format_units(protocol_accrued, stock.decimals),
+           accrued_atomic: protocol_accrued,
+           converter: converter
+         },
          stakers: %{
            accrued: Rpc.format_units(staker_accrued, stock.decimals),
            accrued_atomic: staker_accrued,

@@ -47,6 +47,8 @@ defmodule Autolaunch.Robinhood.LabAbi do
       f: {"accrued(bytes32)", "view", ["uint256", "uint256"]},
       f: {"settled(bytes32)", "view", ["uint256", "uint256", "uint256"]},
       f: {"settleStakerLane(bytes32)", "nonpayable", ["uint256"]},
+      f: {"executor()", "view", ["address"]},
+      f: {"settleProtocolLane(bytes32,uint256,uint256)", "nonpayable", []},
       e: {@hook_fee_accrued, [true, false, false, false]},
       e: {@protocol_lane_settled, [true, false, false]},
       e: {@staker_lane_settled, [true, true, false]}
