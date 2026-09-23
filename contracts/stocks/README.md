@@ -18,8 +18,13 @@ Agent subject splitter, not a change to it.
 
 ## Status
 
-`implemented-unverified` at best until the evidence index in `platform/docs/stocks.md` says
-otherwise. No deployment, funding or public-chain transaction is part of this component.
+Deployed on Base on 23 September 2026 under packet digest
+`0x26c7cb27f97e35915c27e9ede752c8dc63c6268a5b8ef1b6b0852eacb4f847a5`; the addresses are in
+[deployments/base-mainnet/](deployments/base-mainnet/README.md) and in the top-level
+[contracts/README.md](../README.md). Ten stocks are admitted with `AerodromeStockRouteV2` routes
+and the hook executor is set; the launchpad stays paused until the Governance and Regent Safe calls
+`unpauseLaunches()`. The evidence index in `platform/docs/stocks.md` records the verification
+status of each claim.
 
 ## Layout
 
@@ -164,9 +169,11 @@ caller-supplied calldata, and:
   nothing between calls; the pool's pull callback accepts the pinned pool only.
 
 The ten `AerodromeStockRouteV1` routes the Base ceremony created on 22–23 September 2026 carried a
-5% feed guard on execution; the founder removed it before any was admitted. They are retired, and
-ten V2 routes are created by hand from the deployer and admitted in the Safe session instead
-(`deployments/base-mainnet/README.md`).
+5% feed guard on execution; the founder removed it before any was admitted. They are retired.
+Ten V2 routes were created by hand from the deployer on 23 September 2026 and admitted by the Safe
+in transaction `0x97030521eac9d0eace8f53d1bcb5f42ef3527cabb712d73228bfe4fc8617fbd6` (block
+51698209); their addresses are in the top-level [contracts/README.md](../README.md) and readable
+from the launchpad's `stockAdmission(stock)`.
 
 Admittable today (a Chainlink feed and a Slipstream USDC pool both exist; COINc, CRCLc and INTCc
 have neither):

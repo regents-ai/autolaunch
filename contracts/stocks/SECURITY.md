@@ -1,7 +1,8 @@
 # Autolaunch Stocks: security posture and invariant proofs
 
-Status: `implemented-unverified` (unit-proven and fork-proven against fixtures; nothing here is
-B20-verified or release-admitted). No public-chain deployment exists.
+Status: unit-proven and fork-proven against fixtures. Deployed on Base on 23 September 2026
+(`deployments/base-mainnet/README.md`), launches paused; ten stocks admitted with
+`AerodromeStockRouteV2` routes, which carry no execution price guard.
 
 ## Design rules applied everywhere
 

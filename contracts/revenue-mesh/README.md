@@ -3,6 +3,8 @@
 This repository contains the offline EVM CCTP foundation for immutable USDC revenue routes into an
 existing Base `PaymentReceiverV1` and its bound splitter.
 
+Status: experimental. Nothing here is deployed, and no launch type depends on it.
+
 The source factory fixes one source USDC token, Circle TokenMessenger V2, source domain, source
 namespace and chain identity, minimum sweep, per-message burn cap, and fee ceiling. A route deployer
 supplies only the Base receiver and Base splitter. The resulting inbox has no owner, role, proxy,
