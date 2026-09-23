@@ -9,7 +9,7 @@
 @import "./pages/regent.css";
 @import "./pages/autolaunch.css";
 @import "./pages/home.css";
-@import "./pages/token_details.css";
+@import "./pages/facts.css";
 
 /* Until opening: one countdown beside + Create, and a short welcome on the home page. */
 #home-top .home-top__opening { display: inline-flex; align-items: center; gap: 8px; }

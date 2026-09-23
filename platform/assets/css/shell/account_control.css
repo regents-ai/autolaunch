@@ -21,3 +21,5 @@
 .account-menu__item--leave { color: var(--color-error); }
 .account-menu__item:disabled { opacity: .5; cursor: not-allowed; }
 .account-menu__icon { flex-shrink: 0; }
+/* Same height as + Create and the countdown beside it. */
+.rg-button.account-control__sign-in { min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }

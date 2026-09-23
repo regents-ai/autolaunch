@@ -1,0 +1,37 @@
+/* Fact pages (Token details, REGENT): plain tables, a few orange figures, then a "Show details" list. */
+.fact-page { display: grid; gap: var(--space-4); max-width: 1040px; min-width: 0; }
+.fact-page__section { display: grid; gap: var(--space-2); min-width: 0; }
+.fact-page__section > * { margin: 0; }
+.fact-page h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 1.25rem; line-height: 1.3; }
+.fact-page__total { color: var(--product-autolaunch); }
+.fact-page__section > p { max-width: 70ch; font-size: .9375rem; line-height: 1.6; }
+.fact-page__hi { color: var(--product-autolaunch); font-weight: 600; }
+.fact-table { width: 100%; border-collapse: collapse; font-size: .9375rem; line-height: 1.55; text-align: left; font-variant-numeric: tabular-nums; }
+.fact-table :is(th, td) { padding: 12px 24px 12px 0; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+.fact-table :is(th, td):last-child { padding-right: 0; }
+.fact-table thead th { font-weight: 600; border-bottom-color: var(--hairline-strong); }
+.fact-table tbody th { font-weight: 400; }
+.fact-table strong { font-weight: 600; }
+.fact-table__amount { text-align: right; }
+.fact-table td.fact-table__amount { white-space: nowrap; }
+.fact-table tr:last-child td.fact-table__amount { white-space: normal; }
+.fact-table__note { display: block; white-space: nowrap; color: var(--color-fg-muted); font-size: .8125rem; }
+.fact-table__tag { display: inline-block; margin-top: 6px; padding: 2px 8px; border: 1px solid var(--hairline-strong); font-size: .6875rem; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.fact-more { border-block: 1px solid var(--hairline-strong); }
+.fact-more summary { display: flex; align-items: center; min-height: 44px; padding: var(--space-1) 0; cursor: pointer; list-style: none; font-size: 1.125rem; }
+.fact-more summary::-webkit-details-marker { display: none; }
+.fact-more summary::after { content: "+"; margin-left: auto; font-family: var(--font-family-title); }
+.fact-more[open] summary::after { content: "\2212"; }
+.fact-more summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
+.fact-more__body { display: grid; gap: 6px; margin: 0; padding: 0 0 var(--space-3) 1.25rem; font-size: .9375rem; line-height: 1.6; }
+/* Narrow screens: each row becomes a small card, with its column name above every value. */
+@media (max-width: 42rem) {
+  .fact-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .fact-table :is(tbody, tr, th, td) { display: block; }
+  .fact-table tr { display: grid; gap: var(--space-1); padding: var(--space-2) 0; border-bottom: 1px solid var(--hairline); }
+  .fact-table :is(th, td) { padding: 0; border: 0; }
+  .fact-table tbody th { font-weight: 600; }
+  .fact-table__amount { text-align: left; }
+  .fact-table td.fact-table__amount { white-space: normal; }
+  .fact-table td::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font-size: .6875rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+}

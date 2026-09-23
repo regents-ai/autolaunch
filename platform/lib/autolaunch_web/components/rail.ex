@@ -98,9 +98,20 @@ defmodule AutolaunchWeb.Components.Rail do
         <path d="M8 7V5.5h8V7" />
         <path d="M4.5 12h15" />
       </g>
-      <g :if={@name == :regent}>
-        <path d="M12 3.75 20 12l-8 8.25L4 12z" />
-      </g>
+      <svg
+        :if={@name == :regent}
+        x="2"
+        y="5"
+        width="20"
+        height="14"
+        viewBox="31 46 178 106"
+        fill="currentColor"
+        stroke="none"
+      >
+        <rect :for={x <- [31, 103, 175]} x={x} y="46" width="34" height="34" />
+        <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="82" width="34" height="34" />
+        <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="118" width="34" height="34" />
+      </svg>
     </svg>
     """
   end
