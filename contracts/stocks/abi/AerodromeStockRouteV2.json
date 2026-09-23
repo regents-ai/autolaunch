@@ -1,16 +1,11 @@
 {
-  "contract": "UniswapV3StockRouteV1",
-  "source": "src/routes/UniswapV3StockRouteV1.sol",
+  "contract": "AerodromeStockRouteV2",
+  "source": "src/routes/AerodromeStockRouteV2.sol",
   "compiler": "0.8.26+commit.8a97fa7a",
   "abi": [
     {
       "type": "constructor",
       "inputs": [
-        {
-          "name": "usdg_",
-          "type": "address",
-          "internalType": "address"
-        },
         {
           "name": "stock_",
           "type": "address",
@@ -76,7 +71,7 @@
         {
           "name": "",
           "type": "address",
-          "internalType": "contract IUniswapV3PoolMinimal"
+          "internalType": "contract ISlipstreamPoolMinimal"
         }
       ],
       "stateMutability": "view"
@@ -119,19 +114,6 @@
           "name": "",
           "type": "address",
           "internalType": "address"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "stockIsToken0",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "bool",
-          "internalType": "bool"
         }
       ],
       "stateMutability": "view"
@@ -213,7 +195,7 @@
     },
     {
       "type": "function",
-      "name": "usdg",
+      "name": "usdc",
       "inputs": [],
       "outputs": [
         {
@@ -278,22 +260,12 @@
       "name": "PoolBindingMismatch",
       "inputs": [
         {
-          "name": "usdg",
+          "name": "expected",
           "type": "address",
           "internalType": "address"
         },
         {
-          "name": "stock",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "token0",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "token1",
+          "name": "found",
           "type": "address",
           "internalType": "address"
         }
@@ -312,22 +284,6 @@
           "name": "updatedAt",
           "type": "uint256",
           "internalType": "uint256"
-        }
-      ]
-    },
-    {
-      "type": "error",
-      "name": "UnexpectedDecimals",
-      "inputs": [
-        {
-          "name": "expected",
-          "type": "uint8",
-          "internalType": "uint8"
-        },
-        {
-          "name": "found",
-          "type": "uint8",
-          "internalType": "uint8"
         }
       ]
     },
@@ -365,10 +321,9 @@
     "pool()": "16f0115b",
     "quoteExactIn(address,address,uint256)": "12be4fe0",
     "stock()": "bdf3c4ae",
-    "stockIsToken0()": "30adc553",
     "stockUnit()": "fe8d6b94",
     "swapExactIn(address,address,uint256,uint256,address)": "7b32b50e",
     "uniswapV3SwapCallback(int256,int256,bytes)": "fa461e33",
-    "usdg()": "f5b91b7b"
+    "usdc()": "3e413bee"
   }
 }

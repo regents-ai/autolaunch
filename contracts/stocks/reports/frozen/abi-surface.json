@@ -685,8 +685,8 @@
       "input_structs": {},
       "return_structs": {}
     },
-    "AerodromeStockRouteV1": {
-      "source": "src/routes/AerodromeStockRouteV1.sol",
+    "AerodromeStockRouteV2": {
+      "source": "src/routes/AerodromeStockRouteV2.sol",
       "constructor": [
         "address stock_",
         "address pool_",
@@ -695,7 +695,6 @@
       "functions": [
         "0x12be4fe0 quoteExactIn(address,address,uint256)",
         "0x16f0115b pool()",
-        "0x25c68403 MAX_DEVIATION_BPS()",
         "0x37a7b7d8 feed()",
         "0x3e413bee usdc()",
         "0x696453b8 MAX_FEED_AGE()",
@@ -712,7 +711,6 @@
       "view_functions": [
         "0x12be4fe0 quoteExactIn(address,address,uint256)",
         "0x16f0115b pool()",
-        "0x25c68403 MAX_DEVIATION_BPS()",
         "0x37a7b7d8 feed()",
         "0x3e413bee usdc()",
         "0x696453b8 MAX_FEED_AGE()",
@@ -731,7 +729,6 @@
         "0x515f5007 StaleFeed(uint256)",
         "0x56ad21c6 BadFeedAnswer(int256)",
         "0x674520b6 NoCode(address)",
-        "0xa9a9c04c PriceDeviation(uint256,uint256)",
         "0xab143c06 Reentrancy()",
         "0xd92e233d ZeroAddress()"
       ],

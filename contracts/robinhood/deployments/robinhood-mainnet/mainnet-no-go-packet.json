@@ -22,11 +22,11 @@
     "append_cbor": false
   },
   "source_identity": {
-    "src_tree": "8f706cdd4b007033b11a3fe0e8bef5ad8137f171",
-    "shared_src_tree": "ae774116e03bd45492d9aa3c8b00fbbbe704383f",
+    "src_tree": "4ba1902d0dc3f8ee843b9e1554ae041fdddd308b",
+    "shared_src_tree": "f93c456933072e823de729b80665cdb50d8d779e",
     "shared_component": "contracts/stocks"
   },
-  "frozen_manifest_sha256": "658c752728c16abfe2115b126ace97f8a24fbb0aa4d4e3049a39e9448a176ac8",
+  "frozen_manifest_sha256": "a3b57b027b137b654aa16527589664730c1f2f8305a3ceb5e573e9a66b8cbea1",
   "code_identity": [
     {
       "contract": "UERC20Factory",
@@ -130,13 +130,13 @@
         "address pool_",
         "address feed_"
       ],
-      "runtime_bytes": 2975,
-      "runtime_keccak256": "0xd7dc66a5abb635cdc549ddb8d5544cfd3fca0cf11780715b1d5ae7f93730a5d5",
+      "runtime_bytes": 2935,
+      "runtime_keccak256": "0xeb18a5037da87ed36c61cee938096a22bcda02836c1b3b82b8136c7bffaaef36",
       "runtime_immutable_references": 7,
       "runtime_linked_libraries": [],
       "runtime_keccak256_is_deployed_codehash": false,
-      "creation_bytes": 4279,
-      "creation_keccak256": "0x89ca45101adc90350567d742d2a9efc247c0fa03761cad3643f7fb88a79ad576"
+      "creation_bytes": 4246,
+      "creation_keccak256": "0x42cc4cbc4e2755f6fc20d45cd401dcd06eb16444687b1149df3d140f063855ff"
     },
     {
       "contract": "RobinhoodFeeHookV1",
@@ -212,6 +212,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xe9fc2f01ed672b1e314b3e9d04cb8e7d331188396ceefa1a26c74283b35b3ce3"
+    "value": "0xdffdf0c1a9717215c18d905cdbac9220a6b15da7e288cd30737b1e0aaef64ac5"
   }
 }

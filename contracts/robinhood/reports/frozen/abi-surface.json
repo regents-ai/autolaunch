@@ -952,7 +952,6 @@
       "functions": [
         "0x12be4fe0 quoteExactIn(address,address,uint256)",
         "0x16f0115b pool()",
-        "0x25c68403 MAX_DEVIATION_BPS()",
         "0x30adc553 stockIsToken0()",
         "0x37a7b7d8 feed()",
         "0x696453b8 MAX_FEED_AGE()",
@@ -970,7 +969,6 @@
       "view_functions": [
         "0x12be4fe0 quoteExactIn(address,address,uint256)",
         "0x16f0115b pool()",
-        "0x25c68403 MAX_DEVIATION_BPS()",
         "0x30adc553 stockIsToken0()",
         "0x37a7b7d8 feed()",
         "0x696453b8 MAX_FEED_AGE()",
@@ -991,7 +989,6 @@
         "0x674520b6 NoCode(address)",
         "0x7562d808 UnexpectedDecimals(uint8,uint8)",
         "0xa8d51a24 PoolBindingMismatch(address,address,address,address)",
-        "0xa9a9c04c PriceDeviation(uint256,uint256)",
         "0xab143c06 Reentrancy()",
         "0xd92e233d ZeroAddress()"
       ],

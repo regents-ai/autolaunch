@@ -12,11 +12,14 @@ consumes from the environment is never printed or written.
 
 Modes:
 
-  render      Offline. Runs the hermetic ceremony suite under the `deployment` profile, re-derives
-              the committed selection (when one is installed) through the selection suite, renders
-              the packet candidate from the frozen manifest and compares it byte for byte with
-              `deployments/<network>/mainnet-no-go-packet.json`. Proves the deployed manifest is
-              the empty record. Reaches no network.
+  render      Offline. Runs the hermetic ceremony suite under the `deployment` profile. While the
+              deployed manifest is the empty record, re-derives the committed selection (when one
+              is installed) through the selection suite, renders the packet candidate from the
+              frozen manifest and compares it byte for byte with
+              `deployments/<network>/mainnet-no-go-packet.json`. Once the manifest is a deployed
+              record the chain is the authority: the installed packet is proved from its own
+              content (its digest recomputes, the source trees it names exist in the repository)
+              and the manifest names it; nothing is re-derived from HEAD. Reaches no network.
   prepare     Reads the selected deployer's nonce, the head block, every binding's code hash and
               the control surface through `cast` (read-only), mines the hook salt offline through
               the selection suite, and writes a packet candidate carrying the selection and the
@@ -32,11 +35,12 @@ Modes:
               (sender, nonce, order, created address, status, code identity, readbacks) and writes
               a deployed-manifest candidate to reports/generated/deployment/. A human installs it.
   site-config Renders the production site-config from the installed deployed manifest, the frozen
-              ABIs and the endpoint the founder passes, to reports/generated/deployment/.
+              ABIs and the endpoint the founder passes, to reports/generated/deployment/. Base
+              reads every stock's route from the launchpad's admission over that endpoint.
 
 Endpoints come from the environment only (`REGENT_BASE_RPC_URL`, `REGENT_ROBINHOOD_RPC_URL`),
-matching the `[rpc_endpoints]` aliases in `foundry.toml`. A diagnostic that would echo one is
-redacted before it is shown.
+matching the `[rpc_endpoints]` aliases in `foundry.toml`, except that site-config reads through
+the `--rpc-url` it is given. A diagnostic that would echo one is redacted before it is shown.
 """
 
 from __future__ import annotations
@@ -205,19 +209,26 @@ def selection_logs(match_test: str, env: dict) -> dict[str, str]:
 
 
 class Chain:
-    """Read-only access to one chain through `cast`, by endpoint alias and environment name."""
+    """Read-only access to one chain through `cast`, by endpoint alias and environment name, or
+    through an endpoint passed on the command line (`through`)."""
 
-    def __init__(self, alias: str, env_name: str, chain_id: int) -> None:
+    def __init__(self, alias: str, env_name: str, chain_id: int, url: str | None = None) -> None:
         self.alias = alias
         self.env_name = env_name
         self.chain_id = chain_id
+        self.url = url
+
+    def through(self, url: str) -> "Chain":
+        """The same chain, read through the endpoint the caller passed."""
+        return Chain(self.alias, self.env_name, self.chain_id, url)
 
     def endpoint(self) -> str:
-        value = os.environ.get(self.env_name, "")
+        source = "--rpc-url" if self.url else self.env_name
+        value = self.url or os.environ.get(self.env_name, "")
         if not value:
-            raise CeremonyError(f"no read-only endpoint is injected under {self.env_name}")
+            raise CeremonyError(f"no read-only endpoint is injected under {source}")
         if not re.match(r"^(https?|wss?)://.+", value):
-            raise CeremonyError(f"the value under {self.env_name} is not an http(s) or ws(s) endpoint; its value is never printed")
+            raise CeremonyError(f"the value under {source} is not an http(s) or ws(s) endpoint; its value is never printed")
         return value
 
     def cast(self, *args: str) -> str:
@@ -432,6 +443,21 @@ def mined_salt_bits(salt_hex: str) -> None:
         raise CeremonyError(f"the mined hook salt is not 32 bytes: {salt_hex}")
 
 
+def admitted_route(chain: Chain, launchpad: str, stock: str) -> str:
+    """The route the launchpad admits `stock` through, read from the chain; the route must report
+    that stock back. The chain is the authority, not the manifest."""
+    values = chain.call(launchpad, "stockAdmission(address)(bool,uint8,address)", stock).split()
+    if len(values) != 3 or values[0] not in ("true", "false"):
+        raise CeremonyError(f"stockAdmission on {launchpad} did not return (bool, uint8, address) for {stock}")
+    if values[0] != "true":
+        raise CeremonyError(f"{stock} is not admitted on the launchpad {launchpad}")
+    route = checksum(values[2])
+    found = chain.call_address(route, "stock()(address)")
+    if not same_address(found, stock):
+        raise CeremonyError(f"the route {route} admitted for {stock} reports {found} as its stock")
+    return route
+
+
 class Stocks(Package):
     component = "contracts/stocks"
     network = "base-mainnet"
@@ -440,7 +466,7 @@ class Stocks(Package):
     PREDICTED = ("launchpad", "splitter_implementation", "locker", "hook", "bid_adapter")
     # Every contract a ceremony creates, in creation order, transactions first and then the
     # launchpad constructor's own creations.
-    CREATIONS = ("StocksLaunchpadV1", "StockBidAdapterV1", "AerodromeStockRouteV1", "MemestockSplitterV1",
+    CREATIONS = ("StocksLaunchpadV1", "StockBidAdapterV1", "AerodromeStockRouteV2", "MemestockSplitterV1",
                  "MemestockLPLocker", "StocksFeeHookV1")
     BINDINGS = ("REGENT", "USDC", "CCA_FACTORY", "POOL_MANAGER", "POSITION_MANAGER", "LIVE_STAKING",
                 "GOVERNANCE_AND_REGENT_SAFE", "PERMIT2")
@@ -551,7 +577,7 @@ class Stocks(Package):
              "constructor_arguments": {"launchpad_": predicted["launchpad"]}},
         ]
         for i, admission in enumerate(selection["admissions"]):
-            order.append({"index": 2 + i, "contract": "AerodromeStockRouteV1", "mechanism": "transaction",
+            order.append({"index": 2 + i, "contract": "AerodromeStockRouteV2", "mechanism": "transaction",
                           "created_by": "deployer", "deployer_nonce": nonce + 2 + i, "address": predicted["routes"][i],
                           "constructor_arguments": {"stock_": admission["stock"], "pool_": admission["pool"], "feed_": admission["feed"]}})
         internal = [
@@ -638,7 +664,7 @@ class Stocks(Package):
     def transaction_plan(self, selection: dict) -> list[tuple[Chain, str, str]]:
         predicted = selection["predicted_addresses"]
         plan = [(self.chain, "StocksLaunchpadV1", predicted["launchpad"]), (self.chain, "StockBidAdapterV1", predicted["bid_adapter"])]
-        plan += [(self.chain, "AerodromeStockRouteV1", route) for route in predicted["routes"]]
+        plan += [(self.chain, "AerodromeStockRouteV2", route) for route in predicted["routes"]]
         return plan
 
     def internal_plan(self, selection: dict) -> list[tuple[Chain, str, str, str]]:
@@ -681,7 +707,7 @@ class Stocks(Package):
             "locker": ("out", "src/MemestockLPLocker.sol:MemestockLPLocker"),
             "splitter": ("out", "src/MemestockSplitterV1.sol:MemestockSplitterV1"),
             "bid_adapter": ("out", "src/StockBidAdapterV1.sol:StockBidAdapterV1"),
-            "route": ("out", "src/routes/AerodromeStockRouteV1.sol:AerodromeStockRouteV1"),
+            "route": ("out", "src/routes/AerodromeStockRouteV2.sol:AerodromeStockRouteV2"),
             "auction": ("out", "lib/continuous-clearing-auction/src/ContinuousClearingAuction.sol:ContinuousClearingAuction"),
             "erc20": ("out", "src/interfaces/IERC20Standard.sol:IERC20Standard"),
             "permit2": ("out", "lib/permit2/src/interfaces/IAllowanceTransfer.sol:IAllowanceTransfer"),
@@ -693,6 +719,7 @@ class Stocks(Package):
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
         created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"]}
+        chain = self.chain.through(args.rpc_url)
         addresses = {
             "launchpad": created["launchpad"],
             "hook": created["hook"],
@@ -714,7 +741,7 @@ class Stocks(Package):
                 "symbol": admission["symbol"],
                 "address": admission["stock"].lower(),
                 "decimals": admission["decimals"],
-                "route": admission["route"].lower(),
+                "route": admitted_route(chain, created["launchpad"], admission["stock"]).lower(),
                 "fixture": False,
                 "launch_admission": "admitted",
             }
@@ -1228,6 +1255,32 @@ def verify_selection_rederives(package: Package, selection: dict) -> None:
     print("selection: every predicted address re-derives from the committed values exactly")
 
 
+def is_deployed_record(package: Package) -> bool:
+    path = DEPLOYMENTS / package.network / MANIFEST_NAME
+    return path.exists() and load_json(path).get("status") == "deployed"
+
+
+def verify_deployed_packet(packet: dict | None) -> None:
+    """A deployed package's packet is the record of what the chain carries: it is proved from its
+    own content and the source trees it names, never re-derived from HEAD."""
+    if packet is None:
+        raise CeremonyError("the deployed manifest is a deployed record but no packet is installed")
+    digest = packet["digest"]["value"]
+    if digest_of(packet) != digest:
+        raise CeremonyError("the installed packet's digest does not recompute from its content")
+    identity = packet["source_identity"]
+    for key in ("src_tree", "shared_src_tree"):
+        if key not in identity:
+            continue
+        try:
+            kind = git("cat-file", "-t", identity[key])
+        except CeremonyError:
+            kind = "absent"
+        if kind != "tree":
+            raise CeremonyError(f"{key} {identity[key]} is not a tree object in this repository")
+    print(f"render: the installed packet is a deployed record; digest {digest} recomputes and its source trees exist")
+
+
 def verify_manifest_shape(package: Package, packet: dict | None) -> None:
     path = DEPLOYMENTS / package.network / MANIFEST_NAME
     if not path.exists():
@@ -1258,11 +1311,14 @@ def mode_render(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
     print("offline: no endpoint variable survives into this run")
     verify_hermetic_suite()
     packet = installed_packet(package)
-    selection = packet.get("selection") if packet else None
-    observation = packet.get("external_observation") if packet else None
-    if selection:
-        verify_selection_rederives(package, selection)
-    compare_bytes(render_packet(package, frozen, selection, observation), packet, "render")
+    if is_deployed_record(package):
+        verify_deployed_packet(packet)
+    else:
+        selection = packet.get("selection") if packet else None
+        observation = packet.get("external_observation") if packet else None
+        if selection:
+            verify_selection_rederives(package, selection)
+        compare_bytes(render_packet(package, frozen, selection, observation), packet, "render")
     verify_manifest_shape(package, packet)
     print("CEREMONY RENDER PASS: mainnet-NO-GO, not authorized")
     return 0
@@ -1395,7 +1451,7 @@ def mode_record(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
 
 CONTRACT_KEYS = {
     "StocksLaunchpadV1": "launchpad", "StocksFeeHookV1": "hook", "MemestockLPLocker": "locker",
-    "MemestockSplitterV1": "splitter_implementation", "StockBidAdapterV1": "bid_adapter", "AerodromeStockRouteV1": "route",
+    "MemestockSplitterV1": "splitter_implementation", "StockBidAdapterV1": "bid_adapter", "AerodromeStockRouteV2": "route",
     "UERC20Factory": "uerc20_factory", "RobinhoodProtocolRevenueInboxV1": "inbox", "RobinhoodPositionsLib": "positions_lib",
     "RobinhoodFeeHookFactory": "hook_factory", "RobinhoodStocksLaunchpadV1": "launchpad", "RobinhoodStockBidAdapterV1": "bid_adapter",
     "RobinhoodFeeHookV1": "hook", "RobinhoodMemestockSplitterV1": "splitter_implementation", "RobinhoodBaseRevenueReceiverV1": "base_receiver",

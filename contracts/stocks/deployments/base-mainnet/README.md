@@ -7,6 +7,15 @@
 launch until the Governance and Regent Safe calls `admitStock` for each stock, `setExecutor` on the
 hook and, last, `unpauseLaunches()`.
 
+**The ten route creations are retired.** On 23 September 2026, before any route was admitted, the
+founder removed the 5% Chainlink guard from the stock routes. The ten `AerodromeStockRouteV1`
+contracts below (nonces 7–16) refuse an execution more than five percent under the feed and were
+never admitted; they stay on chain unused. Ten `AerodromeStockRouteV2` routes
+(`src/routes/AerodromeStockRouteV2.sol`, same constructor, no guard), one per stock over the same
+pool and feed, are created by hand from the deployer and admitted in the Safe session instead. The
+tables keep the record of what the ceremony sent; the launchpad's `stockAdmission` is the authority
+on which route each stock uses, and `site-config` reads it from there.
+
 | Contract | Address | Base block |
 | --- | --- | --- |
 | StocksLaunchpadV1 | `0x1d36a95112835f81b1B499A808e556020C64Cac2` | 51673079 |
@@ -48,10 +57,14 @@ Two files live in this directory, and keeping them apart is the point.
   founder's selection and a human has installed its candidate, the deployer, its starting nonce, the
   mined hook salt, the UERC20 factory the launchpad binds, the admitted stocks with their pools and
   feeds, every predicted address, the observed external state, and the creation topology.
-  `bin/ceremony.py render` renders it deterministically, offline, and compares it byte for byte
-  with this committed copy; the tool can fail an installed packet and can write a candidate to
-  `reports/generated/deployment/`, but it never installs one. Every value in it is public; no key,
-  mnemonic, keystore path, endpoint or credential belongs here.
+  While the manifest was the empty record, `bin/ceremony.py render` rendered it deterministically,
+  offline, and compared it byte for byte with this committed copy; the tool could fail an installed
+  packet and write a candidate to `reports/generated/deployment/`, but never installed one. Now
+  that the manifest is a deployed record the chain is the authority: `render` proves the packet
+  from its own content (its digest recomputes; the `src/` tree it names exists in the repository)
+  and no longer re-derives it from the current source, which has moved on since the ceremony (the
+  route is V2 now). Every value in it is public; no key, mnemonic, keystore path, endpoint or
+  credential belongs here.
 
 - `deployed-manifest.json` is a **record**. It was populated once, by `bin/ceremony.py record`, from
   confirmed Base receipts, after the founder named the packet's exact digest and sent the ceremony
@@ -68,7 +81,7 @@ founder-selected deployer, each a plain zero-value contract creation. `n` is the
 | --- | --- | --- | --- |
 | 1 | `n` | `StocksLaunchpadV1` | the launchpad; its constructor creates the splitter implementation (launchpad nonce 1), the LP locker (nonce 2) and the fee hook (`CREATE2` over the pinned salt) |
 | 2 | `n + 1` | `StockBidAdapterV1` | bids STOCK into a launch's auction through the launchpad's admitted route |
-| 3 + i | `n + 2 + i` | `AerodromeStockRouteV1` | one production route per admitted stock, in packet order, over its Aerodrome Slipstream USDC/STOCK pool and Chainlink feed |
+| 3 + i | `n + 2 + i` | `AerodromeStockRouteV1` | one route per admitted stock, in packet order, over its Aerodrome Slipstream USDC/STOCK pool and Chainlink feed; retired unadmitted (see above) in favour of `AerodromeStockRouteV2` created by hand |
 
 The launchpad is born paused and holds no owner: the Governance and Regent Safe compiled into
 `StocksBindings` is its only mutable authority. The deployer holds no role anywhere in the graph
@@ -79,8 +92,11 @@ after the last creation.
 After the ceremony, the graph exists and does nothing. Opening it is the Safe's work, by hand,
 one transaction each, all verifiable through public reads:
 
-1. `admitStock(address stock, address route)` on the launchpad, once per admitted stock, with the
-   route address the packet predicts for that stock.
+1. `admitStock(address stock, address route)` on the launchpad, once per admitted stock, with that
+   stock's `AerodromeStockRouteV2` address, created by hand from the deployer
+   (`forge create src/routes/AerodromeStockRouteV2.sol:AerodromeStockRouteV2 --constructor-args STOCK POOL FEED`,
+   the pool and feed from the packet's admission for that stock), not the V1 route the packet
+   predicts. The launchpad checks that the route reports the stock and USDC back.
 2. `setExecutor(address executor)` on the fee hook, naming the account that may drive the hook's
    executor-only path.
 3. `unpauseLaunches()` on the launchpad, last.
@@ -92,8 +108,9 @@ Before signing, both batches were run from the Safe on a Base node without sendi
 launchpads read open after the activation batch; `admitStock` from any other account and a stock
 paired with another stock's route were refused. On the same day every deployed route was run on live
 Base state for all ten stocks: a 0.1-share sale landed within 0.35% of the Chainlink price, a 20 USDC
-purchase succeeded inside the 5% bound, and the purchased stock moved through the bid adapter's
-exact Permit2 allowance path with both allowances back at zero.
+purchase landed near it, and the purchased stock moved through the bid adapter's exact Permit2
+allowance path with both allowances back at zero. Those rehearsals ran through the V1 routes; the
+Safe session admits the V2 routes.
 
 ## The values the ceremony consumes
 
@@ -126,8 +143,10 @@ only consume a pinned salt.
 ## What the tool proves before anything is sent
 
 - `render` (offline): the hermetic ceremony suite passes under the `deployment` profile; the
-  committed selection re-derives to the same salt and addresses; the packet renders byte for byte;
-  the deployed manifest is the empty record.
+  installed packet's digest recomputes from its own content and the `src/` tree it names exists in
+  the repository; the deployed manifest is a deployed record for that digest. (Before the
+  deployment, while the manifest was the empty record, it re-derived the committed selection and
+  rendered the packet byte for byte instead.)
 - `rehearse` (read-only endpoint under `REGENT_BASE_RPC_URL`): the deployer's live nonce still
   equals the committed one; every committed external fact (binding code hashes, the Safe's owners
   and threshold, the live staking owner and paused flag, each pool's tokens, each stock's and
@@ -221,7 +240,7 @@ nobody: anyone may call `settleStakerLane(bytes32 poolId)` and the whole lane go
 that pool's fixed memestock splitter. The REGENT lane needs a decision — how much STOCK to sell,
 and the least USDC to accept for it — and that decision belongs to one account the Safe names: the
 executor. Everything below is read from `src/StocksFeeHookV1.sol` and
-`src/routes/AerodromeStockRouteV1.sol`.
+`src/routes/AerodromeStockRouteV2.sol`.
 
 ### What the executor can do
 
@@ -255,17 +274,17 @@ Any refusal reverts the whole call: the lane is not debited, no token moves.
 - Touch the staker lane, register or initialize a pool, credit launch dust, change the route,
   change the executor, or pause anything. Pools and dust are the launchpad's (`NotLaunchpad`); the
   executor and the admissions are the Safe's (`NotGovernance`).
-- Sell below the feed. The route quotes from the Chainlink feed, not the pool, and refuses any
-  execution that delivers more than `MAX_DEVIATION_BPS` (`500`, five percent) under that quote
-  (`PriceDeviation`). `minUsdcOut` can only tighten that bound.
-- Sell against a stopped feed. The route reads the feed's latest round on every quote and every
-  swap and refuses with `StaleFeed` when the answer is older than `MAX_FEED_AGE` (`7 days`) or has
-  no timestamp, and with `BadFeedAnswer` when the answer is not positive. While a feed is stale,
-  `quoteExactIn` and `swapExactIn` both revert, so that stock's REGENT lane cannot be settled at
-  all; it keeps accruing, and the staker lane is unaffected. The feeds hold the last close over
-  weekends and holidays, so this bound only catches a feed that has stopped.
+- Quote against a stopped feed. `quoteExactIn` reads the feed's latest round and refuses with
+  `StaleFeed` when the answer is older than `MAX_FEED_AGE` (`7 days`) or has no timestamp, and with
+  `BadFeedAnswer` when the answer is not positive. `swapExactIn` never reads the feed, so a stale
+  feed stops the quote, not a sale. The feeds hold the last close over weekends and holidays, so
+  this bound only catches a feed that has stopped.
 
-The route holds nothing between calls and calls the pool directly, never a router.
+The route has no price guard of its own: the price control is the minimum each caller sets, and
+the executor's `minUsdcOut` is what protects REGENT's share. Keep the executor key safe, quote
+before every settlement, and in a thin market split a sale into pieces small enough for the pool at
+hand rather than lowering the floor. The route holds nothing between calls and calls the pool
+directly, never a router.
 
 ### Setting the executor up
 
@@ -308,8 +327,9 @@ intend to sell at the feed price, in USDC base units:
 cast call 0xROUTE "quoteExactIn(address,address,uint256)(uint256)" 0xSTOCK 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 STOCK_AMOUNT --rpc-url base
 ```
 
-Choose `MIN_USDC_OUT` from that quote: the route already refuses anything more than five percent
-under it, so the value is the tighter floor you are willing to accept, never more than the quote.
+Choose `MIN_USDC_OUT` from that quote: the route refuses nothing on its own, so this value is the
+only floor on the price. The website offers bidders a minimum at 95% of the Chainlink price; a sale
+the pool cannot fill at your floor should be split into smaller pieces, never sent with a lower one.
 Then send, from the executor's key:
 
 ```bash
@@ -347,5 +367,5 @@ Every fact above is a public read.
 | hook | `pool(bytes32)((address,address,address))` | the pool's `(stock, newToken, splitter)` |
 | launchpad | `stockAdmission(address)(bool,uint8,address)` | `(admitted, decimals, route)` |
 | route | `stock()(address)`, `usdc()(address)`, `pool()(address)`, `feed()(address)` | the four bindings pinned at construction |
-| route | `MAX_FEED_AGE()(uint256)`, `MAX_DEVIATION_BPS()(uint256)` | `604800` seconds and `500` basis points |
+| route | `MAX_FEED_AGE()(uint256)` | `604800` seconds |
 | route | `quoteExactIn(address,address,uint256)(uint256)` | the feed-price quote; reverts `StaleFeed` while the feed is stale |
