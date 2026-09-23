@@ -28,6 +28,7 @@
     "RobinhoodMemestockSplitterV1",
     "MemestockLPLocker",
     "RobinhoodStockBidAdapterV1",
+    "UniswapV3StockRouteV1",
     "RobinhoodBaseRevenueReceiverV1"
   ],
   "contracts": {
@@ -267,6 +268,35 @@
         "status": "deployment_pending"
       }
     },
+    "UniswapV3StockRouteV1": {
+      "source": "src/routes/UniswapV3StockRouteV1.sol",
+      "role": "The production USDG <-> STOCK route for one admitted stock: executes on that stock's Uniswap v3 USDG/STOCK pool (either currency order), quotes from its Chainlink feed and refuses any execution more than five percent under the feed.",
+      "deployed_by": "deployment script (CREATE from the deployer), one per admitted stock after the bid adapter",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 2975,
+      "runtime_keccak256": "0xd7dc66a5abb635cdc549ddb8d5544cfd3fca0cf11780715b1d5ae7f93730a5d5",
+      "runtime_sha256": "ffeb710285c53c29d2cb74d944c428c943bcd4a32f15299c781d95e740af4c1e",
+      "runtime_object_sha256": "8ae8331501f34bedc64fdab75eb3a5c19bd076e80cf83774a87f743ac4c00b35",
+      "runtime_immutable_references": 7,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 4279,
+      "creation_keccak256": "0x89ca45101adc90350567d742d2a9efc247c0fa03761cad3643f7fb88a79ad576",
+      "creation_sha256": "0560d1c5e4e87558594d700dcf7a7d5274b340cb906085dfebcf51bdf5ae77f3",
+      "creation_object_sha256": "e17ce170a87899b5919218b6be391a20f746597af85753371dd3fdd522c5e6e2",
+      "creation_linked_libraries": [],
+      "constructor": [
+        "address usdg_",
+        "address stock_",
+        "address pool_",
+        "address feed_"
+      ],
+      "abi_file": "abi/UniswapV3StockRouteV1.json",
+      "deployment": {
+        "address": null,
+        "status": "deployment_pending"
+      }
+    },
     "RobinhoodBaseRevenueReceiverV1": {
       "source": "src/RobinhoodBaseRevenueReceiverV1.sol",
       "role": "The Base-side address bridged USDC lands on: Base-Safe-attested attribution, permissionless deposit into live REGENT staking, surplus sweep.",
@@ -434,10 +464,17 @@
   "source_contracts": {
     "FixtureUsdgStockRoute": {
       "source": "src/fixtures/FixtureUsdgStockRoute.sol",
-      "runtime_bytes": 1041,
-      "runtime_object_sha256": "5ed0535da41ce2c0533a904d2ab037e7eeefb5b9a75191b8b126047dc1539a37",
-      "creation_bytes": 1335,
-      "creation_object_sha256": "92e6c38c1cb877360d25e5174e741c430fe22246af0381274e86955de2a471c0"
+      "runtime_bytes": 1057,
+      "runtime_object_sha256": "d8d30c5f57c276dea90883c5d81831b18fc3f6b76730cba76f840219d5a07d91",
+      "creation_bytes": 1351,
+      "creation_object_sha256": "2a7643be07191c7fd364d7fb50606c61b9fc95b07903c575ed9328c01b3f8b36"
+    },
+    "IChainlinkAggregatorMinimal": {
+      "source": "../stocks/src/interfaces/IChainlinkAggregatorMinimal.sol",
+      "runtime_bytes": 0,
+      "runtime_object_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creation_bytes": 0,
+      "creation_object_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     "IERC20Views": {
       "source": "../stocks/src/interfaces/IERC20Views.sol",
@@ -518,6 +555,13 @@
     },
     "IRobinhoodStocksLaunchpadV1": {
       "source": "src/interfaces/IRobinhoodStocksLaunchpadV1.sol",
+      "runtime_bytes": 0,
+      "runtime_object_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creation_bytes": 0,
+      "creation_object_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "IUniswapV3PoolMinimal": {
+      "source": "src/interfaces/IUniswapV3PoolMinimal.sol",
       "runtime_bytes": 0,
       "runtime_object_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "creation_bytes": 0,

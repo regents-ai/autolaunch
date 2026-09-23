@@ -12,9 +12,12 @@ import {RobinhoodFeeHookV1} from "../src/RobinhoodFeeHookV1.sol";
 import {RobinhoodProtocolRevenueInboxV1} from "../src/RobinhoodProtocolRevenueInboxV1.sol";
 import {RobinhoodStockBidAdapterV1} from "../src/RobinhoodStockBidAdapterV1.sol";
 import {RobinhoodStocksLaunchpadV1} from "../src/RobinhoodStocksLaunchpadV1.sol";
+import {UniswapV3StockRouteV1} from "../src/routes/UniswapV3StockRouteV1.sol";
+import {MockUniswapV3Pool} from "../test/mocks/MockUniswapV3Pool.sol";
 import {RobinhoodFixture} from "../test/RobinhoodFixture.sol";
 import {StocksBindings} from "autolaunch-stocks/StocksBindings.sol";
 import {MockLiveStaking} from "autolaunch-stocks-test/mocks/MockLiveStaking.sol";
+import {MockChainlinkFeed} from "autolaunch-stocks-test/mocks/MockChainlinkFeed.sol";
 import {MockERC20} from "autolaunch-stocks-test/mocks/MockERC20.sol";
 
 /// @notice The Robinhood ceremony's own evidence: the real `script/DeployRobinhood.s.sol` and
@@ -35,11 +38,15 @@ contract DeploymentCeremonyTest is RobinhoodFixture {
 
     DeployRobinhood internal deployment;
     DeployRobinhoodBaseReceiver internal receiverDeployment;
+    MockUniswapV3Pool internal pool;
+    MockChainlinkFeed internal feed;
 
     function setUp() public {
         _deployRobinhood();
         deployment = new DeployRobinhood();
         receiverDeployment = new DeployRobinhoodBaseReceiver();
+        pool = new MockUniswapV3Pool(address(STOCK_LOW), USDG_ADDRESS, USDG_ADDRESS, USDG_PER_SHARE);
+        feed = new MockChainlinkFeed(8, 230e8, block.timestamp - 1 hours);
     }
 
     function test_the_profile_pins_the_library_where_the_ceremony_creates_it() public pure {
@@ -57,6 +64,8 @@ contract DeploymentCeremonyTest is RobinhoodFixture {
         assertEq(graph.hookFactory, vm.computeCreateAddress(TEST_DEPLOYER, STARTING_NONCE + 3), "hook factory");
         assertEq(graph.launchpad, vm.computeCreateAddress(TEST_DEPLOYER, STARTING_NONCE + 4), "launchpad");
         assertEq(graph.bidAdapter, vm.computeCreateAddress(TEST_DEPLOYER, STARTING_NONCE + 5), "adapter");
+        assertEq(graph.routes.length, 1, "one route per admission");
+        assertEq(graph.routes[0], vm.computeCreateAddress(TEST_DEPLOYER, STARTING_NONCE + 6), "route");
         assertEq(graph.splitterImplementation, vm.computeCreateAddress(graph.launchpad, 1), "splitter");
         assertEq(graph.locker, vm.computeCreateAddress(graph.launchpad, 2), "locker");
         assertEq(uint160(graph.hook) & Hooks.ALL_HOOK_MASK, HOOK_FLAGS, "hook permission bits");
@@ -77,7 +86,9 @@ contract DeploymentCeremonyTest is RobinhoodFixture {
         assertEq(graph.hook, predicted.hook, "hook");
         assertEq(graph.splitterImplementation, predicted.splitterImplementation, "splitter");
         assertEq(graph.locker, predicted.locker, "locker");
-        assertEq(vm.getNonce(TEST_DEPLOYER), STARTING_NONCE + 6, "exactly six creations");
+        assertEq(graph.routes.length, 1, "one route per admission");
+        assertEq(graph.routes[0], predicted.routes[0], "route");
+        assertEq(vm.getNonce(TEST_DEPLOYER), STARTING_NONCE + 7, "exactly seven creations");
 
         assertEq(
             keccak256(graph.positionsLib.code), keccak256(type(RobinhoodPositionsLib).runtimeCode), "library bytes"
@@ -96,6 +107,37 @@ contract DeploymentCeremonyTest is RobinhoodFixture {
         assertEq(RobinhoodProtocolRevenueInboxV1(graph.inbox).usdg(), USDG_ADDRESS, "inbox usdg");
         assertEq(RobinhoodProtocolRevenueInboxV1(graph.inbox).adminSafe(), safe, "inbox safe");
         assertEq(address(RobinhoodStockBidAdapterV1(graph.bidAdapter).launchpad()), graph.launchpad, "adapter bound");
+        UniswapV3StockRouteV1 route = UniswapV3StockRouteV1(graph.routes[0]);
+        assertEq(route.stock(), address(STOCK_LOW), "route stock");
+        assertEq(route.usdg(), USDG_ADDRESS, "route usdg");
+        assertEq(address(route.pool()), address(pool), "route pool");
+        assertEq(address(route.feed()), address(feed), "route feed");
+        assertTrue(route.stockIsToken0(), "the stock sorts first in this pool");
+    }
+
+    function test_predict_refuses_a_ceremony_without_admissions() public {
+        DeployRobinhood.Ceremony memory ceremony = _ceremony(_mine());
+        ceremony.admissions = new DeployRobinhood.Admission[](0);
+        vm.expectRevert(DeployRobinhood.NoAdmissions.selector);
+        deployment.predict(ceremony);
+    }
+
+    function test_admissions_come_from_three_equal_lists() public {
+        vm.setEnv(
+            "REGENT_DEPLOYMENT_STOCKS",
+            string.concat(vm.toString(address(STOCK_LOW)), ",", vm.toString(address(STOCK_HIGH)))
+        );
+        vm.setEnv("REGENT_DEPLOYMENT_POOLS", string.concat(vm.toString(address(pool)), ",", vm.toString(address(pool))));
+        vm.setEnv("REGENT_DEPLOYMENT_FEEDS", string.concat(vm.toString(address(feed)), ",", vm.toString(address(feed))));
+        DeployRobinhood.Admission[] memory admissions = deployment.admissionsFromEnvironment();
+        assertEq(admissions.length, 2, "two admissions");
+        assertEq(admissions[1].stock, address(STOCK_HIGH), "second stock");
+        assertEq(admissions[1].pool, address(pool), "second pool");
+        assertEq(admissions[1].feed, address(feed), "second feed");
+
+        vm.setEnv("REGENT_DEPLOYMENT_FEEDS", vm.toString(address(feed)));
+        vm.expectRevert(abi.encodeWithSelector(DeployRobinhood.AdmissionListsDiffer.selector, 2, 2, 1));
+        deployment.admissionsFromEnvironment();
     }
 
     function test_execute_refuses_a_deployer_whose_nonce_moved() public {
@@ -150,6 +192,8 @@ contract DeploymentCeremonyTest is RobinhoodFixture {
     }
 
     function _ceremony(bytes32 salt) internal view returns (DeployRobinhood.Ceremony memory) {
+        DeployRobinhood.Admission[] memory admissions = new DeployRobinhood.Admission[](1);
+        admissions[0] = DeployRobinhood.Admission({stock: address(STOCK_LOW), pool: address(pool), feed: address(feed)});
         return DeployRobinhood.Ceremony({
             deployer: TEST_DEPLOYER,
             startingNonce: STARTING_NONCE,
@@ -161,7 +205,8 @@ contract DeploymentCeremonyTest is RobinhoodFixture {
                 positionManager: address(positionManager),
                 permit2: PERMIT2,
                 adminSafe: safe
-            })
+            }),
+            admissions: admissions
         });
     }
 
@@ -170,7 +215,7 @@ contract DeploymentCeremonyTest is RobinhoodFixture {
     }
 
     function _mineFor(DeployRobinhood.Ceremony memory ceremony) internal view returns (bytes32 salt) {
-        address[6] memory top = deployment.topLevelAddresses(ceremony);
+        address[] memory top = deployment.directAddresses(ceremony);
         (, salt) = HookMiner.find(
             top[3],
             HOOK_FLAGS,

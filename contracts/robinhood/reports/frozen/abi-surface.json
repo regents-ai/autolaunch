@@ -941,6 +941,63 @@
       "input_structs": {},
       "return_structs": {}
     },
+    "UniswapV3StockRouteV1": {
+      "source": "src/routes/UniswapV3StockRouteV1.sol",
+      "constructor": [
+        "address usdg_",
+        "address stock_",
+        "address pool_",
+        "address feed_"
+      ],
+      "functions": [
+        "0x12be4fe0 quoteExactIn(address,address,uint256)",
+        "0x16f0115b pool()",
+        "0x25c68403 MAX_DEVIATION_BPS()",
+        "0x30adc553 stockIsToken0()",
+        "0x37a7b7d8 feed()",
+        "0x696453b8 MAX_FEED_AGE()",
+        "0x7b32b50e swapExactIn(address,address,uint256,uint256,address)",
+        "0x871ba01f feedUnit()",
+        "0xbdf3c4ae stock()",
+        "0xf5b91b7b usdg()",
+        "0xfa461e33 uniswapV3SwapCallback(int256,int256,bytes)",
+        "0xfe8d6b94 stockUnit()"
+      ],
+      "mutating_functions": [
+        "0x7b32b50e swapExactIn(address,address,uint256,uint256,address)",
+        "0xfa461e33 uniswapV3SwapCallback(int256,int256,bytes)"
+      ],
+      "view_functions": [
+        "0x12be4fe0 quoteExactIn(address,address,uint256)",
+        "0x16f0115b pool()",
+        "0x25c68403 MAX_DEVIATION_BPS()",
+        "0x30adc553 stockIsToken0()",
+        "0x37a7b7d8 feed()",
+        "0x696453b8 MAX_FEED_AGE()",
+        "0x871ba01f feedUnit()",
+        "0xbdf3c4ae stock()",
+        "0xf5b91b7b usdg()",
+        "0xfe8d6b94 stockUnit()"
+      ],
+      "events": [],
+      "event_fields": {},
+      "errors": [
+        "0x1f2a2005 ZeroAmount()",
+        "0x2c19b8b8 InsufficientOutput(uint256,uint256)",
+        "0x3016795c UnsupportedPair(address,address)",
+        "0x4a1576a2 NotPool(address)",
+        "0x515f5007 StaleFeed(uint256)",
+        "0x56ad21c6 BadFeedAnswer(int256)",
+        "0x674520b6 NoCode(address)",
+        "0x7562d808 UnexpectedDecimals(uint8,uint8)",
+        "0xa8d51a24 PoolBindingMismatch(address,address,address,address)",
+        "0xa9a9c04c PriceDeviation(uint256,uint256)",
+        "0xab143c06 Reentrancy()",
+        "0xd92e233d ZeroAddress()"
+      ],
+      "input_structs": {},
+      "return_structs": {}
+    },
     "RobinhoodBaseRevenueReceiverV1": {
       "source": "src/RobinhoodBaseRevenueReceiverV1.sol",
       "constructor": [

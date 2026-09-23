@@ -226,6 +226,33 @@
       "initcode_margin_bytes": 45490
     },
     {
+      "contract": "UniswapV3StockRouteV1",
+      "source": "src/routes/UniswapV3StockRouteV1.sol",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "runtime_bytes": 2975,
+      "runtime_keccak256": "0xd7dc66a5abb635cdc549ddb8d5544cfd3fca0cf11780715b1d5ae7f93730a5d5",
+      "runtime_sha256": "ffeb710285c53c29d2cb74d944c428c943bcd4a32f15299c781d95e740af4c1e",
+      "runtime_object_sha256": "8ae8331501f34bedc64fdab75eb3a5c19bd076e80cf83774a87f743ac4c00b35",
+      "runtime_immutable_references": 7,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 4279,
+      "creation_keccak256": "0x89ca45101adc90350567d742d2a9efc247c0fa03761cad3643f7fb88a79ad576",
+      "creation_sha256": "0560d1c5e4e87558594d700dcf7a7d5274b340cb906085dfebcf51bdf5ae77f3",
+      "creation_object_sha256": "e17ce170a87899b5919218b6be391a20f746597af85753371dd3fdd522c5e6e2",
+      "creation_linked_libraries": [],
+      "runtime_margin_bytes": 21601,
+      "constructor": [
+        "address usdg_",
+        "address stock_",
+        "address pool_",
+        "address feed_"
+      ],
+      "constructor_args_bytes": 128,
+      "initcode_bytes": 4407,
+      "initcode_margin_bytes": 44745
+    },
+    {
       "contract": "RobinhoodBaseRevenueReceiverV1",
       "source": "src/RobinhoodBaseRevenueReceiverV1.sol",
       "compiler": "0.8.26+commit.8a97fa7a",

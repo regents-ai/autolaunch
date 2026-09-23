@@ -5,6 +5,7 @@ import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {Script} from "forge-std/Script.sol";
 import {UERC20Factory} from "uerc20-factory/factories/UERC20Factory.sol";
 import {RobinhoodPositionsLib} from "../src/libraries/RobinhoodPositionsLib.sol";
+import {UniswapV3StockRouteV1} from "../src/routes/UniswapV3StockRouteV1.sol";
 import {RobinhoodFeeHookFactory} from "../src/RobinhoodFeeHookFactory.sol";
 import {RobinhoodFeeHookV1} from "../src/RobinhoodFeeHookV1.sol";
 import {RobinhoodLaunchpadBase} from "../src/RobinhoodLaunchpadBase.sol";
@@ -13,20 +14,23 @@ import {RobinhoodStockBidAdapterV1} from "../src/RobinhoodStockBidAdapterV1.sol"
 import {RobinhoodStocksLaunchpadV1} from "../src/RobinhoodStocksLaunchpadV1.sol";
 
 /// @title DeployRobinhood
-/// @notice The whole Robinhood Chain Memestake deployment: six direct zero-value creations from
-///         one founder-selected deployer, in one fixed order, and nothing else.
+/// @notice The whole Robinhood Chain Memestake deployment: six fixed direct zero-value creations
+///         from one founder-selected deployer, then one production stock route per admitted stock,
+///         in one fixed order, and nothing else.
 /// @dev Modelled on `contracts/v1/script/DeployAutolaunchV1.s.sol`. The deployer creates the pinned
 ///      `UERC20Factory` (Robinhood Chain carries Uniswap's own token factory, but not the runtime
 ///      the launchpad's constructor demands), then the protocol revenue inbox, then the externally
 ///      linked `RobinhoodPositionsLib`, then the fee hook factory, then the launchpad, then the USDG
-///      bid adapter. The launchpad's own constructor
+///      bid adapter, then one `UniswapV3StockRouteV1` per admission (the stock, its Uniswap v3
+///      USDG/STOCK pool and its Chainlink feed) in list order. The launchpad's own constructor
 ///      has the factory create the mined fee hook (a `CREATE2` from the factory over the pinned
 ///      salt) and creates the splitter implementation (launchpad nonce 1) and the LP locker (nonce
 ///      2). The Robinhood Safe admits stocks, sets the hook executor, sets the inbox's Base
 ///      destination and bridge adapter, and unpauses launches afterwards, by hand.
 ///
 ///      Every ceremony value is consumed and never produced here: the deployer, its exact starting
-///      nonce, the pre-mined hook salt and the six external bindings the constructors verify.
+///      nonce, the pre-mined hook salt, the six external bindings the constructors verify and the
+///      admission lists.
 ///      This file imports no miner; mining belongs to `test-deployment/`.
 ///
 ///      The launchpad's runtime is linked against the library at deployment. The link target must
@@ -55,8 +59,9 @@ contract DeployRobinhood is Script {
     /// @notice Robinhood Chain mainnet.
     uint256 internal constant ROBINHOOD_CHAIN_ID = 4663;
 
-    /// @notice The number of direct creation transactions the deployer sends.
-    uint256 internal constant TOP_LEVEL_CREATIONS = 6;
+    /// @notice The direct creations before the per-stock routes: the UERC20 factory, the inbox, the
+    ///         positions library, the hook factory, the launchpad, then the adapter.
+    uint256 internal constant FIXED_CREATIONS = 6;
 
     /// @notice The launchpad nonces its constructor's two `CREATE`s consume, in order.
     uint256 internal constant SPLITTER_LAUNCHPAD_NONCE = 1;
@@ -72,6 +77,18 @@ contract DeployRobinhood is Script {
     string internal constant POSITION_MANAGER_ENV = "REGENT_DEPLOYMENT_POSITION_MANAGER";
     string internal constant PERMIT2_ENV = "REGENT_DEPLOYMENT_PERMIT2";
     string internal constant ADMIN_SAFE_ENV = "REGENT_DEPLOYMENT_ADMIN_SAFE";
+    string internal constant STOCKS_ENV = "REGENT_DEPLOYMENT_STOCKS";
+    string internal constant POOLS_ENV = "REGENT_DEPLOYMENT_POOLS";
+    string internal constant FEEDS_ENV = "REGENT_DEPLOYMENT_FEEDS";
+    string internal constant LIST_DELIMITER = ",";
+
+    /// @notice One admitted stock: the token, its Uniswap v3 USDG/STOCK pool (either currency
+    ///         order), its Chainlink USD feed.
+    struct Admission {
+        address stock;
+        address pool;
+        address feed;
+    }
 
     /// @notice The six external bindings the founder supplies; each constructor verifies its own.
     struct External {
@@ -89,9 +106,10 @@ contract DeployRobinhood is Script {
         uint256 startingNonce;
         bytes32 hookSalt;
         External external_;
+        Admission[] admissions;
     }
 
-    /// @notice The nine addresses one ceremony produces.
+    /// @notice The nine fixed addresses one ceremony produces, plus one route per admission.
     struct Graph {
         address uerc20Factory;
         address inbox;
@@ -102,9 +120,12 @@ contract DeployRobinhood is Script {
         address hook;
         address splitterImplementation;
         address locker;
+        address[] routes;
     }
 
     error UnselectedDeployer();
+    error NoAdmissions();
+    error AdmissionListsDiffer(uint256 stocks, uint256 pools, uint256 feeds);
     error WrongChain(uint256 expected, uint256 found);
     error HookSaltDoesNotCarryThePermissionBits(address predictedHook, uint160 found, uint160 expected);
     error LibraryLinkMismatch(address expected, address linked);
@@ -115,19 +136,23 @@ contract DeployRobinhood is Script {
     error DeployerNonceNotAdvancedExactly(uint256 expected, uint256 found);
 
     /// @notice The complete address graph a ceremony produces, derived and nothing else.
-    /// @dev Pure by construction. The six top-level addresses are the deployer's own `CREATE`
-    ///      sequence from the pinned starting nonce; the hook is the factory's `CREATE2` over the
+    /// @dev Pure by construction. The direct addresses are the deployer's own `CREATE` sequence
+    ///      from the pinned starting nonce; the hook is the factory's `CREATE2` over the
     ///      pinned salt and the exact initcode this build produces for
     ///      `RobinhoodFeeHookV1(poolManager, launchpad, usdg, inbox, adminSafe)`; the splitter
     ///      implementation and the locker are the launchpad constructor's two `CREATE`s.
     function predict(Ceremony memory ceremony) public pure returns (Graph memory graph) {
-        address[TOP_LEVEL_CREATIONS] memory top = topLevelAddresses(ceremony);
-        graph.uerc20Factory = top[0];
-        graph.inbox = top[1];
-        graph.positionsLib = top[2];
-        graph.hookFactory = top[3];
-        graph.launchpad = top[4];
-        graph.bidAdapter = top[5];
+        address[] memory direct = directAddresses(ceremony);
+        graph.uerc20Factory = direct[0];
+        graph.inbox = direct[1];
+        graph.positionsLib = direct[2];
+        graph.hookFactory = direct[3];
+        graph.launchpad = direct[4];
+        graph.bidAdapter = direct[5];
+        graph.routes = new address[](ceremony.admissions.length);
+        for (uint256 i; i < ceremony.admissions.length; ++i) {
+            graph.routes[i] = direct[FIXED_CREATIONS + i];
+        }
 
         graph.hook = vm.computeCreate2Address(
             ceremony.hookSalt,
@@ -141,14 +166,13 @@ contract DeployRobinhood is Script {
         if (bits != HOOK_FLAGS) revert HookSaltDoesNotCarryThePermissionBits(graph.hook, bits, HOOK_FLAGS);
     }
 
-    /// @notice The deployer's own six-transaction `CREATE` sequence from the pinned starting nonce.
-    function topLevelAddresses(Ceremony memory ceremony)
-        public
-        pure
-        returns (address[TOP_LEVEL_CREATIONS] memory addresses)
-    {
+    /// @notice The deployer's own `CREATE` sequence from the pinned starting nonce: the six fixed
+    ///         creations, then one route per admission in list order.
+    function directAddresses(Ceremony memory ceremony) public pure returns (address[] memory addresses) {
         if (ceremony.deployer == address(0)) revert UnselectedDeployer();
-        for (uint256 i; i < TOP_LEVEL_CREATIONS; ++i) {
+        if (ceremony.admissions.length == 0) revert NoAdmissions();
+        addresses = new address[](FIXED_CREATIONS + ceremony.admissions.length);
+        for (uint256 i; i < addresses.length; ++i) {
             addresses[i] = vm.computeCreateAddress(ceremony.deployer, ceremony.startingNonce + i);
         }
     }
@@ -183,7 +207,7 @@ contract DeployRobinhood is Script {
         });
     }
 
-    /// @notice Build the six creations in order and prove each one lands where it was predicted.
+    /// @notice Build every creation in order and prove each one lands where it was predicted.
     /// @dev The link check comes first: a launchpad linked against any address but the one this
     ///      sequence creates the library at would delegate to nothing at graduation, so a run without
     ///      the exact `--libraries` pin aborts before the deployer's nonce is even read.
@@ -219,6 +243,16 @@ contract DeployRobinhood is Script {
         created = address(new RobinhoodStockBidAdapterV1(graph.launchpad, ceremony.external_.permit2));
         if (created != graph.bidAdapter) revert CreationAddressMismatch(5, graph.bidAdapter, created);
 
+        for (uint256 i; i < ceremony.admissions.length; ++i) {
+            Admission memory admission = ceremony.admissions[i];
+            created = address(
+                new UniswapV3StockRouteV1(ceremony.external_.usdg, admission.stock, admission.pool, admission.feed)
+            );
+            if (created != graph.routes[i]) {
+                revert CreationAddressMismatch(FIXED_CREATIONS + i, graph.routes[i], created);
+            }
+        }
+
         vm.stopBroadcast();
 
         address hook = launchpad.hook();
@@ -230,7 +264,7 @@ contract DeployRobinhood is Script {
         address locker = launchpad.locker();
         if (locker != graph.locker) revert InternalCreationMismatch("locker", graph.locker, locker);
 
-        uint256 expected = ceremony.startingNonce + TOP_LEVEL_CREATIONS;
+        uint256 expected = ceremony.startingNonce + FIXED_CREATIONS + ceremony.admissions.length;
         nonce = vm.getNonce(ceremony.deployer);
         if (nonce != expected) revert DeployerNonceNotAdvancedExactly(expected, nonce);
     }
@@ -252,9 +286,24 @@ contract DeployRobinhood is Script {
                     positionManager: vm.envAddress(POSITION_MANAGER_ENV),
                     permit2: vm.envAddress(PERMIT2_ENV),
                     adminSafe: vm.envAddress(ADMIN_SAFE_ENV)
-                })
+                }),
+                admissions: admissionsFromEnvironment()
             })
         );
+    }
+
+    /// @notice The admitted stocks as three comma-separated lists of equal length, in one order.
+    function admissionsFromEnvironment() public view returns (Admission[] memory admissions) {
+        address[] memory stocks = vm.envAddress(STOCKS_ENV, LIST_DELIMITER);
+        address[] memory pools = vm.envAddress(POOLS_ENV, LIST_DELIMITER);
+        address[] memory feeds = vm.envAddress(FEEDS_ENV, LIST_DELIMITER);
+        if (stocks.length != pools.length || stocks.length != feeds.length) {
+            revert AdmissionListsDiffer(stocks.length, pools.length, feeds.length);
+        }
+        admissions = new Admission[](stocks.length);
+        for (uint256 i; i < stocks.length; ++i) {
+            admissions[i] = Admission({stock: stocks[i], pool: pools[i], feed: feeds[i]});
+        }
     }
 
     /// @dev A plain `CREATE` of the library's own creation code from the broadcasting deployer, so the

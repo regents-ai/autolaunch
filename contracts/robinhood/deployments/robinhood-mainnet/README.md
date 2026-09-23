@@ -9,8 +9,8 @@ Two files live in this directory, and keeping them apart is the point.
   it, the `src/` trees it was rendered from (this package's and the shared Base package's), and,
   once `../stocks/bin/ceremony.py prepare` has run for the founder's selection and a human has
   installed its candidate, the deployer, its starting nonce on each chain, the mined hook salt, the
-  six external bindings, every predicted address on both chains, the observed external state, and
-  the creation topology. `render` renders it deterministically, offline, and compares it byte for
+  six external bindings, the admitted stocks with their pools and feeds, every predicted address on
+  both chains, the observed external state, and the creation topology. `render` renders it deterministically, offline, and compares it byte for
   byte with this committed copy; the tool never installs a candidate. Every value in it is public;
   no key, mnemonic, keystore path, endpoint or credential belongs here.
 
@@ -23,9 +23,10 @@ Run every tool command from this directory's package root, `contracts/robinhood`
 
 ## The whole ceremony
 
-Six creations on Robinhood Chain (chain id 4663) and one on Base mainnet (chain id 8453), sent one
-after another by one founder-selected deployer, each a plain zero-value contract creation. `n` is
-the deployer's live nonce on Robinhood Chain and `m` its live nonce on Base at preparation time.
+Six fixed creations on Robinhood Chain (chain id 4663), then one production stock route per
+admitted stock, then one creation on Base mainnet (chain id 8453), sent one after another by one
+founder-selected deployer, each a plain zero-value contract creation. `n` is the deployer's live
+nonce on Robinhood Chain and `m` its live nonce on Base at preparation time.
 
 | # | Chain | Deployer nonce | Contract | What it is |
 | --- | --- | --- | --- | --- |
@@ -35,7 +36,8 @@ the deployer's live nonce on Robinhood Chain and `m` its live nonce on Base at p
 | 4 | Robinhood | `n + 3` | `RobinhoodFeeHookFactory` | creates the fee hook by `CREATE2` from inside the launchpad constructor |
 | 5 | Robinhood | `n + 4` | `RobinhoodStocksLaunchpadV1` | the launchpad, linked against creation 3; its constructor asks the factory for the hook, then creates the splitter implementation (launchpad nonce 1) and the LP locker (nonce 2) |
 | 6 | Robinhood | `n + 5` | `RobinhoodStockBidAdapterV1` | bids STOCK into a launch's auction through the launchpad's admitted route |
-| 7 | Base | `m` | `RobinhoodBaseRevenueReceiverV1` | receives bridged USDG revenue on Base for the live staking contract, attested by the Base Safe |
+| 7 onward | Robinhood | `n + 6 + i` | `UniswapV3StockRouteV1` | one per admitted stock `i`, in admission order: that stock's USDG route over its Uniswap v3 USDG/STOCK pool and its Chainlink feed |
+| last | Base | `m` | `RobinhoodBaseRevenueReceiverV1` | receives bridged USDG revenue on Base for the live staking contract, attested by the Base Safe |
 
 The library address is pinned twice on purpose: the packet predicts it at `n + 2`, and the launchpad
 must be compiled against exactly that address. The script refuses to broadcast a launchpad linked
@@ -52,9 +54,11 @@ hand, one transaction each:
 
 1. `setBaseDestination(address destination)` on the inbox, naming the Base receiver (creation 7).
 2. `setBridgeAdapter(address adapter)` on the inbox, naming the bridge adapter the founder selects.
-3. `admitStock(address stock, address route)` on the launchpad, once per admitted stock, with a
-   route that implements `IRobinhoodStockRoute`. No production route contract exists in this
-   package yet, so the launchpad opens with no admitted stock until one is written and admitted.
+3. `admitStock(address stock, address route)` on the launchpad, once per admission, naming the
+   stock and the route the ceremony created for it (creation `n + 6 + i` for admission `i`). The
+   route reads its stock, pool and feed back (`stock()`, `pool()`, `feed()`), so a wrong pairing is
+   visible before the call. A stock the Safe admits later needs a new route created by hand from
+   the same source, then the same call.
 4. `setExecutor(address executor)` on the fee hook.
 5. `unpauseLaunches()` on the launchpad, last.
 
@@ -71,8 +75,18 @@ python3 ../stocks/bin/ceremony.py prepare \
   --admin-safe 0x... \
   --base-safe 0x... \
   --swap-router 0x204FAca1764B154221e35c0d20aBb3c525710498 \
-  --quoter 0x8dc178efb8111bb0973dd9d722ebeff267c98f94
+  --quoter 0x8dc178efb8111bb0973dd9d722ebeff267c98f94 \
+  --admission 0xSTOCK:0xPOOL:0xFEED
 ```
+
+`--admission` repeats, one per admitted stock in ceremony order, each naming the stock token, its
+Uniswap v3 USDG/STOCK pool and its Chainlink USD feed. `prepare` proves each pool on chain: its two
+currencies are exactly USDG and the stock (in either order; the Robinhood pools sort both ways), it
+reports Uniswap's v3 factory (`0x1f7d7550B1b028f7571E69A784071F0205FD2EfA`), and that factory
+registers it for the pair at its fee. It records the stock's symbol, name and decimals, the feed's
+decimals and description, and the code hash of all three, and `rehearse` holds every one of them.
+Candidate pools and feeds, with measured depth, are in
+`artifacts/memestake-splitter/robinhood-route/venue-discovery-2026-09-23.md`.
 
 The five protocol bindings above are the addresses verified on Robinhood Chain on 2026-09-22; the
 packet records their live code hashes and `rehearse` holds them. The router (Uniswap's Universal
@@ -141,6 +155,14 @@ forge create src/RobinhoodStockBidAdapterV1.sol:RobinhoodStockBidAdapterV1 \
   --constructor-args 0xPREDICTED_LAUNCHPAD 0xPERMIT2
 ```
 
+Then once per admission, in admission order:
+
+```bash
+forge create src/routes/UniswapV3StockRouteV1.sol:UniswapV3StockRouteV1 \
+  --rpc-url robinhood --broadcast \
+  --constructor-args 0xUSDG 0xSTOCK 0xPOOL 0xFEED
+```
+
 ```bash
 forge create src/RobinhoodBaseRevenueReceiverV1.sol:RobinhoodBaseRevenueReceiverV1 \
   --rpc-url base --broadcast \
@@ -182,6 +204,10 @@ cast call 0xPREDICTED_INBOX "adminSafe()(address)" --rpc-url robinhood
 ```
 
 ```bash
+cast call 0xPREDICTED_ROUTE "pool()(address)" --rpc-url robinhood
+```
+
+```bash
 cast call 0xPREDICTED_BASE_RECEIVER "baseSafe()(address)" --rpc-url base
 ```
 
@@ -191,8 +217,8 @@ launchpad constructor checks.
 
 ## Recording
 
-With every receipt confirmed, list the seven transaction hashes in ceremony order (the Base receiver
-last) in a JSON file and run:
+With every receipt confirmed, list every transaction hash in ceremony order (the six fixed
+creations, one route per admission, the Base receiver last) in a JSON file and run:
 
 ```bash
 python3 ../stocks/bin/ceremony.py record --receipts receipts.json --approved-digest 0xPACKET_DIGEST
@@ -201,18 +227,19 @@ python3 ../stocks/bin/ceremony.py record --receipts receipts.json --approved-dig
 `record` proves each transaction's chain, sender, nonce, order, created address and status against
 the packet, proves every created contract's code against the frozen runtime (exact code hash for
 the factory and the library, byte equality with immutables masked and the library linked for the
-rest), performs the readbacks above through the tool, and writes the deployed-manifest candidate to
+rest), performs the readbacks above through the tool (including each route's stock, USDG, pool and feed),
+records the admissions with their routes, and writes the deployed-manifest candidate to
 `reports/generated/deployment/`. A human installs it here.
 
 ## The website's file
 
-Once the deployed manifest is installed and the admin Safe has admitted at least one stock:
+Once the deployed manifest is installed and the admin Safe has admitted the stocks:
 
 ```bash
-python3 ../stocks/bin/ceremony.py site-config --rpc-url URL --public-rpc-url URL --run-id LABEL \
-  --stock SYMBOL:NAME:0xSTOCK:0xROUTE:USDG_PER_SHARE
+python3 ../stocks/bin/ceremony.py site-config --rpc-url URL --public-rpc-url URL --run-id LABEL
 ```
 
-writes `reports/generated/deployment/site-config.json` in the exact shape the website loads. The
-website requires at least one stock entry, so the file cannot be produced before an admission. It
+writes `reports/generated/deployment/site-config.json` in the exact shape the website loads. Its
+stock entries come from the deployed manifest's admissions (each stock's symbol, name, decimals,
+route, pool and feed, as the ceremony proved them), so nothing about a stock is typed in. It
 carries the endpoints passed on the command line and is never committed.

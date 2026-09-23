@@ -22,11 +22,11 @@
     "append_cbor": false
   },
   "source_identity": {
-    "src_tree": "53ab73f960659a73dfdccce42ed5050788a3b9fc",
+    "src_tree": "8f706cdd4b007033b11a3fe0e8bef5ad8137f171",
     "shared_src_tree": "ae774116e03bd45492d9aa3c8b00fbbbe704383f",
     "shared_component": "contracts/stocks"
   },
-  "frozen_manifest_sha256": "ce5673ff96c079ff6fa0c70776d7184b56bfc596a3ff938132e50adfb5833ac2",
+  "frozen_manifest_sha256": "658c752728c16abfe2115b126ace97f8a24fbb0aa4d4e3049a39e9448a176ac8",
   "code_identity": [
     {
       "contract": "UERC20Factory",
@@ -122,6 +122,23 @@
       "creation_keccak256": "0x8f723b06dde631bdf8b063b0b7f9801886d50d7213af7f427ce7cabfa5bde5dc"
     },
     {
+      "contract": "UniswapV3StockRouteV1",
+      "source": "src/routes/UniswapV3StockRouteV1.sol",
+      "constructor": [
+        "address usdg_",
+        "address stock_",
+        "address pool_",
+        "address feed_"
+      ],
+      "runtime_bytes": 2975,
+      "runtime_keccak256": "0xd7dc66a5abb635cdc549ddb8d5544cfd3fca0cf11780715b1d5ae7f93730a5d5",
+      "runtime_immutable_references": 7,
+      "runtime_linked_libraries": [],
+      "runtime_keccak256_is_deployed_codehash": false,
+      "creation_bytes": 4279,
+      "creation_keccak256": "0x89ca45101adc90350567d742d2a9efc247c0fa03761cad3643f7fb88a79ad576"
+    },
+    {
       "contract": "RobinhoodFeeHookV1",
       "source": "src/RobinhoodFeeHookV1.sol",
       "constructor": [
@@ -195,6 +212,6 @@
   "digest": {
     "algorithm": "sha256",
     "over": "this document rendered with digest.value set to null, json.dumps(indent=2, sort_keys=True)",
-    "value": "0xd8cf41b0ab6e8f604a24775f5db25c72e24d5ab2f85ae4c7a64818f1f54e6867"
+    "value": "0xe9fc2f01ed672b1e314b3e9d04cb8e7d331188396ceefa1a26c74283b35b3ce3"
   }
 }

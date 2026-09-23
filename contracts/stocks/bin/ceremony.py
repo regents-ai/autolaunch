@@ -747,9 +747,13 @@ class Robinhood(Package):
     # graph never touches them. Recorded and observed so the site-config carries verified addresses.
     SITE_BINDINGS = ("swap_router", "quoter")
     CREATIONS = ("UERC20Factory", "RobinhoodProtocolRevenueInboxV1", "RobinhoodPositionsLib", "RobinhoodFeeHookFactory",
-                 "RobinhoodStocksLaunchpadV1", "RobinhoodStockBidAdapterV1", "RobinhoodFeeHookV1",
+                 "RobinhoodStocksLaunchpadV1", "RobinhoodStockBidAdapterV1", "UniswapV3StockRouteV1", "RobinhoodFeeHookV1",
                  "RobinhoodMemestockSplitterV1", "MemestockLPLocker", "RobinhoodBaseRevenueReceiverV1")
     LIBRARY = "src/libraries/RobinhoodPositionsLib.sol:RobinhoodPositionsLib"
+    # The direct creations before the per-stock routes; the same count `script/DeployRobinhood.s.sol` pins.
+    FIXED_CREATIONS = 6
+    # Uniswap's v3 factory on Robinhood Chain: every admitted pool must be one of its pools.
+    UNISWAP_V3_FACTORY = "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA"
 
     def add_prepare_arguments(self, parser: argparse.ArgumentParser) -> None:
         for name in self.EXTERNAL:
@@ -757,12 +761,21 @@ class Robinhood(Package):
         for name in self.SITE_BINDINGS:
             parser.add_argument(f"--{name.replace('_', '-')}", required=True, help=f"Uniswap's {name} on Robinhood Chain, for the website's swaps")
         parser.add_argument("--base-safe", required=True, help="the Base Safe that attests deliveries to the Base receiver")
+        parser.add_argument("--admission", action="append", required=True, metavar="STOCK:POOL:FEED",
+                            help="one admitted stock with its Uniswap v3 USDG/STOCK pool and Chainlink USD feed; repeatable, in ceremony order")
 
     def inputs_from_arguments(self, args: argparse.Namespace) -> dict:
+        admissions = []
+        for entry in args.admission:
+            parts = entry.split(":")
+            if len(parts) != 3:
+                raise CeremonyError(f"--admission wants STOCK:POOL:FEED, got {entry}")
+            admissions.append({"stock": checksum(parts[0]), "pool": checksum(parts[1]), "feed": checksum(parts[2])})
         return {
             "external": {name: checksum(getattr(args, name)) for name in self.EXTERNAL},
             "site_bindings": {name: checksum(getattr(args, name)) for name in self.SITE_BINDINGS},
             "base_safe": checksum(args.base_safe),
+            "admissions": admissions,
         }
 
     def selection_environment(self, selection: dict, salt: str | None) -> dict:
@@ -770,6 +783,9 @@ class Robinhood(Package):
             self.deployer_env: selection["deployer"],
             self.starting_nonce_env: str(selection["starting_nonce"]),
             "REGENT_DEPLOYMENT_BASE_SAFE": selection["base_receiver"]["base_safe"],
+            "REGENT_DEPLOYMENT_STOCKS": ",".join(a["stock"] for a in selection["admissions"]),
+            "REGENT_DEPLOYMENT_POOLS": ",".join(a["pool"] for a in selection["admissions"]),
+            "REGENT_DEPLOYMENT_FEEDS": ",".join(a["feed"] for a in selection["admissions"]),
         }
         for name in self.EXTERNAL:
             env[f"REGENT_DEPLOYMENT_{name.upper()}"] = selection["external"][name]
@@ -782,18 +798,63 @@ class Robinhood(Package):
         for name in self.EXTERNAL:
             if not same_address(logs[name], inputs["external"][name]):
                 raise CeremonyError(f"the selection suite derived the graph from a different {name}")
+        predicted = {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED}
+        predicted["routes"] = [checksum(logs[f"predicted_route_{i}"]) for i in range(len(inputs["admissions"]))]
+        for i, admission in enumerate(inputs["admissions"]):
+            for field in ("stock", "pool", "feed"):
+                if not same_address(logs[f"{field}_{i}"], admission[field]):
+                    raise CeremonyError(f"the selection suite derived admission {i} from a different {field}")
         return {
             "deployer": checksum(logs["deployer"]),
             "starting_nonce": int(logs["starting_nonce"]),
             "hook_salt": logs["hook_salt"],
             "external": inputs["external"],
             "site_bindings": inputs["site_bindings"],
-            "predicted_addresses": {name: checksum(logs[f"predicted_{name}"]) for name in self.PREDICTED},
+            "admissions": inputs["admissions"],
+            "predicted_addresses": predicted,
             "base_receiver": inputs["base_receiver"],
         }
 
     def predicted_names(self) -> list[str]:
-        return list(self.PREDICTED)
+        return [*self.PREDICTED, "routes"]
+
+    def observe_admissions(self, selection: dict) -> list[dict]:
+        """Proves each admitted pool on chain: a Uniswap v3 pool of the pinned factory over exactly
+        USDG and the stock, in either order, and records what the route will read from the stock
+        and the feed."""
+        chain = self.chain
+        usdg = selection["external"]["usdg"]
+        admissions = []
+        for admission in selection["admissions"]:
+            stock, pool, feed = admission["stock"], admission["pool"], admission["feed"]
+            token0 = chain.call_address(pool, "token0()(address)")
+            token1 = chain.call_address(pool, "token1()(address)")
+            if {token0, token1} != {usdg, stock}:
+                raise CeremonyError(f"pool {pool} is not a USDG/{stock} pool (token0 {token0}, token1 {token1})")
+            factory = chain.call_address(pool, "factory()(address)")
+            if factory != self.UNISWAP_V3_FACTORY:
+                raise CeremonyError(f"pool {pool} reports factory {factory}, not Uniswap's v3 factory {self.UNISWAP_V3_FACTORY}")
+            fee = chain.call_uint(pool, "fee()(uint24)")
+            registered = chain.call_address(factory, "getPool(address,address,uint24)(address)", token0, token1, str(fee))
+            if registered != pool:
+                raise CeremonyError(f"the v3 factory registers {registered} for {token0}/{token1} at fee {fee}, not {pool}")
+            admissions.append({
+                "stock": stock,
+                "symbol": chain.call_string(stock, "symbol()(string)"),
+                "name": chain.call_string(stock, "name()(string)"),
+                "decimals": chain.call_uint(stock, "decimals()(uint8)"),
+                "stock_codehash": chain.codehash(stock),
+                "pool": pool,
+                "pool_codehash": chain.codehash(pool),
+                "pool_token0": token0,
+                "pool_token1": token1,
+                "pool_fee": fee,
+                "feed": feed,
+                "feed_codehash": chain.codehash(feed),
+                "feed_decimals": chain.call_uint(feed, "decimals()(uint8)"),
+                "feed_description": chain.call_string(feed, "description()(string)"),
+            })
+        return admissions
 
     def base_receiver_selection(self, deployer: str, base_nonce: int, base_safe: str) -> dict:
         env = {
@@ -840,6 +901,7 @@ class Robinhood(Package):
             "bindings": bindings,
             "usdg_decimals": decimals,
             "site_bindings": site_bindings,
+            "admissions": self.observe_admissions(selection),
             "cca_factory_frozen_runtime_bytes": frozen_cca["runtime_bytes"],
             "admin_safe": chain.safe_surface(selection["external"]["admin_safe"]),
             "base": {
@@ -890,6 +952,11 @@ class Robinhood(Package):
             {"index": 5, "contract": "RobinhoodStockBidAdapterV1", "mechanism": "transaction", "created_by": "deployer",
              "deployer_nonce": n + 5, "address": p["bid_adapter"], "constructor_arguments": {"launchpad_": p["launchpad"], "permit2_": e["permit2"]}},
         ]
+        for i, admission in enumerate(selection["admissions"]):
+            index = self.FIXED_CREATIONS + i
+            order.append({"index": index, "contract": "UniswapV3StockRouteV1", "mechanism": "transaction", "created_by": "deployer",
+                          "deployer_nonce": n + index, "address": p["routes"][i],
+                          "constructor_arguments": {"usdg_": e["usdg"], "stock_": admission["stock"], "pool_": admission["pool"], "feed_": admission["feed"]}})
         internal = [
             {"contract": "RobinhoodFeeHookV1", "mechanism": "CREATE2", "created_by": "RobinhoodFeeHookFactory.deploy from the launchpad constructor",
              "salt": selection["hook_salt"], "address": p["hook"],
@@ -931,6 +998,7 @@ class Robinhood(Package):
             (self.chain, "RobinhoodFeeHookFactory", p["hook_factory"]),
             (self.chain, "RobinhoodStocksLaunchpadV1", p["launchpad"]),
             (self.chain, "RobinhoodStockBidAdapterV1", p["bid_adapter"]),
+            *((self.chain, "UniswapV3StockRouteV1", route) for route in p["routes"]),
             (self.base, "RobinhoodBaseRevenueReceiverV1", selection["base_receiver"]["predicted_address"]),
         ]
 
@@ -973,6 +1041,11 @@ class Robinhood(Package):
             "receiver.usdc": self.frozen.binding("USDC", self.BASE_IDENTITY), "receiver.liveStaking": self.frozen.binding("LIVE_STAKING", self.BASE_IDENTITY),
             "receiver.baseSafe": r["base_safe"],
         }
+        for i, route in enumerate(p["routes"]):
+            admission = selection["admissions"][i]
+            for view in ("stock", "usdg", "pool", "feed"):
+                found[f"route[{i}].{view}"] = chain.call_address(route, f"{view}()(address)")
+                expected[f"route[{i}].{view}"] = e["usdg"] if view == "usdg" else admission[view]
         for key, wanted in expected.items():
             if found[key] != wanted:
                 problems.append(f"readback {key}: expected {wanted}, found {found[key]}")
@@ -994,8 +1067,6 @@ class Robinhood(Package):
     def add_site_config_arguments(self, parser: argparse.ArgumentParser) -> None:
         super().add_site_config_arguments(parser)
         parser.add_argument("--run-id", required=True, help="the non-empty deployment label the website shows for this graph")
-        parser.add_argument("--stock", action="append", required=True, metavar="SYMBOL:NAME:ADDRESS:ROUTE:USDG_PER_SHARE",
-                            help="one stock the admin Safe admitted on the launchpad with its route and its USDG price per share in atomic units; repeatable")
 
     def site_config(self, manifest: dict, args: argparse.Namespace, abis: dict) -> dict:
         created = {entry["contract_key"]: entry["address"] for entry in manifest["contracts"] if entry["chain_id"] == self.chain.chain_id}
@@ -1018,24 +1089,20 @@ class Robinhood(Package):
             "swap_router": manifest["selection"]["site_bindings"]["swap_router"],
             "quoter": manifest["selection"]["site_bindings"]["quoter"],
         }
-        stocks = []
-        for entry in args.stock:
-            parts = entry.split(":")
-            if len(parts) != 5:
-                raise CeremonyError(f"--stock wants SYMBOL:NAME:ADDRESS:ROUTE:USDG_PER_SHARE, got {entry}")
-            symbol, name, address, route, usdg_per_share = parts
-            if not symbol or not name or not usdg_per_share.isdigit() or int(usdg_per_share) == 0:
-                raise CeremonyError(f"--stock {entry}: the symbol and name are non-empty and the price is a positive integer of USDG atomic units")
-            stocks.append({
-                "symbol": symbol,
-                "name": name,
-                "address": checksum(address).lower(),
-                "decimals": 8,
-                "route": checksum(route).lower(),
-                "usdg_per_share": usdg_per_share,
+        stocks = [
+            {
+                "symbol": admission["symbol"],
+                "name": admission["name"],
+                "address": admission["stock"].lower(),
+                "decimals": admission["decimals"],
+                "route": admission["route"].lower(),
+                "pool": admission["pool"].lower(),
+                "feed": admission["feed"].lower(),
                 "fixture": False,
                 "launch_admission": "admitted",
-            })
+            }
+            for admission in manifest["admissions"]
+        ]
         return {
             "rpc_url": args.rpc_url,
             "public_rpc_url": args.public_rpc_url,
@@ -1300,7 +1367,7 @@ def mode_record(package: Package, frozen: Frozen, args: argparse.Namespace) -> i
         contracts.append(verify_code(chain, frozen, artifacts, links, contract, predicted, block, created_by, problems))
     readbacks = package.readbacks(selection, problems)
     admissions = None
-    if isinstance(package, Stocks):
+    if isinstance(package, (Stocks, Robinhood)):
         admissions = [{**a, "route": selection["predicted_addresses"]["routes"][i]}
                       for i, a in enumerate(packet["external_observation"]["admissions"])]
     if problems:
@@ -1332,6 +1399,7 @@ CONTRACT_KEYS = {
     "UERC20Factory": "uerc20_factory", "RobinhoodProtocolRevenueInboxV1": "inbox", "RobinhoodPositionsLib": "positions_lib",
     "RobinhoodFeeHookFactory": "hook_factory", "RobinhoodStocksLaunchpadV1": "launchpad", "RobinhoodStockBidAdapterV1": "bid_adapter",
     "RobinhoodFeeHookV1": "hook", "RobinhoodMemestockSplitterV1": "splitter_implementation", "RobinhoodBaseRevenueReceiverV1": "base_receiver",
+    "UniswapV3StockRouteV1": "route",
 }
 
 

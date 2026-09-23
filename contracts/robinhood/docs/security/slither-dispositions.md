@@ -92,7 +92,7 @@ the gate reconciles them against.
 
 ## Inline suppressions
 
-<!-- slither-suppression-count: 30 -->
+<!-- slither-suppression-count: 31 -->
 
 Every suppression is on a `slither-disable-next-line` comment. The protecting test is the hermetic
 test that exercises the suppressed line's behaviour and would fail if the suppressed concern were
@@ -106,6 +106,7 @@ real.
 | `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | `stockAdmission` returns `(admitted, decimals, route)`; only the route is needed here and a missing route reverts with `NoRoute`. | `test_bid_with_usdg_converts_and_commits_exactly_for_the_caller` |
 | `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | The route's reported output is not trusted; the STOCK actually received is measured by balance delta and compared with `minStockOut`. | `test_unknown_auction_and_short_output_are_refused` |
 | `src/RobinhoodStockBidAdapterV1.sol` | `unused-return` | Only the remaining Permit2 amount is read from `allowance`; expiry and nonce are irrelevant once the amount is proved zero. | `test_bid_with_usdg_converts_and_commits_exactly_for_the_caller` |
+| `src/routes/UniswapV3StockRouteV1.sol` | `unused-return` | `latestRoundData` returns five values; the route needs only the answer and its update time, and rejects a non-positive answer or one older than `MAX_FEED_AGE`. | `test_quote_rejects_a_stopped_or_broken_feed` |
 | `src/RobinhoodStocksLaunchpadV1.sol` | `reentrancy-no-eth` | `launch` is `nonReentrant`; the launch and stock records are written in one guarded invocation after the token and auction are created. | `test_stock_launch_requires_admission_and_records_the_launch` |
 | `src/RobinhoodStocksLaunchpadV1.sol` | `reentrancy-no-eth` | `_finishGraduation` runs only inside guarded `migrate`, after the terminal lifecycle is written; the dust credit to the hook and the retired-amount write are one atomic graduation. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |
 | `src/libraries/RobinhoodPositionsLib.sol` | `unused-return` | `PositionPlanner.resolve` returns positions and a residue; the full-range plan is validated to be exactly one position and the residue is handled by the stock-only plan. | `test_stock_graduation_creates_the_splitter_and_locks_both_positions_in_the_locker` |

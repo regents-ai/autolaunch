@@ -10,7 +10,7 @@ import {RobinhoodFeeHookV1} from "../src/RobinhoodFeeHookV1.sol";
 
 /// @notice The founder-selected ceremony values, derived once and compared ever after.
 /// @dev Run only by the ceremony tool, with the selection in the environment: `prepare` supplies the
-///      deployer, the nonce it read off the chain and the external bindings, and this mines the hook
+///      deployer, the nonce it read off the chain, the external bindings and the admissions, and this mines the hook
 ///      salt once; `render` and `rehearse` supply the committed salt too and re-derive the same
 ///      graph. The script imports no miner, so a broadcast can only consume a pinned salt. Nothing
 ///      here reaches a network.
@@ -31,7 +31,7 @@ contract DeploymentSelectionTest is Test {
     /// @notice Preparation: mine the salt for the selected deployer and nonce, then emit the graph.
     function test_SelectionPrepareCandidate() public {
         DeployRobinhood.Ceremony memory ceremony = _selected(bytes32(0));
-        address[6] memory top = deployment.topLevelAddresses(ceremony);
+        address[] memory top = deployment.directAddresses(ceremony);
         (, ceremony.hookSalt) = HookMiner.find(
             top[3],
             HOOK_FLAGS,
@@ -73,7 +73,8 @@ contract DeploymentSelectionTest is Test {
                 positionManager: vm.envAddress("REGENT_DEPLOYMENT_POSITION_MANAGER"),
                 permit2: vm.envAddress("REGENT_DEPLOYMENT_PERMIT2"),
                 adminSafe: vm.envAddress("REGENT_DEPLOYMENT_ADMIN_SAFE")
-            })
+            }),
+            admissions: deployment.admissionsFromEnvironment()
         });
     }
 
@@ -97,5 +98,11 @@ contract DeploymentSelectionTest is Test {
         emit log_named_address("selection predicted_hook", graph.hook);
         emit log_named_address("selection predicted_splitter_implementation", graph.splitterImplementation);
         emit log_named_address("selection predicted_locker", graph.locker);
+        for (uint256 i; i < graph.routes.length; ++i) {
+            emit log_named_address(string.concat("selection predicted_route_", vm.toString(i)), graph.routes[i]);
+            emit log_named_address(string.concat("selection stock_", vm.toString(i)), ceremony.admissions[i].stock);
+            emit log_named_address(string.concat("selection pool_", vm.toString(i)), ceremony.admissions[i].pool);
+            emit log_named_address(string.concat("selection feed_", vm.toString(i)), ceremony.admissions[i].feed);
+        }
     }
 }
