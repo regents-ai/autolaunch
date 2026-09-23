@@ -48,7 +48,7 @@ from typing import Any, Iterator, Mapping, Sequence
 LOCAL_CHAIN_ID = 31_338
 PERMIT2 = "0x000000000022d473030f116ddee9f6b43ac78ba3"
 USDG_DECIMALS = 6
-STOCK_DECIMALS = 8
+STOCK_DECIMALS = 18
 DEPLOY_SCRIPT = "script/DeployRobinhoodLab.s.sol:DeployRobinhoodLab"
 DEPLOYER_ENV = "REGENT_ROBINHOOD_LAB_DEPLOYER"
 PERMIT2_SOURCE = Path("../stocks/lib/permit2/test/utils/DeployPermit2.sol")

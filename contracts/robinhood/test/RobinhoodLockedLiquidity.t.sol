@@ -34,8 +34,8 @@ contract RobinhoodLockedLiquidityTest is RobinhoodFixture {
         MockERC20 memestock = MockERC20(l.newToken);
 
         // Trade both ways so LP fees accrue in both currencies.
-        _fundTrader(l, 20e8);
-        _swapCurrencyIn(l, address(stocksHook), 20e8);
+        _fundTrader(l, 20e18);
+        _swapCurrencyIn(l, address(stocksHook), 20e18);
         _swapNewIn(l, address(stocksHook), memestock.balanceOf(trader) / 2);
 
         uint128 fullLiquidity = positionManager.getPositionLiquidity(record.lpTokenId);

@@ -50,10 +50,10 @@ contract DeployRobinhoodLab is Script {
     uint256 internal constant LOCAL_CHAIN_ID = 31_338;
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     string internal constant DEPLOYER_ENV = "REGENT_ROBINHOOD_LAB_DEPLOYER";
-    uint8 internal constant STOCK_DECIMALS = 8;
+    uint8 internal constant STOCK_DECIMALS = 18;
     uint256 internal constant CATALOG_SIZE = 13;
     /// @dev Route inventory: one million shares and one billion USDG per route.
-    uint256 internal constant ROUTE_STOCK_INVENTORY = 1_000_000e8;
+    uint256 internal constant ROUTE_STOCK_INVENTORY = 1_000_000e18;
     uint256 internal constant ROUTE_USDG_INVENTORY = 1_000_000_000e6;
 
     error WrongChain(uint256 expected, uint256 found);
