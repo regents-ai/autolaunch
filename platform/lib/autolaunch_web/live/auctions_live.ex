@@ -25,26 +25,21 @@ defmodule AutolaunchWeb.AuctionsLive do
 
   def handle_event("open_trade", _params, socket), do: {:noreply, socket}
 
-  def handle_event("open_robinhood_bid", %{"id" => address} = params, socket) do
-    auctions = List.wrap(socket.assigns.robinhood.result)
-    {:noreply, assign(socket, :trade, opened_robinhood_bid(auctions, address, params))}
-  end
-
-  def handle_event("open_robinhood_bid", _params, socket), do: {:noreply, socket}
-
   def handle_event("close_trade", %{"id" => id}, socket) do
     case socket.assigns.trade do
       %{record: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
-      %{record: %{auction: ^id}} -> {:noreply, assign(socket, :trade, nil)}
       _other -> {:noreply, socket}
     end
   end
 
   def handle_event("close_trade", _params, socket), do: {:noreply, socket}
 
-  # The market feed read the auctions again: the amounts raised on the Base
-  # cards follow it.
+  # A market feed read the auctions again: the amounts raised on the cards
+  # follow it, and the Robinhood notice follows whether Robinhood could be read.
   def handle_info({:autolaunch_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
+
+  def handle_info({:robinhood_market_updated, _update}, socket),
     do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
 
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
@@ -62,15 +57,13 @@ defmodule AutolaunchWeb.AuctionsLive do
 
     assign_async(
       socket,
-      [:records, :creators, :pagination, :robinhood, :robinhood_unavailable],
+      [:records, :creators, :pagination],
       fn ->
         with {:ok, page} <- AutolaunchWeb.MarketPage.auctions(cursor, "all", "newest", 24) do
           {:ok,
            %{
              records: page.records,
-             robinhood: page.robinhood,
-             robinhood_unavailable: page.robinhood_unavailable,
-             creators: creator_connections_for(page.records ++ page.robinhood),
+             creators: creator_connections_for(page.records),
              pagination: page.pagination
            }}
         end
@@ -88,9 +81,7 @@ defmodule AutolaunchWeb.AuctionsLive do
       pagination={@pagination}
       cursor={@cursor}
       trade_event="open_trade"
-      robinhood={@robinhood}
-      robinhood_unavailable={@robinhood_unavailable.ok? && @robinhood_unavailable.result}
-      robinhood_trade_event="open_robinhood_bid"
+      robinhood_unavailable={@market.robinhood_stale?}
       market={@market}
     >
       <:stats>
@@ -98,8 +89,8 @@ defmodule AutolaunchWeb.AuctionsLive do
       </:stats>
     </.collection>
     <.robinhood_bid_modal
-      :if={match?(%{record: %{launch_id: _}}, @trade)}
-      id={"auctions-robinhood-bid-#{@trade.record.auction}"}
+      :if={@trade && robinhood?(@trade.record)}
+      id={"auctions-robinhood-bid-#{@trade.record.id}"}
       auction={@trade.record}
       amount={@trade.amount}
       authenticated={@account_control.kind == :signed_in}
@@ -107,7 +98,7 @@ defmodule AutolaunchWeb.AuctionsLive do
       session_lease={@session_lease}
     />
     <.bid_modal
-      :if={match?(%{record: %Autolaunch.Auction{}}, @trade)}
+      :if={@trade && !robinhood?(@trade.record)}
       id={"auctions-bid-#{@trade.record.id}"}
       auction={@trade.record}
       amount={@trade.amount}

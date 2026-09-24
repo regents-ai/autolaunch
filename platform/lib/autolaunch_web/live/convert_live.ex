@@ -13,7 +13,6 @@ defmodule AutolaunchWeb.ConvertLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
 
-  alias Autolaunch.Robinhood.Auctions
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
   alias Autolaunch.Stocks.Lab, as: StocksLab
@@ -152,21 +151,31 @@ defmodule AutolaunchWeb.ConvertLive do
   defp graduated_memestock?(_token), do: false
 
   defp robinhood_rows do
-    with {:ok, auctions} <- Auctions.graduated() do
-      rows =
-        read_rows(auctions, fn auction ->
-          %{
-            id: "convert-robinhood-#{auction.auction}",
-            name: auction.name,
-            symbol: auction.symbol,
-            href: "/robinhood/tokens/#{auction.token}",
-            launch: %{chain: :robinhood, auction: auction.auction},
-            pool: RobinhoodPool.read(auction.auction)
-          }
-        end)
+    if RobinhoodLab.configured?(),
+      do:
+        with(
+          {:ok, tokens} <- Autolaunch.list_listed_tokens(actor: nil),
+          do: robinhood_rows(tokens)
+        ),
+      else: {:ok, %{robinhood: []}}
+  end
 
-      {:ok, %{robinhood: rows}}
-    end
+  defp robinhood_rows(tokens) do
+    rows =
+      tokens
+      |> Enum.filter(&RobinhoodLab.chain?(&1.auction.chain_id))
+      |> read_rows(fn token ->
+        %{
+          id: "convert-robinhood-#{token.auction.auction_address}",
+          name: token.name,
+          symbol: token.symbol,
+          href: "/robinhood/tokens/#{token.auction.token_address}",
+          launch: %{chain: :robinhood, auction: token.auction.auction_address},
+          pool: RobinhoodPool.read(token.auction.auction_address)
+        }
+      end)
+
+    {:ok, %{robinhood: rows}}
   end
 
   # Each launch's pool is its own read of the chain; the rows with the most

@@ -2,7 +2,8 @@ defmodule AutolaunchWeb.AuctionController do
   use AutolaunchWeb, :controller
 
   alias Autolaunch
-  alias Autolaunch.Robinhood.{Auctions, Lab}
+  alias Autolaunch.Chain.Address
+  alias Autolaunch.Robinhood.Lab
   alias Autolaunch.TreasurySecurity
 
   @modes ~w(all biddable live ended failed_minimum graduated)
@@ -16,9 +17,7 @@ defmodule AutolaunchWeb.AuctionController do
          {:ok, page} <-
            AutolaunchWeb.MarketPage.auctions(params["after"], mode, sort, limit, autolaunch) do
       json(conn, %{
-        data:
-          Enum.map(page.robinhood, &robinhood_auction/1) ++
-            Enum.map(page.records, &public_auction/1),
+        data: Enum.map(page.records, &public_auction/1),
         pagination: page.pagination,
         robinhood_unavailable: page.robinhood_unavailable
       })
@@ -28,8 +27,8 @@ defmodule AutolaunchWeb.AuctionController do
     end
   end
 
-  # A Base auction is named by its id; a Robinhood auction, which has none, by
-  # its address, as on /robinhood/auctions/:auction.
+  # Any listed auction is named by its id; a Robinhood auction also by its
+  # address, as on /robinhood/auctions/:auction.
   def show(conn, %{"id" => id} = params) do
     with true <- Map.keys(params) == ["id"],
          {:ok, entry} <- auction_entry(conn, id) do
@@ -43,26 +42,19 @@ defmodule AutolaunchWeb.AuctionController do
 
   defp auction_entry(conn, id) do
     case Ash.Type.UUID.cast_input(id, []) do
-      {:ok, _id} -> base_auction_entry(conn, id)
-      :error -> robinhood_auction_entry(id)
+      {:ok, _id} -> entry(autolaunch(conn).get_public_auction(id, actor: nil))
+      :error -> robinhood_entry(conn, Address.normalize(id))
     end
   end
 
-  defp base_auction_entry(conn, id) do
-    case autolaunch(conn).get_public_auction(id, actor: nil) do
-      {:ok, nil} -> :not_found
-      {:ok, auction} -> {:ok, public_auction(auction)}
-      {:error, error} -> {:error, error}
-    end
-  end
+  defp robinhood_entry(conn, {:ok, address}),
+    do: entry(autolaunch(conn).get_robinhood_auction(address, actor: nil))
 
-  defp robinhood_auction_entry(address) do
-    case Auctions.fetch(address) do
-      {:ok, auction} -> {:ok, robinhood_auction(auction)}
-      {:error, :not_found} -> :not_found
-      {:error, error} -> {:error, error}
-    end
-  end
+  defp robinhood_entry(_conn, :error), do: :not_found
+
+  defp entry({:ok, nil}), do: :not_found
+  defp entry({:ok, auction}), do: {:ok, public_auction(auction)}
+  defp entry({:error, error}), do: {:error, error}
 
   def bid_quote(conn, %{"id" => id} = params) do
     autolaunch = autolaunch(conn)
@@ -106,7 +98,7 @@ defmodule AutolaunchWeb.AuctionController do
   defp public_auction(auction) do
     %{
       id: auction.id,
-      chain: "base",
+      chain: if(Lab.chain?(auction.chain_id), do: "robinhood", else: "base"),
       chain_id: auction.chain_id,
       address: auction.auction_address,
       title: auction.title,
@@ -124,29 +116,6 @@ defmodule AutolaunchWeb.AuctionController do
       },
       clearing_price: auction.current_clearing_price,
       treasury_security: TreasurySecurity.public_view(loaded_report(auction))
-    }
-  end
-
-  # The chain is the only record of a Robinhood auction, so the entry carries
-  # what the chain answers: no id, summary, opening time or treasury report.
-  defp robinhood_auction(auction) do
-    %{
-      chain: "robinhood",
-      chain_id: Lab.chain_id(),
-      address: auction.auction,
-      launch_id: auction.launch_id,
-      title: auction.name,
-      token_symbol: auction.symbol,
-      kind: "stocks",
-      state: to_string(auction.state),
-      minimum_reached: auction.minimum_reached,
-      quote_token: %{
-        address: auction.stock_address,
-        symbol: auction.stock_symbol,
-        decimals: auction.stock_decimals
-      },
-      clearing_price: auction.clearing_price,
-      raised: auction.raised
     }
   end
 

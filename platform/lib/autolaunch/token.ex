@@ -22,6 +22,12 @@ defmodule Autolaunch.Token do
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
     end
 
+    # Every graduated token the public lists carry, on both chains.
+    read :listed do
+      prepare Autolaunch.Token.Preparations.ListedAuction
+      prepare build(sort: [graduated_at: :desc, id: :asc], load: [:auction])
+    end
+
     read :list_public do
       prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
 
@@ -35,7 +41,7 @@ defmodule Autolaunch.Token do
       argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
       argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.ListedAuction
 
       prepare fn query, _context ->
         direction = if query.arguments.sort == "oldest", do: :asc, else: :desc
@@ -49,7 +55,7 @@ defmodule Autolaunch.Token do
 
     read :page_public do
       pagination keyset?: true, required?: true, default_limit: 100, max_page_size: 100
-      prepare Autolaunch.Token.Preparations.SiteCreatedAuctionOnly
+      prepare Autolaunch.Token.Preparations.ListedAuction
 
       prepare build(
                 sort: [graduated_at: :desc, id: :asc],
@@ -181,6 +187,7 @@ defmodule Autolaunch.Token do
   policies do
     policy action([
              :read,
+             :listed,
              :list_public,
              :page_public,
              :home_market,
@@ -310,6 +317,7 @@ defmodule Autolaunch.Token do
         (not is_nil(auction.summary) and auction.summary != "" and
            ilike(auction.summary, ^pattern)) or
         ilike(auction.auction_address, ^pattern) or
+        ilike(auction.token_address, ^pattern) or
         exists(
           [:auction, :creator_x_connections],
           not is_nil(verified_at) and

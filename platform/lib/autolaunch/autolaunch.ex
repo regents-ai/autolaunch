@@ -89,6 +89,11 @@ defmodule Autolaunch do
         args: [:id],
         not_found_error?: false
 
+      define :get_robinhood_auction,
+        action: :robinhood_by_address,
+        args: [:auction_address],
+        not_found_error?: false
+
       define :project_lab_auction, action: :project_lab
       define :record_launch_auction, action: :record_launch
 
@@ -221,6 +226,7 @@ defmodule Autolaunch do
 
     resource Autolaunch.Token do
       define :list_tokens, action: :list_public
+      define :list_listed_tokens, action: :listed
       define :page_public_tokens, action: :page_public
       define :list_top_tokens, action: :top_public
       define :list_recently_graduated_tokens, action: :recently_graduated_public

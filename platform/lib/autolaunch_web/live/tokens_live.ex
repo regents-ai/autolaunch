@@ -3,10 +3,14 @@ defmodule AutolaunchWeb.TokensLive do
   use AutolaunchWeb, :live_view
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.SwapModal
-  alias AutolaunchWeb.LiveListings
+  alias AutolaunchWeb.{LabMarket, LiveListings}
 
   def mount(_params, _session, socket),
-    do: {:ok, socket |> assign(trade: nil) |> LiveListings.subscribe()}
+    do:
+      {:ok,
+       socket
+       |> assign(trade: nil, market: LabMarket.subscribe(socket))
+       |> LiveListings.subscribe()}
 
   def handle_params(params, _uri, socket) do
     {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page(reset: true)}
@@ -28,6 +32,13 @@ defmodule AutolaunchWeb.TokensLive do
 
   def handle_event("close_trade", _params, socket), do: {:noreply, socket}
 
+  # The Robinhood notice follows whether its feed could read Robinhood.
+  def handle_info({:autolaunch_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
+
+  def handle_info({:robinhood_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
+
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, LiveListings.schedule(socket)}
 
@@ -41,15 +52,13 @@ defmodule AutolaunchWeb.TokensLive do
 
     assign_async(
       socket,
-      [:records, :creators, :pagination, :robinhood, :robinhood_unavailable],
+      [:records, :creators, :pagination],
       fn ->
         with {:ok, page} <- AutolaunchWeb.MarketPage.tokens(cursor, 24) do
           {:ok,
            %{
              records: page.records,
-             robinhood: page.robinhood,
-             robinhood_unavailable: page.robinhood_unavailable,
-             creators: creator_connections_for(page.records ++ page.robinhood),
+             creators: creator_connections_for(page.records),
              pagination: page.pagination
            }}
         end
@@ -67,8 +76,7 @@ defmodule AutolaunchWeb.TokensLive do
       pagination={@pagination}
       cursor={@cursor}
       trade_event="open_trade"
-      robinhood={@robinhood}
-      robinhood_unavailable={@robinhood_unavailable.ok? && @robinhood_unavailable.result}
+      robinhood_unavailable={@market.robinhood_stale?}
     />
     <.swap_modal
       :if={@trade}

@@ -3,6 +3,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   use Phoenix.Component
 
   alias Autolaunch.Chain.Rpc
+  alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Token
   alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay}
 
@@ -39,10 +40,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom,
-    required: true,
-    values: [:auction, :robinhood_auction, :token, :robinhood_token]
-
+  attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
@@ -101,14 +99,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction, :robinhood_auction]
+  attr :kind, :atom, required: true, values: [:auction]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
 
   attr :reading, :map,
     default: nil,
-    doc: "the market feed's reading of a Base auction, which carries its amount raised"
+    doc: "the market feed's reading of the auction, which carries its amount raised"
 
   @doc "The large auction card of the auctions page: who, where, what state, and how to bid."
   def auction_card(assigns) do
@@ -202,10 +200,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom,
-    required: true,
-    values: [:auction, :robinhood_auction, :token, :robinhood_token]
-
+  attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
@@ -451,7 +446,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
+  # A stored auction on either chain. A Robinhood auction's page is named by
+  # its address, and its bids are paid in USDG.
   defp view(:auction, auction, connections) do
+    robinhood? = RobinhoodLab.chain?(auction.chain_id)
+
     %{
       name: auction.title,
       symbol: auction.token_symbol,
@@ -463,14 +462,22 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol),
       address: auction.auction_address,
-      path: "/auctions/#{auction.id}",
+      path:
+        if(robinhood?,
+          do: "/robinhood/auctions/#{auction.auction_address}",
+          else: "/auctions/#{auction.id}"
+        ),
       creator: creator_name(connections),
       age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
       connections: connection_list(connections),
-      quick: auction_quick(auction),
+      quick:
+        auction_quick(
+          auction,
+          if(robinhood?, do: "USDG", else: BidComponent.bid_currency(auction))
+        ),
       record_id: auction.id,
       state: auction.state,
-      chain: "Base",
+      chain: if(robinhood?, do: "Robinhood", else: "Base"),
       launch: if(auction.kind == :stocks, do: "Memestake", else: "Revstake"),
       raised: nil,
       minimum:
@@ -537,7 +544,26 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  defp view(:token, token, connections) do
+  # A graduated Robinhood launch's page is named by its token's address; it
+  # trades on its own page, so its row offers no quick buy.
+  defp view(:token, %{auction: %{chain_id: chain_id} = auction} = token, connections) do
+    if RobinhoodLab.chain?(chain_id) do
+      presentation = Token.presentation(token)
+
+      %{
+        base_token_view(token, connections)
+        | metric: metric(token.price_quote, auction.quote_token_symbol),
+          path: "/robinhood/tokens/#{auction.token_address}",
+          quick: nil,
+          chain: "Robinhood",
+          pair: "#{presentation.symbol} / #{auction.quote_token_symbol}"
+      }
+    else
+      base_token_view(token, connections)
+    end
+  end
+
+  defp base_token_view(token, connections) do
     presentation = Token.presentation(token)
     currency = SwapComponent.entry_symbol(token.auction)
 
@@ -575,8 +601,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   def state_label(:failed), do: "Failed"
 
   # An auction past its end block takes no bids, so its row offers none.
-  defp auction_quick(auction), do: auction_quick(auction, BidComponent.bid_currency(auction))
-
   defp auction_quick(%{state: state}, _currency) when state in [:ended, :graduated, :failed],
     do: nil
 
@@ -594,7 +618,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       if(Autolaunch.Prelaunch.read_only?(), do: "Opens #{Autolaunch.Prelaunch.opens_at_label()}")
 
   # The stored figure travels untouched; only its on-screen form is shortened.
-  # A Base auction's amount raised is read from its chain by the market feed.
+  # An auction's amount raised is read from its chain by its market feed.
   defp with_reading(view, nil), do: view
 
   defp with_reading(view, reading),

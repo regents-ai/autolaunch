@@ -2,9 +2,9 @@ defmodule Autolaunch.Auction.Preparations.SiteCreatedOnly do
   @moduledoc false
   use Ash.Resource.Preparation
 
-  # The Base listing policy: only auctions created through this site, which
-  # always name their creator. Robinhood rows follow their own listing policy
-  # (every launchpad record) and are read through their own actions.
+  # A Base auction created through this site, which always names its creator.
+  # The public lists, which also carry Robinhood rows, use
+  # `Autolaunch.Auction.Preparations.Listed`.
   @impl true
   def prepare(query, _opts, _context) do
     query
