@@ -404,7 +404,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
             }
             preview
           />
-          <p>Auctions and graduated tokens use this same public identity.</p>
+          <p>Auctions and launched tokens use this same public identity.</p>
 
           <div>
             <p class="autolaunch-kicker">Summary</p>

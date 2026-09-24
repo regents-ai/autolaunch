@@ -97,7 +97,7 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
     >
       <header>
         <h2>Creator connections</h2><p>
-          Optional. These appear on your auctions and graduated tokens.
+          Optional. These appear on your auctions and launched tokens.
         </p>
       </header>
       <.x_connections id={"#{@id}-x"} connections={@x_connections} enabled={@x_enabled} compact />
