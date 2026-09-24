@@ -66,22 +66,26 @@ defmodule AutolaunchWeb.Components.TopBar do
         <kbd class="home-search__shortcut" aria-hidden="true">⌘ K</kbd>
         <button type="submit" class="visually-hidden">Search</button>
       </form>
-      <AutolaunchWeb.Components.RegentLinks.header_links />
-      <div class="home-top__actions">
-        <Regent.ThemeToggle.button :if={@blog?} id="blog-theme-control" data-autolaunch-blog-theme />
-        <span :if={Autolaunch.Prelaunch.read_only?()} class="home-top__opening">
-          <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
+      <AutolaunchWeb.Components.RegentLinks.header_links>
+        <:lead>
           <Regent.Primitives.button
+            :if={Autolaunch.Prelaunch.read_only?()}
             disabled
             class="create-button"
             title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
           >+ Create</Regent.Primitives.button>
+          <.link
+            :if={!Autolaunch.Prelaunch.read_only?()}
+            navigate="/create"
+            class="rg-button create-button"
+          >+ Create</.link>
+        </:lead>
+      </AutolaunchWeb.Components.RegentLinks.header_links>
+      <div class="home-top__actions">
+        <Regent.ThemeToggle.button :if={@blog?} id="blog-theme-control" data-autolaunch-blog-theme />
+        <span :if={Autolaunch.Prelaunch.read_only?()} class="home-top__opening">
+          <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
         </span>
-        <.link
-          :if={!Autolaunch.Prelaunch.read_only?()}
-          navigate="/create"
-          class="rg-button create-button"
-        >+ Create</.link>
         <.account_control account_control={@account_control} />
       </div>
     </header>

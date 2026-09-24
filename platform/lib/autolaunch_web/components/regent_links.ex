@@ -6,11 +6,27 @@ defmodule AutolaunchWeb.Components.RegentLinks do
 
   alias AutolaunchWeb.Components.TokenLinks
 
+  slot :lead, doc: "what comes first in the row, before Buy $REGENT"
+
   def header_links(assigns) do
     assigns = assign(assigns, :local_lab?, Autolaunch.Lab.test_chain?())
 
     ~H"""
     <div class="regent-header-links">
+      {render_slot(@lead)}
+      <a
+        class="rg-button rg-button--primary regent-header-cta"
+        href={TokenLinks.buy()}
+        target="_blank"
+        rel="noopener noreferrer"
+      >Buy $REGENT</a>
+      <a
+        class="rg-button regent-header-cta regent-header-cta--soft"
+        href="https://x.com/regents_sh"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Follow on X"
+      ><span class="rg-button__label">Follow on <.link_icon kind={:x} /></span></a>
       <details id="header-regent-menu" class="regent-token-menu" data-regent-token-menu>
         <summary aria-label="$REGENT links"><.source_icon kind={:regent} /></summary>
         <div class="regent-token-menu__panel">
@@ -64,19 +80,6 @@ defmodule AutolaunchWeb.Components.RegentLinks do
           </nav>
         </div>
       </details>
-      <a
-        class="rg-button rg-button--primary regent-header-cta"
-        href={TokenLinks.buy()}
-        target="_blank"
-        rel="noopener noreferrer"
-      >Buy $REGENT</a>
-      <a
-        class="rg-button regent-header-cta regent-header-cta--soft"
-        href="https://x.com/regents_sh"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Follow on X"
-      ><span class="rg-button__label">Follow on <.link_icon kind={:x} /></span></a>
       <nav class="regent-social-links" aria-label="Regents on GitHub">
         <.github_link />
       </nav>

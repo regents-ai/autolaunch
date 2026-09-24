@@ -9,6 +9,8 @@
 .regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
 .regent-footer p { margin: 0; }
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
+/* Create, Buy $REGENT, Follow on X, the crown and GitHub sit together beside Sign in. */
+#home-top .regent-header-links { margin-left: auto; }
 .regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; color: inherit; }
 .regent-header-links svg, .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
 /* Header buttons, both Create buttons and Copy to Agent match the regents.sh App button: a

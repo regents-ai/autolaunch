@@ -32,7 +32,9 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   On phones the four sit in one row, always visible, and settle in one after another.
 - On phones, the header is the $REGENT crown beside Sign in. Tapping the crown opens Buy on
   Uniswap, View Chart and Follow on X, and the header Buy, Follow and Create buttons are gone.
-  Wider screens keep the full header.
+  Wider screens keep the full header, in this order: + Create, Buy $REGENT, Follow on X, the
+  crown, GitHub, Sign in.
+- The treasury section no longer shows a technical note under a verified recipient.
 
 ## v25, 24 September 2026 (864624e)
 - The time bar on auction cards fills again: the site now records when each auction opened, so

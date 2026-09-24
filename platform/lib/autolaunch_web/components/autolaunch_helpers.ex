@@ -73,9 +73,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
           <dt>Downgrade</dt><dd>Configuration changed after a verified observation</dd>
         </div>
       </dl>
-      <p :if={@view} class="treasury-security--warning">
-        Verification remains fail-closed until canonical projector refresh is integrated.
-      </p>
     </aside>
     """
   end
