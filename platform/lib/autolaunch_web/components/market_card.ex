@@ -673,6 +673,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp decimal(_value), do: nil
 
+  # A threshold met many times over still reads 100% met.
   defp percent_met(%Decimal{} = raised, minimum) do
     if Decimal.gt?(minimum, 0),
       do:
@@ -681,6 +682,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         |> Decimal.mult(100)
         |> Decimal.round(0, :down)
         |> Decimal.to_integer()
+        |> min(100)
   end
 
   defp percent_met(_raised, _minimum), do: nil
