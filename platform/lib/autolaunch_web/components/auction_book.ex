@@ -175,7 +175,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
       </p>
       <p class="auction-outbid-banner__links">
         <a href={"##{@bid_form}"}>Bid again</a>
-        <a :if={@return_to} href={"##{@return_to}"}>Get my unspent money back</a>
+        <a :if={@return_to} href={"##{@return_to}"}>See my outbid bid</a>
       </p>
     </section>
     """
