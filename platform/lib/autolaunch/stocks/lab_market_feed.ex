@@ -105,7 +105,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   end
 
   def handle_info({:refreshed, {:error, reason}}, state) do
-    Logger.debug("stocks lab market feed skipped a poll: #{inspect(reason)}")
+    Logger.warning("memestake market feed skipped a poll: #{inspect(reason)}")
     {:noreply, schedule(%{state | in_flight: false}, interval())}
   end
 
@@ -128,15 +128,19 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
 
   defp project_launches(config, block, opts) do
     with {:ok, next} <- launchpad_uint(config, "nextLaunchId()", [], block, opts) do
-      Enum.reduce_while(0..(next - 1)//1, {:ok, []}, fn id, {:ok, changed} ->
-        collect(project_launch(config, id, block, opts), changed)
-      end)
+      {:ok,
+       Enum.flat_map(0..(next - 1)//1, &collect(&1, project_launch(config, &1, block, opts)))}
     end
   end
 
-  defp collect({:ok, nil}, changed), do: {:cont, {:ok, changed}}
-  defp collect({:ok, auction_id}, changed), do: {:cont, {:ok, [auction_id | changed]}}
-  defp collect({:error, reason}, _changed), do: {:halt, {:error, reason}}
+  # One launch that cannot be read is logged and skipped; the others still project.
+  defp collect(_id, {:ok, nil}), do: []
+  defp collect(_id, {:ok, auction_id}), do: [auction_id]
+
+  defp collect(id, {:error, reason}) do
+    Logger.warning("memestake market feed skipped launch #{id}: #{inspect(reason)}")
+    []
+  end
 
   defp project_launch(config, id, block, opts) do
     with {:ok, record} <-
@@ -217,21 +221,37 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     end
   end
 
+  # Each auction is read and written on its own: one that fails is logged and
+  # left as it is, and every other auction still refreshes.
   defp refresh_auctions(config, block, opts, auctions) do
-    Enum.reduce_while(auctions, {:ok, %{}, []}, fn auction, {:ok, snapshots, changed} ->
-      with {:ok, snapshot} <- market_snapshot(config, block, opts, auction),
-           {:ok, changed_id} <- refresh_row(auction, snapshot) do
-        {:cont,
-         {:ok, Map.put(snapshots, snapshot.auction_address, snapshot),
-          List.wrap(changed_id) ++ changed}}
-      else
-        # A row whose contract does not exist at this head has no market to
-        # read (a launch mined on another lab run, or one a reorg removed); it
-        # is left as it is so one such row never stops the others refreshing.
-        {:error, :lab_contract_missing} -> {:cont, {:ok, snapshots, changed}}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
+    {snapshots, changed} =
+      Enum.reduce(auctions, {%{}, []}, fn auction, {snapshots, changed} ->
+        case safely(fn -> refresh_auction(config, block, opts, auction) end) do
+          {:ok, snapshot, changed_id} ->
+            {Map.put(snapshots, snapshot.auction_address, snapshot),
+             List.wrap(changed_id) ++ changed}
+
+          # A row whose contract does not exist at this head has no market to
+          # read (a launch mined on another lab run, or one a reorg removed).
+          {:error, :lab_contract_missing} ->
+            {snapshots, changed}
+
+          {:error, reason} ->
+            Logger.warning(
+              "memestake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+            )
+
+            {snapshots, changed}
+        end
+      end)
+
+    {:ok, snapshots, changed}
+  end
+
+  defp refresh_auction(config, block, opts, auction) do
+    with {:ok, snapshot} <- market_snapshot(config, block, opts, auction),
+         {:ok, changed_id} <- refresh_row(auction, snapshot),
+         do: {:ok, snapshot, changed_id}
   end
 
   defp market_snapshot(config, block, opts, auction) do

@@ -159,10 +159,13 @@ defmodule Autolaunch.Chain.Rpc do
       {:ok, %{status: 200, body: %{"result" => result}}} ->
         {:ok, result}
 
-      {:ok, %{body: %{"error" => _error}}} ->
+      {:ok, %{status: 200, body: %{"error" => _error}}} ->
         {:error, :chain_unavailable}
 
-      {:ok, _response} ->
+      # A provider refusing the request (a 429 rate limit, a 5xx outage) is
+      # not an answer from the chain; it is logged like a transport failure.
+      {:ok, %{status: status}} ->
+        log_failure(method, {:http_status, status}, opts)
         {:error, :chain_unavailable}
 
       {:error, reason} ->
@@ -349,5 +352,6 @@ defmodule Autolaunch.Chain.Rpc do
        do: :timeout
 
   defp error_class(%Req.TransportError{}), do: :transport
+  defp error_class({:http_status, status}), do: {:http_status, status}
   defp error_class(_reason), do: :transport
 end

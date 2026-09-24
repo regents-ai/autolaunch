@@ -3,6 +3,8 @@ defmodule Autolaunch.LabMarketFeed do
 
   use GenServer
 
+  require Logger
+
   alias __MODULE__.{Projector, Reader}
 
   @topic "autolaunch:lab_market"
@@ -82,8 +84,12 @@ defmodule Autolaunch.LabMarketFeed do
 
   def handle_info({:head, token, result}, %{in_flight: %{token: token, stage: :head}} = state) do
     case result do
-      {:ok, head} -> handle_head(state, head)
-      {:error, _reason} -> {:noreply, failed(%{state | in_flight: nil})}
+      {:ok, head} ->
+        handle_head(state, head)
+
+      {:error, reason} ->
+        Logger.warning("revstake market feed could not read the chain head: #{inspect(reason)}")
+        {:noreply, failed(%{state | in_flight: nil})}
     end
   end
 
@@ -97,10 +103,8 @@ defmodule Autolaunch.LabMarketFeed do
       {:ok, refresh} ->
         finish_refresh(state, head, refresh)
 
-      {:error, _reason, attempted_addresses} ->
-        {:noreply, failed_exact_head(state, head, attempted_addresses)}
-
-      {:error, _reason} ->
+      {:error, reason} ->
+        Logger.warning("revstake market feed could not read its auctions: #{inspect(reason)}")
         {:noreply, failed_exact_head(state, head, state.attempted_addresses)}
     end
   end
@@ -490,6 +494,8 @@ defmodule Autolaunch.LabMarketFeed do
   defmodule Reader do
     @moduledoc false
 
+    require Logger
+
     @read_concurrency 8
     @read_timeout 10_000
 
@@ -528,54 +534,47 @@ defmodule Autolaunch.LabMarketFeed do
             MapSet.member?(attempted_addresses, String.downcase(auction.auction_address))
           end)
 
-        case collect_snapshots(pending, head) do
-          {:ok, snapshots} ->
-            {:ok,
-             %{
-               snapshots: snapshots,
-               attempted: MapSet.union(attempted_addresses, observed_addresses)
-             }}
-
-          {:error, reason} ->
-            {:error, reason, MapSet.union(attempted_addresses, observed_addresses)}
-        end
+        {:ok,
+         %{
+           snapshots: collect_snapshots(pending, head),
+           attempted: MapSet.union(attempted_addresses, observed_addresses)
+         }}
       else
         false -> {:error, :market_capacity_exceeded}
         {:error, reason} -> {:error, reason}
       end
     end
 
+    # Each auction is read on its own: one that cannot be read is logged and
+    # left as it is, and every other auction still refreshes.
     defp collect_snapshots(auctions, head) do
       auctions
-      |> Task.async_stream(&snapshot(head, &1),
+      |> Task.async_stream(&{&1, snapshot(head, &1)},
         max_concurrency: @read_concurrency,
         ordered: false,
         timeout: @read_timeout,
-        on_timeout: :kill_task
+        on_timeout: :kill_task,
+        zip_input_on_exit: true
       )
-      |> Enum.reduce_while({:ok, []}, fn result, {:ok, snapshots} ->
-        collect_snapshot(result, snapshots)
-      end)
-      |> reverse_snapshots()
+      |> Enum.flat_map(&collect_snapshot/1)
     end
 
-    defp collect_snapshot({:ok, {:ok, snapshot}}, snapshots),
-      do: {:cont, {:ok, [snapshot | snapshots]}}
+    defp collect_snapshot({:ok, {_auction, {:ok, snapshot}}}), do: [snapshot]
 
     # A row whose contract does not exist at this head has no market to read
-    # (a launch mined on another lab run, or one a reorg removed); it is left
-    # as it is so one such row never stops every other auction refreshing.
-    defp collect_snapshot({:ok, {:error, :lab_contract_missing}}, snapshots),
-      do: {:cont, {:ok, snapshots}}
+    # (a launch mined on another lab run, or one a reorg removed).
+    defp collect_snapshot({:ok, {_auction, {:error, :lab_contract_missing}}}), do: []
 
-    defp collect_snapshot({:ok, {:error, reason}}, _snapshots),
-      do: {:halt, {:error, reason}}
+    defp collect_snapshot({:ok, {auction, {:error, reason}}}), do: skipped(auction, reason)
+    defp collect_snapshot({:exit, {auction, reason}}), do: skipped(auction, reason)
 
-    defp collect_snapshot({:exit, _reason}, _snapshots),
-      do: {:halt, {:error, :market_snapshot_failed}}
+    defp skipped(auction, reason) do
+      Logger.warning(
+        "revstake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+      )
 
-    defp reverse_snapshots({:ok, snapshots}), do: {:ok, Enum.reverse(snapshots)}
-    defp reverse_snapshots(error), do: error
+      []
+    end
 
     defp snapshot(%{config: config, block: block, rpc_opts: opts}, auction) do
       address = auction.auction_address
