@@ -306,7 +306,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
             creator_connections={@draft_x_connections}
             preview
           />
-          <p>Auctions and graduated tokens use this same public identity.</p>
+          <p>Auctions and launched tokens use this same public identity.</p>
         </aside>
       </section>
     </section>
