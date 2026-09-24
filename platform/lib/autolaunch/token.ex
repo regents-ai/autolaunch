@@ -18,6 +18,7 @@ defmodule Autolaunch.Token do
     # The public token lists read their page straight off this in order.
     custom_indexes do
       index ["graduated_at DESC", "id"], name: "tokens_graduated_newest_index"
+      index [:trades_due_at, :id], name: "tokens_trades_due_index"
     end
   end
 
@@ -252,6 +253,32 @@ defmodule Autolaunch.Token do
       require_atomic? false
       accept [:price_quote, :price_source, :price_updated_at]
     end
+
+    # The listed token whose pool's trades are read next by
+    # `Autolaunch.TokenTrades`, locked for the pass that claims it.
+    read :trades_due do
+      filter expr(is_nil(trades_due_at) or trades_due_at <= now())
+      prepare Autolaunch.Token.Preparations.ListedAuction
+
+      prepare build(
+                sort: [trades_due_at: :asc_nils_first, id: :asc],
+                limit: 1,
+                load: [:auction],
+                lock: :for_update
+              )
+    end
+
+    # Not atomic: an atomic update re-reads through the primary read, which
+    # hides Robinhood rows, so a Robinhood token would never be claimed.
+    update :schedule_trades do
+      require_atomic? false
+      accept [:trades_due_at]
+    end
+
+    update :refresh_trades do
+      require_atomic? false
+      accept [:trades_next_block, :trades_last_hash, :trades_due_at]
+    end
   end
 
   policies do
@@ -274,7 +301,14 @@ defmodule Autolaunch.Token do
       authorize_if always()
     end
 
-    policy action([:project_lab, :projection_by_auction, :set_price_snapshot]) do
+    policy action([
+             :project_lab,
+             :projection_by_auction,
+             :set_price_snapshot,
+             :trades_due,
+             :schedule_trades,
+             :refresh_trades
+           ]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
@@ -338,6 +372,12 @@ defmodule Autolaunch.Token do
     attribute :price_updated_at, :utc_datetime_usec do
       public? true
     end
+
+    # Where `Autolaunch.TokenTrades` reads the pool's trades from next, the
+    # hash of the block before it, and when the next pass is due.
+    attribute :trades_next_block, :integer
+    attribute :trades_last_hash, :string
+    attribute :trades_due_at, :utc_datetime_usec
 
     attribute :treasury_address, :string do
       public? true

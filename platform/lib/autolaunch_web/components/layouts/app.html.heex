@@ -18,6 +18,6 @@
   </Regent.Structure.row>
 </Regent.Structure.frame>
 
-{Phoenix.Component.live_render(assigns[:socket] || assigns[:conn], AutolaunchWeb.BidTickerLive,
-  id: "confirmed-bid-ticker"
+{Phoenix.Component.live_render(assigns[:socket] || assigns[:conn], AutolaunchWeb.MarketTickerLive,
+  id: "market-ticker"
 )}
