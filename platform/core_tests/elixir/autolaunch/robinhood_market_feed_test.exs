@@ -15,6 +15,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   @outside_launcher "0x5000000000000000000000000000000000000005"
   @graduated_auction "0x7000000000000000000000000000000000000007"
   @splitter "0x8000000000000000000000000000000000000008"
+  @token "0x6000000000000000000000000000000000000006"
 
   defmodule Chain do
     @moduledoc """
@@ -98,6 +99,11 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert site.required_currency_raised == "1000"
     assert site.treasury_address == @launchpad
 
+    # The launch's facts from its launchpad record, the schedule in the rollup
+    # clock.
+    assert %{token_address: @token, launch_id: 1, start_block: 100, end_block: 200} = site
+    assert %{token_address: @token, launch_id: 2, start_block: 100, end_block: 200} = outside
+
     assert %{state: :failed, minimum_reached: false, creator_human_account_id: nil} = outside
 
     # The next poll reads no record twice; a restarted feed reads them all
@@ -107,8 +113,10 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert {:ok, _replayed} =
              MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
 
-    assert robinhood_rows() |> Enum.map(&{&1.id, &1.state}) |> Enum.sort() ==
-             rows |> Enum.map(&{&1.id, &1.state}) |> Enum.sort()
+    facts = &Map.take(&1, [:id, :state, :token_address, :launch_id, :start_block, :end_block])
+
+    assert robinhood_rows() |> Enum.map(facts) |> Enum.sort_by(& &1.id) ==
+             rows |> Enum.map(facts) |> Enum.sort_by(& &1.id)
 
     assert first.snapshots[@site_auction].currency_raised == "2"
   end
@@ -303,7 +311,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     %{
       launch_id: id,
       launcher: launcher,
-      token: "0x6000000000000000000000000000000000000006",
+      token: @token,
       auction: auction,
       launchpad: @launchpad,
       stock: @stock,
@@ -332,7 +340,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
         if(lifecycle == 2,
           do: %{
             pool_id: pool_id(launch_id),
-            token: "0x6000000000000000000000000000000000000006",
+            token: @token,
             stock: @stock.address,
             splitter: @splitter,
             lp_token_id: 7,
