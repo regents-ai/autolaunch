@@ -61,8 +61,16 @@ jobs:
       - name: Materialize the pinned Foundry
         run: |
           set -eu
-          curl -L https://foundry.paradigm.xyz | bash
-          "$HOME/.foundry/bin/foundryup" --install '${{ steps.frozen.outputs.forge }}'
+          # The digest is that of the frozen version's linux_amd64 release tarball, so a new
+          # frozen version fails here until this digest is updated with it.
+          version='${{ steps.frozen.outputs.forge }}'
+          tarball="$RUNNER_TEMP/foundry.tar.gz"
+          curl -fsSL -o "$tarball" \
+            "https://github.com/foundry-rs/foundry/releases/download/v$version/foundry_v${version}_linux_amd64.tar.gz"
+          printf '%s  %s\n' 73640b01bd9ed29fdb4965085099371f8cf0dbbec3e2086cf54564efc4dcfe88 "$tarball" |
+            sha256sum -c -
+          mkdir -p "$HOME/.foundry/bin"
+          tar -xzf "$tarball" -C "$HOME/.foundry/bin"
           printf '%s\n' "$HOME/.foundry/bin" >>"$GITHUB_PATH"
 
       - name: Materialize the pinned Solidity compiler
