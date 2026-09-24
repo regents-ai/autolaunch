@@ -70,6 +70,12 @@ export const AutolaunchReviewedSteps: Hook = {
     this.handleEvent("reviewed-steps:cleared", payload => {
       if (mine(payload)) this.review = null
     })
+    // Sent after the page shows the new figures, so the box they land in is
+    // focused only once it holds them.
+    this.handleEvent("reviewed-steps:focus", payload => {
+      if (!mine(payload)) return
+      document.getElementById((payload as {to: string}).to)?.focus()
+    })
 
     this.clicked = (event: Event) => {
       const target = event.target as HTMLElement | null
