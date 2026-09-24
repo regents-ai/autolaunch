@@ -121,6 +121,32 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert first.snapshots[@site_auction].currency_raised == "2"
   end
 
+  test "a launch whose name and symbol are the chain's own graduates with its token" do
+    name = "A launch named " <> String.duplicate("at length ", 12) <> "on chain, long!"
+
+    graduated = %{
+      launch(3, @graduated_auction, @outside_launcher, 2)
+      | name: name,
+        symbol: "meme"
+    }
+
+    Chain.put(%{
+      Chain.chain()
+      | launches: Chain.chain().launches ++ [graduated],
+        markets: Map.put(Chain.chain().markets, @graduated_auction, market(3, 2, true))
+    })
+
+    assert {:ok, _poll} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert %{state: :graduated, token_symbol: "meme"} = row(@graduated_auction)
+
+    assert {:ok, token} =
+             Autolaunch.get_token_for_projection(row(@graduated_auction).id, actor: %System{})
+
+    assert %{symbol: "meme"} = token
+    assert token.name == name
+    assert String.length(name) == 150
+  end
+
   test "a row another writer wrote first keeps its details and state" do
     first = %{
       kind: :stocks,

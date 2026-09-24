@@ -213,16 +213,18 @@ defmodule Autolaunch.Token do
   attributes do
     uuid_primary_key :id
 
+    # A token's name and symbol are its auction's, as the chain has them:
+    # whatever an auction row admits, its token admits.
     attribute :name, :string do
       allow_nil? false
       public? true
-      constraints min_length: 1, max_length: 100, trim?: true
+      constraints min_length: 1, max_length: 160, trim?: true
     end
 
     attribute :symbol, :string do
       allow_nil? false
       public? true
-      constraints min_length: 1, max_length: 16, match: ~r/\A[A-Z0-9]+\z/
+      constraints min_length: 1, max_length: 16, trim?: true
     end
 
     attribute :summary, :string do
