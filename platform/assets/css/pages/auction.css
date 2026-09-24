@@ -111,7 +111,8 @@
 .auction-history__key { display: inline-flex; align-items: center; gap: 6px; }
 .auction-history__key::before { content: ""; width: 18px; height: 0; border-top: 2px solid var(--brand-accent); }
 .auction-history__key--sold::before { border-top: 2px dashed var(--color-fg); }
-.auction-history__table { max-height: 24rem; overflow: auto; border: 1px solid var(--hairline); }
+/* Its own box for the hidden exact figures, so they scroll with the table instead of widening the page. */
+.auction-history__table { position: relative; max-height: 24rem; overflow: auto; border: 1px solid var(--hairline); }
 .auction-history__table table { width: 100%; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .auction-history__table th { position: sticky; top: 0; padding: 8px; text-align: left; font-weight: 500; color: var(--color-fg-muted); background: var(--color-surface); border-bottom: 1px solid var(--hairline); }
 .auction-history__table td { padding: 8px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
