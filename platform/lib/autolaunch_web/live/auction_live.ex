@@ -133,6 +133,13 @@ defmodule AutolaunchWeb.AuctionLive do
         bidding_ended?(assigns.page_record, assigns.market_snapshot)
       )
 
+    assigns =
+      assign(
+        assigns,
+        :outbid,
+        if(bidding_open?(assigns.bidding_ended?), do: outbid(assigns.my_positions, assigns.book))
+      )
+
     ~H"""
     <article
       :if={@page_status == :ready && @page_record}
@@ -147,6 +154,11 @@ defmodule AutolaunchWeb.AuctionLive do
           <h1 class="rg-section-bar__label">{record_label(:auction, @page_record)}</h1>
         </Regent.Structure.section_bar>
       </header>
+      <.outbid_banner
+        :if={@outbid}
+        bid_form="autolaunch-bid"
+        return_to={if @page_record.minimum_reached, do: "autolaunch-position-#{@outbid.id}"}
+      />
       <div class="market-detail-layout">
         <.detail_card
           kind={:auction}
@@ -192,15 +204,15 @@ defmodule AutolaunchWeb.AuctionLive do
             <h3>Your bids on this auction</h3>
             <ul role="list" class="bid-positions">
               <li :for={position <- @my_positions}>
-                Bid #{position.onchain_bid_id} ·
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={position.amount}
-                  unit={@page_record.quote_token_symbol}
-                /> up to
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={position.max_price}
-                  unit={"#{@page_record.quote_token_symbol} per token"}
-                /> · {position_standing(position, @page_record, @book.result)}
+                <.live_component
+                  module={AutolaunchWeb.OutbidComponent}
+                  id={"autolaunch-position-#{position.id}"}
+                  position={position}
+                  book={@book}
+                  authenticated={@account_control.kind == :signed_in}
+                  current_human_id={current_human_id(@access_context)}
+                  session_lease={@session_lease}
+                />
               </li>
             </ul>
           </section>
@@ -474,22 +486,19 @@ defmodule AutolaunchWeb.AuctionLive do
 
   defp bidding_open?(bidding_ended?), do: !Autolaunch.Prelaunch.read_only?() && !bidding_ended?
 
-  # A position records the exact price its bid was placed at.
-  defp position_standing(position, %{state: state}, _book)
-       when state in [:ended, :graduated, :failed] do
-    case position.status do
-      "claimed" -> "Tokens claimed"
-      "claimable" -> "Tokens ready to claim"
-      status when status in ["returned", "exited"] -> "Bid settled"
-      _ -> "Bidding ended · review your return and token allocation"
-    end
+  # The first of the bidder's still-open bids that the price has passed.
+  defp outbid(positions, %{ok?: true, result: book}) do
+    Enum.find(positions, fn
+      %{status: "active", max_price: max_price, auction: %{quote_token_decimals: decimals}} ->
+        {:ok, price_q96} = Autolaunch.BidActions.price_q96(max_price, decimals)
+        AuctionBook.standing(price_q96, book) == :outbid
+
+      _settled ->
+        false
+    end)
   end
 
-  defp position_standing(position, %{quote_token_decimals: decimals}, book) do
-    {:ok, price_q96} = Autolaunch.BidActions.price_q96(position.max_price, decimals)
-
-    price_q96 |> AuctionBook.standing(book) |> bid_status()
-  end
+  defp outbid(_positions, _book), do: nil
 
   # The dollar price of the auction's currency, read apart from the page so a
   # slow price never holds the auction back and a market update never reads it

@@ -93,6 +93,7 @@ defmodule AutolaunchWeb.BidComponent do
      socket
      |> AutolaunchWeb.WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
+     |> assign_new(:heading, fn -> "Place a bid" end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:balance, fn -> nil end)
      |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
@@ -129,7 +130,7 @@ defmodule AutolaunchWeb.BidComponent do
     >
       <header class="bid-heading">
         <Regent.Structure.section_bar>
-          <h2 class="rg-section-bar__label">Place a bid</h2>
+          <h2 class="rg-section-bar__label">{@heading}</h2>
         </Regent.Structure.section_bar>
         <p>
           Bid {if @usdc_bids?, do: "USDC or "}{@auction.quote_token_symbol} for this launch. Your wallet confirms every step.
@@ -744,13 +745,27 @@ defmodule AutolaunchWeb.BidComponent do
         with {:ok, book} <- AuctionBook.base(auction), do: {:ok, %{book: book}}
       end)
 
-  # An amount chosen before the panel opened is entered once, in the form that
-  # pays in the auction's bid currency.
-  defp preset(%{assigns: %{preset_amount: amount, form: form}} = socket)
-       when is_binary(amount) and not is_map_key(socket.assigns, :preset_entered?),
-       do: assign(socket, form: %{form | amount: amount}, preset_entered?: true)
+  # An amount, and a most per token, chosen before the panel opened are entered
+  # once. A preset most per token replaces bidding at the current price.
+  defp preset(%{assigns: %{form: form} = assigns} = socket)
+       when not is_map_key(assigns, :preset_entered?) do
+    form =
+      form
+      |> preset_amount(assigns[:preset_amount])
+      |> preset_limit(assigns[:preset_limit])
+
+    assign(socket, form: form, preset_entered?: true)
+  end
 
   defp preset(socket), do: socket
+
+  defp preset_amount(form, amount) when is_binary(amount), do: %{form | amount: amount}
+  defp preset_amount(form, nil), do: form
+
+  defp preset_limit(form, limit) when is_binary(limit),
+    do: %{form | at_price: false, limit_mode: "price", limit: limit}
+
+  defp preset_limit(form, nil), do: form
 
   # The press whose transaction the card is waiting on: the submitted attempt of
   # the current step, whose hash the chain has not answered about yet.

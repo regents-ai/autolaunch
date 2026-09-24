@@ -32,7 +32,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     do:
       {:ok,
        socket
-       |> assign(open?: Lab.configured?(), market: LabMarket.subscribe(socket))
+       |> assign(open?: Lab.configured?(), market: LabMarket.subscribe(socket), outbid: nil)
        |> assign_usd_prices()}
 
   def handle_params(%{"auction" => auction}, _uri, socket) do
@@ -42,12 +42,20 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     end
   end
 
-  # The feed read Robinhood again: the stored auction and its reading move
-  # together.
+  # The feed read Robinhood again: the stored auction, its reading and its
+  # price move together.
   def handle_info({:robinhood_market_updated, _update}, socket),
     do:
       {:noreply,
-       socket |> assign(:market, LabMarket.snapshot()) |> reload_launch() |> load_history(false)}
+       socket
+       |> assign(:market, LabMarket.snapshot())
+       |> reload_launch()
+       |> load_history(false)
+       |> load_book(false)}
+
+  # The bid panel found one of the wallet's bids outbid, or none any more.
+  def handle_info({:robinhood_outbid, outbid}, socket),
+    do: {:noreply, assign(socket, :outbid, outbid)}
 
   def handle_info({:autolaunch_market_updated, _update}, socket),
     do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
@@ -68,6 +76,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         </Regent.Structure.section_bar>
         <p>{network_copy(Lab.test_chain?())}</p>
       </header>
+      <.outbid_banner
+        :if={@outbid}
+        bid_form="autolaunch-robinhood-bid"
+        return_to={if @outbid.graduated?, do: @outbid.bid}
+      />
       <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this auction shows what was last read.
       </p>
@@ -89,6 +102,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
           <.live_component
             module={AutolaunchWeb.RobinhoodStockBidComponent}
             id="autolaunch-robinhood-bid"
+            outbid_banner
             auction={@auction}
             ended={ended_copy(@launch)}
             token_symbol={@launch.token_symbol}
@@ -202,7 +216,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   defp load_launch(socket) do
     socket = socket |> reload_launch() |> load_history(true)
     launch = socket.assigns.launch
-    auction = socket.assigns.auction
 
     socket
     |> assign_async(
@@ -216,10 +229,21 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       end,
       reset: true
     )
-    |> assign_async(
+    |> load_book(true)
+  end
+
+  # The price to start buying and the bids around it, read from the auction
+  # apart from the page.
+  defp load_book(%{assigns: %{auction: nil}} = socket, _reset), do: socket
+
+  defp load_book(socket, reset) do
+    auction = socket.assigns.auction
+
+    assign_async(
+      socket,
       :book,
       fn -> with {:ok, book} <- AuctionBook.robinhood(auction), do: {:ok, %{book: book}} end,
-      reset: true
+      reset: reset
     )
   end
 

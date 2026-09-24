@@ -12,18 +12,25 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   bids are the auction's own records. Once the auction has ended, the page
   passes what that means for bidders and the card keeps only the wallet's
   bids and their settlement.
+
+  While bidding is open, each of the wallet's bids says where it stands. One
+  still buying can be added to and an outbid one raised, both through this
+  panel's own form (each places a new bid with new money), and an outbid one
+  can have its unspent stock back early once the auction has reached its
+  minimum. With `outbid_banner`, the page is told whenever a bid is outbid, so
+  it can say so at the top.
   """
 
   use AutolaunchWeb, :live_component
 
   alias Autolaunch.Actors.Human
-  alias Autolaunch.AuctionBook
+  alias Autolaunch.{AuctionBook, BidPrice}
   alias Autolaunch.Robinhood.{Lab, StockBidActions}
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.Components.AuctionBook, as: Book
   alias AutolaunchWeb.Components.{BidForm, BidPlaced}
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
-  alias Phoenix.LiveView.AsyncResult
+  alias Phoenix.LiveView.{AsyncResult, JS}
 
   @copy %{
     authentication_required: "Sign in to bid from your wallet.",
@@ -66,7 +73,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   @refresh_ms 8 * 60_000
 
   @impl true
-  def update(%{refresh_bids: true}, socket), do: {:ok, with_reading(socket)}
+  def update(%{refresh_bids: true}, socket), do: {:ok, socket |> with_reading() |> told_outbid()}
+
+  # A bid's early return says whether the auction would pay it back now.
+  def update(%{early_return: {bid_id, state}}, socket),
+    do:
+      {:ok, assign(socket, :early_returns, Map.put(socket.assigns.early_returns, bid_id, state))}
 
   # A review holds its quote for fifteen minutes; an unsent one is reviewed again first.
   def update(
@@ -118,20 +130,24 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:x_enabled, fn -> false end)
      |> assign_new(:sent, fn -> %{} end)
      |> assign_new(:reading, fn -> nil end)
+     |> assign_new(:early_returns, fn -> %{} end)
+     |> assign_new(:new_bid, fn -> false end)
+     |> assign_new(:outbid_banner, fn -> false end)
+     |> assign_new(:told_outbid, fn -> nil end)
      |> assign_new(:form, fn ->
        %{BidForm.blank() | amount: Map.get(assigns, :preset_amount) || ""}
      end)
      |> assign_usd_prices()
-     |> prepare_when_ready()}
+     |> prepare_when_ready()
+     |> told_outbid()}
   end
 
   @impl true
   def render(assigns) do
     assigns =
-      assign(
-        assigns,
-        :usd_rate,
-        UsdValue.stock_rate(assigns.usd_prices.result, reading_symbol(assigns.reading))
+      assign(assigns,
+        usd_rate: UsdValue.stock_rate(assigns.usd_prices.result, reading_symbol(assigns.reading)),
+        rows: rows(assigns)
       )
 
     ~H"""
@@ -199,6 +215,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           This wallet placed no bids on this auction.
         </p>
 
+        <p :if={@new_bid && !@ended && @sent == %{}} class="bid-form__note">
+          This places a new bid with new money. Your first bid stays as it is.
+        </p>
         <BidForm.bid_form
           :if={!@ended && @sent == %{}}
           id={@id}
@@ -297,13 +316,61 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         >
           <h3>Your bids on this auction</h3>
           <ul role="list">
-            <li :for={bid <- @reading.bids}>
+            <li :for={{bid, standing} <- @rows} id={"#{@id}-bid-#{bid["bid_id"]}"}>
               <p>
                 Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]}
                 <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
-                · {bid_state(bid, (@book.ok? && @book.result) || nil, @reading)}
+                <span :if={standing in [:in, :sharing]}>· {Book.standing_label(standing)}</span>
+                <span :if={is_nil(standing)}>
+                  · {bid_state(bid, (@book.ok? && @book.result) || nil, @reading)}
+                </span>
               </p>
+              <Book.outbid_status
+                :if={standing == :outbid}
+                price={@book.result.clearing}
+                unit={@reading.stock["symbol"]}
+                back={back(@reading, @early_returns[bid["bid_id"]])}
+              />
               <.live_component
+                :if={standing == :outbid && @reading.graduated?}
+                module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
+                id={"#{@id}-early-#{bid["bid_id"]}"}
+                parent_id={@id}
+                early
+                recheck={@book.result.block}
+                auction={@auction}
+                bid={bid}
+                graduated?={@reading.graduated?}
+                token_symbol={@token_symbol}
+                usd_rate={@usd_rate}
+                wallet={@wallet}
+                current_human_id={@current_human_id}
+                session_lease={@session_lease}
+              />
+              <Regent.Primitives.button
+                :if={standing == :outbid && @sent == %{}}
+                type="button"
+                phx-click={
+                  JS.push("raise_bid", value: %{bid_id: bid["bid_id"]}, target: @myself)
+                  |> JS.focus(to: "##{@id}-amount")
+                }
+                variant="secondary"
+              >
+                Raise my bid to keep buying
+              </Regent.Primitives.button>
+              <Regent.Primitives.button
+                :if={standing in [:in, :sharing] && @sent == %{}}
+                type="button"
+                phx-click={
+                  JS.push("add_to_bid", value: %{bid_id: bid["bid_id"]}, target: @myself)
+                  |> JS.focus(to: "##{@id}-amount")
+                }
+                variant="secondary"
+              >
+                Add to this bid
+              </Regent.Primitives.button>
+              <.live_component
+                :if={is_nil(standing)}
                 module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
                 id={"#{@id}-settle-#{bid["bid_id"]}"}
                 parent_id={@id}
@@ -358,11 +425,29 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> prepare_when_ready()}
   end
 
+  # A new bid for an outbid one: about the same money, at the current price.
+  def handle_event("raise_bid", %{"bid_id" => bid_id}, socket) do
+    %{usd_prices: prices, reading: reading} = socket.assigns
+    rate = UsdValue.stock_rate(prices.result, reading_symbol(reading))
+    amount = socket.assigns |> own_bid(bid_id) |> usdg_worth(rate)
+    form = %{BidForm.blank() | amount: amount}
+    {:noreply, socket |> assign(form: form, new_bid: true, notice: nil) |> prepare_when_ready()}
+  end
+
+  # A new bid beside one still buying, up to the same most per token.
+  def handle_event("add_to_bid", %{"bid_id" => bid_id}, socket) do
+    limit = socket.assigns |> own_bid(bid_id) |> max_price(socket.assigns.book)
+    form = %{BidForm.blank() | at_price: false, limit_mode: "price", limit: limit}
+    {:noreply, socket |> assign(form: form, new_bid: true, notice: nil) |> prepare_when_ready()}
+  end
+
   # "Change bid" keeps the entered amounts to adjust; a placed bid starts a fresh form.
   def handle_event("clear_review", _params, socket) do
     {:noreply,
      socket
-     |> assign(if placed?(socket.assigns.sent), do: [form: BidForm.blank()], else: [])
+     |> assign(
+       if placed?(socket.assigns.sent), do: [form: BidForm.blank(), new_bid: false], else: []
+     )
      |> assign(review: nil, prepared_for: nil, sent: %{}, notice: nil, sharing: false)
      |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
      |> prepare_when_ready()}
@@ -771,12 +856,90 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp bid_state(_bid, _book, %{clock: clock, window: %{"end_block" => end_block}})
        when clock >= end_block, do: "Bidding ended · review your return and token allocation"
 
-  defp bid_state(%{"exited_block" => "0"}, nil, _reading), do: "In the auction"
-
-  defp bid_state(%{"exited_block" => "0", "max_price_q96" => price}, book, _reading),
-    do: price |> String.to_integer() |> AuctionBook.standing(book) |> Book.bid_status()
-
+  defp bid_state(%{"exited_block" => "0"}, _book, _reading), do: "In the auction"
   defp bid_state(%{"exited_block" => block}, _book, _reading), do: "Exited at block #{block}"
+
+  # Each of the wallet's bids with where it stands while bidding is open.
+  defp rows(%{reading: %{bids: bids} = reading, book: book, ended: ended}),
+    do: Enum.map(bids, &{&1, open_standing(&1, book, reading, ended)})
+
+  defp rows(_assigns), do: []
+
+  # Where a bid still in an open auction stands against the price now, or nil
+  # once it has left the auction, bidding has ended or the price is not read.
+  defp open_standing(_bid, _book, _reading, ended) when not is_nil(ended), do: nil
+  defp open_standing(_bid, %AsyncResult{ok?: false}, _reading, _ended), do: nil
+
+  defp open_standing(
+         %{"exited_block" => "0", "max_price_q96" => price},
+         %AsyncResult{result: book},
+         %{clock: clock, window: %{"end_block" => end_block}},
+         _ended
+       )
+       when clock < end_block,
+       do: price |> String.to_integer() |> AuctionBook.standing(book)
+
+  defp open_standing(_bid, _book, _reading, _ended), do: nil
+
+  # The rest comes back early only once the auction has reached its minimum,
+  # and only once it has recorded a price above the bid.
+  defp back(%{graduated?: true}, :waiting), do: :price_recorded
+  defp back(%{graduated?: true}, _offered_or_unknown), do: :now
+  defp back(_reading, _early_return), do: :after_end
+
+  defp own_bid(%{reading: %{bids: bids}}, bid_id), do: Enum.find(bids, &(&1["bid_id"] == bid_id))
+  defp own_bid(_assigns, _bid_id), do: nil
+
+  # The chain keeps a bid in the auction's stock, not the USDG paid for it, so
+  # the same money is the stock's worth in dollars today, USDG being a dollar.
+  defp usdg_worth(%{"stock_committed_units" => units}, %Decimal{} = rate),
+    do:
+      units
+      |> Decimal.new(max_digits: :infinity)
+      |> Decimal.mult(rate)
+      |> Decimal.round(2)
+      |> Decimal.to_string(:normal)
+
+  defp usdg_worth(_bid, _rate), do: ""
+
+  # The bid's own most per token, rounded up in its eighteenth decimal place:
+  # a review brings a price down to the tick below it, which is the bid's own.
+  defp max_price(%{"max_price_q96" => price}, %AsyncResult{
+         ok?: true,
+         result: %{decimals: decimals}
+       }),
+       do:
+         price
+         |> String.to_integer()
+         |> BidPrice.decimal(decimals)
+         |> Decimal.new(max_digits: :infinity)
+         |> Decimal.round(18, :ceiling)
+         |> Decimal.to_string(:normal)
+         |> String.trim_trailing("0")
+         |> String.trim_trailing(".")
+
+  defp max_price(_bid, _book), do: ""
+
+  # The page hears when one of the wallet's bids is outbid, and which, so it
+  # can say so at the top. Only a page that asked is told, and only of changes.
+  defp told_outbid(%{assigns: %{outbid_banner: true} = assigns} = socket) do
+    outbid =
+      with %{bids: bids} = reading <- assigns.reading,
+           %{"bid_id" => bid_id} <-
+             Enum.find(
+               bids,
+               &(open_standing(&1, assigns.book, reading, assigns.ended) == :outbid)
+             ) do
+        %{bid: "#{assigns.id}-bid-#{bid_id}", graduated?: reading.graduated?}
+      else
+        _none -> nil
+      end
+
+    if outbid != assigns.told_outbid, do: send(self(), {:robinhood_outbid, outbid})
+    assign(socket, :told_outbid, outbid)
+  end
+
+  defp told_outbid(socket), do: socket
 
   defp wallet_failure_copy("wallet_unavailable"),
     do: "Open the wallet you signed in with, then try again. Nothing was sent."

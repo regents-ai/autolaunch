@@ -15,7 +15,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponentTest do
       id: "bid",
       auction: "0x" <> String.duplicate("22", 20),
       token_symbol: "TSLA",
-      book: AsyncResult.ok(%{clearing_q96: @clearing, price_to_beat: nil}),
+      book:
+        AsyncResult.ok(%{
+          clearing_q96: @clearing,
+          clearing: "0.5",
+          price_to_beat: nil,
+          block: 150
+        }),
       supply: AsyncResult.ok(nil),
       authenticated: true,
       wallet: "0x" <> String.duplicate("11", 20),

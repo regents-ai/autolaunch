@@ -9,6 +9,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   only, the browser reports a hash and stops, and every outcome on screen is
   the server's own read of that hash. A confirmed step asks the bid panel to
   read the wallet's bids again.
+
+  With `early`, the bid is an outbid one while bidding is still open. The
+  auction is asked in the background whether it would return the unspent
+  stock now, and again when the auction moves on while it would not. The
+  button appears only once it would; the bid panel is told either way, so its
+  line can say when the rest can come back.
   """
 
   use AutolaunchWeb, :live_component
@@ -51,8 +57,18 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   @generic "That did not go through. Try again in a moment."
   @steps %{"exit" => :exit, "claim" => :claim}
+  # While bidding is open, the auction is asked again at most this often.
+  @early_recheck_seconds 30
+  # A review holds for fifteen minutes; an unsent early one is asked for again first.
+  @early_refresh_ms 8 * 60_000
 
   @impl true
+  def update(%{early_refresh: review}, %{assigns: %{review: review, sent: sent}} = socket)
+      when sent == %{},
+      do: {:ok, socket |> assign(review: nil, early_state: nil) |> early_check()}
+
+  def update(%{early_refresh: _review}, socket), do: {:ok, socket}
+
   def update(assigns, socket) do
     identity =
       {assigns.auction, assigns.bid["bid_id"], assigns.wallet, assigns.current_human_id,
@@ -71,12 +87,64 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:stake_path, fn -> nil end)
-     |> assign_new(:token_symbol, fn -> "tokens" end)
      |> assign_new(:after_claim, fn -> :wallet end)
-     |> assign_new(:sent, fn -> %{} end)}
+     |> assign_new(:sent, fn -> %{} end)
+     |> assign_new(:early, fn -> false end)
+     |> assign_new(:early_state, fn -> nil end)
+     |> early_check()}
   end
 
   @impl true
+  def render(%{early: true} = assigns) do
+    ~H"""
+    <div id={@id} class="bid-early-return" phx-hook="AutolaunchReviewedSteps" phx-target={@myself}>
+      <p
+        :if={@notice}
+        class="launch-wallet-notice"
+        role={if @notice.tone == :error, do: "alert", else: "status"}
+      >
+        {@notice.message}
+      </p>
+      <p :if={@early_state == :checking && !@review} class="bid-form__note" role="status">
+        Checking what can come back now…
+      </p>
+      <div :if={@review} class="bid-early-return__offer">
+        <p :if={!@sent["exit"]}>
+          <strong>
+            {@review.envelope["arguments"]["stock_refunded_units"]} {@review.envelope["arguments"][
+              "stock_symbol"
+            ]}
+          </strong>
+          <UsdValue.usd
+            amount={@review.envelope["arguments"]["stock_refunded_units"]}
+            rate={@usd_rate}
+          />
+          comes back to your wallet now. The tokens this bid has bought are yours to claim after the auction.
+        </p>
+        <Regent.Primitives.button
+          :if={!match?(%{outcome: :confirmed}, @sent["exit"])}
+          type="button"
+          data-reviewed-step="exit"
+          variant={if @sent["exit"], do: "secondary", else: "primary"}
+        >
+          Get my unspent money back
+        </Regent.Primitives.button>
+        <p :if={@sent["exit"]} role="status" aria-live="polite">{early_progress(@sent["exit"])}</p>
+        <Regent.Primitives.button
+          :if={match?(%{outcome: :pending}, @sent["exit"])}
+          type="button"
+          phx-click="check_step"
+          phx-value-step="exit"
+          phx-target={@myself}
+          variant="secondary"
+        >
+          Check again
+        </Regent.Primitives.button>
+      </div>
+    </div>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <div id={@id} class="bid-settlement-row" phx-hook="AutolaunchReviewedSteps" phx-target={@myself}>
@@ -263,6 +331,115 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   # The wallet itself is the bid panel's; this row only follows it.
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
+  @impl true
+  def handle_async(:early, {:ok, {wallet, result}}, socket) do
+    socket = assign(socket, early_checked_at: System.monotonic_time(:second))
+
+    cond do
+      # The wallet changed or a review arrived while this was asked; the next
+      # check starts from what is on screen now.
+      wallet != socket.assigns.wallet or socket.assigns.review ->
+        {:noreply, socket |> assign(early_state: nil) |> early_check()}
+
+      match?({:ok, _}, result) ->
+        {:ok, review} = result
+
+        {:noreply,
+         socket
+         |> assign(review: review, sent: %{}, notice: nil, early_state: :offered)
+         |> published()
+         |> early_told()
+         |> early_later()}
+
+      true ->
+        {:noreply, early_refused(socket, refusal(elem(result, 1)))}
+    end
+  end
+
+  def handle_async(:early, {:exit, _reason}, socket),
+    do:
+      {:noreply,
+       assign(socket,
+         early_state: :refused,
+         early_checked_at: System.monotonic_time(:second),
+         notice: %{tone: :error, message: @generic}
+       )}
+
+  # The auction has not recorded a price above this bid yet, so the bid panel
+  # says when the stock can come back instead of offering a button.
+  defp early_refused(socket, :bid_needs_partial_exit_hints_unavailable),
+    do: socket |> assign(early_state: :waiting, notice: nil) |> early_told()
+
+  defp early_refused(socket, reason),
+    do:
+      socket
+      |> assign(early_state: :refused, notice: notice(:error, reason))
+      |> early_told()
+
+  # The auction is asked while this row holds no review: first once a wallet
+  # is known, then again, at most every half minute, while the answer was no.
+  # A review is never replaced once a step of it has been sent.
+  defp early_check(%{assigns: %{early: true} = assigns} = socket) do
+    cond do
+      is_nil(assigns.wallet) or assigns.review -> socket
+      assigns.early_state == :checking -> socket
+      !early_due?(assigns) -> socket
+      true -> start_early(socket)
+    end
+  end
+
+  defp early_check(socket), do: socket
+
+  defp early_due?(%{early_state: nil}), do: true
+
+  defp early_due?(%{early_checked_at: checked_at}),
+    do: System.monotonic_time(:second) - checked_at >= @early_recheck_seconds
+
+  defp start_early(socket) do
+    %{auction: auction, bid: %{"bid_id" => bid_id}, wallet: wallet} = socket.assigns
+    request = %{auction: auction, bid_id: bid_id}
+    opts = opts(socket)
+
+    socket
+    |> assign(early_state: :checking)
+    |> start_async(:early, fn ->
+      {wallet, StockBidSettlementActions.prepare(request, wallet, opts)}
+    end)
+  end
+
+  defp early_told(%{assigns: %{parent_id: parent, bid: %{"bid_id" => bid_id}}} = socket) do
+    send_update(RobinhoodStockBidComponent,
+      id: parent,
+      early_return: {bid_id, socket.assigns.early_state}
+    )
+
+    socket
+  end
+
+  defp early_later(%{assigns: %{review: review}} = socket) do
+    send_update_after(
+      self(),
+      __MODULE__,
+      [id: socket.assigns.id, early_refresh: review],
+      @early_refresh_ms
+    )
+
+    socket
+  end
+
+  defp early_progress(%{outcome: :pending}), do: "Sending your stock back…"
+
+  defp early_progress(%{outcome: :confirmed}),
+    do: "Your unspent stock is back in your wallet."
+
+  defp early_progress(%{outcome: :reverted}),
+    do:
+      "That transaction was reverted, so nothing came back. Only the network fee was spent. You can send it again."
+
+  defp early_progress(%{outcome: :unverified}),
+    do:
+      "That transaction did not return this bid, so it was not counted. Check your wallet's activity."
+
   # The server reads the reported hash itself; the browser's word is only the hash.
   defp checked(%{assigns: %{review: %{envelope: envelope}}} = socket, name, hash) do
     case StockBidSettlementActions.verify(envelope, Map.fetch!(@steps, name), hash, opts(socket)) do
@@ -270,7 +447,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         socket
         |> assign(
           sent: Map.put(socket.assigns.sent, name, %{hash: hash, outcome: outcome}),
-          notice: outcome_notice(name, outcome)
+          notice: if(socket.assigns.early, do: nil, else: outcome_notice(name, outcome))
         )
         |> listed(outcome)
 

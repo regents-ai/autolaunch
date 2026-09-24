@@ -40,6 +40,22 @@
 .bid-estimate { display: grid; gap: 4px; }
 .bid-estimate p { margin: 0; }
 .bid-positions { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .875rem; overflow-wrap: anywhere; }
+.bid-positions > li + li { padding-top: 10px; border-top: 1px solid var(--hairline); }
+
+/* One of the bidder's own bids while bidding is open: where it stands and what to do next. */
+.bid-position { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.bid-position > * { max-width: 100%; }
+.bid-position__terms, .bid-position__status { margin: 0; }
+.bid-position__new { display: grid; gap: 8px; width: 100%; min-width: 0; }
+.auction-book__outbid { margin: 0; padding: 8px 10px; border-left: 3px solid var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, transparent); overflow-wrap: anywhere; }
+.bid-early-return { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.bid-early-return p, .bid-early-return__offer p { margin: 0; }
+.bid-early-return__offer { display: grid; gap: 8px; justify-items: start; }
+
+/* The top of an auction page when one of the bidder's bids is outbid. */
+.auction-outbid-banner { display: grid; gap: 6px; margin-block-end: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--color-warning) 50%, var(--hairline)); border-radius: 10px; background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface)); overflow-wrap: anywhere; }
+.auction-outbid-banner p { margin: 0; }
+.auction-outbid-banner__links { display: flex; flex-wrap: wrap; gap: 8px 16px; font-weight: 600; }
 @media (max-width: 75rem) { .market-detail-layout { grid-template-columns: minmax(0, 1fr); } }
 .market-detail-action .bid-panel { gap: 16px; padding: 20px; }
 .market-detail-action .bid-empty { margin: 0; }
