@@ -228,6 +228,14 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   defp ended_copy(%{state: :failed, stock_symbol: symbol}),
     do: "The auction did not raise its minimum. Every bid gets its #{symbol} back in full."
 
+  defp ended_copy(%{state: :ended, minimum_reached: true, stock_symbol: symbol}),
+    do:
+      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids at or above the final price receive tokens, and every bid gets back the #{symbol} it did not spend."
+
+  defp ended_copy(%{state: :ended, stock_symbol: symbol}),
+    do:
+      "Bidding has ended. If the final count stays below the minimum, every bid gets its #{symbol} back in full; if it reached the minimum, the trading pool opens once the auction is finished."
+
   defp ended_copy(_launch), do: nil
 
   defp network_copy(true),

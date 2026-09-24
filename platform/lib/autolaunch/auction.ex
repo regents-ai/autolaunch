@@ -71,7 +71,7 @@ defmodule Autolaunch.Auction do
 
       argument :state, :string,
         default: "all",
-        constraints: [match: ~r/\A(all|created|active|failed)\z/]
+        constraints: [match: ~r/\A(all|created|active|ended|failed)\z/]
 
       argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
@@ -80,8 +80,8 @@ defmodule Autolaunch.Auction do
       prepare fn query, _context ->
         states =
           if query.arguments.view == "active",
-            do: [:created, :active],
-            else: [:created, :active, :failed]
+            do: [:created, :active, :ended],
+            else: [:created, :active, :ended, :failed]
 
         states =
           Enum.filter(
@@ -101,7 +101,7 @@ defmodule Autolaunch.Auction do
     read :page_public do
       argument :mode, :string,
         default: "all",
-        constraints: [match: ~r/\A(all|biddable|live|failed_minimum|graduated)\z/]
+        constraints: [match: ~r/\A(all|biddable|live|ended|failed_minimum|graduated)\z/]
 
       argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
       pagination keyset?: true, required?: true, default_limit: 50, max_page_size: 50
@@ -112,6 +112,7 @@ defmodule Autolaunch.Auction do
         query =
           case Ash.Query.get_argument(query, :mode) do
             mode when mode in ["live", "biddable"] -> Ash.Query.filter(query, state == :active)
+            "ended" -> Ash.Query.filter(query, state == :ended)
             "failed_minimum" -> Ash.Query.filter(query, state == :failed)
             "graduated" -> Ash.Query.filter(query, state == :graduated)
             "all" -> query
@@ -128,7 +129,7 @@ defmodule Autolaunch.Auction do
     end
 
     read :recent_public do
-      filter expr(state in [:created, :active, :failed])
+      filter expr(state in [:created, :active, :ended, :failed])
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
 
       prepare build(
@@ -155,7 +156,7 @@ defmodule Autolaunch.Auction do
         constraints: [allow_empty?: true, max_length: 80]
 
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
-      prepare fn query, _context -> market_query(query, [:created, :active], 8) end
+      prepare fn query, _context -> market_query(query, [:created, :active, :ended], 8) end
     end
 
     read :explore_launchpad do
@@ -164,7 +165,10 @@ defmodule Autolaunch.Auction do
         constraints: [allow_empty?: true, max_length: 80]
 
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
-      prepare fn query, _context -> market_query(query, [:created, :active, :failed], 24) end
+
+      prepare fn query, _context ->
+        market_query(query, [:created, :active, :ended, :failed], 24)
+      end
     end
 
     read :public_by_id do
@@ -225,7 +229,7 @@ defmodule Autolaunch.Auction do
 
     update :refresh_lab_market do
       require_atomic? false
-      accept [:state, :current_clearing_price]
+      accept [:state, :current_clearing_price, :minimum_reached]
     end
 
     update :set_treasury_security_report do
@@ -372,7 +376,15 @@ defmodule Autolaunch.Auction do
       allow_nil? false
       public? true
       default :created
-      constraints one_of: [:created, :active, :graduated, :failed]
+      constraints one_of: [:created, :active, :ended, :graduated, :failed]
+    end
+
+    # The raise has met its minimum. A progress fact only: bidding stays open
+    # until the end block, and only the launch's own finish makes it final.
+    attribute :minimum_reached, :boolean do
+      allow_nil? false
+      public? true
+      default false
     end
 
     attribute :opened_at, :utc_datetime_usec do

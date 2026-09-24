@@ -489,14 +489,15 @@ defmodule Autolaunch do
   end
 
   # The Stocks site rule: one stock auction in progress per account. A Stocks
-  # `Auction` this account created that has not yet graduated or failed counts.
+  # `Auction` this account created that has not yet graduated or failed counts,
+  # including one that has ended and waits to be finished.
   @spec active_stocks_auctions_by(integer()) :: non_neg_integer()
   def active_stocks_auctions_by(human_account_id) when is_integer(human_account_id) do
     Autolaunch.Auction
     |> Ash.Query.for_read(:read, %{}, actor: %Autolaunch.Actors.System{})
     |> Ash.Query.filter(
       creator_human_account_id == ^human_account_id and kind == :stocks and
-        state in [:created, :active]
+        state in [:created, :active, :ended]
     )
     |> Ash.count!()
   end

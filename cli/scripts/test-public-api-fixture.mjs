@@ -20,7 +20,7 @@ await mkdir(outputRoot, { recursive: true });
 const evidenceDir = await mkdtemp(resolve(outputRoot, "public-cli-"));
 const cases = [
   { args: ["auctions", "list"], path: "/api/v1/auctions" },
-  ...["all", "biddable", "live", "failed_minimum", "graduated"].map(mode => ({
+  ...["all", "biddable", "live", "ended", "failed_minimum", "graduated"].map(mode => ({
     args: ["auctions", "list", "--mode", mode, "--sort", "oldest", "--limit", "999"],
     path: `/api/v1/auctions?mode=${mode}&sort=oldest&limit=999`,
   })),

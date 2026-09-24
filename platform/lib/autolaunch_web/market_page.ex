@@ -5,6 +5,9 @@ defmodule AutolaunchWeb.MarketPage do
   records follow in keyset order. One signed cursor names the position in
   whichever group the previous page ended in, so a reader who follows
   `next_cursor` sees every entry of both chains exactly once.
+
+  Robinhood that cannot be read never takes the Base records down with it:
+  the page then lists Base alone and says Robinhood is unavailable.
   """
 
   alias Autolaunch.Robinhood.Auctions
@@ -37,19 +40,36 @@ defmodule AutolaunchWeb.MarketPage do
   end
 
   defp read(scope, sort, cursor, limit, robinhood, base) do
-    with {:ok, position} <- position(cursor, scope),
-         {:ok, robinhood} <- robinhood(position, sort, robinhood) do
-      {visible, remaining} = Enum.split(robinhood, limit)
-
-      case remaining do
-        [_ | _] ->
-          {:ok, page(visible, [], {:robinhood, List.last(visible).launch_id}, scope)}
-
-        [] ->
-          base_page(visible, position, limit, scope, base)
+    with {:ok, position} <- position(cursor, scope) do
+      case robinhood(position, sort, robinhood) do
+        {:ok, entries} -> listed(entries, position, limit, scope, base)
+        {:error, _reason} -> unavailable(position, limit, scope, base)
       end
     end
   end
+
+  defp listed(robinhood, position, limit, scope, base) do
+    {visible, remaining} = Enum.split(robinhood, limit)
+
+    case remaining do
+      [_ | _] ->
+        {:ok, page(visible, [], {:robinhood, List.last(visible).launch_id}, scope)}
+
+      [] ->
+        base_page(visible, position, limit, scope, base)
+    end
+  end
+
+  # Base from its first record, since the Robinhood entries it would follow
+  # could not be read.
+  defp unavailable(position, limit, scope, base) do
+    with {:ok, page} <- base_page([], base_position(position), limit, scope, base) do
+      {:ok, %{page | robinhood_unavailable: true}}
+    end
+  end
+
+  defp base_position({:robinhood, _id}), do: {:base, nil}
+  defp base_position(position), do: position
 
   defp position(nil, _scope), do: {:ok, {:robinhood, nil}}
 
@@ -108,6 +128,7 @@ defmodule AutolaunchWeb.MarketPage do
   defp page(robinhood, records, next, scope) do
     %{
       robinhood: robinhood,
+      robinhood_unavailable: false,
       records: records,
       pagination: %{
         has_more: not is_nil(next),
