@@ -7,7 +7,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   alias Autolaunch.Robinhood.StocksLaunchActions, as: RobinhoodLaunchActions
   alias Autolaunch.Stocks.{Amounts, LaunchActions, LaunchDraft}
-  alias Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
 
   @new_decimals 18
   @address_hint "0x followed by exactly 40 hexadecimal characters."
@@ -45,7 +44,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   attr :stocks_lab, :map, default: nil
   attr :market, :map, default: %{prices: %{}, venues: []}
   attr :launch_chain, :atom, required: true
-  attr :active_stocks_launch, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :account_control, :map, required: true
@@ -74,10 +72,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
     ~H"""
     <section id="autolaunch-stocks-create">
-      <p :if={@active_stocks_launch} class="launchpad-limit" role="status">
-        {ActiveLaunchLimit.message()}
-      </p>
-
       <p :if={@status == :error} class="autolaunch-empty">
         Your draft could not be loaded. Refresh and try again.
       </p>
@@ -350,7 +344,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
               draft={@draft}
               authenticated
-              active_stocks_launch={@active_stocks_launch}
               current_human_id={@current_human_id}
               session_lease={@session_lease}
             />

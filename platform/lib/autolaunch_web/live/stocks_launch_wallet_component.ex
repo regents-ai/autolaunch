@@ -13,7 +13,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.Stocks.{Amounts, Lab, LaunchActions}
-  alias Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
   alias AutolaunchWeb.WalletPressComponent
 
   @copy %{
@@ -66,8 +65,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
-     |> assign_new(:auction_path, fn -> nil end)
-     |> assign_new(:active_stocks_launch, fn -> false end)}
+     |> assign_new(:auction_path, fn -> nil end)}
   end
 
   @impl true
@@ -95,11 +93,7 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
         </Regent.Primitives.button>
       </div>
 
-      <p :if={@wallet && !@operation && @active_stocks_launch} class="launchpad-limit" role="status">
-        {ActiveLaunchLimit.message()}
-      </p>
-
-      <div :if={@wallet && !@operation && !@active_stocks_launch} class="launch-wallet-open">
+      <div :if={@wallet && !@operation} class="launch-wallet-open">
         <p class="launch-wallet-hint">
           Launching from {short(@wallet)}. Your wallet confirms every step.
         </p>
@@ -495,8 +489,6 @@ defmodule AutolaunchWeb.StocksLaunchWalletComponent do
       else: Map.fetch!(@copy, :chain_unavailable)
   end
 
-  # Read at runtime so the page does not compile against the validation module.
-  defp copy(:active_stocks_launch_exists), do: ActiveLaunchLimit.message()
   defp copy(reason), do: Map.get(@copy, reason, @generic)
 
   defp refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)

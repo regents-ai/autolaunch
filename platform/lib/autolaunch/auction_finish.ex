@@ -6,7 +6,8 @@ defmodule Autolaunch.AuctionFinish do
   An auction does not finish itself. Once its migration block has passed,
   someone has to call `migrate`, which either graduates the launch (pool,
   locked liquidity, vesting) or fails it (bids become refundable). Anyone may
-  call it, so the site does, from its finishing wallet.
+  call it, so a site with the finisher switched on does, from its finishing
+  wallet (`config/runtime.exs`).
 
   Every minute `:discover` records the launches created since its last run, and
   the `:finish` trigger looks at each launch still running: once its migration

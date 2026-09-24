@@ -189,20 +189,27 @@ if database_config do
   config :autolaunch, Autolaunch.Repo, database_config
 end
 
-# The finishing wallet sends `migrate` for every ended auction on the
-# launchpads this site describes, and pays that gas. The serving production
-# site requires it; a lab site given one finishes its own auctions the same way.
-finisher_key =
-  if config_env() == :prod and not migrating?,
-    do: System.fetch_env!("AUTOLAUNCH_FINISHER_KEY"),
-    else: System.get_env("AUTOLAUNCH_FINISHER_KEY")
+# The finisher sends `migrate` for every ended auction on the launchpads this
+# site describes, from its finishing wallet, which pays that gas. It runs only
+# on a site switched on with AUTOLAUNCH_FINISHER_ON=true: then the site needs
+# the wallet's key and runs the finishing queue. Otherwise ended auctions are
+# finished by hand, and the finishing queue stays paused (config.exs).
+finisher_on =
+  case System.get_env("AUTOLAUNCH_FINISHER_ON") do
+    nil -> false
+    "true" -> not migrating?
+    _other -> raise "AUTOLAUNCH_FINISHER_ON must be true or unset"
+  end
 
-if finisher_key do
+if finisher_on do
+  finisher_key = System.fetch_env!("AUTOLAUNCH_FINISHER_KEY")
+
   if Autolaunch.AuctionFinish.Wallet.private_key(finisher_key) == :error do
     raise "AUTOLAUNCH_FINISHER_KEY must be 0x and the 64 hex digits of a private key"
   end
 
   config :autolaunch, :auction_finisher_key, finisher_key
+  config :autolaunch, Oban, queues: [auction_finishing: [limit: 1, paused: false]]
 end
 
 if config_env() == :prod do

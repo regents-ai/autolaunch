@@ -8,10 +8,9 @@ defmodule Autolaunch.Stocks.LaunchOperation do
 
   The database decides every race exactly as for the Agent launch: `action_id`
   is unique and a partial identity over `terminal_at IS NULL` allows one open
-  Stocks launch per human account. The site also allows one Stocks auction in
-  progress per account (`Validations.ActiveLaunchLimit`). Every wallet press of
-  the review is its own `WalletAttempt`; `chain_verified` means this server
-  proved its own receipt evidence.
+  Stocks launch per human account. Every wallet press of the review is its own
+  `WalletAttempt`; `chain_verified` means this server proved its own receipt
+  evidence.
   """
 
   use Ash.Resource,
@@ -55,7 +54,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false
       argument :launch_draft_id, :uuid, allow_nil?: false
-      validate Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit
       change set_attribute(:human_account_id, arg(:human_account_id))
       change set_attribute(:launch_draft_id, arg(:launch_draft_id))
     end

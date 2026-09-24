@@ -38,7 +38,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
             current_human_id: actor.human_account_id,
             stocks_lab: stocks_lab(),
             market: %{prices: %{}, venues: []},
-            active_stocks_launch: active_stocks_launch?(actor),
             status: :loading
           )
 
@@ -281,7 +280,7 @@ defmodule AutolaunchWeb.StocksCreateLive do
       {:ok, draft} ->
         socket
         |> assign_draft(draft)
-        |> assign(status: :ready, active_stocks_launch: active_stocks_launch?(actor))
+        |> assign(status: :ready)
 
       {:error, _error} ->
         assign(socket, status: :error)
@@ -306,10 +305,6 @@ defmodule AutolaunchWeb.StocksCreateLive do
   end
 
   defp choose_linked_stock(socket, _token, _actor), do: socket
-
-  # The site rule mirrored on the page: one stock auction in progress per account.
-  defp active_stocks_launch?(%Human{human_account_id: id}),
-    do: Autolaunch.active_stocks_auctions_by(id) > 0
 
   defp assign_draft(socket, draft) do
     assign(socket,

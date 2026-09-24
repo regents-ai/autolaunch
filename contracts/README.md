@@ -272,9 +272,6 @@ The revenue mesh has no deployment script and no production address.
 - **Listing.** The website lists Base launches it verified itself from its accounts' wallets;
   anything else on a launchpad is not listed. Robinhood launches are read from the launchpad
   directly, so every launch there is listed.
-- **One Memestake launch in progress per account** is a website rule
-  (`Autolaunch.Stocks.LaunchOperation.Validations.ActiveLaunchLimit`); the contracts admit any
-  launcher.
 - **Revstake is Base-only; Robinhood is Memestake-only** (founder decision, 18 September 2026).
 - **Robinhood's staking exit rule reads the Ethereum block** the rollup last observed, so a staker
   waits about twelve seconds after staking before claiming or unstaking (kept as is, 21 September
