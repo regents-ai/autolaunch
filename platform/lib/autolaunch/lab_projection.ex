@@ -20,30 +20,28 @@ defmodule Autolaunch.LabProjection do
   @doc """
   Projects one receipt-verified launch as one replay-safe database unit.
 
-  A launch is projected once: when its auction row already exists, a second
-  confirmation of the same launch changes nothing, so it can never take that
-  auction, its subject or its launch back to how they started.
+  The auction row is written once (`Auction :record_launch`), by whichever
+  confirmation of the launch comes first: the creator's browser report or
+  launch discovery. A later confirmation finds that row and changes nothing,
+  so it can never overwrite the launch's details or take its auction, subject
+  or launch back to how they started.
   """
   def project_launch(%{envelope: envelope} = operation, result) when is_map(result) do
     arguments = envelope["arguments"]
-    subject_id = subject_identity(result["subject"])
 
     transact(fn ->
-      case Autolaunch.get_auction_by_chain_address(envelope["chain_id"], result["auction"],
-             actor: @actor
-           ) do
-        {:ok, nil} ->
-          project_launch_records(
-            envelope,
-            arguments,
-            result,
-            subject_id,
-            Map.get(operation, :human_account_id)
-          )
-
-        projected ->
-          projected
-      end
+      arguments
+      |> auction_attrs(%{
+        chain_id: envelope["chain_id"],
+        creator_human_account_id: Map.get(operation, :human_account_id),
+        state: :created,
+        auction_address: result["auction"],
+        quote_token_address: arguments["regent"],
+        required_currency_raised: arguments["required_regent_raised_atomic"],
+        treasury_address: result["treasury"]
+      })
+      |> Autolaunch.record_launch_auction(actor: @actor)
+      |> project_launch_records(envelope, arguments, result)
     end)
   end
 
@@ -107,41 +105,12 @@ defmodule Autolaunch.LabProjection do
     end)
   end
 
-  @doc "Applies one verified local position readback without changing production records."
-  def project_position(%Bid{} = bid, result) when is_map(result) do
-    transact(fn ->
-      with {:ok, current_bid} <- read_bid_for_projection(bid.bid_id),
-           {:ok, projected_bid} <-
-             create(Bid, :project_lab, %{
-               bid_id: current_bid.bid_id,
-               auction_id: current_bid.auction_id,
-               owner_address: current_bid.owner_address,
-               amount: current_bid.amount,
-               max_price: current_bid.max_price,
-               current_clearing_price:
-                 result["current_clearing_price"] || current_bid.current_clearing_price,
-               estimated_tokens_if_end_now: current_bid.estimated_tokens_if_end_now,
-               status: position_status(current_bid.status, result["bid_status"]),
-               exited_at: transition_time(current_bid.exited_at, result, "exited"),
-               claimed_at: transition_time(current_bid.claimed_at, result, "claimed"),
-               auction_address: current_bid.auction_address,
-               onchain_bid_id: current_bid.onchain_bid_id
-             }),
-           {:ok, auction} <- project_auction_state(current_bid.auction_id, result),
-           {:ok, _subject} <- project_subject_state(result),
-           {:ok, _launch} <- project_launch_state(current_bid.auction_id, result),
-           {:ok, _token} <- maybe_project_token(auction, result) do
-        {:ok, projected_bid}
-      end
-    end)
-  end
-
   @doc """
   Projects the `Token` row of an auction the market feed has just seen graduate.
 
   An Agent token keeps the subject the launch projection recorded; a Stocks
-  token has no Agent subject. The upsert is replay-safe on the auction, so a
-  later position readback that projects the same token changes nothing here.
+  token has no Agent subject. The upsert is replay-safe on the auction, so
+  projecting the same graduation again changes nothing here.
   """
   def project_graduated_token(%Auction{state: :graduated} = auction) do
     with {:ok, subject_id} <- token_subject(auction),
@@ -229,108 +198,6 @@ defmodule Autolaunch.LabProjection do
         (address |> String.downcase() |> String.trim_leading("0x")) <>
         ":" <> to_string(bid_id)
 
-  defp project_auction_state(auction_id, result) do
-    with {:ok, auction} <- read_auction(auction_id, true) do
-      create(Auction, :project_lab, %{
-        chain_id: auction.chain_id,
-        title: auction.title,
-        summary: auction.summary,
-        token_symbol: auction.token_symbol,
-        website: auction.website,
-        image: auction.image,
-        creator_human_account_id: auction.creator_human_account_id,
-        featured: auction.featured,
-        state: auction_state(auction.state, result),
-        opened_at: auction.opened_at,
-        auction_address: auction.auction_address,
-        quote_token_address: auction.quote_token_address,
-        quote_token_symbol: auction.quote_token_symbol,
-        quote_token_decimals: auction.quote_token_decimals,
-        current_clearing_price:
-          result["current_clearing_price"] || auction.current_clearing_price,
-        required_currency_raised: auction.required_currency_raised,
-        treasury_address: auction.treasury_address
-      })
-    end
-  end
-
-  defp maybe_project_token(auction, %{"auction_state" => "graduated"} = result) do
-    with {:ok, subject} <- read_subject(result["subject"]),
-         {:ok, token} <- read_token(auction.id) do
-      create(Token, :project_lab, %{
-        auction_id: auction.id,
-        subject_id: subject.subject_id,
-        name: auction.title,
-        symbol: auction.token_symbol,
-        summary: auction.summary,
-        graduated_at: if(token, do: token.graduated_at, else: DateTime.utc_now()),
-        treasury_address: auction.treasury_address
-      })
-    end
-  end
-
-  defp maybe_project_token(_auction, _result), do: {:ok, nil}
-
-  defp project_subject_state(%{"auction_state" => "graduated"} = result) do
-    with {:ok, subject} <- read_subject(result["subject"]) do
-      create(Subject, :project_lab, %{
-        subject_id: subject.subject_id,
-        subject_kind: subject.subject_kind,
-        chain_id: subject.chain_id,
-        token_address: subject.token_address,
-        splitter_address: result["splitter"],
-        ingress_address: subject.ingress_address,
-        treasury_address: subject.treasury_address,
-        canonical_receiver_address: result["receiver"],
-        factory_address: subject.factory_address,
-        creator_address: subject.creator_address,
-        staker_pool_bps: subject.staker_pool_bps,
-        protocol_skim_bps_snapshot: subject.protocol_skim_bps_snapshot,
-        current_protocol_skim_bps: subject.current_protocol_skim_bps,
-        protocol_fee_usdc_total_raw: subject.protocol_fee_usdc_total_raw,
-        regent_emission_total_raw: subject.regent_emission_total_raw,
-        pending_buyback_usdc_raw: subject.pending_buyback_usdc_raw
-      })
-    end
-  end
-
-  defp project_subject_state(_result), do: {:ok, nil}
-
-  defp project_launch_state(auction_id, %{"auction_state" => state} = result)
-       when state in ["graduated", "failed"] do
-    with {:ok, launch} <- read_launch(auction_id) do
-      create(LaunchJob, :project_lab, %{
-        job_id: launch.job_id,
-        status: if(state == "graduated", do: "complete", else: "failed"),
-        step: if(state == "graduated", do: "graduated", else: "retired"),
-        agent_id: launch.agent_id,
-        agent_name: launch.agent_name,
-        token_name: launch.token_name,
-        token_symbol: launch.token_symbol,
-        chain_id: launch.chain_id,
-        auction_id: launch.auction_id,
-        agent_safe_address: launch.agent_safe_address,
-        auction_address: launch.auction_address,
-        token_address: launch.token_address,
-        hook_address: launch.hook_address,
-        revenue_share_splitter_address: result["splitter"],
-        treasury_address: launch.treasury_address,
-        started_at: launch.started_at,
-        finished_at: launch.finished_at || DateTime.utc_now()
-      })
-    end
-  end
-
-  defp project_launch_state(_auction_id, _result), do: {:ok, nil}
-
-  defp read_auction(id, lock?) do
-    Auction
-    |> Ash.Query.for_read(:public_by_id, %{id: id}, domain: @domain, actor: nil)
-    |> maybe_lock(lock?)
-    |> Ash.read_one(domain: @domain, actor: nil)
-    |> present(:auction_not_found)
-  end
-
   defp read_bid_for_projection(bid_id) do
     Bid
     # System projection of a verified lab result; no actor.
@@ -339,18 +206,6 @@ defmodule Autolaunch.LabProjection do
     |> Ash.Query.lock(:for_update)
     |> Ash.read_one(domain: @domain, authorize?: false)
     |> present(:bid_not_found)
-  end
-
-  defp read_subject(address) do
-    Subject
-    |> Ash.Query.for_read(
-      :public_by_id,
-      %{subject_id: subject_identity(address)},
-      domain: @domain,
-      actor: nil
-    )
-    |> Ash.read_one(domain: @domain, actor: nil)
-    |> present(:subject_not_found)
   end
 
   defp read_launch(auction_id) do
@@ -370,32 +225,28 @@ defmodule Autolaunch.LabProjection do
     |> Ash.create(domain: @domain, actor: @actor)
   end
 
-  defp transact(callback) do
-    case Ash.DataLayer.transaction(Auction, fn -> transaction_value(callback.()) end) do
-      {:ok, _value} -> :ok
-      {:error, error} -> {:error, error}
-    end
+  # One Ash transaction, so pages hear of these writes only once they are
+  # committed, and a failed write saves nothing.
+  defp transact(write) do
+    with {:ok, _value} <- Ash.transaction(Auction, fn -> commit(write.()) end), do: :ok
   end
 
-  defp transaction_value({:ok, value}), do: value
-  defp transaction_value({:error, error}), do: Ash.DataLayer.rollback(Auction, error)
+  defp commit({:ok, value}), do: value
+  defp commit({:error, reason}), do: Ash.DataLayer.rollback(Auction, reason)
 
-  defp project_launch_records(envelope, arguments, result, subject_id, human_account_id) do
-    with {:ok, auction} <-
-           create(
-             Auction,
-             :project_lab,
-             auction_attrs(arguments, %{
-               chain_id: envelope["chain_id"],
-               creator_human_account_id: human_account_id,
-               state: :created,
-               auction_address: result["auction"],
-               quote_token_address: arguments["regent"],
-               required_currency_raised: arguments["required_regent_raised_atomic"],
-               treasury_address: result["treasury"]
-             })
-           ),
-         {:ok, _subject} <-
+  # A row another confirmation already wrote carries its subject and launch.
+  defp project_launch_records(
+         {:ok, %Auction{__metadata__: %{upsert_skipped: true}} = auction},
+         _envelope,
+         _arguments,
+         _result
+       ),
+       do: {:ok, auction}
+
+  defp project_launch_records({:ok, auction}, envelope, arguments, result) do
+    subject_id = subject_identity(result["subject"])
+
+    with {:ok, _subject} <-
            create(Subject, :project_lab, %{
              subject_id: subject_id,
              subject_kind: "regent",
@@ -422,18 +273,14 @@ defmodule Autolaunch.LabProjection do
              token_address: result["subject"],
              hook_address: lab_address(envelope, "hook"),
              treasury_address: result["treasury"]
-           }) do
-      {:ok, auction}
-    end
+           }),
+         do: {:ok, auction}
   end
+
+  defp project_launch_records(error, _envelope, _arguments, _result), do: error
 
   defp lab_address(envelope, key),
     do: get_in(envelope, ["metadata", "lab", "addresses", key])
-
-  defp auction_state(state, _result) when state in [:graduated, :failed], do: state
-  defp auction_state(_state, %{"auction_state" => "graduated"}), do: :graduated
-  defp auction_state(_state, %{"auction_state" => "failed"}), do: :failed
-  defp auction_state(state, _result), do: state
 
   defp settled_status(:claim, _result, _claim_next?), do: "claimed"
 
@@ -441,19 +288,6 @@ defmodule Autolaunch.LabProjection do
     do: "claimable"
 
   defp settled_status(:exit, _result, _claim_next?), do: "returned"
-
-  defp position_status("claimed", _reported), do: "claimed"
-  defp position_status(_current, "claimed"), do: "claimed"
-  defp position_status("exited", _reported), do: "exited"
-  defp position_status(_current, "exited"), do: "exited"
-  defp position_status(current, _reported), do: current
-
-  defp transition_time(existing, result, key) do
-    if result[key] == true, do: existing || DateTime.utc_now(), else: existing
-  end
-
-  defp maybe_lock(query, true), do: Ash.Query.lock(query, :for_update)
-  defp maybe_lock(query, false), do: query
 
   defp present({:ok, nil}, reason), do: {:error, reason}
   defp present(result, _reason), do: result
