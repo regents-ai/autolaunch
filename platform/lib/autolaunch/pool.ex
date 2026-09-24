@@ -188,17 +188,7 @@ defmodule Autolaunch.Pool do
   @spec token_address(map(), map(), Rpc.block(), keyword()) ::
           {:ok, String.t()} | {:error, atom()}
   def token_address(%{kind: :agent} = auction, config, block, opts) do
-    with {:ok, words} <-
-           LabRpc.words(
-             config,
-             :strategy,
-             "distribution(address)",
-             [auction.auction_address],
-             @distribution_words,
-             block,
-             opts
-           ),
-         {:ok, distribution} <- agent_distribution(words),
+    with {:ok, distribution} <- agent_launch(auction, config, block, opts),
          do: {:ok, distribution.subject}
   end
 
@@ -224,9 +214,13 @@ defmodule Autolaunch.Pool do
          do: {:ok, launch.new_token}
   end
 
-  # Agent
-
-  defp read_agent(auction, config, block, opts) do
+  @doc """
+  A migrated agent launch's record in the strategy's `distribution`: its
+  token, escrow, revenue splitter, payment receiver, pool and locked position,
+  and the block it migrated in. `{:error, :not_graduated}` until it migrates.
+  """
+  @spec agent_launch(map(), map(), Rpc.block(), keyword()) :: {:ok, map()} | {:error, atom()}
+  def agent_launch(%{kind: :agent} = auction, config, block, opts) do
     with {:ok, words} <-
            LabRpc.words(
              config,
@@ -237,7 +231,13 @@ defmodule Autolaunch.Pool do
              block,
              opts
            ),
-         {:ok, distribution} <- agent_distribution(words),
+         do: agent_distribution(words)
+  end
+
+  # Agent
+
+  defp read_agent(auction, config, block, opts) do
+    with {:ok, distribution} <- agent_launch(auction, config, block, opts),
          {:ok, fee} <- LabRpc.uint(config, :strategy, "POOL_FEE()", [], block, opts),
          {:ok, spacing} <- LabRpc.uint(config, :strategy, "POOL_TICK_SPACING()", [], block, opts),
          {:ok, unsold} <-

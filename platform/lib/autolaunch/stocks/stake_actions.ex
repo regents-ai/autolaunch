@@ -5,16 +5,20 @@ defmodule Autolaunch.Stocks.StakeActions do
   memestock launch's memestake splitter with its fee hook and LP locker, on
   Base or on Robinhood.
 
-  Six reviewed actions, each one immutable envelope the wallet signs step by
-  step: stake (the exact token allowance to the splitter when it is short, then
-  the stake), unstake, claim (every reward the splitter holds for the wallet),
+  Reviewed actions, each one immutable envelope the wallet signs step by step:
+  stake (the exact token allowance to the splitter when it is short, then the
+  stake), unstake, claim (every reward the splitter holds for the wallet),
   settle (the hook's staker lane into the splitter, open to anyone), collect
   (the locked positions' trading fees into the splitter, open to anyone) and
   convert (a memestock hook's REGENT lane sold through the stock's route into
   REGENT's revenue, only by the wallet the Safe named as the hook's executor).
   A Revstake splitter's hook lane is pulled on the trade itself, so it offers
-  no settle and no convert. Nothing is written anywhere: the chain is the only
-  record, and confirmation reads the canonical receipt.
+  no settle and no convert. A Revstake launch also takes payments through its
+  payment receiver: pay (the exact allowance to the receiver when it is short,
+  then `pay` with a fresh reference) and sweep (route the receiver's whole
+  waiting balance, open to anyone), in USDC, REGENT or the launch's token.
+  Nothing is written anywhere: the chain is the only record, and confirmation
+  reads the canonical receipt.
 
   Every call binds to the signed-in wallet of the account the session lease
   names, read inside the lease at call time: the wallet the page presents must
@@ -33,14 +37,18 @@ defmodule Autolaunch.Stocks.StakeActions do
   alias Autolaunch.Stocks.LabAbi, as: StocksLabAbi
 
   @resource "autolaunch_stake"
-  @kinds [:stake, :unstake, :claim, :settle, :collect, :convert]
+  @stake_kinds [:stake, :unstake, :claim, :settle, :collect, :convert]
+  @payment_kinds [:pay, :sweep]
+  @kinds @stake_kinds ++ @payment_kinds
   @actions %{
     stake: "autolaunch_stake",
     unstake: "autolaunch_unstake",
     claim: "autolaunch_claim",
     settle: "autolaunch_settle_stakers",
     collect: "autolaunch_collect_fees",
-    convert: "autolaunch_convert_regent_share"
+    convert: "autolaunch_convert_regent_share",
+    pay: "autolaunch_pay",
+    sweep: "autolaunch_sweep"
   }
   @steps [
     :token_approval,
@@ -50,7 +58,9 @@ defmodule Autolaunch.Stocks.StakeActions do
     :settle,
     :collect_full_range,
     :collect_stock_only,
-    :convert
+    :convert,
+    :pay,
+    :sweep
   ]
   # Where a launch lives, by its chain and kind: its deployment and that
   # deployment's event signatures, the configuration keys of the contracts a
@@ -65,12 +75,14 @@ defmodule Autolaunch.Stocks.StakeActions do
       binding: [:strategy, :hook, :lp_locker],
       hook: :hook,
       locker: :lp_locker,
-      kinds: [:stake, :unstake, :claim, :collect],
+      kinds: [:stake, :unstake, :claim, :collect, :pay, :sweep],
       contracts: %{
         stake: "SubjectSplitterV1",
         unstake: "SubjectSplitterV1",
         claim: "SubjectSplitterV1",
-        collect: "RevstakeLPLocker"
+        collect: "RevstakeLPLocker",
+        pay: "PaymentReceiverV1",
+        sweep: "PaymentReceiverV1"
       }
     },
     {:base, :stocks} => %{
@@ -83,7 +95,7 @@ defmodule Autolaunch.Stocks.StakeActions do
       route: :route,
       convert: "settleRegentLane(bytes32,uint256,uint256)",
       converted: "RegentLaneSettled(bytes32,uint256,uint256)",
-      kinds: @kinds,
+      kinds: @stake_kinds,
       contracts: %{
         stake: "MemestockSplitterV1",
         unstake: "MemestockSplitterV1",
@@ -103,7 +115,7 @@ defmodule Autolaunch.Stocks.StakeActions do
       route: :stock_route,
       convert: "settleProtocolLane(bytes32,uint256,uint256)",
       converted: "ProtocolLaneSettled(bytes32,uint256,uint256)",
-      kinds: @kinds,
+      kinds: @stake_kinds,
       contracts: %{
         stake: "MemestockSplitterV1",
         unstake: "MemestockSplitterV1",
@@ -121,6 +133,12 @@ defmodule Autolaunch.Stocks.StakeActions do
   @floor_bps 9_500
   @bps 10_000
   @uint128_max Integer.pow(2, 128) - 1
+  # The Revstake splitter's split of every recognized payment: a 2% skim, then
+  # the stakers' part of the rest pro rata to the whole token supply (staked
+  # against 100 billion), the remainder to the treasury.
+  @skim_bps 200
+  @subject_total_supply 100_000_000_000 * 10 ** 18
+  @zero_ref "0x" <> String.duplicate("0", 64)
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
   def kinds, do: @kinds
@@ -165,15 +183,85 @@ defmodule Autolaunch.Stocks.StakeActions do
   end
 
   @doc """
+  What a Revstake launch's payment receiver holds right now and, with a wallet,
+  what that wallet holds, in each asset the receiver takes, read at the block
+  the pool facts were read at. A public read of public figures.
+  """
+  @spec payments(map(), String.t() | nil) :: {:ok, map()} | {:error, term()}
+  def payments(%{kind: :agent} = pool, holder) do
+    with {:ok, config} <- lab(venue(pool)),
+         rpc <- venue(pool).lab.rpc_opts(config),
+         {:ok, assets} <-
+           map_ok(payment_assets(pool), &payment_asset(&1, pool, holder, rpc)) do
+      {:ok, %{receiver: pool.fees.receiver, assets: assets}}
+    end
+  end
+
+  defp payment_asset(asset, pool, holder, rpc) do
+    with {:ok, waiting} <-
+           erc20(asset.address, "balance_of", [pool.fees.receiver], pool.block, rpc),
+         {:ok, balance} <- holder_balance(asset, holder, pool, rpc) do
+      {:ok,
+       Map.merge(asset, %{
+         waiting: exact(waiting, asset.decimals),
+         balance: balance && exact(balance, asset.decimals)
+       })}
+    end
+  end
+
+  defp holder_balance(_asset, nil, _pool, _rpc), do: {:ok, nil}
+
+  defp holder_balance(asset, holder, pool, rpc) do
+    with {:ok, holder} <- address(holder),
+         do: erc20(asset.address, "balance_of", [holder], pool.block, rpc)
+  end
+
+  @doc "The three assets a Revstake launch's payment receiver takes, in the order the card offers them."
+  @spec payment_assets(map()) :: [map()]
+  def payment_assets(pool) do
+    dollar = pool.fees.splitter.dollar
+
+    [
+      %{id: "usdc", address: dollar.address, symbol: dollar.symbol, decimals: dollar.decimals},
+      %{
+        id: "regent",
+        address: pool.currency.address,
+        symbol: pool.currency.symbol,
+        decimals: pool.currency.decimals
+      },
+      %{
+        id: "token",
+        address: pool.token.address,
+        symbol: pool.token.symbol,
+        decimals: pool.token.decimals
+      }
+    ]
+  end
+
+  @doc """
   Reviews one action on a graduated launch's splitter for the signed-in
   wallet. The launch is `%{chain: :base, auction: auction_record}` or
   `%{chain: :robinhood, auction: auction_address}`. `:stake` and `:unstake`
   take the token amount typed and `:convert` the stock amount, with `floor:
   true` to refuse less than 95% of the Chainlink price and `false` for no
-  minimum; the other three take nothing.
+  minimum; `:pay` takes an `asset` (`"usdc"`, `"regent"` or `"token"`) and the
+  amount typed, `:sweep` only the `asset`; the other three take nothing.
   """
   @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def prepare(%{kind: kind, launch: launch} = request, address, opts) when kind in @kinds do
+  def prepare(%{kind: kind, launch: launch} = request, address, opts)
+      when kind in @payment_kinds do
+    with {:ok, actor} <- human(opts),
+         {:ok, signer} <- current_wallet(address, actor, opts),
+         {:ok, pool} <- pool(launch),
+         true <- kind in venue(pool).kinds || unavailable(:unknown_action),
+         {:ok, config} <- lab(venue(pool)),
+         {:ok, asset} <- asset(pool, Map.get(request, :asset)),
+         {:ok, payment} <- payment(kind, Map.get(request, :amount), asset, pool, config, signer),
+         do: {:ok, build(kind, pool, config, signer, payment, payment)}
+  end
+
+  def prepare(%{kind: kind, launch: launch} = request, address, opts)
+      when kind in @stake_kinds do
     with {:ok, actor} <- human(opts),
          {:ok, signer} <- current_wallet(address, actor, opts),
          {:ok, pool} <- pool(launch),
@@ -215,7 +303,7 @@ defmodule Autolaunch.Stocks.StakeActions do
            chain(
              Rpc.canonical_outcome_evidence(hash, signer, sent["to"], sent["data"], block, rpc)
            ),
-         do: {:ok, outcome(evidence.outcome, envelope, step)}
+         do: outcome(evidence.outcome, envelope, step)
   end
 
   def verify(_envelope, _step, _hash, _opts), do: unavailable(:unknown_step)
@@ -337,6 +425,82 @@ defmodule Autolaunch.Stocks.StakeActions do
     end
   end
 
+  # Payments
+
+  defp asset(pool, id) do
+    case Enum.find(payment_assets(pool), &(&1.id == id)) do
+      nil -> unavailable(:unsupported_asset)
+      asset -> {:ok, asset}
+    end
+  end
+
+  # A payment moves the typed amount from the wallet, so it may not exceed the
+  # wallet's balance; the allowance decides whether an approval step comes
+  # first. A sweep routes whatever the receiver holds, and there must be some.
+  defp payment(:pay, value, asset, pool, config, signer) do
+    rpc = venue(pool).lab.rpc_opts(config)
+    receiver = pool.fees.receiver
+
+    with {:ok, amount} <- parsed(value, asset.decimals),
+         {:ok, balance} <- erc20(asset.address, "balance_of", [signer], pool.block, rpc),
+         true <- amount <= balance || unavailable(:amount_above_balance),
+         {:ok, allowance} <-
+           erc20(asset.address, "allowance", [signer, receiver], pool.block, rpc),
+         {:ok, paused} <- paused(asset, pool, config, rpc) do
+      {:ok, routed(asset, amount, pool, receiver, allowance, paused, payment_ref())}
+    end
+  end
+
+  defp payment(:sweep, _value, asset, pool, config, _signer) do
+    rpc = venue(pool).lab.rpc_opts(config)
+    receiver = pool.fees.receiver
+
+    with {:ok, waiting} <- erc20(asset.address, "balance_of", [receiver], pool.block, rpc),
+         true <- waiting > 0 || unavailable(:nothing_to_sweep),
+         {:ok, paused} <- paused(asset, pool, config, rpc) do
+      {:ok, routed(asset, waiting, pool, receiver, nil, paused, @zero_ref)}
+    end
+  end
+
+  defp routed(asset, amount, pool, receiver, allowance, paused, ref),
+    do: %{
+      asset: asset,
+      amount: amount,
+      receiver: receiver,
+      allowance: allowance,
+      paused: paused,
+      ref: ref,
+      split: split(amount, pool.fees.splitter.total_staked_atomic)
+    }
+
+  # Exactly the splitter's own `_recognize`, every division rounded down.
+  defp split(gross, total_staked) do
+    skim = div(gross * @skim_bps, @bps)
+    net = gross - skim
+    stakers = div(net * total_staked, @subject_total_supply)
+    %{gross: gross, skim: skim, net: net, stakers: stakers, treasury: net - stakers}
+  end
+
+  # The USDC skim goes into live REGENT staking, which refuses deposits while
+  # it is paused and so undoes the whole payment. The review says so; the
+  # press still reaches the wallet.
+  defp paused(%{id: "usdc"}, pool, config, rpc) do
+    abi = venue(pool).lab.abi!(config, :splitter)
+    splitter = pool.fees.splitter.address
+
+    with {:ok, staking} <-
+           chain(
+             Rpc.call_address(splitter, LabAbi.encode(abi, "liveStaking()", []), pool.block, rpc)
+           ),
+         {:ok, paused} <-
+           chain(Rpc.call_uint(staking, LabAbi.selector("paused()"), pool.block, rpc)),
+         do: {:ok, paused != 0}
+  end
+
+  defp paused(_asset, _pool, _config, _rpc), do: {:ok, false}
+
+  defp payment_ref, do: "0x" <> Base.encode16(:crypto.strong_rand_bytes(32), case: :lower)
+
   # The pool and its venue
 
   defp pool(%{chain: :base, auction: auction}), do: auction |> Pool.read() |> pooled()
@@ -387,36 +551,58 @@ defmodule Autolaunch.Stocks.StakeActions do
         chain_id: venue.lab.chain_id(),
         lab_binding: binding(venue, config),
         risk_copy: risk_copy(kind, pool, venue, amount),
-        arguments: %{
-          "kind" => Atom.to_string(kind),
-          "chain" => Atom.to_string(pool.chain),
-          "launch" => Atom.to_string(pool.kind),
-          "pool_id" => pool.pool_id,
-          "splitter" => pool.fees.splitter.address,
-          "hook" => pool.hook,
-          "locker" => locker(venue, config),
-          "token" => pool.token.address,
-          "token_symbol" => pool.token.symbol,
-          "currency" => pool.currency.address,
-          "currency_symbol" => pool.currency.symbol,
-          "currency_decimals" => pool.currency.decimals,
-          "dollar" => pool.fees.splitter.dollar.address,
-          "dollar_symbol" => pool.fees.splitter.dollar.symbol,
-          "dollar_decimals" => pool.fees.splitter.dollar.decimals,
-          "amount_atomic" => amount_atomic(amount),
-          "block_number" => pool.block.number,
-          "block_hash" => pool.block.hash,
-          "steps" => steps
-        }
+        arguments:
+          %{
+            "kind" => Atom.to_string(kind),
+            "chain" => Atom.to_string(pool.chain),
+            "launch" => Atom.to_string(pool.kind),
+            "pool_id" => pool.pool_id,
+            "splitter" => pool.fees.splitter.address,
+            "hook" => pool.hook,
+            "locker" => locker(venue, config),
+            "token" => pool.token.address,
+            "token_symbol" => pool.token.symbol,
+            "currency" => pool.currency.address,
+            "currency_symbol" => pool.currency.symbol,
+            "currency_decimals" => pool.currency.decimals,
+            "dollar" => pool.fees.splitter.dollar.address,
+            "dollar_symbol" => pool.fees.splitter.dollar.symbol,
+            "dollar_decimals" => pool.fees.splitter.dollar.decimals,
+            "amount_atomic" => amount_atomic(amount),
+            "block_number" => pool.block.number,
+            "block_hash" => pool.block.hash,
+            "steps" => steps
+          }
+          |> Map.merge(payment_arguments(amount))
       )
       |> stored()
 
-    %{kind: kind, envelope: envelope, steps: steps, review: review(kind, pool, wallet, amount)}
+    %{
+      kind: kind,
+      envelope: envelope,
+      steps: steps,
+      review: review(kind, pool, wallet, amount),
+      notes: notes(kind, pool, amount)
+    }
   end
 
   defp amount_atomic(nil), do: nil
   defp amount_atomic(%{stock: stock}), do: Integer.to_string(stock)
+  defp amount_atomic(%{asset: _asset, amount: amount}), do: Integer.to_string(amount)
   defp amount_atomic(amount), do: Integer.to_string(amount)
+
+  # What a payment's confirmation checks its event against.
+  defp payment_arguments(%{asset: asset, receiver: receiver, ref: ref}),
+    do: %{
+      "receiver" => receiver,
+      "asset" => asset.id,
+      "asset_address" => asset.address,
+      "asset_symbol" => asset.symbol,
+      "asset_decimals" => asset.decimals,
+      "payment_ref" => ref
+    }
+
+  defp payment_arguments(_amount), do: %{}
 
   # The plain facts the panel shows beside the wallet steps.
   defp review(:stake, pool, wallet, amount) do
@@ -479,6 +665,40 @@ defmodule Autolaunch.Stocks.StakeActions do
     ]
   end
 
+  defp review(:pay, _pool, _wallet, %{asset: asset, split: split}),
+    do: [["You pay", shown(split.gross, asset)]]
+
+  defp review(:sweep, _pool, _wallet, %{asset: asset, split: split}),
+    do: [["Waiting at the payment address", shown(split.gross, asset)]]
+
+  # The sentences a payment review owes beside its figures: the exact amounts
+  # this inflow divides into as staking stands at review. Stakers are paid for
+  # the stake they hold against the whole token supply, and the treasury takes
+  # the remainder; the contract settles the split when the payment is mined.
+  defp notes(kind, pool, %{asset: asset, split: split, paused: paused})
+       when kind in @payment_kinds do
+    symbol = pool.token.symbol
+
+    [
+      "Of this #{shown(split.gross, asset)}, #{shown(split.skim, asset)} goes to the protocol. As things stand right now, the remaining #{shown(split.net, asset)} divides into #{shown(split.stakers, asset)} for everyone staking #{symbol} and #{shown(split.treasury, asset)} for its treasury. If staking changes before this goes through, those last two amounts change with it."
+    ] ++
+      if(kind == :sweep,
+        do: [
+          "This pays the network fee to move that balance on. Nothing is sent to your wallet, and someone else routing it first can make this fail."
+        ],
+        else: []
+      ) ++ if(paused, do: ["USDC payments are paused right now."], else: [])
+  end
+
+  defp notes(_kind, _pool, _amount), do: []
+
+  defp shown(atomic, asset), do: "#{exact(atomic, asset.decimals)} #{asset.symbol}"
+
+  defp exact(atomic, decimals) do
+    {:ok, shown} = Amounts.format_units(atomic, decimals)
+    shown
+  end
+
   defp uncollected_copy(nil, _pool), do: "Not readable right now"
 
   defp uncollected_copy(%{token_amount: token, currency_amount: currency}, pool),
@@ -515,6 +735,14 @@ defmodule Autolaunch.Stocks.StakeActions do
 
     "Your wallet sells #{units(stock, pool.currency.decimals)} #{pool.currency.symbol} from REGENT's share of this launch's trading fees for at least #{units(least, dollar.decimals)} #{dollar.symbol}, and the #{dollar.symbol} goes to REGENT's revenue, on #{network(venue)}. Nothing comes to your wallet."
   end
+
+  defp risk_copy(:pay, pool, venue, %{asset: asset, split: split}),
+    do:
+      "Your wallet pays #{shown(split.gross, asset)} into #{pool.token.symbol}'s revenue split through its payment address on #{network(venue)}. Part goes to the protocol, part to everyone staking #{pool.token.symbol} and the rest to its treasury."
+
+  defp risk_copy(:sweep, pool, venue, %{asset: asset}),
+    do:
+      "Your wallet routes the #{asset.symbol} waiting at #{pool.token.symbol}'s payment address into its revenue split on #{network(venue)}. Nothing comes to your wallet."
 
   defp network(%{lab: RobinhoodLab}) do
     if RobinhoodLab.test_chain?(),
@@ -577,6 +805,19 @@ defmodule Autolaunch.Stocks.StakeActions do
     [step("convert", pool.hook, data)]
   end
 
+  # A payment approves the receiver for exactly the amount; `pay` pulls it.
+  defp reviewed_steps(:pay, _pool, venue, config, _wallet, payment) do
+    %{asset: asset, amount: amount, receiver: receiver, ref: ref} = payment
+
+    data =
+      receiver_data(venue, config, "pay(address,uint256,bytes32)", [asset.address, amount, ref])
+
+    approval(asset.address, receiver, amount, payment.allowance) ++ [step("pay", receiver, data)]
+  end
+
+  defp reviewed_steps(:sweep, _pool, venue, config, _wallet, %{asset: asset, receiver: receiver}),
+    do: [step("sweep", receiver, receiver_data(venue, config, "sweep(address)", [asset.address]))]
+
   defp approval(_token, _spender, amount, allowance) when allowance >= amount, do: []
 
   defp approval(token, spender, amount, _allowance) do
@@ -595,6 +836,9 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp splitter_data(venue, config, signature, arguments),
     do: LabAbi.encode(venue.lab.abi!(config, :splitter), signature, arguments)
 
+  defp receiver_data(venue, config, signature, arguments),
+    do: LabAbi.encode(venue.lab.abi!(config, :receiver), signature, arguments)
+
   # Confirmation
 
   defp valid_envelope?(envelope) do
@@ -610,14 +854,53 @@ defmodule Autolaunch.Stocks.StakeActions do
     Enum.find(envelope["arguments"]["steps"], &(&1["step"] == name))
   end
 
-  defp outcome(:pending, _envelope, _step), do: %{outcome: :pending}
-  defp outcome(:reverted, _envelope, _step), do: %{outcome: :reverted}
-  defp outcome({:success, _logs}, _envelope, :token_approval), do: %{outcome: :confirmed}
+  defp outcome(:pending, _envelope, _step), do: {:ok, %{outcome: :pending}}
+  defp outcome(:reverted, _envelope, _step), do: {:ok, %{outcome: :reverted}}
+  defp outcome({:success, _logs}, _envelope, :token_approval), do: {:ok, %{outcome: :confirmed}}
+
+  defp outcome({:success, logs}, envelope, step) when step in @payment_kinds do
+    with {:ok, result} <- paid(step, envelope["arguments"], logs),
+         do: {:ok, %{outcome: :confirmed, result: result}}
+  end
 
   defp outcome({:success, logs}, envelope, step) do
     {:ok, venue} = envelope_venue(envelope)
-    %{outcome: :confirmed, result: result(step, envelope["arguments"], venue, logs)}
+    {:ok, %{outcome: :confirmed, result: result(step, envelope["arguments"], venue, logs)}}
   end
+
+  # A payment is confirmed only by exactly one `PaymentRouted` from the
+  # reviewed receiver, carrying the reviewed reference and asset and no
+  # referral. A payment routes exactly the reviewed amount; a sweep routes
+  # whatever was waiting, so its amount is the event's own.
+  defp paid(step, arguments, logs) do
+    topic = LabAbi.topic(LabAbi.payment_routed_signature())
+    ref = String.downcase(arguments["payment_ref"])
+    token = address_word(arguments["asset_address"])
+
+    routed =
+      Enum.filter(logs, fn log ->
+        Address.equal?(log["address"], arguments["receiver"]) and
+          String.downcase(hd(log["topics"])) == topic
+      end)
+
+    with [%{"topics" => [_topic, log_ref, _note, log_token]} = log] <- routed,
+         true <- String.downcase(log_ref) == ref and String.downcase(log_token) == token,
+         [gross, 0, net] <- data_words(log),
+         true <- step == :sweep or Integer.to_string(gross) == arguments["amount_atomic"] do
+      {:ok,
+       %{
+         "kind" => Atom.to_string(step),
+         "gross_units" => exact(gross, arguments["asset_decimals"]),
+         "net_units" => exact(net, arguments["asset_decimals"]),
+         "asset_symbol" => arguments["asset_symbol"]
+       }}
+    else
+      _other -> unavailable(:payment_not_routed)
+    end
+  end
+
+  defp address_word("0x" <> address),
+    do: "0x" <> String.pad_leading(String.downcase(address), 64, "0")
 
   defp result(step, arguments, _venue, _logs) when step in [:stake, :unstake] do
     %{
@@ -724,6 +1007,15 @@ defmodule Autolaunch.Stocks.StakeActions do
   defp units(amount, decimals), do: Rpc.format_units(amount, decimals)
 
   defp stored(envelope), do: envelope |> Jason.encode!() |> Jason.decode!()
+
+  defp map_ok(items, read) do
+    Enum.reduce_while(items, {:ok, []}, fn item, {:ok, acc} ->
+      case read.(item) do
+        {:ok, value} -> {:cont, {:ok, acc ++ [value]}}
+        error -> {:halt, error}
+      end
+    end)
+  end
 
   defp chain(:ok), do: :ok
   defp chain({:ok, value}), do: {:ok, value}

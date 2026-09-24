@@ -24,6 +24,7 @@ defmodule Autolaunch.Application do
       Autolaunch.RegentFacts,
       autolaunch_indexer_children(),
       auction_activity_child(),
+      revenue_payments_child(),
       autolaunch_jobs_child(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),
@@ -55,6 +56,19 @@ defmodule Autolaunch.Application do
           id: {Autolaunch.AuctionActivity, historical}
         )
       end
+    end
+  end
+
+  # The payment history of graduated Base Revstake launches, read from their
+  # payment receivers one launch at a time.
+  defp revenue_payments_child do
+    if !Autolaunch.Prelaunch.read_only?() and
+         Application.get_env(:autolaunch, :database_startup_enabled, false) do
+      Supervisor.child_spec(
+        {Autolaunch.DurableWork.Runner,
+         handler: Autolaunch.RevenuePayments, poll_interval_ms: 1_000, max_in_flight: 1},
+        id: Autolaunch.RevenuePayments
+      )
     end
   end
 

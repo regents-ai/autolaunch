@@ -7,11 +7,14 @@ defmodule Autolaunch do
   @payment_link_resource Module.concat(__MODULE__, "PaymentLink")
   @launch_draft_image_resource Module.concat(__MODULE__, "LaunchDraftImage")
   @bid_operation Module.concat(__MODULE__, "BidOperation")
-  @subject_wallet_operation Module.concat(__MODULE__, "SubjectWalletOperation")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
   resources do
     resource Autolaunch.BidActivity do
       define :auction_bids, action: :for_auction, args: [:auction_id]
+    end
+
+    resource Autolaunch.RevenuePayment do
+      define :recent_revenue_payments, action: :recent_for_auction, args: [:auction_id]
     end
 
     resource Autolaunch.AuctionPricePoint do
@@ -163,10 +166,6 @@ defmodule Autolaunch do
     # session lease, so it is registered without a code interface of any kind.
     resource @bid_operation
 
-    # The durable subject wallet operation is written only by
-    # `SubjectWalletOperations` under a session lease, on the same terms.
-    resource @subject_wallet_operation
-
     # The durable bid settlement (exit and claim after an auction ends) is
     # written only by `BidSettlementActions` under a session lease.
     resource Autolaunch.BidSettlementOperation
@@ -298,15 +297,6 @@ defmodule Autolaunch do
         action: :public_by_id,
         args: [:subject_id],
         not_found_error?: false
-
-      define :project_lab_subject, action: :project_lab
-
-      # Only 490.8.2/.3 projection and the deterministic browser fixture write
-      # the canonical receiver, so it is a named SystemActor-only setter rather
-      # than another positional import argument.
-      define :set_subject_canonical_receiver,
-        action: :set_canonical_receiver,
-        args: [:canonical_receiver_address]
     end
 
     resource @payment_link_resource
@@ -446,26 +436,6 @@ defmodule Autolaunch do
   # The bidder rule a presenter needs, owned here so the page and the named
   # preparation action can only ever answer the same way.
   defdelegate bid_amount_units(amount, decimals), to: Autolaunch.BidActions, as: :units
-
-  # The clean-V1 subject wallet lane. `SubjectWalletActions` proves the active
-  # Privy wallet against the account the mounted lease locks before anything
-  # private is read or anything durable moves, so these stay thin pass-throughs
-  # and the resource itself keeps no code interface.
-  defdelegate subject_wallet_state(subject_id, address, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :wallet_state
-
-  defdelegate prepare_subject_wallet_action(subject_id, address, kind, params, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :prepare
-
-  defdelegate cancel_subject_wallet_review(subject_id, action_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :cancel
-
-  defdelegate start_new_subject_wallet_action(subject_id, action_id, opts),
-    to: Autolaunch.SubjectWalletActions,
-    as: :start_new
 
   defdelegate dispatch_wallet_press(kind, action_id, step, press_id, signer, opts),
     to: Autolaunch.WalletAttempts,

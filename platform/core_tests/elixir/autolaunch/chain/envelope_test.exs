@@ -16,8 +16,7 @@ defmodule Autolaunch.Chain.EnvelopeTest do
   ]
 
   # A resource prepared against a deployment description carries the
-  # description's binding on whatever chain it names; a subject-wallet resource
-  # is Base only and carries none.
+  # description's binding on whatever chain it names.
   test "a deployment-bound resource carries its binding on the chain the description names" do
     for chain_id <- [8453, 31_337] do
       binding = %{
@@ -42,22 +41,9 @@ defmodule Autolaunch.Chain.EnvelopeTest do
       assert Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: chain_id)
       refute Envelope.valid?(envelope, resource: "autolaunch_launch", chain_id: chain_id + 1)
 
-      for invalid <- [
-            Keyword.delete(context, :lab_binding),
-            Keyword.replace!(context, :resource, "autolaunch_subject_wallet")
-          ] do
-        assert_raise ArgumentError, ~r/network context/, fn ->
-          Envelope.new("autolaunch_launch", @signer, @data, invalid)
-        end
+      assert_raise ArgumentError, ~r/network context/, fn ->
+        Envelope.new("autolaunch_launch", @signer, @data, Keyword.delete(context, :lab_binding))
       end
-    end
-
-    subject = Envelope.new("autolaunch_subject_wallet", @signer, @data, @context)
-    assert subject.chain_id == 8453
-    assert is_nil(subject.metadata.lab)
-
-    assert_raise ArgumentError, ~r/network context/, fn ->
-      Envelope.new("autolaunch_subject_wallet", @signer, @data, @context ++ [chain_id: 31_337])
     end
   end
 

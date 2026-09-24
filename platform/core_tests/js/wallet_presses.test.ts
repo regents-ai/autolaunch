@@ -3,7 +3,6 @@ import {installWalletPresses} from "../../assets/js/hooks/wallet_presses"
 import {replaceActiveEthereumWallet} from "../../assets/js/wallet_actions/connected_wallet"
 import {sendBidStep, sendableStep as bidStep, type BidOperation} from "../../assets/js/wallet_actions/autolaunch_bids"
 import {sendLaunchStep, sendableStep as launchStep, type LaunchOperation} from "../../assets/js/wallet_actions/autolaunch_launch"
-import {sendSubjectStep, sendableStep as subjectStep, type SubjectWalletOperation} from "../../assets/js/wallet_actions/autolaunch_subject_wallet"
 import type {Address, Hash} from "viem"
 const signer = "0x1111111111111111111111111111111111111111" as Address
 const to = "0x2222222222222222222222222222222222222222" as Address
@@ -15,7 +14,7 @@ function deferred<T>() { let resolve!: (v: T) => void; let reject!: (e: unknown)
   const promise = new Promise<T>((a,b) => {resolve=a; reject=b}); return {promise, resolve, reject} }
 afterEach(() => { replaceActiveEthereumWallet(null); vi.unstubAllGlobals() })
 
-for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describe(`${kind} provider press isolation`, () => {
+for (const kind of ["bid"] as readonly ("bid" | "launch")[]) describe(`${kind} provider press isolation`, () => {
   it("two presses reach pending provider requests, survive B review, and nothing replays on remount", async () => {
     vi.stubGlobal("window", {location: {origin: "http://fixture.invalid"}, dispatchEvent: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn()})
     const preflight = deferred<unknown>()
@@ -31,13 +30,11 @@ for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describ
       throw new Error(`Unexpected provider method ${method}`)
     })}
     replaceActiveEthereumWallet({address: signer, provider})
-    const clients = {addresses: async () => [signer], chainId: async () => 8453,
-      switchToBase: async () => {}, send: (request: unknown) => { requests.push(request); return requests.length === 1 ? a.promise : b.promise }}
-    const step = kind === "subject" ? "action" : kind
+    const step = kind
     const lab = {run_id: "base-2026-09", rpc_url: "https://base.example.test", chain_id: 8453, addresses: {regent: to}}
     const op = {action_id: actionA, signer, terminal: false, chain_id: 8453,
-      lab, lab_anchor: {block_number: 30_000_000, block_hash: hashA}, subject_id: "subject", component_id: "panel",
-      steps: [{step, to, data: "0x1234"}]} as unknown as BidOperation & LaunchOperation & SubjectWalletOperation
+      lab, lab_anchor: {block_number: 30_000_000, block_hash: hashA}, component_id: "panel",
+      steps: [{step, to, data: "0x1234"}]} as unknown as BidOperation & LaunchOperation
     const callbacks = new Map<string, (p: any) => any>()
     const events: [string, any][] = []
     let clicked!: (event: any) => Promise<void>
@@ -47,8 +44,7 @@ for (const kind of ["bid"] as readonly ("bid" | "launch" | "subject")[]) describ
     const send = (held: typeof op, name: string, started: () => void) => {
       const resolve = () => ({address: signer, provider})
       if (kind === "bid") return sendBidStep(held, bidStep(held, held.action_id, name), resolve, started)
-      if (kind === "launch") return sendLaunchStep(held, launchStep(held, held.action_id, name), resolve, started)
-      return sendSubjectStep(held, subjectStep(held, held.action_id, name), resolve, started, clients)
+      return sendLaunchStep(held, launchStep(held, held.action_id, name), resolve, started)
     }
     const config = {prefix: "review", selector: "[data-send]", connect: "[data-connect]", send}
     installWalletPresses(hook, config)

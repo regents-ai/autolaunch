@@ -21,18 +21,6 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "action_id",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
       "source": "subject_id",
       "type": "text"
     },
@@ -45,7 +33,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "kind",
+      "source": "subject_kind",
       "type": "text"
     },
     {
@@ -57,11 +45,11 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "envelope",
-      "type": "map"
+      "source": "chain_id",
+      "type": "bigint"
     },
     {
-      "allow_nil?": false,
+      "allow_nil?": true,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -69,31 +57,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "signer",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "step",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "\"prepared\"",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "state",
+      "source": "token_address",
       "type": "text"
     },
     {
@@ -105,7 +69,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "approval_transaction_hash",
+      "source": "ingress_address",
       "type": "text"
     },
     {
@@ -117,31 +81,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "action_transaction_hash",
-      "type": "text"
-    },
-    {
-      "allow_nil?": true,
-      "default": "%{}",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "result",
-      "type": "map"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "reason",
+      "source": "treasury_address",
       "type": "text"
     },
     {
@@ -153,8 +93,104 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "terminal_at",
-      "type": "utc_datetime_usec"
+      "source": "factory_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "revenue_router_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "creator_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "staker_pool_bps",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "protocol_skim_bps_snapshot",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "current_protocol_skim_bps",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "protocol_fee_usdc_total_raw",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "regent_emission_total_raw",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "pending_buyback_usdc_raw",
+      "type": "text"
     },
     {
       "allow_nil?": false,
@@ -181,7 +217,7 @@
       "type": "utc_datetime_usec"
     },
     {
-      "allow_nil?": false,
+      "allow_nil?": true,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -201,17 +237,17 @@
           "global": null,
           "strategy": null
         },
-        "name": "subject_wallet_operations_human_account_id_fkey",
-        "on_delete": "restrict",
+        "name": "subjects_treasury_security_report_id_fkey",
+        "on_delete": null,
         "on_update": null,
         "primary_key?": true,
         "schema": "autolaunch_app",
-        "table": "human_accounts"
+        "table": "treasury_security_reports"
       },
       "scale": null,
       "size": null,
-      "source": "human_account_id",
-      "type": "bigint"
+      "source": "treasury_security_report_id",
+      "type": "uuid"
     }
   ],
   "base_filter": null,
@@ -220,65 +256,19 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "348DFCF2DC17C68C869AA69BA99F4A275CD467E217540C4BA562EFE08C28E912",
+  "hash": "4D883290E2C365AD10317FC04C6D6F255D4A5454B0A577390C028B1EC83AA48A",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "subject_wallet_operations_one_open_per_subject_index",
+      "index_name": "subjects_unique_subject_id_index",
       "keys": [
-        {
-          "type": "atom",
-          "value": "human_account_id"
-        },
         {
           "type": "atom",
           "value": "subject_id"
         }
       ],
-      "name": "one_open_per_subject",
-      "nils_distinct?": true,
-      "where": "terminal_at IS NULL"
-    },
-    {
-      "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "subject_wallet_operations_unique_action_hash_index",
-      "keys": [
-        {
-          "type": "atom",
-          "value": "action_transaction_hash"
-        }
-      ],
-      "name": "unique_action_hash",
-      "nils_distinct?": true,
-      "where": null
-    },
-    {
-      "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "subject_wallet_operations_unique_action_id_index",
-      "keys": [
-        {
-          "type": "atom",
-          "value": "action_id"
-        }
-      ],
-      "name": "unique_action_id",
-      "nils_distinct?": true,
-      "where": null
-    },
-    {
-      "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "subject_wallet_operations_unique_approval_hash_index",
-      "keys": [
-        {
-          "type": "atom",
-          "value": "approval_transaction_hash"
-        }
-      ],
-      "name": "unique_approval_hash",
+      "name": "unique_subject_id",
       "nils_distinct?": true,
       "where": null
     }
@@ -290,5 +280,5 @@
   },
   "repo": "Elixir.Autolaunch.Repo",
   "schema": null,
-  "table": "subject_wallet_operations"
+  "table": "subjects"
 }

@@ -7,7 +7,6 @@ defmodule Autolaunch.Chain.Envelope do
   @confirmable_after_expiry_resources ~w(
     autolaunch_auction
     autolaunch_bid
-    autolaunch_subject_wallet
     autolaunch_launch
     autolaunch_stocks_launch
     autolaunch_lab_position
@@ -272,8 +271,8 @@ defmodule Autolaunch.Chain.Envelope do
   defp require_calldata!(_data), do: raise(ArgumentError, "invalid data")
 
   # A resource prepared against a deployment description carries its binding
-  # on whatever chain the description names; the subject-wallet resources are
-  # Base only and carry none.
+  # on whatever chain the description names; any other resource is Base only
+  # and carries none.
   defp require_network_context!(resource, chain_id, binding) do
     if valid_network_context?(resource, chain_id, binding),
       do: :ok,

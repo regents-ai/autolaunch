@@ -40,6 +40,7 @@ defmodule Autolaunch.Auction do
     # Each public list reads its page straight off one of these in order.
     custom_indexes do
       index [:activity_due_at, :id], name: "auctions_activity_due_index"
+      index [:payments_due_at, :id], name: "auctions_payments_due_index"
       index [:estimated_end_at, :id], name: "auctions_ending_index"
       index ["bid_volume_usd DESC NULLS LAST", "id"], name: "auctions_bid_volume_index"
 
@@ -91,6 +92,31 @@ defmodule Autolaunch.Auction do
         :bid_volume_usd,
         :estimated_end_at
       ]
+    end
+
+    # The next graduated Base Revstake launch whose payment history is due a
+    # read; see `Autolaunch.RevenuePayments`.
+    read :payments_due do
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(kind == :agent and state == :graduated and chain_id == ^arg(:chain_id))
+      filter expr(is_nil(payments_due_at) or payments_due_at <= now())
+      prepare Autolaunch.Auction.Preparations.Listed
+
+      prepare build(
+                sort: [payments_due_at: :asc_nils_first, id: :asc],
+                limit: 1,
+                lock: :for_update
+              )
+    end
+
+    update :schedule_payments do
+      require_atomic? false
+      accept [:payments_due_at]
+    end
+
+    update :refresh_payments do
+      require_atomic? false
+      accept [:payments_next_block, :payments_last_hash, :payments_due_at]
     end
 
     read :read do
@@ -438,6 +464,10 @@ defmodule Autolaunch.Auction do
       authorize_if Autolaunch.Checks.SystemActor
     end
 
+    policy action([:payments_due, :schedule_payments, :refresh_payments]) do
+      authorize_if Autolaunch.Checks.SystemActor
+    end
+
     policy action([
              :read,
              :listed,
@@ -507,6 +537,11 @@ defmodule Autolaunch.Auction do
     attribute :activity_next_block, :integer
     attribute :activity_last_hash, :string
     attribute :activity_due_at, :utc_datetime_usec
+    # The payment history's cursor: the next block to read from the launch's
+    # payment receiver and the hash of the block before it.
+    attribute :payments_next_block, :integer
+    attribute :payments_last_hash, :string
+    attribute :payments_due_at, :utc_datetime_usec
     attribute :bid_volume, :decimal, public?: true
     attribute :bid_volume_usd, :decimal, public?: true
     attribute :estimated_end_at, :utc_datetime_usec, public?: true

@@ -629,10 +629,11 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp reverted_copy(:collect), do: @generic
 
-  defp wallet_failure_copy("wallet_unavailable", _review),
+  @doc "What the card says when the wallet did not send a reviewed step."
+  def wallet_failure_copy("wallet_unavailable", _review),
     do: "Open the wallet you signed in with, then try again. Nothing was sent."
 
-  defp wallet_failure_copy("network_mismatch", %{envelope: %{"chain_id" => chain_id}}) do
+  def wallet_failure_copy("network_mismatch", %{envelope: %{"chain_id" => chain_id}}) do
     if test_chain?(chain_id),
       do:
         "Your wallet is connected to a different network under this test network's number. Point that network at the test network in your wallet's settings, then try again. Nothing was sent.",
@@ -640,13 +641,13 @@ defmodule AutolaunchWeb.StakeComponent do
         "Your wallet is on a different network. Switch it to #{network_name(chain_id)}, then try again. Nothing was sent."
   end
 
-  defp wallet_failure_copy("wallet_declined", _review),
+  def wallet_failure_copy("wallet_declined", _review),
     do: "Your wallet declined this. Nothing was sent."
 
-  defp wallet_failure_copy("send_unconfirmed", _review),
+  def wallet_failure_copy("send_unconfirmed", _review),
     do: "Your wallet may have sent this transaction. Check your wallet activity."
 
-  defp wallet_failure_copy(_unknown, _review), do: @generic
+  def wallet_failure_copy(_unknown, _review), do: @generic
 
   defp test_chain?(chain_id),
     do: Autolaunch.Lab.test_chain?(chain_id) or Autolaunch.Robinhood.Lab.test_chain?(chain_id)
@@ -670,6 +671,7 @@ defmodule AutolaunchWeb.StakeComponent do
   attr :id, :string, required: true
   attr :title, :string, required: true
   attr :facts, :list, required: true, doc: "[label, value] pairs"
+  attr :notes, :list, default: [], doc: "sentences under the facts"
   attr :steps, :list, required: true
   attr :next_step, :map, default: nil
   attr :stalled, :list, default: []
@@ -700,6 +702,8 @@ defmodule AutolaunchWeb.StakeComponent do
           <dd>{value}</dd>
         </div>
       </dl>
+
+      <p :for={note <- @notes} class="token-stake__lead">{note}</p>
 
       <p class="token-swap__review-rule"><span>Continue in your wallet</span></p>
 

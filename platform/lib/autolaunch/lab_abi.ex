@@ -6,6 +6,7 @@ defmodule Autolaunch.LabAbi do
   @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,bool)"
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
   @claimed "Claimed(address,address,uint256)"
+  @payment_routed "PaymentRouted(bytes32,bytes32,address,uint256,uint256,uint256)"
 
   @required %{
     "factory" => [
@@ -94,12 +95,20 @@ defmodule Autolaunch.LabAbi do
       f: {"stakedOf(address)", "view", ["uint256"]},
       f: {"claimable(address,address)", "view", ["uint256"]},
       f: {"SKIM_BPS()", "view", ["uint256"]},
+      f: {"liveStaking()", "view", ["address"]},
       f: {"stake(uint256)", "nonpayable", []},
       f: {"unstake(uint256)", "nonpayable", []},
       f: {"claimAll()", "nonpayable", []},
       e: {"Staked(address,uint256)", [true, false]},
       e: {"Unstaked(address,uint256)", [true, false]},
       e: {@claimed, [true, true, false]}
+    ],
+    # The token page's payment card pays into and sweeps the launch's canonical
+    # payment receiver, and the payment history reads what each one routed.
+    "receiver" => [
+      f: {"pay(address,uint256,bytes32)", "nonpayable", []},
+      f: {"sweep(address)", "nonpayable", []},
+      e: {@payment_routed, [true, true, true, false, false, false]}
     ],
     "token" => [
       f: {"approve(address,uint256)", "nonpayable", ["bool"]},
@@ -129,6 +138,7 @@ defmodule Autolaunch.LabAbi do
   def swap_fee_settled_signature, do: @swap_fee_settled
   def fees_deposited_signature, do: @fees_deposited
   def claimed_signature, do: @claimed
+  def payment_routed_signature, do: @payment_routed
 
   def validate(abis, required \\ @required)
 
