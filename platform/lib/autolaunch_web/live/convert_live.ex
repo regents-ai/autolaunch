@@ -33,15 +33,15 @@ defmodule AutolaunchWeb.ConvertLive do
     <article id="autolaunch-convert" class="autolaunch-page">
       <header class="autolaunch-heading">
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">REGENT's share</h1>
+          <h1 class="rg-section-bar__label">REGENT's share of fees</h1>
         </Regent.Structure.section_bar>
         <p>
-          Every Memestake launch keeps REGENT's share of its trading fees in stock until it is sold for dollars and sent to REGENT's revenue.
-          The sell form on each launch appears only for the wallet the Safe named to do it.
+          Every Memestake launch keeps REGENT's share of its trading fees in stock until it is sold for USDC on Base, or USDG on Robinhood Chain, and sent to REGENT's revenue.
+          Only the wallet chosen to sell it sees the sell form on each launch.
         </p>
         <div>
           <Regent.Primitives.button phx-click="reload" variant="secondary">
-            Read again
+            Refresh
           </Regent.Primitives.button>
         </div>
       </header>

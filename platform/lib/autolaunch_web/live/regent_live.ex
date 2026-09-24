@@ -10,10 +10,10 @@ defmodule AutolaunchWeb.RegentLive do
   alias AutolaunchWeb.TokenDisplay
 
   @revenue_sources [
-    {"Regents Labs", ["REGENT/ETH pool fees (0.1–0.3% of volume)", "x402 service payments"]},
+    {"Regents Labs", ["REGENT/ETH pool fees (0.1–0.3% of volume)", "Paid agent services"]},
     {"Autolaunch",
      ["1% of every Autolaunch token trade", "2% of every Autolaunch token's staking rewards"]},
-    {"Techtree", ["5% of paid artifact sales", "Environment revenue"]},
+    {"Techtree", ["5% of paid artifact sales", "Paid agent training environments"]},
     {"Patchbay", ["10% of priority question payments"]}
   ]
 
@@ -83,7 +83,7 @@ defmodule AutolaunchWeb.RegentLive do
         </.link>
       </nav>
 
-      <p :if={@facts.loading} id="regent-loading" class="regent-status">Reading Base.</p>
+      <p :if={@facts.loading} id="regent-loading" class="regent-status">Loading REGENT figures…</p>
       <p :if={@facts.failed} id="regent-unavailable" class="regent-status">
         REGENT figures are unavailable right now.
       </p>
