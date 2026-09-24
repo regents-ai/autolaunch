@@ -192,6 +192,104 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
+  attr :auction, :map, required: true, doc: "an auction with `fdv_at_floor` loaded"
+
+  attr :rate, :any,
+    default: nil,
+    doc: "the USD price of one unit of the auction's currency, nil while none is known"
+
+  @doc """
+  The four figures every auction list and card shows: FDV at the floor price,
+  bid volume, the launch threshold with how much of it is met, and the status.
+  A figure the site does not know shows as a dash, never as zero.
+  """
+  def auction_figures(assigns) do
+    assigns = assign(assigns, :figures, figures(assigns.auction, assigns.rate))
+
+    ~H"""
+    <dl class="auction-figures">
+      <div>
+        <dt>FDV at floor</dt>
+        <dd>{@figures.fdv}</dd>
+      </div>
+      <div>
+        <dt>Bid volume</dt>
+        <dd>{@figures.volume}</dd>
+      </div>
+      <div>
+        <dt>Launch threshold</dt>
+        <dd>
+          {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
+        </dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>
+          <span
+            :if={@figures.progress}
+            class="auction-figures__progress"
+            style={"--progress: #{@figures.progress}%"}
+            aria-hidden="true"
+          ></span>
+          {@figures.status}
+        </dd>
+      </div>
+    </dl>
+    """
+  end
+
+  defp figures(auction, rate) do
+    minimum =
+      auction.required_currency_raised
+      |> String.to_integer()
+      |> Rpc.format_units(auction.quote_token_decimals)
+      |> Decimal.new()
+
+    %{
+      fdv: dollars(auction.fdv_at_floor, rate),
+      volume: dollars(auction.bid_volume_usd, 1),
+      threshold: dollars(minimum, rate),
+      met: percent_met(auction.currency_raised, minimum),
+      progress: time_progress(auction),
+      status: figure_status(auction)
+    }
+  end
+
+  defp dollars(%Decimal{} = amount, rate) when not is_nil(rate),
+    do: "$" <> (amount |> Decimal.mult(rate) |> Decimal.round(0) |> Decimal.to_string(:normal))
+
+  defp dollars(_amount, _rate), do: "-"
+
+  defp percent_met(%Decimal{} = raised, minimum) do
+    if Decimal.gt?(minimum, 0),
+      do:
+        raised
+        |> Decimal.div(minimum)
+        |> Decimal.mult(100)
+        |> Decimal.round(0)
+        |> Decimal.to_integer()
+  end
+
+  defp percent_met(_raised, _minimum), do: nil
+
+  # WIP: the bar should run from the auction's opening to its estimated end.
+  defp time_progress(%{state: :active, estimated_end_at: %DateTime{}}), do: nil
+  defp time_progress(_auction), do: nil
+
+  defp figure_status(%{state: :active, estimated_end_at: %DateTime{} = end_at}) do
+    seconds = max(DateTime.diff(end_at, DateTime.utc_now()), 0)
+    "#{div(seconds, 3600)}h #{div(rem(seconds, 3600), 60)}m #{rem(seconds, 60)}s"
+  end
+
+  defp figure_status(%{state: :graduated} = auction), do: ended("Launched", auction)
+  defp figure_status(%{state: :failed} = auction), do: ended("Failed", auction)
+  defp figure_status(%{state: state}), do: state_label(state)
+
+  defp ended(label, %{estimated_end_at: %DateTime{} = end_at}),
+    do: "#{label} #{div(DateTime.diff(DateTime.utc_now(), end_at), 86_400)}d ago"
+
+  defp ended(label, _auction), do: label
+
   attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
