@@ -67,11 +67,22 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   def render(assigns) do
     {history, current} = Enum.split_with(assigns.positions, &(&1.status in @history))
+    %{"returnable" => withdraw, "claimable" => claim, "waiting" => waiting} = by_action(current)
+    robinhood = robinhood_by_action(assigns.robinhood_positions)
+    holdings = if is_map(assigns.token_holdings), do: assigns.token_holdings.holdings, else: []
 
     assigns =
       assign(assigns,
         history: history,
-        current: Enum.sort_by(current, &(&1.status not in ["returnable", "claimable"]))
+        current: waiting,
+        withdraw: withdraw,
+        claim: claim,
+        robinhood_withdraw: robinhood.withdraw,
+        robinhood_claim: robinhood.claim,
+        robinhood_waiting: robinhood.waiting,
+        robinhood_positions_other?: robinhood.other?,
+        stakeable: Enum.filter(holdings, &Decimal.gt?(Decimal.new(&1.held), 0)),
+        rewards: Enum.filter(holdings, &(&1.claimable != []))
       )
 
     ~H"""
@@ -115,6 +126,106 @@ defmodule AutolaunchWeb.PortfolioLive do
       </p>
 
       <div :if={@account_control.kind != :sign_in && @status == :ready}>
+        <section
+          :if={@withdraw != [] || @robinhood_withdraw != []}
+          id="portfolio-withdraw"
+          class="portfolio-action"
+          aria-labelledby="portfolio-withdraw-title"
+        >
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="portfolio-withdraw-title">
+              Money available to withdraw
+            </h2>
+          </Regent.Structure.section_bar>
+          <.position_list
+            :if={@withdraw != []}
+            positions={@withdraw}
+            market={@market}
+            account_control={@account_control}
+            access_context={@access_context}
+            session_lease={@session_lease}
+          />
+          <.robinhood_actions
+            :if={@robinhood_withdraw != []}
+            id="portfolio-withdraw-robinhood"
+            positions={@robinhood_withdraw}
+            action="Withdraw"
+          />
+        </section>
+
+        <section
+          :if={@claim != [] || @robinhood_claim != []}
+          id="portfolio-claim"
+          class="portfolio-action"
+          aria-labelledby="portfolio-claim-title"
+        >
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="portfolio-claim-title">Tokens ready to claim</h2>
+          </Regent.Structure.section_bar>
+          <.position_list
+            :if={@claim != []}
+            positions={@claim}
+            market={@market}
+            account_control={@account_control}
+            access_context={@access_context}
+            session_lease={@session_lease}
+          />
+          <.robinhood_actions
+            :if={@robinhood_claim != []}
+            id="portfolio-claim-robinhood"
+            positions={@robinhood_claim}
+            action="Claim tokens"
+          />
+        </section>
+
+        <section
+          :if={@stakeable != []}
+          id="portfolio-stake"
+          class="portfolio-action"
+          aria-labelledby="portfolio-stake-title"
+        >
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="portfolio-stake-title">
+              Tokens available to stake
+            </h2>
+          </Regent.Structure.section_bar>
+          <ol class="autolaunch-record-list">
+            <li :for={holding <- @stakeable}>
+              <.link navigate={holding.href}>
+                <strong>{holding.name} · {holding.symbol}</strong>
+                <span>{holding.held} {holding.symbol} ready to stake</span>
+                <span>{chain_name(holding.chain)}</span>
+              </.link>
+              <.link navigate={holding.href <> "#stake"} class="rg-button rg-button--primary">
+                Stake tokens
+              </.link>
+            </li>
+          </ol>
+        </section>
+
+        <section
+          :if={@rewards != []}
+          id="portfolio-rewards"
+          class="portfolio-action"
+          aria-labelledby="portfolio-rewards-title"
+        >
+          <Regent.Structure.section_bar>
+            <h2 class="rg-section-bar__label" id="portfolio-rewards-title">Rewards available</h2>
+          </Regent.Structure.section_bar>
+          <ol class="autolaunch-record-list">
+            <li :for={holding <- @rewards}>
+              <.link navigate={holding.href}>
+                <strong>{holding.name} · {holding.symbol}</strong>
+                <span>{rewards_copy(holding.claimable)}</span>
+                <span>{chain_name(holding.chain)}</span>
+              </.link>
+              <.link navigate={holding.href <> "#stake"} class="rg-button rg-button--primary">
+                Claim rewards
+              </.link>
+            </li>
+          </ol>
+        </section>
+
         <dl>
           <div>
             <dt>Bid positions</dt><dd>{length(@positions)}</dd>
@@ -178,7 +289,7 @@ defmodule AutolaunchWeb.PortfolioLive do
             Bids from your verified wallets will appear here.
             <.link navigate="/auctions">Explore auctions</.link>
           </p>
-          <p :if={@positions != [] && @current == []}>No active bids.</p>
+          <p :if={@positions != [] && @current == []}>No other active bids.</p>
           <p :if={@market.head} class="autolaunch-refresh-status">
             {chain_name(:base)} read at block {@market.head.number}
           </p>
@@ -229,12 +340,10 @@ defmodule AutolaunchWeb.PortfolioLive do
             Bids from your verified wallets on Robinhood auctions will appear here.
             <.link navigate="/auctions">Explore auctions</.link>
           </p>
-          <ol
-            :if={is_map(@robinhood_positions) && @robinhood_positions.positions != []}
-            class="autolaunch-record-list"
-          >
+          <p :if={@robinhood_positions_other?}>No other Robinhood bids.</p>
+          <ol :if={@robinhood_waiting != []} class="autolaunch-record-list">
             <li
-              :for={position <- @robinhood_positions.positions}
+              :for={position <- @robinhood_waiting}
               id={"autolaunch-robinhood-bid-#{position.auction}-#{position.bid_id}"}
             >
               <.link navigate={position.href}>
@@ -272,9 +381,41 @@ defmodule AutolaunchWeb.PortfolioLive do
   end
 
   defp claimable_copy([]), do: nil
+  defp claimable_copy(claimable), do: "claim " <> amounts(claimable)
 
-  defp claimable_copy(claimable),
-    do: "claim " <> Enum.map_join(claimable, " + ", &"#{&1.amount} #{&1.symbol}")
+  defp rewards_copy(claimable), do: amounts(claimable) <> " to claim"
+
+  defp amounts(claimable), do: Enum.map_join(claimable, " + ", &"#{&1.amount} #{&1.symbol}")
+
+  # Bids with something to do now come first on the page: a returnable bid
+  # has money to withdraw and a claimable one has tokens to claim. The rest
+  # wait below.
+  defp by_action(positions) do
+    Map.merge(
+      %{"returnable" => [], "claimable" => [], "waiting" => []},
+      Enum.group_by(
+        positions,
+        &if(&1.status in ~w(returnable claimable), do: &1.status, else: "waiting")
+      )
+    )
+  end
+
+  # A failed auction refunds the whole bid, and a launched one returns what the
+  # bid did not spend once it is exited; filled tokens past their claim block
+  # are ready to claim.
+  defp robinhood_by_action(%{positions: positions}) do
+    {withdraw, rest} = Enum.split_with(positions, &(&1.standing in [:refundable, :graduated]))
+    {claim, waiting} = Enum.split_with(rest, &(&1.standing == :claimable))
+
+    %{
+      withdraw: withdraw,
+      claim: claim,
+      waiting: waiting,
+      other?: positions != [] and waiting == []
+    }
+  end
+
+  defp robinhood_by_action(_reading), do: %{withdraw: [], claim: [], waiting: [], other?: false}
 
   defp blocks_copy(blocks),
     do:
@@ -312,6 +453,30 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
+
+  attr :id, :string, required: true
+  attr :positions, :list, required: true
+  attr :action, :string, required: true
+
+  # A Robinhood bid is settled from its auction page, so its action opens it.
+  defp robinhood_actions(assigns) do
+    ~H"""
+    <ol id={@id} class="autolaunch-record-list">
+      <li :for={position <- @positions} id={"#{@id}-#{position.auction}-#{position.bid_id}"}>
+        <.link navigate={position.href}>
+          <strong>{position.name} · {position.symbol}</strong>
+          <span>
+            Bid #{position.bid_id} · {position.committed} {position.stock_symbol} · {standing_copy(
+              position
+            )}
+          </span>
+          <span>{short(position.wallet)}</span>
+        </.link>
+        <.link navigate={position.href} class="rg-button rg-button--primary">{@action}</.link>
+      </li>
+    </ol>
+    """
+  end
 
   attr :positions, :list, required: true
   attr :market, :map, required: true
