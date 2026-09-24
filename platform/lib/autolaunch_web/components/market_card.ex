@@ -196,6 +196,70 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :auction, :map, required: true, doc: "an auction with `fdv_at_floor` loaded"
+  attr :creator_connections, :map, default: %{}
+  attr :rate, :any, default: nil, doc: "the USD price of one unit of the auction's currency"
+
+  @doc "One row of the auctions list: the token, then the four auction figures."
+  def auction_list_row(assigns) do
+    view = view(:auction, assigns.auction, assigns.creator_connections)
+
+    assigns =
+      assign(assigns,
+        view: view,
+        figures: figures(assigns.auction, assigns.rate),
+        verified: Enum.map_join(view.connections, ", ", & &1.label)
+      )
+
+    ~H"""
+    <tr class="auction-list__row">
+      <th scope="row">
+        <.link navigate={@view.path} class="auction-list__token">
+          <span class="auction-list__art">
+            <img
+              :if={present?(@view.image)}
+              src={@view.image}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              width="40"
+              height="40"
+            />
+            <span :if={!present?(@view.image)} aria-hidden="true">{String.first(@view.name || "?")}</span>
+            <span
+              class={["auction-list__chain", "auction-list__chain--#{String.downcase(@view.chain)}"]}
+              title={@view.chain}
+            ><span class="visually-hidden">{@view.chain}</span></span>
+          </span>
+          <span class="auction-list__name">
+            <strong>{@view.name}</strong>
+            <span
+              :if={@verified != ""}
+              class="auction-list__verified"
+              title={"Creator verified: #{@verified}"}
+            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg><span class="visually-hidden">Creator verified: {@verified}</span></span>
+            <small>${@view.symbol}</small>
+          </span>
+        </.link>
+      </th>
+      <td>{@figures.fdv}</td>
+      <td>{@figures.volume}</td>
+      <td>
+        {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
+      </td>
+      <td>
+        <span
+          :if={@figures.progress}
+          class="auction-figures__progress"
+          style={"--progress: #{@figures.progress}%"}
+          aria-hidden="true"
+        ></span>
+        {@figures.status}
+      </td>
+    </tr>
+    """
+  end
+
+  attr :auction, :map, required: true, doc: "an auction with `fdv_at_floor` loaded"
 
   attr :rate, :any,
     default: nil,
