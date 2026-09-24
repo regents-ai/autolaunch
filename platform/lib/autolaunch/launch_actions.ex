@@ -52,7 +52,6 @@ defmodule Autolaunch.LaunchActions do
     "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
   ]
 
-  @replaced "replaced by a newer review"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed launch expired before it was sent"
   @unresolved "account started a new launch while this one was unresolved"
@@ -111,7 +110,7 @@ defmodule Autolaunch.LaunchActions do
 
   Withdrawing the review cancels future admission only: every issued press keeps
   its own record and its hash, and nothing is ever resent. The row remains for
-  the canonical projector; only this account's open slot is released.
+  the canonical projector.
   """
   @spec start_new(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def start_new(action_id, opts),
@@ -392,7 +391,6 @@ defmodule Autolaunch.LaunchActions do
   defp open(lease, draft, signer, envelope) do
     transact(lease, fn account ->
       with :ok <- LaunchOperations.signer_matches(account, signer),
-           :ok <- release_undispatched(account.id),
            {:ok, operation} <-
              LaunchOperations.create(account, %{
                action_id: envelope["action_id"],
@@ -403,22 +401,6 @@ defmodule Autolaunch.LaunchActions do
              }),
            do: {:ok, presented(operation)}
     end)
-  end
-
-  # A new prepare always cancels whatever is open as :replaced and proceeds.
-  # An open review is always prepared: its presses live on their own rows.
-  defp release_undispatched(account_id) do
-    case LaunchOperations.open(account_id, true) do
-      {:ok, nil} ->
-        :ok
-
-      {:ok, open} ->
-        with {:ok, _cancelled} <- LaunchOperations.update(open, :cancel, %{reason: @replaced}),
-             do: :ok
-
-      {:error, reason} ->
-        {:error, reason}
-    end
   end
 
   # Everything the review promised about Base, checked against Base's answer

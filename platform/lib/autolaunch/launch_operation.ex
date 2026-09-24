@@ -5,11 +5,11 @@ defmodule Autolaunch.LaunchOperation do
   The reviewed sequence is immutable and lives in `envelope`: the one `launch`
   call. `step` names that transaction and `state` says how far it has got.
 
-  The database decides every race. `action_id` is unique and a partial identity
-  over `terminal_at IS NULL` allows one open launch per human account. A new
-  prepare closes whatever is open as replaced and takes the slot. Every wallet
-  press of the review is its own `WalletAttempt`; the operation only summarises
-  how far the reviewed sequence has got.
+  `action_id` is unique. An account may hold any number of open launch reviews:
+  each press is prepared as its own review, and one never cancels another. A
+  review nobody sends lapses with its envelope. Every wallet press of the review
+  is its own `WalletAttempt`; the operation only summarises how far the reviewed
+  sequence has got.
 
   `chain_verified` is the honest terminal success: this server proved its own
   receipt evidence. Canonical public launch confirmation is the finalized
@@ -33,8 +33,6 @@ defmodule Autolaunch.LaunchOperation do
       reference :human_account, on_delete: :restrict
       reference :launch_draft, on_delete: :restrict
     end
-
-    identity_wheres_to_sql one_open_per_account: "terminal_at IS NULL"
   end
 
   actions do
@@ -42,12 +40,6 @@ defmodule Autolaunch.LaunchOperation do
 
     update :project_wallet_confirmation do
       accept [:step, :state, :terminal_at, :result]
-    end
-
-    read :open do
-      get? true
-      argument :human_account_id, :integer, allow_nil?: false
-      filter expr(human_account_id == ^arg(:human_account_id) and is_nil(terminal_at))
     end
 
     create :prepare do
@@ -134,9 +126,5 @@ defmodule Autolaunch.LaunchOperation do
 
   identities do
     identity :unique_launch_action_id, [:action_id]
-
-    identity :one_open_per_account, [:human_account_id] do
-      where expr(is_nil(terminal_at))
-    end
   end
 end

@@ -10,9 +10,9 @@ defmodule Autolaunch.BidSettlementOperation do
   is wallet-capable right now and `state` how far the reviewed sequence has
   got. Every wallet press of a step is its own `WalletAttempt`.
 
-  The database decides every race exactly as `BidOperation` does: `action_id`
-  is unique and a partial identity over `terminal_at IS NULL` allows one open
-  settlement per bid position.
+  `action_id` is unique. A position may hold any number of open settlements:
+  each press is prepared as its own review, and one never cancels another. A
+  review nobody sends lapses with its envelope.
   """
 
   use Ash.Resource,
@@ -32,8 +32,6 @@ defmodule Autolaunch.BidSettlementOperation do
       reference :human_account, on_delete: :restrict
       reference :bid_position, on_delete: :restrict
     end
-
-    identity_wheres_to_sql one_open_per_position: "terminal_at IS NULL"
   end
 
   actions do
@@ -41,12 +39,6 @@ defmodule Autolaunch.BidSettlementOperation do
 
     update :project_wallet_confirmation do
       accept [:step, :state, :terminal_at, :result]
-    end
-
-    read :open do
-      get? true
-      argument :bid_position_id, :uuid, allow_nil?: false
-      filter expr(bid_position_id == ^arg(:bid_position_id) and is_nil(terminal_at))
     end
 
     create :prepare do
@@ -118,9 +110,5 @@ defmodule Autolaunch.BidSettlementOperation do
 
   identities do
     identity :unique_action_id, [:action_id]
-
-    identity :one_open_per_position, [:bid_position_id] do
-      where expr(is_nil(terminal_at))
-    end
   end
 end
