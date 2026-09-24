@@ -19,6 +19,7 @@
 .regent-token-links__note, .regent-scope, .autolaunch-refresh-status, .autolaunch-market-freshness { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
 .regent-token-links__note { flex-basis: 100%; }
 .autolaunch-exact-value { font-family: var(--font-family-mono); overflow-wrap: anywhere; }
+.chain-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 .autolaunch-record-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .autolaunch-record-list > li { min-width: 0; padding: 20px; border: 1px solid var(--hairline); border-radius: 8px; }
 .autolaunch-record-list :is(li > a, article > a) { display: grid; gap: var(--space-1); color: inherit; }
