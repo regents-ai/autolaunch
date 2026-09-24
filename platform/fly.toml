@@ -11,6 +11,8 @@ primary_region = "iad"
   AUTOLAUNCH_BASE_DEPLOYMENT = "/app/deployment/base-revstake.json"
   AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT = "/app/deployment/base-memestake.json"
   AUTOLAUNCH_BASE_DEPLOYMENT_ID = "base-mainnet"
+  AUTOLAUNCH_LAUNCHES_OPEN = "true"
+  X_OAUTH_CLIENT_ID = "cEh6LVFpQTZTMW5saHhEQ3JzTnE6MTpjaQ"
 
 # The deployment descriptions the contracts ceremony writes. Each carries the
 # site's private RPC door, so they are placed on the machine from the
