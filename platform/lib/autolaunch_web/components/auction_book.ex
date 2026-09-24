@@ -153,7 +153,8 @@ defmodule AutolaunchWeb.Components.AuctionBook do
     <p class="auction-book__outbid">
       <strong>Outbid: no longer buying.</strong>
       You keep what you've bought so far. Bid again above
-      <TokenDisplay.price amount={@price} unit={@unit} />, or get the rest back {back(@back)}.
+      <TokenDisplay.price amount={@price} unit={@unit} />
+      to keep buying. You can get the rest back {back(@back)}.
     </p>
     """
   end
@@ -174,7 +175,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
       </p>
       <p class="auction-outbid-banner__links">
         <a href={"##{@bid_form}"}>Bid again</a>
-        <a :if={@return_to} href={"##{@return_to}"}>Get my unspent money back</a>
+        <a :if={@return_to} href={"##{@return_to}"}>See my outbid bid</a>
       </p>
     </section>
     """

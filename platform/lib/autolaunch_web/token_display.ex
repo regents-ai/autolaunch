@@ -132,8 +132,7 @@ defmodule AutolaunchWeb.TokenDisplay do
 
   defp figure(assigns) do
     ~H"""
-    <span aria-hidden="true" title={@exact}>{@shown}</span>
-    <span class="visually-hidden">{@exact}</span>
+    <span aria-hidden="true" title={@exact}>{@shown}</span><span class="visually-hidden">{@exact}</span>
     """
   end
 

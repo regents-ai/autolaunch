@@ -67,7 +67,7 @@ defmodule AutolaunchWeb.SwapComponent do
         assign(socket,
           scope: scope,
           direction: :buy,
-          amount: Map.get(assigns, :preset_amount) || "",
+          amount: "",
           error: nil,
           estimate: nil,
           protection: @default_protection,

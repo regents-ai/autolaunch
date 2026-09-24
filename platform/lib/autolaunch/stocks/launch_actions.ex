@@ -47,7 +47,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
 
-  @replaced "replaced by a newer review"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed launch expired before it was sent"
   @unresolved "account started a new launch while this one was unresolved"
@@ -365,7 +364,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
   defp open(lease, draft, signer, envelope) do
     transact(lease, fn account ->
       with :ok <- LaunchOperations.signer_matches(account, signer),
-           :ok <- release_undispatched(account.id),
            {:ok, operation} <-
              LaunchOperations.create(account, %{
                action_id: envelope["action_id"],
@@ -377,22 +375,6 @@ defmodule Autolaunch.Stocks.LaunchActions do
            do: {:ok, presented(operation)}
     end)
   end
-
-  defp release_undispatched(account_id) do
-    case LaunchOperations.open(account_id, true) do
-      {:ok, nil} ->
-        :ok
-
-      {:ok, open} ->
-        released(LaunchOperations.update(open, :cancel, %{reason: @replaced}))
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp released({:ok, _closed}), do: :ok
-  defp released(error), do: error
 
   # Everything the review promised about the fork, checked against the fork's
   # answer right now.

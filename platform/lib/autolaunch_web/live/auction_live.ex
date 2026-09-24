@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.AuctionHistory
+  import AutolaunchWeb.Components.AuctionPage, only: [headline: 1, details_window: 1]
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionBook
@@ -159,23 +160,44 @@ defmodule AutolaunchWeb.AuctionLive do
         bid_form="autolaunch-bid"
         return_to={if @page_record.minimum_reached, do: "autolaunch-position-#{@outbid.id}"}
       />
-      <div class="market-detail-layout">
-        <.detail_card
-          kind={:auction}
-          record={@page_record}
-          creator_connections={@creator_connections}
-          trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
-          status={settling_status(@page_record, @bidding_ended?)}
-        >
-          <:price_note>
-            <UsdValue.usd
-              amount={@page_record.current_clearing_price}
-              rate={@usd_rate}
-              per="per token"
-            />
-          </:price_note>
-        </.detail_card>
-        <aside class="market-detail-action" aria-label="Bid on this auction">
+      <.headline
+        record={@page_record}
+        minimum={minimum(@page_record)}
+        usd_rate={@usd_rate}
+        details="auction-details"
+      />
+      <div class="auction-layout">
+        <section class="auction-layout__chart" aria-label="Price and progress">
+          <.auction_chart
+            :if={@market_snapshot && @history.ok?}
+            id="auction-chart"
+            bids={@history.result.bids}
+            points={@history.result.points}
+            symbol={@page_record.quote_token_symbol}
+            token_symbol={@page_record.token_symbol}
+            usd_rate={@usd_rate}
+            raised={@market_snapshot.currency_raised}
+            start_block={@market_snapshot.start_block}
+            end_block={@market_snapshot.end_block}
+            block={@market_snapshot.block_number}
+          />
+          <.raise_progress
+            :if={@market_snapshot}
+            id="auction-raise-progress"
+            state={@market_snapshot.state}
+            raised={@market_snapshot.currency_raised}
+            required={minimum(@page_record)}
+            symbol={@page_record.quote_token_symbol}
+            usd_rate={@usd_rate}
+            block={@market_snapshot.block_number}
+            start_block={@market_snapshot.start_block}
+            end_block={@market_snapshot.end_block}
+            chain={:base}
+            test_chain={@local_lab?}
+            bids={@page_record.bid_volume && Decimal.to_string(@page_record.bid_volume, :normal)}
+          />
+        </section>
+        <aside class="auction-layout__bid" aria-label="Bid on this auction">
           <section
             :if={Autolaunch.Prelaunch.read_only?()}
             class="prelaunch-actions"
@@ -256,7 +278,7 @@ defmodule AutolaunchWeb.AuctionLive do
             session_lease={@session_lease}
           />
         </aside>
-        <section class="market-detail-summary" aria-label="Auction information">
+        <div class="auction-layout__rest">
           <.auction_book
             :if={bidding_open?(@bidding_ended?) && @book.ok?}
             id="auction-book"
@@ -267,126 +289,127 @@ defmodule AutolaunchWeb.AuctionLive do
             bid_form="autolaunch-bid"
             price_info={price_info(@page_record)}
           />
-          <.raise_progress
-            :if={@market_snapshot}
-            id="auction-raise-progress"
-            state={@market_snapshot.state}
-            raised={@market_snapshot.currency_raised}
-            required={minimum(@page_record)}
-            symbol={@page_record.quote_token_symbol}
-            usd_rate={@usd_rate}
-            block={@market_snapshot.block_number}
-            start_block={@market_snapshot.start_block}
-            end_block={@market_snapshot.end_block}
-            chain={:base}
-            test_chain={@local_lab?}
-            bids={@page_record.bid_volume && Decimal.to_string(@page_record.bid_volume, :normal)}
-          />
-          <.auction_history
+          <.auction_activity
             :if={@market_snapshot && @history.ok?}
-            id="auction-history"
+            id="auction-activity"
             bids={@history.result.bids}
-            points={@history.result.points}
             symbol={@page_record.quote_token_symbol}
-            token_symbol={@page_record.token_symbol}
-            usd_rate={@usd_rate}
-            raised={@market_snapshot.currency_raised}
             block={@market_snapshot.block_number}
             start_block={@market_snapshot.start_block}
             end_block={@market_snapshot.end_block}
             chain={:base}
             test_chain={@local_lab?}
           />
-          <.exact_price
-            id="auction-exact-price"
-            summary="Exact clearing price"
-            amount={@page_record.current_clearing_price}
-            unit={@page_record.quote_token_symbol}
-          />
-          <dl class="autolaunch-live-market" aria-label="Auction terms">
-            <div>
-              <dt>Minimum to graduate</dt>
-              <dd>
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={minimum(@page_record)}
-                  unit={@page_record.quote_token_symbol}
+          <section class="auction-info" aria-labelledby="auction-info-title">
+            <h2 id="auction-info-title" class="auction-info__title">About this token</h2>
+            <.detail_card
+              kind={:auction}
+              record={@page_record}
+              creator_connections={@creator_connections}
+              trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
+              status={settling_status(@page_record, @bidding_ended?)}
+            >
+              <:price_note>
+                <UsdValue.usd
+                  amount={@page_record.current_clearing_price}
+                  rate={@usd_rate}
+                  per="per token"
                 />
-                <UsdValue.usd amount={minimum(@page_record)} rate={@usd_rate} />
-              </dd>
-            </div>
-            <div>
-              <dt>Bids are paid in</dt>
-              <dd>
-                {@page_record.quote_token_symbol}
-                <span :if={@page_record.quote_token_decimals}>
-                  · {@page_record.quote_token_decimals} decimal places
-                </span>
-              </dd>
-            </div>
-            <div :if={@page_record.quote_token_address}>
-              <dt>Currency address</dt>
-              <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
-            </div>
-          </dl>
-          <p
-            :if={@page_record.state == :graduated && @graduated_token}
-            id="auction-pool-link"
-            class="autolaunch-live-market"
-          >
-            This auction launched into its pool.
-            <.link navigate={"/tokens/#{@graduated_token.id}#pool"}>View the pool and its trading fees</.link>
-          </p>
-          <.treasury_security
-            :if={!@local_lab?}
-            report={report(@page_record)}
-            surface="auction-detail"
-          />
-          <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
-          <dl :if={@market_snapshot} class="autolaunch-live-market">
-            <div>
-              <dt>Read at block</dt><dd>{@market_snapshot.block_number}</dd>
-            </div>
-            <div>
-              <dt>{raised_label(@page_record)}</dt><dd>
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={@market_snapshot.currency_raised}
-                  fallback="—"
-                />
-                <UsdValue.usd amount={@market_snapshot.currency_raised} rate={@usd_rate} />
-              </dd>
-            </div>
-            <div>
-              <dt>Tokens remaining</dt><dd>
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={@market_snapshot.remaining_supply}
-                  fallback="—"
-                />
-              </dd>
-            </div>
-            <div>
-              <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
-            </div>
-          </dl>
-          <Regent.Primitives.disclosure
-            :if={@market_snapshot}
-            id="auction-exact-market-amounts"
-            summary="Exact market amounts"
-          >
-            <dl class="autolaunch-live-market">
-              <div>
-                <dt>{raised_label(@page_record)}</dt><dd class="autolaunch-exact-value">
-                  {@market_snapshot.currency_raised}
-                </dd>
-              </div>
-              <div>
-                <dt>Tokens remaining</dt><dd class="autolaunch-exact-value">
-                  {@market_snapshot.remaining_supply}
-                </dd>
-              </div>
-            </dl>
-          </Regent.Primitives.disclosure>
-        </section>
+              </:price_note>
+            </.detail_card>
+            <p
+              :if={@page_record.state == :graduated && @graduated_token}
+              id="auction-pool-link"
+              class="autolaunch-live-market"
+            >
+              This auction launched into its pool.
+              <.link navigate={"/tokens/#{@graduated_token.id}#pool"}>View the pool and its trading fees</.link>
+            </p>
+            <.treasury_security
+              :if={!@local_lab?}
+              report={report(@page_record)}
+              surface="auction-detail"
+            />
+            <.lab_treasury_unavailable :if={@local_lab?} surface="auction-detail" />
+          </section>
+        </div>
       </div>
+      <.details_window id="auction-details">
+        <.exact_price
+          id="auction-exact-price"
+          summary="Exact clearing price"
+          amount={@page_record.current_clearing_price}
+          unit={@page_record.quote_token_symbol}
+        />
+        <dl class="autolaunch-live-market" aria-label="Auction terms">
+          <div>
+            <dt>Minimum to graduate</dt>
+            <dd>
+              <AutolaunchWeb.TokenDisplay.price
+                amount={minimum(@page_record)}
+                unit={@page_record.quote_token_symbol}
+              />
+              <UsdValue.usd amount={minimum(@page_record)} rate={@usd_rate} />
+            </dd>
+          </div>
+          <div>
+            <dt>Bids are paid in</dt>
+            <dd>
+              {@page_record.quote_token_symbol}
+              <span :if={@page_record.quote_token_decimals}>
+                · {@page_record.quote_token_decimals} decimal places
+              </span>
+            </dd>
+          </div>
+          <div :if={@page_record.quote_token_address}>
+            <dt>Currency address</dt>
+            <dd class="autolaunch-exact-value">{@page_record.quote_token_address}</dd>
+          </div>
+        </dl>
+        <dl :if={@market_snapshot} class="autolaunch-live-market" aria-label="Latest reading">
+          <div>
+            <dt>Read at block</dt><dd>{@market_snapshot.block_number}</dd>
+          </div>
+          <div>
+            <dt>{raised_label(@page_record)}</dt><dd>
+              <AutolaunchWeb.TokenDisplay.price
+                amount={@market_snapshot.currency_raised}
+                fallback="—"
+              />
+              <UsdValue.usd amount={@market_snapshot.currency_raised} rate={@usd_rate} />
+            </dd>
+          </div>
+          <div>
+            <dt>Tokens remaining</dt><dd>
+              <AutolaunchWeb.TokenDisplay.price
+                amount={@market_snapshot.remaining_supply}
+                fallback="—"
+              />
+            </dd>
+          </div>
+          <div>
+            <dt>Claim block</dt><dd>{@market_snapshot.claim_block}</dd>
+          </div>
+        </dl>
+        <Regent.Primitives.disclosure
+          :if={@market_snapshot}
+          id="auction-exact-market-amounts"
+          summary="Exact market amounts"
+        >
+          <dl class="autolaunch-live-market">
+            <div>
+              <dt>{raised_label(@page_record)}</dt><dd class="autolaunch-exact-value">
+                {@market_snapshot.currency_raised}
+              </dd>
+            </div>
+            <div>
+              <dt>Tokens remaining</dt><dd class="autolaunch-exact-value">
+                {@market_snapshot.remaining_supply}
+              </dd>
+            </div>
+          </dl>
+        </Regent.Primitives.disclosure>
+      </.details_window>
     </article>
 
     <p :if={@page_status == :loading} class="autolaunch-page" role="status">Loading…</p>
@@ -584,13 +607,18 @@ defmodule AutolaunchWeb.AuctionLive do
     do:
       "Bidding has ended. If the final count stays below the minimum, every bid returns its #{symbol} in full; if it reached the minimum, the trading pool opens once the auction is finished."
 
-  # A graduated auction's token row, when it exists, so the page can point at
-  # the pool that auction graduated into.
+  # The auction with its FDV for the headline, and a graduated auction's token
+  # row, when it exists, so the page can point at the pool that auction
+  # graduated into.
   defp load_auction_page_with_token(id) do
-    with {:ok, %{page: page}} <- load_auction_page(id) do
-      {:ok, %{page: Map.put(page, :token, graduated_token(page.record))}}
+    with {:ok, %{page: page}} <- load_auction_page(id),
+         {:ok, record} <- with_fdv(page.record) do
+      {:ok, %{page: %{page | record: record} |> Map.put(:token, graduated_token(record))}}
     end
   end
+
+  defp with_fdv(nil), do: {:ok, nil}
+  defp with_fdv(record), do: Ash.load(record, [:fdv], actor: nil, reuse_values?: true)
 
   defp graduated_token(%{state: :graduated, id: auction_id}) do
     case Autolaunch.get_public_token_by_auction(auction_id) do

@@ -81,10 +81,10 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_event("load-more", _params, socket), do: {:noreply, socket}
 
-  def handle_event("open_trade", %{"id" => id} = params, socket) do
+  def handle_event("open_trade", %{"id" => id}, socket) do
     trade =
       case !socket.assigns.market_loading && Enum.find(socket.assigns.records, &(&1.id == id)) do
-        %{} = record -> %{record: record, amount: params["amount"]}
+        %{} = record -> %{record: record}
         _none -> nil
       end
 
@@ -531,7 +531,6 @@ defmodule AutolaunchWeb.HomeLive do
         :if={@trade && @kind == :token}
         id={"home-trade-#{@trade.record.id}"}
         token={@trade.record}
-        amount={@trade.amount}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
@@ -540,7 +539,6 @@ defmodule AutolaunchWeb.HomeLive do
         :if={match?(%{record: %Autolaunch.Auction{}}, @trade) && robinhood?(@trade.record)}
         id={"home-robinhood-bid-#{@trade.record.id}"}
         auction={@trade.record}
-        amount={@trade.amount}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
@@ -549,7 +547,6 @@ defmodule AutolaunchWeb.HomeLive do
         :if={match?(%{record: %Autolaunch.Auction{}}, @trade) && !robinhood?(@trade.record)}
         id={"home-bid-#{@trade.record.id}"}
         auction={@trade.record}
-        amount={@trade.amount}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}

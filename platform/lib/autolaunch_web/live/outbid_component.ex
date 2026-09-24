@@ -147,8 +147,8 @@ defmodule AutolaunchWeb.OutbidComponent do
 
   # The rest comes back early only once the auction has reached its minimum, and
   # only once it has recorded a price above this bid.
-  defp back(%{minimum_reached: true}, :waiting), do: :price_recorded
-  defp back(%{minimum_reached: true}, _offered_or_unknown), do: :now
+  defp back(%{minimum_reached: true}, :ready), do: :now
+  defp back(%{minimum_reached: true}, _not_yet), do: :price_recorded
   defp back(_auction, _early_return), do: :after_end
 
   defp heading(:raise), do: "Raise my bid"

@@ -44,22 +44,9 @@ defmodule Autolaunch.Robinhood.Pool do
   @doc "The same facts at a block already read, on the deployment it was read with."
   @spec read_at(String.t(), map(), Rpc.block(), keyword()) :: {:ok, t()} | {:error, atom()}
   def read_at(auction, config, block, opts) when is_binary(auction) do
-    with {:ok, auction} <- Address.normalize(auction) |> normalized(),
-         {:ok, launch_id} <-
-           launchpad_uint(config, "launchIdOfAuction(address)", [auction], block, opts),
-         true <- launch_id > 0 || {:error, :unknown_auction},
-         {:ok, words} <-
-           launchpad_words(
-             config,
-             "launches(uint256)",
-             [launch_id],
-             RobinhoodLabAbi.launch_record_words(),
-             block,
-             opts
-           ),
-         {:ok, launch} <- launch(words),
+    with {:ok, launch} <- launch_record(auction, config, block, opts),
          {:ok, [stock_only_token_id, stock_only_used]} <-
-           launchpad_words(config, "stockRecords(uint256)", [launch_id], 2, block, opts),
+           launchpad_words(config, "stockRecords(uint256)", [launch.launch_id], 2, block, opts),
          {:ok, stock} <- Assets.fetch(Lab.chain_id(), launch.stock),
          {:ok, symbol} <-
            Rpc.call_string(launch.new_token, LabAbi.selector("symbol()"), block, opts),
@@ -85,7 +72,7 @@ defmodule Autolaunch.Robinhood.Pool do
          kind: :stocks,
          chain: :robinhood,
          block: block,
-         launch_id: launch_id,
+         launch_id: launch.launch_id,
          pool_id: launch.pool_id,
          token: %{address: launch.new_token, symbol: symbol, decimals: @token_decimals},
          currency: %{address: launch.stock, symbol: stock.symbol, decimals: stock.decimals},
@@ -101,6 +88,31 @@ defmodule Autolaunch.Robinhood.Pool do
     else
       :error -> {:error, :invalid_chain_response}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  What a reader of the pool's trades needs, for one graduated auction
+  address: the PoolManager, the pool id, the token, which side of the pool it
+  is on and the stock it trades against. The launch's migration block is on
+  the rollup clock, not the block numbers logs carry, so no opening block is
+  given.
+  """
+  @spec swap_source(String.t(), map(), Rpc.block(), keyword()) ::
+          {:ok, map()} | {:error, atom()}
+  def swap_source(auction, config, block, opts) when is_binary(auction) do
+    with {:ok, launch} <- launch_record(auction, config, block, opts),
+         {:ok, stock} <- Assets.fetch(Lab.chain_id(), launch.stock) do
+      {:ok,
+       %{
+         pool_manager: Lab.address!(config, :pool_manager),
+         pool_id: launch.pool_id,
+         token: launch.new_token,
+         token_is_currency0?: currency0?(launch.new_token, launch.stock),
+         currency_symbol: stock.symbol,
+         currency_decimals: stock.decimals,
+         from_block: nil
+       }}
     end
   end
 
@@ -150,6 +162,24 @@ defmodule Autolaunch.Robinhood.Pool do
           error
       end
     end
+  end
+
+  defp launch_record(auction, config, block, opts) do
+    with {:ok, auction} <- Address.normalize(auction) |> normalized(),
+         {:ok, launch_id} <-
+           launchpad_uint(config, "launchIdOfAuction(address)", [auction], block, opts),
+         true <- launch_id > 0 || {:error, :unknown_auction},
+         {:ok, words} <-
+           launchpad_words(
+             config,
+             "launches(uint256)",
+             [launch_id],
+             RobinhoodLabAbi.launch_record_words(),
+             block,
+             opts
+           ),
+         {:ok, launch} <- launch(words),
+         do: {:ok, Map.put(launch, :launch_id, launch_id)}
   end
 
   defp normalized({:ok, address}), do: {:ok, address}

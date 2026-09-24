@@ -55,14 +55,6 @@ defmodule Autolaunch.Stocks.LaunchOperations do
     end
   end
 
-  @spec open(integer(), boolean()) :: {:ok, Ash.Resource.record() | nil} | {:error, term()}
-  def open(account_id, lock?) do
-    LaunchOperation
-    |> Ash.Query.for_read(:open, %{human_account_id: account_id}, domain: @domain, actor: @actor)
-    |> locked(lock?)
-    |> Ash.read_one(domain: @domain)
-  end
-
   @spec update(Ash.Resource.record(), atom(), map()) ::
           {:ok, Ash.Resource.record()} | {:error, term()}
   def update(operation, action, input \\ %{}) do

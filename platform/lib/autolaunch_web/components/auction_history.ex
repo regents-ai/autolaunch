@@ -1,11 +1,14 @@
 defmodule AutolaunchWeb.Components.AuctionHistory do
   @moduledoc """
-  How an auction has gone so far, from its confirmed chain events: a timeline
-  of the bidding window with each bid marked, the price everyone pays over
-  time, the total bid over time, and the list of bids. Blocks are counted on
-  the auction's own clock, the one its start and end blocks use.
+  How an auction has gone so far, from its confirmed chain events, in two
+  parts: the chart (the price everyone pays over time, and the total bid and
+  sold over time) and the activity (the list of bids, and a timeline of the
+  bidding window with each bid marked). Blocks are counted on the auction's
+  own clock, the one its start and end blocks use.
   """
   use Phoenix.Component
+
+  import AutolaunchWeb.Components.AuctionPage, only: [tabs: 1]
 
   alias Autolaunch.LaunchChain
   alias Autolaunch.Stocks.Amounts
@@ -25,139 +28,181 @@ defmodule AutolaunchWeb.Components.AuctionHistory do
   attr :block, :integer, required: true, doc: "the auction clock's current block"
   attr :start_block, :integer, required: true
   attr :end_block, :integer, required: true
+
+  @doc """
+  The page's main chart: the price everyone pays over time, and beside it the
+  total bid and sold so far.
+  """
+  def auction_chart(assigns) do
+    now = now(assigns)
+
+    assigns =
+      assign(assigns,
+        price_chart: price_chart(assigns.points, assigns.start_block, now),
+        total_chart:
+          total_chart(assigns.bids, assigns.points, assigns.raised, assigns.start_block, now)
+      )
+
+    ~H"""
+    <section id={@id} class="auction-chart" aria-label="Price and demand">
+      <.tabs id={"#{@id}-tabs"} label="Chart" class="auction-tabs--large">
+        <:tab label="Price">
+          <div :if={@price_chart} class="auction-history__chart">
+            <p class="auction-history__figure">
+              Now <TokenDisplay.price amount={@price_chart.last} unit={@symbol} />
+              <UsdValue.usd amount={@price_chart.last} rate={@usd_rate} per="per token" />
+              · started at <TokenDisplay.price amount={@price_chart.first} unit={@symbol} />
+            </p>
+            <.plot chart={@price_chart} symbol={@symbol} />
+            <p class="auction-history__note">
+              Everyone who is buying pays this one price per {@token_symbol}. It starts at the
+              floor and rises only when bids ask for more tokens than are being released.
+            </p>
+          </div>
+          <p :if={!@price_chart} class="auction-history__note">
+            The price appears here once the auction records its first one.
+          </p>
+        </:tab>
+        <:tab label="Demand">
+          <div :if={@total_chart} class="auction-history__chart">
+            <ul class="auction-history__legend">
+              <li class="auction-history__key auction-history__key--bids">
+                Bids placed <TokenDisplay.price amount={@total_chart.last} unit={@symbol} />
+              </li>
+              <li class="auction-history__key auction-history__key--sold">
+                Sold so far <TokenDisplay.price amount={@total_chart.sold} unit={@symbol} />
+              </li>
+            </ul>
+            <.plot chart={@total_chart} symbol={@symbol} />
+            <p class="auction-history__note">
+              Bids placed is everything bidders have put in. Sold so far is the part
+              already spent on tokens, which grows while bidding is open.
+            </p>
+          </div>
+          <p :if={!@total_chart} class="auction-history__note">No bids yet.</p>
+        </:tab>
+      </.tabs>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :bids, :list, required: true, doc: "the auction's bids, oldest first"
+  attr :symbol, :string, required: true, doc: "the auction's currency"
+  attr :block, :integer, required: true, doc: "the auction clock's current block"
+  attr :start_block, :integer, required: true
+  attr :end_block, :integer, required: true
   attr :chain, :atom, required: true, values: LaunchChain.chains()
   attr :test_chain, :boolean, required: true
 
-  def auction_history(assigns) do
-    now = assigns.block |> max(assigns.start_block) |> min(assigns.end_block)
+  @doc "Every bid so far, newest first, and the bidding window's timeline."
+  def auction_activity(assigns) do
+    now = now(assigns)
     span = max(assigns.end_block - assigns.start_block, 1)
 
     assigns =
       assign(assigns,
-        now: now,
         elapsed: min(div((now - assigns.start_block) * 100, span), 100),
         marks: Enum.map(assigns.bids, &share(&1.clock_block, assigns.start_block, span)),
-        price_chart: price_chart(assigns.points, assigns.start_block, now),
-        total_chart:
-          total_chart(assigns.bids, assigns.points, assigns.raised, assigns.start_block, now),
         newest: Enum.reverse(assigns.bids)
       )
 
     ~H"""
-    <section id={@id} class="auction-history" aria-label="How this auction is going">
-      <h2 class="autolaunch-micro">How this auction is going</h2>
-
-      <div class="auction-history__timeline">
-        <div
-          class="auction-history__track"
-          role="img"
-          aria-label={"#{@elapsed}% of bidding time has passed; #{length(@bids)} bids so far"}
-        >
-          <span class="auction-history__elapsed" style={"width: #{@elapsed}%"}></span>
-          <span
-            :for={mark <- @marks}
-            class="auction-history__mark"
-            style={"left: #{mark}%"}
-          ></span>
-          <span class="auction-history__now" style={"left: #{@elapsed}%"}></span>
-        </div>
-        <div class="auction-history__ends">
-          <span>Opened at block {grouped(@start_block)}</span>
-          <span>{closing(@block, @end_block, @chain, @test_chain)}</span>
-        </div>
-        <p class="auction-history__note">
-          {@elapsed}% of the bidding time has passed. Each mark is a bid;
-          the line shows where bidding is now.
-        </p>
-      </div>
-
-      <div :if={@price_chart} class="auction-history__chart">
-        <h3>Price per {@token_symbol}</h3>
-        <p class="auction-history__figure">
-          Now <TokenDisplay.price amount={@price_chart.last} unit={@symbol} />
-          <UsdValue.usd amount={@price_chart.last} rate={@usd_rate} per="per token" /> · started at
-          <TokenDisplay.price amount={@price_chart.first} unit={@symbol} />
-        </p>
-        <.plot chart={@price_chart} symbol={@symbol} />
-        <p class="auction-history__note">
-          Everyone who is buying pays this one price. It starts at the floor and
-          rises only when bids ask for more tokens than are being released.
-        </p>
-      </div>
-
-      <div :if={@total_chart} class="auction-history__chart">
-        <h3>Bids placed and sold so far</h3>
-        <ul class="auction-history__legend">
-          <li class="auction-history__key auction-history__key--bids">
-            Bids placed <TokenDisplay.price amount={@total_chart.last} unit={@symbol} />
-          </li>
-          <li class="auction-history__key auction-history__key--sold">
-            Sold so far <TokenDisplay.price amount={@total_chart.sold} unit={@symbol} />
-          </li>
-        </ul>
-        <.plot chart={@total_chart} symbol={@symbol} />
-        <p class="auction-history__note">
-          Bids placed is everything bidders have put in. Sold so far is the part
-          already spent on tokens, which grows every block while bidding is open.
-        </p>
-      </div>
-
-      <div :if={@bids != []} class="auction-history__bids">
-        <h3>Bids</h3>
-        <div class="auction-history__table">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Wallet</th>
-                <th scope="col">When</th>
-                <th scope="col">Paid</th>
-                <th scope="col">Bid</th>
-                <th scope="col">Most per token</th>
-                <th scope="col">Block</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={bid <- @newest}>
-                <td title={bid.bidder}>{short_address(bid.bidder)}</td>
-                <td>
-                  <time datetime={DateTime.to_iso8601(bid.occurred_at)}>{ago(bid.occurred_at)}</time>
-                </td>
-                <td>
-                  <TokenDisplay.price
-                    amount={Decimal.to_string(bid.display_amount, :normal)}
-                    unit={bid.display_symbol}
-                  />
-                </td>
-                <td>
-                  <TokenDisplay.price amount={Decimal.to_string(bid.amount, :normal)} unit={@symbol} />
-                </td>
-                <td>
-                  <TokenDisplay.price
-                    amount={Decimal.to_string(bid.max_price, :normal)}
-                    unit={@symbol}
-                  />
-                </td>
-                <td>
-                  <a
-                    :if={!@test_chain}
-                    href={transaction_url(@chain, bid.transaction_hash)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={"View this bid's transaction on #{explorer(@chain)}"}
-                  >
-                    {grouped(bid.clock_block)}
-                  </a>
-                  <span :if={@test_chain}>{grouped(bid.clock_block)}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <p :if={@bids == []} class="auction-history__note">No bids yet.</p>
+    <section id={@id} class="auction-history" aria-label="Bids and timeline">
+      <.tabs id={"#{@id}-tabs"} label="Bids and timeline" class="auction-tabs--large">
+        <:tab label="Activity">
+          <div :if={@bids != []} class="auction-history__bids">
+            <p class="auction-history__note">{bid_count(@bids)} so far, newest first.</p>
+            <div class="auction-history__table">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Wallet</th>
+                    <th scope="col">When</th>
+                    <th scope="col">Paid</th>
+                    <th scope="col">Bid</th>
+                    <th scope="col">Most per token</th>
+                    <th scope="col">Block</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={bid <- @newest}>
+                    <td title={bid.bidder}>{short_address(bid.bidder)}</td>
+                    <td>
+                      <time datetime={DateTime.to_iso8601(bid.occurred_at)}>{ago(bid.occurred_at)}</time>
+                    </td>
+                    <td>
+                      <TokenDisplay.price
+                        amount={Decimal.to_string(bid.display_amount, :normal)}
+                        unit={bid.display_symbol}
+                      />
+                    </td>
+                    <td>
+                      <TokenDisplay.price
+                        amount={Decimal.to_string(bid.amount, :normal)}
+                        unit={@symbol}
+                      />
+                    </td>
+                    <td>
+                      <TokenDisplay.price
+                        amount={Decimal.to_string(bid.max_price, :normal)}
+                        unit={@symbol}
+                      />
+                    </td>
+                    <td>
+                      <a
+                        :if={!@test_chain}
+                        href={transaction_url(@chain, bid.transaction_hash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={"View this bid's transaction on #{explorer(@chain)}"}
+                      >
+                        {grouped(bid.clock_block)}
+                      </a>
+                      <span :if={@test_chain}>{grouped(bid.clock_block)}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p :if={@bids == []} class="auction-history__note">No bids yet.</p>
+        </:tab>
+        <:tab label="Timeline">
+          <div class="auction-history__timeline">
+            <div
+              class="auction-history__track"
+              role="img"
+              aria-label={"#{@elapsed}% of bidding time has passed; #{length(@bids)} bids so far"}
+            >
+              <span class="auction-history__elapsed" style={"width: #{@elapsed}%"}></span>
+              <span
+                :for={mark <- @marks}
+                class="auction-history__mark"
+                style={"left: #{mark}%"}
+              ></span>
+              <span class="auction-history__now" style={"left: #{@elapsed}%"}></span>
+            </div>
+            <div class="auction-history__ends">
+              <span>Opened at block {grouped(@start_block)}</span>
+              <span>{closing(@block, @end_block, @chain, @test_chain)}</span>
+            </div>
+            <p class="auction-history__note">
+              {@elapsed}% of the bidding time has passed. Each mark is a bid;
+              the line shows where bidding is now.
+            </p>
+          </div>
+        </:tab>
+      </.tabs>
     </section>
     """
   end
+
+  # The auction's clock now, held inside its bidding window.
+  defp now(assigns), do: assigns.block |> max(assigns.start_block) |> min(assigns.end_block)
+
+  defp bid_count([_one]), do: "1 bid"
+  defp bid_count(bids), do: "#{length(bids)} bids"
 
   # Where a block sits in the bidding window, as a percentage of its width.
   defp share(block, start, span), do: Float.round(min(max(block - start, 0) * 100 / span, 100), 2)

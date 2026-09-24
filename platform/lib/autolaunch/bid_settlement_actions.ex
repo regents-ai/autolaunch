@@ -32,7 +32,6 @@ defmodule Autolaunch.BidSettlementActions do
   @contract_name "IContinuousClearingAuction"
   @new_decimals 18
 
-  @replaced "replaced by a newer review"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed settlement expired before it was sent"
   @unresolved "account started a new settlement while this one was unresolved"
@@ -316,8 +315,7 @@ defmodule Autolaunch.BidSettlementActions do
 
   defp open(lease, position, signer, envelope) do
     transact(lease, fn account ->
-      with :ok <- signer_matches(account, signer),
-           :ok <- release_undispatched(position.id) do
+      with :ok <- signer_matches(account, signer) do
         BidSettlementOperation
         |> Ash.Changeset.for_create(
           :prepare,
@@ -339,18 +337,6 @@ defmodule Autolaunch.BidSettlementActions do
 
   defp first_step(envelope),
     do: envelope["arguments"]["steps"] |> hd() |> Map.fetch!("step") |> String.to_existing_atom()
-
-  # A new review of the same position always ends whatever is open as replaced.
-  defp release_undispatched(bid_position_id) do
-    case open_row(bid_position_id, true) do
-      {:ok, nil} -> :ok
-      {:ok, open} -> released(update(open, :cancel, %{reason: @replaced}))
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp released({:ok, _closed}), do: :ok
-  defp released(error), do: error
 
   defp valid_envelope?(operation) do
     Envelope.valid?(operation.envelope,
@@ -416,16 +402,6 @@ defmodule Autolaunch.BidSettlementActions do
       {:ok, nil} -> unavailable(:settlement_operation_not_found)
       other -> other
     end
-  end
-
-  defp open_row(bid_position_id, lock?) do
-    BidSettlementOperation
-    |> Ash.Query.for_read(:open, %{bid_position_id: bid_position_id},
-      domain: @domain,
-      actor: @actor
-    )
-    |> locked_query(lock?)
-    |> Ash.read_one(domain: @domain)
   end
 
   defp locked_query(query, true), do: Ash.Query.lock(query, :for_update)

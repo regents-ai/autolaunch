@@ -193,6 +193,48 @@ defmodule Autolaunch.Pool do
   end
 
   def token_address(%{kind: :stocks} = auction, config, block, opts) do
+    with {:ok, launch} <- stocks_record(auction, config, block, opts),
+         do: {:ok, launch.new_token}
+  end
+
+  @doc """
+  What a reader of the pool's trades needs: the PoolManager, the pool id, the
+  token, which side of the pool it is on, the currency it trades against and
+  the block the pool opened in. `{:error, :not_graduated}` until the pool
+  exists.
+  """
+  @spec swap_source(map(), map(), Rpc.block(), keyword()) :: {:ok, map()} | {:error, atom()}
+  def swap_source(%{kind: :agent} = auction, config, block, opts) do
+    with {:ok, distribution} <- agent_launch(auction, config, block, opts) do
+      {:ok,
+       %{
+         pool_manager: Lab.address!(config, :pool_manager),
+         pool_id: distribution.pool_id,
+         token: distribution.subject,
+         token_is_currency0?: currency0?(distribution.subject, Lab.address!(config, :regent)),
+         currency_symbol: "REGENT",
+         currency_decimals: @regent_decimals,
+         from_block: distribution.migration_block
+       }}
+    end
+  end
+
+  def swap_source(%{kind: :stocks} = auction, config, block, opts) do
+    with {:ok, launch} <- stocks_record(auction, config, block, opts) do
+      {:ok,
+       %{
+         pool_manager: StocksLab.address!(config, :pool_manager),
+         pool_id: launch.pool_id,
+         token: launch.new_token,
+         token_is_currency0?: currency0?(launch.new_token, launch.stock),
+         currency_symbol: auction.quote_token_symbol,
+         currency_decimals: auction.quote_token_decimals,
+         from_block: launch.migration_block
+       }}
+    end
+  end
+
+  defp stocks_record(auction, config, block, opts) do
     with {:ok, launch_id} <-
            launchpad_uint(
              config,
@@ -211,7 +253,7 @@ defmodule Autolaunch.Pool do
              opts
            ),
          {:ok, launch} <- stocks_launch(words),
-         do: {:ok, launch.new_token}
+         do: {:ok, Map.put(launch, :launch_id, launch_id)}
   end
 
   @doc """
@@ -432,24 +474,7 @@ defmodule Autolaunch.Pool do
   # Stocks
 
   defp read_stocks(auction, config, block, opts) do
-    with {:ok, launch_id} <-
-           launchpad_uint(
-             config,
-             "launchIdOfAuction(address)",
-             [auction.auction_address],
-             block,
-             opts
-           ),
-         {:ok, words} <-
-           launchpad_words(
-             config,
-             "launches(uint256)",
-             [launch_id],
-             StocksLabAbi.launch_record_words(),
-             block,
-             opts
-           ),
-         {:ok, launch} <- stocks_launch(words),
+    with {:ok, launch} <- stocks_record(auction, config, block, opts),
          decimals <- auction.quote_token_decimals,
          token_is_currency0? <- currency0?(launch.new_token, launch.stock),
          {:ok, graduation_price} <-
@@ -488,7 +513,7 @@ defmodule Autolaunch.Pool do
          kind: :stocks,
          chain: :base,
          block: block,
-         launch_id: launch_id,
+         launch_id: launch.launch_id,
          pool_id: launch.pool_id,
          token: %{
            address: launch.new_token,
