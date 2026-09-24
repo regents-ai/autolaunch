@@ -60,10 +60,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
   currency with its chain, its name, its price and one more figure, the
   creator's links and the start of its description.
 
-  An auction's card then has a figures row (the bid volume and launch
-  threshold on hover or keyboard focus, the FDV always), Details and Bid,
-  and a bar showing how much of the auction's time has passed. A token's
-  card shows its price and market cap, then Details and Buy.
+  An auction's card shows only its clearing price up top, then has a
+  figures row (the bid volume and launch threshold on hover or keyboard
+  focus, the FDV always), Details and Bid, and two thin bars: how much of
+  the launch threshold is met, while it is not yet met, over how much of
+  the auction's time has passed. A token's card shows its price and market
+  cap, then Details and Buy.
   """
   def explore_card(%{kind: :auction} = assigns) do
     figures = figures(assigns.record, assigns.rate)
@@ -84,7 +86,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="home-coin__metric">
         <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} fallback="-" /><span>Clearing price</span>
       </div>
-      <p class="home-coin__figure">Implied FDV: <span>{@figures.fdv}</span></p>
       <.card_links view={@view} />
       <p class="home-coin__description">{excerpt(@view.description)}</p>
       <div class="home-coin__figures">
@@ -113,17 +114,28 @@ defmodule AutolaunchWeb.Components.MarketCard do
           aria-label={"Bid on #{@view.name}"}
         >Bid</Regent.Primitives.button>
       </div>
-      <div
-        id={"time-bar-#{@figures.id}"}
-        class={["home-coin__time", "home-coin__time--#{String.downcase(@view.chain)}"]}
-        role="img"
-        aria-label={@bar.label}
-        title={@bar.label}
-        phx-hook=".AuctionTimeBar"
-        data-opens-at={@bar.opens_at && DateTime.to_iso8601(@bar.opens_at)}
-        data-ends-at={@figures.ends_at && DateTime.to_iso8601(@figures.ends_at)}
-      >
-        <span :if={@bar.progress} style={"width: #{@bar.progress}%"}></span>
+      <div class="home-coin__bars">
+        <div
+          :if={@figures.met && @figures.met < 100}
+          class="home-coin__met"
+          role="img"
+          aria-label={"#{@figures.met}% of the launch threshold met"}
+          title={"#{@figures.met}% of the launch threshold met"}
+        >
+          <span :if={@figures.met > 0} style={"width: max(#{@figures.met}%, 8px)"}></span>
+        </div>
+        <div
+          id={"time-bar-#{@figures.id}"}
+          class={["home-coin__time", "home-coin__time--#{String.downcase(@view.chain)}"]}
+          role="img"
+          aria-label={@bar.label}
+          title={@bar.label}
+          phx-hook=".AuctionTimeBar"
+          data-opens-at={@bar.opens_at && DateTime.to_iso8601(@bar.opens_at)}
+          data-ends-at={@figures.ends_at && DateTime.to_iso8601(@figures.ends_at)}
+        >
+          <span :if={@bar.progress} style={"width: #{@bar.progress}%"}></span>
+        </div>
       </div>
       <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeBar">
         export default {

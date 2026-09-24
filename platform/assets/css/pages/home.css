@@ -102,8 +102,15 @@
 }
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) { #home-explore .home-coin__action:hover:not(:disabled) { transform: translateY(-2px); } }
 @media (prefers-reduced-motion: no-preference) { #home-explore .home-coin__action:active:not(:disabled) { transform: scale(var(--active-scale)); } }
-/* An auction's time bar: how much of its time has passed, in its chain's colour a little brighter than the chain's box. */
-#home-explore .home-coin__time { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
+/* An auction's two bars at the foot of its card, always in the same place so every card keeps its height:
+   how much of the launch threshold is met, only while it is not yet met, in a faint glowing white that turns green at its end;
+   under it, how much of the auction's time has passed, in its chain's colour a little brighter than the chain's box. */
+#home-explore .home-coin__bars { display: grid; grid-template-rows: 3px 4px; row-gap: 5px; margin-top: 10px; }
+#home-explore .home-coin__met { grid-row: 1; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 7%, transparent); }
+#home-explore .home-coin__met span { display: block; height: 100%; max-width: 100%; border-radius: 2px; background: linear-gradient(to left, #3ee04c, rgb(255 255 255 / .92) 10px); box-shadow: 0 0 5px rgb(255 255 255 / .55); }
+:root[data-theme="light"] #home-explore .home-coin__met { background: color-mix(in srgb, var(--color-fg) 16%, transparent); }
+:root[data-theme="light"] #home-explore .home-coin__met span { box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 0 5px rgb(255 255 255 / .9); }
+#home-explore .home-coin__time { grid-row: 2; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
 #home-explore .home-coin__time span { display: block; height: 100%; background: var(--time-color); }
 #home-explore .home-coin__time--base { --time-color: #2970ff; }
 #home-explore .home-coin__time--robinhood { --time-color: #00e606; }
