@@ -2,7 +2,7 @@ import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/p
 import {installSharedProfile} from "./shared_profile"
 export type AccountRequest = "sign-in" | "sign-out" | "sync"
 
-export type IdentityProvider = "x" | "github" | "farcaster"
+export type IdentityProvider = "github" | "farcaster"
 
 export type IdentityRequest = {
   action: "link" | "unlink"
@@ -834,8 +834,7 @@ function isIdentityRequest(value: unknown): value is IdentityRequest {
   const request = value as Partial<IdentityRequest>
   return (
     (request.action === "link" || request.action === "unlink") &&
-    (request.provider === "x" ||
-      request.provider === "github" ||
+    (request.provider === "github" ||
       request.provider === "farcaster") &&
     (request.subject === undefined || typeof request.subject === "string")
   )

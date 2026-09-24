@@ -4,6 +4,12 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 (`autolaunch-sh`) and the commit it was built from.
 
 ## Next (not live yet)
+- The profile page shows only your connected accounts: the name, wallet and X box above them is
+  gone.
+- A connected GitHub account can be changed or disconnected, like X.
+- Account names in the connections list are no longer underlined.
+- The connections on the profile page respond again: before, their buttons could stop working
+  once the page finished loading.
 
 ## v26, 24 September 2026 (40327e4)
 - The bid box is laid out like a swap: a Max budget box with the currency beside the figure, a

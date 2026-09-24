@@ -1,30 +1,56 @@
 import type {Hook} from "../hook_composition"
+
+// Change is a disconnect followed by a connect; the other two are one step.
+type GithubStep = "connect" | "change" | "disconnect"
+
 type CreatorHook = Hook & {
   el: HTMLElement
-  linkingGithub?: boolean
+  githubStep?: GithubStep
   onCreatorClick?: (event: Event) => void
   onCreatorIdentity?: (event: Event) => void
+}
+
+const request = (detail: {action: "link" | "unlink", provider: "github", subject?: string}) =>
+  document.dispatchEvent(new CustomEvent("autolaunch:identity-request", {detail}))
+
+const failure: Record<GithubStep, string> = {
+  connect: "GitHub could not be connected. Try again.",
+  change: "GitHub could not be changed. Try again.",
+  disconnect: "GitHub could not be disconnected. Try again.",
 }
 
 export const CreatorConnections = {
   mounted(this: CreatorHook) {
     const root = this.el as HTMLElement
     this.onCreatorClick = (event: Event) => {
-      if ((event.target as Element)?.closest("[data-connect-github]")) {
-        this.linkingGithub = true
-        document.dispatchEvent(new CustomEvent("autolaunch:identity-request", {
-          detail: {action: "link", provider: "github"},
-        }))
+      const button = (event.target as Element)?.closest<HTMLElement>("[data-connect-github], [data-disconnect-github]")
+      if (!button) return
+      const subject = button.dataset.githubSubject
+      if (button.hasAttribute("data-disconnect-github")) {
+        this.githubStep = "disconnect"
+        request({action: "unlink", provider: "github", subject})
+      } else if (subject) {
+        this.githubStep = "change"
+        request({action: "unlink", provider: "github", subject})
+      } else {
+        this.githubStep = "connect"
+        request({action: "link", provider: "github"})
       }
     }
     this.onCreatorIdentity = (event: Event) => {
-      if (!this.linkingGithub) return
-      this.linkingGithub = false
+      const step = this.githubStep
+      if (!step) return
       const detail = (event as CustomEvent<{error: string | null}>).detail
-      if (detail && !detail.error) window.location.reload()
-      else {
+      if (!detail || detail.error) {
+        this.githubStep = undefined
         const status = root.querySelector("[data-creator-connection-status]")
-        if (status) status.textContent = "GitHub could not be connected. Try again."
+        if (status) status.textContent = failure[step]
+      } else if (step === "change") {
+        this.githubStep = "connect"
+        request({action: "link", provider: "github"})
+      } else {
+        this.githubStep = undefined
+        window.location.reload()
       }
     }
     root.addEventListener("click", this.onCreatorClick)

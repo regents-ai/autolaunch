@@ -151,12 +151,21 @@ defmodule AutolaunchWeb.CreatorConnectionsComponent do
       >
         <:actions>
           <Regent.Primitives.button
-            :if={!@github}
             type="button"
             variant="secondary"
             data-connect-github
+            data-github-subject={@github && @github.subject}
           >
-            Connect
+            {if @github, do: "Change", else: "Connect"}
+          </Regent.Primitives.button>
+          <Regent.Primitives.button
+            :if={@github}
+            type="button"
+            variant="secondary"
+            data-disconnect-github
+            data-github-subject={@github.subject}
+          >
+            Disconnect
           </Regent.Primitives.button>
         </:actions>
       </.connection>

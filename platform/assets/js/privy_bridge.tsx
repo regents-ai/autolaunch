@@ -1,5 +1,4 @@
 import {createProfileClient, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
-import {createXLinkIntent} from "../vendor/regent_identity/x_link_intent.mjs"
 import {
   PrivyProvider,
   type PrivyEvents,
@@ -138,25 +137,22 @@ export function createSignInRequest({
 }
 
 type IdentityRequestHandlerOptions = {
-  linkX: () => void
   linkGithub: () => void
   linkFarcaster: () => void
-  unlinkOAuth: (provider: "twitter" | "github", subject: string) => Promise<void>
+  unlinkGithub: (subject: string) => Promise<void>
   unlinkFarcaster: (fid: number) => Promise<void>
   refreshSession: () => Promise<void>
 }
 
 export function createIdentityRequestHandler({
-  linkX,
   linkGithub,
   linkFarcaster,
-  unlinkOAuth,
+  unlinkGithub,
   unlinkFarcaster,
   refreshSession,
 }: IdentityRequestHandlerOptions): (request: IdentityRequest) => Promise<void> {
   return async request => {
     if (request.action === "link") {
-      if (request.provider === "x") linkX()
       if (request.provider === "github") linkGithub()
       if (request.provider === "farcaster") linkFarcaster()
       return
@@ -171,7 +167,7 @@ export function createIdentityRequestHandler({
       }
       await unlinkFarcaster(fid)
     } else {
-      await unlinkOAuth(request.provider === "x" ? "twitter" : "github", request.subject)
+      await unlinkGithub(request.subject)
     }
 
     await refreshSession()
@@ -587,10 +583,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   React.useEffect(() => {
     const changed = provider.current.authenticated !== authenticated || provider.current.subject !== subject
     provider.current = {authenticated, login, logout, ready, subject}
-    if (changed) {
-      profileGeneration.current += 1
-      window.dispatchEvent(new Event("regent:profile-identity"))
-    }
+    if (changed) profileGeneration.current += 1
   }, [authenticated, login, logout, ready, subject])
   const signInRequest = React.useMemo(
     () =>
@@ -629,16 +622,16 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     [getAccessToken, providerState?.getIdentityToken],
   )
   acquireTokensRef.current = acquireTokens
-  const profileFor = React.useCallback((expectedSubject?: string) => createProfileClient({
+  const profileHandler = React.useMemo(() => createProfileClient({
     async acquireProof({signal}) {
       if (!isAvailable()) throw new Error("Privy provider is unavailable")
-      while (!provider.current.ready || (expectedSubject && provider.current.subject !== expectedSubject)) {
+      while (!provider.current.ready) {
         signal.throwIfAborted()
         if (!isAvailable()) throw new Error("Privy provider is unavailable")
         await new Promise(resolve => setTimeout(resolve, 25))
       }
       const state = provider.current
-      if (!state.authenticated || !state.subject || (expectedSubject && expectedSubject !== state.subject) ||
+      if (!state.authenticated || !state.subject ||
           (signOutOnly && signOutOnlyState.current !== "terminal")) return null
       const generation = profileGeneration.current
       const tokens = await acquireTokensRef.current()
@@ -646,18 +639,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
         isAvailable() && provider.current.authenticated && provider.current.subject === state.subject && profileGeneration.current === generation}
     },
   }), [signOutOnly, isAvailable])
-  const profileHandler = React.useMemo(() => profileFor(), [profileFor])
-  const profileIntent = React.useCallback(() => {
-    const appId = providerState?.appId ?? document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content ?? ""
-    let storage: Storage | null = null
-    try { storage = window.sessionStorage } catch {}
-    return createXLinkIntent(storage, appId)
-  }, [providerState?.appId])
-  const profileLinkNonce = React.useRef<string | null>(null)
-  const notifyProfileLink = React.useCallback((ok: boolean) => {
-    if (!isAvailable()) return
-    window.dispatchEvent(new CustomEvent("regent:profile-link", {detail: {ok}}))
-  }, [isAvailable])
   const notifyIdentityState = React.useCallback((error: string | null) => {
     if (!isAvailable()) return
     window.dispatchEvent(
@@ -673,24 +654,18 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   }, [acquireTokens, notifyIdentityState, isAvailable])
   const linkCallbacks = React.useMemo(
     () => ({
-      onSuccess: (payload: Parameters<NonNullable<PrivyEvents["linkAccount"]["onSuccess"]>>[0]) => {
+      onSuccess: () => {
         if (!isAvailable()) return
-        const expected = profileIntent().claim(payload)
-        if (expected) {
-          void profileFor(expected)("sync").then(result => notifyProfileLink(result.ok))
-        }
         void refreshIdentitySession().catch(() => notifyIdentityState("failed"))
       },
       onError: () => {
         if (!isAvailable()) return
-        profileIntent().cancel(profileLinkNonce.current)
-        notifyProfileLink(false)
         notifyIdentityState("failed")
       },
     }),
-    [notifyIdentityState, refreshIdentitySession, profileIntent, profileFor, notifyProfileLink, isAvailable],
+    [notifyIdentityState, refreshIdentitySession, isAvailable],
   )
-  const {linkTwitter, linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
+  const {linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
   const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const walletSyncGeneration = React.useRef(0)
@@ -793,20 +768,10 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
   const ordinaryIdentityHandler = React.useMemo(
     () =>
       createIdentityRequestHandler({
-        linkX: () => {
-          const currentSubject = provider.current.subject
-          if (!currentSubject || !provider.current.authenticated) throw new Error("authentication_required")
-          const nonce = profileIntent().begin(currentSubject)
-          profileLinkNonce.current = nonce
-          Promise.resolve(linkTwitter()).catch(() => {
-            profileIntent().cancel(nonce)
-            notifyProfileLink(false)
-          })
-        },
         linkGithub,
         linkFarcaster,
-        unlinkOAuth: async (provider, subject) => {
-          await unlinkOAuth({provider, subject})
+        unlinkGithub: async subject => {
+          await unlinkOAuth({provider: "github", subject})
         },
         unlinkFarcaster: async fid => {
           await unlinkFarcasterAccount({fid})
@@ -816,9 +781,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, isAvailable}
     [
       linkFarcaster,
       linkGithub,
-      linkTwitter,
-      profileIntent,
-      notifyProfileLink,
       refreshIdentitySession,
       unlinkFarcasterAccount,
       unlinkOAuth,

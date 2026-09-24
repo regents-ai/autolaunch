@@ -78,7 +78,6 @@
 @media (max-width: 42rem) { .market-profile-panel, .launchpad-form-section, .launchpad-create__preview { padding: 16px; } }
 
 
-.market-profile-panel .rg-profile h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 #home-explore > .auction-stats { margin-bottom: var(--space-3); }
 /* An amount's dollar value, beside the amount itself. */
 .usd-value { color: var(--color-fg-muted); font-size: .875em; font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -45,7 +45,6 @@ defmodule AutolaunchWeb.Router do
   scope "/", AutolaunchWeb do
     pipe_through :browser
 
-    get "/profile", SharedProfileController, :show
     get "/settings", SettingsController, :show
     get "/create/stocks", CreateRedirectController, :stocks
 
@@ -79,6 +78,7 @@ defmodule AutolaunchWeb.Router do
       live "/robinhood/tokens/:token", RobinhoodTokenLive, :show
       live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
+      live "/profile", ProfileLive, :profile
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
     end

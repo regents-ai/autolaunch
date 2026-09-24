@@ -22,7 +22,7 @@ defmodule AutolaunchWeb.SettingsHTML do
           <dd>{@account_control.wallet_address}</dd>
         </dl>
         <p :if={@account_control.kind == :signed_in}>
-          Your name, wallet choice and connected accounts (X, GitHub and ENS) live on your <.link href="/profile">profile</.link>. There is nothing else to set yet.
+          Your connected accounts (X, GitHub and ENS) live on your <.link href="/profile">profile</.link>. There is nothing else to set yet.
         </p>
         <Regent.Primitives.button
           :if={@account_control.kind == :signed_in}

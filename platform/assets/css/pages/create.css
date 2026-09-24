@@ -70,6 +70,7 @@
 .connection__text { display: grid; min-width: 0; line-height: 1.35; }
 .connection__text strong { font-size: .9375rem; }
 .connection__text :is(a, span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection__text a { color: inherit; text-decoration: none; }
 .connection__text small { color: var(--color-fg-muted); font-size: .8125rem; }
 .connection__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-1); }
 .connection__form { grid-column: 1/-1; display: grid; gap: var(--space-1); margin-top: var(--space-3); }
