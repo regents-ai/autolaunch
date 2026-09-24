@@ -111,6 +111,15 @@ defmodule Autolaunch.LabMarketFeed do
 
   def handle_info({:snapshots, _token, _result}, state), do: {:noreply, state}
 
+  def handle_info(
+        {:projected, token, outcome},
+        %{in_flight: %{token: token, stage: :projection, head: head, snapshots: snapshots}} =
+          state
+      ),
+      do: handle_projection(outcome, state, head, snapshots)
+
+  def handle_info({:projected, _token, _outcome}, state), do: {:noreply, state}
+
   defp handle_head(state, head) do
     state = discard_displaced_pending(state, head)
 
@@ -180,33 +189,41 @@ defmodule Autolaunch.LabMarketFeed do
     end
   end
 
+  # Verifying the head and writing the readings both reach the chain or the
+  # database, so they run in a task: a page asking for the snapshot is always
+  # answered at once from the last accepted readings.
   defp project_refresh(state, head, snapshots) do
-    case safely(fn -> state.reader.verify_head(head) end) do
-      :ok -> project_verified_refresh(state, head, snapshots)
-      {:error, {:head_changed, current}} -> {:noreply, verified_transition(state, current)}
-      {:error, _reason} -> {:noreply, retry_projection(state, head, snapshots)}
+    token = make_ref()
+    parent = self()
+    %{reader: reader, projector: projector} = state
+
+    Task.start(fn ->
+      send(parent, {:projected, token, projection(reader, projector, head, snapshots)})
+    end)
+
+    {:noreply,
+     %{state | in_flight: %{token: token, stage: :projection, head: head, snapshots: snapshots}}}
+  end
+
+  # The head is verified before the readings are written and again after, so
+  # nothing is published from a block the chain has since left.
+  defp projection(reader, projector, head, snapshots) do
+    with :ok <- safely(fn -> reader.verify_head(head) end),
+         {:ok, durable_changed_ids} <- safely(fn -> projector.project(snapshots, head) end),
+         :ok <- safely(fn -> reader.verify_head(head) end) do
+      {:ok, durable_changed_ids}
     end
   end
 
-  defp project_verified_refresh(state, head, snapshots) do
-    case safely(fn -> state.projector.project(snapshots, head) end) do
-      {:ok, durable_changed_ids} ->
-        publish_verified_refresh(state, head, snapshots, durable_changed_ids)
+  defp handle_projection({:ok, durable_changed_ids}, state, head, snapshots),
+    do: accept_refresh(state, head, snapshots, durable_changed_ids)
 
-      {:error, {:head_changed, current}} ->
-        {:noreply, verified_transition(state, current)}
+  defp handle_projection({:error, {:head_changed, current}}, state, _head, _snapshots),
+    do: {:noreply, verified_transition(state, current)}
 
-      {:error, _reason} ->
-        {:noreply, retry_projection(state, head, snapshots)}
-    end
-  end
-
-  defp publish_verified_refresh(state, head, snapshots, durable_changed_ids) do
-    case safely(fn -> state.reader.verify_head(head) end) do
-      :ok -> accept_refresh(state, head, snapshots, durable_changed_ids)
-      {:error, {:head_changed, current}} -> {:noreply, verified_transition(state, current)}
-      {:error, _reason} -> {:noreply, retry_projection(state, head, snapshots)}
-    end
+  defp handle_projection({:error, reason}, state, head, snapshots) do
+    Logger.warning("revstake market feed could not record its readings: #{inspect(reason)}")
+    {:noreply, retry_projection(state, head, snapshots)}
   end
 
   defp accept_refresh(state, head, snapshots, durable_changed_ids) do
