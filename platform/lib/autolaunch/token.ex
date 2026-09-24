@@ -277,7 +277,10 @@ defmodule Autolaunch.Token do
   end
 
   relationships do
+    # Read through the listing rule, so a Robinhood launch's token reaches its
+    # auction too.
     belongs_to :auction, Autolaunch.Auction do
+      read_action :listed
       allow_nil? false
       attribute_public? true
     end
