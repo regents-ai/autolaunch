@@ -95,4 +95,11 @@
 .auction-figures dd { flex-shrink: 0; margin: 0; text-align: right; white-space: nowrap; font-weight: 600; }
 .auction-figures dd small { display: block; color: var(--color-fg-muted); font-size: .6875rem; font-weight: 400; }
 .auction-figures .auction-figures__progress { width: 100%; margin: 3px 0 3px auto; }
-@media (max-width: 42rem) { .auction-list__search { flex-basis: 100%; max-width: none; } .auction-list__table :is(th, td) { padding: 10px 12px; } }
+@media (max-width: 42rem) {
+  .auction-list__search { flex-basis: 100%; max-width: none; }
+  .auction-list__table { min-width: 0; }
+  .auction-list__table :is(th, td) { padding: 10px 12px; }
+  .auction-list__table :is(th, td):is(:nth-child(2), :nth-child(3)) { display: none; }
+  .auction-list__name strong { max-width: 120px; }
+  .auction-figures__progress { width: 72px; }
+}

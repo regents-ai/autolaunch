@@ -197,12 +197,56 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :auction, :map, required: true, doc: "an auction with `fdv_at_floor` loaded"
-  attr :creator_connections, :map, default: %{}
-  attr :rate, :any, default: nil, doc: "the USD price of one unit of the auction's currency"
+  attr :records, :list, required: true, doc: "auctions with `fdv` loaded"
+  attr :creators, :map, required: true, doc: "creator connections grouped by human account"
+  attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
+  attr :loading, :boolean, default: false
 
-  @doc "One row of the auctions list: the token, then the four auction figures."
-  def auction_list_row(assigns) do
+  @doc """
+  The auctions list: the token, then the four auction figures. On a phone only
+  the token, launch threshold and status show.
+  """
+  def auction_list(assigns) do
+    ~H"""
+    <div class="auction-list__scroll">
+      <table class="auction-list__table">
+        <caption class="visually-hidden">Auctions</caption>
+        <thead>
+          <tr>
+            <th scope="col">Token</th>
+            <th scope="col">FDV</th>
+            <th scope="col">Bid volume</th>
+            <th scope="col">Launch threshold</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <.auction_list_row
+            :for={record <- @records}
+            auction={record}
+            creator_connections={Map.get(@creators, record.creator_human_account_id, %{})}
+            rate={figure_rate(@rates, record)}
+          />
+          <tr
+            :for={index <- 1..6}
+            :if={@loading && @records == []}
+            id={"auctions-loading-#{index}"}
+            class="auction-list__skeleton"
+            aria-hidden="true"
+          >
+            <td colspan="5"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  attr :auction, :map, required: true
+  attr :creator_connections, :map, default: %{}
+  attr :rate, :any, default: nil
+
+  defp auction_list_row(assigns) do
     view = view(:auction, assigns.auction, assigns.creator_connections)
 
     assigns =
@@ -255,14 +299,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :auction, :map, required: true, doc: "an auction with `fdv_at_floor` loaded"
+  attr :auction, :map, required: true, doc: "an auction with `fdv` loaded"
 
   attr :rate, :any,
     default: nil,
     doc: "the USD price of one unit of the auction's currency, nil while none is known"
 
   @doc """
-  The four figures every auction list and card shows: FDV at the floor price,
+  The four figures every auction list and card shows: FDV at the current price,
   bid volume, the launch threshold with how much of it is met, and the status.
   A figure the site does not know shows as a dash, never as zero.
   """
@@ -272,7 +316,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     ~H"""
     <dl class="auction-figures">
       <div>
-        <dt>FDV at floor</dt>
+        <dt>FDV</dt>
         <dd>{@figures.fdv}</dd>
       </div>
       <div>
@@ -337,7 +381,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       |> Decimal.new()
 
     %{
-      fdv: dollars(auction.fdv_at_floor, rate),
+      fdv: dollars(auction.fdv, rate),
       volume: dollars(auction.bid_volume_usd, 1),
       threshold: dollars(minimum, rate),
       met: percent_met(auction.currency_raised, minimum),

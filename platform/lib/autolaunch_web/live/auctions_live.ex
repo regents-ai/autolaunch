@@ -1,16 +1,13 @@
 defmodule AutolaunchWeb.AuctionsLive do
   @moduledoc """
-  The auctions list: every auction as a table row with its FDV at the floor
+  The auctions list: every auction as a table row with its FDV at the current
   price, bid volume, launch threshold and status, filtered by chain, status,
   search and the creator's verified connections.
   """
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.AutolaunchHelpers,
-    only: [connections_for: 2, creator_connections_for: 1]
-
-  import AutolaunchWeb.Components.MarketCard,
-    only: [auction_list_row: 1, assign_figure_rates: 1, figure_rate: 2]
+  import AutolaunchWeb.Components.AutolaunchHelpers, only: [creator_connections_for: 1]
+  import AutolaunchWeb.Components.MarketCard, only: [auction_list: 1, assign_figure_rates: 1]
 
   import AutolaunchWeb.Components.AuctionStats
   alias Autolaunch.HomeMarket
@@ -301,37 +298,13 @@ defmodule AutolaunchWeb.AuctionsLive do
         </Regent.Primitives.notice>
         <p :if={@loading} class="visually-hidden" role="status">Loading auctions</p>
 
-        <div :if={@records != [] or @loading} class="auction-list__scroll">
-          <table class="auction-list__table">
-            <caption class="visually-hidden">Auctions</caption>
-            <thead>
-              <tr>
-                <th scope="col">Token</th>
-                <th scope="col">FDV at floor</th>
-                <th scope="col">Bid volume</th>
-                <th scope="col">Launch threshold</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <.auction_list_row
-                :for={record <- @records}
-                auction={record}
-                creator_connections={connections_for(record, @creators)}
-                rate={figure_rate(@rates, record)}
-              />
-              <tr
-                :for={index <- 1..6}
-                :if={@loading && @records == []}
-                id={"auctions-loading-#{index}"}
-                class="auction-list__skeleton"
-                aria-hidden="true"
-              >
-                <td colspan="5"></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <.auction_list
+          :if={@records != [] or @loading}
+          records={@records}
+          creators={@creators}
+          rates={@rates}
+          loading={@loading}
+        />
 
         <Regent.Primitives.notice :if={@failed} tone="error">
           <p>

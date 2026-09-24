@@ -44,7 +44,7 @@ defmodule AutolaunchWeb.ConvertComponent do
     amount_too_large: "That amount is too large to move at once.",
     envelope_invalid: "This review is out of date. Close it and review again.",
     invalid_hash: "That transaction could not be read. Check your wallet activity.",
-    not_converter: "Only the wallet the Safe named can convert REGENT's share.",
+    not_converter: "Only the wallet chosen to sell REGENT's share can do this.",
     amount_above_share: "Less than that is waiting in REGENT's share.",
     no_route: "This stock has no conversion route yet.",
     price_unavailable:
