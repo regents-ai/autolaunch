@@ -126,7 +126,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
           </div>
         </dl>
         <p class="launch-trust__note">
-          <.link navigate="/token-details">How every {@split.name} token is split</.link>
+          <.link navigate="/how-it-works">How every {@split.name} token is split</.link>
         </p>
 
         <h3 class="autolaunch-micro">Liquidity</h3>
@@ -256,7 +256,7 @@ defmodule AutolaunchWeb.Components.LaunchTrust do
     ) ++ lockers
   end
 
-  # Each launch type's fixed split, as the token details page states it.
+  # Each launch type's fixed split, as the How Autolaunch works page states it.
   defp split(:agent),
     do: %{
       name: "Revstake",

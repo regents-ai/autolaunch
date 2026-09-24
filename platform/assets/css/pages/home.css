@@ -125,6 +125,21 @@
 #home-explore .home-coin__time span { display: block; height: 100%; background: var(--time-color); }
 #home-explore .home-coin__time--base { --time-color: #2970ff; }
 #home-explore .home-coin__time--robinhood { --time-color: #00e606; }
+/* Phone cards sit a little tighter; on a touch phone the raise figures never show, so their
+   corner closes up and only the FDV line stays. */
+@container (max-width: 170px) {
+  #home-explore .home-coin__pair { margin-top: 10px; }
+  #home-explore .home-coin__metric, #home-explore .home-coin__description { margin-top: 6px; }
+  #home-explore .home-coin__figures { margin-top: 4px; }
+  #home-explore .home-coin__actions { margin-top: 8px; }
+  #home-explore .home-coin__bars { margin-top: 8px; }
+}
+@media (hover: none) {
+  @container (max-width: 170px) {
+    #home-explore .home-coin__figures { --figure-lines: 1; }
+    #home-explore .home-coin__raise { display: none; }
+  }
+}
 #home-explore .home-skeleton__image { width: 100%; aspect-ratio: 1; border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 #home-explore .home-skeleton__line { height: 12px; margin-top: 12px; border-radius: 3px; background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 #home-explore .home-skeleton__line--short { width: 55%; }
