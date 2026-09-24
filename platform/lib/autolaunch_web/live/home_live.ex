@@ -231,6 +231,14 @@ defmodule AutolaunchWeb.HomeLive do
               aria-current={if @kind == :token, do: "page"}
             >Tokens</.link>
           </nav>
+          <.link
+            :if={@kind == :auction}
+            navigate={~p"/auctions"}
+            class="home-heading__all"
+          >Search all auctions</.link>
+          <.link :if={@kind == :token} navigate={~p"/tokens"} class="home-heading__all">
+            Search all tokens
+          </.link>
         </div>
         <span class="home-network" title="The network these listings belong to">
           <span aria-hidden="true" class="home-network__dot"></span>
