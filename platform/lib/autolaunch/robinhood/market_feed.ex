@@ -229,7 +229,10 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   # account when exactly one account's signed-in wallet it still is.
   defp creator(launcher) do
     with {:ok, accounts} <-
-           Autolaunch.Accounts.list_human_accounts_by_signed_in_wallets([launcher], actor: @actor) do
+           Autolaunch.Accounts.list_human_accounts_by_signed_in_wallets(
+             [String.downcase(launcher)],
+             actor: @actor
+           ) do
       case accounts do
         [%{id: id}] -> {:ok, id}
         _none_or_several -> {:ok, nil}
@@ -266,19 +269,21 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   # Each auction is read and written on its own: one that fails is logged and
   # left as it is, and every other auction still refreshes.
   defp refresh_auctions(reader, head, auctions) do
-    Enum.reduce(auctions, {%{}, []}, fn auction, {snapshots, changed} ->
-      case safely(fn -> refresh_auction(reader, head, auction) end) do
-        {:ok, reading, changed_id} ->
-          {Map.put(snapshots, reading.auction_address, reading), List.wrap(changed_id) ++ changed}
-
-        {:error, reason} ->
-          Logger.warning(
-            "robinhood market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
-          )
-
-          {snapshots, changed}
-      end
+    Enum.reduce(auctions, {%{}, []}, fn auction, collected ->
+      result = safely(fn -> refresh_auction(reader, head, auction) end)
+      collect_reading(result, auction, collected)
     end)
+  end
+
+  defp collect_reading({:ok, reading, changed_id}, _auction, {snapshots, changed}),
+    do: {Map.put(snapshots, reading.auction_address, reading), List.wrap(changed_id) ++ changed}
+
+  defp collect_reading({:error, reason}, auction, collected) do
+    Logger.warning(
+      "robinhood market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+    )
+
+    collected
   end
 
   defp refresh_auction(reader, head, auction) do

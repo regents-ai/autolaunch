@@ -252,27 +252,27 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   # left as it is, and every other auction still refreshes.
   defp refresh_auctions(config, block, opts, auctions) do
     {snapshots, changed} =
-      Enum.reduce(auctions, {%{}, []}, fn auction, {snapshots, changed} ->
-        case safely(fn -> refresh_auction(config, block, opts, auction) end) do
-          {:ok, snapshot, changed_id} ->
-            {Map.put(snapshots, snapshot.auction_address, snapshot),
-             List.wrap(changed_id) ++ changed}
-
-          # A row whose contract does not exist at this head has no market to
-          # read (a launch mined on another lab run, or one a reorg removed).
-          {:error, :lab_contract_missing} ->
-            {snapshots, changed}
-
-          {:error, reason} ->
-            Logger.warning(
-              "memestake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
-            )
-
-            {snapshots, changed}
-        end
+      Enum.reduce(auctions, {%{}, []}, fn auction, collected ->
+        result = safely(fn -> refresh_auction(config, block, opts, auction) end)
+        collect_reading(result, auction, collected)
       end)
 
     {:ok, snapshots, changed}
+  end
+
+  defp collect_reading({:ok, snapshot, changed_id}, _auction, {snapshots, changed}),
+    do: {Map.put(snapshots, snapshot.auction_address, snapshot), List.wrap(changed_id) ++ changed}
+
+  # A row whose contract does not exist at this head has no market to read (a
+  # launch mined on another lab run, or one a reorg removed).
+  defp collect_reading({:error, :lab_contract_missing}, _auction, collected), do: collected
+
+  defp collect_reading({:error, reason}, auction, collected) do
+    Logger.warning(
+      "memestake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+    )
+
+    collected
   end
 
   defp refresh_auction(config, block, opts, auction) do

@@ -50,7 +50,12 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       down?: false,
       clock: 250,
       launches: [
-        launch(1, @site_auction, creator.wallet_address),
+        # A checksummed launcher still names its creator.
+        launch(
+          1,
+          @site_auction,
+          "0x" <> String.upcase(String.slice(creator.wallet_address, 2..-1//1))
+        ),
         launch(2, @outside_auction, @outside_launcher)
       ],
       markets: %{
