@@ -945,8 +945,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   # The rest comes back early only once the auction has reached its minimum,
   # and only once it has recorded a price above the bid.
-  defp back(%{graduated?: true}, :waiting), do: :price_recorded
-  defp back(%{graduated?: true}, _offered_or_unknown), do: :now
+  defp back(%{graduated?: true}, :ready), do: :now
+  defp back(%{graduated?: true}, _not_yet), do: :price_recorded
   defp back(_reading, _early_return), do: :after_end
 
   defp own_bid(%{reading: %{bids: bids}}, bid_id), do: Enum.find(bids, &(&1["bid_id"] == bid_id))

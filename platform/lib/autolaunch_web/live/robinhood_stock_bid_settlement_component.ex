@@ -12,9 +12,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   With `early`, the bid is an outbid one while bidding is still open. The
   auction is asked in the background whether it would return the unspent
-  stock now, and again when the auction moves on while it would not. The
-  button appears only once it would; the bid panel is told either way, so its
-  line can say when the rest can come back.
+  stock now, and again at most every half minute while it would not. Only
+  once it would is the return reviewed and the button shown; the bid panel is
+  told either way, so its line can say when the rest can come back.
   """
 
   use AutolaunchWeb, :live_component
@@ -104,9 +104,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         role={if @notice.tone == :error, do: "alert", else: "status"}
       >
         {@notice.message}
-      </p>
-      <p :if={@early_state == :checking && !@review} class="bid-form__note" role="status">
-        Checking what can come back now…
       </p>
       <div :if={@review} class="bid-early-return__offer">
         <p :if={!@sent["exit"]}>
@@ -341,18 +338,24 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
       wallet != socket.assigns.wallet or socket.assigns.review ->
         {:noreply, socket |> assign(early_state: nil) |> early_check()}
 
+      result == :waiting ->
+        {:noreply, socket |> assign(early_state: :waiting, notice: nil) |> early_told()}
+
       match?({:ok, _}, result) ->
         {:ok, review} = result
 
         {:noreply,
          socket
-         |> assign(review: review, sent: %{}, notice: nil, early_state: :offered)
+         |> assign(review: review, sent: %{}, notice: nil, early_state: :ready)
          |> published()
          |> early_told()
          |> early_later()}
 
       true ->
-        {:noreply, early_refused(socket, refusal(elem(result, 1)))}
+        {:noreply,
+         socket
+         |> assign(early_state: :refused, notice: notice(:error, refusal(elem(result, 1))))
+         |> early_told()}
     end
   end
 
@@ -364,17 +367,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
          early_checked_at: System.monotonic_time(:second),
          notice: %{tone: :error, message: @generic}
        )}
-
-  # The auction has not recorded a price above this bid yet, so the bid panel
-  # says when the stock can come back instead of offering a button.
-  defp early_refused(socket, :bid_needs_partial_exit_hints_unavailable),
-    do: socket |> assign(early_state: :waiting, notice: nil) |> early_told()
-
-  defp early_refused(socket, reason),
-    do:
-      socket
-      |> assign(early_state: :refused, notice: notice(:error, reason))
-      |> early_told()
 
   # The auction is asked while this row holds no review: first once a wallet
   # is known, then again, at most every half minute, while the answer was no.
@@ -402,9 +394,17 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
     socket
     |> assign(early_state: :checking)
-    |> start_async(:early, fn ->
-      {wallet, StockBidSettlementActions.prepare(request, wallet, opts)}
-    end)
+    |> start_async(:early, fn -> {wallet, early_offer(request, wallet, opts)} end)
+  end
+
+  # Read-only until the auction would return the stock: only then is the
+  # return reviewed.
+  defp early_offer(request, wallet, opts) do
+    case StockBidSettlementActions.exit_ready?(Map.put(request, :owner, wallet)) do
+      {:ok, true} -> StockBidSettlementActions.prepare(request, wallet, opts)
+      {:ok, false} -> :waiting
+      {:error, _reason} = refused -> refused
+    end
   end
 
   defp early_told(%{assigns: %{parent_id: parent, bid: %{"bid_id" => bid_id}}} = socket) do
