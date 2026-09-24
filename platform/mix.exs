@@ -58,6 +58,8 @@ defmodule Autolaunch.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
+      {:ens_elixir,
+       path: System.get_env("REGENT_ENS_PATH", Path.join(shared, "elixir-utils/ens"))},
       {:regent_privy,
        path: System.get_env("REGENT_PRIVY_PATH", Path.join(shared, "elixir-utils/privy"))},
       {:regent_identity,
@@ -148,11 +150,11 @@ defmodule Autolaunch.MixProject do
         # Two kinds of compile-connected edge are permitted: a domain naming
         # its compile-time resources, and each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time.
-        # Nothing else is permitted. The ceiling is twenty-four domain-to-resource
-        # edges (Accounts four, Autolaunch twenty) plus thirty-three
+        # Nothing else is permitted. The ceiling is twenty-six domain-to-resource
+        # edges (Accounts four, Autolaunch twenty-two) plus thirty-five
         # resource-to-check edges, and it is re-based per unit when a domain,
         # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 59",
+        "xref graph --label compile-connected --fail-above 61",
         "test --warnings-as-errors",
         "ash.codegen --check"
       ]

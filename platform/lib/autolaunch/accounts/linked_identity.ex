@@ -1,6 +1,7 @@
 defmodule Autolaunch.Accounts.LinkedIdentity do
   use Ash.Resource,
     otp_app: :autolaunch,
+    primary_read_warning?: false,
     domain: Autolaunch.Accounts,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
@@ -10,7 +11,59 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
     repo Autolaunch.Repo
   end
 
+  field_policies do
+    field_policy [:subject, :metadata] do
+      authorize_if Autolaunch.Checks.SystemActor
+      authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    field_policy :* do
+      authorize_if always()
+    end
+  end
+
   actions do
+    action :connect_ens, :map do
+      argument :name, :string, allow_nil?: false, constraints: [max_length: 253]
+      run fn input, context -> Autolaunch.Accounts.ConnectEns.run(input, context) end
+    end
+
+    read :public_for_humans do
+      argument :human_account_ids, {:array, :integer}, allow_nil?: false
+
+      filter expr(
+               human_account_id in ^arg(:human_account_ids) and provider in [:x, :github, :ens] and
+                 not is_nil(username)
+             )
+
+      prepare build(
+                select: [
+                  :id,
+                  :provider,
+                  :username,
+                  :display_name,
+                  :verified_at,
+                  :human_account_id
+                ]
+              )
+    end
+
+    read :related_public do
+      primary? true
+      filter expr(provider in [:x, :github, :ens] and not is_nil(username))
+
+      prepare build(
+                select: [
+                  :id,
+                  :provider,
+                  :username,
+                  :display_name,
+                  :verified_at,
+                  :human_account_id
+                ]
+              )
+    end
+
     create :upsert_verified do
       accept []
 
@@ -63,11 +116,15 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
   end
 
   policies do
+    policy action([:public_for_humans, :related_public]) do
+      authorize_if always()
+    end
+
     policy action([:upsert_verified, :for_account, :by_provider_subject, :remove_verified]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
 
-    policy action(:read_mine) do
+    policy action([:read_mine, :connect_ens]) do
       authorize_if Autolaunch.Accounts.Checks.HumanActor
     end
   end
@@ -81,11 +138,11 @@ defmodule Autolaunch.Accounts.LinkedIdentity do
       constraints one_of: [:x, :github, :farcaster, :ens, :world]
     end
 
-    attribute :subject, :string, allow_nil?: false
+    attribute :subject, :string, allow_nil?: false, public?: true, sensitive?: true
     attribute :username, :string, public?: true
     attribute :display_name, :string, public?: true
     attribute :verified_at, :utc_datetime_usec, allow_nil?: false, public?: true
-    attribute :metadata, :map, allow_nil?: false, default: %{}
+    attribute :metadata, :map, allow_nil?: false, default: %{}, public?: true, sensitive?: true
     timestamps()
   end
 

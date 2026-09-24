@@ -41,7 +41,10 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
 
   # The address is read here so a patch to another token reloads the page
   # instead of keeping the previous launch on screen.
-  def handle_params(%{"token" => token}, _uri, socket) do
+  def handle_params(%{"token" => token} = params, _uri, socket) do
+    amount = if is_binary(params["stake"]), do: String.slice(params["stake"], 0, 256), else: ""
+    socket = assign(socket, :stake_amount, amount)
+
     case Address.normalize(token) do
       {:ok, address} ->
         {:noreply, socket |> assign(:token_address, address) |> load_page()}
@@ -132,16 +135,20 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           Open the auction this token graduated from
         </.link>
       </p>
-      <.live_component
-        :if={@pool.ok?}
-        module={AutolaunchWeb.StakeComponent}
-        id={"robinhood-stake-#{@token.auction.auction_address}"}
-        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
-        pool={@pool.result}
-        authenticated={@account_control.kind == :signed_in}
-        current_human_id={current_human_id(@access_context)}
-        session_lease={@session_lease}
-      />
+      <section id="stake" aria-label="Staking">
+        <.live_component
+          :if={@pool.ok?}
+          module={AutolaunchWeb.StakeComponent}
+          id={"robinhood-stake-#{@token.auction.auction_address}"}
+          launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
+          pool={@pool.result}
+          initial_amount={@stake_amount}
+          token_path={"/robinhood/tokens/#{@token.auction.token_address}"}
+          authenticated={@account_control.kind == :signed_in}
+          current_human_id={current_human_id(@access_context)}
+          session_lease={@session_lease}
+        />
+      </section>
       <.live_component
         :if={@pool.ok?}
         module={AutolaunchWeb.ConvertComponent}

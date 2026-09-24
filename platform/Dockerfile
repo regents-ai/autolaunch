@@ -27,6 +27,8 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
 RUN mix local.hex --force && mix local.rebar --force
 COPY platform/mix.exs platform/mix.lock ./
+COPY elixir-utils/ens /workspace/elixir-utils/ens
+COPY elixir-utils/siwa/siwa-elixir/apps/siwa /workspace/elixir-utils/siwa/siwa-elixir/apps/siwa
 COPY elixir-utils/privy /workspace/elixir-utils/privy
 COPY elixir-utils/blog /workspace/elixir-utils/blog
 COPY regents/identity /workspace/regents/identity

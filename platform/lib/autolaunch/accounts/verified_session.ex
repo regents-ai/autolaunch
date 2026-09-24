@@ -41,7 +41,7 @@ defmodule Autolaunch.Accounts.VerifiedSession do
            Accounts.list_linked_identities_for_account(account.id, actor: actor),
          {:ok, token_providers, conflicts} <-
            upsert_linked_socials(linked_socials, account.id, actor),
-         :ok <- remove_missing_socials(existing, token_providers, actor) do
+         :ok <- remove_missing_socials(existing, token_providers, account, actor) do
       {:ok, conflicts}
     end
   end
@@ -152,11 +152,12 @@ defmodule Autolaunch.Accounts.VerifiedSession do
     end
   end
 
-  defp remove_missing_socials(existing, token_providers, actor) do
+  defp remove_missing_socials(existing, token_providers, account, actor) do
     existing
     |> Enum.filter(
-      &(&1.provider in @social_providers and
-          not MapSet.member?(token_providers, &1.provider))
+      &((&1.provider in @social_providers and not MapSet.member?(token_providers, &1.provider)) or
+          (&1.provider == :ens and
+             not Autolaunch.Chain.Address.equal?(&1.metadata["wallet"], account.wallet_address)))
     )
     |> Enum.reduce_while(:ok, fn identity, :ok ->
       case Accounts.remove_linked_identity(identity, actor: actor) do

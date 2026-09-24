@@ -10,6 +10,7 @@ defmodule Autolaunch do
   @subject_wallet_operation Module.concat(__MODULE__, "SubjectWalletOperation")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
   resources do
+    resource Autolaunch.BidActivity
     resource Module.concat(__MODULE__, "WalletAttempt")
 
     resource Autolaunch.LaunchDraft do

@@ -42,6 +42,10 @@ type ReviewedStepsHook = Hook & {
 
 export const AutolaunchReviewedSteps: Hook = {
   mounted(this: ReviewedStepsHook) {
+    // Pool data arrives after navigation; the #stake target may not have existed yet.
+    if (this.el.hasAttribute("data-stake-panel") && window.location.hash === "#stake") {
+      this.el.scrollIntoView({block: "start"})
+    }
     const push = (event: string, payload: unknown) => this.pushEventTo(this.el, event, payload)
     const mine = (payload: unknown) =>
       (payload as {component_id?: string} | null)?.component_id === this.el.id

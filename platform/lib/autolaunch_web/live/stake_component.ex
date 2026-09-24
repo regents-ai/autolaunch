@@ -66,13 +66,17 @@ defmodule AutolaunchWeb.StakeComponent do
 
   @impl true
   def update(assigns, socket) do
+    scope =
+      {assigns.launch.chain, launch_key(assigns.launch), assigns.current_human_id,
+       assigns.session_lease}
+
     socket =
-      if socket.assigns[:scope] == assigns.launch do
+      if socket.assigns[:scope] == scope do
         socket
       else
         assign(socket,
-          scope: assigns.launch,
-          amount: "",
+          scope: scope,
+          amount: limited(Map.get(assigns, :initial_amount, "")),
           error: nil,
           wallet: nil,
           position: nil,
@@ -90,6 +94,7 @@ defmodule AutolaunchWeb.StakeComponent do
       |> assign_new(:authenticated, fn -> false end)
       |> assign_new(:current_human_id, fn -> nil end)
       |> assign_new(:session_lease, fn -> nil end)
+      |> assign_new(:token_path, fn -> nil end)
       |> assign(read_only?: Autolaunch.Prelaunch.read_only?())
 
     # A pool read at a new block carries new figures, so the wallet's own are
@@ -99,12 +104,16 @@ defmodule AutolaunchWeb.StakeComponent do
       else: {:ok, socket |> assign(pool_block: assigns.pool.block) |> positioned()}
   end
 
+  defp launch_key(%{chain: :base, auction: %{id: id}}), do: id
+  defp launch_key(%{chain: :robinhood, auction: address}), do: address
+
   @impl true
   def render(assigns) do
     ~H"""
     <section
       id={@id}
       class="token-swap token-stake"
+      data-stake-panel
       phx-hook="AutolaunchReviewedSteps"
       phx-target={@myself}
       phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
@@ -114,12 +123,22 @@ defmodule AutolaunchWeb.StakeComponent do
         :if={@done}
         id={"#{@id}-done"}
         done={@done}
+        share_href={share_href(assigns)}
         dismiss_event="dismiss_done"
         target={@myself}
       />
 
-      <h2 id={@id <> "-title"} class="token-stake__title">Stake {@pool.token.symbol}</h2>
-      <p class="token-stake__lead">{lead(@pool)}</p>
+      <h2 id={@id <> "-title"} class="token-stake__title">
+        {stake_name(@pool)} {@pool.token.symbol}
+      </h2>
+      <p class="token-stake__lead">
+        Tokens are not locked. You can unstake at any time after the block in which you staked.
+      </p>
+      <p :if={@wallet} class="autolaunch-exact-value">Staking wallet: {@wallet}</p>
+      <details>
+        <summary>How rewards work</summary>
+        <p>{lead(@pool)}</p>
+      </details>
 
       <dl class="token-stake__facts">
         <div>
@@ -199,6 +218,26 @@ defmodule AutolaunchWeb.StakeComponent do
             </p>
           </div>
 
+          <div :if={action(assigns) == :act && @position} class="token-stake__actions">
+            <Regent.Primitives.button
+              type="button"
+              variant="secondary"
+              phx-click="review_all"
+              phx-value-kind="stake"
+              phx-target={@myself}
+            >
+              {stake_name(@pool)} all
+            </Regent.Primitives.button>
+            <Regent.Primitives.button
+              type="button"
+              variant="secondary"
+              phx-click="review_all"
+              phx-value-kind="unstake"
+              phx-target={@myself}
+            >
+              Unstake all
+            </Regent.Primitives.button>
+          </div>
           <div :if={action(assigns) == :act} class="token-stake__actions">
             <Regent.Primitives.button
               type="submit"
@@ -206,7 +245,7 @@ defmodule AutolaunchWeb.StakeComponent do
               value="stake"
               class="token-swap__submit"
             >
-              Stake
+              {stake_name(@pool)} {@pool.token.symbol}
             </Regent.Primitives.button>
             <Regent.Primitives.button
               type="submit"
@@ -309,6 +348,17 @@ defmodule AutolaunchWeb.StakeComponent do
       nil ->
         {:noreply, socket}
     end
+  end
+
+  def handle_event("review_all", %{"kind" => kind}, %{assigns: %{position: position}} = socket)
+      when kind in ["stake", "unstake"] and is_map(position) do
+    balance = if kind == "stake", do: position.balance, else: position.staked
+
+    handle_event(
+      "review",
+      %{"kind" => kind, "amount" => StakeActions.portion(balance, 100)},
+      socket
+    )
   end
 
   def handle_event("review", %{"kind" => name} = params, socket) when is_map_key(@kinds, name) do
@@ -490,7 +540,10 @@ defmodule AutolaunchWeb.StakeComponent do
 
   defp adopt(socket, address) when is_binary(address),
     do:
-      socket |> assign(wallet: String.downcase(address)) |> reviewed_for_wallet() |> positioned()
+      socket
+      |> assign(wallet: String.downcase(address), position: nil)
+      |> reviewed_for_wallet()
+      |> positioned()
 
   defp adopt(socket, _other), do: socket
 
@@ -704,6 +757,7 @@ defmodule AutolaunchWeb.StakeComponent do
 
   attr :id, :string, required: true
   attr :done, :map, required: true
+  attr :share_href, :string, default: nil
   attr :dismiss_event, :string, required: true
   attr :target, :any, default: nil
 
@@ -713,6 +767,13 @@ defmodule AutolaunchWeb.StakeComponent do
       <div>
         <strong>{done_title(@done.kind)}</strong>
         <p :for={line <- done_lines(@done)}>{line}</p>
+        <a
+          :if={@done.kind == :stake && @share_href}
+          href={@share_href}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rg-button rg-button--secondary"
+        >Share to X</a>
       </div>
       <Regent.Primitives.button
         type="button"
@@ -727,6 +788,21 @@ defmodule AutolaunchWeb.StakeComponent do
     </aside>
     """
   end
+
+  defp stake_name(%{kind: :agent}), do: "Revstake"
+  defp stake_name(_pool), do: "Memestake"
+
+  defp share_href(%{token_path: path, pool: pool, launch: launch}) when is_binary(path) do
+    chain = if launch.chain == :robinhood, do: "Robinhood", else: "Base"
+
+    "https://x.com/intent/tweet?" <>
+      URI.encode_query(%{
+        text: "I just staked $#{pool.token.symbol} on Autolaunch (#{chain}).",
+        url: "https://autolaunch.sh" <> path
+      })
+  end
+
+  defp share_href(_assigns), do: nil
 
   defp title(:stake), do: "You’re staking"
   defp title(:unstake), do: "You’re unstaking"

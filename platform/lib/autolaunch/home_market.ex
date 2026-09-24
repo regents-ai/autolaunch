@@ -5,13 +5,23 @@ defmodule Autolaunch.HomeMarket do
 
   def options(params) do
     view = if params["view"] == "tokens", do: "tokens", else: "auctions"
-    states = ~w(all created active ended failed)
+    states = ~w(all created active ended failed graduated)
 
     %{
       view: view,
-      sort: choice(params["sort"], ~w(newest oldest), "newest"),
+      sort:
+        choice(
+          params["sort"],
+          if(view == "tokens", do: ~w(newest oldest), else: ~w(newest oldest ending volume)),
+          "newest"
+        ),
       display: choice(params["display"], ~w(grid table), "grid"),
       state: if(view == "tokens", do: "all", else: choice(params["state"], states, "all")),
+      chain: choice(params["chain"], ~w(all base robinhood), "all"),
+      kind: choice(params["kind"], ~w(all revstake memestake), "all"),
+      x: params["x"] in [true, "true"],
+      ens: params["ens"] in [true, "true"],
+      github: params["github"] in [true, "true"],
       q: normalize_query(params["q"])
     }
   end
@@ -32,7 +42,16 @@ defmodule Autolaunch.HomeMarket do
   def read(options, cursor \\ nil) do
     scope = {:home_market, Map.drop(options, [:display])}
     resource = if options.view == "tokens", do: Token, else: Auction
-    arguments = %{query: options.q, sort: options.sort}
+
+    arguments = %{
+      query: options.q,
+      sort: options.sort,
+      chain: options.chain,
+      kind: options.kind,
+      x: options.x,
+      ens: options.ens,
+      github: options.github
+    }
 
     arguments =
       if resource == Auction,

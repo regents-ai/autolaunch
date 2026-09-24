@@ -66,6 +66,20 @@ defmodule AutolaunchWeb.CreateLive do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
+  def handle_event("refresh_x_connections", _params, socket) do
+    send_update(AutolaunchWeb.CreatorConnectionsComponent,
+      id: "creator-connections",
+      current_human_id: socket.assigns.current_human_id,
+      session_lease: socket.assigns.session_lease
+    )
+
+    {:noreply,
+     if(socket.assigns.launch_kind == :revshare,
+       do: assign(socket, x_connections: load_x_connections(account(socket))),
+       else: socket
+     )}
+  end
+
   def handle_event(event, params, %{assigns: %{launch_kind: :stocks}} = socket),
     do: AutolaunchWeb.StocksCreateLive.handle_event(event, params, socket)
 
@@ -116,10 +130,6 @@ defmodule AutolaunchWeb.CreateLive do
       _error ->
         {:noreply, assign(socket, image_notice: image_notice(:fetch_failed))}
     end
-  end
-
-  def handle_event("refresh_x_connections", _params, socket) do
-    {:noreply, assign(socket, x_connections: load_x_connections(account(socket)))}
   end
 
   def handle_async(name, result, %{assigns: %{launch_kind: :stocks}} = socket),

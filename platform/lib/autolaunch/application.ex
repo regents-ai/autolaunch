@@ -23,6 +23,7 @@ defmodule Autolaunch.Application do
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
       autolaunch_indexer_children(),
+      auction_activity_child(),
       autolaunch_jobs_child(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),
@@ -40,6 +41,23 @@ defmodule Autolaunch.Application do
   # the notifier it will publish through. Each configured chain gets its own
   # runner, so one chain's endpoint failing leaves the others and the site
   # running; a malformed chain list refuses to boot.
+  defp auction_activity_child do
+    if !Autolaunch.Prelaunch.read_only?() and
+         Application.get_env(:autolaunch, :database_startup_enabled, false) do
+      # A separate historical slot keeps archive backfill from delaying live bids.
+      for historical <- [false, true] do
+        Supervisor.child_spec(
+          {Autolaunch.DurableWork.Runner,
+           handler: Autolaunch.AuctionActivity,
+           context: historical,
+           poll_interval_ms: 1_000,
+           max_in_flight: 1},
+          id: {Autolaunch.AuctionActivity, historical}
+        )
+      end
+    end
+  end
+
   defp autolaunch_indexer_children do
     with false <- Autolaunch.Prelaunch.read_only?(),
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false) do

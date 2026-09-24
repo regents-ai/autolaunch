@@ -70,6 +70,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
      |> assign(:returned?, returned?(assigns.bid, assigns.graduated?))
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
+     |> assign_new(:stake_path, fn -> nil end)
+     |> assign_new(:token_symbol, fn -> "tokens" end)
+     |> assign_new(:after_claim, fn -> :wallet end)
      |> assign_new(:sent, fn -> %{} end)}
   end
 
@@ -96,9 +99,25 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
           phx-target={@myself}
           variant="secondary"
         >
-          Review what comes back
+          {if @graduated?,
+            do: "Review return and claim #{@token_symbol} to wallet",
+            else: "Review withdrawal"}
+        </Regent.Primitives.button>
+        <Regent.Primitives.button
+          :if={@stake_path && @bid["tokens_filled_now"] not in [nil, "0"]}
+          type="button"
+          phx-click="review_settlement"
+          phx-value-after="stake"
+          phx-target={@myself}
+        >
+          Memestake {@token_symbol}
         </Regent.Primitives.button>
       </div>
+      <.link
+        :if={@stake_path && @bid["exited_block"] != "0" && @bid["tokens_filled_now"] == "0"}
+        navigate={@stake_path}
+        class="rg-button rg-button--secondary"
+      >Open staking</.link>
 
       <section
         :if={@review}
@@ -107,6 +126,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
         aria-label={"Settle bid ##{@bid["bid_id"]}"}
       >
         <h4>Settle bid #{@bid["bid_id"]}</h4>
+        <p :if={@after_claim == :stake}>
+          First claim to your wallet, then continue to Memestake. Your wallet confirms each step. Tokens are not locked.
+        </p>
+        <p :if={!@review.envelope["arguments"]["graduated"]}>
+          The auction for {@token_symbol} did not meet its minimum raise. Your returned bid is {@review.envelope[
+            "arguments"
+          ]["stock_refunded_units"]} {@review.envelope["arguments"]["stock_symbol"]}, sent to the receiving wallet below.
+        </p>
         <dl>
           <div :for={row <- @review.review}>
             <dt>{row.label}</dt>
@@ -116,8 +143,8 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
             </dd>
           </div>
           <div>
-            <dt>Wallet</dt>
-            <dd class="launch-wallet-mono">{short(@review.envelope["expected_signer"])}</dd>
+            <dt>Receiving wallet</dt>
+            <dd class="autolaunch-exact-value">{@review.envelope["expected_signer"]}</dd>
           </div>
           <div>
             <dt>Network</dt>
@@ -135,7 +162,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
         <ol class="launch-wallet-steps" role="list" aria-label="Settlement progress">
           <li :for={step <- @review.steps} data-step={step["step"]}>
-            <span>{step_label(step["step"])}</span>
+            <span>{step_label(step["step"], @review)}</span>
             <span class="launch-wallet-step-state">{step_state(@sent[step["step"]])}</span>
             <span
               :if={@sent[step["step"]]}
@@ -175,7 +202,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
               if step["step"] == next_step(@review.steps, @sent), do: "primary", else: "secondary"
             }
           >
-            {step_label(step["step"])}
+            {step_label(step["step"], @review)}
           </Regent.Primitives.button>
           <Regent.Primitives.button
             :for={{name, %{outcome: :pending}} <- @sent}
@@ -202,7 +229,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   end
 
   @impl true
-  def handle_event("review_settlement", _params, socket) do
+  def handle_event("review_settlement", params, socket) do
+    socket =
+      assign(socket, :after_claim, if(params["after"] == "stake", do: :stake, else: :wallet))
+
     request = %{auction: socket.assigns.auction, bid_id: socket.assigns.bid["bid_id"]}
 
     case StockBidSettlementActions.prepare(request, socket.assigns.wallet, opts(socket)) do
@@ -254,7 +284,22 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   # A confirmed step changed the bid's record; the bid panel reads it again.
   defp listed(socket, :confirmed) do
     send_update(RobinhoodStockBidComponent, id: socket.assigns.parent_id, refresh_bids: true)
-    socket
+
+    if socket.assigns.after_claim == :stake && is_binary(socket.assigns.stake_path) &&
+         match?(%{outcome: :confirmed}, socket.assigns.sent["claim"]) do
+      amount = socket.assigns.review.envelope["arguments"]["tokens_claimed_units"] || ""
+
+      path =
+        String.replace_suffix(
+          socket.assigns.stake_path,
+          "#stake",
+          "?" <> URI.encode_query(%{stake: amount}) <> "#stake"
+        )
+
+      socket |> assign(after_claim: :wallet) |> push_navigate(to: path)
+    else
+      socket
+    end
   end
 
   defp listed(socket, _outcome), do: socket
@@ -285,7 +330,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp cleared(socket) do
     socket
-    |> assign(review: nil, sent: %{}, notice: nil)
+    |> assign(review: nil, sent: %{}, notice: nil, after_claim: :wallet)
     |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})
   end
 
@@ -337,8 +382,10 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
   defp step_count([_one]), do: "One transaction"
   defp step_count([_one, _two]), do: "Two transactions"
 
-  defp step_label("exit"), do: "Return the bid"
-  defp step_label("claim"), do: "Claim tokens"
+  defp step_label("exit", %{envelope: %{"arguments" => arguments}}),
+    do: "Withdraw #{arguments["stock_refunded_units"]} #{arguments["stock_symbol"]}"
+
+  defp step_label("claim", _review), do: "Claim tokens to wallet"
 
   defp step_state(nil), do: "Ready"
   defp step_state(%{outcome: :pending}), do: "Sent"
@@ -383,9 +430,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidSettlementComponent do
 
   defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
   defp unavailable(_other), do: nil
-
-  defp short("0x" <> address),
-    do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
 
   defp short_hash("0x" <> hash),
     do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"

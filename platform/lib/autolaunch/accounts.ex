@@ -29,6 +29,12 @@ defmodule Autolaunch.Accounts do
     resource Autolaunch.Accounts.SessionAuthority
 
     resource Autolaunch.Accounts.LinkedIdentity do
+      define :connect_ens, action: :connect_ens, args: [:name]
+
+      define :list_public_linked_identities,
+        action: :public_for_humans,
+        args: [:human_account_ids]
+
       define :upsert_linked_identity,
         action: :upsert_verified,
         args: [

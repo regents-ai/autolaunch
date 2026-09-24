@@ -97,6 +97,12 @@ defmodule AutolaunchWeb.AuctionLive do
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, assign_positions(socket)}
 
+  def handle_info({:stake_claimed_tokens, path}, socket),
+    do: {:noreply, push_navigate(socket, to: path)}
+
+  # LabMarket subscribes to both networks; this page represents a Base auction.
+  def handle_info({:robinhood_market_updated, _update}, socket), do: {:noreply, socket}
+
   def render(assigns) do
     assigns =
       assign(assigns,
@@ -409,6 +415,16 @@ defmodule AutolaunchWeb.AuctionLive do
   defp bidding_open?(bidding_ended?), do: !Autolaunch.Prelaunch.read_only?() && !bidding_ended?
 
   # A position records the exact price its bid was placed at.
+  defp position_standing(position, %{state: state}, _book)
+       when state in [:ended, :graduated, :failed] do
+    case position.status do
+      "claimed" -> "Tokens claimed"
+      "claimable" -> "Tokens ready to claim"
+      status when status in ["returned", "exited"] -> "Bid settled"
+      _ -> "Bidding ended · review your return and token allocation"
+    end
+  end
+
   defp position_standing(position, %{quote_token_decimals: decimals}, book) do
     {:ok, price_q96} = Autolaunch.BidActions.price_q96(position.max_price, decimals)
 

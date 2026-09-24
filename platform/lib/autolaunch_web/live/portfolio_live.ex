@@ -49,6 +49,9 @@ defmodule AutolaunchWeb.PortfolioLive do
   def handle_info({:bid_settlement_changed, _position_id}, socket),
     do: {:noreply, load_signed_in_holdings(socket)}
 
+  def handle_info({:stake_claimed_tokens, path}, socket),
+    do: {:noreply, push_navigate(socket, to: path)}
+
   def handle_async(:token_holdings, {:ok, {:ok, holdings}}, socket),
     do: {:noreply, assign(socket, :token_holdings, holdings)}
 
@@ -150,6 +153,11 @@ defmodule AutolaunchWeb.PortfolioLive do
                 <strong>{holding.name} · {holding.symbol}</strong>
                 <span>{holding_copy(holding)}</span>
                 <span>{chain_name(holding.chain)}</span>
+              </.link>
+              <.link navigate={holding.href <> "#stake"} class="rg-button rg-button--secondary">
+                {if Decimal.gt?(Decimal.new(holding.held), 0),
+                  do: "Stake tokens",
+                  else: "Manage stake"}
               </.link>
             </li>
           </ol>
@@ -314,7 +322,7 @@ defmodule AutolaunchWeb.PortfolioLive do
   defp position_list(assigns) do
     ~H"""
     <ol class="autolaunch-record-list">
-      <li :for={position <- @positions} id={"autolaunch-bid-#{position.bid_id}"}>
+      <li :for={position <- @positions} id={"autolaunch-bid-#{position.id}"}>
         <.live_component
           module={AutolaunchWeb.BidSettlementComponent}
           id={"autolaunch-settlement-#{position.id}"}
@@ -351,8 +359,6 @@ defmodule AutolaunchWeb.PortfolioLive do
     if connected?(socket),
       do:
         socket
-        |> assign(:token_holdings, :loading)
-        |> assign(:robinhood_positions, :loading)
         |> start_async(:token_holdings, fn -> TokenHoldings.read(actor) end)
         |> start_async(:robinhood_positions, fn -> RobinhoodPositions.read(actor) end),
       else: socket

@@ -25,6 +25,7 @@ import {AutolaunchSwapDialog} from "./hooks/autolaunch_swap_dialog"
 import {HomeSearch, installStaticMarketSearch} from "./hooks/home_search"
 import {ImageGradient} from "./hooks/image_gradient"
 import {PriceChart} from "./hooks/price_chart"
+import {CreatorConnections} from "./hooks/creator_connections"
 import {XConnections} from "./hooks/x_connections"
 import {Optics} from "./optics_controller.js"
 import {installCopyAgentGuide} from "./copy_agent_guide"
@@ -48,6 +49,7 @@ const hooks = {
   PriceChart,
   Optics,
   XConnections,
+  CreatorConnections,
   HomeSearch,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
