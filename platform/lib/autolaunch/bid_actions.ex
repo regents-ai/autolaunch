@@ -970,7 +970,7 @@ defmodule Autolaunch.BidActions do
       when is_binary(value) and is_integer(currency_decimals) do
     value = String.trim(value)
 
-    with true <- byte_size(value) <= 100 and String.match?(value, ~r/^\d+(?:\.\d+)?\z/),
+    with true <- byte_size(value) <= 100 and String.match?(value, ~r/^(?:\d+(?:\.\d+)?|\.\d+)\z/),
          [whole | fraction] <- String.split(value, "."),
          fraction <- List.first(fraction) || "",
          numerator when numerator > 0 <- String.to_integer(whole <> fraction) do
@@ -991,7 +991,7 @@ defmodule Autolaunch.BidActions do
     value = String.trim(value)
 
     with true <- byte_size(value) <= 100,
-         true <- String.match?(value, ~r/^\d+(?:\.\d+)?$/),
+         true <- String.match?(value, ~r/^(?:\d+(?:\.\d+)?|\.\d+)$/),
          {decimal, ""} <- Decimal.parse(value),
          :gt <- Decimal.compare(decimal, 0) do
       {:ok, decimal}

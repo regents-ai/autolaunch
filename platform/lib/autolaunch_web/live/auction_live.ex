@@ -6,6 +6,7 @@ defmodule AutolaunchWeb.AuctionLive do
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.AuctionBook
+  import AutolaunchWeb.Components.AuctionHistory
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionBook
@@ -34,6 +35,7 @@ defmodule AutolaunchWeb.AuctionLive do
      |> assign_positions()
      |> load_page(reset: true)
      |> load_book(reset: true)
+     |> load_history(reset: true)
      |> load_usd_rate()}
   end
 
@@ -76,7 +78,8 @@ defmodule AutolaunchWeb.AuctionLive do
        |> assign(:market, market)
        |> assign_positions()
        |> load_page(reset: false)
-       |> load_book(reset: false)}
+       |> load_book(reset: false)
+       |> load_history(reset: false)}
     else
       {:noreply, socket}
     end
@@ -91,7 +94,9 @@ defmodule AutolaunchWeb.AuctionLive do
   end
 
   def handle_info(:reread_listings, socket),
-    do: {:noreply, socket |> LiveListings.taken() |> load_page(reset: false)}
+    do:
+      {:noreply,
+       socket |> LiveListings.taken() |> load_page(reset: false) |> load_history(reset: false)}
 
   # A settlement card verified a step, so the bidder's stored positions changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
@@ -264,6 +269,20 @@ defmodule AutolaunchWeb.AuctionLive do
             test_chain={@local_lab?}
             bids={@page_record.bid_volume && Decimal.to_string(@page_record.bid_volume, :normal)}
           />
+          <.auction_history
+            :if={@market_snapshot && @history.ok?}
+            id="auction-history"
+            bids={@history.result.bids}
+            points={@history.result.points}
+            symbol={@page_record.quote_token_symbol}
+            token_symbol={@page_record.token_symbol}
+            usd_rate={@usd_rate}
+            block={@market_snapshot.block_number}
+            start_block={@market_snapshot.start_block}
+            end_block={@market_snapshot.end_block}
+            chain={:base}
+            test_chain={@local_lab?}
+          />
           <.exact_price
             id="auction-exact-price"
             summary="Exact clearing price"
@@ -389,6 +408,27 @@ defmodule AutolaunchWeb.AuctionLive do
   defp load_page(socket, reset: reset) do
     id = socket.assigns.record_id
     assign_async(socket, :page, fn -> load_auction_page_with_token(id) end, reset: reset)
+  end
+
+  # The auction's confirmed bids and clearing prices, read apart from the page.
+  defp load_history(socket, reset: reset) do
+    id = socket.assigns.record_id
+
+    assign_async(
+      socket,
+      :history,
+      fn ->
+        with {:ok, uuid} <- Ash.Type.UUID.cast_input(id, []),
+             {:ok, bids} <- Autolaunch.auction_bids(uuid, actor: nil),
+             {:ok, points} <- Autolaunch.auction_price_points(uuid, actor: nil) do
+          {:ok, %{history: %{bids: bids, points: points}}}
+        else
+          {:error, reason} -> {:error, reason}
+          _invalid_id -> {:error, :not_found}
+        end
+      end,
+      reset: reset
+    )
   end
 
   # The price to get tokens and the bids around it, read from the auction

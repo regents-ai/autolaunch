@@ -41,17 +41,28 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
 
     ~H"""
     <section id={@id} class="raise-progress" aria-label="Progress to the minimum raise">
-      <p class="raise-progress__figure">
-        <strong><TokenDisplay.price amount={readable(@raised)} unit={@symbol} /></strong>
-        <UsdValue.usd amount={@raised} rate={@usd_rate} /> raised of
-        <TokenDisplay.price amount={readable(@required)} unit={@symbol} />
-        <UsdValue.usd amount={@required} rate={@usd_rate} /> minimum
-      </p>
-      <p :if={@bids} class="raise-progress__bids">
-        Bids placed so far:
-        <strong><TokenDisplay.price amount={readable(@bids)} unit={@symbol} /></strong>
-        <UsdValue.usd amount={@bids} rate={@usd_rate} /> in total. The raise counts only
-        what has sold; each bid keeps buying a little every block until bidding ends.
+      <dl class="raise-progress__figures">
+        <div :if={@bids}>
+          <dt>Bids placed</dt>
+          <dd>
+            <strong><TokenDisplay.price amount={readable(@bids)} unit={@symbol} /></strong>
+            <UsdValue.usd amount={@bids} rate={@usd_rate} />
+          </dd>
+        </div>
+        <div>
+          <dt>Sold so far</dt>
+          <dd>
+            <strong><TokenDisplay.price amount={readable(@raised)} unit={@symbol} /></strong>
+            <UsdValue.usd amount={@raised} rate={@usd_rate} /> of the
+            <TokenDisplay.price amount={readable(@required)} unit={@symbol} /> minimum
+          </dd>
+        </div>
+      </dl>
+      <p :if={@bids} class="raise-progress__explain">
+        Bids placed is everything bidders have put in. Sold so far is the part
+        already spent on tokens: tokens are released a little every block until
+        bidding ends, and each bid buys its share as they come. What a bid does
+        not spend goes back to the bidder.
       </p>
       <progress
         class="raise-progress__bar"

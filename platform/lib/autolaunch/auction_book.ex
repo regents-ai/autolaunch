@@ -113,7 +113,7 @@ defmodule Autolaunch.AuctionBook do
   defp tokens(amount, price) do
     amount = String.trim(amount)
 
-    if String.match?(amount, ~r/\A\d+(?:\.\d+)?\z/) and Decimal.gt?(plain(amount), 0),
+    if String.match?(amount, ~r/\A(?:\d+(?:\.\d+)?|\.\d+)\z/) and Decimal.gt?(plain(amount), 0),
       do:
         amount
         |> plain()

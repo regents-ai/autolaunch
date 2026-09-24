@@ -10,7 +10,19 @@ defmodule Autolaunch do
   @subject_wallet_operation Module.concat(__MODULE__, "SubjectWalletOperation")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
   resources do
-    resource Autolaunch.BidActivity
+    resource Autolaunch.BidActivity do
+      define :auction_bids, action: :for_auction, args: [:auction_id]
+    end
+
+    resource Autolaunch.AuctionPricePoint do
+      define :auction_price_points, action: :for_auction, args: [:auction_id]
+
+      define :latest_price_point_before,
+        action: :latest_before,
+        args: [:auction_id, :block_number],
+        not_found_error?: false
+    end
+
     resource Module.concat(__MODULE__, "WalletAttempt")
 
     resource Autolaunch.LaunchDraft do

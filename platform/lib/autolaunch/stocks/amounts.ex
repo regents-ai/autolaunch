@@ -125,7 +125,7 @@ defmodule Autolaunch.Stocks.Amounts do
   end
 
   defp decimal_ratio(value) when is_binary(value) and byte_size(value) <= @max_input_bytes do
-    if Regex.match?(~r/\A[0-9]+(?:\.[0-9]+)?\z/, value) do
+    if Regex.match?(~r/\A(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)\z/, value) do
       case String.split(value, ".", parts: 2) do
         [whole] ->
           {:ok, String.to_integer(whole), 1}

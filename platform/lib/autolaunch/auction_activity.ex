@@ -1,7 +1,8 @@
 defmodule Autolaunch.AuctionActivity do
   @moduledoc """
-  A bounded, browser-independent projection of confirmed bids. Each pass reads
-  one auction and at most 2,000 blocks. The cursor and rows commit together;
+  A bounded, browser-independent projection of confirmed bids and the clearing
+  prices the auction announced. Each pass reads one auction and at most 2,000
+  blocks. The cursor and rows commit together;
   repeat ranges replace the same bids. A changed cursor block invalidates this
   auction's derived activity and rebuilds it, without touching wallet positions.
   """
@@ -10,10 +11,12 @@ defmodule Autolaunch.AuctionActivity do
   require Ash.Query
   require Logger
   alias Autolaunch.Actors.System
-  alias Autolaunch.{Auction, BidActivity, LabAbi, Repo}
+  alias Autolaunch.{Auction, AuctionPricePoint, BidActivity, BidPrice, LabAbi, Repo}
   alias Autolaunch.Chain.{Address, Rpc}
   @actor %System{}
   @bid "BidSubmitted(uint256,address,uint256,uint128)"
+  @checkpoint "CheckpointUpdated(uint256,uint256,uint24)"
+  @price "ClearingPriceUpdated(uint256,uint256)"
   @adapter_bid "StockBidPlaced(address,address,uint256,uint256,uint128,uint256)"
   @range 2_000
 
@@ -67,14 +70,24 @@ defmodule Autolaunch.AuctionActivity do
          :ok <- cursor_valid(auction, head, venue.opts),
          {:ok, last, logs} <- logs(auction, venue, first, min(first + @range - 1, head.number)),
          {:ok, headers} <- headers(logs, last, venue.opts),
-         {:ok, events} <- events(auction, venue, logs, headers),
+         {:ok, bids, points} <- events(auction, venue, logs, headers, first),
          {:ok, current} <- header(head.number, venue.opts),
          true <- current.hash == head.hash do
       timestamp = DateTime.from_unix!(current.timestamp, :second)
       seconds = round((end_block - clock) * if(venue.chain == :base, do: 2, else: 0.1))
       ending = DateTime.add(timestamp, seconds)
       rate = rate(auction, venue.chain)
-      commit(auction, first, last, headers[last].hash, events, ending, rate, last == head.number)
+
+      commit(
+        auction,
+        first,
+        last,
+        headers[last].hash,
+        {bids, points},
+        ending,
+        rate,
+        last == head.number
+      )
     else
       {:error, :cursor_changed} -> invalidate(auction)
       _ -> {:error, :activity_unavailable}
@@ -144,7 +157,10 @@ defmodule Autolaunch.AuctionActivity do
     range = %{fromBlock: hex(first), toBlock: hex(last)}
 
     bid_filter =
-      Map.merge(range, %{address: auction.auction_address, topics: [LabAbi.topic(@bid)]})
+      Map.merge(range, %{
+        address: auction.auction_address,
+        topics: [[LabAbi.topic(@bid), LabAbi.topic(@checkpoint), LabAbi.topic(@price)]]
+      })
 
     # Scope the adapter query to this auction, not every auction on the network.
     adapter_filter =
@@ -210,38 +226,150 @@ defmodule Autolaunch.AuctionActivity do
     with {:ok, value} <- header(number, opts), do: {:ok, {number, value}}
   end
 
-  defp events(auction, venue, logs, headers) do
-    bids = Enum.filter(logs, &Address.equal?(&1["address"], auction.auction_address))
+  # The auction's logs in chain order. Every bid runs a checkpoint first, and
+  # the contract announces a block's checkpoint only once, so a bid belongs to
+  # the clock block of the latest price event at or before it; that event may
+  # sit in an earlier range, which the stored price points hold.
+  defp events(auction, venue, logs, headers, first) do
+    with {:ok, positioned} <-
+           logs
+           |> Enum.filter(&Address.equal?(&1["address"], auction.auction_address))
+           |> map_ok(&positioned(&1, headers)),
+         {:ok, clock} <- stored_clock(auction, first),
+         {:ok, _clock, bids, points} <-
+           read_events(positioned, clock, &event(auction, venue, logs, headers, &1, &2, &3)),
+         {:ok, points} <- with_sold(points, auction, headers, venue.opts),
+         do: {:ok, bids, points}
+  end
 
-    map_ok(bids, fn log ->
-      with false <- log["removed"],
-           [topic, id, _owner] <- log["topics"],
-           true <- topic == LabAbi.topic(@bid),
-           {:ok, bid_id} <- quantity(id),
-           {:ok, number} <- quantity(log["blockNumber"]),
-           true <- String.downcase(log["blockHash"]) == headers[number].hash,
-           "0x" <> <<_price::binary-size(64), amount::binary-size(64)>> <- log["data"],
-           {atomic, ""} <- Integer.parse(amount, 16) do
-        amount = Decimal.new(Rpc.format_units(atomic, auction.quote_token_decimals))
-        {shown, symbol} = display(auction, venue, log, id, logs, amount)
-
-        {:ok,
-         %{
-           auction_id: auction.id,
-           bid_id: Integer.to_string(bid_id),
-           transaction_hash: log["transactionHash"],
-           block_hash: headers[number].hash,
-           block_number: number,
-           occurred_at: DateTime.from_unix!(headers[number].timestamp),
-           amount: amount,
-           display_amount: shown,
-           display_symbol: symbol
-         }}
-      else
-        _ -> {:error, :invalid_bid_event}
+  defp read_events(positioned, clock, read) do
+    positioned
+    |> Enum.sort_by(fn {position, _log} -> position end)
+    |> Enum.reduce_while({:ok, clock, [], []}, fn {position, log}, {:ok, clock, bids, points} ->
+      case read.(position, log, clock) do
+        {:point, point} -> {:cont, {:ok, point.clock_block, bids, [point | points]}}
+        {:bid, bid} -> {:cont, {:ok, clock, [bid | bids], points}}
+        error -> {:halt, error}
       end
     end)
   end
+
+  defp positioned(log, headers) do
+    with false <- log["removed"],
+         {:ok, number} <- quantity(log["blockNumber"]),
+         {:ok, index} <- quantity(log["logIndex"]),
+         true <- String.downcase(log["blockHash"]) == headers[number].hash do
+      {:ok, {{number, index}, log}}
+    else
+      _ -> {:error, :invalid_bid_event}
+    end
+  end
+
+  defp stored_clock(auction, first) do
+    with {:ok, point} <-
+           Autolaunch.latest_price_point_before(auction.id, first, actor: @actor),
+         do: {:ok, point && point.clock_block}
+  end
+
+  defp event(auction, venue, logs, headers, {number, index}, log, clock) do
+    checkpoint = LabAbi.topic(@checkpoint)
+    price = LabAbi.topic(@price)
+    bid = LabAbi.topic(@bid)
+
+    case {log["topics"], words(log["data"])} do
+      {[^checkpoint], {:ok, [at, clearing, _released]}} ->
+        {:point, point(auction, number, index, at, clearing)}
+
+      {[^price], {:ok, [at, clearing]}} ->
+        {:point, point(auction, number, index, at, clearing)}
+
+      {[^bid, id, owner], {:ok, [max_price, atomic]}} when is_integer(clock) ->
+        with {:ok, bid_id} <- quantity(id),
+             {:ok, bidder} <- topic_address(owner) do
+          amount = Decimal.new(Rpc.format_units(atomic, auction.quote_token_decimals))
+          {shown, symbol} = display(auction, venue, log, id, logs, amount)
+
+          {:bid,
+           %{
+             auction_id: auction.id,
+             bid_id: Integer.to_string(bid_id),
+             bidder: bidder,
+             transaction_hash: log["transactionHash"],
+             block_hash: headers[number].hash,
+             block_number: number,
+             log_index: index,
+             clock_block: clock,
+             occurred_at: DateTime.from_unix!(headers[number].timestamp),
+             amount: amount,
+             display_amount: shown,
+             display_symbol: symbol,
+             max_price: price(max_price, auction)
+           }}
+        end
+
+      _ ->
+        {:error, :invalid_bid_event}
+    end
+  end
+
+  # What the auction had raised by the end of each price event's block.
+  defp with_sold(points, auction, headers, opts) do
+    points
+    |> Enum.map(& &1.block_number)
+    |> Enum.uniq()
+    |> Task.async_stream(
+      fn number ->
+        with {:ok, raised} <-
+               uint(auction.auction_address, "currencyRaised()", headers[number], opts),
+             do: {:ok, {number, raised}}
+      end,
+      max_concurrency: 4,
+      timeout: 15_000,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while({:ok, %{}}, fn
+      {:ok, {:ok, {number, raised}}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, number, raised)}}
+      _, _ -> {:halt, {:error, :sold_unavailable}}
+    end)
+    |> case do
+      {:ok, sold} ->
+        {:ok,
+         Enum.map(points, fn point ->
+           raised = Rpc.format_units(sold[point.block_number], auction.quote_token_decimals)
+           Map.put(point, :sold, Decimal.new(raised))
+         end)}
+
+      error ->
+        error
+    end
+  end
+
+  defp point(auction, number, index, at, clearing),
+    do: %{
+      auction_id: auction.id,
+      block_number: number,
+      log_index: index,
+      clock_block: at,
+      clearing_price: price(clearing, auction)
+    }
+
+  defp price(q96, auction),
+    do: Decimal.new(BidPrice.decimal(q96, auction.quote_token_decimals), max_digits: :infinity)
+
+  defp words("0x" <> data) when rem(byte_size(data), 64) == 0 do
+    for <<word::binary-size(64) <- data>>, reduce: {:ok, []} do
+      {:ok, acc} ->
+        case Integer.parse(word, 16) do
+          {value, ""} -> {:ok, acc ++ [value]}
+          _ -> {:error, :invalid_word}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp words(_data), do: {:error, :invalid_word}
 
   defp display(auction, venue, bid, id, logs, amount) do
     event =
@@ -275,7 +403,7 @@ defmodule Autolaunch.AuctionActivity do
   # This system projection locks its parent auction before replacing confirmed
   # events and aggregating their exact amounts in SQL. Notifications come only
   # from the parent Ash update after the enclosing transaction commits.
-  defp commit(auction, first, last, hash, events, ending, rate, complete?) do
+  defp commit(auction, first, last, hash, {bids, points}, ending, rate, complete?) do
     Repo.transaction(fn ->
       current =
         Auction
@@ -290,7 +418,13 @@ defmodule Autolaunch.AuctionActivity do
         from b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first
       )
 
-      Ash.bulk_create!(events, BidActivity, :record, actor: @actor, return_errors?: true)
+      Repo.delete_all(
+        from p in AuctionPricePoint,
+          where: p.auction_id == ^auction.id and p.block_number >= ^first
+      )
+
+      Ash.bulk_create!(bids, BidActivity, :record, actor: @actor, return_errors?: true)
+      Ash.bulk_create!(points, AuctionPricePoint, :record, actor: @actor, return_errors?: true)
 
       total =
         Repo.one(from b in BidActivity, where: b.auction_id == ^auction.id, select: sum(b.amount)) ||
@@ -343,6 +477,7 @@ defmodule Autolaunch.AuctionActivity do
         do: Repo.rollback(:superseded)
 
       Repo.delete_all(from b in BidActivity, where: b.auction_id == ^auction.id)
+      Repo.delete_all(from p in AuctionPricePoint, where: p.auction_id == ^auction.id)
 
       Ash.update!(
         current,
@@ -387,6 +522,11 @@ defmodule Autolaunch.AuctionActivity do
 
   defp quantity(_), do: {:error, :invalid_quantity}
   defp hex(value), do: "0x" <> Integer.to_string(max(0, value), 16)
+
+  defp topic_address("0x000000000000000000000000" <> address) when byte_size(address) == 40,
+    do: {:ok, "0x" <> String.downcase(address)}
+
+  defp topic_address(_topic), do: {:error, :invalid_bid_event}
 
   defp address_topic("0x" <> address),
     do: "0x" <> String.pad_leading(String.downcase(address), 64, "0")

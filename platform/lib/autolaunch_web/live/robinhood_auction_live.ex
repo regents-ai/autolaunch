@@ -18,6 +18,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.AuctionBook
+  import AutolaunchWeb.Components.AuctionHistory
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionBook
@@ -43,7 +44,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   # The feed read Robinhood again: the stored auction and its reading move
   # together.
   def handle_info({:robinhood_market_updated, _update}, socket),
-    do: {:noreply, socket |> assign(:market, LabMarket.snapshot()) |> reload_launch()}
+    do:
+      {:noreply,
+       socket |> assign(:market, LabMarket.snapshot()) |> reload_launch() |> load_history(false)}
 
   def handle_info({:autolaunch_market_updated, _update}, socket),
     do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
@@ -122,6 +125,20 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             test_chain={Lab.test_chain?()}
             bids={@launch.bid_volume && Decimal.to_string(@launch.bid_volume, :normal)}
           />
+          <.auction_history
+            :if={@reading && @history.ok? && @history.result}
+            id="robinhood-auction-history"
+            bids={@history.result.bids}
+            points={@history.result.points}
+            symbol={@launch.quote_token_symbol}
+            token_symbol={@launch.token_symbol}
+            usd_rate={@usd_rate}
+            block={@reading.clock}
+            start_block={@launch.start_block}
+            end_block={@launch.end_block}
+            chain={:robinhood}
+            test_chain={Lab.test_chain?()}
+          />
           <dl class="autolaunch-live-market" aria-label="Auction facts">
             <div>
               <dt>Minimum to graduate</dt>
@@ -180,7 +197,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     do: assign(socket, launch: nil)
 
   defp load_launch(socket) do
-    socket = reload_launch(socket)
+    socket = socket |> reload_launch() |> load_history(true)
     launch = socket.assigns.launch
     auction = socket.assigns.auction
 
@@ -200,6 +217,27 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       :book,
       fn -> with {:ok, book} <- AuctionBook.robinhood(auction), do: {:ok, %{book: book}} end,
       reset: true
+    )
+  end
+
+  # The auction's confirmed bids and clearing prices, read beside the launch.
+  defp load_history(socket, reset) do
+    launch = socket.assigns.launch
+
+    assign_async(
+      socket,
+      :history,
+      fn ->
+        with %{id: id} <- launch,
+             {:ok, bids} <- Autolaunch.auction_bids(id, actor: nil),
+             {:ok, points} <- Autolaunch.auction_price_points(id, actor: nil) do
+          {:ok, %{history: %{bids: bids, points: points}}}
+        else
+          nil -> {:ok, %{history: nil}}
+          error -> error
+        end
+      end,
+      reset: reset
     )
   end
 

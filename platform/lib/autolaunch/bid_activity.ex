@@ -1,5 +1,9 @@
 defmodule Autolaunch.BidActivity do
-  @moduledoc "Confirmed public bid events. No wallet identities or pending transactions."
+  @moduledoc """
+  Confirmed public bid events, with the wallet that owns each bid. No pending
+  transactions. `clock_block` is the block on the auction's own clock the bid
+  landed in, which is what its start and end blocks count.
+  """
   use Ash.Resource,
     otp_app: :autolaunch,
     domain: Autolaunch,
@@ -22,36 +26,50 @@ defmodule Autolaunch.BidActivity do
       filter expr(occurred_at > ago(1, :hour))
     end
 
+    read :for_auction do
+      argument :auction_id, :uuid, allow_nil?: false
+      filter expr(auction_id == ^arg(:auction_id))
+      prepare build(sort: [block_number: :asc, log_index: :asc])
+    end
+
     create :record do
       accept [
         :auction_id,
         :bid_id,
+        :bidder,
         :transaction_hash,
         :block_hash,
         :block_number,
+        :log_index,
+        :clock_block,
         :occurred_at,
         :amount,
         :display_amount,
-        :display_symbol
+        :display_symbol,
+        :max_price
       ]
 
       upsert? true
       upsert_identity :auction_bid
 
       upsert_fields [
+        :bidder,
         :transaction_hash,
         :block_hash,
         :block_number,
+        :log_index,
+        :clock_block,
         :occurred_at,
         :amount,
         :display_amount,
-        :display_symbol
+        :display_symbol,
+        :max_price
       ]
     end
   end
 
   policies do
-    policy action(:recent) do
+    policy action([:recent, :for_auction]) do
       authorize_if always()
     end
 
@@ -63,13 +81,19 @@ defmodule Autolaunch.BidActivity do
   attributes do
     uuid_primary_key :id
     attribute :bid_id, :string, allow_nil?: false
+    # The wallet that owns the bid, lowercase.
+    attribute :bidder, :string, allow_nil?: false
     attribute :transaction_hash, :string, allow_nil?: false
     attribute :block_hash, :string, allow_nil?: false
     attribute :block_number, :integer, allow_nil?: false
+    attribute :log_index, :integer, allow_nil?: false
+    attribute :clock_block, :integer, allow_nil?: false
     attribute :occurred_at, :utc_datetime_usec, allow_nil?: false
     attribute :amount, :decimal, allow_nil?: false, constraints: [min: 0]
     attribute :display_amount, :decimal, allow_nil?: false, constraints: [min: 0]
     attribute :display_symbol, :string, allow_nil?: false
+    # The most the bid pays per token, in the auction's currency.
+    attribute :max_price, :decimal, allow_nil?: false, constraints: [min: 0]
   end
 
   relationships do

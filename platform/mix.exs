@@ -150,11 +150,11 @@ defmodule Autolaunch.MixProject do
         # Two kinds of compile-connected edge are permitted: a domain naming
         # its compile-time resources, and each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time.
-        # Nothing else is permitted. The ceiling is twenty-six domain-to-resource
-        # edges (Accounts four, Autolaunch twenty-two) plus thirty-five
+        # Nothing else is permitted. The ceiling is twenty-seven domain-to-resource
+        # edges (Accounts four, Autolaunch twenty-three) plus thirty-six
         # resource-to-check edges, and it is re-based per unit when a domain,
         # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 61",
+        "xref graph --label compile-connected --fail-above 63",
         "test --warnings-as-errors",
         "ash.codegen --check"
       ]

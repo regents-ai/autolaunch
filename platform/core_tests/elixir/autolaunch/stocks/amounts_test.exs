@@ -18,8 +18,9 @@ defmodule Autolaunch.Stocks.AmountsTest do
     assert {:ok, 123_456_789} = Amounts.parse_units("1.23456789", 8)
     assert {:ok, 100_000_000} = Amounts.parse_units("1.000000000", 8)
     assert {:error, :amount_not_representable} = Amounts.parse_units("1.000000001", 8)
+    assert {:ok, 10_000_000} = Amounts.parse_units(".1", 8)
 
-    for value <- [1.0, 1, true, nil, "1e8", " 1", "1\n", "-1", "1.", ".1"] do
+    for value <- [1.0, 1, true, nil, "1e8", " 1", "1\n", "-1", "1.", "."] do
       assert {:error, :invalid_decimal} = Amounts.parse_units(value, 8)
     end
   end
