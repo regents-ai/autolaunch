@@ -11,7 +11,10 @@ defmodule Autolaunch.LabBidSettlementChainClient do
   the bid needs them.
 
   `verify/3` decodes `BidExited` and `TokensClaimed` from the canonical receipt
-  and checks the owner is the reviewed signer.
+  and checks the owner is the reviewed signer. A `record` step (the auction's
+  public `checkpoint()`) is confirmed by its own successful receipt: a second
+  call in a block the auction has already recorded succeeds without changing
+  anything, which is as good.
   """
 
   alias Autolaunch.Chain.{Address, CcaSettlement, Envelope, Rpc}
@@ -53,13 +56,13 @@ defmodule Autolaunch.LabBidSettlementChainClient do
     end
   end
 
-  @spec verify(map(), :exit | :claim, String.t()) :: {:ok, map()} | {:error, atom()}
+  @spec verify(map(), :record | :exit | :claim, String.t()) :: {:ok, map()} | {:error, atom()}
   def verify(envelope, step, hash) do
     with {:ok, result} <- verify_with_evidence(envelope, step, hash),
          do: {:ok, Map.delete(result, :receipt)}
   end
 
-  def verify_with_evidence(envelope, step, hash) when step in [:exit, :claim] do
+  def verify_with_evidence(envelope, step, hash) when step in [:record, :exit, :claim] do
     with true <-
            Envelope.valid_for_confirmation?(envelope,
              resource: "autolaunch_bid",
@@ -90,6 +93,9 @@ defmodule Autolaunch.LabBidSettlementChainClient do
 
   defp settled(:pending, _envelope, _step, _config), do: {:ok, %{outcome: :pending}}
   defp settled(:reverted, _envelope, _step, _config), do: {:ok, %{outcome: :reverted}}
+
+  defp settled({:success, _logs}, _envelope, :record, _config),
+    do: {:ok, %{outcome: :confirmed, result: %{"price_recorded" => true}}}
 
   # Only the auction's own `BidExited` for this bid and this owner confirms the
   # exit; the refund and fill are adopted from it.

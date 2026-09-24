@@ -123,6 +123,7 @@ defmodule Autolaunch.WalletAttempts do
     {:bid, :usdc_bid} => :usdc_bid_transaction_hash,
     {:launch, :launch} => :launch_transaction_hash,
     {:stocks_launch, :launch} => :launch_transaction_hash,
+    {:bid_settlement, :record} => :record_transaction_hash,
     {:bid_settlement, :exit} => :exit_transaction_hash,
     {:bid_settlement, :claim} => :claim_transaction_hash,
     {:subject, :action} => :action_transaction_hash
@@ -456,6 +457,9 @@ defmodule Autolaunch.WalletAttempts do
 
   defp project(:stocks_launch, op, %{step: :launch}, :confirmed, result),
     do: Autolaunch.Stocks.LabProjection.project_launch(op, result)
+
+  # Recording the auction's price changes no bid; the exit that follows does.
+  defp project(:bid_settlement, _op, %{step: :record}, _state, _result), do: {:ok, []}
 
   defp project(:bid_settlement, op, %{step: step}, :confirmed, result),
     do: op |> Autolaunch.LabProjection.project_settlement(step, result) |> unannounced()

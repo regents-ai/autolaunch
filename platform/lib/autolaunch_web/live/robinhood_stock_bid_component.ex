@@ -15,10 +15,12 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   While bidding is open, each of the wallet's bids says where it stands. One
   still buying can be added to and an outbid one raised, both through this
-  panel's own form (each places a new bid with new money), and an outbid one
-  can have its unspent stock back early once the auction has reached its
-  minimum. With `outbid_banner`, the page is told whenever a bid is outbid, so
-  it can say so at the top.
+  panel's own form (each places a new bid with new money). Under an outbid
+  one, or one sharing at the price, a line says when its unspent stock can
+  come back, and the early return is offered once it can (`launch`, the
+  auction's listing, gives the minimum and the end time). With
+  `outbid_banner`, the page is told whenever a bid is outbid, so it can say so
+  at the top.
   """
 
   use AutolaunchWeb, :live_component
@@ -75,11 +77,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   @impl true
   def update(%{refresh_bids: true}, socket), do: {:ok, socket |> with_reading() |> told_outbid()}
 
-  # A bid's early return says whether the auction would pay it back now.
-  def update(%{early_return: {bid_id, state}}, socket),
-    do:
-      {:ok, assign(socket, :early_returns, Map.put(socket.assigns.early_returns, bid_id, state))}
-
   # A review holds its quote for fifteen minutes; an unsent one is reviewed again first.
   def update(
         %{refresh_review: key},
@@ -131,7 +128,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:x_enabled, fn -> false end)
      |> assign_new(:sent, fn -> %{} end)
      |> assign_new(:reading, fn -> nil end)
-     |> assign_new(:early_returns, fn -> %{} end)
      |> assign_new(:new_bid, fn -> false end)
      |> assign_new(:outbid_banner, fn -> false end)
      |> assign_new(:told_outbid, fn -> nil end)
@@ -331,16 +327,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
                 :if={standing == :outbid}
                 price={@book.result.clearing}
                 unit={@reading.stock["symbol"]}
-                back={back(@reading, @early_returns[bid["bid_id"]])}
               />
               <.live_component
-                :if={standing == :outbid && @reading.graduated?}
+                :if={standing in [:outbid, :sharing]}
                 module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
                 id={"#{@id}-early-#{bid["bid_id"]}"}
                 parent_id={@id}
                 early
                 recheck={@book.result.block}
                 auction={@auction}
+                launch={@launch}
                 bid={bid}
                 graduated?={@reading.graduated?}
                 token_symbol={@token_symbol}
@@ -947,12 +943,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         component_id: socket.assigns.id,
         to: "#{socket.assigns.id}-amount"
       })
-
-  # The rest comes back early only once the auction has reached its minimum,
-  # and only once it has recorded a price above the bid.
-  defp back(%{graduated?: true}, :ready), do: :now
-  defp back(%{graduated?: true}, _not_yet), do: :price_recorded
-  defp back(_reading, _early_return), do: :after_end
 
   defp own_bid(%{reading: %{bids: bids}}, bid_id), do: Enum.find(bids, &(&1["bid_id"] == bid_id))
   defp own_bid(_assigns, _bid_id), do: nil

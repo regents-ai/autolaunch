@@ -11,6 +11,12 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   written anywhere. The chain is the only record: confirmation reads the
   canonical receipt through `Autolaunch.Robinhood.StockBidSettlementChainClient`.
 
+  While bidding is still open, an outbid bid's unspent stock can come back
+  early once the auction records a price above the bid's maximum. When the
+  price has passed it but is not recorded yet, the review is a single
+  `record` step, the auction's public `checkpoint()`; once that is confirmed,
+  the exit is reviewed on its own against the price it stored.
+
   Every call binds to the signed-in wallet of the account the session lease
   names, read inside the lease at call time, and the bid must belong to that
   wallet on the auction's own record.
@@ -18,7 +24,8 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Chain.{Address, Envelope, Rpc}
+  alias Autolaunch.Chain.{Address, CcaSettlement, Envelope, Rpc}
+  alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{Lab, StockBidSettlementChainClient}
   alias Autolaunch.Stocks.{Amounts, Assets, LaunchOperations}
 
@@ -49,26 +56,33 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   end
 
   @doc """
-  Whether the auction would accept this bid's exit right now, read at one
-  pinned block and opening nothing. While bidding is open this is `true` only
-  once the auction has stored a checkpoint priced above the bid's maximum.
+  When this bid's unspent stock can come back, read at one pinned block and
+  opening nothing: `CcaSettlement.return_status/1`, with the auction's own
+  refusal as the error.
   """
-  @spec exit_ready?(map()) :: {:ok, boolean()} | {:error, term()}
-  def exit_ready?(%{auction: auction, bid_id: bid_id, owner: owner}) do
+  @spec return_status(map()) :: {:ok, term()} | {:error, term()}
+  def return_status(%{auction: auction, bid_id: bid_id, owner: owner}) do
     with {:ok, _config} <- robinhood_lab(),
          {:ok, auction} <- address(auction, :invalid_auction),
          {:ok, bid_id} <- bid_id(bid_id),
-         {:ok, snapshot} <- snapshot(auction, bid_id, owner),
-         do: {:ok, match?(%{exit: %{}}, snapshot)}
+         {:ok, snapshot} <- snapshot(auction, bid_id, owner) do
+      case CcaSettlement.return_status(snapshot) do
+        {:refused, reason} -> unavailable(reason)
+        status -> {:ok, status}
+      end
+    end
   end
 
   @doc """
   Reads one sent step back from the chain for the signed-in wallet. The result
   is the chain client's own answer: `:pending`, `:reverted`, `:unverified`, or
-  `:confirmed` with the auction's record of what was returned or claimed.
+  `:confirmed` with the auction's record of what was returned or claimed, or
+  that the price was recorded.
   """
-  @spec verify(map(), :exit | :claim, String.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def verify(envelope, step, hash, opts) when is_map(envelope) and step in [:exit, :claim] do
+  @spec verify(map(), :record | :exit | :claim, String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def verify(envelope, step, hash, opts)
+      when is_map(envelope) and step in [:record, :exit, :claim] do
     with {:ok, actor} <- human(opts),
          {:ok, _signer} <- current_wallet(envelope["expected_signer"], actor, opts),
          {:ok, hash} <- canonical_hash(hash),
@@ -104,7 +118,8 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   end
 
   # The steps the auction accepts right now: the exit first, then the claim
-  # when one is open; a bid already returned may only claim.
+  # when one is open; a bid already returned may only claim; an outbid bid
+  # whose passed price is not recorded yet may only record it.
   defp eligible_steps(%{
          graduated?: false,
          exit: {:refused, :already_exited},
@@ -116,6 +131,8 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   defp eligible_steps(%{exit: {:refused, :already_exited}, claim: %{} = claim}),
     do: {:ok, [claim_step(claim)]}
 
+  defp eligible_steps(%{exit: {:refused, :price_not_recorded}}), do: {:ok, [record_step()]}
+
   defp eligible_steps(%{exit: %{} = exit, claim: claim}),
     do: {:ok, [exit_step(exit) | claim_steps(claim)]}
 
@@ -126,6 +143,13 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
 
   defp claim_steps(%{} = claim), do: [claim_step(claim)]
   defp claim_steps({:refused, _reason}), do: []
+
+  defp record_step,
+    do: %{
+      "step" => "record",
+      "signature" => "checkpoint()",
+      "data" => LabAbi.selector("checkpoint()")
+    }
 
   defp exit_step(exit) do
     %{
@@ -249,6 +273,15 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   defp outcome_copy(_arguments),
     do:
       "The launch did not raise enough. Every bid is returned in full, in the stock it was converted into."
+
+  defp risk_copy(nil, nil, _asset) do
+    network =
+      if Lab.test_chain?(),
+        do: "the local Robinhood lab.",
+        else: "Robinhood Chain (chain #{Lab.chain_id()})."
+
+    "Your wallet signs a transaction that records this auction's current price on #{network} It moves no money."
+  end
 
   defp risk_copy(exit, claim, asset) do
     parts =

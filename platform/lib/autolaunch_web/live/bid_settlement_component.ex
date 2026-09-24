@@ -6,12 +6,16 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   unspent currency, a button to claim the launch token, or the reason nothing
   can be done yet.
 
-  With `early`, the same position is an outbid bid while bidding is still open
-  (`OutbidComponent` places it). The auction is asked in the background
-  whether it would return the unspent money now, and again at most every half
-  minute while it would not. Only once it would is the return reviewed and the
-  button shown; the `parent` component is told either way, so its line can say
-  when the money can come back.
+  With `early`, the same position is one of the bidder's bids while bidding is
+  still open (`OutbidComponent` places it under an outbid bid, or one sharing
+  at the price). The auction is asked in the background when the unspent money
+  can come back, and again at most every half minute while it cannot yet; the
+  answer is the card's one line (`AuctionBook.return_line/1`). Once it can, the
+  return is reviewed and the button shown. When the price has passed the bid
+  but the auction has not recorded it yet, the same button first records the
+  price (its own review, one wallet confirmation); once that is confirmed, the
+  auction is asked again at once and the return is reviewed against the
+  recorded price.
 
   The wallet Privy has selected drives every press; its address
   is proved against the mounted lease before any durable write, the browser
@@ -25,7 +29,9 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   alias Autolaunch.Actors.Human
   alias Autolaunch.{BidSettlementActions, Lab}
+  alias Autolaunch.Chain.Rpc
   alias Autolaunch.Stocks.Amounts
+  alias AutolaunchWeb.Components.AuctionBook
   alias AutolaunchWeb.{UsdValue, WalletPressComponent}
 
   @copy %{
@@ -69,14 +75,18 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket),
     do:
       {:ok,
-       socket |> WalletPressComponent.consume(lease, result) |> notify_settled() |> early_check()}
+       socket
+       |> WalletPressComponent.consume(lease, result)
+       |> recorded()
+       |> notify_settled()
+       |> early_check()}
 
   def update(%{early_refresh: action_id}, socket) do
     case socket.assigns.operation do
       %{action_id: ^action_id, state: :prepared} = operation ->
         if started?(operation),
           do: {:ok, socket},
-          else: {:ok, socket |> assign(operation: nil, early_state: nil) |> early_check()}
+          else: {:ok, socket |> assign(operation: nil, checked_at: nil) |> early_check()}
 
       _other ->
         {:ok, socket}
@@ -89,7 +99,10 @@ defmodule AutolaunchWeb.BidSettlementComponent do
      |> WalletPressComponent.update_scope(assigns)
      |> assign(assigns)
      |> assign_new(:early, fn -> false end)
-     |> assign_new(:early_state, fn -> nil end)
+     |> assign_new(:status, fn -> nil end)
+     |> assign_new(:checking, fn -> false end)
+     |> assign_new(:checked_at, fn -> nil end)
+     |> assign_new(:recorded, fn -> false end)
      |> assign_new(:market, fn -> nil end)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
@@ -103,7 +116,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   @impl true
   def render(%{early: true} = assigns) do
-    assigns = assign(assigns, :rate, assigns.usd_rate.result)
+    auction = assigns.position.auction
+
+    assigns =
+      assign(assigns,
+        rate: assigns.usd_rate.result,
+        auction: auction,
+        line: line(assigns.status, auction)
+      )
 
     ~H"""
     <div
@@ -113,6 +133,14 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       phx-hook="AutolaunchBidSettlement"
       phx-target={@myself}
     >
+      <AuctionBook.return_line
+        :if={@line}
+        id={"#{@id}-when"}
+        status={@line}
+        unit={@auction.quote_token_symbol}
+        usd_rate={@rate}
+        ends_at={@auction.estimated_end_at}
+      />
       <p
         :if={@notice}
         class="bid-notice"
@@ -122,7 +150,7 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       </p>
 
       <Regent.Primitives.button
-        :if={@authenticated && !@wallet && @early_state == :ready}
+        :if={@authenticated && !@wallet && @status in [:now, :record]}
         type="button"
         variant="secondary"
         data-settlement-connect
@@ -131,13 +159,28 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       </Regent.Primitives.button>
 
       <div :if={@operation && WalletPressComponent.scope(assigns)} class="bid-early-return__offer">
-        <p :if={@operation.state == :prepared}>
+        <p :if={@operation.step == :exit && @operation.state == :prepared}>
           <strong>
             {argument(@operation, "currency_refunded")} {argument(@operation, "currency_symbol")}
           </strong>
           <UsdValue.usd amount={argument(@operation, "currency_refunded")} rate={@rate} />
           comes back to your wallet now. The tokens this bid has bought are yours to claim after the auction.
         </p>
+        <ol
+          :if={@operation.step == :record || @recorded}
+          class="bid-steps"
+          role="list"
+          aria-label="Getting your money back"
+        >
+          <li data-step="record">
+            <span>Record the new price</span>
+            <span class="bid-step-state">{record_state(@operation)}</span>
+          </li>
+          <li data-step="exit">
+            <span>Send your unspent money back</span>
+            <span class="bid-step-state">{return_state(@operation)}</span>
+          </li>
+        </ol>
         <Regent.Primitives.button
           :if={sendable?(@operation, @wallet)}
           type="button"
@@ -424,8 +467,16 @@ defmodule AutolaunchWeb.BidSettlementComponent do
       {:noreply,
        WalletPressComponent.verify(socket, :bid_settlement, params, opts(socket), __MODULE__)}
 
-  def handle_event("settlement_active_wallet", %{"address" => address}, socket),
-    do: {:noreply, socket |> assign(wallet: normalized(address), notice: nil) |> early_check()}
+  def handle_event("settlement_active_wallet", %{"address" => address}, socket) do
+    wallet = normalized(address)
+
+    socket =
+      if wallet == socket.assigns.wallet,
+        do: socket,
+        else: assign(socket, wallet: wallet, notice: nil, checked_at: nil)
+
+    {:noreply, early_check(socket)}
+  end
 
   def handle_event("review_settlement", params, socket) do
     socket =
@@ -449,30 +500,28 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_async(:early, {:ok, {wallet, result}}, socket) do
-    socket = assign(socket, early_checked_at: System.monotonic_time(:second))
+  def handle_async(:early, {:ok, {wallet, {status, prepared}}}, socket) do
+    socket = assign(socket, checking: false, checked_at: System.monotonic_time(:second))
 
     cond do
-      # The wallet changed or a review arrived while this was asked; the next
-      # check starts from what is on screen now.
-      wallet != socket.assigns.wallet or open_review?(socket.assigns.operation) ->
-        {:noreply, socket |> assign(early_state: nil) |> early_check()}
+      # The wallet changed while this was asked; the next check starts from
+      # the wallet on screen now.
+      wallet != socket.assigns.wallet ->
+        {:noreply, socket |> assign(checked_at: nil) |> early_check()}
 
-      result in [:waiting, :ready] ->
-        {:noreply, socket |> assign(early_state: result, notice: nil) |> early_told()}
-
-      match?({:ok, _}, result) ->
+      status == :refused ->
         {:noreply,
-         result |> settled(assign(socket, early_state: :ready)) |> early_told() |> early_later()}
+         assign(socket,
+           status: :refused,
+           notice: %{tone: :error, message: copy(refusal(prepared))}
+         )}
+
+      # A review with a press on it is never replaced.
+      held?(socket.assigns.operation) ->
+        {:noreply, assign(socket, status: status)}
 
       true ->
-        {:noreply,
-         socket
-         |> assign(
-           early_state: :refused,
-           notice: %{tone: :error, message: copy(refusal(elem(result, 1)))}
-         )
-         |> early_told()}
+        {:noreply, socket |> assign(status: status, notice: nil) |> offered(prepared)}
     end
   end
 
@@ -480,20 +529,21 @@ defmodule AutolaunchWeb.BidSettlementComponent do
     do:
       {:noreply,
        assign(socket,
-         early_state: :refused,
-         early_checked_at: System.monotonic_time(:second),
+         status: :refused,
+         checking: false,
+         checked_at: System.monotonic_time(:second),
          notice: %{tone: :error, message: @generic}
        )}
 
   # The auction is asked while nothing of this card is with the wallet: first
-  # on arrival, then again, at most every half minute, while the answer was
-  # no. The return is reviewed once it would go through and a wallet is known.
-  # A review that has been pressed is never replaced.
+  # on arrival, then again, at most every half minute, while the money cannot
+  # come back yet. An unpressed review to record the price is asked about
+  # too, so a price someone else records in the meantime turns it into the
+  # return itself.
   defp early_check(%{assigns: %{early: true} = assigns} = socket) do
     cond do
       !assigns.authenticated -> socket
-      assigns.early_state == :checking or open_review?(assigns.operation) -> socket
-      match?(%{state: :confirmed}, assigns.operation) -> socket
+      assigns.checking or held?(assigns.operation) -> socket
       !early_due?(assigns) -> socket
       true -> start_early(socket)
     end
@@ -501,43 +551,61 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp early_check(socket), do: socket
 
-  # A review that is still open, whether or not it has been pressed.
-  defp open_review?(%{terminal_at: nil}), do: true
-  defp open_review?(_none_or_finished), do: false
+  # A review the card keeps: a return still open, one that went through, or a
+  # record of the price that has been pressed.
+  defp held?(%{terminal_at: nil, step: :record} = operation),
+    do: operation.state != :prepared or started?(operation)
 
-  # Asked for the first time, or ready with a wallet and no review yet: one
-  # just connected, or the review offered before lapsed. A recorded price
-  # stays recorded, so a ready bid is not asked about again.
-  defp early_due?(%{early_state: nil}), do: true
-  defp early_due?(%{early_state: :ready, wallet: wallet}), do: is_binary(wallet)
+  defp held?(%{terminal_at: nil}), do: true
+  defp held?(%{state: :confirmed}), do: true
+  defp held?(_none_or_finished), do: false
 
-  defp early_due?(%{early_checked_at: checked_at}),
+  # Asked for the first time, or again at once: a wallet connected or
+  # changed, a price was recorded or the review offered before lapsed.
+  defp early_due?(%{checked_at: nil}), do: true
+
+  defp early_due?(%{checked_at: checked_at}),
     do: System.monotonic_time(:second) - checked_at >= @early_recheck_seconds
 
-  # Read-only until the auction would return the money and a wallet is known:
-  # only then is the return reviewed, so a bid still waiting never opens one.
   defp start_early(socket) do
-    %{position: position, wallet: wallet} = socket.assigns
+    %{position: position, wallet: wallet, operation: operation} = socket.assigns
+    offered = offered_step(operation)
     opts = opts(socket)
 
     socket
-    |> assign(early_state: :checking)
-    |> start_async(:early, fn -> {wallet, early_offer(position, wallet, opts)} end)
+    |> assign(checking: true)
+    |> start_async(:early, fn -> {wallet, early_offer(position, wallet, offered, opts)} end)
   end
 
-  defp early_offer(position, wallet, opts) do
-    case BidSettlementActions.exit_ready?(position) do
-      {:ok, true} when is_nil(wallet) -> :ready
-      {:ok, true} -> BidSettlementActions.prepare(position.id, wallet, opts)
-      {:ok, false} -> :waiting
-      {:error, _reason} = refused -> refused
+  # Read-only until the money can come back, now or after recording the
+  # price, and a wallet is known: only then is a review prepared, and a review
+  # already offered for the same answer is kept.
+  defp early_offer(position, wallet, offered, opts) do
+    case BidSettlementActions.return_status(position) do
+      {:ok, status} when status in [:now, :record] and is_binary(wallet) and status != offered ->
+        {status, BidSettlementActions.prepare(position.id, wallet, opts)}
+
+      {:ok, status} ->
+        {status, nil}
+
+      {:error, error} ->
+        {:refused, error}
     end
   end
 
-  defp early_told(%{assigns: %{parent: parent, early_state: state}} = socket) do
-    send_update(AutolaunchWeb.OutbidComponent, id: parent, early_return: state)
-    socket
-  end
+  defp offered_step(%{terminal_at: nil, step: :record}), do: :record
+  defp offered_step(_operation), do: nil
+
+  defp offered(socket, nil), do: socket
+  defp offered(socket, {:ok, _prepared} = result), do: result |> settled(socket) |> early_later()
+  defp offered(socket, {:error, _error} = result), do: settled(result, socket)
+
+  # A confirmed record of the price makes the return possible: the auction is
+  # asked again at once, and the return reviewed against the recorded price.
+  defp recorded(%{assigns: %{operation: %{step: :record, state: :confirmed}}} = socket),
+    do: assign(socket, operation: nil, recorded: true, checked_at: nil)
+
+  defp recorded(socket), do: socket
 
   defp early_later(%{assigns: %{operation: %{action_id: action_id}}} = socket) do
     send_update_after(
@@ -552,8 +620,25 @@ defmodule AutolaunchWeb.BidSettlementComponent do
 
   defp early_later(socket), do: socket
 
+  # The one line under the bid, from the auction's answer; the minimum still
+  # to raise is the auction's own minimum less what it has raised.
+  defp line({:minimum, raised}, auction) do
+    missing = String.to_integer(auction.required_currency_raised) - raised
+    {:minimum, Rpc.format_units(max(missing, 0), auction.quote_token_decimals)}
+  end
+
+  defp line(status, _auction) when status in [:now, :record, :buying], do: status
+  defp line(_status, _auction), do: nil
+
+  defp record_state(%{step: :record} = operation), do: current_state(operation.state)
+  defp record_state(_operation), do: "Confirmed"
+
+  defp return_state(%{step: :record}), do: "Next"
+  defp return_state(operation), do: current_state(operation.state)
+
   # What is happening to an early return that has left the button, in a line.
   defp early_progress(%{state: :dispatched}), do: "Confirm in your wallet."
+  defp early_progress(%{state: :submitted, step: :record}), do: "Recording the new price…"
   defp early_progress(%{state: :submitted}), do: "Sending your money back…"
 
   defp early_progress(%{state: :confirmed} = operation), do: confirmed_copy(operation)
@@ -709,6 +794,8 @@ defmodule AutolaunchWeb.BidSettlementComponent do
   # A failed auction returns the whole bid; a graduated one returns what the
   # fill did not spend.
   defp unspent(operation), do: if(argument(operation, "graduated"), do: "unspent ", else: "")
+
+  defp step_label("record", _operation), do: "Record the new price"
 
   defp step_label("exit", operation),
     do: "Withdraw #{unspent(operation)}#{argument(operation, "currency_symbol")}"

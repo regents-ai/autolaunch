@@ -6,7 +6,10 @@ defmodule Autolaunch.BidSettlementOperation do
   (`exitBid`, or `exitPartiallyFilledBid` with derived checkpoint hints) that
   returns the unspent currency and records the fill, then, on a graduated
   auction with fill, a `claim` step (`claimTokens`) that delivers the launch
-  token. A failed auction has only the `exit` step. `step` says which of those
+  token. A failed auction has only the `exit` step. While bidding is open, an
+  outbid bid whose passed price the auction has not recorded yet has a single
+  `record` step (`checkpoint()`), after which its exit is reviewed on its own.
+  `step` says which of those
   is wallet-capable right now and `state` how far the reviewed sequence has
   got. Every wallet press of a step is its own `WalletAttempt`.
 
@@ -21,7 +24,7 @@ defmodule Autolaunch.BidSettlementOperation do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  @steps [:exit, :claim]
+  @steps [:record, :exit, :claim]
   @states [:prepared, :confirmed, :cancelled, :expired]
 
   postgres do

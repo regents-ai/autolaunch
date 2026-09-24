@@ -105,7 +105,8 @@
 .auction-book__outbid { margin: 0; padding: 8px 10px; border-left: 3px solid var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, transparent); overflow-wrap: anywhere; }
 .bid-early-return { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .bid-early-return p, .bid-early-return__offer p { margin: 0; }
-.bid-early-return__offer { display: grid; gap: 8px; justify-items: start; }
+.bid-early-return__offer { display: grid; gap: 8px; justify-items: start; justify-self: stretch; min-width: 0; }
+.bid-early-return__offer .bid-steps { justify-self: stretch; }
 
 /* The top of an auction page when one of the bidder's bids is outbid. */
 .auction-outbid-banner { display: grid; gap: 6px; margin-block-end: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--color-warning) 50%, var(--hairline)); border-radius: 10px; background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface)); overflow-wrap: anywhere; }

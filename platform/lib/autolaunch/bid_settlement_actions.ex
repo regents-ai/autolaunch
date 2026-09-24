@@ -11,6 +11,12 @@ defmodule Autolaunch.BidSettlementActions do
   envelope; anything the auction refuses becomes a reason code rather than a
   wallet prompt.
 
+  While bidding is still open, an outbid bid's unspent money can come back
+  early once the auction records a price above the bid's maximum. When the
+  price has passed it but is not recorded yet, the review is a single
+  `record` step, the auction's public `checkpoint()`; once that is confirmed,
+  the exit is reviewed on its own against the price it stored.
+
   Every durable write after that runs inside `SessionAuthority.transact_lease/3`
   against the account that callback locked, with the row taken `FOR UPDATE`,
   exactly as `BidActions` does.
@@ -20,9 +26,9 @@ defmodule Autolaunch.BidSettlementActions do
 
   alias Autolaunch.Accounts.SessionAuthority
   alias Autolaunch.Actors.{Human, System}
-  alias Autolaunch.Chain.{Address, Envelope, Rpc}
+  alias Autolaunch.Chain.{Address, CcaSettlement, Envelope, Rpc}
 
-  alias Autolaunch.{Bid, BidSettlementOperation, Lab, LabBidSettlementChainClient}
+  alias Autolaunch.{Bid, BidSettlementOperation, Lab, LabAbi, LabBidSettlementChainClient}
 
   @actor %System{}
   @domain Autolaunch
@@ -43,7 +49,11 @@ defmodule Autolaunch.BidSettlementActions do
     :transaction_missing
   ]
 
-  @hash_attributes %{exit: :exit_transaction_hash, claim: :claim_transaction_hash}
+  @hash_attributes %{
+    record: :record_transaction_hash,
+    exit: :exit_transaction_hash,
+    claim: :claim_transaction_hash
+  }
 
   @doc """
   Reviews one settlement: one snapshot, one immutable sequence, one operation.
@@ -72,15 +82,19 @@ defmodule Autolaunch.BidSettlementActions do
   end
 
   @doc """
-  Whether the auction would accept this position's exit right now, read at one
-  pinned block and opening nothing. While bidding is open this is `true` only
-  once the auction has stored a checkpoint priced above the bid's maximum.
+  When this position's unspent money can come back, read at one pinned block
+  and opening nothing: `CcaSettlement.return_status/1`, with the auction's own
+  refusal as the error.
   """
-  @spec exit_ready?(map()) :: {:ok, boolean()} | {:error, term()}
-  def exit_ready?(position) do
+  @spec return_status(map()) :: {:ok, term()} | {:error, term()}
+  def return_status(position) do
     with {:ok, bid_id} <- onchain_bid_id(position),
-         {:ok, snapshot} <- snapshot(position.auction_address, bid_id, position.owner_address),
-         do: {:ok, match?(%{exit: %{}}, snapshot)}
+         {:ok, snapshot} <- snapshot(position.auction_address, bid_id, position.owner_address) do
+      case CcaSettlement.return_status(snapshot) do
+        {:refused, reason} -> unavailable(reason)
+        status -> {:ok, status}
+      end
+    end
   end
 
   @doc "Why nothing can be settled for this position right now, from the auction's own answer."
@@ -129,10 +143,10 @@ defmodule Autolaunch.BidSettlementActions do
   def steps(%{envelope: envelope}), do: envelope["arguments"]["steps"]
 
   @doc "The hash of the confirmed or pending press for one step of a presented operation, or `nil`."
-  def step_hash(operation, step) when step in ["exit", "claim"],
+  def step_hash(operation, step) when step in ["record", "exit", "claim"],
     do: step_hash(operation, String.to_existing_atom(step))
 
-  def step_hash(operation, step) when step in [:exit, :claim],
+  def step_hash(operation, step) when is_map_key(@hash_attributes, step),
     do: Map.get(operation, Map.fetch!(@hash_attributes, step))
 
   def step_hash(_operation, _unknown), do: nil
@@ -147,9 +161,13 @@ defmodule Autolaunch.BidSettlementActions do
   # The exact eligible steps. The exit comes first whenever the auction accepts
   # it; the claim follows only when the auction would deliver tokens right after
   # that exit (graduated, claim block reached, fill above zero). An already
-  # exited bid with claimable fill has only the claim.
+  # exited bid with claimable fill has only the claim. An outbid bid whose
+  # passed price is not recorded yet has only the record step.
   defp eligible_steps(%{exit: {:refused, :already_exited}, claim: %{} = claim}, _position),
     do: {:ok, [claim_step(claim)]}
+
+  defp eligible_steps(%{exit: {:refused, :price_not_recorded}}, _position),
+    do: {:ok, [record_step()]}
 
   defp eligible_steps(%{exit: %{} = exit, claim: claim}, _position),
     do: {:ok, [exit_step(exit) | claim_steps(claim)]}
@@ -158,6 +176,13 @@ defmodule Autolaunch.BidSettlementActions do
 
   defp claim_steps(%{} = claim), do: [claim_step(claim)]
   defp claim_steps({:refused, _reason}), do: []
+
+  defp record_step,
+    do: %{
+      "step" => "record",
+      "signature" => "checkpoint()",
+      "data" => LabAbi.selector("checkpoint()")
+    }
 
   defp exit_step(exit) do
     %{
@@ -236,6 +261,12 @@ defmodule Autolaunch.BidSettlementActions do
   end
 
   defp exit_int(step, key), do: step |> Map.fetch!(key) |> String.to_integer()
+
+  defp risk_copy(nil, nil, _auction) do
+    network = if Lab.test_chain?(), do: "on a Base fork.", else: "on Base."
+
+    "Your wallet signs a transaction that records this auction's current price #{network} It moves no money."
+  end
 
   defp risk_copy(exit, claim, auction) do
     parts =
