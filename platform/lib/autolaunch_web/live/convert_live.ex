@@ -12,6 +12,7 @@ defmodule AutolaunchWeb.ConvertLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [current_human_id: 1]
+  import AutolaunchWeb.Components.ChainIcon
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Robinhood.Pool, as: RobinhoodPool
@@ -36,7 +37,9 @@ defmodule AutolaunchWeb.ConvertLive do
           <h1 class="rg-section-bar__label">REGENT's share of fees</h1>
         </Regent.Structure.section_bar>
         <p>
-          Every Memestake launch keeps REGENT's share of its trading fees in stock until it is sold for USDC on Base, or USDG on Robinhood Chain, and sent to REGENT's revenue.
+          Every Memestake launch keeps REGENT's share of its trading fees in stock until it is sold for USDC
+          <.chain_icon chain={:base} /> or USDG <.chain_icon chain={:robinhood} />
+          and sent to REGENT's revenue.
           Only the wallet chosen to sell it sees the sell form on each launch.
         </p>
         <div>

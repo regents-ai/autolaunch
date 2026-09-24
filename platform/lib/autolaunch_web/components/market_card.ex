@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Stocks.MarketData
   alias Autolaunch.Token
   alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay, UsdValue}
+  alias AutolaunchWeb.Components.ChainIcon
   require Phoenix.LiveView
 
   @own_sites ["autolaunch.sh", "regents.sh"]
@@ -357,10 +358,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
             height="40"
           />
           <span :if={!present?(@view.image)} aria-hidden="true">{String.first(@view.name || "?")}</span>
-          <span
-            class={["market-list__chain", "market-list__chain--#{String.downcase(@view.chain)}"]}
-            title={@view.chain}
-          ><span class="visually-hidden">{@view.chain}</span></span>
+          <ChainIcon.chain_icon
+            chain={if @view.chain == "Robinhood", do: :robinhood, else: :base}
+            class="market-list__chain"
+          />
         </span>
         <span class="market-list__name">
           <strong>{@view.name}</strong>
