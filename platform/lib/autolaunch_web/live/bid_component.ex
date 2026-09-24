@@ -1,6 +1,7 @@
 defmodule AutolaunchWeb.BidComponent do
   @moduledoc """
-  The whole bidder: one compact form, one review, and the transactions it needs.
+  The whole bidder: one compact form, the bid it prepares as it changes, and
+  the transactions it needs, followed until Base confirms them.
 
   The wallet Privy has selected drives everything here. Its address arrives as
   untrusted browser input and is proved against the mounted lease before any
@@ -8,8 +9,8 @@ defmodule AutolaunchWeb.BidComponent do
   the signed-in one shows a balance of nothing and can neither review nor send.
 
   The browser reports a hash and stops. Every outcome on screen comes from the
-  server's own read of that exact hash, and a claimed step is never offered a
-  second send.
+  server's own read of that exact hash, read again every few seconds until the
+  chain answers; reading never sends anything or opens the wallet.
   """
 
   use AutolaunchWeb, :live_component
@@ -21,9 +22,9 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.AuctionBook
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias AutolaunchWeb.Components.{BidForm, BidPlaced}
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
-
-  @chain_id 8453
+  alias Phoenix.LiveView.AsyncResult
 
   @copy %{
     bid_preparation_unavailable: "Bidding is not open on this auction yet.",
@@ -55,7 +56,36 @@ defmodule AutolaunchWeb.BidComponent do
 
   @impl true
   def update(%{wallet_press_result: result, wallet_press_lease: lease}, socket) do
-    {:ok, AutolaunchWeb.WalletPressComponent.consume(socket, lease, result)}
+    {:ok, socket |> AutolaunchWeb.WalletPressComponent.consume(lease, result) |> follow()}
+  end
+
+  # A sent transaction is read again every few seconds until the chain answers.
+  # Reading never sends anything and never opens the wallet.
+  def update(%{follow: {action_id, press_id}}, socket) do
+    socket = assign(socket, following: nil)
+
+    case socket.assigns.operation do
+      %{action_id: ^action_id, state: :submitted} = operation ->
+        if submitted_press(operation) == press_id,
+          do: {:ok, verify(socket, action_id, press_id)},
+          else: {:ok, follow(socket)}
+
+      _other ->
+        {:ok, follow(socket)}
+    end
+  end
+
+  # A prepared review lives ten minutes; an unsent one is prepared again first.
+  def update(%{refresh_review: action_id}, socket) do
+    case socket.assigns.operation do
+      %{action_id: ^action_id} = operation ->
+        if editable?(operation),
+          do: {:ok, socket |> assign(prepared_for: nil) |> prepare_when_ready()},
+          else: {:ok, socket}
+
+      _other ->
+        {:ok, socket}
+    end
   end
 
   def update(assigns, socket) do
@@ -65,17 +95,24 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:balance, fn -> nil end)
-     |> assign_new(:amount, fn -> "" end)
-     |> assign_new(:max_price, fn -> "" end)
-     |> assign_new(:usdc_amount, fn -> "" end)
-     |> assign_new(:usdc_max_price, fn -> "" end)
-     |> assign_new(:book, fn -> nil end)
      |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
+     |> assign_new(:form, fn %{auction: auction} ->
+       %{BidForm.blank() | pay_with: bid_currency(auction)}
+     end)
+     |> assign_book()
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
+     |> assign_new(:following, fn -> nil end)
+     |> assign_new(:sharing, fn -> false end)
+     |> assign_new(:share_message, fn -> "" end)
+     |> assign_new(:x_connection, fn -> nil end)
+     |> assign_new(:x_enabled, fn -> false end)
+     |> assign_new(:prepared_for, fn -> nil end)
+     |> assign_new(:preparing, fn -> nil end)
      |> assign_usd_rate()
-     |> preset()}
+     |> preset()
+     |> prepare_when_ready()}
   end
 
   @impl true
@@ -125,231 +162,56 @@ defmodule AutolaunchWeb.BidComponent do
           </div>
         </dl>
 
-        <form
-          :if={!@operation && @balance}
-          id={"#{@id}-form"}
-          class="rg-field"
-          phx-change="bid_form_changed"
-          phx-submit="review_bid"
-          phx-target={@myself}
-          aria-label={"Bid with #{@auction.quote_token_symbol}"}
+        <BidForm.bid_form
+          :if={editable?(@operation) && @balance}
+          id={@id}
+          target={@myself}
+          form={@form}
+          amount_unit={@form.pay_with}
+          pay_with={pay_with(@auction, @usdc_bids?)}
+          price_unit={@auction.quote_token_symbol}
+          book={@book}
+          supply={@auction.token_supply}
+          rate={@rate}
+          amount_in_price_unit?={@form.pay_with == @auction.quote_token_symbol}
+          max={@form.pay_with == @auction.quote_token_symbol}
         >
-          <h3>Bid with {@auction.quote_token_symbol}</h3>
-          <label for={"#{@id}-amount"}>Amount in {@auction.quote_token_symbol}</label>
-          <div class="bid-amount">
-            <input
-              id={"#{@id}-amount"}
-              name="amount"
-              value={@amount}
-              inputmode="decimal"
-              autocomplete="off"
-              placeholder="0.0"
+          <:action>
+            <.ready
+              :if={ready?(assigns)}
+              operation={@operation}
+              rate={@rate}
+              wallet={@wallet}
             />
-            <Regent.Primitives.button
-              type="button"
-              phx-click="fill_bid_amount"
-              phx-target={@myself}
-              variant="secondary"
-            >Max</Regent.Primitives.button>
-          </div>
-          <UsdValue.usd :if={@amount != ""} class="bid-usd" amount={@amount} rate={@rate} />
+            <div :if={!ready?(assigns)} class="bid-form__pending">
+              <p :if={@preparing} class="bid-form__note" role="status">Getting your bid ready…</p>
+              <Regent.Primitives.button class="bid-primary" type="button" disabled>
+                Place bid
+              </Regent.Primitives.button>
+            </div>
+          </:action>
+        </BidForm.bid_form>
 
-          <label for={"#{@id}-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
-          <input
-            id={"#{@id}-max-price"}
-            name="max_price"
-            value={@max_price}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <UsdValue.usd
-            :if={@max_price != ""}
-            class="bid-usd"
-            amount={@max_price}
-            rate={@rate}
-            per="per token"
-          />
-
-          <.outlook
-            outlook={@book && AuctionBook.outlook(@amount, @max_price, @book)}
-            book={@book}
-            symbol={@auction.quote_token_symbol}
-          />
-
-          <Regent.Primitives.button
-            class="bid-primary"
-            type="submit"
-            disabled={@amount == "" or @max_price == ""}
-          >
-            Review bid
-          </Regent.Primitives.button>
-        </form>
-
-        <form
-          :if={!@operation && @balance && @usdc_bids?}
-          id={"#{@id}-usdc-form"}
-          class="rg-field"
-          phx-change="usdc_bid_form_changed"
-          phx-submit="review_usdc_bid"
-          phx-target={@myself}
-          aria-label="Bid with USDC"
+        <section
+          :if={!editable?(@operation) && @operation.state == :confirmed}
+          id={"#{@id}-placed"}
+          class="bid-progress"
+          aria-label="Bid placed"
         >
-          <h3>Bid with USDC</h3>
-          <p class="autolaunch-draft-hint">
-            One transaction buys {@auction.quote_token_symbol} with your USDC and places the bid.
-            The review shows the estimated {@auction.quote_token_symbol} and the least the bid will accept, 1% below the estimate.
-          </p>
-          <label for={"#{@id}-usdc-amount"}>Amount in USDC</label>
-          <input
-            id={"#{@id}-usdc-amount"}
-            name="usdc_amount"
-            value={@usdc_amount}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <label for={"#{@id}-usdc-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
-          <input
-            id={"#{@id}-usdc-max-price"}
-            name="max_price"
-            value={@usdc_max_price}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <UsdValue.usd
-            :if={@usdc_max_price != ""}
-            class="bid-usd"
-            amount={@usdc_max_price}
-            rate={@rate}
-            per="per token"
-          />
-          <.outlook
-            outlook={@book && AuctionBook.outlook("", @usdc_max_price, @book)}
-            book={@book}
-            symbol={@auction.quote_token_symbol}
+          <BidPlaced.bid_placed
+            id={"#{@id}-placed"}
+            target={@myself}
+            token_symbol={@auction.token_symbol}
+            chain={:base}
+            hash={placed_hash(@operation)}
+            test_chain={Lab.test_chain?(@operation.envelope["chain_id"])}
+            auction_path={~p"/auctions/#{@auction.id}"}
+            sharing={@sharing}
+            message={@share_message}
+            x_connection={@x_connection}
+            x_enabled={@x_enabled}
           />
           <Regent.Primitives.button
-            class="bid-primary"
-            type="submit"
-            disabled={@usdc_amount == "" or @usdc_max_price == ""}
-          >
-            Review USDC bid
-          </Regent.Primitives.button>
-        </form>
-
-        <section :if={@operation} id={"#{@id}-review"} class="bid-review" aria-label="Bid review">
-          <dl>
-            <div :if={argument(@operation, "amount")}>
-              <dt>Amount</dt><dd>
-                {argument(@operation, "amount")} {argument(@operation, "currency_symbol")}
-                <UsdValue.usd amount={argument(@operation, "amount")} rate={@rate} />
-              </dd>
-            </div>
-            <div :if={argument(@operation, "usdc_amount")}>
-              <dt>USDC spent</dt><dd>{argument(@operation, "usdc_amount")} USDC</dd>
-            </div>
-            <div :if={argument(@operation, "stock_quote")}>
-              <dt>Estimated {argument(@operation, "currency_symbol")}</dt>
-              <dd>
-                {argument(@operation, "stock_quote")}
-                <UsdValue.usd amount={argument(@operation, "stock_quote")} rate={@rate} />
-                (estimate, not binding)
-              </dd>
-            </div>
-            <div :if={argument(@operation, "min_stock_out")}>
-              <dt>Least accepted</dt>
-              <dd>
-                {argument(@operation, "min_stock_out")} {argument(@operation, "currency_symbol")}
-                <UsdValue.usd amount={argument(@operation, "min_stock_out")} rate={@rate} />
-                · 1% below the estimate
-              </dd>
-            </div>
-            <div :if={argument(@operation, "deadline")}>
-              <dt>Valid until</dt><dd>{deadline(argument(@operation, "deadline"))}</dd>
-            </div>
-            <div>
-              <dt>Effective tick price</dt>
-              <dd>
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={argument(@operation, "max_price")}
-                  unit={"#{argument(@operation, "currency_symbol")} per token"}
-                />
-                <UsdValue.usd amount={argument(@operation, "max_price")} rate={@rate} per="per token" />
-              </dd>
-            </div>
-            <div>
-              <dt>Requested maximum</dt><dd>
-                {requested_max_price(@operation)} {argument(@operation, "currency_symbol")} per token
-                <UsdValue.usd amount={requested_max_price(@operation)} rate={@rate} per="per token" />
-              </dd>
-            </div>
-            <div>
-              <dt>Network</dt><dd>{Lab.network_name(@operation.envelope["chain_id"])}</dd>
-            </div>
-          </dl>
-
-          <%!-- The list styling drops list semantics, so the role is stated. --%>
-          <ol class="bid-steps" role="list" aria-label="Bid progress">
-            <li :for={step <- BidActions.steps(@operation)} data-step={step["step"]}>
-              <span>{step_label(step["step"], argument(@operation, "currency_symbol"))}</span>
-              <span class="bid-step-state">{step_state(@operation, step["step"])}</span>
-              <.transaction
-                hash={BidActions.step_hash(@operation, step["step"])}
-                chain_id={@operation.envelope["chain_id"]}
-              />
-            </li>
-          </ol>
-
-          <p :if={@operation.state == :confirmed} class="bid-settled" role="status">
-            {confirmed_copy(@operation)}
-          </p>
-          <Regent.Primitives.button
-            :if={sendable?(@operation, @wallet)}
-            type="button"
-            data-bid-send={@operation.action_id}
-            data-wallet-step={@operation.step}
-            data-bid-signer={@operation.signer}
-          >
-            Confirm in wallet
-          </Regent.Primitives.button>
-          <p :if={@operation.signer != @wallet && is_nil(@operation.terminal_at)} role="status">
-            This bid belongs to another wallet. Switch back to it to finish.
-          </p>
-          <Regent.Primitives.button
-            :if={@operation.state == :submitted}
-            type="button"
-            phx-click="wallet_press_verify"
-            phx-value-action_id={@operation.action_id}
-            phx-value-press_id={submitted_press(@operation)}
-            phx-target={@myself}
-            variant="secondary"
-          >
-            Check again
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={@operation.state == :prepared && !started?(@operation)}
-            type="button"
-            phx-click="cancel_bid_review"
-            phx-value-action-id={@operation.action_id}
-            phx-target={@myself}
-            variant="secondary"
-          >
-            Cancel
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={@operation.state in [:dispatched, :submitted]}
-            type="button"
-            phx-click="start_new_bid"
-            phx-value-action-id={@operation.action_id}
-            phx-target={@myself}
-            variant="secondary"
-          >
-            Start a new bid
-          </Regent.Primitives.button>
-          <Regent.Primitives.button
-            :if={@operation.terminal_at}
             type="button"
             phx-click="clear_bid"
             phx-target={@myself}
@@ -358,13 +220,53 @@ defmodule AutolaunchWeb.BidComponent do
             Place another bid
           </Regent.Primitives.button>
         </section>
+
+        <section
+          :if={!editable?(@operation) && @operation.state != :confirmed}
+          id={"#{@id}-progress"}
+          class="bid-progress"
+          aria-label="Your bid"
+        >
+          <.summary operation={@operation} rate={@rate} />
+          <p class="bid-progress__status" role="status" aria-live="polite">
+            {progress_copy(@operation)}
+          </p>
+          <a
+            :if={pending_hash(@operation) && !Lab.test_chain?(@operation.envelope["chain_id"])}
+            href={BidPlaced.transaction_url(:base, pending_hash(@operation))}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on Basescan ↗
+          </a>
+          <p :if={slow?(@operation)} class="bid-form__note">
+            This is taking longer than usual. It can still go through, and there is nothing you need to do.
+          </p>
+          <Regent.Primitives.button
+            :if={sendable?(@operation, @wallet)}
+            class="bid-primary"
+            type="button"
+            data-bid-send={@operation.action_id}
+            data-wallet-step={@operation.step}
+            data-bid-signer={@operation.signer}
+            variant={if @operation.state == :submitted, do: "secondary", else: "primary"}
+          >
+            {press_label(@operation)}
+          </Regent.Primitives.button>
+          <p :if={@operation.signer != @wallet} role="status">
+            This bid belongs to another wallet. Switch back to it to finish.
+          </p>
+          <Regent.Primitives.button
+            :if={@operation.state == :prepared}
+            type="button"
+            phx-click="clear_bid"
+            phx-target={@myself}
+            variant="secondary"
+          >
+            Change bid
+          </Regent.Primitives.button>
+        </section>
       </div>
-      <AutolaunchWeb.WalletPressComponent.history
-        :if={AutolaunchWeb.WalletPressComponent.scope(assigns)}
-        history={@wallet_press_history}
-        target={@myself}
-        label={fn step, operation -> step_label(step, argument(operation, "currency_symbol")) end}
-      />
     </section>
     """
   end
@@ -381,56 +283,30 @@ defmodule AutolaunchWeb.BidComponent do
       {:noreply,
        AutolaunchWeb.WalletPressComponent.report(socket, :bid, params, opts(socket), __MODULE__)}
 
-  def handle_event("wallet_press_verify", params, socket),
-    do:
-      {:noreply,
-       AutolaunchWeb.WalletPressComponent.verify(socket, :bid, params, opts(socket), __MODULE__)}
-
   def handle_event("bid_active_wallet", %{"address" => address}, socket),
-    do: {:noreply, adopt(socket, address)}
+    do: {:noreply, socket |> adopt(address) |> prepare_when_ready()}
 
-  def handle_event("bid_form_changed", %{"amount" => amount, "max_price" => max_price}, socket),
-    do: {:noreply, assign(socket, amount: amount, max_price: max_price, notice: nil)}
+  def handle_event("bid_form_changed", params, socket) do
+    {:noreply,
+     socket
+     |> assign(form: BidForm.values(params, socket.assigns.form), notice: nil)
+     |> prepare_when_ready()}
+  end
 
   def handle_event("fill_bid_amount", _params, socket) do
+    amount = balance(socket.assigns.balance, socket.assigns.auction)
+
     {:noreply,
-     assign(socket, amount: balance(socket.assigns.balance, socket.assigns.auction), notice: nil)}
+     socket
+     |> assign(form: %{socket.assigns.form | amount: amount}, notice: nil)
+     |> prepare_when_ready()}
   end
 
-  # The price to beat, entered from the auction's price panel into both forms.
-  def handle_event("use_price", %{"price" => price}, socket),
-    do: {:noreply, assign(socket, max_price: price, usdc_max_price: price, notice: nil)}
-
-  def handle_event("review_bid", %{"amount" => amount, "max_price" => max_price}, socket) do
-    {:noreply,
-     socket.assigns.auction.id
-     |> Autolaunch.prepare_bid(socket.assigns.wallet, amount, max_price, opts(socket))
-     |> settled(assign(socket, amount: amount, max_price: max_price))}
+  # The price to beat, entered from the auction's price panel as the limit.
+  def handle_event("use_price", %{"price" => price}, socket) do
+    form = %{socket.assigns.form | at_price: false, limit_mode: "price", limit: price}
+    {:noreply, socket |> assign(form: form, notice: nil) |> prepare_when_ready()}
   end
-
-  def handle_event(
-        "usdc_bid_form_changed",
-        %{"usdc_amount" => amount, "max_price" => price},
-        socket
-      ),
-      do: {:noreply, assign(socket, usdc_amount: amount, usdc_max_price: price, notice: nil)}
-
-  def handle_event(
-        "review_usdc_bid",
-        %{"usdc_amount" => amount, "max_price" => max_price},
-        socket
-      ) do
-    {:noreply,
-     socket.assigns.auction.id
-     |> Autolaunch.prepare_usdc_bid(socket.assigns.wallet, amount, max_price, opts(socket))
-     |> settled(assign(socket, usdc_amount: amount, usdc_max_price: max_price))}
-  end
-
-  def handle_event("cancel_bid_review", %{"action-id" => action_id}, socket),
-    do: {:noreply, action_id |> Autolaunch.cancel_bid_review(opts(socket)) |> settled(socket)}
-
-  def handle_event("start_new_bid", %{"action-id" => action_id}, socket),
-    do: {:noreply, action_id |> Autolaunch.start_new_bid(opts(socket)) |> settled(socket)}
 
   def handle_event("clear_bid", _params, socket),
     do:
@@ -438,12 +314,109 @@ defmodule AutolaunchWeb.BidComponent do
        socket
        |> assign(
          operation: nil,
-         amount: "",
-         max_price: "",
-         usdc_amount: "",
-         usdc_max_price: ""
+         prepared_for: nil,
+         sharing: false,
+         form: %{BidForm.blank() | pay_with: socket.assigns.form.pay_with}
        )
        |> cleared()}
+
+  def handle_event("share_bid", _params, socket) do
+    %{auction: auction} = socket.assigns
+    message = BidPlaced.message(auction.token_symbol, url(~p"/auctions/#{auction.id}"))
+    {:noreply, socket |> assign(sharing: true, share_message: message) |> load_x()}
+  end
+
+  def handle_event("share_message_changed", %{"message" => message}, socket),
+    do: {:noreply, assign(socket, share_message: message)}
+
+  def handle_event("refresh_x_connections", _params, socket), do: {:noreply, load_x(socket)}
+
+  @impl true
+  def handle_async(:prepare, {:ok, {key, result}}, socket) do
+    socket = assign(socket, preparing: nil)
+
+    cond do
+      # A press reached the wallet while this was prepared: the panel keeps
+      # that bid, and the unused review lapses on its own.
+      !editable?(socket.assigns.operation) ->
+        {:noreply, socket}
+
+      key != bid_key(socket.assigns) ->
+        {:noreply, prepare_when_ready(socket)}
+
+      match?({:ok, _}, result) ->
+        {:noreply, result |> settled(assign(socket, prepared_for: key)) |> refresh_later()}
+
+      true ->
+        {:noreply, settled(result, assign(socket, prepared_for: {:refused, key}))}
+    end
+  end
+
+  def handle_async(:prepare, {:exit, _reason}, socket),
+    do: {:noreply, assign(socket, preparing: nil, notice: notice(:error, :unavailable))}
+
+  attr :operation, :map, required: true
+  attr :rate, :any, required: true
+  attr :wallet, :string, required: true
+
+  # The prepared bid in three lines, over the one button that opens the wallet.
+  defp ready(assigns) do
+    ~H"""
+    <.summary operation={@operation} rate={@rate} />
+    <p :if={attempt_copy(@operation)} class="bid-notice" role="status">{attempt_copy(@operation)}</p>
+    <p :if={approval?(@operation.step)} class="bid-form__note">
+      Your wallet asks {times(signatures_left(@operation))}: first to let the auction use your {approval_currency(
+        @operation
+      )}, last to place the bid.
+    </p>
+    <Regent.Primitives.button
+      class="bid-primary"
+      type="button"
+      data-bid-send={@operation.action_id}
+      data-wallet-step={@operation.step}
+      data-bid-signer={@operation.signer}
+    >
+      {press_label(@operation)}
+    </Regent.Primitives.button>
+    """
+  end
+
+  attr :operation, :map, required: true
+  attr :rate, :any, required: true
+
+  # The bid in three lines: what it spends, the most it pays, and where.
+  defp summary(assigns) do
+    ~H"""
+    <dl class="bid-form__summary" aria-label="Your bid">
+      <div>
+        <dt>Total bid</dt>
+        <dd :if={argument(@operation, "usdc_amount")}>{argument(@operation, "usdc_amount")} USDC</dd>
+        <dd :if={!argument(@operation, "usdc_amount")}>
+          {argument(@operation, "amount")} {argument(@operation, "currency_symbol")}
+          <UsdValue.usd amount={argument(@operation, "amount")} rate={@rate} />
+        </dd>
+      </div>
+      <div>
+        <dt>Most per token</dt>
+        <dd>
+          <TokenDisplay.price
+            amount={argument(@operation, "max_price")}
+            unit={argument(@operation, "currency_symbol")}
+          />
+        </dd>
+      </div>
+      <div>
+        <dt>Network</dt><dd>{Lab.network_name(@operation.envelope["chain_id"])}</dd>
+      </div>
+    </dl>
+    <p :if={argument(@operation, "min_stock_out")} class="bid-form__note">
+      Your USDC buys at least {argument(@operation, "min_stock_out")} {argument(
+        @operation,
+        "currency_symbol"
+      )}, 1% below the estimate, or the bid is not placed.
+    </p>
+    """
+  end
 
   attr :notice, :map, required: true
 
@@ -452,60 +425,6 @@ defmodule AutolaunchWeb.BidComponent do
     <p class="bid-notice" role={if @notice.tone == :error, do: "alert", else: "status"}>
       {@notice.message}
     </p>
-    """
-  end
-
-  attr :outlook, :map, default: nil
-  attr :book, :map, default: nil
-  attr :symbol, :string, required: true
-
-  # What the typed maximum means against the auction's price now, and with an
-  # amount, the tokens it can expect.
-  defp outlook(%{outlook: %{reaches?: true}} = assigns) do
-    ~H"""
-    <div class="bid-estimate" role="status">
-      <p>Above the price now: your bid starts buying next block.</p>
-      <p :if={@outlook.about}>
-        About <TokenDisplay.price amount={@outlook.about} /> tokens if the price stays at
-        <TokenDisplay.price amount={@book.clearing} unit={@symbol} />
-        and the auction reaches its minimum.
-      </p>
-      <p :if={@outlook.at_least}>
-        At least <TokenDisplay.price amount={@outlook.at_least} round={:down} />
-        tokens if the auction reaches its minimum and the price stays below your maximum.
-      </p>
-    </div>
-    """
-  end
-
-  defp outlook(%{outlook: %{reaches?: false}} = assigns) do
-    ~H"""
-    <p class="bid-estimate" role="status">
-      Too low to buy right now: bid at least {@book.price_to_beat} {@symbol} per token.
-    </p>
-    """
-  end
-
-  defp outlook(assigns), do: ~H""
-
-  attr :hash, :string, default: nil
-  attr :chain_id, :integer, default: @chain_id
-
-  defp transaction(assigns) do
-    ~H"""
-    <a
-      :if={@hash && @chain_id == 8453}
-      class="bid-mono"
-      href={"https://basescan.org/tx/#{@hash}"}
-      target="_blank"
-      rel="noopener"
-      aria-label="View this transaction on Basescan"
-    >
-      {short_hash(@hash)}
-    </a>
-    <span :if={@hash && @chain_id == 31_337} class="bid-mono" data-local-transaction-hash>
-      {short_hash(@hash)}
-    </span>
     """
   end
 
@@ -602,37 +521,200 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp sendable?(_operation, _wallet), do: false
 
-  defp started?(operation),
-    do: Enum.any?(BidActions.steps(operation), &BidActions.step_hash(operation, &1["step"]))
+  # The bid is prepared in the background whenever what it would send changes:
+  # the wallet, the currency, the total or the most per token (which moves with
+  # the price to beat). Nothing is prepared while a bid of this panel is with
+  # the wallet or on its way, since a new review would retire it.
+  defp prepare_when_ready(%{assigns: assigns} = socket) do
+    key = bid_key(assigns)
 
-  # Where the sequence has got to, read from the operation's own step and state.
-  defp step_state(%{step: step} = operation, step_name) do
     cond do
-      Atom.to_string(step) == step_name -> current_state(operation.state)
-      BidActions.step_hash(operation, step_name) -> "Confirmed"
-      true -> "Waiting"
+      !editable?(assigns.operation) -> socket
+      is_nil(key) -> socket
+      assigns.preparing == key -> socket
+      assigns.prepared_for in [key, {:refused, key}] -> socket
+      true -> start_prepare(socket, key)
     end
   end
 
-  defp current_state(:prepared), do: "Ready"
-  defp current_state(:dispatched), do: "In your wallet"
-  defp current_state(:submitted), do: "Sent"
-  defp current_state(:confirmed), do: "Confirmed"
-  defp current_state(:cancelled), do: "Cancelled"
-  defp current_state(:expired), do: "Expired"
+  defp start_prepare(socket, {wallet, _pay_with, _amount, max_price} = key) do
+    %{auction: %{id: auction_id}, form: form} = socket.assigns
+    opts = opts(socket)
 
-  defp step_label("token_approval", symbol), do: "Allow #{symbol} to be spent"
-  defp step_label("permit2_approval", symbol), do: "Allow this auction to draw #{symbol}"
-  defp step_label("bid", _symbol), do: "Place the bid"
-  defp step_label("usdc_approval", _symbol), do: "Allow USDC to be spent"
-  defp step_label("usdc_bid", symbol), do: "Buy #{symbol} with USDC and place the bid"
-
-  defp deadline(unix) when is_binary(unix) do
-    unix
-    |> String.to_integer()
-    |> DateTime.from_unix!()
-    |> Calendar.strftime("%Y-%m-%d %H:%M UTC")
+    socket
+    |> assign(preparing: key)
+    |> start_async(:prepare, fn -> {key, prepare(auction_id, form, wallet, max_price, opts)} end)
   end
+
+  defp bid_key(%{wallet: wallet, balance: balance, form: form} = assigns)
+       when is_binary(wallet) and is_binary(balance) do
+    with amount when amount != "" <- form.amount,
+         max_price when is_binary(max_price) <-
+           BidForm.max_price(form, assigns.book, assigns.auction.token_supply),
+         do: {wallet, form.pay_with, amount, max_price},
+         else: (_incomplete -> nil)
+  end
+
+  defp bid_key(_assigns), do: nil
+
+  # The form is open while this panel has no bid with the wallet or on its way.
+  defp editable?(nil), do: true
+
+  defp editable?(%{terminal_at: terminal, state: state}) when not is_nil(terminal),
+    do: state != :confirmed
+
+  defp editable?(%{state: :prepared} = operation), do: !started?(operation)
+  defp editable?(_operation), do: false
+
+  defp ready?(%{operation: %{state: :prepared, terminal_at: nil} = operation} = assigns),
+    do: assigns.prepared_for == bid_key(assigns) and sendable?(operation, assigns.wallet)
+
+  defp ready?(_assigns), do: false
+
+  @refresh_ms 8 * 60_000
+
+  defp refresh_later(%{assigns: %{operation: %{action_id: action_id}}} = socket) do
+    send_update_after(
+      self(),
+      __MODULE__,
+      [id: socket.assigns.id, refresh_review: action_id],
+      @refresh_ms
+    )
+
+    socket
+  end
+
+  defp refresh_later(socket), do: socket
+
+  defp approval?(step), do: step in [:token_approval, :permit2_approval, :usdc_approval]
+
+  defp approval_currency(%{step: :usdc_approval}), do: "USDC"
+  defp approval_currency(operation), do: argument(operation, "currency_symbol")
+
+  defp signatures_left(%{step: step} = operation) do
+    operation
+    |> BidActions.steps()
+    |> Enum.drop_while(&(&1["step"] != Atom.to_string(step)))
+    |> length()
+  end
+
+  defp times(2), do: "twice"
+  defp times(count), do: "#{count} times"
+
+  defp press_label(%{step: step} = operation) do
+    if approval?(step), do: "Approve #{approval_currency(operation)}", else: "Place bid"
+  end
+
+  @follow_ms 3_000
+  @slow_seconds 60
+
+  defp follow(%{assigns: %{following: nil, operation: %{state: :submitted} = operation}} = socket) do
+    press_id = submitted_press(operation)
+
+    send_update_after(
+      self(),
+      __MODULE__,
+      [id: socket.assigns.id, follow: {operation.action_id, press_id}],
+      @follow_ms
+    )
+
+    assign(socket, following: press_id)
+  end
+
+  defp follow(socket), do: socket
+
+  defp verify(socket, action_id, press_id) do
+    params = %{"action_id" => action_id, "press_id" => press_id}
+    AutolaunchWeb.WalletPressComponent.verify(socket, :bid, params, opts(socket), __MODULE__)
+  end
+
+  # The bidder's own X account, read when they choose to share.
+  defp load_x(socket) do
+    connections =
+      case Autolaunch.Accounts.list_my_x_connections(actor: actor(socket)) do
+        {:ok, connections} -> connections
+        {:error, _unavailable} -> []
+      end
+
+    assign(socket,
+      x_connection: BidPlaced.profile_x(connections),
+      x_enabled: Autolaunch.Accounts.XOAuth.enabled?()
+    )
+  end
+
+  # What is happening to a bid that has left the form, in a line.
+  defp progress_copy(%{state: :dispatched} = operation) do
+    cond do
+      match?(%{state: :submission_unknown}, latest_attempt(operation)) ->
+        "Your wallet may have sent this. Check your wallet's activity before sending it again."
+
+      approval?(operation.step) ->
+        "Approve #{approval_currency(operation)} in your wallet."
+
+      true ->
+        "Confirm your bid in your wallet."
+    end
+  end
+
+  defp progress_copy(%{state: :submitted} = operation) do
+    if approval?(operation.step),
+      do: "Approving #{approval_currency(operation)}…",
+      else: "Confirming your bid…"
+  end
+
+  defp progress_copy(%{state: :prepared} = operation) do
+    cond do
+      attempt_copy(operation) -> attempt_copy(operation)
+      approval?(operation.step) -> "Approved. One more approval, then your bid."
+      true -> "#{approval_currency(operation)} approved. Now place your bid."
+    end
+  end
+
+  # How the last press of this step ended, when it ended without a transaction
+  # that counts.
+  defp attempt_copy(operation) do
+    case latest_attempt(operation) do
+      %{state: :reverted} ->
+        "That transaction was reverted on Base, so nothing was bought. Only the network fee was spent. You can send it again."
+
+      %{state: :unverified} ->
+        "That transaction did not match this bid, so it was not counted. Check your wallet's activity."
+
+      %{state: :not_sent} ->
+        "Your wallet declined, so nothing was sent."
+
+      %{state: :not_started} ->
+        "Your wallet did not open, so nothing was sent. Try again."
+
+      _other ->
+        nil
+    end
+  end
+
+  defp latest_attempt(%{attempts: attempts, step: step}),
+    do: attempts |> Enum.filter(&(&1.step == step)) |> List.last()
+
+  defp pending_hash(operation),
+    do:
+      Enum.find_value(
+        operation.attempts,
+        &(&1.state == :submitted and &1.step == operation.step and &1.transaction_hash)
+      )
+
+  defp placed_hash(operation), do: BidActions.step_hash(operation, Atom.to_string(operation.step))
+
+  defp slow?(%{state: :submitted} = operation) do
+    Enum.any?(
+      operation.attempts,
+      &(&1.state == :submitted and &1.step == operation.step and
+          DateTime.diff(DateTime.utc_now(), &1.updated_at) > @slow_seconds)
+    )
+  end
+
+  defp slow?(_operation), do: false
+
+  defp started?(operation),
+    do: Enum.any?(BidActions.steps(operation), &BidActions.step_hash(operation, &1["step"]))
 
   # USDC bids exist only for Stocks auctions, and only where the Stocks lab that
   # names the adapter is running.
@@ -643,23 +725,32 @@ defmodule AutolaunchWeb.BidComponent do
   defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()
   defp usdc_bids?(_auction), do: false
 
+  defp pay_with(auction, true), do: ["USDC", auction.quote_token_symbol]
+  defp pay_with(_auction, false), do: []
+
+  defp prepare(auction_id, %{pay_with: "USDC", amount: amount}, wallet, max_price, opts),
+    do: Autolaunch.prepare_usdc_bid(auction_id, wallet, amount, max_price, opts)
+
+  defp prepare(auction_id, %{amount: amount}, wallet, max_price, opts),
+    do: Autolaunch.prepare_bid(auction_id, wallet, amount, max_price, opts)
+
+  # The auction page hands over the book it already reads; anywhere else, such
+  # as the gallery's bid popup, the panel reads the book itself, once.
+  defp assign_book(%{assigns: %{book: %AsyncResult{}}} = socket), do: socket
+
+  defp assign_book(%{assigns: %{auction: auction}} = socket),
+    do:
+      assign_async(socket, :book, fn ->
+        with {:ok, book} <- AuctionBook.base(auction), do: {:ok, %{book: book}}
+      end)
+
   # An amount chosen before the panel opened is entered once, in the form that
   # pays in the auction's bid currency.
-  defp preset(%{assigns: %{preset_amount: amount, auction: auction}} = socket)
-       when is_binary(amount) and not is_map_key(socket.assigns, :preset_entered?) do
-    field = if usdc_bids?(auction), do: :usdc_amount, else: :amount
-    assign(socket, [{field, amount}, {:preset_entered?, true}])
-  end
+  defp preset(%{assigns: %{preset_amount: amount, form: form}} = socket)
+       when is_binary(amount) and not is_map_key(socket.assigns, :preset_entered?),
+       do: assign(socket, form: %{form | amount: amount}, preset_entered?: true)
 
   defp preset(socket), do: socket
-
-  defp confirmed_copy(%{envelope: %{"chain_id" => chain_id}} = operation) do
-    if Lab.test_chain?(chain_id),
-      do:
-        "Bid #{operation.onchain_bid_id} was verified on the fork. Test assets have no mainnet value.",
-      else:
-        "Bid #{operation.onchain_bid_id} is on Base. Your position appears once it is read back."
-  end
 
   # The press whose transaction the card is waiting on: the submitted attempt of
   # the current step, whose hash the chain has not answered about yet.
@@ -689,9 +780,6 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
 
-  defp requested_max_price(operation),
-    do: argument(operation, "requested_max_price") || argument(operation, "max_price")
-
   # The dollar price of the auction's currency, read once per auction and
   # apart from the form, so a slow price never holds a bid back.
   defp assign_usd_rate(%{assigns: %{auction: %{id: id}, usd_rate_for: id}} = socket), do: socket
@@ -709,7 +797,4 @@ defmodule AutolaunchWeb.BidComponent do
 
   defp short("0x" <> address),
     do: "0x#{String.slice(address, 0, 4)}…#{String.slice(address, -4, 4)}"
-
-  defp short_hash("0x" <> hash),
-    do: "0x#{String.slice(hash, 0, 6)}…#{String.slice(hash, -4, 4)}"
 end
