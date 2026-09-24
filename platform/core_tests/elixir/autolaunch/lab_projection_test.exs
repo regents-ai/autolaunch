@@ -27,8 +27,8 @@ defmodule Autolaunch.LabProjectionTest do
   @treasury "0x8888888888888888888888888888888888888888"
 
   test "a verified local launch and bid project once under exact deterministic identities" do
-    assert :ok = LabProjection.project_launch(launch_operation(), launch_result())
-    assert :ok = LabProjection.project_launch(launch_operation(), launch_result())
+    assert {:ok, [_ | _]} = LabProjection.project_launch(launch_operation(), launch_result())
+    assert {:ok, []} = LabProjection.project_launch(launch_operation(), launch_result())
 
     [auction] = all(Auction)
     [subject] = all(Subject)
@@ -65,7 +65,9 @@ defmodule Autolaunch.LabProjectionTest do
 
   test "a launch row written first keeps its details and state when a second confirmation arrives" do
     creator = account!("first-confirmation")
-    assert :ok = LabProjection.project_launch(launch_operation(creator.id), launch_result())
+
+    assert {:ok, [_ | _]} =
+             LabProjection.project_launch(launch_operation(creator.id), launch_result())
 
     {:ok, _active} =
       Autolaunch.refresh_lab_market_auction(one(Auction), :active, "1.5", %{}, actor: @actor)
@@ -88,7 +90,7 @@ defmodule Autolaunch.LabProjectionTest do
         })
       end)
 
-    assert :ok = LabProjection.project_launch(second, launch_result())
+    assert {:ok, []} = LabProjection.project_launch(second, launch_result())
 
     assert one(Auction) == written
     assert %{state: :active, current_clearing_price: "1.5"} = written
@@ -98,16 +100,16 @@ defmodule Autolaunch.LabProjectionTest do
     assert one(Subject).subject_id == LabProjection.subject_identity(@subject)
   end
 
-  test "pages hear of a launch only once it is committed, and never of one rolled back" do
+  test "a launch sends nothing itself and returns its rows' notifications for after commit" do
     Autolaunch.Listings.subscribe()
-    refused = put_in(launch_operation(), [:envelope, "arguments", "symbol"], "not-valid")
 
-    assert {:error, _reason} = LabProjection.project_launch(refused, launch_result())
+    assert {:ok, notifications} =
+             LabProjection.project_launch(launch_operation(), launch_result())
+
     refute_received {:autolaunch_listings_changed, _auction_id}
 
-    assert :ok = LabProjection.project_launch(launch_operation(), launch_result())
-    auction_id = one(Auction).id
-    assert_received {:autolaunch_listings_changed, ^auction_id}
+    assert notifications |> Enum.map(& &1.resource) |> Enum.sort() ==
+             Enum.sort([Auction, Subject, LaunchJob])
   end
 
   test "a later invalid resource refuses and rolls the whole launch projection back" do

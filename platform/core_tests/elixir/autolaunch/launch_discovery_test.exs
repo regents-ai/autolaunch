@@ -123,6 +123,34 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert [%{creator_human_account_id: ^creator}] = auctions()
   end
 
+  describe "the creator's own browser confirming a new launch" do
+    # Ash sends a notification only outside every transaction, so receiving
+    # it proves it went out after the session's transaction committed.
+    test "announces the new auction exactly once, after commit",
+         %{operation: operation, opts: opts} do
+      Autolaunch.Listings.subscribe()
+
+      assert {:ok, _response} = confirm_in_browser(operation, opts)
+
+      assert [%{id: auction_id}] = auctions()
+      assert_received {:autolaunch_listings_changed, ^auction_id}
+      refute_received {:autolaunch_listings_changed, _another}
+    end
+
+    test "announces nothing when the confirmation rolls back",
+         %{operation: operation, opts: opts} do
+      refuse_inserts("launch_jobs")
+      Autolaunch.Listings.subscribe()
+
+      # The launch job is written after the auction, inside the same transaction.
+      assert {:error, %Ash.Changeset{resource: Autolaunch.LaunchJob}} =
+               confirm_in_browser(operation, opts)
+
+      assert auctions() == []
+      refute_received {:autolaunch_listings_changed, _auction_id}
+    end
+  end
+
   test "a launch no review of this site carried out stays unlisted" do
     record_launch(@stranger)
     run_triggers()
@@ -170,6 +198,34 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert %{state: :chain_verified} = reload(operation)
     assert %{state: :prepared, terminal_at: nil} = reload(other_operation)
     assert [%{state: :submitted}] = attempts(other_operation)
+  end
+
+  # The page reports the launch's hash, then checks it on the chain.
+  defp confirm_in_browser(operation, opts) do
+    {:ok, pressed} = press(operation)
+
+    {:ok, _} =
+      Autolaunch.report_wallet_press(
+        :launch,
+        operation.action_id,
+        pressed.id,
+        %{"transaction_hash" => @hash},
+        opts
+      )
+
+    Autolaunch.verify_wallet_press(:launch, operation.action_id, pressed.id, opts)
+  end
+
+  defp refuse_inserts(table) do
+    Autolaunch.Repo.query!("""
+    CREATE FUNCTION pg_temp.refuse_insert() RETURNS trigger LANGUAGE plpgsql
+    AS $$ BEGIN RAISE EXCEPTION 'insert refused'; END $$
+    """)
+
+    Autolaunch.Repo.query!(
+      ~s(CREATE TRIGGER refuse_insert BEFORE INSERT ON "#{Autolaunch.Repo.default_prefix()}".#{table} ) <>
+        "FOR EACH ROW EXECUTE FUNCTION pg_temp.refuse_insert()"
+    )
   end
 
   # The browser's press, recorded before the wallet opens; it never reports.

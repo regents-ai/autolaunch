@@ -25,11 +25,17 @@ defmodule Autolaunch.LabProjection do
   launch discovery. A later confirmation finds that row and changes nothing,
   so it can never overwrite the launch's details or take its auction, subject
   or launch back to how they started.
+
+  It runs inside the caller's transaction (the creator's session, or launch
+  discovery), so nothing is announced here: it returns the listing
+  notifications of the rows it wrote, for the caller to send once that
+  transaction has committed. A launch already stored changed nothing and
+  returns none.
   """
   def project_launch(%{envelope: envelope} = operation, result) when is_map(result) do
     arguments = envelope["arguments"]
 
-    transact(fn ->
+    transaction(fn ->
       arguments
       |> auction_attrs(%{
         chain_id: envelope["chain_id"],
@@ -40,7 +46,7 @@ defmodule Autolaunch.LabProjection do
         required_currency_raised: arguments["required_regent_raised_atomic"],
         treasury_address: result["treasury"]
       })
-      |> Autolaunch.record_launch_auction(actor: @actor)
+      |> Autolaunch.record_launch_auction(actor: @actor, return_notifications?: true)
       |> project_launch_records(envelope, arguments, result)
     end)
   end
@@ -225,29 +231,40 @@ defmodule Autolaunch.LabProjection do
     |> Ash.create(domain: @domain, actor: @actor)
   end
 
+  # The same write, returning its notifications for the caller to send after
+  # commit instead of sending them.
+  defp create_quietly(resource, action, attributes) do
+    resource
+    |> Ash.Changeset.for_create(action, attributes, domain: @domain, actor: @actor)
+    |> Ash.create(domain: @domain, actor: @actor, return_notifications?: true)
+  end
+
   # One Ash transaction, so pages hear of these writes only once they are
   # committed, and a failed write saves nothing.
   defp transact(write) do
-    with {:ok, _value} <- Ash.transaction(Auction, fn -> commit(write.()) end), do: :ok
+    with {:ok, _value} <- transaction(write), do: :ok
   end
+
+  defp transaction(write), do: Ash.transaction(Auction, fn -> commit(write.()) end)
 
   defp commit({:ok, value}), do: value
   defp commit({:error, reason}), do: Ash.DataLayer.rollback(Auction, reason)
 
-  # A row another confirmation already wrote carries its subject and launch.
+  # A row another confirmation already wrote carries its subject and launch,
+  # and nothing about it changed.
   defp project_launch_records(
-         {:ok, %Auction{__metadata__: %{upsert_skipped: true}} = auction},
+         {:ok, %Auction{__metadata__: %{upsert_skipped: true}}, _notifications},
          _envelope,
          _arguments,
          _result
        ),
-       do: {:ok, auction}
+       do: {:ok, []}
 
-  defp project_launch_records({:ok, auction}, envelope, arguments, result) do
+  defp project_launch_records({:ok, auction, notifications}, envelope, arguments, result) do
     subject_id = subject_identity(result["subject"])
 
-    with {:ok, _subject} <-
-           create(Subject, :project_lab, %{
+    with {:ok, _subject, subject_notifications} <-
+           create_quietly(Subject, :project_lab, %{
              subject_id: subject_id,
              subject_kind: "regent",
              chain_id: envelope["chain_id"],
@@ -257,8 +274,8 @@ defmodule Autolaunch.LabProjection do
              factory_address: arguments["factory"],
              creator_address: envelope["expected_signer"]
            }),
-         {:ok, _launch} <-
-           create(LaunchJob, :project_lab, %{
+         {:ok, _launch, launch_notifications} <-
+           create_quietly(LaunchJob, :project_lab, %{
              job_id: launch_identity(result["launch_id"]),
              status: "active",
              step: "auction",
@@ -274,7 +291,7 @@ defmodule Autolaunch.LabProjection do
              hook_address: lab_address(envelope, "hook"),
              treasury_address: result["treasury"]
            }),
-         do: {:ok, auction}
+         do: {:ok, notifications ++ subject_notifications ++ launch_notifications}
   end
 
   defp project_launch_records(error, _envelope, _arguments, _result), do: error

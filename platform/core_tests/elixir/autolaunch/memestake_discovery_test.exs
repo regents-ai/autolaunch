@@ -68,6 +68,7 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
   test "a launch whose browser never reported its hash is listed once, for its creator",
        %{account: account, operation: operation, launchpad: launchpad} do
     mined(launchpad)
+    Autolaunch.Listings.subscribe()
 
     discover()
     run_triggers()
@@ -78,8 +79,40 @@ defmodule Autolaunch.MemestakeDiscoveryTest do
     assert [%{kind: :stocks, state: :created, auction_address: @auction} = auction] = auctions()
     assert auction.creator_human_account_id == account.id
 
+    auction_id = auction.id
+    assert_received {:autolaunch_listings_changed, ^auction_id}
+    refute_received {:autolaunch_listings_changed, _another}
+
     assert %{state: :chain_verified} = reload(operation)
     assert [%{state: :confirmed, transaction_hash: @hash}] = attempts(operation)
+  end
+
+  # Ash sends a notification only outside every transaction, so receiving it
+  # proves it went out after the session's transaction committed.
+  test "the creator's own browser confirming a new launch announces it exactly once",
+       %{account: account, operation: operation, launchpad: launchpad} do
+    {:ok, pressed} = press(operation)
+    mined(launchpad)
+    opts = session(account)
+
+    {:ok, _} =
+      Autolaunch.report_wallet_press(
+        :stocks_launch,
+        operation.action_id,
+        pressed.id,
+        %{"transaction_hash" => @hash},
+        opts
+      )
+
+    Autolaunch.Listings.subscribe()
+
+    assert {:ok, _response} =
+             Autolaunch.verify_wallet_press(:stocks_launch, operation.action_id, pressed.id, opts)
+
+    assert [%{id: auction_id, creator_human_account_id: creator}] = auctions()
+    assert creator == account.id
+    assert_received {:autolaunch_listings_changed, ^auction_id}
+    refute_received {:autolaunch_listings_changed, _another}
   end
 
   test "a replayed launch lists nothing twice and takes no auction back to its start",
