@@ -8,9 +8,13 @@ defmodule Autolaunch.Robinhood.Auctions do
   (ids run from 1 to `nextLaunchId() - 1`), each token's own name and symbol,
   the metadata the launch wrote into it (description, website and image), the
   stock the auction is denominated in, the minimum it must raise, and the
-  auction's schedule, stored clearing price and currency raised. An auction's state comes from its
-  schedule against the block clock the contracts keep time by
-  (`Autolaunch.Robinhood.BlockClock`). The launcher had to be its creator's
+  auction's schedule, stored clearing price and currency raised. An auction's
+  state is the launch's own lifecycle once it is finished (graduated or
+  failed, set only by `migrate`); before that, its schedule against the block
+  clock the contracts keep time by (`Autolaunch.Robinhood.BlockClock`) says
+  whether it opens soon, is live, or has ended and waits to be finished.
+  Whether the raise has met its minimum is the auction's `isGraduated()`, a
+  progress fact only. The launcher had to be its creator's
   signed-in wallet, so each listed auction also names the account whose
   signed-in wallet that still is, when exactly one account's is; its creator's
   X accounts show beside the launch. An image the site stores carries its
@@ -42,7 +46,8 @@ defmodule Autolaunch.Robinhood.Auctions do
           stock_address: String.t(),
           stock_symbol: String.t(),
           stock_decimals: non_neg_integer(),
-          state: :created | :active | :graduated | :failed,
+          state: :created | :active | :ended | :graduated | :failed,
+          minimum_reached: boolean(),
           clearing_price: String.t(),
           clearing_price_q96: non_neg_integer(),
           raised: String.t(),
@@ -100,6 +105,7 @@ defmodule Autolaunch.Robinhood.Auctions do
 
   defp in_mode?(_auction, "all"), do: true
   defp in_mode?(auction, mode) when mode in ["biddable", "live"], do: auction.state == :active
+  defp in_mode?(auction, "ended"), do: auction.state == :ended
   defp in_mode?(auction, "failed_minimum"), do: auction.state == :failed
   defp in_mode?(auction, "graduated"), do: auction.state == :graduated
 
@@ -160,7 +166,8 @@ defmodule Autolaunch.Robinhood.Auctions do
   end
 
   # `launches(id)`: launcher, newToken, currency, auction, startBlock, endBlock,
-  # …, and at word 8 the stock the auction must raise to graduate.
+  # …, at word 8 the stock the auction must raise to graduate, and at word 10
+  # the launch lifecycle (1 active, 2 graduated, 3 failed).
   defp auction(config, launch_id, block, clock, opts) do
     with {:ok, words} <- launch_words(config, launch_id, block, opts),
          {:ok, launcher} <- Abi.word_address(Enum.at(words, 0)),
@@ -173,8 +180,7 @@ defmodule Autolaunch.Robinhood.Auctions do
          {:ok, metadata} <- metadata(token, block, opts),
          {:ok, clearing} <- auction_uint(config, auction, "clearingPrice()", block, opts),
          {:ok, raised} <- auction_uint(config, auction, "currencyRaised()", block, opts),
-         {:ok, state} <-
-           state(config, auction, Enum.at(words, 4), Enum.at(words, 5), clock, block, opts) do
+         {:ok, minimum_reached} <- minimum_reached(config, auction, block, opts) do
       {:ok,
        %{
          launch_id: launch_id,
@@ -189,7 +195,8 @@ defmodule Autolaunch.Robinhood.Auctions do
          stock_address: stock.address,
          stock_symbol: stock.symbol,
          stock_decimals: stock.decimals,
-         state: state,
+         state: state(Enum.at(words, 10), Enum.at(words, 4), Enum.at(words, 5), clock),
+         minimum_reached: minimum_reached,
          clearing_price: Amounts.format_cca_price(clearing, stock.decimals, @token_decimals),
          clearing_price_q96: clearing,
          raised: Rpc.format_units(raised, stock.decimals),
@@ -204,19 +211,15 @@ defmodule Autolaunch.Robinhood.Auctions do
     end
   end
 
-  defp state(_config, _auction, start_block, _end_block, clock, _block, _opts)
-       when clock < start_block,
-       do: {:ok, :created}
+  defp state(2, _start_block, _end_block, _clock), do: :graduated
+  defp state(3, _start_block, _end_block, _clock), do: :failed
+  defp state(_lifecycle, start_block, _end_block, clock) when clock < start_block, do: :created
+  defp state(_lifecycle, _start_block, end_block, clock) when clock < end_block, do: :active
+  defp state(_lifecycle, _start_block, _end_block, _clock), do: :ended
 
-  defp state(_config, _auction, _start_block, end_block, clock, _block, _opts)
-       when clock < end_block,
-       do: {:ok, :active}
-
-  defp state(config, auction, _start_block, _end_block, _clock, block, opts) do
+  defp minimum_reached(config, auction, block, opts) do
     data = LabAbi.encode(Lab.abi!(config, :auction), "isGraduated()", [])
-
-    with {:ok, graduated?} <- Rpc.call_bool(auction, data, block, opts),
-         do: {:ok, if(graduated?, do: :graduated, else: :failed)}
+    Rpc.call_bool(auction, data, block, opts)
   end
 
   # The token's `tokenURI()` is a base64 JSON object holding only the metadata

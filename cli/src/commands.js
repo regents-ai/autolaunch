@@ -5,7 +5,7 @@ function listQuery(path, values, flags) {
   if (values.limit !== undefined && (!/^-?\d+$/.test(values.limit) || !Number.isSafeInteger(Number(values.limit)))) {
     throw new UsageError("--limit must be a safe integer. The API applies its documented bounds.");
   }
-  if (values.mode !== undefined && !["all", "biddable", "live", "failed_minimum", "graduated"].includes(values.mode)) throw new UsageError("Unknown --mode.");
+  if (values.mode !== undefined && !["all", "biddable", "live", "ended", "failed_minimum", "graduated"].includes(values.mode)) throw new UsageError("Unknown --mode.");
   if (values.sort !== undefined && !["newest", "oldest"].includes(values.sort)) throw new UsageError("Use --sort newest or oldest.");
   return {path: query(path, Object.fromEntries(flags.map(flag => [flag, values[flag]])))};
 }
@@ -24,7 +24,7 @@ export const commands = [
   {
     command: "auctions list", operation_id: "listAuctions", webmcp: "autolaunch_auctions",
     method: "GET", path: "/api/v1/auctions", flags: ["mode", "sort", "limit", "after"],
-    description: "List public auctions on Base and Robinhood with their chain, kind and quote_token. Defaults to 50, capped at 50; the limit includes both chains, with Robinhood launch order before Base date order across pages; follow pagination.next_cursor with --after (24-hour expiry). Modes: all, biddable, live, failed_minimum, graduated. Sort: newest or oldest.",
+    description: "List public auctions on Base and Robinhood with their chain, kind and quote_token. Defaults to 50, capped at 50; the limit includes both chains, with Robinhood launch order before Base date order across pages; follow pagination.next_cursor with --after (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and the page lists Base auctions only. Modes: all, biddable, live, ended, failed_minimum, graduated. Sort: newest or oldest.",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
     request: (_args, values) => listQuery("/api/v1/auctions", values, ["mode", "sort", "limit", "after"]),
   },
@@ -46,7 +46,7 @@ export const commands = [
   {
     command: "tokens list", operation_id: "listTokens", webmcp: "autolaunch_tokens",
     method: "GET", path: "/api/v1/tokens", flags: ["limit", "after"],
-    description: "List graduated tokens on Base and Robinhood; every entry names its chain. Robinhood tokens come first across pages, newest launch first; Base tokens follow, newest graduation first. Defaults to 100, capped at 100; follow pagination.next_cursor with --after (24-hour expiry).",
+    description: "List graduated tokens on Base and Robinhood; every entry names its chain. Robinhood tokens come first across pages, newest launch first; Base tokens follow, newest graduation first. Defaults to 100, capped at 100; follow pagination.next_cursor with --after (24-hour expiry). When Robinhood cannot be read, robinhood_unavailable is true and the page lists Base tokens only.",
     authority: "public", effect: "read", pagination: {has_more: "body.pagination.has_more", cursor: "body.pagination.next_cursor", flag: "after"},
     request: (_args, values) => listQuery("/api/v1/tokens", values, ["limit", "after"]),
   },

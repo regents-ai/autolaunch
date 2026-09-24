@@ -71,7 +71,6 @@ defmodule Autolaunch.Robinhood.StockBidChainClient do
          prev_tick_price_q96: prev_tick,
          predecessor_source: "bounded local auction tick walk",
          block: block,
-         clock: clock,
          lab_binding: Lab.binding(config, @binding_keys)
        }}
     else

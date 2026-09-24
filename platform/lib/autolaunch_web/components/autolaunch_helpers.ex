@@ -52,6 +52,10 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
 
   attr :robinhood_trade_event, :string, default: nil
 
+  attr :robinhood_unavailable, :boolean,
+    default: false,
+    doc: "Robinhood could not be read, so only the stored Base records are listed"
+
   attr :market, :map,
     default: nil,
     doc: "the market feed's readings, which give each Base auction its amount raised"
@@ -129,8 +133,9 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         >Retry</Regent.Primitives.button>
         <.link :if={@cursor} patch={"/#{@kind}"}>Back to newest</.link>
       </Regent.Primitives.notice>
-      <Regent.Primitives.notice :if={@robinhood.failed && !@records.failed} role="alert">
+      <Regent.Primitives.notice :if={@robinhood_unavailable} role="alert">
         <p>{@robinhood_failure}</p>
+        <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
       </Regent.Primitives.notice>
       <div :if={@kind == :auctions && @listed?} class="auction-card-grid">
         <.auction_card

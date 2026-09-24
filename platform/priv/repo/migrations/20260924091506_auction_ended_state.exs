@@ -1,4 +1,4 @@
-defmodule Autolaunch.Repo.Migrations.AuctionMinimumReached do
+defmodule Autolaunch.Repo.Migrations.AuctionEndedState do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

@@ -447,12 +447,13 @@ defmodule AutolaunchWeb.AuctionLive do
     end
   end
 
-  # Between the end block and the first settlement the record still says
+  # Between the end block and the feed's next reading the record still says
   # active; the page knows bidding is over and says so.
-  defp settling_status(%{state: :active}, true), do: "Bidding ended"
+  defp settling_status(%{state: :active}, true), do: "Waiting to finish"
   defp settling_status(_record, _bidding_ended?), do: nil
 
-  defp bidding_ended?(%{state: state}, _snapshot) when state in [:graduated, :failed], do: true
+  defp bidding_ended?(%{state: state}, _snapshot) when state in [:ended, :graduated, :failed],
+    do: true
 
   defp bidding_ended?(_record, %{block_number: block, end_block: end_block}),
     do: block >= end_block
@@ -474,9 +475,13 @@ defmodule AutolaunchWeb.AuctionLive do
   defp ended_copy(%{state: :failed, quote_token_symbol: symbol}),
     do: "The auction did not raise its minimum. Every bid returns its #{symbol} in full."
 
+  defp ended_copy(%{minimum_reached: true, quote_token_symbol: symbol}),
+    do:
+      "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids above the final price receive tokens and their unspent #{symbol}; the rest return what was not spent."
+
   defp ended_copy(%{quote_token_symbol: symbol}),
     do:
-      "Bids are being settled. Unspent #{symbol} is returned first; tokens follow on a successful auction."
+      "Bidding has ended. If the final count stays below the minimum, every bid returns its #{symbol} in full; if it reached the minimum, the trading pool opens once the auction is finished."
 
   # A graduated auction's token row, when it exists, so the page can point at
   # the pool that auction graduated into.

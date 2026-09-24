@@ -144,7 +144,7 @@ defmodule Autolaunch.BidActions do
 
     with {:ok, signer} <- current_wallet(arguments.expected_signer, context),
          {:ok, lease} <- lease(context),
-         {:ok, auction} <- biddable(arguments.auction_id),
+         {:ok, auction} <- auction(arguments.auction_id),
          {:ok, treasury_report} <- verified_treasury(auction),
          {:ok, address} <- normalize(auction.auction_address),
          {:ok, amount} <- refusable(atomic_amount(arguments.amount, auction.quote_token_decimals)),
@@ -187,7 +187,7 @@ defmodule Autolaunch.BidActions do
 
     with {:ok, signer} <- current_wallet(arguments.expected_signer, context),
          {:ok, lease} <- lease(context),
-         {:ok, auction} <- biddable(arguments.auction_id),
+         {:ok, auction} <- auction(arguments.auction_id),
          :ok <- stocks_auction(auction),
          {:ok, treasury_report} <- verified_treasury(auction),
          {:ok, address} <- normalize(auction.auction_address),
@@ -733,14 +733,6 @@ defmodule Autolaunch.BidActions do
     case Autolaunch.get_public_auction(auction_id, Keyword.put(opts, :actor, nil)) do
       {:ok, nil} -> unavailable(:auction_not_found)
       result -> result
-    end
-  end
-
-  defp biddable(auction_id) do
-    case auction(auction_id) do
-      {:ok, %{state: :active} = auction} -> {:ok, auction}
-      {:ok, _closed} -> unavailable(:auction_not_biddable)
-      error -> error
     end
   end
 

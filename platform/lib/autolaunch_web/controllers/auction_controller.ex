@@ -5,7 +5,7 @@ defmodule AutolaunchWeb.AuctionController do
   alias Autolaunch.Robinhood.{Auctions, Lab}
   alias Autolaunch.TreasurySecurity
 
-  @modes ~w(all biddable live failed_minimum graduated)
+  @modes ~w(all biddable live ended failed_minimum graduated)
   @sorts ~w(newest oldest)
   @query_parameters ~w(mode sort limit after)
 
@@ -19,7 +19,8 @@ defmodule AutolaunchWeb.AuctionController do
         data:
           Enum.map(page.robinhood, &robinhood_auction/1) ++
             Enum.map(page.records, &public_auction/1),
-        pagination: page.pagination
+        pagination: page.pagination,
+        robinhood_unavailable: page.robinhood_unavailable
       })
     else
       {:error, :invalid_query} -> invalid_request(conn)
@@ -114,6 +115,7 @@ defmodule AutolaunchWeb.AuctionController do
       featured: auction.featured,
       kind: to_string(auction.kind),
       state: to_string(auction.state),
+      minimum_reached: auction.minimum_reached,
       opened_at: iso8601(auction.opened_at),
       quote_token: %{
         address: auction.quote_token_address,
@@ -137,6 +139,7 @@ defmodule AutolaunchWeb.AuctionController do
       token_symbol: auction.symbol,
       kind: "stocks",
       state: to_string(auction.state),
+      minimum_reached: auction.minimum_reached,
       quote_token: %{
         address: auction.stock_address,
         symbol: auction.stock_symbol,

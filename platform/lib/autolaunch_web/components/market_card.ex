@@ -570,13 +570,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
   @doc "An auction state in the words the site uses: live means open for bidding."
   def state_label(:created), do: "Opening soon"
   def state_label(:active), do: "Live"
+  def state_label(:ended), do: "Waiting to finish"
   def state_label(:graduated), do: "Graduated"
   def state_label(:failed), do: "Failed"
 
-  # An auction that has ended takes no bids, so its row offers none.
+  # An auction past its end block takes no bids, so its row offers none.
   defp auction_quick(auction), do: auction_quick(auction, BidComponent.bid_currency(auction))
 
-  defp auction_quick(%{state: state}, _currency) when state in [:graduated, :failed], do: nil
+  defp auction_quick(%{state: state}, _currency) when state in [:ended, :graduated, :failed],
+    do: nil
 
   defp auction_quick(_auction, currency) do
     %{
