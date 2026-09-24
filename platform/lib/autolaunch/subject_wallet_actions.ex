@@ -43,6 +43,8 @@ defmodule Autolaunch.SubjectWalletActions do
   @receiver_kinds [:pay, :sweep, :set_note]
   # The two actions that recognize an inflow, and so divide one.
   @inflow_kinds [:pay, :sweep]
+  # The receiver routes every sweep under the zero payment reference.
+  @sweep_reference "0x" <> String.duplicate("0", 64)
   @assets [:subject, :usdc, :regent]
 
   @contract_name %{splitter: "SubjectSplitterV1", receiver: "PaymentReceiverV1"}
@@ -296,13 +298,11 @@ defmodule Autolaunch.SubjectWalletActions do
     held = snapshot.receiver.balances[asset]
 
     if held > 0 do
-      reference = payment_reference()
-
       {:ok,
        %{
          amount: held,
-         payment_reference: reference,
-         data: SubjectAbi.encode_sweep(asset_address(snapshot, asset), reference)
+         payment_reference: @sweep_reference,
+         data: SubjectAbi.encode_sweep(asset_address(snapshot, asset))
        }}
     else
       unavailable(:nothing_to_sweep)
