@@ -212,15 +212,15 @@ defmodule AutolaunchWeb.CreateLive do
   # no launch fee on any of them.
   defp choice_summary(:base, :revshare),
     do:
-      "Best for agent services and x402 endpoints that will earn USDC over the long term. Bidders pay in REGENT and you choose the required raise in REGENT. There is no launch fee."
+      "Raise early funds through a CCA auction. It tokenizes a stablecoin generating service or agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders pay in REGENT and you choose the required raise in REGENT. There is no launch fee."
 
   defp choice_summary(:base, :stocks),
     do:
-      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in the stock token you choose, and you set the required raise in that stock. There is no launch fee."
+      "A 24 hour auction for a new token paired with an onchain stock. Stakers earn the onchain stock from fees. Bidders pay in the stock token you choose, and you set the required raise in that stock. There is no launch fee."
 
   defp choice_summary(:robinhood, :stocks) do
     summary =
-      "Best for a fast and fair launch of a new token and its trading pool against an onchain stock. Bidders pay in the stock token you choose, and you set the required raise in that stock. There is no launch fee."
+      "A 24 hour auction for a new token paired with an onchain stock. Stakers earn the onchain stock from fees. Bidders pay in the stock token you choose, and you set the required raise in that stock. There is no launch fee."
 
     if Autolaunch.Robinhood.Lab.configured?(),
       do: summary,

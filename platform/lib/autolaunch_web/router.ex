@@ -15,13 +15,8 @@ defmodule AutolaunchWeb.Router do
     plug :accepts, ["json"]
   end
 
-  def enforce_session_authority(conn, _opts) do
-    if Autolaunch.Prelaunch.read_only?() do
-      conn |> assign(:current_lineage, nil) |> assign(:current_human_account, nil)
-    else
-      AutolaunchWeb.PrivySessionController.enforce_authority(conn)
-    end
-  end
+  def enforce_session_authority(conn, _opts),
+    do: AutolaunchWeb.PrivySessionController.enforce_authority(conn)
 
   scope "/", AutolaunchWeb do
     # The platform health check answers before sessions, flash or CSRF.
@@ -78,6 +73,7 @@ defmodule AutolaunchWeb.Router do
       live "/tokens", TokensLive, :index
       live "/tokens/:token_id", TokenLive, :show
       live "/robinhood/tokens/:token", RobinhoodTokenLive, :show
+      live "/token-details", TokenDetailsLive, :show
       live "/launches", LaunchesLive, :index
       live "/launches/:id", LaunchLive, :show
       live "/subjects", SubjectsLive, :index

@@ -9,15 +9,53 @@
 @import "./pages/regent.css";
 @import "./pages/autolaunch.css";
 @import "./pages/home.css";
+@import "./pages/facts.css";
 
-.autolaunch-prelaunch-notice { margin: 0; padding: 10px 16px; text-align: center; background: var(--color-fg); color: var(--color-surface); font-size: .8125rem; line-height: 1.5; }
+/* Until opening: one countdown beside + Create, and a short welcome on the home page. */
+#home-top .home-top__opening { display: inline-flex; align-items: center; gap: 8px; }
+.opening-countdown { display: inline-flex; align-items: center; gap: 8px; min-height: 2.75rem; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--hairline-strong); font-family: var(--font-family-title); white-space: nowrap; }
+.opening-countdown__label { font-size: .6875rem; letter-spacing: .06em; text-transform: uppercase; color: var(--color-fg-muted); }
+.opening-countdown__clock { display: inline-grid; font-size: 1.125rem; }
+.opening-countdown__clock > * { grid-area: 1 / 1; }
+.opening-countdown__time { color: var(--color-fg); }
+.opening-countdown__widest { visibility: hidden; }
+/* Phones: the header fills three rows edge to edge. The $REGENT links, then the countdown,
+   then Create beside Sign in (or the account menu). */
+@media (max-width: 42rem) {
+  #home-top .home-top__actions { flex: 1 1 100%; gap: var(--space-1); margin-left: 0; }
+  #home-top .home-top__opening { display: contents; }
+  #home-top .opening-countdown { flex: 1 1 100%; justify-content: center; }
+  #home-top :is(.create-button, .account-control[data-account-kind="sign_in"]) { flex: 1 1 calc(50% - var(--space-1) / 2); box-sizing: border-box; }
+  #home-top .account-control__sign-in { width: 100%; }
+}
+.opening-welcome { display: grid; gap: 12px; margin: 0 0 32px; padding: 8px 0 32px; border-bottom: 1px solid var(--rg-page-rule); }
+.opening-welcome__title { margin: 0; font-family: var(--font-family-title); font-size: clamp(1.75rem, 4.5vw, 3.25rem); line-height: 1.1; }
+.opening-welcome__accent { color: var(--product-autolaunch); }
+.opening-welcome__lede { margin: 0; max-width: 40rem; font-size: 1.0625rem; color: var(--color-fg-muted); }
+.opening-welcome__kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 12px; max-width: 56rem; margin: 8px 0 0; }
+.opening-welcome__kind { padding: 16px; border: 1px solid var(--hairline); background: var(--color-surface); }
+.opening-welcome__kind dt { margin: 0 0 6px; font-family: var(--font-family-title); font-size: 1.125rem; color: var(--product-autolaunch); }
+.opening-welcome__kind dd { margin: 0; font-size: .875rem; line-height: 1.5; color: var(--color-fg-muted); }
+.opening-welcome__kind ul { display: grid; gap: 4px; margin: 0; padding-left: 1.1rem; }
 .prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
 .prelaunch-actions h2, .prelaunch-actions p { margin: 0; }
 .prelaunch-actions p { color: var(--color-fg-muted); font-size: .875rem; }
-html[data-prelaunch-read-only="true"] .rg-button:disabled {
+html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button) {
   --rg-button-fill: color-mix(in srgb, var(--color-fg) 12%, var(--color-surface));
   --rg-button-ink: var(--color-fg-muted);
   background: var(--rg-button-fill); color: var(--rg-button-ink); border: 1px solid var(--hairline-strong); opacity: 1; cursor: not-allowed;
 }
-html[data-prelaunch-read-only="true"] .rg-button:disabled::before,
-html[data-prelaunch-read-only="true"] .rg-button:disabled::after { display: none; }
+html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button)::before,
+html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button)::after { display: none; }
+/* Both Create buttons stay closed until opening, on a gray plate, but keep the
+   corner marks and the hover outline of the header buttons. */
+.rg-button.create-button:disabled { cursor: not-allowed; }
+:root .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--rg-button-active-border); }
+:root[data-theme="dark"] .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
+:root .rg-button.create-button:disabled:hover::after {
+  --rg-button-edge-ink: var(--rg-button-active-border); --rg-button-cut-ink: var(--rg-button-active-border); --rg-button-cut-gap: 0px;
+  background-size:
+    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
+}

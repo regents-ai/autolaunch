@@ -92,16 +92,11 @@ defmodule AutolaunchWeb.PortfolioLive do
 
       <section :if={@account_control.kind == :sign_in} class="autolaunch-empty portfolio-sign-in">
         <h2>Connect to your portfolio</h2>
-        <p>
-          {if Autolaunch.Prelaunch.read_only?(),
-            do: "Portfolios and account access will be available after contract deployment.",
-            else: "Sign in to see bids and tokens from your verified wallets."}
-        </p>
+        <p>Sign in to see bids and tokens from your verified wallets.</p>
         <Regent.Primitives.button
           type="button"
           class="account-control__sign-in"
           data-account-target="sign-in"
-          disabled={Autolaunch.Prelaunch.read_only?()}
         >Sign in</Regent.Primitives.button>
         <.link navigate="/">Keep exploring</.link>
       </section>

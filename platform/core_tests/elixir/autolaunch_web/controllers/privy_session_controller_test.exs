@@ -7,18 +7,6 @@ defmodule AutolaunchWeb.PrivySessionControllerTest do
 
   @identity Autolaunch.TestPrivyVerifier.identity_token("valid")
 
-  # Sign-in only exists once the site takes writes; the test environment is
-  # read-only by default.
-  setup do
-    previous = Application.get_env(:autolaunch, :prelaunch_read_only)
-    Application.put_env(:autolaunch, :prelaunch_read_only, false)
-    on_exit(fn -> restore(previous) end)
-    :ok
-  end
-
-  defp restore(nil), do: Application.delete_env(:autolaunch, :prelaunch_read_only)
-  defp restore(value), do: Application.put_env(:autolaunch, :prelaunch_read_only, value)
-
   # The one rendered diagnostic line; this repository's development formatter
   # drops metadata, so the whole classification lives in the message.
 

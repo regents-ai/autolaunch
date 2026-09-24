@@ -1,5 +1,5 @@
 defmodule AutolaunchWeb.Prelaunch do
-  @moduledoc "Prelaunch HTTP and LiveView admission, before sessions, uploads or write-capable mounts."
+  @moduledoc "Prelaunch HTTP and LiveView admission, before uploads or write-capable mounts. Accounts stay open."
   @behaviour Plug
   import Plug.Conn
   alias Autolaunch.Prelaunch
@@ -24,13 +24,14 @@ defmodule AutolaunchWeb.Prelaunch do
     cond do
       not Prelaunch.read_only?() -> conn
       match?(["create" | _], path) -> refuse(conn, 404)
-      account_path?(path) -> refuse(conn, 503)
+      account_path?(path) -> conn
       conn.method in ["GET", "HEAD"] -> conn
       public_quote?(conn.method, path) -> conn
       true -> refuse(conn, 503)
     end
   end
 
+  # Sign-in, sign-out and profile editing work before opening.
   defp account_path?(["auth" | _]), do: true
   defp account_path?(["api", "v1", "profile" | _]), do: true
   defp account_path?(_), do: false
@@ -53,7 +54,7 @@ defmodule AutolaunchWeb.Prelaunch do
          Jason.encode!(%{
            error: %{
              code: "prelaunch_read_only",
-             message: "Autolaunch is read-only until contract deployment."
+             message: "Autolaunch opens #{Prelaunch.opens_at_label()}."
            }
          })}
       else

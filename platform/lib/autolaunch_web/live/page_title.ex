@@ -20,6 +20,7 @@ defmodule AutolaunchWeb.Live.PageTitle do
     AutolaunchWeb.SubjectLive => "Subject",
     AutolaunchWeb.PortfolioLive => "Portfolio",
     AutolaunchWeb.RegentLive => "REGENT",
+    AutolaunchWeb.TokenDetailsLive => "Token details",
     AutolaunchWeb.ConvertLive => "REGENT's share"
   }
 

@@ -588,7 +588,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   # Until the contracts are deployed no quick button opens anything.
   defp closed_before_deployment,
-    do: if(Autolaunch.Prelaunch.read_only?(), do: "Available after contract deployment")
+    do:
+      if(Autolaunch.Prelaunch.read_only?(), do: "Opens #{Autolaunch.Prelaunch.opens_at_label()}")
 
   # The stored figure travels untouched; only its on-screen form is shortened.
   # A Base auction's amount raised is read from its chain by the market feed.

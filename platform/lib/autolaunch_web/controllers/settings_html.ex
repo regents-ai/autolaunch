@@ -11,7 +11,6 @@ defmodule AutolaunchWeb.SettingsHTML do
           :if={@account_control.kind == :sign_in}
           type="button"
           data-account-target="sign-in"
-          disabled={Autolaunch.Prelaunch.read_only?()}
         >
           Sign in
         </Regent.Primitives.button>
@@ -30,7 +29,6 @@ defmodule AutolaunchWeb.SettingsHTML do
           variant="secondary"
           class="autolaunch-settings__leave"
           data-account-target="sign-out"
-          disabled={Autolaunch.Prelaunch.read_only?()}
         >
           Log out
         </Regent.Primitives.button>

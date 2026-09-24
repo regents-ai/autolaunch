@@ -55,7 +55,22 @@ defmodule AutolaunchWeb.Components.RegentLinks do
           </nav>
         </div>
       </details>
-      <.social_links />
+      <a
+        class="rg-button rg-button--primary regent-header-cta"
+        href={TokenLinks.buy()}
+        target="_blank"
+        rel="noopener noreferrer"
+      >Buy $REGENT</a>
+      <a
+        class="rg-button regent-header-cta regent-header-cta--soft"
+        href="https://x.com/regents_sh"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Follow on X"
+      ><span class="rg-button__label">Follow on <.source_icon kind={:x} /></span></a>
+      <nav class="regent-social-links" aria-label="Regents on GitHub">
+        <.github_link />
+      </nav>
     </div>
     """
   end
@@ -71,15 +86,21 @@ defmodule AutolaunchWeb.Components.RegentLinks do
       >
         <.source_icon kind={:x} />
       </a>
-      <a
-        href="https://github.com/regents-ai"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Regents on GitHub"
-      >
-        <.source_icon kind={:github} />
-      </a>
+      <.github_link />
     </nav>
+    """
+  end
+
+  defp github_link(assigns) do
+    ~H"""
+    <a
+      href="https://github.com/regents-ai"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Regents on GitHub"
+    >
+      <.source_icon kind={:github} />
+    </a>
     """
   end
 

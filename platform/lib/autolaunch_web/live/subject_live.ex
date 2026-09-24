@@ -89,7 +89,7 @@ defmodule AutolaunchWeb.SubjectLive do
       />
       <section :if={Autolaunch.Prelaunch.read_only?()} class="prelaunch-actions">
         <h2>Staking and payments</h2>
-        <p>Wallet actions will be available after contract deployment.</p>
+        <p>Staking and payments open {Autolaunch.Prelaunch.opens_at_label()}.</p>
         <Regent.Primitives.button disabled>Stake</Regent.Primitives.button>
         <Regent.Primitives.button disabled variant="secondary">Make a payment</Regent.Primitives.button>
       </section>

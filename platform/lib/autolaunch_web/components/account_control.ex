@@ -16,8 +16,6 @@ defmodule AutolaunchWeb.Components.AccountControl do
         type="button"
         class="account-control__sign-in"
         data-account-target="sign-in"
-        disabled={Autolaunch.Prelaunch.read_only?()}
-        title={if Autolaunch.Prelaunch.read_only?(), do: "Accounts are unavailable during prelaunch"}
       >
         Sign in
       </Regent.Primitives.button>
@@ -69,7 +67,6 @@ defmodule AutolaunchWeb.Components.AccountControl do
             type="button"
             class="account-menu__item account-menu__item--leave"
             data-account-target="sign-out"
-            disabled={Autolaunch.Prelaunch.read_only?()}
           >
             <.menu_icon name={:log_out} /> Log out
           </button>

@@ -37,7 +37,7 @@ defmodule AutolaunchWeb.ConvertLive do
           <h1 class="rg-section-bar__label">REGENT's share</h1>
         </Regent.Structure.section_bar>
         <p>
-          Every memestock launch keeps REGENT's share of its trading fees in stock until it is sold for dollars and sent to REGENT's revenue.
+          Every Memestake launch keeps REGENT's share of its trading fees in stock until it is sold for dollars and sent to REGENT's revenue.
           The sell form on each launch appears only for the wallet the Safe named to do it.
         </p>
         <div>
@@ -81,14 +81,14 @@ defmodule AutolaunchWeb.ConvertLive do
     ~H"""
     <section id={@id} class="autolaunch-convert" aria-label={@title}>
       <h2 class="autolaunch-convert__title">{@title}</h2>
-      <p :if={!@open?}>Memestock launches are not open on this network yet.</p>
+      <p :if={!@open?}>Memestake launches are not open on this network yet.</p>
       <p :if={@open? && @rows.loading && is_nil(@rows.result)} role="status">
         Reading the launches…
       </p>
       <p :if={@open? && @rows.failed && is_nil(@rows.result)} role="alert">
         The launches could not be read just now.
       </p>
-      <p :if={@open? && @rows.result == []}>No memestock launch has graduated yet.</p>
+      <p :if={@open? && @rows.result == []}>No Memestake launch has graduated yet.</p>
       <p :if={converter(@rows.result)} class="autolaunch-convert__muted">
         Converter wallet <span class="autolaunch-exact-value">{converter(@rows.result)}</span>
       </p>

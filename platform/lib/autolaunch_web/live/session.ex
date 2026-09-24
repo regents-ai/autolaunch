@@ -56,11 +56,9 @@ defmodule AutolaunchWeb.Live.Session do
   def on_mount(:load_human, _params, session, socket) do
     socket = Phoenix.Component.assign(socket, :session_lease, nil)
 
-    cond do
-      Autolaunch.Prelaunch.read_only?() -> {:cont, assign_principal(socket, nil)}
-      connected?(socket) -> connected(socket, session, get_connect_info(socket, :session))
-      true -> {:cont, assign_principal(socket, disconnected_account(session))}
-    end
+    if connected?(socket),
+      do: connected(socket, session, get_connect_info(socket, :session)),
+      else: {:cont, assign_principal(socket, disconnected_account(session))}
   end
 
   # The public root reads the same proof as the product session and grants the
@@ -70,16 +68,9 @@ defmodule AutolaunchWeb.Live.Session do
   def on_mount(:public_human, _params, session, socket) do
     socket = Phoenix.Component.assign(socket, :session_lease, nil)
 
-    cond do
-      Autolaunch.Prelaunch.read_only?() ->
-        {:cont, assign_principal(socket, nil)}
-
-      connected?(socket) ->
-        {:cont, admit_or_guest(socket, session, get_connect_info(socket, :session))}
-
-      true ->
-        {:cont, assign_principal(socket, disconnected_account(session))}
-    end
+    if connected?(socket),
+      do: {:cont, admit_or_guest(socket, session, get_connect_info(socket, :session))},
+      else: {:cont, assign_principal(socket, disconnected_account(session))}
   end
 
   defp admit_or_guest(socket, %{"render_topic" => rendered}, handshake) do
@@ -162,12 +153,8 @@ defmodule AutolaunchWeb.Live.Session do
   defp rendered_topic(lineage), do: %{"render_topic" => SessionAuthority.topic(lineage)}
 
   defp disconnected_account(session) do
-    if Autolaunch.Prelaunch.read_only?() do
-      nil
-    else
-      {_lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
-      account
-    end
+    {_lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
+    account
   end
 
   defp local_route(path, ""), do: path

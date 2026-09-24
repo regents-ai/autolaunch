@@ -4,14 +4,13 @@ defmodule AutolaunchWeb.Components.TokenLinks do
 
   alias Autolaunch.Chain.Abi
   alias Autolaunch.Lab
-
-  @chart "https://dexscreener.com/base/0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
+  alias Autolaunch.RegentFacts
 
   @doc "The REGENT contract address a visitor copies. Same token the buy link names."
   def address, do: Abi.regent_address()
 
   def buy, do: "https://app.uniswap.org/explore/tokens/base/#{Abi.regent_address()}"
-  def chart, do: @chart
+  def chart, do: "https://dexscreener.com/base/#{RegentFacts.pool()}"
 
   # Both destinations are public Base mainnet. On a local-fork site they are
   # named as such, because nothing they sell or show is the fork's REGENT.
