@@ -108,6 +108,21 @@ defmodule Autolaunch.LaunchDiscoveryTest do
     assert [%{state: :graduated, creator_human_account_id: ^creator}] = auctions()
   end
 
+  test "a creator who signs in with another wallet after sending still gets the launch",
+       %{account: account, operation: operation} do
+    {:ok, _} = press(operation)
+
+    {:ok, _} =
+      Accounts.refresh_verified(account, @other_wallet, [@other_wallet], actor: @actor)
+
+    record_launch(LaunchFixture.wallet())
+    run_triggers()
+
+    assert [%{state: :listed, creator_human_account_id: creator}] = discoveries()
+    assert creator == account.id
+    assert [%{creator_human_account_id: ^creator}] = auctions()
+  end
+
   test "a launch no review of this site carried out stays unlisted" do
     record_launch(@stranger)
     run_triggers()

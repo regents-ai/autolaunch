@@ -283,14 +283,16 @@ defmodule Autolaunch.WalletAttempts do
   Lists one launch the chain shows from its transaction alone, with no browser
   report and nothing sent.
 
-  The candidates are the launch reviews prepared for an account whose verified
-  wallet is the launch's signer. The one whose envelope the transaction
-  carried out exactly (signer, target, calldata, and the launchpad's own event
-  and record) is the match: its press for that hash is recorded as confirmed,
+  The candidates are this site's launch reviews whose own signer is the
+  launch's signer (a review is only sent from the wallet its account was
+  signed in with at the time), so a creator who signs in with another wallet
+  later still keeps the launch. The one whose envelope the transaction carried
+  out exactly (signer, target, calldata, and the launchpad's own event and
+  record) is the match: its press for that hash is recorded as confirmed,
   through the same projection a browser report reaches, and its account is the
-  creator. A press the browser already reported for that hash is reused; an
-  unreported press of the review takes the hash; otherwise the press is
-  recorded here. A hash any other account reported is never read.
+  creator. Only that review's own presses are looked at: one the browser
+  already reported for that hash is reused; otherwise an unreported press of
+  the review takes the hash; otherwise the press is recorded here.
 
   Returns `{:listed, human_account_id}`, `{:unlisted, reason}` when no review
   of this site's accounts carried out the transaction, or `{:pending, reason}`
@@ -305,21 +307,12 @@ defmodule Autolaunch.WalletAttempts do
   end
 
   defp launch_candidates(kind, chain_id, launcher) do
-    with {:ok, accounts} <-
-           Autolaunch.Accounts.list_human_accounts_by_signed_in_wallets(
-             [String.downcase(launcher)],
-             actor: @system
-           ),
-         {:ok, reviews} <-
+    with {:ok, reviews} <-
            resource(kind)
-           |> Ash.Query.filter(human_account_id in ^Enum.map(accounts, & &1.id))
+           |> Ash.Query.filter(string_downcase(signer) == ^String.downcase(launcher))
            |> Ash.Query.sort(inserted_at: :desc)
            |> Ash.read(actor: @system) do
-      {:ok,
-       Enum.filter(
-         reviews,
-         &(Address.equal?(&1.signer, launcher) and &1.envelope["chain_id"] == chain_id)
-       )}
+      {:ok, Enum.filter(reviews, &(&1.envelope["chain_id"] == chain_id))}
     end
   end
 
@@ -337,21 +330,24 @@ defmodule Autolaunch.WalletAttempts do
   end
 
   # Under the review's lock, as a browser report takes it, so a report and this
-  # recovery of the same press are one after the other and project once.
+  # recovery of the same press are one after the other and project once. One
+  # Ash transaction, so pages hear of the listed launch once it is committed.
+  # A press that is not confirmed was already resolved before, so nothing here
+  # wrote anything for it.
   defp adopt_launch(kind, review_id, hash, outcome) do
-    Autolaunch.Repo.transaction(fn ->
+    Ash.transaction(resource(kind), fn ->
       with {:ok, op} <- locked_review(kind, review_id),
            {:ok, attempt} <- launch_attempt(kind, op, hash),
-           {:ok, op, %{state: :confirmed}} <- reconcile(kind, op, attempt, attempt, outcome) do
-        op.human_account_id
+           {:ok, op, attempt} <- reconcile(kind, op, attempt, attempt, outcome) do
+        {op.human_account_id, attempt.state}
       else
-        {:ok, _op, attempt} -> Autolaunch.Repo.rollback({:press_not_confirmed, attempt.state})
-        {:error, reason} -> Autolaunch.Repo.rollback(reason)
+        {:error, reason} -> Ash.DataLayer.rollback(resource(kind), reason)
       end
     end)
     |> case do
-      {:ok, account_id} -> {:listed, account_id}
-      {:error, reason} -> {:pending, reason}
+      {:ok, {account_id, :confirmed}} -> {:listed, account_id}
+      {:ok, {_account_id, state}} -> {:pending, {:press_not_confirmed, state}}
+      {:error, error} -> {:pending, error}
     end
   end
 
