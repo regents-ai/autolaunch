@@ -272,8 +272,25 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp percent_met(_raised, _minimum), do: nil
 
-  # WIP: the bar should run from the auction's opening to its estimated end.
-  defp time_progress(%{state: :active, estimated_end_at: %DateTime{}}), do: nil
+  # How much of a live auction's time has passed, from its opening to its
+  # estimated end, as a whole percent.
+  defp time_progress(%{
+         state: :active,
+         opened_at: %DateTime{} = opened_at,
+         estimated_end_at: %DateTime{} = end_at
+       }) do
+    total = DateTime.diff(end_at, opened_at)
+
+    if total > 0,
+      do:
+        DateTime.utc_now()
+        |> DateTime.diff(opened_at)
+        |> Kernel.*(100)
+        |> div(total)
+        |> min(100)
+        |> max(0)
+  end
+
   defp time_progress(_auction), do: nil
 
   defp figure_status(%{state: :active, estimated_end_at: %DateTime{} = end_at}) do
