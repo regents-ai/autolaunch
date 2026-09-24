@@ -47,7 +47,7 @@ defmodule AutolaunchWeb.Components.AuctionStats do
           <dd>{count(@stats, :live)}</dd>
         </div>
         <div>
-          <dt>Graduated:</dt>
+          <dt>Launched:</dt>
           <dd>{count(@stats, :graduated)}</dd>
         </div>
       </dl>

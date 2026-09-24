@@ -297,7 +297,7 @@ defmodule AutolaunchWeb.PortfolioLive do
       "Bidding ended: if the final count stays below the required raise, this bid gets its #{symbol} back in full; if it reached it, what this bid did not spend comes back once the auction is finished"
 
   defp standing_copy(%{standing: :graduated, stock_symbol: symbol}),
-    do: "Auction graduated: what this bid did not spend in #{symbol} has not been returned yet"
+    do: "Auction launched: what this bid did not spend in #{symbol} has not been returned yet"
 
   defp standing_copy(%{standing: :returned}), do: "Returned"
 

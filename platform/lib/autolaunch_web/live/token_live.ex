@@ -111,7 +111,7 @@ defmodule AutolaunchWeb.TokenLive do
         session_lease={@session_lease}
       />
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
-        <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token graduated from</.link>
+        <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token launched from</.link>
       </p>
       <.pool_facts pool={@pool} />
       <section id="stake" aria-label="Staking">

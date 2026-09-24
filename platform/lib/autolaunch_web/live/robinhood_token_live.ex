@@ -132,7 +132,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       />
       <p class="autolaunch-live-market">
         <.link navigate={"/robinhood/auctions/#{@token.auction.auction_address}"}>
-          Open the auction this token graduated from
+          Open the auction this token launched from
         </.link>
       </p>
       <section id="stake" aria-label="Staking">
@@ -188,7 +188,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <p :if={!@open?}>Robinhood tokens are not open on this site yet.</p>
       <p :if={@open? && !@token_address}>That is not a token address.</p>
       <p :if={@open? && @token_address}>
-        No graduated Robinhood token exists at {@token_address}.
+        No launched Robinhood token exists at {@token_address}.
       </p>
       <.link navigate="/tokens">Return to Tokens</.link>
     </section>
