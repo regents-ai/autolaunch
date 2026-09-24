@@ -62,7 +62,7 @@ defmodule AutolaunchWeb.Components.Opening do
           <dt>Revstake</dt>
           <dd>
             <ul>
-              <li>Raise early funds through a CCA auction</li>
+              <li>Raise early funds through an auction</li>
               <li>Tokenize a stablecoin generating service or agent</li>
               <li>
                 Tokenholders stake it to acquire their slice of the stablecoin earnings routed to the token

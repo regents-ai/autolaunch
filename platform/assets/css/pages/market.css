@@ -63,6 +63,9 @@
   .market-identity__trade-arrow { transition: none; }
 }
 .market-identity .launchpad-card__socials { padding: 0; border: 0; }
+/* Portfolio opens on what can be done now, each with its next step. */
+.portfolio-action { display: grid; gap: var(--space-2); margin-block-end: var(--space-4); }
+.portfolio-action .autolaunch-record-list > li { display: grid; gap: var(--space-2); justify-items: start; }
 .portfolio-sign-in { display: grid; justify-items: start; gap: 16px; }
 .portfolio-sign-in > * { margin: 0; }
 .portfolio-sign-in h2 { font-size: 1.25rem; color: var(--color-fg); }

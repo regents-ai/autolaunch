@@ -1,4 +1,4 @@
-defmodule AutolaunchWeb.TokenDetailsLive do
+defmodule AutolaunchWeb.HowItWorksLive do
   @moduledoc false
   use AutolaunchWeb, :live_view
 
@@ -14,7 +14,7 @@ defmodule AutolaunchWeb.TokenDetailsLive do
     <main class="fact-page">
       <header class="autolaunch-heading">
         <div class="fact-page__title">
-          <h1>Token details</h1>
+          <h1>How Autolaunch works</h1>
           <Regent.Primitives.button
             id="copy-agent-guide"
             class="copy-agent-guide"
@@ -27,13 +27,13 @@ defmodule AutolaunchWeb.TokenDetailsLive do
         <p>Supply, trading fees and staking rewards for every Autolaunch token.</p>
       </header>
 
-      <section class="fact-page__section" aria-labelledby="token-details-revstake">
-        <h2 id="token-details-revstake">
+      <section class="fact-page__section" aria-labelledby="how-it-works-revstake">
+        <h2 id="how-it-works-revstake">
           Revstake supply <span class="fact-page__total">100 billion</span>
         </h2>
         <p>
           Revstake token auctions have a 48 hour duration, with 10% of tokens for the auction, 5%
-          locked in the Uni v4 pool, and 85% vesting to the launch's treasury over one year. This small amount
+          locked in the trading pool, and 85% vesting to the launch's treasury over one year. This small amount
           of float is because launching a revstake is close in concept to a company doing a preseed
           round. Best practice is for the founders to retain 80-90% of equity.
         </p>
@@ -83,13 +83,13 @@ defmodule AutolaunchWeb.TokenDetailsLive do
         </p>
       </section>
 
-      <section class="fact-page__section" aria-labelledby="token-details-memestake">
-        <h2 id="token-details-memestake">
+      <section class="fact-page__section" aria-labelledby="how-it-works-memestake">
+        <h2 id="how-it-works-memestake">
           Memestake supply <span class="fact-page__total">1 billion</span>
         </h2>
         <p>
           Memestake launches last 24 hours, and have 80% of tokens for the auction and 20% locked in
-          the Uni v4 pool. Stakers earn the onchain stock from fees.
+          the trading pool. Stakers earn the onchain stock from fees.
         </p>
         <table class="fact-table">
           <thead>
@@ -130,14 +130,14 @@ defmodule AutolaunchWeb.TokenDetailsLive do
         </table>
       </section>
 
-      <section class="fact-page__section" aria-labelledby="token-details-fees">
-        <h2 id="token-details-fees">Trading fees</h2>
+      <section class="fact-page__section" aria-labelledby="how-it-works-fees">
+        <h2 id="how-it-works-fees">Trading fees</h2>
         <p>
-          The Uniswap hook fee on revstake tokens benefits the creator's revstaking contract
+          The trading fee on revstake tokens benefits the creator's revstaking contract
           (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). Use
           <a href="https://regents.sh/stake">regents.sh/stake</a>
-          to participate. The hook fee on memestake tokens benefits the memestakers
-          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). The Uni v4 pool also charges the standard <strong class="fact-page__hi">0.3%</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
+          to participate. The trading fee on memestake tokens benefits the memestakers
+          (<strong class="fact-page__hi">1%</strong>) and Regents Labs revstakers (<strong class="fact-page__hi">1%</strong>). The trading pool also charges the standard <strong class="fact-page__hi">0.3%</strong>, and what the locked liquidity earns from it is added to the token's staking rewards.
         </p>
         <table class="fact-table">
           <thead>
@@ -176,8 +176,8 @@ defmodule AutolaunchWeb.TokenDetailsLive do
         <p>What each launch's locked liquidity earns is added to its staking rewards.</p>
       </section>
 
-      <section class="fact-page__section" aria-labelledby="token-details-staking">
-        <h2 id="token-details-staking">Staking rewards</h2>
+      <section class="fact-page__section" aria-labelledby="how-it-works-staking">
+        <h2 id="how-it-works-staking">Staking rewards</h2>
         <table class="fact-table">
           <thead>
             <tr>
@@ -208,6 +208,15 @@ defmodule AutolaunchWeb.TokenDetailsLive do
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section class="fact-page__section" aria-labelledby="how-it-works-regent">
+        <h2 id="how-it-works-regent">REGENT</h2>
+        <p>
+          Revstake auctions are priced in REGENT, and REGENT stakers receive Regent's share of every
+          Autolaunch token's trading fees and staking rewards.
+          <.link navigate={~p"/regent"}>About REGENT</.link>
+        </p>
       </section>
 
       <details class="fact-more">

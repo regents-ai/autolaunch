@@ -222,7 +222,7 @@ defmodule AutolaunchWeb.CreateLive do
   # no launch fee on any of them.
   defp choice_summary(:base, :revshare),
     do:
-      "Raise early funds through a CCA auction. It tokenizes a stablecoin generating service or agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders pay in REGENT and you choose the required raise in REGENT. There is no launch fee."
+      "Raise early funds through an auction. It tokenizes a stablecoin generating service or agent, and tokenholders stake it to acquire their slice of stablecoin earnings. Bidders pay in REGENT and you choose the required raise in REGENT. There is no launch fee."
 
   defp choice_summary(:base, :stocks),
     do:

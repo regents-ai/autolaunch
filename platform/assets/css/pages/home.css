@@ -30,6 +30,7 @@
 #home-explore h1 { margin: 0; font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
 #home-explore .home-network { display: inline-flex; align-items: center; gap: 7px; color: var(--color-fg-muted); font-size: .75rem; }
 #home-explore .home-network__dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+#home-explore .home-heading__all { color: var(--color-fg-muted); font-size: .8125rem; text-underline-offset: 3px; }
 #home-explore .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 #home-explore .home-tools, #home-explore .home-filter-form { display: flex; align-items: center; gap: 10px; min-width: 0; }
 #home-explore select, #home-explore .home-filter summary { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--color-surface); color: var(--color-fg); font: inherit; font-size: .8125rem; cursor: pointer; }

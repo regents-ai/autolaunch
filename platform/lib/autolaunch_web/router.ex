@@ -77,7 +77,7 @@ defmodule AutolaunchWeb.Router do
       live "/tokens", TokensLive, :index
       live "/tokens/:token_id", TokenLive, :show
       live "/robinhood/tokens/:token", RobinhoodTokenLive, :show
-      live "/token-details", TokenDetailsLive, :show
+      live "/how-it-works", HowItWorksLive, :show
       live "/portfolio", PortfolioLive, :portfolio
       live "/regent", RegentLive, :regent
       live "/convert", ConvertLive, :index
