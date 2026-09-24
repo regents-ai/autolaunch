@@ -20,7 +20,7 @@ For what each launch type does, and every deployed address, start with the
 |---|---|---|
 | Revstake | Base | Deployed on 22 September 2026 and verified on Basescan. Launches paused until 24 September 2026, 15:00 UTC. [Addresses](README.md#base-8453-revstake) |
 | Memestake | Base | Deployed on 23 September 2026 and verified on Basescan. Ten tokenised stocks admitted, each with an `AerodromeStockRouteV2` route. Launches paused until 24 September 2026, 15:00 UTC. [Addresses](README.md#base-8453-memestake) |
-| Memestake | Robinhood Chain | Being deployed under an approved deployment packet. Addresses will be added once the deployment is recorded. |
+| Memestake | Robinhood Chain | Deployed on 23–24 September 2026: the launchpad graph and 25 `UniswapV3StockRouteV1` routes on Robinhood Chain, plus one receiver on Base. Launches paused until 24 September 2026, 15:00 UTC. [Addresses](robinhood/deployments/robinhood-mainnet/README.md) |
 
 ## The contracts we wrote
 
@@ -56,7 +56,7 @@ We pin these upstream revisions:
 |---|---|---|---|---|
 | [`AerodromeStockRouteV1`](https://github.com/regents-ai/autolaunch/blob/8b3d0ebeba83ac93a42a90b5e24228da26b98e6a/contracts/stocks/src/routes/AerodromeStockRouteV1.sol) | Base | Retired. Its ten deployed instances were never admitted. | a 5% Chainlink check, plus the caller's `minAmountOut` | Chainlink price |
 | [`AerodromeStockRouteV2`](stocks/src/routes/AerodromeStockRouteV2.sol) | Base | Current; admitted for ten stocks | the caller's `minAmountOut` only; the price feed is not read | Chainlink price; reverts on a stale or non-positive answer |
-| [`UniswapV3StockRouteV1`](robinhood/src/routes/UniswapV3StockRouteV1.sol) | Robinhood Chain | Current; being deployed | the caller's `minAmountOut` only; the price feed is not read | Chainlink price; reverts on a stale or non-positive answer |
+| [`UniswapV3StockRouteV1`](robinhood/src/routes/UniswapV3StockRouteV1.sol) | Robinhood Chain | Current; deployed for 25 stocks, awaiting admission by the Safe | the caller's `minAmountOut` only; the price feed is not read | Chainlink price; reverts on a stale or non-positive answer |
 
 ## CCA parameters
 

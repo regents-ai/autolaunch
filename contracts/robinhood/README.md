@@ -14,9 +14,10 @@ everything the splitter recognizes in USDG, MEMESTOCK and STOCK after a 2% proto
 positions' LP fees flow into the same splitter. No launch has a creator, an administrator or a
 treasury.
 
-Status: being deployed under the founder-approved packet
-(`deployments/robinhood-mainnet/README.md`); addresses are recorded in that directory's
-`deployed-manifest.json` once the receipts are confirmed. The bridge from the inbox to Base is
+Status: deployed on Robinhood Chain and Base on 23–24 September 2026 under the founder-approved packet;
+every address is listed in [deployments/robinhood-mainnet/README.md](deployments/robinhood-mainnet/README.md)
+and recorded in that directory's `deployed-manifest.json`. Launches stay paused until the admin Safe
+admits the stocks and calls `unpauseLaunches()`. The bridge from the inbox to Base is
 chosen (Across, USDG to native Base USDC) but not built; until the Safe names a bridge adapter,
 protocol USDG stays in `RobinhoodProtocolRevenueInboxV1`.
 
