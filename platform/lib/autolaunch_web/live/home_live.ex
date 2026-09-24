@@ -11,7 +11,9 @@ defmodule AutolaunchWeb.HomeLive do
       robinhood?: 1
     ]
 
-  import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1]
+  import AutolaunchWeb.Components.MarketCard,
+    only: [auction_list: 1, explore_card: 1, assign_figure_rates: 1, figure_rate: 2]
+
   import AutolaunchWeb.Components.Opening, only: [welcome: 1]
   import AutolaunchWeb.Components.SwapModal
   import AutolaunchWeb.Components.AuctionStats
@@ -34,7 +36,8 @@ defmodule AutolaunchWeb.HomeLive do
        local_lab: Autolaunch.Lab.test_chain?()
      )
      |> LiveListings.subscribe()
-     |> assign_auction_stats()}
+     |> assign_auction_stats()
+     |> assign_figure_rates()}
   end
 
   def handle_params(params, _uri, socket) do
@@ -414,10 +417,17 @@ defmodule AutolaunchWeb.HomeLive do
             record={record}
             creator_connections={connections_for(record, @creators)}
             trade_event="open_trade"
+            rate={if @kind == :auction, do: figure_rate(@rates, record)}
           />
         </div>
+        <.auction_list
+          :if={@listed? && @market_options.display == "table" && @kind == :auction}
+          records={@records}
+          creators={@creators}
+          rates={@rates}
+        />
         <.explore_table
-          :if={@listed? && @market_options.display == "table"}
+          :if={@listed? && @market_options.display == "table" && @kind == :token}
           kind={@kind}
           records={@records}
           creators={@creators}

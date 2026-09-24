@@ -102,6 +102,10 @@ async function send(
   try {
     if (!review || !step) throw new Error("This step is not part of the review.")
 
+    // A panel that prepares its review again in the background keeps this one
+    // while the wallet has it, so the sent step is checked against it.
+    if (el.dataset.reportsOpening !== undefined) push("step_opening", {step: name})
+
     const transaction_hash = await sendLabTransaction(
       review,
       {to: step.to, data: step.data},

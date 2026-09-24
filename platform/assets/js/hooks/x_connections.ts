@@ -28,6 +28,7 @@ type DeleteAttempt = {
 type XConnectionsHook = Hook & {
   el: HTMLElement
   pushEvent(event: string, payload: unknown): void
+  pushEventTo(target: HTMLElement, event: string, payload: unknown): void
   activeStart?: StartAttempt
   activeDeletes?: Partial<Record<XRole, DeleteAttempt>>
   disconnectingRoles?: Set<XRole>
@@ -312,7 +313,7 @@ export const XConnections: Hook = {
           })
           if (!response.ok) throw new Error("disconnect refused")
           status(this.el, "X account disconnected.")
-          this.pushEvent("refresh_x_connections", {role: selectedRole, status: "disconnected"})
+          refresh(this, {role: selectedRole, status: "disconnected"})
         } catch {
           status(this.el, "X account could not be disconnected. Try again.")
         } finally {
@@ -353,7 +354,7 @@ export const XConnections: Hook = {
       resetPopup()
       if (message.status === "connected") {
         status(this.el, "X account connected.")
-        this.pushEvent("refresh_x_connections", {role: selectedRole, status: "connected"})
+        refresh(this, {role: selectedRole, status: "connected"})
       } else {
         status(this.el, "X connection was not completed.")
       }
@@ -370,4 +371,14 @@ export const XConnections: Hook = {
     if (this.clickListener) this.el.removeEventListener("click", this.clickListener)
     if (this.messageListener) window.removeEventListener("message", this.messageListener)
   },
+}
+
+// A panel marked data-x-refresh-here reloads its own connections; otherwise
+// the page does.
+function refresh(hook: XConnectionsHook, payload: {role?: XRole; status: string}): void {
+  if (hook.el.dataset.xRefreshHere !== undefined) {
+    hook.pushEventTo(hook.el, "refresh_x_connections", payload)
+  } else {
+    hook.pushEvent("refresh_x_connections", payload)
+  }
 }

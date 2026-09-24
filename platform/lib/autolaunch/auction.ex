@@ -759,8 +759,8 @@ defmodule Autolaunch.Auction do
   end
 
   calculations do
-    # What every token is worth at the floor price, in quote-token units.
-    calculate :fdv_at_floor, :decimal, Autolaunch.Auction.Calculations.FdvAtFloor do
+    # What every token is worth at the current clearing price, in quote-token units.
+    calculate :fdv, :decimal, Autolaunch.Auction.Calculations.Fdv do
       public? true
     end
   end

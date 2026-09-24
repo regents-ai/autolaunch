@@ -3,9 +3,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
   use Phoenix.Component
 
   alias Autolaunch.Chain.Rpc
+  alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.Stocks.MarketData
   alias Autolaunch.Token
-  alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay}
+  alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay, UsdValue}
+  require Phoenix.LiveView
 
   @own_sites ["autolaunch.sh", "regents.sh"]
 
@@ -46,6 +49,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
   attr :trade_event, :string, default: nil
+  attr :rate, :any, default: nil, doc: "an auction's currency in USD, for its figures"
 
   def explore_card(assigns) do
     assigns =
@@ -73,10 +77,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </div>
         <h2 class="home-coin__name">{@view.name}</h2>
         <p class="home-coin__symbol">${@view.symbol}</p>
-        <div class="home-coin__metric">
+        <div :if={@kind == :token} class="home-coin__metric">
           <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /><span>{@view.metric_label}</span>
         </div>
       </.link>
+      <.auction_figures :if={@kind == :auction} auction={@record} rate={@rate} />
       <div class="home-coin__meta">
         <span :if={@view.creator} title={@view.creator_address}>{@view.creator}</span>
         <span :if={@view.age} class="home-coin__age">{@view.age}</span>
@@ -189,6 +194,327 @@ defmodule AutolaunchWeb.Components.MarketCard do
         View auction <span aria-hidden="true">→</span>
       </.link>
     </article>
+    """
+  end
+
+  attr :records, :list, required: true, doc: "auctions with `fdv` loaded"
+  attr :creators, :map, required: true, doc: "creator connections grouped by human account"
+  attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
+  attr :loading, :boolean, default: false
+
+  @doc """
+  The auctions list: the token, then the four auction figures. On a phone only
+  the token, launch threshold and status show.
+  """
+  def auction_list(assigns) do
+    ~H"""
+    <div class="auction-list__scroll">
+      <table class="auction-list__table">
+        <caption class="visually-hidden">Auctions</caption>
+        <thead>
+          <tr>
+            <th scope="col">Token</th>
+            <th scope="col">FDV</th>
+            <th scope="col">Bid volume</th>
+            <th scope="col">Launch threshold</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <.auction_list_row
+            :for={record <- @records}
+            auction={record}
+            creator_connections={Map.get(@creators, record.creator_human_account_id, %{})}
+            rate={figure_rate(@rates, record)}
+          />
+          <tr
+            :for={index <- 1..6}
+            :if={@loading && @records == []}
+            id={"auctions-loading-#{index}"}
+            class="auction-list__skeleton"
+            aria-hidden="true"
+          >
+            <td colspan="5"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  attr :auction, :map, required: true
+  attr :creator_connections, :map, default: %{}
+  attr :rate, :any, default: nil
+
+  defp auction_list_row(assigns) do
+    view = view(:auction, assigns.auction, assigns.creator_connections)
+
+    assigns =
+      assign(assigns,
+        view: view,
+        figures: figures(assigns.auction, assigns.rate),
+        verified: Enum.map_join(view.connections, ", ", & &1.label)
+      )
+
+    ~H"""
+    <tr class="auction-list__row">
+      <th scope="row">
+        <.link navigate={@view.path} class="auction-list__token">
+          <span class="auction-list__art">
+            <img
+              :if={present?(@view.image)}
+              src={@view.image}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              width="40"
+              height="40"
+            />
+            <span :if={!present?(@view.image)} aria-hidden="true">{String.first(@view.name || "?")}</span>
+            <span
+              class={["auction-list__chain", "auction-list__chain--#{String.downcase(@view.chain)}"]}
+              title={@view.chain}
+            ><span class="visually-hidden">{@view.chain}</span></span>
+          </span>
+          <span class="auction-list__name">
+            <strong>{@view.name}</strong>
+            <span
+              :if={@verified != ""}
+              class="auction-list__verified"
+              title={"Creator verified: #{@verified}"}
+            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg><span class="visually-hidden">Creator verified: {@verified}</span></span>
+            <small>${@view.symbol}</small>
+          </span>
+        </.link>
+      </th>
+      <td>{@figures.fdv}</td>
+      <td>{@figures.volume}</td>
+      <td>
+        {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
+      </td>
+      <td>
+        <.status_figure figures={@figures} />
+      </td>
+    </tr>
+    """
+  end
+
+  attr :auction, :map, required: true, doc: "an auction with `fdv` loaded"
+
+  attr :rate, :any,
+    default: nil,
+    doc: "the USD price of one unit of the auction's currency, nil while none is known"
+
+  @doc """
+  The four figures every auction list and card shows: FDV at the current price,
+  bid volume, the launch threshold with how much of it is met, and the status.
+  A figure the site does not know shows as a dash, never as zero.
+  """
+  def auction_figures(assigns) do
+    assigns = assign(assigns, :figures, figures(assigns.auction, assigns.rate))
+
+    ~H"""
+    <dl class="auction-figures">
+      <div>
+        <dt>FDV</dt>
+        <dd>{@figures.fdv}</dd>
+      </div>
+      <div>
+        <dt>Bid volume</dt>
+        <dd>{@figures.volume}</dd>
+      </div>
+      <div>
+        <dt>Launch threshold</dt>
+        <dd>
+          {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
+        </dd>
+      </div>
+      <div>
+        <dt>Status</dt>
+        <dd>
+          <.status_figure figures={@figures} />
+        </dd>
+      </div>
+    </dl>
+    """
+  end
+
+  @doc """
+  Reads the dollar prices the auction figures use into `:rates`, in the
+  background: REGENT's price and each chain's stock prices. A test network's
+  coins carry no dollar value, so its prices stay unknown.
+  """
+  def assign_figure_rates(socket) do
+    Phoenix.LiveView.assign_async(socket, :rates, fn ->
+      {:ok,
+       %{
+         rates: %{
+           regent: if(!Lab.test_chain?(), do: MarketData.regent_price()),
+           base: if(!Lab.test_chain?(), do: MarketData.prices(:base)),
+           robinhood: if(!RobinhoodLab.test_chain?(), do: MarketData.prices(:robinhood))
+         }
+       }}
+    end)
+  end
+
+  @doc "The USD price of one unit of the auction's currency; nil while none is known."
+  def figure_rate(%{ok?: true, result: rates}, auction) do
+    cond do
+      RobinhoodLab.chain?(auction.chain_id) ->
+        UsdValue.stock_rate(rates.robinhood, auction.quote_token_symbol)
+
+      auction.kind == :agent ->
+        rates.regent
+
+      true ->
+        UsdValue.stock_rate(rates.base, auction.quote_token_symbol)
+    end
+  end
+
+  def figure_rate(_rates, _auction), do: nil
+
+  defp figures(auction, rate) do
+    minimum =
+      auction.required_currency_raised
+      |> String.to_integer()
+      |> Rpc.format_units(auction.quote_token_decimals)
+      |> Decimal.new()
+
+    %{
+      fdv: dollars(auction.fdv, rate),
+      volume: dollars(auction.bid_volume_usd, 1),
+      threshold: dollars(minimum, rate),
+      met: percent_met(auction.currency_raised, minimum),
+      progress: time_progress(auction),
+      ends_at: live_end(auction),
+      status: figure_status(auction),
+      id: auction.id
+    }
+  end
+
+  # Dollar figures are shortened the way market lists write them: $296,
+  # $24.7K, $1.48M. A value under a dollar reads "<$1".
+  defp dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
+    value = Decimal.mult(amount, rate)
+
+    cond do
+      Decimal.eq?(value, 0) -> "$0"
+      Decimal.lt?(value, 1) -> "<$1"
+      true -> "$" <> compact(value)
+    end
+  end
+
+  defp dollars(_amount, _rate), do: "-"
+
+  defp compact(value) do
+    [{1_000_000_000_000, "T"}, {1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "K"}]
+    |> Enum.find(fn {size, _suffix} -> Decimal.gte?(value, size) end)
+    |> case do
+      {size, suffix} -> value |> Decimal.div(size) |> short() |> Kernel.<>(suffix)
+      nil -> value |> Decimal.round(0) |> Decimal.to_string(:normal)
+    end
+  end
+
+  # Three significant digits: 1.48, 24.7, 296.
+  defp short(value) do
+    places = if(Decimal.lt?(value, 10), do: 2, else: if(Decimal.lt?(value, 100), do: 1, else: 0))
+    value |> Decimal.round(places) |> Decimal.normalize() |> Decimal.to_string(:normal)
+  end
+
+  defp percent_met(%Decimal{} = raised, minimum) do
+    if Decimal.gt?(minimum, 0),
+      do:
+        raised
+        |> Decimal.div(minimum)
+        |> Decimal.mult(100)
+        |> Decimal.round(0, :down)
+        |> Decimal.to_integer()
+  end
+
+  defp percent_met(_raised, _minimum), do: nil
+
+  # How much of a live auction's time has passed, from its opening to its
+  # estimated end, as a whole percent.
+  defp time_progress(%{
+         state: :active,
+         opened_at: %DateTime{} = opened_at,
+         estimated_end_at: %DateTime{} = end_at
+       }) do
+    total = DateTime.diff(end_at, opened_at)
+
+    if total > 0,
+      do:
+        DateTime.utc_now()
+        |> DateTime.diff(opened_at)
+        |> Kernel.*(100)
+        |> div(total)
+        |> min(100)
+        |> max(0)
+  end
+
+  defp time_progress(_auction), do: nil
+
+  defp live_end(%{state: :active, estimated_end_at: %DateTime{} = end_at}), do: end_at
+  defp live_end(_auction), do: nil
+
+  defp figure_status(%{state: :active, estimated_end_at: %DateTime{} = end_at}),
+    do: time_left(max(DateTime.diff(end_at, DateTime.utc_now()), 0))
+
+  defp figure_status(%{state: :graduated} = auction), do: ended("Launched", auction)
+  defp figure_status(%{state: :failed} = auction), do: ended("Failed", auction)
+  defp figure_status(%{state: state}), do: state_label(state)
+
+  # The same wording the page's ticker writes each second.
+  defp time_left(0), do: "Ending"
+
+  defp time_left(seconds) do
+    days = div(seconds, 86_400)
+
+    rest =
+      "#{div(rem(seconds, 86_400), 3600)}h #{div(rem(seconds, 3600), 60)}m #{rem(seconds, 60)}s"
+
+    if days > 0, do: "#{days}d #{rest}", else: rest
+  end
+
+  defp ended(label, %{estimated_end_at: %DateTime{} = end_at}),
+    do: "#{label} #{relative_age(end_at)} ago"
+
+  defp ended(label, _auction), do: label
+
+  attr :figures, :map, required: true
+
+  # A live auction's time bar and time left, which tick in the browser each
+  # second; any other state's word and when it ended.
+  defp status_figure(assigns) do
+    ~H"""
+    <span
+      :if={@figures.progress}
+      class="auction-figures__progress"
+      style={"--progress: #{@figures.progress}%"}
+      aria-hidden="true"
+    ></span>
+    <span
+      :if={@figures.ends_at}
+      id={"time-left-#{@figures.id}"}
+      phx-hook=".AuctionTimeLeft"
+      data-ends-at={DateTime.to_iso8601(@figures.ends_at)}
+    >{@figures.status}</span>
+    <span :if={!@figures.ends_at}>{@figures.status}</span>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeLeft">
+      export default {
+        mounted() { this.tick() },
+        updated() { this.tick() },
+        destroyed() { clearTimeout(this.timer) },
+        tick() {
+          clearTimeout(this.timer)
+          const seconds = Math.max(Math.floor((Date.parse(this.el.dataset.endsAt) - Date.now()) / 1000), 0)
+          const d = Math.floor(seconds / 86400)
+          const rest = `${Math.floor((seconds % 86400) / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`
+          this.el.textContent = seconds === 0 ? "Ending" : d > 0 ? `${d}d ${rest}` : rest
+          this.timer = setTimeout(() => this.tick(), 1000 - (Date.now() % 1000))
+        }
+      }
+    </script>
     """
   end
 
