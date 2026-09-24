@@ -25,7 +25,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   alias Autolaunch.Chain.{Address, Rpc}
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Stocks.MarketData
-  alias AutolaunchWeb.{LabMarket, UsdValue}
+  alias AutolaunchWeb.{LabMarket, ShareCard, UsdValue}
 
   def mount(_params, _session, socket),
     do:
@@ -249,7 +249,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
 
   defp reload_launch(socket) do
     {:ok, launch} = Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil)
-    assign(socket, :launch, launch)
+    assign(socket, launch: launch, share: launch && ShareCard.meta(launch))
   end
 
   # The minimum is stored in the stock's smallest unit.

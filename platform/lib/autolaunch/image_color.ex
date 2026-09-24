@@ -16,6 +16,7 @@ defmodule Autolaunch.ImageColor do
   `for_urls/1` reads the colours of such addresses in one query per table.
   """
 
+  alias Autolaunch.StoredImage
   alias Vix.Vips.{Image, Operation}
 
   @side 64
@@ -43,7 +44,11 @@ defmodule Autolaunch.ImageColor do
   """
   @spec for_urls([String.t() | nil]) :: %{String.t() => String.t()}
   def for_urls(urls) do
-    named = for url <- Enum.uniq(urls), is_binary(url), {:ok, key} <- [key(url)], do: {url, key}
+    named =
+      for url <- Enum.uniq(urls),
+          is_binary(url),
+          {:ok, key} <- [StoredImage.key(url)],
+          do: {url, key}
 
     colours =
       named
@@ -62,18 +67,6 @@ defmodule Autolaunch.ImageColor do
   @doc "The colour of one stored image's address, or nil."
   @spec for_url(String.t() | nil) :: String.t() | nil
   def for_url(url), do: for_urls([url])[url]
-
-  defp key(url) do
-    with %URI{path: path} when is_binary(path) <- URI.parse(url),
-         [lane, id, digest] when lane in ["images", "stock-images"] <-
-           String.split(path, "/", trim: true),
-         {:ok, id} <- Ecto.UUID.cast(id),
-         true <- Regex.match?(~r/\A[0-9a-f]{64}\z/, digest) do
-      {:ok, {lane, id, digest}}
-    else
-      _other -> :error
-    end
-  end
 
   defp stored("images", ids), do: Autolaunch.launch_draft_image_colors!(ids, actor: nil)
 
