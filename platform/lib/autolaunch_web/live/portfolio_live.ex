@@ -7,6 +7,7 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   alias Autolaunch.Robinhood.Positions, as: RobinhoodPositions
   alias Autolaunch.TokenHoldings
+  alias AutolaunchWeb.Components.AuctionBook, as: AuctionBookComponent
   alias AutolaunchWeb.LabMarket
 
   @history ~w(claimed exited returned)
@@ -287,7 +288,8 @@ defmodule AutolaunchWeb.PortfolioLive do
     do: Autolaunch.Robinhood.Lab.network_name(Autolaunch.Robinhood.Lab.chain_id())
 
   # What the auction itself says about the bid, in the bidder's words.
-  defp standing_copy(%{standing: :bidding}), do: "In the auction"
+  defp standing_copy(%{standing: standing}) when standing in [:in, :sharing, :outbid],
+    do: AuctionBookComponent.standing_label(standing)
 
   defp standing_copy(%{standing: :refundable, refundable: amount, stock_symbol: symbol}),
     do: "#{amount} #{symbol} refundable: the auction did not reach its required raise"

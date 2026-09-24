@@ -20,15 +20,15 @@ defmodule Autolaunch.Robinhood.Positions do
   """
 
   alias Autolaunch.Actors.Human
+  alias Autolaunch.{AuctionBook, LabAbi, TokenHoldings}
   alias Autolaunch.Chain.{Abi, Address, CcaSettlement, Rpc}
-  alias Autolaunch.{LabAbi, TokenHoldings}
   alias Autolaunch.Robinhood.{Auctions, BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
 
   @bid_record_words 7
 
   @type standing ::
-          :bidding
+          Autolaunch.AuctionBook.standing()
           | :ended
           | :refundable
           | :graduated
@@ -207,12 +207,17 @@ defmodule Autolaunch.Robinhood.Positions do
   end
 
   # The auction's own rules, in order: an un-exited bid is in the auction until
-  # the end block; after it, the raise is only final once the launch is
+  # the end block, buying, sharing or outbid against the stored clearing price;
+  # after it, the raise is only final once the launch is
   # finished, so the bid waits on that; a failed launch refunds it in full and
   # a graduated one owes it whatever it did not spend, which its exit states;
   # an exited bid with fill claims from the claim block.
-  defp standing(%{exited_block: 0}, %{state: state}, _venue) when state in [:created, :active],
-    do: {:ok, :bidding, nil, nil}
+  defp standing(%{exited_block: 0} = bid, %{state: state} = auction, _venue)
+       when state in [:created, :active],
+       do:
+         {:ok,
+          AuctionBook.standing(bid.max_price_q96, %{clearing_q96: auction.clearing_price_q96}),
+          nil, nil}
 
   defp standing(%{exited_block: 0}, %{state: :ended}, _venue), do: {:ok, :ended, nil, nil}
 
