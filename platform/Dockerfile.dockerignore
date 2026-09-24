@@ -20,6 +20,10 @@
 !design-system/regent_ui/priv/static/images/**
 !design-system/regent_ui/priv/static/fonts/**
 !elixir-utils/privy/**
+!elixir-utils/ens/mix.exs
+!elixir-utils/ens/lib/**
+!elixir-utils/siwa/siwa-elixir/apps/siwa/mix.exs
+!elixir-utils/siwa/siwa-elixir/apps/siwa/lib/**
 !elixir-utils/blog/mix.exs
 !elixir-utils/blog/lib/**
 !elixir-utils/blog/priv/**
