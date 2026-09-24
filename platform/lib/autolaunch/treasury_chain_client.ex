@@ -28,9 +28,10 @@ defmodule Autolaunch.TreasuryChainClient do
   @execution_success "0x442e715f626346e8c54381002da614f62bee8d27386535b2521ec8540898556e"
   @transfer "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
-  @singleton get_in(@manifest, ["safe", "singleton", "address"])
-  @singleton_hash get_in(@manifest, ["safe", "singleton", "code_keccak256"])
-  @safe_version get_in(@manifest, ["safe", "singleton", "version"])
+  @singletons Map.new(
+                get_in(@manifest, ["safe", "singletons"]),
+                &{&1["address"], %{version: &1["version"], code_keccak256: &1["code_keccak256"]}}
+              )
   @proxy_runtime_hash get_in(@manifest, ["safe", "proxy_runtime", "runtime_keccak256"])
   @compatibility_fallback get_in(@manifest, ["safe", "compatibility_fallback_handler", "address"])
   @compatibility_fallback_hash get_in(@manifest, [
@@ -124,11 +125,12 @@ defmodule Autolaunch.TreasuryChainClient do
     with {:ok, runtime} <- code(address, block),
          true <- keccak(runtime) == @proxy_runtime_hash,
          {:ok, singleton} <- storage_address(address, "0x0", block),
-         true <- singleton == @singleton,
+         %{version: version, code_keccak256: code_hash} <-
+           Map.get(@singletons, singleton, false),
          {:ok, singleton_code} <- code(singleton, block),
-         true <- keccak(singleton_code) == @singleton_hash,
+         true <- keccak(singleton_code) == code_hash,
          {:ok, version_raw} <- call(address, @version_selector, block),
-         {:ok, @safe_version} <- decode_string(version_raw),
+         {:ok, ^version} <- decode_string(version_raw),
          {:ok, owners_raw} <- call(address, @owners_selector, block),
          {:ok, owners} <- decode_address_array(owners_raw),
          true <- owners != [],
@@ -144,7 +146,7 @@ defmodule Autolaunch.TreasuryChainClient do
        %{
          admitted_safe?: true,
          safe_singleton: singleton,
-         safe_version: @safe_version,
+         safe_version: version,
          owners: owners,
          threshold: threshold,
          modules: modules,

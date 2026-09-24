@@ -8,10 +8,15 @@ source:
     number: 50538420
     hash: "0x48443001d296a14a51694ecba9c59a64383e0f414862359c0c72131f9e89f8af"
 safe:
-  singleton:
-    address: "0x41675c099f32341bf84bfc5382af534df5c7461a"
-    version: "1.4.1"
-    code_keccak256: "0x1fe2df852ba3299d6534ef416eefa406e56ced995bca886ab7a553e6d0c5e1c4"
+  # Safe 1.4.1 and SafeL2 1.4.1 (the one the Safe app deploys on Base), both
+  # from @safe-global/safe-deployments 1.37.54.
+  singletons:
+    - address: "0x41675c099f32341bf84bfc5382af534df5c7461a"
+      version: "1.4.1"
+      code_keccak256: "0x1fe2df852ba3299d6534ef416eefa406e56ced995bca886ab7a553e6d0c5e1c4"
+    - address: "0x29fcb43b46531bca003ddc8fcb67ffe91900c762"
+      version: "1.4.1"
+      code_keccak256: "0xb1f926978a0f44a2c0ec8fe822418ae969bd8c3f18d61e5103100339894f81ff"
   proxy_factory:
     address: "0x4e1dcf7ad4e460cfd30791ccc4f9c8a4f820ec67"
     code_keccak256: "0x50c3cdc4074750a7a974204a716c999edd37482f907608d960b2b025ee0b3317"
