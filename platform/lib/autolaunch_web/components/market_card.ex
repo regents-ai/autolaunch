@@ -7,8 +7,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Stocks.MarketData
   alias Autolaunch.Token
-  alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay, UsdValue}
-  alias AutolaunchWeb.Components.ChainIcon
+  alias AutolaunchWeb.Components.{BidPlaced, ChainIcon}
+  alias AutolaunchWeb.{SwapComponent, TokenDisplay, UsdValue}
   require Phoenix.LiveView
 
   @own_sites ["autolaunch.sh", "regents.sh"]
@@ -55,9 +55,66 @@ defmodule AutolaunchWeb.Components.MarketCard do
     default: nil,
     doc: "the USD price of one unit of the record's currency, for its figures"
 
-  def explore_card(assigns) do
+  @doc """
+  A gallery card. An auction's card reads, top to bottom: its ticker over its
+  currency with its chain, its name, the clearing price and the FDV it implies,
+  the creator's links, the start of its description, then Details and Bid.
+  """
+  def explore_card(%{kind: :auction} = assigns) do
+    view = view(:auction, assigns.record, assigns.creator_connections)
+
     assigns =
-      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
+      assign(assigns,
+        view: view,
+        fdv: dollars(assigns.record.fdv, assigns.rate),
+        wallet: wallet_link(view),
+        pair: Enum.join(["$" <> view.symbol | List.wrap(view.metric.unit)], "/")
+      )
+
+    ~H"""
+    <article
+      class={["home-coin", "home-coin--auction", @view.color && "home-coin--tinted"]}
+      style={tint(@view.color)}
+    >
+      <.link navigate={@view.path} class="home-coin__main">
+        <.coin_art view={@view} />
+        <p class="home-coin__pair">
+          <span class="home-coin__ticker" title={@pair}>${@view.symbol}<span :if={@view.metric.unit}>/<wbr />{@view.metric.unit}</span></span>
+          <.chain_chip chain={@view.chain} label={chain_short(@view.chain)} />
+        </p>
+        <h2 class="home-coin__name">{@view.name}</h2>
+      </.link>
+      <div class="home-coin__metric">
+        <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} fallback="-" /><span>Clearing price</span>
+      </div>
+      <p class="home-coin__fdv">Implied FDV: <span>{@fdv}</span></p>
+      <div class="home-coin__links">
+        <.card_socials connections={@view.connections} website={@view.website} wallet={@wallet} />
+      </div>
+      <p class="home-coin__description">{excerpt(@view.description)}</p>
+      <div class="home-coin__actions">
+        <.link
+          navigate={@view.path}
+          class="rg-button rg-button--secondary home-coin__action"
+          aria-label={"Details for #{@view.name}"}
+        >Details</.link>
+        <Regent.Primitives.button
+          :if={@trade_event && @view.bid}
+          class="home-coin__action"
+          phx-click={@trade_event}
+          phx-value-id={@view.record_id}
+          disabled={@view.bid.unavailable != nil}
+          title={@view.bid.unavailable}
+          aria-label={"Bid on #{@view.name}"}
+        >Bid</Regent.Primitives.button>
+      </div>
+    </article>
+    """
+  end
+
+  def explore_card(%{kind: :token} = assigns) do
+    assigns =
+      assign(assigns, :view, view(:token, assigns.record, assigns.creator_connections))
 
     ~H"""
     <article
@@ -65,34 +122,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
       style={tint(@view.color)}
     >
       <.link navigate={@view.path} class="home-coin__main">
-        <div class="home-coin__art">
-          <img
-            :if={present?(@view.image)}
-            src={@view.image}
-            alt={"#{@view.name} token"}
-            loading="lazy"
-            decoding="async"
-            width="400"
-            height="400"
-          />
-          <span :if={!present?(@view.image)} class="home-coin__fallback" aria-label="No token image">{String.first(
-            @view.name || "?"
-          )}</span>
-        </div>
+        <.coin_art view={@view} />
         <h2 class="home-coin__name">{@view.name}</h2>
         <p class="home-coin__symbol">${@view.symbol}</p>
-        <div :if={@kind == :token} class="home-coin__metric">
+        <div class="home-coin__metric">
           <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>{@view.metric_label}</span>
         </div>
       </.link>
-      <.auction_figures :if={@kind == :auction} auction={@record} rate={@rate} />
       <div class="home-coin__meta">
         <span :if={@view.creator} title={@view.creator_address}>{@view.creator}</span>
         <span :if={@view.age} class="home-coin__age">{@view.age}</span>
         <span class={["home-coin__status", launched(@view.status)]}>{@view.status}</span>
-        <.chain_chip chain={@view.chain} />
+        <.chain_chip chain={@view.chain} label={@view.chain} />
       </div>
-      <.card_socials connections={@view.connections} compact />
+      <.card_socials connections={@view.connections} />
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
       <.quick_actions
         :if={@trade_event && @view.quick}
@@ -102,6 +145,27 @@ defmodule AutolaunchWeb.Components.MarketCard do
         quick={@view.quick}
       />
     </article>
+    """
+  end
+
+  attr :view, :map, required: true
+
+  defp coin_art(assigns) do
+    ~H"""
+    <div class="home-coin__art">
+      <img
+        :if={present?(@view.image)}
+        src={@view.image}
+        alt={"#{@view.name} token"}
+        loading="lazy"
+        decoding="async"
+        width="400"
+        height="400"
+      />
+      <span :if={!present?(@view.image)} class="home-coin__fallback" aria-label="No token image">{String.first(
+        @view.name || "?"
+      )}</span>
+    </div>
     """
   end
 
@@ -405,52 +469,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :auction, :map, required: true, doc: "an auction with `fdv` loaded"
-
-  attr :rate, :any,
-    default: nil,
-    doc: "the USD price of one unit of the auction's currency, nil while none is known"
-
-  @doc """
-  The four figures an auction's card shows: the current price per token, FDV
-  at that price, the launch threshold with how much of it is met, and the
-  status. A figure the site does not know shows as a dash, never as zero.
-  """
-  def auction_figures(assigns) do
-    assigns = assign(assigns, :figures, figures(assigns.auction, assigns.rate))
-
-    ~H"""
-    <dl class="auction-figures">
-      <div>
-        <dt>Price</dt>
-        <dd>
-          <.price_figure
-            amount={@auction.current_clearing_price}
-            unit={@auction.quote_token_symbol}
-            rate={@rate}
-          />
-        </dd>
-      </div>
-      <div>
-        <dt>FDV</dt>
-        <dd>{@figures.fdv}</dd>
-      </div>
-      <div>
-        <dt>Launch threshold</dt>
-        <dd>
-          {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
-        </dd>
-      </div>
-      <div>
-        <dt>Status</dt>
-        <dd>
-          <.status_figure figures={@figures} />
-        </dd>
-      </div>
-    </dl>
-    """
-  end
-
   @doc """
   Reads the dollar prices the auction figures use into `:rates`, in the
   background: REGENT's price and each chain's stock prices. A test network's
@@ -694,7 +712,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="market-identity__body">
         <p class="market-identity__symbol">${@view.symbol}</p>
         <div class="market-identity__meta">
-          <.chain_chip chain={@view.chain} />
+          <.chain_chip chain={@view.chain} label={@view.chain} />
           <span class={launched(@status || @view.status)}>{@status || @view.status}</span>
           <span :if={@view.age}>{@view.age} ago</span>
         </div>
@@ -754,13 +772,19 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :chain, :string, required: true
+  attr :chain, :string, required: true, values: ["Base", "Robinhood"]
+  attr :label, :string, required: true
 
   defp chain_chip(assigns) do
     ~H"""
-    <span class={["chain-chip", "chain-chip--#{String.downcase(@chain)}"]}>{@chain}</span>
+    <span class={["chain-chip", "chain-chip--#{String.downcase(@chain)}"]} title={@chain}>
+      <span aria-hidden="true">{@label}</span><span class="visually-hidden">{@chain}</span>
+    </span>
     """
   end
+
+  defp chain_short("Robinhood"), do: "RH"
+  defp chain_short("Base"), do: "Base"
 
   attr :view, :map, required: true
 
@@ -835,34 +859,58 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :connections, :list, required: true
   attr :website, :string, default: nil
-  attr :compact, :boolean, default: false
+  attr :wallet, :map, default: nil, doc: "the creator's wallet and its explorer page"
 
-  # A website shows only as an ordinary web link; anything else a launch
-  # recorded there is left off the page.
+  # Each link is written as its handle or site. A website shows only as an
+  # ordinary web link; anything else a launch recorded there is left off the
+  # page.
   defp card_socials(assigns) do
     assigns = assign(assigns, :website, web_link(assigns.website))
 
     ~H"""
     <div
-      :if={@connections != [] || @website}
+      :if={@connections != [] || @website || @wallet}
       class="launchpad-card__socials"
       aria-label="Creator links"
     >
-      <a :if={@website} href={@website.url} target="_blank" rel="noopener noreferrer nofollow">
-        <span>Website</span> {@website.label}
-      </a>
       <a
         :for={connection <- @connections}
         href={connection.url}
-        title={connection.username}
-        aria-label={"#{connection.label}: #{connection.username}"}
+        aria-label={"#{connection.label} #{connection.handle}"}
         target="_blank"
         rel="noopener noreferrer"
-      >
-        <span>{connection.label}</span><span :if={!@compact}>{connection.username}</span>
-      </a>
+      >{connection.handle}</a>
+      <a :if={@website} href={@website.url} target="_blank" rel="noopener noreferrer nofollow">{@website.label}</a>
+      <a
+        :if={@wallet}
+        href={@wallet.url}
+        title={@wallet.address}
+        aria-label={"Creator wallet #{@wallet.short}"}
+        target="_blank"
+        rel="noopener noreferrer"
+      >{@wallet.short}</a>
     </div>
     """
+  end
+
+  defp wallet_link(%{creator_address: address, chain: chain}),
+    do: %{
+      address: address,
+      short: short_address(address),
+      url: BidPlaced.address_url(if(chain == "Robinhood", do: :robinhood, else: :base), address)
+    }
+
+  # The first hundred characters, cut after a whole word where there is one.
+  defp excerpt(text) do
+    text = String.trim(text)
+
+    if String.length(text) <= 100 do
+      text
+    else
+      head = String.slice(text, 0, 101)
+      words = String.replace(head, ~r/\s*\S*\z/u, "")
+      String.trim_trailing(if(words == "", do: String.slice(head, 0, 100), else: words)) <> "…"
+    end
   end
 
   defp view(:draft, values, connections) do
@@ -913,11 +961,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       creator_address: auction.creator_address,
       age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
       connections: connection_list(connections),
-      quick:
-        auction_quick(
-          auction,
-          if(robinhood?, do: "USDG", else: BidComponent.bid_currency(auction))
-        ),
+      bid: auction_bid(auction),
       record_id: auction.id,
       chain: if(robinhood?, do: "Robinhood", else: "Base")
     }
@@ -975,19 +1019,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
   def state_label(:graduated), do: "Launched"
   def state_label(:failed), do: "Failed"
 
-  # An auction past its end block takes no bids, so its row offers none.
-  defp auction_quick(%{state: state}, _currency) when state in [:ended, :graduated, :failed],
-    do: nil
+  # An auction past its end block takes no bids, so its card offers none.
+  defp auction_bid(%{state: state}) when state in [:ended, :graduated, :failed], do: nil
+  defp auction_bid(_auction), do: %{unavailable: closed_before_deployment()}
 
-  defp auction_quick(_auction, currency) do
-    %{
-      verb: "Bid",
-      currency: currency,
-      unavailable: closed_before_deployment()
-    }
-  end
-
-  # Until the contracts are deployed no quick button opens anything.
+  # Until the contracts are deployed no bid or buy button opens anything.
   defp closed_before_deployment,
     do:
       if(Autolaunch.Prelaunch.read_only?(), do: "Opens #{Autolaunch.Prelaunch.opens_at_label()}")
@@ -1003,7 +1039,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 
   defp connection_list(connections) when is_map(connections) do
-    [:profile, :company, :x, :ens, :github]
+    [:profile, :x, :company, :ens, :github]
     |> Enum.flat_map(&connection(&1, Map.get(connections, &1)))
     |> Enum.uniq_by(& &1.url)
   end
@@ -1012,15 +1048,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp connection(key, %{verified_at: %DateTime{}, username: name})
        when is_binary(name) and name != "" do
-    {label, base} =
+    {label, base, handle} =
       case key do
-        :ens -> {"ENS", "https://app.ens.domains/"}
-        :github -> {"GitHub", "https://github.com/"}
-        :company -> {"Company X", "https://x.com/"}
-        _ -> {"X", "https://x.com/"}
+        :ens -> {"ENS", "https://app.ens.domains/", name}
+        :github -> {"GitHub", "https://github.com/", name}
+        :company -> {"Company X", "https://x.com/", "@" <> name}
+        _ -> {"X", "https://x.com/", "@" <> name}
       end
 
-    [%{username: name, label: label, url: base <> URI.encode_www_form(name)}]
+    [%{username: name, label: label, handle: handle, url: base <> URI.encode_www_form(name)}]
   end
 
   defp connection(_key, _value), do: []
