@@ -91,13 +91,28 @@ defmodule Autolaunch.SwapActions do
       ]
     }
   ]
-  @swap_params %{
+  # SWAP_EXACT_IN_SINGLE as each chain's router reads it. Base's router takes
+  # (PoolKey, zeroForOne, amountIn, amountOutMinimum, hookData); Robinhood's is a
+  # newer Uniswap build that reads a per-hop price limit before hookData, which
+  # the site leaves at 0 (none): amountOutMinimum already protects the trade.
+  @base_swap_params %{
     "type" => "tuple",
     "components" => [
       @pool_key,
       %{"name" => "zeroForOne", "type" => "bool"},
       %{"name" => "amountIn", "type" => "uint128"},
       %{"name" => "amountOutMinimum", "type" => "uint128"},
+      %{"name" => "hookData", "type" => "bytes"}
+    ]
+  }
+  @robinhood_swap_params %{
+    "type" => "tuple",
+    "components" => [
+      @pool_key,
+      %{"name" => "zeroForOne", "type" => "bool"},
+      %{"name" => "amountIn", "type" => "uint128"},
+      %{"name" => "amountOutMinimum", "type" => "uint128"},
+      %{"name" => "minHopPriceX36", "type" => "uint256"},
       %{"name" => "hookData", "type" => "bytes"}
     ]
   }
@@ -525,7 +540,7 @@ defmodule Autolaunch.SwapActions do
         %{
           "step" => "swap",
           "to" => venue.router,
-          "data" => swap_data(trade, amount_in, min_out, deadline)
+          "data" => swap_data(venue, trade, amount_in, min_out, deadline)
         }
       ]
   end
@@ -568,11 +583,8 @@ defmodule Autolaunch.SwapActions do
     ]
   end
 
-  defp swap_data(trade, amount_in, min_out, deadline) do
-    swap =
-      LabAbi.encode_values([@swap_params], [
-        [trade.pool_key, trade.zero_for_one, amount_in, min_out, "0x"]
-      ])
+  defp swap_data(venue, trade, amount_in, min_out, deadline) do
+    swap = swap_params(venue.chain, trade, amount_in, min_out)
 
     settle = LabAbi.encode_values(@currency_amount, [trade.sell.address, amount_in])
     take = LabAbi.encode_values(@currency_amount, [trade.buy.address, min_out])
@@ -585,6 +597,18 @@ defmodule Autolaunch.SwapActions do
 
     LabAbi.encode(@router_abi, "execute(bytes,bytes[],uint256)", [@commands, [v4_swap], deadline])
   end
+
+  defp swap_params(:base, trade, amount_in, min_out),
+    do:
+      LabAbi.encode_values([@base_swap_params], [
+        [trade.pool_key, trade.zero_for_one, amount_in, min_out, "0x"]
+      ])
+
+  defp swap_params(:robinhood, trade, amount_in, min_out),
+    do:
+      LabAbi.encode_values([@robinhood_swap_params], [
+        [trade.pool_key, trade.zero_for_one, amount_in, min_out, 0, "0x"]
+      ])
 
   # Confirmation
 
