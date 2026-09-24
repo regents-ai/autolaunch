@@ -26,9 +26,11 @@
   .shell-rail__list { grid-template-columns: repeat(4, minmax(0,1fr)); }
   .rg-button.shell-rail__link { justify-content: center; }
 }
-/* Phones: tighter buttons, and the row settles in one link after another. */
+/* Phones: two by two, so every label keeps room around it, and the links settle
+   in one after another. */
 @media (max-width: 35rem) {
-  .rg-button.shell-rail__link { min-height: 2.75rem; padding-inline: 2px; font-size: .9375rem; }
+  .shell-rail__list { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .rg-button.shell-rail__link { min-height: 2.75rem; font-size: .9375rem; }
   .shell-rail__item { animation: shell-rail-in 220ms var(--ease-out, cubic-bezier(.23,1,.32,1)) both; }
   .shell-rail__item:nth-child(2) { animation-delay: 40ms; }
   .shell-rail__item:nth-child(3) { animation-delay: 80ms; }

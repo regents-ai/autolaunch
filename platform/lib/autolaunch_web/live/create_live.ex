@@ -159,6 +159,9 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   def render(assigns) do
+    assigns =
+      assign(assigns, :choices, [{:base, :revshare}, {:base, :stocks}, {:robinhood, :stocks}])
+
     ~H"""
     <div class="autolaunch-page launchpad-create">
       <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
@@ -201,21 +204,28 @@ defmodule AutolaunchWeb.CreateLive do
                 aria-current={if @launch_kind == :stocks, do: "page"}
               >Memestake token</.link>
             </div>
+            <%!-- Always rendered, hidden off Robinhood, so the page below keeps its place. --%>
             <p
-              :if={@launch_chain == :robinhood}
               id="launch-kind-robinhood-note"
-              class="launchpad-create__choice-note"
+              class={["launchpad-create__choice-note", @launch_chain != :robinhood && "is-reserved"]}
             >
               Robinhood launches Memestake tokens only. Revstake tokens launch on Base.
             </p>
           </nav>
-          <p class="launchpad-create__choice-summary" role="status">
-            <strong>{choice_title(@launch_chain, @launch_kind)}.</strong>
-            {choice_summary(@launch_chain, @launch_kind)}
-            <.link :if={@launch_kind == :revshare} href="/blog/durable-agent-services">
-              Read about building a durable service for one.
-            </.link>
-          </p>
+          <%!-- All three summaries share one cell and only the chosen one shows, so the
+               cell is always as tall as the longest and nothing below moves. --%>
+          <div class="launchpad-create__choice-summary" role="status">
+            <p
+              :for={{chain, kind} <- @choices}
+              class={{chain, kind} != {@launch_chain, @launch_kind} && "is-reserved"}
+            >
+              <strong>{choice_title(chain, kind)}.</strong>
+              {choice_summary(chain, kind)}
+              <.link :if={kind == :revshare} href="/blog/durable-agent-services">
+                Read about building a durable service for one.
+              </.link>
+            </p>
+          </div>
         </div>
       </header>
       <%= if @launch_kind == :stocks do %>
