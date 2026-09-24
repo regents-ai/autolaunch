@@ -23,6 +23,10 @@ defmodule AutolaunchWeb.SharedProfileHTML do
       <section class="market-profile-panel" aria-label="Account details">
         <Regent.Profile.panel />
       </section>
+      {live_render(@conn, AutolaunchWeb.ProfileConnectionsLive,
+        id: "profile-connections-live",
+        session: AutolaunchWeb.Live.Session.render_context(@conn)
+      )}
     </section>
     """
   end
