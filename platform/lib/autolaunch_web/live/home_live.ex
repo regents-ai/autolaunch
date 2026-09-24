@@ -130,10 +130,11 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_async(:home_market, _failure, socket),
     do: {:noreply, assign(socket, market_loading: false, market_failed: true)}
 
-  # A reread answers only for the listing it was asked about; a filter, search
-  # or load started meanwhile brings its own records.
-  def handle_async(:home_reread, {:ok, {options, {:ok, page}}}, socket) do
-    if options == socket.assigns.market_options and not socket.assigns.market_loading do
+  # A reread answers only for the listing it was asked about, at the length it
+  # had then; a filter, search or "Load more" since brings its own records.
+  def handle_async(:home_reread, {:ok, {options, count, {:ok, page}}}, socket) do
+    if options == socket.assigns.market_options and count == length(socket.assigns.records) and
+         not socket.assigns.market_loading do
       {:noreply,
        assign(socket,
          records: page.records,
@@ -197,7 +198,7 @@ defmodule AutolaunchWeb.HomeLive do
           {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
         end
 
-      {options, result}
+      {options, count, result}
     end)
   end
 

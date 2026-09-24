@@ -81,10 +81,11 @@ defmodule AutolaunchWeb.TokensLive do
   def handle_async(:tokens, _failure, socket),
     do: {:noreply, assign(socket, loading: false, failed: true)}
 
-  # A reread answers only for the list it was asked about; a filter, search or
-  # load started meanwhile brings its own records.
-  def handle_async(:tokens_reread, {:ok, {options, {:ok, page}}}, socket) do
-    if options == socket.assigns.options and not socket.assigns.loading do
+  # A reread answers only for the list it was asked about, at the length it
+  # had then; a filter, search or "Load more" since brings its own records.
+  def handle_async(:tokens_reread, {:ok, {options, count, {:ok, page}}}, socket) do
+    if options == socket.assigns.options and count == length(socket.assigns.records) and
+         not socket.assigns.loading do
       {:noreply,
        assign(socket,
          records: page.records,
@@ -140,7 +141,7 @@ defmodule AutolaunchWeb.TokensLive do
     count = length(socket.assigns.records)
 
     start_async(socket, :tokens_reread, fn ->
-      {options, with_creators(HomeMarket.reread(options, count))}
+      {options, count, with_creators(HomeMarket.reread(options, count))}
     end)
   end
 
