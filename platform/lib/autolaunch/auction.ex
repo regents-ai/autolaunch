@@ -469,6 +469,28 @@ defmodule Autolaunch.Auction do
       constraints match: ~r/\A[1-9][0-9]{0,38}\z/
     end
 
+    # What a Robinhood launch recorded when its auction opened: the token it
+    # sells, its launch number on the launchpad and its bidding window.
+    attribute :token_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :launch_id, :integer do
+      public? true
+      constraints min: 1
+    end
+
+    attribute :start_block, :integer do
+      public? true
+      constraints min: 0
+    end
+
+    attribute :end_block, :integer do
+      public? true
+      constraints min: 0
+    end
+
     timestamps()
   end
 
