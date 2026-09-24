@@ -14,8 +14,11 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   - Refresh. A bounded page of Robinhood rows (`Autolaunch.MarketWatch`) is
     read against the rollup block clock the contracts keep time by
     (`Autolaunch.Robinhood.BlockClock`): state (`Autolaunch.Auction.MarketState`),
-    minimum reached and clearing price are written back; raised amount and
-    schedule are kept as per-auction readings.
+    minimum reached and clearing price are written back; raised amount,
+    schedule and a graduated launch's pool, splitter and locker are kept as
+    per-auction readings. A launch seen graduated gets its `Token` row
+    (`Autolaunch.LabProjection.project_graduated_token/1`, as a Base Memestake
+    launch does) in the same transaction as its row.
 
   This process is its own failure boundary. A Robinhood outage marks its
   readings stale and leaves the stored rows as they are; nothing here touches
@@ -27,9 +30,10 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   require Logger
 
   alias Autolaunch.Actors.System
+  alias Autolaunch.Auction
   alias Autolaunch.Auction.MarketState
   alias Autolaunch.Chain.Rpc
-  alias Autolaunch.MarketWatch
+  alias Autolaunch.{LabProjection, MarketWatch}
   alias Autolaunch.Stocks.Amounts
 
   @topic "autolaunch:robinhood_market"
@@ -188,7 +192,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     with {:ok, launch} <- reader.launch(head, launch_id),
          {:ok, nil} <- existing(head.chain_id, launch.auction),
          {:ok, creator_id} <- creator(launch.launcher),
-         {:ok, auction} <- project(head, launch, creator_id) do
+         {:ok, auction} <- transaction(fn -> project(head, launch, creator_id) end) do
       {:ok, auction.id}
     else
       {:ok, :exists} -> {:ok, nil}
@@ -241,6 +245,12 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   defp project(head, launch, creator_id) do
+    with {:ok, auction} <- project_auction(head, launch, creator_id),
+         :ok <- LabProjection.project_graduated_token(auction),
+         do: {:ok, auction}
+  end
+
+  defp project_auction(head, launch, creator_id) do
     Autolaunch.project_lab_auction(
       %{
         kind: :stocks,
@@ -306,7 +316,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         end_block: market.end_block,
         clock: head.clock,
         block_number: head.block.number,
-        block_hash: head.block.hash
+        block_hash: head.block.hash,
+        pool: market.pool
       }
 
       with {:ok, changed_id} <- write(auction, reading), do: {:ok, reading, changed_id}
@@ -319,16 +330,33 @@ defmodule Autolaunch.Robinhood.MarketFeed do
          auction.minimum_reached == reading.minimum_reached do
       {:ok, nil}
     else
-      with {:ok, _row} <-
-             Autolaunch.refresh_lab_market_auction(
-               auction,
-               reading.state,
-               reading.current_clearing_price,
-               %{minimum_reached: reading.minimum_reached},
-               actor: @actor
-             ),
-           do: {:ok, auction.id}
+      transaction(fn -> refresh_row(auction, reading) end)
     end
+  end
+
+  # A launch the feed sees graduate becomes a listed token in the same
+  # transaction, as a Base Memestake launch does, so the row never says
+  # graduated without its token.
+  defp refresh_row(auction, reading) do
+    with {:ok, row} <-
+           Autolaunch.refresh_lab_market_auction(
+             auction,
+             reading.state,
+             reading.current_clearing_price,
+             %{minimum_reached: reading.minimum_reached},
+             actor: @actor
+           ),
+         :ok <- LabProjection.project_graduated_token(row),
+         do: {:ok, auction.id}
+  end
+
+  defp transaction(write) do
+    Ash.DataLayer.transaction(Auction, fn ->
+      case write.() do
+        {:ok, value} -> value
+        {:error, reason} -> Ash.DataLayer.rollback(Auction, reason)
+      end
+    end)
   end
 
   defp changed_snapshot_ids(previous, current) do
@@ -372,6 +400,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     # startBlock, endBlock, claimBlock, migrationBlock, requiredRaise,
     # floorPriceQ96, lifecycle, ...
     @lifecycle_index 10
+    @graduated 2
 
     def head do
       with {:ok, config} <- Lab.current(),
@@ -436,10 +465,35 @@ defmodule Autolaunch.Robinhood.MarketFeed do
            end_block: Enum.at(words, 5),
            minimum_reached: minimum_reached,
            clearing_price_q96: clearing,
-           currency_raised: raised
+           currency_raised: raised,
+           pool: pool(head, words)
          }}
       end
     end
+
+    # A graduated launch's pool (word 11), splitter (word 13) and liquidity
+    # position (word 14), all held by the launchpad's locker. `nil` before
+    # `migrate` records them.
+    defp pool(head, words) do
+      if Enum.at(words, @lifecycle_index) == @graduated do
+        %{
+          pool_id: bytes32(Enum.at(words, 11)),
+          splitter: address(Enum.at(words, 13)),
+          lp_token_id: Enum.at(words, 14),
+          locker: Lab.address!(head.config, :stocks_locker)
+        }
+      end
+    end
+
+    defp bytes32(word),
+      do:
+        "0x" <>
+          (word |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(64, "0"))
+
+    defp address(word),
+      do:
+        "0x" <>
+          (word |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(40, "0"))
 
     # The token's `tokenURI()` is a base64 JSON object holding only the
     # metadata fields the launch filled in.
