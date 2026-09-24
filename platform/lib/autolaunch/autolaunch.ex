@@ -90,7 +90,6 @@ defmodule Autolaunch do
         not_found_error?: false
 
       define :project_lab_auction, action: :project_lab
-      define :project_launch_auction, action: :project_launch
 
       define :set_auction_bid_terms,
         action: :set_bid_terms,
@@ -348,6 +347,15 @@ defmodule Autolaunch do
         not_found_error?: false
     end
 
+    resource Autolaunch.LaunchDiscovery do
+      define :record_launch_discovery, action: :record
+
+      define :latest_launch_discovery,
+        action: :latest,
+        args: [:chain_id, :contract],
+        not_found_error?: false
+    end
+
     resource Autolaunch.AuctionFinish do
       define :record_auction_finish, action: :record
 
@@ -355,6 +363,22 @@ defmodule Autolaunch do
         action: :latest,
         args: [:chain_id, :contract],
         not_found_error?: false
+    end
+
+    resource Autolaunch.AuctionFinish.Transaction do
+      define :record_auction_finish_transaction, action: :record
+
+      define :unsettled_auction_finish_transaction,
+        action: :unsettled,
+        args: [:auction_finish_id],
+        not_found_error?: false
+
+      define :highest_auction_finish_nonce,
+        action: :highest_nonce,
+        args: [:chain_id, :signer],
+        not_found_error?: false
+
+      define :settle_auction_finish_transaction, action: :settle, args: [:outcome]
     end
   end
 

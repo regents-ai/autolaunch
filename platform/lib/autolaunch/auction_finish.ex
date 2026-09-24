@@ -11,8 +11,9 @@ defmodule Autolaunch.AuctionFinish do
   Every minute `:discover` records the launches created since its last run, and
   the `:finish` trigger looks at each launch still running: once its migration
   block has passed it sends `migrate`, and once the chain says the launch
-  graduated or failed the row is not looked at again. A sent finish has five
-  minutes to land before that launch is tried again.
+  graduated or failed the row is not looked at again. Every `migrate` sent is
+  an `AuctionFinish.Transaction`, recorded before it is broadcast, and a launch
+  is sent another only once the chain has settled the last.
   """
 
   use Ash.Resource,
@@ -32,10 +33,7 @@ defmodule Autolaunch.AuctionFinish do
         scheduler_cron "* * * * *"
         max_attempts 1
 
-        where expr(
-                state == :running and
-                  (is_nil(finish_sent_at) or finish_sent_at < ago(5, :minute))
-              )
+        where expr(state == :running)
 
         worker_module_name Autolaunch.AuctionFinish.Workers.Finish
         scheduler_module_name Autolaunch.AuctionFinish.Schedulers.Finish
@@ -125,9 +123,6 @@ defmodule Autolaunch.AuctionFinish do
     attribute :state, :atom,
       allow_nil?: false,
       constraints: [one_of: [:running, :graduated, :failed]]
-
-    attribute :finish_tx_hash, :string, constraints: [min_length: 66, max_length: 66]
-    attribute :finish_sent_at, :utc_datetime_usec
 
     timestamps()
   end
