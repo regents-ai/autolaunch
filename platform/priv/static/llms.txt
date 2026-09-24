@@ -38,7 +38,7 @@ That is why Autolaunch is an AiFi primitive: stablecoin streams for agents and x
 
 ## Memestake: onchain stocks
 
-We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours, and have 80% of tokens for the auction and 20% locked in the Uni v4 pool. Stakers earn the onchain stock from fees. Memestake on Robinhood Chain is not live yet.
+We think onchain stocks will keep growing, and we will support viable stocks on Base and Robinhood. Pairing a memecoin with a real stock is called a memestock. Memestake launches last 24 hours, and have 80% of tokens for the auction and 20% locked in the Uni v4 pool. Stakers earn the onchain stock from fees.
 
 Memestake supply: 1 billion tokens.
 
