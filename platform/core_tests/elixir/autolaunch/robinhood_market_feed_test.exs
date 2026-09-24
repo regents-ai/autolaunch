@@ -13,6 +13,9 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
   @site_auction "0x3000000000000000000000000000000000000003"
   @outside_auction "0x4000000000000000000000000000000000000004"
   @outside_launcher "0x5000000000000000000000000000000000000005"
+  @graduated_auction "0x7000000000000000000000000000000000000007"
+  @splitter "0x8000000000000000000000000000000000000008"
+  @pool_id "0x" <> String.duplicate("9a", 32)
 
   defmodule Chain do
     @moduledoc """
@@ -131,7 +134,56 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert Enum.map(listed.results, & &1.id) == [base.id]
   end
 
-  defp launch(id, auction, launcher) do
+  test "a launch that graduates gets exactly one token, and a failed one gets none" do
+    assert {:ok, first} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+    assert tokens(@site_auction) == 0
+    assert tokens(@outside_auction) == 0
+
+    # `migrate` graduates the site launch, and a third launch appears already
+    # graduated.
+    Chain.put(%{
+      Chain.chain()
+      | launches: Chain.chain().launches ++ [launch(3, @graduated_auction, @outside_launcher, 2)],
+        markets:
+          Chain.chain().markets
+          |> Map.put(@site_auction, market(1, 2, true))
+          |> Map.put(@graduated_auction, market(3, 2, true))
+    })
+
+    assert {:ok, second} = MarketFeed.poll(Chain, first.cursors)
+    assert tokens(@site_auction) == 1
+    assert tokens(@graduated_auction) == 1
+    assert tokens(@outside_auction) == 0
+
+    assert %{state: :graduated, pool: %{pool_id: @pool_id, splitter: @splitter}} =
+             second.snapshots[@site_auction]
+
+    # Replaying every record and every market leaves one token each.
+    assert {:ok, _replayed} =
+             MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+
+    assert {:ok, _again} = MarketFeed.poll(Chain, second.cursors)
+    assert Enum.map([@site_auction, @graduated_auction, @outside_auction], &tokens/1) == [1, 1, 0]
+
+    site = Enum.find(robinhood_rows(), &(&1.auction_address == @site_auction))
+
+    assert {:ok, %{name: "Launch 1", symbol: "L1", subject_id: nil} = token} =
+             Autolaunch.get_public_token_by_auction(site.id, actor: nil)
+
+    assert token.treasury_address == @launchpad
+  end
+
+  defp tokens(auction_address) do
+    Repo.one(
+      from token in "tokens",
+        join: auction in "auctions",
+        on: auction.id == token.auction_id,
+        where: auction.chain_id == @chain_id and auction.auction_address == ^auction_address,
+        select: count(token.id)
+    )
+  end
+
+  defp launch(id, auction, launcher, lifecycle \\ 1) do
     %{
       launch_id: id,
       launcher: launcher,
@@ -147,7 +199,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       start_block: 100,
       end_block: 200,
       required: 1_000,
-      lifecycle: 1
+      lifecycle: lifecycle
     }
   end
 
@@ -159,7 +211,11 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       end_block: 200,
       minimum_reached: minimum_reached,
       clearing_price_q96: 0,
-      currency_raised: 2 * 10 ** 18
+      currency_raised: 2 * 10 ** 18,
+      pool:
+        if(lifecycle == 2,
+          do: %{pool_id: @pool_id, splitter: @splitter, lp_token_id: 7, locker: @launchpad}
+        )
     }
   end
 
