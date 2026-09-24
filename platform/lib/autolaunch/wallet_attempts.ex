@@ -45,12 +45,18 @@ defmodule Autolaunch.WalletAttempts do
          do: transact(lease, &report_locked(kind, &1, action_id, press_id, report))
   end
 
+  # A confirmed launch's listing notifications come out of the session's
+  # transaction with its response and are sent only once it has committed, so
+  # a page that rereads on them finds the new row; a rollback sends nothing.
   def verify(kind, action_id, press_id, opts) when kind in @kinds do
     with {:ok, lease} <- authority(opts),
          {:ok, candidate} <- parent(kind, lease.account_id, action_id, false),
          {:ok, attempt} <- issued(kind, candidate, press_id, false),
-         {:ok, outcome} <- read_chain(kind, attempt) do
-      transact(lease, &verify_locked(kind, &1, action_id, press_id, attempt, outcome))
+         {:ok, outcome} <- read_chain(kind, attempt),
+         {:ok, {response, notifications}} <-
+           transact(lease, &verify_locked(kind, &1, action_id, press_id, attempt, outcome)) do
+      Ash.Notifier.notify(notifications)
+      {:ok, response}
     end
   end
 
@@ -104,8 +110,9 @@ defmodule Autolaunch.WalletAttempts do
   defp verify_locked(kind, account, action_id, press_id, attempt, outcome) do
     with {:ok, op} <- parent(kind, account.id, action_id, true),
          {:ok, current} <- issued(kind, op, press_id, true),
-         {:ok, op, current} <- reconcile(kind, op, current, attempt, outcome),
-         do: response(kind, op, current, false)
+         {:ok, op, current, notifications} <- reconcile(kind, op, current, attempt, outcome),
+         {:ok, response} <- response(kind, op, current, false),
+         do: {:ok, {response, notifications}}
   end
 
   @hash_fields %{
@@ -330,24 +337,31 @@ defmodule Autolaunch.WalletAttempts do
   end
 
   # Under the review's lock, as a browser report takes it, so a report and this
-  # recovery of the same press are one after the other and project once. One
-  # Ash transaction, so pages hear of the listed launch once it is committed.
+  # recovery of the same press are one after the other and project once. The
+  # listed launch's notifications are sent once the transaction has committed.
   # A press that is not confirmed was already resolved before, so nothing here
   # wrote anything for it.
   defp adopt_launch(kind, review_id, hash, outcome) do
     Ash.transaction(resource(kind), fn ->
       with {:ok, op} <- locked_review(kind, review_id),
            {:ok, attempt} <- launch_attempt(kind, op, hash),
-           {:ok, op, attempt} <- reconcile(kind, op, attempt, attempt, outcome) do
-        {op.human_account_id, attempt.state}
+           {:ok, op, attempt, notifications} <-
+             reconcile(kind, op, attempt, attempt, outcome) do
+        {op.human_account_id, attempt.state, notifications}
       else
         {:error, reason} -> Ash.DataLayer.rollback(resource(kind), reason)
       end
     end)
     |> case do
-      {:ok, {account_id, :confirmed}} -> {:listed, account_id}
-      {:ok, {_account_id, state}} -> {:pending, {:press_not_confirmed, state}}
-      {:error, error} -> {:pending, error}
+      {:ok, {account_id, :confirmed, notifications}} ->
+        Ash.Notifier.notify(notifications)
+        {:listed, account_id}
+
+      {:ok, {_account_id, state, _notifications}} ->
+        {:pending, {:press_not_confirmed, state}}
+
+      {:error, error} ->
+        {:pending, error}
     end
   end
 
@@ -410,7 +424,7 @@ defmodule Autolaunch.WalletAttempts do
         "receipt" => outcome[:receipt]
       }
 
-      with :ok <- project(kind, op, current, state, result),
+      with {:ok, notifications} <- project(kind, op, current, state, result),
            {:ok, current} <-
              update(current, %{
                state: state,
@@ -419,32 +433,37 @@ defmodule Autolaunch.WalletAttempts do
                resolved_at: DateTime.utc_now()
              }),
            {:ok, op} <- progress(kind, op, current),
-           do: {:ok, op, current}
+           do: {:ok, op, current, notifications}
     else
-      {:ok, op, current}
+      {:ok, op, current, []}
     end
   end
 
-  defp reconcile(_, op, current, _, _), do: {:ok, op, current}
+  defp reconcile(_, op, current, _, _), do: {:ok, op, current, []}
 
   # Canonical projection identities are auction-address and auction/bid-id,
   # never press IDs. Re-reporting one transaction cannot create another effect.
+  # Each returns the listing notifications its writes owe, to be sent after
+  # commit; bid rows have no listeners.
   defp project(:bid, op, %{step: :bid}, :confirmed, result),
-    do: Autolaunch.LabProjection.project_bid(op, result)
+    do: op |> Autolaunch.LabProjection.project_bid(result) |> unannounced()
 
   defp project(:launch, op, %{step: :launch}, :confirmed, result),
     do: Autolaunch.LabProjection.project_launch(op, result)
 
   defp project(:bid, op, %{step: :usdc_bid}, :confirmed, result),
-    do: Autolaunch.LabProjection.project_bid(op, result)
+    do: op |> Autolaunch.LabProjection.project_bid(result) |> unannounced()
 
   defp project(:stocks_launch, op, %{step: :launch}, :confirmed, result),
     do: Autolaunch.Stocks.LabProjection.project_launch(op, result)
 
   defp project(:bid_settlement, op, %{step: step}, :confirmed, result),
-    do: Autolaunch.LabProjection.project_settlement(op, step, result)
+    do: op |> Autolaunch.LabProjection.project_settlement(step, result) |> unannounced()
 
-  defp project(_, _, _, _, _), do: :ok
+  defp project(_, _, _, _, _), do: {:ok, []}
+
+  defp unannounced(:ok), do: {:ok, []}
+  defp unannounced({:error, error}), do: {:error, error}
 
   # The parent is only a monotonic review/progress summary. A sibling rejection
   # never changes it; a late approval cannot reopen an ended/replaced review.
