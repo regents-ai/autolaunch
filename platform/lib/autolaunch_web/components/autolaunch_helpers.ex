@@ -250,7 +250,7 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       empty_copy:
         if(Autolaunch.Prelaunch.read_only?(),
           do:
-            "Auctions will appear here once Autolaunch opens #{Autolaunch.Prelaunch.opens_at_label()}.",
+            "Autolaunch opens #{Autolaunch.Prelaunch.opens_at_label()}. Auctions will appear here.",
           else: "Start the first launch and it will appear here for bidders."
         ),
       empty_action: "Create a launch",
