@@ -84,11 +84,9 @@ malformed input, path normalization, network/API failures, and cancellation race
 Auction and token responses include `pagination.has_more` and `pagination.next_cursor`.
 Pass `next_cursor` unchanged as `after` with the same mode/sort to continue. The CLI
 uses `--after`; the website has Next page and Back to newest links. API auction pages contain at most 50 entries across both chains (24 on the website);
-token API pages retain the 100-row cap. Robinhood auctions come first across pages
-in launch-ID order because they have no opening time; Base auctions then follow
-in their existing date order. Mode and sort apply within both groups. When Robinhood
-cannot be read, the page lists Base entries only and sets `robinhood_unavailable`
-to true; read the list again later for the Robinhood entries. Cursors expire after
+token API pages retain the 100-row cap. Both chains share one date order, and
+mode and sort apply to both. When Robinhood cannot be read, `robinhood_unavailable`
+is true and its entries show what was last read from it. Cursors expire after
 24 hours; a 400 means restart the listing. Ordering includes an ID tie-breaker and
 handles nullable auction dates. New arrivals ahead of the cursor appear on restart;
 continuation is not a frozen database snapshot.

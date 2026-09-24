@@ -222,9 +222,11 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert [%{id: base_id, state: :active}] = base_rows()
     assert base_id == base.id
 
-    # The Base lists stay the site's own Base auctions.
+    # The public list carries the Robinhood rows as last stored, beside Base.
     listed = Autolaunch.page_public_auctions!("all", "newest", actor: nil)
-    assert Enum.map(listed.results, & &1.id) == [base.id]
+
+    assert Enum.sort(Enum.map(listed.results, & &1.id)) ==
+             Enum.sort([base.id | Enum.map(rows, & &1.id)])
   end
 
   test "a launch that graduates gets exactly one token, and a failed one gets none" do

@@ -70,6 +70,9 @@ defmodule Autolaunch.Robinhood.Lab do
   @doc "The configured Robinhood deployment's chain id, or `nil` without one."
   def chain_id, do: Application.get_env(:autolaunch, :autolaunch_robinhood_chain_id)
 
+  @doc "Whether a stored record's chain id is Robinhood's."
+  def chain?(chain_id), do: not is_nil(chain_id) and chain_id == chain_id()
+
   def current do
     case Application.get_env(:autolaunch, :autolaunch_robinhood_deployment) do
       path when is_binary(path) -> load(path)

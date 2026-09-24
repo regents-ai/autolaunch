@@ -42,6 +42,11 @@ defmodule Autolaunch.Auction do
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
     end
 
+    # Every auction the public lists carry, on both chains.
+    read :listed do
+      prepare Autolaunch.Auction.Preparations.Listed
+    end
+
     read :list_public do
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
       prepare build(sort: [inserted_at: :desc, id: :asc], load: [:treasury_security_report])
@@ -57,7 +62,7 @@ defmodule Autolaunch.Auction do
 
       argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
       pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 24
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.Listed
 
       prepare fn query, _context ->
         states =
@@ -87,7 +92,7 @@ defmodule Autolaunch.Auction do
 
       argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
       pagination keyset?: true, required?: true, default_limit: 50, max_page_size: 50
-      prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
+      prepare Autolaunch.Auction.Preparations.Listed
       prepare build(load: [:treasury_security_report])
 
       prepare fn query, _context ->
@@ -159,6 +164,18 @@ defmodule Autolaunch.Auction do
       filter expr(id == ^arg(:id))
       prepare Autolaunch.Auction.Preparations.SiteCreatedOnly
       prepare build(load: [:treasury_security_report])
+    end
+
+    # A listed Robinhood auction, which its address names on the site.
+    read :robinhood_by_address do
+      get? true
+      argument :auction_address, :string, allow_nil?: false
+      filter expr(auction_address == ^arg(:auction_address))
+      prepare Autolaunch.Auction.Preparations.Listed
+
+      prepare fn query, _context ->
+        Ash.Query.filter(query, chain_id == ^Autolaunch.Robinhood.Lab.chain_id())
+      end
     end
 
     read :by_chain_address do
@@ -278,6 +295,8 @@ defmodule Autolaunch.Auction do
   policies do
     policy action([
              :read,
+             :listed,
+             :robinhood_by_address,
              :list_public,
              :page_public,
              :home_market,
@@ -524,6 +543,7 @@ defmodule Autolaunch.Auction do
         ilike(summary, ^pattern) or
         ilike(token_symbol, ^pattern) or
         ilike(auction_address, ^pattern) or
+        ilike(token_address, ^pattern) or
         exists(
           creator_x_connections,
           not is_nil(verified_at) and

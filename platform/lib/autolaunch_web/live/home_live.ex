@@ -8,7 +8,7 @@ defmodule AutolaunchWeb.HomeLive do
       creator_connections_for: 1,
       current_human_id: 1,
       explore_table: 1,
-      opened_robinhood_bid: 3
+      robinhood?: 1
     ]
 
   import AutolaunchWeb.Components.MarketCard, only: [explore_card: 1]
@@ -16,7 +16,7 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.SwapModal
   import AutolaunchWeb.Components.AuctionStats
   alias Autolaunch.HomeMarket
-  alias AutolaunchWeb.LiveListings
+  alias AutolaunchWeb.{LabMarket, LiveListings}
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -25,9 +25,7 @@ defmodule AutolaunchWeb.HomeLive do
        trade: nil,
        records: [],
        creators: %{},
-       robinhood: [],
-       robinhood_creators: %{},
-       robinhood_failed: false,
+       market: LabMarket.subscribe(socket),
        market_loading: true,
        market_failed: false,
        market_append: false,
@@ -84,17 +82,9 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_event("open_trade", _params, socket), do: {:noreply, socket}
 
-  def handle_event("open_robinhood_bid", %{"id" => address} = params, socket),
-    do:
-      {:noreply,
-       assign(socket, :trade, opened_robinhood_bid(socket.assigns.robinhood, address, params))}
-
-  def handle_event("open_robinhood_bid", _params, socket), do: {:noreply, socket}
-
   def handle_event("close_trade", %{"id" => id}, socket) do
     case socket.assigns.trade do
       %{record: %{id: ^id}} -> {:noreply, assign(socket, :trade, nil)}
-      %{record: %{auction: ^id}} -> {:noreply, assign(socket, :trade, nil)}
       _other -> {:noreply, socket}
     end
   end
@@ -148,33 +138,18 @@ defmodule AutolaunchWeb.HomeLive do
   # A failed reread leaves the listing the reader already has.
   def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
 
-  def handle_async(:home_robinhood, {:ok, {:ok, auctions, creators}}, socket),
-    do:
-      {:noreply,
-       assign(socket, robinhood: auctions, robinhood_creators: creators, robinhood_failed: false)}
+  # The Robinhood notice follows whether its feed could read Robinhood.
+  def handle_info({:autolaunch_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
 
-  def handle_async(:home_robinhood, _failure, socket),
-    do: {:noreply, assign(socket, robinhood: [], robinhood_creators: %{}, robinhood_failed: true)}
+  def handle_info({:robinhood_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
 
   def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
     do: {:noreply, LiveListings.schedule(socket)}
 
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> reread_market() |> assign_auction_stats()}
-
-  # Robinhood entries carry no opening time to page by, so they lead the first page.
-  defp load_robinhood(socket, true), do: socket
-
-  defp load_robinhood(socket, false) do
-    options = socket.assigns.market_options
-
-    socket
-    |> assign(robinhood: [], robinhood_creators: %{}, robinhood_failed: false)
-    |> start_async(:home_robinhood, fn ->
-      with {:ok, auctions} <- HomeMarket.robinhood(options),
-           do: {:ok, auctions, creator_connections_for(auctions)}
-    end)
-  end
 
   defp load_market(socket, append?) do
     options = socket.assigns.market_options
@@ -197,12 +172,10 @@ defmodule AutolaunchWeb.HomeLive do
         {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
       end
     end)
-    |> load_robinhood(append?)
   end
 
   # The records loaded so far, read again in place: the filters, the pages
-  # loaded with "Load more" and an open bid form all stay. Robinhood entries
-  # come from their chain, not the saved records, so they are not read again.
+  # loaded with "Load more" and an open bid form all stay.
   defp reread_market(socket) do
     options = socket.assigns.market_options
     count = length(socket.assigns.records)
@@ -221,7 +194,7 @@ defmodule AutolaunchWeb.HomeLive do
     assigns =
       assign(assigns,
         kind: if(assigns.market_options.view == "tokens", do: :token, else: :auction),
-        listed?: assigns.records != [] or assigns.robinhood != []
+        listed?: assigns.records != []
       )
 
     ~H"""
@@ -328,21 +301,18 @@ defmodule AutolaunchWeb.HomeLive do
         </div>
         <p :if={@market_loading} class="visually-hidden" role="status">Loading coins</p>
 
-        <Regent.Primitives.notice :if={@robinhood_failed} tone="error" class="home-market__error">
+        <Regent.Primitives.notice
+          :if={@market.robinhood_stale?}
+          role="status"
+          class="home-market__error"
+        >
           <p>
             {if @kind == :token,
-              do: "Robinhood tokens are unavailable right now.",
-              else: "Robinhood auctions are unavailable right now."}
+              do: "Robinhood could not be read just now, so its tokens show what was last read.",
+              else: "Robinhood could not be read just now, so its auctions show what was last read."}
           </p>
         </Regent.Primitives.notice>
         <div :if={@listed? && @market_options.display == "grid"} class="home-coin-grid">
-          <.explore_card
-            :for={entry <- @robinhood}
-            kind={if @kind == :token, do: :robinhood_token, else: :robinhood_auction}
-            record={entry}
-            creator_connections={connections_for(entry, @robinhood_creators)}
-            trade_event="open_robinhood_bid"
-          />
           <.explore_card
             :for={record <- @records}
             kind={@kind}
@@ -355,10 +325,8 @@ defmodule AutolaunchWeb.HomeLive do
           :if={@listed? && @market_options.display == "table"}
           kind={@kind}
           records={@records}
-          creators={Map.merge(@creators, @robinhood_creators)}
+          creators={@creators}
           trade_event="open_trade"
-          robinhood={@robinhood}
-          robinhood_trade_event="open_robinhood_bid"
         />
 
         <Regent.Primitives.notice :if={@market_failed} tone="error" class="home-market__error">
@@ -418,7 +386,7 @@ defmodule AutolaunchWeb.HomeLive do
           class="home-result-count"
           role="status"
         >
-          Showing {length(@records) + length(@robinhood)} {if @kind == :token,
+          Showing {length(@records)} {if @kind == :token,
             do: "tokens",
             else: "auctions"}{if !@has_more,
             do: " · All results loaded"}
@@ -434,8 +402,8 @@ defmodule AutolaunchWeb.HomeLive do
         session_lease={@session_lease}
       />
       <.robinhood_bid_modal
-        :if={match?(%{record: %{launch_id: _}}, @trade)}
-        id={"home-robinhood-bid-#{@trade.record.auction}"}
+        :if={match?(%{record: %Autolaunch.Auction{}}, @trade) && robinhood?(@trade.record)}
+        id={"home-robinhood-bid-#{@trade.record.id}"}
         auction={@trade.record}
         amount={@trade.amount}
         authenticated={@account_control.kind == :signed_in}
@@ -443,7 +411,7 @@ defmodule AutolaunchWeb.HomeLive do
         session_lease={@session_lease}
       />
       <.bid_modal
-        :if={match?(%{record: %Autolaunch.Auction{}}, @trade)}
+        :if={match?(%{record: %Autolaunch.Auction{}}, @trade) && !robinhood?(@trade.record)}
         id={"home-bid-#{@trade.record.id}"}
         auction={@trade.record}
         amount={@trade.amount}

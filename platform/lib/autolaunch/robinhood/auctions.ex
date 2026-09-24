@@ -1,8 +1,9 @@
 defmodule Autolaunch.Robinhood.Auctions do
   @moduledoc """
-  Every Robinhood memestock auction on the local Robinhood lab, newest first,
-  for the public auction and token lists: the chain is the only record of
-  these launches, and a graduated launch is a listed token.
+  Every Robinhood memestock auction, newest first, read from its chain for a
+  Robinhood auction's own page, its token's page and the portfolio. The
+  public lists read the stored rows the Robinhood market feed keeps
+  (`Autolaunch.Robinhood.MarketFeed`).
 
   Everything is read at one latest block: the launchpad's launch records
   (ids run from 1 to `nextLaunchId() - 1`), each token's own name and symbol,
@@ -71,20 +72,6 @@ defmodule Autolaunch.Robinhood.Auctions do
       else: {:ok, []}
   end
 
-  @doc "Public auctions filtered by mode and ordered by launch id, before Base auctions."
-  def list(mode, sort) do
-    with {:ok, auctions} <- list() do
-      filtered = Enum.filter(auctions, &in_mode?(&1, mode))
-      {:ok, if(sort == "oldest", do: Enum.reverse(filtered), else: filtered)}
-    end
-  end
-
-  @doc "The graduated launches, newest first: every Robinhood token the site lists."
-  @spec graduated() :: {:ok, [t()]} | {:error, atom()}
-  def graduated do
-    with {:ok, auctions} <- list(), do: {:ok, Enum.filter(auctions, &(&1.state == :graduated))}
-  end
-
   @doc "One auction by its address, or `{:error, :not_found}`."
   @spec fetch(String.t()) :: {:ok, t()} | {:error, atom()}
   def fetch(address), do: find(&Address.equal?(&1.auction, address))
@@ -102,12 +89,6 @@ defmodule Autolaunch.Robinhood.Auctions do
       end
     end
   end
-
-  defp in_mode?(_auction, "all"), do: true
-  defp in_mode?(auction, mode) when mode in ["biddable", "live"], do: auction.state == :active
-  defp in_mode?(auction, "ended"), do: auction.state == :ended
-  defp in_mode?(auction, "failed_minimum"), do: auction.state == :failed
-  defp in_mode?(auction, "graduated"), do: auction.state == :graduated
 
   defp with_creators([]), do: {:ok, []}
 
