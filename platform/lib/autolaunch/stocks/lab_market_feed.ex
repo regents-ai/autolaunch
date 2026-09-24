@@ -17,6 +17,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   require Logger
 
   alias Autolaunch.Actors.System
+  alias Autolaunch.Auction
   alias Autolaunch.Auction.MarketState
   alias Autolaunch.Chain.Rpc
   alias Autolaunch.{LabAbi, LabProjection, MarketWatch, Pool}
@@ -153,10 +154,23 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
     collected
   end
 
+  # One auction's writes (its positions, its market fields and, on graduation,
+  # its token row, then the token's price) land together or not at all: a
+  # token that cannot be projected leaves the row as it was, so the next pass
+  # sees the graduation again and retries it.
   defp refresh_auction(config, block, opts, auction) do
     with {:ok, snapshot} <- market_snapshot(config, block, opts, auction),
-         {:ok, changed_id} <- refresh_row(auction, snapshot),
+         {:ok, changed_id} <- transaction(fn -> refresh_row(auction, snapshot) end),
          do: {:ok, snapshot, changed_id}
+  end
+
+  defp transaction(write) do
+    Ash.transaction(Auction, fn ->
+      case write.() do
+        {:ok, value} -> value
+        {:error, reason} -> Ash.DataLayer.rollback(Auction, reason)
+      end
+    end)
   end
 
   defp market_snapshot(config, block, opts, auction) do

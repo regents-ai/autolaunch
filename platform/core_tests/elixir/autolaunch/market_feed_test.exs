@@ -36,8 +36,10 @@ defmodule Autolaunch.MarketFeedTest do
 
   defmodule ChainStub do
     @moduledoc """
-    The Base lab chain for the Revstake feed: every auction is live and has met
-    its minimum, and any auction named in `:broken` refuses every read.
+    The Base lab chain for the Revstake and Memestake feeds: every auction is
+    live and has met its minimum, and any auction named in `:broken` refuses
+    every read. Memestake launch records are Active unless `:lifecycle` says
+    otherwise; a migrated launch's pool has no price yet.
     """
     @block %{"number" => "0x96", "hash" => "0x" <> String.duplicate("cd", 32)}
 
@@ -69,10 +71,10 @@ defmodule Autolaunch.MarketFeedTest do
     defp answer("eth_call", [%{to: to, data: data}, _block], options) do
       if MapSet.member?(options.broken, String.downcase(to)),
         do: :refused,
-        else: call(String.slice(data, 0, 10))
+        else: call(String.slice(data, 0, 10), Map.get(options, :lifecycle, 1))
     end
 
-    defp call(selector) do
+    defp call(selector, lifecycle) do
       words =
         %{
           LabAbi.selector("startBlock()") => [100],
@@ -84,11 +86,15 @@ defmodule Autolaunch.MarketFeedTest do
           LabAbi.selector("remainingSupply()") => [0],
           # Lifecycle 1 (Active) and no pool yet.
           LabAbi.selector("distribution(address)") => [1 | List.duplicate(0, 17)],
-          # The Memestake launchpad: every auction's record Active (lifecycle
-          # word 11). It is asked nothing else.
+          # The Memestake launchpad: every auction's record at `lifecycle`
+          # (word 11). It is asked nothing else.
           LabAbi.selector("launchIdOfAuction(address)") => [1],
+          # Its token, stock and splitter are words 1, 2 and 4.
           LabAbi.selector("launches(uint256)") =>
-            List.duplicate(0, 11) ++ [1] ++ List.duplicate(0, 8)
+            [0, 0x61, 0x62, 0, 0x64] ++
+              List.duplicate(0, 6) ++ [lifecycle] ++ List.duplicate(0, 8),
+          # The pool manager's slot0 before the first swap.
+          LabAbi.selector("extsload(bytes32)") => [0]
         }
         |> Map.fetch!(selector)
 
@@ -190,6 +196,38 @@ defmodule Autolaunch.MarketFeedTest do
       market = [:state, :minimum_reached, :current_clearing_price, :updated_at]
       assert Map.drop(after_refresh, market) == Map.drop(before, market)
       assert stocks_rows() == rows
+    end
+  end
+
+  describe "a Memestake graduation whose token cannot be written" do
+    test "saves nothing, and the next pass graduates it with its token" do
+      auction = stocks_auction(TestSupport.register_creator!().id, :ended)
+      ChainStub.install(%{broken: MapSet.new(), lifecycle: 2})
+
+      # The tokens table refuses every insert until the trigger is dropped.
+      tokens = ~s("#{Repo.default_prefix()}".tokens)
+
+      Repo.query!("""
+      CREATE FUNCTION pg_temp.refuse_token() RETURNS trigger LANGUAGE plpgsql
+      AS $$ BEGIN RAISE EXCEPTION 'token refused'; END $$
+      """)
+
+      Repo.query!(
+        "CREATE TRIGGER refuse_token BEFORE INSERT ON #{tokens} FOR EACH ROW EXECUTE FUNCTION pg_temp.refuse_token()"
+      )
+
+      assert {:ok, %{changed: []}} = StocksMarketFeed.refresh(MarketWatch.new())
+      assert %{state: :ended} = reload(auction)
+      assert {:ok, nil} = Autolaunch.get_token_for_projection(auction.id, actor: %System{})
+
+      Repo.query!("DROP TRIGGER refuse_token ON #{tokens}")
+
+      assert {:ok, %{changed: [changed]}} = StocksMarketFeed.refresh(MarketWatch.new())
+      assert changed == auction.id
+      assert %{state: :graduated} = reload(auction)
+
+      assert {:ok, %{name: "Memestake"}} =
+               Autolaunch.get_token_for_projection(auction.id, actor: %System{})
     end
   end
 

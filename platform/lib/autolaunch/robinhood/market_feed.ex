@@ -376,7 +376,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   defp transaction(write) do
-    Ash.DataLayer.transaction(Auction, fn ->
+    Ash.transaction(Auction, fn ->
       case write.() do
         {:ok, value} -> value
         {:error, reason} -> Ash.DataLayer.rollback(Auction, reason)
