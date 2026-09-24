@@ -737,7 +737,42 @@ defmodule Autolaunch.BidActions do
   end
 
   defp verified_treasury(auction) do
-    if Lab.test_chain?(), do: lab_treasury(auction), else: verified_production_treasury(auction)
+    cond do
+      Lab.test_chain?() -> lab_treasury(auction)
+      auction.kind == :stocks -> launchpad_treasury(auction)
+      true -> verified_production_treasury(auction)
+    end
+  end
+
+  # A Base Memestake raise goes to the launchpad, not to a treasury with a
+  # report, so its bids are bound to the launchpad the Base Stocks deployment
+  # description admits, and the auction must name that same launchpad.
+  defp launchpad_treasury(%{
+         id: auction_id,
+         auction_address: auction_address,
+         treasury_address: treasury_address
+       }) do
+    with {:ok, launchpad} <- admitted_launchpad(),
+         true <- Address.equal?(treasury_address, launchpad) || {:error, :launchpad_changed},
+         {:ok, auction_address} <- normalize(auction_address) do
+      {:ok,
+       %{
+         "mode" => "launchpad",
+         "auction_id" => auction_id,
+         "auction_address" => auction_address,
+         "address" => launchpad
+       }}
+    else
+      {:error, :launchpad_changed} -> unavailable(:treasury_security_changed)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp admitted_launchpad do
+    case StocksLab.current() do
+      {:ok, config} -> normalize(StocksLab.address!(config, :launchpad))
+      {:error, _reason} -> unavailable(:bid_preparation_unavailable)
+    end
   end
 
   defp lab_treasury(%{
@@ -776,10 +811,25 @@ defmodule Autolaunch.BidActions do
   defp revalidate_treasury(operation) do
     binding = operation.envelope["arguments"]["treasury_security"]
 
-    if binding["mode"] == "local_lab" do
-      revalidate_lab_treasury(operation, binding)
+    case binding["mode"] do
+      "local_lab" -> revalidate_lab_treasury(operation, binding)
+      "launchpad" -> revalidate_launchpad_treasury(operation, binding)
+      _report -> revalidate_production_treasury(binding)
+    end
+  end
+
+  defp revalidate_launchpad_treasury(operation, binding) do
+    with {:ok, auction} <- auction(binding["auction_id"]),
+         {:ok, fresh} <- launchpad_treasury(auction),
+         true <- fresh == binding,
+         true <-
+           Address.equal?(
+             operation.envelope["arguments"]["auction_address"],
+             binding["auction_address"]
+           ) do
+      {:ok, binding}
     else
-      revalidate_production_treasury(binding)
+      _changed -> unavailable(:treasury_security_changed)
     end
   end
 
@@ -811,8 +861,9 @@ defmodule Autolaunch.BidActions do
     end
   end
 
-  defp treasury_still_reviewed?(operation, %{"mode" => "local_lab"} = fresh),
-    do: fresh == operation.envelope["arguments"]["treasury_security"]
+  defp treasury_still_reviewed?(operation, %{"mode" => mode} = fresh)
+       when mode in ["local_lab", "launchpad"],
+       do: fresh == operation.envelope["arguments"]["treasury_security"]
 
   defp treasury_still_reviewed?(operation, fresh) do
     bound = operation.envelope["arguments"]["treasury_security"]
@@ -824,7 +875,8 @@ defmodule Autolaunch.BidActions do
       bound["downgrade_state"] == Atom.to_string(fresh.downgrade_state)
   end
 
-  defp treasury_binding(%{"mode" => "local_lab"} = binding), do: binding
+  defp treasury_binding(%{"mode" => mode} = binding) when mode in ["local_lab", "launchpad"],
+    do: binding
 
   defp treasury_binding(report) do
     %{

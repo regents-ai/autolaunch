@@ -109,6 +109,24 @@ defmodule Autolaunch.BidActionsTest do
              Autolaunch.prepare_bid(launched.id, wallet, "1", "3", opts)
   end
 
+  test "a Base Memestake auction is bid on against the launchpad its deployment admits, and no other",
+       %{wallet: wallet, opts: opts} do
+    install()
+    # The launchpad the fixture Base Stocks deployment description admits.
+    launchpad = "0x1d36a95112835f81b1b499a808e556020c64cac2"
+
+    admitted = memestake_auction!("0x5555555555555555555555555555555555555555", launchpad)
+
+    assert {:ok, %{operation: operation}} =
+             Autolaunch.prepare_bid(admitted.id, wallet, "1", "3", opts)
+
+    assert operation.envelope["arguments"]["treasury_security"]["address"] == launchpad
+
+    elsewhere = memestake_auction!("0x6666666666666666666666666666666666666666", @other)
+    assert {:error, error} = Autolaunch.prepare_bid(elsewhere.id, wallet, "1", "3", opts)
+    assert refusal(error) == :treasury_security_changed
+  end
+
   test "EXACT_AMOUNTS_AND_PRICES: only exact eighteen-decimal amounts and positive prices review",
        %{auction: auction, wallet: wallet, opts: opts} do
     install(prev_tick_price_q96: div(@q96, 4))
@@ -214,6 +232,24 @@ defmodule Autolaunch.BidActionsTest do
                |> Decimal.to_string(:normal),
                18
              )
+  end
+
+  defp memestake_auction!(address, launchpad) do
+    %{
+      kind: :stocks,
+      origin: :site,
+      chain_id: 8453,
+      auction_address: address,
+      title: "Memestake auction",
+      creator_human_account_id: Autolaunch.TestSupport.register_creator!().id,
+      featured: false,
+      state: :active,
+      current_clearing_price: "0",
+      required_currency_raised: "1000",
+      treasury_address: launchpad
+    }
+    |> Autolaunch.record_launch_auction!(actor: system())
+    |> Autolaunch.set_auction_bid_terms!(address, regent(), "STOCK", 18, "2.5", actor: system())
   end
 
   defp tiny_price, do: "0." <> String.duplicate("0", 79) <> "1"
