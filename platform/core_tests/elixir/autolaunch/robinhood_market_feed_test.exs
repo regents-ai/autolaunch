@@ -113,6 +113,57 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
     assert first.snapshots[@site_auction].currency_raised == "2"
   end
 
+  test "a row another writer wrote first keeps its details and state" do
+    first = %{
+      kind: :stocks,
+      chain_id: @chain_id,
+      auction_address: @site_auction,
+      title: "Written first",
+      summary: "Its own words",
+      token_symbol: "FIRST",
+      website: "https://example.com",
+      image: "https://example.com/first.png",
+      featured: false,
+      state: :active,
+      quote_token_address: @stock.address,
+      quote_token_symbol: "TSLA",
+      quote_token_decimals: 18,
+      current_clearing_price: "0",
+      required_currency_raised: "1000",
+      treasury_address: @launchpad
+    }
+
+    {:ok, written} = Autolaunch.record_launch_auction(first, actor: %System{})
+
+    # The feed's own insert, landing after the other writer's: it is handed the
+    # stored row and changes nothing.
+    assert {:ok, kept} =
+             Autolaunch.record_launch_auction(
+               %{
+                 first
+                 | title: "Launch 1",
+                   summary: nil,
+                   website: nil,
+                   image: nil,
+                   state: :created
+               },
+               actor: %System{}
+             )
+
+    assert kept.id == written.id
+    stored = row(@site_auction)
+    assert %{title: "Written first", summary: "Its own words", state: :active} = stored
+    assert stored.website == "https://example.com"
+
+    # A poll reads it as an existing row: only its market fields move.
+    assert {:ok, _poll} = MarketFeed.poll(Chain, %{watch: MarketWatch.new(), next_launch_id: 1})
+
+    assert %{title: "Written first", summary: "Its own words", state: :ended} =
+             row(@site_auction)
+
+    assert length(robinhood_rows()) == 2
+  end
+
   test "a Robinhood outage marks its readings stale and leaves every row, Base included, as it was" do
     base = TestSupport.project_auction(chain_id: 8453, state: :active)
     previous = Application.get_env(:autolaunch, :autolaunch_robinhood_chain_id)

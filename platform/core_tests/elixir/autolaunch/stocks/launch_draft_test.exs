@@ -33,22 +33,28 @@ defmodule Autolaunch.Stocks.LaunchDraftTest do
     account = %{id: owner.human_account_id}
 
     {:ok, projected} =
-      Autolaunch.Stocks.LabProjection.project_observed(%{
-        chain_id: 8453,
-        auction_address: auction,
-        creator_human_account_id: owner.human_account_id,
-        title: "Mine",
-        summary: "A test launch",
-        token_symbol: "MINE",
-        website: "https://example.com",
-        image: "https://example.com/i.png",
-        quote_token_address: "0xb200000000000000000000c2e324d24d7eecd1fb",
-        quote_token_symbol: "AAPLc",
-        quote_token_decimals: 8,
-        required_currency_raised: "100000000",
-        state: :created,
-        treasury_address: "0x" <> String.duplicate("cd", 20)
-      })
+      Autolaunch.record_launch_auction(
+        %{
+          kind: :stocks,
+          featured: false,
+          current_clearing_price: "0",
+          chain_id: 8453,
+          auction_address: auction,
+          creator_human_account_id: owner.human_account_id,
+          title: "Mine",
+          summary: "A test launch",
+          token_symbol: "MINE",
+          website: "https://example.com",
+          image: "https://example.com/i.png",
+          quote_token_address: "0xb200000000000000000000c2e324d24d7eecd1fb",
+          quote_token_symbol: "AAPLc",
+          quote_token_decimals: 8,
+          required_currency_raised: "100000000",
+          state: :created,
+          treasury_address: "0x" <> String.duplicate("cd", 20)
+        },
+        actor: %System{}
+      )
 
     assert Autolaunch.active_stocks_auctions_by(owner.human_account_id) == 1
     assert Autolaunch.active_stocks_auctions_by(other.human_account_id) == 0

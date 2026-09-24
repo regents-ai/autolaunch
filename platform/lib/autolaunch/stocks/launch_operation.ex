@@ -51,19 +51,6 @@ defmodule Autolaunch.Stocks.LaunchOperation do
       filter expr(human_account_id == ^arg(:human_account_id) and is_nil(terminal_at))
     end
 
-    # The one verified launch that created an auction, so a projected Stocks
-    # auction names the account whose wallet this server proved sent it.
-    read :chain_verified_by_auction do
-      get? true
-      argument :auction_address, :string, allow_nil?: false
-
-      filter expr(
-               state == :chain_verified and
-                 fragment("lower(? ->> 'auction')", result) ==
-                   fragment("lower(?)", ^arg(:auction_address))
-             )
-    end
-
     create :prepare do
       accept [:action_id, :envelope, :signer, :step]
       argument :human_account_id, :integer, allow_nil?: false

@@ -90,6 +90,7 @@ defmodule Autolaunch do
         not_found_error?: false
 
       define :project_lab_auction, action: :project_lab
+      define :record_launch_auction, action: :record_launch
 
       define :set_auction_bid_terms,
         action: :set_bid_terms,
@@ -212,12 +213,7 @@ defmodule Autolaunch do
       define :stock_launch_draft_image_colors, action: :public_colors, args: [:ids]
     end
 
-    resource Autolaunch.Stocks.LaunchOperation do
-      define :get_verified_stocks_launch_by_auction,
-        action: :chain_verified_by_auction,
-        args: [:auction_address],
-        not_found_error?: false
-    end
+    resource Autolaunch.Stocks.LaunchOperation
 
     # The test-funds cooldown ledger, written only by `Stocks.Faucet` inside
     # the transaction that sends a grant.
