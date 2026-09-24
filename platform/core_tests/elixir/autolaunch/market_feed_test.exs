@@ -8,7 +8,6 @@ defmodule Autolaunch.MarketFeedTest do
   alias Autolaunch.{BaseRpcStub, LabAbi, LabMarketFeed, MarketWatch}
   alias Autolaunch.LabMarketFeed.{Projector, Reader}
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
-  alias Autolaunch.Stocks.LabProjection, as: StocksProjection
   alias Autolaunch.TestSupport
 
   @head %{binding: :lab, block: %{number: 150, hash: "0x" <> String.duplicate("ab", 32)}}
@@ -85,9 +84,8 @@ defmodule Autolaunch.MarketFeedTest do
           LabAbi.selector("remainingSupply()") => [0],
           # Lifecycle 1 (Active) and no pool yet.
           LabAbi.selector("distribution(address)") => [1 | List.duplicate(0, 17)],
-          # The Memestake launchpad: no launch records to discover, and every
-          # auction's record Active (lifecycle word 11).
-          LabAbi.selector("nextLaunchId()") => [0],
+          # The Memestake launchpad: every auction's record Active (lifecycle
+          # word 11). It is asked nothing else.
           LabAbi.selector("launchIdOfAuction(address)") => [1],
           LabAbi.selector("launches(uint256)") =>
             List.duplicate(0, 11) ++ [1] ++ List.duplicate(0, 8)
@@ -166,13 +164,32 @@ defmodule Autolaunch.MarketFeedTest do
       ChainStub.install(%{broken: MapSet.new([String.downcase(broken.auction_address)])})
 
       assert {:ok, %{snapshots: snapshots, changed: changed}} =
-               StocksMarketFeed.refresh(%{watch: MarketWatch.new(), next_launch_id: 0})
+               StocksMarketFeed.refresh(MarketWatch.new())
 
       readable_ids = readable |> Enum.map(& &1.id) |> Enum.sort()
       assert snapshots |> Map.values() |> Enum.map(& &1.auction_id) |> Enum.sort() == readable_ids
       assert Enum.sort(changed) == readable_ids
       assert Enum.map(readable, &reload(&1).minimum_reached) == [true, true]
       refute reload(broken).minimum_reached
+    end
+  end
+
+  describe "the Memestake feed" do
+    test "writes only a row's market fields and never creates a row" do
+      creator = TestSupport.register_creator!().id
+      auction = stocks_auction(creator, :created)
+      before = reload(auction)
+      rows = stocks_rows()
+      ChainStub.install(%{broken: MapSet.new()})
+
+      assert {:ok, %{changed: [changed]}} = StocksMarketFeed.refresh(MarketWatch.new())
+      assert changed == auction.id
+
+      after_refresh = reload(auction)
+      assert %{state: :active, minimum_reached: true} = after_refresh
+      market = [:state, :minimum_reached, :current_clearing_price, :updated_at]
+      assert Map.drop(after_refresh, market) == Map.drop(before, market)
+      assert stocks_rows() == rows
     end
   end
 
@@ -248,30 +265,43 @@ defmodule Autolaunch.MarketFeedTest do
     }
   end
 
-  defp stocks_auction(creator) do
+  defp stocks_auction(creator, state \\ :active) do
     {:ok, auction} =
-      StocksProjection.project_observed(%{
-        chain_id: 8453,
-        auction_address:
-          "0x" <>
-            (Elixir.System.unique_integer([:positive])
-             |> Integer.to_string(16)
-             |> String.pad_leading(40, "0")),
-        creator_human_account_id: creator,
-        title: "Memestake",
-        summary: nil,
-        token_symbol: "MEME",
-        website: nil,
-        image: nil,
-        quote_token_address: "0xb200000000000000000000c2e324d24d7eecd1fb",
-        quote_token_symbol: "AAPLc",
-        quote_token_decimals: 8,
-        required_currency_raised: "1000",
-        state: :active,
-        treasury_address: "0x1d36a95112835f81b1b499a808e556020c64cac2"
-      })
+      Autolaunch.record_launch_auction(
+        %{
+          kind: :stocks,
+          featured: false,
+          current_clearing_price: "0",
+          chain_id: 8453,
+          auction_address:
+            "0x" <>
+              (Elixir.System.unique_integer([:positive])
+               |> Integer.to_string(16)
+               |> String.pad_leading(40, "0")),
+          creator_human_account_id: creator,
+          title: "Memestake",
+          summary: "A launch discovery listed",
+          token_symbol: "MEME",
+          website: "https://example.com",
+          image: "https://example.com/meme.png",
+          quote_token_address: "0xb200000000000000000000c2e324d24d7eecd1fb",
+          quote_token_symbol: "AAPLc",
+          quote_token_decimals: 8,
+          required_currency_raised: "1000",
+          state: state,
+          treasury_address: "0x1d36a95112835f81b1b499a808e556020c64cac2"
+        },
+        actor: %System{}
+      )
 
     auction
+  end
+
+  defp stocks_rows do
+    Autolaunch.Repo.aggregate(
+      from(row in "auctions", where: row.kind == "stocks" and row.chain_id == 8453),
+      :count
+    )
   end
 
   defp reload(auction) do

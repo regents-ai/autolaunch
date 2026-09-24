@@ -227,6 +227,19 @@ defmodule Autolaunch.Auction do
       change Autolaunch.Auction.Changes.ImageColor
     end
 
+    # A launch's auction row, written once by whichever of its writers comes
+    # first (launch discovery, the creator's own confirmation, the Robinhood
+    # feed). A row that already exists is returned exactly as it is, so no
+    # later writer can blank its details or take its state back.
+    create :record_launch do
+      accept @projection_accept
+      upsert? true
+      upsert_identity :chain_auction
+      upsert_condition expr(false)
+      return_skipped_upsert? true
+      change Autolaunch.Auction.Changes.ImageColor
+    end
+
     update :set_bid_terms do
       require_atomic? false
 
@@ -306,6 +319,7 @@ defmodule Autolaunch.Auction do
 
     policy action([
              :project_lab,
+             :record_launch,
              :market_watch,
              :lab_by_id_for_update,
              :refresh_lab_market

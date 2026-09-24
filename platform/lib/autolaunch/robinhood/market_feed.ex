@@ -6,9 +6,11 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   Two things happen per poll, both in a background task:
 
   - Discovery. Each new `launches(id)` record the Robinhood launchpad holds
-    becomes an `Auction` row (kind `:stocks`, the Robinhood chain id), upserted
-    on the chain-and-address identity. Robinhood lists every launchpad record,
-    so a launch made outside the site is a row too; it names a creator only
+    becomes an `Auction` row (kind `:stocks`, the Robinhood chain id), written
+    once on the chain-and-address identity: a row that already exists is never
+    overwritten. This feed is the only writer that creates Robinhood rows.
+    Robinhood lists every launchpad record, so a launch made outside the site
+    is a row too; it names a creator only
     when exactly one account's signed-in wallet is its launcher. Launch ids only
     grow, so a cursor remembers the next id to read.
   - Refresh. A bounded page of Robinhood rows (`Autolaunch.MarketWatch`) is
@@ -252,7 +254,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   end
 
   defp project_auction(head, launch, creator_id) do
-    Autolaunch.project_lab_auction(
+    Autolaunch.record_launch_auction(
       %{
         kind: :stocks,
         chain_id: head.chain_id,
