@@ -21,7 +21,9 @@ defmodule AutolaunchWeb.BidComponent do
   alias Autolaunch.AuctionBook
   alias Autolaunch.{BidActions, Lab}
   alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias AutolaunchWeb.Components.BidForm
   alias AutolaunchWeb.{TokenDisplay, UsdValue}
+  alias Phoenix.LiveView.AsyncResult
 
   @chain_id 8453
 
@@ -65,12 +67,11 @@ defmodule AutolaunchWeb.BidComponent do
      |> assign(assigns)
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:balance, fn -> nil end)
-     |> assign_new(:amount, fn -> "" end)
-     |> assign_new(:max_price, fn -> "" end)
-     |> assign_new(:usdc_amount, fn -> "" end)
-     |> assign_new(:usdc_max_price, fn -> "" end)
-     |> assign_new(:book, fn -> nil end)
      |> assign(:usdc_bids?, usdc_bids?(assigns[:auction] || socket.assigns[:auction]))
+     |> assign_new(:form, fn %{auction: auction} ->
+       %{BidForm.blank() | pay_with: bid_currency(auction)}
+     end)
+     |> assign_book()
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:wallet_press_history, fn -> %{} end)
      |> assign_new(:operation, fn -> nil end)
@@ -125,164 +126,49 @@ defmodule AutolaunchWeb.BidComponent do
           </div>
         </dl>
 
-        <form
+        <BidForm.bid_form
           :if={!@operation && @balance}
-          id={"#{@id}-form"}
-          class="rg-field"
-          phx-change="bid_form_changed"
-          phx-submit="review_bid"
-          phx-target={@myself}
-          aria-label={"Bid with #{@auction.quote_token_symbol}"}
-        >
-          <h3>Bid with {@auction.quote_token_symbol}</h3>
-          <label for={"#{@id}-amount"}>Amount in {@auction.quote_token_symbol}</label>
-          <div class="bid-amount">
-            <input
-              id={"#{@id}-amount"}
-              name="amount"
-              value={@amount}
-              inputmode="decimal"
-              autocomplete="off"
-              placeholder="0.0"
-            />
-            <Regent.Primitives.button
-              type="button"
-              phx-click="fill_bid_amount"
-              phx-target={@myself}
-              variant="secondary"
-            >Max</Regent.Primitives.button>
-          </div>
-          <UsdValue.usd :if={@amount != ""} class="bid-usd" amount={@amount} rate={@rate} />
-
-          <label for={"#{@id}-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
-          <input
-            id={"#{@id}-max-price"}
-            name="max_price"
-            value={@max_price}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <UsdValue.usd
-            :if={@max_price != ""}
-            class="bid-usd"
-            amount={@max_price}
-            rate={@rate}
-            per="per token"
-          />
-
-          <.outlook
-            outlook={@book && AuctionBook.outlook(@amount, @max_price, @book)}
-            book={@book}
-            symbol={@auction.quote_token_symbol}
-          />
-
-          <Regent.Primitives.button
-            class="bid-primary"
-            type="submit"
-            disabled={@amount == "" or @max_price == ""}
-          >
-            Review bid
-          </Regent.Primitives.button>
-        </form>
-
-        <form
-          :if={!@operation && @balance && @usdc_bids?}
-          id={"#{@id}-usdc-form"}
-          class="rg-field"
-          phx-change="usdc_bid_form_changed"
-          phx-submit="review_usdc_bid"
-          phx-target={@myself}
-          aria-label="Bid with USDC"
-        >
-          <h3>Bid with USDC</h3>
-          <p class="autolaunch-draft-hint">
-            One transaction buys {@auction.quote_token_symbol} with your USDC and places the bid.
-            The review shows the estimated {@auction.quote_token_symbol} and the least the bid will accept, 1% below the estimate.
-          </p>
-          <label for={"#{@id}-usdc-amount"}>Amount in USDC</label>
-          <input
-            id={"#{@id}-usdc-amount"}
-            name="usdc_amount"
-            value={@usdc_amount}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <label for={"#{@id}-usdc-max-price"}>Maximum price in {@auction.quote_token_symbol} per token</label>
-          <input
-            id={"#{@id}-usdc-max-price"}
-            name="max_price"
-            value={@usdc_max_price}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <UsdValue.usd
-            :if={@usdc_max_price != ""}
-            class="bid-usd"
-            amount={@usdc_max_price}
-            rate={@rate}
-            per="per token"
-          />
-          <.outlook
-            outlook={@book && AuctionBook.outlook("", @usdc_max_price, @book)}
-            book={@book}
-            symbol={@auction.quote_token_symbol}
-          />
-          <Regent.Primitives.button
-            class="bid-primary"
-            type="submit"
-            disabled={@usdc_amount == "" or @usdc_max_price == ""}
-          >
-            Review USDC bid
-          </Regent.Primitives.button>
-        </form>
+          id={@id}
+          target={@myself}
+          form={@form}
+          amount_unit={@form.pay_with}
+          pay_with={pay_with(@auction, @usdc_bids?)}
+          price_unit={@auction.quote_token_symbol}
+          book={@book}
+          supply={@auction.token_supply}
+          rate={@rate}
+          amount_in_price_unit?={@form.pay_with == @auction.quote_token_symbol}
+          max={@form.pay_with == @auction.quote_token_symbol}
+        />
 
         <section :if={@operation} id={"#{@id}-review"} class="bid-review" aria-label="Bid review">
           <dl>
-            <div :if={argument(@operation, "amount")}>
-              <dt>Amount</dt><dd>
+            <div>
+              <dt>Total bid</dt>
+              <dd :if={argument(@operation, "usdc_amount")}>
+                {argument(@operation, "usdc_amount")} USDC
+              </dd>
+              <dd :if={!argument(@operation, "usdc_amount")}>
                 {argument(@operation, "amount")} {argument(@operation, "currency_symbol")}
                 <UsdValue.usd amount={argument(@operation, "amount")} rate={@rate} />
               </dd>
             </div>
-            <div :if={argument(@operation, "usdc_amount")}>
-              <dt>USDC spent</dt><dd>{argument(@operation, "usdc_amount")} USDC</dd>
-            </div>
-            <div :if={argument(@operation, "stock_quote")}>
-              <dt>Estimated {argument(@operation, "currency_symbol")}</dt>
-              <dd>
-                {argument(@operation, "stock_quote")}
-                <UsdValue.usd amount={argument(@operation, "stock_quote")} rate={@rate} />
-                (estimate, not binding)
-              </dd>
-            </div>
             <div :if={argument(@operation, "min_stock_out")}>
-              <dt>Least accepted</dt>
+              <dt>Least {argument(@operation, "currency_symbol")} accepted</dt>
               <dd>
-                {argument(@operation, "min_stock_out")} {argument(@operation, "currency_symbol")}
-                <UsdValue.usd amount={argument(@operation, "min_stock_out")} rate={@rate} />
-                · 1% below the estimate
+                {argument(@operation, "min_stock_out")} {argument(@operation, "currency_symbol")} · 1% below the estimate, valid until {deadline(
+                  argument(@operation, "deadline")
+                )}
               </dd>
-            </div>
-            <div :if={argument(@operation, "deadline")}>
-              <dt>Valid until</dt><dd>{deadline(argument(@operation, "deadline"))}</dd>
             </div>
             <div>
-              <dt>Effective tick price</dt>
+              <dt>Most per token</dt>
               <dd>
-                <AutolaunchWeb.TokenDisplay.price
+                <TokenDisplay.price
                   amount={argument(@operation, "max_price")}
-                  unit={"#{argument(@operation, "currency_symbol")} per token"}
+                  unit={argument(@operation, "currency_symbol")}
                 />
                 <UsdValue.usd amount={argument(@operation, "max_price")} rate={@rate} per="per token" />
-              </dd>
-            </div>
-            <div>
-              <dt>Requested maximum</dt><dd>
-                {requested_max_price(@operation)} {argument(@operation, "currency_symbol")} per token
-                <UsdValue.usd amount={requested_max_price(@operation)} rate={@rate} per="per token" />
               </dd>
             </div>
             <div>
@@ -389,41 +275,33 @@ defmodule AutolaunchWeb.BidComponent do
   def handle_event("bid_active_wallet", %{"address" => address}, socket),
     do: {:noreply, adopt(socket, address)}
 
-  def handle_event("bid_form_changed", %{"amount" => amount, "max_price" => max_price}, socket),
-    do: {:noreply, assign(socket, amount: amount, max_price: max_price, notice: nil)}
+  def handle_event("bid_form_changed", params, socket),
+    do: {:noreply, assign(socket, form: BidForm.values(params, socket.assigns.form), notice: nil)}
 
   def handle_event("fill_bid_amount", _params, socket) do
-    {:noreply,
-     assign(socket, amount: balance(socket.assigns.balance, socket.assigns.auction), notice: nil)}
+    amount = balance(socket.assigns.balance, socket.assigns.auction)
+    {:noreply, assign(socket, form: %{socket.assigns.form | amount: amount}, notice: nil)}
   end
 
-  # The price to beat, entered from the auction's price panel into both forms.
-  def handle_event("use_price", %{"price" => price}, socket),
-    do: {:noreply, assign(socket, max_price: price, usdc_max_price: price, notice: nil)}
-
-  def handle_event("review_bid", %{"amount" => amount, "max_price" => max_price}, socket) do
-    {:noreply,
-     socket.assigns.auction.id
-     |> Autolaunch.prepare_bid(socket.assigns.wallet, amount, max_price, opts(socket))
-     |> settled(assign(socket, amount: amount, max_price: max_price))}
+  # The price to beat, entered from the auction's price panel as the limit.
+  def handle_event("use_price", %{"price" => price}, socket) do
+    form = %{socket.assigns.form | at_price: false, limit_mode: "price", limit: price}
+    {:noreply, assign(socket, form: form, notice: nil)}
   end
 
-  def handle_event(
-        "usdc_bid_form_changed",
-        %{"usdc_amount" => amount, "max_price" => price},
-        socket
-      ),
-      do: {:noreply, assign(socket, usdc_amount: amount, usdc_max_price: price, notice: nil)}
+  def handle_event("review_bid", params, socket) do
+    %{auction: auction, wallet: wallet, form: form} = socket.assigns
+    form = BidForm.values(params, form)
+    socket = assign(socket, form: form)
 
-  def handle_event(
-        "review_usdc_bid",
-        %{"usdc_amount" => amount, "max_price" => max_price},
-        socket
-      ) do
-    {:noreply,
-     socket.assigns.auction.id
-     |> Autolaunch.prepare_usdc_bid(socket.assigns.wallet, amount, max_price, opts(socket))
-     |> settled(assign(socket, usdc_amount: amount, usdc_max_price: max_price))}
+    case BidForm.max_price(form, socket.assigns.book, auction.token_supply) do
+      nil ->
+        {:noreply, assign(socket, notice: notice(:error, :invalid_price))}
+
+      max_price ->
+        {:noreply,
+         auction.id |> prepare(form, wallet, max_price, opts(socket)) |> settled(socket)}
+    end
   end
 
   def handle_event("cancel_bid_review", %{"action-id" => action_id}, socket),
@@ -438,10 +316,7 @@ defmodule AutolaunchWeb.BidComponent do
        socket
        |> assign(
          operation: nil,
-         amount: "",
-         max_price: "",
-         usdc_amount: "",
-         usdc_max_price: ""
+         form: %{BidForm.blank() | pay_with: socket.assigns.form.pay_with}
        )
        |> cleared()}
 
@@ -454,39 +329,6 @@ defmodule AutolaunchWeb.BidComponent do
     </p>
     """
   end
-
-  attr :outlook, :map, default: nil
-  attr :book, :map, default: nil
-  attr :symbol, :string, required: true
-
-  # What the typed maximum means against the auction's price now, and with an
-  # amount, the tokens it can expect.
-  defp outlook(%{outlook: %{reaches?: true}} = assigns) do
-    ~H"""
-    <div class="bid-estimate" role="status">
-      <p>Above the price now: your bid starts buying next block.</p>
-      <p :if={@outlook.about}>
-        About <TokenDisplay.price amount={@outlook.about} /> tokens if the price stays at
-        <TokenDisplay.price amount={@book.clearing} unit={@symbol} />
-        and the auction reaches its minimum.
-      </p>
-      <p :if={@outlook.at_least}>
-        At least <TokenDisplay.price amount={@outlook.at_least} round={:down} />
-        tokens if the auction reaches its minimum and the price stays below your maximum.
-      </p>
-    </div>
-    """
-  end
-
-  defp outlook(%{outlook: %{reaches?: false}} = assigns) do
-    ~H"""
-    <p class="bid-estimate" role="status">
-      Too low to buy right now: bid at least {@book.price_to_beat} {@symbol} per token.
-    </p>
-    """
-  end
-
-  defp outlook(assigns), do: ~H""
 
   attr :hash, :string, default: nil
   attr :chain_id, :integer, default: @chain_id
@@ -643,13 +485,30 @@ defmodule AutolaunchWeb.BidComponent do
   defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()
   defp usdc_bids?(_auction), do: false
 
+  defp pay_with(auction, true), do: ["USDC", auction.quote_token_symbol]
+  defp pay_with(_auction, false), do: []
+
+  defp prepare(auction_id, %{pay_with: "USDC", amount: amount}, wallet, max_price, opts),
+    do: Autolaunch.prepare_usdc_bid(auction_id, wallet, amount, max_price, opts)
+
+  defp prepare(auction_id, %{amount: amount}, wallet, max_price, opts),
+    do: Autolaunch.prepare_bid(auction_id, wallet, amount, max_price, opts)
+
+  # The auction page hands over the book it already reads; anywhere else, such
+  # as the gallery's bid popup, the panel reads the book itself, once.
+  defp assign_book(%{assigns: %{book: %AsyncResult{}}} = socket), do: socket
+
+  defp assign_book(%{assigns: %{auction: auction}} = socket),
+    do:
+      assign_async(socket, :book, fn ->
+        with {:ok, book} <- AuctionBook.base(auction), do: {:ok, %{book: book}}
+      end)
+
   # An amount chosen before the panel opened is entered once, in the form that
   # pays in the auction's bid currency.
-  defp preset(%{assigns: %{preset_amount: amount, auction: auction}} = socket)
-       when is_binary(amount) and not is_map_key(socket.assigns, :preset_entered?) do
-    field = if usdc_bids?(auction), do: :usdc_amount, else: :amount
-    assign(socket, [{field, amount}, {:preset_entered?, true}])
-  end
+  defp preset(%{assigns: %{preset_amount: amount, form: form}} = socket)
+       when is_binary(amount) and not is_map_key(socket.assigns, :preset_entered?),
+       do: assign(socket, form: %{form | amount: amount}, preset_entered?: true)
 
   defp preset(socket), do: socket
 
@@ -688,9 +547,6 @@ defmodule AutolaunchWeb.BidComponent do
   defp unavailable(_other), do: nil
 
   defp argument(%{envelope: envelope}, key), do: envelope["arguments"][key]
-
-  defp requested_max_price(operation),
-    do: argument(operation, "requested_max_price") || argument(operation, "max_price")
 
   # The dollar price of the auction's currency, read once per auction and
   # apart from the form, so a slow price never holds a bid back.

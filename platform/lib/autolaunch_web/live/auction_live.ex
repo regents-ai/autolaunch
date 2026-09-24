@@ -177,7 +177,7 @@ defmodule AutolaunchWeb.AuctionLive do
             module={AutolaunchWeb.BidComponent}
             id="autolaunch-bid"
             auction={@page_record}
-            book={(@book.ok? && @book.result) || nil}
+            book={@book}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}

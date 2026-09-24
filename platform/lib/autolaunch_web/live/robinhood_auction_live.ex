@@ -26,6 +26,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.{LabMarket, UsdValue}
+  alias Phoenix.LiveView.AsyncResult
 
   def mount(_params, _session, socket),
     do:
@@ -94,7 +95,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             stake_path={
               if @launch.state == :graduated, do: "/robinhood/tokens/#{@launch.token_address}#stake"
             }
-            book={(@book.ok? && @book.result) || nil}
+            book={@book}
+            supply={AsyncResult.ok(@launch.token_supply)}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
             session_lease={@session_lease}

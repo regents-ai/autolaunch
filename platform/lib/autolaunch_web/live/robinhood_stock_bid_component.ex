@@ -20,7 +20,9 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   alias Autolaunch.Robinhood.{Lab, StockBidActions}
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.Components.AuctionBook, as: Book
+  alias AutolaunchWeb.Components.BidForm
   alias AutolaunchWeb.UsdValue
+  alias Phoenix.LiveView.AsyncResult
 
   @copy %{
     authentication_required: "Sign in to bid from your wallet.",
@@ -70,14 +72,15 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:ended, fn -> nil end)
      |> assign_new(:stake_path, fn -> nil end)
      |> assign_new(:token_symbol, fn -> "tokens" end)
-     |> assign_new(:book, fn -> nil end)
+     |> assign_book_and_supply()
      |> assign_new(:wallet, fn -> nil end)
      |> assign_new(:notice, fn -> nil end)
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:sent, fn -> %{} end)
      |> assign_new(:reading, fn -> nil end)
-     |> assign_new(:usdg_amount, fn -> Map.get(assigns, :preset_amount) || "" end)
-     |> assign_new(:max_price, fn -> "" end)
+     |> assign_new(:form, fn ->
+       %{BidForm.blank() | amount: Map.get(assigns, :preset_amount) || ""}
+     end)
      |> assign_usd_prices()}
   end
 
@@ -154,51 +157,17 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
           This wallet placed no bids on this auction.
         </p>
 
-        <form
+        <BidForm.bid_form
           :if={!@ended && !@review}
-          id={"#{@id}-form"}
-          class="rg-field"
-          phx-change="bid_form_changed"
-          phx-submit="review_bid"
-          phx-target={@myself}
-          aria-label="Bid with USDG"
-        >
-          <label for={"#{@id}-amount"}>Amount in USDG</label>
-          <input
-            id={"#{@id}-amount"}
-            name="usdg_amount"
-            value={@usdg_amount}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <label for={"#{@id}-max-price"}>
-            Maximum price in {stock_symbol(@reading)} per token
-          </label>
-          <input
-            id={"#{@id}-max-price"}
-            name="max_price"
-            value={@max_price}
-            inputmode="decimal"
-            autocomplete="off"
-            placeholder="0.0"
-          />
-          <UsdValue.usd
-            :if={@max_price != ""}
-            class="bid-usd"
-            amount={@max_price}
-            rate={@usd_rate}
-            per="per token"
-          />
-          <.standing_line
-            outlook={@book && AuctionBook.outlook("", @max_price, @book)}
-            book={@book}
-            symbol={stock_symbol(@reading)}
-          />
-          <Regent.Primitives.button class="bid-primary" type="submit">
-            Review bid
-          </Regent.Primitives.button>
-        </form>
+          id={@id}
+          target={@myself}
+          form={@form}
+          amount_unit="USDG"
+          price_unit={stock_symbol(@reading)}
+          book={@book}
+          supply={@supply.ok? && @supply.result}
+          rate={@usd_rate}
+        />
 
         <section
           :if={@review}
@@ -309,7 +278,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               <p>
                 Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]}
                 <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
-                · {bid_state(bid, @book, @reading)}
+                · {bid_state(bid, (@book.ok? && @book.result) || nil, @reading)}
               </p>
               <.live_component
                 module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
@@ -338,29 +307,24 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     do: {:noreply, adopt(socket, address)}
 
   def handle_event("bid_form_changed", params, socket),
-    do: {:noreply, assign(socket, form_values(params))}
+    do: {:noreply, assign(socket, form: BidForm.values(params, socket.assigns.form))}
 
   def handle_event("review_bid", params, socket) do
-    socket = assign(socket, form_values(params))
+    form = BidForm.values(params, socket.assigns.form)
+    socket = assign(socket, form: form)
+    supply = socket.assigns.supply.ok? && socket.assigns.supply.result
 
-    request = %{
-      auction: socket.assigns.auction,
-      usdg_amount: socket.assigns.usdg_amount,
-      max_price: socket.assigns.max_price
-    }
-
-    case StockBidActions.prepare(request, socket.assigns.wallet, opts(socket)) do
-      {:ok, review} ->
-        {:noreply, socket |> assign(review: review, sent: %{}, notice: nil) |> published()}
-
-      {:error, error} ->
-        {:noreply, assign(socket, notice: notice(:error, refusal(error)))}
+    case BidForm.max_price(form, socket.assigns.book, supply) do
+      nil -> {:noreply, assign(socket, notice: notice(:error, :max_price_required))}
+      max_price -> {:noreply, review(socket, form.amount, max_price)}
     end
   end
 
-  # The price to beat, entered from the auction's price panel.
-  def handle_event("use_price", %{"price" => price}, socket),
-    do: {:noreply, assign(socket, max_price: price, notice: nil)}
+  # The price to beat, entered from the auction's price panel as the limit.
+  def handle_event("use_price", %{"price" => price}, socket) do
+    form = %{socket.assigns.form | at_price: false, limit_mode: "price", limit: price}
+    {:noreply, assign(socket, form: form, notice: nil)}
+  end
 
   def handle_event("step_sent", %{"step" => name, "transaction_hash" => hash}, socket)
       when is_map_key(@steps, name) and is_binary(hash),
@@ -380,18 +344,42 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   def handle_event("clear_review", _params, socket) do
     {:noreply,
      socket
-     |> assign(if placed?(socket.assigns.sent), do: [usdg_amount: "", max_price: ""], else: [])
+     |> assign(if placed?(socket.assigns.sent), do: [form: BidForm.blank()], else: [])
      |> assign(review: nil, sent: %{}, notice: nil)
      |> push_event("reviewed-steps:cleared", %{component_id: socket.assigns.id})}
   end
 
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
-  defp form_values(params) do
-    [
-      usdg_amount: params |> Map.get("usdg_amount", "") |> String.trim(),
-      max_price: params |> Map.get("max_price", "") |> String.trim()
-    ]
+  defp review(socket, amount, max_price) do
+    request = %{auction: socket.assigns.auction, usdg_amount: amount, max_price: max_price}
+
+    case StockBidActions.prepare(request, socket.assigns.wallet, opts(socket)) do
+      {:ok, review} ->
+        socket |> assign(review: review, sent: %{}, notice: nil) |> published()
+
+      {:error, error} ->
+        assign(socket, notice: notice(:error, refusal(error)))
+    end
+  end
+
+  # The auction page hands over the book and the token supply it already
+  # reads; anywhere else, such as the gallery's bid popup, the panel reads them
+  # itself, once.
+  defp assign_book_and_supply(
+         %{assigns: %{book: %AsyncResult{}, supply: %AsyncResult{}}} = socket
+       ),
+       do: socket
+
+  defp assign_book_and_supply(%{assigns: %{auction: auction}} = socket) do
+    socket
+    |> assign_async(:book, fn ->
+      with {:ok, book} <- AuctionBook.robinhood(auction), do: {:ok, %{book: book}}
+    end)
+    |> assign_async(:supply, fn ->
+      with {:ok, launch} <- Autolaunch.get_robinhood_auction(auction, actor: nil),
+           do: {:ok, %{supply: launch && launch.token_supply}}
+    end)
   end
 
   # The server reads the reported hash itself; the browser's word is only the hash.
@@ -576,29 +564,6 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     do: price |> String.to_integer() |> AuctionBook.standing(book) |> Book.bid_status()
 
   defp bid_state(%{"exited_block" => block}, _book, _reading), do: "Exited at block #{block}"
-
-  attr :outlook, :map, default: nil
-  attr :book, :map, default: nil
-  attr :symbol, :string, required: true
-
-  # Whether the typed maximum buys against the auction's price now.
-  defp standing_line(%{outlook: %{reaches?: true}} = assigns) do
-    ~H"""
-    <p class="bid-estimate" role="status">
-      Above the price now: your bid starts buying next block.
-    </p>
-    """
-  end
-
-  defp standing_line(%{outlook: %{reaches?: false}} = assigns) do
-    ~H"""
-    <p class="bid-estimate" role="status">
-      Too low to buy right now: bid at least {@book.price_to_beat} {@symbol} per token.
-    </p>
-    """
-  end
-
-  defp standing_line(assigns), do: ~H""
 
   defp exact_values(review) do
     [
