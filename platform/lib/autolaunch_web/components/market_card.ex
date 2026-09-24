@@ -504,16 +504,23 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  # Dollar figures are shortened the way market lists write them, to three
-  # significant digits: $0.0000123, $1.48, $296, $24.7K, $1.48M.
-  defp dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
+  @doc """
+  A dollar figure shortened the way market lists write them, to three
+  significant digits: $0.0000123, $1.48, $296, $24.7K, $1.48M; "-" while no
+  price is known.
+  """
+  def dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
     value = Decimal.mult(amount, rate)
     if Decimal.eq?(value, 0), do: "$0", else: "$" <> compact(value)
   end
 
-  defp dollars(_amount, _rate), do: "-"
+  def dollars(_amount, _rate), do: "-"
 
-  defp compact(value) do
+  @doc "An amount shortened to three significant digits: 0.0000123, 1.48, 24.7K, 1.48M."
+  def compact(value) do
+    # Rounded before the suffix is chosen, so 999,999 reads 1M, not 1000K.
+    value = value |> significant() |> Decimal.new()
+
     [{1_000_000_000_000, "T"}, {1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "K"}]
     |> Enum.find(fn {size, _suffix} -> Decimal.gte?(value, size) end)
     |> case do

@@ -22,7 +22,7 @@ defmodule Autolaunch.BidActivity do
 
   actions do
     read :recent do
-      prepare build(sort: [occurred_at: :desc, id: :asc], limit: 20, load: [:auction])
+      prepare build(sort: [occurred_at: :desc, id: :asc], limit: 20, load: [:auction, :max_fdv])
       filter expr(occurred_at > ago(1, :hour))
     end
 
@@ -100,6 +100,15 @@ defmodule Autolaunch.BidActivity do
     belongs_to :auction, Autolaunch.Auction do
       allow_nil? false
       read_action :listed
+    end
+  end
+
+  calculations do
+    # The bidder's price ceiling for the whole token: the bid's maximum price
+    # times the token's total supply, liquidity share included, in the
+    # auction's currency; nil until the market feed has read the supply.
+    calculate :max_fdv, :decimal, expr(max_price * auction.token_supply) do
+      public? true
     end
   end
 

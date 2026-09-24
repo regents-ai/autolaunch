@@ -2,6 +2,8 @@ defmodule AutolaunchWeb.BidTickerLive do
   @moduledoc false
   use Phoenix.LiveView, layout: false
   alias Autolaunch.BidActivity
+  alias Autolaunch.Stocks.Amounts
+  alias AutolaunchWeb.Components.MarketCard
 
   def mount(_, _, socket) do
     if connected?(socket) do
@@ -9,7 +11,10 @@ defmodule AutolaunchWeb.BidTickerLive do
       send(self(), :load)
     end
 
-    {:ok, assign(socket, bids: [], paused: false, loading: false)}
+    {:ok,
+     socket
+     |> assign(bids: [], paused: false, loading: false)
+     |> MarketCard.assign_figure_rates()}
   end
 
   def handle_event("pause", _, socket),
@@ -59,7 +64,10 @@ defmodule AutolaunchWeb.BidTickerLive do
               tabindex={if copy == 1, do: "-1"}
               class="bid-ticker__bid"
             >
-              <strong>{amount(bid.display_amount, bid.display_symbol)} {bid.display_symbol} BID</strong>
+              <strong>{amount(bid.display_amount, bid.display_symbol)} {bid.display_symbol} bid</strong>
+              <span :if={bid.max_fdv}>
+                @ {max_fdv(bid, MarketCard.figure_rate(@rates, bid.auction))} max FDV ·
+              </span>
               <img
                 :if={bid.auction.image}
                 src={bid.auction.image}
@@ -87,8 +95,17 @@ defmodule AutolaunchWeb.BidTickerLive do
       else: rounded(value, 0)
   end
 
-  def amount(value, symbol) when symbol in ["USDC", "USDG"], do: rounded(value, 0)
+  def amount(value, symbol) when symbol in ["USDC", "USDG"],
+    do: value |> rounded(0) |> Amounts.grouped()
+
   def amount(value, _), do: rounded(value, 3)
+  # In dollars, approximately, at the auction currency's market price; in the
+  # auction's own currency while no price is known.
+  defp max_fdv(bid, %Decimal{} = rate), do: "≈" <> MarketCard.dollars(bid.max_fdv, rate)
+
+  defp max_fdv(bid, _rate),
+    do: MarketCard.compact(bid.max_fdv) <> " " <> bid.auction.quote_token_symbol
+
   defp rounded(value, places), do: value |> Decimal.round(places) |> Decimal.to_string(:normal)
 
   defp path(auction) do
