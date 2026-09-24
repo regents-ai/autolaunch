@@ -71,7 +71,17 @@ defmodule AutolaunchWeb.Components.TopBar do
         <Regent.ThemeToggle.button :if={@blog?} id="blog-theme-control" data-autolaunch-blog-theme />
         <span :if={Autolaunch.Prelaunch.read_only?()} class="home-top__opening">
           <AutolaunchWeb.Components.Opening.countdown id="header-opening-countdown" />
+          <Regent.Primitives.button
+            disabled
+            class="create-button"
+            title={"Opens #{Autolaunch.Prelaunch.opens_at_label()}"}
+          >+ Create</Regent.Primitives.button>
         </span>
+        <.link
+          :if={!Autolaunch.Prelaunch.read_only?()}
+          navigate="/create"
+          class="rg-button create-button"
+        >+ Create</.link>
         <.account_control account_control={@account_control} />
       </div>
     </header>

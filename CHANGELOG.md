@@ -30,8 +30,9 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - Explore, Portfolio, Create and Learn are header-style buttons with larger text and no icons:
   the corner marks close into a full outline on hover and stay closed on the page you are on.
   On phones the four sit in one row, always visible, and settle in one after another.
-- The $REGENT crown opens Buy $REGENT, View Chart and Follow on X on hover, and sits right
-  beside Sign in. The header Buy, Follow and Create buttons are gone.
+- On phones, the header is the $REGENT crown beside Sign in. Tapping the crown opens Buy on
+  Uniswap, View Chart and Follow on X, and the header Buy, Follow and Create buttons are gone.
+  Wider screens keep the full header.
 
 ## v25, 24 September 2026 (864624e)
 - The time bar on auction cards fills again: the site now records when each auction opened, so

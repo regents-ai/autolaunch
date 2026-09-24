@@ -11,9 +11,6 @@ defmodule AutolaunchWeb.Components.RegentLinks do
 
     ~H"""
     <div class="regent-header-links">
-      <nav class="regent-social-links" aria-label="Regents on GitHub">
-        <.github_link />
-      </nav>
       <details id="header-regent-menu" class="regent-token-menu" data-regent-token-menu>
         <summary aria-label="$REGENT links"><.source_icon kind={:regent} /></summary>
         <div class="regent-token-menu__panel">
@@ -46,7 +43,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
               href={TokenLinks.buy()}
               target="_blank"
               rel="noopener noreferrer"
-            >Buy $REGENT</a>
+            >Buy on Uniswap</a>
             <a
               id="regent-chart"
               class="rg-button regent-token-menu__link"
@@ -56,7 +53,7 @@ defmodule AutolaunchWeb.Components.RegentLinks do
             >View Chart</a>
             <a
               id="regent-follow-x"
-              class="rg-button regent-token-menu__link"
+              class="rg-button regent-token-menu__link regent-token-menu__link--phone"
               href="https://x.com/regents_sh"
               target="_blank"
               rel="noopener noreferrer"
@@ -67,6 +64,22 @@ defmodule AutolaunchWeb.Components.RegentLinks do
           </nav>
         </div>
       </details>
+      <a
+        class="rg-button rg-button--primary regent-header-cta"
+        href={TokenLinks.buy()}
+        target="_blank"
+        rel="noopener noreferrer"
+      >Buy $REGENT</a>
+      <a
+        class="rg-button regent-header-cta regent-header-cta--soft"
+        href="https://x.com/regents_sh"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Follow on X"
+      ><span class="rg-button__label">Follow on <.link_icon kind={:x} /></span></a>
+      <nav class="regent-social-links" aria-label="Regents on GitHub">
+        <.github_link />
+      </nav>
     </div>
     """
   end

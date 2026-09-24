@@ -9,13 +9,16 @@
 .regent-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem; }
 .regent-footer p { margin: 0; }
 .regent-header-links, .regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
-/* The $REGENT crown sits beside Sign in, at the far end of the header. */
-#home-top .regent-header-links { margin-left: auto; }
 .regent-social-links a, .regent-token-menu > summary { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; color: inherit; }
 .regent-header-links svg, .regent-social-links svg { width: 1.25rem; height: 1.25rem; }
-/* Sign in and Copy to Agent match the regents.sh App button: a charcoal plate with corner
-   marks that close into a full outline on hover. */
-.rg-button:is(.account-control__sign-in, .copy-agent-guide) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
+/* Header buttons, both Create buttons and Copy to Agent match the regents.sh App button: a
+   charcoal plate with corner marks that close into a full outline on hover. Follow on X draws
+   its marks in a softer orange. */
+.rg-button:is(.regent-header-cta, .create-button, .account-control__sign-in, .copy-agent-guide) { --rg-p-accent: var(--palette-charcoal); --rg-p-on-accent: var(--palette-platinum); min-height: 2.75rem; padding: var(--space-1) var(--space-2); white-space: nowrap; }
+.rg-button.regent-header-cta--soft { --rg-button-border-color: color-mix(in srgb, var(--palette-tangerine-tango) 45%, transparent); }
+:root[data-theme="dark"] .rg-button.regent-header-cta--soft::after { --rg-button-cut-ink: var(--rg-button-border-color); }
+.regent-header-cta .rg-button__label { display: inline-flex; align-items: center; gap: 8px; }
+.regent-header-links .regent-header-cta svg { flex: none; width: 1rem; height: 1rem; }
 .regent-token-menu { position: relative; z-index: 10; }
 .regent-token-menu > summary { list-style: none; cursor: pointer; }
 .regent-token-menu > summary::-webkit-details-marker { display: none; }
@@ -35,10 +38,13 @@
 .regent-token-menu__copy.is-copied .regent-token-menu__toast { opacity: 1; transform: translateY(0); }
 .rg-button.regent-token-menu__link { --rg-cut-control: 0px; --rg-p-accent: var(--color-surface); --rg-p-on-accent: var(--color-fg); --rg-button-border-color: transparent; width: 100%; min-height: 2.75rem; padding: .625rem; border-radius: 0; font-size: .875rem; font-weight: 400; white-space: nowrap; justify-content: flex-start; text-align: start; }
 .rg-button.regent-token-menu__link::after { content: none; }
-.regent-token-menu__link .rg-button__label { display: inline-flex; align-items: center; gap: 6px; }
 .regent-token-menu :is(summary, a, button):focus-visible, .regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 @media (max-width: 55rem) { #home-top .home-top__actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; } }
-@media (max-width: 42rem) { .regent-header-links > .regent-social-links { display: none; } }
+/* Follow on X is a header button on wider screens and a crown menu item on phones. */
+.rg-button.regent-token-menu__link--phone { display: none; }
+.regent-token-menu__link .rg-button__label { display: inline-flex; align-items: center; gap: 6px; }
+.regent-header-links .regent-token-menu__link svg { width: 1rem; height: 1rem; }
+@media (max-width: 42rem) { .rg-button.regent-header-cta, .regent-header-links > .regent-social-links { display: none; } .rg-button.regent-token-menu__link--phone { display: flex; } }
 @media (pointer: coarse) { .regent-social-links a, .regent-token-menu > summary { width: 2.75rem; height: 2.75rem; } }
 .autolaunch-profile-page { display: grid; gap: var(--space-4); }
 .autolaunch-profile-page .rg-profile { width: 100%; max-width: 48rem; margin: 0; }
