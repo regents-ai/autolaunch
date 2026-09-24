@@ -89,6 +89,7 @@ defmodule Autolaunch.Auction do
         :activity_due_at,
         :bid_volume,
         :bid_volume_usd,
+        :opened_at,
         :estimated_end_at
       ]
     end

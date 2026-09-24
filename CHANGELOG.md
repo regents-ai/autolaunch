@@ -3,6 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
+## v25, 24 September 2026
+- The time bar on auction cards fills again: the site now records when each auction opened, so
+  the bar shows how much of its time has passed.
+
 ## v24, 24 September 2026 (b97e278)
 - A launch threshold met many times over reads "100% met" instead of a huge percentage.
 

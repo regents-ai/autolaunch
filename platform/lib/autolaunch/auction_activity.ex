@@ -74,8 +74,6 @@ defmodule Autolaunch.AuctionActivity do
          {:ok, current} <- header(head.number, venue.opts),
          true <- current.hash == head.hash do
       timestamp = DateTime.from_unix!(current.timestamp, :second)
-      seconds = round((end_block - clock) * if(venue.chain == :base, do: 2, else: 0.1))
-      ending = DateTime.add(timestamp, seconds)
       rate = rate(auction, venue.chain)
 
       commit(
@@ -84,7 +82,7 @@ defmodule Autolaunch.AuctionActivity do
         last,
         headers[last].hash,
         {bids, points},
-        ending,
+        {at(timestamp, clock, start_block, venue), at(timestamp, clock, end_block, venue)},
         rate,
         last == head.number
       )
@@ -112,6 +110,11 @@ defmodule Autolaunch.AuctionActivity do
       {:ok, %{opts: opts, chain: network, adapter: config.addresses["bid_adapter"]}}
     end
   end
+
+  # When the contract clock reaches the block, estimated from the head's time.
+  defp at(timestamp, clock, block, venue),
+    do:
+      DateTime.add(timestamp, round((block - clock) * if(venue.chain == :base, do: 2, else: 0.1)))
 
   defp clock(%{chain: :base}, head), do: {:ok, head.number}
   defp clock(venue, head), do: Autolaunch.Robinhood.BlockClock.read(head, venue.opts)
@@ -403,7 +406,7 @@ defmodule Autolaunch.AuctionActivity do
   # This system projection locks its parent auction before replacing confirmed
   # events and aggregating their exact amounts in SQL. Notifications come only
   # from the parent Ash update after the enclosing transaction commits.
-  defp commit(auction, first, last, hash, {bids, points}, ending, rate, complete?) do
+  defp commit(auction, first, last, hash, {bids, points}, {opening, ending}, rate, complete?) do
     Repo.transaction(fn ->
       current =
         Auction
@@ -436,6 +439,7 @@ defmodule Autolaunch.AuctionActivity do
           activity_next_block: last + 1,
           activity_last_hash: hash,
           activity_due_at: DateTime.add(DateTime.utc_now(), refresh_delay(current, complete?)),
+          opened_at: opening,
           estimated_end_at: ending,
           bid_volume: if(complete?, do: total),
           bid_volume_usd: dollar_volume(total, rate, complete?)
