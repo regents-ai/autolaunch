@@ -4,6 +4,7 @@ defmodule Autolaunch.Auction do
     domain: Autolaunch,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub],
     primary_read_warning?: false
 
   alias Autolaunch.{BidActions, TreasurySecurity}
@@ -345,6 +346,25 @@ defmodule Autolaunch.Auction do
     end
   end
 
+  # What the public lists show changed; see `Autolaunch.Listings`. The market
+  # feed's price moves are left to its own topic, so only a state or minimum
+  # change from a refresh reaches the lists.
+  pub_sub do
+    module Phoenix.PubSub
+    name Autolaunch.PubSub
+    transform fn notification -> {:autolaunch_listings_changed, notification.data.id} end
+
+    publish_all :create, "listings"
+    publish :set_bid_terms, "listings"
+    publish :set_treasury_security_report, "listings"
+
+    publish :refresh_lab_market, "listings",
+      filter: fn %{changeset: %{data: before}, data: after_refresh} ->
+        before.state != after_refresh.state or
+          before.minimum_reached != after_refresh.minimum_reached
+      end
+  end
+
   attributes do
     uuid_primary_key :id
 
@@ -461,6 +481,28 @@ defmodule Autolaunch.Auction do
       public? true
       allow_nil? false
       constraints match: ~r/\A[1-9][0-9]{0,38}\z/
+    end
+
+    # What a Robinhood launch recorded when its auction opened: the token it
+    # sells, its launch number on the launchpad and its bidding window.
+    attribute :token_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :launch_id, :integer do
+      public? true
+      constraints min: 1
+    end
+
+    attribute :start_block, :integer do
+      public? true
+      constraints min: 0
+    end
+
+    attribute :end_block, :integer do
+      public? true
+      constraints min: 0
     end
 
     timestamps()

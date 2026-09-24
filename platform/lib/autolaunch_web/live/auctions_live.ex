@@ -4,20 +4,21 @@ defmodule AutolaunchWeb.AuctionsLive do
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.SwapModal
   import AutolaunchWeb.Components.AuctionStats
-  alias AutolaunchWeb.LabMarket
+  alias AutolaunchWeb.{LabMarket, LiveListings}
 
   def mount(_params, _session, socket),
     do:
       {:ok,
        socket
        |> assign(trade: nil, market: LabMarket.subscribe(socket))
+       |> LiveListings.subscribe()
        |> assign_auction_stats()}
 
   def handle_params(params, _uri, socket) do
-    {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page()}
+    {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page(reset: true)}
   end
 
-  def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
+  def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
 
   def handle_event("open_trade", %{"id" => id} = params, socket),
     do: {:noreply, assign(socket, :trade, opened_trade(socket.assigns.records, id, params))}
@@ -46,7 +47,17 @@ defmodule AutolaunchWeb.AuctionsLive do
   def handle_info({:autolaunch_market_updated, _update}, socket),
     do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
 
-  defp load_page(socket) do
+  def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
+    do: {:noreply, LiveListings.schedule(socket)}
+
+  # The same page and cursor are read again with the current records left in
+  # place, and an open bid keeps its form.
+  def handle_info(:reread_listings, socket),
+    do:
+      {:noreply,
+       socket |> LiveListings.taken() |> load_page(reset: false) |> assign_auction_stats()}
+
+  defp load_page(socket, reset: reset) do
     cursor = socket.assigns.cursor
 
     assign_async(
@@ -64,7 +75,7 @@ defmodule AutolaunchWeb.AuctionsLive do
            }}
         end
       end,
-      reset: true
+      reset: reset
     )
   end
 

@@ -14,10 +14,15 @@ defmodule AutolaunchWeb.AuctionLive do
   alias Autolaunch.Lab
   alias Autolaunch.LabMarketFeed
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
-  alias AutolaunchWeb.UsdValue
+  alias AutolaunchWeb.{LiveListings, UsdValue}
 
   def mount(_params, _session, socket),
-    do: {:ok, socket |> assign_market() |> assign(my_positions: [], fire_allowed_at: nil)}
+    do:
+      {:ok,
+       socket
+       |> assign_market()
+       |> LiveListings.subscribe()
+       |> assign(my_positions: [], fire_allowed_at: nil)}
 
   # The identifier is read here so a patch to another auction reloads the page
   # instead of keeping the previous record on screen.
@@ -76,6 +81,17 @@ defmodule AutolaunchWeb.AuctionLive do
       {:noreply, socket}
     end
   end
+
+  # This auction's saved record changed (its state, minimum, bid terms or
+  # treasury report), so the page reads it again in place; the bid form stays.
+  def handle_info({:autolaunch_listings_changed, auction_id}, socket) do
+    if auction_id == socket.assigns.record_id,
+      do: {:noreply, LiveListings.schedule(socket)},
+      else: {:noreply, socket}
+  end
+
+  def handle_info(:reread_listings, socket),
+    do: {:noreply, socket |> LiveListings.taken() |> load_page(reset: false)}
 
   # A settlement card verified a step, so the bidder's stored positions changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),

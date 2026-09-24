@@ -109,17 +109,23 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
         <span aria-hidden="true">→</span></span></.link>
       </section>
       <div
-        :if={@records.loading && @kind == :auctions}
+        :if={@records.loading && !@records.ok? && @kind == :auctions}
         class="auction-card-grid"
         aria-hidden="true"
       >
         <div :for={index <- 1..3} id={"auctions-loading-#{index}"} class="auction-card-skeleton">
         </div>
       </div>
-      <div :if={@records.loading && @kind == :tokens} class="token-table-skeleton" aria-hidden="true">
+      <div
+        :if={@records.loading && !@records.ok? && @kind == :tokens}
+        class="token-table-skeleton"
+        aria-hidden="true"
+      >
         <div :for={index <- 1..6} id={"tokens-loading-#{index}"}></div>
       </div>
-      <p :if={@records.loading} class="visually-hidden" role="status">Loading {@title}</p>
+      <p :if={@records.loading && !@records.ok?} class="visually-hidden" role="status">
+        Loading {@title}
+      </p>
       <Regent.Primitives.notice :if={@records.failed} role="alert">
         <p>
           {if @records.failed == {:error, :invalid_query},
