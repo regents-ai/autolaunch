@@ -1,7 +1,8 @@
 import {activeEthereumWallet, type SelectedWallet} from "../wallet_actions/connected_wallet"
 import {userRejected} from "../wallet_actions/autolaunch_bids"
 
-type Review = {action_id: string; signer: string; terminal: boolean; step?: string}
+// `send` names the step to press at once: the server built this review to answer a press.
+type Review = {action_id: string; signer: string; terminal: boolean; step?: string; send?: string}
 type Report = {component_id: string; action_id: string; press_id: string; step: string;
   transaction_hash?: string; outcome?: string}
 type Hook = {el: HTMLElement; handleEvent(name: string, callback: (payload: any) => void): void;
@@ -13,6 +14,8 @@ type Hook = {el: HTMLElement; handleEvent(name: string, callback: (payload: any)
 export function installWalletPresses<O extends Review>(hook: Hook, config: {
   prefix: string; selector: string; connect: string;
   send(operation: O, step: string, started: () => void, resolveWallet: () => SelectedWallet | null): Promise<string>;
+  // Takes a press over (returning true) when the review held for it no longer fits the page.
+  claim?(operation: O | undefined): boolean;
 }) {
   let disposed = false
   let scope = hook.el.dataset?.walletScope
@@ -48,6 +51,7 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     if (disposed || !mine(op)) return
     checkScope()
     operations.set(op.action_id, structuredClone(op))
+    if (op.send && scope && !op.terminal) void press(op, op.send)
   })
   hook.handleEvent("wallet-press:invalidated", p => { if (mine(p)) invalidate() })
 
@@ -60,18 +64,22 @@ export function installWalletPresses<O extends Review>(hook: Hook, config: {
     const button = target?.closest<HTMLElement>(config.selector)
     if (!button) return
     const actionId = button.getAttribute(config.selector.slice(1, -1))
-    const op = actionId && operations.get(actionId)
+    const op = actionId ? operations.get(actionId) : undefined
+    if (config.claim?.(op)) return
     const step = button.dataset.walletStep
     if (!op || !step || op.terminal) return
+    await press(op, step)
+  }
+  async function press(op: O, step: string) {
     const pressId = crypto.randomUUID()
     const held = structuredClone(op)
     const selected = activeEthereumWallet()
     if (!selected || selected.address.toLowerCase() !== held.signer.toLowerCase()) return
-    const press = {operation: held, step, sent: false, selected: {...selected}, invalid: false}
-    presses.set(pressId, press)
+    const pending = {operation: held, step, sent: false, selected: {...selected}, invalid: false}
+    presses.set(pressId, pending)
     const accounts = await selected.provider.request({method: "eth_accounts"}).catch(() => null)
     if (!Array.isArray(accounts) || typeof accounts[0] !== "string" || accounts[0].toLowerCase() !== held.signer.toLowerCase()) return
-    if (!resolve(press)) return
+    if (!resolve(pending)) return
     push("wallet_press_dispatch", {action_id: held.action_id, press_id: pressId, step, signer: held.signer})
   }
   hook.el.addEventListener("click", clicked)

@@ -1,6 +1,7 @@
 import type {Address, Hex} from "viem"
 
 import type {Hook} from "../hook_composition"
+import {builtFor, formOnScreen, type BidInputs} from "./bid_form_on_screen"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {userRejected} from "../wallet_actions/autolaunch_launch"
 import {
@@ -22,6 +23,10 @@ type Review = {
   lab: AutolaunchLabBinding
   lab_anchor: AutolaunchLabAnchor
   steps: {step: string; to: Address; data: Hex}[]
+  // A bid review carries the form values it was built for; one answering a
+  // press names the step that press sends.
+  inputs?: BidInputs
+  send?: string
 }
 
 // `wallet_unavailable` and `network_mismatch` are the reasons that prove nothing was sent.
@@ -57,7 +62,10 @@ export const AutolaunchReviewedSteps: Hook = {
     this.publishActiveWallet()
 
     this.handleEvent("reviewed-steps:review", payload => {
-      if (mine(payload)) this.review = payload as Review
+      if (!mine(payload)) return
+      const review = payload as Review
+      this.review = review
+      if (review.send) void send(this.el, review, review.send, push)
     })
     this.handleEvent("reviewed-steps:cleared", payload => {
       if (mine(payload)) this.review = null
@@ -72,7 +80,13 @@ export const AutolaunchReviewedSteps: Hook = {
       }
 
       const name = target?.closest<HTMLElement>("[data-reviewed-step]")?.dataset.reviewedStep
-      if (name) void send(this.el, this.review ?? null, name, push)
+      if (!name) return
+
+      // A panel with a bid form on screen sends only a review built for the
+      // values shown right now; otherwise the server builds one and sends it.
+      const form = formOnScreen(this.el)
+      if (form && !builtFor(this.review?.inputs, form)) push("prepare_and_send", {form})
+      else void send(this.el, this.review ?? null, name, push)
     }
     this.el.addEventListener("click", this.clicked)
   },

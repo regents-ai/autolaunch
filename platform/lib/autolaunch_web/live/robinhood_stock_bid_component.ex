@@ -122,6 +122,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> assign_new(:review, fn -> nil end)
      |> assign_new(:prepared_for, fn -> nil end)
      |> assign_new(:preparing, fn -> nil end)
+     |> assign_new(:owed, fn -> %{} end)
      |> assign_new(:with_wallet, fn -> nil end)
      |> assign_new(:following, fn -> nil end)
      |> assign_new(:sharing, fn -> false end)
@@ -156,6 +157,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       class="bid-panel rg-panel rg-panel--surface"
       phx-hook="AutolaunchReviewedSteps"
       data-reports-opening
+      data-press-form={"#{@id}-form"}
       phx-target={@myself}
     >
       <header class="bid-heading">
@@ -425,6 +427,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
      |> prepare_when_ready()}
   end
 
+  # A press made while the form on screen differs from the review the browser
+  # holds. The bid is built for exactly the values pressed and goes straight to
+  # the wallet; a review already built or being built for them is used as it is.
+  def handle_event("prepare_and_send", %{"form" => params}, socket) do
+    socket = assign(socket, form: BidForm.values(params, socket.assigns.form), notice: nil)
+    {:noreply, pressed(socket, bid_key(socket.assigns))}
+  end
+
   # A new bid for an outbid one: about the same money, at the current price.
   def handle_event("raise_bid", %{"bid_id" => bid_id}, socket) do
     %{usd_prices: prices, reading: reading} = socket.assigns
@@ -466,26 +476,36 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
+  # Each set of values is prepared as its own task, so a review owed to a press
+  # is never dropped for a later one.
   @impl true
-  def handle_async(:prepare, {:ok, {key, result}}, socket) do
-    socket = assign(socket, preparing: nil)
+  def handle_async({:prepare, key}, {:ok, {inputs, result}}, socket) do
+    {presses, owed} = Map.pop(socket.assigns.owed, key, 0)
+    socket = socket |> assign(owed: owed) |> prepared(key)
 
     cond do
+      presses > 0 -> {:noreply, reviewed(socket, key, inputs, result, presses)}
       socket.assigns.with_wallet || socket.assigns.sent != %{} -> {:noreply, socket}
       key != bid_key(socket.assigns) -> {:noreply, prepare_when_ready(socket)}
-      true -> {:noreply, reviewed(socket, key, result)}
+      true -> {:noreply, reviewed(socket, key, inputs, result, 0)}
     end
   end
 
-  def handle_async(:prepare, {:exit, _reason}, socket),
-    do: {:noreply, assign(socket, preparing: nil, notice: notice(:error, :unavailable))}
+  def handle_async({:prepare, key}, {:exit, _reason}, socket) do
+    {_presses, owed} = Map.pop(socket.assigns.owed, key, 0)
+
+    {:noreply,
+     socket |> assign(owed: owed, notice: notice(:error, :unavailable)) |> prepared(key)}
+  end
 
   def handle_async(:follow, {:ok, {name, hash, result}}, socket),
     do: {:noreply, recorded(socket, name, hash, result)}
 
   def handle_async(:follow, {:exit, _reason}, socket), do: {:noreply, follow(socket)}
 
-  defp reviewed(socket, key, {:ok, review}) do
+  # A review answering presses goes to the wallet once for each of them, and is
+  # held as the one with the wallet so no background review replaces it.
+  defp reviewed(socket, key, inputs, {:ok, review}, presses) do
     send_update_after(
       self(),
       __MODULE__,
@@ -493,10 +513,13 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
       @refresh_ms
     )
 
-    socket |> assign(review: review, prepared_for: key, notice: nil) |> published()
+    socket
+    |> assign(review: review, prepared_for: key, inputs: inputs, notice: nil)
+    |> assign(if presses > 0, do: [with_wallet: first_step(review)], else: [])
+    |> published(presses)
   end
 
-  defp reviewed(socket, key, {:error, error}),
+  defp reviewed(socket, key, _inputs, {:error, error}, _presses),
     do:
       assign(socket,
         review: nil,
@@ -522,12 +545,37 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp start_prepare(socket, {wallet, amount, max_price} = key) do
     request = %{auction: socket.assigns.auction, usdg_amount: amount, max_price: max_price}
+    %{form: inputs} = socket.assigns
     opts = opts(socket)
 
     socket
     |> assign(preparing: key)
-    |> start_async(:prepare, fn -> {key, StockBidActions.prepare(request, wallet, opts)} end)
+    |> start_async({:prepare, key}, fn ->
+      {inputs, StockBidActions.prepare(request, wallet, opts)}
+    end)
   end
+
+  defp prepared(%{assigns: %{preparing: key}} = socket, key), do: assign(socket, preparing: nil)
+  defp prepared(socket, _key), do: socket
+
+  # A press is answered by the review for its values: the one already built,
+  # the one being built, or a new one.
+  defp pressed(socket, nil), do: assign(socket, notice: notice(:error, incomplete(socket)))
+
+  defp pressed(%{assigns: %{review: review, prepared_for: key}} = socket, key)
+       when is_map(review),
+       do: socket |> assign(with_wallet: first_step(review)) |> published(1)
+
+  defp pressed(%{assigns: %{preparing: key}} = socket, key), do: owe(socket, key)
+  defp pressed(socket, key), do: socket |> start_prepare(key) |> owe(key)
+
+  defp owe(socket, key),
+    do: assign(socket, owed: Map.update(socket.assigns.owed, key, 1, &(&1 + 1)))
+
+  defp incomplete(%{assigns: %{form: %{amount: ""}}}), do: :amount_required
+  defp incomplete(_socket), do: :max_price_required
+
+  defp first_step(%{steps: [%{"step" => step} | _rest]}), do: step
 
   defp bid_key(%{wallet: wallet, form: form} = assigns) when is_binary(wallet) do
     with amount when amount != "" <- form.amount,
@@ -724,8 +772,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp listed(socket, :confirmed), do: with_reading(socket)
   defp listed(socket, _outcome), do: socket
 
-  defp published(%{assigns: %{review: %{envelope: envelope, steps: steps}}} = socket) do
-    push_event(socket, "reviewed-steps:review", %{
+  # The review as the browser holds it, with the form values it was built for.
+  # Answering presses, it is handed over once per press, each naming the step
+  # that press sends.
+  defp published(
+         %{assigns: %{review: %{envelope: envelope, steps: steps} = review}} = socket,
+         presses
+       ) do
+    payload = %{
       component_id: socket.assigns.id,
       signer: envelope["expected_signer"],
       chain_id: envelope["chain_id"],
@@ -734,8 +788,16 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
         block_number: envelope["arguments"]["block_number"],
         block_hash: envelope["arguments"]["block_hash"]
       },
-      steps: Enum.map(steps, &Map.take(&1, ["step", "to", "data"]))
-    })
+      steps: Enum.map(steps, &Map.take(&1, ["step", "to", "data"])),
+      inputs: socket.assigns.inputs
+    }
+
+    if presses == 0,
+      do: push_event(socket, "reviewed-steps:review", payload),
+      else:
+        Enum.reduce(1..presses, socket, fn _press, socket ->
+          push_event(socket, "reviewed-steps:review", Map.put(payload, :send, first_step(review)))
+        end)
   end
 
   # A visitor who is not signed in is asked to sign in, not read for.

@@ -1,4 +1,5 @@
 import {installWalletPresses} from "./wallet_presses"
+import {builtFor, formOnScreen, type BidInputs} from "./bid_form_on_screen"
 import type {Hook} from "../hook_composition"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {sendBidStep, sendableStep, type BidOperation} from "../wallet_actions/autolaunch_bids"
@@ -22,10 +23,18 @@ export const AutolaunchBidWallet: Hook = {
     this.publishActiveWallet = () => push("bid_active_wallet", {address: activeEthereumWallet()?.address ?? null})
     window.addEventListener("autolaunch:wallet-state", this.publishActiveWallet)
     this.publishActiveWallet()
-    this.removePressListener = installWalletPresses<BidOperation>(this, {
+    this.removePressListener = installWalletPresses<BidOperation & {inputs?: BidInputs}>(this, {
       prefix: "autolaunch-bid", selector: "[data-bid-send]", connect: "[data-bid-connect]",
       send: (operation, step, started, resolveWallet) => sendBidStep(operation,
         sendableStep(operation, operation.action_id, step), resolveWallet, started),
+      // A bid form on screen that differs from the review held for it: the
+      // server builds the bid for exactly these values and sends it back to press.
+      claim: operation => {
+        const form = formOnScreen(this.el)
+        if (!form || builtFor(operation?.inputs, form)) return false
+        push("prepare_and_send", {form})
+        return true
+      },
     })
   },
 
