@@ -19,6 +19,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
   import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.AuctionHistory
+  import AutolaunchWeb.Components.AuctionPage, only: [headline: 1, details_window: 1]
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionBook
@@ -84,21 +85,44 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
         Robinhood could not be read just now, so this auction shows what was last read.
       </p>
-      <div class="market-detail-layout">
-        <.detail_card
-          kind={:auction}
-          record={@launch}
-          creator_connections={@creator_connections.result}
-        >
-          <:price_note>
-            <UsdValue.usd
-              amount={@launch.current_clearing_price}
-              rate={@usd_rate}
-              per="per token"
-            />
-          </:price_note>
-        </.detail_card>
-        <aside class="market-detail-action" aria-label="Bid on this auction">
+      <.headline
+        record={@launch}
+        minimum={required(@launch)}
+        usd_rate={@usd_rate}
+        details="robinhood-auction-details"
+      />
+      <div class="auction-layout">
+        <section class="auction-layout__chart" aria-label="Price and progress">
+          <.auction_chart
+            :if={@reading && @history.ok? && @history.result}
+            id="robinhood-auction-chart"
+            bids={@history.result.bids}
+            points={@history.result.points}
+            symbol={@launch.quote_token_symbol}
+            token_symbol={@launch.token_symbol}
+            usd_rate={@usd_rate}
+            raised={@reading.currency_raised}
+            block={@reading.clock}
+            start_block={@launch.start_block}
+            end_block={@launch.end_block}
+          />
+          <.raise_progress
+            :if={@reading}
+            id="robinhood-raise-progress"
+            state={@launch.state}
+            raised={@reading.currency_raised}
+            required={required(@launch)}
+            symbol={@launch.quote_token_symbol}
+            usd_rate={@usd_rate}
+            block={@reading.clock}
+            start_block={@launch.start_block}
+            end_block={@launch.end_block}
+            chain={:robinhood}
+            test_chain={Lab.test_chain?()}
+            bids={@launch.bid_volume && Decimal.to_string(@launch.bid_volume, :normal)}
+          />
+        </section>
+        <aside class="auction-layout__bid" aria-label="Bid on this auction">
           <.live_component
             module={AutolaunchWeb.RobinhoodStockBidComponent}
             id="autolaunch-robinhood-bid"
@@ -116,7 +140,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             session_lease={@session_lease}
           />
         </aside>
-        <section class="market-detail-summary" aria-label="Auction information">
+        <div class="auction-layout__rest">
           <.auction_book
             :if={@launch.state == :active && @book.ok?}
             id="robinhood-auction-book"
@@ -126,72 +150,71 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             color={@launch.image_color}
             bid_form="autolaunch-robinhood-bid"
           />
-          <.raise_progress
-            :if={@reading}
-            id="robinhood-raise-progress"
-            state={@launch.state}
-            raised={@reading.currency_raised}
-            required={required(@launch)}
-            symbol={@launch.quote_token_symbol}
-            usd_rate={@usd_rate}
-            block={@reading.clock}
-            start_block={@launch.start_block}
-            end_block={@launch.end_block}
-            chain={:robinhood}
-            test_chain={Lab.test_chain?()}
-            bids={@launch.bid_volume && Decimal.to_string(@launch.bid_volume, :normal)}
-          />
-          <.auction_history
+          <.auction_activity
             :if={@reading && @history.ok? && @history.result}
-            id="robinhood-auction-history"
+            id="robinhood-auction-activity"
             bids={@history.result.bids}
-            points={@history.result.points}
             symbol={@launch.quote_token_symbol}
-            token_symbol={@launch.token_symbol}
-            usd_rate={@usd_rate}
-            raised={@reading.currency_raised}
             block={@reading.clock}
             start_block={@launch.start_block}
             end_block={@launch.end_block}
             chain={:robinhood}
             test_chain={Lab.test_chain?()}
           />
-          <dl class="autolaunch-live-market" aria-label="Auction facts">
-            <div>
-              <dt>Minimum to graduate</dt>
-              <dd>
-                {required(@launch)} {@launch.quote_token_symbol}
-                <UsdValue.usd amount={required(@launch)} rate={@usd_rate} />
-              </dd>
-            </div>
-            <div>
-              <dt>Bids are paid in</dt>
-              <dd>USDG, converted into {@launch.quote_token_symbol} inside each bid</dd>
-            </div>
-            <div :if={@reading}>
-              <dt>{raised_label(@launch)}</dt>
-              <dd>
-                {@reading.currency_raised} {@launch.quote_token_symbol}
-                <UsdValue.usd amount={@reading.currency_raised} rate={@usd_rate} />
-              </dd>
-            </div>
-            <div>
-              <dt>Auction address</dt>
-              <dd class="autolaunch-exact-value">{@launch.auction_address}</dd>
-            </div>
-          </dl>
-          <p
-            :if={@launch.state == :graduated}
-            id="robinhood-token-link"
-            class="autolaunch-live-market"
-          >
-            This auction launched.
-            <.link navigate={"/robinhood/tokens/#{@launch.token_address}"}>
-              Open {@launch.token_symbol}, its token, to trade and stake it
-            </.link>
-          </p>
-        </section>
+          <section class="auction-info" aria-labelledby="robinhood-auction-info-title">
+            <h2 id="robinhood-auction-info-title" class="auction-info__title">About this token</h2>
+            <.detail_card
+              kind={:auction}
+              record={@launch}
+              creator_connections={@creator_connections.result}
+            >
+              <:price_note>
+                <UsdValue.usd
+                  amount={@launch.current_clearing_price}
+                  rate={@usd_rate}
+                  per="per token"
+                />
+              </:price_note>
+            </.detail_card>
+            <p
+              :if={@launch.state == :graduated}
+              id="robinhood-token-link"
+              class="autolaunch-live-market"
+            >
+              This auction launched.
+              <.link navigate={"/robinhood/tokens/#{@launch.token_address}"}>
+                Open {@launch.token_symbol}, its token, to trade and stake it
+              </.link>
+            </p>
+          </section>
+        </div>
       </div>
+      <.details_window id="robinhood-auction-details">
+        <dl class="autolaunch-live-market" aria-label="Auction facts">
+          <div>
+            <dt>Minimum to graduate</dt>
+            <dd>
+              {required(@launch)} {@launch.quote_token_symbol}
+              <UsdValue.usd amount={required(@launch)} rate={@usd_rate} />
+            </dd>
+          </div>
+          <div>
+            <dt>Bids are paid in</dt>
+            <dd>USDG, converted into {@launch.quote_token_symbol} inside each bid</dd>
+          </div>
+          <div :if={@reading}>
+            <dt>{raised_label(@launch)}</dt>
+            <dd>
+              {@reading.currency_raised} {@launch.quote_token_symbol}
+              <UsdValue.usd amount={@reading.currency_raised} rate={@usd_rate} />
+            </dd>
+          </div>
+          <div>
+            <dt>Auction address</dt>
+            <dd class="autolaunch-exact-value">{@launch.auction_address}</dd>
+          </div>
+        </dl>
+      </.details_window>
     </article>
 
     <section
@@ -274,7 +297,9 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   defp reload_launch(%{assigns: %{auction: nil}} = socket), do: socket
 
   defp reload_launch(socket) do
-    {:ok, launch} = Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil)
+    {:ok, launch} =
+      Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil, load: [:fdv])
+
     assign(socket, launch: launch, share: launch && ShareCard.meta(launch))
   end
 
