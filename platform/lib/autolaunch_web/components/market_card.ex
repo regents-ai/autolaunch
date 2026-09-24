@@ -378,7 +378,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :records, :list, required: true, doc: "auctions with `fdv` loaded"
-  attr :creators, :map, required: true, doc: "creator connections grouped by human account"
   attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
   attr :loading, :boolean, default: false
 
@@ -404,7 +403,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <.auction_list_row
             :for={record <- @records}
             auction={record}
-            creator_connections={Map.get(@creators, record.creator_human_account_id, %{})}
             rate={figure_rate(@rates, record)}
           />
           <tr
@@ -423,13 +421,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :auction, :map, required: true
-  attr :creator_connections, :map, default: %{}
   attr :rate, :any, default: nil
 
   defp auction_list_row(assigns) do
     assigns =
       assign(assigns,
-        view: view(:auction, assigns.auction, assigns.creator_connections),
+        view: view(:auction, assigns.auction, %{}),
         figures: figures(assigns.auction, assigns.rate)
       )
 
@@ -449,7 +446,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :records, :list, required: true, doc: "launched tokens with `market_cap` loaded"
-  attr :creators, :map, required: true, doc: "creator connections grouped by human account"
   attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
   attr :loading, :boolean, default: false
 
@@ -474,7 +470,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <.token_list_row
             :for={token <- @records}
             token={token}
-            creator_connections={Map.get(@creators, token.auction.creator_human_account_id, %{})}
             rate={figure_rate(@rates, token.auction)}
           />
           <tr
@@ -493,13 +488,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   attr :token, :map, required: true
-  attr :creator_connections, :map, default: %{}
   attr :rate, :any, default: nil
 
   defp token_list_row(assigns) do
     assigns =
       assign(assigns,
-        view: view(:token, assigns.token, assigns.creator_connections),
+        view: view(:token, assigns.token, %{}),
         market_cap: dollars(assigns.token.market_cap, assigns.rate)
       )
 

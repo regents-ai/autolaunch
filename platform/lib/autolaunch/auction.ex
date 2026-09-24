@@ -122,7 +122,7 @@ defmodule Autolaunch.Auction do
 
       argument :sort, :string,
         default: "newest",
-        constraints: [match: ~r/\A(newest|oldest|ending|volume)\z/]
+        constraints: [match: ~r/\A(newest|ending|volume)\z/]
 
       argument :chain, :string, default: "all", constraints: [match: ~r/\A(all|base|robinhood)\z/]
 
@@ -186,10 +186,9 @@ defmodule Autolaunch.Auction do
 
         order =
           case query.arguments.sort do
-            "oldest" -> [inserted_at: :asc, id: :asc]
             "ending" -> [estimated_end_at: :asc_nils_last, id: :asc]
             "volume" -> [bid_volume_usd: :desc_nils_last, id: :asc]
-            _ -> [inserted_at: :desc, id: :asc]
+            "newest" -> [inserted_at: :desc, id: :asc]
           end
 
         query =

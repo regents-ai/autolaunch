@@ -69,6 +69,6 @@
   .market-list__table--auctions :is(th, td):is(:nth-child(2), :nth-child(3)),
   .market-list__table--tokens :is(th, td):nth-child(3) { display: none; }
   .market-list__token { gap: 8px; }
-  .market-list__name strong { max-width: none; }
+  .market-list__name strong { min-width: 3em; max-width: none; }
   .auction-figures__time { width: 100%; }
 }

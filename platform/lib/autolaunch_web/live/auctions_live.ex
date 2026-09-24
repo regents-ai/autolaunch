@@ -6,8 +6,6 @@ defmodule AutolaunchWeb.AuctionsLive do
   """
   use AutolaunchWeb, :live_view
 
-  import AutolaunchWeb.Components.AutolaunchHelpers, only: [creator_connections_for: 1]
-
   import AutolaunchWeb.Components.MarketCard,
     only: [auction_list: 1, assign_figure_rates: 1, list_tools: 1]
 
@@ -21,7 +19,6 @@ defmodule AutolaunchWeb.AuctionsLive do
      |> assign(
        options: nil,
        records: [],
-       creators: %{},
        market: LabMarket.subscribe(socket),
        loading: true,
        failed: false,
@@ -62,17 +59,14 @@ defmodule AutolaunchWeb.AuctionsLive do
   def handle_event("retry", _params, socket), do: {:noreply, load(socket, socket.assigns.append)}
 
   def handle_async(:auctions, {:ok, {:ok, page}}, socket) do
-    {records, creators} =
+    records =
       if socket.assigns.append,
-        do:
-          {Enum.uniq_by(socket.assigns.records ++ page.records, & &1.id),
-           Map.merge(socket.assigns.creators, page.creators)},
-        else: {page.records, page.creators}
+        do: Enum.uniq_by(socket.assigns.records ++ page.records, & &1.id),
+        else: page.records
 
     {:noreply,
      assign(socket,
        records: records,
-       creators: creators,
        next_cursor: page.next_cursor,
        has_more: page.has_more,
        loading: false,
@@ -91,7 +85,6 @@ defmodule AutolaunchWeb.AuctionsLive do
       {:noreply,
        assign(socket,
          records: page.records,
-         creators: page.creators,
          next_cursor: page.next_cursor,
          has_more: page.has_more
        )}
@@ -129,11 +122,11 @@ defmodule AutolaunchWeb.AuctionsLive do
     |> then(
       &if(append?,
         do: &1,
-        else: assign(&1, records: [], creators: %{}, has_more: false, next_cursor: nil)
+        else: assign(&1, records: [], has_more: false, next_cursor: nil)
       )
     )
     |> assign(loading: true, failed: false, append: append?)
-    |> start_async(:auctions, fn -> with_creators(HomeMarket.read(options, cursor)) end)
+    |> start_async(:auctions, fn -> HomeMarket.read(options, cursor) end)
   end
 
   # The records loaded so far, read again in place, so every loaded page and
@@ -143,14 +136,9 @@ defmodule AutolaunchWeb.AuctionsLive do
     count = length(socket.assigns.records)
 
     start_async(socket, :auctions_reread, fn ->
-      {options, count, with_creators(HomeMarket.reread(options, count))}
+      {options, count, HomeMarket.reread(options, count)}
     end)
   end
-
-  defp with_creators({:ok, page}),
-    do: {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
-
-  defp with_creators(error), do: error
 
   defp pill(options) do
     cond do
@@ -220,7 +208,6 @@ defmodule AutolaunchWeb.AuctionsLive do
         <.auction_list
           :if={@records != [] or @loading}
           records={@records}
-          creators={@creators}
           rates={@rates}
           loading={@loading}
         />

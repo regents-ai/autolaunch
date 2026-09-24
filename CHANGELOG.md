@@ -12,6 +12,15 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   gallery for a moment: the cards shown stay until the new ones replace them.
 - A stock price that could not be read is tried again after one second, then two, four and so
   on, instead of staying missing for ten minutes.
+- The Robinhood feather is always Robinhood green.
+- Table view: each row reads the name, then the ticker in gray on the same line, with no check
+  mark. A live auction's status is a time bar in its chain's colour with the time left under it,
+  such as "5d 21h 48m". Times left no longer show seconds anywhere.
+- Sorting is a three-way switch: Recent, Closing and Highest. "Oldest first" is gone.
+- Grid and Table are shown as icons.
+- The Filter menu is only as wide as its choices, with a tick beside each chosen one and one
+  choice per group: status, network (All, Base, Robinhood), type, and which account the creator
+  has verified. "Reset filters" is gone. The menu closes when you click outside it or press Escape.
 
 ## v24, 24 September 2026 (b97e278)
 - A launch threshold met many times over reads "100% met" instead of a huge percentage.

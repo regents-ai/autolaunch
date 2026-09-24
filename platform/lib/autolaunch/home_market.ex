@@ -10,10 +10,9 @@ defmodule Autolaunch.HomeMarket do
     %{
       view: view,
       sort:
-        choice(
-          params["sort"],
-          if(view == "tokens", do: ~w(newest oldest), else: ~w(newest oldest ending volume)),
-          "newest"
+        if(view == "tokens",
+          do: "newest",
+          else: choice(params["sort"], ~w(newest ending volume), "newest")
         ),
       display: choice(params["display"], ~w(grid table), "grid"),
       state: if(view == "tokens", do: "all", else: choice(params["state"], states, "all")),
@@ -51,7 +50,6 @@ defmodule Autolaunch.HomeMarket do
 
     arguments = %{
       query: options.q,
-      sort: options.sort,
       chain: options.chain,
       kind: options.kind,
       x: options.x,
@@ -65,7 +63,7 @@ defmodule Autolaunch.HomeMarket do
           Auction
           |> Ash.Query.for_read(
             :home_market,
-            Map.merge(arguments, %{view: "new", state: options.state}),
+            Map.merge(arguments, %{view: "new", state: options.state, sort: options.sort}),
             actor: nil
           )
           |> Ash.Query.load(:fdv),

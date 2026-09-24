@@ -48,7 +48,6 @@ defmodule Autolaunch.Token do
       argument :ens, :boolean, default: false
       argument :github, :boolean, default: false
       argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
-      argument :sort, :string, default: "newest", constraints: [match: ~r/\A(newest|oldest)\z/]
       argument :chain, :string, default: "all", constraints: [match: ~r/\A(all|base|robinhood)\z/]
 
       argument :kind, :string,
@@ -98,12 +97,10 @@ defmodule Autolaunch.Token do
             do: Ash.Query.filter(query, exists(auction.creator_identities, provider == :github)),
             else: query
 
-        direction = if query.arguments.sort == "oldest", do: :asc, else: :desc
-
         query
         |> launchpad_query(nil)
         |> Ash.Query.unset([:sort, :limit])
-        |> Ash.Query.sort([{:graduated_at, direction}, {:id, :asc}])
+        |> Ash.Query.sort(graduated_at: :desc, id: :asc)
       end
     end
 

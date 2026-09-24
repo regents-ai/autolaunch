@@ -19,11 +19,15 @@ defmodule AutolaunchWeb.HomeLive do
       figure_rate: 2
     ]
 
+  import AutolaunchWeb.Components.ChainIcon
+  import AutolaunchWeb.Components.LinkIcon
   import AutolaunchWeb.Components.Opening, only: [welcome: 1]
   import AutolaunchWeb.Components.SwapModal
   import AutolaunchWeb.Components.AuctionStats
   alias Autolaunch.HomeMarket
   alias AutolaunchWeb.{LabMarket, LiveListings}
+
+  @no_connection %{x: false, ens: false, github: false}
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -63,14 +67,6 @@ defmodule AutolaunchWeb.HomeLive do
      push_patch(socket,
        to: HomeMarket.path(socket.assigns.market_options, %{q: Map.get(params, "q", "")})
      )}
-  end
-
-  def handle_event("filter", params, socket) do
-    changes =
-      Map.take(params, ~w(sort state chain kind x ens github))
-      |> Map.new(fn {key, value} -> {String.to_existing_atom(key), value} end)
-
-    {:noreply, push_patch(socket, to: HomeMarket.path(socket.assigns.market_options, changes))}
   end
 
   def handle_event(
@@ -218,6 +214,29 @@ defmodule AutolaunchWeb.HomeLive do
   defp kind(%{view: "tokens"}), do: :token
   defp kind(_options), do: :auction
 
+  attr :patch, :string, required: true
+  attr :selected, :boolean, required: true
+  attr :label, :string, default: nil, doc: "the option's name when it shows only a logo"
+  slot :inner_block, required: true
+
+  # One choice in the filter menu: a tick marks the chosen one in its group.
+  defp filter_option(assigns) do
+    ~H"""
+    <.link
+      patch={@patch}
+      class="home-filter__option"
+      aria-current={if @selected, do: "true"}
+      aria-label={@label}
+      title={@label}
+    >
+      <svg class="home-filter__check" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="m3 8.5 3.2 3L13 4.5" />
+      </svg>
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
   defp network_label("base"), do: "Base"
   defp network_label("robinhood"), do: "Robinhood"
   defp network_label(_), do: "Base + Robinhood"
@@ -226,7 +245,9 @@ defmodule AutolaunchWeb.HomeLive do
     assigns =
       assign(assigns,
         kind: kind(assigns.market_options),
-        listed?: assigns.records != []
+        listed?: assigns.records != [],
+        no_connection: @no_connection,
+        connections: Map.take(assigns.market_options, [:x, :ens, :github])
       )
 
     ~H"""
@@ -265,139 +286,169 @@ defmodule AutolaunchWeb.HomeLive do
       </header>
 
       <div class="home-toolbar">
-        <div class="home-tools">
-          <form id="home-filter-form" phx-change="filter" phx-submit="filter" class="home-filter-form">
-            <label class="home-sort">
-              <span class="visually-hidden">Sort coins</span>
-              <select name="sort" aria-label="Sort coins">
-                <option value="newest" selected={@market_options.sort == "newest"}>
-                  Recently launched
-                </option>
-                <option
-                  :if={@market_options.view == "auctions"}
-                  value="ending"
-                  selected={@market_options.sort == "ending"}
+        <nav :if={@kind == :auction} class="home-sort" aria-label="Sort auctions">
+          <.link
+            :for={
+              {value, label} <- [{"newest", "Recent"}, {"ending", "Closing"}, {"volume", "Highest"}]
+            }
+            patch={HomeMarket.path(@market_options, %{sort: value})}
+            aria-current={if @market_options.sort == value, do: "page"}
+          >{label}</.link>
+        </nav>
+        <nav class="home-display" aria-label="Display">
+          <.link
+            patch={HomeMarket.path(@market_options, %{display: "grid"})}
+            aria-current={if @market_options.display == "grid", do: "page"}
+            aria-label="Grid"
+            title="Grid"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <rect x="1" y="1" width="6" height="6" rx="1.5" /><rect
+                x="9"
+                y="1"
+                width="6"
+                height="6"
+                rx="1.5"
+              /><rect x="1" y="9" width="6" height="6" rx="1.5" /><rect
+                x="9"
+                y="9"
+                width="6"
+                height="6"
+                rx="1.5"
+              />
+            </svg>
+          </.link>
+          <.link
+            patch={HomeMarket.path(@market_options, %{display: "table"})}
+            aria-current={if @market_options.display == "table", do: "page"}
+            aria-label="Table"
+            title="Table"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <rect x="1" y="2" width="14" height="2.5" rx="1.25" /><rect
+                x="1"
+                y="6.75"
+                width="14"
+                height="2.5"
+                rx="1.25"
+              /><rect x="1" y="11.5" width="14" height="2.5" rx="1.25" />
+            </svg>
+          </.link>
+        </nav>
+        <details
+          id="home-filters"
+          class="home-filter"
+          phx-hook=".FilterMenu"
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+        >
+          <summary>
+            Filter<span
+              :if={
+                @market_options.state != "all" or @market_options.chain != "all" or
+                  @market_options.kind != "all" or @market_options.x or @market_options.ens or
+                  @market_options.github
+              }
+              class="home-filter__active"
+              aria-label="Filter active"
+            ></span>
+          </summary>
+          <div class="home-filter__panel">
+            <div :if={@kind == :auction} class="home-filter__group" role="group" aria-label="Status">
+              <span class="home-filter__label" aria-hidden="true">Status</span>
+              <.filter_option
+                :for={
+                  {value, label} <- [
+                    {"all", "All"},
+                    {"created", "Opening soon"},
+                    {"active", "Live"},
+                    {"ended", "Waiting to finish"},
+                    {"failed", "Failed"},
+                    {"graduated", "Launched"}
+                  ]
+                }
+                patch={HomeMarket.path(@market_options, %{state: value})}
+                selected={@market_options.state == value}
+              >
+                {label}
+              </.filter_option>
+            </div>
+            <div class="home-filter__group" role="group" aria-label="Network">
+              <span class="home-filter__label" aria-hidden="true">Network</span>
+              <div class="home-filter__row">
+                <.filter_option
+                  patch={HomeMarket.path(@market_options, %{chain: "all"})}
+                  selected={@market_options.chain == "all"}
                 >
-                  Closing soon · live auctions
-                </option>
-                <option
-                  :if={@market_options.view == "auctions"}
-                  value="volume"
-                  selected={@market_options.sort == "volume"}
+                  All
+                </.filter_option>
+                <.filter_option
+                  :for={chain <- [:base, :robinhood]}
+                  patch={HomeMarket.path(@market_options, %{chain: Atom.to_string(chain)})}
+                  selected={@market_options.chain == Atom.to_string(chain)}
                 >
-                  Highest bid volume · USD estimate
-                </option>
-                <option value="oldest" selected={@market_options.sort == "oldest"}>
-                  Oldest first
-                </option>
-              </select>
-            </label>
-            <details
-              id="home-filters"
-              class="home-filter"
-              phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
-            >
-              <summary>
-                Filter<span
-                  :if={
-                    @market_options.state != "all" or @market_options.chain != "all" or
-                      @market_options.kind != "all" or @market_options.x or @market_options.ens or
-                      @market_options.github
-                  }
-                  class="home-filter__active"
-                  aria-label="Filter active"
-                ></span>
-              </summary>
-              <div class="home-filter__panel">
-                <label :if={@market_options.view != "tokens"} for="home-state">Auction state</label>
-                <select :if={@market_options.view != "tokens"} name="state" id="home-state">
-                  <option value="all" selected={@market_options.state == "all"}>
-                    All auctions
-                  </option>
-                  <option value="created" selected={@market_options.state == "created"}>
-                    Opening soon
-                  </option>
-                  <option value="active" selected={@market_options.state == "active"}>Live</option>
-                  <option value="ended" selected={@market_options.state == "ended"}>
-                    Waiting to finish
-                  </option>
-                  <option
-                    value="failed"
-                    selected={@market_options.state == "failed"}
-                  >
-                    Failed
-                  </option>
-                  <option value="graduated" selected={@market_options.state == "graduated"}>
-                    Launched
-                  </option>
-                </select>
-                <label for="home-chain">Network</label>
-                <select name="chain" id="home-chain">
-                  <option
-                    :for={
-                      {value, label} <- [
-                        {"all", "All networks"},
-                        {"base", "Base"},
-                        {"robinhood", "Robinhood"}
-                      ]
-                    }
-                    value={value}
-                    selected={@market_options.chain == value}
-                  >
-                    {label}
-                  </option>
-                </select>
-                <label for="home-launch-kind">Auction type</label>
-                <select name="kind" id="home-launch-kind">
-                  <option
-                    :for={
-                      {value, label} <- [
-                        {"all", "All types"},
-                        {"revstake", "Revstake"},
-                        {"memestake", "Memestake"}
-                      ]
-                    }
-                    value={value}
-                    selected={@market_options.kind == value}
-                  >
-                    {label}
-                  </option>
-                </select>
-                <fieldset class="home-social-filters">
-                  <legend>Creator connections</legend>
-                  <label :for={{key, label} <- [x: "X", ens: "ENS", github: "GitHub"]}>
-                    <input type="hidden" name={key} value="false" />
-                    <input
-                      type="checkbox"
-                      name={key}
-                      value="true"
-                      checked={Map.fetch!(@market_options, key)}
-                    />
-                    {label}
-                  </label>
-                  <small>Match every selected connection.</small>
-                </fieldset>
-                <.link patch={
-                  HomeMarket.path(@market_options, %{
-                    state: "all",
-                    chain: "all",
-                    kind: "all",
-                    x: false,
-                    ens: false,
-                    github: false
-                  })
-                }>Reset filters</.link>
+                  <.chain_icon chain={chain} />
+                </.filter_option>
               </div>
-            </details>
-          </form>
-          <nav class="home-display" aria-label="Display mode">
-            <.link
-              :for={{value, label} <- [{"grid", "Grid"}, {"table", "Table"}]}
-              patch={HomeMarket.path(@market_options, %{display: value})}
-              aria-current={if @market_options.display == value, do: "page"}
-            >{label}</.link>
-          </nav>
-        </div>
+            </div>
+            <div class="home-filter__group" role="group" aria-label="Type">
+              <span class="home-filter__label" aria-hidden="true">Type</span>
+              <div class="home-filter__row">
+                <.filter_option
+                  :for={
+                    {value, label} <- [
+                      {"all", "All"},
+                      {"revstake", "Revstake"},
+                      {"memestake", "Memestake"}
+                    ]
+                  }
+                  patch={HomeMarket.path(@market_options, %{kind: value})}
+                  selected={@market_options.kind == value}
+                >
+                  {label}
+                </.filter_option>
+              </div>
+            </div>
+            <div class="home-filter__group" role="group" aria-label="Creator verified">
+              <span class="home-filter__label" aria-hidden="true">Creator verified</span>
+              <div class="home-filter__row">
+                <.filter_option
+                  patch={HomeMarket.path(@market_options, @no_connection)}
+                  selected={@connections == @no_connection}
+                >
+                  Any
+                </.filter_option>
+                <.filter_option
+                  :for={{key, label} <- [x: "X", ens: "ENS", github: "GitHub"]}
+                  patch={HomeMarket.path(@market_options, %{@no_connection | key => true})}
+                  selected={@connections == %{@no_connection | key => true}}
+                  label={label}
+                >
+                  <.link_icon kind={key} />
+                </.filter_option>
+              </div>
+            </div>
+          </div>
+        </details>
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".FilterMenu">
+          export default {
+            mounted() {
+              this.outside = (event) => {
+                if (this.el.open && !this.el.contains(event.target)) this.el.open = false
+              }
+              this.escape = (event) => {
+                if (event.key !== "Escape" || !this.el.open) return
+                this.el.open = false
+                this.el.querySelector("summary").focus()
+              }
+              document.addEventListener("pointerdown", this.outside)
+              document.addEventListener("keydown", this.escape)
+            },
+            destroyed() {
+              document.removeEventListener("pointerdown", this.outside)
+              document.removeEventListener("keydown", this.escape)
+            }
+          }
+        </script>
       </div>
 
       <p :if={@market_options.sort == "volume"} class="home-search-context">
@@ -455,13 +506,11 @@ defmodule AutolaunchWeb.HomeLive do
         <.auction_list
           :if={@listed? && @market_options.display == "table" && @records_kind == :auction}
           records={@records}
-          creators={@creators}
           rates={@rates}
         />
         <.token_list
           :if={@listed? && @market_options.display == "table" && @records_kind == :token}
           records={@records}
-          creators={@creators}
           rates={@rates}
         />
 
