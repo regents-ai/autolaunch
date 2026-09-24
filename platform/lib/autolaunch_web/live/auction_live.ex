@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.AuctionLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
+  import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.AuctionHistory
   import AutolaunchWeb.Components.AuctionPage, only: [headline: 1, details_window: 1]
@@ -305,7 +306,6 @@ defmodule AutolaunchWeb.AuctionLive do
             <.detail_card
               kind={:auction}
               record={@page_record}
-              creator_connections={@creator_connections}
               trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
               status={settling_status(@page_record, @bidding_ended?)}
             >
@@ -317,6 +317,11 @@ defmodule AutolaunchWeb.AuctionLive do
                 />
               </:price_note>
             </.detail_card>
+            <.launch_trust
+              auction={@page_record}
+              connections={@creator_connections}
+              token_path={@graduated_token && "/tokens/#{@graduated_token.id}#pool"}
+            />
             <p
               :if={@page_record.state == :graduated && @graduated_token}
               id="auction-pool-link"

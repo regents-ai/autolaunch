@@ -97,9 +97,8 @@
   #home-explore .home-coin__metric { height: 2.8em; white-space: normal; }
   #home-explore .home-coin__metric > span:not(.visually-hidden) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #home-explore .home-coin__metric > span:last-child { margin-left: 0; }
-  #home-explore .home-coin__links { --link-rows: 6; }
-  #home-explore .home-coin__links .launchpad-card__socials { grid-template-columns: minmax(0, 1fr); }
-  #home-explore .home-coin__description { --text-lines: 6; }
+  #home-explore .home-coin__links .launchpad-card__socials { column-gap: 8px; }
+  #home-explore .home-coin__description { --text-lines: 4; }
   #home-explore .home-coin__figures { --figure-lines: 5; }
   #home-explore .home-coin__raise p span { display: block; }
 }

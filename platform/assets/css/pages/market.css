@@ -92,12 +92,25 @@
 .chain-chip--base { --chain-color: #0052ff; }
 .chain-chip--robinhood { --chain-color: #00c805; }
 
-/* Who launched it, and each account they could connect. */
-.market-creator { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }
-.market-creator > h2 { margin: 0; }
-.market-creator > p { margin: 0; font-size: .8125rem; overflow-wrap: anywhere; }
-.market-creator__accounts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; font-size: .8125rem; }
-.market-creator__accounts > div { display: contents; }
-.market-creator__accounts dt { color: var(--color-fg-muted); }
-.market-creator__accounts dd { margin: 0; overflow-wrap: anywhere; }
-.market-creator__missing { color: var(--color-fg-muted); }
+/* A launch's trust section: who is behind it, then the launch itself, as two separate blocks. */
+.launch-trust { display: grid; gap: 16px; min-width: 0; }
+.launch-trust__block { display: grid; gap: 10px; min-width: 0; padding: 16px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--color-surface); }
+.launch-trust__block > h2 { margin: 0; font-size: 1.0625rem; }
+.launch-trust__block > h3 { margin: 8px 0 0; }
+.launch-trust__block > p { margin: 0; font-size: .8125rem; }
+.launch-trust__rows { display: grid; grid-template-columns: 13.5em minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: .8125rem; }
+.launch-trust__rows > div { display: contents; }
+.launch-trust__rows dt { color: var(--color-fg-muted); }
+.launch-trust__rows dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.launch-trust__checked { display: inline-block; margin-left: 8px; padding: 0 6px; border: 1px solid color-mix(in srgb, #3ee04c 60%, var(--hairline)); border-radius: 4px; font-size: .6875rem; line-height: 1.5; white-space: nowrap; }
+.launch-trust__checked > span { color: #3ee04c; }
+:root[data-theme="light"] .launch-trust__checked > span { color: #1f9e2c; }
+.launch-trust__muted { color: var(--color-fg-muted); }
+.launch-trust__rows a + .launch-trust__muted { margin-left: 8px; }
+.launch-trust__block > .launch-trust__note { color: var(--color-fg-muted); }
+.launch-trust__block > .launch-trust__status { font-size: .875rem; font-weight: 600; }
+.launch-trust__positions { display: grid; gap: 4px; margin: 0; padding-left: 18px; font-size: .8125rem; overflow-wrap: anywhere; }
+@media (max-width: 30rem) {
+  .launch-trust__rows { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .launch-trust__rows dd + dt, .launch-trust__rows > div + div > dt { margin-top: 6px; }
+}

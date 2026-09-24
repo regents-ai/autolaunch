@@ -5,6 +5,7 @@ defmodule AutolaunchWeb.TokenLive do
 
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.MarketCard
+  import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PoolSection
   import AutolaunchWeb.Components.PriceChart
 
@@ -83,7 +84,6 @@ defmodule AutolaunchWeb.TokenLive do
       <.detail_card
         kind={:token}
         record={@page_record}
-        creator_connections={@creator_connections}
       />
       <.price_chart
         :if={@pool.ok?}
@@ -113,6 +113,11 @@ defmodule AutolaunchWeb.TokenLive do
       <p :if={@page_record.auction.auction_address} class="autolaunch-live-market">
         <.link navigate={"/auctions/#{@page_record.auction.id}"}>Open the auction this token launched from</.link>
       </p>
+      <.launch_trust
+        auction={@page_record.auction}
+        connections={@creator_connections}
+        pool={if(@pool.ok?, do: @pool.result)}
+      />
       <.pool_facts pool={@pool} />
       <section id="stake" aria-label="Staking">
         <.live_component

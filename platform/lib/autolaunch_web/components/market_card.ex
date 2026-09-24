@@ -775,7 +775,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
     values: [:auction, :token]
 
   attr :record, :map, required: true
-  attr :creator_connections, :map, default: %{}
 
   attr :trade_path, :string,
     default: nil,
@@ -789,7 +788,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   def detail_card(assigns) do
     assigns =
-      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
+      assign(assigns, :view, view(assigns.kind, assigns.record, %{}))
 
     ~H"""
     <section
@@ -845,7 +844,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
         >
           {@view.description}
         </p>
-        <.creator_block view={@view} />
       </div>
     </section>
     """
@@ -864,60 +862,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp chain_short("Robinhood"), do: "RH"
   defp chain_short("Base"), do: "Base"
-
-  attr :view, :map, required: true
-
-  # Who launched it: the launching wallet in full, linked to its explorer
-  # page, then each account the creator connected, written as its handle.
-  # An account kind the creator has not connected is marked; Company X is
-  # listed only when there is one.
-  defp creator_block(assigns) do
-    connections = assigns.view.connections
-
-    rows =
-      Enum.flat_map(["X", "Company X", "ENS", "GitHub"], fn label ->
-        case {label, Enum.filter(connections, &(&1.label == label))} do
-          {"Company X", []} -> []
-          {label, []} -> [{label, nil}]
-          {label, matching} -> Enum.map(matching, &{label, &1})
-        end
-      end)
-
-    assigns =
-      assign(assigns,
-        website: web_link(assigns.view.website),
-        wallet: assigns.view.creator_address && wallet_link(assigns.view),
-        rows: rows
-      )
-
-    ~H"""
-    <section class="market-creator" aria-label="Creator">
-      <h2 class="autolaunch-micro">Created by</h2>
-      <p :if={@wallet} class="autolaunch-exact-value">
-        <a href={@wallet.url} target="_blank" rel="noopener noreferrer">{@wallet.address}</a>
-      </p>
-      <dl class="market-creator__accounts">
-        <div :for={{label, connection} <- @rows}>
-          <dt>{label}</dt>
-          <dd :if={connection}>
-            <a href={connection.url} target="_blank" rel="noopener noreferrer">
-              {connection.handle}
-            </a>
-          </dd>
-          <dd :if={!connection} class="market-creator__missing">Not connected</dd>
-        </div>
-        <div :if={@website}>
-          <dt>Website</dt>
-          <dd>
-            <a href={@website.url} target="_blank" rel="noopener noreferrer nofollow">
-              {@website.label}
-            </a>
-          </dd>
-        </div>
-      </dl>
-    </section>
-    """
-  end
 
   attr :view, :map, required: true
 
@@ -1156,13 +1100,17 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp metric(amount, unit), do: %{amount: present(amount, nil), unit: present(unit, nil)}
 
-  defp connection_list(connections) when is_map(connections) do
+  @doc """
+  The accounts a creator connected and proved they own, each with its label,
+  handle and link, in the order X, Company X, ENS, GitHub.
+  """
+  def connection_list(connections) when is_map(connections) do
     [:profile, :x, :company, :ens, :github]
     |> Enum.flat_map(&connection(&1, Map.get(connections, &1)))
     |> Enum.uniq_by(& &1.url)
   end
 
-  defp connection_list(_connections), do: []
+  def connection_list(_connections), do: []
 
   defp connection(key, %{verified_at: %DateTime{}, username: name})
        when is_binary(name) and name != "" do
@@ -1197,7 +1145,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp relative_age(_at), do: nil
 
-  defp web_link(url) when is_binary(url) do
+  @doc """
+  A creator's website as a link and a short label, or nil when it is not an
+  ordinary web address or names this site or Regents.
+  """
+  def web_link(url) when is_binary(url) do
     case URI.parse(String.trim(url)) do
       %URI{scheme: scheme, host: host} = uri
       when scheme in ["http", "https"] and host not in [nil, ""] ->
@@ -1208,7 +1160,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     end
   end
 
-  defp web_link(_url), do: nil
+  def web_link(_url), do: nil
 
   # A creator who names this site or Regents as their website has named no
   # website of their own.

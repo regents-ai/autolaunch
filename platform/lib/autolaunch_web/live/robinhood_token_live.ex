@@ -16,6 +16,7 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
     only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
+  import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.PriceChart
 
   alias Autolaunch.Chain.Address
@@ -92,7 +93,6 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <.detail_card
         kind={:token}
         record={@token}
-        creator_connections={@creator_connections.result}
       />
       <.price_chart
         :if={@pool.ok?}
@@ -135,6 +135,11 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
           Open the auction this token launched from
         </.link>
       </p>
+      <.launch_trust
+        auction={@token.auction}
+        connections={@creator_connections.result}
+        pool={if(@pool.ok?, do: @pool.result)}
+      />
       <section id="stake" aria-label="Staking">
         <.live_component
           :if={@pool.ok?}

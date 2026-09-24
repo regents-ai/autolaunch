@@ -17,6 +17,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     only: [connections_for: 2, creator_connections_for: 1, current_human_id: 1]
 
   import AutolaunchWeb.Components.MarketCard, only: [detail_card: 1]
+  import AutolaunchWeb.Components.LaunchTrust
   import AutolaunchWeb.Components.AuctionBook
   import AutolaunchWeb.Components.AuctionHistory
   import AutolaunchWeb.Components.AuctionPage, only: [headline: 1, details_window: 1]
@@ -166,7 +167,6 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             <.detail_card
               kind={:auction}
               record={@launch}
-              creator_connections={@creator_connections.result}
             >
               <:price_note>
                 <UsdValue.usd
@@ -176,6 +176,11 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
                 />
               </:price_note>
             </.detail_card>
+            <.launch_trust
+              auction={@launch}
+              connections={@creator_connections.result}
+              token_path={@launch.state == :graduated && "/robinhood/tokens/#{@launch.token_address}"}
+            />
             <p
               :if={@launch.state == :graduated}
               id="robinhood-token-link"
