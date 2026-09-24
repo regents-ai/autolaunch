@@ -352,10 +352,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               <Regent.Primitives.button
                 :if={standing == :outbid && @sent == %{}}
                 type="button"
-                phx-click={
-                  JS.push("raise_bid", value: %{bid_id: bid["bid_id"]}, target: @myself)
-                  |> JS.focus(to: "##{@id}-amount")
-                }
+                phx-click={JS.push("raise_bid", value: %{bid_id: bid["bid_id"]}, target: @myself)}
                 variant="secondary"
               >
                 Raise my bid to keep buying
@@ -363,10 +360,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               <Regent.Primitives.button
                 :if={standing in [:in, :sharing] && @sent == %{}}
                 type="button"
-                phx-click={
-                  JS.push("add_to_bid", value: %{bid_id: bid["bid_id"]}, target: @myself)
-                  |> JS.focus(to: "##{@id}-amount")
-                }
+                phx-click={JS.push("add_to_bid", value: %{bid_id: bid["bid_id"]}, target: @myself)}
                 variant="secondary"
               >
                 Add to this bid
@@ -441,14 +435,14 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
     rate = UsdValue.stock_rate(prices.result, reading_symbol(reading))
     amount = socket.assigns |> own_bid(bid_id) |> usdg_worth(rate)
     form = %{BidForm.blank() | amount: amount}
-    {:noreply, socket |> assign(form: form, new_bid: true, notice: nil) |> prepare_when_ready()}
+    {:noreply, socket |> assign(form: form, new_bid: true, notice: nil) |> new_bid_entered()}
   end
 
   # A new bid beside one still buying, up to the same most per token.
   def handle_event("add_to_bid", %{"bid_id" => bid_id}, socket) do
     limit = socket.assigns |> own_bid(bid_id) |> max_price(socket.assigns.book)
     form = %{BidForm.blank() | at_price: false, limit_mode: "price", limit: limit}
-    {:noreply, socket |> assign(form: form, new_bid: true, notice: nil) |> prepare_when_ready()}
+    {:noreply, socket |> assign(form: form, new_bid: true, notice: nil) |> new_bid_entered()}
   end
 
   # "Change bid" keeps the entered amounts to adjust; a placed bid starts a fresh form.
@@ -943,10 +937,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp open_standing(_bid, _book, _reading, _ended), do: nil
 
+  # The amount box is focused once it shows the new figures: a box already
+  # focused keeps what it holds when the page changes around it.
+  defp new_bid_entered(socket),
+    do:
+      socket
+      |> prepare_when_ready()
+      |> push_event("reviewed-steps:focus", %{
+        component_id: socket.assigns.id,
+        to: "#{socket.assigns.id}-amount"
+      })
+
   # The rest comes back early only once the auction has reached its minimum,
   # and only once it has recorded a price above the bid.
-  defp back(%{graduated?: true}, :waiting), do: :price_recorded
-  defp back(%{graduated?: true}, _offered_or_unknown), do: :now
+  defp back(%{graduated?: true}, :ready), do: :now
+  defp back(%{graduated?: true}, _not_yet), do: :price_recorded
   defp back(_reading, _early_return), do: :after_end
 
   defp own_bid(%{reading: %{bids: bids}}, bid_id), do: Enum.find(bids, &(&1["bid_id"] == bid_id))
