@@ -3,9 +3,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
   use Phoenix.Component
 
   alias Autolaunch.Chain.Rpc
+  alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Token
-  alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay}
+  alias Autolaunch.Stocks.MarketData
+  alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay, UsdValue}
 
   @own_sites ["autolaunch.sh", "regents.sh"]
 
@@ -237,6 +239,40 @@ defmodule AutolaunchWeb.Components.MarketCard do
     </dl>
     """
   end
+
+  @doc """
+  Reads the dollar prices the auction figures use into `:rates`, in the
+  background: REGENT's price and each chain's stock prices. A test network's
+  coins carry no dollar value, so its prices stay unknown.
+  """
+  def assign_figure_rates(socket) do
+    Phoenix.LiveView.assign_async(socket, :rates, fn ->
+      {:ok,
+       %{
+         rates: %{
+           regent: if(!Lab.test_chain?(), do: MarketData.regent_price()),
+           base: if(!Lab.test_chain?(), do: MarketData.prices(:base)),
+           robinhood: if(!RobinhoodLab.test_chain?(), do: MarketData.prices(:robinhood))
+         }
+       }}
+    end)
+  end
+
+  @doc "The USD price of one unit of the auction's currency; nil while none is known."
+  def figure_rate(%{ok?: true, result: rates}, auction) do
+    cond do
+      RobinhoodLab.chain?(auction.chain_id) ->
+        UsdValue.stock_rate(rates.robinhood, auction.quote_token_symbol)
+
+      auction.kind == :agent ->
+        rates.regent
+
+      true ->
+        UsdValue.stock_rate(rates.base, auction.quote_token_symbol)
+    end
+  end
+
+  def figure_rate(_rates, _auction), do: nil
 
   defp figures(auction, rate) do
     minimum =
