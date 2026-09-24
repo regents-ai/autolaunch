@@ -21,7 +21,7 @@ defmodule AutolaunchWeb.Live.PageTitle do
     AutolaunchWeb.PortfolioLive => "Portfolio",
     AutolaunchWeb.RegentLive => "REGENT",
     AutolaunchWeb.TokenDetailsLive => "Token details",
-    AutolaunchWeb.ConvertLive => "REGENT's share"
+    AutolaunchWeb.ConvertLive => "REGENT's share of fees"
   }
 
   def on_mount(:default, _params, _session, socket),

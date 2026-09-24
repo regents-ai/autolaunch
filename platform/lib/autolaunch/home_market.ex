@@ -33,10 +33,15 @@ defmodule Autolaunch.HomeMarket do
       |> Map.new(fn {key, value} -> {to_string(key), value} end)
       |> options()
 
-    query =
-      params |> Enum.reject(fn {_, value} -> value == "" end) |> Enum.sort() |> URI.encode_query()
+    defaults = options(%{})
 
-    base <> "?" <> query
+    query =
+      params
+      |> Enum.reject(fn {key, value} -> value == "" or value == defaults[key] end)
+      |> Enum.sort()
+      |> URI.encode_query()
+
+    if query == "", do: base, else: base <> "?" <> query
   end
 
   def read(options, cursor \\ nil) do
