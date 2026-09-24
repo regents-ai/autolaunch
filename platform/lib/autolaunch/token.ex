@@ -118,6 +118,14 @@ defmodule Autolaunch.Token do
       prepare build(load: [:treasury_security_report, :auction])
     end
 
+    # The projections' own read of an auction's token, beneath every listing
+    # policy: a Robinhood launch made outside the site has a token too.
+    read :projection_by_auction do
+      get? true
+      argument :auction_id, :uuid, allow_nil?: false
+      filter expr(auction_id == ^arg(:auction_id))
+    end
+
     # The graduated auction page links to its token's pool from here.
     read :public_by_auction do
       get? true
@@ -187,7 +195,7 @@ defmodule Autolaunch.Token do
       authorize_if always()
     end
 
-    policy action([:project_lab, :set_price_snapshot]) do
+    policy action([:project_lab, :projection_by_auction, :set_price_snapshot]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end

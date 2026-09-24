@@ -250,6 +250,11 @@ defmodule Autolaunch do
 
       define :project_lab_token, action: :project_lab
 
+      define :get_token_for_projection,
+        action: :projection_by_auction,
+        args: [:auction_id],
+        not_found_error?: false
+
       define :list_subject_tokens,
         action: :for_subject,
         args: [:subject_id]

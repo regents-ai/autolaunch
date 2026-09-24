@@ -14,7 +14,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
   - Refresh. A bounded page of Robinhood rows (`Autolaunch.MarketWatch`) is
     read against the rollup block clock the contracts keep time by
     (`Autolaunch.Robinhood.BlockClock`): state (`Autolaunch.Auction.MarketState`),
-    minimum reached and clearing price are written back; raised amount,
+    minimum reached and clearing price are written back, and a graduated
+    launch's token takes its pool's price; raised amount,
     schedule and a graduated launch's pool, splitter and locker are kept as
     per-auction readings. A launch seen graduated gets its `Token` row
     (`Autolaunch.LabProjection.project_graduated_token/1`, as a Base Memestake
@@ -285,8 +286,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
     end)
   end
 
-  defp collect_reading({:ok, reading, changed_id}, _auction, {snapshots, changed}),
-    do: {Map.put(snapshots, reading.auction_address, reading), List.wrap(changed_id) ++ changed}
+  defp collect_reading({:ok, reading, changed_ids}, _auction, {snapshots, changed}),
+    do: {Map.put(snapshots, reading.auction_address, reading), changed_ids ++ changed}
 
   defp collect_reading({:error, reason}, auction, collected) do
     Logger.warning(
@@ -320,7 +321,29 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         pool: market.pool
       }
 
-      with {:ok, changed_id} <- write(auction, reading), do: {:ok, reading, changed_id}
+      with {:ok, changed_id} <- write(auction, reading) do
+        {:ok, reading, Enum.uniq(List.wrap(changed_id) ++ price(reader, head, auction, reading))}
+      end
+    end
+  end
+
+  # A graduated launch's token takes its pool's price on every reading, as a
+  # Base Memestake token does. A price that cannot be read is logged and left
+  # as it was; the auction's own reading still stands.
+  defp price(_reader, _head, _auction, %{pool: nil}), do: []
+
+  defp price(reader, head, auction, reading) do
+    with {:ok, quote} <-
+           safely(fn -> reader.price_quote(head, reading.pool, auction.quote_token_decimals) end),
+         {:ok, changed?} <- LabProjection.project_token_price(auction.id, quote) do
+      if changed?, do: [auction.id], else: []
+    else
+      {:error, reason} ->
+        Logger.warning(
+          "robinhood market feed could not price #{auction.auction_address}: #{inspect(reason)}"
+        )
+
+        []
     end
   end
 
@@ -478,6 +501,8 @@ defmodule Autolaunch.Robinhood.MarketFeed do
       if Enum.at(words, @lifecycle_index) == @graduated do
         %{
           pool_id: bytes32(Enum.at(words, 11)),
+          token: address(Enum.at(words, 1)),
+          stock: address(Enum.at(words, 2)),
           splitter: address(Enum.at(words, 13)),
           lp_token_id: Enum.at(words, 14),
           locker: Lab.address!(head.config, :stocks_locker)
@@ -494,6 +519,20 @@ defmodule Autolaunch.Robinhood.MarketFeed do
       do:
         "0x" <>
           (word |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(40, "0"))
+
+    def price_quote(head, pool, stock_decimals) do
+      Autolaunch.Pool.pool_price_quote(
+        %{
+          pool_manager: Lab.address!(head.config, :pool_manager),
+          pool_id: pool.pool_id,
+          token: pool.token,
+          currency: pool.stock,
+          currency_decimals: stock_decimals
+        },
+        head.block,
+        head.opts
+      )
+    end
 
     # The token's `tokenURI()` is a base64 JSON object holding only the
     # metadata fields the launch filled in.
