@@ -53,6 +53,9 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
 
     def market(_head, auction), do: Map.fetch(chain().markets, auction)
 
+    def terms(_head, _auction, price),
+      do: {:ok, %{floor_price: price.(7 * 2 ** 96), token_supply: Decimal.new("1000000")}}
+
     def price_quote(_head, %{pool_id: pool_id}, 18) do
       case Map.fetch(chain().prices, pool_id) do
         {:ok, :unreadable} -> {:error, :chain_unavailable}
