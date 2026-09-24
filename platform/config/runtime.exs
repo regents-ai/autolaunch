@@ -157,17 +157,19 @@ database_config =
   end
 
 # The Base log ledger follows the Base description: its own door, its factory,
-# from the block `start_blocks.factory` names. A description for the test
-# chain (a local lab or a hosted fork) names no start blocks and keeps the
-# ledger off; the market feeds read those chains directly. The test environment
-# owns this setting outright so a shell that exports a description cannot start
-# an indexer under a test run.
+# from the block `start_blocks.factory` names. A description that names no
+# start blocks keeps the ledger off; the market feeds read those chains
+# directly. Under ExUnit the test environment owns this setting outright, so a
+# shell that exports a description cannot start an indexer under a test run; a
+# browser or lab server follows its description as production does.
+exunit? = config_env() == :test and System.get_env("AUTOLAUNCH_BROWSER_TEST") != "1"
+
 indexer_chains =
-  case {config_env(), base_deployment} do
-    {:test, _owned_by_test} ->
+  case {exunit?, base_deployment} do
+    {true, _owned_by_test} ->
       []
 
-    {_env, %{start_blocks: %{"factory" => start_block}} = deployment} ->
+    {false, %{start_blocks: %{"factory" => start_block}} = deployment} ->
       [
         %{
           chain_id: deployment.chain_id,
@@ -176,7 +178,7 @@ indexer_chains =
         }
       ]
 
-    {_env, _no_ledger} ->
+    {false, _no_ledger} ->
       []
   end
 

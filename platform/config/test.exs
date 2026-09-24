@@ -99,13 +99,16 @@ config :autolaunch,
 
 config :autolaunch, :database_startup_enabled, true
 
-# The log ledger never runs under test: the tests drive its handler directly
-# against a fake endpoint, and nothing in the shell can turn it on.
-config :autolaunch, :autolaunch_indexer_chains, []
+# The log ledger never runs under ExUnit: the tests drive its handler directly
+# against a fake endpoint. A browser or lab server reads its chain for real
+# (runtime.exs starts the ledger when its Base description names start blocks).
+unless System.get_env("AUTOLAUNCH_BROWSER_TEST") == "1" do
+  config :autolaunch, :autolaunch_indexer_chains, []
 
-config :autolaunch,
-       :autolaunch_indexer_http_client,
-       Autolaunch.TestAutolaunchIndexerChainClient
+  config :autolaunch,
+         :autolaunch_indexer_http_client,
+         Autolaunch.TestAutolaunchIndexerChainClient
+end
 
 # Stock prices and venues are unavailable to ExUnit, so the create page renders
 # without them; a review server reads them from the real chains and DexScreener.
