@@ -31,7 +31,6 @@ defmodule AutolaunchWeb.BidComponent do
     wrong_signer:
       "Switch back to the wallet you signed in with, or sign out and sign in with this one.",
     session_unavailable: "Sign in again to continue.",
-    auction_not_biddable: "This auction is not taking bids.",
     auction_currency_changed:
       "This auction's currency does not match its record. Bidding is paused here.",
     amount_above_balance: "That is more than this wallet holds.",

@@ -197,7 +197,8 @@ defmodule Autolaunch.Robinhood.Positions do
   end
 
   # The auction's own rules, in order: an un-exited bid is in the auction until
-  # the end block, refundable in full when the auction failed, and otherwise
+  # the end block; after it, refundable in full when the raise stayed below its
+  # minimum (whether or not the launch has been finished yet), and otherwise
   # waiting on its exit; an exited bid with fill claims from the claim block.
   defp standing(%{exited_block: 0}, %{state: state}, _venue) when state in [:created, :active],
     do: {:ok, :bidding, nil, nil}
@@ -205,7 +206,15 @@ defmodule Autolaunch.Robinhood.Positions do
   defp standing(%{exited_block: 0, amount: amount}, %{state: :failed}, _venue),
     do: {:ok, :refundable, amount, nil}
 
-  defp standing(%{exited_block: 0}, %{state: :graduated}, _venue), do: {:ok, :ended, nil, nil}
+  defp standing(
+         %{exited_block: 0, amount: amount},
+         %{state: :ended, minimum_reached: false},
+         _venue
+       ),
+       do: {:ok, :refundable, amount, nil}
+
+  defp standing(%{exited_block: 0}, %{state: state}, _venue) when state in [:ended, :graduated],
+    do: {:ok, :ended, nil, nil}
 
   defp standing(%{tokens_filled: 0} = bid, auction, venue) do
     with {:ok, claimed?} <- claimed?(bid, auction.auction, venue) do

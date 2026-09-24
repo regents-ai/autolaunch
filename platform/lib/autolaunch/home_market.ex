@@ -6,7 +6,7 @@ defmodule Autolaunch.HomeMarket do
 
   def options(params) do
     view = if params["view"] == "tokens", do: "tokens", else: "auctions"
-    states = ~w(all created active failed)
+    states = ~w(all created active ended failed)
 
     %{
       view: view,

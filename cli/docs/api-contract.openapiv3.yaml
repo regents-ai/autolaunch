@@ -180,7 +180,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [all, biddable, live, failed_minimum, graduated]
+            enum: [all, biddable, live, ended, failed_minimum, graduated]
             default: all
         - name: sort
           in: query
@@ -413,7 +413,7 @@ components:
       description: A Base auction, as the site records it.
       type: object
       additionalProperties: false
-      required: [id, chain, chain_id, address, title, token_symbol, summary, featured, kind, state, opened_at, quote_token, clearing_price, treasury_security]
+      required: [id, chain, chain_id, address, title, token_symbol, summary, featured, kind, state, minimum_reached, opened_at, quote_token, clearing_price, treasury_security]
       properties:
         id: {type: string, format: uuid}
         chain: {type: string, enum: [base]}
@@ -424,7 +424,8 @@ components:
         summary: {type: [string, "null"]}
         featured: {type: boolean}
         kind: {type: string, enum: [agent, stocks]}
-        state: {type: string, enum: [created, active, graduated, failed]}
+        state: {type: string, enum: [created, active, ended, graduated, failed], description: "ended: bidding has closed and the auction is waiting to be finished; graduated and failed are final."}
+        minimum_reached: {type: boolean, description: "Whether the raise has met its minimum so far. A progress fact only: bidding stays open until the end block."}
         opened_at: {type: [string, "null"], format: date-time}
         quote_token: {$ref: "#/components/schemas/QuoteToken"}
         clearing_price: {type: [string, "null"], description: "The auction's current clearing price in the quote token, as a decimal string."}
@@ -433,10 +434,10 @@ components:
             - {$ref: "#/components/schemas/TreasurySecurity"}
             - {type: "null"}
     RobinhoodAuction:
-      description: A Robinhood memestock auction, read from its chain, which records no summary, opening time or treasury report.
+      description: A Robinhood Memestake auction, read from its chain, which records no summary, opening time or treasury report.
       type: object
       additionalProperties: false
-      required: [chain, chain_id, address, launch_id, title, token_symbol, kind, state, quote_token, clearing_price, raised]
+      required: [chain, chain_id, address, launch_id, title, token_symbol, kind, state, minimum_reached, quote_token, clearing_price, raised]
       properties:
         chain: {type: string, enum: [robinhood]}
         chain_id: {type: integer, minimum: 1}
@@ -445,7 +446,8 @@ components:
         title: {type: string}
         token_symbol: {type: string}
         kind: {type: string, enum: [stocks]}
-        state: {type: string, enum: [created, active, graduated, failed]}
+        state: {type: string, enum: [created, active, ended, graduated, failed], description: "ended: bidding has closed and the auction is waiting to be finished; graduated and failed are final."}
+        minimum_reached: {type: boolean, description: "Whether the raise has met its minimum so far. A progress fact only: bidding stays open until the end block."}
         quote_token: {$ref: "#/components/schemas/QuoteToken"}
         clearing_price: {type: string, description: "The clearing price in the quote token, as a decimal string."}
         raised: {type: string, description: "The quote token raised so far, as a decimal string."}
@@ -482,7 +484,7 @@ components:
             - {$ref: "#/components/schemas/TreasurySecurity"}
             - {type: "null"}
     RobinhoodToken:
-      description: The token of a graduated Robinhood memestock launch, read from its chain, which records no summary, graduation time, rank or treasury report.
+      description: The token of a graduated Robinhood Memestake launch, read from its chain, which records no summary, graduation time, rank or treasury report.
       type: object
       additionalProperties: false
       required: [chain, chain_id, address, auction_address, launch_id, name, symbol, kind, quote_token, clearing_price, raised]

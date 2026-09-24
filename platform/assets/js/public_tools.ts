@@ -139,7 +139,7 @@ function publicTools(signal: AbortSignal): PublicTool[] {
       "List public Autolaunch auctions on Base and Robinhood; every entry names its chain. The limit includes both chains. Robinhood entries are read from their chain and come first across pages in launch order; stored Base entries follow in date order. Mode and sort apply within both groups.",
       {
         after: {type: "string", description: "Pass pagination.next_cursor unchanged with the same mode and sort. Cursors expire after 24 hours."},
-        mode: {type: "string", enum: ["all", "biddable", "live", "failed_minimum", "graduated"]},
+        mode: {type: "string", enum: ["all", "biddable", "live", "ended", "failed_minimum", "graduated"]},
         sort: {type: "string", enum: ["newest", "oldest"]},
         limit: {
           type: "integer", minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER,
