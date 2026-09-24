@@ -56,42 +56,47 @@ defmodule AutolaunchWeb.Components.MarketCard do
     doc: "the USD price of one unit of the record's currency, for its figures"
 
   @doc """
-  A gallery card. An auction's card reads, top to bottom: its ticker over its
-  currency with its chain, its name, the clearing price and the FDV it implies,
-  the creator's links, the start of its description, then Details and Bid.
+  A gallery card. Every card reads, top to bottom: its ticker over its
+  currency with its chain, its name, its price and one more figure, the
+  creator's links and the start of its description.
+
+  An auction's card then has a figures row (the bid volume and launch
+  threshold on hover or keyboard focus, the FDV always), Details and Bid,
+  and a bar showing how much of the auction's time has passed. A token's
+  card shows its price and market cap, then Details and Buy.
   """
   def explore_card(%{kind: :auction} = assigns) do
-    view = view(:auction, assigns.record, assigns.creator_connections)
+    figures = figures(assigns.record, assigns.rate)
 
     assigns =
       assign(assigns,
-        view: view,
-        fdv: dollars(assigns.record.fdv, assigns.rate),
-        wallet: wallet_link(view),
-        pair: Enum.join(["$" <> view.symbol | List.wrap(view.metric.unit)], "/")
+        view: view(:auction, assigns.record, assigns.creator_connections),
+        figures: figures,
+        bar: time_bar(assigns.record, figures)
       )
 
     ~H"""
     <article
-      class={["home-coin", "home-coin--auction", @view.color && "home-coin--tinted"]}
+      class={["home-coin", @view.color && "home-coin--tinted"]}
       style={tint(@view.color)}
     >
-      <.link navigate={@view.path} class="home-coin__main">
-        <.coin_art view={@view} />
-        <p class="home-coin__pair">
-          <span class="home-coin__ticker" title={@pair}>${@view.symbol}<span :if={@view.metric.unit}>/<wbr />{@view.metric.unit}</span></span>
-          <.chain_chip chain={@view.chain} label={chain_short(@view.chain)} />
-        </p>
-        <h2 class="home-coin__name">{@view.name}</h2>
-      </.link>
+      <.card_head view={@view} />
       <div class="home-coin__metric">
         <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} fallback="-" /><span>Clearing price</span>
       </div>
-      <p class="home-coin__fdv">Implied FDV: <span>{@fdv}</span></p>
-      <div class="home-coin__links">
-        <.card_socials connections={@view.connections} website={@view.website} wallet={@wallet} />
-      </div>
+      <p class="home-coin__figure">Implied FDV: <span>{@figures.fdv}</span></p>
+      <.card_links view={@view} />
       <p class="home-coin__description">{excerpt(@view.description)}</p>
+      <div class="home-coin__figures">
+        <div class="home-coin__raise">
+          <p><span>Bid volume</span> {@figures.volume}</p>
+          <p><span>Launch threshold</span> {@figures.threshold}</p>
+          <p :if={@figures.met}>{@figures.met}% met</p>
+        </div>
+        <p class="home-coin__floor" title="FDV">
+          <span class="visually-hidden">FDV </span>{@figures.fdv}
+        </p>
+      </div>
       <div class="home-coin__actions">
         <.link
           navigate={@view.path}
@@ -108,45 +113,138 @@ defmodule AutolaunchWeb.Components.MarketCard do
           aria-label={"Bid on #{@view.name}"}
         >Bid</Regent.Primitives.button>
       </div>
+      <div
+        id={"time-bar-#{@figures.id}"}
+        class={["home-coin__time", "home-coin__time--#{String.downcase(@view.chain)}"]}
+        role="img"
+        aria-label={@bar.label}
+        title={@bar.label}
+        phx-hook=".AuctionTimeBar"
+        data-opens-at={@bar.opens_at && DateTime.to_iso8601(@bar.opens_at)}
+        data-ends-at={@figures.ends_at && DateTime.to_iso8601(@figures.ends_at)}
+      >
+        <span :if={@bar.progress} style={"width: #{@bar.progress}%"}></span>
+      </div>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeBar">
+        export default {
+          mounted() { this.tick() },
+          updated() { this.tick() },
+          destroyed() { clearTimeout(this.timer) },
+          tick() {
+            clearTimeout(this.timer)
+            if (!this.el.dataset.endsAt) return
+            const end = Date.parse(this.el.dataset.endsAt)
+            const open = Date.parse(this.el.dataset.opensAt)
+            const seconds = Math.max(Math.floor((end - Date.now()) / 1000), 0)
+            const d = Math.floor(seconds / 86400)
+            const rest = `${Math.floor((seconds % 86400) / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`
+            const label = seconds === 0 ? "Live, ending" : `Live, ${d > 0 ? `${d}d ${rest}` : rest} left`
+            this.el.setAttribute("aria-label", label)
+            this.el.title = label
+            const fill = this.el.firstElementChild
+            if (fill && open < end) {
+              fill.style.width = `${Math.min(Math.max((Date.now() - open) / (end - open), 0), 1) * 100}%`
+            }
+            this.timer = setTimeout(() => this.tick(), 1000 - (Date.now() % 1000))
+          }
+        }
+      </script>
     </article>
     """
   end
 
   def explore_card(%{kind: :token} = assigns) do
     assigns =
-      assign(assigns, :view, view(:token, assigns.record, assigns.creator_connections))
+      assign(assigns,
+        view: view(:token, assigns.record, assigns.creator_connections),
+        market_cap: dollars(assigns.record.market_cap, assigns.rate)
+      )
 
     ~H"""
     <article
       class={["home-coin", @view.color && "home-coin--tinted"]}
       style={tint(@view.color)}
     >
-      <.link navigate={@view.path} class="home-coin__main">
-        <.coin_art view={@view} />
-        <h2 class="home-coin__name">{@view.name}</h2>
-        <p class="home-coin__symbol">${@view.symbol}</p>
-        <div class="home-coin__metric">
-          <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>{@view.metric_label}</span>
-        </div>
-      </.link>
-      <div class="home-coin__meta">
-        <span :if={@view.creator} title={@view.creator_address}>{@view.creator}</span>
-        <span :if={@view.age} class="home-coin__age">{@view.age}</span>
-        <span class={["home-coin__status", launched(@view.status)]}>{@view.status}</span>
-        <.chain_chip chain={@view.chain} label={@view.chain} />
+      <.card_head view={@view} />
+      <div class="home-coin__metric">
+        <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>Price</span>
       </div>
-      <.card_socials connections={@view.connections} />
-      <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
-      <.quick_actions
-        :if={@trade_event && @view.quick}
-        event={@trade_event}
-        record_id={@view.record_id}
-        name={@view.name}
-        quick={@view.quick}
-      />
+      <p class="home-coin__figure">Market cap: <span>{@market_cap}</span></p>
+      <.card_links view={@view} />
+      <p class="home-coin__description">{excerpt(@view.description)}</p>
+      <div class="home-coin__actions">
+        <.link
+          navigate={@view.path}
+          class="rg-button rg-button--secondary home-coin__action"
+          aria-label={"Details for #{@view.name}"}
+        >Details</.link>
+        <Regent.Primitives.button
+          :if={@trade_event && @view.buy}
+          class="home-coin__action"
+          phx-click={@trade_event}
+          phx-value-id={@view.record_id}
+          disabled={@view.buy.unavailable != nil}
+          title={@view.buy.unavailable}
+          aria-label={"Buy #{@view.name}"}
+        >Buy</Regent.Primitives.button>
+      </div>
     </article>
     """
   end
+
+  attr :view, :map, required: true
+
+  # The card's top, which opens its page: the image, the ticker over its
+  # currency with the chain's box, and the name.
+  defp card_head(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :pair,
+        Enum.join(["$" <> assigns.view.symbol | List.wrap(assigns.view.metric.unit)], "/")
+      )
+
+    ~H"""
+    <.link navigate={@view.path} class="home-coin__main">
+      <.coin_art view={@view} />
+      <p class="home-coin__pair">
+        <span class="home-coin__ticker" title={@pair}>${@view.symbol}<span :if={@view.metric.unit}>/<wbr />{@view.metric.unit}</span></span>
+        <.chain_chip chain={@view.chain} label={chain_short(@view.chain)} />
+      </p>
+      <h2 class="home-coin__name">{@view.name}</h2>
+    </.link>
+    """
+  end
+
+  attr :view, :map, required: true
+
+  defp card_links(assigns) do
+    assigns =
+      assign(assigns, :wallet, assigns.view.creator_address && wallet_link(assigns.view))
+
+    ~H"""
+    <div class="home-coin__links">
+      <.card_socials connections={@view.connections} website={@view.website} wallet={@wallet} />
+    </div>
+    """
+  end
+
+  # The time bar is empty before an auction opens and full once it has
+  # ended. A live auction whose opening time is unknown shows no fill.
+  defp time_bar(%{state: :created}, figures),
+    do: %{progress: 0, opens_at: nil, label: figures.status}
+
+  defp time_bar(%{state: :active} = auction, %{ends_at: %DateTime{}} = figures) do
+    label =
+      if figures.status == "Ending", do: "Live, ending", else: "Live, #{figures.status} left"
+
+    %{progress: figures.progress, opens_at: auction.opened_at, label: label}
+  end
+
+  defp time_bar(%{state: :active}, figures),
+    do: %{progress: nil, opens_at: nil, label: figures.status}
+
+  defp time_bar(_auction, figures), do: %{progress: 100, opens_at: nil, label: figures.status}
 
   attr :view, :map, required: true
 
@@ -741,37 +839,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :event, :string, required: true
-  attr :record_id, :string, required: true
-  attr :name, :string, required: true
-  attr :quick, :map, required: true
-
-  # Two set amounts and an open-ended button. All three open the same panel;
-  # the amount buttons open it with that amount already entered.
-  defp quick_actions(assigns) do
-    ~H"""
-    <div class="market-quick" role="group" aria-label={"#{@quick.verb} #{@name}"}>
-      <Regent.Primitives.button
-        :for={amount <- if(@quick.currency, do: ["25", "100"], else: [])}
-        variant="secondary"
-        phx-click={@event}
-        phx-value-id={@record_id}
-        phx-value-amount={amount}
-        disabled={@quick.unavailable != nil}
-        title={@quick.unavailable}
-        aria-label={"#{@quick.verb} #{@name} with #{amount} #{@quick.currency}"}
-      >{amount} <small>{@quick.currency}</small></Regent.Primitives.button>
-      <Regent.Primitives.button
-        phx-click={@event}
-        phx-value-id={@record_id}
-        disabled={@quick.unavailable != nil}
-        title={@quick.unavailable}
-        aria-label={"#{@quick.verb} #{@name}"}
-      >{@quick.verb}</Regent.Primitives.button>
-    </div>
-    """
-  end
-
   attr :chain, :string, required: true, values: ["Base", "Robinhood"]
   attr :label, :string, required: true
 
@@ -788,31 +855,41 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :view, :map, required: true
 
-  # Who launched it: the launching wallet in full, then each account the
-  # creator could connect, marked when it is not connected.
+  # Who launched it: the launching wallet in full, linked to its explorer
+  # page, then each account the creator connected, written as its handle.
+  # An account kind the creator has not connected is marked; Company X is
+  # listed only when there is one.
   defp creator_block(assigns) do
-    connected = Map.new(assigns.view.connections, &{&1.label, &1})
+    connections = assigns.view.connections
+
+    rows =
+      Enum.flat_map(["X", "Company X", "ENS", "GitHub"], fn label ->
+        case {label, Enum.filter(connections, &(&1.label == label))} do
+          {"Company X", []} -> []
+          {label, []} -> [{label, nil}]
+          {label, matching} -> Enum.map(matching, &{label, &1})
+        end
+      end)
 
     assigns =
       assign(assigns,
         website: web_link(assigns.view.website),
-        rows:
-          Enum.map(["X", "Company X", "ENS", "GitHub"], &{&1, Map.get(connected, &1)})
-          |> Enum.reject(fn {label, connection} ->
-            label == "Company X" and is_nil(connection)
-          end)
+        wallet: assigns.view.creator_address && wallet_link(assigns.view),
+        rows: rows
       )
 
     ~H"""
     <section class="market-creator" aria-label="Creator">
       <h2 class="autolaunch-micro">Created by</h2>
-      <p :if={@view.creator_address} class="autolaunch-exact-value">{@view.creator_address}</p>
+      <p :if={@wallet} class="autolaunch-exact-value">
+        <a href={@wallet.url} target="_blank" rel="noopener noreferrer">{@wallet.address}</a>
+      </p>
       <dl class="market-creator__accounts">
         <div :for={{label, connection} <- @rows}>
           <dt>{label}</dt>
           <dd :if={connection}>
             <a href={connection.url} target="_blank" rel="noopener noreferrer">
-              {connection.username}
+              {connection.handle}
             </a>
           </dd>
           <dd :if={!connection} class="market-creator__missing">Not connected</dd>
@@ -861,34 +938,68 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :website, :string, default: nil
   attr :wallet, :map, default: nil, doc: "the creator's wallet and its explorer page"
 
-  # Each link is written as its handle or site. A website shows only as an
-  # ordinary web link; anything else a launch recorded there is left off the
-  # page.
+  # At most six links, each written as its handle or site, in this order: the
+  # accounts, the website, then the wallet; any past six are left to the
+  # coin's page. A website shows only as an ordinary web link; anything else
+  # a launch recorded there is left off the card.
   defp card_socials(assigns) do
-    assigns = assign(assigns, :website, web_link(assigns.website))
+    connections =
+      Enum.map(assigns.connections, fn connection ->
+        %{
+          url: connection.url,
+          text: connection.handle,
+          label: "#{connection.label} #{connection.handle}",
+          title: connection.handle,
+          rel: "noopener noreferrer"
+        }
+      end)
+
+    website =
+      case web_link(assigns.website) do
+        nil ->
+          []
+
+        link ->
+          [
+            %{
+              url: link.url,
+              text: link.label,
+              label: nil,
+              title: link.label,
+              rel: "noopener noreferrer nofollow"
+            }
+          ]
+      end
+
+    wallet =
+      case assigns.wallet do
+        nil ->
+          []
+
+        wallet ->
+          [
+            %{
+              url: wallet.url,
+              text: wallet.short,
+              label: "Creator wallet #{wallet.short}",
+              title: wallet.address,
+              rel: "noopener noreferrer"
+            }
+          ]
+      end
+
+    assigns = assign(assigns, :links, Enum.take(connections ++ website ++ wallet, 6))
 
     ~H"""
-    <div
-      :if={@connections != [] || @website || @wallet}
-      class="launchpad-card__socials"
-      aria-label="Creator links"
-    >
+    <div :if={@links != []} class="launchpad-card__socials" aria-label="Creator links">
       <a
-        :for={connection <- @connections}
-        href={connection.url}
-        aria-label={"#{connection.label} #{connection.handle}"}
+        :for={link <- @links}
+        href={link.url}
+        title={link.title}
+        aria-label={link.label}
         target="_blank"
-        rel="noopener noreferrer"
-      >{connection.handle}</a>
-      <a :if={@website} href={@website.url} target="_blank" rel="noopener noreferrer nofollow">{@website.label}</a>
-      <a
-        :if={@wallet}
-        href={@wallet.url}
-        title={@wallet.address}
-        aria-label={"Creator wallet #{@wallet.short}"}
-        target="_blank"
-        rel="noopener noreferrer"
-      >{@wallet.short}</a>
+        rel={link.rel}
+      >{link.text}</a>
     </div>
     """
   end
@@ -932,8 +1043,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       creator: nil,
       creator_address: nil,
       age: nil,
-      connections: connection_list(connections),
-      quick: nil
+      connections: connection_list(connections)
     }
   end
 
@@ -968,14 +1078,14 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   # A launched Robinhood token's page is named by its token's address; it
-  # trades on its own page, so its row offers no quick buy.
+  # trades on its own page, so its card offers no Buy.
   defp view(:token, %{auction: %{chain_id: chain_id} = auction} = token, connections) do
     if RobinhoodLab.chain?(chain_id) do
       %{
         base_token_view(token, connections)
         | metric: metric(token.price_quote, auction.quote_token_symbol),
           path: "/robinhood/tokens/#{auction.token_address}",
-          quick: nil,
+          buy: nil,
           chain: "Robinhood"
       }
     else
@@ -1002,11 +1112,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       creator_address: token.auction.creator_address,
       age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections),
-      quick: %{
-        verb: "Buy",
-        currency: currency,
-        unavailable: closed_before_deployment()
-      },
+      buy: %{unavailable: closed_before_deployment()},
       record_id: token.id,
       chain: "Base"
     }

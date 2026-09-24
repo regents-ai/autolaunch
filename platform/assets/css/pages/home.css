@@ -51,49 +51,46 @@
 #home-explore .home-coin__art { width: 100%; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--hairline); border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
 #home-explore .home-coin__art img { display: block; width: 100%; height: 100%; object-fit: cover; }
 #home-explore .home-coin__fallback { display: grid; width: 100%; height: 100%; place-items: center; font-size: 2.5rem; font-weight: 500; color: var(--color-fg-muted); }
-#home-explore .home-coin__name { margin: 12px 0 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9375rem; line-height: 1.3; font-weight: 650; letter-spacing: -.015em; }
-#home-explore .home-coin__main:hover .home-coin__name { text-decoration: underline; text-underline-offset: 3px; }
-#home-explore .home-coin__symbol { margin: 0; font-size: .8125rem; color: var(--color-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#home-explore .home-coin__metric { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin-top: 8px; font-size: .8125rem; font-variant-numeric: tabular-nums; }
-#home-explore .home-coin__metric > span:last-child { color: var(--color-fg-muted); font-size: .6875rem; }
-#home-explore .home-coin__meta { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; margin-top: 8px; font-size: .75rem; color: var(--color-fg-muted); }
-#home-explore .home-coin__meta > :first-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#home-explore .home-coin__meta a { color: inherit; text-decoration: none; }
-#home-explore .home-coin__meta a:hover { text-decoration: underline; }
-#home-explore .home-coin__age { font-variant-numeric: tabular-nums; }
-#home-explore .home-coin__status { border-left: 1px solid var(--hairline); padding-left: 8px; }
 /* Every gallery card is framed; a card whose image has a known colour wears it as a border that fades into the card. */
-#home-explore .home-coin { padding: 6px 6px 12px; border: 3px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
+#home-explore .home-coin { container-type: inline-size; padding: 6px 6px 12px; border: 3px solid var(--hairline); border-radius: 12px; background: var(--color-surface); }
 #home-explore .home-coin--tinted { border-color: transparent; background: linear-gradient(var(--color-surface), var(--color-surface)) padding-box, linear-gradient(to bottom, var(--image-color) 35%, var(--color-surface)) border-box; }
-#home-explore .home-coin--tinted .market-graduated { color: var(--image-color); font-weight: 600; }
-#home-explore .home-coin__description { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; margin: 8px 0 0; font-size: .75rem; line-height: 1.5; color: var(--color-fg-muted); }
-/* An auction's card: its ticker over its currency with its chain, the name, the price and FDV, links, description, then Details and Bid.
-   Every part keeps a set height, so all cards in the grid are the same height whatever their text and the buttons line up. A narrow card gives the ticker, price, links and description more lines. */
-#home-explore .home-coin--auction { container-type: inline-size; }
+/* A card reads: its ticker over its currency with its chain, the name, the price and one more figure, links, description, then an auction's figures row, the buttons and an auction's time bar.
+   Every part keeps a set height, so all cards in the grid are the same height whatever their text and the buttons line up. A narrow card gives the ticker, price, links, description and figures more lines. */
 #home-explore .home-coin__pair { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; height: 1.6em; margin: 12px 0 2px; font-size: .9375rem; line-height: 1.6; font-weight: 650; letter-spacing: -.015em; }
 #home-explore .home-coin__ticker { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
 #home-explore .home-coin__ticker wbr { display: none; }
 #home-explore .home-coin__pair .chain-chip { flex: none; margin-top: 1px; letter-spacing: 0; }
-#home-explore .home-coin--auction .home-coin__name { display: block; min-height: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-weight: 400; letter-spacing: 0; color: var(--color-fg-muted); }
-#home-explore .home-coin--auction .home-coin__main:hover .home-coin__name { text-decoration: none; }
-#home-explore .home-coin--auction .home-coin__metric { display: block; height: 1.4em; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
-#home-explore .home-coin--auction .home-coin__metric > span:last-child { margin-left: 6px; }
-#home-explore .home-coin__fdv { height: 1.5em; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .75rem; line-height: 1.5; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
-#home-explore .home-coin__fdv span { color: var(--color-fg); }
-#home-explore .home-coin__links { --link-rows: 3; box-sizing: content-box; height: calc(var(--link-rows) * 1.5em + (var(--link-rows) - 1) * 2px); margin-top: 6px; padding: 6px 0 8px; overflow-y: auto; scrollbar-width: thin; border-bottom: 1px solid var(--hairline); font-size: .75rem; line-height: 1.5; }
-#home-explore .home-coin__links .launchpad-card__socials { gap: 2px 12px; padding: 0; border: 0; font-size: inherit; }
-#home-explore .home-coin__links a { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg-muted); text-underline-offset: 2px; }
+#home-explore .home-coin__name { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-weight: 400; color: var(--color-fg-muted); }
+#home-explore .home-coin__metric { height: 1.4em; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.4; font-variant-numeric: tabular-nums; }
+#home-explore .home-coin__metric > span:last-child { margin-left: 6px; color: var(--color-fg-muted); font-size: .6875rem; }
+#home-explore .home-coin__figure { height: 1.5em; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .75rem; line-height: 1.5; color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+#home-explore .home-coin__figure span { color: var(--color-fg); }
+#home-explore .home-coin__links { --link-rows: 3; box-sizing: content-box; height: calc(var(--link-rows) * 1.5em + (var(--link-rows) - 1) * 2px); margin-top: 6px; padding: 6px 0 8px; border-bottom: 1px solid var(--hairline); font-size: .75rem; line-height: 1.5; }
+#home-explore .home-coin__links .launchpad-card__socials { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1.5em; gap: 2px 12px; padding: 0; border: 0; font-size: inherit; }
+#home-explore .home-coin__links a { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg-muted); text-underline-offset: 2px; }
 #home-explore .home-coin__links a:is(:hover, :focus-visible) { color: var(--color-fg); }
-#home-explore .home-coin--auction .home-coin__description { --text-lines: 5; display: -webkit-box; -webkit-line-clamp: var(--text-lines); height: calc(var(--text-lines) * 1.5em); }
+#home-explore .home-coin__description { --text-lines: 5; display: -webkit-box; -webkit-line-clamp: var(--text-lines); -webkit-box-orient: vertical; height: calc(var(--text-lines) * 1.5em); overflow: hidden; overflow-wrap: anywhere; margin: 8px 0 0; font-size: .75rem; line-height: 1.5; color: var(--color-fg-muted); }
+/* An auction's figures row: the bid volume and launch threshold at the left, shown while the pointer is over the card or the keyboard is inside it; the FDV at the lower right, always. */
+#home-explore .home-coin__figures { --figure-lines: 3; position: relative; height: calc(var(--figure-lines) * 1.5em); margin-top: 8px; font-size: .6875rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
+#home-explore .home-coin__raise { opacity: 0; }
+#home-explore .home-coin__raise p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#home-explore .home-coin__raise span { color: var(--color-fg-muted); }
+#home-explore .home-coin:has(:focus-visible) .home-coin__raise { opacity: 1; }
+@media (hover: hover) { #home-explore .home-coin:hover .home-coin__raise { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) { #home-explore .home-coin__raise { transition: opacity var(--duration-fast) var(--ease-out); } }
+#home-explore .home-coin__floor { position: absolute; right: 0; bottom: 0; margin: 0; font-size: .8125rem; line-height: 1.3; font-weight: 600; }
 @container (max-width: 170px) {
   #home-explore .home-coin__pair { height: 2.6em; line-height: 1.3; }
   #home-explore .home-coin__ticker wbr { display: inline; }
   #home-explore .home-coin__ticker { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: anywhere; }
-  #home-explore .home-coin--auction .home-coin__metric { height: 2.8em; white-space: normal; }
-  #home-explore .home-coin--auction .home-coin__metric > span:not(.visually-hidden) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #home-explore .home-coin--auction .home-coin__metric > span:last-child { margin-left: 0; }
+  #home-explore .home-coin__metric { height: 2.8em; white-space: normal; }
+  #home-explore .home-coin__metric > span:not(.visually-hidden) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #home-explore .home-coin__metric > span:last-child { margin-left: 0; }
   #home-explore .home-coin__links { --link-rows: 6; }
-  #home-explore .home-coin--auction .home-coin__description { --text-lines: 6; }
+  #home-explore .home-coin__links .launchpad-card__socials { grid-template-columns: minmax(0, 1fr); }
+  #home-explore .home-coin__description { --text-lines: 6; }
+  #home-explore .home-coin__figures { --figure-lines: 5; }
+  #home-explore .home-coin__raise p span { display: block; }
 }
 #home-explore .home-coin__actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
 #home-explore .home-coin__action { min-height: 44px; padding: 4px; font-size: .8125rem; white-space: nowrap; overflow-wrap: normal; }
@@ -105,6 +102,11 @@
 }
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) { #home-explore .home-coin__action:hover:not(:disabled) { transform: translateY(-2px); } }
 @media (prefers-reduced-motion: no-preference) { #home-explore .home-coin__action:active:not(:disabled) { transform: scale(var(--active-scale)); } }
+/* An auction's time bar: how much of its time has passed, in its chain's colour a little brighter than the chain's box. */
+#home-explore .home-coin__time { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
+#home-explore .home-coin__time span { display: block; height: 100%; background: var(--time-color); }
+#home-explore .home-coin__time--base { --time-color: #2970ff; }
+#home-explore .home-coin__time--robinhood { --time-color: #00e606; }
 #home-explore .home-skeleton__image { width: 100%; aspect-ratio: 1; border-radius: 8px; background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 #home-explore .home-skeleton__line { height: 12px; margin-top: 12px; border-radius: 3px; background: color-mix(in srgb, var(--color-fg) 7%, var(--color-surface)); }
 #home-explore .home-skeleton__line--short { width: 55%; }
@@ -131,7 +133,6 @@
 @media (max-width: 55rem) { #home-top { flex-wrap: wrap; gap: 12px; } #home-top .home-search { order: 2; flex-basis: 100%; max-width: none; } #home-top .home-top__actions { margin-left: auto; } #home-explore .home-toolbar { gap: 12px; } }
 @media (max-width: 42rem) { #home-explore .home-coin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 14px; } #home-explore .home-heading { align-items: flex-start; } #home-explore .home-tools { flex-wrap: wrap; width: 100%; justify-content: space-between; } #home-top .home-search__shortcut { display: none; } #home-explore .home-filter__panel { right: 0; left: auto; max-width: calc(100vw - 32px); } }
 @media (max-width: 22rem) { #home-explore .home-coin-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 42rem) { #home-explore .home-coin__name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.6em; white-space: normal; overflow-wrap: anywhere; } }
 
 #home-explore .home-heading__discovery { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
 #home-explore .home-kind-toggle { display: inline-flex; align-items: center; gap: 10px; font-size: 1rem; }
@@ -151,7 +152,6 @@
 .creator-connections__ens { display: grid; justify-items: start; gap: 10px; }
 .creator-connections__ens input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px; border: 1px solid var(--hairline-strong); border-radius: 4px; background: var(--color-surface); color: var(--color-fg); font: inherit; }
 .creator-connections__address { max-width: 100%; overflow-wrap: anywhere; }
-.home-coin > .launchpad-card__socials { padding: 8px 0; gap: 8px 16px; flex-wrap: wrap; }
 
 body:has(.market-ticker) { padding-bottom: 44px; }
 .market-ticker {
