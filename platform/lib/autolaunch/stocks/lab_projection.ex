@@ -12,13 +12,27 @@ defmodule Autolaunch.Stocks.LabProjection do
   @actor %System{}
   @domain Autolaunch
 
-  @doc "Projects one receipt-verified Stocks launch from its operation."
+  @doc """
+  Projects one receipt-verified Stocks launch from its operation, once: when
+  its auction row already exists, a second confirmation changes nothing, so it
+  can never take that auction back to how it started.
+  """
   def project_launch(
         %{envelope: %{"chain_id" => chain_id, "metadata" => %{"lab" => lab}} = envelope} =
           operation,
         result
       )
       when is_integer(chain_id) and is_map(lab) and is_map(result) do
+    case Autolaunch.get_auction_by_chain_address(chain_id, result["auction"], actor: @actor) do
+      {:ok, nil} -> project_new(chain_id, envelope, operation, result)
+      {:ok, _projected} -> :ok
+      error -> error
+    end
+  end
+
+  def project_launch(_operation, _result), do: :ok
+
+  defp project_new(chain_id, envelope, operation, result) do
     arguments = envelope["arguments"]
 
     # A verified launch is a command: the caller needs to know it landed, not the row.
@@ -43,8 +57,6 @@ defmodule Autolaunch.Stocks.LabProjection do
            }),
          do: :ok
   end
-
-  def project_launch(_operation, _result), do: :ok
 
   @doc "Projects one `StockLaunchCreated` observed on the chain for a creator this site knows."
   def project_observed(%{chain_id: chain_id} = attributes) when is_integer(chain_id),

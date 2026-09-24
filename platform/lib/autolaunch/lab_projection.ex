@@ -17,19 +17,33 @@ defmodule Autolaunch.LabProjection do
   @domain Autolaunch
   @regent_decimals 18
 
-  @doc "Projects one receipt-verified launch as one replay-safe database unit."
+  @doc """
+  Projects one receipt-verified launch as one replay-safe database unit.
+
+  A launch is projected once: when its auction row already exists, a second
+  confirmation of the same launch changes nothing, so it can never take that
+  auction, its subject or its launch back to how they started.
+  """
   def project_launch(%{envelope: envelope} = operation, result) when is_map(result) do
     arguments = envelope["arguments"]
     subject_id = subject_identity(result["subject"])
 
     transact(fn ->
-      project_launch_records(
-        envelope,
-        arguments,
-        result,
-        subject_id,
-        Map.get(operation, :human_account_id)
-      )
+      case Autolaunch.get_auction_by_chain_address(envelope["chain_id"], result["auction"],
+             actor: @actor
+           ) do
+        {:ok, nil} ->
+          project_launch_records(
+            envelope,
+            arguments,
+            result,
+            subject_id,
+            Map.get(operation, :human_account_id)
+          )
+
+        projected ->
+          projected
+      end
     end)
   end
 
@@ -347,12 +361,8 @@ defmodule Autolaunch.LabProjection do
     |> present(:launch_not_found)
   end
 
-  defp read_token(auction_id) do
-    Token
-    |> Ash.Query.new(domain: @domain)
-    |> Ash.Query.filter(auction_id == ^auction_id)
-    |> Ash.read_one(domain: @domain, actor: @actor)
-  end
+  defp read_token(auction_id),
+    do: Autolaunch.get_token_for_projection(auction_id, actor: @actor)
 
   defp create(resource, action, attributes) do
     resource

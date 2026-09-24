@@ -108,11 +108,14 @@ defmodule Autolaunch.Pool do
   def stocks_price_quote(config, words, currency_decimals, block, opts) do
     case stocks_launch(words) do
       {:ok, launch} ->
-        price_quote(
-          StocksLab.address!(config, :pool_manager),
-          launch.pool_id,
-          currency0?(launch.new_token, launch.stock),
-          currency_decimals,
+        pool_price_quote(
+          %{
+            pool_manager: StocksLab.address!(config, :pool_manager),
+            pool_id: launch.pool_id,
+            token: launch.new_token,
+            currency: launch.stock,
+            currency_decimals: currency_decimals
+          },
           block,
           opts
         )
@@ -123,6 +126,24 @@ defmodule Autolaunch.Pool do
       error ->
         error
     end
+  end
+
+  @doc """
+  A Memestake pool's current price, in its stock per launched token, from the
+  pool manager's slot0 at a pinned block: the Base Memestake and Robinhood
+  launchpads' pools are both Uniswap v4 pools of an 18-decimal token and its stock.
+  """
+  @spec pool_price_quote(map(), Rpc.block(), keyword()) ::
+          {:ok, String.t() | nil} | {:error, atom()}
+  def pool_price_quote(pool, block, opts) do
+    price_quote(
+      pool.pool_manager,
+      pool.pool_id,
+      currency0?(pool.token, pool.currency),
+      pool.currency_decimals,
+      block,
+      opts
+    )
   end
 
   defp price_quote(pool_manager, pool_id, token_is_currency0?, decimals, block, opts) do

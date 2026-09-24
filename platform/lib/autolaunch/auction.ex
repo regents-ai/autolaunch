@@ -227,14 +227,6 @@ defmodule Autolaunch.Auction do
       change Autolaunch.Auction.Changes.ImageColor
     end
 
-    create :project_launch do
-      accept @projection_accept
-      upsert? true
-      upsert_identity :chain_auction
-      upsert_fields @projection_upsert
-      change Autolaunch.Auction.Changes.ImageColor
-    end
-
     update :set_bid_terms do
       require_atomic? false
 
@@ -314,7 +306,6 @@ defmodule Autolaunch.Auction do
 
     policy action([
              :project_lab,
-             :project_launch,
              :market_watch,
              :lab_by_id_for_update,
              :refresh_lab_market

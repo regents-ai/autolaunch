@@ -1,8 +1,13 @@
 defmodule Autolaunch.AuctionFinish.Finish do
   @moduledoc """
-  Looks at one running launch. Before its migration block nothing happens.
-  After it, a launch the chain already shows as graduated or failed is marked
-  so, and one still running is sent `migrate` from the finishing wallet.
+  Looks at one running launch. A `migrate` it was already sent is settled
+  first, and while the chain has not settled it nothing else happens. Then,
+  before its migration block, nothing happens. After it, a launch the chain
+  already shows as graduated or failed is marked so, and one still running is
+  sent `migrate` from the finishing wallet.
+
+  The chain is read after the settle, so a launch whose `migrate` has just been
+  mined is seen finished rather than sent another.
   """
 
   use Ash.Resource.Change
@@ -18,11 +23,15 @@ defmodule Autolaunch.AuctionFinish.Finish do
   defp finish(%{data: finish} = changeset) do
     pad = Launchpads.for_launch!(finish)
 
-    with {:ok, block} <- Rpc.latest_block(pad.opts),
+    with {:ok, :clear} <- Sender.settle(pad, finish),
+         {:ok, block} <- Rpc.latest_block(pad.opts),
          {:ok, now} <- Launchpads.clock(pad, block),
          {:ok, outcome} <- step(pad, finish, block, now) do
       apply_outcome(changeset, outcome)
     else
+      {:ok, :waiting} ->
+        changeset
+
       {:error, reason} ->
         Ash.Changeset.add_error(
           changeset,
@@ -40,8 +49,8 @@ defmodule Autolaunch.AuctionFinish.Finish do
   end
 
   defp act(pad, finish, :running) do
-    with {:ok, hash} <- Sender.send_call(pad, Launchpads.migrate_call(pad, finish)),
-         do: {:ok, {:sent, hash}}
+    with {:ok, transaction} <- Sender.send_call(pad, finish, Launchpads.migrate_call(pad, finish)),
+         do: {:ok, {:sent, transaction}}
   end
 
   defp act(_pad, _finish, finished), do: {:ok, {:finished, finished}}
@@ -51,14 +60,12 @@ defmodule Autolaunch.AuctionFinish.Finish do
   defp apply_outcome(changeset, {:finished, state}),
     do: Ash.Changeset.force_change_attribute(changeset, :state, state)
 
-  defp apply_outcome(%{data: finish} = changeset, {:sent, hash}) do
+  defp apply_outcome(%{data: finish} = changeset, {:sent, transaction}) do
     Logger.info(
-      "auction finisher sent migrate for #{finish.launchpad} launch #{finish.launch_id}: #{hash}"
+      "auction finisher sent migrate for #{finish.launchpad} launch #{finish.launch_id}: " <>
+        "#{transaction.transaction_hash} (nonce #{transaction.nonce})"
     )
 
-    Ash.Changeset.force_change_attributes(changeset,
-      finish_tx_hash: hash,
-      finish_sent_at: DateTime.utc_now()
-    )
+    changeset
   end
 end
