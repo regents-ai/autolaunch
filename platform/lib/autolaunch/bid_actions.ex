@@ -58,7 +58,6 @@ defmodule Autolaunch.BidActions do
   @review_seconds 600
   @permit2_seconds 900
 
-  @replaced "replaced by a newer review"
   @withdrawn "review withdrawn"
   @lapsed "the reviewed bid expired before it was sent"
 
@@ -528,8 +527,7 @@ defmodule Autolaunch.BidActions do
 
   defp open(lease, envelope, signer, step) do
     transact(lease, fn account ->
-      with :ok <- signer_matches(account, signer),
-           :ok <- release_undispatched(account.id) do
+      with :ok <- signer_matches(account, signer) do
         BidOperation
         |> Ash.Changeset.for_create(
           :prepare,
@@ -547,20 +545,6 @@ defmodule Autolaunch.BidActions do
       end
     end)
   end
-
-  # A new prepare always cancels whatever is open as :replaced and proceeds.
-  defp release_undispatched(account_id) do
-    case open_row(account_id, true) do
-      {:ok, nil} -> :ok
-      {:ok, open} -> released(replace_open(open))
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp replace_open(open), do: update(open, :cancel, %{reason: @replaced})
-
-  defp released({:ok, _cancelled}), do: :ok
-  defp released(error), do: error
 
   # Read-only dispatch evidence, called before the authority/account/review locks.
   def press_evidence(operation) do
@@ -632,13 +616,6 @@ defmodule Autolaunch.BidActions do
       {:ok, nil} -> unavailable(:bid_operation_not_found)
       other -> other
     end
-  end
-
-  defp open_row(account_id, lock?) do
-    BidOperation
-    |> Ash.Query.for_read(:open, %{human_account_id: account_id}, domain: @domain, actor: @actor)
-    |> then(&if lock?, do: Ash.Query.lock(&1, :for_update), else: &1)
-    |> Ash.read_one(domain: @domain)
   end
 
   defp update(operation, action, input) do

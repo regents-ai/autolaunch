@@ -7,8 +7,9 @@ defmodule Autolaunch.BidOperation do
   reviewed sequence has got. Every wallet press of a step is its own
   `WalletAttempt`; a confirmed press advances the step or ends the bid.
 
-  The database decides every race: `action_id` is unique and a partial identity
-  over `terminal_at IS NULL` allows one open bid per account.
+  `action_id` is unique. An account may hold any number of open reviews: each
+  press is prepared as its own review, and one never cancels another. A review
+  nobody sends lapses with its envelope.
   """
 
   use Ash.Resource,
@@ -29,8 +30,6 @@ defmodule Autolaunch.BidOperation do
     references do
       reference :human_account, on_delete: :restrict
     end
-
-    identity_wheres_to_sql one_open_per_account: "terminal_at IS NULL"
   end
 
   actions do
@@ -38,12 +37,6 @@ defmodule Autolaunch.BidOperation do
 
     update :project_wallet_confirmation do
       accept [:step, :state, :terminal_at, :onchain_bid_id]
-    end
-
-    read :open do
-      get? true
-      argument :human_account_id, :integer, allow_nil?: false
-      filter expr(human_account_id == ^arg(:human_account_id) and is_nil(terminal_at))
     end
 
     create :prepare do
@@ -112,9 +105,5 @@ defmodule Autolaunch.BidOperation do
 
   identities do
     identity :unique_action_id, [:action_id]
-
-    identity :one_open_per_account, [:human_account_id] do
-      where expr(is_nil(terminal_at))
-    end
   end
 end

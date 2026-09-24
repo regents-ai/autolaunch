@@ -566,10 +566,10 @@ defmodule AutolaunchWeb.BidComponent do
 
   # The bid is prepared in the background whenever what it would send changes:
   # the wallet, the currency, the total or the most per token (which moves with
-  # the price to beat). Nothing is prepared while a bid of this panel is with
-  # the wallet or on its way, since a new review would retire it. Each review
-  # retires the one before, so one is prepared at a time, in the order asked
-  # for, and presses waiting for theirs come first.
+  # the price to beat). Nothing is prepared in the background while a bid of
+  # this panel is with the wallet or on its way, so the panel keeps showing
+  # that bid. Reviews are prepared one at a time, in the order asked for, and
+  # presses waiting for theirs come first; no review cancels another.
   defp prepare_when_ready(%{assigns: assigns} = socket) do
     key = bid_key(assigns)
 
