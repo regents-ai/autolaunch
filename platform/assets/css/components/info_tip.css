@@ -1,0 +1,14 @@
+/* A figure's explanation: an info icon or the figure itself opens a dark box
+   above it, with an arrow pointing at it. The box opens in the top layer; the
+   hook in `AutolaunchWeb.Components.InfoTip` places it. */
+.info-tip { display: inline-flex; align-items: center; gap: 5px; }
+.info-tip__icon { display: inline-grid; place-items: center; flex: none; width: 14px; height: 14px; padding: 0; border: 0; border-radius: 50%; background: var(--color-fg-muted); color: var(--color-surface); font: 700 .625rem/1 var(--font-family-sans); cursor: help; }
+.info-tip__icon:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.info-tip[aria-describedby] { cursor: help; }
+.info-tip__panel { position: fixed; inset: auto; box-sizing: border-box; width: max-content; max-width: min(340px, calc(100vw - 16px)); margin: 0; padding: 10px 14px; overflow: visible; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface-elevated); color: var(--color-fg); box-shadow: 0 12px 32px color-mix(in srgb, var(--color-bg) 60%, transparent); font: 400 .8125rem/1.45 var(--font-family-sans); letter-spacing: normal; text-align: left; text-transform: none; white-space: normal; }
+.info-tip__panel::after { content: ""; position: absolute; left: var(--arrow-x, 50%); width: 9px; height: 9px; border: inherit; background: inherit; transform: translateX(-50%) rotate(45deg); }
+.info-tip__panel[data-side="top"]::after { top: 100%; margin-top: -4px; border-top: 0; border-left: 0; }
+.info-tip__panel[data-side="bottom"]::after { bottom: 100%; margin-bottom: -4px; border-bottom: 0; border-right: 0; }
+.info-tip__panel:popover-open { transition: opacity 125ms var(--ease-out), transform 125ms var(--ease-out); }
+@starting-style { .info-tip__panel:popover-open { opacity: 0; transform: translateY(2px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .info-tip__panel:popover-open { transition: none; } }

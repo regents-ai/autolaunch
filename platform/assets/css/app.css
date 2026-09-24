@@ -2,6 +2,7 @@
 @import "../vendor/regent_ui/primitives.css";
 @import "./tokens/autolaunch.css";
 @import "./base.css";
+@import "./components/info_tip.css";
 @import "./shell/layout.css";
 @import "./shell/rail.css";
 @import "./shell/top_bar.css";

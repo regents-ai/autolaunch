@@ -14,6 +14,9 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   buying, withdrawals and returned bids.
 - Clicking an auction no longer sends up fire.
 - Treasury security shows only on Revstake auctions and tokens, not on Memestake.
+- Auction figures explain themselves: in the table, FDV, Bid volume and Launch threshold each
+  have an info icon that opens a short note on hover; in the gallery, hovering one of those
+  three numbers opens the same note.
 
 ## v25, 24 September 2026 (864624e)
 - The time bar on auction cards fills again: the site now records when each auction opened, so

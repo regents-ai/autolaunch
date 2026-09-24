@@ -10,10 +10,20 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Stocks.MarketData
   alias Autolaunch.Token
   alias AutolaunchWeb.Components.{BidPlaced, ChainIcon}
+  import AutolaunchWeb.Components.InfoTip
   alias AutolaunchWeb.{SwapComponent, TokenDisplay, UsdValue}
   require Phoenix.LiveView
 
   @own_sites ["autolaunch.sh", "regents.sh"]
+
+  # What each auction figure means, on the list's headings and the gallery's figures.
+  @tips %{
+    fdv:
+      "What the whole token supply is worth at the price bidders pay right now. It rises as bids push the price up.",
+    volume: "Everything bidders have put in so far, in dollars.",
+    threshold:
+      "What the auction must raise for the token to launch, set by its creator. If it ends short, every bid is returned."
+  }
 
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
   attr :record, :map, required: true
@@ -92,12 +102,28 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <p class="home-coin__description">{excerpt(@view.description)}</p>
       <div class="home-coin__figures">
         <div class="home-coin__raise">
-          <p><span>Bid volume</span> {@figures.volume}</p>
-          <p><span>Launch threshold</span> {@figures.threshold}</p>
+          <p>
+            <span>Bid volume</span>
+            <.info_tip id={"volume-#{@figures.id}"} text={tip(:volume)} icon={false}>
+              {@figures.volume}
+            </.info_tip>
+          </p>
+          <p>
+            <span>Launch threshold</span>
+            <.info_tip id={"threshold-#{@figures.id}"} text={tip(:threshold)} icon={false}>
+              {@figures.threshold}
+            </.info_tip>
+          </p>
           <p :if={@figures.met}>{@figures.met}% met</p>
         </div>
-        <p class="home-coin__floor" title="FDV">
-          <span class="visually-hidden">FDV </span>{@figures.fdv}
+        <p class="home-coin__floor">
+          <span class="visually-hidden">FDV </span><.info_tip
+            id={"fdv-#{@figures.id}"}
+            text={tip(:fdv)}
+            icon={false}
+          >
+            {@figures.fdv}
+          </.info_tip>
         </p>
       </div>
       <div class="home-coin__actions">
@@ -393,9 +419,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
         <thead>
           <tr>
             <th scope="col">Token</th>
-            <th scope="col">FDV</th>
-            <th scope="col">Bid volume</th>
-            <th scope="col">Launch threshold</th>
+            <th scope="col">
+              <.info_tip id="auctions-fdv" text={tip(:fdv)}>FDV</.info_tip>
+            </th>
+            <th scope="col">
+              <.info_tip id="auctions-volume" text={tip(:volume)}>Bid volume</.info_tip>
+            </th>
+            <th scope="col">
+              <.info_tip id="auctions-threshold" text={tip(:threshold)}>Launch threshold</.info_tip>
+            </th>
             <th scope="col">Status</th>
           </tr>
         </thead>
@@ -419,6 +451,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
     </div>
     """
   end
+
+  defp tip(figure), do: Map.fetch!(@tips, figure)
 
   attr :auction, :map, required: true
   attr :rate, :any, default: nil
