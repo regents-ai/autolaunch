@@ -33,13 +33,15 @@ if lab_privy? and System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT") in [nil, ""] do
   raise "AUTOLAUNCH_LAB_AUTH=privy needs AUTOLAUNCH_BASE_DEPLOYMENT"
 end
 
-# ExUnit runs against a Base deployment description of its own: the scripted
-# chain the test clients answer from, at the addresses their fixtures name.
-# A review server given AUTOLAUNCH_BASE_DEPLOYMENT loads that description
-# instead (runtime.exs).
+# ExUnit runs against Base and Base Stocks deployment descriptions of its own:
+# the scripted chain the test clients answer from, at the addresses their
+# fixtures name. A review server given AUTOLAUNCH_BASE_DEPLOYMENT loads that
+# description instead (runtime.exs).
 config :autolaunch,
   autolaunch_base_deployment:
     Path.expand("../core_tests/elixir/fixtures/base-deployment.json", __DIR__),
+  autolaunch_base_stocks_deployment:
+    Path.expand("../core_tests/elixir/fixtures/base-stocks-deployment.json", __DIR__),
   autolaunch_base_deployment_id: "fixture",
   autolaunch_base_chain_id: 8453
 

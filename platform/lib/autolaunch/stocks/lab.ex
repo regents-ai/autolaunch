@@ -249,8 +249,7 @@ defmodule Autolaunch.Stocks.Lab do
          true <- valid_address?(stock["route"]),
          true <- is_boolean(stock["fixture"]),
          true <- is_binary(stock["launch_admission"]),
-         {:ok, catalog} <-
-           Autolaunch.Stocks.Assets.fetch(@stock_chain_id, stock["address"]),
+         {:ok, catalog} <- Autolaunch.Stocks.Assets.catalogued(stock["address"]),
          true <- catalog.symbol == stock["symbol"] do
       {:ok,
        %{

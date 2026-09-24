@@ -2,22 +2,25 @@ defmodule Autolaunch.Stocks.Assets do
   @moduledoc """
   The stock currencies a Stocks launch can be drafted against, by chain.
 
-  Base is the founder-selected catalog. Robinhood is whatever the Robinhood
-  deployment description lists: on the local lab, mintable fixture stocks with
-  fixture prices. It is empty when no Robinhood description is configured, and
-  a configured description that no longer loads raises rather than answering
-  an empty or Base list.
+  Each chain offers exactly the stocks its deployment description lists. Base
+  names them from the founder-selected catalog, which every stock the Base
+  Stocks description lists must come from; Robinhood's description carries its
+  own names, and on the local lab mintable fixture stocks with fixture prices.
+  A chain is empty when its description is not configured, and a configured
+  description that no longer loads raises rather than answering an empty list.
 
-  Neither list is proof of executable contract admission. Issuer policies,
-  native B20 support and settlement routes require separate verification.
+  Neither list is proof of executable contract admission: the launchpad's own
+  `stockAdmission` is read again before every launch and bid.
   Preserve supplied address spelling; resolve identities by chain and address.
   """
 
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Autolaunch.Stocks.Lab, as: StocksLab
+  alias Autolaunch.Stocks.PriceFeeds
 
   @base_chain_id 8453
   @oracle_registry "0x3f3E8cf41cdd3b1D118c16471aB0113DfDDd5CaD"
-  @assets [
+  @catalog [
     {"AAPLc", "Apple", "0xb200000000000000000000C2e324d24d7eEcd1fb"},
     {"AMZNc", "Amazon", "0xb200000000000000000000d9192b6B456483C2E8"},
     {"COINc", "Coinbase", "0xb200000000000000000000c85a31389D71F3ecfb"},
@@ -38,16 +41,16 @@ defmodule Autolaunch.Stocks.Assets do
   def chain_id(:robinhood), do: RobinhoodLab.chain_id()
 
   def all(:base) do
-    Enum.map(@assets, fn {symbol, name, address} ->
-      %{
-        chain_id: @base_chain_id,
-        symbol: symbol,
-        name: name,
-        address: address,
-        catalog_status: :listed,
-        launch_admission: :unverified
-      }
-    end)
+    case StocksLab.current() do
+      {:ok, config} ->
+        Enum.map(config.stocks, &base_asset/1)
+
+      {:error, :stocks_deployment_missing} ->
+        []
+
+      {:error, reason} ->
+        raise "Autolaunch Base Stocks deployment description is invalid: #{reason}"
+    end
   end
 
   def all(:robinhood) do
@@ -60,6 +63,18 @@ defmodule Autolaunch.Stocks.Assets do
 
       {:error, reason} ->
         raise "Autolaunch Robinhood deployment description is invalid: #{reason}"
+    end
+  end
+
+  @doc "The founder-selected Base catalog entry for an address, however it is spelled."
+  @spec catalogued(String.t()) ::
+          {:ok, %{symbol: String.t(), name: String.t(), address: String.t()}} | :error
+  def catalogued(address) when is_binary(address) do
+    case Enum.find(@catalog, fn {_symbol, _name, listed} ->
+           String.downcase(listed) == String.downcase(address)
+         end) do
+      {symbol, name, listed} -> {:ok, %{symbol: symbol, name: name, address: listed}}
+      nil -> :error
     end
   end
 
@@ -89,6 +104,21 @@ defmodule Autolaunch.Stocks.Assets do
 
   def fetch(_chain_id, _address), do: {:error, :unsupported_stock}
 
+  # The description checked every stock against the catalog when it loaded.
+  defp base_asset(stock) do
+    {:ok, entry} = catalogued(stock.address)
+
+    %{
+      chain_id: @base_chain_id,
+      symbol: entry.symbol,
+      name: entry.name,
+      address: entry.address,
+      feed: PriceFeeds.base_feed!(entry.symbol),
+      catalog_status: :listed,
+      launch_admission: :unverified
+    }
+  end
+
   # A fixture stock is the lab's own mintable token; any other stock the
   # description lists is a listed asset whose admission the launchpad answers.
   defp robinhood_asset(config, %{fixture: true} = stock),
@@ -104,6 +134,7 @@ defmodule Autolaunch.Stocks.Assets do
       address: stock.address,
       decimals: stock.decimals,
       route: stock.route,
+      feed: stock.feed,
       catalog_status: catalog_status,
       launch_admission: launch_admission
     }

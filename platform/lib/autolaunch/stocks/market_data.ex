@@ -95,12 +95,7 @@ defmodule Autolaunch.Stocks.MarketData do
     prices =
       chain
       |> Assets.all()
-      |> Enum.flat_map(fn stock ->
-        case PriceFeeds.feed(chain, stock.symbol) do
-          {:ok, feed} -> [{PriceFeeds.ticker(stock.symbol), feed}]
-          :error -> []
-        end
-      end)
+      |> Enum.map(&{PriceFeeds.ticker(&1.symbol), &1.feed})
       |> Task.async_stream(fn {ticker, feed} -> {ticker, read_price(chain, feed)} end,
         max_concurrency: 4,
         timeout: 10_000,

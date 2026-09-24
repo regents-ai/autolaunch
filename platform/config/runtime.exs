@@ -116,6 +116,11 @@ if base_stocks_deployment_path do
   end
 
   Autolaunch.Stocks.Lab.load!(base_stocks_deployment_path)
+end
+
+# The Base Stocks description extends the Base one, so a given Base description
+# also replaces the environment's own Base Stocks one: this one, or none.
+if base_deployment do
   config :autolaunch, :autolaunch_base_stocks_deployment, base_stocks_deployment_path
 end
 
