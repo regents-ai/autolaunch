@@ -258,7 +258,12 @@ defmodule Autolaunch.WalletAttempts do
 
   defp ingest(_, _), do: unavailable(:invalid_report)
 
-  defp read_chain(kind, %{state: :submitted} = attempt) do
+  defp read_chain(kind, %{state: :submitted} = attempt),
+    do: chain_outcome(kind, attempt.envelope, attempt.step, attempt.transaction_hash)
+
+  defp read_chain(_, _), do: {:ok, nil}
+
+  defp chain_outcome(kind, envelope, step, hash) do
     module = client(kind)
     Code.ensure_loaded!(module)
 
@@ -267,10 +272,129 @@ defmodule Autolaunch.WalletAttempts do
         do: :verify_with_evidence,
         else: :verify
 
-    apply(module, fun, [attempt.envelope, attempt.step, attempt.transaction_hash])
+    apply(module, fun, [envelope, step, hash])
   end
 
-  defp read_chain(_, _), do: {:ok, nil}
+  # A transaction that is not this review's: another signer, target or
+  # calldata, or a deployment the review was not made against.
+  @not_this_review [:transaction_mismatch, :invalid_confirmation, :lab_config_changed]
+
+  @doc """
+  Lists one launch the chain shows from its transaction alone, with no browser
+  report and nothing sent.
+
+  The candidates are the launch reviews prepared for an account whose verified
+  wallet is the launch's signer. The one whose envelope the transaction
+  carried out exactly (signer, target, calldata, and the launchpad's own event
+  and record) is the match: its press for that hash is recorded as confirmed,
+  through the same projection a browser report reaches, and its account is the
+  creator. A press the browser already reported for that hash is reused; an
+  unreported press of the review takes the hash; otherwise the press is
+  recorded here. A hash any other account reported is never read.
+
+  Returns `{:listed, human_account_id}`, `{:unlisted, reason}` when no review
+  of this site's accounts carried out the transaction, or `{:pending, reason}`
+  while the chain cannot answer yet.
+  """
+  def recover_launch(kind, %{chain_id: chain_id, launcher: launcher, transaction_hash: hash})
+      when kind in [:launch, :stocks_launch] do
+    case launch_candidates(kind, chain_id, launcher) do
+      {:ok, candidates} -> match_launch(kind, candidates, String.downcase(hash), :no_review)
+      {:error, reason} -> {:pending, reason}
+    end
+  end
+
+  defp launch_candidates(kind, chain_id, launcher) do
+    with {:ok, accounts} <-
+           Autolaunch.Accounts.list_human_accounts_by_signed_in_wallets(
+             [String.downcase(launcher)],
+             actor: @system
+           ),
+         {:ok, reviews} <-
+           resource(kind)
+           |> Ash.Query.filter(human_account_id in ^Enum.map(accounts, & &1.id))
+           |> Ash.Query.sort(inserted_at: :desc)
+           |> Ash.read(actor: @system) do
+      {:ok,
+       Enum.filter(
+         reviews,
+         &(Address.equal?(&1.signer, launcher) and &1.envelope["chain_id"] == chain_id)
+       )}
+    end
+  end
+
+  defp match_launch(_kind, [], _hash, :no_review), do: {:unlisted, :no_matching_review}
+  defp match_launch(_kind, [], _hash, reason), do: {:pending, reason}
+
+  defp match_launch(kind, [review | rest], hash, waiting) do
+    case chain_outcome(kind, review.envelope, :launch, hash) do
+      {:ok, %{outcome: :confirmed} = outcome} -> adopt_launch(kind, review.id, hash, outcome)
+      {:ok, %{outcome: :pending}} -> match_launch(kind, rest, hash, :chain_pending)
+      {:ok, %{outcome: _not_this_review}} -> match_launch(kind, rest, hash, waiting)
+      {:error, reason} when reason in @not_this_review -> match_launch(kind, rest, hash, waiting)
+      {:error, reason} -> match_launch(kind, rest, hash, reason)
+    end
+  end
+
+  # Under the review's lock, as a browser report takes it, so a report and this
+  # recovery of the same press are one after the other and project once.
+  defp adopt_launch(kind, review_id, hash, outcome) do
+    Autolaunch.Repo.transaction(fn ->
+      with {:ok, op} <- locked_review(kind, review_id),
+           {:ok, attempt} <- launch_attempt(kind, op, hash),
+           {:ok, op, %{state: :confirmed}} <- reconcile(kind, op, attempt, attempt, outcome) do
+        op.human_account_id
+      else
+        {:ok, _op, attempt} -> Autolaunch.Repo.rollback({:press_not_confirmed, attempt.state})
+        {:error, reason} -> Autolaunch.Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, account_id} -> {:listed, account_id}
+      {:error, reason} -> {:pending, reason}
+    end
+  end
+
+  defp locked_review(kind, id) do
+    resource(kind)
+    |> Ash.Query.filter(id == ^id)
+    |> lock(true)
+    |> Ash.read_one(actor: @system)
+  end
+
+  defp launch_attempt(kind, op, hash) do
+    with {:ok, attempts} <-
+           query(kind, op)
+           |> Ash.Query.filter(step == :launch)
+           |> Ash.Query.sort(inserted_at: :desc)
+           |> lock(true)
+           |> Ash.read(actor: @system) do
+      reported = Enum.find(attempts, &(&1.transaction_hash == hash))
+      unreported = Enum.find(attempts, &is_nil(&1.transaction_hash))
+
+      cond do
+        reported -> {:ok, reported}
+        unreported -> update(unreported, %{transaction_hash: hash, state: :submitted})
+        true -> record_press(kind, op, hash)
+      end
+    end
+  end
+
+  defp record_press(kind, op, hash) do
+    WalletAttempt
+    |> Ash.Changeset.for_create(
+      :dispatch,
+      %{
+        foreign_key(kind) => op.id,
+        :step => :launch,
+        :envelope => op.envelope,
+        :state => :submitted,
+        :transaction_hash => hash
+      },
+      actor: @system
+    )
+    |> Ash.create(actor: @system)
+  end
 
   defp reconcile(kind, op, current, candidate, %{outcome: state} = outcome)
        when state in [:confirmed, :reverted, :unverified] do

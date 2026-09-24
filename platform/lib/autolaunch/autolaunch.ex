@@ -90,7 +90,6 @@ defmodule Autolaunch do
         not_found_error?: false
 
       define :project_lab_auction, action: :project_lab
-      define :project_launch_auction, action: :project_launch
 
       define :set_auction_bid_terms,
         action: :set_bid_terms,
@@ -344,6 +343,15 @@ defmodule Autolaunch do
       define :get_treasury_security_report,
         action: :by_id,
         args: [:id],
+        not_found_error?: false
+    end
+
+    resource Autolaunch.LaunchDiscovery do
+      define :record_launch_discovery, action: :record
+
+      define :latest_launch_discovery,
+        action: :latest,
+        args: [:chain_id, :contract],
         not_found_error?: false
     end
 
