@@ -24,6 +24,7 @@ defmodule Autolaunch.Application do
       Autolaunch.RegentFacts,
       autolaunch_indexer_children(),
       auction_activity_child(),
+      token_trades_child(),
       autolaunch_jobs_child(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),
@@ -55,6 +56,18 @@ defmodule Autolaunch.Application do
           id: {Autolaunch.AuctionActivity, historical}
         )
       end
+    end
+  end
+
+  # Trades in each launched token's pool, for the ticker at the foot of every page.
+  defp token_trades_child do
+    if !Autolaunch.Prelaunch.read_only?() and
+         Application.get_env(:autolaunch, :database_startup_enabled, false) do
+      Supervisor.child_spec(
+        {Autolaunch.DurableWork.Runner,
+         handler: Autolaunch.TokenTrades, context: nil, poll_interval_ms: 1_000, max_in_flight: 1},
+        id: Autolaunch.TokenTrades
+      )
     end
   end
 
