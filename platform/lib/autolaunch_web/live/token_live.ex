@@ -129,6 +129,19 @@ defmodule AutolaunchWeb.TokenLive do
         />
       </section>
       <.live_component
+        :if={
+          @pool.ok? && @pool.result.kind == :agent && !@local_lab? &&
+            !Autolaunch.Prelaunch.read_only?()
+        }
+        module={AutolaunchWeb.SubjectWalletComponent}
+        id={"token-payment-#{@page_record.id}"}
+        subject_id={Autolaunch.LabProjection.subject_identity(@pool.result.token.address)}
+        symbol={@presentation.symbol}
+        authenticated={@account_control.kind == :signed_in}
+        current_human_id={current_human_id(@access_context)}
+        session_lease={@session_lease}
+      />
+      <.live_component
         :if={@pool.ok? && @pool.result.kind == :stocks}
         module={AutolaunchWeb.ConvertComponent}
         id={"token-convert-#{@page_record.id}"}
