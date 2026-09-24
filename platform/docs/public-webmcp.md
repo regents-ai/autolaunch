@@ -15,7 +15,7 @@ There is no older `navigator.modelContext` fallback.
 | `autolaunch_treasury` | Treasury `address` | `GET /api/v1/treasury-security/:address` |
 | `autolaunch_bid_quote` | Auction UUID `id`, decimal strings `amount`, `max_price` | `POST /api/v1/auctions/:id/bid-quote` |
 
-Auction modes are `all`, `biddable`, `live`, `failed_minimum`, and `graduated`;
+Auction modes are `all`, `biddable`, `live`, `ended`, `failed_minimum`, and `graduated`;
 ordering is `newest` or `oldest`. List limits are safe JavaScript integers. The API
 clamps auction limits to 1–50 and token limits to 1–100; the adapter does not clamp.
 The quote API accepts positive decimal strings with optional fractional digits,

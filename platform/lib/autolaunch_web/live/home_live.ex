@@ -237,6 +237,9 @@ defmodule AutolaunchWeb.HomeLive do
                     Opening soon
                   </option>
                   <option value="active" selected={@market_options.state == "active"}>Live</option>
+                  <option value="ended" selected={@market_options.state == "ended"}>
+                    Waiting to finish
+                  </option>
                   <option
                     value="failed"
                     selected={@market_options.state == "failed"}

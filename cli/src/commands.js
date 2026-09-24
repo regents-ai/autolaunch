@@ -5,7 +5,7 @@ function listQuery(path, values, flags) {
   if (values.limit !== undefined && (!/^-?\d+$/.test(values.limit) || !Number.isSafeInteger(Number(values.limit)))) {
     throw new UsageError("--limit must be a safe integer. The API applies its documented bounds.");
   }
-  if (values.mode !== undefined && !["all", "biddable", "live", "failed_minimum", "graduated"].includes(values.mode)) throw new UsageError("Unknown --mode.");
+  if (values.mode !== undefined && !["all", "biddable", "live", "ended", "failed_minimum", "graduated"].includes(values.mode)) throw new UsageError("Unknown --mode.");
   if (values.sort !== undefined && !["newest", "oldest"].includes(values.sort)) throw new UsageError("Use --sort newest or oldest.");
   return {path: query(path, Object.fromEntries(flags.map(flag => [flag, values[flag]])))};
 }
