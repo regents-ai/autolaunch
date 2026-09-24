@@ -247,13 +247,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
       </td>
       <td>
-        <span
-          :if={@figures.progress}
-          class="auction-figures__progress"
-          style={"--progress: #{@figures.progress}%"}
-          aria-hidden="true"
-        ></span>
-        {@figures.status}
+        <.status_figure figures={@figures} />
       </td>
     </tr>
     """
@@ -292,13 +286,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div>
         <dt>Status</dt>
         <dd>
-          <span
-            :if={@figures.progress}
-            class="auction-figures__progress"
-            style={"--progress: #{@figures.progress}%"}
-            aria-hidden="true"
-          ></span>
-          {@figures.status}
+          <.status_figure figures={@figures} />
         </dd>
       </div>
     </dl>
@@ -352,14 +340,40 @@ defmodule AutolaunchWeb.Components.MarketCard do
       threshold: dollars(minimum, rate),
       met: percent_met(auction.currency_raised, minimum),
       progress: time_progress(auction),
-      status: figure_status(auction)
+      ends_at: live_end(auction),
+      status: figure_status(auction),
+      id: auction.id
     }
   end
 
-  defp dollars(%Decimal{} = amount, rate) when not is_nil(rate),
-    do: "$" <> (amount |> Decimal.mult(rate) |> Decimal.round(0) |> Decimal.to_string(:normal))
+  # Dollar figures are shortened the way market lists write them: $296,
+  # $24.7K, $1.48M. A value under a dollar reads "<$1".
+  defp dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
+    value = Decimal.mult(amount, rate)
+
+    cond do
+      Decimal.eq?(value, 0) -> "$0"
+      Decimal.lt?(value, 1) -> "<$1"
+      true -> "$" <> compact(value)
+    end
+  end
 
   defp dollars(_amount, _rate), do: "-"
+
+  defp compact(value) do
+    [{1_000_000_000_000, "T"}, {1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "K"}]
+    |> Enum.find(fn {size, _suffix} -> Decimal.gte?(value, size) end)
+    |> case do
+      {size, suffix} -> value |> Decimal.div(size) |> short() |> Kernel.<>(suffix)
+      nil -> value |> Decimal.round(0) |> Decimal.to_string(:normal)
+    end
+  end
+
+  # Three significant digits: 1.48, 24.7, 296.
+  defp short(value) do
+    places = if(Decimal.lt?(value, 10), do: 2, else: if(Decimal.lt?(value, 100), do: 1, else: 0))
+    value |> Decimal.round(places) |> Decimal.normalize() |> Decimal.to_string(:normal)
+  end
 
   defp percent_met(%Decimal{} = raised, minimum) do
     if Decimal.gt?(minimum, 0),
@@ -367,7 +381,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         raised
         |> Decimal.div(minimum)
         |> Decimal.mult(100)
-        |> Decimal.round(0)
+        |> Decimal.round(0, :down)
         |> Decimal.to_integer()
   end
 
@@ -394,19 +408,69 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp time_progress(_auction), do: nil
 
-  defp figure_status(%{state: :active, estimated_end_at: %DateTime{} = end_at}) do
-    seconds = max(DateTime.diff(end_at, DateTime.utc_now()), 0)
-    "#{div(seconds, 3600)}h #{div(rem(seconds, 3600), 60)}m #{rem(seconds, 60)}s"
-  end
+  defp live_end(%{state: :active, estimated_end_at: %DateTime{} = end_at}), do: end_at
+  defp live_end(_auction), do: nil
+
+  defp figure_status(%{state: :active, estimated_end_at: %DateTime{} = end_at}),
+    do: time_left(max(DateTime.diff(end_at, DateTime.utc_now()), 0))
 
   defp figure_status(%{state: :graduated} = auction), do: ended("Launched", auction)
   defp figure_status(%{state: :failed} = auction), do: ended("Failed", auction)
   defp figure_status(%{state: state}), do: state_label(state)
 
+  # The same wording the page's ticker writes each second.
+  defp time_left(0), do: "Ending"
+
+  defp time_left(seconds) do
+    days = div(seconds, 86_400)
+
+    rest =
+      "#{div(rem(seconds, 86_400), 3600)}h #{div(rem(seconds, 3600), 60)}m #{rem(seconds, 60)}s"
+
+    if days > 0, do: "#{days}d #{rest}", else: rest
+  end
+
   defp ended(label, %{estimated_end_at: %DateTime{} = end_at}),
-    do: "#{label} #{div(DateTime.diff(DateTime.utc_now(), end_at), 86_400)}d ago"
+    do: "#{label} #{relative_age(end_at)} ago"
 
   defp ended(label, _auction), do: label
+
+  attr :figures, :map, required: true
+
+  # A live auction's time bar and time left, which tick in the browser each
+  # second; any other state's word and when it ended.
+  defp status_figure(assigns) do
+    ~H"""
+    <span
+      :if={@figures.progress}
+      class="auction-figures__progress"
+      style={"--progress: #{@figures.progress}%"}
+      aria-hidden="true"
+    ></span>
+    <span
+      :if={@figures.ends_at}
+      id={"time-left-#{@figures.id}"}
+      phx-hook=".AuctionTimeLeft"
+      data-ends-at={DateTime.to_iso8601(@figures.ends_at)}
+    >{@figures.status}</span>
+    <span :if={!@figures.ends_at}>{@figures.status}</span>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeLeft">
+      export default {
+        mounted() { this.tick() },
+        updated() { this.tick() },
+        destroyed() { clearTimeout(this.timer) },
+        tick() {
+          clearTimeout(this.timer)
+          const seconds = Math.max(Math.floor((Date.parse(this.el.dataset.endsAt) - Date.now()) / 1000), 0)
+          const d = Math.floor(seconds / 86400)
+          const rest = `${Math.floor((seconds % 86400) / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`
+          this.el.textContent = seconds === 0 ? "Ending" : d > 0 ? `${d}d ${rest}` : rest
+          this.timer = setTimeout(() => this.tick(), 1000 - (Date.now() % 1000))
+        }
+      }
+    </script>
+    """
+  end
 
   attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
