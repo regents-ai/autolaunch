@@ -247,9 +247,10 @@ defmodule Autolaunch.Auction do
     # A launch's auction row, written once by whichever of its writers comes
     # first (launch discovery, the creator's own confirmation, the Robinhood
     # feed). A row that already exists is returned exactly as it is, so no
-    # later writer can blank its details or take its state back.
+    # later writer can blank its details or take its state back. The Robinhood
+    # feed also records the launch's facts from its launchpad record.
     create :record_launch do
-      accept @projection_accept
+      accept @projection_accept ++ [:token_address, :launch_id, :start_block, :end_block]
       upsert? true
       upsert_identity :chain_auction
       upsert_condition expr(false)
