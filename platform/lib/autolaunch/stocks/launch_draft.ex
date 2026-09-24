@@ -22,9 +22,14 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   @metadata_limits [name: 64, symbol: 16, description: 512, website: 256]
 
   @doc "Whether the public token identity is complete."
-  def token_details_complete?(draft) do
-    Enum.all?(@metadata_limits, fn {field, limit} -> within?(Map.get(draft, field), limit) end) and
-      image_complete?(draft)
+  def token_details_complete?(draft), do: missing_token_details(draft) == []
+
+  @doc "The fields a launch still needs, in the order the page shows them."
+  def missing(draft), do: missing_token_details(draft) ++ missing_terms(draft)
+
+  defp missing_token_details(draft) do
+    for({field, limit} <- @metadata_limits, not within?(Map.get(draft, field), limit), do: field) ++
+      if(image_complete?(draft), do: [], else: [:image])
   end
 
   @doc "Whether this draft carries the only image shape its provenance permits."
@@ -52,10 +57,20 @@ defmodule Autolaunch.Stocks.LaunchDraft do
   There is no schedule to enter: bidding opens a fixed number of blocks after
   the launch is created.
   """
-  def terms_complete?(draft) do
-    match?({:ok, _stock}, Assets.fetch(draft.stock_chain_id, draft.stock_address || "")) and
-      decimal_amount?(draft.required_raise) and
-      decimal_amount?(draft.floor_price)
+  def terms_complete?(draft), do: missing_terms(draft) == []
+
+  defp missing_terms(draft) do
+    [
+      stock_address:
+        match?(
+          {:ok, _stock},
+          Assets.fetch(Map.get(draft, :stock_chain_id), Map.get(draft, :stock_address) || "")
+        ),
+      required_raise: decimal_amount?(Map.get(draft, :required_raise)),
+      floor_price: decimal_amount?(Map.get(draft, :floor_price))
+    ]
+    |> Enum.reject(fn {_field, complete?} -> complete? end)
+    |> Enum.map(fn {field, _complete?} -> field end)
   end
 
   def launch_ready?(draft), do: token_details_complete?(draft) and terms_complete?(draft)

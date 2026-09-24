@@ -142,22 +142,103 @@ defmodule AutolaunchWeb.AuctionLive do
         </Regent.Structure.section_bar>
       </header>
       <div class="market-detail-layout">
-        <section class="market-detail-summary" aria-label="Auction information">
-          <.detail_card
-            kind={:auction}
-            record={@page_record}
-            creator_connections={@creator_connections}
-            trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
-            status={settling_status(@page_record, @bidding_ended?)}
+        <.detail_card
+          kind={:auction}
+          record={@page_record}
+          creator_connections={@creator_connections}
+          trade_path={@graduated_token && "/tokens/#{@graduated_token.id}"}
+          status={settling_status(@page_record, @bidding_ended?)}
+        >
+          <:price_note>
+            <UsdValue.usd
+              amount={@page_record.current_clearing_price}
+              rate={@usd_rate}
+              per="per token"
+            />
+          </:price_note>
+        </.detail_card>
+        <aside class="market-detail-action" aria-label="Bid on this auction">
+          <section
+            :if={Autolaunch.Prelaunch.read_only?()}
+            class="prelaunch-actions"
+            aria-label="Bidding unavailable"
           >
-            <:price_note>
-              <UsdValue.usd
-                amount={@page_record.current_clearing_price}
-                rate={@usd_rate}
-                per="per token"
-              />
-            </:price_note>
-          </.detail_card>
+            <h2>Place a bid</h2>
+            <p>Bidding opens {Autolaunch.Prelaunch.opens_at_label()}.</p>
+            <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
+          </section>
+          <.live_component
+            :if={!Autolaunch.Prelaunch.read_only?() && !@bidding_ended?}
+            module={AutolaunchWeb.BidComponent}
+            id="autolaunch-bid"
+            auction={@page_record}
+            book={(@book.ok? && @book.result) || nil}
+            authenticated={@account_control.kind == :signed_in}
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+          <section
+            :if={bidding_open?(@bidding_ended?) && @book.ok? && @my_positions != []}
+            id="autolaunch-my-bids"
+            class="bid-panel rg-panel rg-panel--surface"
+            aria-label="Your bids"
+          >
+            <h3>Your bids on this auction</h3>
+            <ul role="list" class="bid-positions">
+              <li :for={position <- @my_positions}>
+                Bid #{position.onchain_bid_id} ·
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={position.amount}
+                  unit={@page_record.quote_token_symbol}
+                /> up to
+                <AutolaunchWeb.TokenDisplay.price
+                  amount={position.max_price}
+                  unit={"#{@page_record.quote_token_symbol} per token"}
+                /> · {position_standing(position, @page_record, @book.result)}
+              </li>
+            </ul>
+          </section>
+          <section
+            :if={!Autolaunch.Prelaunch.read_only?() && @bidding_ended?}
+            id="autolaunch-settlement"
+            class="bid-panel rg-panel rg-panel--surface"
+            aria-label="Bidding has ended"
+          >
+            <header class="bid-heading">
+              <Regent.Structure.section_bar>
+                <h2 class="rg-section-bar__label">Bidding has ended</h2>
+              </Regent.Structure.section_bar>
+              <p>{ended_copy(@page_record)}</p>
+            </header>
+            <p :if={@account_control.kind != :signed_in} class="bid-empty">
+              <Regent.Primitives.button type="button" data-account-target="sign-in">
+                Sign in to see your bids
+              </Regent.Primitives.button>
+            </p>
+            <p :if={@account_control.kind == :signed_in && @my_positions == []} class="bid-empty">
+              You placed no bids on this auction from your verified wallets.
+            </p>
+            <.live_component
+              :for={position <- @my_positions}
+              module={AutolaunchWeb.BidSettlementComponent}
+              id={"autolaunch-settlement-#{position.id}"}
+              position={position}
+              market={@market_snapshot}
+              authenticated={@account_control.kind == :signed_in}
+              current_human_id={current_human_id(@access_context)}
+              session_lease={@session_lease}
+            />
+          </section>
+          <div :if={@local_lab?} id="autolaunch-lab-position"></div>
+          <.live_component
+            :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
+            module={AutolaunchWeb.TestFundsComponent}
+            id="autolaunch-test-funds"
+            current_human_id={current_human_id(@access_context)}
+            session_lease={@session_lease}
+          />
+        </aside>
+        <section class="market-detail-summary" aria-label="Auction information">
           <.auction_book
             :if={bidding_open?(@bidding_ended?) && @book.ok?}
             id="auction-book"
@@ -181,6 +262,7 @@ defmodule AutolaunchWeb.AuctionLive do
             end_block={@market_snapshot.end_block}
             chain={:base}
             test_chain={@local_lab?}
+            bids={@page_record.bid_volume && Decimal.to_string(@page_record.bid_volume, :normal)}
           />
           <.exact_price
             id="auction-exact-price"
@@ -271,87 +353,6 @@ defmodule AutolaunchWeb.AuctionLive do
             </dl>
           </Regent.Primitives.disclosure>
         </section>
-        <aside class="market-detail-action" aria-label="Bid on this auction">
-          <section
-            :if={Autolaunch.Prelaunch.read_only?()}
-            class="prelaunch-actions"
-            aria-label="Bidding unavailable"
-          >
-            <h2>Place a bid</h2>
-            <p>Bidding opens {Autolaunch.Prelaunch.opens_at_label()}.</p>
-            <Regent.Primitives.button disabled>Place a bid</Regent.Primitives.button>
-          </section>
-          <.live_component
-            :if={!Autolaunch.Prelaunch.read_only?() && !@bidding_ended?}
-            module={AutolaunchWeb.BidComponent}
-            id="autolaunch-bid"
-            auction={@page_record}
-            book={(@book.ok? && @book.result) || nil}
-            authenticated={@account_control.kind == :signed_in}
-            current_human_id={current_human_id(@access_context)}
-            session_lease={@session_lease}
-          />
-          <section
-            :if={bidding_open?(@bidding_ended?) && @book.ok? && @my_positions != []}
-            id="autolaunch-my-bids"
-            class="bid-panel rg-panel rg-panel--surface"
-            aria-label="Your bids"
-          >
-            <h3>Your bids on this auction</h3>
-            <ul role="list" class="bid-positions">
-              <li :for={position <- @my_positions}>
-                Bid #{position.onchain_bid_id} ·
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={position.amount}
-                  unit={@page_record.quote_token_symbol}
-                /> up to
-                <AutolaunchWeb.TokenDisplay.price
-                  amount={position.max_price}
-                  unit={"#{@page_record.quote_token_symbol} per token"}
-                /> · {position_standing(position, @page_record, @book.result)}
-              </li>
-            </ul>
-          </section>
-          <section
-            :if={!Autolaunch.Prelaunch.read_only?() && @bidding_ended?}
-            id="autolaunch-settlement"
-            class="bid-panel rg-panel rg-panel--surface"
-            aria-label="Bidding has ended"
-          >
-            <header class="bid-heading">
-              <Regent.Structure.section_bar>
-                <h2 class="rg-section-bar__label">Bidding has ended</h2>
-              </Regent.Structure.section_bar>
-              <p>{ended_copy(@page_record)}</p>
-            </header>
-            <p :if={@account_control.kind != :signed_in} class="bid-empty">
-              <Regent.Primitives.button type="button" data-account-target="sign-in">
-                Sign in to see your bids
-              </Regent.Primitives.button>
-            </p>
-            <p :if={@account_control.kind == :signed_in && @my_positions == []} class="bid-empty">
-              You placed no bids on this auction from your verified wallets.
-            </p>
-            <.live_component
-              :for={position <- @my_positions}
-              module={AutolaunchWeb.BidSettlementComponent}
-              id={"autolaunch-settlement-#{position.id}"}
-              position={position}
-              market={@market_snapshot}
-              authenticated={@account_control.kind == :signed_in}
-              current_human_id={current_human_id(@access_context)}
-              session_lease={@session_lease}
-            />
-          </section>
-          <div :if={@local_lab?} id="autolaunch-lab-position"></div>
-          <.live_component
-            :if={AutolaunchWeb.TestFundsComponent.available?() && @account_control.kind == :signed_in}
-            module={AutolaunchWeb.TestFundsComponent}
-            id="autolaunch-test-funds"
-            current_human_id={current_human_id(@access_context)}
-            session_lease={@session_lease}
-          />
-        </aside>
       </div>
     </article>
 

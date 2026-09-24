@@ -242,6 +242,7 @@ defmodule Autolaunch.BidActionsTest do
       auction_address: address,
       title: "Memestake auction",
       creator_human_account_id: Autolaunch.TestSupport.register_creator!().id,
+      creator_address: "0x1414141414141414141414141414141414141414",
       featured: false,
       state: :active,
       current_clearing_price: "0",

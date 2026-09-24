@@ -340,6 +340,7 @@ defmodule Autolaunch.MarketFeedTest do
                |> Integer.to_string(16)
                |> String.pad_leading(40, "0")),
           creator_human_account_id: creator,
+          creator_address: "0x1414141414141414141414141414141414141414",
           title: "Memestake",
           summary: "A launch discovery listed",
           token_symbol: "MEME",

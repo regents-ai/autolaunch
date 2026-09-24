@@ -7,6 +7,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Token
   alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay}
 
+  @own_sites ["autolaunch.sh", "regents.sh"]
+
   attr :kind, :atom, required: true, values: [:draft, :auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
@@ -76,16 +78,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </div>
       </.link>
       <div class="home-coin__meta">
-        <a
-          :if={@view.connections != []}
-          href={hd(@view.connections).url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >{@view.creator}</a>
-        <span :if={@view.connections == []}>Creator unavailable</span>
+        <span :if={@view.creator} title={@view.creator_address}>{@view.creator}</span>
         <span :if={@view.age} class="home-coin__age">{@view.age}</span>
         <span class={["home-coin__status", graduated(@view.status)]}>{@view.status}</span>
-        <span :if={@view.chain == "Robinhood"} class="home-coin__status">Robinhood</span>
+        <.chain_chip chain={@view.chain} />
       </div>
       <.card_socials connections={@view.connections} compact />
       <p :if={present?(@view.description)} class="home-coin__description">{@view.description}</p>
@@ -147,7 +143,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <span class={["auction-card__state", graduated(@view.status)]}>{@view.status}</span>
         </header>
         <p class="auction-card__tags">
-          <span>{@view.chain}</span><span>{@view.launch}</span>
+          <.chain_chip chain={@view.chain} /><span>{@view.launch}</span>
         </p>
         <p :if={present?(@view.description)} class="auction-card__description">
           {@view.description}
@@ -176,15 +172,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
           <dt>Opened</dt>
           <dd>{@view.age} ago</dd>
         </div>
-        <div :if={@view.connections != []}>
+        <div :if={@view.creator}>
           <dt>Creator</dt>
-          <dd>
-            <a
-              href={hd(@view.connections).url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >{@view.creator}</a>
-          </dd>
+          <dd title={@view.creator_address}>{@view.creator}</dd>
         </div>
       </dl>
       <.quick_actions
@@ -233,12 +223,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       </td>
       <td><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></td>
       <td data-label="Creator">
-        <a
-          :if={@view.connections != []}
-          href={hd(@view.connections).url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >{@view.creator}</a><span :if={@view.connections == []}>—</span>
+        <span title={@view.creator_address}>{@view.creator || "—"}</span>
       </td>
       <td data-label="Age">{@view.age || "—"}</td>
       <td data-label={if @view.pair, do: "Pair", else: "Status"}>
@@ -309,6 +294,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       <div class="market-identity__body">
         <p class="market-identity__symbol">${@view.symbol}</p>
         <div class="market-identity__meta">
+          <.chain_chip chain={@view.chain} />
           <span class={graduated(@status || @view.status)}>{@status || @view.status}</span>
           <span :if={@view.age}>{@view.age} ago</span>
         </div>
@@ -331,7 +317,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         >
           {@view.description}
         </p>
-        <.card_socials connections={@view.connections} website={@view.website} />
+        <.creator_block view={@view} />
       </div>
     </section>
     """
@@ -365,6 +351,58 @@ defmodule AutolaunchWeb.Components.MarketCard do
         aria-label={"#{@quick.verb} #{@name}"}
       >{@quick.verb}</Regent.Primitives.button>
     </div>
+    """
+  end
+
+  attr :chain, :string, required: true
+
+  defp chain_chip(assigns) do
+    ~H"""
+    <span class={["chain-chip", "chain-chip--#{String.downcase(@chain)}"]}>{@chain}</span>
+    """
+  end
+
+  attr :view, :map, required: true
+
+  # Who launched it: the launching wallet in full, then each account the
+  # creator could connect, marked when it is not connected.
+  defp creator_block(assigns) do
+    connected = Map.new(assigns.view.connections, &{&1.label, &1})
+
+    assigns =
+      assign(assigns,
+        website: web_link(assigns.view.website),
+        rows:
+          Enum.map(["X", "Company X", "ENS", "GitHub"], &{&1, Map.get(connected, &1)})
+          |> Enum.reject(fn {label, connection} ->
+            label == "Company X" and is_nil(connection)
+          end)
+      )
+
+    ~H"""
+    <section class="market-creator" aria-label="Creator">
+      <h2 class="autolaunch-micro">Created by</h2>
+      <p :if={@view.creator_address} class="autolaunch-exact-value">{@view.creator_address}</p>
+      <dl class="market-creator__accounts">
+        <div :for={{label, connection} <- @rows}>
+          <dt>{label}</dt>
+          <dd :if={connection}>
+            <a href={connection.url} target="_blank" rel="noopener noreferrer">
+              {connection.username}
+            </a>
+          </dd>
+          <dd :if={!connection} class="market-creator__missing">Not connected</dd>
+        </div>
+        <div :if={@website}>
+          <dt>Website</dt>
+          <dd>
+            <a href={@website.url} target="_blank" rel="noopener noreferrer nofollow">
+              {@website.label}
+            </a>
+          </dd>
+        </div>
+      </dl>
+    </section>
     """
   end
 
@@ -444,7 +482,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
         ),
       address: nil,
       path: nil,
-      creator: creator_name(connections),
+      creator: nil,
+      creator_address: nil,
       age: nil,
       connections: connection_list(connections),
       quick: nil
@@ -472,7 +511,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
           do: "/robinhood/auctions/#{auction.auction_address}",
           else: "/auctions/#{auction.id}"
         ),
-      creator: creator_name(connections),
+      creator: short_address(auction.creator_address),
+      creator_address: auction.creator_address,
       age: relative_age(Map.get(auction, :inserted_at) || Map.get(auction, :opened_at)),
       connections: connection_list(connections),
       quick:
@@ -528,7 +568,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
       metric: metric(token.price_quote, currency),
       address: presentation.auction_address,
       path: "/tokens/#{token.id}",
-      creator: creator_name(connections),
+      creator: short_address(token.auction.creator_address),
+      creator_address: token.auction.creator_address,
       age: relative_age(Map.get(token, :graduated_at) || Map.get(token, :inserted_at)),
       connections: connection_list(connections),
       quick: %{
@@ -613,15 +654,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp connection(_key, _value), do: []
 
-  defp creator_name(connections) do
-    connections
-    |> connection_list()
-    |> List.first()
-    |> case do
-      %{username: username} -> username
-      _ -> nil
-    end
-  end
+  defp short_address(<<"0x", _::binary-size(40)>> = address),
+    do: "#{String.slice(address, 0, 6)}…#{String.slice(address, -4, 4)}"
+
+  defp short_address(nil), do: nil
 
   defp relative_age(%DateTime{} = at) do
     seconds = DateTime.diff(DateTime.utc_now(), at, :second) |> max(0)
@@ -640,7 +676,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
     case URI.parse(String.trim(url)) do
       %URI{scheme: scheme, host: host} = uri
       when scheme in ["http", "https"] and host not in [nil, ""] ->
-        %{url: URI.to_string(uri), label: website_label(uri)}
+        if own_site?(host), do: nil, else: %{url: URI.to_string(uri), label: website_label(uri)}
 
       _other ->
         nil
@@ -648,6 +684,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
   end
 
   defp web_link(_url), do: nil
+
+  # A creator who names this site or Regents as their website has named no
+  # website of their own.
+  defp own_site?(host) do
+    host = String.downcase(host)
+    Enum.any?(@own_sites, &(host == &1 or String.ends_with?(host, "." <> &1)))
+  end
 
   defp website_label(%URI{host: host, path: path}),
     do: String.trim_leading(host, "www.") <> String.trim_trailing(path || "", "/")

@@ -22,6 +22,7 @@ defmodule Autolaunch.TestSupport do
         token_symbol: Map.get(opts, :symbol),
         creator_human_account_id:
           Map.get(opts, :creator_human_account_id) || register_creator!().id,
+        creator_address: Map.get(opts, :creator_address) || unique_address(),
         featured: Map.get(opts, :featured, false),
         state: Map.get(opts, :state, :created),
         opened_at: Map.get(opts, :opened_at),
@@ -40,6 +41,7 @@ defmodule Autolaunch.TestSupport do
       ([:positive]
        |> Elixir.System.unique_integer()
        |> Integer.to_string(16)
+       |> String.downcase()
        |> String.pad_leading(40, "0"))
   end
 

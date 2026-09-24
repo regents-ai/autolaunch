@@ -48,14 +48,14 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
   @metadata [name: 64, symbol: 16, description: 512, website: 256, image: 256]
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
-  @doc "The fixed terms every Robinhood Stocks launch uses, for the review page."
-  def terms do
+  @doc "The fixed terms every Robinhood Stocks launch uses, for the review page, in the ticker of the token it creates."
+  def terms(ticker) do
     [
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
-      {"Initial supply", "1,000,000,000 NEW"},
-      {"Sold at auction", "800,000,000 NEW (80%)"},
-      {"Pool reserve", "200,000,000 NEW (20%)"},
+      {"Initial supply", "1,000,000,000 #{ticker}"},
+      {"Sold at auction", "800,000,000 #{ticker} (80%)"},
+      {"Pool reserve", "200,000,000 #{ticker} (20%)"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
@@ -63,7 +63,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
       {"Creator allocation", "None"},
       {"Vesting", "None"},
       {"Treasury", "None"},
-      {"Pool pair", "The new token and the stock it was launched against"},
+      {"Pool pair", "#{ticker} and the stock it was launched against"},
       {"Staker revenue lane", "1% of stock-side volume to the token's stakers, always on"},
       {"Unsold tokens", "Retired to 0x…dEaD after a successful auction"},
       {"Pool liquidity", "Locked forever in the fee locker; its trading fees go to stakers"},
@@ -266,7 +266,7 @@ defmodule Autolaunch.Robinhood.StocksLaunchActions do
           "route" => snapshot.admission.route,
           "block_number" => snapshot.block.number,
           "block_hash" => snapshot.block.hash,
-          "terms" => Enum.map(terms(), fn {label, value} -> [label, value] end),
+          "terms" => Enum.map(terms(fields.symbol), fn {label, value} -> [label, value] end),
           "steps" => steps
         }
       )

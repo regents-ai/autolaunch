@@ -61,7 +61,9 @@ defmodule AutolaunchWeb.Components.AuctionBook do
           type="button"
           variant="secondary"
           phx-click={
-            JS.push("use_price", value: %{price: @book.price_to_beat}, target: "##{@bid_form}")
+            "use_price"
+            |> JS.push(value: %{price: @book.price_to_beat}, target: "##{@bid_form}")
+            |> JS.focus(to: "##{@bid_form}-max-price")
           }
         >
           Use this price

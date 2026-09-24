@@ -269,6 +269,7 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         chain_id: head.chain_id,
         auction_address: launch.auction,
         creator_human_account_id: creator_id,
+        creator_address: String.downcase(launch.launcher),
         title: launch.name,
         summary: launch.description,
         token_symbol: String.slice(launch.symbol, 0, 16),

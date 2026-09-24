@@ -220,6 +220,7 @@ defmodule Autolaunch.Robinhood.MarketFeedTest do
       origin: :site,
       chain_id: @chain_id,
       auction_address: @site_auction,
+      creator_address: "0x1414141414141414141414141414141414141414",
       title: "Written first",
       summary: "Its own words",
       token_symbol: "FIRST",

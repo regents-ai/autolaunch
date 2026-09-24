@@ -317,3 +317,32 @@
 .raise-progress__bar::-webkit-progress-value { background: var(--brand-accent); border-radius: 999px; }
 .raise-progress__bar::-moz-progress-bar { background: var(--brand-accent); border-radius: 999px; }
 .raise-progress__note { display: flex; flex-wrap: wrap; gap: 4px var(--space-2); margin: 0; font-size: .8125rem; color: var(--color-fg-muted); }
+
+/* The chain an auction or token lives on, bordered in that chain's colour. */
+.chain-chip { display: inline-flex; align-items: center; padding: 1px 8px; border: 2px solid var(--chain-color); border-radius: 4px; color: var(--color-fg); font-size: .75rem; font-weight: 600; line-height: 1.4; }
+.chain-chip--base { --chain-color: #0052ff; }
+.chain-chip--robinhood { --chain-color: #00c805; }
+.auction-card__tags .chain-chip { background: none; color: var(--color-fg); }
+
+/* Who launched it, and each account they could connect. */
+.market-creator { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.market-creator > h2 { margin: 0; }
+.market-creator > p { margin: 0; font-size: .8125rem; overflow-wrap: anywhere; }
+.market-creator__accounts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; font-size: .8125rem; }
+.market-creator__accounts > div { display: contents; }
+.market-creator__accounts dt { color: var(--color-fg-muted); }
+.market-creator__accounts dd { margin: 0; overflow-wrap: anywhere; }
+.market-creator__missing { color: var(--color-fg-muted); }
+
+.raise-progress__bids { margin: 0; font-size: .875rem; }
+
+/* The coin first, the bid form beside it (or straight under it on narrow
+   screens), then the auction's figures. */
+.market-detail-layout { grid-template-rows: auto 1fr; }
+.market-detail-layout > .market-identity { grid-column: 1; grid-row: 1; }
+.market-detail-layout > .market-detail-action { grid-column: 2; grid-row: 1 / span 2; }
+.market-detail-layout > .market-detail-summary { grid-column: 1; grid-row: 2; }
+@media (max-width: 75rem) {
+  .market-detail-layout { grid-template-rows: none; }
+  .market-detail-layout > .market-identity, .market-detail-layout > .market-detail-action, .market-detail-layout > .market-detail-summary { grid-column: auto; grid-row: auto; }
+}

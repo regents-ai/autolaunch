@@ -19,6 +19,7 @@ defmodule Autolaunch.Auction do
     :website,
     :image,
     :creator_human_account_id,
+    :creator_address,
     :featured,
     :state,
     :opened_at,
@@ -623,6 +624,13 @@ defmodule Autolaunch.Auction do
     attribute :treasury_address, :string do
       public? true
       constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    # The wallet that launched the auction on chain, in lowercase.
+    attribute :creator_address, :string do
+      public? true
+      allow_nil? false
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-f]{40}\z/
     end
 
     # What the auction must raise to graduate, in the quote token's smallest

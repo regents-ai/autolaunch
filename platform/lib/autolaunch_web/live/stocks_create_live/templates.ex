@@ -57,6 +57,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       |> assign(:token_complete?, draft && LaunchDraft.token_details_complete?(draft))
       |> assign(:terms_complete?, draft && LaunchDraft.terms_complete?(draft))
       |> assign(:launch_ready?, draft && LaunchDraft.launch_ready?(draft))
+      |> assign(:missing, LaunchDraft.missing(draft || %{}))
       |> assign(:robinhood_open?, Autolaunch.Robinhood.Lab.configured?())
       |> assign(
         :stock,
@@ -64,7 +65,10 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
       )
       |> assign(:token_fields, @token_fields)
       |> assign(:address_hint, @address_hint)
-      |> assign(:fixed_terms, fixed_terms(assigns.launch_chain))
+      |> assign(
+        :fixed_terms,
+        fixed_terms(assigns.launch_chain, ticker(assigns.draft_values["symbol"]))
+      )
       |> assign(:bidding_opens, bidding_opens(assigns.launch_chain))
 
     assigns =
@@ -358,7 +362,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               type="button"
               disabled
             >
-              Complete every section above
+              Still needed: {missing_label(@missing)}
             </Regent.Primitives.button>
           </section>
 
@@ -533,8 +537,18 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   defp bid_target(symbol) when symbol in [nil, ""], do: "your token"
   defp bid_target(symbol), do: symbol
 
-  defp fixed_terms(:base), do: LaunchActions.terms()
-  defp fixed_terms(:robinhood), do: RobinhoodLaunchActions.terms()
+  defp fixed_terms(:base, ticker), do: LaunchActions.terms(ticker)
+  defp fixed_terms(:robinhood, ticker), do: RobinhoodLaunchActions.terms(ticker)
+
+  # Until the creator names a symbol, the supply is counted in plain tokens.
+  defp ticker(symbol) when is_binary(symbol) do
+    case String.trim(symbol) do
+      "" -> "tokens"
+      symbol -> symbol
+    end
+  end
+
+  defp ticker(_symbol), do: "tokens"
 
   defp bidding_opens(:base), do: LaunchActions.schedule_copy(LaunchActions.start_lead_blocks())
 
@@ -556,6 +570,26 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp blank(value) when value in [nil, ""], do: "—"
   defp blank(value), do: value
+
+  @missing_labels %{
+    name: "name",
+    symbol: "symbol",
+    description: "description",
+    website: "website",
+    image: "image",
+    stock_address: "stock",
+    required_raise: "required raise",
+    floor_price: "floor price"
+  }
+
+  defp missing_label(fields) do
+    labels = Enum.map(fields, &Map.fetch!(@missing_labels, &1))
+
+    case Enum.split(labels, -1) do
+      {[], [only]} -> only
+      {rest, [last]} -> Enum.join(rest, ", ") <> " and " <> last
+    end
+  end
 
   defp stage_status(true), do: "Complete"
   defp stage_status(_incomplete), do: "In progress"

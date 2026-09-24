@@ -41,6 +41,7 @@ defmodule Autolaunch.LabProjection do
         chain_id: envelope["chain_id"],
         origin: :site,
         creator_human_account_id: Map.get(operation, :human_account_id),
+        creator_address: String.downcase(envelope["expected_signer"]),
         state: :created,
         auction_address: result["auction"],
         quote_token_address: arguments["regent"],

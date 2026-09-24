@@ -28,6 +28,10 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
   attr :chain, :atom, required: true, values: LaunchChain.chains()
   attr :test_chain, :boolean, required: true
 
+  attr :bids, :any,
+    default: nil,
+    doc: "every bid committed so far, in whole units, once all of them have been read"
+
   # The schedule decides which view shows: an auction can meet its minimum,
   # and so count as graduated, while bidding is still open.
   def raise_progress(%{block: block, start_block: start_block, end_block: end_block} = assigns)
@@ -42,6 +46,12 @@ defmodule AutolaunchWeb.Components.RaiseProgress do
         <UsdValue.usd amount={@raised} rate={@usd_rate} /> raised of
         <TokenDisplay.price amount={readable(@required)} unit={@symbol} />
         <UsdValue.usd amount={@required} rate={@usd_rate} /> minimum
+      </p>
+      <p :if={@bids} class="raise-progress__bids">
+        Bids placed so far:
+        <strong><TokenDisplay.price amount={readable(@bids)} unit={@symbol} /></strong>
+        <UsdValue.usd amount={@bids} rate={@usd_rate} /> in total. The raise counts only
+        what has sold; each bid keeps buying a little every block until bidding ends.
       </p>
       <progress
         class="raise-progress__bar"

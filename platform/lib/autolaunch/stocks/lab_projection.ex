@@ -37,6 +37,7 @@ defmodule Autolaunch.Stocks.LabProjection do
       auction_address: result["auction"],
       origin: :site,
       creator_human_account_id: Map.get(operation, :human_account_id),
+      creator_address: String.downcase(envelope["expected_signer"]),
       title: arguments["name"],
       summary: arguments["description"],
       token_symbol: arguments["symbol"],

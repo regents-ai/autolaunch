@@ -57,14 +57,14 @@ defmodule Autolaunch.Stocks.LaunchActions do
 
   @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
 
-  @doc "The fixed terms every Stocks launch uses, for the review page."
-  def terms do
+  @doc "The fixed terms every Stocks launch uses, for the review page, in the ticker of the token it creates."
+  def terms(ticker) do
     [
       {"Launch fee", "None"},
       {"Token decimals", Integer.to_string(@new_decimals)},
-      {"Initial supply", "1,000,000,000 NEW"},
-      {"Sold at auction", "800,000,000 NEW (80%)"},
-      {"Pool reserve", "200,000,000 NEW (20%)"},
+      {"Initial supply", "1,000,000,000 #{ticker}"},
+      {"Sold at auction", "800,000,000 #{ticker} (80%)"},
+      {"Pool reserve", "200,000,000 #{ticker} (20%)"},
       {"Bidding opens", "#{schedule_copy(@start_lead_blocks)} after the launch is created"},
       {"Auction length", schedule_copy(@auction_duration_blocks)},
       {"Claims open", "#{schedule_copy(@claim_delay_blocks)} after the auction ends"},
@@ -250,7 +250,7 @@ defmodule Autolaunch.Stocks.LaunchActions do
         "route" => snapshot.admission.route,
         "block_number" => snapshot.block.number,
         "block_hash" => snapshot.block.hash,
-        "terms" => Enum.map(terms(), fn {label, value} -> [label, value] end),
+        "terms" => Enum.map(terms(fields.symbol), fn {label, value} -> [label, value] end),
         "steps" => steps
       }
     )
