@@ -106,6 +106,34 @@ defmodule Autolaunch.Bid do
       ]
     end
 
+    # A bid the auction announced on chain, recorded by the auction's background
+    # reader. It carries only the bid's own facts, so recording it again never
+    # touches the position's status or settlement.
+    create :record_from_chain do
+      accept [
+        :bid_id,
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :auction_address,
+        :onchain_bid_id
+      ]
+
+      change Autolaunch.Bid.Changes.NormalizeOwnerAddress
+      upsert? true
+      upsert_identity :unique_bid_id
+
+      upsert_fields [
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :auction_address,
+        :onchain_bid_id
+      ]
+    end
+
     update :set_chain_identity do
       require_atomic? false
       accept [:auction_address, :onchain_bid_id]
@@ -121,7 +149,7 @@ defmodule Autolaunch.Bid do
       authorize_if Autolaunch.Bid.Checks.VerifiedWalletOwner
     end
 
-    policy action([:import_position, :project_lab, :set_chain_identity]) do
+    policy action([:import_position, :project_lab, :record_from_chain, :set_chain_identity]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
   end
@@ -212,6 +240,7 @@ defmodule Autolaunch.Bid do
     belongs_to :auction, Autolaunch.Auction do
       allow_nil? false
       attribute_public? true
+      read_action :listed
     end
 
     has_one :token, Autolaunch.Token do

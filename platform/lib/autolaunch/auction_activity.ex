@@ -4,14 +4,15 @@ defmodule Autolaunch.AuctionActivity do
   prices the auction announced. Each pass reads one auction and at most 2,000
   blocks. The cursor and rows commit together;
   repeat ranges replace the same bids. A changed cursor block invalidates this
-  auction's derived activity and rebuilds it, without touching wallet positions.
+  auction's derived activity and rebuilds it. On Base each bid also becomes its
+  bidder's wallet position; a rebuild never removes or changes a saved one.
   """
   @behaviour Autolaunch.DurableWork.Handler
   import Ecto.Query
   require Ash.Query
   require Logger
   alias Autolaunch.Actors.System
-  alias Autolaunch.{Auction, AuctionPricePoint, BidActivity, BidPrice, LabAbi, Repo}
+  alias Autolaunch.{Auction, AuctionPricePoint, Bid, BidActivity, BidPrice, LabAbi, Repo}
   alias Autolaunch.Chain.{Address, Rpc}
   @actor %System{}
   @bid "BidSubmitted(uint256,address,uint256,uint128)"
@@ -428,6 +429,7 @@ defmodule Autolaunch.AuctionActivity do
 
       Ash.bulk_create!(bids, BidActivity, :record, actor: @actor, return_errors?: true)
       Ash.bulk_create!(points, AuctionPricePoint, :record, actor: @actor, return_errors?: true)
+      record_positions(auction)
 
       total =
         Repo.one(from b in BidActivity, where: b.auction_id == ^auction.id, select: sum(b.amount)) ||
@@ -458,6 +460,39 @@ defmodule Autolaunch.AuctionActivity do
         error
     end
   end
+
+  # Every bid a Base auction announced is also its bidder's position, whether or
+  # not their page was open when it confirmed. Only bids without a saved position
+  # are written, so a pass never touches one being settled. Robinhood positions
+  # are read from the chain when the bidder looks, so none are saved here.
+  defp record_positions(auction) do
+    unless Autolaunch.Robinhood.Lab.chain?(auction.chain_id), do: record_base_positions(auction)
+  end
+
+  defp record_base_positions(auction) do
+    saved =
+      from b in Bid,
+        where: b.auction_id == ^auction.id and not is_nil(b.onchain_bid_id),
+        select: b.onchain_bid_id
+
+    # One SQL anti-join between two system-owned tables, inside the same locked
+    # transaction as the commit; the writes still go through the Ash action.
+    from(a in BidActivity, where: a.auction_id == ^auction.id and a.bid_id not in subquery(saved))
+    |> Repo.all()
+    |> Enum.map(&position(auction, &1))
+    |> Ash.bulk_create!(Bid, :record_from_chain, actor: @actor, return_errors?: true)
+  end
+
+  defp position(auction, activity),
+    do: %{
+      bid_id: Autolaunch.LabProjection.bid_identity(auction.auction_address, activity.bid_id),
+      auction_id: auction.id,
+      owner_address: activity.bidder,
+      amount: Decimal.to_string(activity.amount, :normal),
+      max_price: Decimal.to_string(activity.max_price, :normal),
+      auction_address: auction.auction_address,
+      onchain_bid_id: activity.bid_id
+    }
 
   defp refresh_delay(_auction, false), do: 1
   defp refresh_delay(%{state: state}, true) when state in [:graduated, :failed], do: 600

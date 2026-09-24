@@ -37,6 +37,10 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
   Wider screens keep the full header, in this order: + Create, Buy $REGENT, Follow on X, the
   crown, GitHub, Sign in.
 - The treasury section no longer shows a technical note under a verified recipient.
+- Portfolio shows every Base bid made from your wallet, including bids placed outside this
+  site or whose confirmation the site missed: the site now records each bid the auction
+  announces. A bid saved on an auction launched without a creator account no longer breaks the
+  portfolio page.
 
 ## v25, 24 September 2026 (864624e)
 - The time bar on auction cards fills again: the site now records when each auction opened, so

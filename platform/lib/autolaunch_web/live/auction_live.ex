@@ -60,8 +60,9 @@ defmodule AutolaunchWeb.AuctionLive do
     end
   end
 
-  # This auction's saved record changed (its state, minimum, bid terms or
-  # treasury report), so the page reads it again in place; the bid form stays.
+  # This auction's saved record changed (its state, bids, minimum, bid terms or
+  # treasury report), so the page reads it again in place, with the viewer's own
+  # bids; the bid form stays.
   def handle_info({:autolaunch_listings_changed, auction_id}, socket) do
     if auction_id == socket.assigns.record_id,
       do: {:noreply, LiveListings.schedule(socket)},
@@ -71,7 +72,11 @@ defmodule AutolaunchWeb.AuctionLive do
   def handle_info(:reread_listings, socket),
     do:
       {:noreply,
-       socket |> LiveListings.taken() |> load_page(reset: false) |> load_history(reset: false)}
+       socket
+       |> LiveListings.taken()
+       |> assign_positions()
+       |> load_page(reset: false)
+       |> load_history(reset: false)}
 
   # A settlement card verified a step, so the bidder's stored positions changed.
   def handle_info({:bid_settlement_changed, _position_id}, socket),
