@@ -6,6 +6,7 @@ defmodule Autolaunch.Token do
     domain: Autolaunch,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub],
     primary_read_warning?: false
 
   require Ash.Query
@@ -198,6 +199,15 @@ defmodule Autolaunch.Token do
     policy action([:project_lab, :projection_by_auction, :set_price_snapshot]) do
       authorize_if Autolaunch.Checks.SystemActor
     end
+  end
+
+  # A new token joins the public lists; see `Autolaunch.Listings`.
+  pub_sub do
+    module Phoenix.PubSub
+    name Autolaunch.PubSub
+    transform fn notification -> {:autolaunch_listings_changed, notification.data.auction_id} end
+
+    publish_all :create, "listings"
   end
 
   attributes do

@@ -16,6 +16,7 @@ defmodule AutolaunchWeb.HomeLive do
   import AutolaunchWeb.Components.SwapModal
   import AutolaunchWeb.Components.AuctionStats
   alias Autolaunch.HomeMarket
+  alias AutolaunchWeb.LiveListings
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -34,6 +35,7 @@ defmodule AutolaunchWeb.HomeLive do
        has_more: false,
        local_lab: Autolaunch.Lab.test_chain?()
      )
+     |> LiveListings.subscribe()
      |> assign_auction_stats()}
   end
 
@@ -127,6 +129,25 @@ defmodule AutolaunchWeb.HomeLive do
   def handle_async(:home_market, _failure, socket),
     do: {:noreply, assign(socket, market_loading: false, market_failed: true)}
 
+  # A reread answers only for the listing it was asked about; a filter, search
+  # or load started meanwhile brings its own records.
+  def handle_async(:home_reread, {:ok, {options, {:ok, page}}}, socket) do
+    if options == socket.assigns.market_options and not socket.assigns.market_loading do
+      {:noreply,
+       assign(socket,
+         records: page.records,
+         creators: page.creators,
+         next_cursor: page.next_cursor,
+         has_more: page.has_more
+       )}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # A failed reread leaves the listing the reader already has.
+  def handle_async(:home_reread, _failure, socket), do: {:noreply, socket}
+
   def handle_async(:home_robinhood, {:ok, {:ok, auctions, creators}}, socket),
     do:
       {:noreply,
@@ -134,6 +155,12 @@ defmodule AutolaunchWeb.HomeLive do
 
   def handle_async(:home_robinhood, _failure, socket),
     do: {:noreply, assign(socket, robinhood: [], robinhood_creators: %{}, robinhood_failed: true)}
+
+  def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
+    do: {:noreply, LiveListings.schedule(socket)}
+
+  def handle_info(:reread_listings, socket),
+    do: {:noreply, socket |> LiveListings.taken() |> reread_market() |> assign_auction_stats()}
 
   # Robinhood entries carry no opening time to page by, so they lead the first page.
   defp load_robinhood(socket, true), do: socket
@@ -171,6 +198,23 @@ defmodule AutolaunchWeb.HomeLive do
       end
     end)
     |> load_robinhood(append?)
+  end
+
+  # The records loaded so far, read again in place: the filters, the pages
+  # loaded with "Load more" and an open bid form all stay. Robinhood entries
+  # come from their chain, not the saved records, so they are not read again.
+  defp reread_market(socket) do
+    options = socket.assigns.market_options
+    count = length(socket.assigns.records)
+
+    start_async(socket, :home_reread, fn ->
+      result =
+        with {:ok, page} <- HomeMarket.reread(options, count) do
+          {:ok, Map.put(page, :creators, creator_connections_for(page.records))}
+        end
+
+      {options, result}
+    end)
   end
 
   def render(assigns) do
