@@ -318,7 +318,8 @@ defmodule AutolaunchWeb.Components.PoolSection do
   defp unsold_copy(%{disposition: :retired}), do: "retired forever at"
   defp unsold_copy(%{disposition: :escrow}), do: "held by the launch's vesting escrow at"
 
-  defp failure_copy({:error, :not_graduated}), do: "This auction has not launched yet, so it has no pool."
+  defp failure_copy({:error, :not_graduated}),
+    do: "This auction has not launched yet, so it has no pool."
 
   defp failure_copy({:error, reason})
        when reason in [:deployment_missing, :stocks_deployment_missing],

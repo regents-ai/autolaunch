@@ -101,99 +101,99 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
-  attr :kind, :atom, required: true, values: [:auction]
-  attr :record, :map, required: true
-  attr :creator_connections, :map, default: %{}
-  attr :trade_event, :string, default: nil
+  attr :kind, :string, required: true, values: ["auctions", "tokens"]
+  attr :options, :map, required: true, doc: "the list's `Autolaunch.HomeMarket` options"
 
-  attr :reading, :map,
-    default: nil,
-    doc: "the market feed's reading of the auction, which carries its amount raised"
-
-  @doc "The large auction card of the auctions page: who, where, what state, and how to bid."
-  def auction_card(assigns) do
-    view =
-      assigns.kind
-      |> view(assigns.record, assigns.creator_connections)
-      |> with_reading(assigns.reading)
-
-    assigns = assign(assigns, view: view, minimum_reached: minimum_reached?(view))
+  @doc """
+  The filters above a list page's table: chain, status (auctions only), the
+  creator's verified connections, and search. They send "filter" and "search".
+  """
+  def list_tools(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :verified,
+        assigns.options.x or assigns.options.ens or assigns.options.github
+      )
 
     ~H"""
-    <article
-      class={["auction-card", @view.color && "auction-card--tinted"]}
-      style={tint(@view.color)}
-      data-state={@view.state}
-    >
-      <.link navigate={@view.path} class="auction-card__main">
-        <header class="auction-card__head">
-          <div class="auction-card__art">
-            <img
-              :if={present?(@view.image)}
-              src={@view.image}
-              alt={"#{@view.name} token"}
-              loading="lazy"
-              decoding="async"
-              width="128"
-              height="128"
-            />
-            <span :if={!present?(@view.image)} aria-label="No token image">{String.first(
-              @view.name || "?"
-            )}</span>
-          </div>
-          <div class="auction-card__title">
-            <h2>{@view.name}</h2>
-            <p>${@view.symbol}</p>
-          </div>
-          <span class={["auction-card__state", launched(@view.status)]}>{@view.status}</span>
-        </header>
-        <p class="auction-card__tags">
-          <.chain_chip chain={@view.chain} /><span>{@view.launch}</span>
-        </p>
-        <p :if={present?(@view.description)} class="auction-card__description">
-          {@view.description}
-        </p>
-      </.link>
-      <dl class="auction-card__stats">
-        <div>
-          <dt>{@view.metric_label}</dt>
-          <dd><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></dd>
-        </div>
-        <div :if={@view.raised}>
-          <dt>{if @view.state == :failed, do: "Bid before refunds", else: "Raised"}</dt>
-          <dd>
-            <TokenDisplay.price amount={@view.raised.amount} unit={@view.raised.unit} /><span
-              :if={@minimum_reached}
-              class="auction-card__met"
-              title="Minimum reached"
-            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg><span class="visually-hidden">Minimum reached</span></span>
-          </dd>
-        </div>
-        <div :if={@view.quick}>
-          <dt>Bids in</dt>
-          <dd>{@view.quick.currency}</dd>
-        </div>
-        <div :if={@view.age}>
-          <dt>Opened</dt>
-          <dd>{@view.age} ago</dd>
-        </div>
-        <div :if={@view.creator}>
-          <dt>Creator</dt>
-          <dd title={@view.creator_address}>{@view.creator}</dd>
-        </div>
-      </dl>
-      <.quick_actions
-        :if={@trade_event && @view.quick}
-        event={@trade_event}
-        record_id={@view.record_id}
-        name={@view.name}
-        quick={@view.quick}
-      />
-      <.card_socials connections={@view.connections} compact />
-      <.link :if={!@view.quick} navigate={@view.path} class="auction-card__more">
-        View auction <span aria-hidden="true">→</span>
-      </.link>
-    </article>
+    <div class="market-list__tools">
+      <form
+        id={"#{@kind}-filter-form"}
+        class="market-list__filters"
+        phx-change="filter"
+        phx-submit="filter"
+      >
+        <label>
+          <span class="visually-hidden">Chain</span>
+          <select name="chain" aria-label="Chain">
+            <option
+              :for={
+                {value, label} <- [
+                  {"all", "All chains"},
+                  {"base", "Base"},
+                  {"robinhood", "Robinhood"}
+                ]
+              }
+              value={value}
+              selected={@options.chain == value}
+            >
+              {label}
+            </option>
+          </select>
+        </label>
+        <label :if={@kind == "auctions"}>
+          <span class="visually-hidden">Status</span>
+          <select name="state" aria-label="Status">
+            <option
+              :for={
+                {value, label} <- [
+                  {"all", "Any status"},
+                  {"created", "Opening soon"},
+                  {"active", "Live"},
+                  {"ended", "Waiting to finish"},
+                  {"graduated", "Launched"},
+                  {"failed", "Failed"}
+                ]
+              }
+              value={value}
+              selected={@options.state == value}
+            >
+              {label}
+            </option>
+          </select>
+        </label>
+        <details
+          id={"#{@kind}-verified"}
+          class={["market-list__verified-menu", @verified && "is-active"]}
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+        >
+          <summary>Verified</summary>
+          <fieldset>
+            <legend>Creator has verified</legend>
+            <label :for={{key, label} <- [x: "X", ens: "ENS", github: "GitHub"]}>
+              <input type="hidden" name={key} value="false" />
+              <input type="checkbox" name={key} value="true" checked={Map.fetch!(@options, key)} />
+              {label}
+            </label>
+            <small>Shows {@kind} whose creator has every one you tick.</small>
+          </fieldset>
+        </details>
+      </form>
+      <form id={"#{@kind}-search"} class="market-list__search" phx-submit="search" phx-change="search">
+        <label>
+          <span class="visually-hidden">Search {@kind}</span>
+          <input
+            type="search"
+            name="q"
+            value={@options.q}
+            placeholder="Search name, ticker or address"
+            phx-debounce="300"
+            autocomplete="off"
+          />
+        </label>
+      </form>
+    </div>
     """
   end
 
@@ -208,8 +208,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   """
   def auction_list(assigns) do
     ~H"""
-    <div class="auction-list__scroll">
-      <table class="auction-list__table">
+    <div class="market-list__scroll">
+      <table class="market-list__table market-list__table--auctions">
         <caption class="visually-hidden">Auctions</caption>
         <thead>
           <tr>
@@ -231,7 +231,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
             :for={index <- 1..6}
             :if={@loading && @records == []}
             id={"auctions-loading-#{index}"}
-            class="auction-list__skeleton"
+            class="market-list__skeleton"
             aria-hidden="true"
           >
             <td colspan="5"></td>
@@ -247,46 +247,15 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :rate, :any, default: nil
 
   defp auction_list_row(assigns) do
-    view = view(:auction, assigns.auction, assigns.creator_connections)
-
     assigns =
       assign(assigns,
-        view: view,
-        figures: figures(assigns.auction, assigns.rate),
-        verified: Enum.map_join(view.connections, ", ", & &1.label)
+        view: view(:auction, assigns.auction, assigns.creator_connections),
+        figures: figures(assigns.auction, assigns.rate)
       )
 
     ~H"""
-    <tr class="auction-list__row">
-      <th scope="row">
-        <.link navigate={@view.path} class="auction-list__token">
-          <span class="auction-list__art">
-            <img
-              :if={present?(@view.image)}
-              src={@view.image}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              width="40"
-              height="40"
-            />
-            <span :if={!present?(@view.image)} aria-hidden="true">{String.first(@view.name || "?")}</span>
-            <span
-              class={["auction-list__chain", "auction-list__chain--#{String.downcase(@view.chain)}"]}
-              title={@view.chain}
-            ><span class="visually-hidden">{@view.chain}</span></span>
-          </span>
-          <span class="auction-list__name">
-            <strong>{@view.name}</strong>
-            <span
-              :if={@verified != ""}
-              class="auction-list__verified"
-              title={"Creator verified: #{@verified}"}
-            ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg><span class="visually-hidden">Creator verified: {@verified}</span></span>
-            <small>${@view.symbol}</small>
-          </span>
-        </.link>
-      </th>
+    <tr class="market-list__row">
+      <.list_token view={@view} />
       <td>{@figures.fdv}</td>
       <td>{@figures.volume}</td>
       <td>
@@ -299,6 +268,139 @@ defmodule AutolaunchWeb.Components.MarketCard do
     """
   end
 
+  attr :records, :list, required: true, doc: "launched tokens with `market_cap` loaded"
+  attr :creators, :map, required: true, doc: "creator connections grouped by human account"
+  attr :rates, :any, required: true, doc: "the dollar prices from `assign_figure_rates/1`"
+  attr :loading, :boolean, default: false
+
+  @doc """
+  The tokens list: the token, its price, its market cap and when it launched.
+  On a phone the market cap is left out.
+  """
+  def token_list(assigns) do
+    ~H"""
+    <div class="market-list__scroll">
+      <table class="market-list__table market-list__table--tokens">
+        <caption class="visually-hidden">Tokens</caption>
+        <thead>
+          <tr>
+            <th scope="col">Token</th>
+            <th scope="col">Price</th>
+            <th scope="col">Market cap</th>
+            <th scope="col">Launched</th>
+          </tr>
+        </thead>
+        <tbody>
+          <.token_list_row
+            :for={token <- @records}
+            token={token}
+            creator_connections={Map.get(@creators, token.auction.creator_human_account_id, %{})}
+            rate={figure_rate(@rates, token.auction)}
+          />
+          <tr
+            :for={index <- 1..6}
+            :if={@loading && @records == []}
+            id={"tokens-loading-#{index}"}
+            class="market-list__skeleton"
+            aria-hidden="true"
+          >
+            <td colspan="4"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  attr :token, :map, required: true
+  attr :creator_connections, :map, default: %{}
+  attr :rate, :any, default: nil
+
+  defp token_list_row(assigns) do
+    assigns =
+      assign(assigns,
+        view: view(:token, assigns.token, assigns.creator_connections),
+        market_cap: dollars(assigns.token.market_cap, assigns.rate)
+      )
+
+    ~H"""
+    <tr class="market-list__row">
+      <.list_token view={@view} />
+      <td>
+        <.price_figure amount={@token.price_quote} unit={@view.metric.unit} rate={@rate} />
+      </td>
+      <td>{@market_cap}</td>
+      <td>{if @view.age, do: "#{@view.age} ago", else: "-"}</td>
+    </tr>
+    """
+  end
+
+  attr :view, :map, required: true
+
+  # The cell every list row starts with: the token's image with its chain's
+  # badge, its name with the creator's verified mark, and its ticker.
+  defp list_token(assigns) do
+    assigns =
+      assign(assigns, :verified, Enum.map_join(assigns.view.connections, ", ", & &1.label))
+
+    ~H"""
+    <th scope="row">
+      <.link navigate={@view.path} class="market-list__token">
+        <span class="market-list__art">
+          <img
+            :if={present?(@view.image)}
+            src={@view.image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            width="40"
+            height="40"
+          />
+          <span :if={!present?(@view.image)} aria-hidden="true">{String.first(@view.name || "?")}</span>
+          <span
+            class={["market-list__chain", "market-list__chain--#{String.downcase(@view.chain)}"]}
+            title={@view.chain}
+          ><span class="visually-hidden">{@view.chain}</span></span>
+        </span>
+        <span class="market-list__name">
+          <strong>{@view.name}</strong>
+          <span
+            :if={@verified != ""}
+            class="market-list__verified"
+            title={"Creator verified: #{@verified}"}
+          ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg><span class="visually-hidden">Creator verified: {@verified}</span></span>
+          <small>${@view.symbol}</small>
+        </span>
+      </.link>
+    </th>
+    """
+  end
+
+  attr :amount, :string, default: nil, doc: "a price per token in its currency"
+  attr :unit, :string, default: nil, doc: "the currency the price is in"
+
+  attr :rate, :any,
+    default: nil,
+    doc: "the USD price of one unit of that currency, nil while none is known"
+
+  # A price per token in dollars where the currency's dollar price is known,
+  # otherwise in the currency itself. A tiny price counts its zeros after the
+  # point, as in `$0.0₄123`, with the plain figure kept for screen readers.
+  defp price_figure(assigns) do
+    price = decimal(assigns.amount)
+    usd = if price && assigns.rate, do: dollars(price, assigns.rate)
+    shown = if usd, do: TokenDisplay.zeros(usd)
+    assigns = assign(assigns, usd: usd, shown: shown)
+
+    ~H"""
+    <span :if={@usd && @shown == @usd}>{@usd}</span>
+    <span :if={@usd && @shown != @usd}>
+      <span aria-hidden="true">{@shown}</span><span class="visually-hidden">{@usd}</span>
+    </span>
+    <TokenDisplay.price :if={!@usd} amount={@amount} unit={@unit} fallback="-" />
+    """
+  end
+
   attr :auction, :map, required: true, doc: "an auction with `fdv` loaded"
 
   attr :rate, :any,
@@ -306,9 +408,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
     doc: "the USD price of one unit of the auction's currency, nil while none is known"
 
   @doc """
-  The four figures every auction list and card shows: FDV at the current price,
-  bid volume, the launch threshold with how much of it is met, and the status.
-  A figure the site does not know shows as a dash, never as zero.
+  The four figures an auction's card shows: the current price per token, FDV
+  at that price, the launch threshold with how much of it is met, and the
+  status. A figure the site does not know shows as a dash, never as zero.
   """
   def auction_figures(assigns) do
     assigns = assign(assigns, :figures, figures(assigns.auction, assigns.rate))
@@ -316,12 +418,18 @@ defmodule AutolaunchWeb.Components.MarketCard do
     ~H"""
     <dl class="auction-figures">
       <div>
-        <dt>FDV</dt>
-        <dd>{@figures.fdv}</dd>
+        <dt>Price</dt>
+        <dd>
+          <.price_figure
+            amount={@auction.current_clearing_price}
+            unit={@auction.quote_token_symbol}
+            rate={@rate}
+          />
+        </dd>
       </div>
       <div>
-        <dt>Bid volume</dt>
-        <dd>{@figures.volume}</dd>
+        <dt>FDV</dt>
+        <dd>{@figures.fdv}</dd>
       </div>
       <div>
         <dt>Launch threshold</dt>
@@ -392,16 +500,11 @@ defmodule AutolaunchWeb.Components.MarketCard do
     }
   end
 
-  # Dollar figures are shortened the way market lists write them: $296,
-  # $24.7K, $1.48M. A value under a dollar reads "<$1".
+  # Dollar figures are shortened the way market lists write them, to three
+  # significant digits: $0.0000123, $1.48, $296, $24.7K, $1.48M.
   defp dollars(%Decimal{} = amount, rate) when not is_nil(rate) do
     value = Decimal.mult(amount, rate)
-
-    cond do
-      Decimal.eq?(value, 0) -> "$0"
-      Decimal.lt?(value, 1) -> "<$1"
-      true -> "$" <> compact(value)
-    end
+    if Decimal.eq?(value, 0), do: "$0", else: "$" <> compact(value)
   end
 
   defp dollars(_amount, _rate), do: "-"
@@ -410,16 +513,29 @@ defmodule AutolaunchWeb.Components.MarketCard do
     [{1_000_000_000_000, "T"}, {1_000_000_000, "B"}, {1_000_000, "M"}, {1_000, "K"}]
     |> Enum.find(fn {size, _suffix} -> Decimal.gte?(value, size) end)
     |> case do
-      {size, suffix} -> value |> Decimal.div(size) |> short() |> Kernel.<>(suffix)
-      nil -> value |> Decimal.round(0) |> Decimal.to_string(:normal)
+      {size, suffix} -> value |> Decimal.div(size) |> significant() |> Kernel.<>(suffix)
+      nil -> significant(value)
     end
   end
 
-  # Three significant digits: 1.48, 24.7, 296.
-  defp short(value) do
-    places = if(Decimal.lt?(value, 10), do: 2, else: if(Decimal.lt?(value, 100), do: 1, else: 0))
-    value |> Decimal.round(places) |> Decimal.normalize() |> Decimal.to_string(:normal)
+  defp significant(%Decimal{coef: coef, exp: exp} = value) do
+    digits = coef |> Integer.digits() |> length()
+
+    value
+    |> Decimal.round(3 - digits - exp)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
   end
+
+  # Stored prices can run past a hundred decimal places.
+  defp decimal(value) when is_binary(value) do
+    case Decimal.parse(String.trim(value), max_digits: :infinity) do
+      {%Decimal{} = decimal, ""} -> decimal
+      _unparsed -> nil
+    end
+  end
+
+  defp decimal(_value), do: nil
 
   defp percent_met(%Decimal{} = raised, minimum) do
     if Decimal.gt?(minimum, 0),
@@ -515,56 +631,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
         }
       }
     </script>
-    """
-  end
-
-  attr :kind, :atom, required: true, values: [:auction, :token]
-  attr :record, :map, required: true
-  attr :creator_connections, :map, default: %{}
-  attr :trade_event, :string, default: nil
-  attr :quick_column, :boolean, default: false, doc: "the table has a quick-action column"
-
-  def explore_row(assigns) do
-    assigns =
-      assign(assigns, :view, view(assigns.kind, assigns.record, assigns.creator_connections))
-
-    ~H"""
-    <tr>
-      <td>
-        <.link navigate={@view.path} class="home-table__coin">
-          <img
-            :if={present?(@view.image)}
-            src={@view.image}
-            alt=""
-            width="48"
-            height="48"
-            loading="lazy"
-          />
-          <span :if={!present?(@view.image)} class="home-table__fallback" aria-hidden="true">{String.first(
-            @view.name || "?"
-          )}</span>
-          <span><strong>{@view.name}</strong><small>${@view.symbol}{if @view.chain == "Robinhood",
-            do: " · Robinhood"}</small></span>
-        </.link>
-      </td>
-      <td><TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /></td>
-      <td data-label="Creator">
-        <span title={@view.creator_address}>{@view.creator || "—"}</span>
-      </td>
-      <td data-label="Age">{@view.age || "—"}</td>
-      <td data-label={if @view.pair, do: "Pair", else: "Status"}>
-        {@view.pair || @view.status}
-      </td>
-      <td :if={@quick_column}>
-        <.quick_actions
-          :if={@trade_event && @view.quick}
-          event={@trade_event}
-          record_id={@view.record_id}
-          name={@view.name}
-          quick={@view.quick}
-        />
-      </td>
-    </tr>
     """
   end
 
@@ -806,7 +872,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
           values["required_regent_raised"],
           present(values["preview_metric_unit"], "REGENT")
         ),
-      address: nil,
       path: nil,
       creator: nil,
       creator_address: nil,
@@ -831,7 +896,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       status: state_label(auction.state),
       metric_label: "Clearing price",
       metric: metric(auction.current_clearing_price, auction.quote_token_symbol),
-      address: auction.auction_address,
       path:
         if(robinhood?,
           do: "/robinhood/auctions/#{auction.auction_address}",
@@ -847,15 +911,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
           if(robinhood?, do: "USDG", else: BidComponent.bid_currency(auction))
         ),
       record_id: auction.id,
-      state: auction.state,
-      chain: if(robinhood?, do: "Robinhood", else: "Base"),
-      launch: if(auction.kind == :stocks, do: "Memestake", else: "Revstake"),
-      raised: nil,
-      minimum:
-        auction.required_currency_raised
-        |> String.to_integer()
-        |> Rpc.format_units(auction.quote_token_decimals),
-      pair: nil
+      chain: if(robinhood?, do: "Robinhood", else: "Base")
     }
   end
 
@@ -863,15 +919,12 @@ defmodule AutolaunchWeb.Components.MarketCard do
   # trades on its own page, so its row offers no quick buy.
   defp view(:token, %{auction: %{chain_id: chain_id} = auction} = token, connections) do
     if RobinhoodLab.chain?(chain_id) do
-      presentation = Token.presentation(token)
-
       %{
         base_token_view(token, connections)
         | metric: metric(token.price_quote, auction.quote_token_symbol),
           path: "/robinhood/tokens/#{auction.token_address}",
           quick: nil,
-          chain: "Robinhood",
-          pair: "#{presentation.symbol} / #{auction.quote_token_symbol}"
+          chain: "Robinhood"
       }
     else
       base_token_view(token, connections)
@@ -892,7 +945,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
       status: "Launched",
       metric_label: "Price",
       metric: metric(token.price_quote, currency),
-      address: presentation.auction_address,
       path: "/tokens/#{token.id}",
       creator: short_address(token.auction.creator_address),
       creator_address: token.auction.creator_address,
@@ -904,8 +956,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         unavailable: closed_before_deployment()
       },
       record_id: token.id,
-      chain: "Base",
-      pair: "#{presentation.symbol} / #{currency}"
+      chain: "Base"
     }
   end
 
@@ -932,20 +983,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp closed_before_deployment,
     do:
       if(Autolaunch.Prelaunch.read_only?(), do: "Opens #{Autolaunch.Prelaunch.opens_at_label()}")
-
-  # The stored figure travels untouched; only its on-screen form is shortened.
-  # An auction's amount raised is read from its chain by its market feed.
-  defp with_reading(view, nil), do: view
-
-  defp with_reading(view, reading),
-    do: %{view | raised: metric(reading.currency_raised, view.metric.unit)}
-
-  # Both amounts are whole units, as plain decimals.
-  defp minimum_reached?(%{raised: %{amount: raised}, minimum: minimum})
-       when is_binary(raised),
-       do: Decimal.compare(Decimal.new(raised), Decimal.new(minimum)) != :lt
-
-  defp minimum_reached?(_view), do: false
 
   # A card whose image has a known colour carries it for its border, background
   # and launched badge.

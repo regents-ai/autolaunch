@@ -91,7 +91,6 @@
 .chain-chip { display: inline-flex; align-items: center; padding: 1px 8px; border: 2px solid var(--chain-color); border-radius: 4px; color: var(--color-fg); font-size: .75rem; font-weight: 600; line-height: 1.4; }
 .chain-chip--base { --chain-color: #0052ff; }
 .chain-chip--robinhood { --chain-color: #00c805; }
-.auction-card__tags .chain-chip { background: none; color: var(--color-fg); }
 
 /* Who launched it, and each account they could connect. */
 .market-creator { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }

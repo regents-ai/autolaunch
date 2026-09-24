@@ -7,12 +7,17 @@ defmodule AutolaunchWeb.HomeLive do
       connections_for: 2,
       creator_connections_for: 1,
       current_human_id: 1,
-      explore_table: 1,
       robinhood?: 1
     ]
 
   import AutolaunchWeb.Components.MarketCard,
-    only: [auction_list: 1, explore_card: 1, assign_figure_rates: 1, figure_rate: 2]
+    only: [
+      auction_list: 1,
+      token_list: 1,
+      explore_card: 1,
+      assign_figure_rates: 1,
+      figure_rate: 2
+    ]
 
   import AutolaunchWeb.Components.Opening, only: [welcome: 1]
   import AutolaunchWeb.Components.SwapModal
@@ -426,12 +431,11 @@ defmodule AutolaunchWeb.HomeLive do
           creators={@creators}
           rates={@rates}
         />
-        <.explore_table
+        <.token_list
           :if={@listed? && @market_options.display == "table" && @kind == :token}
-          kind={@kind}
           records={@records}
           creators={@creators}
-          trade_event="open_trade"
+          rates={@rates}
         />
 
         <Regent.Primitives.notice :if={@market_failed} tone="error" class="home-market__error">

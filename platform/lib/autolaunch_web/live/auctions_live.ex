@@ -7,13 +7,13 @@ defmodule AutolaunchWeb.AuctionsLive do
   use AutolaunchWeb, :live_view
 
   import AutolaunchWeb.Components.AutolaunchHelpers, only: [creator_connections_for: 1]
-  import AutolaunchWeb.Components.MarketCard, only: [auction_list: 1, assign_figure_rates: 1]
+
+  import AutolaunchWeb.Components.MarketCard,
+    only: [auction_list: 1, assign_figure_rates: 1, list_tools: 1]
 
   import AutolaunchWeb.Components.AuctionStats
   alias Autolaunch.HomeMarket
   alias AutolaunchWeb.{LabMarket, LiveListings}
-
-  @verifications [x: "X", ens: "ENS", github: "GitHub"]
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -171,14 +171,13 @@ defmodule AutolaunchWeb.AuctionsLive do
     assigns =
       assign(assigns,
         pill: pill(assigns.options),
-        verifications: @verifications,
         all: @all
       )
 
     ~H"""
-    <main class="autolaunch-page auction-list-page" id="auctions-list">
+    <main class="autolaunch-page market-list-page" id="auctions-list">
       <.auction_stats revstake={@revstake_stats} memestake={@memestake_stats} />
-      <header class="auction-list__header">
+      <header class="market-list__header">
         <h1 id="auctions-list-title">Auctions</h1>
         <Regent.Primitives.button
           :if={Autolaunch.Prelaunch.read_only?()}
@@ -192,90 +191,9 @@ defmodule AutolaunchWeb.AuctionsLive do
         ><span class="rg-button__label">Launch auction</span></.link>
       </header>
 
-      <div class="auction-list__tools">
-        <form
-          id="auctions-filter-form"
-          class="auction-list__filters"
-          phx-change="filter"
-          phx-submit="filter"
-        >
-          <label>
-            <span class="visually-hidden">Chain</span>
-            <select name="chain" aria-label="Chain">
-              <option
-                :for={
-                  {value, label} <- [
-                    {"all", "All chains"},
-                    {"base", "Base"},
-                    {"robinhood", "Robinhood"}
-                  ]
-                }
-                value={value}
-                selected={@options.chain == value}
-              >
-                {label}
-              </option>
-            </select>
-          </label>
-          <label>
-            <span class="visually-hidden">Status</span>
-            <select name="state" aria-label="Status">
-              <option
-                :for={
-                  {value, label} <- [
-                    {"all", "Any status"},
-                    {"created", "Opening soon"},
-                    {"active", "Live"},
-                    {"ended", "Waiting to finish"},
-                    {"graduated", "Launched"},
-                    {"failed", "Failed"}
-                  ]
-                }
-                value={value}
-                selected={@options.state == value}
-              >
-                {label}
-              </option>
-            </select>
-          </label>
-          <details
-            id="auctions-verified"
-            class={["auction-list__verified-menu", verified?(@options) && "is-active"]}
-            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
-          >
-            <summary>Verified</summary>
-            <fieldset>
-              <legend>Creator has verified</legend>
-              <label :for={{key, label} <- @verifications}>
-                <input type="hidden" name={key} value="false" />
-                <input type="checkbox" name={key} value="true" checked={Map.fetch!(@options, key)} />
-                {label}
-              </label>
-              <small>Shows auctions whose creator has every one you tick.</small>
-            </fieldset>
-          </details>
-        </form>
-        <form
-          id="auctions-search"
-          class="auction-list__search"
-          phx-submit="search"
-          phx-change="search"
-        >
-          <label>
-            <span class="visually-hidden">Search auctions</span>
-            <input
-              type="search"
-              name="q"
-              value={@options.q}
-              placeholder="Search name, ticker or address"
-              phx-debounce="300"
-              autocomplete="off"
-            />
-          </label>
-        </form>
-      </div>
+      <.list_tools kind="auctions" options={@options} />
 
-      <nav class="auction-list__pills" aria-label="Quick filters">
+      <nav class="market-list__pills" aria-label="Quick filters">
         <.link patch={list_path(@options, @all)} aria-current={if @pill == :all, do: "page"}>All</.link>
         <.link
           patch={list_path(@options, %{state: "active", sort: "newest"})}
@@ -289,7 +207,7 @@ defmodule AutolaunchWeb.AuctionsLive do
 
       <section
         id="auctions-market"
-        class="auction-list"
+        class="market-list"
         aria-labelledby="auctions-list-title"
         aria-busy={to_string(@loading)}
       >
@@ -315,7 +233,7 @@ defmodule AutolaunchWeb.AuctionsLive do
           <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
         </Regent.Primitives.notice>
 
-        <div :if={!@loading && !@failed && @records == []} class="auction-list__empty" role="status">
+        <div :if={!@loading && !@failed && @records == []} class="market-list__empty" role="status">
           <h2>{if filtered?(@options), do: "No matching auctions", else: "No auctions yet"}</h2>
           <p :if={filtered?(@options)}>Try a different search, or clear your filters.</p>
           <.link
@@ -325,7 +243,7 @@ defmodule AutolaunchWeb.AuctionsLive do
           >Clear filters</.link>
         </div>
 
-        <div :if={@has_more && !@failed} class="auction-list__more">
+        <div :if={@has_more && !@failed} class="market-list__more">
           <Regent.Primitives.button phx-click="load-more" disabled={@loading} variant="secondary">
             {if @loading, do: "Loading…", else: "Load more"}
           </Regent.Primitives.button>
