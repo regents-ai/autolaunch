@@ -52,6 +52,8 @@ defmodule Autolaunch.LabBidChainClient do
          [permit2_amount, permit2_expiration, _nonce] <- permit2_words,
          {:ok, spacing} <- call_uint(config, auction, "tickSpacing()", [], block, opts),
          {:ok, floor} <- call_uint(config, auction, "floorPrice()", [], block, opts),
+         {:ok, start_block} <- call_uint(config, auction, "startBlock()", [], block, opts),
+         :ok <- started(block, start_block),
          {:ok, [clearing, _raised, _mps_per_price, _mps, _prev, _next]} <-
            call_words(config, auction, "checkpoint()", [], 6, block, opts),
          {:ok, cap} <- call_uint(config, auction, "MAX_BID_PRICE()", [], block, opts),
@@ -184,6 +186,11 @@ defmodule Autolaunch.LabBidChainClient do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # The auction refuses `checkpoint()` before its start block, so an auction
+  # that has not opened is told apart from a chain that could not be read.
+  defp started(%{number: number}, start_block) when number >= start_block, do: :ok
+  defp started(_block, _start_block), do: {:error, :bid_preparation_unavailable}
 
   defp aligned_price(nil, _limits), do: {:ok, nil}
   defp aligned_price(price, limits), do: Autolaunch.BidPrice.align(price, limits)
