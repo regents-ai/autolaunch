@@ -72,6 +72,18 @@ defmodule Autolaunch.BidSettlementActions do
     end
   end
 
+  @doc """
+  Whether the auction would accept this position's exit right now, read at one
+  pinned block and opening nothing. While bidding is open this is `true` only
+  once the auction has stored a checkpoint priced above the bid's maximum.
+  """
+  @spec exit_ready?(map()) :: {:ok, boolean()} | {:error, term()}
+  def exit_ready?(position) do
+    with {:ok, bid_id} <- onchain_bid_id(position),
+         {:ok, snapshot} <- snapshot(position.auction_address, bid_id, position.owner_address),
+         do: {:ok, match?(%{exit: %{}}, snapshot)}
+  end
+
   @doc "Why nothing can be settled for this position right now, from the auction's own answer."
   @spec refusal_reason(map()) :: atom()
   def refusal_reason(snapshot) do

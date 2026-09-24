@@ -49,6 +49,20 @@ defmodule Autolaunch.Robinhood.StockBidSettlementActions do
   end
 
   @doc """
+  Whether the auction would accept this bid's exit right now, read at one
+  pinned block and opening nothing. While bidding is open this is `true` only
+  once the auction has stored a checkpoint priced above the bid's maximum.
+  """
+  @spec exit_ready?(map()) :: {:ok, boolean()} | {:error, term()}
+  def exit_ready?(%{auction: auction, bid_id: bid_id, owner: owner}) do
+    with {:ok, _config} <- robinhood_lab(),
+         {:ok, auction} <- address(auction, :invalid_auction),
+         {:ok, bid_id} <- bid_id(bid_id),
+         {:ok, snapshot} <- snapshot(auction, bid_id, owner),
+         do: {:ok, match?(%{exit: %{}}, snapshot)}
+  end
+
+  @doc """
   Reads one sent step back from the chain for the signed-in wallet. The result
   is the chain client's own answer: `:pending`, `:reverted`, `:unverified`, or
   `:confirmed` with the auction's record of what was returned or claimed.

@@ -20,6 +20,12 @@ defmodule Autolaunch.Chain.CcaSettlement do
   stored `checkpoints` and simulated the same way, and refused when the walk
   cannot find them.
 
+  While bidding is still open, a graduated auction whose clearing price is
+  above a bid's maximum returns that bid's unspent money early through
+  `exitPartiallyFilledBid`, but only against a stored checkpoint priced above
+  the maximum. Until the auction has stored one, the exit is refused as
+  `:bid_needs_partial_exit_hints_unavailable`.
+
   `exited/5` and `claimed/5` decode `BidExited` and `TokensClaimed` from a
   canonical receipt's logs and check the owner is the reviewed signer.
   """
@@ -132,7 +138,12 @@ defmodule Autolaunch.Chain.CcaSettlement do
           {:ok, Map.put(base, :exit, exit_step("exitBid(uint256)", exit_data, nil, event))}
 
         {:refused, :bid_needs_partial_exit} ->
-          terms = %{clearing_price: clearing_price, end_block: end_block}
+          terms = %{clearing_price: clearing_price, final_block: end_block}
+          partial_exit(venue, auction, bid, terms, base)
+
+        {:refused, :auction_not_ended}
+        when graduated? and clearing_price > bid.max_price_q96 ->
+          terms = %{clearing_price: clearing_price, final_block: nil}
           partial_exit(venue, auction, bid, terms, base)
 
         {:refused, reason} ->
@@ -183,11 +194,11 @@ defmodule Autolaunch.Chain.CcaSettlement do
     end
   end
 
-  # A bid at or below the final clearing price: the last fully filled checkpoint
-  # is the last stored one whose clearing price is below the bid's maximum, and
-  # the outbid block is the first whose clearing price is above it (none when
-  # the final price equals the maximum). Both are checked by the auction itself
-  # in the same simulation before anything is reviewed.
+  # A bid at or below the clearing price: the last fully filled checkpoint is
+  # the last stored one whose clearing price is below the bid's maximum, and the
+  # outbid block is the first whose clearing price is above it (none when the
+  # final price equals the maximum). Both are checked by the auction itself in
+  # the same simulation before anything is reviewed.
   defp partial_exit(venue, auction, bid, terms, base) do
     claim_data = LabAbi.encode(venue.abi, "claimTokens(uint256)", [bid.id])
 
@@ -209,6 +220,9 @@ defmodule Autolaunch.Chain.CcaSettlement do
           {:ok, event} ->
             exit_step("exitPartiallyFilledBid(uint256,uint64,uint64)", data, hints, event)
 
+          {:refused, :already_exited} ->
+            {:refused, :already_exited}
+
           {:refused, _reason} ->
             {:refused, :bid_needs_partial_exit_hints_unavailable}
         end
@@ -227,22 +241,27 @@ defmodule Autolaunch.Chain.CcaSettlement do
     end
   end
 
+  # `final_block` is the end block once bidding has ended, when the settlement
+  # itself writes the final checkpoint; while bidding is open it is `nil` and
+  # only a stored checkpoint above the maximum can be the outbid block.
   defp checkpoint_hints(venue, auction, bid, %{
          clearing_price: clearing_price,
-         end_block: end_block
+         final_block: final_block
        }) do
     with {:ok, last_full, outbid} <-
-           walk_checkpoints(venue, auction, bid.start_block, bid.max_price_q96, nil, 0) do
-      outbid_block =
-        cond do
-          clearing_price == bid.max_price_q96 -> 0
-          is_integer(outbid) -> outbid
-          true -> end_block
-        end
-
+           walk_checkpoints(venue, auction, bid.start_block, bid.max_price_q96, nil, 0),
+         {:ok, outbid_block} <- outbid_block(outbid, clearing_price, bid, final_block) do
       {:ok, %{last_fully_filled_block: last_full, outbid_block: outbid_block}}
     end
   end
+
+  defp outbid_block(_outbid, price, %{max_price_q96: price}, _final_block), do: {:ok, 0}
+  defp outbid_block(outbid, _price, _bid, _final_block) when is_integer(outbid), do: {:ok, outbid}
+
+  defp outbid_block(:final, _price, _bid, nil),
+    do: {:error, :bid_needs_partial_exit_hints_unavailable}
+
+  defp outbid_block(:final, _price, _bid, final_block), do: {:ok, final_block}
 
   # Follows `checkpoints(block).next` from the bid's own start checkpoint. The
   # walk returns the last block whose clearing price is below the maximum and
