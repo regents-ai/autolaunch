@@ -243,6 +243,11 @@ defmodule Autolaunch do
         args: [:id],
         not_found_error?: false
 
+      define :get_robinhood_token,
+        action: :robinhood_by_address,
+        args: [:token_address],
+        not_found_error?: false
+
       define :get_public_token_by_auction,
         action: :public_by_auction,
         args: [:auction_id],

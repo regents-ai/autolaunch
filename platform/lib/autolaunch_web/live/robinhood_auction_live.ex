@@ -1,12 +1,14 @@
 defmodule AutolaunchWeb.RobinhoodAuctionLive do
   @moduledoc """
-  One Robinhood Memestake auction, named by its address. The chain is the only
-  record of these auctions: the page reads the launch (its token's name,
-  description, website and image, its state and what it raised), names its
+  One Robinhood Memestake auction, named by its address. The page shows the
+  auction as the Robinhood market feed stored it (its token's name,
+  description, website and image, its state and minimum) with the feed's
+  latest reading of what it raised and the chain's clock. It names its
   creator when a signed-up account's wallet launched it, shows how far it is
   toward its minimum and roughly when bidding ends, hands the signed-in
   wallet the bid step, and once the launch has graduated, points at the
-  token's own page, where it trades and stakes.
+  token's own page, where it trades and stakes. When Robinhood cannot be
+  read, the page says so and shows what was last read.
   """
 
   use AutolaunchWeb, :live_view
@@ -19,69 +21,87 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
   import AutolaunchWeb.Components.RaiseProgress
 
   alias Autolaunch.AuctionBook
-  alias Autolaunch.Chain.Address
-  alias Autolaunch.Robinhood.{Auctions, Lab}
+  alias Autolaunch.Chain.{Address, Rpc}
+  alias Autolaunch.Robinhood.Lab
   alias Autolaunch.Stocks.MarketData
-  alias AutolaunchWeb.UsdValue
+  alias AutolaunchWeb.{LabMarket, UsdValue}
 
   def mount(_params, _session, socket),
-    do: {:ok, socket |> assign(:open?, Lab.configured?()) |> assign_usd_prices()}
+    do:
+      {:ok,
+       socket
+       |> assign(open?: Lab.configured?(), market: LabMarket.subscribe(socket))
+       |> assign_usd_prices()}
 
   def handle_params(%{"auction" => auction}, _uri, socket) do
     case Address.normalize(auction) do
       {:ok, address} -> {:noreply, socket |> assign(:auction, address) |> load_launch()}
-      :error -> {:noreply, assign(socket, auction: nil, launch: %Phoenix.LiveView.AsyncResult{})}
+      :error -> {:noreply, assign(socket, auction: nil, launch: nil)}
     end
   end
 
-  def handle_event("retry", _params, socket), do: {:noreply, load_launch(socket)}
+  # The feed read Robinhood again: the stored auction and its reading move
+  # together.
+  def handle_info({:robinhood_market_updated, _update}, socket),
+    do: {:noreply, socket |> assign(:market, LabMarket.snapshot()) |> reload_launch()}
+
+  def handle_info({:autolaunch_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
 
   def render(assigns) do
-    assigns = assign(assigns, :usd_rate, usd_rate(assigns.usd_prices, assigns.launch))
+    assigns =
+      assign(assigns,
+        usd_rate: usd_rate(assigns.usd_prices, assigns.launch),
+        reading: assigns.launch && LabMarket.reading(assigns.market, assigns.auction)
+      )
 
     ~H"""
-    <article
-      :if={@open? && @auction && @launch.ok?}
-      id="autolaunch-robinhood-auction"
-      class="autolaunch-page"
-    >
+    <article :if={@open? && @launch} id="autolaunch-robinhood-auction" class="autolaunch-page">
       <header class="autolaunch-heading">
         <.link navigate="/auctions" class="market-back">← Auctions</.link>
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{@launch.result.name} · {@launch.result.symbol}</h1>
+          <h1 class="rg-section-bar__label">{@launch.title} · {@launch.token_symbol}</h1>
         </Regent.Structure.section_bar>
         <p>{network_copy(Lab.test_chain?())}</p>
       </header>
+      <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
+        Robinhood could not be read just now, so this auction shows what was last read.
+      </p>
       <div class="market-detail-layout">
         <section class="market-detail-summary" aria-label="Auction information">
           <.detail_card
-            kind={:robinhood_auction}
-            record={@launch.result}
+            kind={:auction}
+            record={@launch}
             creator_connections={@creator_connections.result}
           >
             <:price_note>
-              <UsdValue.usd amount={@launch.result.clearing_price} rate={@usd_rate} per="per token" />
+              <UsdValue.usd
+                amount={@launch.current_clearing_price}
+                rate={@usd_rate}
+                per="per token"
+              />
             </:price_note>
           </.detail_card>
           <.auction_book
-            :if={@launch.result.state == :active && @book.ok?}
+            :if={@launch.state == :active && @book.ok?}
             id="robinhood-auction-book"
             book={@book.result}
-            symbol={@launch.result.stock_symbol}
+            symbol={@launch.quote_token_symbol}
             usd_rate={@usd_rate}
-            color={@launch.result.image_color}
+            color={@launch.image_color}
             bid_form="autolaunch-robinhood-bid"
           />
           <.raise_progress
+            :if={@reading}
             id="robinhood-raise-progress"
-            state={@launch.result.state}
-            raised={@launch.result.raised}
-            required={@launch.result.required}
-            symbol={@launch.result.stock_symbol}
+            state={@launch.state}
+            raised={@reading.currency_raised}
+            required={required(@launch)}
+            symbol={@launch.quote_token_symbol}
             usd_rate={@usd_rate}
-            block={@launch.result.clock}
-            start_block={@launch.result.start_block}
-            end_block={@launch.result.end_block}
+            block={@reading.clock}
+            start_block={@launch.start_block}
+            end_block={@launch.end_block}
             chain={:robinhood}
             test_chain={Lab.test_chain?()}
           />
@@ -89,34 +109,34 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             <div>
               <dt>Minimum to graduate</dt>
               <dd>
-                {@launch.result.required} {@launch.result.stock_symbol}
-                <UsdValue.usd amount={@launch.result.required} rate={@usd_rate} />
+                {required(@launch)} {@launch.quote_token_symbol}
+                <UsdValue.usd amount={required(@launch)} rate={@usd_rate} />
               </dd>
             </div>
             <div>
               <dt>Bids are paid in</dt>
-              <dd>USDG, converted into {@launch.result.stock_symbol} inside each bid</dd>
+              <dd>USDG, converted into {@launch.quote_token_symbol} inside each bid</dd>
             </div>
-            <div>
-              <dt>{raised_label(@launch.result)}</dt>
+            <div :if={@reading}>
+              <dt>{raised_label(@launch)}</dt>
               <dd>
-                {@launch.result.raised} {@launch.result.stock_symbol}
-                <UsdValue.usd amount={@launch.result.raised} rate={@usd_rate} />
+                {@reading.currency_raised} {@launch.quote_token_symbol}
+                <UsdValue.usd amount={@reading.currency_raised} rate={@usd_rate} />
               </dd>
             </div>
             <div>
               <dt>Auction address</dt>
-              <dd class="autolaunch-exact-value">{@launch.result.auction}</dd>
+              <dd class="autolaunch-exact-value">{@launch.auction_address}</dd>
             </div>
           </dl>
           <p
-            :if={@launch.result.state == :graduated}
+            :if={@launch.state == :graduated}
             id="robinhood-token-link"
             class="autolaunch-live-market"
           >
             This auction graduated.
-            <.link navigate={"/robinhood/tokens/#{@launch.result.token}"}>
-              Open {@launch.result.symbol}, its token, to trade and stake it
+            <.link navigate={"/robinhood/tokens/#{@launch.token_address}"}>
+              Open {@launch.token_symbol}, its token, to trade and stake it
             </.link>
           </p>
         </section>
@@ -125,7 +145,7 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
             module={AutolaunchWeb.RobinhoodStockBidComponent}
             id="autolaunch-robinhood-bid"
             auction={@auction}
-            ended={ended_copy(@launch.result)}
+            ended={ended_copy(@launch)}
             book={(@book.ok? && @book.result) || nil}
             authenticated={@account_control.kind == :signed_in}
             current_human_id={current_human_id(@access_context)}
@@ -135,12 +155,8 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       </div>
     </article>
 
-    <p :if={@open? && @auction && @launch.loading} class="autolaunch-page" role="status">
-      Loading…
-    </p>
-
     <section
-      :if={!@open? || !@auction || @launch.failed == {:error, :not_found}}
+      :if={!@open? || !@launch}
       id="autolaunch-robinhood-auction"
       class="autolaunch-page autolaunch-empty"
     >
@@ -149,50 +165,29 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
       </Regent.Structure.section_bar>
       <p :if={!@open?}>Robinhood auctions are not open on this site yet.</p>
       <p :if={@open? && !@auction}>That is not an auction address.</p>
-      <p :if={@open? && @auction && @launch.failed}>
-        No Robinhood auction exists at {@auction}.
-      </p>
-      <.link navigate="/auctions">Return to Auctions</.link>
-    </section>
-
-    <section
-      :if={@open? && @auction && unreadable?(@launch)}
-      id="autolaunch-robinhood-auction"
-      class="autolaunch-page autolaunch-empty"
-      role="alert"
-    >
-      <Regent.Structure.section_bar>
-        <h1 class="rg-section-bar__label">Auction unavailable</h1>
-      </Regent.Structure.section_bar>
-      <p>This auction could not be read from Robinhood right now.</p>
-      <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
+      <p :if={@open? && @auction}>No Robinhood auction exists at {@auction}.</p>
       <.link navigate="/auctions">Return to Auctions</.link>
     </section>
     """
   end
 
   defp load_launch(%{assigns: %{open?: false}} = socket),
-    do:
-      assign(socket,
-        launch: %Phoenix.LiveView.AsyncResult{},
-        creator_connections: %Phoenix.LiveView.AsyncResult{},
-        book: %Phoenix.LiveView.AsyncResult{}
-      )
+    do: assign(socket, launch: nil)
 
   defp load_launch(socket) do
+    socket = reload_launch(socket)
+    launch = socket.assigns.launch
     auction = socket.assigns.auction
 
-    assign_async(
-      socket,
-      [:launch, :creator_connections],
+    socket
+    |> assign_async(
+      :creator_connections,
       fn ->
-        with {:ok, launch} <- Auctions.fetch(auction) do
-          {:ok,
-           %{
-             launch: launch,
-             creator_connections: connections_for(launch, creator_connections_for([launch]))
-           }}
-        end
+        {:ok,
+         %{
+           creator_connections:
+             launch && connections_for(launch, creator_connections_for([launch]))
+         }}
       end,
       reset: true
     )
@@ -203,6 +198,20 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     )
   end
 
+  defp reload_launch(%{assigns: %{open?: false}} = socket), do: socket
+
+  defp reload_launch(socket) do
+    {:ok, launch} = Autolaunch.get_robinhood_auction(socket.assigns.auction, actor: nil)
+    assign(socket, :launch, launch)
+  end
+
+  # The minimum is stored in the stock's smallest unit.
+  defp required(launch),
+    do:
+      launch.required_currency_raised
+      |> String.to_integer()
+      |> Rpc.format_units(launch.quote_token_decimals)
+
   # Robinhood's stock prices, read beside the launch so a slow price never
   # holds the auction back.
   defp assign_usd_prices(socket),
@@ -211,28 +220,30 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
         {:ok, %{usd_prices: MarketData.prices(:robinhood)}}
       end)
 
-  defp usd_rate(%{result: prices}, %{ok?: true, result: %{stock_symbol: symbol}}),
+  defp usd_rate(%{result: prices}, %{quote_token_symbol: symbol}),
     do: UsdValue.stock_rate(prices, symbol)
 
   defp usd_rate(_prices, _launch), do: nil
 
   # A failed auction's contract still holds what was bid until each bid is
   # returned, so that figure is not what the launch keeps.
-  defp raised_label(%{state: :failed, stock_symbol: symbol}), do: "#{symbol} bid before refunds"
-  defp raised_label(%{stock_symbol: symbol}), do: "#{symbol} raised"
+  defp raised_label(%{state: :failed, quote_token_symbol: symbol}),
+    do: "#{symbol} bid before refunds"
 
-  defp ended_copy(%{state: :graduated, stock_symbol: symbol}),
+  defp raised_label(%{quote_token_symbol: symbol}), do: "#{symbol} raised"
+
+  defp ended_copy(%{state: :graduated, quote_token_symbol: symbol}),
     do:
       "The auction raised its minimum. Bids at or above the final price receive tokens, and every bid gets back the #{symbol} it did not spend."
 
-  defp ended_copy(%{state: :failed, stock_symbol: symbol}),
+  defp ended_copy(%{state: :failed, quote_token_symbol: symbol}),
     do: "The auction did not raise its minimum. Every bid gets its #{symbol} back in full."
 
-  defp ended_copy(%{state: :ended, minimum_reached: true, stock_symbol: symbol}),
+  defp ended_copy(%{state: :ended, minimum_reached: true, quote_token_symbol: symbol}),
     do:
       "Bidding has ended and the auction raised its minimum. Its trading pool opens once the auction is finished. Bids at or above the final price receive tokens, and every bid gets back the #{symbol} it did not spend."
 
-  defp ended_copy(%{state: :ended, stock_symbol: symbol}),
+  defp ended_copy(%{state: :ended, quote_token_symbol: symbol}),
     do:
       "Bidding has ended. If the final count stays below the minimum, every bid gets its #{symbol} back in full; if it reached the minimum, the trading pool opens once the auction is finished."
 
@@ -242,8 +253,4 @@ defmodule AutolaunchWeb.RobinhoodAuctionLive do
     do: "A Memestake auction on the Robinhood test network. Test assets have no real value."
 
   defp network_copy(false), do: "A Memestake auction on Robinhood Chain."
-
-  defp unreadable?(%{failed: nil}), do: false
-  defp unreadable?(%{failed: {:error, :not_found}}), do: false
-  defp unreadable?(_failed), do: true
 end

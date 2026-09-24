@@ -257,7 +257,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   attr :kind, :atom,
     required: true,
-    values: [:auction, :robinhood_auction, :token, :robinhood_token]
+    values: [:auction, :token]
 
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
@@ -485,62 +485,6 @@ defmodule AutolaunchWeb.Components.MarketCard do
         |> String.to_integer()
         |> Rpc.format_units(auction.quote_token_decimals),
       pair: nil
-    }
-  end
-
-  # A Robinhood auction is read from its chain: the token holds the
-  # description, website and image the launch wrote, and the chain records no
-  # opening time. Its creator is the account whose signed-in wallet launched it.
-  defp view(:robinhood_auction, auction, connections) do
-    %{
-      name: auction.name,
-      symbol: auction.symbol,
-      description: auction.description,
-      image: auction.image,
-      color: auction.image_color,
-      website: auction.website,
-      status: state_label(auction.state),
-      metric_label: "Clearing price",
-      metric: metric(auction.clearing_price, auction.stock_symbol),
-      address: auction.auction,
-      path: "/robinhood/auctions/#{auction.auction}",
-      creator: creator_name(connections),
-      age: nil,
-      connections: connection_list(connections),
-      quick: auction_quick(auction, "USDG"),
-      record_id: auction.auction,
-      state: auction.state,
-      chain: "Robinhood",
-      launch: "Memestake",
-      raised: metric(auction.raised, auction.stock_symbol),
-      minimum: auction.required,
-      pair: nil
-    }
-  end
-
-  # A graduated Robinhood launch is a token its own address names, carrying
-  # the launch's description, website and image. The chain records no
-  # graduation time; the price shown is the price its auction cleared at.
-  defp view(:robinhood_token, launch, connections) do
-    %{
-      name: launch.name,
-      symbol: launch.symbol,
-      description: launch.description,
-      image: launch.image,
-      color: launch.image_color,
-      website: launch.website,
-      status: "Graduated",
-      metric_label: "Clearing price",
-      metric: metric(launch.clearing_price, launch.stock_symbol),
-      address: launch.token,
-      path: "/robinhood/tokens/#{launch.token}",
-      creator: creator_name(connections),
-      age: nil,
-      connections: connection_list(connections),
-      quick: nil,
-      record_id: launch.token,
-      chain: "Robinhood",
-      pair: "#{launch.symbol} / #{launch.stock_symbol}"
     }
   end
 
