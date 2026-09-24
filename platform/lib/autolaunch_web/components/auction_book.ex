@@ -35,11 +35,11 @@ defmodule AutolaunchWeb.Components.AuctionBook do
     <section
       id={@id}
       class="auction-book"
-      aria-label="The price to get tokens"
+      aria-label="The price to start buying"
       style={@color && "--image-color: #{@color}"}
     >
       <div :if={@book.price_to_beat} class="auction-book__beat">
-        <p class="auction-book__lead">To get tokens now, bid at least</p>
+        <p class="auction-book__lead">To start buying now, bid at least</p>
         <p class="auction-book__price">
           <strong><TokenDisplay.counted amount={@book.price_to_beat} unit={@symbol} /></strong>
           per token <UsdValue.usd amount={@book.price_to_beat} rate={@usd_rate} per="per token" />
@@ -101,6 +101,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
         <li>You set a budget and the most you'll pay per token.</li>
         <li>Your budget is spent a little every block, at the one price everyone pays.</li>
         <li>If the price passes your maximum, you stop buying and the rest comes back to you.</li>
+        <li>If the auction doesn't reach its minimum, every bid comes back in full.</li>
       </ul>
     </section>
     """
@@ -128,7 +129,7 @@ defmodule AutolaunchWeb.Components.AuctionBook do
   end
 
   @doc "A bid's place against the price now, in words."
-  def standing_label(:in), do: "Getting tokens"
+  def standing_label(:in), do: "Buying"
   def standing_label(:sharing), do: "Sharing at the current price"
   def standing_label(:outbid), do: "Outbid"
 

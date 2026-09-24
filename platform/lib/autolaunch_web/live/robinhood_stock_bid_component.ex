@@ -560,11 +560,11 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   attr :book, :map, default: nil
   attr :symbol, :string, required: true
 
-  # Whether the typed maximum gets tokens against the auction's price now.
+  # Whether the typed maximum buys against the auction's price now.
   defp standing_line(%{outlook: %{reaches?: true}} = assigns) do
     ~H"""
     <p class="bid-estimate" role="status">
-      Above the price now: you start getting tokens next block.
+      Above the price now: your bid starts buying next block.
     </p>
     """
   end
@@ -572,7 +572,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
   defp standing_line(%{outlook: %{reaches?: false}} = assigns) do
     ~H"""
     <p class="bid-estimate" role="status">
-      Too low to get tokens right now: bid at least {@book.price_to_beat} {@symbol} per token.
+      Too low to buy right now: bid at least {@book.price_to_beat} {@symbol} per token.
     </p>
     """
   end

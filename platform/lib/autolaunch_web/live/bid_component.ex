@@ -465,14 +465,15 @@ defmodule AutolaunchWeb.BidComponent do
   defp outlook(%{outlook: %{reaches?: true}} = assigns) do
     ~H"""
     <div class="bid-estimate" role="status">
-      <p>Above the price now: you start getting tokens next block.</p>
+      <p>Above the price now: your bid starts buying next block.</p>
       <p :if={@outlook.about}>
         About <TokenDisplay.price amount={@outlook.about} /> tokens if the price stays at
-        <TokenDisplay.price amount={@book.clearing} unit={@symbol} />.
+        <TokenDisplay.price amount={@book.clearing} unit={@symbol} />
+        and the auction reaches its minimum.
       </p>
       <p :if={@outlook.at_least}>
         At least <TokenDisplay.price amount={@outlook.at_least} round={:down} />
-        tokens, even if the price climbs to your maximum.
+        tokens if the auction reaches its minimum and the price stays below your maximum.
       </p>
     </div>
     """
@@ -481,7 +482,7 @@ defmodule AutolaunchWeb.BidComponent do
   defp outlook(%{outlook: %{reaches?: false}} = assigns) do
     ~H"""
     <p class="bid-estimate" role="status">
-      Too low to get tokens right now: bid at least {@book.price_to_beat} {@symbol} per token.
+      Too low to buy right now: bid at least {@book.price_to_beat} {@symbol} per token.
     </p>
     """
   end
