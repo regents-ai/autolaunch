@@ -31,25 +31,6 @@ defmodule Autolaunch.Auction do
     :chain_id
   ]
 
-  @projection_upsert [
-    :kind,
-    :title,
-    :summary,
-    :token_symbol,
-    :website,
-    :image,
-    :creator_human_account_id,
-    :state,
-    :opened_at,
-    :auction_address,
-    :quote_token_address,
-    :quote_token_symbol,
-    :quote_token_decimals,
-    :current_clearing_price,
-    :treasury_address,
-    :image_color
-  ]
-
   postgres do
     table "auctions"
     repo Autolaunch.Repo
@@ -236,14 +217,6 @@ defmodule Autolaunch.Auction do
       prepare build(lock: :for_update)
     end
 
-    create :project_lab do
-      accept @projection_accept
-      upsert? true
-      upsert_identity :chain_auction
-      upsert_fields @projection_upsert
-      change Autolaunch.Auction.Changes.ImageColor
-    end
-
     # A launch's auction row, written once by whichever of its writers comes
     # first (launch discovery, the creator's own confirmation, the Robinhood
     # feed). A row that already exists is returned exactly as it is, so no
@@ -338,7 +311,6 @@ defmodule Autolaunch.Auction do
     end
 
     policy action([
-             :project_lab,
              :record_launch,
              :market_watch,
              :lab_by_id_for_update,

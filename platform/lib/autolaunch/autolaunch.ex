@@ -94,7 +94,6 @@ defmodule Autolaunch do
         args: [:auction_address],
         not_found_error?: false
 
-      define :project_lab_auction, action: :project_lab
       define :record_launch_auction, action: :record_launch
 
       define :set_auction_bid_terms,

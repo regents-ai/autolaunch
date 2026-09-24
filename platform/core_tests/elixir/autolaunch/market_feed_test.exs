@@ -10,13 +10,6 @@ defmodule Autolaunch.MarketFeedTest do
   alias Autolaunch.Stocks.LabMarketFeed, as: StocksMarketFeed
   alias Autolaunch.TestSupport
 
-  @head %{binding: :lab, block: %{number: 150, hash: "0x" <> String.duplicate("ab", 32)}}
-
-  defmodule Verifier do
-    @moduledoc false
-    def verify_head(_head), do: :ok
-  end
-
   defmodule HangingReader do
     @moduledoc "A chain whose head never verifies: every verification waits forever."
     @head %{binding: :lab, block: %{number: 150, hash: "0x" <> String.duplicate("ab", 32)}}
@@ -129,18 +122,47 @@ defmodule Autolaunch.MarketFeedTest do
       auction = TestSupport.project_auction(state: :created)
 
       assert {:ok, [_changed]} =
-               Projector.project([snapshot(auction, :active, true)], @head, Verifier)
+               Projector.project([snapshot(auction, :active, true)])
 
       assert %{state: :active, minimum_reached: true} = reload(auction)
 
       assert {:ok, [_changed]} =
-               Projector.project([snapshot(auction, :ended, true)], @head, Verifier)
+               Projector.project([snapshot(auction, :ended, true)])
 
       assert %{state: :ended, minimum_reached: true} = reload(auction)
 
       # An older reading can never move it back.
-      assert {:ok, []} = Projector.project([snapshot(auction, :active, true)], @head, Verifier)
+      assert {:ok, []} = Projector.project([snapshot(auction, :active, true)])
       assert %{state: :ended} = reload(auction)
+    end
+  end
+
+  describe "one Revstake auction whose write fails" do
+    test "is left as it was, and every other auction's state and price still move" do
+      # A graduation with no launch row cannot become a token, so its write fails.
+      stuck = TestSupport.project_auction(state: :ended)
+      moving = for _n <- 1..2, do: TestSupport.project_auction(state: :created)
+      Autolaunch.Listings.subscribe()
+
+      snapshots = [
+        snapshot(stuck, :graduated, true)
+        | Enum.map(moving, &%{snapshot(&1, :active, true) | current_clearing_price: "2.5"})
+      ]
+
+      assert {:ok, changed} = Projector.project(snapshots)
+      assert Enum.sort(changed) == moving |> Enum.map(& &1.id) |> Enum.sort()
+
+      assert %{state: :ended, minimum_reached: false} = reload(stuck)
+      assert {:ok, nil} = Autolaunch.get_token_for_projection(stuck.id, actor: %System{})
+
+      for auction <- moving do
+        assert %{state: :active, current_clearing_price: "2.5"} = reload(auction)
+        auction_id = auction.id
+        assert_received {:autolaunch_listings_changed, ^auction_id}
+      end
+
+      stuck_id = stuck.id
+      refute_received {:autolaunch_listings_changed, ^stuck_id}
     end
   end
 
