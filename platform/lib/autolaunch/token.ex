@@ -122,6 +122,23 @@ defmodule Autolaunch.Token do
               )
     end
 
+    # A graduated Robinhood launch's token, named on its page by the token's
+    # own address.
+    read :robinhood_by_address do
+      get? true
+      argument :token_address, :string, allow_nil?: false
+      prepare Autolaunch.Token.Preparations.ListedAuction
+      prepare build(load: [:auction])
+
+      prepare fn query, _context ->
+        Ash.Query.filter(
+          query,
+          auction.chain_id == ^Autolaunch.Robinhood.Lab.chain_id() and
+            auction.token_address == ^query.arguments.token_address
+        )
+      end
+    end
+
     read :public_by_id do
       get? true
       argument :id, :uuid, allow_nil?: false
@@ -202,6 +219,7 @@ defmodule Autolaunch.Token do
              :explore_launchpad,
              :for_subject,
              :public_by_id,
+             :robinhood_by_address,
              :public_by_auction,
              :latest_price_for_subject
            ]) do

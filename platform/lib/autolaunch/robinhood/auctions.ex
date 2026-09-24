@@ -1,31 +1,24 @@
 defmodule Autolaunch.Robinhood.Auctions do
   @moduledoc """
-  Every Robinhood memestock auction, newest first, read from its chain for a
-  Robinhood auction's own page, its token's page and the portfolio. The
-  public lists read the stored rows the Robinhood market feed keeps
-  (`Autolaunch.Robinhood.MarketFeed`).
+  Every Robinhood memestock auction, newest first, read from its chain at one
+  pinned block for the portfolio (`Autolaunch.Robinhood.Positions`). The
+  public lists and the Robinhood auction and token pages read the stored rows
+  the Robinhood market feed keeps (`Autolaunch.Robinhood.MarketFeed`).
 
-  Everything is read at one latest block: the launchpad's launch records
-  (ids run from 1 to `nextLaunchId() - 1`), each token's own name and symbol,
-  the metadata the launch wrote into it (description, website and image), the
-  stock the auction is denominated in, the minimum it must raise, and the
-  auction's schedule, stored clearing price and currency raised. An auction's
-  state is the launch's own lifecycle once it is finished (graduated or
-  failed, set only by `migrate`); before that, its schedule against the block
-  clock the contracts keep time by (`Autolaunch.Robinhood.BlockClock`) says
-  whether it opens soon, is live, or has ended and waits to be finished.
-  Whether the raise has met its minimum is the auction's `isGraduated()`, a
-  progress fact only. The launcher had to be its creator's
-  signed-in wallet, so each listed auction also names the account whose
-  signed-in wallet that still is, when exactly one account's is; its creator's
-  X accounts show beside the launch. An image the site stores carries its
-  colour (`Autolaunch.ImageColor`). Nothing here writes, signs or caches.
+  At that block it reads the launchpad's launch records (ids run from 1 to
+  `nextLaunchId() - 1`), each token's own name and symbol, the metadata the
+  launch wrote into it (description, website and image), the stock the
+  auction is denominated in, the minimum it must raise, and the auction's
+  schedule, stored clearing price and currency raised. An auction's state is
+  the launch's own lifecycle once it is finished (graduated or failed, set
+  only by `migrate`); before that, its schedule against the block clock the
+  contracts keep time by (`Autolaunch.Robinhood.BlockClock`) says whether it
+  opens soon, is live, or has ended and waits to be finished. Whether the
+  raise has met its minimum is the auction's `isGraduated()`, a progress fact
+  only. Nothing here writes, signs or caches.
   """
 
-  alias Autolaunch.Accounts
-  alias Autolaunch.Actors.System
-  alias Autolaunch.Chain.{Abi, Address, Rpc}
-  alias Autolaunch.ImageColor
+  alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.LabAbi
   alias Autolaunch.Robinhood.{BlockClock, Lab}
   alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
@@ -33,100 +26,7 @@ defmodule Autolaunch.Robinhood.Auctions do
 
   @token_decimals 18
 
-  @type t :: %{
-          launch_id: pos_integer(),
-          launcher: String.t(),
-          auction: String.t(),
-          token: String.t(),
-          name: String.t(),
-          symbol: String.t(),
-          description: String.t() | nil,
-          website: String.t() | nil,
-          image: String.t() | nil,
-          image_color: String.t() | nil,
-          stock_address: String.t(),
-          stock_symbol: String.t(),
-          stock_decimals: non_neg_integer(),
-          state: :created | :active | :ended | :graduated | :failed,
-          minimum_reached: boolean(),
-          clearing_price: String.t(),
-          clearing_price_q96: non_neg_integer(),
-          raised: String.t(),
-          required: String.t(),
-          start_block: non_neg_integer(),
-          end_block: non_neg_integer(),
-          clock: non_neg_integer(),
-          creator_human_account_id: pos_integer() | nil
-        }
-
-  @doc "The lab's auctions, newest first; none where Robinhood auctions are not open."
-  @spec list() :: {:ok, [t()]} | {:error, atom()}
-  def list do
-    if Lab.configured?(),
-      do:
-        with(
-          {:ok, auctions} <- read(),
-          {:ok, auctions} <- with_creators(auctions),
-          do: {:ok, with_image_colors(auctions)}
-        ),
-      else: {:ok, []}
-  end
-
-  @doc "One auction by its address, or `{:error, :not_found}`."
-  @spec fetch(String.t()) :: {:ok, t()} | {:error, atom()}
-  def fetch(address), do: find(&Address.equal?(&1.auction, address))
-
-  @doc "The graduated launch whose token has this address, or `{:error, :not_found}`."
-  @spec fetch_by_token(String.t()) :: {:ok, t()} | {:error, atom()}
-  def fetch_by_token(address),
-    do: find(&(&1.state == :graduated and Address.equal?(&1.token, address)))
-
-  defp find(match) do
-    with {:ok, auctions} <- list() do
-      case Enum.find(auctions, match) do
-        nil -> {:error, :not_found}
-        auction -> {:ok, auction}
-      end
-    end
-  end
-
-  defp with_creators([]), do: {:ok, []}
-
-  defp with_creators(auctions) do
-    launchers = auctions |> Enum.map(&String.downcase(&1.launcher)) |> Enum.uniq()
-
-    with {:ok, accounts} <-
-           Accounts.list_human_accounts_by_signed_in_wallets(launchers, actor: %System{}) do
-      owners = Enum.group_by(accounts, &String.downcase(&1.wallet_address), & &1.id)
-
-      {:ok,
-       Enum.map(
-         auctions,
-         &Map.put(&1, :creator_human_account_id, owner(owners, &1.launcher))
-       )}
-    end
-  end
-
-  defp with_image_colors(auctions) do
-    colors = auctions |> Enum.map(& &1.image) |> ImageColor.for_urls()
-    Enum.map(auctions, &Map.put(&1, :image_color, colors[&1.image]))
-  end
-
-  defp owner(owners, launcher) do
-    case Map.get(owners, String.downcase(launcher), []) do
-      [id] -> id
-      _none_or_several -> nil
-    end
-  end
-
-  defp read do
-    with {:ok, config} <- Lab.current(),
-         opts = Lab.rpc_opts(config),
-         {:ok, block} <- Rpc.latest_block(opts),
-         do: at(config, block, opts)
-  end
-
-  @doc "Every auction the launchpad records, newest first, read at the given block, creators not yet named."
+  @doc "Every auction the launchpad records, newest first, read at the given block."
   @spec at(map(), map(), keyword()) :: {:ok, [map()]} | {:error, atom()}
   def at(config, block, opts) do
     with {:ok, next_id} <- launchpad_uint(config, "nextLaunchId()", [], block, opts),

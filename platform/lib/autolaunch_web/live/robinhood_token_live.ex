@@ -1,10 +1,13 @@
 defmodule AutolaunchWeb.RobinhoodTokenLive do
   @moduledoc """
   One graduated Robinhood memestock token, named by its token address: the
-  one page of that token. The chain is the only record of the launch, so the
-  page reads the launch its token came from, names its creator when a
-  signed-up account's wallet launched it, names the auction it graduated
-  from, and hands the signed-in wallet the trading and staking cards.
+  one page of that token. The page shows the token and the launch it came
+  from as the Robinhood market feed stored them, with the feed's latest
+  reading of what its auction raised. It names its creator when a signed-up
+  account's wallet launched it, names the auction it graduated from, and
+  hands the signed-in wallet the trading and staking cards, whose figures are
+  read from the chain. When Robinhood cannot be read, the page says so and
+  shows what was last read.
   """
 
   use AutolaunchWeb, :live_view
@@ -16,10 +19,17 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   import AutolaunchWeb.Components.PriceChart
 
   alias Autolaunch.Chain.Address
-  alias Autolaunch.Robinhood.{Auctions, Lab, Pool}
+  alias Autolaunch.Robinhood.{Lab, Pool}
+  alias AutolaunchWeb.LabMarket
 
   def mount(_params, _session, socket),
-    do: {:ok, assign(socket, open?: Lab.configured?(), swap?: swap_configured?())}
+    do:
+      {:ok,
+       assign(socket,
+         open?: Lab.configured?(),
+         swap?: swap_configured?(),
+         market: LabMarket.subscribe(socket)
+       )}
 
   # Trading is offered only by a deployment that names its router and quoter.
   defp swap_configured? do
@@ -34,20 +44,13 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   def handle_params(%{"token" => token}, _uri, socket) do
     case Address.normalize(token) do
       {:ok, address} ->
-        {:noreply, socket |> assign(:token, address) |> load_page()}
+        {:noreply, socket |> assign(:token_address, address) |> load_page()}
 
       :error ->
-        {:noreply,
-         assign(socket,
-           token: nil,
-           launch: %Phoenix.LiveView.AsyncResult{},
-           creator_connections: %Phoenix.LiveView.AsyncResult{},
-           pool: %Phoenix.LiveView.AsyncResult{}
-         )}
+        {:noreply, assign(socket, token_address: nil, token: nil)}
     end
   end
 
-  def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
   def handle_event("reload_pool", _params, socket), do: {:noreply, load_pool(socket, false)}
 
   # The staking card confirmed something that moved the pool's figures, so the
@@ -55,23 +58,37 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   # answers, so the card that asked keeps its wallet, position and notice.
   def handle_info(:reload_pool, socket), do: {:noreply, load_pool(socket, false)}
 
+  # The feed read Robinhood again: the stored token and its reading move
+  # together.
+  def handle_info({:robinhood_market_updated, _update}, socket),
+    do: {:noreply, socket |> assign(:market, LabMarket.snapshot()) |> reload_token()}
+
+  def handle_info({:autolaunch_market_updated, _update}, socket),
+    do: {:noreply, assign(socket, :market, LabMarket.snapshot())}
+
   def render(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :reading,
+        assigns.token && LabMarket.reading(assigns.market, assigns.token.auction.auction_address)
+      )
+
     ~H"""
-    <article
-      :if={@open? && @token && @launch.ok?}
-      id="autolaunch-robinhood-token"
-      class="autolaunch-page"
-    >
+    <article :if={@open? && @token} id="autolaunch-robinhood-token" class="autolaunch-page">
       <header class="autolaunch-heading">
         <.link navigate="/tokens" class="market-back">← Tokens</.link>
         <Regent.Structure.section_bar>
-          <h1 class="rg-section-bar__label">{@launch.result.name} · {@launch.result.symbol}</h1>
+          <h1 class="rg-section-bar__label">{@token.name} · {@token.symbol}</h1>
         </Regent.Structure.section_bar>
         <p>{network_copy(Lab.test_chain?())}</p>
       </header>
+      <p :if={@market.robinhood_stale?} class="autolaunch-live-market" role="status">
+        Robinhood could not be read just now, so this token shows what was last read.
+      </p>
       <.detail_card
-        kind={:robinhood_token}
-        record={@launch.result}
+        kind={:token}
+        record={@token}
         creator_connections={@creator_connections.result}
       />
       <.price_chart
@@ -80,46 +97,46 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         label="Price since the pool opened"
         history={@pool.result.prices}
         unit={@pool.result.currency.symbol}
-        color={@launch.result.image_color}
+        color={@token.auction.image_color}
       />
       <dl class="autolaunch-live-market" aria-label="Token facts">
         <div>
           <dt>Token address</dt>
-          <dd class="autolaunch-exact-value">{@launch.result.token}</dd>
+          <dd class="autolaunch-exact-value">{@token.auction.token_address}</dd>
         </div>
         <div>
           <dt>Trades against</dt>
           <dd>
-            {@launch.result.stock_symbol} · {@launch.result.stock_decimals} decimal places
-            <span class="autolaunch-exact-value">{@launch.result.stock_address}</span>
+            {@token.auction.quote_token_symbol} · {@token.auction.quote_token_decimals} decimal places
+            <span class="autolaunch-exact-value">{@token.auction.quote_token_address}</span>
           </dd>
         </div>
-        <div>
+        <div :if={@reading}>
           <dt>Raised in its auction</dt>
-          <dd>{@launch.result.raised} {@launch.result.stock_symbol}</dd>
+          <dd>{@reading.currency_raised} {@token.auction.quote_token_symbol}</dd>
         </div>
       </dl>
       <.live_component
         :if={@swap?}
         module={AutolaunchWeb.SwapComponent}
-        id={"robinhood-trade-#{@launch.result.auction}"}
-        launch={%{chain: :robinhood, auction: @launch.result.auction}}
-        symbol={@launch.result.symbol}
-        currency={@launch.result.stock_symbol}
+        id={"robinhood-trade-#{@token.auction.auction_address}"}
+        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
+        symbol={@token.symbol}
+        currency={@token.auction.quote_token_symbol}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
         session_lease={@session_lease}
       />
       <p class="autolaunch-live-market">
-        <.link navigate={"/robinhood/auctions/#{@launch.result.auction}"}>
+        <.link navigate={"/robinhood/auctions/#{@token.auction.auction_address}"}>
           Open the auction this token graduated from
         </.link>
       </p>
       <.live_component
         :if={@pool.ok?}
         module={AutolaunchWeb.StakeComponent}
-        id={"robinhood-stake-#{@launch.result.auction}"}
-        launch={%{chain: :robinhood, auction: @launch.result.auction}}
+        id={"robinhood-stake-#{@token.auction.auction_address}"}
+        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
         pool={@pool.result}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
@@ -128,8 +145,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       <.live_component
         :if={@pool.ok?}
         module={AutolaunchWeb.ConvertComponent}
-        id={"robinhood-convert-#{@launch.result.auction}"}
-        launch={%{chain: :robinhood, auction: @launch.result.auction}}
+        id={"robinhood-convert-#{@token.auction.auction_address}"}
+        launch={%{chain: :robinhood, auction: @token.auction.auction_address}}
         pool={@pool.result}
         authenticated={@account_control.kind == :signed_in}
         current_human_id={current_human_id(@access_context)}
@@ -153,12 +170,8 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
       </div>
     </article>
 
-    <p :if={@open? && @token && @launch.loading} class="autolaunch-page" role="status">
-      Loading…
-    </p>
-
     <section
-      :if={!@open? || !@token || @launch.failed == {:error, :not_found}}
+      :if={!@open? || !@token}
       id="autolaunch-robinhood-token"
       class="autolaunch-page autolaunch-empty"
     >
@@ -166,73 +179,54 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
         <h1 class="rg-section-bar__label">Token not found</h1>
       </Regent.Structure.section_bar>
       <p :if={!@open?}>Robinhood tokens are not open on this site yet.</p>
-      <p :if={@open? && !@token}>That is not a token address.</p>
-      <p :if={@open? && @token && @launch.failed}>
-        No graduated Robinhood token exists at {@token}.
+      <p :if={@open? && !@token_address}>That is not a token address.</p>
+      <p :if={@open? && @token_address}>
+        No graduated Robinhood token exists at {@token_address}.
       </p>
-      <.link navigate="/tokens">Return to Tokens</.link>
-    </section>
-
-    <section
-      :if={@open? && @token && unreadable?(@launch)}
-      id="autolaunch-robinhood-token"
-      class="autolaunch-page autolaunch-empty"
-      role="alert"
-    >
-      <Regent.Structure.section_bar>
-        <h1 class="rg-section-bar__label">Token unavailable</h1>
-      </Regent.Structure.section_bar>
-      <p>This token could not be read from Robinhood right now.</p>
-      <Regent.Primitives.button phx-click="retry" variant="secondary">Retry</Regent.Primitives.button>
       <.link navigate="/tokens">Return to Tokens</.link>
     </section>
     """
   end
 
-  defp load_page(%{assigns: %{open?: false}} = socket) do
-    assign(socket,
-      launch: %Phoenix.LiveView.AsyncResult{},
-      creator_connections: %Phoenix.LiveView.AsyncResult{},
-      pool: %Phoenix.LiveView.AsyncResult{}
-    )
-  end
+  defp load_page(%{assigns: %{open?: false}} = socket), do: assign(socket, token: nil)
 
   defp load_page(socket) do
+    socket = reload_token(socket)
     token = socket.assigns.token
 
     socket
     |> assign_async(
-      [:launch, :creator_connections],
+      :creator_connections,
       fn ->
-        with {:ok, launch} <- Auctions.fetch_by_token(token) do
-          {:ok,
-           %{
-             launch: launch,
-             creator_connections: connections_for(launch, creator_connections_for([launch]))
-           }}
-        end
+        {:ok,
+         %{creator_connections: token && connections_for(token, creator_connections_for([token]))}}
       end,
       reset: true
     )
     |> load_pool(true)
   end
 
-  # The pool is its own read of the chain: the launch renders as soon as the
-  # launchpad answers, and the staking card says when the pool is slow. A
-  # fresh page starts from nothing; a re-read keeps the last figures until the
-  # new ones arrive.
+  defp reload_token(%{assigns: %{open?: false}} = socket), do: socket
+
+  defp reload_token(socket) do
+    {:ok, token} = Autolaunch.get_robinhood_token(socket.assigns.token_address, actor: nil)
+    assign(socket, :token, token)
+  end
+
+  # The pool is its own read of the chain: the token renders from its stored
+  # row at once, and the staking card says when the pool is slow. A fresh page
+  # starts from nothing; a re-read keeps the last figures until the new ones
+  # arrive.
+  defp load_pool(%{assigns: %{token: nil}} = socket, _reset?),
+    do: assign(socket, :pool, %Phoenix.LiveView.AsyncResult{})
+
   defp load_pool(socket, reset?) do
-    token = socket.assigns.token
+    auction = socket.assigns.token.auction.auction_address
 
     assign_async(
       socket,
       :pool,
-      fn ->
-        with {:ok, launch} <- Auctions.fetch_by_token(token),
-             {:ok, facts} <- Pool.read(launch.auction) do
-          {:ok, %{pool: facts}}
-        end
-      end,
+      fn -> with {:ok, facts} <- Pool.read(auction), do: {:ok, %{pool: facts}} end,
       reset: reset?
     )
   end
@@ -243,9 +237,6 @@ defmodule AutolaunchWeb.RobinhoodTokenLive do
   defp network_copy(false), do: "A Memestake token on Robinhood Chain."
 
   defp unreadable?(%{failed: nil}), do: false
-
-  defp unreadable?(%{failed: {:error, reason}}) when reason in [:not_found, :not_graduated],
-    do: false
-
+  defp unreadable?(%{failed: {:error, :not_graduated}}), do: false
   defp unreadable?(_failed), do: true
 end
