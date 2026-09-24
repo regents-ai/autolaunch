@@ -307,7 +307,7 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
               <p>
                 Bid #{bid["bid_id"]} · {bid["stock_committed_units"]} {@reading.stock["symbol"]}
                 <UsdValue.usd amount={bid["stock_committed_units"]} rate={@usd_rate} />
-                · {bid_state(bid, @book)}
+                · {bid_state(bid, @book, graduated_and_ended?(@reading))}
               </p>
               <.live_component
                 module={AutolaunchWeb.RobinhoodStockBidSettlementComponent}
@@ -548,12 +548,21 @@ defmodule AutolaunchWeb.RobinhoodStockBidComponent do
 
   defp window_copy(_reading), do: "Ended."
 
-  defp bid_state(%{"exited_block" => "0"}, nil), do: "In the auction"
+  # The auction reports graduated as soon as its raise reaches the minimum, so a
+  # bid has won only once bidding has also ended.
+  defp graduated_and_ended?(%{graduated?: true, clock: now, window: %{"end_block" => end_block}}),
+    do: now >= end_block
 
-  defp bid_state(%{"exited_block" => "0", "max_price_q96" => price}, book),
-    do: price |> String.to_integer() |> AuctionBook.standing(book) |> Book.bid_status()
+  defp graduated_and_ended?(_reading), do: false
 
-  defp bid_state(%{"exited_block" => block}, _book), do: "Exited at block #{block}"
+  defp bid_state(%{"exited_block" => "0"}, nil, _final?), do: "In the auction"
+
+  defp bid_state(%{"exited_block" => "0", "max_price_q96" => price}, book, final?) do
+    standing = price |> String.to_integer() |> AuctionBook.standing(book)
+    if final?, do: Book.graduated_bid_status(standing), else: Book.bid_status(standing)
+  end
+
+  defp bid_state(%{"exited_block" => block}, _book, _final?), do: "Exited at block #{block}"
 
   attr :outlook, :map, default: nil
   attr :book, :map, default: nil

@@ -139,6 +139,14 @@ defmodule AutolaunchWeb.Components.AuctionBook do
 
   def bid_status(standing), do: standing_label(standing)
 
+  @doc """
+  The same once bidding has ended with the minimum reached: a bid still in at
+  the final price won its tokens, and an outbid one is returned for the rest.
+  """
+  def graduated_bid_status(:in), do: "Won"
+  def graduated_bid_status(:outbid), do: "Outbid: return it to get the rest back"
+  def graduated_bid_status(standing), do: standing_label(standing)
+
   # A bar never shrinks to nothing, so a small bid still shows.
   defp width(amount, widest),
     do:
