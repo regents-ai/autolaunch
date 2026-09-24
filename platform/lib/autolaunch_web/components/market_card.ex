@@ -8,6 +8,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
   alias Autolaunch.Token
   alias Autolaunch.Stocks.MarketData
   alias AutolaunchWeb.{BidComponent, SwapComponent, TokenDisplay, UsdValue}
+  require Phoenix.LiveView
 
   @own_sites ["autolaunch.sh", "regents.sh"]
 
