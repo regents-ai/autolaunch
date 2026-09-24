@@ -9,7 +9,11 @@ defmodule AutolaunchWeb.SharedProfileHTML do
       <section class="market-profile-panel autolaunch-heading" aria-label="Profile">
         <h1>Profile</h1>
         <p>Sign in to see your profile and connected accounts.</p>
-        <Regent.Primitives.button type="button" data-account-target="sign-in">
+        <Regent.Primitives.button
+          type="button"
+          class="autolaunch-profile-page__sign-in"
+          data-account-target="sign-in"
+        >
           Sign in
         </Regent.Primitives.button>
       </section>

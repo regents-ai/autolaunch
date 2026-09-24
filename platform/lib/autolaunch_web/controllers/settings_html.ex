@@ -10,6 +10,7 @@ defmodule AutolaunchWeb.SettingsHTML do
         <Regent.Primitives.button
           :if={@account_control.kind == :sign_in}
           type="button"
+          class="autolaunch-profile-page__sign-in"
           data-account-target="sign-in"
         >
           Sign in

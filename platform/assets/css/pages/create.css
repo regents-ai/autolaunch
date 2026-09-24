@@ -39,6 +39,7 @@
 @media (max-width: 47.99rem) { .launchpad-form-grid, .launchpad-upload__url-row { grid-template-columns: minmax(0,1fr); } }
 .autolaunch-loading { margin: 0; padding: 24px; border: 1px solid var(--hairline); border-radius: 8px; color: var(--color-fg-muted); }
 .autolaunch-profile-page { display: grid; gap: 24px; max-width: 960px; }
+.autolaunch-profile-page__sign-in { justify-self: start; }
 
 .launchpad-create__header { justify-items: center; text-align: center; }
 .launchpad-create__choices { display: grid; gap: var(--space-3); width: min(100%, 44rem); justify-items: center; }
