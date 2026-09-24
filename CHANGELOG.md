@@ -17,6 +17,21 @@ What changed on autolaunch.sh, newest first. Each entry names the live version o
 - Auction figures explain themselves: in the table, FDV, Bid volume and Launch threshold each
   have an info icon that opens a short note on hover; in the gallery, hovering one of those
   three numbers opens the same note.
+- On the create page, X, GitHub and ENS each sit in one row of the same shape: logo, name or
+  "not connected", and a Connect or Change button.
+- The token image is one box: upload a file on one side, paste an image link on the other,
+  split by OR.
+- Text boxes on the create page have a cut top-right corner. Website and Required raise line
+  up, and the dollar value of the typed REGENT shows under Required raise.
+- Revstake: creator connections come first. Memestake: they come after the token details,
+  folded away as optional.
+- Launching a Revstake token with no X, GitHub or ENS connected first asks the creator to type
+  a sentence accepting that the auction may not appear in the gallery or list.
+- Explore, Portfolio, Create and Learn are header-style buttons with larger text and no icons:
+  the corner marks close into a full outline on hover and stay closed on the page you are on.
+  On phones the four sit in one row, always visible, and settle in one after another.
+- The $REGENT crown opens Buy $REGENT, View Chart and Follow on X on hover, and sits right
+  beside Sign in. The header Buy, Follow and Create buttons are gone.
 
 ## v25, 24 September 2026 (864624e)
 - The time bar on auction cards fills again: the site now records when each auction opened, so

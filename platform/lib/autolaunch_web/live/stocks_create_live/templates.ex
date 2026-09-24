@@ -2,6 +2,7 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.MarketCard
   import AutolaunchWeb.Components.StockCurrencySelect
 
@@ -86,12 +87,6 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
         aria-labelledby="stocks-draft-title"
       >
         <div class="launchpad-create__form-column">
-          <.live_component
-            module={AutolaunchWeb.CreatorConnectionsComponent}
-            id="creator-connections"
-            current_human_id={@current_human_id}
-            session_lease={@session_lease}
-          />
           <form
             id="stocks-token-details"
             phx-change="autosave_stocks_token_details"
@@ -117,70 +112,22 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
               />
             </div>
 
-            <div class="autolaunch-draft-field autolaunch-draft-field--wide launchpad-upload">
-              <label for="stocks-image-upload">Token image</label>
-              <p class="autolaunch-draft-hint">
-                PNG, JPEG, or WebP · maximum 2 MB · replace with a file or image link.
-                <strong>Recommended: 400 × 400 px</strong>
-              </p>
-              <div class="launchpad-upload__control">
-                <img
-                  :if={is_binary(@draft_values["image"]) && @draft_values["image"] != ""}
-                  class="autolaunch-image-preview"
-                  src={@draft_values["image"]}
-                  alt="Saved token image"
-                />
-                <.live_file_input
-                  :if={@stocks_image_upload}
-                  upload={@stocks_image_upload}
-                  id="stocks-image-upload"
-                />
-              </div>
-              <div :for={entry <- (@stocks_image_upload && @stocks_image_upload.entries) || []}>
-                <.live_img_preview entry={entry} class="autolaunch-image-preview" />
-                <p>{entry.client_name} · {upload_progress(entry.progress)}</p>
-              </div>
-              <p
-                :for={error <- (@stocks_image_upload && upload_errors(@stocks_image_upload)) || []}
-                class="autolaunch-draft-error"
-                role="alert"
-              >
-                {upload_error(error)}
-              </p>
-            </div>
+            <.image_picker
+              id="stocks-image"
+              upload={@stocks_image_upload}
+              image={@draft_values["image"]}
+              notice={@image_notice}
+            />
           </form>
+          <.link_form id="stocks-image" event="stocks_fetch_image_url" />
 
-          <form
-            id="stocks-image-url"
-            phx-submit="stocks_fetch_image_url"
-            class="launchpad-upload__url rg-field"
-          >
-            <label for="stocks-image-url-input">Paste an image link</label>
-            <div class="launchpad-upload__url-row">
-              <input
-                type="text"
-                id="stocks-image-url-input"
-                name="url"
-                autocomplete="off"
-                aria-describedby="stocks-image-notice"
-                placeholder="https://"
-              />
-              <Regent.Primitives.button type="submit" phx-disable-with="Fetching…">Use this link</Regent.Primitives.button>
-            </div>
-          </form>
-
-          <p
-            id="stocks-image-notice"
-            role="status"
-            aria-live="polite"
-            class={
-              if @image_notice && @image_notice.tone == :error,
-                do: "autolaunch-draft-error",
-                else: "autolaunch-draft-hint"
-            }
-          >
-            {if @image_notice, do: @image_notice.message}
-          </p>
+          <.live_component
+            module={AutolaunchWeb.CreatorConnectionsComponent}
+            id="creator-connections"
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+            optional
+          />
 
           <form
             id="stocks-terms"
@@ -593,10 +540,4 @@ defmodule AutolaunchWeb.Live.StocksCreateLive.Templates do
 
   defp stage_status(true), do: "Complete"
   defp stage_status(_incomplete), do: "In progress"
-
-  defp upload_progress(progress), do: "#{progress}%"
-  defp upload_error(:too_large), do: "Choose an image no larger than 2 MB."
-  defp upload_error(:not_accepted), do: "Choose a PNG, JPEG, or WebP image."
-  defp upload_error(:too_many_files), do: "Choose one image."
-  defp upload_error(_error), do: "That image could not be uploaded."
 end

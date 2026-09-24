@@ -2,7 +2,10 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   @moduledoc false
   use AutolaunchWeb, :html
 
+  import AutolaunchWeb.Components.ImagePicker
   import AutolaunchWeb.Components.MarketCard
+
+  alias AutolaunchWeb.UsdValue
 
   alias Autolaunch.LaunchDraft
 
@@ -41,8 +44,11 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   @stored_params Enum.map(@token_detail_fields, & &1.param) ++
                    ["image", "treasury", "treasury_path", "eoa_acknowledgement"]
 
+  @no_connections_acknowledgement "I realize my Revstake auction may not appear in the gallery or list, because reputation and social proof are important for raising initial funds for an agent"
+
   @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
 
+  def no_connections_acknowledgement, do: @no_connections_acknowledgement
   def token_detail_params, do: Enum.map(@token_detail_fields, & &1.param)
   def treasury_params, do: ["treasury", "treasury_path", "eoa_acknowledgement"]
   def draft_field_params, do: @stored_params
@@ -81,6 +87,10 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
   attr :status, :atom, default: :ready
+  attr :regent_usd_rate, :any, default: nil
+  attr :has_connections, :boolean, default: false
+  attr :connections_waived, :boolean, default: false
+  attr :no_connections_typed, :string, default: ""
 
   def create(assigns) do
     draft = List.first(assigns.launch_drafts)
@@ -111,6 +121,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         aria-labelledby="launch-draft-title"
       >
         <div class="launchpad-create__form-column">
+          <.live_component
+            module={AutolaunchWeb.CreatorConnectionsComponent}
+            id="creator-connections"
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+            notify
+          />
+
           <form
             id="launch-token-details"
             phx-change="autosave_launch_token_details"
@@ -135,81 +153,19 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
                 hint={field.hint}
                 value={@draft_values[field.param]}
                 error={@draft_errors[field.param]}
+                usd_rate={if field.key == :required_regent_raised, do: @regent_usd_rate, else: :none}
                 autosave
               />
             </div>
 
-            <div class="autolaunch-draft-field autolaunch-draft-field--wide launchpad-upload">
-              <label for="launch-image-upload">Token image</label>
-              <p class="autolaunch-draft-hint">
-                PNG, JPEG, or WebP · maximum 2 MB · replace with a file or image link.
-                <strong>Recommended: 400 × 400 px</strong>
-              </p>
-              <div class="launchpad-upload__control">
-                <img
-                  :if={is_binary(@draft_values["image"]) && @draft_values["image"] != ""}
-                  class="autolaunch-image-preview"
-                  src={@draft_values["image"]}
-                  alt="Saved token image"
-                />
-                <.live_file_input
-                  :if={@launch_image_upload}
-                  upload={@launch_image_upload}
-                  id="launch-image-upload"
-                />
-              </div>
-              <div :for={entry <- (@launch_image_upload && @launch_image_upload.entries) || []}>
-                <.live_img_preview entry={entry} class="autolaunch-image-preview" />
-                <p>{entry.client_name} · {upload_progress(entry.progress)}</p>
-              </div>
-              <p
-                :for={error <- (@launch_image_upload && upload_errors(@launch_image_upload)) || []}
-                class="autolaunch-draft-error"
-                role="alert"
-              >
-                {upload_error(error)}
-              </p>
-            </div>
+            <.image_picker
+              id="launch-image"
+              upload={@launch_image_upload}
+              image={@draft_values["image"]}
+              notice={@image_notice}
+            />
           </form>
-
-          <form
-            id="launch-image-url"
-            phx-submit="fetch_image_url"
-            class="launchpad-upload__url rg-field"
-          >
-            <label for="launch-image-url-input">Paste an image link</label>
-            <div class="launchpad-upload__url-row">
-              <input
-                type="text"
-                id="launch-image-url-input"
-                name="url"
-                autocomplete="off"
-                aria-describedby="launch-image-notice"
-                placeholder="https://"
-              />
-              <Regent.Primitives.button type="submit" phx-disable-with="Fetching…">Use this link</Regent.Primitives.button>
-            </div>
-          </form>
-
-          <p
-            id="launch-image-notice"
-            role="status"
-            aria-live="polite"
-            class={
-              if @image_notice && @image_notice.tone == :error,
-                do: "autolaunch-draft-error",
-                else: "autolaunch-draft-hint"
-            }
-          >
-            {if @image_notice, do: @image_notice.message}
-          </p>
-
-          <.live_component
-            module={AutolaunchWeb.CreatorConnectionsComponent}
-            id="creator-connections"
-            current_human_id={@current_human_id}
-            session_lease={@session_lease}
-          />
+          <.link_form id="launch-image" event="fetch_image_url" />
 
           <form
             id="launch-treasury-details"
@@ -263,8 +219,12 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
               You will see every value and the one transaction before anything is sent. There is
               no launch fee.
             </p>
+            <.no_connections
+              :if={@launch_ready? && @active_draft && !@has_connections && !@connections_waived}
+              typed={@no_connections_typed}
+            />
             <.live_component
-              :if={@launch_ready? && @active_draft}
+              :if={@launch_ready? && @active_draft && (@has_connections || @connections_waived)}
               module={AutolaunchWeb.LaunchWalletComponent}
               id={"autolaunch-launch-wallet-#{@active_draft.id}"}
               draft={@active_draft}
@@ -410,6 +370,75 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
     """
   end
 
+  attr :typed, :string, default: ""
+
+  # A Revstake launch with no X, GitHub or ENS connected goes ahead only after
+  # its creator types (or pastes) the warning below, so they know why it may
+  # not be shown.
+  defp no_connections(assigns) do
+    assigns =
+      assign(assigns,
+        warning: @no_connections_acknowledgement,
+        matched?: String.trim(assigns.typed) == @no_connections_acknowledgement
+      )
+
+    ~H"""
+    <div id="launch-no-connections" class="no-connections">
+      <p>
+        You haven't connected X, GitHub or ENS. Connect one above, or launch without them.
+      </p>
+      <Regent.Primitives.button
+        type="button"
+        variant="secondary"
+        phx-click={JS.dispatch("autolaunch:open-dialog", to: "#launch-no-connections-dialog")}
+      >
+        Launch without connections
+      </Regent.Primitives.button>
+      <dialog
+        id="launch-no-connections-dialog"
+        class="no-connections__dialog"
+        aria-labelledby="launch-no-connections-title"
+        phx-hook=".OpenDialog"
+        phx-mounted={JS.ignore_attributes(["open"])}
+      >
+        <form class="rg-field" phx-change="no_connections_typed" phx-submit="no_connections_confirmed">
+          <h2 id="launch-no-connections-title">Launch without connections</h2>
+          <label for="launch-no-connections-typed">Type this sentence exactly to continue:</label>
+          <p id="launch-no-connections-warning" class="no-connections__warning">{@warning}</p>
+          <textarea
+            id="launch-no-connections-typed"
+            name="typed"
+            rows="4"
+            autocomplete="off"
+            spellcheck="false"
+            aria-describedby="launch-no-connections-warning"
+          >{@typed}</textarea>
+          <div class="no-connections__actions">
+            <Regent.Primitives.button
+              type="button"
+              variant="secondary"
+              phx-click={JS.dispatch("autolaunch:close-dialog", to: "#launch-no-connections-dialog")}
+            >
+              Cancel
+            </Regent.Primitives.button>
+            <Regent.Primitives.button type="submit" disabled={!@matched?}>
+              Continue
+            </Regent.Primitives.button>
+          </div>
+        </form>
+      </dialog>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".OpenDialog">
+        export default {
+          mounted() {
+            this.el.addEventListener("autolaunch:open-dialog", () => this.el.showModal())
+            this.el.addEventListener("autolaunch:close-dialog", () => this.el.close())
+          }
+        }
+      </script>
+    </div>
+    """
+  end
+
   attr :field, :map, required: true
   attr :form_id, :string, required: true
   attr :note, :string, default: nil
@@ -417,6 +446,7 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
   attr :value, :string, default: nil
   attr :error, :string, default: nil
   attr :autosave, :boolean, default: false
+  attr :usd_rate, :any, default: :none, doc: "shows the typed amount in dollars at this rate"
 
   def draft_field(assigns) do
     id = "#{assigns.form_id}-#{assigns.field.param}"
@@ -453,6 +483,14 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
         phx-debounce={@autosave && "400"}
       />
       <p :if={@hint} id={"#{@id}-hint"} class="autolaunch-draft-hint">{@hint}</p>
+      <p
+        :if={@usd_rate not in [:none, :test_network]}
+        id={"#{@id}-usd"}
+        class="autolaunch-draft-hint"
+        aria-live="polite"
+      >
+        <UsdValue.usd amount={@value} rate={@usd_rate} />
+      </p>
       <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error">{@error}</p>
     </Regent.Primitives.field>
     """
@@ -479,12 +517,6 @@ defmodule AutolaunchWeb.Live.CreateLive.Templates do
 
   defp stage_status(true), do: "Complete"
   defp stage_status(_incomplete), do: "In progress"
-
-  defp upload_progress(progress), do: "#{progress}%"
-  defp upload_error(:too_large), do: "Choose an image no larger than 2 MB."
-  defp upload_error(:not_accepted), do: "Choose a PNG, JPEG, or WebP image."
-  defp upload_error(:too_many_files), do: "Choose one image."
-  defp upload_error(_error), do: "That image could not be uploaded."
 
   defp described_by(id, hint, error) do
     case Enum.filter([hint && "#{id}-hint", error && "#{id}-error"], &is_binary/1) do

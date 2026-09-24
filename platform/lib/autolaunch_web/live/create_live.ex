@@ -6,7 +6,10 @@ defmodule AutolaunchWeb.CreateLive do
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
   alias Autolaunch.{LaunchChain, LaunchDraftImageStorage, Limits}
+  alias Autolaunch.Stocks.MarketData
+  alias AutolaunchWeb.CreatorConnectionsComponent
   alias AutolaunchWeb.Live.CreateLive.Templates
+  alias AutolaunchWeb.UsdValue
 
   import AutolaunchWeb.Components.AuctionStats
 
@@ -53,6 +56,9 @@ defmodule AutolaunchWeb.CreateLive do
             progress: &handle_launch_image_progress/3
           )
           |> assign_defaults(actor)
+          |> UsdValue.assign_rate(:regent_usd_rate, :base, fn ->
+            {:ok, %{regent_usd_rate: MarketData.regent_price()}}
+          end)
 
         {:ok,
          if connected?(socket) do
@@ -74,10 +80,7 @@ defmodule AutolaunchWeb.CreateLive do
     )
 
     {:noreply,
-     if(socket.assigns.launch_kind == :revshare,
-       do: assign(socket, x_connections: load_x_connections(account(socket))),
-       else: socket
-     )}
+     if(socket.assigns.launch_kind == :revshare, do: assign_connections(socket), else: socket)}
   end
 
   def handle_event(event, params, %{assigns: %{launch_kind: :stocks}} = socket),
@@ -101,6 +104,18 @@ defmodule AutolaunchWeb.CreateLive do
          else: socket
 
     handle_draft_event(event, params["launch_draft"] || %{}, socket)
+  end
+
+  def handle_event("no_connections_typed", %{"typed" => typed}, socket) when is_binary(typed),
+    do: {:noreply, assign(socket, no_connections_typed: typed)}
+
+  def handle_event("no_connections_confirmed", %{"typed" => typed}, socket)
+      when is_binary(typed) do
+    {:noreply,
+     assign(socket,
+       no_connections_typed: typed,
+       connections_waived: String.trim(typed) == Templates.no_connections_acknowledgement()
+     )}
   end
 
   def handle_event("fetch_image_url", params, socket) do
@@ -248,6 +263,9 @@ defmodule AutolaunchWeb.CreateLive do
   def handle_info({:launch_review, :open}, socket),
     do: {:noreply, assign(socket, draft_notice: nil)}
 
+  def handle_info({:creator_connections, :changed}, socket),
+    do: {:noreply, assign_connections(socket)}
+
   defp render_revshare(%{status: :sign_in_required} = assigns) do
     ~H"""
     <main class="launchpad-create">
@@ -272,7 +290,12 @@ defmodule AutolaunchWeb.CreateLive do
   end
 
   defp render_revshare(assigns) do
-    assigns = assign(assigns, :launch_image_upload, assigns.uploads[:launch_image])
+    assigns =
+      assign(assigns,
+        launch_image_upload: assigns.uploads[:launch_image],
+        regent_usd_rate: assigns.regent_usd_rate.result
+      )
+
     Templates.create(assigns)
   end
 
@@ -404,10 +427,8 @@ defmodule AutolaunchWeb.CreateLive do
       {:ok, draft} ->
         socket
         |> assign_loaded_draft(draft, actor)
-        |> assign(
-          x_connections: load_x_connections(account(socket)),
-          status: :ready
-        )
+        |> assign(status: :ready)
+        |> assign_connections()
 
       {:error, _error} ->
         assign(socket, status: :error)
@@ -423,6 +444,9 @@ defmodule AutolaunchWeb.CreateLive do
       image_notice: nil,
       image_request: nil,
       x_connections: [],
+      has_connections: false,
+      connections_waived: false,
+      no_connections_typed: "",
       x_oauth_enabled: XOAuth.enabled?(),
       auction_limit_reached: auction_limit_reached?(actor),
       current_human_id: actor.human_account_id,
@@ -453,6 +477,20 @@ defmodule AutolaunchWeb.CreateLive do
       {:ok, nil} -> {:error, :image_unavailable}
       other -> other
     end
+  end
+
+  # Whether the creator has any account on show: a checked X account, GitHub
+  # or ENS. A Revstake launch without one asks for a typed warning first.
+  defp assign_connections(socket) do
+    x_connections = load_x_connections(account(socket))
+    identities = CreatorConnectionsComponent.identities(human_actor(socket))
+
+    assign(socket,
+      x_connections: x_connections,
+      has_connections:
+        Enum.any?(x_connections, &match?(%{verified_at: %DateTime{}}, &1)) or
+          Map.take(identities, [:github, :ens]) != %{}
+    )
   end
 
   defp load_x_connections(nil), do: []

@@ -23,13 +23,13 @@
 .opening-countdown__clock > * { grid-area: 1 / 1; }
 .opening-countdown__time { color: var(--color-fg); }
 .opening-countdown__widest { visibility: hidden; }
-/* Phones: the header fills three rows edge to edge. The $REGENT links, then the countdown,
-   then Create beside Sign in (or the account menu). */
+/* Phones: the search fills a row, then the $REGENT crown with Sign in (or the account
+   menu) beside it. */
 @media (max-width: 42rem) {
-  #home-top .home-top__actions { flex: 1 1 100%; gap: var(--space-1); margin-left: 0; }
+  #home-top .home-top__actions { flex: 1 1 0; gap: var(--space-1); margin-left: 0; }
   #home-top .home-top__opening { display: contents; }
   #home-top .opening-countdown { flex: 1 1 100%; justify-content: center; }
-  #home-top :is(.create-button, .account-control[data-account-kind="sign_in"]) { flex: 1 1 calc(50% - var(--space-1) / 2); box-sizing: border-box; }
+  #home-top .account-control[data-account-kind="sign_in"] { flex: 1 1 auto; box-sizing: border-box; }
   #home-top .account-control__sign-in { width: 100%; }
 }
 .opening-welcome { display: grid; gap: 12px; margin: 0 0 32px; padding: 8px 0 32px; border-bottom: 1px solid var(--rg-page-rule); }
@@ -44,22 +44,10 @@
 .prelaunch-actions { display: grid; justify-items: start; gap: 16px; padding: 24px; }
 .prelaunch-actions h2, .prelaunch-actions p { margin: 0; }
 .prelaunch-actions p { color: var(--color-fg-muted); font-size: .875rem; }
-html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button) {
+html[data-prelaunch-read-only="true"] .rg-button:disabled {
   --rg-button-fill: color-mix(in srgb, var(--color-fg) 12%, var(--color-surface));
   --rg-button-ink: var(--color-fg-muted);
   background: var(--rg-button-fill); color: var(--rg-button-ink); border: 1px solid var(--hairline-strong); opacity: 1; cursor: not-allowed;
 }
-html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button)::before,
-html[data-prelaunch-read-only="true"] .rg-button:disabled:not(.create-button)::after { display: none; }
-/* Both Create buttons stay closed until opening, on a gray plate, but keep the
-   corner marks and the hover outline of the header buttons. */
-.rg-button.create-button:disabled { cursor: not-allowed; }
-:root .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--rg-button-active-border); }
-:root[data-theme="dark"] .rg-button.create-button:disabled::after { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
-:root .rg-button.create-button:disabled:hover::after {
-  --rg-button-edge-ink: var(--rg-button-active-border); --rg-button-cut-ink: var(--rg-button-active-border); --rg-button-cut-gap: 0px;
-  background-size:
-    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
-    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
-    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
-}
+html[data-prelaunch-read-only="true"] .rg-button:disabled::before,
+html[data-prelaunch-read-only="true"] .rg-button:disabled::after { display: none; }

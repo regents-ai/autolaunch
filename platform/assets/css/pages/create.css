@@ -5,15 +5,54 @@
 .launchpad-create__form-column { display: grid; gap: var(--space-4); min-width: 0; }
 .launchpad-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-3); }
 .autolaunch-draft-field--wide { grid-column: 1/-1; }
-.autolaunch-draft-field { min-width: 0; }
+.autolaunch-draft-field { min-width: 0; align-content: start; }
 .autolaunch-draft-field textarea, .autolaunch-custody-path textarea { min-height: 8rem; resize: vertical; }
 .autolaunch-draft-note { margin: 0 0 var(--space-1); font-size: .8125rem; }
-.launchpad-upload { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
-.launchpad-upload__control { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
-.launchpad-upload__control input { min-width: 0; max-width: 100%; }
 .autolaunch-image-preview { display: block; width: min(100%,18rem); aspect-ratio: 1; object-fit: contain; border: 1px solid var(--hairline); }
-.launchpad-upload__control .autolaunch-image-preview { width: 4.5rem; }
-.launchpad-upload__url-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: var(--space-2); align-items: center; }
+/* The token image: upload a file OR paste a link, in one box split by a line. */
+.image-picker { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
+.image-picker__label { font-weight: 600; }
+.image-picker__box { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); border: 1px solid var(--hairline-strong); border-radius: 12px; }
+.image-picker__side { display: grid; align-content: start; gap: var(--space-2); min-width: 0; padding: var(--space-3); }
+.image-picker__side > label { font-size: .875rem; font-weight: 600; }
+.image-picker__file { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; min-width: 0; }
+.image-picker__file input { min-width: 0; max-width: 100%; }
+.image-picker__file .autolaunch-image-preview { width: 4.5rem; }
+.image-picker__link { display: grid; justify-items: start; gap: var(--space-2); }
+.image-picker__or { display: grid; grid-template-rows: 1fr auto 1fr; justify-items: center; gap: var(--space-1); padding-block: var(--space-2); color: var(--color-fg-muted); font-size: .75rem; font-weight: 600; letter-spacing: .08em; }
+.image-picker__or::before, .image-picker__or::after { content: ""; width: 1px; background: var(--hairline-strong); }
+.image-picker__entry { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.image-picker__entry .autolaunch-image-preview { width: 4.5rem; }
+.image-picker > p:empty { display: none; }
+@media (max-width: 47.99rem) {
+  .image-picker__box { grid-template-columns: minmax(0,1fr); }
+  .image-picker__or { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 var(--space-3); }
+  .image-picker__or::before, .image-picker__or::after { width: auto; height: 1px; }
+}
+/* Every text box on Create has its top-right corner cut, like the buttons. The
+   cut hides the outside focus ring, so focus draws inside the box instead. */
+.launchpad-create__form-column :is(input[type="text"], textarea) {
+  --text-box-cut: 10px;
+  clip-path: polygon(0 0, calc(100% - var(--text-box-cut)) 0, 100% var(--text-box-cut), 100% 100%, 0 100%);
+  background: linear-gradient(45deg, transparent calc(50% - 1px), var(--rg-p-control-border, var(--hairline-strong)) calc(50% - 1px) 50%, transparent 50%) right top / var(--text-box-cut) var(--text-box-cut) no-repeat border-box, var(--rg-p-surface, var(--color-surface));
+}
+.launchpad-create__form-column :is(input[type="text"], textarea):focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--rg-p-text, var(--color-fg)); }
+/* Revstake with no accounts connected: a typed warning before launching. */
+.no-connections { display: grid; justify-items: start; gap: var(--space-2); }
+.no-connections > p { margin: 0; }
+.no-connections__dialog { width: min(34rem, calc(100vw - 32px)); padding: var(--space-4); border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--color-surface-elevated); color: var(--color-fg); }
+.no-connections__dialog::backdrop { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
+.no-connections__dialog form { display: grid; gap: var(--space-2); }
+.no-connections__dialog h2 { margin: 0; font-size: 1.25rem; }
+.no-connections__warning { margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); font-weight: 600; }
+.no-connections__dialog textarea { min-height: 7rem; resize: vertical; }
+.no-connections__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2); }
+/* On Memestake the accounts fold away under one optional line. */
+.creator-connections--optional { padding-block: 0; }
+.creator-connections--optional .rg-disclosure-title { font-family: var(--font-family-ui, inherit); font-weight: 600; }
+.creator-connections--optional .rg-disclosure { border-block-end: 0; }
+.creator-connections--optional .rg-disclosure-body { display: grid; gap: var(--space-3); }
+.creator-connections--optional .rg-disclosure-body > p { margin: 0; font-size: .875rem; color: var(--color-fg-muted); }
 .launchpad-create__preview { display: grid; gap: var(--space-3); }
 .launchpad-create__preview :is(p,h2) { margin: 0; }
 .autolaunch-custody-path { display: grid; gap: var(--space-2); min-width: 0; margin: 0; padding: var(--space-2); border: 1px solid var(--hairline-strong); }
@@ -21,21 +60,29 @@
 .autolaunch-custody-path .rg-disclosure-body { display: grid; gap: var(--space-2); }
 .autolaunch-custody-path textarea.autolaunch-custody-ack--matched { border-color: var(--color-success); color: var(--color-success); }
 .autolaunch-custody-ack-matched { margin: 0; color: var(--color-success); font-weight: 600; }
-.x-connections { display: grid; gap: var(--space-3); border-block: 1px solid var(--hairline); }
-.x-connections > header p { margin-bottom: 0; }
-.x-connections > ul { display: grid; margin: 0; padding: 0; list-style: none; }
-.x-connections > ul > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); justify-content: space-between; padding-block: var(--space-2); border-bottom: 1px solid var(--hairline); min-width: 0; }
-.x-connections__identity { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.x-connections__identity img { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
-.x-connections__identity > span, .x-connections__identity a { display: grid; min-width: 0; }
-.x-connections__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.x-connections__disabled, [data-x-connection-status] { color: var(--color-fg-muted); }
+/* Connected accounts: one row each, mark · account · buttons, all alike. */
+.connections { display: grid; gap: var(--space-2); }
+.connections__note, [data-x-connection-status] { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.connections__list { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
+.connection { display: grid; grid-template-columns: 2.5rem minmax(0,1fr) auto; align-items: center; column-gap: var(--space-3); padding-block: var(--space-3); border-bottom: 1px solid var(--hairline); min-width: 0; }
+.connection__mark { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--color-fg) 6%, transparent); font-size: 1.125rem; }
+.connection__mark img { width: 100%; height: 100%; object-fit: cover; }
+.connection__text { display: grid; min-width: 0; line-height: 1.35; }
+.connection__text strong { font-size: .9375rem; }
+.connection__text :is(a, span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection__text small { color: var(--color-fg-muted); font-size: .8125rem; }
+.connection__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-1); }
+.connection__form { grid-column: 1/-1; display: grid; gap: var(--space-1); margin-top: var(--space-3); }
+.connection__form[hidden] { display: none; }
+.connection__form small { color: var(--color-fg-muted); font-size: .8125rem; }
+.connection__form-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: var(--space-2); align-items: center; }
+@media (max-width: 30rem) { .connection { grid-template-columns: 2.5rem minmax(0,1fr); row-gap: var(--space-2); } .connection__actions { grid-column: 2; justify-content: start; } .connection__form-row { grid-template-columns: minmax(0,1fr); } }
 [data-x-connection-status]:empty { display: none; }
 .subject-wallet-field { min-width: 0; }
 .subject-wallet-waiting { display: grid; justify-items: start; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
 .launch-wallet { padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
 @media (max-width: 74.99rem) { .launchpad-create__workspace { grid-template-columns: minmax(0,1fr); } }
-@media (max-width: 47.99rem) { .launchpad-form-grid, .launchpad-upload__url-row { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 47.99rem) { .launchpad-form-grid { grid-template-columns: minmax(0,1fr); } }
 .autolaunch-loading { margin: 0; padding: 24px; border: 1px solid var(--hairline); border-radius: 8px; color: var(--color-fg-muted); }
 .autolaunch-profile-page { display: grid; gap: 24px; max-width: 960px; }
 .autolaunch-profile-page__sign-in { justify-self: start; }
