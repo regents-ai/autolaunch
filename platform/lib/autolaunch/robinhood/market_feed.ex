@@ -7,8 +7,9 @@ defmodule Autolaunch.Robinhood.MarketFeed do
 
   - Discovery. Each new `launches(id)` record the Robinhood launchpad holds
     becomes an `Auction` row (kind `:stocks`, the Robinhood chain id), written
-    once on the chain-and-address identity: a row that already exists is never
-    overwritten. This feed is the only writer that creates Robinhood rows.
+    once on the chain-and-address identity with the launch's token, launch id
+    and schedule (start and end blocks in the rollup clock): a row that
+    already exists is never overwritten. This feed is the only writer that creates Robinhood rows.
     Robinhood lists every launchpad record, so a launch made outside the site
     is a row too; it names a creator only
     when exactly one account's signed-in wallet is its launcher. Launch ids only
@@ -273,7 +274,11 @@ defmodule Autolaunch.Robinhood.MarketFeed do
         quote_token_decimals: launch.stock.decimals,
         current_clearing_price: "0",
         required_currency_raised: Integer.to_string(launch.required),
-        treasury_address: launch.launchpad
+        treasury_address: launch.launchpad,
+        token_address: launch.token,
+        launch_id: launch.launch_id,
+        start_block: launch.start_block,
+        end_block: launch.end_block
       },
       actor: @actor
     )
