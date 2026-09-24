@@ -3,7 +3,10 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## Unreleased
+## v24, 24 September 2026 (b97e278)
+- A launch threshold met many times over reads "100% met" instead of a huge percentage.
+
+## v23, 24 September 2026 (f3fef43)
 
 ### Explore, Portfolio, Create, Learn
 - The menu has four places: Explore, Portfolio, Create and Learn. Explore holds the auctions and
