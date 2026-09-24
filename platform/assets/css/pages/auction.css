@@ -129,3 +129,8 @@
 .bid-form .bid-amount { flex-wrap: nowrap; align-items: stretch; }
 .bid-form .bid-amount input { flex: 1 1 0; min-width: 0; }
 .bid-form .bid-amount .bid-form__unit { flex: none; }
+/* The prepared bid in three lines, right above the button that opens the wallet. */
+.bid-form__summary { display: grid; margin: 0; font-size: .875rem; }
+.bid-form__summary div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); padding: 6px 0; }
+.bid-form__summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.bid-form__pending { display: grid; gap: var(--space-1); }

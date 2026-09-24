@@ -6,9 +6,9 @@ defmodule AutolaunchWeb.Components.BidForm do
   it buying. Unticked, "Advanced" sets that limit as the most the whole token may
   be worth (its fully diluted value, the default) or as a price per token.
 
-  The host component owns the events: `bid_form_changed` with the form's
-  fields, which `values/1` reads, and `review_bid`, which reviews the bid at
-  `max_price/3`.
+  The host component owns `bid_form_changed`, sent with the form's fields as
+  they change (`values/2` reads them), and puts its own button in the
+  `action` slot.
   """
   use Phoenix.Component
 
@@ -77,6 +77,8 @@ defmodule AutolaunchWeb.Components.BidForm do
   attr :amount_in_price_unit?, :boolean, default: false
   attr :max, :boolean, default: false, doc: "offer a Max button that fills the balance"
 
+  slot :action, required: true, doc: "the button that places the bid"
+
   def bid_form(assigns) do
     max_price = max_price(assigns.form, assigns.book, assigns.supply)
     book = assigns.book.ok? && assigns.book.result
@@ -100,7 +102,7 @@ defmodule AutolaunchWeb.Components.BidForm do
       id={"#{@id}-form"}
       class="rg-field bid-form"
       phx-change="bid_form_changed"
-      phx-submit="review_bid"
+      phx-submit="bid_form_changed"
       phx-target={@target}
       aria-label="Place a bid"
     >
@@ -118,6 +120,7 @@ defmodule AutolaunchWeb.Components.BidForm do
           id={"#{@id}-amount"}
           name="amount"
           value={@form.amount}
+          phx-debounce="400"
           inputmode="decimal"
           autocomplete="off"
           placeholder="0.0"
@@ -182,6 +185,7 @@ defmodule AutolaunchWeb.Components.BidForm do
           id={"#{@id}-max-price"}
           name="limit"
           value={@form.limit}
+          phx-debounce="400"
           inputmode="decimal"
           autocomplete="off"
           placeholder="0.0"
@@ -202,13 +206,7 @@ defmodule AutolaunchWeb.Components.BidForm do
 
       <.outlook outlook={@outlook} book={@book_ready} symbol={@price_unit} />
 
-      <Regent.Primitives.button
-        class="bid-primary"
-        type="submit"
-        disabled={@form.amount == "" or is_nil(@max_price)}
-      >
-        Review bid
-      </Regent.Primitives.button>
+      {render_slot(@action)}
     </form>
     """
   end
