@@ -34,6 +34,17 @@ defmodule Autolaunch.Auction do
   postgres do
     table "auctions"
     repo Autolaunch.Repo
+
+    # Each public list reads its page straight off one of these in order.
+    custom_indexes do
+      index ["opened_at DESC NULLS LAST", "inserted_at DESC", "id"],
+        name: "auctions_public_newest_index"
+
+      index [:opened_at, :inserted_at, :id], name: "auctions_public_oldest_index"
+
+      index ["inserted_at DESC", "id"], name: "auctions_home_newest_index"
+      index [:kind, :state], name: "auctions_kind_state_index"
+    end
   end
 
   actions do
