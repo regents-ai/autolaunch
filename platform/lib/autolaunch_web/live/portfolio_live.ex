@@ -36,7 +36,8 @@ defmodule AutolaunchWeb.PortfolioLive do
 
   # The lab feeds moved: positions may have become returnable or claimable,
   # and a trade may have changed what the wallets hold.
-  def handle_info({:autolaunch_market_updated, _update}, socket) do
+  def handle_info({event, _update}, socket)
+      when event in [:autolaunch_market_updated, :robinhood_market_updated] do
     market = LabMarket.snapshot()
 
     if market.generation > socket.assigns.market.generation,

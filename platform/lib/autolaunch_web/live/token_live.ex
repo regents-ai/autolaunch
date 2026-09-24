@@ -51,6 +51,9 @@ defmodule AutolaunchWeb.TokenLive do
   def handle_info(:reread_listings, socket),
     do: {:noreply, socket |> LiveListings.taken() |> refresh()}
 
+  # LabMarket subscribes to both networks; this page represents a Base token.
+  def handle_info({:robinhood_market_updated, _update}, socket), do: {:noreply, socket}
+
   def render(assigns) do
     page_record = page_record(assigns.page)
 

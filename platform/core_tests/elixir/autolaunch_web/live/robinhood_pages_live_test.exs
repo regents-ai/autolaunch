@@ -23,4 +23,16 @@ defmodule AutolaunchWeb.RobinhoodPagesLiveTest do
       assert render(view) =~ "not found"
     end
   end
+
+  # Every page that shows live figures hears both networks' feeds, so a Base
+  # page must outlive a Robinhood update too.
+  for path <- ["/tokens/7d1b3c9e-2f4a-4c5d-9e8f-0a1b2c3d4e5f", "/portfolio"] do
+    test "#{path} outlives a Robinhood feed update", %{conn: conn} do
+      {:ok, view, _html} = live(conn, unquote(path))
+
+      send(view.pid, {:robinhood_market_updated, %{}})
+
+      assert render(view)
+    end
+  end
 end
