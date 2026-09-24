@@ -41,10 +41,10 @@ defmodule AutolaunchWeb.TokenDisplay do
 
   @doc """
   A read-only price. A price carrying more than four significant digits is
-  shortened on screen, rounded to the nearest, and a long run of zeros after
-  the point is written as a count, as in `0.0₇44`, while the exact figure stays
-  readable to assistive technology and on hover. The exact string is never
-  altered: an amount that is not a plain decimal is shown as written.
+  shortened, rounded to the nearest, and a long run of zeros after the point is
+  written as a count on screen, as in `0.0₇44`, while the same short figure
+  with its zeros written out stays readable to assistive technology and on
+  hover. An amount that is not a plain decimal is shown as written.
   """
   def price(%{amount: amount} = assigns) when is_nil(amount) or amount == "" do
     ~H"""
@@ -53,11 +53,10 @@ defmodule AutolaunchWeb.TokenDisplay do
   end
 
   def price(assigns) do
+    short = assigns.amount |> significant(assigns.round) |> with_unit(assigns.unit)
+
     assigns
-    |> assign(
-      exact: with_unit(assigns.amount, assigns.unit),
-      shown: assigns.amount |> significant(assigns.round) |> with_unit(assigns.unit) |> zeros()
-    )
+    |> assign(exact: short, shown: zeros(short))
     |> figure()
   end
 
