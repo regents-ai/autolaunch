@@ -149,10 +149,10 @@ defmodule AutolaunchWeb.Components.MarketCard do
             if (!this.el.dataset.endsAt) return
             const end = Date.parse(this.el.dataset.endsAt)
             const open = Date.parse(this.el.dataset.opensAt)
-            const seconds = Math.max(Math.floor((end - Date.now()) / 1000), 0)
-            const d = Math.floor(seconds / 86400)
-            const rest = `${Math.floor((seconds % 86400) / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`
-            const label = seconds === 0 ? "Live, ending" : `Live, ${d > 0 ? `${d}d ${rest}` : rest} left`
+            const minutes = Math.max(Math.floor((end - Date.now()) / 60000), 0)
+            const d = Math.floor(minutes / 1440)
+            const rest = `${Math.floor((minutes % 1440) / 60)}h ${minutes % 60}m`
+            const label = minutes === 0 ? "Live, ending" : `Live, ${d > 0 ? `${d}d ${rest}` : rest} left`
             this.el.setAttribute("aria-label", label)
             this.el.title = label
             const fill = this.el.firstElementChild
@@ -442,7 +442,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         {@figures.threshold}<small :if={@figures.met}>{@figures.met}% met</small>
       </td>
       <td>
-        <.status_figure figures={@figures} />
+        <.status_figure figures={@figures} chain={@view.chain} />
       </td>
     </tr>
     """
@@ -518,11 +518,8 @@ defmodule AutolaunchWeb.Components.MarketCard do
   attr :view, :map, required: true
 
   # The cell every list row starts with: the token's image with its chain's
-  # badge, its name with the creator's verified mark, and its ticker.
+  # badge, then its name and its ticker on one line.
   defp list_token(assigns) do
-    assigns =
-      assign(assigns, :verified, Enum.map_join(assigns.view.connections, ", ", & &1.label))
-
     ~H"""
     <th scope="row">
       <.link navigate={@view.path} class="market-list__token">
@@ -544,12 +541,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
         </span>
         <span class="market-list__name">
           <strong>{@view.name}</strong>
-          <span
-            :if={@verified != ""}
-            class="market-list__verified"
-            title={"Creator verified: #{@verified}"}
-          ><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg><span class="visually-hidden">Creator verified: {@verified}</span></span>
-          <small>${@view.symbol}</small>
+          <small>{@view.symbol}</small>
         </span>
       </.link>
     </th>
@@ -628,6 +620,7 @@ defmodule AutolaunchWeb.Components.MarketCard do
       threshold: dollars(minimum, rate),
       met: percent_met(auction.currency_raised, minimum),
       progress: time_progress(auction),
+      opens_at: live_open(auction),
       ends_at: live_end(auction),
       status: figure_status(auction),
       id: auction.id
@@ -710,6 +703,9 @@ defmodule AutolaunchWeb.Components.MarketCard do
 
   defp time_progress(_auction), do: nil
 
+  defp live_open(%{state: :active, opened_at: %DateTime{} = opened_at}), do: opened_at
+  defp live_open(_auction), do: nil
+
   defp live_end(%{state: :active, estimated_end_at: %DateTime{} = end_at}), do: end_at
   defp live_end(_auction), do: nil
 
@@ -720,15 +716,13 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp figure_status(%{state: :failed} = auction), do: ended("Failed", auction)
   defp figure_status(%{state: state}), do: state_label(state)
 
-  # The same wording the page's ticker writes each second.
-  defp time_left(0), do: "Ending"
+  # Days, hours and minutes, never seconds; the last minute reads "Ending".
+  # The page's tickers write the same wording as the time runs down.
+  defp time_left(seconds) when seconds < 60, do: "Ending"
 
   defp time_left(seconds) do
     days = div(seconds, 86_400)
-
-    rest =
-      "#{div(rem(seconds, 86_400), 3600)}h #{div(rem(seconds, 3600), 60)}m #{rem(seconds, 60)}s"
-
+    rest = "#{div(rem(seconds, 86_400), 3600)}h #{div(rem(seconds, 3600), 60)}m"
     if days > 0, do: "#{days}d #{rest}", else: rest
   end
 
@@ -738,23 +732,28 @@ defmodule AutolaunchWeb.Components.MarketCard do
   defp ended(label, _auction), do: label
 
   attr :figures, :map, required: true
+  attr :chain, :string, required: true, values: ["Base", "Robinhood"]
 
-  # A live auction's time bar and time left, which tick in the browser each
-  # second; any other state's word and when it ended.
+  # A live auction's time bar in its chain's colour over its time left, both
+  # kept moving in the browser; any other state's word and when it ended. A
+  # live auction whose opening time is unknown shows an empty bar.
   defp status_figure(assigns) do
     ~H"""
-    <span
-      :if={@figures.progress}
-      class="auction-figures__progress"
-      style={"--progress: #{@figures.progress}%"}
-      aria-hidden="true"
-    ></span>
     <span
       :if={@figures.ends_at}
       id={"time-left-#{@figures.id}"}
       phx-hook=".AuctionTimeLeft"
+      data-opens-at={@figures.opens_at && DateTime.to_iso8601(@figures.opens_at)}
       data-ends-at={DateTime.to_iso8601(@figures.ends_at)}
-    >{@figures.status}</span>
+    >
+      <span
+        class={["auction-figures__time", "auction-figures__time--#{String.downcase(@chain)}"]}
+        aria-hidden="true"
+      >
+        <span :if={@figures.progress} style={"width: #{@figures.progress}%"}></span>
+      </span>
+      <small>{@figures.status}</small>
+    </span>
     <span :if={!@figures.ends_at}>{@figures.status}</span>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".AuctionTimeLeft">
       export default {
@@ -763,10 +762,16 @@ defmodule AutolaunchWeb.Components.MarketCard do
         destroyed() { clearTimeout(this.timer) },
         tick() {
           clearTimeout(this.timer)
-          const seconds = Math.max(Math.floor((Date.parse(this.el.dataset.endsAt) - Date.now()) / 1000), 0)
-          const d = Math.floor(seconds / 86400)
-          const rest = `${Math.floor((seconds % 86400) / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`
-          this.el.textContent = seconds === 0 ? "Ending" : d > 0 ? `${d}d ${rest}` : rest
+          const end = Date.parse(this.el.dataset.endsAt)
+          const open = Date.parse(this.el.dataset.opensAt)
+          const minutes = Math.max(Math.floor((end - Date.now()) / 60000), 0)
+          const d = Math.floor(minutes / 1440)
+          const rest = `${Math.floor((minutes % 1440) / 60)}h ${minutes % 60}m`
+          this.el.querySelector("small").textContent = minutes === 0 ? "Ending" : d > 0 ? `${d}d ${rest}` : rest
+          const fill = this.el.querySelector(".auction-figures__time > span")
+          if (fill && open < end) {
+            fill.style.width = `${Math.min(Math.max((Date.now() - open) / (end - open), 0), 1) * 100}%`
+          }
           this.timer = setTimeout(() => this.tick(), 1000 - (Date.now() % 1000))
         }
       }

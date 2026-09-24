@@ -37,18 +37,21 @@
 .market-list__token:hover strong { text-decoration: underline; text-underline-offset: 3px; }
 .market-list__art { position: relative; display: grid; flex-shrink: 0; place-items: center; width: 40px; height: 40px; border: 1px solid var(--hairline); border-radius: 50%; background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); color: var(--color-fg-muted); font-weight: 500; }
 .market-list__art img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.market-list__art .market-list__chain { position: absolute; right: -4px; bottom: -4px; box-sizing: border-box; inline-size: 18px; block-size: 18px; padding: 2px; border-radius: 5px; background: var(--color-surface); color: var(--color-fg); }
-.market-list__name { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: center; column-gap: 6px; min-width: 0; }
-.market-list__name strong { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.market-list__name small { grid-column: 1 / -1; color: var(--color-fg-muted); font-size: .75rem; }
-.market-list__verified { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--color-success); color: var(--color-surface); }
-.market-list__verified svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.market-list__art .market-list__chain { position: absolute; right: -4px; bottom: -4px; box-sizing: border-box; inline-size: 18px; block-size: 18px; padding: 2px; border-radius: 5px; background: var(--color-surface); }
+/* The name, then its ticker on the same line; a long name is cut short, the ticker always shows. */
+.market-list__name { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.market-list__name strong { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-fg); font-weight: 600; }
+.market-list__name small { flex-shrink: 0; color: var(--color-fg-muted); font-size: .8125rem; white-space: nowrap; }
 .market-list__skeleton td { height: 64px; background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); }
 .market-list__empty { padding: 48px 16px; text-align: center; }
 .market-list__empty h2 { margin: 0 0 8px; font-size: 1.125rem; }
 .market-list__empty p { margin: 0 0 20px; color: var(--color-fg-muted); font-size: .875rem; }
 .market-list__more { display: flex; justify-content: center; }
-.auction-figures__progress { display: block; width: 96px; height: 4px; margin: 0 0 6px auto; border-radius: 2px; background: linear-gradient(to right, var(--color-fg) var(--progress), color-mix(in srgb, var(--color-fg) 12%, transparent) var(--progress)); }
+/* A live auction's time bar, filling from its opening to its end in its chain's colour, over the time left. */
+.auction-figures__time { display: block; width: 112px; height: 4px; margin: 0 0 4px auto; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--color-fg) 10%, transparent); }
+.auction-figures__time span { display: block; height: 100%; border-radius: inherit; background: var(--time-color); }
+.auction-figures__time--base { --time-color: #2970ff; }
+.auction-figures__time--robinhood { --time-color: #00e606; }
 @media (max-width: 42rem) {
   .market-list__search { flex-basis: 100%; max-width: none; }
   .market-list__table { min-width: 0; }
@@ -61,12 +64,11 @@
   /* A status such as "Launched 1d ago" wraps so the name keeps its room. */
   .market-list__table td:last-child { white-space: normal; min-width: 5.5rem; }
   .market-list__art { width: 32px; height: 32px; }
-  .market-list__table tbody th { width: 100%; }
+  /* The token cell takes the room left and cuts a long name short. */
+  .market-list__table tbody th { width: 100%; max-width: 0; }
   .market-list__table--auctions :is(th, td):is(:nth-child(2), :nth-child(3)),
   .market-list__table--tokens :is(th, td):nth-child(3) { display: none; }
   .market-list__token { gap: 8px; }
-  .market-list__name { grid-template-columns: minmax(0, auto) auto; }
-  .market-list__name strong { display: -webkit-box; max-width: none; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .market-list__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .auction-figures__progress { width: 100%; }
+  .market-list__name strong { max-width: none; }
+  .auction-figures__time { width: 100%; }
 }
