@@ -89,9 +89,10 @@
 .auction-list__empty p { margin: 0 0 20px; color: var(--color-fg-muted); font-size: .875rem; }
 .auction-list__more { display: flex; justify-content: center; }
 .auction-figures__progress { display: block; width: 96px; height: 4px; margin: 0 0 6px auto; border-radius: 2px; background: linear-gradient(to right, var(--color-fg) var(--progress), color-mix(in srgb, var(--color-fg) 12%, transparent) var(--progress)); }
-.auction-figures { display: grid; gap: 0; margin: 0; font-size: .8125rem; font-variant-numeric: tabular-nums; }
-.auction-figures > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--hairline); }
-.auction-figures dt { color: var(--color-fg-muted); }
-.auction-figures dd { margin: 0; text-align: right; }
-.auction-figures dd small { display: block; color: var(--color-fg-muted); font-size: .6875rem; }
+.auction-figures { display: grid; gap: 6px; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--hairline); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.auction-figures > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.auction-figures dt { min-width: 0; color: var(--color-fg-muted); font-size: .6875rem; line-height: 1.3; }
+.auction-figures dd { flex-shrink: 0; margin: 0; text-align: right; white-space: nowrap; font-weight: 600; }
+.auction-figures dd small { display: block; color: var(--color-fg-muted); font-size: .6875rem; font-weight: 400; }
+.auction-figures .auction-figures__progress { width: 100%; margin: 3px 0 3px auto; }
 @media (max-width: 42rem) { .auction-list__search { flex-basis: 100%; max-width: none; } .auction-list__table :is(th, td) { padding: 10px 12px; } }
