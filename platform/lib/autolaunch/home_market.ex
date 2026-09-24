@@ -54,6 +54,22 @@ defmodule Autolaunch.HomeMarket do
   end
 
   @doc """
+  The first `count` records again, a page at a time, so a live reread keeps
+  every page the reader has loaded. At least one page is read.
+  """
+  def reread(options, count), do: reread(options, count, nil, [])
+
+  defp reread(options, count, cursor, records) do
+    with {:ok, page} <- read(options, cursor) do
+      records = records ++ page.records
+
+      if page.has_more and length(records) < count,
+        do: reread(options, count, page.next_cursor, records),
+        else: {:ok, %{page | records: records}}
+    end
+  end
+
+  @doc """
   The Robinhood entries the same search, state filter and sort order show:
   the auctions that have not graduated, or in the tokens view the graduated
   launches, each of which is a token.

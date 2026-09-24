@@ -10,12 +10,12 @@ defmodule AutolaunchWeb.TokenLive do
 
   alias Autolaunch.Lab
   alias Autolaunch.Pool
-  alias AutolaunchWeb.LabMarket
+  alias AutolaunchWeb.{LabMarket, LiveListings}
   alias AutolaunchWeb.SwapComponent
 
   def mount(_params, _session, socket) do
     LabMarket.subscribe(socket)
-    {:ok, socket}
+    {:ok, LiveListings.subscribe(socket)}
   end
 
   # The identifier is read here so a patch to another token reloads the page
@@ -40,6 +40,16 @@ defmodule AutolaunchWeb.TokenLive do
       do: {:noreply, refresh(socket)},
       else: {:noreply, socket}
   end
+
+  # This token's auction saved a change, so the page reads it again in place.
+  def handle_info({:autolaunch_listings_changed, auction_id}, socket) do
+    if auction_id == page_auction_id(socket.assigns.page),
+      do: {:noreply, LiveListings.schedule(socket)},
+      else: {:noreply, socket}
+  end
+
+  def handle_info(:reread_listings, socket),
+    do: {:noreply, socket |> LiveListings.taken() |> refresh()}
 
   def render(assigns) do
     page_record = page_record(assigns.page)

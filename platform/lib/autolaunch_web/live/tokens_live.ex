@@ -3,14 +3,16 @@ defmodule AutolaunchWeb.TokensLive do
   use AutolaunchWeb, :live_view
   import AutolaunchWeb.Components.AutolaunchHelpers
   import AutolaunchWeb.Components.SwapModal
+  alias AutolaunchWeb.LiveListings
 
-  def mount(_params, _session, socket), do: {:ok, assign(socket, trade: nil)}
+  def mount(_params, _session, socket),
+    do: {:ok, socket |> assign(trade: nil) |> LiveListings.subscribe()}
 
   def handle_params(params, _uri, socket) do
-    {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page()}
+    {:noreply, socket |> assign(cursor: params["after"], trade: nil) |> load_page(reset: true)}
   end
 
-  def handle_event("retry", _params, socket), do: {:noreply, load_page(socket)}
+  def handle_event("retry", _params, socket), do: {:noreply, load_page(socket, reset: true)}
 
   def handle_event("open_trade", %{"id" => id} = params, socket),
     do: {:noreply, assign(socket, :trade, opened_trade(socket.assigns.records, id, params))}
@@ -26,7 +28,15 @@ defmodule AutolaunchWeb.TokensLive do
 
   def handle_event("close_trade", _params, socket), do: {:noreply, socket}
 
-  defp load_page(socket) do
+  def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
+    do: {:noreply, LiveListings.schedule(socket)}
+
+  # The same page and cursor are read again with the current rows left in
+  # place, and an open trade keeps its form.
+  def handle_info(:reread_listings, socket),
+    do: {:noreply, socket |> LiveListings.taken() |> load_page(reset: false)}
+
+  defp load_page(socket, reset: reset) do
     cursor = socket.assigns.cursor
 
     assign_async(
@@ -44,7 +54,7 @@ defmodule AutolaunchWeb.TokensLive do
            }}
         end
       end,
-      reset: true
+      reset: reset
     )
   end
 
