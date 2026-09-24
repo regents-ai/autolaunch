@@ -126,6 +126,12 @@ defmodule AutolaunchWeb.Components.BidPlaced do
   def transaction_url(:base, hash), do: "https://basescan.org/tx/#{hash}"
   def transaction_url(:robinhood, hash), do: "https://robinhoodchain.blockscout.com/tx/#{hash}"
 
+  @doc "The chain's explorer page for an address."
+  def address_url(:base, address), do: "https://basescan.org/address/#{address}"
+
+  def address_url(:robinhood, address),
+    do: "https://robinhoodchain.blockscout.com/address/#{address}"
+
   @doc "The name of the chain's explorer."
   def explorer(:base), do: "Basescan"
   def explorer(:robinhood), do: "Blockscout"
