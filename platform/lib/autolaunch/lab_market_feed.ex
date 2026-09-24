@@ -495,6 +495,7 @@ defmodule Autolaunch.LabMarketFeed do
 
     alias Autolaunch
     alias Autolaunch.Actors.System, as: SystemActor
+    alias Autolaunch.Auction.MarketState
     alias Autolaunch.Chain.Rpc
     alias Autolaunch.{Lab, LabRpc}
 
@@ -583,7 +584,7 @@ defmodule Autolaunch.LabMarketFeed do
            {:ok, start_block} <- call_uint(config, address, "startBlock()", block, opts),
            {:ok, end_block} <- call_uint(config, address, "endBlock()", block, opts),
            {:ok, claim_block} <- call_uint(config, address, "claimBlock()", block, opts),
-           {:ok, graduated?} <- call_bool(config, address, "isGraduated()", block, opts),
+           {:ok, minimum_reached} <- call_bool(config, address, "isGraduated()", block, opts),
            {:ok, clearing_price} <- call_uint(config, address, "clearingPrice()", block, opts),
            {:ok, currency_raised} <- call_uint(config, address, "currencyRaised()", block, opts),
            {:ok, remaining_supply} <- call_uint(config, address, "remainingSupply()", block, opts),
@@ -607,7 +608,7 @@ defmodule Autolaunch.LabMarketFeed do
            %{
              auction_id: auction.id,
              auction_address: String.downcase(address),
-             state: market_state(auction.state, lifecycle, graduated?, block.number, start_block),
+             state: MarketState.observed(lifecycle, block.number, start_block, end_block),
              current_clearing_price: Lab.format_price(clearing_price),
              price_quote: price_quote,
              block_number: block.number,
@@ -617,7 +618,7 @@ defmodule Autolaunch.LabMarketFeed do
              claim_block: claim_block,
              currency_raised: Rpc.format_units(currency_raised, 18),
              remaining_supply: Rpc.format_units(remaining_supply, 18),
-             graduated?: graduated?,
+             minimum_reached: minimum_reached,
              pool_id: pool_id(Enum.at(distribution, 16)),
              positions: positions
            }}
@@ -656,16 +657,6 @@ defmodule Autolaunch.LabMarketFeed do
       )
     end
 
-    defp market_state(_current, 2, _graduated?, _block, _start), do: :graduated
-    defp market_state(_current, 3, _graduated?, _block, _start), do: :failed
-    defp market_state(_current, _lifecycle, true, _block, _start), do: :graduated
-    defp market_state(:active, _lifecycle, _graduated?, _block, _start), do: :active
-
-    defp market_state(_current, _lifecycle, _graduated?, block, start) when block >= start,
-      do: :active
-
-    defp market_state(_current, _lifecycle, _graduated?, _block, _start), do: :created
-
     defp pool_id(0), do: nil
 
     defp pool_id(value) when is_integer(value) and value > 0 do
@@ -683,6 +674,7 @@ defmodule Autolaunch.LabMarketFeed do
     alias Autolaunch
     alias Autolaunch.Actors.System, as: SystemActor
     alias Autolaunch.Auction
+    alias Autolaunch.Auction.MarketState
     alias Autolaunch.LabMarketFeed.Reader
 
     def project(snapshots, head, verifier \\ Reader) do
@@ -724,13 +716,18 @@ defmodule Autolaunch.LabMarketFeed do
     end
 
     defp refresh_snapshot(auction, snapshot, actor, changed) do
-      state = join_state(auction.state, snapshot.state)
-      price = snapshot.current_clearing_price
+      market = %{
+        state: MarketState.join(auction.state, snapshot.state),
+        price: snapshot.current_clearing_price,
+        minimum_reached: snapshot.minimum_reached
+      }
 
-      market_changed? = auction.state != state or auction.current_clearing_price != price
+      market_changed? =
+        auction.state != market.state or auction.current_clearing_price != market.price or
+          auction.minimum_reached != market.minimum_reached
 
       with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions),
-           :ok <- refresh_market(auction, market_changed?, state, price, actor),
+           :ok <- refresh_market(auction, market_changed?, market, actor),
            {:ok, price_changed?} <-
              Autolaunch.LabProjection.project_token_price(auction.id, snapshot.price_quote) do
         if market_changed? or positions_changed? or price_changed?,
@@ -744,11 +741,17 @@ defmodule Autolaunch.LabMarketFeed do
     # A launch the feed sees graduate becomes a public token in the same
     # transaction, so its pool page exists as soon as the auction says so, and
     # the token's price is the pool's from the same reading.
-    defp refresh_market(_auction, false, _state, _price, _actor), do: :ok
+    defp refresh_market(_auction, false, _market, _actor), do: :ok
 
-    defp refresh_market(auction, true, state, price, actor) do
+    defp refresh_market(auction, true, market, actor) do
       with {:ok, refreshed} <-
-             Autolaunch.refresh_lab_market_auction(auction, state, price, actor: actor),
+             Autolaunch.refresh_lab_market_auction(
+               auction,
+               market.state,
+               market.price,
+               %{minimum_reached: market.minimum_reached},
+               actor: actor
+             ),
            do: Autolaunch.LabProjection.project_graduated_token(refreshed)
     end
 
@@ -774,9 +777,5 @@ defmodule Autolaunch.LabMarketFeed do
     end
 
     defp rollback(reason), do: Ash.DataLayer.rollback(Auction, reason)
-
-    defp join_state(current, _observed) when current in [:graduated, :failed], do: current
-    defp join_state(:active, :created), do: :active
-    defp join_state(_current, observed), do: observed
   end
 end

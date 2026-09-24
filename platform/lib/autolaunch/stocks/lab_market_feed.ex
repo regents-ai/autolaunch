@@ -17,6 +17,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   require Logger
 
   alias Autolaunch.Actors.System
+  alias Autolaunch.Auction.MarketState
   alias Autolaunch.Chain.{Abi, Rpc}
   alias Autolaunch.{LabAbi, LabProjection, Pool}
   alias Autolaunch.Stocks.{Amounts, Lab}
@@ -241,7 +242,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          {:ok, start_block} <- auction_uint(config, address, "startBlock()", block, opts),
          {:ok, end_block} <- auction_uint(config, address, "endBlock()", block, opts),
          {:ok, claim_block} <- auction_uint(config, address, "claimBlock()", block, opts),
-         {:ok, graduated?} <- auction_bool(config, address, "isGraduated()", block, opts),
+         {:ok, minimum_reached} <- auction_bool(config, address, "isGraduated()", block, opts),
          {:ok, clearing} <- auction_uint(config, address, "clearingPrice()", block, opts),
          {:ok, raised} <- auction_uint(config, address, "currencyRaised()", block, opts),
          {:ok, remaining} <- auction_uint(config, address, "remainingSupply()", block, opts),
@@ -264,7 +265,12 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          auction_id: auction.id,
          auction_address: String.downcase(address),
          state:
-           market_state(Enum.at(record, @lifecycle_index), graduated?, block.number, start_block),
+           MarketState.observed(
+             Enum.at(record, @lifecycle_index),
+             block.number,
+             start_block,
+             end_block
+           ),
          current_clearing_price: Amounts.format_cca_price(clearing, decimals, @new_decimals),
          price_quote: price_quote,
          block_number: block.number,
@@ -275,7 +281,7 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
          currency_raised: Rpc.format_units(raised, decimals),
          currency_symbol: auction.quote_token_symbol,
          remaining_supply: Rpc.format_units(remaining, @new_decimals),
-         graduated?: graduated?,
+         minimum_reached: minimum_reached,
          positions: positions
        }}
     end
@@ -301,12 +307,18 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   end
 
   defp refresh_row(auction, snapshot) do
-    state = join_state(auction.state, snapshot.state)
-    price = snapshot.current_clearing_price
-    market_changed? = auction.state != state or auction.current_clearing_price != price
+    market = %{
+      state: MarketState.join(auction.state, snapshot.state),
+      price: snapshot.current_clearing_price,
+      minimum_reached: snapshot.minimum_reached
+    }
+
+    market_changed? =
+      auction.state != market.state or auction.current_clearing_price != market.price or
+        auction.minimum_reached != market.minimum_reached
 
     with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions),
-         :ok <- refresh_market(auction, market_changed?, state, price),
+         :ok <- refresh_market(auction, market_changed?, market),
          {:ok, price_changed?} <-
            LabProjection.project_token_price(auction.id, snapshot.price_quote) do
       if market_changed? or positions_changed? or price_changed?,
@@ -318,22 +330,19 @@ defmodule Autolaunch.Stocks.LabMarketFeed do
   # A graduation projects the public token row at once, so the pool page exists
   # as soon as the auction row says the launch graduated, and the token's price
   # is the pool's from the same reading.
-  defp refresh_market(_auction, false, _state, _price), do: :ok
+  defp refresh_market(_auction, false, _market), do: :ok
 
-  defp refresh_market(auction, true, state, price) do
-    with {:ok, row} <- Autolaunch.refresh_lab_market_auction(auction, state, price, actor: @actor),
+  defp refresh_market(auction, true, market) do
+    with {:ok, row} <-
+           Autolaunch.refresh_lab_market_auction(
+             auction,
+             market.state,
+             market.price,
+             %{minimum_reached: market.minimum_reached},
+             actor: @actor
+           ),
          do: LabProjection.project_graduated_token(row)
   end
-
-  defp join_state(current, _observed) when current in [:graduated, :failed], do: current
-  defp join_state(:active, :created), do: :active
-  defp join_state(_current, observed), do: observed
-
-  defp market_state(2, _graduated?, _block, _start), do: :graduated
-  defp market_state(3, _graduated?, _block, _start), do: :failed
-  defp market_state(_lifecycle, true, _block, _start), do: :graduated
-  defp market_state(_lifecycle, _graduated?, block, start) when block >= start, do: :active
-  defp market_state(_lifecycle, _graduated?, _block, _start), do: :created
 
   defp launchpad_uint(config, signature, arguments, block, opts) do
     Rpc.call_uint(

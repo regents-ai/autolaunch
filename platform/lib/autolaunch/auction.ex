@@ -233,7 +233,7 @@ defmodule Autolaunch.Auction do
 
     update :refresh_lab_market do
       require_atomic? false
-      accept [:state, :current_clearing_price]
+      accept [:state, :current_clearing_price, :minimum_reached]
     end
 
     update :set_treasury_security_report do
@@ -381,7 +381,15 @@ defmodule Autolaunch.Auction do
       allow_nil? false
       public? true
       default :created
-      constraints one_of: [:created, :active, :graduated, :failed]
+      constraints one_of: [:created, :active, :ended, :graduated, :failed]
+    end
+
+    # The auction's raise has met its minimum (`isGraduated()` on the auction
+    # contract). A progress fact only: bidding stays open until the end block.
+    attribute :minimum_reached, :boolean do
+      allow_nil? false
+      public? true
+      default false
     end
 
     attribute :opened_at, :utc_datetime_usec do
