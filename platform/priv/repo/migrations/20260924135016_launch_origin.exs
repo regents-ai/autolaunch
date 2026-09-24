@@ -9,7 +9,7 @@ defmodule Autolaunch.Repo.Migrations.LaunchOrigin do
 
   def up do
     alter table(:auctions) do
-      add :origin, :text, null: false, default: "site"
+      add :origin, :text, null: false
     end
 
     create table(:robinhood_launch_reviews, primary_key: false) do

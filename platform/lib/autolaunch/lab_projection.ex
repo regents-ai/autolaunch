@@ -45,7 +45,8 @@ defmodule Autolaunch.LabProjection do
         auction_address: result["auction"],
         quote_token_address: arguments["regent"],
         required_currency_raised: arguments["required_regent_raised_atomic"],
-        treasury_address: result["treasury"]
+        treasury_address: result["treasury"],
+        treasury_security_report_id: arguments["treasury_security"]["report_id"]
       })
       |> Autolaunch.record_launch_auction(actor: @actor, return_notifications?: true)
       |> project_launch_records(envelope, arguments, result)

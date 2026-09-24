@@ -64,6 +64,51 @@ defmodule Autolaunch.BidActionsTest do
     assert refusal(error) == :treasury_security_changed
   end
 
+  test "a Base launch recorded from its reviewed launch binds its treasury report, so it can be bid on",
+       %{account: account, wallet: wallet, opts: opts} do
+    install()
+    treasury = "0x8888888888888888888888888888888888888888"
+    report = Autolaunch.TestAutolaunchTreasuryChainClient.seed_verified!(treasury)
+
+    assert {:ok, _notifications} =
+             Autolaunch.LabProjection.project_launch(
+               %{
+                 human_account_id: account.id,
+                 envelope: %{
+                   "chain_id" => 8453,
+                   "expected_signer" => wallet,
+                   "arguments" => %{
+                     "name" => "Base launch",
+                     "symbol" => "BASE",
+                     "required_regent_raised_atomic" => "1000",
+                     "regent" => regent(),
+                     "factory" => @other,
+                     "treasury_security" => %{"report_id" => report.id, "address" => treasury}
+                   }
+                 }
+               },
+               %{
+                 "launch_id" => "1",
+                 "subject" => "0x6666666666666666666666666666666666666666",
+                 "auction" => "0x5555555555555555555555555555555555555555",
+                 "escrow" => "0x7777777777777777777777777777777777777777",
+                 "treasury" => treasury
+               }
+             )
+
+    {:ok, launched} =
+      Autolaunch.get_auction_by_chain_address(
+        8453,
+        "0x5555555555555555555555555555555555555555",
+        actor: system()
+      )
+
+    assert launched.treasury_security_report_id == report.id
+
+    assert {:ok, %{operation: _operation}} =
+             Autolaunch.prepare_bid(launched.id, wallet, "1", "3", opts)
+  end
+
   test "EXACT_AMOUNTS_AND_PRICES: only exact eighteen-decimal amounts and positive prices review",
        %{auction: auction, wallet: wallet, opts: opts} do
     install(prev_tick_price_q96: div(@q96, 4))

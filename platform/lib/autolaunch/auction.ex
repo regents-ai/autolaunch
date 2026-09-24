@@ -36,10 +36,6 @@ defmodule Autolaunch.Auction do
     table "auctions"
     repo Autolaunch.Repo
 
-    # Every auction stored before origins were recorded was launched through
-    # this site.
-    migration_defaults origin: "\"site\""
-
     # Each public list reads its page straight off one of these in order.
     custom_indexes do
       index ["opened_at DESC NULLS LAST", "inserted_at DESC", "id"],
@@ -246,14 +242,25 @@ defmodule Autolaunch.Auction do
     # first (launch discovery, the creator's own confirmation, the Robinhood
     # feed). A row that already exists is returned exactly as it is, so no
     # later writer can blank its details or take its state back. The Robinhood
-    # feed also records the launch's facts from its launchpad record.
+    # feed also records the launch's facts from its launchpad record. A Base
+    # launch also binds the treasury report its creator reviewed, which every
+    # bid on it is checked against.
     create :record_launch do
-      accept @projection_accept ++ [:token_address, :launch_id, :start_block, :end_block]
+      accept @projection_accept ++
+               [
+                 :token_address,
+                 :launch_id,
+                 :start_block,
+                 :end_block,
+                 :treasury_security_report_id
+               ]
+
       upsert? true
       upsert_identity :chain_auction
       upsert_condition expr(false)
       return_skipped_upsert? true
       change Autolaunch.Auction.Changes.ImageColor
+      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
     end
 
     update :set_bid_terms do

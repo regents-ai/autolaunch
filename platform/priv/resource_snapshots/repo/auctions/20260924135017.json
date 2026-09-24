@@ -110,7 +110,7 @@
     },
     {
       "allow_nil?": false,
-      "default": "\"site\"",
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
@@ -517,7 +517,7 @@
   ],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "5A8F49B69EECA33449C6A91F5B62F759C0EE515B73BB50644B6CD28FB09162D3",
+  "hash": "D8B941F11E9F3325C5B1CD6B99D89B1E38B5736B0FCEFEB500227C055E19E91F",
   "identities": [
     {
       "all_tenants?": false,
