@@ -309,6 +309,9 @@ defmodule Autolaunch.RevenuePayments do
     |> notified()
   end
 
+  # Invalidation removes only derived payment rows while holding the parent
+  # lock; Ash clears the cursor and broadcasts that change after this
+  # transaction.
   defp invalidate(auction) do
     Repo.transaction(fn ->
       current = locked(auction)

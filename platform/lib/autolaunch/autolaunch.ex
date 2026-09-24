@@ -8,12 +8,13 @@ defmodule Autolaunch do
   @launch_draft_image_resource Module.concat(__MODULE__, "LaunchDraftImage")
   @bid_operation Module.concat(__MODULE__, "BidOperation")
   @launch_operation Module.concat(__MODULE__, "LaunchOperation")
+  @revenue_payment Module.concat(__MODULE__, "RevenuePayment")
   resources do
     resource Autolaunch.BidActivity do
       define :auction_bids, action: :for_auction, args: [:auction_id]
     end
 
-    resource Autolaunch.RevenuePayment do
+    resource @revenue_payment do
       define :recent_revenue_payments, action: :recent_for_auction, args: [:auction_id]
     end
 
