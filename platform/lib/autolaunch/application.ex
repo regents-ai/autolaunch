@@ -23,6 +23,7 @@ defmodule Autolaunch.Application do
       Autolaunch.Stocks.MarketData,
       Autolaunch.RegentFacts,
       autolaunch_indexer_children(),
+      autolaunch_jobs_child(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
@@ -56,6 +57,20 @@ defmodule Autolaunch.Application do
        max_in_flight: 1},
       id: {Autolaunch.Indexer, chain_id}
     )
+  end
+
+  # Background jobs, which finish ended auctions, run once launches are open.
+  defp autolaunch_jobs_child do
+    with false <- Autolaunch.Prelaunch.read_only?(),
+         true <- Application.get_env(:autolaunch, :database_startup_enabled, false) do
+      {Oban,
+       AshOban.config(
+         Application.fetch_env!(:autolaunch, :ash_domains),
+         Application.fetch_env!(:autolaunch, Oban)
+       )}
+    else
+      _disabled -> nil
+    end
   end
 
   defp autolaunch_lab_market_feed_child do

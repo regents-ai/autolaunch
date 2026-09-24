@@ -1,5 +1,8 @@
 import Config
 
+# Jobs run only when a test drains them; no cron and no queues run on their own.
+config :autolaunch, Oban, testing: :manual
+
 browser_port = String.to_integer(System.get_env("PORT", "4050"))
 
 # Several test servers can share one local PostgreSQL, which admits a fixed

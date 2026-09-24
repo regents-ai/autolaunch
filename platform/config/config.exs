@@ -7,6 +7,24 @@
 # General application configuration
 import Config
 
+config :ash_oban, pro?: false
+
+# Background jobs: the auction finisher's minute-by-minute checks. One queue,
+# one job at a time, so the finishing wallet never races itself for a nonce.
+# The web connection may go through PgBouncer, which cannot hold a LISTEN, so
+# jobs are announced between processes instead of through PostgreSQL.
+config :autolaunch, Oban,
+  engine: Oban.Engines.Basic,
+  notifier: Oban.Notifiers.PG,
+  repo: Autolaunch.Repo,
+  prefix: "autolaunch_app",
+  queues: [auction_finishing: 1],
+  plugins: [
+    {Oban.Plugins.Cron, []},
+    {Oban.Plugins.Pruner, max_age: 86_400},
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(10)}
+  ]
+
 config :regent_identity, repo: Autolaunch.Repo, ash_domains: [RegentIdentity]
 
 # Every Autolaunch table lives in this schema, in every environment.

@@ -346,6 +346,15 @@ defmodule Autolaunch do
         args: [:id],
         not_found_error?: false
     end
+
+    resource Autolaunch.AuctionFinish do
+      define :record_auction_finish, action: :record
+
+      define :latest_auction_finish,
+        action: :latest,
+        args: [:chain_id, :contract],
+        not_found_error?: false
+    end
   end
 
   @doc "Observes Base and persists one immutable treasury security report."

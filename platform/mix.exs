@@ -53,6 +53,8 @@ defmodule Autolaunch.MixProject do
       {:assent, "== 0.3.1"},
       {:ash_phoenix, "~> 2.3"},
       {:ash_postgres, "~> 2.13"},
+      {:ash_oban, "~> 0.8.14"},
+      {:oban, "~> 2.24"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
@@ -73,6 +75,8 @@ defmodule Autolaunch.MixProject do
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
+      # Signs the transaction that finishes an ended auction.
+      {:ex_secp256k1, "~> 0.8.0"},
       {:decimal, "== 3.1.1"},
       # IANA zones for the Stocks auction start; compiled in, nothing fetched at runtime.
       {:tz, "~> 0.28"},
@@ -144,11 +148,11 @@ defmodule Autolaunch.MixProject do
         # Two kinds of compile-connected edge are permitted: a domain naming
         # its compile-time resources, and each resource naming the policy check
         # modules its policies use, which Ash 3.32 resolves at compile time.
-        # Nothing else is permitted. The ceiling is twenty-one domain-to-resource
-        # edges (Accounts four, Autolaunch seventeen) plus thirty
+        # Nothing else is permitted. The ceiling is twenty-two domain-to-resource
+        # edges (Accounts four, Autolaunch eighteen) plus thirty-one
         # resource-to-check edges, and it is re-based per unit when a domain,
         # resource or check module lands.
-        "xref graph --label compile-connected --fail-above 51",
+        "xref graph --label compile-connected --fail-above 53",
         "test --warnings-as-errors",
         "ash.codegen --check"
       ]

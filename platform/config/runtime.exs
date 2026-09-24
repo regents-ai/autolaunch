@@ -187,6 +187,22 @@ if database_config do
   config :autolaunch, Autolaunch.Repo, database_config
 end
 
+# The finishing wallet sends `migrate` for every ended auction on the
+# launchpads this site describes, and pays that gas. The serving production
+# site requires it; a lab site given one finishes its own auctions the same way.
+finisher_key =
+  if config_env() == :prod and not migrating?,
+    do: System.fetch_env!("AUTOLAUNCH_FINISHER_KEY"),
+    else: System.get_env("AUTOLAUNCH_FINISHER_KEY")
+
+if finisher_key do
+  if Autolaunch.AuctionFinish.Wallet.private_key(finisher_key) == :error do
+    raise "AUTOLAUNCH_FINISHER_KEY must be 0x and the 64 hex digits of a private key"
+  end
+
+  config :autolaunch, :auction_finisher_key, finisher_key
+end
+
 if config_env() == :prod do
   config :autolaunch, :session_options, secure: true, http_only: true
 
