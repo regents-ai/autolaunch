@@ -67,6 +67,24 @@ defmodule Autolaunch.LabTest do
     assert {:error, :invalid_chain_id} = load(dir, doors, nil)
   end
 
+  test "a test chain keeps the start blocks it names, and may name none", %{tmp_dir: dir} do
+    fixture =
+      "../fixtures/base-deployment.json"
+      |> Path.expand(__DIR__)
+      |> File.read!()
+      |> Jason.decode!()
+      |> Map.put("chain_id", 31_337)
+
+    named = Path.join(dir, "named.json")
+    File.write!(named, Jason.encode!(fixture))
+    assert {:ok, %{start_blocks: %{"factory" => _block} = blocks}} = Lab.load(named)
+    assert blocks == fixture["start_blocks"]
+
+    unnamed = Path.join(dir, "unnamed.json")
+    File.write!(unnamed, Jason.encode!(Map.delete(fixture, "start_blocks")))
+    assert {:ok, %{start_blocks: %{}}} = Lab.load(unnamed)
+  end
+
   test "the envelope binding names the public door, never the site's own" do
     config = %{
       run_id: "preview",

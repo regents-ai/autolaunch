@@ -104,7 +104,7 @@ defmodule Autolaunch.Lab do
   `public_rpc_url` is the door wallets use (`Autolaunch.LabRpcUrl.public/2`).
   `start_blocks` names the block each watched contract was deployed in, by
   the same name as its address; the log ledger follows the factory from
-  there. A test chain keeps the ledger off and names no start blocks.
+  there. A test chain may name none, which keeps its ledger off.
   """
   def load(path) when is_binary(path) do
     with true <- Path.type(path) == :absolute,
@@ -227,7 +227,7 @@ defmodule Autolaunch.Lab do
   defp exact_abis(_abis), do: {:error, :invalid_abis}
 
   # Named like the addresses, a nonnegative block each, the factory always.
-  defp start_blocks(_blocks, @test_chain_id), do: {:ok, %{}}
+  defp start_blocks(nil, @test_chain_id), do: {:ok, %{}}
 
   defp start_blocks(blocks, _chain_id) when is_map(blocks) do
     with [] <- Map.keys(blocks) -- @address_keys,
