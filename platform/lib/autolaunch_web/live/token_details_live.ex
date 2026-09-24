@@ -164,10 +164,11 @@ defmodule AutolaunchWeb.TokenDetailsLive do
             <tr>
               <th scope="row">
                 Memestake <span class="fact-table__note">Robinhood Chain</span>
-                <span class="fact-table__tag">Not live yet</span>
               </th>
               <td data-label="Fee paid in">The paired stock, buying or selling</td>
-              <td data-label="First 1%">Swapped to USDG for Regent</td>
+              <td data-label="First 1%">
+                Swapped to USDG for REGENT stakers, held on Robinhood Chain until the transfer to Base is set up
+              </td>
               <td data-label="Second 1%">Added to the token's staking rewards</td>
             </tr>
           </tbody>

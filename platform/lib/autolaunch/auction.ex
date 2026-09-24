@@ -187,18 +187,29 @@ defmodule Autolaunch.Auction do
       filter expr(chain_id == ^arg(:chain_id) and auction_address == ^arg(:auction_address))
     end
 
-    # The market feeds read one more row than they can watch, so an overflow
-    # is detected rather than silently truncated.
-    read :watchable_lab do
+    # One page of the auctions a market feed watches, in id order after a
+    # cursor: the open ones (not yet graduated or failed) or the finished
+    # ones. Each feed pass reads a bounded page and moves the cursor on, so
+    # every auction is covered over successive passes however many there are.
+    read :market_watch do
       argument :chain_id, :integer, allow_nil?: false
-      filter expr(kind == :agent and chain_id == ^arg(:chain_id))
-      prepare build(sort: [id: :asc], limit: 257)
-    end
+      argument :kind, :atom, allow_nil?: false, constraints: [one_of: [:agent, :stocks]]
+      argument :finished, :boolean, allow_nil?: false
+      argument :after_id, :uuid
+      argument :limit, :integer, allow_nil?: false, constraints: [min: 1, max: 500]
 
-    read :watchable_stocks_lab do
-      argument :chain_id, :integer, allow_nil?: false
-      filter expr(kind == :stocks and chain_id == ^arg(:chain_id))
-      prepare build(sort: [id: :asc], limit: 257)
+      filter expr(kind == ^arg(:kind) and chain_id == ^arg(:chain_id))
+
+      prepare fn query, _context ->
+        %{finished: finished, after_id: after_id, limit: limit} = query.arguments
+        states = if finished, do: [:graduated, :failed], else: [:created, :active, :ended]
+
+        query
+        |> Ash.Query.filter(state in ^states)
+        |> then(&if(after_id, do: Ash.Query.filter(&1, id > ^after_id), else: &1))
+        |> Ash.Query.sort(id: :asc)
+        |> Ash.Query.limit(limit)
+      end
     end
 
     read :lab_by_id_for_update do
@@ -304,8 +315,7 @@ defmodule Autolaunch.Auction do
     policy action([
              :project_lab,
              :project_launch,
-             :watchable_lab,
-             :watchable_stocks_lab,
+             :market_watch,
              :lab_by_id_for_update,
              :refresh_lab_market
            ]) do
@@ -472,8 +482,12 @@ defmodule Autolaunch.Auction do
   end
 
   relationships do
+    # The account whose signed-in wallet launched the auction. Every Base
+    # auction the site lists has one; a Robinhood launch is listed from the
+    # launchpad's own records and names one only when exactly one account's
+    # signed-in wallet is its launcher (`Autolaunch.Robinhood.MarketFeed`).
     belongs_to :creator_human_account, Autolaunch.Accounts.HumanAccount do
-      allow_nil? false
+      allow_nil? true
       attribute_public? true
       attribute_type :integer
     end

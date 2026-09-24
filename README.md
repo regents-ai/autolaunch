@@ -3,11 +3,11 @@
 Autolaunch runs public auctions for new tokens. It then pays the people who stake those tokens a
 share of every trade.
 
-Anyone can launch a token and name the least the auction must raise. Anyone can bid. When bidding
-closes, one price applies to every winning bid. If the auction raises its minimum, the token
-graduates: it starts trading in a Uniswap pool whose liquidity is locked forever. If it falls short,
-every bidder takes their full bid back. After graduation, trading fees on the token flow to the
-people who stake it.
+Anyone can launch a token and name the least the auction must raise. Anyone can bid. At each
+moment the auction has one clearing price, and every bid still buying pays it. If the auction
+raises its minimum, the token graduates: it starts trading in a Uniswap pool whose liquidity is
+locked forever. If it falls short, every bidder takes their full bid back. After graduation,
+trading fees on the token flow to the people who stake it.
 
 [Website](https://autolaunch.sh) · [How the contracts work](contracts/README.md) · [Command-line tool](cli/README.md) · [API and agent tools](platform/docs/public-webmcp.md)
 
@@ -45,7 +45,8 @@ the whole auction, not all at once at the end.
    token.
 2. **One price for everyone.** At any moment the auction has a single clearing price, set by the
    bids competing for the tokens released so far. Bids priced above it buy at the clearing price,
-   not at their own limit, so nobody pays more than anyone else.
+   not at their own limit, so at that moment nobody pays more than anyone else. Your average
+   price depends on when your bid was buying.
 3. **If the price passes your limit,** your bid stops buying. You keep the tokens it already bought
    and take back the rest of your money.
 4. **The minimum.** Each auction must raise the amount its launcher set before it can graduate.
@@ -114,8 +115,8 @@ Autolaunch's contracts are built so that the promises above do not depend on tru
   not check the conversion price: whoever converts sets the least they will accept, and the website
   offers 95% of the stock's Chainlink price as that minimum.
 
-**Your money stays in your wallet.** The website never holds funds. Every bid, trade, stake and
-claim is a transaction you approve in your own wallet.
+**The website never holds your funds.** Bids, stakes and earnings sit in public contracts, and
+every bid, trade, stake and claim is a transaction you approve in your own wallet.
 
 **Risks you should know about:**
 
@@ -126,18 +127,19 @@ claim is a transaction you approve in your own wallet.
 - Memestake bids and earnings are in tokenised stocks. Their value moves with the stock market, and
   each stock token follows its issuer's rules.
 - Staking earnings depend on trading and payments. They are not guaranteed.
-- The contracts are new. Contracts are audited using the Trail of Bits and Crytic skills, using
-  GPT 6 Astra. They were also tested against the real Base contracts they rely on. Their source code
-  is public, and the deployed Revstake contracts are verified on Basescan.
+- The contracts are new. No outside firm has audited them. They were reviewed by AI (GPT 6 Astra)
+  using Trail of Bits' and Crytic's public security tools, and tested against the real Base
+  contracts they rely on. Their source code is public, and the deployed Revstake contracts are
+  verified on Basescan.
 
 ## Status (24 September 2026)
 
 | | |
 | --- | --- |
-| Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches are not open yet |
-| Memestake on Base | Contracts deployed and verified on Basescan on 23 September 2026 ([addresses](contracts/README.md#base-8453-memestake)), with ten stocks added: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches are not open yet |
-| Memestake on Robinhood Chain | Contracts deployed on 23–24 September 2026 ([addresses](contracts/robinhood/deployments/robinhood-mainnet/README.md)). Launches are paused until 24 September 2026, 15:00 UTC |
-| autolaunch.sh | You can browse it now. Launching, bidding and trading turn on when the contracts open |
+| Revstake on Base | Contracts deployed and verified on Basescan on 22 September 2026 ([addresses](contracts/v1/deployments/base-mainnet/README.md)). Launches open on 24 September 2026, 15:00 UTC |
+| Memestake on Base | Contracts deployed and verified on Basescan on 23 September 2026 ([addresses](contracts/README.md#base-8453-memestake)), with ten stocks added: AAPLc, AMZNc, GOOGLc, METAc, MSFTc, MSTRc, NVDAc, SNDKc, SPCXc and TSLAc. Launches open on 24 September 2026, 15:00 UTC |
+| Memestake on Robinhood Chain | Contracts deployed on 23–24 September 2026 ([addresses](contracts/robinhood/deployments/robinhood-mainnet/README.md)). Launches open on 24 September 2026, 15:00 UTC |
+| autolaunch.sh | You can browse it now. Launching, bidding and trading open on 24 September 2026, 15:00 UTC, when the contracts are unpaused |
 | Command-line tool | Read-only: lists auctions and tokens and gives bid quotes. It cannot sign or send anything. Not yet published to npm |
 
 ## More

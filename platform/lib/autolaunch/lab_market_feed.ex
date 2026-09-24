@@ -3,10 +3,11 @@ defmodule Autolaunch.LabMarketFeed do
 
   use GenServer
 
+  require Logger
+
   alias __MODULE__.{Projector, Reader}
 
   @topic "autolaunch:lab_market"
-  @capacity 256
   # A lab moves every second; a mainnet reading is fresh enough every fifteen.
   @lab_delay 1_000
   @mainnet_delay 15_000
@@ -39,6 +40,7 @@ defmodule Autolaunch.LabMarketFeed do
       poll?: Keyword.get(options, :poll?, true),
       delay: Keyword.get(options, :initial_delay, initial_delay()),
       generation: 0,
+      watch: Autolaunch.MarketWatch.new(),
       binding: nil,
       accepted_head: nil,
       failed_head: nil,
@@ -82,8 +84,12 @@ defmodule Autolaunch.LabMarketFeed do
 
   def handle_info({:head, token, result}, %{in_flight: %{token: token, stage: :head}} = state) do
     case result do
-      {:ok, head} -> handle_head(state, head)
-      {:error, _reason} -> {:noreply, failed(%{state | in_flight: nil})}
+      {:ok, head} ->
+        handle_head(state, head)
+
+      {:error, reason} ->
+        Logger.warning("revstake market feed could not read the chain head: #{inspect(reason)}")
+        {:noreply, failed(%{state | in_flight: nil})}
     end
   end
 
@@ -95,17 +101,24 @@ defmodule Autolaunch.LabMarketFeed do
       ) do
     case result do
       {:ok, refresh} ->
-        finish_refresh(state, head, refresh)
+        finish_refresh(%{state | watch: refresh.watch}, head, refresh)
 
-      {:error, _reason, attempted_addresses} ->
-        {:noreply, failed_exact_head(state, head, attempted_addresses)}
-
-      {:error, _reason} ->
+      {:error, reason} ->
+        Logger.warning("revstake market feed could not read its auctions: #{inspect(reason)}")
         {:noreply, failed_exact_head(state, head, state.attempted_addresses)}
     end
   end
 
   def handle_info({:snapshots, _token, _result}, state), do: {:noreply, state}
+
+  def handle_info(
+        {:projected, token, outcome},
+        %{in_flight: %{token: token, stage: :projection, head: head, snapshots: snapshots}} =
+          state
+      ),
+      do: handle_projection(outcome, state, head, snapshots)
+
+  def handle_info({:projected, _token, _outcome}, state), do: {:noreply, state}
 
   defp handle_head(state, head) do
     state = discard_displaced_pending(state, head)
@@ -141,12 +154,12 @@ defmodule Autolaunch.LabMarketFeed do
     parent = self()
     reader = state.reader
     attempted_addresses = attempted_addresses(state, head)
+    watch = state.watch
 
     Task.start(fn ->
       send(
         parent,
-        {:snapshots, token,
-         safely(fn -> reader.snapshots(head, @capacity, attempted_addresses) end)}
+        {:snapshots, token, safely(fn -> reader.snapshots(head, watch, attempted_addresses) end)}
       )
     end)
 
@@ -176,42 +189,48 @@ defmodule Autolaunch.LabMarketFeed do
     end
   end
 
+  # Verifying the head and writing the readings both reach the chain or the
+  # database, so they run in a task: a page asking for the snapshot is always
+  # answered at once from the last accepted readings.
   defp project_refresh(state, head, snapshots) do
-    case safely(fn -> state.reader.verify_head(head) end) do
-      :ok -> project_verified_refresh(state, head, snapshots)
-      {:error, {:head_changed, current}} -> {:noreply, verified_transition(state, current)}
-      {:error, _reason} -> {:noreply, retry_projection(state, head, snapshots)}
+    token = make_ref()
+    parent = self()
+    %{reader: reader, projector: projector} = state
+
+    Task.start(fn ->
+      send(parent, {:projected, token, projection(reader, projector, head, snapshots)})
+    end)
+
+    {:noreply,
+     %{state | in_flight: %{token: token, stage: :projection, head: head, snapshots: snapshots}}}
+  end
+
+  # The head is verified before the readings are written and again after, so
+  # nothing is published from a block the chain has since left.
+  defp projection(reader, projector, head, snapshots) do
+    with :ok <- safely(fn -> reader.verify_head(head) end),
+         {:ok, durable_changed_ids} <- safely(fn -> projector.project(snapshots, head) end),
+         :ok <- safely(fn -> reader.verify_head(head) end) do
+      {:ok, durable_changed_ids}
     end
   end
 
-  defp project_verified_refresh(state, head, snapshots) do
-    case safely(fn -> state.projector.project(snapshots, head) end) do
-      {:ok, durable_changed_ids} ->
-        publish_verified_refresh(state, head, snapshots, durable_changed_ids)
+  defp handle_projection({:ok, durable_changed_ids}, state, head, snapshots),
+    do: accept_refresh(state, head, snapshots, durable_changed_ids)
 
-      {:error, {:head_changed, current}} ->
-        {:noreply, verified_transition(state, current)}
+  defp handle_projection({:error, {:head_changed, current}}, state, _head, _snapshots),
+    do: {:noreply, verified_transition(state, current)}
 
-      {:error, _reason} ->
-        {:noreply, retry_projection(state, head, snapshots)}
-    end
+  defp handle_projection({:error, reason}, state, head, snapshots) do
+    Logger.warning("revstake market feed could not record its readings: #{inspect(reason)}")
+    {:noreply, retry_projection(state, head, snapshots)}
   end
 
-  defp publish_verified_refresh(state, head, snapshots, durable_changed_ids) do
-    case safely(fn -> state.reader.verify_head(head) end) do
-      :ok -> accept_refresh(state, head, snapshots, durable_changed_ids)
-      {:error, {:head_changed, current}} -> {:noreply, verified_transition(state, current)}
-      {:error, _reason} -> {:noreply, retry_projection(state, head, snapshots)}
-    end
-  end
-
+  # A pass reads only part of the auctions, so its readings join the ones
+  # earlier passes accepted; each reading names the block it was taken at. A
+  # head the chain left clears them all (`displace_cache/2`, `invalidate_for/2`).
   defp accept_refresh(state, head, snapshots, durable_changed_ids) do
-    partial_snapshots = Map.new(snapshots, &{&1.auction_address, &1})
-
-    next_snapshots =
-      if same_head?(state.accepted_head, head.block),
-        do: Map.merge(state.snapshots, partial_snapshots),
-        else: partial_snapshots
+    next_snapshots = Map.merge(state.snapshots, Map.new(snapshots, &{&1.auction_address, &1}))
 
     cache_changed_ids = changed_snapshot_ids(state.snapshots, next_snapshots)
     changed_ids = Enum.uniq(durable_changed_ids ++ cache_changed_ids)
@@ -490,13 +509,14 @@ defmodule Autolaunch.LabMarketFeed do
   defmodule Reader do
     @moduledoc false
 
+    require Logger
+
     @read_concurrency 8
     @read_timeout 10_000
 
-    alias Autolaunch
-    alias Autolaunch.Actors.System, as: SystemActor
+    alias Autolaunch.Auction.MarketState
     alias Autolaunch.Chain.Rpc
-    alias Autolaunch.{Lab, LabRpc}
+    alias Autolaunch.{Lab, LabRpc, MarketWatch}
 
     def head do
       with {:ok, config, block, opts} <- LabRpc.current([:strategy]) do
@@ -516,10 +536,8 @@ defmodule Autolaunch.LabMarketFeed do
       end
     end
 
-    def snapshots(head, capacity, attempted_addresses) do
-      with {:ok, auctions} <-
-             Autolaunch.list_lab_market_auctions(Lab.chain_id(), actor: %SystemActor{}),
-           true <- length(auctions) <= capacity do
+    def snapshots(head, watch, attempted_addresses) do
+      with {:ok, auctions, next_watch} <- MarketWatch.next(watch, Lab.chain_id(), :agent) do
         observed_addresses = MapSet.new(auctions, &String.downcase(&1.auction_address))
 
         pending =
@@ -527,54 +545,45 @@ defmodule Autolaunch.LabMarketFeed do
             MapSet.member?(attempted_addresses, String.downcase(auction.auction_address))
           end)
 
-        case collect_snapshots(pending, head) do
-          {:ok, snapshots} ->
-            {:ok,
-             %{
-               snapshots: snapshots,
-               attempted: MapSet.union(attempted_addresses, observed_addresses)
-             }}
-
-          {:error, reason} ->
-            {:error, reason, MapSet.union(attempted_addresses, observed_addresses)}
-        end
-      else
-        false -> {:error, :market_capacity_exceeded}
-        {:error, reason} -> {:error, reason}
+        {:ok,
+         %{
+           snapshots: collect_snapshots(pending, head),
+           attempted: MapSet.union(attempted_addresses, observed_addresses),
+           watch: next_watch
+         }}
       end
     end
 
+    # Each auction is read on its own: one that cannot be read is logged and
+    # left as it is, and every other auction still refreshes.
     defp collect_snapshots(auctions, head) do
       auctions
-      |> Task.async_stream(&snapshot(head, &1),
+      |> Task.async_stream(&{&1, snapshot(head, &1)},
         max_concurrency: @read_concurrency,
         ordered: false,
         timeout: @read_timeout,
-        on_timeout: :kill_task
+        on_timeout: :kill_task,
+        zip_input_on_exit: true
       )
-      |> Enum.reduce_while({:ok, []}, fn result, {:ok, snapshots} ->
-        collect_snapshot(result, snapshots)
-      end)
-      |> reverse_snapshots()
+      |> Enum.flat_map(&collect_snapshot/1)
     end
 
-    defp collect_snapshot({:ok, {:ok, snapshot}}, snapshots),
-      do: {:cont, {:ok, [snapshot | snapshots]}}
+    defp collect_snapshot({:ok, {_auction, {:ok, snapshot}}}), do: [snapshot]
 
     # A row whose contract does not exist at this head has no market to read
-    # (a launch mined on another lab run, or one a reorg removed); it is left
-    # as it is so one such row never stops every other auction refreshing.
-    defp collect_snapshot({:ok, {:error, :lab_contract_missing}}, snapshots),
-      do: {:cont, {:ok, snapshots}}
+    # (a launch mined on another lab run, or one a reorg removed).
+    defp collect_snapshot({:ok, {_auction, {:error, :lab_contract_missing}}}), do: []
 
-    defp collect_snapshot({:ok, {:error, reason}}, _snapshots),
-      do: {:halt, {:error, reason}}
+    defp collect_snapshot({:ok, {auction, {:error, reason}}}), do: skipped(auction, reason)
+    defp collect_snapshot({:exit, {auction, reason}}), do: skipped(auction, reason)
 
-    defp collect_snapshot({:exit, _reason}, _snapshots),
-      do: {:halt, {:error, :market_snapshot_failed}}
+    defp skipped(auction, reason) do
+      Logger.warning(
+        "revstake market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+      )
 
-    defp reverse_snapshots({:ok, snapshots}), do: {:ok, Enum.reverse(snapshots)}
-    defp reverse_snapshots(error), do: error
+      []
+    end
 
     defp snapshot(%{config: config, block: block, rpc_opts: opts}, auction) do
       address = auction.auction_address
@@ -583,7 +592,7 @@ defmodule Autolaunch.LabMarketFeed do
            {:ok, start_block} <- call_uint(config, address, "startBlock()", block, opts),
            {:ok, end_block} <- call_uint(config, address, "endBlock()", block, opts),
            {:ok, claim_block} <- call_uint(config, address, "claimBlock()", block, opts),
-           {:ok, graduated?} <- call_bool(config, address, "isGraduated()", block, opts),
+           {:ok, minimum_reached} <- call_bool(config, address, "isGraduated()", block, opts),
            {:ok, clearing_price} <- call_uint(config, address, "clearingPrice()", block, opts),
            {:ok, currency_raised} <- call_uint(config, address, "currencyRaised()", block, opts),
            {:ok, remaining_supply} <- call_uint(config, address, "remainingSupply()", block, opts),
@@ -607,7 +616,7 @@ defmodule Autolaunch.LabMarketFeed do
            %{
              auction_id: auction.id,
              auction_address: String.downcase(address),
-             state: market_state(auction.state, lifecycle, graduated?, block.number, start_block),
+             state: MarketState.observed(lifecycle, block.number, start_block, end_block),
              current_clearing_price: Lab.format_price(clearing_price),
              price_quote: price_quote,
              block_number: block.number,
@@ -617,7 +626,7 @@ defmodule Autolaunch.LabMarketFeed do
              claim_block: claim_block,
              currency_raised: Rpc.format_units(currency_raised, 18),
              remaining_supply: Rpc.format_units(remaining_supply, 18),
-             graduated?: graduated?,
+             minimum_reached: minimum_reached,
              pool_id: pool_id(Enum.at(distribution, 16)),
              positions: positions
            }}
@@ -656,16 +665,6 @@ defmodule Autolaunch.LabMarketFeed do
       )
     end
 
-    defp market_state(_current, 2, _graduated?, _block, _start), do: :graduated
-    defp market_state(_current, 3, _graduated?, _block, _start), do: :failed
-    defp market_state(_current, _lifecycle, true, _block, _start), do: :graduated
-    defp market_state(:active, _lifecycle, _graduated?, _block, _start), do: :active
-
-    defp market_state(_current, _lifecycle, _graduated?, block, start) when block >= start,
-      do: :active
-
-    defp market_state(_current, _lifecycle, _graduated?, _block, _start), do: :created
-
     defp pool_id(0), do: nil
 
     defp pool_id(value) when is_integer(value) and value > 0 do
@@ -683,6 +682,7 @@ defmodule Autolaunch.LabMarketFeed do
     alias Autolaunch
     alias Autolaunch.Actors.System, as: SystemActor
     alias Autolaunch.Auction
+    alias Autolaunch.Auction.MarketState
     alias Autolaunch.LabMarketFeed.Reader
 
     def project(snapshots, head, verifier \\ Reader) do
@@ -724,13 +724,18 @@ defmodule Autolaunch.LabMarketFeed do
     end
 
     defp refresh_snapshot(auction, snapshot, actor, changed) do
-      state = join_state(auction.state, snapshot.state)
-      price = snapshot.current_clearing_price
+      market = %{
+        state: MarketState.join(auction.state, snapshot.state),
+        price: snapshot.current_clearing_price,
+        minimum_reached: snapshot.minimum_reached
+      }
 
-      market_changed? = auction.state != state or auction.current_clearing_price != price
+      market_changed? =
+        auction.state != market.state or auction.current_clearing_price != market.price or
+          auction.minimum_reached != market.minimum_reached
 
       with {:ok, positions_changed?} <- Autolaunch.LabPositions.project(snapshot.positions),
-           :ok <- refresh_market(auction, market_changed?, state, price, actor),
+           :ok <- refresh_market(auction, market_changed?, market, actor),
            {:ok, price_changed?} <-
              Autolaunch.LabProjection.project_token_price(auction.id, snapshot.price_quote) do
         if market_changed? or positions_changed? or price_changed?,
@@ -744,11 +749,17 @@ defmodule Autolaunch.LabMarketFeed do
     # A launch the feed sees graduate becomes a public token in the same
     # transaction, so its pool page exists as soon as the auction says so, and
     # the token's price is the pool's from the same reading.
-    defp refresh_market(_auction, false, _state, _price, _actor), do: :ok
+    defp refresh_market(_auction, false, _market, _actor), do: :ok
 
-    defp refresh_market(auction, true, state, price, actor) do
+    defp refresh_market(auction, true, market, actor) do
       with {:ok, refreshed} <-
-             Autolaunch.refresh_lab_market_auction(auction, state, price, actor: actor),
+             Autolaunch.refresh_lab_market_auction(
+               auction,
+               market.state,
+               market.price,
+               %{minimum_reached: market.minimum_reached},
+               actor: actor
+             ),
            do: Autolaunch.LabProjection.project_graduated_token(refreshed)
     end
 
@@ -774,9 +785,5 @@ defmodule Autolaunch.LabMarketFeed do
     end
 
     defp rollback(reason), do: Ash.DataLayer.rollback(Auction, reason)
-
-    defp join_state(current, _observed) when current in [:graduated, :failed], do: current
-    defp join_state(:active, :created), do: :active
-    defp join_state(_current, observed), do: observed
   end
 end

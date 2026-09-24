@@ -1,0 +1,487 @@
+defmodule Autolaunch.Robinhood.MarketFeed do
+  @moduledoc """
+  Keeps the Robinhood launches in the `auctions` table: every second on the
+  local Robinhood lab, every fifteen seconds on the real chain.
+
+  Two things happen per poll, both in a background task:
+
+  - Discovery. Each new `launches(id)` record the Robinhood launchpad holds
+    becomes an `Auction` row (kind `:stocks`, the Robinhood chain id), upserted
+    on the chain-and-address identity. Robinhood lists every launchpad record,
+    so a launch made outside the site is a row too; it names a creator only
+    when exactly one account's signed-in wallet is its launcher. Launch ids only
+    grow, so a cursor remembers the next id to read.
+  - Refresh. A bounded page of Robinhood rows (`Autolaunch.MarketWatch`) is
+    read against the rollup block clock the contracts keep time by
+    (`Autolaunch.Robinhood.BlockClock`): state (`Autolaunch.Auction.MarketState`),
+    minimum reached and clearing price are written back; raised amount and
+    schedule are kept as per-auction readings.
+
+  This process is its own failure boundary. A Robinhood outage marks its
+  readings stale and leaves the stored rows as they are; nothing here touches
+  the Base feeds. Changes are broadcast on `topic/0`.
+  """
+
+  use GenServer
+
+  require Logger
+
+  alias Autolaunch.Actors.System
+  alias Autolaunch.Auction.MarketState
+  alias Autolaunch.Chain.Rpc
+  alias Autolaunch.MarketWatch
+  alias Autolaunch.Stocks.Amounts
+
+  @topic "autolaunch:robinhood_market"
+  @lab_interval 1_000
+  @mainnet_interval 15_000
+  @launch_page 200
+  @token_decimals 18
+  @actor %System{}
+
+  def topic, do: @topic
+
+  def start_link(options \\ []) do
+    case Keyword.get(options, :name, __MODULE__) do
+      nil -> GenServer.start_link(__MODULE__, options)
+      name -> GenServer.start_link(__MODULE__, options, name: name)
+    end
+  end
+
+  @doc """
+  The last readings by lowercase auction address, and whether they are stale
+  (the last poll could not read the chain). Answered at once.
+  """
+  def snapshot(server \\ __MODULE__), do: GenServer.call(server, :snapshot)
+
+  @doc "Asks for a poll now."
+  def refresh(server \\ __MODULE__) do
+    send(server, :poll)
+    :ok
+  end
+
+  @impl true
+  def init(options) do
+    state = %{
+      reader: Keyword.get(options, :reader, __MODULE__.Reader),
+      pubsub: Keyword.get(options, :pubsub, Autolaunch.PubSub),
+      poll?: Keyword.get(options, :poll?, true),
+      generation: 0,
+      head: nil,
+      stale?: false,
+      snapshots: %{},
+      cursors: %{watch: MarketWatch.new(), next_launch_id: 1},
+      in_flight: false,
+      timer: nil
+    }
+
+    {:ok, schedule(state, 0)}
+  end
+
+  @impl true
+  def handle_call(:snapshot, _from, state) do
+    {:reply,
+     %{
+       generation: state.generation,
+       head: state.head,
+       stale?: state.stale?,
+       auctions: state.snapshots
+     }, state}
+  end
+
+  @impl true
+  def handle_info(:poll, %{in_flight: false} = state) do
+    parent = self()
+    %{reader: reader, cursors: cursors} = state
+    Task.start(fn -> send(parent, {:refreshed, safely(fn -> poll(reader, cursors) end)}) end)
+    {:noreply, %{state | in_flight: true, timer: nil}}
+  end
+
+  def handle_info(:poll, state), do: {:noreply, state}
+
+  # A pass reads only part of the auctions, so its readings join the ones
+  # earlier passes took; each reading names the block it was taken at.
+  def handle_info({:refreshed, {:ok, refresh}}, state) do
+    snapshots = Map.merge(state.snapshots, refresh.snapshots)
+    changed = Enum.uniq(refresh.changed ++ changed_snapshot_ids(state.snapshots, snapshots))
+
+    state =
+      %{state | cursors: refresh.cursors, snapshots: snapshots, in_flight: false}
+      |> publish(changed != [] or state.stale? or state.head != refresh.head, %{
+        head: refresh.head,
+        stale?: false,
+        changed: changed
+      })
+
+    {:noreply, schedule(state, interval())}
+  end
+
+  def handle_info({:refreshed, {:error, reason}}, state) do
+    Logger.warning("robinhood market feed could not read the chain: #{inspect(reason)}")
+
+    state =
+      publish(%{state | in_flight: false}, not state.stale?, %{
+        head: state.head,
+        stale?: true,
+        changed: []
+      })
+
+    {:noreply, schedule(state, interval())}
+  end
+
+  defp publish(state, false, _update), do: state
+
+  defp publish(state, true, %{head: head, stale?: stale?, changed: changed}) do
+    generation = state.generation + 1
+
+    Phoenix.PubSub.broadcast(
+      state.pubsub,
+      @topic,
+      {:robinhood_market_updated,
+       %{
+         generation: generation,
+         auction_ids: changed,
+         stale?: stale?,
+         block_number: head && head.number,
+         block_hash: head && head.hash
+       }}
+    )
+
+    %{state | generation: generation, head: head, stale?: stale?}
+  end
+
+  @doc false
+  def poll(reader, %{watch: watch, next_launch_id: from}) do
+    with {:ok, head} <- reader.head(),
+         {:ok, discovered, next_launch_id} <- discover(reader, head, from),
+         {:ok, auctions, next_watch} <- MarketWatch.next(watch, head.chain_id, :stocks) do
+      {snapshots, changed} = refresh_auctions(reader, head, auctions)
+
+      {:ok,
+       %{
+         head: head.block,
+         snapshots: snapshots,
+         changed: discovered ++ changed,
+         cursors: %{watch: next_watch, next_launch_id: next_launch_id}
+       }}
+    end
+  end
+
+  # Launch ids start at 1 and only grow, so each poll reads the records after
+  # the last one it settled, a bounded number at a time. A record that cannot
+  # be read is logged and read again next poll; the ones after it are still
+  # read. A launchpad with fewer launches than the cursor is a new lab run.
+  defp discover(reader, head, from) do
+    with {:ok, next} <- reader.next_launch_id(head) do
+      from = if from > next, do: 1, else: from
+      ids = from..min(next - 1, from + @launch_page - 1)//1
+
+      results =
+        Enum.map(ids, fn id -> {id, safely(fn -> discover_launch(reader, head, id) end)} end)
+
+      {:ok, Enum.flat_map(results, &discovered/1),
+       settled_through(results, from + Enum.count(ids))}
+    end
+  end
+
+  defp discover_launch(reader, head, launch_id) do
+    with {:ok, launch} <- reader.launch(head, launch_id),
+         {:ok, nil} <- existing(head.chain_id, launch.auction),
+         {:ok, creator_id} <- creator(launch.launcher),
+         {:ok, auction} <- project(head, launch, creator_id) do
+      {:ok, auction.id}
+    else
+      {:ok, :exists} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp discovered({_id, {:ok, nil}}), do: []
+  defp discovered({_id, {:ok, auction_id}}), do: [auction_id]
+
+  defp discovered({id, {:error, reason}}) do
+    Logger.warning("robinhood market feed skipped launch #{id}: #{inspect(reason)}")
+    []
+  end
+
+  # A record the auctions table refuses (metadata outside its limits) will
+  # never fit, so it is settled; any other failure is read again.
+  defp settled_through(results, next_id) do
+    case Enum.find(results, &unsettled?/1) do
+      {id, _error} -> id
+      nil -> next_id
+    end
+  end
+
+  defp unsettled?({_id, {:error, %Ash.Error.Invalid{}}}), do: false
+  defp unsettled?({_id, {:error, _reason}}), do: true
+  defp unsettled?(_result), do: false
+
+  defp existing(chain_id, auction_address) do
+    case Autolaunch.get_auction_by_chain_address(chain_id, auction_address, actor: @actor) do
+      {:ok, nil} -> {:ok, nil}
+      {:ok, _row} -> {:ok, :exists}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # The launcher had to be its creator's signed-in wallet; the row names that
+  # account when exactly one account's signed-in wallet it still is.
+  defp creator(launcher) do
+    with {:ok, accounts} <-
+           Autolaunch.Accounts.list_human_accounts_by_signed_in_wallets(
+             [String.downcase(launcher)],
+             actor: @actor
+           ) do
+      case accounts do
+        [%{id: id}] -> {:ok, id}
+        _none_or_several -> {:ok, nil}
+      end
+    end
+  end
+
+  defp project(head, launch, creator_id) do
+    Autolaunch.project_lab_auction(
+      %{
+        kind: :stocks,
+        chain_id: head.chain_id,
+        auction_address: launch.auction,
+        creator_human_account_id: creator_id,
+        title: launch.name,
+        summary: launch.description,
+        token_symbol: String.slice(launch.symbol, 0, 16),
+        website: launch.website,
+        image: launch.image,
+        featured: false,
+        state:
+          MarketState.observed(launch.lifecycle, head.clock, launch.start_block, launch.end_block),
+        quote_token_address: launch.stock.address,
+        quote_token_symbol: launch.stock.symbol,
+        quote_token_decimals: launch.stock.decimals,
+        current_clearing_price: "0",
+        required_currency_raised: Integer.to_string(launch.required),
+        treasury_address: launch.launchpad
+      },
+      actor: @actor
+    )
+  end
+
+  # Each auction is read and written on its own: one that fails is logged and
+  # left as it is, and every other auction still refreshes.
+  defp refresh_auctions(reader, head, auctions) do
+    Enum.reduce(auctions, {%{}, []}, fn auction, collected ->
+      result = safely(fn -> refresh_auction(reader, head, auction) end)
+      collect_reading(result, auction, collected)
+    end)
+  end
+
+  defp collect_reading({:ok, reading, changed_id}, _auction, {snapshots, changed}),
+    do: {Map.put(snapshots, reading.auction_address, reading), List.wrap(changed_id) ++ changed}
+
+  defp collect_reading({:error, reason}, auction, collected) do
+    Logger.warning(
+      "robinhood market feed skipped auction #{auction.auction_address}: #{inspect(reason)}"
+    )
+
+    collected
+  end
+
+  defp refresh_auction(reader, head, auction) do
+    with {:ok, market} <- reader.market(head, auction.auction_address) do
+      decimals = auction.quote_token_decimals
+
+      observed =
+        MarketState.observed(market.lifecycle, head.clock, market.start_block, market.end_block)
+
+      reading = %{
+        auction_id: auction.id,
+        auction_address: String.downcase(auction.auction_address),
+        launch_id: market.launch_id,
+        state: MarketState.join(auction.state, observed),
+        minimum_reached: market.minimum_reached,
+        current_clearing_price:
+          Amounts.format_cca_price(market.clearing_price_q96, decimals, @token_decimals),
+        currency_raised: Rpc.format_units(market.currency_raised, decimals),
+        start_block: market.start_block,
+        end_block: market.end_block,
+        clock: head.clock,
+        block_number: head.block.number,
+        block_hash: head.block.hash
+      }
+
+      with {:ok, changed_id} <- write(auction, reading), do: {:ok, reading, changed_id}
+    end
+  end
+
+  defp write(auction, reading) do
+    if auction.state == reading.state and
+         auction.current_clearing_price == reading.current_clearing_price and
+         auction.minimum_reached == reading.minimum_reached do
+      {:ok, nil}
+    else
+      with {:ok, _row} <-
+             Autolaunch.refresh_lab_market_auction(
+               auction,
+               reading.state,
+               reading.current_clearing_price,
+               %{minimum_reached: reading.minimum_reached},
+               actor: @actor
+             ),
+           do: {:ok, auction.id}
+    end
+  end
+
+  defp changed_snapshot_ids(previous, current) do
+    for {address, snapshot} <- current,
+        Map.get(previous, address) != snapshot,
+        do: snapshot.auction_id
+  end
+
+  defp interval,
+    do: if(Autolaunch.Robinhood.Lab.test_chain?(), do: @lab_interval, else: @mainnet_interval)
+
+  defp schedule(%{poll?: false} = state, _delay), do: state
+
+  defp schedule(state, delay) do
+    if state.timer, do: Process.cancel_timer(state.timer)
+    %{state | timer: Process.send_after(self(), :poll, delay)}
+  end
+
+  defp safely(callback) do
+    callback.()
+  rescue
+    error -> {:error, error}
+  catch
+    kind, reason -> {:error, {kind, reason}}
+  end
+
+  defmodule Reader do
+    @moduledoc """
+    The Robinhood chain as the feed reads it, all at one pinned block: the
+    head and its rollup clock, one launch record with its token's name,
+    symbol and metadata, and one auction's market.
+    """
+
+    alias Autolaunch.Chain.{Abi, Rpc}
+    alias Autolaunch.LabAbi
+    alias Autolaunch.Robinhood.{BlockClock, Lab}
+    alias Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+    alias Autolaunch.Stocks.Assets
+
+    # `launches(id)`: launcher, newToken, currency (the stock), auction,
+    # startBlock, endBlock, claimBlock, migrationBlock, requiredRaise,
+    # floorPriceQ96, lifecycle, ...
+    @lifecycle_index 10
+
+    def head do
+      with {:ok, config} <- Lab.current(),
+           opts = Lab.rpc_opts(config),
+           {:ok, block} <- Rpc.latest_block(opts),
+           {:ok, clock} <- BlockClock.read(block, opts) do
+        {:ok,
+         %{config: config, opts: opts, chain_id: config.chain_id, block: block, clock: clock}}
+      end
+    end
+
+    def next_launch_id(head), do: launchpad_uint(head, "nextLaunchId()", [])
+
+    def launch(head, launch_id) do
+      with {:ok, words} <- launch_words(head, launch_id),
+           {:ok, launcher} <- Abi.word_address(Enum.at(words, 0)),
+           {:ok, token} <- Abi.word_address(Enum.at(words, 1)),
+           {:ok, stock_address} <- Abi.word_address(Enum.at(words, 2)),
+           {:ok, auction} <- Abi.word_address(Enum.at(words, 3)),
+           {:ok, stock} <- Assets.fetch(head.chain_id, stock_address),
+           {:ok, name} <- token_string(head, token, "name()"),
+           {:ok, symbol} <- token_string(head, token, "symbol()"),
+           {:ok, metadata} <- metadata(head, token) do
+        {:ok,
+         %{
+           launch_id: launch_id,
+           launcher: launcher,
+           token: token,
+           auction: auction,
+           launchpad: Lab.address!(head.config, :stocks_launchpad),
+           stock: stock,
+           name: name,
+           symbol: symbol,
+           description: metadata["description"],
+           website: metadata["website"],
+           image: metadata["image"],
+           start_block: Enum.at(words, 4),
+           end_block: Enum.at(words, 5),
+           required: Enum.at(words, 8),
+           lifecycle: Enum.at(words, @lifecycle_index)
+         }}
+      else
+        :error -> {:error, :invalid_chain_response}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+
+    def market(head, auction) do
+      with {:ok, launch_id} <- launchpad_uint(head, "launchIdOfAuction(address)", [auction]),
+           {:ok, words} <- launch_words(head, launch_id),
+           {:ok, minimum_reached} <-
+             Rpc.call_bool(auction, auction_call(head, "isGraduated()"), head.block, head.opts),
+           {:ok, clearing} <-
+             Rpc.call_uint(auction, auction_call(head, "clearingPrice()"), head.block, head.opts),
+           {:ok, raised} <-
+             Rpc.call_uint(auction, auction_call(head, "currencyRaised()"), head.block, head.opts) do
+        {:ok,
+         %{
+           launch_id: launch_id,
+           lifecycle: Enum.at(words, @lifecycle_index),
+           start_block: Enum.at(words, 4),
+           end_block: Enum.at(words, 5),
+           minimum_reached: minimum_reached,
+           clearing_price_q96: clearing,
+           currency_raised: raised
+         }}
+      end
+    end
+
+    # The token's `tokenURI()` is a base64 JSON object holding only the
+    # metadata fields the launch filled in.
+    defp metadata(head, token) do
+      with {:ok, "data:application/json;base64," <> encoded} <-
+             token_string(head, token, "tokenURI()"),
+           {:ok, json} <- Base.decode64(encoded),
+           {:ok, %{} = metadata} <- Jason.decode(json) do
+        {:ok, metadata}
+      else
+        {:error, reason} when is_atom(reason) -> {:error, reason}
+        _malformed -> {:error, :invalid_chain_response}
+      end
+    end
+
+    defp token_string(head, token, signature),
+      do: Rpc.call_string(token, LabAbi.selector(signature), head.block, head.opts)
+
+    defp auction_call(head, signature),
+      do: LabAbi.encode(Lab.abi!(head.config, :auction), signature, [])
+
+    defp launch_words(head, launch_id) do
+      Rpc.call_words(
+        Lab.address!(head.config, :stocks_launchpad),
+        LabAbi.encode(
+          Lab.abi!(head.config, :stocks_launchpad),
+          "launches(uint256)",
+          [launch_id]
+        ),
+        head.block,
+        RobinhoodLabAbi.launch_record_words(),
+        head.opts
+      )
+    end
+
+    defp launchpad_uint(head, signature, arguments) do
+      Rpc.call_uint(
+        Lab.address!(head.config, :stocks_launchpad),
+        LabAbi.encode(Lab.abi!(head.config, :stocks_launchpad), signature, arguments),
+        head.block,
+        head.opts
+      )
+    end
+  end
+end

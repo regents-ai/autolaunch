@@ -26,6 +26,7 @@ defmodule Autolaunch.Application do
       autolaunch_jobs_child(),
       autolaunch_lab_market_feed_child(),
       autolaunch_stocks_lab_market_feed_child(),
+      autolaunch_robinhood_market_feed_child(),
       # Start a worker by calling: Autolaunch.Worker.start_link(arg)
       # {Autolaunch.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -89,6 +90,18 @@ defmodule Autolaunch.Application do
          true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
          {:ok, _config} <- Autolaunch.Stocks.Lab.current() do
       Autolaunch.Stocks.LabMarketFeed
+    else
+      _disabled -> nil
+    end
+  end
+
+  # The Robinhood feed runs whenever a Robinhood deployment is described. It is
+  # its own child, so a Robinhood outage never reaches the Base feeds.
+  defp autolaunch_robinhood_market_feed_child do
+    with false <- Autolaunch.Prelaunch.read_only?(),
+         true <- Application.get_env(:autolaunch, :database_startup_enabled, false),
+         true <- Autolaunch.Robinhood.Lab.configured?() do
+      Autolaunch.Robinhood.MarketFeed
     else
       _disabled -> nil
     end
