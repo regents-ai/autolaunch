@@ -3,7 +3,7 @@
 What changed on autolaunch.sh, newest first. Each entry names the live version on Fly
 (`autolaunch-sh`) and the commit it was built from.
 
-## v25, 24 September 2026
+## v25, 24 September 2026 (864624e)
 - The time bar on auction cards fills again: the site now records when each auction opened, so
   the bar shows how much of its time has passed.
 - Card links show a small logo for what each is (X, ENS, GitHub, website, wallet) and no
