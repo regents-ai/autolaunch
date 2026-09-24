@@ -4,7 +4,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
 
   attr :id, :string, required: true
   attr :token, :map, required: true
-  attr :amount, :string, default: nil, doc: "an amount chosen before the panel opened"
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
@@ -34,7 +33,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
         symbol={@presentation.symbol}
         image={@presentation.image}
         currency={AutolaunchWeb.SwapComponent.entry_symbol(@token.auction)}
-        preset_amount={@amount}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}
@@ -45,7 +43,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
 
   attr :id, :string, required: true
   attr :auction, :map, required: true
-  attr :amount, :string, default: nil, doc: "an amount chosen before the panel opened"
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
@@ -70,7 +67,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
         module={AutolaunchWeb.BidComponent}
         id={@id <> "-input"}
         auction={@auction}
-        preset_amount={@amount}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}
@@ -81,7 +77,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
 
   attr :id, :string, required: true
   attr :auction, :map, required: true, doc: "a listed Robinhood auction row"
-  attr :amount, :string, default: nil, doc: "an amount chosen before the panel opened"
   attr :authenticated, :boolean, default: false
   attr :current_human_id, :integer, default: nil
   attr :session_lease, :map, default: nil
@@ -107,7 +102,6 @@ defmodule AutolaunchWeb.Components.SwapModal do
         id={@id <> "-input"}
         auction={@auction.auction_address}
         token_symbol={@auction.token_symbol}
-        preset_amount={@amount}
         authenticated={@authenticated}
         current_human_id={@current_human_id}
         session_lease={@session_lease}
