@@ -422,7 +422,7 @@ defmodule AutolaunchWeb.HomeLive do
             record={record}
             creator_connections={connections_for(record, @creators)}
             trade_event="open_trade"
-            rate={if @kind == :auction, do: figure_rate(@rates, record)}
+            rate={figure_rate(@rates, if(@kind == :auction, do: record, else: record.auction))}
           />
         </div>
         <.auction_list
