@@ -33,7 +33,8 @@ defmodule Autolaunch.HomeMarket do
       |> Map.new(fn {key, value} -> {to_string(key), value} end)
       |> options()
 
-    defaults = options(%{})
+    # /auctions and /tokens name their view in the route itself.
+    defaults = if base == "/", do: options(%{}), else: options(%{"view" => params.view})
 
     query =
       params

@@ -2,15 +2,11 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
   @moduledoc false
   use AutolaunchWeb, :html
 
-  import AutolaunchWeb.Components.MarketCard
-
   alias Autolaunch.Accounts.XOAuth
   alias Autolaunch.Actors.Human
-  alias Autolaunch.Lab
   alias Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias Autolaunch.Token
   alias Autolaunch.TreasurySecurity
-  alias AutolaunchWeb.SwapComponent
 
   def read_index(reader) do
     case reader.() do
@@ -49,42 +45,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       {:error, _reason} ->
         x
     end
-  end
-
-  attr :title, :string, required: true
-  attr :kind, :atom, required: true
-  attr :records, :list, required: true
-  attr :empty_copy, :string, required: true
-
-  def market_feed(assigns) do
-    ~H"""
-    <section class="autolaunch-feed" aria-label={@title}>
-      <header>
-        <h3>{@title}</h3>
-        <span>{length(@records)} shown</span>
-      </header>
-      <p :if={@records == []} class="autolaunch-feed__empty">{@empty_copy}</p>
-      <ol :if={@records != []}>
-        <li :for={record <- @records}>
-          <.link navigate={record_path(@kind, record.id)}>
-            <span class="autolaunch-feed__status">{market_status(@kind, record)}</span>
-            <strong>{record_label(@kind, record)}</strong>
-            <span class="autolaunch-feed__summary">
-              {record_summary(@kind, record) || record_fallback(@kind)}
-            </span>
-            <span class="autolaunch-feed__metric">{market_metric(@kind, record)}</span>
-            <span class="autolaunch-feed__action">{market_action(@kind)}
-            <span aria-hidden="true">→</span></span>
-          </.link>
-          <.treasury_security
-            :if={!Lab.test_chain?()}
-            report={report(record)}
-            surface={"overview-#{@kind}-#{record.id}"}
-          />
-        </li>
-      </ol>
-    </section>
-    """
   end
 
   attr :report, :any, default: nil
@@ -161,27 +121,12 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
     """
   end
 
-  def record_path(:auction, id), do: "/auctions/#{id}"
-  def record_path(:token, id), do: "/tokens/#{id}"
-  def record_path(:launch, id), do: "/launches/#{id}"
-  def record_path(:subject, id), do: "/subjects/#{id}"
-  def record_path(:portfolio, _id), do: "/portfolio"
-
   def record_label(:auction, record), do: record.title
 
   def record_label(:token, record) do
     presentation = Token.presentation(record)
     "#{presentation.name} · #{presentation.symbol}"
   end
-
-  def record_summary(:auction, record), do: record.summary
-  def record_summary(:token, record), do: Token.presentation(record).summary
-
-  def record_fallback(:auction), do: "No public summary yet."
-  def record_fallback(:token), do: "No public token summary yet."
-
-  def empty_market_copy("", fallback), do: fallback
-  def empty_market_copy(_query, _fallback), do: "No matching auctions or tokens."
 
   def connections_for(%{creator_human_account_id: id}, grouped) when is_integer(id),
     do: Map.get(grouped, id, %{})
@@ -191,23 +136,6 @@ defmodule AutolaunchWeb.Components.AutolaunchHelpers do
       do: Map.get(grouped, id, %{})
 
   def connections_for(_record, _grouped), do: %{}
-
-  def market_status(:auction, record), do: state_label(record.state)
-  def market_status(:token, _record), do: "Graduated"
-
-  def market_metric(:auction, %{current_clearing_price: price})
-      when is_binary(price) and price != "",
-      do: "Clearing price #{price}"
-
-  def market_metric(:auction, _record), do: "Price forming"
-
-  def market_metric(:token, %{price_quote: price} = token) when is_binary(price) and price != "",
-    do: "Price #{price} #{SwapComponent.entry_symbol(token.auction)}"
-
-  def market_metric(:token, _record), do: "Market price pending"
-
-  def market_action(:auction), do: "View auction"
-  def market_action(:token), do: "View token"
 
   def auction_market_snapshot(%{auctions: auctions}, %{auction_address: address})
       when is_binary(address),
